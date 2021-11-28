@@ -1,11 +1,13 @@
 #ifndef MARCO_RUNTIME_MANGLING_H
 #define MARCO_RUNTIME_MANGLING_H
 
-typedef float (*float_function)(float);
-typedef double (*double_function)(double);
+typedef float (*float_residual)(float, float*, float*, int32_t*);
+typedef double (*double_residual)(double, double*, double*, int64_t*);
+typedef float (*float_jacobian)(float, float*, float*, int32_t*, float, int32_t);
+typedef double (*double_jacobian)(double, double*, double*, int64_t*, double, int64_t);
 
-#define NUM_ARGS_H1(dummy, x9, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
-#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define NUM_ARGS_H1(dummy, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
+#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 #define APPLY0(t, n, dummy)
 #define APPLY1(t, n, a) t(n, a)
@@ -82,13 +84,18 @@ typedef double (*double_function)(double);
 #define PTR_float_MANGLED _pf32
 #define PTR_double_MANGLED _pf64
 
-#define FUNCTION(type) FUNCTION_ ##type
+#define RESIDUAL(type) RESIDUAL_ ##type
+#define JACOBIAN(type) JACOBIAN_ ##type
 
-#define FUNCTION_float_CPP float_function
-#define FUNCTION_double_CPP double_function
+#define RESIDUAL_float_CPP float_residual
+#define RESIDUAL_double_CPP double_residual
+#define JACOBIAN_float_CPP float_jacobian
+#define JACOBIAN_double_CPP double_jacobian
 
-#define FUNCTION_float_MANGLED _f32ptr
-#define FUNCTION_double_MANGLED _f64ptr
+#define RESIDUAL_float_MANGLED _f32ptr
+#define RESIDUAL_double_MANGLED _f64ptr
+#define JACOBIAN_float_MANGLED _f32ptr
+#define JACOBIAN_double_MANGLED _f64ptr
 
 #define TYPE_MANGLED(n, type) type ##_MANGLED
 #define TYPES_MANGLED(...) APPLY_ALL(TYPE_MANGLED, __VA_ARGS__)

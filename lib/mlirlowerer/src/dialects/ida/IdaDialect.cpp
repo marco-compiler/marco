@@ -6,7 +6,9 @@ using namespace marco::codegen::ida;
 IdaDialect::IdaDialect(mlir::MLIRContext* context)
 		: Dialect("ida", context, mlir::TypeID::get<IdaDialect>())
 {
-	addTypes<BooleanType, IntegerType, RealType, OpaquePointerType>();
+	addTypes<BooleanType, IntegerType, RealType>();
+	addTypes<OpaquePointerType, IntegerPointerType, RealPointerType>();
+
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
 
 	// Allocation, initialization, usage and deletion.
@@ -32,41 +34,13 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	// Getters.
 	addOperations<GetTimeOp, UpdateVariableOp, UpdateDerivativeOp>();
 
-	// Lambda constructions.
+	// Residual and Jacobian construction helpers.
 	addOperations<
-			LambdaConstantOp,
-			LambdaTimeOp,
-			LambdaInductionOp,
-			LambdaVariableOp,
-			LambdaDerivativeOp>();
-
-	addOperations<
-			LambdaAddOp,
-			LambdaSubOp,
-			LambdaMulOp,
-			LambdaDivOp,
-			LambdaPowOp,
-			LambdaNegateOp,
-			LambdaAbsOp,
-			LambdaSignOp,
-			LambdaSqrtOp,
-			LambdaExpOp,
-			LambdaLogOp,
-			LambdaLog10Op>();
-
-	addOperations<
-			LambdaSinOp,
-			LambdaCosOp,
-			LambdaTanOp,
-			LambdaAsinOp,
-			LambdaAcosOp,
-			LambdaAtanOp,
-			LambdaAtan2Op,
-			LambdaSinhOp,
-			LambdaCoshOp,
-			LambdaTanhOp>();
-	
-	addOperations<LambdaCallOp, LambdaAddressOfOp>();
+		ResidualFunctionOp,
+		JacobianFunctionOp,
+		FunctionTerminatorOp,
+		FuncAddressOfOp,
+		LoadPointerOp>();
 
 	// Statistics.
 	addOperations<PrintStatisticsOp>();

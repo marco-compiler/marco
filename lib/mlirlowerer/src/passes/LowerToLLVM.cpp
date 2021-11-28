@@ -942,25 +942,37 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 	}
 };
 
-struct LambdaAddressOfOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LambdaAddressOfOp>
+struct FuncAddressOfOpLowering : public mlir::ConvertOpToLLVMPattern<ida::FuncAddressOfOp>
 {
-	using mlir::ConvertOpToLLVMPattern<ida::LambdaAddressOfOp>::ConvertOpToLLVMPattern;
+	using mlir::ConvertOpToLLVMPattern<ida::FuncAddressOfOp>::ConvertOpToLLVMPattern;
 
-	mlir::LogicalResult matchAndRewrite(ida::LambdaAddressOfOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(ida::FuncAddressOfOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
 
 		if (mlir::LLVM::LLVMFuncOp function = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.callee()))
 		{
-			assert(function.getNumArguments() == 1 && function.getNumResults() == 1);
-
-			// Create a pointer of type "double (double)*" to the mlir LLVMFuncOp
+			assert(function.getNumResults() == 1);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, function);
-
 			return mlir::success();
 		}
 
 		return mlir::failure();
+	}
+};
+
+struct LoadPointerOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LoadPointerOp>
+{
+	using mlir::ConvertOpToLLVMPattern<ida::LoadPointerOp>::ConvertOpToLLVMPattern;
+
+	mlir::LogicalResult matchAndRewrite(ida::LoadPointerOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Type pointerType = getTypeConverter()->convertType(op.pointer().getType());
+
+		mlir::Value indArray = rewriter.create<mlir::LLVM::GEPOp>(op.getLoc(), pointerType, op.pointer(), op.offset());
+		rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(op, indArray);
+
+		return mlir::success();
 	}
 };
 
@@ -981,7 +993,8 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			CastOpIntegerLowering,
 			CastOpRealLowering,
 			ArrayCastOpLowering,
-			LambdaAddressOfOpLowering>(typeConverter);
+			FuncAddressOfOpLowering,
+			LoadPointerOpLowering>(typeConverter);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>

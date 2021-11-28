@@ -2,7 +2,6 @@
 #include <mlir/Conversion/LLVMCommon/Pattern.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
@@ -1676,6 +1675,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		registry.insert<IdaDialect>();
 		registry.insert<ModelicaDialect>();
 		registry.insert<mlir::scf::SCFDialect>();
+		registry.insert<mlir::StandardOpsDialect>();
 		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
 
@@ -1693,13 +1693,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		mlir::BlockAndValueMapping derivatives;
 
 		getOperation()->walk([&](SimulationOp simulation) {
-			mlir::OpBuilder builder(simulation);
-
 			// Create the model
 			Model model = Model::build(simulation);
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(builder, model, derivatives, getOperation())))
+			if (failed(removeDerivatives(model, derivatives, getOperation())))
 				return signalPassFailure();
 
 			// Match
@@ -1729,21 +1727,21 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Calculate the values that the state variables will have in the next
 			// iteration.
 			if (options.solver == ForwardEuler)
-				if (failed(updateStates(builder, model)))
+				if (failed(updateStates(model)))
 					return signalPassFailure();
 
 			// In order to hide trivial variable from the IDA solver, all trivial
 			// variables present in non-trivial equations must be substituted with
 			// the corresponding equation that computes them.
 			if (options.solver == CleverDAE)
-				if (failed(substituteTrivialVariables(builder, model)))
+				if (failed(substituteTrivialVariables(model)))
 					return signalPassFailure();
 
 			// Add IDA to the module. This consists in adding all the necessary calls
 			// to the runtime library which will handle the allocation, interacion and
 			// deallocation of the classes required by IDA.
 			if (options.solver == CleverDAE)
-				if (failed(addIdaSolver(builder, model)))
+				if (failed(addIdaSolver(model)))
 					return signalPassFailure();
 		});
 
@@ -1838,11 +1836,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * Remove the derivative operations by replacing them with appropriate
 	 * buffers, and set the derived variables as state variables.
 	 *
-	 * @param builder operation builder
-	 * @param model   model
+	 * @param model model
 	 * @return conversion result
 	 */
-	static mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives, mlir::ModuleOp moduleOp)
+	static mlir::LogicalResult removeDerivatives(Model& model, mlir::BlockAndValueMapping& derivatives, mlir::ModuleOp moduleOp)
 	{
 		mlir::ConversionTarget target(*moduleOp.getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
@@ -1882,14 +1879,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
+	static mlir::LogicalResult updateStates(Model& model)
 	{
 		// If the model contains algebraic loops, Forward Euler cannot solve this
 		// model, an other solver must be used.
 		if (!model.getBltBlocks().empty())
 			return model.getOp()->emitError("Algebraic loops or implicit equations are present, the selected solver cannot be used");
 
-		mlir::OpBuilder::InsertionGuard guard(builder);
+		mlir::OpBuilder builder(model.getOp().getContext());
 		mlir::Location loc = model.getOp()->getLoc();
 
 		// Theoretically, given a state variable x and the current step time n,
@@ -1962,8 +1959,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static mlir::LogicalResult substituteTrivialVariables(mlir::OpBuilder& builder, Model& model)
+	static mlir::LogicalResult substituteTrivialVariables(Model& model)
 	{
+		mlir::OpBuilder builder(model.getOp().getContext());
 		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
 
 		// Add all trivial variables to a map in order to retrieve later the 
@@ -2088,146 +2086,21 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static std::string getPartialDerFunctionName(llvm::StringRef baseName)
+	static std::string getResidualFunctionName(int64_t num)
 	{
-		return "pder_" + baseName.str();
+		return "residual_function_" + std::to_string(num);
 	}
 
-	static mlir::Value getFunction(
-			mlir::OpBuilder& builder,
-			mlir::Location loc,
-			Model& model,
-			mlir::Value userData,
-			std::map<std::pair<Variable, VectorAccess>, mlir::Value> accessesMap,
-			const Expression& expression)
+	static std::string getJacobianFunctionName(int64_t num)
 	{
-		mlir::MLIRContext* context = model.getOp().getContext();
-		mlir::Operation* definingOp = expression.getOp();
-
-		// Constant value.
-		if (auto op = mlir::dyn_cast<ConstantOp>(definingOp))
-		{
-			mlir::Value value = builder.clone(*op)->getResult(0);
-			return builder.create<LambdaConstantOp>(loc, userData, value);
-		}
-
-		// Induction argument.
-		if (expression.isInduction())
-		{
-			unsigned int argNumber = expression.get<Induction>().getArgument().getArgNumber();
-			mlir::Value induction = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, argNumber));
-			return builder.create<LambdaInductionOp>(loc, userData, induction);
-		}
-
-		// Variable reference.
-		if (expression.isReferenceAccess())
-		{
-			// Compute the IDA offset of the variable in the 1D array variablesVector.
-			Variable var = model.getVariable(expression.getReferredVectorAccess());
-
-			// Time variable.
-			if (var.isTime())
-				return builder.create<LambdaTimeOp>(loc, userData);
-
-			VectorAccess vectorAccess = AccessToVar::fromExp(expression).getAccess();
-
-			assert(accessesMap.find({ var, vectorAccess }) != accessesMap.end());
-
-			mlir::Value accessIndex = accessesMap[{ var, vectorAccess }];
-
-			if (var.isDerivative())
-				return builder.create<LambdaDerivativeOp>(loc, userData, accessIndex);
-			else
-				return builder.create<LambdaVariableOp>(loc, userData, accessIndex);
-		}
-
-		// Get the lambda functions to compute the values of all the children.
-		llvm::SmallVector<mlir::Value, 2> children;
-		for (size_t i : marco::irange(expression.childrenCount()))
-			children.push_back(getFunction(builder, loc, model, userData, accessesMap, expression.getChild(i)));
-
-		if (mlir::isa<AddOp>(definingOp))
-			return builder.create<LambdaAddOp>(loc, userData, children[0], children[1]);
-
-		if (mlir::isa<SubOp>(definingOp))
-			return builder.create<LambdaSubOp>(loc, userData, children[0], children[1]);
-
-		if (mlir::isa<MulOp>(definingOp))
-			return builder.create<LambdaMulOp>(loc, userData, children[0], children[1]);
-
-		if (mlir::isa<DivOp>(definingOp))
-			return builder.create<LambdaDivOp>(loc, userData, children[0], children[1]);
-
-		if (mlir::isa<PowOp>(definingOp))
-			return builder.create<LambdaPowOp>(loc, userData, children[0], children[1]);
-
-		if (mlir::isa<Atan2Op>(definingOp))
-			return builder.create<LambdaAtan2Op>(loc, userData, children[0], children[1]);
-
-		if (mlir::isa<NegateOp>(definingOp))
-			return builder.create<LambdaNegateOp>(loc, userData, children[0]);
-
-		if (mlir::isa<AbsOp>(definingOp))
-			return builder.create<LambdaAbsOp>(loc, userData, children[0]);
-
-		if (mlir::isa<SignOp>(definingOp))
-			return builder.create<LambdaSignOp>(loc, userData, children[0]);
-
-		if (mlir::isa<SqrtOp>(definingOp))
-			return builder.create<LambdaSqrtOp>(loc, userData, children[0]);
-
-		if (mlir::isa<ExpOp>(definingOp))
-			return builder.create<LambdaExpOp>(loc, userData, children[0]);
-
-		if (mlir::isa<LogOp>(definingOp))
-			return builder.create<LambdaLogOp>(loc, userData, children[0]);
-
-		if (mlir::isa<Log10Op>(definingOp))
-			return builder.create<LambdaLog10Op>(loc, userData, children[0]);
-
-		if (mlir::isa<SinOp>(definingOp))
-			return builder.create<LambdaSinOp>(loc, userData, children[0]);
-
-		if (mlir::isa<CosOp>(definingOp))
-			return builder.create<LambdaCosOp>(loc, userData, children[0]);
-
-		if (mlir::isa<TanOp>(definingOp))
-			return builder.create<LambdaTanOp>(loc, userData, children[0]);
-
-		if (mlir::isa<AsinOp>(definingOp))
-			return builder.create<LambdaAsinOp>(loc, userData, children[0]);
-
-		if (mlir::isa<AcosOp>(definingOp))
-			return builder.create<LambdaAcosOp>(loc, userData, children[0]);
-
-		if (mlir::isa<AtanOp>(definingOp))
-			return builder.create<LambdaAtanOp>(loc, userData, children[0]);
-
-		if (mlir::isa<SinhOp>(definingOp))
-			return builder.create<LambdaSinhOp>(loc, userData, children[0]);
-
-		if (mlir::isa<CoshOp>(definingOp))
-			return builder.create<LambdaCoshOp>(loc, userData, children[0]);
-
-		if (mlir::isa<TanhOp>(definingOp))
-			return builder.create<LambdaTanhOp>(loc, userData, children[0]);
-
-		if (CallOp callOp = mlir::dyn_cast<CallOp>(definingOp))
-		{
-			ida::RealType realType = ida::RealType::get(builder.getContext());
-			std::string partialDerName = getPartialDerFunctionName(callOp.callee());
-			mlir::Value functionName = builder.create<LambdaAddressOfOp>(loc, callOp.callee(), realType);
-			mlir::Value pderName = builder.create<LambdaAddressOfOp>(loc, partialDerName, realType);
-			return builder.create<LambdaCallOp>(loc, userData, children[0], functionName, pderName);
-		}
-
-		assert(false && "Unexpected operation");
+		return "jacobian_function_" + std::to_string(num);
 	}
 
-	mlir::LogicalResult addIdaSolver(mlir::OpBuilder& builder, Model& model)
+	mlir::LogicalResult addIdaSolver(Model& model)
 	{
 		SimulationOp simulationOp = model.getOp();
 		mlir::MLIRContext* context = getOperation().getContext();
+		IdaBuilder builder(context);
 		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
 		builder.setInsertionPoint(terminator);
 		mlir::Location loc = terminator.getLoc();
@@ -2241,27 +2114,28 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		for (BltBlock& bltBlock : model.getBltBlocks())
 			equationsNumber += bltBlock.equationsCount();
 
-		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationsNumber));
+		mlir::Value neq = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(equationsNumber));
 		mlir::Value userData = builder.create<AllocDataOp>(loc, neq);
 
 		// Add start time, end time and time step.
-		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.startTime().getValue()));
-		mlir::Value endTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.endTime().getValue()));
+		mlir::Value startTime = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.startTime().getValue()));
+		mlir::Value endTime = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.endTime().getValue()));
 
 		double timeStepValue = options.equidistantTimeGrid ? simulationOp.timeStep().getValue() : -1;
-		mlir::Value timeStep = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, timeStepValue));
+		mlir::Value timeStep = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(timeStepValue));
 
 		builder.create<AddTimeOp>(loc, userData, startTime, endTime, timeStep);
 
 		// Add relative and absolute tolerances.
-		mlir::Value relTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.relTol().getValue()));
-		mlir::Value absTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.absTol().getValue()));
+		mlir::Value relTol = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.relTol().getValue()));
+		mlir::Value absTol = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.absTol().getValue()));
 		builder.create<AddToleranceOp>(loc, userData, relTol, absTol);
 
 		// Initialize IDA user data.
 		int64_t variableCount = 0;
 		int64_t variableOffset = 0;
 		int64_t equationCount = 0;
+		std::map<Variable, int64_t> offsetsMap;
 		std::map<Variable, mlir::Value> variableIndexMap;
 		std::map<std::pair<Variable, VectorAccess>, mlir::Value> accessesMap;
 
@@ -2279,18 +2153,25 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				if (variableIndexMap.find(var) == variableIndexMap.end())
 				{
 					// Initialize variableOffset, variableDimensions, variablesValues, derivativesValues, idValues.
-					mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, variableOffset));
-					mlir::Value isState = builder.create<ConstantValueOp>(loc, ida::BooleanAttribute::get(context, var.isState() || var.isDerivative()));
+					mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableOffset));
+					mlir::Value isState = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var.isState() || var.isDerivative()));
 					builder.create<AddVariableOp>(loc, userData, varOffsetOp, var.isDerivative() ? var.getState() : var.getReference(), isState);
 
 					// Store the variable index.
-					mlir::Value varIndex = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, variableCount++));
+					mlir::Value varIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableCount++));
+					offsetsMap[var] = variableOffset;
 					variableIndexMap[var] = varIndex;
 
 					if (var.isState())
+					{
+						offsetsMap[model.getVariable(var.getDerivative())] = variableOffset;
 						variableIndexMap[model.getVariable(var.getDerivative())] = varIndex;
+					}
 					else if (var.isDerivative())
+					{
+						offsetsMap[model.getVariable(var.getState())] = variableOffset;
 						variableIndexMap[model.getVariable(var.getState())] = varIndex;
+					}
 
 					// Increase the length of the current row.
 					variableOffset += var.toMultiDimInterval().size();
@@ -2303,7 +2184,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		{
 			for (Equation& equation : bltBlock.getEquations())
 			{
-				mlir::Value rowIndex = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationCount++));
+				mlir::Value rowIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(equationCount++));
 
 				ReferenceMatcher matcher(equation);
 				for (ExpressionPath& path : matcher)
@@ -2365,13 +2246,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			}
 		}
 
-		// Add to IDA the dimensions of each equation and the lambda functions needed
-		// to compute the residual function and the jacobian matrix of the system.
+		equationCount = 0;
+
+		// Add to IDA the dimensions of each equation. Create the two functions that
+		// compute the Residual and the Jacobian of each equation and pass the
+		// pointer to such functions to IDA.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 		{
 			for (Equation& equation : bltBlock.getEquations())
 			{
-				// Dimension
+				// Dimensions.
 				MultiDimInterval inductions = equation.getInductions();
 
 				ArrayType arrayType = ArrayType::get(
@@ -2393,23 +2277,33 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 				builder.create<AddEqDimensionOp>(loc, userData, start, end);
 
-				// Residual and Jacobian
-				mlir::Value leftIndex = getFunction(builder, loc, model, userData, accessesMap, equation.lhs());
-				mlir::Value rightIndex = getFunction(builder, loc, model, userData, accessesMap, equation.rhs());
-				builder.create<AddResidualOp>(loc, userData, leftIndex, rightIndex);
-				builder.create<AddJacobianOp>(loc, userData, leftIndex, rightIndex);
+				// Add Residual and Jacobian function to IDA.
+				std::string residualName = getResidualFunctionName(equationCount);
+				mlir::Value residualAddress = builder.create<FuncAddressOfOp>(loc, residualName, builder.getResidualFunctionType());
+				builder.create<AddResidualOp>(loc, userData, residualAddress);
+
+				std::string jacobianName = getJacobianFunctionName(equationCount++);
+				mlir::Value jacobianAddress = builder.create<FuncAddressOfOp>(loc, jacobianName, builder.getJacobianFunctionType());
+				builder.create<AddJacobianOp>(loc, userData, jacobianAddress);
+
+				// Create the Residual and Jacobian function.
+				mlir::OpBuilder::InsertionGuard guard(builder);
+				builder.setInsertionPoint(simulationOp);
+				builder.create<ResidualFunctionOp>(loc, residualName, model, equation, offsetsMap);
+				builder.create<JacobianFunctionOp>(loc, jacobianName, model, equation, offsetsMap);
 			}
 		}
 
 		assert(variableOffset == equationsNumber);
 
+		offsetsMap.clear();
 		accessesMap.clear();
 
-		mlir::Value threads = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, options.threads));
+		mlir::Value threads = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(options.threads));
 		builder.create<InitOp>(loc, userData, threads);
 
 		// Add userData inside the returned pointer in second position
-		mlir::Value userDataAlloc = builder.create<AllocOp>(loc, ida::OpaquePointerType::get(context), llvm::None, llvm::None, false, false);
+		mlir::Value userDataAlloc = builder.create<AllocOp>(loc, builder.getOpaquePointerType(), llvm::None, llvm::None, false, false);
 		builder.create<StoreOp>(loc, userData, userDataAlloc);
 
 		llvm::SmallVector<mlir::Value, 3> args = terminator.values();
@@ -2496,7 +2390,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			model = Model::build(simulation);
 			mlir::BlockAndValueMapping derivatives;
 
-			if (failed(removeDerivatives(builder, *model, derivatives, moduleOp)))
+			if (failed(removeDerivatives(*model, derivatives, moduleOp)))
 				model = llvm::None;
 		});
 
@@ -2528,11 +2422,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return llvm::None;
 
 		if (options.solver == ForwardEuler)
-			if (failed(updateStates(builder, *model)))
+			if (failed(updateStates(*model)))
 				return llvm::None;
 
 		if (options.solver == CleverDAE)
-			if (failed(substituteTrivialVariables(builder, *model)))
+			if (failed(substituteTrivialVariables(*model)))
 				return llvm::None;
 
 		return model;

@@ -34,11 +34,11 @@ RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int64_t, int64_t)
 RUNTIME_FUNC_DECL(addEqDimension, void, PTR(void), ARRAY(int32_t), ARRAY(int32_t))
 RUNTIME_FUNC_DECL(addEqDimension, void, PTR(void), ARRAY(int64_t), ARRAY(int64_t))
 
-RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DECL(addResidual, void, PTR(void), RESIDUAL(float))
+RUNTIME_FUNC_DECL(addResidual, void, PTR(void), RESIDUAL(double))
 
-RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), JACOBIAN(float))
+RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), JACOBIAN(double))
 
 //===----------------------------------------------------------------------===//
 // Variable setters
@@ -68,96 +68,6 @@ RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(int32_t))
 RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(int64_t))
 RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(float))
 RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(double))
-
-//===----------------------------------------------------------------------===//
-// Lambda constructions
-//===----------------------------------------------------------------------===//
-
-RUNTIME_FUNC_DECL(lambdaConstant, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaConstant, int64_t, PTR(void), int64_t)
-RUNTIME_FUNC_DECL(lambdaConstant, int32_t, PTR(void), float)
-RUNTIME_FUNC_DECL(lambdaConstant, int64_t, PTR(void), double)
-
-RUNTIME_FUNC_DECL(lambdaTime, int32_t, PTR(void))
-RUNTIME_FUNC_DECL(lambdaTime, int64_t, PTR(void))
-
-RUNTIME_FUNC_DECL(lambdaInduction, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaInduction, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaVariable, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaVariable, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaDerivative, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaDerivative, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaNegate, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaNegate, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaAdd, int32_t, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(lambdaAdd, int64_t, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(lambdaSub, int32_t, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(lambdaSub, int64_t, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(lambdaMul, int32_t, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(lambdaMul, int64_t, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(lambdaDiv, int32_t, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(lambdaDiv, int64_t, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(lambdaPow, int32_t, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(lambdaPow, int64_t, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(lambdaAtan2, int32_t, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(lambdaAtan2, int64_t, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(lambdaAbs, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaAbs, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaSign, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaSign, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaSqrt, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaSqrt, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaExp, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaExp, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaLog, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaLog, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaLog10, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaLog10, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaSin, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaSin, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaCos, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaCos, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaTan, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaTan, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaAsin, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaAsin, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaAcos, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaAcos, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaAtan, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaAtan, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaSinh, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaSinh, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaCosh, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaCosh, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaTanh, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(lambdaTanh, int64_t, PTR(void), int64_t)
-
-RUNTIME_FUNC_DECL(lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNCTION(float))
-RUNTIME_FUNC_DECL(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
 
 //===----------------------------------------------------------------------===//
 // Statistics
