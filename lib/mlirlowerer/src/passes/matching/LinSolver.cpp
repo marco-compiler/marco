@@ -311,6 +311,15 @@ namespace marco::codegen::model
 		AccessToVar var = source.getDeterminedVariable();
 		ReferenceMatcher matcher(destination);
 
+		// Normalize the source equation.
+		Equation normalizedSource = source.clone();
+		normalizedSource.normalize();
+
+		// Compute source access, inductions and interval.
+		VectorAccess sourceAccess = AccessToVar::fromExp(normalizedSource.lhs()).getAccess();
+		mlir::ValueRange sourceInductions = normalizedSource.getOp().inductions();
+		MultiDimInterval sourceIntervals = sourceAccess.map(normalizedSource.getInductions());
+
 		for (ExpressionPath& access : matcher)
 		{
 			AccessToVar pathToVar = AccessToVar::fromExp(access.getExpression());
@@ -318,20 +327,12 @@ namespace marco::codegen::model
 			if (pathToVar.getVar() != var.getVar())
 				continue;
 
-			// Normalize the source equation.
-			Equation normalizedSource = source.clone();
-			normalizedSource.normalize();
-
-			VectorAccess sourceAccess = AccessToVar::fromExp(normalizedSource.lhs()).getAccess();
+			// Compute destination access, inductions and interval.
 			VectorAccess destAccess = pathToVar.getAccess();
-
-			mlir::ValueRange sourceInductions = normalizedSource.getOp().inductions();
 			mlir::ValueRange destInductions = destination.getOp().inductions();
+			MultiDimInterval destIntervals = destAccess.map(destination.getInductions());
 
-			MultiDimInterval sourceIntervals = sourceAccess.map(normalizedSource.getInductions());
-			MultiDimInterval destinationIntervals = destAccess.map(destination.getInductions());
-
-			if (marco::areDisjoint(sourceIntervals, destinationIntervals))
+			if (!destIntervals.isFullyContained(sourceIntervals))
 				continue;
 
 			SubscriptionOp destSubOp = mlir::cast<SubscriptionOp>(access.getExpression().getOp());
@@ -413,10 +414,10 @@ namespace marco::codegen::model
 					use.set(clonedTerminator.rhs()[0]);
 				}
 			}
-
-			normalizedSource.erase();
 		}
 
+		// Delete the cloned source and update the solved destination.
+		normalizedSource.erase();
 		destination.restoreCanonicity();
 		destination.update();
 	}

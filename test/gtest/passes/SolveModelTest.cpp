@@ -1,5 +1,8 @@
 #include "gtest/gtest.h"
 #include <marco/mlirlowerer/passes/SolveModel.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
+#include <marco/mlirlowerer/passes/matching/Schedule.h>
 #include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
@@ -70,4 +73,36 @@ TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 			}
 		}
 	}
+}
+
+TEST(SolveModelTest, SimpleThermalDAE)
+{
+	std::string stringModel = "model SimpleThermalDAE "
+														"Real[4] T(start = 100); "
+														"Real[5] Q; "
+														"equation "
+														"for i in 1:4 loop "
+														"der(T[i]) = Q[i] - Q[i + 1]; "
+														"end for; "
+														"Q[1] = 10; "
+														"for i in 2:4 loop "
+														"Q[i] = T[i - 1] - T[i]; "
+														"end for; "
+														"Q[5] = 10; "
+														"end SimpleThermalDAE; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeModel(context, stringModel, model);
+
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 4);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	makeSolvedModel(context, stringModel, model);
+
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
+	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 3);
 }
