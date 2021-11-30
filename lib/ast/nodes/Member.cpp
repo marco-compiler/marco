@@ -174,3 +174,8 @@ bool Member::isOutput() const
 {
 	return typePrefix.isOutput();
 }
+
+TypePrefix Member::getTypePrefix() const
+{
+	return typePrefix;
+}

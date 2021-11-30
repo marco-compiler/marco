@@ -25,6 +25,7 @@ set(SOURCES
 		passes/ConstantFoldingPass.cpp
 		passes/PassManager.cpp
 		passes/TypeCheckingPass.cpp
+		passes/InliningPass.cpp
 		Errors.cpp
 		LexerStateMachine.cpp
 		Parser.cpp

@@ -56,6 +56,8 @@ namespace marco::ast
 		[[nodiscard]] bool isParameter() const;
 		[[nodiscard]] bool isInput() const;
 		[[nodiscard]] bool isOutput() const;
+		
+		[[nodiscard]] TypePrefix getTypePrefix() const;
 
 		private:
 		Member(
