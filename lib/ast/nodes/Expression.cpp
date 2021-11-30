@@ -33,6 +33,11 @@ Expression::Expression(Tuple content)
 {
 }
 
+Expression::Expression(RecordInstance content)
+		: content(std::move(content))
+{
+}
+
 Expression::Expression(const Expression& other)
 		: content(other.content)
 {
@@ -121,8 +126,6 @@ namespace marco::ast
 
 	std::string toString(const Expression& obj)
 	{
-		// TODO
-		return "";
-		//return obj.visit([](const auto& obj) { return toString(obj); });
+		return obj.visit([](const auto& obj) { return toString(obj); });
 	}
 }

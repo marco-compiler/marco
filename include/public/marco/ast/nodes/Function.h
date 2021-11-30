@@ -88,6 +88,13 @@ namespace marco::ast
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
+		
+		template<typename... Args>
+		static std::unique_ptr<StandardFunction> build(Args&&... args)
+		{
+			return std::unique_ptr<StandardFunction>(new StandardFunction(std::forward<Args>(args)...));
+		}
+
 		StandardFunction(const StandardFunction& other);
 		StandardFunction(StandardFunction&& other);
 		~StandardFunction() override;
@@ -121,7 +128,7 @@ namespace marco::ast
 		[[nodiscard]] const Annotation* getAnnotation() const;
 		
 		[[nodiscard]] bool shouldBeInlined() const;
-		[[nodiscard]] bool isRecordConstructor() const;
+		[[nodiscard]] bool isCustomRecordConstructor() const;
 		
 		[[nodiscard]] FunctionType getType() const;
 

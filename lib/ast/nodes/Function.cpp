@@ -358,9 +358,9 @@ bool StandardFunction::shouldBeInlined() const
 {
 	return hasAnnotation() ? getAnnotation()->getInlineProperty() : false;
 }
-bool StandardFunction::isRecordConstructor() const
+
+bool StandardFunction::isCustomRecordConstructor() const
 {
-	//TODO improve?
 	auto str = getName().str();
 	return str.find(".constructor.") != std::string::npos ||
 		   str.find(".'constructor'.") != std::string::npos;

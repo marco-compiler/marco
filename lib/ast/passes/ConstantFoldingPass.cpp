@@ -281,6 +281,13 @@ llvm::Error ConstantFolder::run<Tuple>(Expression& expression)
 	return llvm::Error::success();
 }
 
+template<>
+llvm::Error ConstantFolder::run<RecordInstance>(Expression& expression)
+{
+	assert(false && "RecordInstances not handled in the constant folding phase.");
+	return llvm::Error::success();
+}
+
 llvm::Error ConstantFolder::run(Member& member)
 {
 	if (member.hasInitializer())

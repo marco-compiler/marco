@@ -172,6 +172,9 @@ namespace marco::ast
 	llvm::Error TypeChecker::run<Tuple>(Expression& expression);
 
 	template<>
+	llvm::Error TypeChecker::run<RecordInstance>(Expression& expression);
+
+	template<>
 	llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement);
 
 	template<>

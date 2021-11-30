@@ -331,7 +331,7 @@ namespace marco::ast
 							 ")";
 
 			case OperationKind::memberLookup:
-				return "unknown";
+				return "(" + toString(*obj[0]) + " . " + toString(*obj[1]) + ")";
 
 			case OperationKind::powerOf:
 				return "(" + toString(*obj[0]) + " ^ " + toString(*obj[1]) + ")";

@@ -880,6 +880,11 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 		if (auto error = run(*member); error)
 			return error;
 
+		//remove the inline-ability of a record if a function using it is not inline-able
+		auto type = member->getType();
+		if (type.isa<Record*>() && !function->shouldBeInlined())
+			type.get<Record*>()->setAsNotInlineable();
+
 		// From Function reference:
 		// "Each input formal parameter of the function must be prefixed by the
 		// keyword input, and each result formal parameter by the keyword output.
@@ -896,7 +901,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 		// the body of the function."
 
 		//with the exception of constructors
-		if (member->isInput() && member->hasInitializer() && !function->isRecordConstructor())
+		if (member->isInput() && member->hasInitializer() && !function->isCustomRecordConstructor())
 			return llvm::make_error<AssignmentToInputMember>(
 					member->getInitializer()->getLocation(),
 					function->getName());
@@ -1377,6 +1382,11 @@ llvm::Error TypeChecker::run<Call>(Expression& expression)
 
 				if (const auto* partialDerFunction = cls->dyn_get<PartialDerFunction>())
 					return partialDerFunction->getType();
+
+				// calling the default record constructor
+				if (auto* record = cls->dyn_get<Record>())
+					return record->getDefaultConstructor().getType();
+
 			}
 
 			return llvm::None;
@@ -1519,7 +1529,6 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 		//handle records member lookup chain:  record.member.members_member
 		//we need to split the identifer in the single parts and check/iterate them
 
-		Member *member = nullptr;
 		if (name.find('.') != std::string::npos)
 		{
 			std::stringstream ss (name.str());
@@ -1528,24 +1537,36 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 			getline (ss, item, '.');
 			if(symbolTable.count(item)) {
 				auto symbol = symbolTable.lookup(item);
-				member = symbol.dyn_get<Member>();
+				const auto *member = symbol.dyn_get<Member>();
+
+				auto loc = expression.getLocation();
+				auto new_expression = Expression::reference(loc, member->getType(), item);
 
 				while(member && getline (ss, item, '.')){
 					auto t = member->getType();
+					auto memberName = Expression::reference(loc, makeType<std::string>(), item);
+
+					new_expression = Expression::operation(
+						loc, t, OperationKind::memberLookup,
+						llvm::ArrayRef({ std::move(new_expression), std::move(memberName) })
+					);
 
 					if(t.isa<Record*>()){
 						member = (*t.get<Record*>())[item];
 					}
 				}
 
+				if(member && !ss) {
+					new_expression->setType(member->getType());
+					expression = *new_expression;
+
+					//the type of the reference is the type of the last accessed member  
+					return llvm::Error::success();
+				}
 			}
 		}
 
-		if(!member)return llvm::make_error<NotFound>(reference->getLocation(), name);
-		
-		//the type of the reference is the type of the last accessed member  
-		expression.setType(member->getType());
-		return llvm::Error::success();
+		return llvm::make_error<NotFound>(reference->getLocation(), name);
 	}
 
 	auto symbol = symbolTable.lookup(name);
@@ -1601,6 +1622,12 @@ llvm::Error TypeChecker::run<Tuple>(Expression& expression)
 	return llvm::Error::success();
 }
 
+template<>
+llvm::Error TypeChecker::run<RecordInstance>(Expression& expression)
+{
+	return llvm::Error::success();
+}
+
 llvm::Error TypeChecker::run(Member& member)
 {
 	auto &type = member.getType();
@@ -1613,7 +1640,7 @@ llvm::Error TypeChecker::run(Member& member)
 		auto symbol = symbolTable.lookup(name);
 
 		if (symbol.isa<Class>() && symbol.get<Class>()->isa<Record>())
-			member.setType(symbol.get<Class>()->get<Record>());
+			member.setType(Type{symbol.get<Class>()->get<Record>(),type.getDimensions()});
 		else
 			return llvm::make_error<BadSemantic>(
 					member.getLocation(),
@@ -2132,8 +2159,30 @@ llvm::Error TypeChecker::checkLogicalOrOp(Expression& expression)
 llvm::Error TypeChecker::checkMemberLookupOp(Expression& expression)
 {
 	auto* operation = expression.get<Operation>();
-	assert(operation->getOperationKind() == OperationKind::memberLookup);
-	return llvm::make_error<NotImplemented>("member lookup is not implemented yet");
+	assert(operation->getOperationKind() == OperationKind::memberLookup);	
+	assert(operation->size() == 2);
+
+	Expression *lhs = operation->getArg(0);
+	Expression *rhs = operation->getArg(1);
+
+	if (auto error = run<Expression>(*lhs); error)
+			return error;
+
+	if(!lhs->getType().isa<Record*>())
+		return llvm::make_error<NotImplemented>("member lookup is implemented only for records.");
+
+	assert(rhs->isa<ReferenceAccess>());
+
+	const Record* record = lhs->getType().get<Record*>();
+	const auto memberName = rhs->get<ReferenceAccess>()->getName();
+
+	const auto *member = (*record)[memberName];
+	
+	assert(member && "member not found");
+
+	expression.setType(member->getType());
+
+	return llvm::Error::success();
 }
 
 /**
@@ -2308,7 +2357,8 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 
 	if (subscriptionIndexesCount > source->getType().dimensionsCount())
 		return llvm::make_error<BadSemantic>(
-				operation->getLocation(), "too many subscriptions");
+				operation->getLocation(), 
+				"too many subscriptions (should be "+std::to_string(source->getType().dimensionsCount())+" but got "+std::to_string(subscriptionIndexesCount)+")");
 
 	for (size_t i = 1; i < operation->argumentsCount(); ++i)
 		if (auto* index = operation->getArg(i); index->getType() != makeType<int>())

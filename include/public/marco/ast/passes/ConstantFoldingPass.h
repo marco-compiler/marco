@@ -125,6 +125,9 @@ namespace marco::ast
 	llvm::Error ConstantFolder::run<Tuple>(Expression& expression);
 
 	template<>
+	llvm::Error ConstantFolder::run<RecordInstance>(Expression& expression);
+
+	template<>
 	llvm::Error ConstantFolder::run<AssignmentStatement>(Statement& statement);
 
 	template<>
