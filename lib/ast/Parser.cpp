@@ -1189,7 +1189,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()
 
 	while (accept<Token::Dot>())
 	{
-		auto memberName = Expression::reference(loc, makeType<std::string>(), lexer.getLastString());
+		auto memberName = Expression::reference(loc, makeType<std::string>(), lexer.getLastIdentifier());
 		loc.extendEnd(getPosition());
 		EXPECT(Token::Ident);
 
