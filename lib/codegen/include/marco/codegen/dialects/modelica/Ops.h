@@ -7,6 +7,7 @@
 #include <mlir/Interfaces/ViewLikeInterface.h>
 #include <mlir/IR/FunctionSupport.h>
 #include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/RegionKindInterface.h>
 
 #include "Traits.h"
 #include "Type.h"
@@ -130,31 +131,31 @@ namespace marco::codegen::modelica
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::SimulationOp
+	// Modelica::ModelOp
 	//===----------------------------------------------------------------------===//
 
-	class SimulationOp;
+	class ModelOp;
 
-	class SimulationOpAdaptor : public OpAdaptor<SimulationOp>
+	class ModelOpAdaptor : public OpAdaptor<ModelOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class SimulationOp : public mlir::Op<SimulationOp,
-																			mlir::OpTrait::NRegions<2>::Impl,
-																			mlir::OpTrait::ZeroOperands,
-																			mlir::OpTrait::ZeroResult,
-																			mlir::RegionBranchOpInterface::Trait,
-																			mlir::OpTrait::IsIsolatedFromAbove>
+	class ModelOp : public mlir::Op<ModelOp,
+																	mlir::OpTrait::NRegions<2>::Impl,
+                                  mlir::OpTrait::ZeroOperands,
+                                  mlir::OpTrait::ZeroResult,
+                                  mlir::OpTrait::IsIsolatedFromAbove,
+                                  mlir::RegionKindInterface::Trait>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = SimulationOpAdaptor;
+		using Adaptor = ModelOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.simulation";
+			return "modelica.model";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -163,7 +164,8 @@ namespace marco::codegen::modelica
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
-		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
+    static mlir::RegionKind getRegionKind(unsigned int index);
+    bool hasSSADominance(unsigned int index);
 
 		RealAttribute startTime();
 		RealAttribute endTime();
@@ -172,53 +174,10 @@ namespace marco::codegen::modelica
 		mlir::Region& init();
 		mlir::Region& body();
 
-		mlir::Value getVariableAllocation(mlir::Value var);
-
 		mlir::Value time();
 
-        mlir::ArrayAttr variableNames();
-    };
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::EquationOp
-	//===----------------------------------------------------------------------===//
-
-	class EquationOp;
-
-	class EquationOpAdaptor : public OpAdaptor<EquationOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-	};
-
-	class EquationOp : public mlir::Op<EquationOp,
-																		mlir::OpTrait::OneRegion,
-																		mlir::OpTrait::ZeroOperands,
-																		mlir::OpTrait::ZeroResult,
-																		EquationInterface::Trait>
-	{
-		public:
-		using Op::Op;
-		using Adaptor = EquationOpAdaptor;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "modelica.equation";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-
-		mlir::Block* body();
-		mlir::ValueRange inductions();
-		mlir::Value induction(size_t index);
-		long inductionIndex(mlir::Value induction);
-
-		mlir::ValueRange lhs();
-		mlir::ValueRange rhs();
-	};
+    mlir::ArrayAttr variableNames();
+  };
 
 	//===----------------------------------------------------------------------===//
 	// Modelica::ForEquationOp
@@ -230,13 +189,17 @@ namespace marco::codegen::modelica
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
+
+    long start();
+    long end();
 	};
 
 	class ForEquationOp : public mlir::Op<ForEquationOp,
-																			 mlir::OpTrait::NRegions<2>::Impl,
+																			 mlir::OpTrait::OneRegion,
 																			 mlir::OpTrait::ZeroOperands,
 																			 mlir::OpTrait::ZeroResult,
-																			 EquationInterface::Trait>
+                                       mlir::OpTrait::HasParent<ModelOp, ForEquationOp>::Impl,
+                                       mlir::OpTrait::NoTerminator>
 	{
 		public:
 		using Op::Op;
@@ -248,61 +211,52 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
-		mlir::Block* inductionsBlock();
-		mlir::ValueRange inductionsDefinitions();
-
 		mlir::Block* body();
-		mlir::ValueRange inductions();
-		mlir::Value induction(size_t index);
-		long inductionIndex(mlir::Value induction);
+    mlir::Value induction();
 
-		mlir::ValueRange lhs();
-		mlir::ValueRange rhs();
+    long start();
+    long end();
 	};
 
-	//===----------------------------------------------------------------------===//
-	// Modelica::InductionOp
-	//===----------------------------------------------------------------------===//
+  //===----------------------------------------------------------------------===//
+  // Modelica::EquationOp
+  //===----------------------------------------------------------------------===//
 
-	class InductionOp;
+  class EquationOp;
 
-	class InductionOpAdaptor : public OpAdaptor<InductionOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
+  class EquationOpAdaptor : public OpAdaptor<EquationOp>
+  {
+  public:
+      using OpAdaptor::OpAdaptor;
+  };
 
-		long start();
-		long end();
-	};
+  class EquationOp : public mlir::Op<EquationOp,
+                                     mlir::OpTrait::OneRegion,
+                                     mlir::OpTrait::ZeroOperands,
+                                     mlir::OpTrait::ZeroResult,
+                                     mlir::OpTrait::HasParent<ModelOp, ForEquationOp>::Impl>
+  {
+    public:
+    using Op::Op;
+    using Adaptor = EquationOpAdaptor;
 
-	class InductionOp : public mlir::Op<InductionOp,
-																		 mlir::OpTrait::ZeroRegion,
-																		 mlir::OpTrait::ZeroOperands,
-																		 mlir::OpTrait::OneResult,
-																		 mlir::OpTrait::HasParent<ForEquationOp>::Impl>
-	{
-		public:
-		using Op::Op;
-		using Adaptor = InductionOpAdaptor;
+    static constexpr llvm::StringLiteral getOperationName()
+    {
+      return "modelica.equation";
+    }
 
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "modelica.induction";
-		}
+    static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
+    static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+    static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+    void print(mlir::OpAsmPrinter& printer);
 
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-
-		long start();
-		long end();
-	};
+    mlir::Block* body();
+  };
 
 	//===----------------------------------------------------------------------===//
 	// Modelica::EquationSidesOp
@@ -691,6 +645,7 @@ namespace marco::codegen::modelica
 		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange dynamicDimensions();
+    bool isConstant();
 	};
 
 	class MemberCreateOp : public mlir::Op<MemberCreateOp,
@@ -709,7 +664,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, mlir::NamedAttrList attributes = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, bool constant = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -719,6 +674,7 @@ namespace marco::codegen::modelica
 		llvm::StringRef name();
 		mlir::Type resultType();
 		mlir::ValueRange dynamicDimensions();
+    bool isConstant();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -845,7 +801,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool constant = false);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -854,7 +810,6 @@ namespace marco::codegen::modelica
 
 		ArrayType resultType();
 		mlir::ValueRange dynamicDimensions();
-		bool isConstant();
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
@@ -873,7 +828,6 @@ namespace marco::codegen::modelica
 		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange dynamicDimensions();
-		bool isConstant();
 	};
 
 	class AllocOp : public mlir::Op<AllocOp,
@@ -894,7 +848,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = llvm::None, mlir::ValueRange dimensions = llvm::None, bool shouldBeFreed = true, bool isConstant = false);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = llvm::None, mlir::ValueRange dimensions = llvm::None, bool shouldBeFreed = true);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -903,7 +857,6 @@ namespace marco::codegen::modelica
 
 		ArrayType resultType();
 		mlir::ValueRange dynamicDimensions();
-		bool isConstant();
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
@@ -1444,7 +1397,7 @@ namespace marco::codegen::modelica
 																 mlir::OpTrait::ZeroRegion,
 																 mlir::OpTrait::VariadicOperands,
 																 mlir::OpTrait::ZeroResult,
-																 mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, WhileOp, SimulationOp>::Impl,
+																 mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, WhileOp, ModelOp>::Impl,
 																 mlir::OpTrait::IsTerminator>
 	{
 		public:

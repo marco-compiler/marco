@@ -1,7 +1,7 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/InliningUtils.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen::modelica;
 
@@ -121,7 +121,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 			TransposeOp,
 			SymmetricOp>();
 
-	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp, DerSeedOp>();
+	addOperations<ModelOp, EquationOp, ForEquationOp, EquationSidesOp, DerOp, DerSeedOp>();
 	addOperations<PrintOp>();
 }
 

@@ -1,3 +1,4 @@
+#include <cassert>
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/Conversion/LLVMCommon/Pattern.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
@@ -7,332 +8,741 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
-#include <marco/mlirlowerer/passes/SolveModel.h>
-#include <marco/mlirlowerer/passes/matching/Matching.h>
-#include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
-#include <marco/mlirlowerer/passes/matching/Schedule.h>
-#include <marco/mlirlowerer/passes/model/Equation.h>
-#include <marco/mlirlowerer/passes/model/Expression.h>
-#include <marco/mlirlowerer/passes/model/Model.h>
-#include <marco/mlirlowerer/passes/model/Variable.h>
-#include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/codegen/dialects/modelica/ModelicaBuilder.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/passes/SolveModel.h>
+#include <marco/codegen/passes/TypeConverter.h>
+#include <marco/matching/Matching.h>
 #include <marco/utils/VariableFilter.h>
+#include <memory>
 
 using namespace marco;
 using namespace codegen;
-using namespace model;
 using namespace modelica;
 
-struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
+/*/
+class Variable;
+class Equation;
+
+class Model
 {
-	using mlir::OpRewritePattern<SimulationOp>::OpRewritePattern;
+  public:
 
-	mlir::LogicalResult matchAndRewrite(SimulationOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
-		rewriter.eraseOp(terminator);
+  private:
+  llvm::SmallVector<std::unique_ptr<Variable>, 10> variables;
+  llvm::SmallVector<std::unique_ptr<Equation>, 10> equations;
+};
+*/
 
-		llvm::SmallVector<mlir::Value, 3> newVars;
-		newVars.push_back(terminator.values()[0]);
+/**
+ * Proxy to the value representing a variable within the model.
+ */
+class Variable
+{
+  public:
+  class Impl;
+  using Id = mlir::Operation*;
 
-		unsigned int index = 1;
+  Variable(mlir::Value value);
 
-		std::map<ForEquationOp, mlir::Value> inductions;
+  Variable(const Variable& other);
 
-		for (auto it = std::next(terminator.values().begin()); it != terminator.values().end(); ++it)
-		{
-			mlir::Value value = *it;
+  ~Variable();
 
-			if (auto arrayType = value.getType().dyn_cast<ArrayType>(); arrayType && arrayType.getRank() == 0)
-			{
-				{
-					mlir::OpBuilder::InsertionGuard guard(rewriter);
-					rewriter.setInsertionPoint(value.getDefiningOp());
-					mlir::Value newVar = rewriter.create<AllocOp>(value.getLoc(), arrayType.getElementType(), 1, llvm::None, false);
-					mlir::Value zeroValue = rewriter.create<ConstantOp>(value.getLoc(), rewriter.getIndexAttr(0));
-					mlir::Value subscription = rewriter.create<SubscriptionOp>(value.getLoc(), newVar, zeroValue);
+  Variable& operator=(const Variable& other);
+  Variable& operator=(Variable&& other);
 
-					value.replaceAllUsesWith(subscription);
-					rewriter.eraseOp(value.getDefiningOp());
-					value = newVar;
-				}
+  friend void swap(Variable& first, Variable& second);
 
-				{
-					// Fix body argument
-					mlir::OpBuilder::InsertionGuard guard(rewriter);
+  Id getId() const;
+  size_t getRank() const;
+  long getDimensionSize(size_t index) const;
 
-					auto originalArgument = op.body().getArgument(index);
-					auto newArgument = op.body().insertArgument(index + 1, value.getType().cast<ArrayType>().toUnknownAllocationScope());
+  mlir::Value getValue() const;
+  MemberCreateOp getDefiningOp() const;
 
-					for (auto useIt = originalArgument.use_begin(), end = originalArgument.use_end(); useIt != end;)
-					{
-						auto& use = *useIt;
-						++useIt;
-						rewriter.setInsertionPoint(use.getOwner());
-
-						auto* parentEquation = use.getOwner()->getParentWithTrait<EquationInterface::Trait>();
-
-						if (auto equationOp = mlir::dyn_cast<EquationOp>(parentEquation))
-						{
-							auto forEquationOp = convertToForEquation(rewriter, equationOp.getLoc(), equationOp);
-							inductions[forEquationOp] = forEquationOp.body()->getArgument(0);
-						}
-					}
-
-					for (auto useIt = originalArgument.use_begin(), end = originalArgument.use_end(); useIt != end;)
-					{
-						auto& use = *useIt;
-						++useIt;
-						rewriter.setInsertionPoint(use.getOwner());
-
-						auto* parentEquation = use.getOwner()->getParentWithTrait<EquationInterface::Trait>();
-						auto forEquation = mlir::cast<ForEquationOp>(parentEquation);
-
-						if (inductions.find(forEquation) == inductions.end())
-						{
-							mlir::Value i = rewriter.create<ConstantOp>(use.get().getLoc(), rewriter.getIndexAttr(0));
-							mlir::Value subscription = rewriter.create<SubscriptionOp>(use.get().getLoc(), newArgument, i);
-							use.set(subscription);
-						}
-						else
-						{
-							mlir::Value i = inductions[forEquation];
-							i = rewriter.create<SubOp>(i.getLoc(), i.getType(), i, rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(1)));
-							mlir::Value subscription = rewriter.create<SubscriptionOp>(use.get().getLoc(), newArgument, i);
-							use.set(subscription);
-						}
-					}
-
-					op.body().eraseArgument(index);
-				}
-
-			}
-
-			newVars.push_back(value);
-			++index;
-		}
-
-		{
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-			rewriter.setInsertionPointToEnd(&op.init().back());
-			rewriter.create<YieldOp>(terminator.getLoc(), newVars);
-		}
-
-		// Replace operation with a new one
-		auto result = rewriter.create<SimulationOp>(op->getLoc(), op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
-		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
-		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-
-	private:
-	static ForEquationOp convertToForEquation(mlir::PatternRewriter& rewriter, mlir::Location loc, EquationOp equation)
-	{
-		mlir::OpBuilder::InsertionGuard guard(rewriter);
-		rewriter.setInsertionPoint(equation);
-
-		auto forEquation = rewriter.create<ForEquationOp>(loc, 1);
-
-		// Inductions
-		rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
-		mlir::Value induction = rewriter.create<InductionOp>(loc, 1, 1);
-		rewriter.create<YieldOp>(loc, induction);
-
-		// Body
-		rewriter.mergeBlocks(equation.body(), forEquation.body());
-
-		rewriter.eraseOp(equation);
-		return forEquation;
-	}
+  private:
+  std::unique_ptr<Impl> impl;
 };
 
-struct EquationOpLoopifyPattern : public mlir::OpRewritePattern<EquationOp>
+class Variable::Impl
 {
-	using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+  public:
+  Impl(mlir::Value value) : value(value)
+  {
+    assert(value.isa<mlir::BlockArgument>());
+    size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
+    auto model = value.getParentRegion()->getParentOfType<ModelOp>();
+    auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
+    definingOp = terminator.values()[index].getDefiningOp();
+    assert(definingOp != nullptr);
+  }
 
-	mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op->getLoc();
+  virtual std::unique_ptr<Variable::Impl> clone() const = 0;
 
-		auto forEquation = rewriter.create<ForEquationOp>(loc, 1);
+  mlir::Operation* getId() const
+  {
+    return definingOp;
+  }
 
-		// Inductions
-		rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
-		mlir::Value induction = rewriter.create<InductionOp>(loc, 1, 1);
-		rewriter.create<YieldOp>(loc, induction);
+  virtual size_t getRank() const = 0;
 
-		// Body
-		rewriter.mergeBlocks(op.body(), forEquation.body());
+  virtual long getDimensionSize(size_t index) const = 0;
 
-		forEquation.body()->walk([&](SubscriptionOp subscription) {
-			if (subscription.indexes().size() == 1)
-			{
-				auto index = subscription.indexes()[0].getDefiningOp<ConstantOp>();
-				auto indexValue = index.value().cast<IntegerAttribute>().getValue();
-				rewriter.setInsertionPoint(subscription);
+  mlir::Value getValue() const
+  {
+    return value;
+  }
 
-				mlir::Value newIndex = rewriter.create<AddOp>(
-						subscription->getLoc(), rewriter.getIndexType(), forEquation.induction(0),
-						rewriter.create<ConstantOp>(subscription->getLoc(), rewriter.getIndexAttr(indexValue - 1)));
+  MemberCreateOp getDefiningOp() const
+  {
+    return mlir::cast<MemberCreateOp>(definingOp);
+  }
 
-				rewriter.replaceOp(index, newIndex);
-			}
-		});
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
+  private:
+  mlir::Value value;
+  mlir::Operation* definingOp;
 };
 
-struct EquationOpScalarizePattern : public mlir::OpRewritePattern<EquationOp>
+Variable::Id Variable::getId() const
 {
-	using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+  return impl->getId();
+}
 
-	mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		mlir::Location location = op->getLoc();
-		auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
-		assert(sides.lhs().size() == 1 && sides.rhs().size() == 1);
+size_t Variable::getRank() const
+{
+  return impl->getRank();
+}
 
-		auto lhs = sides.lhs()[0];
-		auto rhs = sides.rhs()[0];
+long Variable::getDimensionSize(size_t index) const
+{
+  return impl->getDimensionSize(index);
+}
 
-		auto lhsArrayType = lhs.getType().cast<ArrayType>();
-		auto rhsArrayType = rhs.getType().cast<ArrayType>();
-		assert(lhsArrayType.getRank() == rhsArrayType.getRank());
+mlir::Value Variable::getValue() const
+{
+  return impl->getValue();
+}
 
-		auto forEquation = rewriter.create<ForEquationOp>(location, lhsArrayType.getRank());
+MemberCreateOp Variable::getDefiningOp() const
+{
+  return impl->getDefiningOp();
+}
 
-		{
-			// Inductions
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-			rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
-			llvm::SmallVector<mlir::Value, 3> inductions;
+/**
+ * Variable implementation for scalar values.
+ * The arrays declaration are kept untouched within the IR, but they
+ * are masked by this class as arrays with just one element.
+ */
+class ScalarVariable : public Variable::Impl
+{
+  public:
+  ScalarVariable(mlir::Value value) : Impl(value)
+  {
+    assert(value.getType().isa<BooleanType>() ||
+            value.getType().isa<IntegerType>() ||
+            value.getType().isa<RealType>());
+  }
 
-			for (const auto& [left, right] : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
-			{
-				assert(left != -1 || right != -1);
+  std::unique_ptr<Variable::Impl> clone() const override
+  {
+    return std::make_unique<ScalarVariable>(*this);
+  }
 
-				if (left != -1 && right != -1)
-					assert(left == right);
+  size_t getRank() const override
+  {
+    return 1;
+  }
 
-				long size = std::max(left, right);
-				mlir::Value induction = rewriter.create<InductionOp>(location, 0, size - 1);
-				inductions.push_back(induction);
-			}
-
-			rewriter.create<YieldOp>(location, inductions);
-		}
-
-		{
-			// Body
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-
-			rewriter.mergeBlocks(op.body(), forEquation.body());
-			rewriter.setInsertionPoint(sides);
-
-			llvm::SmallVector<mlir::Value, 1> newLhs;
-			llvm::SmallVector<mlir::Value, 1> newRhs;
-
-			for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
-			{
-				auto leftSubscription = rewriter.create<SubscriptionOp>(location, lhs, forEquation.inductions());
-				newLhs.push_back(rewriter.create<LoadOp>(location, leftSubscription));
-
-				auto rightSubscription = rewriter.create<SubscriptionOp>(location, rhs, forEquation.inductions());
-				newRhs.push_back(rewriter.create<LoadOp>(location, rightSubscription));
-			}
-
-			rewriter.setInsertionPointAfter(sides);
-			rewriter.replaceOpWithNewOp<EquationSidesOp>(sides, newLhs, newRhs);
-		}
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
+  long getDimensionSize(size_t index) const override
+  {
+    return 1;
+  }
 };
 
-struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquationOp>
+/**
+ * Variable implementation for array values.
+ * The class just acts as a forwarder.
+ */
+class ArrayVariable : public Variable::Impl
 {
-	using mlir::OpRewritePattern<ForEquationOp>::OpRewritePattern;
+  public:
+  ArrayVariable(mlir::Value value) : Impl(value)
+  {
+    assert(value.getType().isa<ArrayType>());
+  }
 
-	mlir::LogicalResult matchAndRewrite(ForEquationOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		mlir::Location location = op->getLoc();
-		auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
-		assert(sides.lhs().size() == 1 && sides.rhs().size() == 1);
+  std::unique_ptr<Variable::Impl> clone() const override
+  {
+    return std::make_unique<ArrayVariable>(*this);
+  }
 
-		auto lhs = sides.lhs()[0];
-		auto rhs = sides.rhs()[0];
+  size_t getRank() const override
+  {
+    return getValue().getType().cast<ArrayType>().getRank();
+  }
 
-		auto lhsArrayType = lhs.getType().cast<ArrayType>();
-		auto rhsArrayType = rhs.getType().cast<ArrayType>();
-		assert(lhsArrayType.getRank() == rhsArrayType.getRank());
-
-		auto forEquation = rewriter.create<ForEquationOp>(location, lhsArrayType.getRank() + op.inductionsDefinitions().size());
-
-		{
-			// Inductions
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-			rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
-			llvm::SmallVector<mlir::Value, 3> inductions;
-
-			for (const auto& [left, right] : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
-			{
-				assert(left != -1 || right != -1);
-
-				if (left != -1 && right != -1)
-					assert(left == right);
-
-				long size = std::max(left, right);
-				mlir::Value induction = rewriter.create<InductionOp>(location, 0, size - 1);
-				inductions.push_back(induction);
-			}
-
-			for (auto induction : op.inductionsDefinitions())
-			{
-				mlir::Operation* clone = rewriter.clone(*induction.getDefiningOp());
-				inductions.push_back(clone->getResult(0));
-			}
-
-			rewriter.create<YieldOp>(location, inductions);
-		}
-
-		{
-			// Body
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-
-			rewriter.mergeBlocks(op.body(), forEquation.body());
-			rewriter.setInsertionPoint(sides);
-
-			llvm::SmallVector<mlir::Value, 1> newLhs;
-			llvm::SmallVector<mlir::Value, 1> newRhs;
-
-			mlir::ValueRange allInductions = forEquation.inductions();
-			mlir::ValueRange newInductions = mlir::ValueRange(allInductions.begin(), allInductions.begin() + lhsArrayType.getRank());
-
-			for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
-			{
-				auto leftSubscription = rewriter.create<SubscriptionOp>(location, lhs, newInductions);
-				newLhs.push_back(rewriter.create<LoadOp>(location, leftSubscription));
-
-				auto rightSubscription = rewriter.create<SubscriptionOp>(location, rhs, newInductions);
-				newRhs.push_back(rewriter.create<LoadOp>(location, rightSubscription));
-			}
-
-			rewriter.setInsertionPointAfter(sides);
-			rewriter.replaceOpWithNewOp<EquationSidesOp>(sides, newLhs, newRhs);
-		}
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
+  long getDimensionSize(size_t index) const override
+  {
+    return getValue().getType().cast<ArrayType>().getShape()[index];
+  }
 };
 
+Variable::Variable(mlir::Value value)
+{
+  if (value.getType().isa<ArrayType>())
+    impl = std::make_unique<ArrayVariable>(value);
+  else
+    impl = std::make_unique<ScalarVariable>(value);
+}
+
+Variable::Variable(const Variable& other)
+        : impl(other.impl->clone())
+{
+}
+
+Variable::~Variable() = default;
+
+Variable& Variable::operator=(const Variable& other)
+{
+  Variable result(other);
+  swap(*this, result);
+  return *this;
+}
+
+Variable& Variable::operator=(Variable&& other) = default;
+
+void swap(Variable& first, Variable& second)
+{
+  using std::swap;
+  swap(first.impl, second.impl);
+}
+
+static long getIntFromAttribute(mlir::Attribute attribute)
+{
+  if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>())
+    return indexAttr.getInt();
+
+  if (auto booleanAttr = attribute.dyn_cast<BooleanAttribute>())
+    return booleanAttr.getValue() ? 1 : 0;
+
+  if (auto integerAttr = attribute.dyn_cast<IntegerAttribute>())
+    return integerAttr.getValue();
+
+  if (auto realAttr = attribute.dyn_cast<RealAttribute>())
+    return realAttr.getValue();
+
+  assert(false && "Unknown attribute type");
+  return 0;
+}
+
+using Path = std::vector<size_t>;
+
+class PathGuard
+{
+  public:
+  PathGuard(Path* path) : path(path), size(path->size())
+  {
+  }
+
+  ~PathGuard()
+  {
+    path->erase(path->begin() + size, path->end());
+  }
+
+  private:
+  Path* path;
+  size_t size;
+};
+
+/*
+class Access
+{
+  public:
+  class Impl;
+
+  private:
+  std::unique_ptr<Impl> impl;
+};
+
+class RealAccess
+{
+  public:
+
+  private:
+
+};
+
+class FakeAccess
+{
+  public:
+
+  private:
+
+};
+ */
+
+class Equation
+{
+  public:
+  class Impl;
+  using Id = mlir::Operation*;
+  using Access = matching::Access<Variable>;
+
+  Equation(EquationOp equation, llvm::ArrayRef<Variable> variables);
+
+  Id getId() const;
+  size_t getNumOfIterationVars() const;
+  long getRangeStart(size_t inductionVarIndex) const;
+  long getRangeEnd(size_t inductionVarIndex) const;
+  void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const;
+
+  private:
+  std::unique_ptr<Impl> impl;
+};
+
+class Equation::Impl
+{
+  public:
+  using Access = Equation::Access;
+
+  Impl(EquationOp equation, llvm::ArrayRef<Variable> variables)
+          : equationOp(equation.getOperation())
+  {
+    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
+    assert(terminator.lhs().size() == 1);
+    assert(terminator.rhs().size() == 1);
+  }
+
+  mlir::Operation* getId() const
+  {
+    return equationOp;
+  }
+
+  virtual size_t getNumOfIterationVars() const = 0;
+  virtual long getRangeStart(size_t inductionVarIndex) const = 0;
+  virtual long getRangeEnd(size_t inductionVarIndex) const = 0;
+  virtual void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const = 0;
+
+  EquationOp getOperation() const
+  {
+    return mlir::cast<EquationOp>(equationOp);
+  }
+
+  const Variable& resolveVariable(mlir::Value value) const
+  {
+    assert(value.isa<mlir::BlockArgument>());
+
+    return *llvm::find_if(variables, [&](const Variable& variable) {
+      return value == variable.getValue();
+    });
+  }
+
+  bool isReferenceAccess(mlir::Value value) const
+  {
+    if (value.isa<mlir::BlockArgument>())
+      return mlir::isa<ModelOp>(value.getParentRegion()->getParentOp());
+
+    mlir::Operation* definingOp = value.getDefiningOp();
+
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp))
+      return isReferenceAccess(loadOp.memory());
+
+    if (auto viewOp = mlir::dyn_cast<SubscriptionOp>(definingOp))
+      return isReferenceAccess(viewOp.source());
+
+    return false;
+  }
+
+  void searchAccesses(
+          llvm::SmallVectorImpl<Access>& accesses,
+          mlir::Operation* op,
+          llvm::SmallVectorImpl<matching::DimensionAccess>& dimensionAccesses) const
+  {
+    auto processIndexesFn = [&](mlir::ValueRange indexes) {
+      for (size_t i = 0, e = indexes.size(); i < e; ++i)
+      {
+        mlir::Value index = indexes[e - 1 - i];
+        auto evaluatedAccess = evaluateDimensionAccess(index);
+        dimensionAccesses.push_back(resolveDimensionAccess(evaluatedAccess));
+      }
+    };
+
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(op))
+    {
+      processIndexesFn(loadOp.indexes());
+      searchAccesses(accesses, loadOp.memory(), dimensionAccesses);
+    }
+    else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
+    {
+      processIndexesFn(subscriptionOp.indexes());
+      searchAccesses(accesses, subscriptionOp.source(), dimensionAccesses);
+    }
+    else
+    {
+      for (mlir::Value operand : op->getOperands())
+        searchAccesses(accesses, operand);
+    }
+  }
+
+  void searchAccesses(
+          llvm::SmallVectorImpl<Access>& accesses,
+          mlir::Value value) const
+  {
+    if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr)
+    {
+      llvm::SmallVector<matching::DimensionAccess> dimensionAccesses;
+      searchAccesses(accesses, definingOp, dimensionAccesses);
+    }
+  }
+
+  void searchAccesses(
+          llvm::SmallVectorImpl<Access>& accesses,
+          mlir::Value value,
+          llvm::SmallVectorImpl<matching::DimensionAccess>& dimensionAccesses) const
+  {
+    if (isReferenceAccess(value))
+      resolveAccess(accesses, value, dimensionAccesses);
+    else
+      searchAccesses(accesses, value);
+  }
+
+  void resolveAccess(
+          llvm::SmallVectorImpl<Access>& accesses,
+          mlir::Value value,
+          llvm::SmallVectorImpl<matching::DimensionAccess>& dimensionsAccesses) const
+  {
+    const auto& variable = resolveVariable(value);
+
+    if (variable.getDefiningOp().isConstant())
+      return;
+
+    llvm::SmallVector<matching::DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());
+    mlir::Type type = value.getType();
+
+    if (type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>())
+    {
+      assert(dimensionsAccesses.empty());
+      dimensionsAccesses.push_back(matching::DimensionAccess::constant(0));
+      accesses.emplace_back(variable, reverted);
+    }
+    else if (auto arrayType = type.dyn_cast<ArrayType>())
+    {
+      if (arrayType.getShape().size() == dimensionsAccesses.size())
+        accesses.emplace_back(variable, reverted);
+    }
+  }
+
+  std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const
+  {
+    if (value.isa<mlir::BlockArgument>())
+      return std::make_pair(value, 0);
+
+    mlir::Operation* op = value.getDefiningOp();
+    assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) || mlir::isa<SubOp>(op)) && "Invalid access pattern");
+
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op))
+      return std::make_pair(nullptr, getIntFromAttribute(constantOp.value()));
+
+    if (auto addOp = mlir::dyn_cast<AddOp>(op))
+    {
+      auto first = evaluateDimensionAccess(addOp.lhs());
+      auto second = evaluateDimensionAccess(addOp.rhs());
+
+      assert(first.first == nullptr || second.first == nullptr);
+      mlir::Value induction = first.first != nullptr ? first.first : second.first;
+      return std::make_pair(induction, first.second + second.second);
+    }
+
+    auto subOp = mlir::dyn_cast<SubOp>(op);
+
+    auto first = evaluateDimensionAccess(subOp.lhs());
+    auto second = evaluateDimensionAccess(subOp.rhs());
+
+    assert(first.first == nullptr || second.first == nullptr);
+    mlir::Value induction = first.first != nullptr ? first.first : second.first;
+    return std::make_pair(induction, first.second - second.second);
+  }
+
+  virtual matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const = 0;
+
+  private:
+  mlir::Operation* equationOp;
+  llvm::ArrayRef<Variable> variables;
+};
+
+/**
+ * Scalar Equation with Scalar Assignments.
+ *
+ * An equation that does not present induction variables, neither
+ * explicit or implicit.
+ */
+class ScalarEquation : public Equation::Impl
+{
+  public:
+  using Access = Equation::Impl::Access;
+
+  ScalarEquation(EquationOp equation, llvm::ArrayRef<Variable> variables)
+          : Impl(equation, variables)
+  {
+    // Check that the equation is not enclosed in a loop
+    assert(equation->getParentOfType<ForEquationOp>() == nullptr);
+
+    // Check that all the values are scalars
+    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
+
+    auto isScalarFn = [](mlir::Value value) {
+        auto type = value.getType();
+        return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
+    };
+
+    assert(llvm::all_of(terminator.lhs(), isScalarFn));
+    assert(llvm::all_of(terminator.rhs(), isScalarFn));
+  }
+
+  size_t getNumOfIterationVars() const override
+  {
+    return 1;
+  }
+
+  long getRangeStart(size_t inductionVarIndex) const override
+  {
+    return 0;
+  }
+
+  long getRangeEnd(size_t inductionVarIndex) const override
+  {
+    return 1;
+  }
+
+  void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override
+  {
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+
+    auto processFn = [&](mlir::Value value) {
+      searchAccesses(accesses, value);
+    };
+
+    processFn(terminator.lhs()[0]);
+    processFn(terminator.rhs()[0]);
+  }
+
+  matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override
+  {
+    assert(access.first == nullptr);
+    return matching::DimensionAccess::constant(access.second);
+  }
+};
+
+/**
+ * Check if an equation has explicit or implicit induction variables.
+ *
+ * @param equation  equation
+ * @return true if the equation is surrounded by explicit loops or defines implicit ones
+ */
+static bool hasInductionVariables(EquationOp equation)
+{
+  auto explicitLoopChecker = [&]() -> bool {
+      return equation->getParentOfType<ForEquationOp>() != nullptr;
+  };
+
+  auto implicitLoopChecker = [&]() -> bool {
+      auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
+
+      return llvm::any_of(terminator.lhs(), [](mlir::Value value) {
+          return value.getType().isa<ArrayType>();
+      });
+  };
+}
+
+/**
+ * Loop Equation.
+ *
+ * An equation that present explicit or implicit induction variables.
+ */
+class LoopEquation : public Equation::Impl
+{
+  public:
+  using Access = Equation::Impl::Access;
+
+  LoopEquation(EquationOp equation, llvm::ArrayRef<Variable> variables)
+          : Impl(equation, variables)
+  {
+    // Check that there exists at least one explicit or implicit loop
+    assert(hasInductionVariables(equation) && "No explicit or implicit loop found");
+  }
+
+  size_t getNumOfIterationVars() const override
+  {
+    return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
+  }
+
+  long getRangeStart(size_t inductionVarIndex) const override
+  {
+    size_t explicitLoops = getNumberOfExplicitLoops();
+
+    if (inductionVarIndex < explicitLoops)
+      return getExplicitLoop(inductionVarIndex).start();
+
+    return getImplicitLoopStart(inductionVarIndex - explicitLoops);
+  }
+
+  long getRangeEnd(size_t inductionVarIndex) const override
+  {
+    size_t explicitLoops = getNumberOfExplicitLoops();
+
+    if (inductionVarIndex < explicitLoops)
+      return getExplicitLoop(inductionVarIndex).end() + 1;
+
+    return getImplicitLoopEnd(inductionVarIndex - explicitLoops);
+  }
+
+  void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override
+  {
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+    size_t explicitInductions = getNumberOfExplicitLoops();
+
+    auto processFn = [&](mlir::Value value) {
+      llvm::SmallVector<matching::DimensionAccess> implicitDimensionAccesses;
+      size_t implicitInductionVar = 0;
+
+      if (auto arrayType = value.getType().dyn_cast<ArrayType>())
+      {
+        for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
+        {
+          auto dimensionAccess = matching::DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
+          implicitDimensionAccesses.push_back(dimensionAccess);
+          ++implicitInductionVar;
+        }
+      }
+
+      searchAccesses(accesses, value, implicitDimensionAccesses);
+    };
+
+    processFn(terminator.lhs()[0]);
+    processFn(terminator.rhs()[0]);
+  }
+
+  virtual matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override
+  {
+    if (access.first == nullptr)
+      return matching::DimensionAccess::constant(access.second);
+
+    llvm::SmallVector<ForEquationOp, 3> loops;
+    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
+
+    while (parent != nullptr)
+    {
+      loops.push_back(parent);
+      parent = parent->getParentOfType<ForEquationOp>();
+    }
+
+    auto loopIt = llvm::find_if(loops, [&](ForEquationOp loop) {
+      return loop.induction() == access.first;
+    });
+
+    size_t inductionVarIndex = loopIt - loops.begin();
+    return matching::DimensionAccess::relative(inductionVarIndex, access.second);
+  }
+
+  private:
+  size_t getNumberOfExplicitLoops() const
+  {
+    size_t result = 0;
+    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
+
+    while (parent != nullptr)
+    {
+      ++result;
+      parent = parent->getParentOfType<ForEquationOp>();
+    }
+
+    return result;
+  }
+
+  ForEquationOp getExplicitLoop(size_t index) const
+  {
+    llvm::SmallVector<ForEquationOp, 3> loops;
+    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
+
+    while (parent != nullptr)
+    {
+      loops.push_back(parent);
+      parent = parent->getParentOfType<ForEquationOp>();
+    }
+
+    assert(index < loops.size());
+    return loops[loops.size() - 1 - index];
+  }
+
+  size_t getNumberOfImplicitLoops() const
+  {
+    size_t result = 0;
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+
+    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>())
+      result += arrayType.getRank();
+
+    return result;
+  }
+
+  long getImplicitLoopStart(size_t index) const
+  {
+    assert(index < getNumOfIterationVars() - getNumberOfExplicitLoops());
+    return 0;
+  }
+
+  long getImplicitLoopEnd(size_t index) const
+  {
+    assert(index < getNumOfIterationVars() - getNumberOfExplicitLoops());
+
+    size_t counter = 0;
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+
+    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>())
+      for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter)
+        if (counter == index)
+          return arrayType.getShape()[i];
+
+    assert(false && "Implicit loop not found");
+    return 0;
+  }
+};
+
+Equation::Equation(EquationOp equation, llvm::ArrayRef<Variable> variables)
+{
+  if (hasInductionVariables(equation))
+    impl = std::make_unique<LoopEquation>(equation, variables);
+  else
+    impl = std::make_unique<ScalarEquation>(equation, variables);
+}
+
+Equation::Id Equation::getId() const
+{
+  return impl->getId();
+}
+
+size_t Equation::getNumOfIterationVars() const
+{
+  return impl->getNumOfIterationVars();
+}
+
+long Equation::getRangeStart(size_t inductionVarIndex) const
+{
+  return impl->getRangeStart(inductionVarIndex);
+}
+
+long Equation::getRangeEnd(size_t inductionVarIndex) const
+{
+  return impl->getRangeEnd(inductionVarIndex);
+}
+
+void Equation::getVariableAccesses(llvm::SmallVectorImpl<matching::Access<Variable>>& accesses) const
+{
+  impl->getVariableAccesses(accesses);
+}
+
+/*
 struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 {
 	DerOpPattern(mlir::MLIRContext* context, Model& model, mlir::BlockAndValueMapping& derivatives)
@@ -364,7 +774,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			}
 		}
 
-		auto simulation = op->getParentOfType<SimulationOp>();
+		auto simulation = op->getParentOfType<ModelOp>();
 		mlir::Value var = simulation.getVariableAllocation(operand);
 		auto variable = model->getVariable(var);
 		mlir::Value derVar;
@@ -439,8 +849,9 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	Model* model;
 	mlir::BlockAndValueMapping* derivatives;
 };
+ */
 
-struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
+struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
 {
 	private:
 	// The derivatives map keeps track of whether a variable is the derivative
@@ -460,17 +871,17 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
   static constexpr llvm::StringLiteral runtimeDeinitFunctionName = "runtimeDeinit";
 
 	public:
-	SimulationOpPattern(mlir::MLIRContext* ctx,
-											TypeConverter& typeConverter,
-											SolveModelOptions options,
-											mlir::BlockAndValueMapping& derivativesMap)
-			: mlir::ConvertOpToLLVMPattern<SimulationOp>(typeConverter),
+    ModelOpPattern(mlir::MLIRContext* ctx,
+                   TypeConverter& typeConverter,
+                   SolveModelOptions options,
+                   mlir::BlockAndValueMapping& derivativesMap)
+			: mlir::ConvertOpToLLVMPattern<ModelOp>(typeConverter),
 				options(std::move(options)),
 				derivativesMap(&derivativesMap)
 	{
 	}
 
-	mlir::LogicalResult matchAndRewrite(SimulationOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(ModelOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -593,7 +1004,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	 * @param varTypes 	types of the variables
 	 * @return conversion result status
 	 */
-	mlir::LogicalResult createInitFunction(mlir::ConversionPatternRewriter& rewriter, SimulationOp op, mlir::TypeRange varTypes) const
+	mlir::LogicalResult createInitFunction(mlir::ConversionPatternRewriter& rewriter, ModelOp op, mlir::TypeRange varTypes) const
 	{
 		mlir::Location loc = op->getLoc();
 		mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -680,7 +1091,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	 * @param varTypes 	types of the variables
 	 * @return conversion result status
 	 */
-	mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, SimulationOp op, mlir::TypeRange varTypes) const
+	mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, ModelOp op, mlir::TypeRange varTypes) const
 	{
 		mlir::Location loc = op.getLoc();
 		mlir::OpBuilder::InsertionGuard guard(builder);
@@ -727,7 +1138,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	 * @param varTypes		types of the variables
 	 * @return conversion result status
 	 */
-	mlir::LogicalResult createStepFunction(mlir::ConversionPatternRewriter& rewriter, SimulationOp op, mlir::TypeRange varTypes) const
+	mlir::LogicalResult createStepFunction(mlir::ConversionPatternRewriter& rewriter, ModelOp op, mlir::TypeRange varTypes) const
 	{
 		mlir::Location loc = op.getLoc();
 		mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -841,6 +1252,8 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
     llvm::SmallVector<mlir::Value, 3> upperBounds;
     llvm::SmallVector<mlir::Value, 3> steps;
 
+    // TODO
+    /*
     for (auto induction : eq.inductionsDefinitions())
     {
       auto inductionOp = mlir::cast<InductionOp>(induction.getDefiningOp());
@@ -853,6 +1266,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
       upperBounds.push_back(end);
       steps.push_back(step);
     }
+     */
 
     llvm::SmallVector<mlir::Value, 3> inductions;
 
@@ -864,11 +1278,11 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
     }
 
     // Before moving the equation body, we need to map the old variables of
-    // the SimulationOp to the new ones living in the dedicated function.
+    // the ModelOp to the new ones living in the dedicated function.
     // The same must be done with the induction variables.
     mlir::BlockAndValueMapping mapping;
 
-    auto originalVars = eq->getParentOfType<SimulationOp>().body().getArguments();
+    auto originalVars = eq->getParentOfType<ModelOp>().body().getArguments();
     assert(originalVars.size() == function.getNumArguments());
 
     for (const auto& [oldVar, newVar] : llvm::zip(originalVars, function.getArguments()))
@@ -1188,7 +1602,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 	mlir::LogicalResult createPrintHeaderFunction(
 			mlir::OpBuilder& builder,
-			SimulationOp op,
+      ModelOp op,
 			mlir::TypeRange varTypes,
 			DerivativesPositionsMap& derivativesPositions) const
 	{
@@ -1311,7 +1725,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 	mlir::LogicalResult createPrintFunction(
 			mlir::OpBuilder& builder,
-			SimulationOp op,
+      ModelOp op,
 			mlir::TypeRange varTypes,
 			DerivativesPositionsMap& derivativesPositions) const
 	{
@@ -1327,7 +1741,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 	mlir::LogicalResult createPrintFunctionBody(
 			mlir::OpBuilder& builder,
-			SimulationOp op,
+      ModelOp op,
 			mlir::TypeRange varTypes,
 			DerivativesPositionsMap& derivativesPositions,
 			llvm::StringRef functionName,
@@ -1459,7 +1873,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	 * @param op 				simulation operation
 	 * @return conversion result status
 	 */
-	mlir::LogicalResult createMainFunction(mlir::OpBuilder& builder, SimulationOp op) const
+	mlir::LogicalResult createMainFunction(mlir::OpBuilder& builder, ModelOp op) const
 	{
 		mlir::Location loc = op.getLoc();
 		mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1573,6 +1987,7 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 		llvm::SmallVector<mlir::Value, 3> upperBounds;
 		llvm::SmallVector<mlir::Value, 3> steps;
 
+    /*
 		for (auto induction : op.inductionsDefinitions())
 		{
 			auto inductionOp = mlir::cast<InductionOp>(induction.getDefiningOp());
@@ -1585,6 +2000,7 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 			upperBounds.push_back(end);
 			steps.push_back(step);
 		}
+     */
 
 		llvm::SmallVector<mlir::Value, 3> inductionVariables;
 
@@ -1650,20 +2066,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	void runOnOperation() override
 	{
-		// Scalarize the equations consisting in array assignments, by adding
-		// the required inductions.
-		if (failed(scalarizeArrayEquations()))
-			return signalPassFailure();
-
-		// Convert the scalar values into arrays of one element
-		if (failed(loopify()))
-			return signalPassFailure();
-
 		mlir::BlockAndValueMapping derivatives;
 
-		getOperation()->walk([&](SimulationOp simulation) {
+		getOperation()->walk([&](ModelOp simulation) {
 			mlir::OpBuilder builder(simulation);
 
+      matching::MatchingGraph<Variable, Equation> graph;
+
+
+
+      /*
 			// Create the model
 			Model model = Model::build(simulation);
 
@@ -1674,7 +2086,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Match
 			if (failed(match(model, options.matchingMaxIterations)))
 				return signalPassFailure();
+       */
 
+      /*
 			// Solve circular dependencies
 			if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
 				return signalPassFailure();
@@ -1691,93 +2105,13 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Select and use the solver
 			if (failed(selectSolver(builder, model)))
 				return signalPassFailure();
+       */
 		});
 
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
 		if (auto status = createSimulationFunctions(derivatives); failed(status))
 			return signalPassFailure();
-	}
-
-	/**
-	 * Convert the scalar variables to arrays with just one element and the
-	 * scalar equations to for equations with a one-sized induction. This
-	 * allows the subsequent transformation to ignore whether it was a scalar
-	 * or a loop equation, and a later optimization pass can easily remove
-	 * the new useless induction.
-	 */
-	mlir::LogicalResult loopify()
-	{
-		mlir::ConversionTarget target(getContext());
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-
-		target.addDynamicallyLegalOp<SimulationOp>([](SimulationOp op) {
-			auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
-			mlir::ValueRange args = terminator.values();
-
-			for (auto it = std::next(args.begin()), end = args.end(); it != end; ++it)
-				if (auto arrayType = (*it).getType().dyn_cast<ArrayType>())
-					if (arrayType.getRank() == 0)
-						return false;
-
-			return true;
-		});
-
-		target.addIllegalOp<EquationOp>();
-
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<SimulationOpLoopifyPattern, EquationOpLoopifyPattern>(&getContext());
-		patterns.insert<SimulationOpLoopifyPattern>(&getContext());
-
-		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
-			return status;
-
-		return mlir::success();
-	}
-
-	/**
-	 * If an equation consists in an assignment between two arrays, then
-	 * convert it into a for equation, in order to scalarize the assignments.
-	 */
-	mlir::LogicalResult scalarizeArrayEquations()
-	{
-		mlir::ConversionTarget target(getContext());
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-
-		target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
-			auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
-			auto pairs = llvm::zip(sides.lhs(), sides.rhs());
-
-			return llvm::all_of(pairs, [](const auto& pair) {
-				mlir::Type lhs = std::get<0>(pair).getType();
-				mlir::Type rhs = std::get<1>(pair).getType();
-
-				return !lhs.isa<ArrayType>() && !rhs.isa<ArrayType>();
-			});
-		});
-
-		target.addDynamicallyLegalOp<ForEquationOp>([](ForEquationOp op) {
-			auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
-			auto pairs = llvm::zip(sides.lhs(), sides.rhs());
-
-			return llvm::all_of(pairs, [](const auto& pair) {
-				mlir::Type lhs = std::get<0>(pair).getType();
-				mlir::Type rhs = std::get<1>(pair).getType();
-
-				return !lhs.isa<ArrayType>() && !rhs.isa<ArrayType>();
-			});
-		});
-
-		mlir::OwningRewritePatternList patterns(&getContext());
-
-		patterns.insert<
-		    EquationOpScalarizePattern,
-				ForEquationOpScalarizePattern>(&getContext());
-
-		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
-			return status;
-
-		return mlir::success();
 	}
 
 	/**
@@ -1788,6 +2122,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * @param model   model
 	 * @return conversion result
 	 */
+	 /*
 	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
 	{
 		mlir::ConversionTarget target(getContext());
@@ -1803,7 +2138,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		model.reloadIR();
 		return mlir::success();
 	}
+	  */
 
+  /*
 	mlir::LogicalResult explicitateEquations(Model& model)
 	{
 		for (auto& equation : model.getEquations())
@@ -1812,7 +2149,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		return mlir::success();
 	}
+   */
 
+  /*
 	mlir::LogicalResult selectSolver(mlir::OpBuilder& builder, Model& model)
 	{
 		if (options.solver == ForwardEuler)
@@ -1823,11 +2162,13 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		return mlir::failure();
 	}
+   */
 
 	/**
 	 * Calculate the values that the state variables will have in the next
 	 * iteration.
 	 */
+	 /*
 	mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
 	{
 		mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1875,28 +2216,31 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		return mlir::success();
 	}
+	  */
 
 	/**
 	 * This method transforms all differential equations and implicit equations
 	 * into BLT blocks within the model. Then the assigned model, ready for
 	 * lowering, is returned.
 	 */
+	 /*
 	mlir::LogicalResult addBltBlocks(mlir::OpBuilder& builder, Model& model)
 	{
 		assert(false && "To be implemented");
 	}
+	  */
 
 	mlir::LogicalResult createSimulationFunctions(mlir::BlockAndValueMapping& derivativesMap)
 	{
 		mlir::ConversionTarget target(getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp, EquationSidesOp>();
+		target.addIllegalOp<ModelOp, EquationOp, ForEquationOp, EquationSidesOp>();
 
 		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
 		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
 		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<SimulationOpPattern>(&getContext(), typeConverter, options, derivativesMap);
+		patterns.insert<ModelOpPattern>(&getContext(), typeConverter, options, derivativesMap);
 		patterns.insert<EquationOpPattern, EquationSidesOpPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))

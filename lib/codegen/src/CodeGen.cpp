@@ -1,7 +1,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <marco/frontend/AST.h>
-#include <marco/mlirlowerer/CodeGen.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/CodeGen.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 #include <mlir/IR/Verifier.h>
 
 using namespace marco;
@@ -327,7 +327,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 	mlir::ArrayAttr variableNamesAttribute = builder.getArrayAttr(attributeArray);
 
 	// Create the operation
-	auto simulation = builder.create<SimulationOp>(
+	auto modelOp = builder.create<ModelOp>(
 			location,
 			variableNamesAttribute,
 			builder.getRealAttribute(options.startTime),
@@ -337,10 +337,11 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 
 	{
 		// Simulation variables
-		builder.setInsertionPointToStart(&simulation.init().front());
+		builder.setInsertionPointToStart(&modelOp.init().front());
 		llvm::SmallVector<mlir::Value, 3> vars;
 
-		mlir::Value time = builder.create<AllocOp>(location, builder.getRealType(), llvm::None, llvm::None, false);
+    auto memberType = MemberType::get(builder.getContext(), MemberAllocationScope::heap, builder.getRealType());
+		mlir::Value time = builder.create<MemberCreateOp>(location, "time", memberType, llvm::None, false);
 		vars.push_back(time);
 
 		for (const auto& member : model.getMembers())
@@ -354,13 +355,13 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 
 	{
 		// Body
-		builder.setInsertionPointToStart(&simulation.body().front());
+		builder.setInsertionPointToStart(&modelOp.body().front());
 
-		mlir::Value time = simulation.time();
+		mlir::Value time = modelOp.time();
 		symbolTable.insert("time", Reference::memory(&builder, time));
 
 		for (const auto& member : llvm::enumerate(model.getMembers()))
-			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, simulation.body().getArgument(member.index() + 1)));
+			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, modelOp.body().getArgument(member.index() + 1)));
 
 		for (const auto& equation : model.getEquations())
 			lower(*equation);
@@ -371,7 +372,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 		builder.create<YieldOp>(location);
 	}
 
-	return simulation;
+	return modelOp;
 }
 
 mlir::Operation* MLIRLowerer::lower(const frontend::Package& package)
@@ -511,19 +512,15 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 	const auto& frontendType = member.getType();
 	mlir::Type type = lower(frontendType, BufferAllocationScope::heap);
 
-	if (auto arrayType = type.dyn_cast<ArrayType>())
-	{
-		mlir::Value ptr = builder.create<AllocOp>(location, arrayType.getElementType(), arrayType.getShape(), llvm::None, false, member.isParameter());
-		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr));
-	}
-	else
-	{
-		mlir::Value ptr = builder.create<AllocOp>(location, type, llvm::None, llvm::None, false, member.isParameter());
-		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr));
-	}
+  auto memberType = type.isa<ArrayType>() ?
+                    MemberType::get(type.cast<ArrayType>()) :
+                    MemberType::get(builder.getContext(), MemberAllocationScope::heap, type);
 
-	mlir::Value destination = symbolTable.lookup(member.getName()).getReference();
-	bool isConstant = member.isParameter();
+  bool isConstant = member.isParameter();
+  mlir::Value memberOp = builder.create<MemberCreateOp>(location, member.getName(), memberType, llvm::None, isConstant);
+  symbolTable.insert(member.getName(), Reference::member(&builder, memberOp));
+
+  Reference ref = symbolTable.lookup(member.getName());
 
 	if (member.hasStartOverload())
 	{
@@ -531,28 +528,27 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 		assert(values.size() == 1);
 
 		if (auto arrayType = type.dyn_cast<ArrayType>())
-			builder.create<FillOp>(location, *values[0], destination);
+      builder.create<FillOp>(location, *values[0], *ref);
 		else
-			builder.create<AssignmentOp>(location, *values[0], destination);
+      ref.set(*values[0]);
 	}
 	else if (member.hasInitializer())
 	{
-		Reference memory = symbolTable.lookup(member.getName());
 		mlir::Value value = *lower<Expression>(*member.getInitializer())[0];
-		memory.set(value);
+    ref.set(value);
 	}
 	else
 	{
-		if (auto arrayType = type.dyn_cast<ArrayType>())
-		{
-			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(arrayType.getElementType()));
-			builder.create<FillOp>(location, zero, destination);
-		}
-		else
-		{
-			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(type));
-			builder.create<AssignmentOp>(location, zero, destination);
-		}
+    if (auto arrayType = type.dyn_cast<ArrayType>())
+    {
+      mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(arrayType.getElementType()));
+      builder.create<FillOp>(location, zero, *ref);
+    }
+    else
+    {
+      mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(type));
+      ref.set(zero);
+    }
 	}
 }
 
@@ -666,65 +662,62 @@ void MLIRLowerer::lower(const ForEquation& forEquation)
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	mlir::Location location = loc(forEquation.getEquation()->getLocation());
 
-	auto result = builder.create<ForEquationOp>(location, forEquation.getInductions().size());
+  // We need to keep track of the first loop in order to restore
+  // the insertion point right after that when we have finished
+  // lowering all the nested inductions.
+  mlir::Operation* firstOp = nullptr;
 
-	{
-		// Inductions
-		mlir::OpBuilder::InsertionGuard guard(builder);
-		builder.setInsertionPointToStart(result.inductionsBlock());
-		llvm::SmallVector<mlir::Value, 3> inductions;
+  llvm::SmallVector<mlir::Value, 3> inductions;
 
-		for (const auto& induction : forEquation.getInductions())
-		{
-			const auto& startExpression = induction->getBegin();
-			assert(startExpression->isa<Constant>());
-			long start = startExpression->get<Constant>()->as<BuiltInType::Integer>();
+  for (auto& induction : forEquation.getInductions())
+  {
+    const auto& startExpression = induction->getBegin();
+    assert(startExpression->isa<Constant>());
+    long start = startExpression->get<Constant>()->as<BuiltInType::Integer>();
 
-			const auto& endExpression = induction->getEnd();
-			assert(endExpression->isa<Constant>());
-			long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
+    const auto& endExpression = induction->getEnd();
+    assert(endExpression->isa<Constant>());
+    long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
 
-			mlir::Value ind = builder.create<InductionOp>(location, start, end);
-			inductions.push_back(ind);
-		}
+    auto forEquationOp = builder.create<ForEquationOp>(location, start, end);
+    builder.setInsertionPointToStart(forEquationOp.body());
 
-		builder.create<YieldOp>(location, inductions);
-	}
+    symbolTable.insert(
+            induction->getName(),
+            Reference::ssa(&builder, forEquationOp.induction()));
 
-	{
-		// Body
-		mlir::OpBuilder::InsertionGuard guard(builder);
-		builder.setInsertionPointToStart(result.body());
+    if (firstOp == nullptr)
+      firstOp = forEquationOp.getOperation();
+  }
 
-		// Add the induction variables to the symbol table
-		for (auto [induction, var] : llvm::zip(forEquation.getInductions(), result.inductions()))
-			symbolTable.insert(induction->getName(), Reference::ssa(&builder, var));
+  const auto& equation = forEquation.getEquation();
 
-		const auto& equation = forEquation.getEquation();
+  auto equationOp = builder.create<EquationOp>(location);
+  builder.setInsertionPointToStart(equationOp.body());
 
-		llvm::SmallVector<mlir::Value, 1> lhs;
-		llvm::SmallVector<mlir::Value, 1> rhs;
+  llvm::SmallVector<mlir::Value, 1> lhs;
+  llvm::SmallVector<mlir::Value, 1> rhs;
 
-		{
-			// Left-hand side
-			const auto* expression = equation->getLhsExpression();
-			auto references = lower<Expression>(*expression);
+  {
+    // Left-hand side
+    const auto* expression = equation->getLhsExpression();
+    auto references = lower<Expression>(*expression);
 
-			for (auto& reference : references)
-				lhs.push_back(*reference);
-		}
+    for (auto& reference : references)
+      lhs.push_back(*reference);
+  }
 
-		{
-			// Right-hand side
-			const auto* expression = equation->getRhsExpression();
-			auto references = lower<Expression>(*expression);
+  {
+    // Right-hand side
+    const auto* expression = equation->getRhsExpression();
+    auto references = lower<Expression>(*expression);
 
-			for (auto& reference : references)
-				rhs.push_back(*reference);
-		}
+    for (auto& reference : references)
+      rhs.push_back(*reference);
+  }
 
-		builder.create<EquationSidesOp>(location, lhs, rhs);
-	}
+  builder.create<EquationSidesOp>(location, lhs, rhs);
+  builder.setInsertionPointAfter(firstOp);
 }
 
 void MLIRLowerer::lower(const Algorithm& algorithm)

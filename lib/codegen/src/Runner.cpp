@@ -2,7 +2,7 @@
 #include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
-#include <marco/mlirlowerer/Runner.h>
+#include <marco/codegen/Runner.h>
 
 using namespace marco::jit;
 

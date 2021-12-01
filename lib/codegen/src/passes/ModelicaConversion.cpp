@@ -4,9 +4,9 @@
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
-#include <marco/mlirlowerer/passes/ModelicaConversion.h>
-#include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/passes/ModelicaConversion.h>
+#include <marco/codegen/passes/TypeConverter.h>
 #include <numeric>
 
 using namespace marco::codegen;

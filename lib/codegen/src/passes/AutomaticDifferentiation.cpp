@@ -2,8 +2,8 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
-#include <marco/mlirlowerer/passes/AutomaticDifferentiation.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/passes/AutomaticDifferentiation.h>
 #include <queue>
 #include <set>
 

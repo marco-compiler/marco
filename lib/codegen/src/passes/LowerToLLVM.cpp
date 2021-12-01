@@ -5,9 +5,9 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/OpenMP/OpenMPDialect.h>
 #include <mlir/Support/MathExtras.h>
-#include <marco/mlirlowerer/passes/LowerToLLVM.h>
-#include <marco/mlirlowerer/passes/TypeConverter.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/passes/LowerToLLVM.h>
+#include <marco/codegen/passes/TypeConverter.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen;
 using namespace modelica;

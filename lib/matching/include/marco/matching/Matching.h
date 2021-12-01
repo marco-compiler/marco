@@ -57,8 +57,8 @@ namespace marco::matching
      * Requires the underlying variable property to define the Id type and
      * implement the following methods:
      *  - Id getId() const : get the ID of the variable
-     *  - size_t getRank() : get the number of dimensions
-     *  - long getDimensionSize(size_t index) : get the size of a dimension
+     *  - size_t getRank() const : get the number of dimensions
+     *  - long getDimensionSize(size_t index) const : get the size of a dimension
      */
     template<class VariableProperty>
     class VariableVertex : public Matchable, public Dumpable
@@ -218,6 +218,15 @@ namespace marco::matching
 
   namespace detail
   {
+    template<typename T>
+    void insertOrAdd(std::map<T, IncidenceMatrix>& map, T key, IncidenceMatrix value)
+    {
+      if (auto it = map.find(key); it != map.end())
+        it->second += value;
+      else
+        map.emplace(key, std::move(value));
+    }
+
     /**
      * Graph node representing an equation.
      *
@@ -225,9 +234,11 @@ namespace marco::matching
      * implement the following methods:
      *  - Id getId() const : get the ID of the equation
      *  - size_t getNumOfIterationVars() : get the number of induction variables
-     *  - Range getIterationRange(size_t inductionVarIndex) : get the range of
-     *    an iteration variable.
-     *  - void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) : get
+     *  - long getRangeStart(size_t inductionVarIndex) const : get the start (included)
+     *    of the range of an iteration variable.
+     *  - long getRangeEnd(size_t inductionVarIndex) const : get the end (excluded)
+     *    of the range of an iteration variable.
+     *  - void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const : get
      *    the variable accesses done by this equation.
      */
     template<class EquationProperty, class VariableProperty>
@@ -322,7 +333,7 @@ namespace marco::matching
       static Range getIterationRange(const EquationProperty& p, size_t index)
       {
         assert(index < getNumOfIterationVars(p));
-        return p.getIterationRange(index);
+        return Range(p.getRangeStart(index), p.getRangeEnd(index));
       }
 
       static MultidimensionalRange getIterationRanges(const EquationProperty& p)
@@ -773,15 +784,6 @@ namespace marco::matching
       private:
       Container<Flow> flows;
     };
-
-    template<typename T>
-    void insertOrAdd(std::map<T, IncidenceMatrix>& map, T key, IncidenceMatrix value)
-    {
-      if (auto it = map.find(key); it != map.end())
-        it->second += value;
-      else
-        map.emplace(key, std::move(value));
-    }
 
     /*
     template<typename VariableId, typename EquationId>

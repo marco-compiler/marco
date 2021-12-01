@@ -1,7 +1,7 @@
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
-#include <marco/mlirlowerer/dialects/modelica/Type.h>
+#include <marco/codegen/dialects/modelica/Type.h>
 
 using namespace marco::codegen::modelica;
 

@@ -1,4 +1,4 @@
-#include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/codegen/passes/TypeConverter.h>
 
 using namespace marco::codegen;
 using namespace modelica;

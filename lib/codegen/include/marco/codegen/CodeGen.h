@@ -7,7 +7,7 @@
 #include <mlir/IR/MLIRContext.h>
 #include <marco/frontend/AST.h>
 #include <marco/frontend/SymbolTable.hpp>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
+#include <marco/codegen/dialects/modelica/ModelicaBuilder.h>
 #include <marco/utils/SourcePosition.h>
 
 #include "Passes.h"

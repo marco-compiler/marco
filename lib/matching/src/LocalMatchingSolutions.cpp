@@ -163,7 +163,7 @@ void VAFSolutions::fetchNext()
     }
 
     // Theoretically, it would be sufficient to store just the iterators of
-    // the reordered multidimensional range. Anyway, their implementation may
+    // the reordered multidimensional range. However, their implementation may
     // rely on the range existence, and having it allocated on the stack may
     // lead to dangling pointers. Thus, we also store the range inside the
     // class.

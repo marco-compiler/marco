@@ -68,10 +68,15 @@ namespace marco::matching
 			return ranges.size();
 		}
 
-		Range getIterationRange(size_t index) const
+		long getRangeStart(size_t index) const
 		{
-			return ranges[index];
+			return ranges[index].getBegin();
 		}
+
+    long getRangeEnd(size_t index) const
+    {
+      return ranges[index].getEnd();
+    }
 
 		void addIterationRange(Range range)
 		{

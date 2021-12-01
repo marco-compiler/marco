@@ -12,8 +12,8 @@
 #include <llvm/Transforms/Utils.h>
 #include <marco/frontend/Parser.h>
 #include <marco/frontend/Passes.h>
-#include <marco/mlirlowerer/CodeGen.h>
-#include <marco/mlirlowerer/Passes.h>
+#include <marco/codegen/CodeGen.h>
+#include <marco/codegen/Passes.h>
 #include <marco/utils/VariableFilter.h>
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>

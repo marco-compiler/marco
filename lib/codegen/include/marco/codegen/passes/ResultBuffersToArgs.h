@@ -5,8 +5,8 @@
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <marco/mlirlowerer/dialects/modelica/Ops.h>
-#include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/codegen/dialects/modelica/Ops.h>
+#include <marco/codegen/passes/TypeConverter.h>
 
 namespace marco::codegen
 {

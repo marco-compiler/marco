@@ -2,8 +2,8 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/FunctionImplementation.h>
 #include <mlir/IR/OpImplementation.h>
-#include <marco/mlirlowerer/dialects/modelica/Attribute.h>
-#include <marco/mlirlowerer/dialects/modelica/Ops.h>
+#include <marco/codegen/dialects/modelica/Attribute.h>
+#include <marco/codegen/dialects/modelica/Ops.h>
 
 using namespace marco::codegen::modelica;
 
@@ -268,20 +268,16 @@ unsigned int ExtractOp::index()
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::SimulationOp
+// Modelica::ModelOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> SimulationOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> ModelOp::getAttributeNames()
 {
 	static llvm::StringRef attrNames[] = {llvm::StringRef("variableNames"), llvm::StringRef("startTime"), llvm::StringRef("endTime"), llvm::StringRef("timeStep")};
 	return llvm::makeArrayRef(attrNames);
 }
 
-mlir::ArrayAttr SimulationOp::variableNames() {
-    return getOperation()->getAttrOfType<mlir::ArrayAttr>("variableNames");
-}
-
-void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames,
+void ModelOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames,
 						 RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -298,79 +294,156 @@ void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 	builder.createBlock(state.addRegion(), {}, vars);
 }
 
-void SimulationOp::print(mlir::OpAsmPrinter& printer)
+void ModelOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.simulation ("
+	printer << "modelica.model ("
 					<< "start: " << startTime().getValue()
 					<< ", end: " << endTime().getValue()
 					<< ", step: " << timeStep().getValue() << ")"
           << ", variables: " << variableNames();
 
-	printer << " init";
+	printer << " variables";
 	printer.printRegion(init(), false);
 
-	printer << " step";
+	printer << " equations";
 	printer.printRegion(body(), true);
 }
 
-mlir::LogicalResult SimulationOp::verify()
+mlir::LogicalResult ModelOp::verify()
 {
 	// TODO
 	return mlir::success();
 }
 
-void SimulationOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+mlir::RegionKind ModelOp::getRegionKind(unsigned index)
 {
-	if (!index.hasValue())
-	{
-		regions.emplace_back(&body(), body().getArguments());
-		return;
-	}
+  if (index == 0)
+    return mlir::RegionKind::SSACFG;
 
-	assert(*index < 1 && "There is only one region in a SimulationOp");
-
-	if (*index == 0)
-	{
-		regions.emplace_back(&body(), body().getArguments());
-		regions.emplace_back(getOperation()->getResults());
-	}
+  return mlir::RegionKind::Graph;
 }
 
-RealAttribute SimulationOp::startTime()
+bool ModelOp::hasSSADominance(unsigned index)
+{
+  return index == 0;
+}
+
+RealAttribute ModelOp::startTime()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("startTime");
 }
 
-RealAttribute SimulationOp::endTime()
+RealAttribute ModelOp::endTime()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("endTime");
 }
 
-RealAttribute SimulationOp::timeStep()
+RealAttribute ModelOp::timeStep()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("timeStep");
 }
 
-mlir::Region& SimulationOp::init()
+mlir::Region& ModelOp::init()
 {
 	return getOperation()->getRegion(0);
 }
 
-mlir::Region& SimulationOp::body()
+mlir::Region& ModelOp::body()
 {
 	return getOperation()->getRegion(1);
 }
 
-mlir::Value SimulationOp::getVariableAllocation(mlir::Value var)
-{
-	unsigned int index = var.dyn_cast<mlir::BlockArgument>().getArgNumber();
-	return mlir::cast<YieldOp>(init().back().getTerminator()).values()[index];
-}
-
-mlir::Value SimulationOp::time()
+mlir::Value ModelOp::time()
 {
 	return body().getArgument(0);
 }
+
+mlir::ArrayAttr ModelOp::variableNames()
+{
+  return getOperation()->getAttrOfType<mlir::ArrayAttr>("variableNames");
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ForEquationOp
+//===----------------------------------------------------------------------===//
+
+long ForEquationOpAdaptor::start()
+{
+  return getAttrs().getAs<mlir::IntegerAttr>("start").getInt();
+}
+
+long ForEquationOpAdaptor::end()
+{
+  return getAttrs().getAs<mlir::IntegerAttr>("end").getInt();
+}
+
+llvm::ArrayRef<llvm::StringRef> ForEquationOp::getAttributeNames()
+{
+  static llvm::StringRef attrNames[] = {llvm::StringRef("start"), llvm::StringRef("end")};
+  return llvm::makeArrayRef(attrNames);
+}
+
+void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.createBlock(state.addRegion(), {}, builder.getIndexType());
+  state.addAttribute("start", builder.getI64IntegerAttr(start));
+  state.addAttribute("end", builder.getI64IntegerAttr(end));
+}
+
+void ForEquationOp::print(mlir::OpAsmPrinter& printer)
+{
+  printer << getOperationName();
+  printer << " " << induction() << " = " << start() << " to " << end();
+  printer.printOptionalAttrDict(getOperation()->getAttrs(), {"start", "end"});
+  printer.printRegion(getRegion(), false);
+}
+
+mlir::LogicalResult ForEquationOp::verify()
+{
+  return mlir::success();
+}
+
+mlir::Block* ForEquationOp::body()
+{
+  return &getRegion().front();
+}
+
+mlir::Value ForEquationOp::induction()
+{
+  return getRegion().getArgument(0);
+}
+
+long ForEquationOp::start()
+{
+  return Adaptor(*this).start();
+}
+
+long ForEquationOp::end()
+{
+  return Adaptor(*this).end();
+}
+
+/*
+mlir::ParseResult InductionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SMLoc loc = parser.getCurrentLocation();
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
+
+	if (!result.attributes.getNamed("start").hasValue())
+		return parser.emitError(loc, "expected start value");
+
+	if (!result.attributes.getNamed("end").hasValue())
+		return parser.emitError(loc, "expected end value");
+
+	return mlir::success();
+}
+ */
 
 //===----------------------------------------------------------------------===//
 // Modelica::EquationOp
@@ -406,183 +479,6 @@ void EquationOp::print(mlir::OpAsmPrinter& printer)
 mlir::Block* EquationOp::body()
 {
 	return &getRegion().front();
-}
-
-mlir::ValueRange EquationOp::inductions()
-{
-	return mlir::ValueRange();
-}
-
-mlir::Value EquationOp::induction(size_t index)
-{
-	assert(false && "EquationOp doesn't have induction variables");
-	return mlir::Value();
-}
-
-long EquationOp::inductionIndex(mlir::Value induction)
-{
-	assert(false && "EquationOp doesn't have induction variables");
-	return -1;
-}
-
-mlir::ValueRange EquationOp::lhs()
-{
-	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
-	return terminator.lhs();
-}
-
-mlir::ValueRange EquationOp::rhs()
-{
-	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
-	return terminator.rhs();
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::ForEquationOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> ForEquationOp::getAttributeNames()
-{
-	return {};
-}
-
-void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount)
-{
-	mlir::OpBuilder::InsertionGuard guard(builder);
-	builder.createBlock(state.addRegion());
-
-	llvm::SmallVector<mlir::Type, 3> inductionsTypes(inductionsAmount, builder.getIndexType());
-	builder.createBlock(state.addRegion(), {}, inductionsTypes);
-}
-
-void ForEquationOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.for_equation";
-	printer.printRegion(getRegion(0), false);
-	printer << " body";
-	printer.printRegion(getRegion(1), true);
-}
-
-mlir::LogicalResult ForEquationOp::verify()
-{
-	for (auto value : inductionsDefinitions())
-		if (!mlir::isa<InductionOp>(value.getDefiningOp()))
-			return emitOpError("requires the inductions to be defined by InductionOp operations");
-
-	return mlir::success();
-}
-
-mlir::Block* ForEquationOp::inductionsBlock()
-{
-	return &getRegion(0).front();
-}
-
-mlir::ValueRange ForEquationOp::inductionsDefinitions()
-{
-	return mlir::cast<YieldOp>(inductionsBlock()->getTerminator()).values();
-}
-
-mlir::Block* ForEquationOp::body()
-{
-	return &getRegion(1).front();
-}
-
-mlir::ValueRange ForEquationOp::inductions()
-{
-	return body()->getArguments();
-}
-
-mlir::Value ForEquationOp::induction(size_t index)
-{
-	auto allInductions = inductions();
-	assert(index < allInductions.size());
-	return allInductions[index];
-}
-
-long ForEquationOp::inductionIndex(mlir::Value induction)
-{
-	assert(induction.isa<mlir::BlockArgument>());
-
-	for (auto ind : llvm::enumerate(body()->getArguments()))
-		if (ind.value() == induction)
-			return ind.index();
-
-	assert(false && "Induction variable not found");
-	return -1;
-}
-
-mlir::ValueRange ForEquationOp::lhs()
-{
-	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
-	return terminator.lhs();
-}
-
-mlir::ValueRange ForEquationOp::rhs()
-{
-	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
-	return terminator.rhs();
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::InductionOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> InductionOp::getAttributeNames()
-{
-	static llvm::StringRef attrNames[] = {llvm::StringRef("start"), llvm::StringRef("end")};
-	return llvm::makeArrayRef(attrNames);
-}
-
-long InductionOpAdaptor::start()
-{
-	return getAttrs().getAs<mlir::IntegerAttr>("start").getInt();
-}
-
-long InductionOpAdaptor::end()
-{
-	return getAttrs().getAs<mlir::IntegerAttr>("end").getInt();
-}
-
-void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end)
-{
-	state.addAttribute("start", builder.getI64IntegerAttr(start));
-	state.addAttribute("end", builder.getI64IntegerAttr(end));
-
-	state.addTypes(builder.getIndexType());
-}
-
-mlir::ParseResult InductionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	llvm::SMLoc loc = parser.getCurrentLocation();
-	mlir::NamedAttrList attributes;
-
-	if (parser.parseOptionalAttrDict(attributes))
-		return mlir::failure();
-
-	result.attributes.append(attributes);
-
-	if (!result.attributes.getNamed("start").hasValue())
-		return parser.emitError(loc, "expected start value");
-
-	if (!result.attributes.getNamed("end").hasValue())
-		return parser.emitError(loc, "expected end value");
-
-	return mlir::success();
-}
-
-void InductionOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << getOperationName() << getOperation()->getAttrDictionary();
-}
-
-long InductionOp::start()
-{
-	return Adaptor(*this).start();
-}
-
-long InductionOp::end()
-{
-	return Adaptor(*this).end();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1576,22 +1472,34 @@ mlir::ValueRange MemberCreateOpAdaptor::dynamicDimensions()
 	return getValues();
 }
 
+bool MemberCreateOpAdaptor::isConstant()
+{
+  auto attr = getAttrs().getNamed("constant");
+
+  if (!attr.hasValue())
+    return false;
+
+  return attr->second.cast<mlir::BoolAttr>().getValue();
+}
+
 llvm::ArrayRef<llvm::StringRef> MemberCreateOp::getAttributeNames()
 {
-	static llvm::StringRef attrNames[] = {llvm::StringRef("name")};
+	static llvm::StringRef attrNames[] = {llvm::StringRef("name"), llvm::StringRef("constant")};
 	return llvm::makeArrayRef(attrNames);
 }
 
-void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, mlir::NamedAttrList attributes)
+void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, bool constant)
 {
 	state.addAttribute("name", builder.getStringAttr(name));
+  state.addAttribute("constant", builder.getBoolAttr(constant));
 	state.addTypes(type);
 	state.addOperands(dynamicDimensions);
-	state.attributes.append(attributes);
 }
 
 mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
+  auto& builder = parser.getBuilder();
+
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> dynamicDimensions;
 	mlir::StringAttr nameAttr;
 	llvm::SmallVector<mlir::Type, 2> dynamicDimensionsTypes;
@@ -1608,6 +1516,9 @@ mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::Operati
 		return mlir::failure();
 
 	result.attributes.append(attributes);
+
+  if (!result.attributes.getNamed("constant"))
+    result.addAttribute("constant", builder.getBoolAttr(false));
 
 	if (parser.parseColon())
 		return mlir::failure();
@@ -1651,6 +1562,7 @@ void MemberCreateOp::print(mlir::OpAsmPrinter& printer)
 	}
 
 	printer << " " << getOperation()->getAttrDictionary();
+
 	printer << " : ";
 
 	if (auto dimensions = dynamicDimensions().getTypes(); !dimensions.empty())
@@ -1695,6 +1607,11 @@ mlir::Type MemberCreateOp::resultType()
 mlir::ValueRange MemberCreateOp::dynamicDimensions()
 {
 	return Adaptor(*this).dynamicDimensions();
+}
+
+bool MemberCreateOp::isConstant()
+{
+  return Adaptor(*this).isConstant();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1922,21 +1839,17 @@ mlir::ValueRange AllocaOpAdaptor::dynamicDimensions()
 
 llvm::ArrayRef<llvm::StringRef> AllocaOp::getAttributeNames()
 {
-	static llvm::StringRef attrNames[] = {llvm::StringRef("constant")};
-	return llvm::makeArrayRef(attrNames);
+  return {};
 }
 
-void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool constant)
+void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
 	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
 	state.addOperands(dimensions);
-	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
 mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	auto& builder = parser.getBuilder();
-
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indexes;
 	llvm::SmallVector<mlir::Type, 3> indexesTypes;
 
@@ -1946,16 +1859,6 @@ mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationStat
 
 	if (parser.parseOperandList(indexes))
 		return mlir::failure();
-
-	mlir::NamedAttrList attributes;
-
-	if (parser.parseOptionalAttrDict(attributes))
-		return mlir::failure();
-
-	result.attributes.append(attributes);
-
-	if (!result.attributes.getNamed("constant"))
-		result.addAttribute("constant", builder.getBoolAttr(false));
 
 	if (parser.parseColon())
 		return mlir::failure();
@@ -1992,7 +1895,6 @@ void AllocaOp::print(mlir::OpAsmPrinter& printer)
 	if (!dimensions.empty())
 		printer << " " << dimensions;
 
-	printer.printOptionalAttrDict(getOperation()->getAttrs());
 	printer << " : ";
 
 	if (dimensions.size() > 1)
@@ -2042,11 +1944,6 @@ mlir::ValueRange AllocaOp::dynamicDimensions()
 	return Adaptor(*this).dynamicDimensions();
 }
 
-bool AllocaOp::isConstant()
-{
-	return getOperation()->getAttrOfType<mlir::BoolAttr>("constant").getValue();
-}
-
 mlir::ValueRange AllocaOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	return builder.clone(*getOperation())->getResults();
@@ -2071,33 +1968,23 @@ mlir::ValueRange AllocOpAdaptor::dynamicDimensions()
 	return getValues();
 }
 
-bool AllocOpAdaptor::isConstant()
-{
-	auto attr = getAttrs().getNamed("constant");
-
-	if (!attr.hasValue())
-		return false;
-
-	return attr->second.cast<mlir::BoolAttr>().getValue();
-}
-
 llvm::ArrayRef<llvm::StringRef> AllocOp::getAttributeNames()
 {
-	static llvm::StringRef attrNames[] = {llvm::StringRef("constant")};
-	return llvm::makeArrayRef(attrNames);
+  return {};
 }
 
-void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed, bool constant)
+void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed)
 {
 	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
 
 	state.addAttribute(getAutoFreeAttrName(), builder.getBoolAttr(shouldBeFreed));
-	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
 mlir::ParseResult AllocOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
+  auto& builder = parser.getBuilder();
+
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> dimensions;
 	llvm::SmallVector<mlir::Type, 3> dimensionsTypes;
 	mlir::Type resultType;
@@ -2114,7 +2001,10 @@ mlir::ParseResult AllocOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 
 	result.attributes.append(attributes);
 
-	if (parser.parseColon())
+  if (!result.attributes.getNamed(getAutoFreeAttrName()))
+    result.addAttribute(getAutoFreeAttrName(), builder.getBoolAttr(true));
+
+  if (parser.parseColon())
 		return mlir::failure();
 
 	if (dimensions.size() > 1)
@@ -2198,11 +2088,6 @@ ArrayType AllocOp::resultType()
 mlir::ValueRange AllocOp::dynamicDimensions()
 {
 	return Adaptor(*this).dynamicDimensions();
-}
-
-bool AllocOp::isConstant()
-{
-	return Adaptor(*this).isConstant();
 }
 
 mlir::ValueRange AllocOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)

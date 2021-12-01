@@ -10,8 +10,8 @@
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/ToolOutputFile.h>
-#include <marco/mlirlowerer/CodeGen.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
+#include <marco/codegen/CodeGen.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen;
 
