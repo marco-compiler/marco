@@ -398,6 +398,8 @@ namespace marco::ast
 
 	std::string toString(Type obj);
 
+	Type getFlattenedMemberType(Type baseType, Type memberType);
+
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args&&... args)
 	{

@@ -62,6 +62,8 @@ namespace marco::ast
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<ForEquation>> getForEquations();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<ForEquation>> getForEquations() const;
 
+		void addForEquation(std::unique_ptr<ForEquation> forEquation);
+
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Algorithm>> getAlgorithms();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Algorithm>> getAlgorithms() const;
 

@@ -111,7 +111,7 @@ void Operation::print(llvm::raw_ostream& os, size_t indents) const
 
 	os.indent(indents);
 	os << "type: ";
-	//getType().print(os);
+	getType().print(os);
 	os << "\n";
 
 	os.indent(indents);

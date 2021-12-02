@@ -1541,9 +1541,10 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 
 				auto loc = expression.getLocation();
 				auto new_expression = Expression::reference(loc, member->getType(), item);
+				auto t = member->getType();
 
 				while(member && getline (ss, item, '.')){
-					auto t = member->getType();
+					
 					auto memberName = Expression::reference(loc, makeType<std::string>(), item);
 
 					new_expression = Expression::operation(
@@ -1553,11 +1554,12 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 
 					if(t.isa<Record*>()){
 						member = (*t.get<Record*>())[item];
+						t = getFlattenedMemberType(t,member->getType());
 					}
 				}
 
 				if(member && !ss) {
-					new_expression->setType(member->getType());
+					new_expression->setType(t);
 					expression = *new_expression;
 
 					//the type of the reference is the type of the last accessed member  
@@ -2175,12 +2177,11 @@ llvm::Error TypeChecker::checkMemberLookupOp(Expression& expression)
 
 	const Record* record = lhs->getType().get<Record*>();
 	const auto memberName = rhs->get<ReferenceAccess>()->getName();
-
 	const auto *member = (*record)[memberName];
 	
 	assert(member && "member not found");
 
-	expression.setType(member->getType());
+	expression.setType(getFlattenedMemberType(lhs->getType(),member->getType()));
 
 	return llvm::Error::success();
 }

@@ -874,6 +874,11 @@ llvm::Error ConstantFolder::foldMemberLookupOp(Expression& expression)
 {
 	auto* operation = expression.get<Operation>();
 	assert(operation->getOperationKind() == OperationKind::memberLookup);
+
+	for (auto& arg : operation->getArguments())
+		if(auto error = run<Expression>(*arg))
+			return error;
+
 	return llvm::Error::success();
 }
 
@@ -1040,16 +1045,36 @@ llvm::Error ConstantFolder::foldSubscriptionOp(Expression& expression)
 	assert(operation->getOperationKind() == OperationKind::subscription);
 	auto args = operation->getArguments();
 
-	for (auto it = std::next(args.begin()), end = args.end(); it != end; ++it)
-		if (auto error = run<Expression>(**it); error)
+	for (auto &	it:args)
+		if (auto error = run<Expression>(*it); error)
 			return error;
 
-	auto new_args = operation->getArguments();
+	if(auto *lhs = args[0]->dyn_get<Operation>(); lhs && lhs->getOperationKind() == OperationKind::subscription)
+	{
+		// collapse multiple subscriptions together. e.g.  (a[1])[2] -> a[1][2] or a[1,2]  
+		auto nested_args = lhs->getArguments(); 
+
+		llvm::SmallVector<std::unique_ptr<Expression>,3> new_args;
+
+		for(auto &a : nested_args)
+			new_args.emplace_back(std::move(a));
+		bool first=true;
+		for(auto &a : args)
+			if(first)
+				first=false;
+			else
+				new_args.emplace_back(std::move(a));
+
+		expression = *Expression::operation(expression.getLocation(),expression.getType(),OperationKind::subscription, new_args);
+
+		operation = expression.get<Operation>();
+		args = operation->getArguments();
+	}
 
 	//substitutes the subscription with the constant value, if possible
-	if(new_args.size() == 2 && new_args[0]->isa<ReferenceAccess>() && new_args[1]->isa<Constant>()){
-		auto* reference = new_args[0]->get<ReferenceAccess>();
-		auto* index = new_args[1]->get<Constant>();
+	if(args.size() == 2 && args[0]->isa<ReferenceAccess>() && args[1]->isa<Constant>()){
+		auto* reference = args[0]->get<ReferenceAccess>();
+		auto* index = args[1]->get<Constant>();
 
 		if(index->isa<BuiltInType::Integer>()){
 			int int_index = index->as<BuiltInType::Integer>();

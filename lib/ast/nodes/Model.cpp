@@ -161,6 +161,11 @@ llvm::ArrayRef<std::unique_ptr<ForEquation>> Model::getForEquations() const
 	return forEquations;
 }
 
+void Model::addForEquation(std::unique_ptr<ForEquation> forEquation)
+{
+	forEquations.push_back(std::move(forEquation));
+}
+
 llvm::MutableArrayRef<std::unique_ptr<Algorithm>> Model::getAlgorithms()
 {
 	return algorithms;

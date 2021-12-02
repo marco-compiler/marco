@@ -5,4 +5,5 @@
 
 #include "marco/ast/passes/ConstantFoldingPass.h"
 #include "marco/ast/passes/TypeCheckingPass.h"
+#include "marco/ast/passes/InliningPass.h"
 #include "marco/ast/PassManager.h"

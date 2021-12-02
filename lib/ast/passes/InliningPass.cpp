@@ -57,6 +57,37 @@ llvm::Error InlineExpanser::run<StandardFunction>(Class& cls)
 	return llvm::Error::success();
 }
 
+static llvm::Error explodeMember(Member &member, bool &to_remove, llvm::SmallVectorImpl<std::unique_ptr<Member>>& to_add){
+
+	auto &type = member.getType();
+
+	if(type.isa<Record*>() ){
+		const Record* record = type.get<Record*>();
+
+		if(record->shouldBeInlined()){
+			to_remove = true;
+
+			for(const auto &m:(*record))
+			{
+				auto new_type = getFlattenedMemberType(type,m->getType());
+
+				auto new_m = Member::build(
+					member.getLocation(), 
+					(member.getName()+"."+m->getName()).str(),
+					new_type,
+					member.getTypePrefix());
+				bool toRemove=false;
+				if(auto error=explodeMember(*new_m,toRemove,to_add))
+					return error;
+
+				if(!toRemove)
+					to_add.emplace_back(std::move(new_m));
+			}
+		}
+	}
+	
+	return llvm::Error::success();
+}
 
 template<>
 llvm::Error InlineExpanser::run<Model>(Class& cls)
@@ -83,29 +114,8 @@ llvm::Error InlineExpanser::run<Model>(Class& cls)
 		auto &member = **it;
 		auto type = member.getType();
 
-		if(type.isa<Record*>() ){
-			const Record* record = type.get<Record*>();
-
-			if(record->shouldBeInlined()){
-				to_remove = true;
-
-				for(const auto &m:(*record)){
-
-					auto new_type = m->getType();
-					
-					//todo: add member + record's member dimensions (now it's assumed the record doesn't use arrays)
-					new_type.setDimensions(type.getDimensions()); 
-
-					auto new_m = Member::build(
-						member.getLocation(), 
-						(member.getName()+"."+m->getName()).str(),
-						new_type,
-						member.getTypePrefix());//todo handle also init and public section
-
-					members_to_add.emplace_back(std::move(new_m));
-				}
-			}
-		}
+		if(auto error = explodeMember(member,to_remove,members_to_add))
+			return error;
 
 		if(to_remove){
 			it = members.erase(it);
@@ -119,16 +129,14 @@ llvm::Error InlineExpanser::run<Model>(Class& cls)
 	
 	// and, similarly, handle the equations exploding the inlineable records ones
 	llvm::SmallVector<std::unique_ptr<Equation>, 3> new_equations;
+	llvm::SmallVector<std::unique_ptr<ForEquation>, 3> new_for_equations;
 
-	for (auto& eq : model->getEquations()){
-		auto error = run(*eq);
-		if (error)
-			return error;
+	auto explodeEquations=[&](Equation& eq){
+		auto *lhs = eq.getLhsExpression();
+		auto *rhs = eq.getRhsExpression();
 
-		auto *lhs = eq->getLhsExpression();
-		auto *rhs = eq->getRhsExpression();
-
-		assert(lhs->getType() == rhs->getType());
+		// todo : supports type aliases  (e.g. ComplexPU (for pure) and Complex are not equal right now)
+		// assert(lhs->getType() == rhs->getType());
 
 		if(lhs->isa<RecordInstance>() && rhs->isa<RecordInstance>()){
 			auto lt = lhs->get<RecordInstance>();
@@ -145,22 +153,41 @@ llvm::Error InlineExpanser::run<Model>(Class& cls)
 				expressions.push_back(rt->getMemberValue(member->getName()).clone());
 			}
 
-			eq = Equation::build(eq->getLocation(),std::move(destinations[0]),std::move(expressions[0]));
+			// exploding equations we always end up with more equations,
+			// so we replace the first with the current one and appends the others
+			eq = *Equation::build(eq.getLocation(),std::move(destinations[0]),std::move(expressions[0]));
 
 			for(size_t i=1; i<destinations.size(); ++i){
-				auto e = Equation::build(eq->getLocation(),std::move(destinations[i]),std::move(expressions[i]));
+				auto e = Equation::build(eq.getLocation(),std::move(destinations[i]),std::move(expressions[i]));
 				new_equations.emplace_back(std::move(e));
 			}
 		}
-	}
+	};
 
+	for (auto& eq : model->getEquations())
+	{
+		if (auto error = run(*eq))
+			return error;
+
+		explodeEquations(*eq);
+	}
 	for(auto &e : new_equations)
 		model->addEquation(std::move(e));
 		
-	//todo : explode inlinable records related ones, just as normal equations
 	for (auto& eq : model->getForEquations())
+	{
 		if (auto error = run(*eq); error)
 			return error;
+		
+		new_equations.clear();
+		explodeEquations(*eq->getEquation());
+
+		for(auto &e : new_equations){
+			new_for_equations.push_back(ForEquation::build(eq->getLocation(), eq->getInductions(), std::move(e)));
+		}
+	}
+	for(auto &e : new_for_equations)
+		model->addForEquation(std::move(e));
 
 	for (auto& algorithm : model->getAlgorithms())
 		if (auto error = run(*algorithm); error)
@@ -347,11 +374,38 @@ template<>
 llvm::Error InlineExpanser::run<Operation>(Expression& expression)
 {
 	auto* operation = expression.get<Operation>();
+	auto type = expression.getType();
 
 	if(operation->getOperationKind() == OperationKind::subscription)
-	{
-		auto lhs_type = operation->getArg(0)->getType();
-		if( lhs_type.isa<Record*>() && lhs_type.get<Record*>()->shouldBeInlined() ){
+	{	
+		auto *lhs = operation->getArg(0);
+
+		if (auto error = run<Expression>(*lhs); error)
+				return error;
+				
+		auto lhs_type = lhs->getType();
+
+		if( lhs_type.isa<Record*>() && lhs_type.get<Record*>()->shouldBeInlined() )
+		{
+			if( lhs->isa<RecordInstance>() )
+			{
+				Expression new_e = *lhs;
+				auto dims = operation->size() - 1L;
+
+				for(auto &v: *(new_e.get<RecordInstance>()))
+				{
+					Expression value = *v;
+					*v = expression;
+					*(*v->get<Operation>()->begin()) = value;
+					v->setType(value.getType().subscript(dims));
+				}
+
+				expression = new_e;
+				expression.setType(expression.getType().subscript(dims));
+
+				return llvm::Error::success();
+			}
+			
 			//skipping subscription of record array : it's gonna be handled from the memberLookup operation
 			return llvm::Error::success();
 		}
@@ -391,10 +445,12 @@ llvm::Error InlineExpanser::run<Operation>(Expression& expression)
 
 		auto lhs_type = lhs.getType();
 		
-		if(lhs_type.isa<Record*>() && rhs.isa<ReferenceAccess>() ){
+		if(lhs_type.isa<Record*>() && rhs.isa<ReferenceAccess>())
+		{
 			const Record* record = lhs_type.get<Record*>();
 
-			if(record->shouldBeInlined()){
+			if(record->shouldBeInlined())
+			{
 				auto memberName = rhs.get<ReferenceAccess>()->getName();
 
 				if(lhs.isa<ReferenceAccess>()){
@@ -405,7 +461,9 @@ llvm::Error InlineExpanser::run<Operation>(Expression& expression)
 						operation->getType(),
 						(lhs.get<ReferenceAccess>()->getName()+"."+rhs.get<ReferenceAccess>()->getName()).str());
 					
-				} else if (lhs.isa<RecordInstance>()){
+				} 
+				else if (lhs.isa<RecordInstance>())
+				{
 					//e.g. Complex(a,b).re  ->  a
 					auto instance = lhs.get<RecordInstance>();
 					lhs = instance->getMemberValue(memberName);
@@ -413,10 +471,13 @@ llvm::Error InlineExpanser::run<Operation>(Expression& expression)
 					assert(false && "unexpected lhs in member lookup");
 				}
 
+				if(auto error=run<Expression>(lhs))
+					return error;
+
 				if(subscription){
 					**(subscription->get<Operation>()->begin()) = lhs;
 					lhs = *subscription;
-					lhs.setType(expression.getType()); //todo: handle multiple subscript(?)
+					lhs.setType(expression.getType()); 
 					
 					if (auto error = run<Expression>(lhs); error)
 						return error;
@@ -426,7 +487,6 @@ llvm::Error InlineExpanser::run<Operation>(Expression& expression)
 			expression = lhs;
 
 			return llvm::Error::success();
-
 		}else{
 			assert(false && "member lookup is only supported on records.");
 		}
@@ -445,24 +505,33 @@ llvm::Error InlineExpanser::run<ReferenceAccess>(Expression& expression)
 	auto* reference = expression.get<ReferenceAccess>();
 	auto  name = reference->getName();
 
-	if( translationTable.count(name) ){
+	if( translationTable.count(name) )
+	{
 		// we replace the formal argument with the actual argument value
 		// todo: handle identifiers collisions (?) (maybe with globals?)
 		expression = *translationTable.lookup(name);
-	}else{
+	}
+	else
+	{
 		auto type = reference->getType();
 		
-		if(type.isa<Record*>()){
+		if(type.isa<Record*>())
+		{
 			const Record* record = type.get<Record*>();
 	
-			if(record->shouldBeInlined()){
+			if(record->shouldBeInlined())
+			{
 				// the ref to a inlineable record is exploded (e.g.  x  =>  RecordInstance<Complex>(x.re,x.im)  )
 				llvm::SmallVector<std::unique_ptr<Expression>,3> args;
 				
 				for(const auto &m:(*record)){
+					// auto new_type = m->getType();
+					// new_type.setDimensions(concatenateDimensions(type,new_type));
+					auto new_type = getFlattenedMemberType(type,m->getType());
+
 					auto new_m = Expression::reference(
 						m->getLocation(), 
-						m->getType(),
+						new_type,//m->getType(),
 						(name+"."+m->getName()).str());
 					
 					args.emplace_back(std::move(new_m));

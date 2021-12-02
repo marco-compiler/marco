@@ -543,6 +543,31 @@ namespace marco::ast
 
 		return obj.visit(visitor) + size;
 	}
+
+	/**
+	 *  used when flattening nested arrays of records
+	 *	e.g. given baseType=Record{NestedRecord[5] a)[10]
+	 * 			   memberType=NestedRecord[5]
+	 * 	->	 result = NestedRecord[10,5]
+	 */
+	Type getFlattenedMemberType(Type baseType, Type memberType)
+	{
+		// note: (todo) concatenating the dimensions should be enough, but it doesn't work since scalars are assumed to be arrays of dimension 1
+		if(!baseType.isScalar() )
+		{
+			if(memberType.isScalar()){
+				memberType.setDimensions(baseType.getDimensions());
+			}else{
+				auto d = memberType.getDimensions();
+				llvm::SmallVector<ArrayDimension,3> dimensions(d.begin(),d.end());
+				auto new_dimensions = baseType.getDimensions();
+				dimensions.insert(dimensions.begin(),new_dimensions.begin(),new_dimensions.end());
+
+				memberType.setDimensions(dimensions); 
+			}
+		}
+		return memberType;
+	}
 }
 
 Type Type::unknown() { return Type(BuiltInType::Unknown); }
