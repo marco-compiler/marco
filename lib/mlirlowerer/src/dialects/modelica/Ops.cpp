@@ -5651,7 +5651,8 @@ void MulOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left * right));
+	mlir::Type type = getMostGenericType(leftOp.resultType(), rightOp.resultType());
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), getAttribute(builder, type, left * right));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -6145,7 +6146,8 @@ void DivOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left / right));
+	mlir::Type type = getMostGenericType(leftOp.resultType(), rightOp.resultType());
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), getAttribute(builder, type, left / right));
 
 	replaceAllUsesWith(newOp);
 	erase();

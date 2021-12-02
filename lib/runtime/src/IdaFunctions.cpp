@@ -161,11 +161,9 @@ static sunindextype computeOffset(
 {
 	assert(accesses.size() == dimensions.size());
 
-	sunindextype offset =
-			accesses[0].first +
-			(accesses[0].second != -1 ? indexes[accesses[0].second] : 0);
+	sunindextype offset = 0;
 
-	for (size_t i = 1; i < accesses.size(); ++i)
+	for (size_t i = 0; i < accesses.size(); ++i)
 	{
 		sunindextype accessOffset =
 				accesses[i].first +

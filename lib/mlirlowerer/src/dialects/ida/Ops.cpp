@@ -4,6 +4,7 @@
 #include <marco/mlirlowerer/dialects/modelica/Attribute.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/mlirlowerer/dialects/modelica/Ops.h>
+#include <marco/mlirlowerer/dialects/modelica/Traits.h>
 #include <marco/mlirlowerer/dialects/modelica/Type.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <mlir/Conversion/Passes.h>
@@ -77,35 +78,23 @@ namespace marco::codegen::ida
 	 */
 	static mlir::Value computeVariableOffset(
 			modelica::ModelicaBuilder& builder,
-			mlir::Location loc,
 			const model::Variable& variable,
 			const model::Expression& expression,
 			int64_t varOffset,
 			mlir::BlockArgument indexes)
 	{
+		mlir::Location loc = expression.getOp()->getLoc();
 		model::VectorAccess vectorAccess = model::AccessToVar::fromExp(expression).getAccess();
 		marco::MultiDimInterval dimensions = variable.toMultiDimInterval();
-		mlir::Type type = builder.getIntegerType();
 
-		// Compute the offset of the current dimension.
-		model::SingleDimensionAccess acc = vectorAccess[0];
-		int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : (acc.getOffset() + 1);
-		mlir::Value offset = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(accOffset));
+		mlir::Value offset = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(0));
 
-		if (acc.isOffset())
-		{
-			// Add the offset that depends on the input indexes.
-			mlir::Value indIndex = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(acc.getInductionVar()));
-			mlir::Value indValue = builder.create<LoadPointerOp>(loc, indexes, indIndex);
-			offset = builder.create<modelica::AddOp>(loc, type, offset, indValue);
-		}
-
-		// For every dimension after the first one...
-		for (size_t i = 1; i < vectorAccess.size(); i++)
+		// For every dimension of the variable
+		for (size_t i = 0; i < vectorAccess.size(); i++)
 		{
 			// Compute the offset of the current dimension.
-			acc = vectorAccess[i];
-			accOffset = acc.isDirectAccess() ? acc.getOffset() : (acc.getOffset() + 1);
+			model::SingleDimensionAccess acc = vectorAccess[i];
+			int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : (acc.getOffset() + 1);
 			mlir::Value accessOffset = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(accOffset));
 
 			if (acc.isOffset())
@@ -113,20 +102,20 @@ namespace marco::codegen::ida
 				// Add the offset that depends on the input indexes.
 				mlir::Value indIndex = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(acc.getInductionVar()));
 				mlir::Value indValue = builder.create<LoadPointerOp>(loc, indexes, indIndex);
-				accessOffset = builder.create<modelica::AddOp>(loc, type, accessOffset, indValue);
+				accessOffset = builder.create<modelica::AddOp>(loc, accessOffset.getType(), accessOffset, indValue);
 			}
 
 			// Multiply the previous offset by the width of the current dimension.
 			mlir::Value dimension = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(dimensions[i].size()));
-			offset = builder.create<modelica::MulOp>(loc, type, offset, dimension);
+			offset = builder.create<modelica::MulOp>(loc, offset.getType(), offset, dimension);
 
 			// Add the current dimension offset.
-			offset = builder.create<modelica::AddOp>(loc, type, offset, accessOffset);
+			offset = builder.create<modelica::AddOp>(loc, offset.getType(), offset, accessOffset);
 		}
 
 		// Add the offset from the start of the monodimensional variable array used by IDA.
 		mlir::Value varOffsetValue = builder.create<modelica::ConstantOp>(loc, builder.getIntegerAttribute(varOffset));
-		return builder.create<modelica::AddOp>(loc, type, offset, varOffsetValue);
+		return builder.create<modelica::AddOp>(loc, offset.getType(), offset, varOffsetValue);
 	}
 
 	/**
@@ -170,7 +159,7 @@ namespace marco::codegen::ida
 				return args[0];
 
 			// Compute the IDA variable offset, which depends on the variable, the dimension and the access.
-			mlir::Value varOffset = computeVariableOffset(builder, loc, var, expression, offsetMap[var], args[3]);
+			mlir::Value varOffset = computeVariableOffset(builder, var, expression, offsetMap[var], args[3]);
 
 			// Access and return the correct variable value.
 			mlir::BlockArgument argArray = var.isDerivative() ? args[2] : args[1];
@@ -227,7 +216,7 @@ namespace marco::codegen::ida
 				return builder.create<modelica::ConstantOp>(loc, builder.getRealAttribute(0.0));
 
 			// Compute the IDA variable offset, which depends on the variable, the dimension and the access.
-			mlir::Value varOffset = computeVariableOffset(builder, loc, var, expression, offsetMap[var], args[3]);
+			mlir::Value varOffset = computeVariableOffset(builder, var, expression, offsetMap[var], args[3]);
 
 			// Check if the variable with respect to which we are currently derivating
 			// is also the variable we are derivating.
@@ -273,6 +262,34 @@ namespace marco::codegen::ida
 		clonedOp->erase();
 		return derivedOp;
 	}
+}
+
+static void foldConstants(mlir::OpBuilder& builder, mlir::Block& block)
+{
+	llvm::SmallVector<mlir::Operation*, 3> operations;
+
+	for (mlir::Operation& operation : block.getOperations())
+		operations.push_back(&operation);
+
+	// If an operation has only constants as operands, we can substitute it with
+	// the corresponding constant value and erase the old operation.
+	for (mlir::Operation* operation : operations)
+		if (operation->hasTrait<modelica::FoldableOpInterface::Trait>())
+			mlir::cast<modelica::FoldableOpInterface>(operation).foldConstants(builder);
+}
+
+static void cleanOperation(mlir::Block& block)
+{
+	llvm::SmallVector<mlir::Operation*, 3> operations;
+
+	for (mlir::Operation& operation : block.getOperations())
+		if (!mlir::isa<ida::FunctionTerminatorOp>(operation))
+			operations.push_back(&operation);
+
+	// If an operation has no uses, erase it.
+	for (mlir::Operation* operation : llvm::reverse(operations))
+		if (operation->use_empty())
+			operation->erase();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1299,6 +1316,10 @@ void ResidualFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 
 	mlir::Value returnValue = modelicaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), modelicaBuilder.getRealType(), rhsResidual, lhsResidual);
 	modelicaBuilder.create<ida::FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
+
+	// Fold the constants and clean the unused operations.
+	foldConstants(builder, entryBlock);
+	cleanOperation(entryBlock);
 }
 
 mlir::ParseResult ResidualFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -1419,6 +1440,10 @@ void JacobianFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 
 	mlir::Value returnValue = modelicaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), modelicaBuilder.getRealType(), rhsJacobian, lhsJacobian);
 	modelicaBuilder.create<ida::FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
+
+	// Fold the constants and clean the unused operations.
+	foldConstants(builder, entryBlock);
+	cleanOperation(entryBlock);
 }
 
 mlir::ParseResult JacobianFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
