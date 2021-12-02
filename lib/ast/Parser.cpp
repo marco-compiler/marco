@@ -1207,6 +1207,8 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()
 			return std::move(error);
 
 		loc.extendEnd(subscriptsLocation);
+
+		subscripts.insert(subscripts.begin(), std::move(expression));
 		expression = Expression::operation(loc, Type::unknown(), OperationKind::subscription, subscripts);
 	}
 
