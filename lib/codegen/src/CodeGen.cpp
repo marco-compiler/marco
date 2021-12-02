@@ -84,6 +84,7 @@ Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
 			{
 				auto memberType = value.getType().cast<MemberType>();
 
+        // TODO: replace with unwrap
 				if (memberType.getShape().empty())
 					return builder->create<MemberLoadOp>(value.getLoc(), memberType.getElementType(), value);
 
@@ -314,7 +315,9 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 	{
 		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
 
-		if (!type.isa<ArrayType>())
+		if (auto arrayType = type.dyn_cast<ArrayType>())
+      type = arrayType.toUnknownAllocationScope();
+    else
 			type = builder.getArrayType(BufferAllocationScope::unknown, type);
 
 		args.push_back(type);

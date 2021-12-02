@@ -461,17 +461,17 @@ static std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int
  * @param currentOrder  current order
  * @return next order derived variable name
  */
-static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int currentOrder)
+static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int requestedOrder)
 {
-	if (currentOrder == 1)
-		return getFullDerVariableName(currentName, currentOrder);
+	if (requestedOrder == 1)
+		return getFullDerVariableName(currentName, requestedOrder);
 
 	assert(currentName.rfind("der_") == 0);
 
-	if (currentOrder == 2)
-		return getFullDerVariableName(currentName.substr(4), currentOrder);
+	if (requestedOrder == 2)
+		return getFullDerVariableName(currentName.substr(4), requestedOrder);
 
-	return getFullDerVariableName(currentName.substr(5 + numDigits(currentOrder - 1)), currentOrder);
+	return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
 }
 
 static void mapFullDerivatives(llvm::ArrayRef<llvm::StringRef> names,

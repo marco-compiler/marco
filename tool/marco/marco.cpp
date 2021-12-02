@@ -296,8 +296,10 @@ mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions option
 {
   mlir::PassManager passManager(module.getContext());
 
-  passManager.addPass(codegen::createAutomaticDifferentiationPass());
+  //passManager.addPass(codegen::createAutomaticDifferentiationPass());
   passManager.addPass(codegen::createSolveModelPass(options.solveModelOptions));
+
+  /*
   passManager.addPass(codegen::createFunctionsVectorizationPass(options.functionsVectorizationOptions));
   passManager.addPass(codegen::createExplicitCastInsertionPass());
 
@@ -333,6 +335,7 @@ mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions option
 
   if (!options.debug)
     passManager.addPass(mlir::createStripDebugInfoPass());
+    */
 
   return passManager.run(module);
 }

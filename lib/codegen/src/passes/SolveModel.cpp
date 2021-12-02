@@ -1,4 +1,5 @@
 #include <cassert>
+#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/Conversion/LLVMCommon/Pattern.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
@@ -12,6 +13,8 @@
 #include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 #include <marco/codegen/passes/SolveModel.h>
 #include <marco/codegen/passes/TypeConverter.h>
+#include <marco/codegen/passes/model/Equation.h>
+#include <marco/codegen/passes/model/Model.h>
 #include <marco/matching/Matching.h>
 #include <marco/utils/VariableFilter.h>
 #include <memory>
@@ -19,222 +22,6 @@
 using namespace marco;
 using namespace codegen;
 using namespace modelica;
-
-/*/
-class Variable;
-class Equation;
-
-class Model
-{
-  public:
-
-  private:
-  llvm::SmallVector<std::unique_ptr<Variable>, 10> variables;
-  llvm::SmallVector<std::unique_ptr<Equation>, 10> equations;
-};
-*/
-
-/**
- * Proxy to the value representing a variable within the model.
- */
-class Variable
-{
-  public:
-  class Impl;
-  using Id = mlir::Operation*;
-
-  Variable(mlir::Value value);
-
-  Variable(const Variable& other);
-
-  ~Variable();
-
-  Variable& operator=(const Variable& other);
-  Variable& operator=(Variable&& other);
-
-  friend void swap(Variable& first, Variable& second);
-
-  Id getId() const;
-  size_t getRank() const;
-  long getDimensionSize(size_t index) const;
-
-  mlir::Value getValue() const;
-  MemberCreateOp getDefiningOp() const;
-
-  private:
-  std::unique_ptr<Impl> impl;
-};
-
-class Variable::Impl
-{
-  public:
-  Impl(mlir::Value value) : value(value)
-  {
-    assert(value.isa<mlir::BlockArgument>());
-    size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
-    auto model = value.getParentRegion()->getParentOfType<ModelOp>();
-    auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
-    definingOp = terminator.values()[index].getDefiningOp();
-    assert(definingOp != nullptr);
-  }
-
-  virtual std::unique_ptr<Variable::Impl> clone() const = 0;
-
-  mlir::Operation* getId() const
-  {
-    return definingOp;
-  }
-
-  virtual size_t getRank() const = 0;
-
-  virtual long getDimensionSize(size_t index) const = 0;
-
-  mlir::Value getValue() const
-  {
-    return value;
-  }
-
-  MemberCreateOp getDefiningOp() const
-  {
-    return mlir::cast<MemberCreateOp>(definingOp);
-  }
-
-  private:
-  mlir::Value value;
-  mlir::Operation* definingOp;
-};
-
-Variable::Id Variable::getId() const
-{
-  return impl->getId();
-}
-
-size_t Variable::getRank() const
-{
-  return impl->getRank();
-}
-
-long Variable::getDimensionSize(size_t index) const
-{
-  return impl->getDimensionSize(index);
-}
-
-mlir::Value Variable::getValue() const
-{
-  return impl->getValue();
-}
-
-MemberCreateOp Variable::getDefiningOp() const
-{
-  return impl->getDefiningOp();
-}
-
-/**
- * Variable implementation for scalar values.
- * The arrays declaration are kept untouched within the IR, but they
- * are masked by this class as arrays with just one element.
- */
-class ScalarVariable : public Variable::Impl
-{
-  public:
-  ScalarVariable(mlir::Value value) : Impl(value)
-  {
-    assert(value.getType().isa<BooleanType>() ||
-            value.getType().isa<IntegerType>() ||
-            value.getType().isa<RealType>());
-  }
-
-  std::unique_ptr<Variable::Impl> clone() const override
-  {
-    return std::make_unique<ScalarVariable>(*this);
-  }
-
-  size_t getRank() const override
-  {
-    return 1;
-  }
-
-  long getDimensionSize(size_t index) const override
-  {
-    return 1;
-  }
-};
-
-/**
- * Variable implementation for array values.
- * The class just acts as a forwarder.
- */
-class ArrayVariable : public Variable::Impl
-{
-  public:
-  ArrayVariable(mlir::Value value) : Impl(value)
-  {
-    assert(value.getType().isa<ArrayType>());
-  }
-
-  std::unique_ptr<Variable::Impl> clone() const override
-  {
-    return std::make_unique<ArrayVariable>(*this);
-  }
-
-  size_t getRank() const override
-  {
-    return getValue().getType().cast<ArrayType>().getRank();
-  }
-
-  long getDimensionSize(size_t index) const override
-  {
-    return getValue().getType().cast<ArrayType>().getShape()[index];
-  }
-};
-
-Variable::Variable(mlir::Value value)
-{
-  if (value.getType().isa<ArrayType>())
-    impl = std::make_unique<ArrayVariable>(value);
-  else
-    impl = std::make_unique<ScalarVariable>(value);
-}
-
-Variable::Variable(const Variable& other)
-        : impl(other.impl->clone())
-{
-}
-
-Variable::~Variable() = default;
-
-Variable& Variable::operator=(const Variable& other)
-{
-  Variable result(other);
-  swap(*this, result);
-  return *this;
-}
-
-Variable& Variable::operator=(Variable&& other) = default;
-
-void swap(Variable& first, Variable& second)
-{
-  using std::swap;
-  swap(first.impl, second.impl);
-}
-
-static long getIntFromAttribute(mlir::Attribute attribute)
-{
-  if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>())
-    return indexAttr.getInt();
-
-  if (auto booleanAttr = attribute.dyn_cast<BooleanAttribute>())
-    return booleanAttr.getValue() ? 1 : 0;
-
-  if (auto integerAttr = attribute.dyn_cast<IntegerAttribute>())
-    return integerAttr.getValue();
-
-  if (auto realAttr = attribute.dyn_cast<RealAttribute>())
-    return realAttr.getValue();
-
-  assert(false && "Unknown attribute type");
-  return 0;
-}
 
 using Path = std::vector<size_t>;
 
@@ -282,574 +69,45 @@ class FakeAccess
 };
  */
 
-class Equation
+// TODO factor out from here and AD pass (and maybe also from somewhere else)
+template <class T>
+unsigned int numDigits(T number)
 {
-  public:
-  class Impl;
-  using Id = mlir::Operation*;
-  using Access = matching::Access<Variable>;
+  unsigned int digits = 0;
 
-  Equation(EquationOp equation, llvm::ArrayRef<Variable> variables);
-
-  Id getId() const;
-  size_t getNumOfIterationVars() const;
-  long getRangeStart(size_t inductionVarIndex) const;
-  long getRangeEnd(size_t inductionVarIndex) const;
-  void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const;
-
-  private:
-  std::unique_ptr<Impl> impl;
-};
-
-class Equation::Impl
-{
-  public:
-  using Access = Equation::Access;
-
-  Impl(EquationOp equation, llvm::ArrayRef<Variable> variables)
-          : equationOp(equation.getOperation())
+  while (number != 0)
   {
-    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-    assert(terminator.lhs().size() == 1);
-    assert(terminator.rhs().size() == 1);
+    number /= 10;
+    ++digits;
   }
 
-  mlir::Operation* getId() const
-  {
-    return equationOp;
-  }
-
-  virtual size_t getNumOfIterationVars() const = 0;
-  virtual long getRangeStart(size_t inductionVarIndex) const = 0;
-  virtual long getRangeEnd(size_t inductionVarIndex) const = 0;
-  virtual void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const = 0;
-
-  EquationOp getOperation() const
-  {
-    return mlir::cast<EquationOp>(equationOp);
-  }
-
-  const Variable& resolveVariable(mlir::Value value) const
-  {
-    assert(value.isa<mlir::BlockArgument>());
-
-    return *llvm::find_if(variables, [&](const Variable& variable) {
-      return value == variable.getValue();
-    });
-  }
-
-  bool isReferenceAccess(mlir::Value value) const
-  {
-    if (value.isa<mlir::BlockArgument>())
-      return mlir::isa<ModelOp>(value.getParentRegion()->getParentOp());
-
-    mlir::Operation* definingOp = value.getDefiningOp();
-
-    if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp))
-      return isReferenceAccess(loadOp.memory());
-
-    if (auto viewOp = mlir::dyn_cast<SubscriptionOp>(definingOp))
-      return isReferenceAccess(viewOp.source());
-
-    return false;
-  }
-
-  void searchAccesses(
-          llvm::SmallVectorImpl<Access>& accesses,
-          mlir::Operation* op,
-          llvm::SmallVectorImpl<matching::DimensionAccess>& dimensionAccesses) const
-  {
-    auto processIndexesFn = [&](mlir::ValueRange indexes) {
-      for (size_t i = 0, e = indexes.size(); i < e; ++i)
-      {
-        mlir::Value index = indexes[e - 1 - i];
-        auto evaluatedAccess = evaluateDimensionAccess(index);
-        dimensionAccesses.push_back(resolveDimensionAccess(evaluatedAccess));
-      }
-    };
-
-    if (auto loadOp = mlir::dyn_cast<LoadOp>(op))
-    {
-      processIndexesFn(loadOp.indexes());
-      searchAccesses(accesses, loadOp.memory(), dimensionAccesses);
-    }
-    else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
-    {
-      processIndexesFn(subscriptionOp.indexes());
-      searchAccesses(accesses, subscriptionOp.source(), dimensionAccesses);
-    }
-    else
-    {
-      for (mlir::Value operand : op->getOperands())
-        searchAccesses(accesses, operand);
-    }
-  }
-
-  void searchAccesses(
-          llvm::SmallVectorImpl<Access>& accesses,
-          mlir::Value value) const
-  {
-    if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr)
-    {
-      llvm::SmallVector<matching::DimensionAccess> dimensionAccesses;
-      searchAccesses(accesses, definingOp, dimensionAccesses);
-    }
-  }
-
-  void searchAccesses(
-          llvm::SmallVectorImpl<Access>& accesses,
-          mlir::Value value,
-          llvm::SmallVectorImpl<matching::DimensionAccess>& dimensionAccesses) const
-  {
-    if (isReferenceAccess(value))
-      resolveAccess(accesses, value, dimensionAccesses);
-    else
-      searchAccesses(accesses, value);
-  }
-
-  void resolveAccess(
-          llvm::SmallVectorImpl<Access>& accesses,
-          mlir::Value value,
-          llvm::SmallVectorImpl<matching::DimensionAccess>& dimensionsAccesses) const
-  {
-    const auto& variable = resolveVariable(value);
-
-    if (variable.getDefiningOp().isConstant())
-      return;
-
-    llvm::SmallVector<matching::DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());
-    mlir::Type type = value.getType();
-
-    if (type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>())
-    {
-      assert(dimensionsAccesses.empty());
-      dimensionsAccesses.push_back(matching::DimensionAccess::constant(0));
-      accesses.emplace_back(variable, reverted);
-    }
-    else if (auto arrayType = type.dyn_cast<ArrayType>())
-    {
-      if (arrayType.getShape().size() == dimensionsAccesses.size())
-        accesses.emplace_back(variable, reverted);
-    }
-  }
-
-  std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const
-  {
-    if (value.isa<mlir::BlockArgument>())
-      return std::make_pair(value, 0);
-
-    mlir::Operation* op = value.getDefiningOp();
-    assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) || mlir::isa<SubOp>(op)) && "Invalid access pattern");
-
-    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op))
-      return std::make_pair(nullptr, getIntFromAttribute(constantOp.value()));
-
-    if (auto addOp = mlir::dyn_cast<AddOp>(op))
-    {
-      auto first = evaluateDimensionAccess(addOp.lhs());
-      auto second = evaluateDimensionAccess(addOp.rhs());
-
-      assert(first.first == nullptr || second.first == nullptr);
-      mlir::Value induction = first.first != nullptr ? first.first : second.first;
-      return std::make_pair(induction, first.second + second.second);
-    }
-
-    auto subOp = mlir::dyn_cast<SubOp>(op);
-
-    auto first = evaluateDimensionAccess(subOp.lhs());
-    auto second = evaluateDimensionAccess(subOp.rhs());
-
-    assert(first.first == nullptr || second.first == nullptr);
-    mlir::Value induction = first.first != nullptr ? first.first : second.first;
-    return std::make_pair(induction, first.second - second.second);
-  }
-
-  virtual matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const = 0;
-
-  private:
-  mlir::Operation* equationOp;
-  llvm::ArrayRef<Variable> variables;
-};
-
-/**
- * Scalar Equation with Scalar Assignments.
- *
- * An equation that does not present induction variables, neither
- * explicit or implicit.
- */
-class ScalarEquation : public Equation::Impl
-{
-  public:
-  using Access = Equation::Impl::Access;
-
-  ScalarEquation(EquationOp equation, llvm::ArrayRef<Variable> variables)
-          : Impl(equation, variables)
-  {
-    // Check that the equation is not enclosed in a loop
-    assert(equation->getParentOfType<ForEquationOp>() == nullptr);
-
-    // Check that all the values are scalars
-    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-
-    auto isScalarFn = [](mlir::Value value) {
-        auto type = value.getType();
-        return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
-    };
-
-    assert(llvm::all_of(terminator.lhs(), isScalarFn));
-    assert(llvm::all_of(terminator.rhs(), isScalarFn));
-  }
-
-  size_t getNumOfIterationVars() const override
-  {
-    return 1;
-  }
-
-  long getRangeStart(size_t inductionVarIndex) const override
-  {
-    return 0;
-  }
-
-  long getRangeEnd(size_t inductionVarIndex) const override
-  {
-    return 1;
-  }
-
-  void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override
-  {
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-
-    auto processFn = [&](mlir::Value value) {
-      searchAccesses(accesses, value);
-    };
-
-    processFn(terminator.lhs()[0]);
-    processFn(terminator.rhs()[0]);
-  }
-
-  matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override
-  {
-    assert(access.first == nullptr);
-    return matching::DimensionAccess::constant(access.second);
-  }
-};
-
-/**
- * Check if an equation has explicit or implicit induction variables.
- *
- * @param equation  equation
- * @return true if the equation is surrounded by explicit loops or defines implicit ones
- */
-static bool hasInductionVariables(EquationOp equation)
-{
-  auto explicitLoopChecker = [&]() -> bool {
-      return equation->getParentOfType<ForEquationOp>() != nullptr;
-  };
-
-  auto implicitLoopChecker = [&]() -> bool {
-      auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-
-      return llvm::any_of(terminator.lhs(), [](mlir::Value value) {
-          return value.getType().isa<ArrayType>();
-      });
-  };
+  return digits;
 }
 
-/**
- * Loop Equation.
- *
- * An equation that present explicit or implicit induction variables.
- */
-class LoopEquation : public Equation::Impl
+// TODO factor out from here and AD pass
+static std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int order)
 {
-  public:
-  using Access = Equation::Impl::Access;
+  assert(order > 0);
 
-  LoopEquation(EquationOp equation, llvm::ArrayRef<Variable> variables)
-          : Impl(equation, variables)
-  {
-    // Check that there exists at least one explicit or implicit loop
-    assert(hasInductionVariables(equation) && "No explicit or implicit loop found");
-  }
+  if (order == 1)
+    return "der_" + baseName.str();
 
-  size_t getNumOfIterationVars() const override
-  {
-    return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
-  }
-
-  long getRangeStart(size_t inductionVarIndex) const override
-  {
-    size_t explicitLoops = getNumberOfExplicitLoops();
-
-    if (inductionVarIndex < explicitLoops)
-      return getExplicitLoop(inductionVarIndex).start();
-
-    return getImplicitLoopStart(inductionVarIndex - explicitLoops);
-  }
-
-  long getRangeEnd(size_t inductionVarIndex) const override
-  {
-    size_t explicitLoops = getNumberOfExplicitLoops();
-
-    if (inductionVarIndex < explicitLoops)
-      return getExplicitLoop(inductionVarIndex).end() + 1;
-
-    return getImplicitLoopEnd(inductionVarIndex - explicitLoops);
-  }
-
-  void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override
-  {
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-    size_t explicitInductions = getNumberOfExplicitLoops();
-
-    auto processFn = [&](mlir::Value value) {
-      llvm::SmallVector<matching::DimensionAccess> implicitDimensionAccesses;
-      size_t implicitInductionVar = 0;
-
-      if (auto arrayType = value.getType().dyn_cast<ArrayType>())
-      {
-        for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
-        {
-          auto dimensionAccess = matching::DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
-          implicitDimensionAccesses.push_back(dimensionAccess);
-          ++implicitInductionVar;
-        }
-      }
-
-      searchAccesses(accesses, value, implicitDimensionAccesses);
-    };
-
-    processFn(terminator.lhs()[0]);
-    processFn(terminator.rhs()[0]);
-  }
-
-  virtual matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override
-  {
-    if (access.first == nullptr)
-      return matching::DimensionAccess::constant(access.second);
-
-    llvm::SmallVector<ForEquationOp, 3> loops;
-    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
-
-    while (parent != nullptr)
-    {
-      loops.push_back(parent);
-      parent = parent->getParentOfType<ForEquationOp>();
-    }
-
-    auto loopIt = llvm::find_if(loops, [&](ForEquationOp loop) {
-      return loop.induction() == access.first;
-    });
-
-    size_t inductionVarIndex = loopIt - loops.begin();
-    return matching::DimensionAccess::relative(inductionVarIndex, access.second);
-  }
-
-  private:
-  size_t getNumberOfExplicitLoops() const
-  {
-    size_t result = 0;
-    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
-
-    while (parent != nullptr)
-    {
-      ++result;
-      parent = parent->getParentOfType<ForEquationOp>();
-    }
-
-    return result;
-  }
-
-  ForEquationOp getExplicitLoop(size_t index) const
-  {
-    llvm::SmallVector<ForEquationOp, 3> loops;
-    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
-
-    while (parent != nullptr)
-    {
-      loops.push_back(parent);
-      parent = parent->getParentOfType<ForEquationOp>();
-    }
-
-    assert(index < loops.size());
-    return loops[loops.size() - 1 - index];
-  }
-
-  size_t getNumberOfImplicitLoops() const
-  {
-    size_t result = 0;
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-
-    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>())
-      result += arrayType.getRank();
-
-    return result;
-  }
-
-  long getImplicitLoopStart(size_t index) const
-  {
-    assert(index < getNumOfIterationVars() - getNumberOfExplicitLoops());
-    return 0;
-  }
-
-  long getImplicitLoopEnd(size_t index) const
-  {
-    assert(index < getNumOfIterationVars() - getNumberOfExplicitLoops());
-
-    size_t counter = 0;
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-
-    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>())
-      for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter)
-        if (counter == index)
-          return arrayType.getShape()[i];
-
-    assert(false && "Implicit loop not found");
-    return 0;
-  }
-};
-
-Equation::Equation(EquationOp equation, llvm::ArrayRef<Variable> variables)
-{
-  if (hasInductionVariables(equation))
-    impl = std::make_unique<LoopEquation>(equation, variables);
-  else
-    impl = std::make_unique<ScalarEquation>(equation, variables);
+  return "der_" + std::to_string(order) + "_" + baseName.str();
 }
 
-Equation::Id Equation::getId() const
+// TODO factor out from here and AD pass
+static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int requestedOrder)
 {
-  return impl->getId();
+  if (requestedOrder == 1)
+    return getFullDerVariableName(currentName, requestedOrder);
+
+  assert(currentName.rfind("der_") == 0);
+
+  if (requestedOrder == 2)
+    return getFullDerVariableName(currentName.substr(4), requestedOrder);
+
+  return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
 }
-
-size_t Equation::getNumOfIterationVars() const
-{
-  return impl->getNumOfIterationVars();
-}
-
-long Equation::getRangeStart(size_t inductionVarIndex) const
-{
-  return impl->getRangeStart(inductionVarIndex);
-}
-
-long Equation::getRangeEnd(size_t inductionVarIndex) const
-{
-  return impl->getRangeEnd(inductionVarIndex);
-}
-
-void Equation::getVariableAccesses(llvm::SmallVectorImpl<matching::Access<Variable>>& accesses) const
-{
-  impl->getVariableAccesses(accesses);
-}
-
-/*
-struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
-{
-	DerOpPattern(mlir::MLIRContext* context, Model& model, mlir::BlockAndValueMapping& derivatives)
-			: mlir::OpRewritePattern<DerOp>(context), model(&model), derivatives(&derivatives)
-	{
-	}
-
-	mlir::LogicalResult matchAndRewrite(DerOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op->getLoc();
-		mlir::Value operand = op.operand();
-
-		// If the value to be derived belongs to an array, then also the derived
-		// value is stored within an array. Thus we need to store its position.
-
-		llvm::SmallVector<mlir::Value, 3> subscriptions;
-
-		while (!operand.isa<mlir::BlockArgument>())
-		{
-			if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(operand.getDefiningOp()))
-			{
-				mlir::ValueRange indexes = subscriptionOp.indexes();
-				subscriptions.append(indexes.begin(), indexes.end());
-				operand = subscriptionOp.source();
-			}
-			else
-			{
-				return rewriter.notifyMatchFailure(op, "Unexpected operation");
-			}
-		}
-
-		auto simulation = op->getParentOfType<ModelOp>();
-		mlir::Value var = simulation.getVariableAllocation(operand);
-		auto variable = model->getVariable(var);
-		mlir::Value derVar;
-
-		if (!derivatives->contains(operand))
-		{
-			auto terminator = mlir::cast<YieldOp>(var.getParentBlock()->getTerminator());
-			rewriter.setInsertionPointAfter(terminator);
-
-			llvm::SmallVector<mlir::Value, 3> args;
-
-			for (mlir::Value arg : terminator.values())
-				args.push_back(arg);
-
-			if (auto arrayType = variable.getReference().getType().dyn_cast<ArrayType>())
-			{
-				derVar = rewriter.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, false);
-				mlir::Value zero = createZeroValue(rewriter, loc, arrayType.getElementType());
-				rewriter.create<FillOp>(loc, zero, derVar);
-			}
-			else
-			{
-				derVar = rewriter.create<AllocOp>(loc, variable.getReference().getType(), llvm::None, llvm::None, false);
-				mlir::Value zero = createZeroValue(rewriter, loc, variable.getReference().getType());
-				rewriter.create<AssignmentOp>(loc, zero, derVar);
-			}
-
-			model->addVariable(derVar);
-			variable.setDer(derVar);
-
-			args.push_back(derVar);
-			rewriter.create<YieldOp>(terminator.getLoc(), args);
-			rewriter.eraseOp(terminator);
-
-			auto newArgumentType = derVar.getType().cast<ArrayType>().toUnknownAllocationScope();
-			auto bodyArgument = simulation.body().addArgument(newArgumentType);
-
-			derivatives->map(operand, bodyArgument);
-		}
-		else
-		{
-			derVar = variable.getDer();
-		}
-
-		rewriter.setInsertionPoint(op);
-		derVar = derivatives->lookup(operand);
-
-		if (!subscriptions.empty())
-				derVar = rewriter.create<SubscriptionOp>(loc, derVar, subscriptions);
-
-		if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0)
-				derVar = rewriter.create<LoadOp>(loc, derVar);
-
-		rewriter.replaceOp(op, derVar);
-
-		return mlir::success();
-	}
-
-	private:
-	mlir::Value createZeroValue(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const
-	{
-		if (type.isa<BooleanType>())
-			return builder.create<ConstantOp>(loc, BooleanAttribute::get(type, false));
-
-		if (type.isa<IntegerType>())
-			return builder.create<ConstantOp>(loc, IntegerAttribute::get(type, 0));
-
-		assert(type.isa<RealType>());
-		return builder.create<ConstantOp>(loc, RealAttribute::get(type, 0));
-	}
-
-	Model* model;
-	mlir::BlockAndValueMapping* derivatives;
-};
- */
 
 struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
 {
@@ -2068,12 +1326,53 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		mlir::BlockAndValueMapping derivatives;
 
-		getOperation()->walk([&](ModelOp simulation) {
-			mlir::OpBuilder builder(simulation);
+		getOperation()->walk([&](ModelOp model) {
+      mlir::OpBuilder builder(model);
+
+      // Remove the derivative operations and allocate the appropriate variables
+      if (failed(removeDerivatives(builder, model, derivatives)))
+          return signalPassFailure();
+
+      llvm::errs() << "--------------- MODEL ---------------\n";
+      model.dump();
 
       matching::MatchingGraph<Variable, Equation> graph;
 
+      llvm::SmallVector<Variable, 3> variables;
+      mlir::ValueRange vars = model.body().getArguments();
 
+      for (size_t i = 1; i < vars.size(); ++i)
+      {
+        if (!derivatives.contains(vars[i]))
+        {
+          Variable variable(vars[i]);
+
+          if (!variable.isConstant())
+          {
+            variables.push_back(variable);
+            graph.addVariable(variable);
+          }
+        }
+      }
+
+      model.walk([&](EquationOp equationOp) {
+        Equation equation(equationOp, variables);
+        graph.addEquation(equation);
+      });
+
+      llvm::errs() << "vars: " << graph.getNumberOfScalarVariables() << "\n";
+      llvm::errs() << "equs: " << graph.getNumberOfScalarEquations() << "\n";
+
+      //graph.dump();
+      bool simplify = graph.simplify();
+      llvm::errs() << "simplify: " << (simplify ? "y" : "n") << "\n";
+      //graph.dump();
+
+      bool match = graph.match();
+      llvm::errs() << "match: " << (match ? "y" : "n") << "\n";
+      //graph.dump();
+
+      llvm::errs() << "all mattched " << (graph.allNodesMatched() ? "y" : "n") << "\n";
 
       /*
 			// Create the model
@@ -2110,35 +1409,116 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
-		if (auto status = createSimulationFunctions(derivatives); failed(status))
-			return signalPassFailure();
+		//if (auto status = createSimulationFunctions(derivatives); failed(status))
+		//	return signalPassFailure();
 	}
 
 	/**
 	 * Remove the derivative operations by replacing them with appropriate
 	 * buffers, and set the derived variables as state variables.
 	 *
-	 * @param builder operation builder
-	 * @param model   model
+	 * @param builder         operation builder
+	 * @param derivatives     derivatives map
 	 * @return conversion result
 	 */
-	 /*
-	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
+	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, ModelOp& model, mlir::BlockAndValueMapping& derivatives)
 	{
-		mlir::ConversionTarget target(getContext());
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-		target.addIllegalOp<DerOp>();
+    mlir::OpBuilder::InsertionGuard guard(builder);
 
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<DerOpPattern>(&getContext(), model, derivatives);
+    auto appendIndexesFn = [](llvm::SmallVectorImpl<mlir::Value>& destination, mlir::ValueRange indexes) {
+      for (size_t i = 0, e = indexes.size(); i < e; ++i)
+      {
+        mlir::Value index = indexes[e - 1 - i];
+        destination.push_back(index);
+      }
+    };
 
-		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
-			return status;
+    auto derivativeOrder = [&](mlir::Value value) -> unsigned int {
+      auto inverseMap = derivatives.getInverse();
+      unsigned int result = 0;
 
-		model.reloadIR();
-		return mlir::success();
+      while (inverseMap.contains(value))
+      {
+        ++result;
+        value = inverseMap.lookup(value);
+      }
+
+      return result;
+    };
+
+    model.walk([&](DerOp op) {
+      mlir::Location loc = op->getLoc();
+      mlir::Value operand = op.operand();
+
+      // If the value to be derived belongs to an array, then also the derived
+      // value is stored within an array. Thus, we need to store its position.
+
+      llvm::SmallVector<mlir::Value, 3> subscriptions;
+
+      while (!operand.isa<mlir::BlockArgument>())
+      {
+        mlir::Operation* definingOp = operand.getDefiningOp();
+        assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
+
+        if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp))
+        {
+          appendIndexesFn(subscriptions, loadOp.indexes());
+          operand = loadOp.memory();
+        }
+
+        auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
+        appendIndexesFn(subscriptions, subscriptionOp.indexes());
+        operand = subscriptionOp.source();
+      }
+
+      if (!derivatives.contains(operand))
+      {
+        auto model = op->getParentOfType<ModelOp>();
+        auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
+        builder.setInsertionPoint(terminator);
+
+        size_t index = operand.cast<mlir::BlockArgument>().getArgNumber();
+        auto memberCreateOp = terminator.values()[index].getDefiningOp<MemberCreateOp>();
+        auto nextDerName = getNextFullDerVariableName(memberCreateOp.name(), derivativeOrder(operand) + 1);
+
+        assert(operand.getType().isa<ArrayType>());
+        auto arrayType = operand.getType().cast<ArrayType>().toElementType(RealType::get(builder.getContext()));
+
+        // Create the member and initialize it
+        auto memberType = MemberType::get(arrayType.toAllocationScope(BufferAllocationScope::heap));
+        mlir::Value memberDer = builder.create<MemberCreateOp>(loc, nextDerName, memberType, memberCreateOp.dynamicDimensions(), memberCreateOp.isConstant());
+        mlir::Value zero = builder.create<ConstantOp>(loc, RealAttribute::get(builder.getContext(), 0));
+        mlir::Value array = builder.create<MemberLoadOp>(loc, memberType.unwrap(), memberDer);
+        builder.create<FillOp>(loc, zero, array);
+
+        // Update the terminator values
+        llvm::SmallVector<mlir::Value, 3> args(terminator.values().begin(), terminator.values().end());
+        args.push_back(memberDer);
+        builder.create<YieldOp>(loc, args);
+        terminator.erase();
+
+        // Add the new argument to the body of the model
+        auto bodyArgument = model.body().addArgument(arrayType);
+        derivatives.map(operand, bodyArgument);
+      }
+
+      builder.setInsertionPoint(op);
+      mlir::Value derVar = derivatives.lookup(operand);
+
+      llvm::SmallVector<mlir::Value, 3> reverted(subscriptions.rbegin(), subscriptions.rend());
+
+      if (!subscriptions.empty())
+        derVar = builder.create<SubscriptionOp>(loc, derVar, reverted);
+
+      if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0)
+        derVar = builder.create<LoadOp>(loc, derVar);
+
+      op.replaceAllUsesWith(derVar);
+      op.erase();
+    });
+
+    return mlir::success();
 	}
-	  */
 
   /*
 	mlir::LogicalResult explicitateEquations(Model& model)

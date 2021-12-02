@@ -1,0 +1,40 @@
+#ifndef MARCO_CODEGEN_EQUATION_H
+#define MARCO_CODEGEN_EQUATION_H
+
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include <marco/matching/Matching.h>
+
+#include "Variable.h"
+
+namespace marco::codegen
+{
+  class Equation
+  {
+    public:
+    class Impl;
+    using Id = mlir::Operation*;
+    using Access = matching::Access<Variable>;
+
+    Equation(modelica::EquationOp equation, llvm::ArrayRef<Variable> variables);
+
+    Equation(const Equation& other);
+
+    ~Equation();
+
+    Equation& operator=(const Equation& other);
+    Equation& operator=(Equation&& other);
+
+    friend void swap(Equation& first, Equation& second);
+
+    Id getId() const;
+    size_t getNumOfIterationVars() const;
+    long getRangeStart(size_t inductionVarIndex) const;
+    long getRangeEnd(size_t inductionVarIndex) const;
+    void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const;
+
+    private:
+    std::unique_ptr<Impl> impl;
+  };
+}
+
+#endif // MARCO_CODEGEN_EQUATION_H

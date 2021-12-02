@@ -1201,6 +1201,9 @@ namespace marco::matching
      */
     bool match()
     {
+      if (allNodesMatched())
+        return true;
+
       bool success;
       bool complete;
 

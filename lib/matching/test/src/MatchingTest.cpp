@@ -74,7 +74,7 @@ TEST(Matching, testCase9_matching)
 {
   auto graph = testCase9();
   bool result = graph.match();
-  graph.dump();
+  //graph.dump();
   ASSERT_TRUE(result);
 }
 

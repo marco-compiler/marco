@@ -186,7 +186,9 @@ namespace marco::matching::base
     {
       auto* ptr = new VertexProperty(std::move(property));
       vertices.push_back(ptr);
-      return VertexDescriptor(ptr);
+      VertexDescriptor result(ptr);
+      adj.emplace(result, IncidentEdgesList());
+      return result;
     }
 
     llvm::iterator_range<VertexIterator> getVertices() const
@@ -250,7 +252,9 @@ namespace marco::matching::base
 
     llvm::iterator_range<IncidentEdgeIterator> getIncidentEdges(VertexDescriptor vertex) const
     {
-      const auto& incidentEdges = adj.find(vertex)->second;
+      auto it = adj.find(vertex);
+      assert(it != adj.end());
+      const auto& incidentEdges = it->second;
 
       IncidentEdgeIterator begin(vertex, incidentEdges.begin());
       IncidentEdgeIterator end(vertex, incidentEdges.end());
@@ -441,7 +445,12 @@ namespace marco::matching::base
         return false;
 
       VertexDescriptor from = *currentVertexIt;
-      auto& incidentEdges = adj->find(from)->second;
+      auto incidentEdgesIt = adj->find(from);
+
+      if (incidentEdgesIt == adj->end())
+        return true;
+
+      auto& incidentEdges = incidentEdgesIt->second;
 
       if (currentEdge == incidentEdges.size())
         return true;
@@ -458,9 +467,17 @@ namespace marco::matching::base
       do
       {
         VertexDescriptor from = *currentVertexIt;
-        auto& incidentEdges = adj->find(from)->second;
 
-        if (currentEdge == incidentEdges.size())
+        auto incidentEdgesIt = adj->find(from);
+        bool advanceToNextVertex = incidentEdgesIt == adj->end();
+
+        if (!advanceToNextVertex)
+        {
+          auto& incidentEdges = incidentEdgesIt->second;
+          advanceToNextVertex = currentEdge == incidentEdges.size();
+        }
+
+        if (advanceToNextVertex)
         {
           ++currentVertexIt;
           currentEdge = 0;

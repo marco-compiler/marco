@@ -14,6 +14,8 @@ set(SOURCES
         src/passes/ResultBuffersToArgs.cpp
         src/passes/SolveModel.cpp
         src/passes/TypeConverter.cpp
+        src/passes/model/Equation.cpp
+        src/passes/model/Variable.cpp
         src/CodeGen.cpp
         src/Runner.cpp)
 
@@ -41,5 +43,7 @@ target_link_libraries(codegen
         PRIVATE ${MLIR_LIBS}
         PRIVATE pthread
         PRIVATE boost)
+
+add_subdirectory(test)
 
 add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")
