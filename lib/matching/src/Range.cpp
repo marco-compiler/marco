@@ -106,7 +106,13 @@ bool MultidimensionalRange::operator!=(const MultidimensionalRange& other) const
 	return false;
 }
 
-Range MultidimensionalRange::operator[](size_t index) const
+Range& MultidimensionalRange::operator[](size_t index)
+{
+	assert(index < ranges.size());
+	return ranges[index];
+}
+
+const Range& MultidimensionalRange::operator[](size_t index) const
 {
 	assert(index < ranges.size());
 	return ranges[index];
@@ -131,6 +137,15 @@ unsigned int MultidimensionalRange::flatSize() const
 		result *= (*this)[i].getEnd() - (*this)[i].getBegin();
 
 	return result;
+}
+
+bool MultidimensionalRange::contains(llvm::ArrayRef<Range::data_type> element) const
+{
+	for (const auto& [position, range] : llvm::zip(element, ranges))
+		if (!range.contains(position))
+			return false;
+
+	return true;
 }
 
 bool MultidimensionalRange::intersects(MultidimensionalRange other) const

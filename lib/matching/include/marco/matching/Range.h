@@ -226,7 +226,8 @@ namespace marco::matching
 		bool operator==(const MultidimensionalRange& other) const;
 		bool operator!=(const MultidimensionalRange& other) const;
 
-		Range operator[](size_t index) const;
+		Range& operator[](size_t index);
+    const Range& operator[](size_t index) const;
 
 		unsigned int rank() const;
 
@@ -234,6 +235,7 @@ namespace marco::matching
 
 		unsigned int flatSize() const;
 
+    bool contains(llvm::ArrayRef<Range::data_type> element) const;
 		bool intersects(MultidimensionalRange other) const;
 
 		iterator begin();

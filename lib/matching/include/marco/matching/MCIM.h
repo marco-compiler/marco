@@ -1,26 +1,12 @@
 #ifndef MARCO_MATCHING_MCIM_H
 #define MARCO_MATCHING_MCIM_H
 
-#include <boost/numeric/ublas/matrix.hpp>
-
 #include "AccessFunction.h"
 #include "MCIS.h"
 #include "Range.h"
 
 namespace marco::matching
 {
-	using Matrix = boost::numeric::ublas::matrix<int>;
-
-	class MCIMElement
-	{
-		public:
-		MCIMElement(long delta, MCIS k);
-
-		private:
-		long delta;
-		MCIS k;
-	};
-
 	/**
 	 * Multidimensional Compressed Index Map (MCIM).
 	 *
@@ -30,9 +16,16 @@ namespace marco::matching
 	class MCIM
 	{
 		public:
-		MCIM();
+    class Impl;
+		MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+
+    void apply(AccessFunction access);
+
+    bool empty() const;
+    void clear();
 
 		private:
+    std::unique_ptr<Impl> impl;
 	};
 }
 

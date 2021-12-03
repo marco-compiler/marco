@@ -15,16 +15,22 @@ namespace marco::matching
 	 */
 	class MCIS
 	{
-		private:
-		using Container = llvm::SmallVector<MultidimensionalRange, 2>;
-
 		public:
 		MCIS(llvm::ArrayRef<MultidimensionalRange> ranges);
 
-		MultidimensionalRange operator[](size_t index) const;
+    bool operator==(const MCIS& other) const;
+    bool operator!=(const MCIS& other) const;
+
+    MultidimensionalRange& operator[](size_t index);
+		const MultidimensionalRange& operator[](size_t index) const;
+
+    bool contains(llvm::ArrayRef<Range::data_type> element) const;
+    void add(MultidimensionalRange range);
 
 		private:
-		Container ranges;
+    void sort();
+
+    llvm::SmallVector<MultidimensionalRange, 2> ranges;
 	};
 }
 

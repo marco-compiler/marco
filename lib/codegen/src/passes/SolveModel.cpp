@@ -1306,7 +1306,7 @@ struct EquationSidesOpPattern : public mlir::OpRewritePattern<EquationSidesOp>
  * Its objective is to convert a descriptive (and thus not sequential) model
  * into an algorithmic one.
  */
-class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<mlir::ModuleOp>>
+class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<ModelOp>>
 {
 	public:
 	explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
@@ -1325,87 +1325,82 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	void runOnOperation() override
 	{
 		mlir::BlockAndValueMapping derivatives;
+    ModelOp model = getOperation();
+    mlir::OpBuilder builder(model);
 
-		getOperation()->walk([&](ModelOp model) {
-      mlir::OpBuilder builder(model);
+    // Remove the derivative operations and allocate the appropriate variables
+    if (failed(removeDerivatives(builder, model, derivatives)))
+        return signalPassFailure();
 
-      // Remove the derivative operations and allocate the appropriate variables
-      if (failed(removeDerivatives(builder, model, derivatives)))
-          return signalPassFailure();
+    matching::MatchingGraph<Variable, Equation> graph;
 
-      llvm::errs() << "--------------- MODEL ---------------\n";
-      model.dump();
+    llvm::SmallVector<Variable, 3> variables;
+    mlir::ValueRange vars = model.body().getArguments();
 
-      matching::MatchingGraph<Variable, Equation> graph;
-
-      llvm::SmallVector<Variable, 3> variables;
-      mlir::ValueRange vars = model.body().getArguments();
-
-      for (size_t i = 1; i < vars.size(); ++i)
+    for (size_t i = 1; i < vars.size(); ++i)
+    {
+      if (!derivatives.contains(vars[i]))
       {
-        if (!derivatives.contains(vars[i]))
-        {
-          Variable variable(vars[i]);
+        Variable variable(vars[i]);
 
-          if (!variable.isConstant())
-          {
-            variables.push_back(variable);
-            graph.addVariable(variable);
-          }
+        if (!variable.isConstant())
+        {
+          variables.push_back(variable);
+          graph.addVariable(variable);
         }
       }
+    }
 
-      model.walk([&](EquationOp equationOp) {
-        Equation equation(equationOp, variables);
-        graph.addEquation(equation);
-      });
+    model.walk([&](EquationOp equationOp) {
+      Equation equation(equationOp, variables);
+      graph.addEquation(equation);
+    });
 
-      llvm::errs() << "vars: " << graph.getNumberOfScalarVariables() << "\n";
-      llvm::errs() << "equs: " << graph.getNumberOfScalarEquations() << "\n";
+    llvm::errs() << "vars: " << graph.getNumberOfScalarVariables() << "\n";
+    llvm::errs() << "equs: " << graph.getNumberOfScalarEquations() << "\n";
 
-      //graph.dump();
-      bool simplify = graph.simplify();
-      llvm::errs() << "simplify: " << (simplify ? "y" : "n") << "\n";
-      //graph.dump();
+    //graph.dump();
+    //bool simplify = graph.simplify();
+    //llvm::errs() << "simplify: " << (simplify ? "y" : "n") << "\n";
+    //graph.dump();
 
-      bool match = graph.match();
-      llvm::errs() << "match: " << (match ? "y" : "n") << "\n";
-      //graph.dump();
+    bool match = graph.match();
+    llvm::errs() << "match: " << (match ? "y" : "n") << "\n";
+    //graph.dump();
 
-      llvm::errs() << "all mattched " << (graph.allNodesMatched() ? "y" : "n") << "\n";
+    llvm::errs() << "all matched " << (graph.allNodesMatched() ? "y" : "n") << "\n";
 
-      /*
-			// Create the model
-			Model model = Model::build(simulation);
+    /*
+    // Create the model
+    Model model = Model::build(simulation);
 
-			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(builder, model, derivatives)))
-				return signalPassFailure();
+    // Remove the derivative operations and allocate the appropriate buffers
+    if (failed(removeDerivatives(builder, model, derivatives)))
+      return signalPassFailure();
 
-			// Match
-			if (failed(match(model, options.matchingMaxIterations)))
-				return signalPassFailure();
-       */
+    // Match
+    if (failed(match(model, options.matchingMaxIterations)))
+      return signalPassFailure();
+     */
 
-      /*
-			// Solve circular dependencies
-			if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
-				return signalPassFailure();
+    /*
+    // Solve circular dependencies
+    if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
+      return signalPassFailure();
 
-			// Schedule
-			if (failed(schedule(model)))
-				return signalPassFailure();
+    // Schedule
+    if (failed(schedule(model)))
+      return signalPassFailure();
 
-			// Explicitate the equations so that the updated variable is the only
-			// one on the left-hand side of the equation.
-			if (failed(explicitateEquations(model)))
-				return signalPassFailure();
+    // Explicitate the equations so that the updated variable is the only
+    // one on the left-hand side of the equation.
+    if (failed(explicitateEquations(model)))
+      return signalPassFailure();
 
-			// Select and use the solver
-			if (failed(selectSolver(builder, model)))
-				return signalPassFailure();
-       */
-		});
+    // Select and use the solver
+    if (failed(selectSolver(builder, model)))
+      return signalPassFailure();
+     */
 
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
