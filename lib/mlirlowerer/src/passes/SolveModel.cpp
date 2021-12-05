@@ -516,10 +516,10 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 			}
 		}
 
-		if (auto status = createInitFunction(rewriter, op, varTypes); failed(status))
+		if (auto status = createDeinitFunction(rewriter, op, varTypes); failed(status))
 			return status;
 
-		if (auto status = createDeinitFunction(rewriter, op, varTypes); failed(status))
+		if (auto status = createInitFunction(rewriter, op, varTypes); failed(status))
 			return status;
 
 		if (auto status = createStepFunction(rewriter, op, varTypes); failed(status))
@@ -715,9 +715,16 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 			builder.create<FreeDataOp>(loc, userData);
 		}
 
+		mlir::ValueRange varValues = mlir::cast<YieldOp>(op.init().back().getTerminator()).values();
+		assert(varTypes.size() == varValues.size());
+
 		// Deallocate the arrays
 		for (const auto& type : llvm::enumerate(varTypes))
 		{
+			// Do not manually free variables allocated by IDA.
+			if (mlir::isa<GetVariableAllocOp>(varValues[type.index()].getDefiningOp()))
+				continue;
+
 			if (auto arrayType = type.value().dyn_cast<ArrayType>())
 			{
 				mlir::Value var = extractValue(builder, structValue, varTypes[type.index()], type.index());
@@ -2101,8 +2108,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		SimulationOp simulationOp = model.getOp();
 		mlir::MLIRContext* context = getOperation().getContext();
 		IdaBuilder builder(context);
-		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
-		builder.setInsertionPoint(terminator);
+		builder.setInsertionPointToStart(&simulationOp.init().front());
 		mlir::Location loc = simulationOp.getLoc();
 
 		//===--------------------------------------------------------------===//
@@ -2138,6 +2144,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		std::map<Variable, int64_t> offsetsMap;
 		std::map<Variable, mlir::Value> variableIndexMap;
 
+		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
+		builder.setInsertionPoint(terminator);
+
 		// Compute all non-trivial variable offsets and dimensions.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 		{
@@ -2152,7 +2161,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				if (variableIndexMap.find(var) != variableIndexMap.end())
 					continue;
 
-				// Initialize variableOffset, variableDimensions, variablesValues, derivativesValues, idValues.
+				// Initialize variableOffset, variableDimensions, derivativesValues and idValues inside IDA.
 				loc = var.getReference().getLoc();
 				mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableOffset));
 				mlir::Value isState = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var.isState() || var.isDerivative()));
@@ -2273,10 +2282,30 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			}
 		}
 
+		// Replace allocation of variables used by IDA and initialize such vectors.
+		for (auto& variable : offsetsMap)
+		{
+			Variable var = variable.first;
+			assert(var.getReference().getType().cast<ArrayType>().getElementType().isa<modelica::RealType>()
+					&& "All variables that must be passed to IDA must be real numbers.");
+
+			// Replace the AllocOp of variables and derivatives with the memory allocated by IDA.
+			builder.setInsertionPoint(var.getReference().getDefiningOp());
+			mlir::Value offset = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variable.second));
+			mlir::Value isDer = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var.isDerivative()));
+			mlir::Value getVarAlloc = builder.create<GetVariableAllocOp>(loc, userData, offset, isDer, var.getReference().getType());
+
+			var.getReference().replaceAllUsesWith(getVarAlloc);
+			var.getReference().getDefiningOp()->erase();
+		}
+
 		offsetsMap.clear();
+		variableIndexMap.clear();
 		assert(variableOffset == equationsNumber);
 
+		// Call the IDA initialization operation at the end of the init() function.
 		loc = simulationOp.getLoc();
+		builder.setInsertionPoint(terminator);
 		mlir::Value threads = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(options.threads));
 		builder.create<InitOp>(loc, userData, threads);
 
@@ -2286,44 +2315,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		llvm::SmallVector<mlir::Value, 3> args = terminator.values();
 		args.insert(args.begin() + 1, userDataAlloc);
-		YieldOp newTerminator = builder.create<YieldOp>(loc, args);
+		builder.create<YieldOp>(loc, args);
 		terminator->erase();
 
 		//===--------------------------------------------------------------===//
 		// IDA STEP
 		//===--------------------------------------------------------------===//
 
-		// Add the IDA user data to the argument list of the step block and load it.
+		// Add the IDA user data to the argument list of the step block.
 		mlir::Block& stepBlock = simulationOp.body().front();
 		stepBlock.insertArgument(1, userDataAlloc.getType().cast<ArrayType>().toUnknownAllocationScope());
-		builder.setInsertionPointToStart(&stepBlock);
-		userData = builder.create<LoadOp>(loc, stepBlock.getArgument(1));
-
-		// Map all variables to the argument they are loaded from.
-		mlir::BlockAndValueMapping varArgMap;
-		for (const auto& [var, arg] : llvm::zip(newTerminator.values(), stepBlock.getArguments()))
-			varArgMap.map(var, arg);
-
-		// Update all non-trivial variables by fetching the correct values from IDA.
-		for (auto& variable : model.getVariables())
-		{
-			if ((variable->isTrivial() && !variable->isState()) || 
-					variable->isDerivative() || variable->isTime())
-				continue;
-
-			assert(variableIndexMap.find(*variable) != variableIndexMap.end());
-			assert(varArgMap.contains(variable->getReference()));
-
-			loc = variable->getReference().getLoc();
-			mlir::Value varIndex = builder.clone(*variableIndexMap[*variable].getDefiningOp())->getResult(0);
-			builder.create<UpdateVariableOp>(loc, userData, varIndex, varArgMap.lookup(variable->getReference()));
-
-			// If the variable is a state, also update its derivative.
-			if (variable->isState())
-				builder.create<UpdateDerivativeOp>(loc, userData, varIndex, varArgMap.lookup(variable->getDerivative()));
-		}
-
-		variableIndexMap.clear();
 
 		// Delete all equations that were replaced by IDA.
 		for (BltBlock& bltBlock : model.getBltBlocks())

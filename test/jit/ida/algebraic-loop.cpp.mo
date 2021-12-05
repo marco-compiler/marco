@@ -1,5 +1,5 @@
 model AlgebraicLoop
-	int[5] x;
+	Real[5] x;
 equation
 	x[1] + x[2] = 2;
 	x[1] - x[2] = 4;

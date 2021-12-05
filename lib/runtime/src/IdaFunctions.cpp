@@ -1,4 +1,4 @@
-#include <cmath>
+#include <algorithm>
 #include <ida/ida.h>
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
@@ -124,27 +124,6 @@ static bool updateIndexes(sunindextype* indexes, const EqDimension& dimension)
 
 		if ((size_t) indexes[dim] == dimension[dim].second)
 			indexes[dim] = dimension[dim].first;
-		else
-			return true;
-	}
-
-	return false;
-}
-
-/**
- * Given a list of indexes and the dimension of a variable, increase the
- * indexes up to the maximum length of the variable. Return false if the indexes
- * exceed the variable bounds, which means the computation has finished, true
- * otherwise.
- */
-static bool updateIndexes(Indexes& indexes, const VarDimension& dimension)
-{
-	for (sunindextype dim = dimension.size() - 1; dim >= 0; dim--)
-	{
-		indexes[dim]++;
-
-		if ((size_t) indexes[dim] == dimension[dim])
-			indexes[dim] = 0;
 		else
 			return true;
 	}
@@ -714,7 +693,6 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(double))
  * @param offset offset of the current variable from the beginning of the array.
  * @param array modelica.alloc operation containing the initial values.
  * @param isState indicates if the variable is differential or algebraic.
- * @return index of the added vector variable.
  */
 template<typename T, typename U>
 inline void addVariable(
@@ -733,33 +711,36 @@ inline void addVariable(
 	data->variableDimensions.push_back(dimensions);
 
 	// Compute idValue and absoluteTolerance.
-	U* arrayData = array.getData();
 	realtype idValue = isState ? 1.0 : 0.0;
 	realtype absTol = isState 
 			? data->absoluteTolerance
 			: std::min(ALGEBRAIC_TOLERANCE, data->absoluteTolerance);
 
-	Indexes indexes;
-	for (size_t dim = 0; dim < dimensions.size(); dim++)
-		indexes.push_back(0);
-
-	// Add the initial values of every variable.
-	do
-	{
-		assert(array.hasData(indexes));
-
-		data->variableValues[offset] = *arrayData++;
-		data->derivativeValues[offset] = 0.0;
-
-		data->idValues[offset] = idValue;
-		data->toleranceValues[offset++] = absTol;
-	} while (updateIndexes(indexes, dimensions));
+	// Initialize derivativeValues, idValues and absoluteTolerances.
+	std::fill_n(&data->derivativeValues[offset], array.getNumElements(), 0.0);
+	std::fill_n(&data->idValues[offset], array.getNumElements(), idValue);
+	std::fill_n(&data->toleranceValues[offset], array.getNumElements(), absTol);
 }
 
-RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int32_t, ARRAY(int32_t), bool)
 RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int32_t, ARRAY(float), bool)
-RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(int64_t), bool)
 RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
+
+/**
+ * Return the pointer to the start of the memory of the requested variable given
+ * its offset and if it is a derivative or not.
+ */
+template<typename T>
+inline void* getVariableAlloc(void* userData, T offset, bool isDerivative)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	if (isDerivative)
+		return (void*) &data->derivativeValues[offset];
+	return (void*) &data->variableValues[offset];
+}
+
+RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int32_t, bool)
+RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
 
 /**
  * Add a variable access to the var-th variable, where ind is the induction
@@ -806,80 +787,6 @@ inline double getIdaTime(void* userData)
 
 RUNTIME_FUNC_DEF(getIdaTime, float, PTR(void))
 RUNTIME_FUNC_DEF(getIdaTime, double, PTR(void))
-
-/**
- * Copies the index-th variable values into the main program integer variable.
- */
-template<typename T>
-inline void updateIdaVariable(void* userData, T index, UnsizedArrayDescriptor<T> array)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert((size_t) index < data->vectorEquationsNumber);
-
-	sunindextype offset = data->variableOffsets[index];
-	realtype* source = &data->variableValues[offset];
-
-	for (size_t i = 0; i < array.getNumElements(); i++)
-		array.getData()[i] = (T) source[i];
-}
-
-RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int32_t, ARRAY(int32_t))
-RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int64_t, ARRAY(int64_t))
-
-/**
- * Copies the index-th variable values into the main program float variable.
- */
-template<typename T, typename U>
-inline void updateIdaVariable(void* userData, T index, UnsizedArrayDescriptor<U> array)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert((size_t) index < data->vectorEquationsNumber);
-
-	sunindextype offset = data->variableOffsets[index];
-	realtype* source = &data->variableValues[offset];
-
-	std::memcpy(array.getData(), source, array.getNumElements() * sizeof(U));
-}
-
-RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int32_t, ARRAY(float))
-RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int64_t, ARRAY(double))
-
-/**
- * Copies the index-th derivative values into the main program integer variable.
- */
-template<typename T>
-inline void updateIdaDerivative(void* userData, T index, UnsizedArrayDescriptor<T> array)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert((size_t) index < data->vectorEquationsNumber);
-
-	sunindextype offset = data->variableOffsets[index];
-	realtype* source = &data->derivativeValues[offset];
-
-	for (size_t i = 0; i < array.getNumElements(); i++)
-		array.getData()[i] = (T) source[i];
-}
-
-RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(int32_t))
-RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(int64_t))
-
-/**
- * Copies the index-th derivative values into the main program float variable.
- */
-template<typename T, typename U>
-inline void updateIdaDerivative(void* userData, T index, UnsizedArrayDescriptor<U> array)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert((size_t) index < data->vectorEquationsNumber);
-
-	sunindextype offset = data->variableOffsets[index];
-	realtype* source = &data->derivativeValues[offset];
-
-	std::memcpy(array.getData(), source, array.getNumElements() * sizeof(U));
-}
-
-RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(float))
-RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
 // Statistics

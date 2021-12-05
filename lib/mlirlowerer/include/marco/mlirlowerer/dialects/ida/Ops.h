@@ -16,6 +16,36 @@ namespace marco::codegen::ida
 {
 	using OffsetMap = std::map<model::Variable, int64_t>;
 
+	template<typename OpType>
+	class OpAdaptor
+	{
+		public:
+		OpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr)
+				: values(values), attrs(attrs)
+		{
+		}
+
+		OpAdaptor(OpType& op)
+				: values(op->getOperands()), attrs(op->getAttrDictionary())
+		{
+		}
+
+		protected:
+		[[nodiscard]] mlir::ValueRange getValues() const
+		{
+			return values;
+		}
+
+		[[nodiscard]] mlir::DictionaryAttr getAttrs() const
+		{
+			return attrs;
+		}
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
 	//===----------------------------------------------------------------------===//
 	// Ida::ConstantValueOp
 	//===----------------------------------------------------------------------===//
@@ -394,6 +424,40 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::GetVariableAllocOp
+	//===----------------------------------------------------------------------===//
+
+	class GetVariableAllocOp : public mlir::Op<GetVariableAllocOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = OpAdaptor<GetVariableAllocOp>;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.get_var_alloc";
+		}
+
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value isDer, mlir::Type returnType);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		modelica::ArrayType resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value offset();
+		mlir::Value isDer();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::AddVarAccessOp
 	//===----------------------------------------------------------------------===//
 
@@ -456,70 +520,6 @@ namespace marco::codegen::ida
 		modelica::RealType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Ida::UpdateVariableOp
-	//===----------------------------------------------------------------------===//
-
-	class UpdateVariableOp : public mlir::Op<UpdateVariableOp,
-																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
-																mlir::OpTrait::ZeroResult,
-																mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.update_variable";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange args();
-		mlir::Value userData();
-		mlir::Value index();
-		mlir::Value array();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Ida::UpdateDerivativeOp
-	//===----------------------------------------------------------------------===//
-
-	class UpdateDerivativeOp : public mlir::Op<UpdateDerivativeOp,
-																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
-																mlir::OpTrait::ZeroResult,
-																mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.update_derivative";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange args();
-		mlir::Value userData();
-		mlir::Value index();
-		mlir::Value array();
 	};
 
 	//===----------------------------------------------------------------------===//
