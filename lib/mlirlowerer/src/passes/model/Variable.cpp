@@ -104,11 +104,13 @@ bool Variable::isTime() const
 
 mlir::Value Variable::getState()
 {
+	assert(isDerivative());
 	return impl->stateRef;
 }
 
 mlir::Value Variable::getDerivative()
 {
+	assert(isState());
 	return impl->derivativeRef;
 }
 

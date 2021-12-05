@@ -29,18 +29,21 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			AddJacobianOp>();
 
 	// Variable setters.
-	addOperations<AddVariableOp, AddVarAccessOp>();
+	addOperations<
+			AddVariableOp,
+			GetVariableAllocOp,
+			AddVarAccessOp>();
 
 	// Getters.
-	addOperations<GetTimeOp, UpdateVariableOp, UpdateDerivativeOp>();
+	addOperations<GetTimeOp>();
 
 	// Residual and Jacobian construction helpers.
 	addOperations<
-		ResidualFunctionOp,
-		JacobianFunctionOp,
-		FunctionTerminatorOp,
-		FuncAddressOfOp,
-		LoadPointerOp>();
+			ResidualFunctionOp,
+			JacobianFunctionOp,
+			FunctionTerminatorOp,
+			FuncAddressOfOp,
+			LoadPointerOp>();
 
 	// Statistics.
 	addOperations<PrintStatisticsOp>();

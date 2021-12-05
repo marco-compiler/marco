@@ -499,6 +499,43 @@ class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
 	}
 };
 
+struct GetVariableAllocOpLowering : public AllocLikeOpLowering<ida::GetVariableAllocOp>
+{
+	using AllocLikeOpLowering<ida::GetVariableAllocOp>::AllocLikeOpLowering;
+
+	[[nodiscard]] ArrayType getResultType(ida::GetVariableAllocOp op) const override
+	{
+		return op.resultType();
+	}
+
+	[[nodiscard]] mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, ida::GetVariableAllocOp op, mlir::Value sizeBytes) const override
+	{
+		// Insert the "getVariableAlloc" declaration if it is not already present in the module.
+		auto getVarAllocFunc = lookupOrCreategetVariableAllocFn(rewriter, op);
+
+		// Return the pointer to the buffer already allocated by IDA.
+		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
+		auto results = createLLVMCall(rewriter, loc, getVarAllocFunc, op.args(), getVoidPtrType());
+		return rewriter.create<mlir::LLVM::BitcastOp>(loc, bufferPtrType, results[0]);
+	}
+
+	mlir::LLVM::LLVMFuncOp lookupOrCreategetVariableAllocFn(mlir::OpBuilder& builder, ida::GetVariableAllocOp op) const
+	{
+		mlir::IntegerType intType = convertType(op.offset().getType()).cast<mlir::IntegerType>();
+		std::string name = "_MgetVariableAlloc_pvoid_pvoid_i" + std::to_string(intType.getWidth()) + "_i1";
+
+		mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
+		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name))
+			return foo;
+
+		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+		builder.setInsertionPointToStart(module.getBody());
+		llvm::SmallVector<mlir::Type, 3> fnArgs = { getVoidPtrType(), intType, builder.getI1Type() };
+		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidPtrType(), fnArgs);
+		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
+	}
+};
+
 class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 {
 	using ModelicaOpConversion<FreeOp>::ModelicaOpConversion;
@@ -983,6 +1020,7 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			ExtractOpLowering,
 			AllocaOpLowering,
 			AllocOpLowering,
+			GetVariableAllocOpLowering,
 			FreeOpLowering,
 			DimOpLowering,
 			SubscriptOpLowering,

@@ -1014,6 +1014,80 @@ mlir::Value AddVariableOp::isState()
 }
 
 //===----------------------------------------------------------------------===//
+// Ida::GetVariableAllocOp
+//===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> GetVariableAllocOp::getAttributeNames()
+{
+	return {};
+}
+
+void GetVariableAllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value isDer, mlir::Type returnType)
+{
+	state.addTypes(returnType);
+	state.addOperands(userData);
+	state.addOperands(offset);
+	state.addOperands(isDer);
+}
+
+mlir::ParseResult GetVariableAllocOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return ida::parse(parser, result, 3);
+}
+
+void GetVariableAllocOp::print(mlir::OpAsmPrinter& printer)
+{
+	ida::print(printer, getOperationName(), args(), resultType());
+}
+
+mlir::LogicalResult GetVariableAllocOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!offset().getType().isa<IntegerType>())
+		return emitOpError("Requires variable offset to be an integer");
+
+	if (!isDer().getType().isa<BooleanType>())
+		return emitOpError("Requires isDerivative to be a boolean");
+
+	if (!resultType().getElementType().isa<modelica::RealType>())
+		return emitOpError("Requires variable passed to IDA to be real numbers");
+
+	return mlir::success();
+}
+
+void GetVariableAllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+modelica::ArrayType GetVariableAllocOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<modelica::ArrayType>();
+}
+
+mlir::ValueRange GetVariableAllocOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value GetVariableAllocOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value GetVariableAllocOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value GetVariableAllocOp::isDer()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
 // Ida::AddVarAccessOp
 //===----------------------------------------------------------------------===//
 
@@ -1146,138 +1220,6 @@ mlir::ValueRange GetTimeOp::args()
 mlir::Value GetTimeOp::userData()
 {
 	return getOperation()->getOperand(0);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::UpdateVariableOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> UpdateVariableOp::getAttributeNames()
-{
-	return {};
-}
-
-void UpdateVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array)
-{
-	state.addOperands(userData);
-	state.addOperands(index);
-	state.addOperands(array);
-}
-
-mlir::ParseResult UpdateVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 3);
-}
-
-void UpdateVariableOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult UpdateVariableOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!index().getType().isa<IntegerType>() && !index().getType().isa<modelica::IntegerType>())
-		return emitOpError("Requires variable index to be an integer");
-
-	if (!array().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires variable reference to be an array");
-
-	return mlir::success();
-}
-
-void UpdateVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange UpdateVariableOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value UpdateVariableOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value UpdateVariableOp::index()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value UpdateVariableOp::array()
-{
-	return getOperation()->getOperand(2);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::UpdateDerivativeOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> UpdateDerivativeOp::getAttributeNames()
-{
-	return {};
-}
-
-void UpdateDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array)
-{
-	state.addOperands(userData);
-	state.addOperands(index);
-	state.addOperands(array);
-}
-
-mlir::ParseResult UpdateDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 3);
-}
-
-void UpdateDerivativeOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult UpdateDerivativeOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!index().getType().isa<IntegerType>() && !index().getType().isa<modelica::IntegerType>())
-		return emitOpError("Requires variable index to be an integer");
-
-	if (!array().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires derivatives reference to be an array");
-
-	return mlir::success();
-}
-
-void UpdateDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange UpdateDerivativeOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value UpdateDerivativeOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value UpdateDerivativeOp::index()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value UpdateDerivativeOp::array()
-{
-	return getOperation()->getOperand(2);
 }
 
 //===----------------------------------------------------------------------===//
