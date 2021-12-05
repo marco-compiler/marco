@@ -230,7 +230,6 @@ Expected<Value*> marco::lowerNegate(LowererContext& info, const ModExp& arg1)
 	if (!lowered)
 		return lowered;
 
-	auto& builder = info.getBuilder();
 	Value* exitVal = info.allocaModType(arg1.getModType());
 
 	auto ExpectedBB = info.maybeCreateForArrayElement(

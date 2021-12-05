@@ -2078,8 +2078,7 @@ llvm::Error TypeChecker::checkLogicalOrOp(Expression& expression)
 
 llvm::Error TypeChecker::checkMemberLookupOp(Expression& expression)
 {
-	auto* operation = expression.get<Operation>();
-	assert(operation->getOperationKind() == OperationKind::memberLookup);
+	assert(expression.get<Operation>()->getOperationKind() == OperationKind::memberLookup);
 	return llvm::make_error<NotImplemented>("member lookup is not implemented yet");
 }
 

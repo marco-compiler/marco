@@ -263,6 +263,7 @@ Member* StandardFunction::operator[](llvm::StringRef name)
 			return member.get();
 
 	assert(false && "Not found");
+	return nullptr;
 }
 
 const Member* StandardFunction::operator[](llvm::StringRef name) const
@@ -272,6 +273,7 @@ const Member* StandardFunction::operator[](llvm::StringRef name) const
 			return member.get();
 
 	assert(false && "Not found");
+	return nullptr;
 }
 
 bool StandardFunction::isPure() const

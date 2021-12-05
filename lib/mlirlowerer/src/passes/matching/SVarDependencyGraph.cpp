@@ -45,7 +45,7 @@ static Optional<size_t> indexOfScalarVar(
 	if (v == lookUp.end())
 		return {};
 
-	for (const Variable variable : var.getVariables())
+	for (const Variable& variable : var.getVariables())
 	{
 		auto toReturn = v->second.find(variable.indexOfElement(access));
 		if (toReturn != v->second.end())

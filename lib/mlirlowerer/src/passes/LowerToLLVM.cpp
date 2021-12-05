@@ -459,7 +459,6 @@ class AllocaOpLowering : public AllocLikeOpLowering<AllocaOp>
 
 	[[nodiscard]] mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, AllocaOp op, mlir::Value sizeBytes) const override
 	{
-		auto typeConverter = this->getTypeConverter();
 		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
 		return rewriter.create<mlir::LLVM::AllocaOp>(loc, bufferPtrType, sizeBytes, op->getAttrs());
 	}
@@ -649,8 +648,7 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 		Adaptor adaptor(operands);
 		auto indexes = adaptor.indexes();
 
-		ArrayType arrayType = op.getArrayType();
-		assert(arrayType.getRank() == indexes.size() && "Wrong indexes amount");
+			assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
 		ArrayDescriptor descriptor(typeConverter, adaptor.memory());
@@ -692,8 +690,7 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		Adaptor adaptor(operands);
 		auto indexes = adaptor.indexes();
 
-		ArrayType arrayType = op.getArrayType();
-		assert(arrayType.getRank() == indexes.size() && "Wrong indexes amount");
+		assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
 		ArrayDescriptor memoryDescriptor(this->getTypeConverter(), adaptor.memory());

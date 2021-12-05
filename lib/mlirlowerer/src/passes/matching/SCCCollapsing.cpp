@@ -329,7 +329,6 @@ namespace marco::codegen::model
 		}
 
 		llvm::SmallVector<Equation, 3> equations;
-		auto* terminator = model.getOp().body().front().getTerminator();
 
 		for (EquationsVector& equationsList : possibleEquations)
 		{

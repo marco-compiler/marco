@@ -94,10 +94,8 @@ static SingleDimensionAccess inductionToSingleDimensionAccess(
 static SingleDimensionAccess operationToSingleDimensionAccess(
 		const ModExp& expression)
 {
-	auto expKind = expression.getKind();
-	assert(
-			expression.isOperation() &&
-			(expKind == ModExpKind::add || expKind == ModExpKind::sub));
+	assert(expression.isOperation());
+	assert(expression.getKind() == ModExpKind::add || expression.getKind() == ModExpKind::sub);
 
 	// they must be in the form induction var + constant
 	const auto& inductionExp = expression.getLeftHand();

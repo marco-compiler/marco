@@ -978,8 +978,6 @@ void DerFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 
 mlir::ParseResult DerFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	auto& builder = parser.getBuilder();
-
 	mlir::StringAttr nameAttr;
 	if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes))
 		return mlir::failure();
@@ -1644,7 +1642,6 @@ void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> dynamicDimensions;
-	mlir::StringAttr nameAttr;
 	llvm::SmallVector<mlir::Type, 2> dynamicDimensionsTypes;
 	mlir::Type resultType;
 
@@ -3520,7 +3517,6 @@ mlir::ParseResult YieldOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 {
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> values;
 	llvm::SmallVector<mlir::Type, 3> valuesTypes;
-	mlir::Type resultType;
 
 	llvm::SMLoc valuesLoc = parser.getCurrentLocation();
 
@@ -6855,7 +6851,7 @@ void AbsOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), abs(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::abs(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7307,7 +7303,6 @@ mlir::ValueRange CosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
 	mlir::Type type = convertToRealType(resultType());
-	bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
 	mlir::Value sin = builder.create<SinOp>(loc, type, operand());
 	mlir::Value negatedSin = builder.create<NegateOp>(loc, type, sin);
@@ -7430,7 +7425,6 @@ mlir::ValueRange TanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
 	mlir::Type type = convertToRealType(resultType());
-	bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
 	mlir::Value cos = builder.create<CosOp>(loc, type, operand());
 	mlir::Value denominator = builder.create<MulElementWiseOp>(loc, type, cos, cos);
@@ -9327,7 +9321,6 @@ mlir::ParseResult FillOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 {
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
 	llvm::SmallVector<mlir::Type, 2> operandsTypes;
-	mlir::Type resultType;
 
 	if (parser.parseOperandList(operands, 2) ||
 			parser.parseColonTypeList(operandsTypes))

@@ -115,6 +115,7 @@ class IdaOpConversion : public mlir::OpConversionPattern<FromOp>
 		}
 
 		assert(false && "Unreachable");
+		return "";
 	}
 };
 
@@ -142,10 +143,8 @@ struct ConstantValueOpLowering : public IdaOpConversion<ConstantValueOp>
 		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
 			return builder.getIntegerAttr(convertType(resultType), integerAttribute.getValue());
 
-		if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
-			return builder.getFloatAttr(convertType(resultType), realAttribute.getValue());
-
-		assert(false && "Unreachable");
+		assert(attribute.isa<RealAttribute>());
+		return builder.getFloatAttr(convertType(resultType), attribute.cast<RealAttribute>().getValue());
 	}
 };
 
