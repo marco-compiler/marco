@@ -865,8 +865,7 @@ llvm::Error ConstantFolder::foldLogicalOrOp(Expression& expression)
 
 llvm::Error ConstantFolder::foldMemberLookupOp(Expression& expression)
 {
-	auto* operation = expression.get<Operation>();
-	assert(operation->getOperationKind() == OperationKind::memberLookup);
+	assert(expression.get<Operation>()->getOperationKind() == OperationKind::memberLookup);
 	return llvm::Error::success();
 }
 

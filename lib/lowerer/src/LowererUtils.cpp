@@ -14,17 +14,13 @@ using namespace llvm;
 using namespace std;
 using namespace marco;
 
-constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
-
 Value* LowererContext::getArrayElementPtr(Value* arrayPtr, size_t index)
 {
-	auto* ptrType = dyn_cast<PointerType>(arrayPtr->getType());
-	auto* arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
-	assert(index <= arrayType->getNumElements());	 // NOLINT
+	assert(index <= dyn_cast<ArrayType>(dyn_cast<PointerType>(
+			arrayPtr->getType())->getContainedType(0))->getNumElements());	 // NOLINT
 
 	auto* intType = Type::getInt32Ty(builder.getContext());
 
-	auto* zero = ConstantInt::get(intType, 0);
 	auto* i = ConstantInt::get(intType, index);
 	return getArrayElementPtr(arrayPtr, i);
 }

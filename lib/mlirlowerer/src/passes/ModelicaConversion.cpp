@@ -480,11 +480,8 @@ struct ConstantOpLowering : public ModelicaOpConversion<ConstantOp>
 		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
 			return builder.getIntegerAttr(resultType, integerAttribute.getValue());
 
-		if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
-			return builder.getFloatAttr(resultType, realAttribute.getValue());
-
-		assert(false && "Unreachable");
-		//return llvm::None;
+		assert(attribute.isa<RealAttribute>());
+		return builder.getFloatAttr(resultType, attribute.cast<RealAttribute>().getValue());
 	}
 };
 

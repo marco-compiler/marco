@@ -84,7 +84,6 @@ Expected<AllocaInst*> lowerConstantTyped(
 	if (constant.size() != type.flatSize())
 		return make_error<TypeConstantSizeMissMatch>(constant, type);
 
-	auto& builder = cont.getBuilder();
 	auto alloca = cont.allocaModType(type);
 
 	if (constant.isA<int>())
@@ -119,8 +118,6 @@ static Expected<Value*> lowerBinaryOp(LowererContext& info, const ModExp& exp)
 {
 	assert(exp.isBinary());											// NOLINT
 	assert(exp.areSubExpressionCompatibles());	// NOLINT
-	const auto& left = exp.getLeftHand();
-	const auto& right = exp.getRightHand();
 	if (exp.getKind() == ModExpKind::add)
 		return lowerMemberWiseOp<ModExpKind::add>(info, exp);
 	if (exp.getKind() == ModExpKind::sub)
@@ -217,8 +214,6 @@ static Value* castSingleElem(LowererContext& info, Value* val, Type* type)
 			builder.getContext(), BultinModTypes::FLOAT, info.useDoubles());
 	auto* intType = Type::getInt32Ty(builder.getContext());
 	auto* boolType = Type::getInt1Ty(builder.getContext());
-
-	auto* constantZero = ConstantInt::get(intType, 0);
 
 	if (type == floatType)
 		return builder.CreateSIToFP(val, floatType);

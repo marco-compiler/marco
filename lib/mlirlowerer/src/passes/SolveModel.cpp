@@ -1040,8 +1040,6 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 	mlir::LLVM::LLVMFuncOp getOrInsertFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::LLVM::LLVMFunctionType type) const
   {
-    auto *context = module.getContext();
-
     if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name))
       return foo;
 

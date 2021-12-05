@@ -198,7 +198,6 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 
 	for (const auto& member : outputMembers)
 	{
-		const auto& frontendType = member->getType();
 		mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
 
 		if (auto arrayType = type.dyn_cast<ArrayType>())
@@ -287,10 +286,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 	for (const auto& member : function.getMembers())
 		lower<Function>(*member);
 
-	// Emit the body of the function
-	const auto& algorithm = function.getAlgorithms()[0];
-
-	// Lower the statements
+	// Lower the body of the function
 	lower(*function.getAlgorithms()[0]);
 
 	builder.create<FunctionTerminatorOp>(location);
@@ -449,7 +445,6 @@ mlir::Type MLIRLowerer::lower(const Type& type, BufferAllocationScope desiredAll
 
 		if (!type.isScalar())
 		{
-			const auto& dimensions = type.getDimensions();
 			llvm::SmallVector<long, 3> shape;
 
 			for (const auto& dimension : type.getDimensions())
@@ -527,7 +522,6 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 	}
 
 	mlir::Value destination = symbolTable.lookup(member.getName()).getReference();
-	bool isConstant = member.isParameter();
 
 	if (member.hasStartOverload())
 	{

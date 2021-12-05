@@ -22,10 +22,8 @@ inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<
 template<typename T>
 inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
 {
-	auto sourceSize = source.getNumElements();
 	auto destinationSize = destination.getNumElements();
-
-	assert(sourceSize == destinationSize);
+	assert(destinationSize == source.getNumElements());
 	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
 }
 

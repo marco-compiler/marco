@@ -274,6 +274,7 @@ ModExp marco::differentiate(const ModExp& exp, const ModExp& var)
 	}
 
 	assert(false && "Unreachable");
+	return ModConst(0.0);
 }
 
 ModEquation marco::differentiate(const ModEquation& eq, const ModExp& var)
