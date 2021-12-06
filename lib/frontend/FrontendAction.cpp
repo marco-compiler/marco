@@ -142,6 +142,7 @@ namespace marco::frontend
 
     marco::ast::PassManager frontendPassManager;
     frontendPassManager.addPass(ast::createTypeCheckingPass());
+    frontendPassManager.addPass(ast::createInliningPass());
     frontendPassManager.addPass(ast::createConstantFolderPass());
     auto error = frontendPassManager.run(instance().getAST());
 
