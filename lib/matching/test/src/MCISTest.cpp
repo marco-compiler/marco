@@ -23,6 +23,36 @@ TEST(Matching, mcisContainsElement)
   EXPECT_FALSE(mcis.contains({ 2, 7 }));
 }
 
+TEST(Matching, mcisContainsRange)
+{
+  MultidimensionalRange range1({
+    Range(1, 3),
+    Range(4, 7)
+  });
+
+  MultidimensionalRange range2({
+    Range(5, 9),
+    Range(1, 3)
+  });
+
+  MCIS mcis({ range1, range2 });
+
+  EXPECT_TRUE(mcis.contains(MultidimensionalRange({
+    Range(2, 3),
+    Range(5, 6)
+  })));
+
+  EXPECT_TRUE(mcis.contains(MultidimensionalRange({
+    Range(5, 7),
+    Range(1, 3)
+  })));
+
+  EXPECT_FALSE(mcis.contains(MultidimensionalRange({
+    Range(5, 6),
+    Range(5, 7)
+  })));
+}
+
 TEST(Matching, mcisAddRange)
 {
   MultidimensionalRange initialRange({

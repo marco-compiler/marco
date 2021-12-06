@@ -48,11 +48,11 @@ bool MCIS::contains(const MultidimensionalRange& range) const
 {
   for (const auto& current : ranges)
   {
-    if (current > range)
-      return false;
-
     if (current.contains(range))
       return true;
+
+    if (current > range)
+      return false;
   }
 
   return false;
@@ -84,13 +84,7 @@ void MCIS::add(MultidimensionalRange range)
 void MCIS::sort()
 {
   ranges.sort([](const MultidimensionalRange& first, const MultidimensionalRange& second) {
-      assert(first.rank() == second.rank());
-
-      for (size_t i = 0, e = first.rank(); i < e; ++i)
-        if (first[i].getBegin() < second[i].getBegin())
-          return true;
-
-      return false;
+      return first < second;
   });
 }
 

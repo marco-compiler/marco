@@ -232,7 +232,7 @@ MCIM RegularMCIM::filterVariables(const MCIS& filter) const
  *
  * @param dimensions 	original array dimensions
  * @param indexes 		access with respect to the original dimensions
- * @return flattened array index
+ * @return flattened index
  */
 static size_t flattenIndexes(llvm::ArrayRef<size_t> dimensions, llvm::ArrayRef<size_t> indexes)
 {
@@ -250,6 +250,14 @@ static size_t flattenIndexes(llvm::ArrayRef<size_t> dimensions, llvm::ArrayRef<s
   return result;
 }
 
+/**
+ * Convert a flattened index into the ones to be used to access the array
+ * in its non-flattened version.
+ *
+ * @param dimensions  original array dimensions
+ * @param index       flattened index
+ * @param results     where the non-flattened access indexes are saved
+ */
 static void unflattenIndex(llvm::ArrayRef<size_t> dimensions, size_t index, llvm::SmallVectorImpl<size_t>& results)
 {
   assert(dimensions.size() != 0);
