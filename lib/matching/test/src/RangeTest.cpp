@@ -26,6 +26,32 @@ TEST(Matching, oneDimensionalRangeIteration)
     EXPECT_EQ(*it, value++);
 }
 
+TEST(Matching, oneDimensionalRangeContainsValue)
+{
+  Range range(3, 6);
+
+  EXPECT_FALSE(range.contains(2));
+  EXPECT_TRUE(range.contains(3));
+  EXPECT_TRUE(range.contains(4));
+  EXPECT_TRUE(range.contains(5));
+  EXPECT_FALSE(range.contains(6));
+}
+
+TEST(Matching, oneDimensionalRangeContainsRange)
+{
+  Range range(3, 6);
+
+  EXPECT_FALSE(range.contains(Range(1, 2)));
+  EXPECT_FALSE(range.contains(Range(1, 3)));
+  EXPECT_FALSE(range.contains(Range(1, 4)));
+  EXPECT_TRUE(range.contains(Range(3, 5)));
+  EXPECT_TRUE(range.contains(Range(4, 6)));
+  EXPECT_TRUE(range.contains(Range(3, 6)));
+  EXPECT_FALSE(range.contains(Range(5, 7)));
+  EXPECT_FALSE(range.contains(Range(6, 9)));
+  EXPECT_FALSE(range.contains(Range(7, 9)));
+}
+
 TEST(Matching, oneDimensionalIntersectingRanges)
 {
   Range x(1, 5);
@@ -35,13 +61,28 @@ TEST(Matching, oneDimensionalIntersectingRanges)
   EXPECT_TRUE(y.intersects(x));
 }
 
-TEST(Matching, oneDimensionalRangesWithTouchingBorders)
+TEST(Matching, oneDimensionalRangesWithTouchingBordersDoNotIntersect)
 {
   Range x(1, 5);
   Range y(5, 7);
 
   EXPECT_FALSE(x.intersects(y));
   EXPECT_FALSE(y.intersects(x));
+}
+
+TEST(Matching, oneDimensionalRangesMerge)
+{
+  Range x(1, 5);
+  Range y(5, 7);
+
+  EXPECT_TRUE(x.canBeMerged(y));
+  EXPECT_TRUE(y.canBeMerged(x));
+
+  EXPECT_EQ(x.merge(y).getBegin(), 1);
+  EXPECT_EQ(x.merge(y).getEnd(), 7);
+
+  EXPECT_EQ(y.merge(x).getBegin(), 1);
+  EXPECT_EQ(y.merge(x).getEnd(), 7);
 }
 
 TEST(Matching, multidimensionalRange)
@@ -109,7 +150,7 @@ TEST(Matching, multidimensionalRangesIntersection)
   EXPECT_TRUE(y.intersects(x));
 }
 
-TEST(Matching, multidimensionalRangesWithTouchingBorders)
+TEST(Matching, multidimensionalRangesWithTouchingBordersDoNotIntersect)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -117,10 +158,52 @@ TEST(Matching, multidimensionalRangesWithTouchingBorders)
   });
 
   MultidimensionalRange y({
-    Range(3, 4),
+    Range(3, 5),
     Range(3, 5)
   });
 
   EXPECT_FALSE(x.intersects(y));
   EXPECT_FALSE(y.intersects(x));
+}
+
+TEST(Matching, multidimensionalRangesMerge)
+{
+  MultidimensionalRange x({
+    Range(1, 3),
+    Range(2, 4)
+  });
+
+  MultidimensionalRange y({
+    Range(1, 3),
+    Range(4, 7)
+  });
+
+  EXPECT_TRUE(x.canBeMerged(y).first);
+  EXPECT_TRUE(y.canBeMerged(x).first);
+
+  MultidimensionalRange z = x.merge(y, x.canBeMerged(y).second);
+
+  EXPECT_EQ(z[0].getBegin(), 1);
+  EXPECT_EQ(z[0].getEnd(), 3);
+  EXPECT_EQ(z[1].getBegin(), 2);
+  EXPECT_EQ(z[1].getEnd(), 7);
+
+  MultidimensionalRange t = x.merge(y, x.canBeMerged(y).second);
+  EXPECT_EQ(z, t);
+}
+
+TEST(Matching, multidimensionalRangesUnmergeable)
+{
+  MultidimensionalRange x({
+    Range(1, 3),
+    Range(2, 4)
+  });
+
+  MultidimensionalRange y({
+    Range(3, 5),
+    Range(4, 7)
+  });
+
+  EXPECT_FALSE(x.canBeMerged(y).first);
+  EXPECT_FALSE(y.canBeMerged(x).first);
 }

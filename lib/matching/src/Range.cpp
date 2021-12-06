@@ -18,6 +18,22 @@ bool Range::operator!=(const Range& other) const
 	return getBegin() != other.getBegin() || getEnd() != other.getEnd();
 }
 
+bool Range::operator<(const Range& other) const
+{
+  if (getBegin() == other.getBegin())
+    return getEnd() < other.getEnd();
+
+  return getBegin() < other.getBegin();
+}
+
+bool Range::operator>(const Range& other) const
+{
+  if (getBegin() == other.getBegin())
+    return getEnd() > other.getEnd();
+
+  return getBegin() > other.getBegin();
+}
+
 Range::data_type Range::getBegin() const
 {
 	return _begin;
@@ -38,9 +54,29 @@ bool Range::contains(Range::data_type value) const
 	return value >= getBegin() && value < getEnd();
 }
 
-bool Range::intersects(Range other) const
+bool Range::contains(const Range& other) const
 {
-	return getBegin() < other.getEnd() && getEnd() > other.getBegin();
+  return getBegin() <= other.getBegin() && getEnd() >= other.getEnd();
+}
+
+bool Range::intersects(const Range& other) const
+{
+  return (getBegin() <= other.getEnd() - 1) && (getEnd() - 1 >= other.getBegin());
+}
+
+bool Range::canBeMerged(const Range& other) const
+{
+  return getBegin() == other.getEnd() || getEnd() == other.getBegin();
+}
+
+Range Range::merge(const Range& other) const
+{
+  assert(canBeMerged(other));
+
+  if (getBegin() == other.getEnd())
+    return Range(other.getBegin(), getEnd());
+
+  return Range(getBegin(), other.getEnd());
 }
 
 Range::iterator Range::begin()
@@ -82,6 +118,9 @@ MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
 {
 }
 
+
+MultidimensionalRange& MultidimensionalRange::operator=(const MultidimensionalRange& other) = default;
+
 bool MultidimensionalRange::operator==(const MultidimensionalRange& other) const
 {
 	if (rank() != other.rank())
@@ -104,6 +143,38 @@ bool MultidimensionalRange::operator!=(const MultidimensionalRange& other) const
 			return true;
 
 	return false;
+}
+
+bool MultidimensionalRange::operator<(const MultidimensionalRange& other) const
+{
+  assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+
+  for (size_t i = 0, e = rank(); i < e; ++i)
+  {
+    if (ranges[i] < other.ranges[i])
+      return true;
+
+    if (ranges[i] > other.ranges[i])
+      return false;
+  }
+
+  return false;
+}
+
+bool MultidimensionalRange::operator>(const MultidimensionalRange& other) const
+{
+  assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+
+  for (size_t i = 0, e = rank(); i < e; ++i)
+  {
+    if (ranges[i] > other.ranges[i])
+      return true;
+
+    if (ranges[i] < other.ranges[i])
+      return false;
+  }
+
+  return false;
 }
 
 Range& MultidimensionalRange::operator[](size_t index)
@@ -148,16 +219,79 @@ bool MultidimensionalRange::contains(llvm::ArrayRef<Range::data_type> element) c
 	return true;
 }
 
-bool MultidimensionalRange::intersects(MultidimensionalRange other) const
+bool MultidimensionalRange::contains(const MultidimensionalRange& other) const
 {
-	assert(rank() == other.rank() &&
-				 "Can't compare ranges defined on different hyper-spaces");
+  assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+
+  for (size_t i = 0, e = rank(); i < e; ++i)
+  {
+    if (!ranges[i].contains(other.ranges[i]))
+      return false;
+  }
+
+  return true;
+}
+
+bool MultidimensionalRange::intersects(const MultidimensionalRange& other) const
+{
+	assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
 
 	for (const auto& [x, y] : llvm::zip(ranges, other.ranges))
-		if (!x.intersects(y))
-			return false;
+    if (!x.intersects(y))
+      return false;
 
 	return true;
+}
+
+std::pair<bool, size_t> MultidimensionalRange::canBeMerged(const MultidimensionalRange& other) const
+{
+  assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+
+  bool found = false;
+  size_t dimension = 0;
+
+  for (size_t i = 0, e = rank(); i < e; ++i)
+  {
+    if (const Range& first = ranges[i], second = other.ranges[i]; first != second)
+    {
+      if (first.canBeMerged(other.ranges[i]))
+      {
+        if (found)
+          return std::make_pair(false, 0);
+
+        found = true;
+        dimension = i;
+      }
+      else
+      {
+        return std::make_pair(false, 0);
+      }
+    }
+  }
+
+  return std::make_pair(found, dimension);
+}
+
+MultidimensionalRange MultidimensionalRange::merge(const MultidimensionalRange& other, size_t dimension) const
+{
+  assert(rank() == other.rank());
+  llvm::SmallVector<Range, 3> mergedRanges;
+
+  for (size_t i = 0, e = rank(); i < e; ++i)
+  {
+    if (i == dimension)
+    {
+      Range merged = ranges[i].merge(other.ranges[i]);
+      mergedRanges.push_back(std::move(merged));
+    }
+    else
+    {
+      assert(ranges[i] == other.ranges[i]);
+      mergedRanges.push_back(ranges[i]);
+    }
+  }
+
+  return MultidimensionalRange(mergedRanges);
 }
 
 MultidimensionalRange::iterator MultidimensionalRange::begin()

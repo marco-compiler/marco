@@ -24,6 +24,16 @@ namespace marco::matching
     bool empty() const;
     void clear();
 
+    bool isDisjoint(const MCIM& other) const;
+
+    MCIS flattenEquations() const;
+
+    MCIS flattenVariables() const;
+
+    MCIM filterEquations(const MCIS& filter) const;
+
+    MCIM filterVariables(const MCIS& filter) const;
+
 		private:
     std::unique_ptr<Impl> impl;
 	};

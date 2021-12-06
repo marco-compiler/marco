@@ -2,12 +2,15 @@
 
 using namespace marco::matching;
 
-static bool doRangesIntersect(llvm::ArrayRef<MultidimensionalRange> ranges)
+template<typename It>
+static bool doRangesIntersect(It begin, It end)
 {
-	for (size_t i = 0; i < ranges.size(); ++i)
-		for (size_t j = i + 1; j < ranges.size(); ++j)
-			if (ranges[i].intersects(ranges[j]))
-				return true;
+  for (It it1 = begin; it1 != end; ++it1)
+  {
+    for (It it2 = std::next(it1); it2 != end; ++it2)
+      if (it1->intersects(*it2))
+        return true;
+  }
 
 	return false;
 }
@@ -15,30 +18,21 @@ static bool doRangesIntersect(llvm::ArrayRef<MultidimensionalRange> ranges)
 MCIS::MCIS(llvm::ArrayRef<MultidimensionalRange> ranges)
 		: ranges(ranges.begin(), ranges.end())
 {
-	assert(!doRangesIntersect(this->ranges) && "Ranges must not intersect");
+	assert(!doRangesIntersect(this->ranges.begin(), this->ranges.end()) && "Ranges must not intersect");
   sort();
-}
-
-bool MCIS::operator==(const MCIS& other) const
-{
-  // TODO
-}
-
-bool MCIS::operator!=(const MCIS& other) const
-{
-  // TODO
+  merge();
 }
 
 MultidimensionalRange& MCIS::operator[](size_t index)
 {
   assert(index < ranges.size());
-  return ranges[index];
+  return *(std::next(ranges.begin(), index));
 }
 
 const MultidimensionalRange& MCIS::operator[](size_t index) const
 {
 	assert(index < ranges.size());
-	return ranges[index];
+  return *(std::next(ranges.begin(), index));
 }
 
 bool MCIS::contains(llvm::ArrayRef<Range::data_type> element) const
@@ -50,13 +44,27 @@ bool MCIS::contains(llvm::ArrayRef<Range::data_type> element) const
   return false;
 }
 
+bool MCIS::contains(const MultidimensionalRange& range) const
+{
+  for (const auto& current : ranges)
+  {
+    if (current > range)
+      return false;
+
+    if (current.contains(range))
+      return true;
+  }
+
+  return false;
+}
+
 void MCIS::add(MultidimensionalRange range)
 {
   auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
     if (ranges.empty())
       return true;
 
-    return ranges[0].rank() == range.rank();
+    return ranges.front().rank() == range.rank();
   };
 
   assert(hasCompatibleRank(range) && "Incompatible range");
@@ -65,19 +73,50 @@ void MCIS::add(MultidimensionalRange range)
     return r.intersects(range);
   }) && "New range must not intersect the existing ones");
 
-  ranges.push_back(std::move(range));
-  sort();
+  auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
+    return r > range;
+  });
+
+  ranges.insert(it, std::move(range));
+  merge();
 }
 
 void MCIS::sort()
 {
-  llvm::sort(this->ranges, [](const MultidimensionalRange& first, const MultidimensionalRange& second) {
-    assert(first.rank() == second.rank());
+  ranges.sort([](const MultidimensionalRange& first, const MultidimensionalRange& second) {
+      assert(first.rank() == second.rank());
 
-    for (size_t i = 0, e = first.rank(); i < e; ++i)
-      if (first[i].getBegin() < second[i].getBegin())
-        return true;
+      for (size_t i = 0, e = first.rank(); i < e; ++i)
+        if (first[i].getBegin() < second[i].getBegin())
+          return true;
 
-    return false;
+      return false;
   });
+}
+
+void MCIS::merge()
+{
+  using It = decltype(ranges)::iterator;
+
+  auto findCandidates = [&](It begin, It end) -> std::tuple<It, It, size_t> {
+    for (It it1 = begin; it1 != end; ++it1)
+      for (It it2 = std::next(it1); it2 != end; ++it2)
+        if (auto mergePossibility = it1->canBeMerged(*it2); mergePossibility.first)
+          return std::make_tuple(it1, it2, mergePossibility.second);
+
+    return std::make_tuple(end, end, 0);
+  };
+
+  auto candidates = findCandidates(ranges.begin(), ranges.end());
+
+  while (std::get<0>(candidates) != ranges.end() && std::get<1>(candidates) != ranges.end())
+  {
+    auto& first = std::get<0>(candidates);
+    auto& second = std::get<1>(candidates);
+    size_t dimension = std::get<2>(candidates);
+
+    *first = first->merge(*second, dimension);
+    ranges.erase(second);
+    candidates = findCandidates(ranges.begin(), ranges.end());
+  }
 }

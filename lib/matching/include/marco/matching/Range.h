@@ -78,14 +78,21 @@ namespace marco::matching
 		bool operator==(const Range& other) const;
 		bool operator!=(const Range& other) const;
 
+    bool operator<(const Range& other) const;
+    bool operator>(const Range& other) const;
+
 		long getBegin() const;
 		long getEnd() const;
 
 		size_t size() const;
 
 		bool contains(data_type value) const;
+    bool contains(const Range& other) const;
 
-		bool intersects(Range other) const;
+		bool intersects(const Range& other) const;
+
+    bool canBeMerged(const Range& other) const;
+    Range merge(const Range& other) const;
 
 		iterator begin();
 		const_iterator begin() const;
@@ -223,8 +230,13 @@ namespace marco::matching
 
 		MultidimensionalRange(llvm::ArrayRef<Range> ranges);
 
+    MultidimensionalRange& operator=(const MultidimensionalRange& other);
+
 		bool operator==(const MultidimensionalRange& other) const;
 		bool operator!=(const MultidimensionalRange& other) const;
+
+    bool operator<(const MultidimensionalRange& other) const;
+    bool operator>(const MultidimensionalRange& other) const;
 
 		Range& operator[](size_t index);
     const Range& operator[](size_t index) const;
@@ -236,7 +248,18 @@ namespace marco::matching
 		unsigned int flatSize() const;
 
     bool contains(llvm::ArrayRef<Range::data_type> element) const;
-		bool intersects(MultidimensionalRange other) const;
+    bool contains(const MultidimensionalRange& other) const;
+		bool intersects(const MultidimensionalRange& other) const;
+
+    /**
+     * Check if two multidimensional ranges can be merged.
+     *
+     * @return a pair whose first element is whether the merge is possible
+     * and the second is the dimension to be merged
+     */
+    std::pair<bool, size_t> canBeMerged(const MultidimensionalRange& other) const;
+
+    MultidimensionalRange merge(const MultidimensionalRange& other, size_t dimension) const;
 
 		iterator begin();
 		const_iterator begin() const;

@@ -1,6 +1,7 @@
 #ifndef MARCO_MATCHING_MCIS_H
 #define MARCO_MATCHING_MCIS_H
 
+#include <list>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 
@@ -16,21 +17,21 @@ namespace marco::matching
 	class MCIS
 	{
 		public:
-		MCIS(llvm::ArrayRef<MultidimensionalRange> ranges);
-
-    bool operator==(const MCIS& other) const;
-    bool operator!=(const MCIS& other) const;
+		MCIS(llvm::ArrayRef<MultidimensionalRange> ranges = llvm::None);
 
     MultidimensionalRange& operator[](size_t index);
 		const MultidimensionalRange& operator[](size_t index) const;
 
     bool contains(llvm::ArrayRef<Range::data_type> element) const;
+    bool contains(const MultidimensionalRange& range) const;
+
     void add(MultidimensionalRange range);
 
 		private:
     void sort();
+    void merge();
 
-    llvm::SmallVector<MultidimensionalRange, 2> ranges;
+    std::list<MultidimensionalRange> ranges;
 	};
 }
 

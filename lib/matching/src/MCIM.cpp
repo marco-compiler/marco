@@ -6,8 +6,6 @@ using namespace marco::matching;
 class Delta
 {
   public:
-  Delta(llvm::ArrayRef<long> values);
-
   Delta(llvm::ArrayRef<long> equationIndexes, llvm::ArrayRef<long> variableIndexes);
 
   bool operator==(const Delta& other) const;
@@ -16,11 +14,6 @@ class Delta
   private:
   llvm::SmallVector<long, 3> values;
 };
-
-Delta::Delta(llvm::ArrayRef<long> values)
-        : values(values.begin(), values.end())
-{
-}
 
 Delta::Delta(llvm::ArrayRef<long> equationIndexes, llvm::ArrayRef<long> variableIndexes)
 {
@@ -49,11 +42,10 @@ class MCIMElement
   public:
   MCIMElement(MCIS k, Delta delta);
 
-  bool operator==(const MCIMElement& other) const;
-  bool operator!=(const MCIMElement& other) const;
+  MCIS& getEquations();
+  const MCIS& getEquations() const;
 
-  MCIS& getEquationIndexes();
-  const MCIS& getEquationIndexes() const;
+  void addEquation(MultidimensionalRange indexes);
 
   const Delta& getDelta() const;
 
@@ -67,36 +59,19 @@ MCIMElement::MCIMElement(MCIS k, Delta delta)
 {
 }
 
-bool MCIMElement::operator==(const MCIMElement &other) const
-{
-  if (k != other.k)
-    return false;
-
-  if (delta != other.delta)
-    return false;
-
-  return true;
-}
-
-bool MCIMElement::operator!=(const MCIMElement &other) const
-{
-  if (k == other.k)
-    return false;
-
-  if (delta == other.delta)
-    return false;
-
-  return true;
-}
-
-MCIS& MCIMElement::getEquationIndexes()
+MCIS& MCIMElement::getEquations()
 {
   return k;
 }
 
-const MCIS& MCIMElement::getEquationIndexes() const
+const MCIS& MCIMElement::getEquations() const
 {
   return k;
+}
+
+void MCIMElement::addEquation(MultidimensionalRange indexes)
+{
+  k.add(indexes);
 }
 
 const Delta &MCIMElement::getDelta() const
@@ -114,10 +89,20 @@ namespace marco::matching
     const MultidimensionalRange& getEquationRanges() const;
     const MultidimensionalRange& getVariableRanges() const;
 
+    virtual void apply(AccessFunction access) = 0;
+
     virtual bool empty() const = 0;
     virtual void clear() = 0;
 
-    virtual void apply(AccessFunction access) = 0;
+    virtual bool isDisjoint(const MCIM& other) const = 0;
+
+    virtual MCIS flattenEquations() const = 0;
+
+    virtual MCIS flattenVariables() const = 0;
+
+    virtual MCIM filterEquations(const MCIS& filter) const = 0;
+
+    virtual MCIM filterVariables(const MCIS& filter) const = 0;
 
     private:
     MultidimensionalRange equationRanges;
@@ -145,10 +130,20 @@ class RegularMCIM : public MCIM::Impl
   public:
   RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+  void apply(AccessFunction access) override;
+
   bool empty() const override;
   void clear() override;
 
-  void apply(AccessFunction access) override;
+  bool isDisjoint(const MCIM& other) const override;
+
+  MCIS flattenEquations() const override;
+
+  MCIS flattenVariables() const override;
+
+  MCIM filterEquations(const MCIS& filter) const override;
+
+  MCIM filterVariables(const MCIS& filter) const override;
 
   private:
   llvm::SmallVector<MCIMElement, 3> groups;
@@ -158,16 +153,6 @@ RegularMCIM::RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalR
         : MCIM::Impl(std::move(equationRanges), std::move(variableRanges))
 {
   assert(getEquationRanges().rank() == getVariableRanges().rank());
-}
-
-bool RegularMCIM::empty() const
-{
-  return groups.empty();
-}
-
-void RegularMCIM::clear()
-{
-  groups.clear();
 }
 
 void RegularMCIM::apply(AccessFunction access)
@@ -184,15 +169,59 @@ void RegularMCIM::apply(AccessFunction access)
       return group.getDelta() == delta;
     });
 
+    llvm::SmallVector<Range, 3> ranges;
+
+    for (const auto& index : equationIndexes)
+      ranges.emplace_back(index, index + 1);
+
+    MultidimensionalRange range(ranges);
+
     if (groupIt == groups.end())
-    {
-
-    }
+      groups.emplace_back(MCIS(std::move(range)), std::move(delta));
     else
-    {
-
-    }
+      groupIt->addEquation(std::move(range));
   }
+}
+
+bool RegularMCIM::empty() const
+{
+  return groups.empty();
+}
+
+void RegularMCIM::clear()
+{
+  groups.clear();
+}
+
+bool RegularMCIM::isDisjoint(const MCIM& other) const
+{
+  // TODO
+}
+
+MCIS RegularMCIM::flattenEquations() const
+{
+  // TODO
+}
+
+MCIS RegularMCIM::flattenVariables() const
+{
+  for (const auto& group : groups)
+  {
+    const auto& equations = group.getEquations();
+
+  }
+
+  //TODO
+}
+
+MCIM RegularMCIM::filterEquations(const MCIS& filter) const
+{
+  // TODO
+}
+
+MCIM RegularMCIM::filterVariables(const MCIS& filter) const
+{
+  // TODO
 }
 
 /**
@@ -251,19 +280,33 @@ class FlatMCIM : public MCIM::Impl
   public:
   FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+  void apply(AccessFunction access) override;
+
   bool empty() const override;
   void clear() override;
 
-  void apply(AccessFunction access) override;
+  bool isDisjoint(const MCIM& other) const override;
+
+  MCIS flattenEquations() const override;
+
+  MCIS flattenVariables() const override;
+
+  MCIM filterEquations(const MCIS& filter) const override;
+
+  MCIM filterVariables(const MCIS& filter) const override;
 
   private:
-
 };
 
 FlatMCIM::FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
         : MCIM::Impl(std::move(equationRanges), std::move(variableRanges))
 {
   assert(getEquationRanges().rank() != getVariableRanges().rank());
+}
+
+void FlatMCIM::apply(AccessFunction access)
+{
+  // TODO
 }
 
 bool FlatMCIM::empty() const
@@ -276,7 +319,27 @@ void FlatMCIM::clear()
   // TODO
 }
 
-void FlatMCIM::apply(AccessFunction access)
+bool FlatMCIM::isDisjoint(const MCIM& other) const
+{
+  // TODO
+}
+
+MCIS FlatMCIM::flattenEquations() const
+{
+  // TODO
+}
+
+MCIS FlatMCIM::flattenVariables() const
+{
+  //TODO
+}
+
+MCIM FlatMCIM::filterEquations(const MCIS& filter) const
+{
+  // TODO
+}
+
+MCIM FlatMCIM::filterVariables(const MCIS& filter) const
 {
   // TODO
 }
@@ -302,4 +365,29 @@ bool MCIM::empty() const
 void MCIM::clear()
 {
   impl->clear();
+}
+
+bool MCIM::isDisjoint(const MCIM& other) const
+{
+  return impl->isDisjoint(other);
+}
+
+MCIS MCIM::flattenEquations() const
+{
+  return impl->flattenEquations();
+}
+
+MCIS MCIM::flattenVariables() const
+{
+  return impl->flattenVariables();
+}
+
+MCIM MCIM::filterEquations(const MCIS& filter) const
+{
+  return impl->filterEquations(filter);
+}
+
+MCIM MCIM::filterVariables(const MCIS& filter) const
+{
+  return impl->filterVariables(filter);
 }
