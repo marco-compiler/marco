@@ -342,8 +342,8 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 
 struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 {
-	DerOpPattern(mlir::MLIRContext* context, Model& model, mlir::BlockAndValueMapping& derivatives)
-			: mlir::OpRewritePattern<DerOp>(context), model(&model), derivatives(&derivatives)
+	DerOpPattern(mlir::MLIRContext* context, Model& model, SolveModelOptions options, mlir::BlockAndValueMapping& derivatives)
+			: mlir::OpRewritePattern<DerOp>(context), model(&model), options(options), derivatives(&derivatives)
 	{
 	}
 
@@ -386,21 +386,29 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			for (mlir::Value arg : terminator.values())
 				args.push_back(arg);
 
+			// Allocate derivative arrays and them to the model.
+			// Initialize derivative arrays to zero if they are not used by IDA.
 			if (auto arrayType = variable.getReference().getType().dyn_cast<ArrayType>())
 			{
 				derVar = rewriter.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, false);
-				mlir::Value zero = createZeroValue(rewriter, loc, arrayType.getElementType());
-				rewriter.create<FillOp>(loc, zero, derVar);
+				if (options.solver == ForwardEuler)
+				{
+					mlir::Value zero = createZeroValue(rewriter, loc, arrayType.getElementType());
+					rewriter.create<FillOp>(loc, zero, derVar);
+				}
 			}
 			else
 			{
 				derVar = rewriter.create<AllocOp>(loc, variable.getReference().getType(), llvm::None, llvm::None, false);
-				mlir::Value zero = createZeroValue(rewriter, loc, variable.getReference().getType());
-				rewriter.create<AssignmentOp>(loc, zero, derVar);
+				if (options.solver == ForwardEuler)
+				{
+					mlir::Value zero = createZeroValue(rewriter, loc, variable.getReference().getType());
+					rewriter.create<AssignmentOp>(loc, zero, derVar);
+				}
 			}
 
 			model->addVariable(derVar);
-			variable.setDer(model->getVariable(derVar));
+			variable.setDerivative(model->getVariable(derVar));
 
 			args.push_back(derVar);
 			rewriter.create<YieldOp>(terminator.getLoc(), args);
@@ -444,6 +452,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	}
 
 	Model* model;
+	SolveModelOptions options;
 	mlir::BlockAndValueMapping* derivatives;
 };
 
@@ -1702,7 +1711,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Model model = Model::build(simulation);
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(model, derivatives, getOperation())))
+			if (failed(removeDerivatives(model, derivatives, getOperation(), options)))
 				return signalPassFailure();
 
 			// Match
@@ -1844,14 +1853,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * @param model model
 	 * @return conversion result
 	 */
-	static mlir::LogicalResult removeDerivatives(Model& model, mlir::BlockAndValueMapping& derivatives, mlir::ModuleOp moduleOp)
+	static mlir::LogicalResult removeDerivatives(Model& model, mlir::BlockAndValueMapping& derivatives, mlir::ModuleOp moduleOp, SolveModelOptions options)
 	{
 		mlir::ConversionTarget target(*moduleOp.getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<DerOp>();
 
 		mlir::OwningRewritePatternList patterns(moduleOp.getContext());
-		patterns.insert<DerOpPattern>(moduleOp.getContext(), model, derivatives);
+		patterns.insert<DerOpPattern>(moduleOp.getContext(), model, options, derivatives);
 
 		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
 			return status;
@@ -2139,8 +2148,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		int64_t variableCount = 0;
 		int64_t variableOffset = 0;
 		int64_t equationCount = 0;
-		std::map<Variable, int64_t> offsetsMap;
-		std::map<Variable, mlir::Value> variableIndexMap;
 
 		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
 		builder.setInsertionPoint(terminator);
@@ -2156,7 +2163,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				assert(!var.isTrivial());
 
 				// If the variable has not been insterted yet, initialize it.
-				if (variableIndexMap.find(var) != variableIndexMap.end())
+				if (var.hasIdaIndex())
 					continue;
 
 				// Initialize variableOffset, variableDimensions, derivativesValues and idValues inside IDA.
@@ -2167,18 +2174,18 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 				// Store the variable index.
 				mlir::Value varIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableCount++));
-				offsetsMap[var] = variableOffset;
-				variableIndexMap[var] = varIndex;
+				var.setIdaOffset(variableOffset);
+				var.setIdaIndex(varIndex);
 
 				if (var.isState())
 				{
-					offsetsMap[model.getVariable(var.getDerivative())] = variableOffset;
-					variableIndexMap[model.getVariable(var.getDerivative())] = varIndex;
+					model.getVariable(var.getDerivative()).setIdaOffset(variableOffset);
+					model.getVariable(var.getDerivative()).setIdaIndex(varIndex);
 				}
 				else if (var.isDerivative())
 				{
-					offsetsMap[model.getVariable(var.getState())] = variableOffset;
-					variableIndexMap[model.getVariable(var.getState())] = varIndex;
+					model.getVariable(var.getState()).setIdaOffset(variableOffset);
+					model.getVariable(var.getState()).setIdaIndex(varIndex);
 				}
 
 				// Increase the length of the current row.
@@ -2204,8 +2211,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 					if (var.isTime())
 						continue;
-
-					assert(variableIndexMap.find(var) != variableIndexMap.end());
 
 					// Compute the access offset based on the induction variables of the for-equation.
 					VectorAccess vectorAccess = AccessToVar::fromExp(path.getExpression()).getAccess();
@@ -2237,7 +2242,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					}
 
 					// Add to IDA the indexes of non-zero values of the current equation.
-					mlir::Value accessIndex = builder.create<AddVarAccessOp>(loc, userData, variableIndexMap[var], offsets, inductions);
+					mlir::Value accessIndex = builder.create<AddVarAccessOp>(loc, userData, var.getIdaIndex(), offsets, inductions);
 					builder.create<AddColumnIndexOp>(loc, userData, rowIndex, accessIndex);
 				}
 
@@ -2275,30 +2280,30 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				// Create the Residual and Jacobian function.
 				mlir::OpBuilder::InsertionGuard guard(builder);
 				builder.setInsertionPoint(simulationOp);
-				builder.create<ResidualFunctionOp>(loc, residualName, model, equation, offsetsMap);
-				builder.create<JacobianFunctionOp>(loc, jacobianName, model, equation, offsetsMap);
+				builder.create<ResidualFunctionOp>(loc, residualName, model, equation);
+				builder.create<JacobianFunctionOp>(loc, jacobianName, model, equation);
 			}
 		}
 
 		// Replace allocation of variables used by IDA and initialize such vectors.
-		for (auto& variable : offsetsMap)
+		for (auto& var : model.getVariables())
 		{
-			Variable var = variable.first;
-			assert(var.getReference().getType().cast<ArrayType>().getElementType().isa<modelica::RealType>()
+			if (!var->hasIdaOffset())
+				continue;
+
+			assert(var->getReference().getType().cast<ArrayType>().getElementType().isa<modelica::RealType>()
 					&& "All variables that must be passed to IDA must be real numbers.");
 
 			// Replace the AllocOp of variables and derivatives with the memory allocated by IDA.
-			builder.setInsertionPoint(var.getReference().getDefiningOp());
-			mlir::Value offset = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variable.second));
-			mlir::Value isDer = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var.isDerivative()));
-			mlir::Value getVarAlloc = builder.create<GetVariableAllocOp>(loc, userData, offset, isDer, var.getReference().getType());
+			builder.setInsertionPoint(var->getReference().getDefiningOp());
+			mlir::Value offset = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(var->getIdaOffset()));
+			mlir::Value isDer = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var->isDerivative()));
+			mlir::Value getVarAlloc = builder.create<GetVariableAllocOp>(loc, userData, offset, isDer, var->getReference().getType());
 
-			var.getReference().replaceAllUsesWith(getVarAlloc);
-			var.getReference().getDefiningOp()->erase();
+			var->getReference().replaceAllUsesWith(getVarAlloc);
+			var->getReference().getDefiningOp()->erase();
 		}
 
-		offsetsMap.clear();
-		variableIndexMap.clear();
 		assert(variableOffset == equationsNumber);
 
 		// Call the IDA initialization operation at the end of the init() function.
@@ -2351,7 +2356,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static llvm::Optional<Model> getUnmatchedModel(mlir::ModuleOp moduleOp)
+	static llvm::Optional<Model> getUnmatchedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
 	{
 		if (failed(scalarizeArrayEquations(moduleOp)))
 			return llvm::None;
@@ -2367,7 +2372,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			model = Model::build(simulation);
 			mlir::BlockAndValueMapping derivatives;
 
-			if (failed(removeDerivatives(*model, derivatives, moduleOp)))
+			if (failed(removeDerivatives(*model, derivatives, moduleOp, options)))
 				model = llvm::None;
 		});
 
@@ -2376,7 +2381,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	static llvm::Optional<Model> getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
 	{
-		llvm::Optional<Model> model = SolveModelPass::getUnmatchedModel(moduleOp);
+		llvm::Optional<Model> model = SolveModelPass::getUnmatchedModel(moduleOp, options);
 		if (!model)
 			return llvm::None;
 
@@ -2419,9 +2424,9 @@ std::unique_ptr<mlir::Pass> marco::codegen::createSolveModelPass(SolveModelOptio
 	return std::make_unique<SolveModelPass>(options, bitWidth);
 }
 
-llvm::Optional<Model> marco::codegen::getUnmatchedModel(mlir::ModuleOp moduleOp)
+llvm::Optional<Model> marco::codegen::getUnmatchedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
 {
-	return SolveModelPass::getUnmatchedModel(moduleOp);
+	return SolveModelPass::getUnmatchedModel(moduleOp, options);
 }
 
 llvm::Optional<Model> marco::codegen::getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)

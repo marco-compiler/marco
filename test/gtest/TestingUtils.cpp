@@ -34,7 +34,10 @@ void makeModel(
 	if (!moduleOp)
 		FAIL();
 
-	auto result = marco::codegen::getUnmatchedModel(*moduleOp);
+	marco::codegen::SolveModelOptions solveModelOptions;
+	solveModelOptions.solver = marco::codegen::CleverDAE;
+
+	auto result = marco::codegen::getUnmatchedModel(*moduleOp, solveModelOptions);
 	if (!result)
 		FAIL();
 

@@ -19,15 +19,15 @@
 
 #define PRINT_JACOBIAN false
 
-#define MAX_NUM_STEPS 100
-#define MAX_ERR_TEST_FAIL 10
-#define MAX_NONLIN_ITERS 4
-#define MAX_CONV_FAILS 10
+#define MAX_NUM_STEPS 5000
+#define MAX_ERR_TEST_FAIL 100
+#define MAX_NONLIN_ITERS 40
+#define MAX_CONV_FAILS 100
 #define NONLIN_CONV_COEF 0.33
 
-#define MAX_NUM_STEPS_IC 5
-#define MAX_NUM_JACS_IC 4
-#define MAX_NUM_ITERS_IC 10
+#define MAX_NUM_STEPS_IC 50
+#define MAX_NUM_JACS_IC 40
+#define MAX_NUM_ITERS_IC 100
 #define NONLIN_CONV_COEF_IC 0.0033
 
 #define exitOnError(success) if (!success) return false;
@@ -437,7 +437,6 @@ inline bool idaInit(void* userData, T threads)
 	// Call IDASVtolerances to set tolerances.
 	retval = IDASVtolerances(data->idaMemory, data->relativeTolerance, data->tolerancesVector);
 	exitOnError(checkRetval(retval, "IDASVtolerances"));
-	N_VDestroy(data->tolerancesVector);
 
 	// Create sparse SUNMatrix for use in linear solver.
 	data->sparseMatrix = SUNSparseMatrix(
@@ -468,32 +467,36 @@ inline bool idaInit(void* userData, T threads)
 	retval = IDASetStopTime(data->idaMemory, data->endTime);
 	exitOnError(checkRetval(retval, "IDASetStopTime"));
 
-	sunindextype multiplyingFactor = 10 + data->scalarEquationsNumber;
+	retval = IDASetMaxStep(data->idaMemory, data->endTime);
+	exitOnError(checkRetval(retval, "IDASetMaxStep"));
+
+	retval = IDASetSuppressAlg(data->idaMemory, SUNTRUE);
+	exitOnError(checkRetval(retval, "IDASetSuppressAlg"));
 
 	// Increase the maximum number of iterations taken by IDA before failing.
-	retval = IDASetMaxNumSteps(data->idaMemory, MAX_NUM_STEPS * multiplyingFactor);
+	retval = IDASetMaxNumSteps(data->idaMemory, MAX_NUM_STEPS);
 	exitOnError(checkRetval(retval, "IDASetMaxNumSteps"));
 
-	retval = IDASetMaxErrTestFails(data->idaMemory, MAX_ERR_TEST_FAIL * multiplyingFactor);
+	retval = IDASetMaxErrTestFails(data->idaMemory, MAX_ERR_TEST_FAIL);
 	exitOnError(checkRetval(retval, "IDASetMaxErrTestFails"));
 
-	retval = IDASetMaxNonlinIters(data->idaMemory, MAX_NONLIN_ITERS * multiplyingFactor);
+	retval = IDASetMaxNonlinIters(data->idaMemory, MAX_NONLIN_ITERS);
 	exitOnError(checkRetval(retval, "IDASetMaxNonlinIters"));
 
-	retval = IDASetMaxConvFails(data->idaMemory, MAX_CONV_FAILS * multiplyingFactor);
+	retval = IDASetMaxConvFails(data->idaMemory, MAX_CONV_FAILS);
 	exitOnError(checkRetval(retval, "IDASetMaxConvFails"));
 
 	retval = IDASetNonlinConvCoef(data->idaMemory, NONLIN_CONV_COEF);
 	exitOnError(checkRetval(retval, "IDASetNonlinConvCoef"));
 
 	// Increase the maximum number of iterations taken by IDA IC before failing.
-	retval = IDASetMaxNumStepsIC(data->idaMemory, MAX_NUM_STEPS_IC * multiplyingFactor);
+	retval = IDASetMaxNumStepsIC(data->idaMemory, MAX_NUM_STEPS_IC);
 	exitOnError(checkRetval(retval, "IDASetMaxNumStepsIC"));
 
-	retval = IDASetMaxNumJacsIC(data->idaMemory, MAX_NUM_JACS_IC * multiplyingFactor);
+	retval = IDASetMaxNumJacsIC(data->idaMemory, MAX_NUM_JACS_IC);
 	exitOnError(checkRetval(retval, "IDASetMaxNumJacsIC"));
 
-	retval = IDASetMaxNumItersIC(data->idaMemory, MAX_NUM_ITERS_IC * multiplyingFactor);
+	retval = IDASetMaxNumItersIC(data->idaMemory, MAX_NUM_ITERS_IC);
 	exitOnError(checkRetval(retval, "IDASetMaxNumItersIC"));
 
 	retval = IDASetNonlinConvCoefIC(data->idaMemory, NONLIN_CONV_COEF_IC);
@@ -560,6 +563,7 @@ inline bool idaFreeData(void* userData)
 	N_VDestroy(data->variablesVector);
 	N_VDestroy(data->derivativesVector);
 	N_VDestroy(data->idVector);
+	N_VDestroy(data->tolerancesVector);
 
 	delete data;
 
@@ -859,6 +863,7 @@ inline void printStatistics(void* userData)
 		printIncidenceMatrix(userData);
 
 	int64_t nst, nre, nje, nni, nli, netf, nncf;
+	realtype is, ls;
 
 	IDAGetNumSteps(data->idaMemory, &nst);
 	IDAGetNumResEvals(data->idaMemory, &nre);
@@ -867,6 +872,8 @@ inline void printStatistics(void* userData)
 	IDAGetNumLinIters(data->idaMemory, &nli);
 	IDAGetNumErrTestFails(data->idaMemory, &netf);
 	IDAGetNumNonlinSolvConvFails(data->idaMemory, &nncf);
+	IDAGetActualInitStep(data->idaMemory, &is);
+	IDAGetLastStep(data->idaMemory, &ls);
 
 	llvm::errs() << "\nFinal Run Statistics:\n";
 
@@ -880,10 +887,14 @@ inline void printStatistics(void* userData)
 	llvm::errs() << "Number of steps                  = " << nst << "\n";
 	llvm::errs() << "Number of residual evaluations   = " << nre << "\n";
 	llvm::errs() << "Number of Jacobian evaluations   = " << nje << "\n";
+
 	llvm::errs() << "Number of nonlinear iterations   = " << nni << "\n";
 	llvm::errs() << "Number of linear iterations      = " << nli << "\n";
 	llvm::errs() << "Number of error test failures    = " << netf << "\n";
 	llvm::errs() << "Number of nonlin. conv. failures = " << nncf << "\n";
+
+	llvm::errs() << "Actual initial step size used    = " << is << "\n";
+	llvm::errs() << "Step size used for the last step = " << ls << "\n";
 }
 
 RUNTIME_FUNC_DEF(printStatistics, void, PTR(void))
