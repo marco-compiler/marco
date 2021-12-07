@@ -126,7 +126,6 @@ namespace marco::codegen::ida
 			modelica::ModelicaBuilder& builder,
 			model::Model& model,
 			const model::Expression& expression,
-			OffsetMap offsetMap,
 			llvm::ArrayRef<mlir::BlockArgument> args)
 	{
 		// Induction argument.
@@ -159,7 +158,7 @@ namespace marco::codegen::ida
 				return args[0];
 
 			// Compute the IDA variable offset, which depends on the variable, the dimension and the access.
-			mlir::Value varOffset = computeVariableOffset(builder, var, expression, offsetMap[var], args[3]);
+			mlir::Value varOffset = computeVariableOffset(builder, var, expression, var.getIdaOffset(), args[3]);
 
 			// Access and return the correct variable value.
 			mlir::BlockArgument argArray = var.isDerivative() ? args[2] : args[1];
@@ -174,7 +173,7 @@ namespace marco::codegen::ida
 		for (size_t i : marco::irange(expression.childrenCount()))
 			mapping.map(
 				expression.getOp()->getOperand(i),
-				getFunction(builder, model, expression.getChild(i), offsetMap, args));
+				getFunction(builder, model, expression.getChild(i), args));
 
 		// Add to the residual function and return the correct mapped operation.
 		return builder.clone(*definingOp, mapping)->getResult(0);
@@ -189,7 +188,6 @@ namespace marco::codegen::ida
 			modelica::ModelicaBuilder& builder,
 			model::Model& model,
 			const model::Expression& expression,
-			OffsetMap offsetMap,
 			llvm::ArrayRef<mlir::BlockArgument> args)
 	{
 		// Induction argument.
@@ -216,7 +214,7 @@ namespace marco::codegen::ida
 				return builder.create<modelica::ConstantOp>(loc, builder.getRealAttribute(0.0));
 
 			// Compute the IDA variable offset, which depends on the variable, the dimension and the access.
-			mlir::Value varOffset = computeVariableOffset(builder, var, expression, offsetMap[var], args[3]);
+			mlir::Value varOffset = computeVariableOffset(builder, var, expression, var.getIdaOffset(), args[3]);
 
 			// Check if the variable with respect to which we are currently derivating
 			// is also the variable we are derivating.
@@ -243,7 +241,7 @@ namespace marco::codegen::ida
 		for (size_t i : marco::irange(expression.childrenCount()))
 			mapping.map(
 				expression.getOp()->getOperand(i),
-				getFunction(builder, model, expression.getChild(i), offsetMap, args));
+				getFunction(builder, model, expression.getChild(i), args));
 
 		// Clone the operation with the new operands.
 		mlir::Operation* clonedOp = builder.clone(*definingOp, mapping);
@@ -254,7 +252,7 @@ namespace marco::codegen::ida
 		for (size_t i : marco::irange(expression.childrenCount()))
 			derMapping.map(
 				clonedOp->getOperand(i),
-				getDerFunction(builder, model, expression.getChild(i), offsetMap, args));
+				getDerFunction(builder, model, expression.getChild(i), args));
 
 		// Compute and return the derived operation.
 		mlir::Value derivedOp = mlir::cast<modelica::DerivativeInterface>(clonedOp).derive(builder, derMapping).front();
@@ -262,34 +260,37 @@ namespace marco::codegen::ida
 		clonedOp->erase();
 		return derivedOp;
 	}
-}
 
-static void foldConstants(mlir::OpBuilder& builder, mlir::Block& block)
-{
-	llvm::SmallVector<mlir::Operation*, 3> operations;
+	static void foldConstants(mlir::OpBuilder& builder, mlir::Block& block)
+	{
+		llvm::SmallVector<mlir::Operation*, 3> operations;
 
-	for (mlir::Operation& operation : block.getOperations())
-		operations.push_back(&operation);
-
-	// If an operation has only constants as operands, we can substitute it with
-	// the corresponding constant value and erase the old operation.
-	for (mlir::Operation* operation : operations)
-		if (operation->hasTrait<modelica::FoldableOpInterface::Trait>())
-			mlir::cast<modelica::FoldableOpInterface>(operation).foldConstants(builder);
-}
-
-static void cleanOperation(mlir::Block& block)
-{
-	llvm::SmallVector<mlir::Operation*, 3> operations;
-
-	for (mlir::Operation& operation : block.getOperations())
-		if (!mlir::isa<ida::FunctionTerminatorOp>(operation))
+		for (mlir::Operation& operation : block.getOperations())
 			operations.push_back(&operation);
 
-	// If an operation has no uses, erase it.
-	for (mlir::Operation* operation : llvm::reverse(operations))
-		if (operation->use_empty())
-			operation->erase();
+		// If an operation has only constants as operands, we can substitute it with
+		// the corresponding constant value and erase the old operation.
+		for (mlir::Operation* operation : operations)
+			if (operation->hasTrait<modelica::FoldableOpInterface::Trait>())
+				mlir::cast<modelica::FoldableOpInterface>(operation).foldConstants(builder);
+	}
+
+	static void cleanOperation(mlir::Block& block)
+	{
+		llvm::SmallVector<mlir::Operation*, 3> operations;
+
+		for (mlir::Operation& operation : block.getOperations())
+			if (!mlir::isa<ida::FunctionTerminatorOp>(operation))
+				operations.push_back(&operation);
+
+		assert(llvm::all_of(operations,
+				[](mlir::Operation* op) { return op->getNumResults() == 1; }));
+
+		// If an operation has no uses, erase it.
+		for (mlir::Operation* operation : llvm::reverse(operations))
+			if (operation->use_empty())
+				operation->erase();
+	}
 }
 
 //===----------------------------------------------------------------------===//
@@ -1231,11 +1232,11 @@ llvm::ArrayRef<llvm::StringRef> ResidualFunctionOp::getAttributeNames()
 	return {};
 }
 
-void ResidualFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, model::Model& model, model::Equation& equation, OffsetMap offsetMap)
+void ResidualFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, model::Model& model, model::Equation& equation)
 {
 	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
 
-	// residualFunction(real time, real* variables, real* derivatives, int* indexes) -> real
+	// real residual_function(real time, real* variables, real* derivatives, int* indexes)
 	llvm::SmallVector<mlir::Type, 4> argTypes = {
 		modelica::RealType::get(builder.getContext()),
 		RealPointerType::get(builder.getContext()), 
@@ -1253,8 +1254,8 @@ void ResidualFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 	modelica::ModelicaBuilder modelicaBuilder(builder.getContext());
 	modelicaBuilder.setInsertionPointToStart(&entryBlock);
 
-	mlir::Value lhsResidual = getFunction(modelicaBuilder, model, equation.lhs(), offsetMap, entryBlock.getArguments());
-	mlir::Value rhsResidual = getFunction(modelicaBuilder, model, equation.rhs(), offsetMap, entryBlock.getArguments());
+	mlir::Value lhsResidual = getFunction(modelicaBuilder, model, equation.lhs(), entryBlock.getArguments());
+	mlir::Value rhsResidual = getFunction(modelicaBuilder, model, equation.rhs(), entryBlock.getArguments());
 
 	mlir::Value returnValue = modelicaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), modelicaBuilder.getRealType(), rhsResidual, lhsResidual);
 	modelicaBuilder.create<ida::FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
@@ -1353,11 +1354,11 @@ llvm::ArrayRef<llvm::StringRef> JacobianFunctionOp::getAttributeNames()
 	return {};
 }
 
-void JacobianFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, model::Model& model, model::Equation& equation, OffsetMap offsetMap)
+void JacobianFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, model::Model& model, model::Equation& equation)
 {
 	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
 
-	// jacobianFunction(real time, real* variables, real* derivatives, int* indexes, real alpha, real der_var) -> real
+	// real jacobian_function(real time, real* variables, real* derivatives, int* indexes, real alpha, int der_var)
 	llvm::SmallVector<mlir::Type, 6> argTypes = {
 		modelica::RealType::get(builder.getContext()),
 		RealPointerType::get(builder.getContext()), 
@@ -1377,8 +1378,8 @@ void JacobianFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 	modelica::ModelicaBuilder modelicaBuilder(builder.getContext());
 	modelicaBuilder.setInsertionPointToStart(&entryBlock);
 
-	mlir::Value lhsJacobian = getDerFunction(modelicaBuilder, model, equation.lhs(), offsetMap, entryBlock.getArguments());
-	mlir::Value rhsJacobian = getDerFunction(modelicaBuilder, model, equation.rhs(), offsetMap, entryBlock.getArguments());
+	mlir::Value lhsJacobian = getDerFunction(modelicaBuilder, model, equation.lhs(), entryBlock.getArguments());
+	mlir::Value rhsJacobian = getDerFunction(modelicaBuilder, model, equation.rhs(), entryBlock.getArguments());
 
 	mlir::Value returnValue = modelicaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), modelicaBuilder.getRealType(), rhsJacobian, lhsJacobian);
 	modelicaBuilder.create<ida::FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);

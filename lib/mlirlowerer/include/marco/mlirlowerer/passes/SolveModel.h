@@ -43,7 +43,7 @@ namespace marco::codegen
 	 * This method must be used for testing purposes only.
 	 * Given a parsed ModuleOp, it return the Model before the matching phase.
 	 */
-	llvm::Optional<model::Model> getUnmatchedModel(mlir::ModuleOp moduleOp);
+	llvm::Optional<model::Model> getUnmatchedModel(mlir::ModuleOp moduleOp, SolveModelOptions options);
 
 	/**
 	 * This method must be used for testing and debugging purposes only.

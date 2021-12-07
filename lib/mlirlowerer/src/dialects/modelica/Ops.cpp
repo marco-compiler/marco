@@ -4496,7 +4496,7 @@ void NegateOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), -operand));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), getAttribute(builder, resultType(), -operand));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -4726,6 +4726,8 @@ void AddOp::foldConstants(mlir::OpBuilder& builder)
 
 	double left = getAttributeValue(leftOp.value());
 	double right = getAttributeValue(rightOp.value());
+
+	assert(left != 0.0 && right != 0.0);
 
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
@@ -5163,6 +5165,8 @@ void SubOp::foldConstants(mlir::OpBuilder& builder)
 
 	double left = getAttributeValue(leftOp.value());
 	double right = getAttributeValue(rightOp.value());
+
+	assert(left != 0.0 && right != 0.0);
 
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
@@ -5644,6 +5648,8 @@ void MulOp::foldConstants(mlir::OpBuilder& builder)
 
 	double left = getAttributeValue(leftOp.value());
 	double right = getAttributeValue(rightOp.value());
+
+	assert(left != 0.0 && right != 0.0 && left * right != 0.0);
 
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
@@ -6140,11 +6146,12 @@ void DivOp::foldConstants(mlir::OpBuilder& builder)
 	double left = getAttributeValue(leftOp.value());
 	double right = getAttributeValue(rightOp.value());
 
+	assert(left != 0.0 && right != 0.0 && left / right != 0.0);
+
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Type type = getMostGenericType(leftOp.resultType(), rightOp.resultType());
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), getAttribute(builder, type, left / right));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left / right));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -6606,10 +6613,12 @@ void PowOp::foldConstants(mlir::OpBuilder& builder)
 	double base = getAttributeValue(baseOp.value());
 	double exponent = getAttributeValue(exponentOp.value());
 
+	assert(base != 0.0 && exponent != 0.0 && pow(base, exponent) != 0.0);
+
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), pow(base, exponent)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::pow(base, exponent)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7091,7 +7100,7 @@ void SqrtOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), sqrt(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::sqrt(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7212,7 +7221,7 @@ void SinOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), sin(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::sin(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7334,7 +7343,7 @@ void CosOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), cos(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::cos(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7456,7 +7465,7 @@ void TanOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), tan(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::tan(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7580,7 +7589,7 @@ void AsinOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), asin(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::asin(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7705,7 +7714,7 @@ void AcosOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), acos(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::acos(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7828,7 +7837,7 @@ void AtanOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), atan(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::atan(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -7977,7 +7986,7 @@ void Atan2Op::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), atan2(y, x)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::atan2(y, x)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -8103,7 +8112,7 @@ void SinhOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), sinh(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::sinh(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -8224,7 +8233,7 @@ void CoshOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), cosh(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::cosh(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -8346,7 +8355,7 @@ void TanhOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), tanh(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::tanh(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -8467,7 +8476,7 @@ void ExpOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), exp(exponent)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::exp(exponent)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -8586,7 +8595,7 @@ void LogOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), log(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::log(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();
@@ -8709,7 +8718,7 @@ void Log10Op::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), log10(operand)));
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), std::log10(operand)));
 
 	replaceAllUsesWith(newOp);
 	erase();

@@ -10,7 +10,7 @@ using namespace modelica;
 class Variable::Impl
 {
 	public:
-	Impl(mlir::Value memory) : reference(memory), state(false), derivative(false), trivial(true)
+	Impl(mlir::Value memory) : reference(memory)
 	{
 		mlir::Operation* op = memory.getDefiningOp();
 		assert(mlir::isa<AllocaOp>(op) || mlir::isa<AllocOp>(op));
@@ -27,12 +27,16 @@ class Variable::Impl
 
 	private:
 	mlir::Value reference;
-	bool state;
+	mlir::Value stateRef = nullptr;
+	mlir::Value derivativeRef = nullptr;
+
 	bool constant;
-	bool derivative;
-	bool trivial;
-	mlir::Value stateRef;
-	mlir::Value derivativeRef;
+	bool state = false;
+	bool derivative = false;
+	bool trivial = true;
+
+	int64_t idaOffset = -1;
+	mlir::Value idaIndexRef = nullptr;
 };
 
 Variable::Variable(mlir::Value memory)
@@ -75,6 +79,54 @@ mlir::Value Variable::getReference()
 	return impl->reference;
 }
 
+mlir::Value Variable::getState()
+{
+	assert(isDerivative());
+	return impl->stateRef;
+}
+
+mlir::Value Variable::getDerivative()
+{
+	assert(isState());
+	return impl->derivativeRef;
+}
+
+int64_t Variable::getIdaOffset()
+{
+	assert(hasIdaOffset());
+	return impl->idaOffset;
+}
+
+[[nodiscard]] mlir::Value Variable::getIdaIndex()
+{
+	assert(hasIdaIndex());
+	return impl->idaIndexRef;
+}
+
+void Variable::setDerivative(Variable variable)
+{
+	impl->state = true;
+	impl->derivativeRef = variable.getReference();
+	variable.impl->derivative = true;
+	variable.impl->trivial = false;
+	variable.impl->stateRef = impl->reference;
+}
+
+void Variable::setTrivial(bool value)
+{
+	impl->trivial = value;
+}
+
+void Variable::setIdaOffset(int64_t offset)
+{
+	impl->idaOffset = offset;
+}
+
+void Variable::setIdaIndex(mlir::Value index)
+{
+	impl->idaIndexRef = index;
+}
+
 bool Variable::isState() const
 {
 	return impl->state || isTime();
@@ -102,30 +154,14 @@ bool Variable::isTime() const
 	return impl->reference == initTerminator.values()[0];
 }
 
-mlir::Value Variable::getState()
+bool Variable::hasIdaOffset() const
 {
-	assert(isDerivative());
-	return impl->stateRef;
+	return impl->idaOffset >= 0;
 }
 
-mlir::Value Variable::getDerivative()
+bool Variable::hasIdaIndex() const
 {
-	assert(isState());
-	return impl->derivativeRef;
-}
-
-void Variable::setDer(Variable variable)
-{
-	impl->state = true;
-	impl->derivativeRef = variable.getReference();
-	variable.impl->derivative = true;
-	variable.impl->trivial = false;
-	variable.impl->stateRef = impl->reference;
-}
-
-void Variable::setTrivial(bool value)
-{
-	impl->trivial = value;
+	return impl->idaIndexRef != nullptr;
 }
 
 marco::IndexSet Variable::toIndexSet() const

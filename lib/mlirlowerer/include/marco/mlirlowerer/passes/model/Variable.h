@@ -25,7 +25,18 @@ namespace marco::codegen::model
 		bool operator<=(const Variable& rhs) const;
 		bool operator>=(const Variable& rhs) const;
 
-		mlir::Value getReference();
+		[[nodiscard]] mlir::Value getReference();
+		[[nodiscard]] mlir::Value getState();
+		[[nodiscard]] mlir::Value getDerivative();
+
+		[[nodiscard]] int64_t getIdaOffset();
+		[[nodiscard]] mlir::Value getIdaIndex();
+
+		void setDerivative(Variable variable);
+		void setTrivial(bool value);
+
+		void setIdaOffset(int64_t offset);
+		void setIdaIndex(mlir::Value index);
 
 		[[nodiscard]] bool isState() const;
 		[[nodiscard]] bool isConstant() const;
@@ -34,11 +45,8 @@ namespace marco::codegen::model
 
 		[[nodiscard]] bool isTime() const;
 
-		[[nodiscard]] mlir::Value getState();
-		[[nodiscard]] mlir::Value getDerivative();
-
-		void setDer(Variable variable);
-		void setTrivial(bool value);
+		[[nodiscard]] bool hasIdaOffset() const;
+		[[nodiscard]] bool hasIdaIndex() const;
 
 		[[nodiscard]] IndexSet toIndexSet() const;
 		[[nodiscard]] MultiDimInterval toMultiDimInterval() const;
