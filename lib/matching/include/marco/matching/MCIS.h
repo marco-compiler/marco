@@ -16,14 +16,25 @@ namespace marco::matching
 	 */
 	class MCIS
 	{
+    private:
+    using Container = std::list<MultidimensionalRange>;
+
 		public:
+    using const_iterator = Container::const_iterator;
+
 		MCIS(llvm::ArrayRef<MultidimensionalRange> ranges = llvm::None);
 
-    MultidimensionalRange& operator[](size_t index);
 		const MultidimensionalRange& operator[](size_t index) const;
 
+    size_t size();
+
+    const_iterator begin() const;
+    const_iterator end() const;
+
     bool contains(llvm::ArrayRef<Range::data_type> element) const;
-    bool contains(const MultidimensionalRange& range) const;
+    bool contains(const MultidimensionalRange& other) const;
+
+    bool overlaps(const MultidimensionalRange& other) const;
 
     void add(MultidimensionalRange range);
 

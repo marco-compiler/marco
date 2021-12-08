@@ -3,12 +3,12 @@
 using namespace marco::matching;
 
 template<typename It>
-static bool doRangesIntersect(It begin, It end)
+static bool doRangesOverlap(It begin, It end)
 {
   for (It it1 = begin; it1 != end; ++it1)
   {
     for (It it2 = std::next(it1); it2 != end; ++it2)
-      if (it1->intersects(*it2))
+      if (it1->overlaps(*it2))
         return true;
   }
 
@@ -18,21 +18,30 @@ static bool doRangesIntersect(It begin, It end)
 MCIS::MCIS(llvm::ArrayRef<MultidimensionalRange> ranges)
 		: ranges(ranges.begin(), ranges.end())
 {
-	assert(!doRangesIntersect(this->ranges.begin(), this->ranges.end()) && "Ranges must not intersect");
+	assert(!doRangesOverlap(this->ranges.begin(), this->ranges.end()) && "Ranges must not overlap");
   sort();
   merge();
-}
-
-MultidimensionalRange& MCIS::operator[](size_t index)
-{
-  assert(index < ranges.size());
-  return *(std::next(ranges.begin(), index));
 }
 
 const MultidimensionalRange& MCIS::operator[](size_t index) const
 {
 	assert(index < ranges.size());
   return *(std::next(ranges.begin(), index));
+}
+
+size_t MCIS::size()
+{
+  return ranges.size();
+}
+
+MCIS::const_iterator MCIS::begin() const
+{
+  return ranges.begin();
+}
+
+MCIS::const_iterator MCIS::end() const
+{
+  return ranges.end();
 }
 
 bool MCIS::contains(llvm::ArrayRef<Range::data_type> element) const
@@ -44,14 +53,28 @@ bool MCIS::contains(llvm::ArrayRef<Range::data_type> element) const
   return false;
 }
 
-bool MCIS::contains(const MultidimensionalRange& range) const
+bool MCIS::contains(const MultidimensionalRange& other) const
 {
-  for (const auto& current : ranges)
+  for (const auto& range : ranges)
   {
-    if (current.contains(range))
+    if (range.contains(other))
       return true;
 
-    if (current > range)
+    if (range > other)
+      return false;
+  }
+
+  return false;
+}
+
+bool MCIS::overlaps(const MultidimensionalRange& other) const
+{
+  for (const auto& range : ranges)
+  {
+    if (range.overlaps(other))
+      return true;
+
+    if (range > other)
       return false;
   }
 
@@ -70,8 +93,8 @@ void MCIS::add(MultidimensionalRange range)
   assert(hasCompatibleRank(range) && "Incompatible range");
 
   assert(llvm::none_of(ranges, [&](const MultidimensionalRange& r) {
-    return r.intersects(range);
-  }) && "New range must not intersect the existing ones");
+    return r.overlaps(range);
+  }) && "New range must not overlap the existing ones");
 
   auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
     return r > range;

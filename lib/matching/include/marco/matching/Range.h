@@ -89,10 +89,14 @@ namespace marco::matching
 		bool contains(data_type value) const;
     bool contains(const Range& other) const;
 
-		bool intersects(const Range& other) const;
+		bool overlaps(const Range& other) const;
+
+    Range intersect(const Range& other) const;
 
     bool canBeMerged(const Range& other) const;
     Range merge(const Range& other) const;
+
+    std::vector<Range> subtract(const Range& other) const;
 
 		iterator begin();
 		const_iterator begin() const;
@@ -230,8 +234,6 @@ namespace marco::matching
 
 		MultidimensionalRange(llvm::ArrayRef<Range> ranges);
 
-    MultidimensionalRange& operator=(const MultidimensionalRange& other);
-
 		bool operator==(const MultidimensionalRange& other) const;
 		bool operator!=(const MultidimensionalRange& other) const;
 
@@ -249,7 +251,8 @@ namespace marco::matching
 
     bool contains(llvm::ArrayRef<Range::data_type> element) const;
     bool contains(const MultidimensionalRange& other) const;
-		bool intersects(const MultidimensionalRange& other) const;
+
+		bool overlaps(const MultidimensionalRange& other) const;
 
     /**
      * Check if two multidimensional ranges can be merged.
@@ -260,6 +263,8 @@ namespace marco::matching
     std::pair<bool, size_t> canBeMerged(const MultidimensionalRange& other) const;
 
     MultidimensionalRange merge(const MultidimensionalRange& other, size_t dimension) const;
+
+    std::vector<MultidimensionalRange> subtract(const MultidimensionalRange& other) const;
 
 		iterator begin();
 		const_iterator begin() const;

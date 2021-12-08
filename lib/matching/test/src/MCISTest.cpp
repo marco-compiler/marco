@@ -53,6 +53,36 @@ TEST(Matching, mcisContainsRange)
   })));
 }
 
+TEST(Matching, mcisOverlapsRange)
+{
+  MultidimensionalRange range1({
+    Range(1, 3),
+    Range(4, 7)
+  });
+
+  MultidimensionalRange range2({
+    Range(5, 9),
+    Range(1, 3)
+  });
+
+  MCIS mcis({ range1, range2 });
+
+  EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
+    Range(2, 4),
+    Range(1, 5)
+  })));
+
+  EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
+    Range(3, 7),
+    Range(2, 4)
+  })));
+
+  EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
+    Range(1, 6),
+    Range(1, 5)
+  })));
+}
+
 TEST(Matching, mcisAddRange)
 {
   MultidimensionalRange initialRange({

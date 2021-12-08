@@ -24,8 +24,6 @@ namespace marco::matching
     bool empty() const;
     void clear();
 
-    bool isDisjoint(const MCIM& other) const;
-
     MCIS flattenEquations() const;
 
     MCIS flattenVariables() const;

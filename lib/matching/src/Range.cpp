@@ -1,3 +1,4 @@
+#include <list>
 #include <marco/matching/Range.h>
 
 using namespace marco::matching;
@@ -59,24 +60,70 @@ bool Range::contains(const Range& other) const
   return getBegin() <= other.getBegin() && getEnd() >= other.getEnd();
 }
 
-bool Range::intersects(const Range& other) const
+bool Range::overlaps(const Range& other) const
 {
   return (getBegin() <= other.getEnd() - 1) && (getEnd() - 1 >= other.getBegin());
 }
 
+Range Range::intersect(const Range& other) const
+{
+  assert(overlaps(other));
+
+  if (contains(other))
+    return other;
+
+  if (other.contains(*this))
+    return *this;
+
+  if (getBegin() <= other.getBegin())
+    return Range(other.getBegin(), getEnd());
+
+  return Range(getBegin(), other.getEnd());
+}
+
 bool Range::canBeMerged(const Range& other) const
 {
-  return getBegin() == other.getEnd() || getEnd() == other.getBegin();
+  return getBegin() == other.getEnd() || getEnd() == other.getBegin() || overlaps(other);
 }
 
 Range Range::merge(const Range& other) const
 {
   assert(canBeMerged(other));
 
+  if (overlaps(other))
+    return Range(std::min(getBegin(), other.getBegin()), std::max(getEnd(), other.getEnd()));
+
   if (getBegin() == other.getEnd())
     return Range(other.getBegin(), getEnd());
 
   return Range(getBegin(), other.getEnd());
+}
+
+std::vector<Range> Range::subtract(const Range& other) const
+{
+  std::vector<Range> results;
+
+  if (!overlaps(other))
+  {
+    results.push_back(*this);
+  }
+  else if (contains(other))
+  {
+    if (getBegin() != other.getBegin())
+      results.emplace_back(getBegin(), other.getBegin());
+
+    if (getEnd() != other.getEnd())
+      results.emplace_back(other.getEnd(), getEnd());
+  }
+  else if (!other.contains(*this))
+  {
+    if (getBegin() <= other.getBegin())
+      results.emplace_back(getBegin(), other.getBegin());
+    else
+      results.emplace_back(other.getEnd(), getEnd());
+  }
+
+  return results;
 }
 
 Range::iterator Range::begin()
@@ -117,9 +164,6 @@ MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
 		: ranges(ranges.begin(), ranges.end())
 {
 }
-
-
-MultidimensionalRange& MultidimensionalRange::operator=(const MultidimensionalRange& other) = default;
 
 bool MultidimensionalRange::operator==(const MultidimensionalRange& other) const
 {
@@ -232,12 +276,12 @@ bool MultidimensionalRange::contains(const MultidimensionalRange& other) const
   return true;
 }
 
-bool MultidimensionalRange::intersects(const MultidimensionalRange& other) const
+bool MultidimensionalRange::overlaps(const MultidimensionalRange& other) const
 {
 	assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
 
 	for (const auto& [x, y] : llvm::zip(ranges, other.ranges))
-    if (!x.intersects(y))
+    if (!x.overlaps(y))
       return false;
 
 	return true;
@@ -292,6 +336,76 @@ MultidimensionalRange MultidimensionalRange::merge(const MultidimensionalRange& 
   }
 
   return MultidimensionalRange(mergedRanges);
+}
+
+std::vector<MultidimensionalRange> MultidimensionalRange::subtract(const MultidimensionalRange& other) const
+{
+  assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
+  std::vector<MultidimensionalRange> results;
+
+  if (!overlaps(other))
+  {
+    results.push_back(*this);
+  }
+  else
+  {
+    llvm::SmallVector<Range, 3> resultRanges(ranges.begin(), ranges.end());
+
+    for (size_t i = 0, e = rank(); i < e; ++i)
+    {
+      const auto& x = ranges[i];
+      const auto& y = other.ranges[i];
+      assert(x.overlaps(y));
+
+      for (const auto& subRange : x.subtract(y))
+      {
+        resultRanges[i] = std::move(subRange);
+        results.emplace_back(resultRanges);
+      }
+
+      resultRanges[i] = x.intersect(y);
+    }
+  }
+
+  /*
+  std::list<Range> filtered;
+
+  auto createResults = [&](const std::list<Range>& list) {
+    llvm::SmallVector<Range, 3> slice;
+    slice.insert(slice.begin(), list.begin(), list.end());
+
+    for (size_t i = slice.size(), e = rank(); i < e; ++i)
+      slice.push_back(ranges[i]);
+
+    assert(rank() == slice.size());
+    results.emplace_back(slice);
+  };
+
+  for (const auto& [x, y] : llvm::zip(ranges, other.ranges))
+  {
+    if (!x.overlaps(y))
+    {
+      filtered.push_back(x);
+      createResults(filtered);
+      break;
+    }
+    else
+    {
+      auto difference = x.subtract(y);
+      llvm::SmallVector<std::list<Range>, 3> full;
+
+      for (const auto& subRange : difference)
+        full.emplace_back(filtered).push_back(subRange);
+
+      for (const auto& list : full)
+        createResults(list);
+
+      filtered.push_back(x.intersect(y));
+    }
+  }
+   */
+
+  return results;
 }
 
 MultidimensionalRange::iterator MultidimensionalRange::begin()

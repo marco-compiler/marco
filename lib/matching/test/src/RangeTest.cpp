@@ -52,37 +52,72 @@ TEST(Matching, oneDimensionalRangeContainsRange)
   EXPECT_FALSE(range.contains(Range(7, 9)));
 }
 
-TEST(Matching, oneDimensionalIntersectingRanges)
+TEST(Matching, oneDimensionalOverlappingRanges)
 {
   Range x(1, 5);
   Range y(2, 7);
 
-  EXPECT_TRUE(x.intersects(y));
-  EXPECT_TRUE(y.intersects(x));
+  EXPECT_TRUE(x.overlaps(y));
+  EXPECT_TRUE(y.overlaps(x));
 }
 
-TEST(Matching, oneDimensionalRangesWithTouchingBordersDoNotIntersect)
+TEST(Matching, oneDimensionalRangesWithTouchingBordersDoNotOverlap)
 {
   Range x(1, 5);
   Range y(5, 7);
 
-  EXPECT_FALSE(x.intersects(y));
-  EXPECT_FALSE(y.intersects(x));
+  EXPECT_FALSE(x.overlaps(y));
+  EXPECT_FALSE(y.overlaps(x));
 }
 
-TEST(Matching, oneDimensionalRangesMerge)
+TEST(Matching, oneDimensionalRangesMerging)
 {
   Range x(1, 5);
-  Range y(5, 7);
+
+  // Overlapping
+  Range y(3, 11);
 
   EXPECT_TRUE(x.canBeMerged(y));
   EXPECT_TRUE(y.canBeMerged(x));
 
   EXPECT_EQ(x.merge(y).getBegin(), 1);
-  EXPECT_EQ(x.merge(y).getEnd(), 7);
+  EXPECT_EQ(x.merge(y).getEnd(), 11);
 
   EXPECT_EQ(y.merge(x).getBegin(), 1);
-  EXPECT_EQ(y.merge(x).getEnd(), 7);
+  EXPECT_EQ(y.merge(x).getEnd(), 11);
+
+  // Touching borders
+  Range z(5, 7);
+
+  EXPECT_TRUE(x.canBeMerged(z));
+  EXPECT_TRUE(z.canBeMerged(x));
+
+  EXPECT_EQ(x.merge(z).getBegin(), 1);
+  EXPECT_EQ(x.merge(z).getEnd(), 7);
+
+  EXPECT_EQ(z.merge(x).getBegin(), 1);
+  EXPECT_EQ(z.merge(x).getEnd(), 7);
+}
+
+TEST(Matching, oneDimensionalRangesSubtraction)
+{
+  Range a(3, 7);
+
+  // Overlapping
+  Range b(5, 11);
+
+  EXPECT_THAT(a.subtract(b), testing::UnorderedElementsAre(Range(3, 5)));
+  EXPECT_THAT(b.subtract(a), testing::UnorderedElementsAre(Range(7, 11)));
+
+  // Fully contained
+  Range c(2, 11);
+  Range d(2, 5);
+  Range e(7, 11);
+
+  EXPECT_THAT(a.subtract(c), testing::IsEmpty());
+  EXPECT_THAT(c.subtract(a), testing::UnorderedElementsAre(Range(2, 3), Range(7, 11)));
+  EXPECT_THAT(c.subtract(d), testing::UnorderedElementsAre(Range(5, 11)));
+  EXPECT_THAT(c.subtract(e), testing::UnorderedElementsAre(Range(2, 7)));
 }
 
 TEST(Matching, multidimensionalRange)
@@ -134,7 +169,7 @@ TEST(Matching, multiDimensionalRangeIteration)
   }
 }
 
-TEST(Matching, multidimensionalRangesIntersection)
+TEST(Matching, multidimensionalRangesOverlap)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -146,11 +181,11 @@ TEST(Matching, multidimensionalRangesIntersection)
     Range(3, 5)
   });
 
-  EXPECT_TRUE(x.intersects(y));
-  EXPECT_TRUE(y.intersects(x));
+  EXPECT_TRUE(x.overlaps(y));
+  EXPECT_TRUE(y.overlaps(x));
 }
 
-TEST(Matching, multidimensionalRangesWithTouchingBordersDoNotIntersect)
+TEST(Matching, multidimensionalRangesWithTouchingBordersDoNotOverlap)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -162,15 +197,41 @@ TEST(Matching, multidimensionalRangesWithTouchingBordersDoNotIntersect)
     Range(3, 5)
   });
 
-  EXPECT_FALSE(x.intersects(y));
-  EXPECT_FALSE(y.intersects(x));
+  EXPECT_FALSE(x.overlaps(y));
+  EXPECT_FALSE(y.overlaps(x));
 }
 
-TEST(Matching, multidimensionalRangesMerge)
+TEST(Matching, multidimensionalRangesWithTouchingBordersMerging)
 {
   MultidimensionalRange x({
     Range(1, 3),
     Range(2, 4)
+  });
+
+  MultidimensionalRange y({
+    Range(1, 3),
+    Range(4, 7)
+  });
+
+  EXPECT_TRUE(x.canBeMerged(y).first);
+  EXPECT_TRUE(y.canBeMerged(x).first);
+
+  MultidimensionalRange z = x.merge(y, x.canBeMerged(y).second);
+
+  EXPECT_EQ(z[0].getBegin(), 1);
+  EXPECT_EQ(z[0].getEnd(), 3);
+  EXPECT_EQ(z[1].getBegin(), 2);
+  EXPECT_EQ(z[1].getEnd(), 7);
+
+  MultidimensionalRange t = x.merge(y, x.canBeMerged(y).second);
+  EXPECT_EQ(z, t);
+}
+
+TEST(Matching, multidimensionalRangesWithOverlapMerging)
+{
+  MultidimensionalRange x({
+    Range(1, 3),
+    Range(2, 6)
   });
 
   MultidimensionalRange y({
@@ -206,4 +267,109 @@ TEST(Matching, multidimensionalRangesUnmergeable)
 
   EXPECT_FALSE(x.canBeMerged(y).first);
   EXPECT_FALSE(y.canBeMerged(x).first);
+}
+
+TEST(Matching, multiDimensionalRangesSubtraction)
+{
+  MultidimensionalRange a({
+    Range(2, 10),
+    Range(3, 7),
+    Range(1, 8)
+  });
+
+  // Fully contained in 'a'
+  MultidimensionalRange b({
+    Range(6, 8),
+    Range(4, 6),
+    Range(3, 7)
+  });
+
+  EXPECT_THAT(a.subtract(b), testing::UnorderedElementsAre(
+          MultidimensionalRange({
+            Range(2, 6),
+            Range(3, 7),
+            Range(1, 8)
+          }),
+          MultidimensionalRange({
+            Range(8, 10),
+            Range(3, 7),
+            Range(1, 8)
+          }),
+          MultidimensionalRange({
+            Range(6, 8),
+            Range(3, 4),
+            Range(1, 8)
+          }),
+          MultidimensionalRange({
+            Range(6, 8),
+            Range(6, 7),
+            Range(1, 8)
+          }),
+          MultidimensionalRange({
+            Range(6, 8),
+            Range(4, 6),
+            Range(1, 3)
+          }),
+          MultidimensionalRange({
+            Range(6, 8),
+            Range(4, 6),
+            Range(7, 8)
+          })));
+
+  // 2 dimensions fully contained, 1 fully traversing
+  MultidimensionalRange c({
+    Range(6, 8),
+    Range(1, 9),
+    Range(3, 7)
+  });
+
+  EXPECT_THAT(a.subtract(c), testing::UnorderedElementsAre(
+          MultidimensionalRange({
+            Range(2, 6),
+            Range(3, 7),
+            Range(1, 8)
+          }),
+          MultidimensionalRange({
+            Range(8, 10),
+            Range(3, 7),
+            Range(1, 8)
+          }),
+          MultidimensionalRange({
+            Range(6, 8),
+            Range(3, 7),
+            Range(1, 3)
+          }),
+          MultidimensionalRange({
+            Range(6, 8),
+            Range(3, 7),
+            Range(7, 8)
+          })));
+
+  // 1 dimension fully contained, 2 fully traversing
+  MultidimensionalRange d({
+    Range(1, 15),
+    Range(1, 9),
+    Range(3, 7)
+  });
+
+  EXPECT_THAT(a.subtract(d), testing::UnorderedElementsAre(
+          MultidimensionalRange({
+            Range(2, 10),
+            Range(3, 7),
+            Range(1, 3)
+          }),
+          MultidimensionalRange({
+            Range(2, 10),
+            Range(3, 7),
+            Range(7, 8)
+          })));
+
+  // 3 dimensions fully traversing
+  MultidimensionalRange e({
+    Range(1, 15),
+    Range(1, 9),
+    Range(0, 11)
+  });
+
+  EXPECT_THAT(a.subtract(e), testing::IsEmpty());
 }

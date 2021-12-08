@@ -94,8 +94,6 @@ namespace marco::matching
     virtual bool empty() const = 0;
     virtual void clear() = 0;
 
-    virtual bool isDisjoint(const MCIM& other) const = 0;
-
     virtual MCIS flattenEquations() const = 0;
 
     virtual MCIS flattenVariables() const = 0;
@@ -134,8 +132,6 @@ class RegularMCIM : public MCIM::Impl
 
   bool empty() const override;
   void clear() override;
-
-  bool isDisjoint(const MCIM& other) const override;
 
   MCIS flattenEquations() const override;
 
@@ -193,11 +189,6 @@ void RegularMCIM::clear()
   groups.clear();
 }
 
-bool RegularMCIM::isDisjoint(const MCIM& other) const
-{
-  // TODO
-}
-
 MCIS RegularMCIM::flattenEquations() const
 {
   // TODO
@@ -205,13 +196,15 @@ MCIS RegularMCIM::flattenEquations() const
 
 MCIS RegularMCIM::flattenVariables() const
 {
+  MCIS result;
+
   for (const auto& group : groups)
   {
     const auto& equations = group.getEquations();
-
+    //result.add(equations);
   }
 
-  //TODO
+  return result;
 }
 
 MCIM RegularMCIM::filterEquations(const MCIS& filter) const
@@ -293,8 +286,6 @@ class FlatMCIM : public MCIM::Impl
   bool empty() const override;
   void clear() override;
 
-  bool isDisjoint(const MCIM& other) const override;
-
   MCIS flattenEquations() const override;
 
   MCIS flattenVariables() const override;
@@ -323,11 +314,6 @@ bool FlatMCIM::empty() const
 }
 
 void FlatMCIM::clear()
-{
-  // TODO
-}
-
-bool FlatMCIM::isDisjoint(const MCIM& other) const
 {
   // TODO
 }
@@ -373,11 +359,6 @@ bool MCIM::empty() const
 void MCIM::clear()
 {
   impl->clear();
-}
-
-bool MCIM::isDisjoint(const MCIM& other) const
-{
-  return impl->isDisjoint(other);
 }
 
 MCIS MCIM::flattenEquations() const
