@@ -367,44 +367,6 @@ std::vector<MultidimensionalRange> MultidimensionalRange::subtract(const Multidi
     }
   }
 
-  /*
-  std::list<Range> filtered;
-
-  auto createResults = [&](const std::list<Range>& list) {
-    llvm::SmallVector<Range, 3> slice;
-    slice.insert(slice.begin(), list.begin(), list.end());
-
-    for (size_t i = slice.size(), e = rank(); i < e; ++i)
-      slice.push_back(ranges[i]);
-
-    assert(rank() == slice.size());
-    results.emplace_back(slice);
-  };
-
-  for (const auto& [x, y] : llvm::zip(ranges, other.ranges))
-  {
-    if (!x.overlaps(y))
-    {
-      filtered.push_back(x);
-      createResults(filtered);
-      break;
-    }
-    else
-    {
-      auto difference = x.subtract(y);
-      llvm::SmallVector<std::list<Range>, 3> full;
-
-      for (const auto& subRange : difference)
-        full.emplace_back(filtered).push_back(subRange);
-
-      for (const auto& list : full)
-        createResults(list);
-
-      filtered.push_back(x.intersect(y));
-    }
-  }
-   */
-
   return results;
 }
 

@@ -36,7 +36,8 @@ namespace marco::matching
 
     bool overlaps(const MultidimensionalRange& other) const;
 
-    void add(MultidimensionalRange range);
+    void add(const MultidimensionalRange& range);
+    void add(const MCIS& other);
 
 		private:
     void sort();

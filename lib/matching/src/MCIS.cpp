@@ -81,7 +81,7 @@ bool MCIS::overlaps(const MultidimensionalRange& other) const
   return false;
 }
 
-void MCIS::add(MultidimensionalRange range)
+void MCIS::add(const MultidimensionalRange& newRange)
 {
   auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
     if (ranges.empty())
@@ -90,18 +90,51 @@ void MCIS::add(MultidimensionalRange range)
     return ranges.front().rank() == range.rank();
   };
 
-  assert(hasCompatibleRank(range) && "Incompatible range");
+  assert(hasCompatibleRank(newRange) && "Incompatible ranges");
 
-  assert(llvm::none_of(ranges, [&](const MultidimensionalRange& r) {
-    return r.overlaps(range);
-  }) && "New range must not overlap the existing ones");
+  std::vector<MultidimensionalRange> nonOverlappingRanges;
+  nonOverlappingRanges.push_back(std::move(newRange));
 
-  auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
-    return r > range;
-  });
+  for (const auto& range : ranges)
+  {
+    std::vector<MultidimensionalRange> newCandidates;
 
-  ranges.insert(it, std::move(range));
+    for (const auto& candidate : nonOverlappingRanges)
+      for (const auto& subRange : candidate.subtract(range))
+        newCandidates.push_back(std::move(subRange));
+
+    nonOverlappingRanges = std::move(newCandidates);
+  }
+
+  for (const auto& range : nonOverlappingRanges)
+  {
+    assert(llvm::none_of(ranges, [&](const MultidimensionalRange& r) {
+        return r.overlaps(range);
+    }) && "New range must not overlap the existing ones");
+
+    auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
+        return r > range;
+    });
+
+    ranges.insert(it, std::move(range));
+  }
+
   merge();
+}
+
+void MCIS::add(const MCIS& other)
+{
+  auto hasCompatibleRank = [&](const MCIS& mcis) {
+      if (ranges.empty() || mcis.ranges.empty())
+        return true;
+
+      return ranges.front().rank() == mcis.ranges.front().rank();
+  };
+
+  assert(hasCompatibleRank(other) && "Incompatible ranges");
+
+  for (const auto& range : other.ranges)
+    add(range);
 }
 
 void MCIS::sort()

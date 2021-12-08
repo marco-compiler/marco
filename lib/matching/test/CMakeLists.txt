@@ -4,6 +4,7 @@ set(SOURCES
         src/IncidenceMatrixTest.cpp
         src/MatchingGraphTest.cpp
         src/MatchingTest.cpp
+        src/MCIMTest.cpp
         src/MCISTest.cpp
         src/RangeTest.cpp
         src/SimplifyTest.cpp

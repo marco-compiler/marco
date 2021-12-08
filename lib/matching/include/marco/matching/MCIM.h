@@ -17,9 +17,12 @@ namespace marco::matching
 	{
 		public:
     class Impl;
+
 		MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
-    void apply(AccessFunction access);
+    void apply(const AccessFunction& access);
+    bool get(llvm::ArrayRef<long> indexes) const;
+    void set(llvm::ArrayRef<long> indexes);
 
     bool empty() const;
     void clear();
