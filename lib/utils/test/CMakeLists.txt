@@ -5,7 +5,6 @@ set(SOURCES
 		src/IntervalTest.cpp
 		src/IRangeTest.cpp
 		src/ScopeGuard.cpp
-		src/ThreadPoolTest.cpp
 		src/VariableFilterTest.cpp)
 
 marco_add_unittest(MARCOTest UtilsTest ${SOURCES})

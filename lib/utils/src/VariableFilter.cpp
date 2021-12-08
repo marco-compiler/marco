@@ -8,7 +8,7 @@
 #include <map>
 
 using namespace marco;
-using namespace marco::variableFilter;
+using namespace marco::vf;
 
 //===----------------------------------------------------------------------===//
 // Lexer
@@ -530,7 +530,7 @@ class RegexExpression : public ASTNode
 // Errors
 //===----------------------------------------------------------------------===//
 
-namespace marco::variableFilter::detail
+namespace marco::vf::detail
 {
 	enum class ParsingErrorCode
 	{
@@ -544,13 +544,13 @@ namespace marco::variableFilter::detail
 namespace std
 {
 	template<>
-	struct is_error_condition_enum<marco::variableFilter::detail::ParsingErrorCode>
+	struct is_error_condition_enum<marco::vf::detail::ParsingErrorCode>
 			: public std::true_type
 	{
 	};
 }
 
-namespace marco::variableFilter::detail
+namespace marco::vf::detail
 {
 	class ParsingErrorCategory: public std::error_category
 	{

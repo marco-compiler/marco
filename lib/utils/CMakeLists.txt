@@ -5,7 +5,6 @@ set(SOURCES
         src/Range.cpp
 		src/LogMessage.cpp
 		src/SourcePosition.cpp
-		src/ThreadPool.cpp
 		src/VariableFilter.cpp)
 
 marco_add_library(utils SHARED ${SOURCES})

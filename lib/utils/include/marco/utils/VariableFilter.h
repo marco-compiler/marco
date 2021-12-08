@@ -12,7 +12,7 @@
  */
 namespace marco
 {
-	namespace variableFilter
+	namespace vf
 	{
 		/**
 		 * Represents an array range, $ special character is '-1'.
@@ -78,8 +78,8 @@ namespace marco
 	class VariableFilter
 	{
 		public:
-		using Tracker = variableFilter::Tracker;
-		using Filter = variableFilter::Filter;
+		using Tracker = vf::Tracker;
+		using Filter = vf::Filter;
 
 		void dump() const;
 
