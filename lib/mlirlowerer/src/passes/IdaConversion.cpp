@@ -78,19 +78,13 @@ class IdaOpConversion : public mlir::OpConversionPattern<FromOp>
 	private:
 	[[nodiscard]] std::string getMangledType(mlir::Type type) const
 	{
-		if (type.isa<BooleanType>() || type.isa<modelica::BooleanType>())
+		if (type.isa<BooleanType>())
 			return "i1";
 
 		if (auto integerType = type.dyn_cast<IntegerType>())
 			return "i" + std::to_string(convertType(integerType).getIntOrFloatBitWidth());
 
-		if (auto integerType = type.dyn_cast<modelica::IntegerType>())
-			return "i" + std::to_string(convertType(integerType).getIntOrFloatBitWidth());
-
 		if (auto realType = type.dyn_cast<RealType>())
-			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
-
-		if (auto realType = type.dyn_cast<modelica::RealType>())
 			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
 
 		if (type.isa<OpaquePointerType>())
@@ -289,7 +283,7 @@ struct AddEqDimensionOpLowering : public IdaOpConversion<AddEqDimensionOp>
 	mlir::LogicalResult matchAndRewrite(AddEqDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		// Cast sized array into unsized array.
-		auto arrayType = op.start().getType().cast<modelica::ArrayType>();
+		auto arrayType = op.start().getType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> args = op.args();
 		args[1] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.start(), arrayType.toUnsized());
 		args[2] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.end(), arrayType.toUnsized());
@@ -367,7 +361,7 @@ struct AddVariableOpLowering : public IdaOpConversion<AddVariableOp>
 	mlir::LogicalResult matchAndRewrite(AddVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		// Cast sized array into unsized array.
-		auto arrayType = op.array().getType().cast<modelica::ArrayType>();
+		auto arrayType = op.array().getType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 4> args = op.args();
 		args[2] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.array(), arrayType.toUnsized());
 
@@ -390,7 +384,7 @@ struct AddVarAccessOpLowering : public IdaOpConversion<AddVarAccessOp>
 	mlir::LogicalResult matchAndRewrite(AddVarAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		// Cast sized array into unsized array.
-		auto arrayType = op.offsets().getType().cast<modelica::ArrayType>();
+		auto arrayType = op.offsets().getType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 4> args = op.args();
 		args[2] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.offsets(), arrayType.toUnsized());
 		args[3] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.inductions(), arrayType.toUnsized());
@@ -415,7 +409,7 @@ struct GetTimeOpLowering : public IdaOpConversion<GetTimeOp>
 
 	mlir::LogicalResult matchAndRewrite(GetTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		modelica::RealType result = modelica::RealType::get(op.getContext());
+		RealType result = RealType::get(op.getContext());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,

@@ -179,7 +179,7 @@ struct EquationOpLoopifyPattern : public mlir::OpRewritePattern<EquationOp>
 			if (subscription.indexes().size() == 1)
 			{
 				auto index = subscription.indexes()[0].getDefiningOp<ConstantOp>();
-				auto indexValue = index.value().cast<modelica::IntegerAttribute>().getValue();
+				auto indexValue = index.value().cast<IntegerAttribute>().getValue();
 				rewriter.setInsertionPoint(subscription);
 
 				mlir::Value newIndex = rewriter.create<AddOp>(
@@ -441,14 +441,14 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	private:
 	mlir::Value createZeroValue(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const
 	{
-		if (type.isa<modelica::BooleanType>())
-			return builder.create<ConstantOp>(loc, modelica::BooleanAttribute::get(type, false));
+		if (type.isa<BooleanType>())
+			return builder.create<ConstantOp>(loc, BooleanAttribute::get(type, false));
 
-		if (type.isa<modelica::IntegerType>())
-			return builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(type, 0));
+		if (type.isa<IntegerType>())
+			return builder.create<ConstantOp>(loc, IntegerAttribute::get(type, 0));
 
-		assert(type.isa<modelica::RealType>());
-		return builder.create<ConstantOp>(loc, modelica::RealAttribute::get(type, 0));
+		assert(type.isa<RealType>());
+		return builder.create<ConstantOp>(loc, RealAttribute::get(type, 0));
 	}
 
 	Model* model;
@@ -810,10 +810,10 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		// Check if the current time is less than the end time, minus an epsilon
 		// because of floating points
 		mlir::Value endTime = rewriter.create<ConstantOp>(loc, op.endTime());
-		mlir::Value epsilon = rewriter.create<ConstantOp>(loc, modelica::RealAttribute::get(op.getContext(), 1e-12));
+		mlir::Value epsilon = rewriter.create<ConstantOp>(loc, RealAttribute::get(op.getContext(), 1e-12));
 		endTime = rewriter.create<SubOp>(loc, endTime.getType(), endTime, epsilon);
 
-		mlir::Value condition = rewriter.create<LtOp>(loc, modelica::BooleanType::get(op->getContext()), increasedTime, endTime);
+		mlir::Value condition = rewriter.create<LtOp>(loc, BooleanType::get(op->getContext()), increasedTime, endTime);
 		condition = getTypeConverter()->materializeTargetConversion(rewriter, condition.getLoc(), rewriter.getI1Type(), condition);
 
 		// Check if the IDA solver failed
@@ -2201,10 +2201,33 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			for (Equation& equation : bltBlock.getEquations())
 			{
 				loc = equation.getOp().getLoc();
-				mlir::Value rowIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(equationCount));
+
+				// Dimensions.
+				MultiDimInterval inductions = equation.getInductions();
+
+				ArrayType arrayType = ArrayType::get(
+						context, BufferAllocationScope::stack, builder.getIntegerType(), { (long) inductions.dimensions() });
+				AllocaOp start = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+				AllocaOp end = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+
+				for (size_t i = 0; i < inductions.dimensions(); i++)
+				{
+					mlir::Value dimIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
+					mlir::Value min = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(inductions[i].min() - 1));
+					mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, start, dimIndex);
+					builder.create<AssignmentOp>(loc, min, subscriptionOp);
+
+					mlir::Value max = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(inductions[i].max() - 1));
+					subscriptionOp = builder.create<SubscriptionOp>(loc, end, dimIndex);
+					builder.create<AssignmentOp>(loc, max, subscriptionOp);
+				}
+
+				builder.create<AddEqDimensionOp>(loc, userData, start, end);
 
 				// Variable access.
+				mlir::Value rowIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(equationCount));
 				ReferenceMatcher matcher(equation);
+
 				for (ExpressionPath& path : matcher)
 				{
 					Variable var = model.getVariable(path.getExpression().getReferredVectorAccess());
@@ -2225,18 +2248,18 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 					// Add accesses of the variable to the ida user data.
 					ArrayType arrayType = ArrayType::get(
-							context, BufferAllocationScope::stack, modelica::IntegerType::get(context), { (long) access.size() });
+							context, BufferAllocationScope::stack, builder.getIntegerType(), { (long) access.size() });
 					AllocaOp offsets = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
 					AllocaOp inductions = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
 
 					for (size_t i = 0; i < access.size(); i++)
 					{
 						mlir::Value accIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
-						mlir::Value acc = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, access[i].first));
+						mlir::Value acc = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(access[i].first));
 						mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, offsets, accIndex);
 						builder.create<AssignmentOp>(loc, acc, subscriptionOp);
 
-						mlir::Value ind = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, access[i].second));
+						mlir::Value ind = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(access[i].second));
 						subscriptionOp = builder.create<SubscriptionOp>(loc, inductions, accIndex);
 						builder.create<AssignmentOp>(loc, ind, subscriptionOp);
 					}
@@ -2245,28 +2268,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					mlir::Value accessIndex = builder.create<AddVarAccessOp>(loc, userData, var.getIdaIndex(), offsets, inductions);
 					builder.create<AddColumnIndexOp>(loc, userData, rowIndex, accessIndex);
 				}
-
-				// Dimensions.
-				MultiDimInterval inductions = equation.getInductions();
-
-				ArrayType arrayType = ArrayType::get(
-						context, BufferAllocationScope::stack, modelica::IntegerType::get(context), { (long) inductions.dimensions() });
-				AllocaOp start = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
-				AllocaOp end = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
-
-				for (size_t i = 0; i < inductions.dimensions(); i++)
-				{
-					mlir::Value dimIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
-					mlir::Value min = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, inductions[i].min() - 1));
-					mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, start, dimIndex);
-					builder.create<AssignmentOp>(loc, min, subscriptionOp);
-
-					mlir::Value max = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, inductions[i].max() - 1));
-					subscriptionOp = builder.create<SubscriptionOp>(loc, end, dimIndex);
-					builder.create<AssignmentOp>(loc, max, subscriptionOp);
-				}
-
-				builder.create<AddEqDimensionOp>(loc, userData, start, end);
 
 				// Add Residual and Jacobian function to IDA.
 				std::string residualName = getResidualFunctionName(equationCount);
@@ -2291,7 +2292,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (!var->hasIdaOffset())
 				continue;
 
-			assert(var->getReference().getType().cast<ArrayType>().getElementType().isa<modelica::RealType>()
+			assert(var->getReference().getType().cast<ArrayType>().getElementType().isa<RealType>()
 					&& "All variables that must be passed to IDA must be real numbers.");
 
 			// Replace the AllocOp of variables and derivatives with the memory allocated by IDA.

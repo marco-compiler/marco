@@ -15,15 +15,15 @@ namespace marco::codegen {
 		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth);
 
 		private:
-		mlir::Type convertBooleanType(mlir::Type type);
-		mlir::Type convertIntegerType(mlir::Type type);
-		mlir::Type convertRealType(mlir::Type type);
-		mlir::Type convertOpaquePointerType(mlir::Type type);
+		mlir::Type convertBooleanType(modelica::BooleanType type);
+		mlir::Type convertIntegerType(modelica::IntegerType type);
+		mlir::Type convertRealType(modelica::RealType type);
 
 		mlir::Type convertArrayType(modelica::ArrayType type);
 		mlir::Type convertUnsizedArrayType(modelica::UnsizedArrayType type);
 		mlir::Type convertStructType(modelica::StructType type);
 
+		mlir::Type convertOpaquePointerType(ida::OpaquePointerType type);
 		mlir::Type convertIntegerPointerType(ida::IntegerPointerType type);
 		mlir::Type convertRealPointerType(ida::RealPointerType type);
 

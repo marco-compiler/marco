@@ -448,7 +448,7 @@ namespace marco::codegen::ida
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		modelica::ArrayType resultType();
+		ArrayType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value offset();
@@ -515,7 +515,7 @@ namespace marco::codegen::ida
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		modelica::RealType resultType();
+		RealType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
 	};

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/Optional.h>
 #include <mlir/IR/Builders.h>
@@ -17,7 +19,6 @@ namespace marco::codegen::modelica
 		IntegerType getIntegerType();
 		RealType getRealType();
 		ArrayType getArrayType(BufferAllocationScope allocationScope, mlir::Type elementType, const ArrayType::Shape& shape = {});
-		OpaquePointerType getOpaquePointerType();
 		StructType getStructType(llvm::ArrayRef<mlir::Type> types);
 
 		mlir::IntegerAttr getIndexAttribute(long value);
