@@ -3,11 +3,10 @@
 
 #include <list>
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
 
 #include "Range.h"
 
-namespace marco::matching
+namespace marco::matching::detail
 {
 	/**
 	 * Multidimensional Compressed Index Set (MCIS).
@@ -35,7 +34,11 @@ namespace marco::matching
     bool contains(const MultidimensionalRange& other) const;
 
     bool overlaps(const MultidimensionalRange& other) const;
+    bool overlaps(const MCIS& other) const;
 
+    MCIS intersect(const MCIS& other) const;
+
+    void add(llvm::ArrayRef<Range::data_type> element);
     void add(const MultidimensionalRange& range);
     void add(const MCIS& other);
 

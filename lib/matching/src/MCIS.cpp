@@ -1,6 +1,7 @@
 #include <marco/matching/MCIS.h>
 
 using namespace marco::matching;
+using namespace marco::matching::detail;
 
 template<typename It>
 static bool doRangesOverlap(It begin, It end)
@@ -79,6 +80,37 @@ bool MCIS::overlaps(const MultidimensionalRange& other) const
   }
 
   return false;
+}
+
+bool MCIS::overlaps(const MCIS& other) const
+{
+  for (const auto& range : ranges)
+    if (other.overlaps(range))
+      return true;
+
+  return false;
+}
+
+MCIS MCIS::intersect(const MCIS& other) const
+{
+  MCIS result;
+
+  for (const auto& range1 : ranges)
+    for (const auto& range2 : other.ranges)
+      if (range1.overlaps(range2))
+        result.add(range1.intersect(range2));
+
+  return result;
+}
+
+void MCIS::add(llvm::ArrayRef<Range::data_type> element)
+{
+  llvm::SmallVector<Range, 3> elementRanges;
+
+  for (const auto& index : element)
+    elementRanges.emplace_back(index, index + 1);
+
+  add(MultidimensionalRange(std::move(elementRanges)));
 }
 
 void MCIS::add(const MultidimensionalRange& newRange)

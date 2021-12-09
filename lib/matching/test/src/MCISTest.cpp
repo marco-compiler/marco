@@ -3,6 +3,7 @@
 #include <marco/matching/MCIS.h>
 
 using namespace marco::matching;
+using namespace marco::matching::detail;
 
 TEST(Matching, mcisContainsElement)
 {

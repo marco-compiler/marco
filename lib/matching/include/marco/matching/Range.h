@@ -3,8 +3,6 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Support/raw_os_ostream.h>
 
 namespace marco::matching
 {
@@ -108,8 +106,6 @@ namespace marco::matching
 		data_type _begin;
 		data_type _end;
 	};
-
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Range& range);
 
 	std::ostream& operator<<(std::ostream& stream, const Range& range);
 
@@ -254,6 +250,8 @@ namespace marco::matching
 
 		bool overlaps(const MultidimensionalRange& other) const;
 
+    MultidimensionalRange intersect(const MultidimensionalRange& other) const;
+
     /**
      * Check if two multidimensional ranges can be merged.
      *
@@ -276,11 +274,7 @@ namespace marco::matching
 		Container ranges;
 	};
 
-	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const MultidimensionalRange& range);
-
-	std::ostream& operator<<(
-			std::ostream& stream, const MultidimensionalRange& range);
+	std::ostream& operator<<(std::ostream& stream, const MultidimensionalRange& range);
 }
 
 #endif	// MARCO_MATCHING_RANGE_H

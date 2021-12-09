@@ -148,15 +148,9 @@ Range::const_iterator Range::end() const
 
 namespace marco::matching
 {
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Range& range)
-	{
-		return stream << "[" << range.getBegin() << "," << range.getEnd() << ")";
-	}
-
 	std::ostream& operator<<(std::ostream& stream, const Range& range)
 	{
-		llvm::raw_os_ostream(stream) << range;
-		return stream;
+    return stream << "[" << range.getBegin() << "," << range.getEnd() << ")";
 	}
 }
 
@@ -287,6 +281,17 @@ bool MultidimensionalRange::overlaps(const MultidimensionalRange& other) const
 	return true;
 }
 
+MultidimensionalRange MultidimensionalRange::intersect(const MultidimensionalRange& other) const
+{
+  assert(overlaps(other));
+  llvm::SmallVector<Range, 3> intersectionRanges;
+
+  for (const auto& [x, y] : llvm::zip(ranges, other.ranges))
+    intersectionRanges.push_back(x.intersect(y));
+
+  return MultidimensionalRange(std::move(intersectionRanges));
+}
+
 std::pair<bool, size_t> MultidimensionalRange::canBeMerged(const MultidimensionalRange& other) const
 {
   assert(rank() == other.rank() && "Can't compare ranges defined on different hyper-spaces");
@@ -404,27 +409,20 @@ MultidimensionalRange::const_iterator MultidimensionalRange::end() const
 
 namespace marco::matching
 {
-	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const MultidimensionalRange& range)
-	{
-		stream << "[";
-
-		for (size_t i = 0, e = range.rank(); i < e; ++i)
-		{
-			if (i != 0)
-				stream << ",";
-
-			stream << range[i];
-		}
-
-		stream << "]";
-		return stream;
-	}
-
 	std::ostream& operator<<(
 			std::ostream& stream, const MultidimensionalRange& range)
 	{
-		llvm::raw_os_ostream(stream) << range;
-		return stream;
+    stream << "[";
+
+    for (size_t i = 0, e = range.rank(); i < e; ++i)
+    {
+      if (i != 0)
+        stream << ",";
+
+      stream << range[i];
+    }
+
+    stream << "]";
+    return stream;
 	}
 }
