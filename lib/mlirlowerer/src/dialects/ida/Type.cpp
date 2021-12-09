@@ -5,21 +5,6 @@
 
 using namespace marco::codegen::ida;
 
-BooleanType BooleanType::get(mlir::MLIRContext* context)
-{
-	return Base::get(context);
-}
-
-IntegerType IntegerType::get(mlir::MLIRContext* context)
-{
-	return Base::get(context);
-}
-
-RealType RealType::get(mlir::MLIRContext* context)
-{
-	return Base::get(context);
-}
-
 OpaquePointerType OpaquePointerType::get(mlir::MLIRContext* context)
 {
 	return Base::get(context);
@@ -30,9 +15,19 @@ IntegerPointerType IntegerPointerType::get(mlir::MLIRContext* context)
 	return Base::get(context);
 }
 
+IntegerType IntegerPointerType::getElementType() const
+{
+	return IntegerType::get(getContext());
+}
+
 RealPointerType RealPointerType::get(mlir::MLIRContext* context)
 {
 	return Base::get(context);
+}
+
+RealType RealPointerType::getElementType() const
+{
+	return RealType::get(getContext());
 }
 
 namespace marco::codegen::ida
@@ -41,48 +36,20 @@ namespace marco::codegen::ida
 	{
 		mlir::Builder builder = parser.getBuilder();
 
-		if (mlir::succeeded(parser.parseOptionalKeyword("bool")))
-			return BooleanType::get(builder.getContext());
-
-		if (mlir::succeeded(parser.parseOptionalKeyword("int")))
-			return IntegerType::get(builder.getContext());
-
-		if (mlir::succeeded(parser.parseOptionalKeyword("real")))
-			return RealType::get(builder.getContext());
-
 		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
 			return OpaquePointerType::get(builder.getContext());
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("int_ptr")))
-			return OpaquePointerType::get(builder.getContext());
+			return IntegerPointerType::get(builder.getContext());
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("real_ptr")))
-			return OpaquePointerType::get(builder.getContext());
+			return RealPointerType::get(builder.getContext());
 
-		parser.emitError(parser.getCurrentLocation()) << "unknown type";
-		return mlir::Type();
+		return marco::codegen::modelica::parseModelicaType(parser);
 	}
 
 	void printIdaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
 		llvm::raw_ostream& os = printer.getStream();
-
-		if (type.isa<BooleanType>())
-		{
-			os << "bool";
-			return;
-		}
-
-		if (type.isa<IntegerType>())
-		{
-			os << "int";
-			return;
-		}
-
-		if (type.dyn_cast<RealType>())
-		{
-			os << "real";
-			return;
-		}
 
 		if (type.isa<OpaquePointerType>())
 		{
@@ -102,6 +69,6 @@ namespace marco::codegen::ida
 			return;
 		}
 
-		os << "unknown type";
+		marco::codegen::modelica::printModelicaType(type, printer);
 	}
 }

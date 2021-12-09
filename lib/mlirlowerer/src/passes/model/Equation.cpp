@@ -322,8 +322,8 @@ void Equation::normalize()
 	for (auto& acc : access)
 		if (acc.isOffset())
 			newInductions[acc.getInductionVar()] = {
-				getInductions()[acc.getInductionVar()].min() + acc.getOffset(),
-				getInductions()[acc.getInductionVar()].max() + acc.getOffset()
+				newInductions[acc.getInductionVar()].min() + acc.getOffset(),
+				newInductions[acc.getInductionVar()].max() + acc.getOffset()
 			};
 
 	setInductions(newInductions);

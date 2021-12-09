@@ -1,3 +1,7 @@
+#pragma once
+
+#include <llvm/ADT/SmallVector.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 
@@ -6,24 +10,19 @@
 
 namespace marco::codegen::ida
 {
-	class IdaBuilder : public mlir::OpBuilder
+	class IdaBuilder : public modelica::ModelicaBuilder
 	{
 		public:
 		IdaBuilder(mlir::MLIRContext* context);
 
-		BooleanType getBooleanType();
-		IntegerType getIntegerType();
-		RealType getRealType();
+		[[nodiscard]] OpaquePointerType getOpaquePointerType();
+		[[nodiscard]] IntegerPointerType getIntegerPointerType();
+		[[nodiscard]] RealPointerType getRealPointerType();
 
-		OpaquePointerType getOpaquePointerType();
-		IntegerPointerType getIntegerPointerType();
-		RealPointerType getRealPointerType();
+		[[nodiscard]] llvm::SmallVector<mlir::Type, 4> getResidualArgTypes();
+		[[nodiscard]] mlir::Type getResidualFunctionType();
 
-		mlir::Type getResidualFunctionType();
-		mlir::Type getJacobianFunctionType();
-
-		BooleanAttribute getBooleanAttribute(bool value);
-		IntegerAttribute getIntegerAttribute(long value);
-		RealAttribute getRealAttribute(double value);
+		[[nodiscard]] llvm::SmallVector<mlir::Type, 6> getJacobianArgTypes();
+		[[nodiscard]] mlir::Type getJacobianFunctionType();
 	};
 }

@@ -1,34 +1,14 @@
 #pragma once
 
+#include <marco/mlirlowerer/dialects/modelica/Type.h>
 #include <mlir/IR/Types.h>
 
 namespace marco::codegen::ida
 {
-	class IdaDialect;
-
-	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage>
-	{
-		public:
-		using Base::Base;
-
-		static BooleanType get(mlir::MLIRContext* context);
-	};
-
-	class IntegerType : public mlir::Type::TypeBase<IntegerType, mlir::Type, mlir::TypeStorage>
-	{
-		public:
-		using Base::Base;
-
-		static IntegerType get(mlir::MLIRContext* context);
-	};
-
-	class RealType : public mlir::Type::TypeBase<RealType, mlir::Type, mlir::TypeStorage>
-	{
-		public:
-		using Base::Base;
-
-		static RealType get(mlir::MLIRContext* context);
-	};
+	using BooleanType = marco::codegen::modelica::BooleanType;
+	using IntegerType = marco::codegen::modelica::IntegerType;
+	using RealType = marco::codegen::modelica::RealType;
+	using ArrayType = marco::codegen::modelica::ArrayType;
 
 	class OpaquePointerType : public mlir::Type::TypeBase<OpaquePointerType, mlir::Type, mlir::TypeStorage>
 	{
@@ -43,6 +23,8 @@ namespace marco::codegen::ida
 		using Base::Base;
 
 		static IntegerPointerType get(mlir::MLIRContext* context);
+
+		[[nodiscard]] IntegerType getElementType() const;
 	};
 
 	class RealPointerType : public mlir::Type::TypeBase<RealPointerType, mlir::Type, mlir::TypeStorage>
@@ -51,6 +33,8 @@ namespace marco::codegen::ida
 		using Base::Base;
 
 		static RealPointerType get(mlir::MLIRContext* context);
+
+		[[nodiscard]] RealType getElementType() const;
 	};
 
 	mlir::Type parseIdaType(mlir::DialectAsmParser& parser);

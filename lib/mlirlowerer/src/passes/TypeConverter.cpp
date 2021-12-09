@@ -7,20 +7,16 @@ using namespace ida;
 TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
 		: mlir::LLVMTypeConverter(context, options), bitWidth(bitWidth)
 {
-	addConversion([&](modelica::BooleanType type) { return convertBooleanType(type); });
-	addConversion([&](modelica::IntegerType type) { return convertIntegerType(type); });
-	addConversion([&](modelica::RealType type) { return convertRealType(type); });
+	addConversion([&](BooleanType type) { return convertBooleanType(type); });
+	addConversion([&](IntegerType type) { return convertIntegerType(type); });
+	addConversion([&](RealType type) { return convertRealType(type); });
 	addConversion([&](ArrayType type) { return convertArrayType(type); });
 	addConversion([&](UnsizedArrayType type) { return convertUnsizedArrayType(type); });
-	addConversion([&](modelica::OpaquePointerType type) { return convertOpaquePointerType(type); });
 	addConversion([&](StructType type) { return convertStructType(type); });
 
-	addConversion([&](ida::BooleanType type) { return convertBooleanType(type); });
-	addConversion([&](ida::IntegerType type) { return convertIntegerType(type); });
-	addConversion([&](ida::RealType type) { return convertRealType(type); });
-	addConversion([&](ida::OpaquePointerType type) { return convertOpaquePointerType(type); });
-	addConversion([&](ida::IntegerPointerType type) { return convertIntegerPointerType(type); });
-	addConversion([&](ida::RealPointerType type) { return convertRealPointerType(type); });
+	addConversion([&](OpaquePointerType type) { return convertOpaquePointerType(type); });
+	addConversion([&](IntegerPointerType type) { return convertIntegerPointerType(type); });
+	addConversion([&](RealPointerType type) { return convertRealPointerType(type); });
 
 	addTargetMaterialization(
 	[&](mlir::OpBuilder &builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
@@ -28,8 +24,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<modelica::BooleanType>() && !inputs[0].getType().isa<modelica::IntegerType>()
-					&& !inputs[0].getType().isa<ida::BooleanType>() && !inputs[0].getType().isa<ida::IntegerType>())
+				if (!inputs[0].getType().isa<BooleanType>() && !inputs[0].getType().isa<IntegerType>())
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -41,7 +36,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<modelica::RealType>() && !inputs[0].getType().isa<ida::RealType>())
+				if (!inputs[0].getType().isa<RealType>())
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -67,15 +62,16 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<modelica::OpaquePointerType>() && !inputs[0].getType().isa<ida::OpaquePointerType>() &&
-						!inputs[0].getType().isa<ida::IntegerPointerType>() && !inputs[0].getType().isa<ida::RealPointerType>())
+				if (!inputs[0].getType().isa<OpaquePointerType>() &&
+						!inputs[0].getType().isa<IntegerPointerType>() &&
+						!inputs[0].getType().isa<RealPointerType>())
 					return llvm::None;
 
 				return builder.create<mlir::LLVM::BitcastOp>(loc, resultType, inputs[0]).getResult();
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, modelica::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -87,7 +83,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, modelica::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -99,43 +95,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, modelica::RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
-			{
-				if (inputs.size() != 1)
-					return llvm::None;
-
-				if (!inputs[0].getType().isa<mlir::FloatType>() || inputs[0].getType().getIntOrFloatBitWidth() != this->bitWidth)
-					return llvm::None;
-
-				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-			});
-
-	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, ida::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
-			{
-				if (inputs.size() != 1)
-					return llvm::None;
-
-				if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != 1)
-					return llvm::None;
-
-				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-			});
-
-	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, ida::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
-			{
-				if (inputs.size() != 1)
-					return llvm::None;
-
-				if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != this->bitWidth)
-					return llvm::None;
-
-				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-			});
-
-	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, ida::RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -216,17 +176,17 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 }
 
-mlir::Type TypeConverter::convertBooleanType(mlir::Type type)
+mlir::Type TypeConverter::convertBooleanType(BooleanType type)
 {
 	return mlir::IntegerType::get(&getContext(), 1);
 }
 
-mlir::Type TypeConverter::convertIntegerType(mlir::Type type)
+mlir::Type TypeConverter::convertIntegerType(IntegerType type)
 {
 	return mlir::IntegerType::get(&getContext(), bitWidth);
 }
 
-mlir::Type TypeConverter::convertRealType(mlir::Type type)
+mlir::Type TypeConverter::convertRealType(RealType type)
 {
 	if (bitWidth == 16)
 		return convertType(mlir::Float16Type::get(&getContext()));
@@ -254,11 +214,6 @@ mlir::Type TypeConverter::convertUnsizedArrayType(UnsizedArrayType type)
 	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
 }
 
-mlir::Type TypeConverter::convertOpaquePointerType(mlir::Type type)
-{
-	return mlir::LLVM::LLVMPointerType::get(convertType(mlir::IntegerType::get(type.getContext(), 8)));
-}
-
 mlir::Type TypeConverter::convertStructType(StructType type)
 {
 	llvm::SmallVector<mlir::Type, 3> subtypes;
@@ -269,14 +224,19 @@ mlir::Type TypeConverter::convertStructType(StructType type)
 	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), subtypes);
 }
 
-mlir::Type TypeConverter::convertIntegerPointerType(ida::IntegerPointerType type)
+mlir::Type TypeConverter::convertOpaquePointerType(OpaquePointerType type)
 {
-	return mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(&getContext(), bitWidth));
+	return mlir::LLVM::LLVMPointerType::get(convertType(mlir::IntegerType::get(type.getContext(), 8)));
 }
 
-mlir::Type TypeConverter::convertRealPointerType(ida::RealPointerType type)
+mlir::Type TypeConverter::convertIntegerPointerType(IntegerPointerType type)
 {
-	return mlir::LLVM::LLVMPointerType::get(convertRealType(type));
+	return mlir::LLVM::LLVMPointerType::get(convertIntegerType(type.getElementType()));
+}
+
+mlir::Type TypeConverter::convertRealPointerType(RealPointerType type)
+{
+	return mlir::LLVM::LLVMPointerType::get(convertRealType(type.getElementType()));
 }
 
 llvm::SmallVector<mlir::Type, 3> TypeConverter::getArrayDescriptorFields(ArrayType type)

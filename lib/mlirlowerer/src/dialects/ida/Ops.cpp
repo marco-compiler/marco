@@ -1,11 +1,7 @@
-#include <marco/mlirlowerer/dialects/ida/Attribute.h>
 #include <marco/mlirlowerer/dialects/ida/IdaBuilder.h>
 #include <marco/mlirlowerer/dialects/ida/Ops.h>
-#include <marco/mlirlowerer/dialects/modelica/Attribute.h>
-#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/mlirlowerer/dialects/modelica/Ops.h>
 #include <marco/mlirlowerer/dialects/modelica/Traits.h>
-#include <marco/mlirlowerer/dialects/modelica/Type.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
@@ -21,7 +17,7 @@ namespace marco::codegen::ida
 {
 	static bool isNumeric(mlir::Type type)
 	{
-		return type.isa<IntegerType, RealType, modelica::IntegerType, modelica::RealType>();
+		return type.isa<IntegerType, RealType>();
 	}
 
 	static bool isNumeric(mlir::Value value)
@@ -77,7 +73,7 @@ namespace marco::codegen::ida
 	 * variable needed by IDA, given the variable access and the indexes.
 	 */
 	static mlir::Value computeVariableOffset(
-			modelica::ModelicaBuilder& builder,
+			IdaBuilder& builder,
 			const model::Variable& variable,
 			const model::Expression& expression,
 			int64_t varOffset,
@@ -123,7 +119,7 @@ namespace marco::codegen::ida
 	 * the given arguments (which are: time, vars, ders, indexes)
 	 */
 	static mlir::Value getFunction(
-			modelica::ModelicaBuilder& builder,
+			IdaBuilder& builder,
 			model::Model& model,
 			const model::Expression& expression,
 			llvm::ArrayRef<mlir::BlockArgument> args)
@@ -185,7 +181,7 @@ namespace marco::codegen::ida
 	 * indexes, derVar, alpha)
 	 */
 	static mlir::Value getDerFunction(
-			modelica::ModelicaBuilder& builder,
+			IdaBuilder& builder,
 			model::Model& model,
 			const model::Expression& expression,
 			llvm::ArrayRef<mlir::BlockArgument> args)
@@ -280,7 +276,7 @@ namespace marco::codegen::ida
 		llvm::SmallVector<mlir::Operation*, 3> operations;
 
 		for (mlir::Operation& operation : block.getOperations())
-			if (!mlir::isa<ida::FunctionTerminatorOp>(operation))
+			if (!mlir::isa<FunctionTerminatorOp>(operation))
 				operations.push_back(&operation);
 
 		assert(llvm::all_of(operations,
@@ -791,12 +787,12 @@ mlir::LogicalResult AddEqDimensionOp::verify()
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!start().getType().isa<modelica::ArrayType>() ||
-			!start().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+	if (!start().getType().isa<ArrayType>() ||
+			!start().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
 		return emitOpError("Requires start iteration indexes to be arrays of integers");
 
-	if (!end().getType().isa<modelica::ArrayType>() ||
-			!end().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+	if (!end().getType().isa<ArrayType>() ||
+			!end().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
 		return emitOpError("Requires end iteration indexes to be arrays of integers");
 
 	return mlir::success();
@@ -974,7 +970,7 @@ mlir::LogicalResult AddVariableOp::verify()
 	if (!index().getType().isa<IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
-	if (!array().getType().isa<modelica::ArrayType>())
+	if (!array().getType().isa<ArrayType>())
 		return emitOpError("Requires initialization array to be an array");
 
 	if (!isState().getType().isa<BooleanType>())
@@ -1052,7 +1048,7 @@ mlir::LogicalResult GetVariableAllocOp::verify()
 	if (!isDer().getType().isa<BooleanType>())
 		return emitOpError("Requires isDerivative to be a boolean");
 
-	if (!resultType().getElementType().isa<modelica::RealType>())
+	if (!resultType().getElementType().isa<RealType>())
 		return emitOpError("Requires variable passed to IDA to be real numbers");
 
 	return mlir::success();
@@ -1063,9 +1059,9 @@ void GetVariableAllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::Eff
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-modelica::ArrayType GetVariableAllocOp::resultType()
+ArrayType GetVariableAllocOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<modelica::ArrayType>();
+	return getOperation()->getResultTypes()[0].cast<ArrayType>();
 }
 
 mlir::ValueRange GetVariableAllocOp::args()
@@ -1124,12 +1120,12 @@ mlir::LogicalResult AddVarAccessOp::verify()
 	if (!variable().getType().isa<IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
-	if (!offsets().getType().isa<modelica::ArrayType>() ||
-			!offsets().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+	if (!offsets().getType().isa<ArrayType>() ||
+			!offsets().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
 		return emitOpError("Requires variable offsets to be arrays of integers");
 
-	if (!inductions().getType().isa<modelica::ArrayType>() ||
-			!inductions().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+	if (!inductions().getType().isa<ArrayType>() ||
+			!inductions().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
 		return emitOpError("Requires variable inductions to be arrays of integers");
 
 	return mlir::success();
@@ -1181,7 +1177,7 @@ llvm::ArrayRef<llvm::StringRef> GetTimeOp::getAttributeNames()
 
 void GetTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
-	state.addTypes(modelica::RealType::get(builder.getContext()));
+	state.addTypes(RealType::get(builder.getContext()));
 	state.addOperands(userData);
 }
 
@@ -1208,9 +1204,9 @@ void GetTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstan
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-modelica::RealType GetTimeOp::resultType()
+RealType GetTimeOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<modelica::RealType>();
+	return getOperation()->getResultTypes()[0].cast<RealType>();
 }
 
 mlir::ValueRange GetTimeOp::args()
@@ -1234,31 +1230,26 @@ llvm::ArrayRef<llvm::StringRef> ResidualFunctionOp::getAttributeNames()
 
 void ResidualFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, model::Model& model, model::Equation& equation)
 {
-	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
+	IdaBuilder idaBuilder(builder.getContext());
+	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), idaBuilder.getStringAttr(name));
 
 	// real residual_function(real time, real* variables, real* derivatives, int* indexes)
-	llvm::SmallVector<mlir::Type, 4> argTypes = {
-		modelica::RealType::get(builder.getContext()),
-		RealPointerType::get(builder.getContext()), 
-		RealPointerType::get(builder.getContext()),
-		IntegerPointerType::get(builder.getContext())
-	};
-	mlir::Type returnType = { modelica::RealType::get(builder.getContext()) };
-	state.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(builder.getFunctionType(argTypes, returnType)));
+	llvm::SmallVector<mlir::Type, 4> argTypes = idaBuilder.getResidualArgTypes();
+	mlir::Type returnType = { idaBuilder.getRealType() };
+	state.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(idaBuilder.getFunctionType(argTypes, returnType)));
 
 	mlir::Region* entryRegion = state.addRegion();
 	mlir::Block& entryBlock = entryRegion->emplaceBlock();
 	entryBlock.addArguments(argTypes);
 
 	// Fill the only block of the function with how to compute the Residual of the given Equation.
-	modelica::ModelicaBuilder modelicaBuilder(builder.getContext());
-	modelicaBuilder.setInsertionPointToStart(&entryBlock);
+	idaBuilder.setInsertionPointToStart(&entryBlock);
 
-	mlir::Value lhsResidual = getFunction(modelicaBuilder, model, equation.lhs(), entryBlock.getArguments());
-	mlir::Value rhsResidual = getFunction(modelicaBuilder, model, equation.rhs(), entryBlock.getArguments());
+	mlir::Value lhsResidual = getFunction(idaBuilder, model, equation.lhs(), entryBlock.getArguments());
+	mlir::Value rhsResidual = getFunction(idaBuilder, model, equation.rhs(), entryBlock.getArguments());
 
-	mlir::Value returnValue = modelicaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), modelicaBuilder.getRealType(), rhsResidual, lhsResidual);
-	modelicaBuilder.create<ida::FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
+	mlir::Value returnValue = idaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), idaBuilder.getRealType(), rhsResidual, lhsResidual);
+	idaBuilder.create<FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
 
 	// Fold the constants and clean the unused operations.
 	foldConstants(builder, entryBlock);
@@ -1313,7 +1304,7 @@ mlir::LogicalResult ResidualFunctionOp::verify()
 	if (getNumArguments() != 4)
 		return emitOpError("Requires to have exactly four arguments (tt, yy, yp, ind)");
 
-	if (getNumResults() != 1 || !getType().getResult(0).isa<modelica::RealType>())
+	if (getNumResults() != 1 || !getType().getResult(0).isa<RealType>())
 		return emitOpError("Requires to have exactly one result");
 
 	return mlir::success();
@@ -1358,31 +1349,25 @@ void JacobianFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 {
 	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
 
+	IdaBuilder idaBuilder(builder.getContext());
+	
 	// real jacobian_function(real time, real* variables, real* derivatives, int* indexes, real alpha, int der_var)
-	llvm::SmallVector<mlir::Type, 6> argTypes = {
-		modelica::RealType::get(builder.getContext()),
-		RealPointerType::get(builder.getContext()), 
-		RealPointerType::get(builder.getContext()),
-		IntegerPointerType::get(builder.getContext()),
-		modelica::RealType::get(builder.getContext()),
-		modelica::IntegerType::get(builder.getContext())
-	};
-	mlir::Type returnType = { modelica::RealType::get(builder.getContext()) };
-	state.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(builder.getFunctionType(argTypes, returnType)));
+	llvm::SmallVector<mlir::Type, 6> argTypes = idaBuilder.getJacobianArgTypes();
+	mlir::Type returnType = { idaBuilder.getRealType() };
+	state.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(idaBuilder.getFunctionType(argTypes, returnType)));
 
 	mlir::Region* entryRegion = state.addRegion();
 	mlir::Block& entryBlock = entryRegion->emplaceBlock();
 	entryBlock.addArguments(argTypes);
 
 	// Fill the only block of the function with how to compute the Residual of the given Equation.
-	modelica::ModelicaBuilder modelicaBuilder(builder.getContext());
-	modelicaBuilder.setInsertionPointToStart(&entryBlock);
+	idaBuilder.setInsertionPointToStart(&entryBlock);
 
-	mlir::Value lhsJacobian = getDerFunction(modelicaBuilder, model, equation.lhs(), entryBlock.getArguments());
-	mlir::Value rhsJacobian = getDerFunction(modelicaBuilder, model, equation.rhs(), entryBlock.getArguments());
+	mlir::Value lhsJacobian = getDerFunction(idaBuilder, model, equation.lhs(), entryBlock.getArguments());
+	mlir::Value rhsJacobian = getDerFunction(idaBuilder, model, equation.rhs(), entryBlock.getArguments());
 
-	mlir::Value returnValue = modelicaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), modelicaBuilder.getRealType(), rhsJacobian, lhsJacobian);
-	modelicaBuilder.create<ida::FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
+	mlir::Value returnValue = idaBuilder.create<modelica::SubOp>(equation.getOp().getLoc(), idaBuilder.getRealType(), rhsJacobian, lhsJacobian);
+	idaBuilder.create<FunctionTerminatorOp>(equation.getOp().getLoc(), returnValue);
 
 	// Fold the constants and clean the unused operations.
 	foldConstants(builder, entryBlock);
@@ -1437,7 +1422,7 @@ mlir::LogicalResult JacobianFunctionOp::verify()
 	if (getNumArguments() != 6)
 		return emitOpError("Requires to have exactly four arguments (tt, yy, yp, ind, cj, var)");
 
-	if (getNumResults() != 1 || !getType().getResult(0).isa<modelica::RealType>())
+	if (getNumResults() != 1 || !getType().getResult(0).isa<RealType>())
 		return emitOpError("Requires to have exactly one result");
 
 	return mlir::success();
@@ -1507,7 +1492,7 @@ void FunctionTerminatorOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult FunctionTerminatorOp::verify()
 {
-	if (!returnValue().getType().isa<RealType>() && !returnValue().getType().isa<modelica::RealType>())
+	if (!returnValue().getType().isa<RealType>())
 		return emitOpError("Requires return value to be a real number");
 
 	return mlir::success();
@@ -1588,9 +1573,9 @@ llvm::ArrayRef<llvm::StringRef> LoadPointerOp::getAttributeNames()
 void LoadPointerOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value pointer, mlir::Value offset)
 {
 	if (pointer.getType().isa<IntegerPointerType>())
-		state.addTypes(modelica::IntegerType::get(builder.getContext()));
+		state.addTypes(IntegerType::get(builder.getContext()));
 	else if (pointer.getType().isa<RealPointerType>())
-		state.addTypes(modelica::RealType::get(builder.getContext()));
+		state.addTypes(RealType::get(builder.getContext()));
 
 	state.addOperands(pointer);
 	state.addOperands(offset);
@@ -1635,7 +1620,7 @@ mlir::LogicalResult LoadPointerOp::verify()
 	if (!pointer().getType().isa<IntegerPointerType>() && !pointer().getType().isa<RealPointerType>())
 		return emitOpError("Requires pointer to be a integer or real pointer");
 
-	if (!offset().getType().isa<IntegerType>() && !offset().getType().isa<modelica::IntegerType>())
+	if (!offset().getType().isa<IntegerType>())
 		return emitOpError("Requires offset to be an integer");
 
 	return mlir::success();

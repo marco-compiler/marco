@@ -5,23 +5,8 @@
 using namespace marco::codegen::ida;
 
 IdaBuilder::IdaBuilder(mlir::MLIRContext* context)
-		: mlir::OpBuilder(context)
+		: modelica::ModelicaBuilder(context)
 {
-}
-
-BooleanType IdaBuilder::getBooleanType()
-{
-	return BooleanType::get(getContext());
-}
-
-IntegerType IdaBuilder::getIntegerType()
-{
-	return IntegerType::get(getContext());
-}
-
-RealType IdaBuilder::getRealType()
-{
-	return RealType::get(getContext());
 }
 
 OpaquePointerType IdaBuilder::getOpaquePointerType()
@@ -39,45 +24,34 @@ RealPointerType IdaBuilder::getRealPointerType()
 	return RealPointerType::get(getContext());
 }
 
-mlir::Type IdaBuilder::getResidualFunctionType()
+llvm::SmallVector<mlir::Type, 4> IdaBuilder::getResidualArgTypes()
 {
-	mlir::Type resultType = modelica::RealType::get(getContext());
-	llvm::SmallVector<mlir::Type, 4> argTypes = {
-		modelica::RealType::get(getContext()),
+	return {
+		getRealType(),
 		getRealPointerType(),
 		getRealPointerType(),
 		getIntegerPointerType()
 	};
+}
 
-	return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
+mlir::Type IdaBuilder::getResidualFunctionType()
+{
+	return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(getRealType(), getResidualArgTypes()));
+}
+
+llvm::SmallVector<mlir::Type, 6> IdaBuilder::getJacobianArgTypes()
+{
+	return {
+		getRealType(),
+		getRealPointerType(),
+		getRealPointerType(),
+		getIntegerPointerType(),
+		getRealType(),
+		getIntegerType(),
+	};
 }
 
 mlir::Type IdaBuilder::getJacobianFunctionType()
 {
-	mlir::Type resultType = modelica::RealType::get(getContext());
-	llvm::SmallVector<mlir::Type, 6> argTypes = {
-		modelica::RealType::get(getContext()),
-		getRealPointerType(),
-		getRealPointerType(),
-		getIntegerPointerType(),
-		modelica::RealType::get(getContext()),
-		modelica::IntegerType::get(getContext()),
-	};
-
-	return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
-}
-
-BooleanAttribute IdaBuilder::getBooleanAttribute(bool value)
-{
-	return BooleanAttribute::get(getBooleanType(), value);
-}
-
-IntegerAttribute IdaBuilder::getIntegerAttribute(long value)
-{
-	return IntegerAttribute::get(getIntegerType(), value);
-}
-
-RealAttribute IdaBuilder::getRealAttribute(double value)
-{
-	return RealAttribute::get(getRealType(), value);
+	return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(getRealType(), getJacobianArgTypes()));
 }

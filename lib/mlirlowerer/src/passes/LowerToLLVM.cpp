@@ -910,56 +910,6 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 				rewriter.replaceOp(op, result);
 				return mlir::success();
 			}
-
-			if (auto resultType = destination.dyn_cast<OpaquePointerType>())
-			{
-				ArrayDescriptor descriptor(this->getTypeConverter(), transformed.memory());
-				mlir::Value result = rewriter.create<mlir::LLVM::BitcastOp>(loc, convertType(resultType), descriptor.getPtr(rewriter, loc));
-				result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, result);
-				rewriter.replaceOp(op, result);
-				return mlir::success();
-			}
-		}
-
-		if (source.isa<OpaquePointerType>())
-		{
-			if (auto resultType = destination.dyn_cast<ArrayType>())
-			{
-				mlir::Type indexType = convertType(rewriter.getIndexType());
-				auto typeConverter = this->getTypeConverter();
-
-				ArrayDescriptor descriptor =
-						ArrayDescriptor::undef(rewriter, typeConverter, loc, convertType(resultType));
-
-				mlir::Type ptrType = mlir::LLVM::LLVMPointerType::get(convertType(resultType.getElementType()));
-				mlir::Value ptr = rewriter.create<mlir::LLVM::BitcastOp>(loc, ptrType, op.memory());
-				descriptor.setPtr(rewriter, loc, ptr);
-
-				mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIntegerAttr(descriptor.getRankType(), resultType.getRank()));
-				descriptor.setRank(rewriter, loc, rank);
-
-				auto shape = resultType.getShape();
-				llvm::SmallVector<mlir::Value, 3> sizes;
-
-				for (auto size : shape)
-				{
-					assert(size != -1);
-					sizes.push_back(rewriter.create<mlir::LLVM::ConstantOp>(
-							loc, indexType, rewriter.getI64IntegerAttr(resultType.getRank())));
-				}
-
-				for (auto size : llvm::enumerate(sizes))
-					descriptor.setSize(rewriter, loc, size.index(), size.value());
-
-				rewriter.replaceOp(op, *descriptor);
-				return mlir::success();
-			}
-
-			if (destination.isa<OpaquePointerType>())
-			{
-				rewriter.replaceOp(op, op.memory());
-				return mlir::success();
-			}
 		}
 
 		return rewriter.notifyMatchFailure(op, "Unknown conversion");

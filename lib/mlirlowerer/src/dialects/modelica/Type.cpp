@@ -390,11 +390,6 @@ mlir::Type UnsizedArrayType::getElementType() const
 	return getImpl()->getElementType();
 }
 
-OpaquePointerType OpaquePointerType::get(mlir::MLIRContext* context)
-{
-	return Base::get(context);
-}
-
 StructType StructType::get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes)
 {
 	return Base::get(context, elementTypes);
@@ -507,9 +502,6 @@ namespace marco::codegen::modelica
 			return ArrayType::get(builder.getContext(), scope, baseType, castedDims);
 		}
 
-		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
-			return OpaquePointerType::get(builder.getContext());
-
 		if (mlir::succeeded(parser.parseOptionalKeyword("struct")))
 		{
 			if (mlir::failed(parser.parseLess()))
@@ -598,12 +590,6 @@ namespace marco::codegen::modelica
 		if (auto arrayType = type.dyn_cast<UnsizedArrayType>())
 		{
 			os << "array<*x" << arrayType.getElementType() << ">";
-			return;
-		}
-
-		if (type.isa<OpaquePointerType>())
-		{
-			os << "opaque_ptr";
 			return;
 		}
 

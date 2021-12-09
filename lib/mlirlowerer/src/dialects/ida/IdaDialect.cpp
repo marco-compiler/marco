@@ -6,10 +6,7 @@ using namespace marco::codegen::ida;
 IdaDialect::IdaDialect(mlir::MLIRContext* context)
 		: Dialect("ida", context, mlir::TypeID::get<IdaDialect>())
 {
-	addTypes<BooleanType, IntegerType, RealType>();
 	addTypes<OpaquePointerType, IntegerPointerType, RealPointerType>();
-
-	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
 
 	// Allocation, initialization, usage and deletion.
 	addOperations<
