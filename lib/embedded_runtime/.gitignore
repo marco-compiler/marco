@@ -1,4 +1,4 @@
 Makefile
-driver/CMSIS/
+include/marco/driver/CMSIS/
 main.*
 *.o
