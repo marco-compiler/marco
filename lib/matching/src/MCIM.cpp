@@ -264,11 +264,6 @@ MCIS RegularMCIM::MCIMElement::getValues() const
 
 RegularMCIM::MCIMElement RegularMCIM::MCIMElement::inverse() const
 {
-  llvm::SmallVector<long, 3> invertedDelta;
-
-  for (size_t i = 0, e = delta.size(); i < e; ++i)
-    invertedDelta.push_back(-1 * delta[i]);
-
   return RegularMCIM::MCIMElement(getValues(), delta.inverse());
 }
 
@@ -404,17 +399,115 @@ void RegularMCIM::add(MCIS keys, Delta delta)
     groupIt->addKeys(std::move(keys));
 }
 
+class FlatMCIM : public MCIM::Impl
+{
+  public:
+  class Delta
+  {
+    public:
+    Delta(size_t key, size_t value);
+
+    bool operator==(const Delta& other) const;
+
+    long getValue() const;
+    Delta inverse() const;
+
+    private:
+    long value;
+  };
+
+  class MCIMElement
+  {
+    public:
+    MCIMElement(MCIS keys, Delta delta);
+
+    const MCIS& getKeys() const;
+    void addKeys(MCIS newKeys);
+    const Delta& getDelta() const;
+    MCIS getValues() const;
+
+    MCIMElement inverse() const;
+
+    private:
+    MCIS keys;
+    Delta delta;
+  };
+
+  FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+
+  std::unique_ptr<MCIM::Impl> clone() override;
+
+  void apply(const AccessFunction& access) override;
+  bool get(llvm::ArrayRef<long> indexes) const override;
+  void set(llvm::ArrayRef<long> indexes) override;
+
+  bool empty() const override;
+  void clear() override;
+
+  MCIS flattenEquations() const override;
+  MCIS flattenVariables() const override;
+
+  void filterEquations(const MCIS& filter) override;
+  void filterVariables(const MCIS& filter) override;
+
+  private:
+  size_t getFlatEquationIndex(llvm::ArrayRef<long> equationIndexes) const;
+  size_t getFlatVariableIndex(llvm::ArrayRef<long> variableIndexes) const;
+  std::pair<size_t, size_t> getFlatIndexes(llvm::ArrayRef<long> indexes) const;
+
+  void set(size_t equationFlatIndex, size_t variableFlatIndex);
+  void add(MCIS keys, Delta delta);
+
+  llvm::SmallVector<MCIMElement, 3> groups;
+
+  // Stored for faster lookup
+  llvm::SmallVector<size_t, 3> equationDimensions;
+  llvm::SmallVector<size_t, 3> variableDimensions;
+};
+
+static void convertIndexesToZeroBased(
+        llvm::ArrayRef<long> indexes,
+        const MultidimensionalRange& base,
+        llvm::SmallVectorImpl<size_t>& rescaled)
+{
+  assert(base.rank() == indexes.size());
+
+  for (size_t i = 0, e = base.rank(); i < e; ++i)
+  {
+    const auto& monoDimRange = base[i];
+    long index = indexes[i] - monoDimRange.getBegin();
+    assert(index >= 0 && index < monoDimRange.getEnd() - monoDimRange.getBegin());
+    rescaled.push_back(index);
+  }
+}
+
+static void convertIndexesFromZeroBased(
+        llvm::ArrayRef<size_t> indexes,
+        const MultidimensionalRange& base,
+        llvm::SmallVectorImpl<long>& rescaled)
+{
+  assert(base.rank() == indexes.size());
+
+  for (size_t i = 0, e = base.rank(); i < e; ++i)
+  {
+    const auto& monoDimRange = base[i];
+    long index = indexes[i] + monoDimRange.getBegin();
+    assert(index < monoDimRange.getEnd());
+    rescaled.push_back(index);
+  }
+}
+
 /**
  * Get the index to be used to access a flattened array.
  * If an array is declared as [a][b][c], then the access [i][j][k] corresponds
  * to the access [k + c * (j + b * (i))] of the flattened array of size
  * [a * b * c].
  *
- * @param dimensions 	original array dimensions
  * @param indexes 		access with respect to the original dimensions
+ * @param dimensions 	original array dimensions
  * @return flattened index
  */
-static size_t flattenIndexes(llvm::ArrayRef<size_t> dimensions, llvm::ArrayRef<size_t> indexes)
+static size_t flattenIndexes(llvm::ArrayRef<size_t> indexes, llvm::ArrayRef<size_t> dimensions)
 {
   assert(dimensions.size() == indexes.size());
   size_t result = 0;
@@ -463,33 +556,145 @@ static void unflattenIndex(llvm::ArrayRef<size_t> dimensions, size_t index, llvm
   assert(results.size() == dimensions.size());
 }
 
-class FlatMCIM : public MCIM::Impl
+static MCIS flattenMCIS(const MCIS& value, const MultidimensionalRange& range, llvm::ArrayRef<size_t> dimensions)
 {
-  public:
-  FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+  MCIS result;
 
-  std::unique_ptr<MCIM::Impl> clone() override;
+  for (const auto& multiDimRange : value)
+  {
+    llvm::SmallVector<long, 3> firstItemIndexes;
+    llvm::SmallVector<long, 3> lastItemIndexes;
 
-  void apply(const AccessFunction& access) override;
-  bool get(llvm::ArrayRef<long> indexes) const override;
-  void set(llvm::ArrayRef<long> indexes) override;
+    for (size_t i = 0, e = multiDimRange.rank(); i < e; ++i)
+    {
+      const auto& monoDimRange = multiDimRange[i];
+      firstItemIndexes.push_back(monoDimRange.getBegin());
+      lastItemIndexes.push_back(monoDimRange.getEnd() - 1);
+    }
 
-  bool empty() const override;
-  void clear() override;
+    llvm::SmallVector<size_t, 3> firstItemRescaled;
+    convertIndexesToZeroBased(firstItemIndexes, range, firstItemRescaled);
 
-  MCIS flattenEquations() const override;
-  MCIS flattenVariables() const override;
+    llvm::SmallVector<size_t, 3> lastItemRescaled;
+    convertIndexesToZeroBased(lastItemIndexes, range, lastItemRescaled);
 
-  void filterEquations(const MCIS& filter) override;
-  void filterVariables(const MCIS& filter) override;
+    size_t firstItemFlattened = flattenIndexes(firstItemRescaled, dimensions);
+    size_t lastItemFlattened = flattenIndexes(lastItemRescaled, dimensions);
 
-  private:
-};
+    result.add(MultidimensionalRange(Range(firstItemFlattened, lastItemFlattened + 1)));
+  }
+
+  return result;
+}
+
+static MCIS unflattenMCIS(const MCIS& value, const MultidimensionalRange& range, llvm::ArrayRef<size_t> dimensions)
+{
+  MCIS result;
+
+  for (const auto& multiDimRange : value)
+  {
+    assert(multiDimRange.rank() == 1);
+    auto& monoDimRange = multiDimRange[0];
+
+    size_t firstItemFlattened = monoDimRange.getBegin();
+    size_t lastItemFlattened = monoDimRange.getEnd() - 1;
+
+    for (size_t flattened = firstItemFlattened; flattened <= lastItemFlattened; ++flattened)
+    {
+      llvm::SmallVector<size_t, 3> rescaled;
+      unflattenIndex(dimensions, flattened, rescaled);
+
+      llvm::SmallVector<long, 3> indexes;
+      convertIndexesFromZeroBased(rescaled, range, indexes);
+
+      llvm::SmallVector<Range, 3> ranges;
+
+      for (const auto& index : indexes)
+        ranges.emplace_back(index, index + 1);
+
+      result.add(MultidimensionalRange(std::move(ranges)));
+    }
+  }
+
+  return result;
+}
+
+FlatMCIM::Delta::Delta(size_t key, size_t value) : value(value - key)
+{
+}
+
+bool FlatMCIM::Delta::operator==(const Delta& other) const
+{
+  return value == other.value;
+}
+
+long FlatMCIM::Delta::getValue() const
+{
+  return value;
+}
+
+FlatMCIM::Delta FlatMCIM::Delta::inverse() const
+{
+  Delta result(*this);
+  result.value *= -1;
+  return result;
+}
+
+FlatMCIM::MCIMElement::MCIMElement(MCIS keys, Delta delta)
+        : keys(std::move(keys)), delta(std::move(delta))
+{
+}
+
+const MCIS& FlatMCIM::MCIMElement::getKeys() const
+{
+  return keys;
+}
+
+void FlatMCIM::MCIMElement::addKeys(MCIS newKeys)
+{
+  keys.add(std::move(newKeys));
+}
+
+const FlatMCIM::Delta& FlatMCIM::MCIMElement::getDelta() const
+{
+  return delta;
+}
+
+MCIS FlatMCIM::MCIMElement::getValues() const
+{
+  MCIS result;
+
+  for (const auto& range : keys)
+  {
+    for (const auto& keyRange : keys)
+    {
+      llvm::SmallVector<Range, 3> valueRanges;
+
+      for (size_t i = 0, e = keyRange.rank(); i < e; ++i)
+        valueRanges.emplace_back(keyRange[i].getBegin() + delta.getValue(), keyRange[i].getEnd() + delta.getValue());
+
+      result.add(MultidimensionalRange(valueRanges));
+    }
+  }
+
+  return result;
+}
+
+FlatMCIM::MCIMElement FlatMCIM::MCIMElement::inverse() const
+{
+  return FlatMCIM::MCIMElement(getValues(), delta.inverse());
+}
 
 FlatMCIM::FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
         : MCIM::Impl(std::move(equationRanges), std::move(variableRanges))
 {
   assert(getEquationRanges().rank() != getVariableRanges().rank());
+
+  for (size_t i = 0, e = getEquationRanges().rank(); i < e; ++i)
+    equationDimensions.push_back(getEquationRanges()[i].size());
+
+  for (size_t i = 0, e = getVariableRanges().rank(); i < e; ++i)
+    variableDimensions.push_back(getVariableRanges()[i].size());
 }
 
 std::unique_ptr<MCIM::Impl> FlatMCIM::clone()
@@ -499,47 +704,142 @@ std::unique_ptr<MCIM::Impl> FlatMCIM::clone()
 
 void FlatMCIM::apply(const AccessFunction& access)
 {
-  // TODO
+  for (const auto& equationIndexes : getEquationRanges())
+  {
+    assert(access.size() == getVariableRanges().rank());
+
+    llvm::SmallVector<long, 3> variableIndexes;
+    access.map(variableIndexes, variableIndexes);
+
+    set(getFlatEquationIndex(equationIndexes), getFlatVariableIndex(variableIndexes));
+  }
 }
 
 bool FlatMCIM::get(llvm::ArrayRef<long> indexes) const
 {
-  // TODO
+  auto flatIndexes = getFlatIndexes(indexes);
+  size_t equationFlatIndex = flatIndexes.first;
+  size_t variableFlatIndex = flatIndexes.second;
+
+  Delta delta(equationFlatIndex, variableFlatIndex);
+
+  return llvm::any_of(groups, [&](const MCIMElement& group) -> bool {
+      return group.getDelta() == delta && group.getKeys().contains(equationFlatIndex);
+  });
 }
 
 void FlatMCIM::set(llvm::ArrayRef<long> indexes)
 {
-  // TODO
+  auto flatIndexes = getFlatIndexes(indexes);
+  set(flatIndexes.first, flatIndexes.second);
 }
 
 bool FlatMCIM::empty() const
 {
-  // TODO
+  return groups.empty();
 }
 
 void FlatMCIM::clear()
 {
-  // TODO
+  groups.clear();
 }
 
 MCIS FlatMCIM::flattenEquations() const
 {
-  // TODO
+  MCIS result;
+
+  for (const auto& group : groups)
+    result.add(group.getValues());
+
+  return unflattenMCIS(result, getVariableRanges(), variableDimensions);
 }
 
 MCIS FlatMCIM::flattenVariables() const
 {
-  //TODO
+  MCIS result;
+
+  for (const auto& group : groups)
+    result.add(group.getKeys());
+
+  return unflattenMCIS(result, getEquationRanges(), equationDimensions);
 }
 
 void FlatMCIM::filterEquations(const MCIS& filter)
 {
-  // TODO
+  MCIS flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
+
+  for (MCIMElement& group : groups)
+    group = MCIMElement(group.getKeys().intersect(flattenedFilter), group.getDelta());
 }
 
 void FlatMCIM::filterVariables(const MCIS& filter)
 {
-  // TODO
+  MCIS flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
+
+  llvm::SmallVector<MCIMElement, 3> invertedGroups;
+
+  for (const auto& group : groups)
+    invertedGroups.push_back(group.inverse());
+
+  groups.clear();
+
+  for (const auto& group : invertedGroups)
+  {
+    if (auto& variables = group.getKeys(); variables.overlaps(flattenedFilter))
+    {
+      MCIS filteredVariables = variables.intersect(flattenedFilter);
+      MCIMElement filteredVariableGroup(std::move(filteredVariables), group.getDelta());
+      MCIMElement filteredEquations = filteredVariableGroup.inverse();
+      add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+    }
+  }
+}
+
+size_t FlatMCIM::getFlatEquationIndex(llvm::ArrayRef<long> equationIndexes) const
+{
+  assert(getEquationRanges().rank() == equationIndexes.size());
+  llvm::SmallVector<size_t, 3> rescaled;
+  convertIndexesToZeroBased(equationIndexes, getEquationRanges(), rescaled);
+  return flattenIndexes(rescaled, equationDimensions);
+}
+
+size_t FlatMCIM::getFlatVariableIndex(llvm::ArrayRef<long> variableIndexes) const
+{
+  assert(getVariableRanges().rank() == variableIndexes.size());
+  llvm::SmallVector<size_t, 3> rescaled;
+  convertIndexesToZeroBased(variableIndexes, getVariableRanges(), rescaled);
+  return flattenIndexes(rescaled, variableDimensions);
+}
+
+std::pair<size_t, size_t> FlatMCIM::getFlatIndexes(llvm::ArrayRef<long> indexes) const
+{
+  size_t equationRank = getEquationRanges().rank();
+  size_t variableRank = getVariableRanges().rank();
+  assert(indexes.size() == equationRank + variableRank);
+
+  llvm::SmallVector<long, 3> equationIndexes(indexes.begin(), indexes.begin() + equationRank);
+  llvm::SmallVector<long, 3> variableIndexes(indexes.begin() + equationRank, indexes.end());
+
+  return std::make_pair(getFlatEquationIndex(equationIndexes), getFlatVariableIndex(variableIndexes));
+}
+
+void FlatMCIM::set(size_t equationFlatIndex, size_t variableFlatIndex)
+{
+  Delta delta(equationFlatIndex, variableFlatIndex);
+  MCIS keys(MultidimensionalRange(Range(equationFlatIndex, equationFlatIndex + 1)));
+  add(std::move(keys), std::move(delta));
+}
+
+void FlatMCIM::add(MCIS keys, Delta delta)
+{
+  auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
+      return group.getDelta() == delta;
+  });
+
+  if (groupIt == groups.end())
+    groups.emplace_back(std::move(keys), std::move(delta));
+  else
+    groupIt->addKeys(std::move(keys));
 }
 
 MCIM::MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
