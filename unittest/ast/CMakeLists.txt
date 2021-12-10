@@ -5,6 +5,7 @@ set(SOURCES
     ConstantFolderTest.cpp
     ExpressionTest.cpp
     FunctionTest.cpp
+    InlineExpanserTest.cpp
     LexerStateMachineTest.cpp
     ParserClassTest.cpp
     ParserEquationTest.cpp
