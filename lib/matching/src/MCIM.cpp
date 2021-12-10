@@ -102,8 +102,10 @@ namespace marco::matching::detail
     virtual MCIS flattenEquations() const = 0;
     virtual MCIS flattenVariables() const = 0;
 
-    virtual void filterEquations(const MCIS& filter) = 0;
-    virtual void filterVariables(const MCIS& filter) = 0;
+    virtual std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const = 0;
+    virtual std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const = 0;
+
+    virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
 
     private:
     MultidimensionalRange equationRanges;
@@ -176,8 +178,10 @@ class RegularMCIM : public MCIM::Impl
   MCIS flattenEquations() const override;
   MCIS flattenVariables() const override;
 
-  void filterEquations(const MCIS& filter) override;
-  void filterVariables(const MCIS& filter) override;
+  std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
+  std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+
+  std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
   private:
   void set(llvm::ArrayRef<long> equationIndexes, llvm::ArrayRef<long> variableIndexes);
@@ -348,31 +352,49 @@ MCIS RegularMCIM::flattenVariables() const
   return result;
 }
 
-void RegularMCIM::filterEquations(const MCIS& filter)
+std::unique_ptr<MCIM::Impl> RegularMCIM::filterEquations(const MCIS& filter) const
 {
-  for (MCIMElement& group : groups)
-    group = MCIMElement(group.getKeys().intersect(filter), group.getDelta());
+  auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
+
+  for (const MCIMElement& group : groups)
+    if (auto& equations = group.getKeys(); equations.overlaps(filter))
+      result->add(equations.intersect(filter), group.getDelta());
+
+  return result;
 }
 
-void RegularMCIM::filterVariables(const MCIS& filter)
+std::unique_ptr<MCIM::Impl> RegularMCIM::filterVariables(const MCIS& filter) const
 {
-  llvm::SmallVector<MCIMElement, 3> invertedGroups;
+  auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
   for (const auto& group : groups)
-    invertedGroups.push_back(group.inverse());
-
-  groups.clear();
-
-  for (const auto& group : invertedGroups)
   {
-    if (auto& variables = group.getKeys(); variables.overlaps(filter))
+    auto invertedGroup = group.inverse();
+
+    if (auto& variables = invertedGroup.getKeys(); variables.overlaps(filter))
     {
       MCIS filteredVariables = variables.intersect(filter);
-      MCIMElement filteredVariableGroup(std::move(filteredVariables), group.getDelta());
+      MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
       MCIMElement filteredEquations = filteredVariableGroup.inverse();
-      add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+      result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
     }
   }
+
+  return result;
+}
+
+std::vector<std::unique_ptr<MCIM::Impl>> RegularMCIM::splitGroups() const
+{
+  std::vector<std::unique_ptr<MCIM::Impl>> result;
+
+  for (const auto& group : groups)
+  {
+    auto mcim = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
+    mcim->groups.push_back(group);
+    result.push_back(std::move(mcim));
+  }
+
+  return result;
 }
 
 void RegularMCIM::set(llvm::ArrayRef<long> equationIndexes, llvm::ArrayRef<long> variableIndexes)
@@ -447,8 +469,10 @@ class FlatMCIM : public MCIM::Impl
   MCIS flattenEquations() const override;
   MCIS flattenVariables() const override;
 
-  void filterEquations(const MCIS& filter) override;
-  void filterVariables(const MCIS& filter) override;
+  std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
+  std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+
+  std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
   private:
   size_t getFlatEquationIndex(llvm::ArrayRef<long> equationIndexes) const;
@@ -764,35 +788,51 @@ MCIS FlatMCIM::flattenVariables() const
   return unflattenMCIS(result, getEquationRanges(), equationDimensions);
 }
 
-void FlatMCIM::filterEquations(const MCIS& filter)
+std::unique_ptr<MCIM::Impl> FlatMCIM::filterEquations(const MCIS& filter) const
 {
   MCIS flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
+  auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
-  for (MCIMElement& group : groups)
-    group = MCIMElement(group.getKeys().intersect(flattenedFilter), group.getDelta());
+  for (const MCIMElement& group : groups)
+    if (auto& equations = group.getKeys(); equations.overlaps(flattenedFilter))
+      result->add(equations.intersect(flattenedFilter), group.getDelta());
+
+  return result;
 }
 
-void FlatMCIM::filterVariables(const MCIS& filter)
+std::unique_ptr<MCIM::Impl> FlatMCIM::filterVariables(const MCIS& filter) const
 {
   MCIS flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
-
-  llvm::SmallVector<MCIMElement, 3> invertedGroups;
+  auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
   for (const auto& group : groups)
-    invertedGroups.push_back(group.inverse());
-
-  groups.clear();
-
-  for (const auto& group : invertedGroups)
   {
-    if (auto& variables = group.getKeys(); variables.overlaps(flattenedFilter))
+    auto invertedGroup = group.inverse();
+
+    if (auto& variables = invertedGroup.getKeys(); variables.overlaps(flattenedFilter))
     {
       MCIS filteredVariables = variables.intersect(flattenedFilter);
-      MCIMElement filteredVariableGroup(std::move(filteredVariables), group.getDelta());
+      MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
       MCIMElement filteredEquations = filteredVariableGroup.inverse();
-      add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+      result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
     }
   }
+
+  return result;
+}
+
+std::vector<std::unique_ptr<MCIM::Impl>> FlatMCIM::splitGroups() const
+{
+  std::vector<std::unique_ptr<MCIM::Impl>> result;
+
+  for (const auto& group : groups)
+  {
+    auto mcim = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
+    mcim->groups.push_back(group);
+    result.push_back(std::move(mcim));
+  }
+
+  return result;
 }
 
 size_t FlatMCIM::getFlatEquationIndex(llvm::ArrayRef<long> equationIndexes) const
@@ -848,6 +888,10 @@ MCIM::MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableR
     impl = std::make_unique<RegularMCIM>(std::move(equationRanges), std::move(variableRanges));
   else
     impl = std::make_unique<FlatMCIM>(std::move(equationRanges), std::move(variableRanges));
+}
+
+MCIM::MCIM(std::unique_ptr<Impl> impl) : impl(std::move(impl))
+{
 }
 
 MCIM::MCIM(const MCIM& other) : impl(other.impl->clone())
@@ -916,15 +960,22 @@ MCIS MCIM::flattenVariables() const
 
 MCIM MCIM::filterEquations(const MCIS& filter) const
 {
-  MCIM result(*this);
-  result.impl->filterEquations(filter);
-  return result;
+  return MCIM(impl->filterEquations(filter));
 }
 
 MCIM MCIM::filterVariables(const MCIS& filter) const
 {
-  MCIM result(*this);
-  result.impl->filterVariables(filter);
+  return MCIM(impl->filterVariables(filter));
+}
+
+std::vector<MCIM> MCIM::splitGroups() const
+{
+  std::vector<MCIM> result;
+  auto groups = impl->splitGroups();
+
+  for (auto& group : groups)
+    result.push_back(MCIM(std::move(group)));
+
   return result;
 }
 

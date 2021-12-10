@@ -73,14 +73,16 @@ namespace marco::matching::detail
     void clear();
 
     MCIS flattenEquations() const;
-
     MCIS flattenVariables() const;
 
     MCIM filterEquations(const MCIS& filter) const;
-
     MCIM filterVariables(const MCIS& filter) const;
 
+    std::vector<MCIM> splitGroups() const;
+
 		private:
+    MCIM(std::unique_ptr<Impl> impl);
+
     std::unique_ptr<Impl> impl;
 	};
 
