@@ -20,8 +20,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 
 	// Equation setters.
 	addOperations<
-			AddColumnIndexOp,
-			AddEqDimensionOp,
+			AddEquationOp,
 			AddResidualOp,
 			AddJacobianOp>();
 

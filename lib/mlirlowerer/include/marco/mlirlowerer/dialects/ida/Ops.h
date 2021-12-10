@@ -263,44 +263,12 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Ida::AddColumnIndexOp
+	// Ida::AddEquationOp
 	//===----------------------------------------------------------------------===//
 
-	class AddColumnIndexOp : public mlir::Op<AddColumnIndexOp,
+	class AddEquationOp : public mlir::Op<AddEquationOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
-																mlir::OpTrait::ZeroResult,
-																mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.add_column_index";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowIndex, mlir::Value accessIndex);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange args();
-		mlir::Value userData();
-		mlir::Value rowIndex();
-		mlir::Value accessIndex();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Ida::AddEqDimensionOp
-	//===----------------------------------------------------------------------===//
-
-	class AddEqDimensionOp : public mlir::Op<AddEqDimensionOp,
-																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::NOperands<2>::Impl,
 																mlir::OpTrait::ZeroResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -313,7 +281,7 @@ namespace marco::codegen::ida
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value end);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -322,8 +290,7 @@ namespace marco::codegen::ida
 
 		mlir::ValueRange args();
 		mlir::Value userData();
-		mlir::Value start();
-		mlir::Value end();
+		mlir::Value dimension();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -461,8 +428,8 @@ namespace marco::codegen::ida
 
 	class AddVarAccessOp : public mlir::Op<AddVarAccessOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<4>::Impl,
-																mlir::OpTrait::OneResult,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::ZeroResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
@@ -474,19 +441,17 @@ namespace marco::codegen::ida
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value offsets, mlir::Value inductions);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value access);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		IntegerType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value variable();
-		mlir::Value offsets();
-		mlir::Value inductions();
+		mlir::Value access();
 	};
 
 	//===----------------------------------------------------------------------===//

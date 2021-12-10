@@ -28,11 +28,8 @@ RUNTIME_FUNC_DECL(addTolerance, void, PTR(void), double, double)
 // Equation setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(addEqDimension, void, PTR(void), ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(addEqDimension, void, PTR(void), ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DECL(addEquation, void, PTR(void), ARRAY(int32_t))
+RUNTIME_FUNC_DECL(addEquation, void, PTR(void), ARRAY(int64_t))
 
 RUNTIME_FUNC_DECL(addResidual, void, PTR(void), RESIDUAL(float))
 RUNTIME_FUNC_DECL(addResidual, void, PTR(void), RESIDUAL(double))
@@ -50,8 +47,8 @@ RUNTIME_FUNC_DECL(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
 RUNTIME_FUNC_DECL(getVariableAlloc, PTR(void), PTR(void), int32_t, bool)
 RUNTIME_FUNC_DECL(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
 
-RUNTIME_FUNC_DECL(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DECL(addVarAccess, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DECL(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
 
 //===----------------------------------------------------------------------===//
 // Getters
