@@ -2151,6 +2151,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
 		builder.setInsertionPoint(terminator);
+		mlir::Value zero = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(0));
+		mlir::Value one = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(1));
 
 		// Compute all non-trivial variable offsets and dimensions.
 		for (BltBlock& bltBlock : model.getBltBlocks())
@@ -2206,28 +2208,25 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				MultiDimInterval inductions = equation.getInductions();
 
 				ArrayType arrayType = ArrayType::get(
-						context, BufferAllocationScope::stack, builder.getIntegerType(), { (long) inductions.dimensions() });
-				AllocaOp start = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
-				AllocaOp end = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+						context, BufferAllocationScope::stack, builder.getIntegerType(), { 2, (long) inductions.dimensions() });
+				AllocaOp dimension = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
 
 				for (size_t i = 0; i < inductions.dimensions(); i++)
 				{
 					mlir::Value dimIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
 					mlir::Value min = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(inductions[i].min() - 1));
-					mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, start, dimIndex);
+					mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, dimension, mlir::ValueRange({ zero, dimIndex }));
 					builder.create<AssignmentOp>(loc, min, subscriptionOp);
 
 					mlir::Value max = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(inductions[i].max() - 1));
-					subscriptionOp = builder.create<SubscriptionOp>(loc, end, dimIndex);
+					subscriptionOp = builder.create<SubscriptionOp>(loc, dimension, mlir::ValueRange({ one, dimIndex }));
 					builder.create<AssignmentOp>(loc, max, subscriptionOp);
 				}
 
-				builder.create<AddEqDimensionOp>(loc, userData, start, end);
+				builder.create<AddEquationOp>(loc, userData, dimension);
 
 				// Variable access.
-				mlir::Value rowIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(equationCount));
 				ReferenceMatcher matcher(equation);
-
 				for (ExpressionPath& path : matcher)
 				{
 					Variable var = model.getVariable(path.getExpression().getReferredVectorAccess());
@@ -2248,25 +2247,23 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 					// Add accesses of the variable to the ida user data.
 					ArrayType arrayType = ArrayType::get(
-							context, BufferAllocationScope::stack, builder.getIntegerType(), { (long) access.size() });
-					AllocaOp offsets = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
-					AllocaOp inductions = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+							context, BufferAllocationScope::stack, builder.getIntegerType(), { 2, (long) access.size() });
+					AllocaOp accessArray = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
 
 					for (size_t i = 0; i < access.size(); i++)
 					{
 						mlir::Value accIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
 						mlir::Value acc = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(access[i].first));
-						mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, offsets, accIndex);
+						mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, accessArray, mlir::ValueRange({ zero, accIndex }));
 						builder.create<AssignmentOp>(loc, acc, subscriptionOp);
 
 						mlir::Value ind = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(access[i].second));
-						subscriptionOp = builder.create<SubscriptionOp>(loc, inductions, accIndex);
+						subscriptionOp = builder.create<SubscriptionOp>(loc, accessArray, mlir::ValueRange({ one, accIndex }));
 						builder.create<AssignmentOp>(loc, ind, subscriptionOp);
 					}
 
 					// Add to IDA the indexes of non-zero values of the current equation.
-					mlir::Value accessIndex = builder.create<AddVarAccessOp>(loc, userData, var.getIdaIndex(), offsets, inductions);
-					builder.create<AddColumnIndexOp>(loc, userData, rowIndex, accessIndex);
+					builder.create<AddVarAccessOp>(loc, userData, var.getIdaIndex(), accessArray);
 				}
 
 				// Add Residual and Jacobian function to IDA.

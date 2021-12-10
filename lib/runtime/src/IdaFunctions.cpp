@@ -63,7 +63,6 @@ using JacobianFunction = std::function<realtype(
 typedef struct IdaUserData
 {
 	// Equations data
-	std::vector<std::vector<size_t>> accessIndexes;
 	std::vector<EqDimension> equationDimensions;
 	std::vector<ResidualFunction> residuals;
 	std::vector<JacobianFunction> jacobians;
@@ -71,7 +70,7 @@ typedef struct IdaUserData
 	// Variables data
 	std::vector<sunindextype> variableOffsets;
 	std::vector<VarDimension> variableDimensions;
-	std::vector<std::pair<sunindextype, Access>> variableAccesses;
+	std::vector<std::vector<std::pair<sunindextype, Access>>> variableAccesses;
 
 	// Matrix size
 	size_t vectorVariablesNumber;
@@ -372,7 +371,7 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 		{
-			auto dim = data->equationDimensions[eq][i];
+			auto& dim = data->equationDimensions[eq][i];
 			indexes[i] = dim.first;
 			equationSize *= (dim.second - dim.first);
 		}
@@ -385,14 +384,11 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 		{
 			// Compute the column indexes that may be non-zeros
 			std::set<size_t> columnIndexesSet;
-			for (sunindextype accessIndex : data->accessIndexes[eq])
+			for (auto& access : data->variableAccesses[eq])
 			{
-				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-				VarDimension dimensions = data->variableDimensions[varIndex];
-				Access access = data->variableAccesses[accessIndex].second;
-
-				sunindextype varOffset = computeOffset(indexes, dimensions, access);
-				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
+				VarDimension dimensions = data->variableDimensions[access.first];
+				sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
+				columnIndexesSet.insert(data->variableOffsets[access.first] + varOffset);
 			}
 
 			// Compute the number of non-zero values in each scalar equation
@@ -595,7 +591,7 @@ inline bool idaFreeData(void* userData)
 RUNTIME_FUNC_DEF(idaFreeData, bool, PTR(void))
 
 /**
- * Add the start time, the end time and the step time to the user data. If a
+ * Add the start time, the end time and the step time to the IDA user data. If a
  * positive time step is given, the output will show the variables in an
  * equidistant time grid based on the step time paramter. Otherwise, the output
  * will show the variables at every step of the computation.
@@ -617,7 +613,7 @@ RUNTIME_FUNC_DEF(addTime, void, PTR(void), float, float, float)
 RUNTIME_FUNC_DEF(addTime, void, PTR(void), double, double, double)
 
 /**
- * Add the relative tolerance and the absolute tolerance to the user data.
+ * Add the relative tolerance and the absolute tolerance to the IDA user data.
  */
 template<typename T>
 inline void addTolerance(void* userData, T relTol, T absTol)
@@ -636,53 +632,34 @@ RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
 //===----------------------------------------------------------------------===//
 
 /**
- * Add the access index of a non-zero value contained in the rowIndex-th row of
- * the jacobian matrix to the user data.
+ * Add the dimension of an equation to the IDA user data.
  */
 template<typename T>
-inline void addColumnIndex(void* userData, T rowIndex, T accessIndex)
+inline void addEquation(void* userData, UnsizedArrayDescriptor<T> dimension)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	assert(rowIndex >= 0);
-	assert((size_t) rowIndex < data->vectorEquationsNumber);
+	assert(dimension.getRank() == 2);
+	assert(dimension.getDimensionSize(0) == 2);
 
-	if ((size_t) rowIndex == data->accessIndexes.size())
-		data->accessIndexes.push_back({ (size_t) accessIndex });
-	else
-		data->accessIndexes[rowIndex].push_back(accessIndex);
-}
-
-RUNTIME_FUNC_DEF(addColumnIndex, void, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DEF(addColumnIndex, void, PTR(void), int64_t, int64_t)
-
-/**
- * Add the dimension of the index-th equation to the user data.
- */
-template<typename T>
-inline void addEqDimension(
-		void* userData,
-		UnsizedArrayDescriptor<T> start,
-		UnsizedArrayDescriptor<T> end)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	assert(start.getRank() == 1 && end.getRank() == 1);
-	assert(start.getDimensionSize(0) == end.getDimensionSize(0));
-	assert(start.getNumElements() == end.getNumElements());
-
+	// Increase the number of vector equation, add an other item to the equation
+	// dimensions and variable accesses vectors.
 	data->vectorEquationsNumber++;
+	data->variableAccesses.push_back({});
 	data->equationDimensions.push_back({});
-	for (size_t i = 0; i < start.getNumElements(); i++)
-		data->equationDimensions.back().push_back({ start[i], end[i] });
+
+	// Add the start and end dimensions of the current equation.
+	size_t size = dimension.getDimensionSize(1);
+	for (size_t i = 0; i < size; i++)
+		data->equationDimensions.back().push_back({ dimension[i], dimension[i + size] });
 }
 
-RUNTIME_FUNC_DEF(addEqDimension, void, PTR(void), ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(addEqDimension, void, PTR(void), ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(addEquation, void, PTR(void), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(addEquation, void, PTR(void), ARRAY(int64_t))
 
 /**
  * Add the function pointer that computes the index-th residual function to the
- * user data.
+ * IDA user data.
  */
 template<typename T>
 inline void addResidual(void* userData, T residualFunction)
@@ -786,28 +763,27 @@ RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
  * variable and off is the access offset.
  */
 template<typename T>
-inline int64_t addVarAccess(
+inline void addVarAccess(
 		void* userData,
-		T var,
-		UnsizedArrayDescriptor<T> off,
-		UnsizedArrayDescriptor<T> ind)
+		T variableIndex,
+		UnsizedArrayDescriptor<T> access)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	assert(var >= 0);
-	assert(off.getRank() == 1 && ind.getRank() == 1);
-	assert(off.getDimensionSize(0) == ind.getDimensionSize(0));
-	assert(off.getNumElements() == ind.getNumElements());
+	assert(variableIndex >= 0);
+	assert((size_t) variableIndex < data->vectorVariablesNumber);
+	assert(access.getRank() == 2);
+	assert(access.getDimensionSize(0) == 2);
 
-	data->variableAccesses.push_back({ var, {} });
-	for (size_t i = 0; i < off.getNumElements(); i++)
-		data->variableAccesses.back().second.push_back({ off[i], ind[i] });
+	data->variableAccesses.back().push_back({ variableIndex, {} });
 
-	return data->variableAccesses.size() - 1;
+	size_t size = access.getDimensionSize(1);
+	for (size_t i = 0; i < size; i++)
+		data->variableAccesses.back().back().second.push_back({ access[i], access[i + size] });
 }
 
-RUNTIME_FUNC_DEF(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
 
 //===----------------------------------------------------------------------===//
 // Getters
@@ -846,27 +822,13 @@ static void printIncidenceMatrix(void* userData)
 	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
-		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
-
-		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
-			indexes[i] = data->equationDimensions[eq][i].first;
-
 		// For every scalar equation in the vector equation
-		do
+		for (auto& row : data->columnIndexes[eq])
 		{
 			llvm::errs() << "│";
 
-			// Compute the column indexes that may be non-zeros.
-			std::set<sunindextype> columnIndexesSet;
-			for (size_t accessIndex : data->accessIndexes[eq])
-			{
-				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-				VarDimension dimensions = data->variableDimensions[varIndex];
-				Access access = data->variableAccesses[accessIndex].second;
-				sunindextype varOffset = computeOffset(indexes, dimensions, access);
-				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
-			}
+			// Get the column indexes that may be non-zeros.
+			std::set<sunindextype> columnIndexesSet(row.begin(), row.end());
 
 			for (sunindextype i = 0; i < data->scalarEquationsNumber; i++)
 			{
@@ -880,9 +842,7 @@ static void printIncidenceMatrix(void* userData)
 			}
 
 			llvm::errs() << "│\n";
-		} while (updateIndexes(indexes, data->equationDimensions[eq]));
-
-		delete[] indexes;
+		}
 	}
 }
 

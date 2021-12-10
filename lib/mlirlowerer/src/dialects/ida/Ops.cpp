@@ -692,135 +692,61 @@ mlir::Value AddToleranceOp::absTol()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::AddColumnIndexOp
+// Ida::AddEquationOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> AddColumnIndexOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> AddEquationOp::getAttributeNames()
 {
 	return {};
 }
 
-void AddColumnIndexOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowIndex, mlir::Value accessIndex)
+void AddEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension)
 {
 	state.addOperands(userData);
-	state.addOperands(rowIndex);
-	state.addOperands(accessIndex);
+	state.addOperands(dimension);
 }
 
-mlir::ParseResult AddColumnIndexOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult AddEquationOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 3);
+	return ida::parse(parser, result, 2);
 }
 
-void AddColumnIndexOp::print(mlir::OpAsmPrinter& printer)
+void AddEquationOp::print(mlir::OpAsmPrinter& printer)
 {
 	ida::print(printer, getOperationName(), args());
 }
 
-mlir::LogicalResult AddColumnIndexOp::verify()
+mlir::LogicalResult AddEquationOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!rowIndex().getType().isa<IntegerType>())
-		return emitOpError("Requires BLT row pointer to be an integer");
-
-	if (!accessIndex().getType().isa<IntegerType>())
-		return emitOpError("Requires BLT column index to be an integer");
+	if (!dimension().getType().isa<ArrayType>() ||
+			!dimension().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
+		return emitOpError("Requires dimension to be an array of integers");
 
 	return mlir::success();
 }
 
-void AddColumnIndexOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void AddEquationOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), dimension(), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::ValueRange AddColumnIndexOp::args()
+mlir::ValueRange AddEquationOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value AddColumnIndexOp::userData()
+mlir::Value AddEquationOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value AddColumnIndexOp::rowIndex()
+mlir::Value AddEquationOp::dimension()
 {
 	return getOperation()->getOperand(1);
-}
-
-mlir::Value AddColumnIndexOp::accessIndex()
-{
-	return getOperation()->getOperand(2);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::AddEqDimensionOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> AddEqDimensionOp::getAttributeNames()
-{
-	return {};
-}
-
-void AddEqDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value end)
-{
-	state.addOperands(userData);
-	state.addOperands(start);
-	state.addOperands(end);
-}
-
-mlir::ParseResult AddEqDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 3);
-}
-
-void AddEqDimensionOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult AddEqDimensionOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!start().getType().isa<ArrayType>() ||
-			!start().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
-		return emitOpError("Requires start iteration indexes to be arrays of integers");
-
-	if (!end().getType().isa<ArrayType>() ||
-			!end().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
-		return emitOpError("Requires end iteration indexes to be arrays of integers");
-
-	return mlir::success();
-}
-
-void AddEqDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange AddEqDimensionOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddEqDimensionOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddEqDimensionOp::start()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value AddEqDimensionOp::end()
-{
-	return getOperation()->getOperand(2);
 }
 
 //===----------------------------------------------------------------------===//
@@ -983,6 +909,7 @@ void AddVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIn
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), array(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddVariableOp::args()
@@ -1093,23 +1020,21 @@ llvm::ArrayRef<llvm::StringRef> AddVarAccessOp::getAttributeNames()
 	return {};
 }
 
-void AddVarAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value offsets, mlir::Value inductions)
+void AddVarAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value access)
 {
-	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(variable);
-	state.addOperands(offsets);
-	state.addOperands(inductions);
+	state.addOperands(access);
 }
 
 mlir::ParseResult AddVarAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 4);
+	return ida::parse(parser, result, 3);
 }
 
 void AddVarAccessOp::print(mlir::OpAsmPrinter& printer)
 {
-	ida::print(printer, getOperationName(), args(), resultType());
+	ida::print(printer, getOperationName(), args());
 }
 
 mlir::LogicalResult AddVarAccessOp::verify()
@@ -1120,13 +1045,9 @@ mlir::LogicalResult AddVarAccessOp::verify()
 	if (!variable().getType().isa<IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
-	if (!offsets().getType().isa<ArrayType>() ||
-			!offsets().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
-		return emitOpError("Requires variable offsets to be arrays of integers");
-
-	if (!inductions().getType().isa<ArrayType>() ||
-			!inductions().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
-		return emitOpError("Requires variable inductions to be arrays of integers");
+	if (!access().getType().isa<ArrayType>() ||
+			!access().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
+		return emitOpError("Requires variable access to be an array of integers");
 
 	return mlir::success();
 }
@@ -1134,11 +1055,7 @@ mlir::LogicalResult AddVarAccessOp::verify()
 void AddVarAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType AddVarAccessOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), access(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddVarAccessOp::args()
@@ -1156,14 +1073,9 @@ mlir::Value AddVarAccessOp::variable()
 	return getOperation()->getOperand(1);
 }
 
-mlir::Value AddVarAccessOp::offsets()
+mlir::Value AddVarAccessOp::access()
 {
 	return getOperation()->getOperand(2);
-}
-
-mlir::Value AddVarAccessOp::inductions()
-{
-	return getOperation()->getOperand(3);
 }
 
 //===----------------------------------------------------------------------===//
