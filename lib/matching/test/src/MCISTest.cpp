@@ -99,7 +99,7 @@ TEST(Matching, mcisAddRange)
     Range(2, 4)
   });
 
-  mcis.add(additionalRange);
+  mcis += additionalRange;
   EXPECT_TRUE(mcis.contains({ 2, 3 }));
 }
 
@@ -112,20 +112,20 @@ TEST(Matching, mcisAddOverlappingRange)
 
   MCIS mcis(initialRange);
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(1, 9),
     Range(7, 10)
-  }));
+  });
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(7, 9),
     Range(4, 8)
-  }));
+  });
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(2, 8),
     Range(4, 9)
-  }));
+  });
 
   EXPECT_TRUE(mcis.contains(MultidimensionalRange({
     Range(1, 9),
@@ -137,25 +137,25 @@ TEST(Matching, mcisAddMultipleRanges)
 {
   MCIS mcis;
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(3, 5),
     Range(7, 9)
-  }));
+  });
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(3, 5),
     Range(9, 11)
-  }));
+  });
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(5, 8),
     Range(7, 8)
-  }));
+  });
 
-  mcis.add(MultidimensionalRange({
+  mcis += MultidimensionalRange({
     Range(5, 8),
     Range(8, 11)
-  }));
+  });
 
   MultidimensionalRange range({
     Range(3, 8),

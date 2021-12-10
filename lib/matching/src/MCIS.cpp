@@ -1,3 +1,4 @@
+#include <llvm/ADT/SmallVector.h>
 #include <marco/matching/MCIS.h>
 
 using namespace marco::matching;
@@ -30,7 +31,156 @@ const MultidimensionalRange& MCIS::operator[](size_t index) const
   return *(std::next(ranges.begin(), index));
 }
 
-size_t MCIS::size()
+MCIS& MCIS::operator+=(llvm::ArrayRef<Range::data_type> rhs)
+{
+  llvm::SmallVector<Range, 3> elementRanges;
+
+  for (const auto& index : rhs)
+    elementRanges.emplace_back(index, index + 1);
+
+  return this->operator+=(MultidimensionalRange(std::move(elementRanges)));
+}
+
+MCIS& MCIS::operator+=(const MultidimensionalRange& rhs)
+{
+  auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
+      if (ranges.empty())
+        return true;
+
+      return ranges.front().rank() == range.rank();
+  };
+
+  assert(hasCompatibleRank(rhs) && "Incompatible ranges");
+
+  std::vector<MultidimensionalRange> nonOverlappingRanges;
+  nonOverlappingRanges.push_back(std::move(rhs));
+
+  for (const auto& range : ranges)
+  {
+    std::vector<MultidimensionalRange> newCandidates;
+
+    for (const auto& candidate : nonOverlappingRanges)
+      for (const auto& subRange : candidate.subtract(range))
+        newCandidates.push_back(std::move(subRange));
+
+    nonOverlappingRanges = std::move(newCandidates);
+  }
+
+  for (const auto& range : nonOverlappingRanges)
+  {
+    assert(llvm::none_of(ranges, [&](const MultidimensionalRange& r) {
+        return r.overlaps(range);
+    }) && "New range must not overlap the existing ones");
+
+    auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
+        return r > range;
+    });
+
+    ranges.insert(it, std::move(range));
+  }
+
+  // Insertion has already been done in-order, so we can avoid sorting the ranges
+  merge();
+
+  return *this;
+}
+
+MCIS& MCIS::operator+=(const MCIS& rhs)
+{
+  auto hasCompatibleRank = [&](const MCIS& mcis) {
+      if (ranges.empty() || mcis.ranges.empty())
+        return true;
+
+      return ranges.front().rank() == mcis.ranges.front().rank();
+  };
+
+  assert(hasCompatibleRank(rhs) && "Incompatible ranges");
+
+  for (const auto& range : rhs.ranges)
+    this->operator+=(range);
+
+  return *this;
+}
+
+MCIS MCIS::operator+(llvm::ArrayRef<Range::data_type> rhs) const
+{
+  MCIS result(*this);
+  result += rhs;
+  return result;
+}
+
+MCIS MCIS::operator+(const MultidimensionalRange& rhs) const
+{
+  MCIS result(*this);
+  result += rhs;
+  return result;
+}
+
+MCIS MCIS::operator+(const MCIS& rhs) const
+{
+  MCIS result(*this);
+  result += rhs;
+  return result;
+}
+
+// TODO tests
+MCIS& MCIS::operator-=(const MultidimensionalRange& rhs)
+{
+  if (ranges.empty())
+    return *this;
+
+  auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
+    if (ranges.empty())
+      return true;
+
+    return ranges.front().rank() == range.rank();
+  };
+
+  assert(hasCompatibleRank(rhs) && "Incompatible ranges");
+
+  llvm::SmallVector<MultidimensionalRange, 3> newRanges;
+
+  for (const auto& range : ranges)
+    for (const auto& diff : range.subtract(rhs))
+      newRanges.push_back(std::move(diff));
+
+  ranges.clear();
+  llvm::sort(newRanges);
+  ranges.insert(ranges.begin(), newRanges.begin(), newRanges.end());
+
+  merge();
+  return *this;
+}
+
+// TODO tests
+MCIS& MCIS::operator-=(const MCIS& rhs)
+{
+  for (const auto& range : rhs.ranges)
+    this->operator-=(range);
+
+  return *this;
+}
+
+MCIS MCIS::operator-(const MultidimensionalRange& rhs) const
+{
+  MCIS result(*this);
+  result -= rhs;
+  return result;
+}
+
+MCIS MCIS::operator-(const MCIS& rhs) const
+{
+  MCIS result(*this);
+  result -= rhs;
+  return result;
+}
+
+bool MCIS::empty() const
+{
+  return ranges.empty();
+}
+
+size_t MCIS::size() const
 {
   return ranges.size();
 }
@@ -98,75 +248,41 @@ MCIS MCIS::intersect(const MCIS& other) const
   for (const auto& range1 : ranges)
     for (const auto& range2 : other.ranges)
       if (range1.overlaps(range2))
-        result.add(range1.intersect(range2));
+        result += range1.intersect(range2);
 
   return result;
 }
 
-void MCIS::add(llvm::ArrayRef<Range::data_type> element)
+// TODO tests
+MCIS MCIS::complement(const MultidimensionalRange& other) const
 {
-  llvm::SmallVector<Range, 3> elementRanges;
+  if (ranges.empty())
+    return MCIS(other);
 
-  for (const auto& index : element)
-    elementRanges.emplace_back(index, index + 1);
+  llvm::SmallVector<MultidimensionalRange, 3> result;
 
-  add(MultidimensionalRange(std::move(elementRanges)));
-}
-
-void MCIS::add(const MultidimensionalRange& newRange)
-{
-  auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
-    if (ranges.empty())
-      return true;
-
-    return ranges.front().rank() == range.rank();
-  };
-
-  assert(hasCompatibleRank(newRange) && "Incompatible ranges");
-
-  std::vector<MultidimensionalRange> nonOverlappingRanges;
-  nonOverlappingRanges.push_back(std::move(newRange));
+  llvm::SmallVector<MultidimensionalRange, 3> current;
+  current.push_back(other);
 
   for (const auto& range : ranges)
   {
-    std::vector<MultidimensionalRange> newCandidates;
+    llvm::SmallVector<MultidimensionalRange, 3> next;
 
-    for (const auto& candidate : nonOverlappingRanges)
-      for (const auto& subRange : candidate.subtract(range))
-        newCandidates.push_back(std::move(subRange));
+    for (const auto& curr : current)
+    {
+      for (const auto& diff : curr.subtract(range))
+      {
+        if (overlaps(diff))
+          next.push_back(std::move(diff));
+        else
+          result.push_back(std::move(diff));
+      }
+    }
 
-    nonOverlappingRanges = std::move(newCandidates);
+    current = next;
   }
 
-  for (const auto& range : nonOverlappingRanges)
-  {
-    assert(llvm::none_of(ranges, [&](const MultidimensionalRange& r) {
-        return r.overlaps(range);
-    }) && "New range must not overlap the existing ones");
-
-    auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
-        return r > range;
-    });
-
-    ranges.insert(it, std::move(range));
-  }
-
-  merge();
-}
-
-void MCIS::add(const MCIS& other)
-{
-  auto hasCompatibleRank = [&](const MCIS& mcis) {
-      if (ranges.empty() || mcis.ranges.empty())
-        return true;
-
-      return ranges.front().rank() == mcis.ranges.front().rank();
-  };
-
-  assert(hasCompatibleRank(other) && "Incompatible ranges");
-
-  for (const auto& range : other.ranges)
-    add(range);
+  return MCIS(result);
 }
 
 void MCIS::sort()
@@ -200,5 +316,43 @@ void MCIS::merge()
     *first = first->merge(*second, dimension);
     ranges.erase(second);
     candidates = findCandidates(ranges.begin(), ranges.end());
+  }
+}
+
+namespace marco::matching::detail
+{
+  std::ostream& operator<<(std::ostream& stream, const MCIS& obj)
+  {
+    stream << "{";
+
+    for (const auto& range : obj.ranges)
+    {
+      bool positionSeparator = false;
+
+      for (auto indexes : range)
+      {
+        if (positionSeparator)
+          stream << ", ";
+
+        positionSeparator = true;
+
+        bool indexSeparator = false;
+        stream << "(";
+
+        for (const auto& index : indexes)
+        {
+          if (indexSeparator)
+            stream << ",";
+
+          indexSeparator = true;
+          stream << index;
+        }
+
+        stream << ")";
+      }
+    }
+
+    stream << "}";
+    return stream;
   }
 }

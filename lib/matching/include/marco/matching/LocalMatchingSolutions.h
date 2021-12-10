@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "AccessFunction.h"
-#include "IncidenceMatrix.h"
+#include "MCIM.h"
 #include "Range.h"
 
 namespace marco::matching::detail
@@ -63,18 +63,18 @@ namespace marco::matching::detail
       size_t index;
     };
 
-    using iterator = Iterator<LocalMatchingSolutions, IncidenceMatrix>;
+    using iterator = Iterator<LocalMatchingSolutions, MCIM>;
 
     LocalMatchingSolutions(
             llvm::ArrayRef<AccessFunction> accessFunctions,
             MultidimensionalRange equationRanges,
             MultidimensionalRange variableRanges);
 
-    explicit LocalMatchingSolutions(const IncidenceMatrix& matrix);
+    explicit LocalMatchingSolutions(const MCIM& mcim);
 
     ~LocalMatchingSolutions();
 
-    IncidenceMatrix& operator[](size_t index);
+    MCIM& operator[](size_t index);
 
     size_t size() const;
 
@@ -90,7 +90,7 @@ namespace marco::matching::detail
           const MultidimensionalRange& variableRanges,
           llvm::ArrayRef<AccessFunction> accessFunctions);
 
-  LocalMatchingSolutions solveLocalMatchingProblem(const IncidenceMatrix& matrix);
+  LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& matrix);
 }
 
 #endif	// MARCO_MATCHING_LOCALMATCHINGSOLUTIONS_H

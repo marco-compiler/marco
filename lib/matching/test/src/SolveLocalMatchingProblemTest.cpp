@@ -49,17 +49,17 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_firstInduct
 
 	AccessFunction access(DimensionAccess::relative(0, 0));
 
-	IncidenceMatrix m0(eq, var);
+	MCIM m0(eq, var);
 	m0.set({0, 1, 0});
 	m0.set({1, 1, 1});
 	m0.set({2, 1, 2});
 
-	IncidenceMatrix m1(eq, var);
+	MCIM m1(eq, var);
 	m1.set({0, 2, 0});
 	m1.set({1, 2, 1});
 	m1.set({2, 2, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -119,19 +119,19 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_secondInduc
 
 	AccessFunction access(DimensionAccess::relative(1, 0));
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 1});
 	m0.set({0, 2, 2});
 
-	IncidenceMatrix m1(eq, var);
+  MCIM m1(eq, var);
 	m1.set({1, 1, 1});
 	m1.set({1, 2, 2});
 
-	IncidenceMatrix m2(eq, var);
+  MCIM m2(eq, var);
 	m2.set({2, 1, 1});
 	m2.set({2, 2, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -181,7 +181,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
 			DimensionAccess::relative(1, 0),
 	});
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 0, 1});
 	m0.set({0, 2, 0, 2});
 	m0.set({1, 1, 1, 1});
@@ -189,7 +189,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
 	m0.set({2, 1, 2, 1});
 	m0.set({2, 2, 2, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -239,7 +239,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
 			DimensionAccess::relative(0, 0),
 	});
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 1, 0});
 	m0.set({0, 2, 2, 0});
 	m0.set({1, 1, 1, 1});
@@ -247,7 +247,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
 	m0.set({2, 1, 1, 2});
 	m0.set({2, 2, 2, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -305,17 +305,17 @@ TEST(Matching, solveLocalMatchingProblem_2D_oneConstantIndex)
 			DimensionAccess::relative(0, 0),
 	});
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 1, 0});
 	m0.set({1, 1, 1, 1});
 	m0.set({2, 1, 1, 2});
 
-	IncidenceMatrix m1(eq, var);
+  MCIM m1(eq, var);
 	m1.set({0, 2, 1, 0});
 	m1.set({1, 2, 1, 1});
 	m1.set({2, 2, 1, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -405,25 +405,25 @@ TEST(Matching, solveLocalMatchingProblem_2D_allConstantIndexes)
 			DimensionAccess::constant(2),
 	});
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 1, 2});
 
-	IncidenceMatrix m1(eq, var);
+  MCIM m1(eq, var);
 	m1.set({0, 2, 1, 2});
 
-	IncidenceMatrix m2(eq, var);
+  MCIM m2(eq, var);
 	m2.set({1, 1, 1, 2});
 
-	IncidenceMatrix m3(eq, var);
+  MCIM m3(eq, var);
 	m3.set({1, 2, 1, 2});
 
-	IncidenceMatrix m4(eq, var);
+  MCIM m4(eq, var);
 	m4.set({2, 1, 1, 2});
 
-	IncidenceMatrix m5(eq, var);
+  MCIM m5(eq, var);
 	m5.set({2, 2, 1, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -489,19 +489,19 @@ TEST(Matching, solveLocalMatchingProblem_2D_repeatedInductionVariable)
 			DimensionAccess::relative(1, 0),
 	});
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 1, 1});
 	m0.set({0, 2, 2, 2});
 
-	IncidenceMatrix m1(eq, var);
+  MCIM m1(eq, var);
 	m1.set({1, 1, 1, 1});
 	m1.set({1, 2, 2, 2});
 
-	IncidenceMatrix m2(eq, var);
+  MCIM m2(eq, var);
 	m2.set({2, 1, 1, 1});
 	m2.set({2, 2, 2, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);
@@ -538,7 +538,7 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 			DimensionAccess::relative(0, 0),
 	});
 
-	IncidenceMatrix m0(eq, var);
+  MCIM m0(eq, var);
 	m0.set({0, 1, 1, 1, 1, 0});
 	m0.set({0, 2, 1, 2, 2, 0});
 	m0.set({1, 1, 1, 1, 1, 1});
@@ -546,7 +546,7 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 	m0.set({2, 1, 1, 1, 1, 2});
 	m0.set({2, 2, 1, 2, 2, 2});
 
-	IncidenceMatrix m1(eq, var);
+  MCIM m1(eq, var);
 	m1.set({0, 1, 2, 1, 1, 0});
 	m1.set({0, 2, 2, 2, 2, 0});
 	m1.set({1, 1, 2, 1, 1, 1});
@@ -554,7 +554,7 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 	m1.set({2, 1, 2, 1, 1, 2});
 	m1.set({2, 2, 2, 2, 2, 2});
 
-	IncidenceMatrix m2(eq, var);
+  MCIM m2(eq, var);
 	m2.set({0, 1, 3, 1, 1, 0});
 	m2.set({0, 2, 3, 2, 2, 0});
 	m2.set({1, 1, 3, 1, 1, 1});
@@ -562,7 +562,7 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 	m2.set({2, 1, 3, 1, 1, 2});
 	m2.set({2, 2, 3, 2, 2, 2});
 
-  std::vector<IncidenceMatrix> solutions;
+  std::vector<MCIM> solutions;
 
   for (auto solution : solveLocalMatchingProblem(eq, var, access))
     solutions.push_back(solution);

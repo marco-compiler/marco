@@ -57,17 +57,31 @@ namespace marco::matching::detail
 		MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
     MCIM(const MCIM& other);
+    MCIM(MCIM&& other);
 
     ~MCIM();
+
+    MCIM& operator=(const MCIM& other);
+
+    friend void swap(MCIM& first, MCIM& second);
+
+    bool operator==(const MCIM& other) const;
 
     const MultidimensionalRange& getEquationRanges() const;
     const MultidimensionalRange& getVariableRanges() const;
 
     llvm::iterator_range<IndexesIterator> getIndexes() const;
 
+    MCIM& operator+=(const MCIM& rhs);
+    MCIM operator+(const MCIM& rhs) const;
+
+    MCIM& operator-=(const MCIM& rhs);
+    MCIM operator-(const MCIM& rhs) const;
+
     void apply(const AccessFunction& access);
     bool get(llvm::ArrayRef<long> indexes) const;
     void set(llvm::ArrayRef<long> indexes);
+    void unset(llvm::ArrayRef<long> indexes);
 
     bool empty() const;
     void clear();

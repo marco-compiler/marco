@@ -23,9 +23,26 @@ namespace marco::matching::detail
 
 		MCIS(llvm::ArrayRef<MultidimensionalRange> ranges = llvm::None);
 
+    friend std::ostream& operator<<(std::ostream& stream, const MCIS& obj);
+
 		const MultidimensionalRange& operator[](size_t index) const;
 
-    size_t size();
+    MCIS& operator+=(llvm::ArrayRef<Range::data_type> rhs);
+    MCIS& operator+=(const MultidimensionalRange& rhs);
+    MCIS& operator+=(const MCIS& rhs);
+
+    MCIS operator+(llvm::ArrayRef<Range::data_type> rhs) const;
+    MCIS operator+(const MultidimensionalRange& rhs) const;
+    MCIS operator+(const MCIS& rhs) const;
+
+    MCIS& operator-=(const MultidimensionalRange& rhs);
+    MCIS& operator-=(const MCIS& rhs);
+
+    MCIS operator-(const MultidimensionalRange& rhs) const;
+    MCIS operator-(const MCIS& rhs) const;
+
+    bool empty() const;
+    size_t size() const;
 
     const_iterator begin() const;
     const_iterator end() const;
@@ -38,9 +55,7 @@ namespace marco::matching::detail
 
     MCIS intersect(const MCIS& other) const;
 
-    void add(llvm::ArrayRef<Range::data_type> element);
-    void add(const MultidimensionalRange& range);
-    void add(const MCIS& other);
+    MCIS complement(const MultidimensionalRange& other) const;
 
 		private:
     void sort();

@@ -407,8 +407,8 @@ TEST(Matching, regularMCIMEquationFilter)
   });
 
   MCIS filter;
-  filter.add({ 4, 2 });
-  filter.add({ 5, 3 });
+  filter += { 4, 2 };
+  filter += { 5, 3 };
 
   MCIM result = mcim.filterEquations(filter);
 
@@ -471,8 +471,8 @@ TEST(Matching, flatMCIMEquationFilter)
   });
 
   MCIS filter;
-  filter.add({ 4, 2 });
-  filter.add({ 5, 3 });
+  filter += { 4, 2 };
+  filter += { 5, 3 };
 
   MCIM result = mcim.filterEquations(filter);
 
@@ -538,8 +538,8 @@ TEST(Matching, regularMCIMVariableFilter)
   });
 
   MCIS filter;
-  filter.add({ 0, 0 });
-  filter.add({ 1, 1 });
+  filter += { 0, 0 };
+  filter += { 1, 1 };
 
   MCIM result = mcim.filterVariables(filter);
 
@@ -597,8 +597,8 @@ TEST(Matching, flatMCIMVariableFilter)
   mcim.set({ 5, 3, 2 });
 
   MCIS filter;
-  filter.add(0);
-  filter.add(3);
+  filter += 0;
+  filter += 3;
 
   MCIM result = mcim.filterVariables(filter);
 

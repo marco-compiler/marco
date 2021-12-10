@@ -15,8 +15,8 @@
 #include "AccessFunction.h"
 #include "Dumpable.h"
 #include "Graph.h"
-#include "IncidenceMatrix.h"
 #include "LocalMatchingSolutions.h"
+#include "MCIM.h"
 #include "Range.h"
 
 namespace marco::matching
@@ -31,10 +31,10 @@ namespace marco::matching
     class Matchable
     {
       public:
-      Matchable(IncidenceMatrix initialMatch);
+      Matchable(MultidimensionalRange dimensions);
 
-      const IncidenceMatrix& getMatched() const;
-      IncidenceMatrix getUnmatched() const;
+      const MCIS& getMatched() const;
+      MCIS getUnmatched() const;
 
       /**
        * Check whether all the scalar elements of this array have
@@ -44,11 +44,12 @@ namespace marco::matching
        */
       bool allComponentsMatched() const;
 
-      void addMatch(const IncidenceMatrix& newMatch);
-      void removeMatch(const IncidenceMatrix& removedMatch);
+      void addMatch(const MCIS& newMatch);
+      void removeMatch(const MCIS& removedMatch);
 
       private:
-      IncidenceMatrix match;
+      MultidimensionalRange dimensions;
+      MCIS match;
     };
 
     /**
@@ -67,7 +68,7 @@ namespace marco::matching
       using Id = typename VariableProperty::Id;
 
       VariableVertex(VariableProperty property)
-              : Matchable(IncidenceMatrix::row(getRanges(property))),
+              : Matchable(getRanges(property)),
                 property(property),
                 visible(true)
       {
@@ -90,7 +91,7 @@ namespace marco::matching
           os << "[" << getDimensionSize(i) << "]";
 
         os << "\n";
-        os << tree_property << "Match matrix:\n" << getMatched();
+        os << tree_property << "Matched: " << getMatched() << "\n";
 
         stream << std::endl;
       }
@@ -219,10 +220,10 @@ namespace marco::matching
   namespace detail
   {
     template<typename T>
-    void insertOrAdd(std::map<T, IncidenceMatrix>& map, T key, IncidenceMatrix value)
+    void insertOrAdd(std::map<T, MCIS>& map, T key, MCIS value)
     {
       if (auto it = map.find(key); it != map.end())
-        it->second += value;
+        it->second += std::move(value);
       else
         map.emplace(key, std::move(value));
     }
@@ -248,7 +249,7 @@ namespace marco::matching
       using Id = typename EquationProperty::Id;
 
       EquationVertex(EquationProperty property)
-              : Matchable(IncidenceMatrix::column(getIterationRanges(property))),
+              : Matchable(getIterationRanges(property)),
                 property(property),
                 visible(true)
       {
@@ -269,7 +270,7 @@ namespace marco::matching
           os << getIterationRange(i);
 
         os << "\n";
-        os << tree_property << "Match matrix:\n" << getMatched();
+        os << tree_property << "Matched: " << getMatched() << "\n";
 
         stream << std::endl;
       }
@@ -404,27 +405,27 @@ namespace marco::matching
         incidenceMatrix.apply(accessFunction);
       }
 
-      const IncidenceMatrix& getIncidenceMatrix() const
+      const MCIM& getIncidenceMatrix() const
       {
         return incidenceMatrix;
       }
 
-      void addMatch(IncidenceMatrix match)
+      void addMatch(const MCIM& match)
       {
         matchMatrix += match;
       }
 
-      void removeMatch(IncidenceMatrix match)
+      void removeMatch(const MCIM& match)
       {
         matchMatrix -= match;
       }
 
-      const IncidenceMatrix& getMatched() const
+      const MCIM& getMatched() const
       {
         return matchMatrix;
       }
 
-      IncidenceMatrix getUnmatched() const
+      MCIM getUnmatched() const
       {
         return incidenceMatrix - matchMatrix;
       }
@@ -447,8 +448,8 @@ namespace marco::matching
       typename Variable::Id variable;
 
       llvm::SmallVector<AccessFunction, 3> accessFunctions;
-      IncidenceMatrix incidenceMatrix;
-      IncidenceMatrix matchMatrix;
+      MCIM incidenceMatrix;
+      MCIM matchMatrix;
 
       // TODO: move to graph
       bool visible;
@@ -463,7 +464,7 @@ namespace marco::matching
 
       BFSStep(const Graph& graph,
               VertexDescriptor node,
-              IncidenceMatrix candidates)
+              MCIS candidates)
               : graph(&graph),
                 previous(nullptr),
                 node(std::move(node)),
@@ -477,8 +478,8 @@ namespace marco::matching
               BFSStep previous,
               EdgeDescriptor edge,
               VertexDescriptor node,
-              IncidenceMatrix candidates,
-              IncidenceMatrix mappedFlow)
+              MCIS candidates,
+              MCIM mappedFlow)
               : graph(&graph),
                 previous(std::make_unique<BFSStep>(std::move(previous))),
                 node(std::move(node)),
@@ -550,7 +551,7 @@ namespace marco::matching
         return node;
       }
 
-      const IncidenceMatrix& getCandidates() const
+      const MCIS& getCandidates() const
       {
         return candidates;
       }
@@ -561,7 +562,7 @@ namespace marco::matching
         return *edge;
       }
 
-      const IncidenceMatrix& getMappedFlow() const
+      const MCIM& getMappedFlow() const
       {
         assert(mappedFlow.hasValue());
         return *mappedFlow;
@@ -573,9 +574,9 @@ namespace marco::matching
 
       std::unique_ptr<BFSStep> previous;
       VertexDescriptor node;
-      IncidenceMatrix candidates;
+      MCIS candidates;
       llvm::Optional<EdgeDescriptor> edge;
-      llvm::Optional<IncidenceMatrix> mappedFlow;
+      llvm::Optional<MCIM> mappedFlow;
     };
 
     template<typename Graph>
@@ -697,7 +698,7 @@ namespace marco::matching
       using EdgeDescriptor = typename Graph::EdgeDescriptor;
 
       public:
-      Flow(const Graph& graph, VertexDescriptor source, EdgeDescriptor edge, const IncidenceMatrix& delta)
+      Flow(const Graph& graph, VertexDescriptor source, EdgeDescriptor edge, const MCIM& delta)
               : graph(&graph),
                 source(std::move(source)),
                 edge(std::move(edge)),
@@ -730,7 +731,7 @@ namespace marco::matching
       public:
       const VertexDescriptor source;
       const EdgeDescriptor edge;
-      const IncidenceMatrix delta;
+      const MCIM delta;
     };
 
     template<typename Flow>
@@ -840,7 +841,8 @@ namespace marco::matching
     using EdgeIterator = typename Graph::EdgeIterator;
     using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
-    using IncidenceMatrix = detail::IncidenceMatrix;
+    using MCIS = detail::MCIS;
+    using MCIM = detail::MCIM;
     using BFSStep = detail::BFSStep<Graph>;
     using Frontier = detail::Frontier<BFSStep>;
     using Flow = detail::Flow<Graph>;
@@ -1298,16 +1300,23 @@ namespace marco::matching
         return false;
 
       for (auto& path : augmentingPaths)
+      {
+        path.dump(std::cerr);
         applyPath(path);
+        dump(std::cerr);
+      }
 
       return true;
     }
 
     void getAugmentingPaths(llvm::SmallVectorImpl<AugmentingPath>& paths) const
     {
+      /*
+       * TODO
       auto sortHeuristic = [](const BFSStep& first, const BFSStep& second) {
         return first.getCandidates().size() > second.getCandidates().size();
       };
+       */
 
       Frontier frontier;
 
@@ -1318,11 +1327,11 @@ namespace marco::matching
       {
         const Equation& equation = getEquation(equationDescriptor);
 
-        if (auto unmatchedEquations = equation.getUnmatched(); !unmatchedEquations.isEmpty())
+        if (auto unmatchedEquations = equation.getUnmatched(); !unmatchedEquations.empty())
           frontier.emplace(BFSStep(graph, equationDescriptor, std::move(unmatchedEquations)));
       }
 
-      std::sort(frontier.begin(), frontier.end(), sortHeuristic);
+      //std::sort(frontier.begin(), frontier.end(), sortHeuristic);
 
       // Breadth-first search
       Frontier newFrontier;
@@ -1355,7 +1364,7 @@ namespace marco::matching
                 auto unmatchedScalarVariables = var.getUnmatched();
                 auto matched = solution.filterVariables(unmatchedScalarVariables);
 
-                if (!matched.isEmpty())
+                if (!matched.empty())
                   foundPaths.emplace(graph, step, edgeDescriptor, nextNode, matched.flattenEquations(), matched);
                 else
                   newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenEquations(), solution);
@@ -1377,18 +1386,20 @@ namespace marco::matching
         frontier.clear();
         frontier.swap(newFrontier);
 
-        std::sort(frontier.begin(), frontier.end(), sortHeuristic);
+        //std::sort(frontier.begin(), frontier.end(), sortHeuristic);
       }
 
-      std::sort(foundPaths.begin(), foundPaths.end(), sortHeuristic);
+      //std::sort(foundPaths.begin(), foundPaths.end(), sortHeuristic);
 
       // For each traversed node, keep track of the indexes that have already
       // been traversed by some augmenting path. A new candidate path can be
       // accepted only if it does not traverse any of them.
-      std::map<VertexDescriptor, IncidenceMatrix> visited;
+      std::map<VertexDescriptor, MCIS> visited;
 
       for (const BFSStep& pathEnd : foundPaths)
       {
+        pathEnd.dump(std::cerr);
+
         // All the candidate paths consist in at least two nodes by construction
         assert(pathEnd.hasPrevious());
 
@@ -1397,10 +1408,10 @@ namespace marco::matching
         // The path's validity is unknown, so we must avoid polluting the
         // list of visited scalar nodes. If the path will be marked as valid,
         // then the new visits will be merged with the already found ones.
-        std::map<VertexDescriptor, IncidenceMatrix> newVisits;
+        std::map<VertexDescriptor, MCIS> newVisits;
 
         const BFSStep* curStep = &pathEnd;
-        IncidenceMatrix map = curStep->getMappedFlow();
+        MCIM map = curStep->getMappedFlow();
         bool validPath = true;
 
         while (curStep && validPath)
@@ -1427,13 +1438,14 @@ namespace marco::matching
           {
             auto& alreadyTouchedIndices = it->second;
 
-            if (!touchedIndexes.isDisjoint(alreadyTouchedIndices))
+            if (touchedIndexes.overlaps(alreadyTouchedIndices))
             {
               // The current path intersects another one, so we need to discard it
               validPath = false;
             }
             else
             {
+              // THIS DOESN'T WORK
               insertOrAdd(newVisits, curStep->getNode(), alreadyTouchedIndices + touchedIndexes);
             }
           }
@@ -1448,10 +1460,15 @@ namespace marco::matching
 
         if (validPath)
         {
+          std::cerr << "VALID PATH\n";
           paths.emplace_back(std::move(flows));
 
           for (auto& p : newVisits)
             visited.insert_or_assign(p.first, p.second);
+        }
+        else
+        {
+          std::cerr << "INVALID PATH\n";
         }
       }
     }
@@ -1474,8 +1491,8 @@ namespace marco::matching
       // matched by eq1 would result as unmatched. If we instead first
       // apply the removals, the new matches are not wrongly erased anymore.
 
-      std::map<VertexDescriptor, IncidenceMatrix> removedMatches;
-      std::map<VertexDescriptor, IncidenceMatrix> newMatches;
+      std::map<VertexDescriptor, MCIS> removedMatches;
+      std::map<VertexDescriptor, MCIS> newMatches;
 
       // Update the match matrices on the edges and store the information
       // about the vertices to be updated later.

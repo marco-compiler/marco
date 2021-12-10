@@ -8,7 +8,7 @@ namespace marco::matching::detail
   class LocalMatchingSolutions::ImplInterface
   {
     public:
-    virtual IncidenceMatrix& operator[](size_t index) = 0;
+    virtual MCIM& operator[](size_t index) = 0;
     virtual size_t size() const = 0;
   };
 }
@@ -25,7 +25,7 @@ class VAFSolutions : public LocalMatchingSolutions::ImplInterface
           MultidimensionalRange equationRanges,
           MultidimensionalRange variableRanges);
 
-  IncidenceMatrix& operator[](size_t index) override;
+  MCIM& operator[](size_t index) override;
 
   size_t size() const override;
 
@@ -44,7 +44,7 @@ class VAFSolutions : public LocalMatchingSolutions::ImplInterface
   size_t solutionsAmount;
 
   // List of the computed match matrices
-  llvm::SmallVector<IncidenceMatrix, 3> matrices;
+  llvm::SmallVector<MCIM, 3> matrices;
 
   size_t currentAccessFunction = 0;
   size_t groupSize;
@@ -106,7 +106,7 @@ VAFSolutions::VAFSolutions(
   }
 }
 
-IncidenceMatrix& VAFSolutions::operator[](size_t index)
+MCIM& VAFSolutions::operator[](size_t index)
 {
   assert(index < size());
 
@@ -173,7 +173,7 @@ void VAFSolutions::fetchNext()
     rangeEnd = std::make_unique<MultidimensionalRange::iterator>(range->end());
   }
 
-  IncidenceMatrix matrix(equationRanges, variableRanges);
+  MCIM matrix(equationRanges, variableRanges);
   llvm::SmallVector<long, 3> equationIndexes;
   llvm::SmallVector<long, 3> indexes;
   size_t counter = 0;
@@ -213,47 +213,52 @@ void VAFSolutions::getInductionVariablesUsage(
  * Compute the local matching solutions starting from an incidence matrix.
  * Differently from the VAF case, the computation is done in an eager way.
  */
-class MatrixSolutions : public LocalMatchingSolutions::ImplInterface
+class MCIMSolutions : public LocalMatchingSolutions::ImplInterface
 {
   public:
-  MatrixSolutions(const IncidenceMatrix& matrix);
+  MCIMSolutions(const MCIM& obj);
 
-  IncidenceMatrix& operator[](size_t index) override;
+  MCIM& operator[](size_t index) override;
 
   size_t size() const override;
 
   private:
-  void compute(const IncidenceMatrix& matrix);
+  void compute(const MCIM& obj);
 
-  llvm::SmallVector<IncidenceMatrix, 3> solutions;
+  llvm::SmallVector<MCIM, 3> solutions;
 };
 
-MatrixSolutions::MatrixSolutions(const IncidenceMatrix& matrix)
+MCIMSolutions::MCIMSolutions(const MCIM& obj)
 {
-  compute(matrix);
+  compute(obj);
 }
 
-IncidenceMatrix& MatrixSolutions::operator[](size_t index)
+MCIM& MCIMSolutions::operator[](size_t index)
 {
   return solutions[index];
 }
 
-size_t MatrixSolutions::size() const
+size_t MCIMSolutions::size() const
 {
   return solutions.size();
 }
 
-void MatrixSolutions::compute(const IncidenceMatrix& matrix)
+void MCIMSolutions::compute(const MCIM& obj)
 {
-  for (const auto& indexes : matrix.getIndexes())
+  /*
+  for (const auto& indexes : obj.getIndexes())
   {
-    if (matrix.get(indexes))
+    if (obj.get(indexes))
     {
-      IncidenceMatrix solution(matrix.getEquationRanges(), matrix.getVariableRanges());
+      MCIM solution(obj.getEquationRanges(), obj.getVariableRanges());
       solution.set(indexes);
       solutions.push_back(std::move(solution));
     }
   }
+   */
+
+  for (const auto& solution : obj.splitGroups())
+    solutions.push_back(std::move(solution));
 }
 
 LocalMatchingSolutions::LocalMatchingSolutions(
@@ -267,14 +272,14 @@ LocalMatchingSolutions::LocalMatchingSolutions(
 {
 }
 
-LocalMatchingSolutions::LocalMatchingSolutions(const IncidenceMatrix& matrix)
-        : impl(std::make_unique<MatrixSolutions>(matrix))
+LocalMatchingSolutions::LocalMatchingSolutions(const MCIM& obj)
+        : impl(std::make_unique<MCIMSolutions>(obj))
 {
 }
 
 LocalMatchingSolutions::~LocalMatchingSolutions() = default;
 
-IncidenceMatrix& LocalMatchingSolutions::operator[](size_t index)
+MCIM& LocalMatchingSolutions::operator[](size_t index)
 {
   return (*impl)[index];
 }
@@ -307,8 +312,8 @@ namespace marco::matching::detail
             variableRanges);
   }
 
-  LocalMatchingSolutions solveLocalMatchingProblem(const IncidenceMatrix& matrix)
+  LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& obj)
   {
-    return LocalMatchingSolutions(matrix);
+    return LocalMatchingSolutions(obj);
   }
 }

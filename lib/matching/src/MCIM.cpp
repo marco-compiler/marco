@@ -95,6 +95,7 @@ namespace marco::matching::detail
     virtual void apply(const AccessFunction& access) = 0;
     virtual bool get(llvm::ArrayRef<long> indexes) const = 0;
     virtual void set(llvm::ArrayRef<long> indexes) = 0;
+    virtual void unset(llvm::ArrayRef<long> indexes) = 0;
 
     virtual bool empty() const = 0;
     virtual void clear() = 0;
@@ -171,6 +172,7 @@ class RegularMCIM : public MCIM::Impl
   void apply(const AccessFunction& access) override;
   bool get(llvm::ArrayRef<long> indexes) const override;
   void set(llvm::ArrayRef<long> indexes) override;
+  void unset(llvm::ArrayRef<long> indexes) override;
 
   bool empty() const override;
   void clear() override;
@@ -238,7 +240,7 @@ const MCIS& RegularMCIM::MCIMElement::getKeys() const
 
 void RegularMCIM::MCIMElement::addKeys(MCIS newKeys)
 {
-  keys.add(std::move(newKeys));
+  keys += std::move(newKeys);
 }
 
 const RegularMCIM::Delta& RegularMCIM::MCIMElement::getDelta() const
@@ -259,7 +261,7 @@ MCIS RegularMCIM::MCIMElement::getValues() const
       for (size_t i = 0, e = keyRange.rank(); i < e; ++i)
         valueRanges.emplace_back(keyRange[i].getBegin() + delta[i], keyRange[i].getEnd() + delta[i]);
 
-      result.add(MultidimensionalRange(valueRanges));
+      result += MultidimensionalRange(valueRanges);
     }
   }
 
@@ -289,7 +291,7 @@ void RegularMCIM::apply(const AccessFunction& access)
     assert(access.size() == getVariableRanges().rank());
 
     llvm::SmallVector<long, 3> variableIndexes;
-    access.map(variableIndexes, variableIndexes);
+    access.map(variableIndexes, equationIndexes);
     set(equationIndexes, variableIndexes);
   }
 }
@@ -322,6 +324,30 @@ void RegularMCIM::set(llvm::ArrayRef<long> indexes)
   set(equationIndexes, variableIndexes);
 }
 
+void RegularMCIM::unset(llvm::ArrayRef<long> indexes)
+{
+  size_t equationRank = getEquationRanges().rank();
+  size_t variableRank = getVariableRanges().rank();
+  assert(indexes.size() == equationRank + variableRank);
+
+  llvm::SmallVector<Range, 3> ranges;
+
+  for (size_t i = 0; i < equationRank; ++i)
+    ranges.emplace_back(indexes[i], indexes[i] + 1);
+
+  llvm::SmallVector<MCIMElement, 3> newGroups;
+
+  for (const auto& group : groups)
+  {
+    MCIS diff = group.getKeys() - MultidimensionalRange(std::move(ranges));
+
+    if (!diff.empty())
+      newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+  }
+
+  groups = std::move(newGroups);
+}
+
 bool RegularMCIM::empty() const
 {
   return groups.empty();
@@ -337,7 +363,7 @@ MCIS RegularMCIM::flattenEquations() const
   MCIS result;
 
   for (const auto& group : groups)
-    result.add(group.getValues());
+    result += group.getValues();
 
   return result;
 }
@@ -347,7 +373,7 @@ MCIS RegularMCIM::flattenVariables() const
   MCIS result;
 
   for (const auto& group : groups)
-    result.add(group.getKeys());
+    result += group.getKeys();
 
   return result;
 }
@@ -462,6 +488,7 @@ class FlatMCIM : public MCIM::Impl
   void apply(const AccessFunction& access) override;
   bool get(llvm::ArrayRef<long> indexes) const override;
   void set(llvm::ArrayRef<long> indexes) override;
+  void unset(llvm::ArrayRef<long> indexes) override;
 
   bool empty() const override;
   void clear() override;
@@ -605,7 +632,7 @@ static MCIS flattenMCIS(const MCIS& value, const MultidimensionalRange& range, l
     size_t firstItemFlattened = flattenIndexes(firstItemRescaled, dimensions);
     size_t lastItemFlattened = flattenIndexes(lastItemRescaled, dimensions);
 
-    result.add(MultidimensionalRange(Range(firstItemFlattened, lastItemFlattened + 1)));
+    result += MultidimensionalRange(Range(firstItemFlattened, lastItemFlattened + 1));
   }
 
   return result;
@@ -636,7 +663,7 @@ static MCIS unflattenMCIS(const MCIS& value, const MultidimensionalRange& range,
       for (const auto& index : indexes)
         ranges.emplace_back(index, index + 1);
 
-      result.add(MultidimensionalRange(std::move(ranges)));
+      result += MultidimensionalRange(std::move(ranges));
     }
   }
 
@@ -676,7 +703,7 @@ const MCIS& FlatMCIM::MCIMElement::getKeys() const
 
 void FlatMCIM::MCIMElement::addKeys(MCIS newKeys)
 {
-  keys.add(std::move(newKeys));
+  keys += std::move(newKeys);
 }
 
 const FlatMCIM::Delta& FlatMCIM::MCIMElement::getDelta() const
@@ -697,7 +724,7 @@ MCIS FlatMCIM::MCIMElement::getValues() const
       for (size_t i = 0, e = keyRange.rank(); i < e; ++i)
         valueRanges.emplace_back(keyRange[i].getBegin() + delta.getValue(), keyRange[i].getEnd() + delta.getValue());
 
-      result.add(MultidimensionalRange(valueRanges));
+      result += MultidimensionalRange(valueRanges);
     }
   }
 
@@ -733,7 +760,7 @@ void FlatMCIM::apply(const AccessFunction& access)
     assert(access.size() == getVariableRanges().rank());
 
     llvm::SmallVector<long, 3> variableIndexes;
-    access.map(variableIndexes, variableIndexes);
+    access.map(variableIndexes, equationIndexes);
 
     set(getFlatEquationIndex(equationIndexes), getFlatVariableIndex(variableIndexes));
   }
@@ -758,6 +785,28 @@ void FlatMCIM::set(llvm::ArrayRef<long> indexes)
   set(flatIndexes.first, flatIndexes.second);
 }
 
+void FlatMCIM::unset(llvm::ArrayRef<long> indexes)
+{
+  size_t equationRank = getEquationRanges().rank();
+  size_t variableRank = getVariableRanges().rank();
+  assert(indexes.size() == equationRank + variableRank);
+
+  llvm::SmallVector<long, 3> equationIndexes(indexes.begin(), indexes.begin() + equationRank);
+  auto flatEquationIndex = getFlatEquationIndex(equationIndexes);
+
+  llvm::SmallVector<MCIMElement, 3> newGroups;
+
+  for (const auto& group : groups)
+  {
+    MCIS diff = group.getKeys() - MultidimensionalRange(Range(flatEquationIndex, flatEquationIndex + 1));
+
+    if (!diff.empty())
+      newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+  }
+
+  groups = std::move(newGroups);
+}
+
 bool FlatMCIM::empty() const
 {
   return groups.empty();
@@ -773,7 +822,7 @@ MCIS FlatMCIM::flattenEquations() const
   MCIS result;
 
   for (const auto& group : groups)
-    result.add(group.getValues());
+    result += group.getValues();
 
   return unflattenMCIS(result, getVariableRanges(), variableDimensions);
 }
@@ -783,7 +832,7 @@ MCIS FlatMCIM::flattenVariables() const
   MCIS result;
 
   for (const auto& group : groups)
-    result.add(group.getKeys());
+    result += group.getKeys();
 
   return unflattenMCIS(result, getEquationRanges(), equationDimensions);
 }
@@ -898,7 +947,34 @@ MCIM::MCIM(const MCIM& other) : impl(other.impl->clone())
 {
 }
 
+MCIM::MCIM(MCIM&& other) = default;
+
 MCIM::~MCIM() = default;
+
+MCIM& MCIM::operator=(const MCIM& other)
+{
+  MCIM result(other);
+  swap(*this, result);
+  return *this;
+}
+
+namespace marco::matching::detail
+{
+  void swap(MCIM& first, MCIM& second)
+  {
+    using std::swap;
+    swap(first.impl, second.impl);
+  }
+}
+
+bool MCIM::operator==(const MCIM& other) const
+{
+  for (auto indexes : getIndexes())
+    if (get(indexes) != other.get(indexes))
+      return false;
+
+  return true;
+}
 
 const MultidimensionalRange& MCIM::getEquationRanges() const
 {
@@ -923,6 +999,46 @@ llvm::iterator_range<MCIM::IndexesIterator> MCIM::getIndexes() const
   return llvm::iterator_range<MCIM::IndexesIterator>(begin, end);
 }
 
+MCIM& MCIM::operator+=(const MCIM& rhs)
+{
+  assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
+  assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
+
+  for (const auto& indexes : getIndexes())
+    if (rhs.get(indexes))
+      set(indexes);
+
+  return *this;
+}
+
+MCIM MCIM::operator+(const MCIM& rhs) const
+{
+  MCIM result = *this;
+  result += rhs;
+  return result;
+}
+
+MCIM& MCIM::operator-=(const MCIM& rhs)
+{
+  assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
+  assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
+
+  for (const auto& indexes : getIndexes())
+  {
+    if (get(indexes) && rhs.get(indexes))
+      unset(indexes);
+  }
+
+  return *this;
+}
+
+MCIM MCIM::operator-(const MCIM& rhs) const
+{
+  MCIM result = *this;
+  result -= rhs;
+  return result;
+}
+
 void MCIM::apply(const AccessFunction& access)
 {
   impl->apply(access);
@@ -936,6 +1052,11 @@ bool MCIM::get(llvm::ArrayRef<long> indexes) const
 void MCIM::set(llvm::ArrayRef<long> indexes)
 {
   impl->set(std::move(indexes));
+}
+
+void MCIM::unset(llvm::ArrayRef<long> indexes)
+{
+  impl->unset(std::move(indexes));
 }
 
 bool MCIM::empty() const

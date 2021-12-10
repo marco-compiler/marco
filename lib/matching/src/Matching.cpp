@@ -1,35 +1,33 @@
 #include <marco/matching/Matching.h>
 
+using namespace marco::matching;
 using namespace marco::matching::detail;
 
-Matchable::Matchable(IncidenceMatrix initialMatch) : match(std::move(initialMatch))
+Matchable::Matchable(MultidimensionalRange dimensions) : dimensions(std::move(dimensions))
 {
-  assert(initialMatch.getEquationRanges().flatSize() == 1 || initialMatch.getVariableRanges().flatSize() == 1);
 }
 
-const IncidenceMatrix& Matchable::getMatched() const
+const MCIS& Matchable::getMatched() const
 {
   return match;
 }
 
-IncidenceMatrix Matchable::getUnmatched() const
+MCIS Matchable::getUnmatched() const
 {
-  return !match;
+  return match.complement(dimensions);
 }
 
 bool Matchable::allComponentsMatched() const
 {
-  return llvm::all_of(match.getIndexes(), [&](const auto& indexes) {
-      return match.get(indexes);
-  });
+  return match.contains(dimensions);
 }
 
-void Matchable::addMatch(const IncidenceMatrix& newMatch)
+void Matchable::addMatch(const MCIS& newMatch)
 {
   match += newMatch;
 }
 
-void Matchable::removeMatch(const IncidenceMatrix& removedMatch)
+void Matchable::removeMatch(const MCIS& removedMatch)
 {
   match -= removedMatch;
 }
