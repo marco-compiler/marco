@@ -70,6 +70,24 @@ void SerialPort::write(const char *str)
 	}
 }
 
+
+void SerialPort::write(const int n){
+	char s[64];
+	tochar(n,s);
+	this->write(s);
+}
+
+
+void SerialPort::write(const float f, const int p){
+	char s[64];
+	tochar(f,p,s);
+	this->write(s);
+}
+
+void SerialPort::write(const float f){
+	this->write(f,2);
+}
+
 bool SerialPort::available() const
 {
 	return numchar>0;
@@ -86,4 +104,70 @@ char SerialPort::read()
 	numchar--;
 	asm volatile("cpsie i"); //Enable interrupts
 	return result;
+}
+
+
+char* SerialPort::tochar(int i, char* res){
+   int len = 0;
+   for(; i > 0; ++len)
+   {
+      res[len] = i%10+'0';
+      i/=10; 
+   }
+   res[len++] = '\r';
+   res[len++] = '\n';
+   res[len] = 0; //null-terminating
+
+   //now we need to reverse res
+   for(int i = 0; i < len/2; ++i)
+   {
+       char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
+   }
+   return res;
+};
+
+char* SerialPort::tochar(float f, int precision,char* res){
+	int i = f;
+	int d = (f - i) * power(10,precision);
+	int len = 0;
+
+	for(; i > 0; ++len)
+   	{
+     	res[len] = i%10+'0';
+      	i/=10; 
+  	}
+	
+   	//now we need to reverse res
+   	for(int i = 0; i < len/2; ++i) 
+   	{
+       	char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
+   	}
+	
+	
+	res[len++] = '.';
+	int old_len = len;
+
+	for(; d > 0; ++len)
+   	{
+     	res[len] = d%10+'0';
+      	d/=10; 
+  	}
+   	res[len++] = '\r';
+   	res[len++] = '\n';
+   	res[len] = 0; //null-terminating
+
+   	//now we need to reverse res
+	old_len++;
+   	for(int i = 0; i < (len - old_len)/2; ++i)
+   	{
+       	char c = res[i + old_len]; res[i + old_len] = res[len-i - old_len]; res[len-i - old_len] = c;
+   	}
+
+   	return res;
+
+
+};
+
+int SerialPort::power(int n, int p){
+	return p == 0 ? 1 : n*power(n,p-1);
 }

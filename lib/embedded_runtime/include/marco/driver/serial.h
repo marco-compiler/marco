@@ -35,9 +35,23 @@ public:
 
 	void write(const char *s);
 
+	void write(const int n);
+
+	void write(const float f);
+
+	void write(const float f, const int p);
+
 	bool available() const;
 
 	char read();
+
+private:
+
+	char *tochar(int i, char* res);
+	
+	char *tochar(float f, int precision, char* res);
+
+	int power(const int n, const int p);
 };
 
 #endif //SERIAL_H
