@@ -15,20 +15,24 @@
 #define omp_get_max_threads() 1
 #endif
 
-#define ALGEBRAIC_TOLERANCE 1e-12
-
 #define PRINT_JACOBIAN false
 
-#define MAX_NUM_STEPS 5000
-#define MAX_ERR_TEST_FAIL 100
-#define MAX_NONLIN_ITERS 40
-#define MAX_CONV_FAILS 100
+#define INIT_TIME_STEP 1e-6
+#define ALGEBRAIC_TOLERANCE 1e-12
+
+#define MAX_NUM_STEPS 1000
+#define MAX_ERR_TEST_FAIL 10
+#define MAX_NONLIN_ITERS 4
+#define MAX_CONV_FAILS 10
 #define NONLIN_CONV_COEF 0.33
 
-#define MAX_NUM_STEPS_IC 50
-#define MAX_NUM_JACS_IC 40
-#define MAX_NUM_ITERS_IC 100
+#define MAX_NUM_STEPS_IC 5
+#define MAX_NUM_JACS_IC 4
+#define MAX_NUM_ITERS_IC 10
 #define NONLIN_CONV_COEF_IC 0.0033
+
+#define SUPPRESS_ALG SUNFALSE
+#define LINE_SEARCH_OFF SUNFALSE
 
 #define exitOnError(success) if (!success) return false;
 
@@ -66,10 +70,11 @@ typedef struct IdaUserData
 
 	// Variables data
 	std::vector<sunindextype> variableOffsets;
-	std::vector<std::pair<sunindextype, Access>> variableAccesses;
 	std::vector<VarDimension> variableDimensions;
+	std::vector<std::pair<sunindextype, Access>> variableAccesses;
 
 	// Matrix size
+	size_t vectorVariablesNumber;
 	size_t vectorEquationsNumber;
 	sunindextype scalarEquationsNumber;
 	sunindextype nonZeroValuesNumber;
@@ -111,7 +116,7 @@ typedef struct IdaUserData
 } IdaUserData;
 
 /**
- * Given a list of indexes and the dimension of an equation, increase the
+ * Given an array of indexes and the dimension of an equation, increase the
  * indexes within the induction bounds of the equation. Return false if the
  * indexes exceed the equation bounds, which means the computation has finished,
  * true otherwise.
@@ -132,8 +137,9 @@ static bool updateIndexes(sunindextype* indexes, const EqDimension& dimension)
 }
 
 /**
- * Given a set of indexes, the dimension of a variable and the type of access,
- * return the index needed to access the flattened multidimensional variable.
+ * Given an array of indexes, the dimension of a variable and the type of
+ * access, return the index needed to access the flattened multidimensional
+ * variable.
  */
 static sunindextype computeOffset(
 		const sunindextype* indexes,
@@ -187,7 +193,7 @@ static bool checkRetval(int retval, const char* funcname)
 
 /**
  * IDAResFn user-defined residual function, passed to IDA through IDAInit.
- * It contains how to compute the Residual function of the system, starting
+ * It contains how to compute the Residual Function of the system, starting
  * from the provided UserData struct, iterating through every equation.
  */
 int residualFunction(
@@ -208,8 +214,7 @@ int residualFunction(
 		size_t residualIndex = data->equationIndexes[eq];
 
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = (sunindextype*) std::malloc(
-				data->equationDimensions[eq].size() * sizeof(sunindextype));
+		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
@@ -222,7 +227,8 @@ int residualFunction(
 					data->residuals[eq](tt, yval, ypval, indexes);
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
-		std::free(indexes);
+		assert(residualIndex == data->equationIndexes[eq+1]);
+		delete[] indexes;
 	}
 
 	return 0;
@@ -266,8 +272,7 @@ int jacobianMatrix(
 		size_t columnIndex = 0;
 
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = (sunindextype*) std::malloc(
-				data->equationDimensions[eq].size() * sizeof(sunindextype));
+		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
@@ -292,7 +297,8 @@ int jacobianMatrix(
 			columnIndex++;
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
-		std::free(indexes);
+		assert(rowIndex == data->equationIndexes[eq+1]);
+		delete[] indexes;
 	}
 
 	rowptrs[data->scalarEquationsNumber] = data->nonZeroValuesNumber;
@@ -306,8 +312,7 @@ int jacobianMatrix(
 
 /**
  * Instantiate and initialize the struct of data needed by IDA, given the total
- * number of equations and the maximum number of non-zero values of the jacobian
- * matrix.
+ * number of scalar equations.
  */
 template<typename T>
 inline void* idaAllocData(T scalarEquationsNumber)
@@ -315,6 +320,8 @@ inline void* idaAllocData(T scalarEquationsNumber)
 	IdaUserData* data = new IdaUserData;
 
 	data->scalarEquationsNumber = scalarEquationsNumber;
+	data->vectorEquationsNumber = 0;
+	data->vectorVariablesNumber = 0;
 
 	// Create and initialize the required N-vectors for the variables.
 	data->variablesVector = N_VNew_Serial(data->scalarEquationsNumber);
@@ -349,7 +356,6 @@ RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t)
 sunindextype precomputeJacobianIndexes(IdaUserData* data)
 {
 	sunindextype nnzElements = 0;
-	data->vectorEquationsNumber = data->equationDimensions.size();
 
 	data->equationIndexes.resize(data->vectorEquationsNumber + 1);
 	data->columnIndexes.resize(data->vectorEquationsNumber);
@@ -362,8 +368,7 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 		sunindextype equationSize = 1;
 
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = (sunindextype*) std::malloc(
-				data->equationDimensions[eq].size() * sizeof(sunindextype));
+		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 		{
@@ -399,7 +404,7 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 			// Update multidimensional interval, exit while loop if finished
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
-		std::free(indexes);
+		delete[] indexes;
 	}
 
 	return nnzElements;
@@ -407,8 +412,9 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 
 /**
  * Instantiate and initialize all the classes needed by IDA in order to solve
- * the given system of equations. It must be called before the first usage of
- * step(). It may fail in case of malformed model.
+ * the given system of equations. It also sets optional simulation parameters
+ * for IDA. It must be called before the first usage of idaStep() and after a
+ * call to idaAllocData(). It may fail in case of malformed model.
  */
 template<typename T>
 inline bool idaInit(void* userData, T threads)
@@ -421,6 +427,15 @@ inline bool idaInit(void* userData, T threads)
 	// Compute the total amount of non-zero values in the Jacobian Matrix.
 	data->nonZeroValuesNumber = precomputeJacobianIndexes(data);
 	data->threads = threads == 0 ? omp_get_max_threads() : threads;
+
+	// Check that the data was correctly initialized.	
+	assert(data->vectorEquationsNumber == data->equationDimensions.size());
+	assert(data->vectorEquationsNumber == data->residuals.size());
+	assert(data->vectorEquationsNumber == data->jacobians.size());
+	assert(data->vectorEquationsNumber == data->nnzElements.size());
+	assert(data->vectorEquationsNumber == data->columnIndexes.size());
+	assert(data->vectorVariablesNumber == data->variableOffsets.size());
+	assert(data->vectorVariablesNumber == data->variableDimensions.size());
 
 	// Create and initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -457,7 +472,7 @@ inline bool idaInit(void* userData, T threads)
 	retval = IDASetJacFn(data->idaMemory, jacobianMatrix);
 	exitOnError(checkRetval(retval, "IDASetJacFn"));
 
-	// Add the remaining optional paramters.
+	// Add the remaining mandatory paramters.
 	retval = IDASetUserData(data->idaMemory, (void*) data);
 	exitOnError(checkRetval(retval, "IDASetUserData"));
 
@@ -467,10 +482,14 @@ inline bool idaInit(void* userData, T threads)
 	retval = IDASetStopTime(data->idaMemory, data->endTime);
 	exitOnError(checkRetval(retval, "IDASetStopTime"));
 
+	// Add the remaining optional paramters.
+	retval = IDASetInitStep(data->idaMemory, 0.0);
+	exitOnError(checkRetval(retval, "IDASetInitStep"));
+
 	retval = IDASetMaxStep(data->idaMemory, data->endTime);
 	exitOnError(checkRetval(retval, "IDASetMaxStep"));
 
-	retval = IDASetSuppressAlg(data->idaMemory, SUNTRUE);
+	retval = IDASetSuppressAlg(data->idaMemory, SUPPRESS_ALG);
 	exitOnError(checkRetval(retval, "IDASetSuppressAlg"));
 
 	// Increase the maximum number of iterations taken by IDA before failing.
@@ -502,8 +521,11 @@ inline bool idaInit(void* userData, T threads)
 	retval = IDASetNonlinConvCoefIC(data->idaMemory, NONLIN_CONV_COEF_IC);
 	exitOnError(checkRetval(retval, "IDASetNonlinConvCoefIC"));
 
+	retval = IDASetLineSearchOffIC(data->idaMemory, LINE_SEARCH_OFF);
+	exitOnError(checkRetval(retval, "IDASetLineSearchOffIC"));
+
 	// Call IDACalcIC to correct the initial values.
-	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->nextStop);
+	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, INIT_TIME_STEP);
 	exitOnError(checkRetval(retval, "IDACalcIC"));
 
 	return true;
@@ -573,10 +595,10 @@ inline bool idaFreeData(void* userData)
 RUNTIME_FUNC_DEF(idaFreeData, bool, PTR(void))
 
 /**
- * Add the start time, the end time and the step time to the user data. If the
- * step is equal to the end time, the output will show the variables at every
- * step of the computation. Otherwise the output will show the variables in an
- * equidistant time grid based on the step time paramter.
+ * Add the start time, the end time and the step time to the user data. If a
+ * positive time step is given, the output will show the variables in an
+ * equidistant time grid based on the step time paramter. Otherwise, the output
+ * will show the variables at every step of the computation.
  */
 template<typename T>
 inline void addTime(void* userData, T startTime, T endTime, T timeStep)
@@ -622,6 +644,9 @@ inline void addColumnIndex(void* userData, T rowIndex, T accessIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
+	assert(rowIndex >= 0);
+	assert((size_t) rowIndex < data->vectorEquationsNumber);
+
 	if ((size_t) rowIndex == data->accessIndexes.size())
 		data->accessIndexes.push_back({ (size_t) accessIndex });
 	else
@@ -641,9 +666,12 @@ inline void addEqDimension(
 		UnsizedArrayDescriptor<T> end)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
 	assert(start.getRank() == 1 && end.getRank() == 1);
 	assert(start.getDimensionSize(0) == end.getDimensionSize(0));
+	assert(start.getNumElements() == end.getNumElements());
 
+	data->vectorEquationsNumber++;
 	data->equationDimensions.push_back({});
 	for (size_t i = 0; i < start.getNumElements(); i++)
 		data->equationDimensions.back().push_back({ start[i], end[i] });
@@ -695,7 +723,7 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(double))
  * 
  * @param userData opaque pointer to the IDA user data.
  * @param offset offset of the current variable from the beginning of the array.
- * @param array modelica.alloc operation containing the initial values.
+ * @param array allocation operation containing the rank and dimensions.
  * @param isState indicates if the variable is differential or algebraic.
  */
 template<typename T, typename U>
@@ -707,7 +735,11 @@ inline void addVariable(
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
+	assert(offset >= 0);
+	assert(offset + array.getNumElements() <= (size_t) data->scalarEquationsNumber);
+
 	// Add variable offset.
+	data->vectorVariablesNumber++;
 	data->variableOffsets.push_back(offset);
 
 	// Add variable dimensions.
@@ -738,6 +770,9 @@ inline void* getVariableAlloc(void* userData, T offset, bool isDerivative)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
+	assert(offset >= 0);
+	assert(offset < data->scalarEquationsNumber);
+
 	if (isDerivative)
 		return (void*) &data->derivativeValues[offset];
 	return (void*) &data->variableValues[offset];
@@ -758,8 +793,11 @@ inline int64_t addVarAccess(
 		UnsizedArrayDescriptor<T> ind)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	assert(var >= 0);
 	assert(off.getRank() == 1 && ind.getRank() == 1);
 	assert(off.getDimensionSize(0) == ind.getDimensionSize(0));
+	assert(off.getNumElements() == ind.getNumElements());
 
 	data->variableAccesses.push_back({ var, {} });
 	for (size_t i = 0; i < off.getNumElements(); i++)
@@ -809,8 +847,7 @@ static void printIncidenceMatrix(void* userData)
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = (sunindextype*) std::malloc(
-				data->equationDimensions[eq].size() * sizeof(sunindextype));
+		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
@@ -845,7 +882,7 @@ static void printIncidenceMatrix(void* userData)
 			llvm::errs() << "│\n";
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
-		std::free(indexes);
+		delete[] indexes;
 	}
 }
 
