@@ -1,11 +1,12 @@
 set(SOURCES
         src/Common.cpp
         src/GraphTest.cpp
-        src/IncidenceMatrixTest.cpp
         src/MatchingGraphTest.cpp
         src/MatchingTest.cpp
+        src/MultidimensionalRangeTest.cpp
         src/MCIMTest.cpp
         src/MCISTest.cpp
+        src/PointTest.cpp
         src/RangeTest.cpp
         src/SimplifyTest.cpp
         src/SolveLocalMatchingProblemTest.cpp

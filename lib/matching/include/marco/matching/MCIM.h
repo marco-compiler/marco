@@ -5,7 +5,7 @@
 
 #include "AccessFunction.h"
 #include "MCIS.h"
-#include "Range.h"
+#include "MultidimensionalRange.h"
 
 namespace marco::matching::detail
 {
@@ -23,11 +23,11 @@ namespace marco::matching::detail
     class IndexesIterator
     {
       public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = llvm::ArrayRef<long>;
+      using iterator_category = std::input_iterator_tag;
+      using value_type = std::pair<Point, Point>;
       using difference_type = std::ptrdiff_t;
-      using pointer = llvm::ArrayRef<long>*;
-      using reference = llvm::ArrayRef<long>&;
+      using pointer = std::pair<Point, Point>*;
+      using reference = std::pair<Point, Point>&;
 
       using Iterator = MultidimensionalRange::const_iterator;
 
@@ -38,9 +38,9 @@ namespace marco::matching::detail
 
       bool operator==(const IndexesIterator &it) const;
       bool operator!=(const IndexesIterator &it) const;
-      IndexesIterator &operator++();
+      IndexesIterator& operator++();
       IndexesIterator operator++(int);
-      llvm::ArrayRef<long> operator*() const;
+      value_type operator*() const;
 
       private:
       void advance();
@@ -51,7 +51,6 @@ namespace marco::matching::detail
       Iterator varBeginIt;
       Iterator varCurrentIt;
       Iterator varEndIt;
-      llvm::SmallVector<long, 4> indexes;
     };
 
 		MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
@@ -79,9 +78,10 @@ namespace marco::matching::detail
     MCIM operator-(const MCIM& rhs) const;
 
     void apply(const AccessFunction& access);
-    bool get(llvm::ArrayRef<long> indexes) const;
-    void set(llvm::ArrayRef<long> indexes);
-    void unset(llvm::ArrayRef<long> indexes);
+
+    bool get(const Point& equation, const Point& variable) const;
+    void set(const Point& equation, const Point& variable);
+    void unset(const Point& equation, const Point& variable);
 
     bool empty() const;
     void clear();

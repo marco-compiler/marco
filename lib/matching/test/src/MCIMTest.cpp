@@ -19,32 +19,24 @@ TEST(Matching, MCIMIndexesIterator)
 
   MCIM mcim(eq, var);
 
-  llvm::SmallVector<std::vector<long>, 8> expectedList;
+  llvm::SmallVector<std::pair<Point, Point>, 8> expectedList;
 
-  for (auto equationIndexes : eq)
-  {
-    for (auto variableIndexes : var)
-    {
-      std::vector<long> current;
-
-      for (const auto& index : equationIndexes)
-        current.push_back(index);
-
-      for (const auto& index : variableIndexes)
-        current.push_back(index);
-
-      expectedList.push_back(std::move(current));
-    }
-  }
+  for (auto equation : eq)
+    for (auto variable : var)
+      expectedList.push_back(std::make_pair(equation, variable));
 
   size_t counter = 0;
 
-  for (auto indexes : mcim.getIndexes())
+  for (auto [equation, variable] : mcim.getIndexes())
   {
     ASSERT_LT(counter, expectedList.size());
-    auto& expected = expectedList[counter];
-    EXPECT_EQ(indexes.size(), expected.size());
-    EXPECT_THAT(indexes, testing::ContainerEq(expected));
+
+    auto& expectedEquation = expectedList[counter].first;
+    EXPECT_EQ(equation, expectedEquation);
+
+    auto& expectedVariable = expectedList[counter].second;
+    EXPECT_EQ(variable, expectedVariable);
+
     ++counter;
   }
 
@@ -73,10 +65,10 @@ TEST(Matching, regularMCIMSet)
   });
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0, 0 });
-  mcim.set({ 4, 2, 3, 1 });
-  mcim.set({ 5, 3, 0, 0 });
-  mcim.set({ 5, 3, 3, 1 });
+  mcim.set({ 4, 2 }, { 0, 0 });
+  mcim.set({ 4, 2 }, { 3, 1 });
+  mcim.set({ 5, 3 }, {0, 0 });
+  mcim.set({ 5, 3 }, {3, 1 });
 
   for (long i = 4; i < 6; ++i)
   {
@@ -86,7 +78,7 @@ TEST(Matching, regularMCIMSet)
       {
         for (long l = 0; l < 2; ++l)
         {
-          bool value = mcim.get({ i, j, k, l });
+          bool value = mcim.get({ i, j }, { k, l });
 
           if (i == 4 && j == 2 && k == 0 && l == 0)
             EXPECT_TRUE(value);
@@ -123,10 +115,10 @@ TEST(Matching, flatMCIMSet)
   MultidimensionalRange var(Range(0, 9));
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0 });
-  mcim.set({ 4, 2, 8 });
-  mcim.set({ 5, 3, 0 });
-  mcim.set({ 5, 3, 8 });
+  mcim.set({ 4, 2 }, 0);
+  mcim.set({ 4, 2 }, 8);
+  mcim.set({ 5, 3 }, 0);
+  mcim.set({ 5, 3 }, 8);
 
   for (long i = 4; i < 6; ++i)
   {
@@ -134,7 +126,7 @@ TEST(Matching, flatMCIMSet)
     {
       for (long k = 0; k < 9; ++k)
       {
-        bool value = mcim.get({ i, j, k });
+        bool value = mcim.get({ i, j }, k);
 
         if (i == 4 && j == 2 && k == 0)
           EXPECT_TRUE(value);
@@ -175,20 +167,20 @@ TEST(Matching, regularMCIMFlattenEquations)
   });
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0, 1 });
-  mcim.set({ 4, 2, 3, 0 });
-  mcim.set({ 4, 2, 3, 1 });
-  mcim.set({ 4, 2, 4, 0 });
-  mcim.set({ 4, 2, 4, 1 });
-  mcim.set({ 4, 3, 1, 0 });
-  mcim.set({ 4, 3, 3, 0 });
-  mcim.set({ 4, 3, 4, 1 });
-  mcim.set({ 5, 2, 1, 1 });
-  mcim.set({ 5, 2, 3, 1 });
-  mcim.set({ 5, 2, 4, 1 });
-  mcim.set({ 5, 3, 2, 0 });
-  mcim.set({ 5, 3, 4, 0 });
-  mcim.set({ 5, 3, 4, 1 });
+  mcim.set({ 4, 2 }, { 0, 1 });
+  mcim.set({ 4, 2 }, { 3, 0 });
+  mcim.set({ 4, 2 }, { 3, 1 });
+  mcim.set({ 4, 2 }, { 4, 0 });
+  mcim.set({ 4, 2 }, { 4, 1 });
+  mcim.set({ 4, 3 }, { 1, 0 });
+  mcim.set({ 4, 3 }, { 3, 0 });
+  mcim.set({ 4, 3 }, { 4, 1 });
+  mcim.set({ 5, 2 }, { 1, 1 });
+  mcim.set({ 5, 2 }, { 3, 1 });
+  mcim.set({ 5, 2 }, { 4, 1 });
+  mcim.set({ 5, 3 }, { 2, 0 });
+  mcim.set({ 5, 3 }, { 4, 0 });
+  mcim.set({ 5, 3 }, { 4, 1 });
 
   MCIS flattened = mcim.flattenEquations();
   EXPECT_FALSE(flattened.contains({ 0, 0 }));
@@ -224,20 +216,20 @@ TEST(Matching, flatMCIMFlattenEquations)
   MultidimensionalRange var(Range(0, 9));
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 1 });
-  mcim.set({ 4, 3, 2 });
-  mcim.set({ 5, 2, 3 });
-  mcim.set({ 5, 3, 4 });
-  mcim.set({ 4, 2, 5 });
-  mcim.set({ 4, 3, 5 });
-  mcim.set({ 4, 2, 6 });
-  mcim.set({ 5, 2, 6 });
-  mcim.set({ 4, 2, 7 });
-  mcim.set({ 5, 3, 7 });
-  mcim.set({ 4, 2, 8 });
-  mcim.set({ 4, 3, 8 });
-  mcim.set({ 5, 2, 8 });
-  mcim.set({ 5, 3, 8 });
+  mcim.set({ 4, 2 }, { 1 });
+  mcim.set({ 4, 3 }, { 2 });
+  mcim.set({ 5, 2 }, { 3 });
+  mcim.set({ 5, 3 }, { 4 });
+  mcim.set({ 4, 2 }, { 5 });
+  mcim.set({ 4, 3 }, { 5 });
+  mcim.set({ 4, 2 }, { 6 });
+  mcim.set({ 5, 2 }, { 6 });
+  mcim.set({ 4, 2 }, { 7 });
+  mcim.set({ 5, 3 }, { 7 });
+  mcim.set({ 4, 2 }, { 8 });
+  mcim.set({ 4, 3 }, { 8 });
+  mcim.set({ 5, 2 }, { 8 });
+  mcim.set({ 5, 3 }, { 8 });
 
   MCIS flattened = mcim.flattenEquations();
   EXPECT_FALSE(flattened.contains(0));
@@ -280,20 +272,20 @@ TEST(Matching, regularMCIMFlattenVariables)
   });
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0, 0 });
-  mcim.set({ 4, 3, 0, 1 });
-  mcim.set({ 5, 1, 1, 0 });
-  mcim.set({ 5, 2, 1, 1 });
-  mcim.set({ 5, 3, 0, 0 });
-  mcim.set({ 5, 3, 0, 1 });
-  mcim.set({ 6, 1, 0, 0 });
-  mcim.set({ 6, 1, 1, 0 });
-  mcim.set({ 6, 2, 0, 0 });
-  mcim.set({ 6, 2, 1, 1 });
-  mcim.set({ 6, 3, 0, 0 });
-  mcim.set({ 6, 3, 0, 1 });
-  mcim.set({ 6, 3, 1, 0 });
-  mcim.set({ 6, 3, 1, 1 });
+  mcim.set({ 4, 2 }, { 0, 0 });
+  mcim.set({ 4, 3 }, { 0, 1 });
+  mcim.set({ 5, 1 }, { 1, 0 });
+  mcim.set({ 5, 2 }, { 1, 1 });
+  mcim.set({ 5, 3 }, { 0, 0 });
+  mcim.set({ 5, 3 }, { 0, 1 });
+  mcim.set({ 6, 1 }, { 0, 0 });
+  mcim.set({ 6, 1 }, { 1, 0 });
+  mcim.set({ 6, 2 }, { 0, 0 });
+  mcim.set({ 6, 2 }, { 1, 1 });
+  mcim.set({ 6, 3 }, { 0, 0 });
+  mcim.set({ 6, 3 }, { 0, 1 });
+  mcim.set({ 6, 3 }, { 1, 0 });
+  mcim.set({ 6, 3 }, { 1, 1 });
 
   MCIS flattened = mcim.flattenVariables();
   EXPECT_FALSE(flattened.contains({ 4, 1 }));
@@ -333,20 +325,20 @@ TEST(Matching, flatMCIMFlattenVariables)
   MultidimensionalRange var(Range(0, 4));
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0 });
-  mcim.set({ 4, 3, 1 });
-  mcim.set({ 5, 1, 2 });
-  mcim.set({ 5, 2, 3 });
-  mcim.set({ 5, 3, 0 });
-  mcim.set({ 5, 3, 1 });
-  mcim.set({ 6, 1, 0 });
-  mcim.set({ 6, 1, 2 });
-  mcim.set({ 6, 2, 0 });
-  mcim.set({ 6, 2, 3 });
-  mcim.set({ 6, 3, 0 });
-  mcim.set({ 6, 3, 1 });
-  mcim.set({ 6, 3, 2 });
-  mcim.set({ 6, 3, 3 });
+  mcim.set({ 4, 2 }, 0);
+  mcim.set({ 4, 3 }, 1);
+  mcim.set({ 5, 1 }, 2);
+  mcim.set({ 5, 2 }, 3);
+  mcim.set({ 5, 3 }, 0);
+  mcim.set({ 5, 3 }, 1);
+  mcim.set({ 6, 1 }, 0);
+  mcim.set({ 6, 1 }, 2);
+  mcim.set({ 6, 2 }, 0);
+  mcim.set({ 6, 2 }, 3);
+  mcim.set({ 6, 3 }, 0);
+  mcim.set({ 6, 3 }, 1);
+  mcim.set({ 6, 3 }, 2);
+  mcim.set({ 6, 3 }, 3);
 
   MCIS flattened = mcim.flattenVariables();
   EXPECT_FALSE(flattened.contains({ 4, 1 }));
@@ -392,14 +384,14 @@ TEST(Matching, regularMCIMEquationFilter)
   });
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0, 1 });
-  mcim.set({ 4, 2, 1, 1 });
-  mcim.set({ 4, 3, 0, 0 });
-  mcim.set({ 4, 3, 1, 0 });
-  mcim.set({ 5, 2, 0, 1 });
-  mcim.set({ 5, 2, 1, 1 });
-  mcim.set({ 5, 3, 0, 0 });
-  mcim.set({ 5, 3, 1, 0 });
+  mcim.set({ 4, 2 }, { 0, 1 });
+  mcim.set({ 4, 2 }, { 1, 1 });
+  mcim.set({ 4, 3 }, { 0, 0 });
+  mcim.set({ 4, 3 }, { 1, 0 });
+  mcim.set({ 5, 2 }, { 0, 1 });
+  mcim.set({ 5, 2 }, { 1, 1 });
+  mcim.set({ 5, 3 }, { 0, 0 });
+  mcim.set({ 5, 3 }, { 1, 0 });
 
   MultidimensionalRange filterEq({
     Range(4, 6),
@@ -412,18 +404,20 @@ TEST(Matching, regularMCIMEquationFilter)
 
   MCIM result = mcim.filterEquations(filter);
 
-  for (const auto& indexes : result.getIndexes())
+  for (const auto& [equation, variable] : result.getIndexes())
   {
-    if (indexes[0] == 4 && indexes[1] == 2 && indexes[2] == 0 && indexes[3] == 1)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 4 && indexes[1] == 2 && indexes[2] == 1 && indexes[3] == 1)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 3 && indexes[2] == 0 && indexes[3] == 0)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 3 && indexes[2] == 1 && indexes[3] == 0)
-      EXPECT_TRUE(result.get(indexes));
+    bool value = result.get(equation, variable);
+
+    if (equation[0] == 4 && equation[1] == 2 && variable[0] == 0 && variable[1] == 1)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 4 && equation[1] == 2 && variable[0] == 1 && variable[1] == 1)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 3 && variable[0] == 0 && variable[1] == 0)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 3 && variable[0] == 1 && variable[1] == 0)
+      EXPECT_TRUE(value);
     else
-      EXPECT_FALSE(result.get(indexes));
+      EXPECT_FALSE(value);
   }
 }
 
@@ -456,14 +450,14 @@ TEST(Matching, flatMCIMEquationFilter)
   MultidimensionalRange var(Range(0, 4));
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 1 });
-  mcim.set({ 4, 2, 3 });
-  mcim.set({ 4, 3, 0 });
-  mcim.set({ 4, 3, 2 });
-  mcim.set({ 5, 2, 1 });
-  mcim.set({ 5, 2, 3 });
-  mcim.set({ 5, 3, 0 });
-  mcim.set({ 5, 3, 2 });
+  mcim.set({ 4, 2 }, 1);
+  mcim.set({ 4, 2 }, 3);
+  mcim.set({ 4, 3 }, 0);
+  mcim.set({ 4, 3 }, 2);
+  mcim.set({ 5, 2 }, 1);
+  mcim.set({ 5, 2 }, 3);
+  mcim.set({ 5, 3 }, 0);
+  mcim.set({ 5, 3 }, 2);
 
   MultidimensionalRange filterEq({
     Range(4, 6),
@@ -476,18 +470,20 @@ TEST(Matching, flatMCIMEquationFilter)
 
   MCIM result = mcim.filterEquations(filter);
 
-  for (const auto& indexes : result.getIndexes())
+  for (const auto& [equation, variable] : result.getIndexes())
   {
-    if (indexes[0] == 4 && indexes[1] == 2 && indexes[2] == 1)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 4 && indexes[1] == 2 && indexes[2] == 3)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 3 && indexes[2] == 0)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 3 && indexes[2] == 2)
-      EXPECT_TRUE(result.get(indexes));
+    bool value = result.get(equation, variable);
+
+    if (equation[0] == 4 && equation[1] == 2 && variable[0] == 1)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 4 && equation[1] == 2 && variable[0] == 3)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 3 && variable[0] == 0)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 3 && variable[0] == 2)
+      EXPECT_TRUE(value);
     else
-      EXPECT_FALSE(result.get(indexes));
+      EXPECT_FALSE(value);
   }
 }
 
@@ -523,14 +519,14 @@ TEST(Matching, regularMCIMVariableFilter)
   });
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 0, 1 });
-  mcim.set({ 4, 2, 1, 1 });
-  mcim.set({ 4, 3, 0, 0 });
-  mcim.set({ 4, 3, 1, 0 });
-  mcim.set({ 5, 2, 0, 1 });
-  mcim.set({ 5, 2, 1, 1 });
-  mcim.set({ 5, 3, 0, 0 });
-  mcim.set({ 5, 3, 1, 0 });
+  mcim.set({ 4, 2 }, { 0, 1 });
+  mcim.set({ 4, 2 }, { 1, 1 });
+  mcim.set({ 4, 3 }, { 0, 0 });
+  mcim.set({ 4, 3 }, { 1, 0 });
+  mcim.set({ 5, 2 }, { 0, 1 });
+  mcim.set({ 5, 2 }, { 1, 1 });
+  mcim.set({ 5, 3 }, { 0, 0 });
+  mcim.set({ 5, 3 }, { 1, 0 });
 
   MultidimensionalRange filterEq({
     Range(4, 6),
@@ -543,18 +539,20 @@ TEST(Matching, regularMCIMVariableFilter)
 
   MCIM result = mcim.filterVariables(filter);
 
-  for (const auto& indexes : result.getIndexes())
+  for (const auto& [equation, variable] : result.getIndexes())
   {
-    if (indexes[0] == 4 && indexes[1] == 2 && indexes[2] == 1 && indexes[3] == 1)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 4 && indexes[1] == 3 && indexes[2] == 0 && indexes[3] == 0)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 2 && indexes[2] == 1 && indexes[3] == 1)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 3 && indexes[2] == 0 && indexes[3] == 0)
-      EXPECT_TRUE(result.get(indexes));
+    bool value = result.get(equation, variable);
+
+    if (equation[0] == 4 && equation[1] == 2 && variable[0] == 1 && variable[1] == 1)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 4 && equation[1] == 3 && variable[0] == 0 && variable[1] == 0)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 2 && variable[0] == 1 && variable[1] == 1)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 3 && variable[0] == 0 && variable[1] == 0)
+      EXPECT_TRUE(value);
     else
-      EXPECT_FALSE(result.get(indexes));
+      EXPECT_FALSE(value);
   }
 }
 
@@ -587,14 +585,14 @@ TEST(Matching, flatMCIMVariableFilter)
   MultidimensionalRange var(Range(0, 4));
 
   MCIM mcim(eq, var);
-  mcim.set({ 4, 2, 1 });
-  mcim.set({ 4, 2, 3 });
-  mcim.set({ 4, 3, 0 });
-  mcim.set({ 4, 3, 2 });
-  mcim.set({ 5, 2, 1 });
-  mcim.set({ 5, 2, 3 });
-  mcim.set({ 5, 3, 0 });
-  mcim.set({ 5, 3, 2 });
+  mcim.set({ 4, 2 }, 1);
+  mcim.set({ 4, 2 }, 3);
+  mcim.set({ 4, 3 }, 0);
+  mcim.set({ 4, 3 }, 2);
+  mcim.set({ 5, 2 }, 1);
+  mcim.set({ 5, 2 }, 3);
+  mcim.set({ 5, 3 }, 0);
+  mcim.set({ 5, 3 }, 2);
 
   MCIS filter;
   filter += 0;
@@ -602,17 +600,19 @@ TEST(Matching, flatMCIMVariableFilter)
 
   MCIM result = mcim.filterVariables(filter);
 
-  for (const auto& indexes : result.getIndexes())
+  for (const auto& [equation, variable] : result.getIndexes())
   {
-    if (indexes[0] == 4 && indexes[1] == 2 && indexes[2] == 3)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 4 && indexes[1] == 3 && indexes[2] == 0)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 2 && indexes[2] == 3)
-      EXPECT_TRUE(result.get(indexes));
-    else if (indexes[0] == 5 && indexes[1] == 3 && indexes[2] == 0)
-      EXPECT_TRUE(result.get(indexes));
+    bool value = result.get(equation, variable);
+
+    if (equation[0] == 4 && equation[1] == 2 && variable[0] == 3)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 4 && equation[1] == 3 && variable[0] == 0)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 2 && variable[0] == 3)
+      EXPECT_TRUE(value);
+    else if (equation[0] == 5 && equation[1] == 3 && variable[0] == 0)
+      EXPECT_TRUE(value);
     else
-      EXPECT_FALSE(result.get(indexes));
+      EXPECT_FALSE(value);
   }
 }

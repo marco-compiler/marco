@@ -5,6 +5,36 @@
 using namespace marco::matching;
 using namespace marco::matching::detail;
 
+TEST(Matching, mcisEmptiness)
+{
+  MCIS emptyMCIS;
+  EXPECT_TRUE(emptyMCIS.empty());
+
+  MCIS nonEmptyMCIS(MultidimensionalRange({
+    Range(2, 5),
+    Range(3, 7)
+  }));
+
+  EXPECT_FALSE(nonEmptyMCIS.empty());
+}
+
+TEST(Matching, mcisSize)
+{
+  MCIS mcis;
+
+  mcis += MultidimensionalRange({
+    Range(1, 5),
+    Range(3, 7)
+  });
+
+  mcis += MultidimensionalRange({
+    Range(3, 8),
+    Range(2, 5)
+  });
+
+  EXPECT_EQ(mcis.size(), 27);
+}
+
 TEST(Matching, mcisContainsElement)
 {
   MultidimensionalRange range1({
@@ -163,4 +193,79 @@ TEST(Matching, mcisAddMultipleRanges)
   });
 
   EXPECT_TRUE(mcis.contains(range));
+}
+
+TEST(Matching, mcisRemoveRange)
+{
+  MultidimensionalRange range({
+    Range(2, 5),
+    Range(3, 7)
+  });
+
+  MCIS original(range);
+
+  MCIS removed(MultidimensionalRange({
+    Range(3, 9),
+    Range(1, 4)
+  }));
+
+  MCIS result = original - removed;
+
+  for (auto indexes : range)
+    EXPECT_EQ(result.contains(indexes), !removed.contains(indexes));
+}
+
+TEST(Matching, mcisComplement)
+{
+  llvm::SmallVector<MultidimensionalRange, 3> ranges;
+
+  ranges.push_back(MultidimensionalRange({
+    Range(1, 5),
+    Range(3, 7)
+  }));
+
+  ranges.push_back(MultidimensionalRange({
+    Range(3, 8),
+    Range(2, 5)
+  }));
+
+  MCIS original;
+
+  for (const auto& range : ranges)
+    original += range;
+
+  MultidimensionalRange range({
+    Range(2, 7),
+    Range(0, 6)
+  });
+
+  MCIS result = original.complement(range);
+
+  for (auto indexes : ranges[0])
+    EXPECT_FALSE(result.contains(indexes));
+
+  for (auto indexes : ranges[1])
+    EXPECT_FALSE(result.contains(indexes));
+
+  for (auto indexes : range)
+  {
+    EXPECT_EQ(result.contains(indexes), std::none_of(ranges.begin(), ranges.end(), [&](const MultidimensionalRange& r) {
+      return r.contains(indexes);
+    }));
+  }
+}
+
+TEST(Matching, mcisComplementEmptyBase)
+{
+  MCIS original;
+
+  MultidimensionalRange range({
+    Range(2, 7),
+    Range(0, 6)
+  });
+
+  MCIS result = original.complement(range);
+
+  for (auto indexes : range)
+    EXPECT_TRUE(result.contains(indexes));
 }

@@ -4,7 +4,7 @@
 #include <list>
 #include <llvm/ADT/ArrayRef.h>
 
-#include "Range.h"
+#include "MultidimensionalRange.h"
 
 namespace marco::matching::detail
 {
@@ -27,11 +27,11 @@ namespace marco::matching::detail
 
 		const MultidimensionalRange& operator[](size_t index) const;
 
-    MCIS& operator+=(llvm::ArrayRef<Range::data_type> rhs);
+    MCIS& operator+=(const Point& rhs);
     MCIS& operator+=(const MultidimensionalRange& rhs);
     MCIS& operator+=(const MCIS& rhs);
 
-    MCIS operator+(llvm::ArrayRef<Range::data_type> rhs) const;
+    MCIS operator+(const Point& rhs) const;
     MCIS operator+(const MultidimensionalRange& rhs) const;
     MCIS operator+(const MCIS& rhs) const;
 
@@ -47,7 +47,7 @@ namespace marco::matching::detail
     const_iterator begin() const;
     const_iterator end() const;
 
-    bool contains(llvm::ArrayRef<Range::data_type> element) const;
+    bool contains(const Point& other) const;
     bool contains(const MultidimensionalRange& other) const;
 
     bool overlaps(const MultidimensionalRange& other) const;

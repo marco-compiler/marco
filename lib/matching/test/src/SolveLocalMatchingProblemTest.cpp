@@ -50,14 +50,14 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_firstInduct
 	AccessFunction access(DimensionAccess::relative(0, 0));
 
 	MCIM m0(eq, var);
-	m0.set({0, 1, 0});
-	m0.set({1, 1, 1});
-	m0.set({2, 1, 2});
+	m0.set({ 0, 1 }, 0);
+	m0.set({ 1, 1 }, 1);
+	m0.set({ 2, 1 }, 2);
 
 	MCIM m1(eq, var);
-	m1.set({0, 2, 0});
-	m1.set({1, 2, 1});
-	m1.set({2, 2, 2});
+	m1.set({ 0, 2 }, 0);
+	m1.set({ 1, 2 }, 1);
+	m1.set({ 2, 2 }, 2);
 
   std::vector<MCIM> solutions;
 
@@ -120,16 +120,16 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_secondInduc
 	AccessFunction access(DimensionAccess::relative(1, 0));
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 1});
-	m0.set({0, 2, 2});
+	m0.set({ 0, 1 }, 1);
+	m0.set({ 0, 2 }, 2);
 
   MCIM m1(eq, var);
-	m1.set({1, 1, 1});
-	m1.set({1, 2, 2});
+	m1.set({ 1, 1 }, 1);
+	m1.set({ 1, 2 }, 2);
 
   MCIM m2(eq, var);
-	m2.set({2, 1, 1});
-	m2.set({2, 2, 2});
+	m2.set({ 2, 1 }, 1);
+	m2.set({ 2, 2 }, 2);
 
   std::vector<MCIM> solutions;
 
@@ -182,12 +182,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
 	});
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 0, 1});
-	m0.set({0, 2, 0, 2});
-	m0.set({1, 1, 1, 1});
-	m0.set({1, 2, 1, 2});
-	m0.set({2, 1, 2, 1});
-	m0.set({2, 2, 2, 2});
+	m0.set({ 0, 1 }, { 0, 1 });
+	m0.set({ 0, 2 }, { 0, 2 });
+	m0.set({ 1, 1 }, { 1, 1 });
+	m0.set({ 1, 2 }, { 1, 2 });
+	m0.set({ 2, 1 }, { 2, 1 });
+	m0.set({ 2, 2 }, { 2, 2 });
 
   std::vector<MCIM> solutions;
 
@@ -240,12 +240,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
 	});
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 1, 0});
-	m0.set({0, 2, 2, 0});
-	m0.set({1, 1, 1, 1});
-	m0.set({1, 2, 2, 1});
-	m0.set({2, 1, 1, 2});
-	m0.set({2, 2, 2, 2});
+	m0.set({ 0, 1 }, { 1, 0 });
+	m0.set({ 0, 2 }, { 2, 0 });
+	m0.set({ 1, 1 }, { 1, 1 });
+	m0.set({ 1, 2 }, { 2, 1 });
+	m0.set({ 2, 1 }, { 1, 2 });
+	m0.set({ 2, 2 }, { 2, 2 });
 
   std::vector<MCIM> solutions;
 
@@ -306,14 +306,14 @@ TEST(Matching, solveLocalMatchingProblem_2D_oneConstantIndex)
 	});
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 1, 0});
-	m0.set({1, 1, 1, 1});
-	m0.set({2, 1, 1, 2});
+	m0.set({ 0, 1 }, { 1, 0 });
+	m0.set({ 1, 1 }, { 1, 1 });
+	m0.set({ 2, 1 }, { 1, 2 });
 
   MCIM m1(eq, var);
-	m1.set({0, 2, 1, 0});
-	m1.set({1, 2, 1, 1});
-	m1.set({2, 2, 1, 2});
+	m1.set({ 0, 2 }, { 1, 0 });
+	m1.set({ 1, 2 }, { 1, 1 });
+	m1.set({ 2, 2 }, { 1, 2 });
 
   std::vector<MCIM> solutions;
 
@@ -406,22 +406,22 @@ TEST(Matching, solveLocalMatchingProblem_2D_allConstantIndexes)
 	});
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 1, 2});
+	m0.set({ 0, 1 }, { 1, 2 });
 
   MCIM m1(eq, var);
-	m1.set({0, 2, 1, 2});
+	m1.set({ 0, 2 }, { 1, 2 });
 
   MCIM m2(eq, var);
-	m2.set({1, 1, 1, 2});
+	m2.set({ 1, 1 }, { 1, 2 });
 
   MCIM m3(eq, var);
-	m3.set({1, 2, 1, 2});
+	m3.set({ 1, 2 }, { 1, 2 });
 
   MCIM m4(eq, var);
-	m4.set({2, 1, 1, 2});
+	m4.set({ 2, 1 }, { 1, 2 });
 
   MCIM m5(eq, var);
-	m5.set({2, 2, 1, 2});
+	m5.set({ 2, 2 }, { 1, 2 });
 
   std::vector<MCIM> solutions;
 
@@ -490,16 +490,16 @@ TEST(Matching, solveLocalMatchingProblem_2D_repeatedInductionVariable)
 	});
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 1, 1});
-	m0.set({0, 2, 2, 2});
+	m0.set({ 0, 1 }, { 1, 1 });
+	m0.set({ 0, 2 }, { 2, 2 });
 
   MCIM m1(eq, var);
-	m1.set({1, 1, 1, 1});
-	m1.set({1, 2, 2, 2});
+	m1.set({ 1, 1 }, { 1, 1 });
+	m1.set({ 1, 2 }, { 2, 2 });
 
   MCIM m2(eq, var);
-	m2.set({2, 1, 1, 1});
-	m2.set({2, 2, 2, 2});
+	m2.set({ 2, 1 }, { 1, 1 });
+	m2.set({ 2, 2 }, { 2, 2 });
 
   std::vector<MCIM> solutions;
 
@@ -539,28 +539,28 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 	});
 
   MCIM m0(eq, var);
-	m0.set({0, 1, 1, 1, 1, 0});
-	m0.set({0, 2, 1, 2, 2, 0});
-	m0.set({1, 1, 1, 1, 1, 1});
-	m0.set({1, 2, 1, 2, 2, 1});
-	m0.set({2, 1, 1, 1, 1, 2});
-	m0.set({2, 2, 1, 2, 2, 2});
+	m0.set({ 0, 1, 1 }, { 1, 1, 0 });
+	m0.set({ 0, 2, 1 }, { 2, 2, 0 });
+	m0.set({ 1, 1, 1 }, { 1, 1, 1 });
+	m0.set({ 1, 2, 1 }, { 2, 2, 1 });
+	m0.set({ 2, 1, 1 }, { 1, 1, 2 });
+	m0.set({ 2, 2, 1 }, { 2, 2, 2 });
 
   MCIM m1(eq, var);
-	m1.set({0, 1, 2, 1, 1, 0});
-	m1.set({0, 2, 2, 2, 2, 0});
-	m1.set({1, 1, 2, 1, 1, 1});
-	m1.set({1, 2, 2, 2, 2, 1});
-	m1.set({2, 1, 2, 1, 1, 2});
-	m1.set({2, 2, 2, 2, 2, 2});
+	m1.set({ 0, 1, 2 }, { 1, 1, 0 });
+	m1.set({ 0, 2, 2 }, { 2, 2, 0 });
+	m1.set({ 1, 1, 2 }, { 1, 1, 1 });
+	m1.set({ 1, 2, 2 }, { 2, 2, 1 });
+	m1.set({ 2, 1, 2 }, { 1, 1, 2 });
+	m1.set({ 2, 2, 2 }, { 2, 2, 2 });
 
   MCIM m2(eq, var);
-	m2.set({0, 1, 3, 1, 1, 0});
-	m2.set({0, 2, 3, 2, 2, 0});
-	m2.set({1, 1, 3, 1, 1, 1});
-	m2.set({1, 2, 3, 2, 2, 1});
-	m2.set({2, 1, 3, 1, 1, 2});
-	m2.set({2, 2, 3, 2, 2, 2});
+	m2.set({ 0, 1, 3 }, { 1, 1, 0 });
+	m2.set({ 0, 2, 3 }, { 2, 2, 0 });
+	m2.set({ 1, 1, 3 }, { 1, 1, 1 });
+	m2.set({ 1, 2, 3 }, { 2, 2, 1 });
+	m2.set({ 2, 1, 3 }, { 1, 1, 2 });
+	m2.set({ 2, 2, 3 }, { 2, 2, 2 });
 
   std::vector<MCIM> solutions;
 

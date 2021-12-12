@@ -4,7 +4,7 @@ using namespace marco::matching;
 
 DimensionAccess::DimensionAccess(
 		bool constantAccess,
-		long position,
+    Point::data_type position,
 		unsigned int inductionVariableIndex)
 		: constantAccess(constantAccess),
 			position(position),
@@ -12,17 +12,17 @@ DimensionAccess::DimensionAccess(
 {
 }
 
-DimensionAccess DimensionAccess::constant(long position)
+DimensionAccess DimensionAccess::constant(Point::data_type position)
 {
 	return DimensionAccess(true, position);
 }
 
-DimensionAccess DimensionAccess::relative(unsigned int inductionVariableIndex, long relativePosition)
+DimensionAccess DimensionAccess::relative(unsigned int inductionVariableIndex, Point::data_type relativePosition)
 {
 	return DimensionAccess(false, relativePosition, inductionVariableIndex);
 }
 
-size_t DimensionAccess::operator()(llvm::ArrayRef<long> equationIndexes) const
+Point::data_type DimensionAccess::operator()(const Point& equationIndexes) const
 {
 	if (isConstantAccess())
 		return getPosition();
@@ -35,13 +35,13 @@ bool DimensionAccess::isConstantAccess() const
 	return constantAccess;
 }
 
-size_t DimensionAccess::getPosition() const
+Point::data_type DimensionAccess::getPosition() const
 {
 	assert(isConstantAccess());
 	return position;
 }
 
-size_t DimensionAccess::getOffset() const
+Point::data_type DimensionAccess::getOffset() const
 {
 	assert(!isConstantAccess());
 	return position;
@@ -58,45 +58,33 @@ AccessFunction::AccessFunction(llvm::ArrayRef<DimensionAccess> functions)
 {
 }
 
-DimensionAccess AccessFunction::operator[](size_t index) const
+const DimensionAccess& AccessFunction::operator[](size_t index) const
 {
 	assert(index < size());
 	return functions[index];
 }
 
-
-llvm::ArrayRef<DimensionAccess> AccessFunction::getDimensionAccesses() const
-{
-	return functions;
-}
-
-void AccessFunction::map(llvm::SmallVectorImpl<long>& results, llvm::ArrayRef<long> equationIndexes) const
-{
-	for (const auto& function : functions)
-		results.push_back(function(equationIndexes));
-}
-
 size_t AccessFunction::size() const
 {
-	return functions.size();
-}
-
-AccessFunction::iterator AccessFunction::begin()
-{
-	return functions.begin();
+  return functions.size();
 }
 
 AccessFunction::const_iterator AccessFunction::begin() const
 {
-	return functions.begin();
-}
-
-AccessFunction::iterator AccessFunction::end()
-{
-	return functions.end();
+  return functions.begin();
 }
 
 AccessFunction::const_iterator AccessFunction::end() const
 {
-	return functions.end();
+  return functions.end();
+}
+
+Point AccessFunction::map(const Point& equationIndexes) const
+{
+  llvm::SmallVector<Point::data_type, 3> results;
+
+	for (const auto& function : functions)
+		results.push_back(function(equationIndexes));
+
+  return Point(std::move(results));
 }

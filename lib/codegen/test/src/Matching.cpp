@@ -165,12 +165,12 @@ TEST(Codegen, matching_scalarEquationAccesses)
 
   EXPECT_EQ(accesses.size(), 2);
 
-  auto xAccesses = accesses[0].getAccessFunction().getDimensionAccesses();
+  auto xAccesses = accesses[0].getAccessFunction();
   EXPECT_EQ(xAccesses.size(), 1);
   EXPECT_TRUE(xAccesses[0].isConstantAccess());
   EXPECT_EQ(xAccesses[0].getPosition(), 0);
 
-  auto yAccesses = accesses[1].getAccessFunction().getDimensionAccesses();
+  auto yAccesses = accesses[1].getAccessFunction();
   EXPECT_EQ(yAccesses.size(), 1);
   EXPECT_TRUE(yAccesses[0].isConstantAccess());
   EXPECT_EQ(yAccesses[0].getPosition(), 0);
@@ -232,7 +232,7 @@ TEST(Codegen, matching_equationWithExplicitLoops)
 
   EXPECT_EQ(accesses.size(), 2);
 
-  auto xAccesses = accesses[0].getAccessFunction().getDimensionAccesses();
+  auto xAccesses = accesses[0].getAccessFunction();
   EXPECT_EQ(xAccesses.size(), 2);
 
   EXPECT_FALSE(xAccesses[0].isConstantAccess());
@@ -243,7 +243,7 @@ TEST(Codegen, matching_equationWithExplicitLoops)
   EXPECT_EQ(xAccesses[1].getInductionVariableIndex(), 1);
   EXPECT_EQ(xAccesses[1].getOffset(), 2);
 
-  auto yAccesses = accesses[1].getAccessFunction().getDimensionAccesses();
+  auto yAccesses = accesses[1].getAccessFunction();
   EXPECT_EQ(yAccesses.size(), 1);
   EXPECT_FALSE(yAccesses[0].isConstantAccess());
   EXPECT_EQ(yAccesses[0].getInductionVariableIndex(), 0);
@@ -289,13 +289,13 @@ TEST(Codegen, matching_equationWithImplicitLoops)
 
   EXPECT_EQ(accesses.size(), 2);
 
-  auto xAccesses = accesses[0].getAccessFunction().getDimensionAccesses();
+  auto xAccesses = accesses[0].getAccessFunction();
   EXPECT_EQ(xAccesses.size(), 1);
   EXPECT_FALSE(xAccesses[0].isConstantAccess());
   EXPECT_EQ(xAccesses[0].getInductionVariableIndex(), 0);
   EXPECT_EQ(xAccesses[0].getOffset(), 0);
 
-  auto yAccesses = accesses[1].getAccessFunction().getDimensionAccesses();
+  auto yAccesses = accesses[1].getAccessFunction();
   EXPECT_EQ(yAccesses.size(), 1);
   EXPECT_FALSE(yAccesses[0].isConstantAccess());
   EXPECT_EQ(yAccesses[0].getInductionVariableIndex(), 0);

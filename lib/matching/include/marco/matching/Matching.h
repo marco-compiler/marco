@@ -1300,23 +1300,16 @@ namespace marco::matching
         return false;
 
       for (auto& path : augmentingPaths)
-      {
-        path.dump(std::cerr);
         applyPath(path);
-        dump(std::cerr);
-      }
 
       return true;
     }
 
     void getAugmentingPaths(llvm::SmallVectorImpl<AugmentingPath>& paths) const
     {
-      /*
-       * TODO
       auto sortHeuristic = [](const BFSStep& first, const BFSStep& second) {
         return first.getCandidates().size() > second.getCandidates().size();
       };
-       */
 
       Frontier frontier;
 
@@ -1331,7 +1324,7 @@ namespace marco::matching
           frontier.emplace(BFSStep(graph, equationDescriptor, std::move(unmatchedEquations)));
       }
 
-      //std::sort(frontier.begin(), frontier.end(), sortHeuristic);
+      std::sort(frontier.begin(), frontier.end(), sortHeuristic);
 
       // Breadth-first search
       Frontier newFrontier;
@@ -1386,10 +1379,10 @@ namespace marco::matching
         frontier.clear();
         frontier.swap(newFrontier);
 
-        //std::sort(frontier.begin(), frontier.end(), sortHeuristic);
+        std::sort(frontier.begin(), frontier.end(), sortHeuristic);
       }
 
-      //std::sort(foundPaths.begin(), foundPaths.end(), sortHeuristic);
+      std::sort(foundPaths.begin(), foundPaths.end(), sortHeuristic);
 
       // For each traversed node, keep track of the indexes that have already
       // been traversed by some augmenting path. A new candidate path can be
@@ -1398,8 +1391,6 @@ namespace marco::matching
 
       for (const BFSStep& pathEnd : foundPaths)
       {
-        pathEnd.dump(std::cerr);
-
         // All the candidate paths consist in at least two nodes by construction
         assert(pathEnd.hasPrevious());
 
@@ -1445,7 +1436,6 @@ namespace marco::matching
             }
             else
             {
-              // THIS DOESN'T WORK
               insertOrAdd(newVisits, curStep->getNode(), alreadyTouchedIndices + touchedIndexes);
             }
           }
@@ -1460,15 +1450,10 @@ namespace marco::matching
 
         if (validPath)
         {
-          std::cerr << "VALID PATH\n";
           paths.emplace_back(std::move(flows));
 
           for (auto& p : newVisits)
             visited.insert_or_assign(p.first, p.second);
-        }
-        else
-        {
-          std::cerr << "INVALID PATH\n";
         }
       }
     }

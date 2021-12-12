@@ -51,8 +51,8 @@ class VAFSolutions : public LocalMatchingSolutions::ImplInterface
   llvm::SmallVector<Range, 3> reorderedRanges;
   std::unique_ptr<MultidimensionalRange> range;
   llvm::SmallVector<size_t, 3> ordering;
-  std::unique_ptr<MultidimensionalRange::iterator> rangeIt;
-  std::unique_ptr<MultidimensionalRange::iterator> rangeEnd;
+  std::unique_ptr<MultidimensionalRange::const_iterator> rangeIt;
+  std::unique_ptr<MultidimensionalRange::const_iterator> rangeEnd;
 };
 
 VAFSolutions::VAFSolutions(
@@ -169,27 +169,25 @@ void VAFSolutions::fetchNext()
     // class.
 
     range = std::make_unique<MultidimensionalRange>(reorderedRanges);
-    rangeIt = std::make_unique<MultidimensionalRange::iterator>(range->begin());
-    rangeEnd = std::make_unique<MultidimensionalRange::iterator>(range->end());
+    rangeIt = std::make_unique<MultidimensionalRange::const_iterator>(range->begin());
+    rangeEnd = std::make_unique<MultidimensionalRange::const_iterator>(range->end());
   }
 
   MCIM matrix(equationRanges, variableRanges);
-  llvm::SmallVector<long, 3> equationIndexes;
-  llvm::SmallVector<long, 3> indexes;
+  llvm::SmallVector<Point::data_type, 3> equationIndexes;
   size_t counter = 0;
 
   while (counter++ != groupSize)
   {
-    const auto& reorderedIndexes = **rangeIt;
+    auto reorderedIndexes = **rangeIt;
     equationIndexes.clear();
 
     for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
       equationIndexes.push_back(reorderedIndexes[ordering[i]]);
 
-    indexes.clear();
-    indexes.insert(indexes.begin(), equationIndexes.begin(), equationIndexes.end());
-    accessFunctions[currentAccessFunction].map(indexes, equationIndexes);
-    matrix.set(indexes);
+    Point equation(equationIndexes);
+    auto variable = accessFunctions[currentAccessFunction].map(equation);
+    matrix.set(equation, variable);
 
     if (counter == groupSize)
       matrices.push_back(std::move(matrix));
@@ -245,18 +243,6 @@ size_t MCIMSolutions::size() const
 
 void MCIMSolutions::compute(const MCIM& obj)
 {
-  /*
-  for (const auto& indexes : obj.getIndexes())
-  {
-    if (obj.get(indexes))
-    {
-      MCIM solution(obj.getEquationRanges(), obj.getVariableRanges());
-      solution.set(indexes);
-      solutions.push_back(std::move(solution));
-    }
-  }
-   */
-
   for (const auto& solution : obj.splitGroups())
     solutions.push_back(std::move(solution));
 }

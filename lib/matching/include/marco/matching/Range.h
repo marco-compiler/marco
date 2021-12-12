@@ -1,64 +1,60 @@
 #ifndef MARCO_MATCHING_RANGE_H
 #define MARCO_MATCHING_RANGE_H
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
+#include "Point.h"
 
 namespace marco::matching
 {
-	template<typename ValueType>
-	class RangeIterator
-	{
-		public:
-		using iterator_category = std::forward_iterator_tag;
-		using value_type = ValueType;
-		using difference_type = std::ptrdiff_t;
-		using pointer = ValueType*;
-		using reference = ValueType&;
+  namespace detail
+  {
+    template<typename ValueType>
+    class RangeIterator
+    {
+      public:
+      using iterator_category = std::input_iterator_tag;
+      using value_type = ValueType;
+      using difference_type = std::ptrdiff_t;
+      using pointer = ValueType*;
+      using reference = ValueType&;
 
-		RangeIterator(ValueType begin, ValueType start, ValueType end) : begin(begin), current(start), end(end)
-		{
-			assert(begin <= end);
-		}
+      RangeIterator(ValueType begin, ValueType end) : current(begin), end(end)
+      {
+        assert(begin <= end);
+      }
 
-		operator bool() const
-		{
-			return current != end;
-		}
+      bool operator==(const RangeIterator& it) const
+      {
+        return current == it.current && end == it.end;
+      }
 
-		bool operator==(const RangeIterator& it) const
-		{
-			return current == it.current && begin == it.begin && end == it.end;
-		}
+      bool operator!=(const RangeIterator& it) const
+      {
+        return current != it.current || end != it.end;
+      }
 
-		bool operator!=(const RangeIterator& it) const
-		{
-			return current != it.current || begin != it.begin || end != it.end;
-		}
+      RangeIterator& operator++()
+      {
+        current = std::min(current + 1, end);
+        return *this;
+      }
 
-		RangeIterator& operator++()
-		{
-			current = std::min(current + 1, end);
-			return *this;
-		}
+      RangeIterator operator++(int)
+      {
+        auto temp = *this;
+        current = std::min(current + 1, end);
+        return temp;
+      }
 
-		RangeIterator operator++(int)
-		{
-			auto temp = *this;
-			current = std::min(current + 1, end);
-			return temp;
-		}
+      value_type operator*()
+      {
+        return current;
+      }
 
-		value_type operator*()
-		{
-			return current;
-		}
-
-		private:
-		ValueType begin;
-		ValueType current;
-		ValueType end;
-	};
+      private:
+      ValueType current;
+      ValueType end;
+    };
+  }
 
 	/**
 	 * 1-D half-open range [a,b).
@@ -66,10 +62,8 @@ namespace marco::matching
 	class Range
 	{
 		public:
-		using data_type = long;
-
-		using iterator = RangeIterator<data_type>;
-		using const_iterator = RangeIterator<data_type>;
+		using data_type = Point::data_type;
+		using const_iterator = detail::RangeIterator<data_type>;
 
 		Range(data_type begin, data_type end);
 
@@ -79,8 +73,11 @@ namespace marco::matching
     bool operator<(const Range& other) const;
     bool operator>(const Range& other) const;
 
-		long getBegin() const;
-		long getEnd() const;
+    // TODO remove
+    data_type getBegin() const;
+
+    // TODO remove
+    data_type getEnd() const;
 
 		size_t size() const;
 
@@ -91,15 +88,35 @@ namespace marco::matching
 
     Range intersect(const Range& other) const;
 
+    /**
+     * Check whether the range can be merged with another one.
+     * Two ranges can be merged if they overlap or if they are contiguous.
+     *
+     * @param other  range to be merged
+     * @return whether the ranges can be merged
+     */
     bool canBeMerged(const Range& other) const;
+
+    /**
+     * Create a range that is the resulting of merging this one with
+     * another one that can be merged.
+     *
+     * @param other  ranged to be merged
+     * @return merged range
+     */
     Range merge(const Range& other) const;
 
+    /**
+     * Subtract a range from the current one.
+     * Multiple results are created if the removed range is fully contained
+     * and does not touch the borders.
+     *
+     * @param other  ranged to be removed
+     * @return ranges resulting from the subtraction
+     */
     std::vector<Range> subtract(const Range& other) const;
 
-		iterator begin();
 		const_iterator begin() const;
-
-		iterator end();
 		const_iterator end() const;
 
 		private:
@@ -107,174 +124,7 @@ namespace marco::matching
 		data_type _end;
 	};
 
-	std::ostream& operator<<(std::ostream& stream, const Range& range);
-
-	template<typename ValueType>
-	class MultidimensionalRangeIterator
-	{
-		public:
-		using iterator_category = std::forward_iterator_tag;
-		using value_type = llvm::ArrayRef<ValueType>;
-		using difference_type = std::ptrdiff_t;
-		using pointer = llvm::ArrayRef<ValueType>*;
-		using reference = llvm::ArrayRef<ValueType>&;
-
-		MultidimensionalRangeIterator(
-				llvm::ArrayRef<Range> ranges,
-				std::function<RangeIterator<ValueType>(const Range&)> initFunction)
-		{
-			for (const auto& range : ranges)
-			{
-				beginIterators.push_back(range.begin());
-				auto it = initFunction(range);
-				currentIterators.push_back(it);
-				endIterators.push_back(range.end());
-				indexes.push_back(*it);
-			}
-
-			assert(ranges.size() == beginIterators.size());
-			assert(ranges.size() == currentIterators.size());
-			assert(ranges.size() == endIterators.size());
-			assert(ranges.size() == indexes.size());
-		}
-
-		operator bool() const
-		{
-			for (const auto& [current, end] : llvm::zip(currentIterators, endIterators))
-				if (current != end)
-					return true;
-
-			return false;
-		}
-
-		bool operator==(const MultidimensionalRangeIterator& it) const
-		{
-			return currentIterators == it.currentIterators;
-		}
-
-		bool operator!=(const MultidimensionalRangeIterator& it) const
-		{
-			return currentIterators != it.currentIterators;
-		}
-
-		MultidimensionalRangeIterator& operator++()
-		{
-			fetchNext();
-			return *this;
-		}
-
-		MultidimensionalRangeIterator operator++(int)
-		{
-			auto temp = *this;
-			fetchNext();
-			return temp;
-		}
-
-		value_type operator*() const
-		{
-			return indexes;
-		}
-
-		private:
-		void fetchNext()
-		{
-			size_t size = indexes.size();
-
-			auto findIndex = [&]() -> std::pair<bool, size_t> {
-				for (size_t i = 0, e = size; i < e; ++i)
-				{
-					size_t pos = e - i - 1;
-
-					if (++currentIterators[pos] != endIterators[pos])
-						return std::make_pair(true, pos);
-				}
-
-				return std::make_pair(false, 0);
-			};
-
-			std::pair<bool, size_t> index = findIndex();
-
-			if (index.first)
-			{
-				size_t pos = index.second;
-
-				indexes[pos] = *currentIterators[pos];
-
-				for (size_t i = pos + 1; i < size; ++i)
-				{
-					currentIterators[i] = beginIterators[i];
-					indexes[i] = *currentIterators[i];
-				}
-			}
-		}
-
-		llvm::SmallVector<RangeIterator<ValueType>, 3> beginIterators;
-		llvm::SmallVector<RangeIterator<ValueType>, 3> currentIterators;
-		llvm::SmallVector<RangeIterator<ValueType>, 3> endIterators;
-		llvm::SmallVector<ValueType, 3> indexes;
-	};
-
-	/**
-	 * n-D range. Each dimension is half-open as the 1-D range.
-	 */
-	class MultidimensionalRange
-	{
-		private:
-		using Container = llvm::SmallVector<Range, 2>;
-
-		public:
-		using data_type = Range::data_type;
-
-		using iterator = MultidimensionalRangeIterator<data_type>;
-		using const_iterator = MultidimensionalRangeIterator<data_type>;
-
-		MultidimensionalRange(llvm::ArrayRef<Range> ranges);
-
-		bool operator==(const MultidimensionalRange& other) const;
-		bool operator!=(const MultidimensionalRange& other) const;
-
-    bool operator<(const MultidimensionalRange& other) const;
-    bool operator>(const MultidimensionalRange& other) const;
-
-		Range& operator[](size_t index);
-    const Range& operator[](size_t index) const;
-
-		unsigned int rank() const;
-
-		void getSizes(llvm::SmallVectorImpl<size_t>& sizes) const;
-
-		unsigned int flatSize() const;
-
-    bool contains(llvm::ArrayRef<Range::data_type> element) const;
-    bool contains(const MultidimensionalRange& other) const;
-
-		bool overlaps(const MultidimensionalRange& other) const;
-
-    MultidimensionalRange intersect(const MultidimensionalRange& other) const;
-
-    /**
-     * Check if two multidimensional ranges can be merged.
-     *
-     * @return a pair whose first element is whether the merge is possible
-     * and the second is the dimension to be merged
-     */
-    std::pair<bool, size_t> canBeMerged(const MultidimensionalRange& other) const;
-
-    MultidimensionalRange merge(const MultidimensionalRange& other, size_t dimension) const;
-
-    std::vector<MultidimensionalRange> subtract(const MultidimensionalRange& other) const;
-
-		iterator begin();
-		const_iterator begin() const;
-
-		iterator end();
-		const_iterator end() const;
-
-		private:
-		Container ranges;
-	};
-
-	std::ostream& operator<<(std::ostream& stream, const MultidimensionalRange& range);
+	std::ostream& operator<<(std::ostream& stream, const Range& obj);
 }
 
 #endif	// MARCO_MATCHING_RANGE_H

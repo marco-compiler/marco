@@ -31,7 +31,7 @@ const MultidimensionalRange& MCIS::operator[](size_t index) const
   return *(std::next(ranges.begin(), index));
 }
 
-MCIS& MCIS::operator+=(llvm::ArrayRef<Range::data_type> rhs)
+MCIS& MCIS::operator+=(const Point& rhs)
 {
   llvm::SmallVector<Range, 3> elementRanges;
 
@@ -102,7 +102,7 @@ MCIS& MCIS::operator+=(const MCIS& rhs)
   return *this;
 }
 
-MCIS MCIS::operator+(llvm::ArrayRef<Range::data_type> rhs) const
+MCIS MCIS::operator+(const Point& rhs) const
 {
   MCIS result(*this);
   result += rhs;
@@ -123,7 +123,6 @@ MCIS MCIS::operator+(const MCIS& rhs) const
   return result;
 }
 
-// TODO tests
 MCIS& MCIS::operator-=(const MultidimensionalRange& rhs)
 {
   if (ranges.empty())
@@ -152,7 +151,6 @@ MCIS& MCIS::operator-=(const MultidimensionalRange& rhs)
   return *this;
 }
 
-// TODO tests
 MCIS& MCIS::operator-=(const MCIS& rhs)
 {
   for (const auto& range : rhs.ranges)
@@ -182,7 +180,12 @@ bool MCIS::empty() const
 
 size_t MCIS::size() const
 {
-  return ranges.size();
+  size_t result = 0;
+
+  for (const auto& range : ranges)
+    result += range.flatSize();
+
+  return result;
 }
 
 MCIS::const_iterator MCIS::begin() const
@@ -195,10 +198,10 @@ MCIS::const_iterator MCIS::end() const
   return ranges.end();
 }
 
-bool MCIS::contains(llvm::ArrayRef<Range::data_type> element) const
+bool MCIS::contains(const Point& other) const
 {
   for (const auto& range : ranges)
-    if (range.contains(element))
+    if (range.contains(other))
       return true;
 
   return false;
@@ -253,7 +256,6 @@ MCIS MCIS::intersect(const MCIS& other) const
   return result;
 }
 
-// TODO tests
 MCIS MCIS::complement(const MultidimensionalRange& other) const
 {
   if (ranges.empty())
@@ -335,19 +337,7 @@ namespace marco::matching::detail
           stream << ", ";
 
         positionSeparator = true;
-
-        bool indexSeparator = false;
-        stream << "(";
-
-        for (const auto& index : indexes)
-        {
-          if (indexSeparator)
-            stream << ",";
-
-          indexSeparator = true;
-          stream << index;
-        }
-
+        stream << indexes;
         stream << ")";
       }
     }
