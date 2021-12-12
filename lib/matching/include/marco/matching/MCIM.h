@@ -65,6 +65,7 @@ namespace marco::matching::detail
     friend void swap(MCIM& first, MCIM& second);
 
     bool operator==(const MCIM& other) const;
+    bool operator!=(const MCIM& other) const;
 
     const MultidimensionalRange& getEquationRanges() const;
     const MultidimensionalRange& getVariableRanges() const;

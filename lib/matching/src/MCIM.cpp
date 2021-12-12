@@ -1,3 +1,4 @@
+#include <llvm/Support/Casting.h>
 #include <marco/matching/MCIM.h>
 #include <numeric>
 #include <type_traits>
@@ -73,12 +74,49 @@ namespace marco::matching::detail
   class MCIM::Impl
   {
     public:
-    Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+    enum MCIMKind
+    {
+      Regular,
+      Flat
+    };
+
+    Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+
+    MCIMKind getKind() const
+    {
+      return kind;
+    }
+
+    template<typename T>
+    bool isa() const
+    {
+      return llvm::isa<T>(this);
+    }
+
+    template<typename T>
+    T* dyn_cast()
+    {
+      return llvm::dyn_cast<T>(this);
+    }
+
+    template<typename T>
+    const T* dyn_cast() const
+    {
+      return llvm::dyn_cast<T>(this);
+    }
+
+    virtual bool operator==(const MCIM::Impl& rhs) const;
+    virtual bool operator!=(const MCIM::Impl& rhs) const;
 
     virtual std::unique_ptr<MCIM::Impl> clone() = 0;
 
     const MultidimensionalRange& getEquationRanges() const;
     const MultidimensionalRange& getVariableRanges() const;
+
+    llvm::iterator_range<IndexesIterator> getIndexes() const;
+
+    virtual MCIM::Impl& operator+=(const MCIM::Impl& rhs);
+    virtual MCIM::Impl& operator-=(const MCIM::Impl& rhs);
 
     virtual void apply(const AccessFunction& access) = 0;
 
@@ -98,13 +136,14 @@ namespace marco::matching::detail
     virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
 
     private:
+    const MCIMKind kind;
     MultidimensionalRange equationRanges;
     MultidimensionalRange variableRanges;
   };
 }
 
-MCIM::Impl::Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-    : equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
+MCIM::Impl::Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+    : kind(kind), equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
 {
 }
 
@@ -116,6 +155,58 @@ const MultidimensionalRange& MCIM::Impl::getEquationRanges() const
 const MultidimensionalRange& MCIM::Impl::getVariableRanges() const
 {
   return variableRanges;
+}
+
+bool MCIM::Impl::operator==(const MCIM::Impl& rhs) const
+{
+  for (const auto& [equation, variable] : getIndexes())
+    if (get(equation, variable) != rhs.get(equation, variable))
+      return false;
+
+  return true;
+}
+
+bool MCIM::Impl::operator!=(const MCIM::Impl& rhs) const
+{
+  for (const auto& [equation, variable] : getIndexes())
+    if (get(equation, variable) != rhs.get(equation, variable))
+      return true;
+
+  return false;
+}
+
+llvm::iterator_range<MCIM::IndexesIterator> MCIM::Impl::getIndexes() const
+{
+  IndexesIterator begin(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
+      return range.begin();
+  });
+
+  IndexesIterator end(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
+      return range.end();
+  });
+
+  return llvm::iterator_range<MCIM::IndexesIterator>(begin, end);
+}
+
+MCIM::Impl& MCIM::Impl::operator+=(const MCIM::Impl& rhs)
+{
+  for (const auto& [equation, variable] : getIndexes())
+    if (rhs.get(equation, variable))
+      set(equation, variable);
+
+  return *this;
+}
+
+MCIM::Impl& MCIM::Impl::operator-=(const MCIM::Impl& rhs)
+{
+  for (const auto& [equation, variable] : getIndexes())
+    set(equation, variable);
+
+  for (const auto& [equation, variable] : getIndexes())
+    if (rhs.get(equation, variable))
+      unset(equation, variable);
+
+  return *this;
 }
 
 class RegularMCIM : public MCIM::Impl
@@ -156,7 +247,18 @@ class RegularMCIM : public MCIM::Impl
 
   RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
-  virtual std::unique_ptr<MCIM::Impl> clone() override;
+  static bool classof(const MCIM::Impl* obj)
+  {
+    return obj->getKind() == Regular;
+  }
+
+  bool operator==(const MCIM::Impl& rhs) const override;
+  bool operator!=(const MCIM::Impl& rhs) const override;
+
+  std::unique_ptr<MCIM::Impl> clone() override;
+
+  MCIM::Impl& operator+=(const MCIM::Impl& rhs) override;
+  MCIM::Impl& operator-=(const MCIM::Impl& rhs) override;
 
   void apply(const AccessFunction& access) override;
 
@@ -264,14 +366,115 @@ RegularMCIM::MCIMElement RegularMCIM::MCIMElement::inverse() const
 }
 
 RegularMCIM::RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-        : MCIM::Impl(std::move(equationRanges), std::move(variableRanges))
+        : MCIM::Impl(Regular, std::move(equationRanges), std::move(variableRanges))
 {
   assert(getEquationRanges().rank() == getVariableRanges().rank());
+}
+
+bool RegularMCIM::operator==(const MCIM::Impl& rhs) const
+{
+  if (auto other = rhs.dyn_cast<RegularMCIM>())
+  {
+    if (groups.empty() && other->groups.empty())
+      return true;
+
+    if (groups.size() != other->groups.size())
+      return false;
+
+    for (const auto& group : other->groups)
+    {
+      auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
+        return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == groups.end())
+        return false;
+
+      if (group.getKeys() != groupIt->getKeys())
+        return false;
+    }
+
+    return true;
+  }
+
+  return MCIM::Impl::operator==(rhs);
+}
+
+bool RegularMCIM::operator!=(const MCIM::Impl& rhs) const
+{
+  if (auto other = rhs.dyn_cast<RegularMCIM>())
+  {
+    if (groups.empty() && other->groups.empty())
+      return false;
+
+    if (groups.size() != other->groups.size())
+      return true;
+
+    for (const auto& group : other->groups)
+    {
+      auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
+        return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == groups.end())
+        return true;
+
+      if (group.getKeys() != groupIt->getKeys())
+        return true;
+    }
+
+    return false;
+  }
+
+  return MCIM::Impl::operator==(rhs);
 }
 
 std::unique_ptr<MCIM::Impl> RegularMCIM::clone()
 {
   return std::make_unique<RegularMCIM>(*this);
+}
+
+MCIM::Impl& RegularMCIM::operator+=(const MCIM::Impl& rhs)
+{
+  if (auto other = rhs.dyn_cast<RegularMCIM>())
+  {
+    for (const auto& group : other->groups)
+      add(group.getKeys(), group.getDelta());
+
+    return *this;
+  }
+
+  return MCIM::Impl::operator+=(rhs);
+}
+
+MCIM::Impl& RegularMCIM::operator-=(const MCIM::Impl& rhs)
+{
+  if (auto other = rhs.dyn_cast<RegularMCIM>())
+  {
+    llvm::SmallVector<MCIMElement, 3> newGroups;
+
+    for (const auto& group : groups)
+    {
+      auto groupIt = llvm::find_if(other->groups, [&](const MCIMElement& obj) {
+          return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == other->groups.end())
+      {
+        newGroups.push_back(std::move(group));
+      }
+      else
+      {
+        MCIS diff = group.getKeys() - groupIt->getKeys();
+        newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+      }
+    }
+
+    groups = std::move(newGroups);
+    return *this;
+  }
+
+  return MCIM::Impl::operator+=(rhs);
 }
 
 void RegularMCIM::apply(const AccessFunction& access)
@@ -471,7 +674,18 @@ class FlatMCIM : public MCIM::Impl
 
   FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+  static bool classof(const MCIM::Impl* obj)
+  {
+    return obj->getKind() == Flat;
+  }
+
+  bool operator==(const MCIM::Impl& rhs) const override;
+  bool operator!=(const MCIM::Impl& rhs) const override;
+
   std::unique_ptr<MCIM::Impl> clone() override;
+
+  MCIM::Impl& operator+=(const MCIM::Impl& rhs) override;
+  MCIM::Impl& operator-=(const MCIM::Impl& rhs) override;
 
   void apply(const AccessFunction& access) override;
 
@@ -536,40 +750,6 @@ static void convertIndexesFromZeroBased(
     rescaled.push_back(index);
   }
 }
-
-/*
-static Point convertPointToZeroBased(const Point& point, const MultidimensionalRange& base)
-{
-  assert(point.rank() == base.rank());
-  llvm::SmallVector<Point::data_type, 3> rescaled;
-
-  for (size_t i = 0, e = base.rank(); i < e; ++i)
-  {
-    const auto& monoDimRange = base[i];
-    Point::data_type index = point[i] - monoDimRange.getBegin();
-    assert(index >= 0 && index < monoDimRange.getEnd() - monoDimRange.getBegin());
-    rescaled.push_back(index);
-  }
-
-  return Point(std::move(rescaled));
-}
-
-static Point convertPointFromZeroBased(const Point& point, const MultidimensionalRange& base)
-{
-  assert(point.rank() == base.rank());
-  llvm::SmallVector<Point::data_type, 3> rescaled;
-
-  for (size_t i = 0, e = base.rank(); i < e; ++i)
-  {
-    const auto& monoDimRange = base[i];
-    Point::data_type index = point[i] + monoDimRange.getBegin();
-    assert(index < monoDimRange.getEnd());
-    rescaled.push_back(index);
-  }
-
-  return Point(std::move(rescaled));
-}
- */
 
 /**
  * Get the index to be used to access a flattened array.
@@ -764,7 +944,7 @@ FlatMCIM::MCIMElement FlatMCIM::MCIMElement::inverse() const
 }
 
 FlatMCIM::FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-        : MCIM::Impl(std::move(equationRanges), std::move(variableRanges))
+        : MCIM::Impl(Flat, std::move(equationRanges), std::move(variableRanges))
 {
   assert(getEquationRanges().rank() != getVariableRanges().rank());
 
@@ -775,9 +955,110 @@ FlatMCIM::FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange v
     variableDimensions.push_back(getVariableRanges()[i].size());
 }
 
+bool FlatMCIM::operator==(const MCIM::Impl& rhs) const
+{
+  if (auto other = rhs.dyn_cast<FlatMCIM>())
+  {
+    if (groups.empty() && other->groups.empty())
+      return true;
+
+    if (groups.size() != other->groups.size())
+      return false;
+
+    for (const auto& group : other->groups)
+    {
+      auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
+          return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == groups.end())
+        return false;
+
+      if (group.getKeys() != groupIt->getKeys())
+        return false;
+    }
+
+    return true;
+  }
+
+  return MCIM::Impl::operator==(rhs);
+}
+
+bool FlatMCIM::operator!=(const MCIM::Impl& rhs) const
+{
+  if (auto other = rhs.dyn_cast<FlatMCIM>())
+  {
+    if (groups.empty() && other->groups.empty())
+      return false;
+
+    if (groups.size() != other->groups.size())
+      return true;
+
+    for (const auto& group : other->groups)
+    {
+      auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
+          return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == groups.end())
+        return true;
+
+      if (group.getKeys() != groupIt->getKeys())
+        return true;
+    }
+
+    return false;
+  }
+
+  return MCIM::Impl::operator==(rhs);
+}
+
 std::unique_ptr<MCIM::Impl> FlatMCIM::clone()
 {
   return std::make_unique<FlatMCIM>(*this);
+}
+
+MCIM::Impl& FlatMCIM::operator+=(const MCIM::Impl& rhs)
+{
+  if (auto other = rhs.dyn_cast<FlatMCIM>())
+  {
+    for (const auto& group : other->groups)
+      add(group.getKeys(), group.getDelta());
+
+    return *this;
+  }
+
+  return MCIM::Impl::operator+=(rhs);
+}
+
+MCIM::Impl& FlatMCIM::operator-=(const MCIM::Impl& rhs)
+{
+  if (auto other = rhs.dyn_cast<FlatMCIM>())
+  {
+    llvm::SmallVector<MCIMElement, 3> newGroups;
+
+    for (const auto& group : groups)
+    {
+      auto groupIt = llvm::find_if(other->groups, [&](const MCIMElement& obj) {
+          return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == other->groups.end())
+      {
+        newGroups.push_back(std::move(group));
+      }
+      else
+      {
+        MCIS diff = group.getKeys() - groupIt->getKeys();
+        newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+      }
+    }
+
+    groups = std::move(newGroups);
+    return *this;
+  }
+
+  return MCIM::Impl::operator+=(rhs);
 }
 
 void FlatMCIM::apply(const AccessFunction& access)
@@ -982,11 +1263,24 @@ namespace marco::matching::detail
 
 bool MCIM::operator==(const MCIM& other) const
 {
-  for (const auto& [equation, variable] : getIndexes())
-    if (get(equation, variable) != other.get(equation, variable))
-      return false;
+  if (getEquationRanges() != other.getEquationRanges())
+    return false;
 
-  return true;
+  if (getVariableRanges() != other.getVariableRanges())
+    return false;
+
+  return (*impl) == *other.impl;
+}
+
+bool MCIM::operator!=(const MCIM& other) const
+{
+  if (getEquationRanges() != other.getEquationRanges())
+    return true;
+
+  if (getVariableRanges() != other.getVariableRanges())
+    return true;
+
+  return (*impl) != *other.impl;
 }
 
 const MultidimensionalRange& MCIM::getEquationRanges() const
@@ -1001,15 +1295,7 @@ const MultidimensionalRange& MCIM::getVariableRanges() const
 
 llvm::iterator_range<MCIM::IndexesIterator> MCIM::getIndexes() const
 {
-  IndexesIterator begin(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
-      return range.begin();
-  });
-
-  IndexesIterator end(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
-      return range.end();
-  });
-
-  return llvm::iterator_range<MCIM::IndexesIterator>(begin, end);
+  return impl->getIndexes();
 }
 
 MCIM& MCIM::operator+=(const MCIM& rhs)
@@ -1017,10 +1303,7 @@ MCIM& MCIM::operator+=(const MCIM& rhs)
   assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
   assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
 
-  for (const auto& [equation, variable] : getIndexes())
-    if (rhs.get(equation, variable))
-      set(equation, variable);
-
+  (*impl) += *rhs.impl;
   return *this;
 }
 
@@ -1036,10 +1319,7 @@ MCIM& MCIM::operator-=(const MCIM& rhs)
   assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
   assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
 
-  for (const auto& [equation, variable] : getIndexes())
-    if (get(equation, variable) && rhs.get(equation, variable))
-      unset(equation, variable);
-
+  (*impl) -= *rhs.impl;
   return *this;
 }
 

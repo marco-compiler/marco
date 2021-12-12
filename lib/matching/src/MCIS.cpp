@@ -4,25 +4,21 @@
 using namespace marco::matching;
 using namespace marco::matching::detail;
 
-template<typename It>
-static bool doRangesOverlap(It begin, It end)
-{
-  for (It it1 = begin; it1 != end; ++it1)
-  {
-    for (It it2 = std::next(it1); it2 != end; ++it2)
-      if (it1->overlaps(*it2))
-        return true;
-  }
-
-	return false;
-}
-
 MCIS::MCIS(llvm::ArrayRef<MultidimensionalRange> ranges)
 		: ranges(ranges.begin(), ranges.end())
 {
-	assert(!doRangesOverlap(this->ranges.begin(), this->ranges.end()) && "Ranges must not overlap");
-  sort();
-  merge();
+  for (const auto& range : ranges)
+    this->operator+=(range);
+}
+
+bool MCIS::operator==(const MCIS& rhs) const
+{
+  return contains(rhs) && rhs.contains(*this);
+}
+
+bool MCIS::operator!=(const MCIS& rhs) const
+{
+  return !contains(rhs) || !rhs.contains(*this);
 }
 
 const MultidimensionalRange& MCIS::operator[](size_t index) const
@@ -219,6 +215,17 @@ bool MCIS::contains(const MultidimensionalRange& other) const
   }
 
   return false;
+}
+
+bool MCIS::contains(const MCIS& other) const
+{
+  llvm::SmallVector<MultidimensionalRange, 3> current;
+
+  for (const auto& range : other.ranges)
+    if (!contains(range))
+      return false;
+
+  return true;
 }
 
 bool MCIS::overlaps(const MultidimensionalRange& other) const

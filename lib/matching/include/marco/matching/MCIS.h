@@ -25,6 +25,9 @@ namespace marco::matching::detail
 
     friend std::ostream& operator<<(std::ostream& stream, const MCIS& obj);
 
+    bool operator==(const MCIS& rhs) const;
+    bool operator!=(const MCIS& rhs) const;
+
 		const MultidimensionalRange& operator[](size_t index) const;
 
     MCIS& operator+=(const Point& rhs);
@@ -49,6 +52,7 @@ namespace marco::matching::detail
 
     bool contains(const Point& other) const;
     bool contains(const MultidimensionalRange& other) const;
+    bool contains(const MCIS& other) const;
 
     bool overlaps(const MultidimensionalRange& other) const;
     bool overlaps(const MCIS& other) const;
