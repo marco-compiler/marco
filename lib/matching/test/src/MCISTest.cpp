@@ -5,7 +5,7 @@
 using namespace marco::matching;
 using namespace marco::matching::detail;
 
-TEST(Matching, mcisEmptiness)
+TEST(MCIS, empty)
 {
   MCIS emptyMCIS;
   EXPECT_TRUE(emptyMCIS.empty());
@@ -18,7 +18,7 @@ TEST(Matching, mcisEmptiness)
   EXPECT_FALSE(nonEmptyMCIS.empty());
 }
 
-TEST(Matching, mcisSize)
+TEST(MCIS, size)
 {
   MCIS mcis;
 
@@ -35,7 +35,7 @@ TEST(Matching, mcisSize)
   EXPECT_EQ(mcis.size(), 27);
 }
 
-TEST(Matching, mcisContainsElement)
+TEST(MCIS, containsElement)
 {
   MultidimensionalRange range1({
     Range(1, 3),
@@ -54,7 +54,7 @@ TEST(Matching, mcisContainsElement)
   EXPECT_FALSE(mcis.contains({ 2, 7 }));
 }
 
-TEST(Matching, mcisContainsRange)
+TEST(MCIS, containsRange)
 {
   MultidimensionalRange range1({
     Range(1, 3),
@@ -84,7 +84,7 @@ TEST(Matching, mcisContainsRange)
   })));
 }
 
-TEST(Matching, mcisOverlapsRange)
+TEST(MCIS, overlapsRange)
 {
   MultidimensionalRange range1({
     Range(1, 3),
@@ -114,7 +114,7 @@ TEST(Matching, mcisOverlapsRange)
   })));
 }
 
-TEST(Matching, mcisAddRange)
+TEST(MCIS, addRange)
 {
   MultidimensionalRange initialRange({
     Range(1, 3),
@@ -133,7 +133,7 @@ TEST(Matching, mcisAddRange)
   EXPECT_TRUE(mcis.contains({ 2, 3 }));
 }
 
-TEST(Matching, mcisAddOverlappingRange)
+TEST(MCIS, addOverlappingRange)
 {
   MultidimensionalRange initialRange({
     Range(1, 3),
@@ -163,7 +163,7 @@ TEST(Matching, mcisAddOverlappingRange)
   })));
 }
 
-TEST(Matching, mcisAddMultipleRanges)
+TEST(MCIS, addMultipleRanges)
 {
   MCIS mcis;
 
@@ -195,7 +195,7 @@ TEST(Matching, mcisAddMultipleRanges)
   EXPECT_TRUE(mcis.contains(range));
 }
 
-TEST(Matching, mcisRemoveRange)
+TEST(MCIS, removeRange)
 {
   MultidimensionalRange range({
     Range(2, 5),
@@ -215,7 +215,7 @@ TEST(Matching, mcisRemoveRange)
     EXPECT_EQ(result.contains(indexes), !removed.contains(indexes));
 }
 
-TEST(Matching, mcisComplement)
+TEST(MCIS, complement)
 {
   llvm::SmallVector<MultidimensionalRange, 3> ranges;
 
@@ -255,7 +255,7 @@ TEST(Matching, mcisComplement)
   }
 }
 
-TEST(Matching, mcisComplementEmptyBase)
+TEST(MCIS, complementEmptyBase)
 {
   MCIS original;
 

@@ -60,14 +60,14 @@ class Edge
   int value;
 };
 
-TEST(Matching, graphAddVertex)
+TEST(Graph, addVertex)
 {
   Graph<Vertex, Edge> graph;
   auto x = graph.addVertex(Vertex("x"));
   EXPECT_EQ(graph[x].getName(), "x");
 }
 
-TEST(Matching, graphFilteredVertices)
+TEST(Graph, filteredVertices)
 {
   Graph<Vertex, Edge> graph;
 
@@ -91,7 +91,7 @@ TEST(Matching, graphFilteredVertices)
   EXPECT_THAT(vertices, UnorderedElementsAre(x, z));
 }
 
-TEST(Matching, graphAddEdge)
+TEST(Graph, addEdge)
 {
   Graph<Vertex, Edge> graph;
 
@@ -102,7 +102,7 @@ TEST(Matching, graphAddEdge)
   EXPECT_EQ(graph[e1].getName(), "e1");
 }
 
-TEST(Matching, graphIncidentEdges)
+TEST(Graph, incidentEdges)
 {
   Graph<Vertex, Edge> graph;
 
@@ -127,7 +127,7 @@ TEST(Matching, graphIncidentEdges)
   EXPECT_THAT(edges, UnorderedElementsAre(e1, e2));
 }
 
-TEST(Matching, graphEdges)
+TEST(Graph, edges)
 {
   Graph<Vertex, Edge> graph;
 
@@ -152,7 +152,7 @@ TEST(Matching, graphEdges)
   EXPECT_THAT(edges, UnorderedElementsAre(e1, e2, e3));
 }
 
-TEST(Matching, graphFilteredEdges)
+TEST(Graph, filteredEdges)
 {
   Graph<Vertex, Edge> graph;
 

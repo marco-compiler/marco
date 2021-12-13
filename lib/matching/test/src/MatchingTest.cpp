@@ -6,61 +6,61 @@
 using namespace marco::matching;
 using namespace marco::matching::detail;
 
-TEST(Matching, testCase1_matching)
+TEST(Matching, testCase1)
 {
   auto graph = testCase1();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase2_matching)
+TEST(Matching, testCase2)
 {
   auto graph = testCase2();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase3_matching)
+TEST(Matching, testCase3)
 {
   auto graph = testCase3();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase4_matching)
+TEST(Matching, testCase4)
 {
   auto graph = testCase4();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase5_matching)
+TEST(Matching, testCase5)
 {
   auto graph = testCase5();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase6_matching)
+TEST(Matching, testCase6)
 {
   auto graph = testCase6();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase7_matching)
+TEST(Matching, testCase7)
 {
   auto graph = testCase7();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase8_matching)
+TEST(Matching, testCase8)
 {
   auto graph = testCase8();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase9_matching)
+TEST(Matching, testCase9)
 {
   auto graph = testCase9();
   ASSERT_TRUE(graph.match());
 }
 
-TEST(Matching, testCase10_matching)
+TEST(Matching, testCase10)
 {
   auto graph = testCase10();
   ASSERT_TRUE(graph.match());

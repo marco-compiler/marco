@@ -45,7 +45,6 @@ namespace marco::matching::detail
       private:
       void advance();
 
-      size_t eqRank;
       Iterator eqCurrentIt;
       Iterator eqEndIt;
       Iterator varBeginIt;

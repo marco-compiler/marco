@@ -4,16 +4,21 @@
 
 using namespace marco::matching;
 
-TEST(Matching, oneDimensionalRange)
+TEST(Range, borders)
 {
   Range range(1, 5);
 
   ASSERT_EQ(range.getBegin(), 1);
   ASSERT_EQ(range.getEnd(), 5);
+}
+
+TEST(Range, size)
+{
+  Range range(1, 5);
   ASSERT_EQ(range.size(), 4);
 }
 
-TEST(Matching, oneDimensionalRangeIteration)
+TEST(Range, iteration)
 {
   Range range(1, 5);
 
@@ -26,7 +31,7 @@ TEST(Matching, oneDimensionalRangeIteration)
     EXPECT_EQ(*it, value++);
 }
 
-TEST(Matching, oneDimensionalRangeContainsValue)
+TEST(Range, containsValue)
 {
   Range range(3, 6);
 
@@ -37,7 +42,7 @@ TEST(Matching, oneDimensionalRangeContainsValue)
   EXPECT_FALSE(range.contains(6));
 }
 
-TEST(Matching, oneDimensionalRangeContainsRange)
+TEST(Range, containsRange)
 {
   Range range(3, 6);
 
@@ -52,7 +57,7 @@ TEST(Matching, oneDimensionalRangeContainsRange)
   EXPECT_FALSE(range.contains(Range(7, 9)));
 }
 
-TEST(Matching, oneDimensionalOverlappingRanges)
+TEST(Range, overlap)
 {
   Range x(1, 5);
   Range y(2, 7);
@@ -61,7 +66,7 @@ TEST(Matching, oneDimensionalOverlappingRanges)
   EXPECT_TRUE(y.overlaps(x));
 }
 
-TEST(Matching, oneDimensionalRangesWithTouchingBordersDoNotOverlap)
+TEST(Range, touchingBordersDoNotOverlap)
 {
   Range x(1, 5);
   Range y(5, 7);
@@ -70,7 +75,7 @@ TEST(Matching, oneDimensionalRangesWithTouchingBordersDoNotOverlap)
   EXPECT_FALSE(y.overlaps(x));
 }
 
-TEST(Matching, oneDimensionalRangesMerging)
+TEST(Range, merge)
 {
   Range x(1, 5);
 
@@ -99,7 +104,7 @@ TEST(Matching, oneDimensionalRangesMerging)
   EXPECT_EQ(z.merge(x).getEnd(), 7);
 }
 
-TEST(Matching, oneDimensionalRangesSubtraction)
+TEST(Range, subtraction)
 {
   Range a(3, 7);
 

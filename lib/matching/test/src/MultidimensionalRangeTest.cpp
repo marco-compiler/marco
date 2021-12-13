@@ -4,7 +4,7 @@
 
 using namespace marco::matching;
 
-TEST(Matching, multidimensionalRange)
+TEST(MultidimensionalRange, rank)
 {
   MultidimensionalRange range({
     Range(1, 3),
@@ -13,10 +13,20 @@ TEST(Matching, multidimensionalRange)
   });
 
   EXPECT_EQ(range.rank(), 3);
+}
+
+TEST(MultidimensionalRange, flatSize)
+{
+  MultidimensionalRange range({
+    Range(1, 3),
+    Range(2, 5),
+    Range(7, 10)
+  });
+
   EXPECT_EQ(range.flatSize(), 18);
 }
 
-TEST(Matching, multiDimensionalRangeIteration)
+TEST(MultidimensionalRange, iteration)
 {
   MultidimensionalRange range({
     Range(1, 3),
@@ -53,7 +63,7 @@ TEST(Matching, multiDimensionalRangeIteration)
   }
 }
 
-TEST(Matching, multidimensionalRangesOverlap)
+TEST(MultidimensionalRange, overlap)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -69,7 +79,7 @@ TEST(Matching, multidimensionalRangesOverlap)
   EXPECT_TRUE(y.overlaps(x));
 }
 
-TEST(Matching, multidimensionalRangesWithTouchingBordersDoNotOverlap)
+TEST(MultidimensionalRange, touchingBordersDoNotOverlap)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -85,7 +95,7 @@ TEST(Matching, multidimensionalRangesWithTouchingBordersDoNotOverlap)
   EXPECT_FALSE(y.overlaps(x));
 }
 
-TEST(Matching, multidimensionalRangesWithTouchingBordersMerging)
+TEST(MultidimensionalRange, canMergeWithTouchingBorders)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -111,7 +121,7 @@ TEST(Matching, multidimensionalRangesWithTouchingBordersMerging)
   EXPECT_EQ(z, t);
 }
 
-TEST(Matching, multidimensionalRangesWithOverlapMerging)
+TEST(MultidimensionalRange, canMergeWithOverlap)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -137,7 +147,7 @@ TEST(Matching, multidimensionalRangesWithOverlapMerging)
   EXPECT_EQ(z, t);
 }
 
-TEST(Matching, multidimensionalRangesUnmergeable)
+TEST(MultidimensionalRange, cantMergeWhenSeparated)
 {
   MultidimensionalRange x({
     Range(1, 3),
@@ -153,7 +163,7 @@ TEST(Matching, multidimensionalRangesUnmergeable)
   EXPECT_FALSE(y.canBeMerged(x).first);
 }
 
-TEST(Matching, multiDimensionalRangesSubtraction)
+TEST(MultidimensionalRange, subtraction)
 {
   MultidimensionalRange a({
     Range(2, 10),

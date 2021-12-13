@@ -7,14 +7,14 @@
 using namespace marco::matching;
 using namespace marco::matching::detail;
 
-TEST(Matching, singleVariableInsertion)
+TEST(MatchingGraph, singleVariableInsertion)
 {
   MatchingGraph<Variable, Equation> graph;
   graph.addVariable(Variable("x"));
   EXPECT_TRUE(graph.hasVariable("x"));
 }
 
-TEST(Matching, multipleVariablesInsertion)
+TEST(MatchingGraph, multipleVariablesInsertion)
 {
   MatchingGraph<Variable, Equation> graph;
 
@@ -26,7 +26,7 @@ TEST(Matching, multipleVariablesInsertion)
   EXPECT_FALSE(graph.hasVariable("z"));
 }
 
-TEST(Matching, multidimensionalVariableInsertion)
+TEST(MatchingGraph, multidimensionalVariableInsertion)
 {
   MatchingGraph<Variable, Equation> graph;
   graph.addVariable(Variable("x", { 2, 3, 4 }));
@@ -38,7 +38,7 @@ TEST(Matching, multidimensionalVariableInsertion)
   EXPECT_EQ(var.getDimensionSize(2), 4);
 }
 
-TEST(Matching, addEquation)
+TEST(MatchingGraph, addEquation)
 {
   MatchingGraph<Variable, Equation> graph;
 
@@ -56,7 +56,7 @@ TEST(Matching, addEquation)
   ASSERT_TRUE(graph.hasEdge("eq1", "x"));
 }
 
-TEST(Matching, testCase1_EquationsVariablesCount)
+TEST(MatchingGraph, testCase1_equationsVariablesCount)
 {
   auto graph = testCase1();
 
@@ -65,7 +65,7 @@ TEST(Matching, testCase1_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase2_EquationsVariablesCount)
+TEST(MatchingGraph, testCase2_equationsVariablesCount)
 {
   auto graph = testCase2();
 
@@ -74,7 +74,7 @@ TEST(Matching, testCase2_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase3_EquationsVariablesCount)
+TEST(MatchingGraph, testCase3_equationsVariablesCount)
 {
   auto graph = testCase3();
 
@@ -83,7 +83,7 @@ TEST(Matching, testCase3_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase4_EquationsVariablesCount)
+TEST(MatchingGraph, testCase4_equationsVariablesCount)
 {
   auto graph = testCase4();
 
@@ -92,7 +92,7 @@ TEST(Matching, testCase4_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase5_EquationsVariablesCount)
+TEST(MatchingGraph, testCase5_equationsVariablesCount)
 {
   auto graph = testCase5();
 
@@ -101,7 +101,7 @@ TEST(Matching, testCase5_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase6_EquationsVariablesCount)
+TEST(MatchingGraph, testCase6_equationsVariablesCount)
 {
   auto graph = testCase6();
 
@@ -110,7 +110,7 @@ TEST(Matching, testCase6_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase7_EquationsVariablesCount)
+TEST(MatchingGraph, testCase7_equationsVariablesCount)
 {
   auto graph = testCase7();
 
@@ -119,7 +119,7 @@ TEST(Matching, testCase7_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase8_EquationsVariablesCount)
+TEST(MatchingGraph, testCase8_equationsVariablesCount)
 {
   auto graph = testCase8();
 
@@ -128,7 +128,7 @@ TEST(Matching, testCase8_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase9_EquationsVariablesCount)
+TEST(MatchingGraph, testCase9_equationsVariablesCount)
 {
   auto graph = testCase9();
 
@@ -137,7 +137,7 @@ TEST(Matching, testCase9_EquationsVariablesCount)
   EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }
 
-TEST(Matching, testCase10_EquationsVariablesCount)
+TEST(MatchingGraph, testCase10_equationsVariablesCount)
 {
   auto graph = testCase10();
 

@@ -10,8 +10,7 @@ MCIM::IndexesIterator::IndexesIterator(
         const MultidimensionalRange& equationRange,
         const MultidimensionalRange& variableRange,
         std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
-        : eqRank(equationRange.rank()),
-          eqCurrentIt(initFunction(equationRange)),
+        : eqCurrentIt(initFunction(equationRange)),
           eqEndIt(equationRange.end()),
           varBeginIt(variableRange.begin()),
           varCurrentIt(initFunction(variableRange)),

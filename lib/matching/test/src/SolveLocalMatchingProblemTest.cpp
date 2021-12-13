@@ -38,7 +38,7 @@ using namespace marco::matching::detail;
  * (2,1)  0    0    0
  * (2,2)  0    0    1
  */
-TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_firstInductionVariable)
+TEST(SolveLocalMathingProblem, 2D_underdimensionedVariable_firstInductionVariable)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -108,7 +108,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_firstInduct
  * (2,1)  0    1    0
  * (2,2)  0    0    1
  */
-TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_secondInductionVariable)
+TEST(SolveLocalMathingProblem, 2D_underdimensionedVariable_secondInductionVariable)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -164,7 +164,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_secondInduc
  * (2,1)  0       0      0      0      0      0      0      0      0      1      0      0
  * (2,2)  0       0      0      0      0      0      0      0      0      0      1      0
  */
-TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
+TEST(SolveLocalMathingProblem, 2D_allInductionVariablesUsed)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -222,7 +222,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
  * (2,1)   0      0      0      0      0      0      1      0      0      0      0      0
  * (2,2)   0      0      0      0      0      0      0      0      0      0      1      0
  */
-TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
+TEST(SolveLocalMathingProblem, 2D_invertedInductionVariables)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -288,7 +288,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
  * (2,1)   0      0      0      0      0      0      0      0      0      0      0      0
  * (2,2)   0      0      0      0      0      0      1      0      0      0      0      0
  */
-TEST(Matching, solveLocalMatchingProblem_2D_oneConstantIndex)
+TEST(SolveLocalMathingProblem, 2D_oneConstantIndex)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -388,7 +388,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_oneConstantIndex)
  * (2,1)   0      0      0      0      0      0      0      0      0      0      0      0
  * (2,2)   0      0      0      0      0      0      1      0      0      0      0      0
  */
-TEST(Matching, solveLocalMatchingProblem_2D_allConstantIndexes)
+TEST(SolveLocalMathingProblem, 2D_allConstantIndexes)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -472,7 +472,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_allConstantIndexes)
  * (2,1)   0      0      0      0      0      1      0      0      0      0      0      0
  * (2,2)   0      0      0      0      0      0      0      0      0      0      1      0
  */
-TEST(Matching, solveLocalMatchingProblem_2D_repeatedInductionVariable)
+TEST(SolveLocalMathingProblem, 2D_repeatedInductionVariable)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),
@@ -518,7 +518,7 @@ TEST(Matching, solveLocalMatchingProblem_2D_repeatedInductionVariable)
  * 	   for k in [1,4)
  * 	     x[j][j][i]
  */
-TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
+TEST(SolveLocalMathingProblem, 3D_repeatedInductionVariable)
 {
 	MultidimensionalRange eq({
 			Range(0, 3),

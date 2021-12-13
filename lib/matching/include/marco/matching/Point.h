@@ -26,20 +26,6 @@ namespace marco::matching
     Point(std::initializer_list<data_type> values);
     Point(llvm::ArrayRef<data_type> values);
 
-    /*
-    template<typename... Values>
-    Point(Values&&... values) : Point({ std::forward<Values>(values)... })
-    {
-    }
-     */
-
-    /*
-    template<typename It>
-    Point(It begin, It end) : values(begin, end)
-    {
-    }
-     */
-
     bool operator==(const Point& other) const;
     bool operator!=(const Point& other) const;
 
@@ -50,6 +36,7 @@ namespace marco::matching
     const_iterator begin() const;
     const_iterator end() const;
 
+    private:
     llvm::SmallVector<data_type> values;
   };
 
