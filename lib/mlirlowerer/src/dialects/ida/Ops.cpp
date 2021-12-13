@@ -347,15 +347,17 @@ llvm::ArrayRef<llvm::StringRef> AllocDataOp::getAttributeNames()
 	return {};
 }
 
-void AllocDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber)
+void AllocDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value scalarEquations, mlir::Value vectorEquations, mlir::Value vectorVariables)
 {
 	state.addTypes(OpaquePointerType::get(builder.getContext()));
-	state.addOperands(equationsNumber);
+	state.addOperands(scalarEquations);
+	state.addOperands(vectorEquations);
+	state.addOperands(vectorVariables);
 }
 
 mlir::ParseResult AllocDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 1);
+	return ida::parse(parser, result, 3);
 }
 
 void AllocDataOp::print(mlir::OpAsmPrinter& printer)
@@ -365,8 +367,14 @@ void AllocDataOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult AllocDataOp::verify()
 {
-	if (!equationsNumber().getType().isa<IntegerType>())
-		return emitOpError("Requires number of equations to be an integer");
+	if (!scalarEquations().getType().isa<IntegerType>())
+		return emitOpError("Requires scalar number of equations to be an integer");
+
+	if (!vectorEquations().getType().isa<IntegerType>())
+		return emitOpError("Requires vector number of equations to be an integer");
+
+	if (!vectorVariables().getType().isa<IntegerType>())
+		return emitOpError("Requires vector number of variables to be an integer");
 
 	return mlir::success();
 }
@@ -386,9 +394,19 @@ mlir::ValueRange AllocDataOp::args()
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value AllocDataOp::equationsNumber()
+mlir::Value AllocDataOp::scalarEquations()
 {
 	return getOperation()->getOperand(0);
+}
+
+mlir::Value AllocDataOp::vectorEquations()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AllocDataOp::vectorVariables()
+{
+	return getOperation()->getOperand(2);
 }
 
 //===----------------------------------------------------------------------===//
@@ -400,16 +418,15 @@ llvm::ArrayRef<llvm::StringRef> InitOp::getAttributeNames()
 	return {};
 }
 
-void InitOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value threads)
+void InitOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(BooleanType::get(builder.getContext()));
 	state.addOperands(userData);
-	state.addOperands(threads);
 }
 
 mlir::ParseResult InitOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 2);
+	return ida::parse(parser, result, 1);
 }
 
 void InitOp::print(mlir::OpAsmPrinter& printer)
@@ -421,9 +438,6 @@ mlir::LogicalResult InitOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!threads().getType().isa<IntegerType>())
-		return emitOpError("Requires number of threads to be an integer");
 
 	return mlir::success();
 }
@@ -447,11 +461,6 @@ mlir::ValueRange InitOp::args()
 mlir::Value InitOp::userData()
 {
 	return getOperation()->getOperand(0);
-}
-
-mlir::Value InitOp::threads()
-{
-	return getOperation()->getOperand(1);
 }
 
 //===----------------------------------------------------------------------===//

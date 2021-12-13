@@ -59,7 +59,6 @@ static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("
 static cl::opt<bool> emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> equidistantTimeGrid("equidistant", cl::desc("Equidistant time grid based on the time step value (only for IDA)"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> printStatistics("print-stats", cl::desc("Print statistics about IDA computation"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<int> idaThreads("ida-threads", cl::desc("Number of threads for simulation with IDA if omp is enabled, 0 means the number of threads available in the machine (default: 0)"), cl::init(0), cl::cat(codeGenOptions));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -218,11 +217,10 @@ int main(int argc, char* argv[])
 	loweringOptions.solveModelOptions.solver = solver;
 	loweringOptions.solveModelOptions.equidistantTimeGrid = equidistantTimeGrid;
 	loweringOptions.solveModelOptions.printStatistics = printStatistics;
-	loweringOptions.solveModelOptions.threads = openmp ? idaThreads : 1;
 	loweringOptions.inlining = !inlining;
 	loweringOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	loweringOptions.cse = !cse;
-	loweringOptions.openmp = openmp || idaThreads != 0;
+	loweringOptions.openmp = openmp;
 	loweringOptions.x64 = !x86.getValue();
 	loweringOptions.conversionOptions.useRuntimeLibrary = !disableRuntimeLibrary;
 	loweringOptions.llvmOptions.emitCWrappers = emitCWrappers;

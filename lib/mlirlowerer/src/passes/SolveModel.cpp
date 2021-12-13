@@ -2123,12 +2123,23 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		//===--------------------------------------------------------------===//
 
 		// Allocate IDA user data, starting from the number of scalar equations.
-		int64_t equationsNumber = 0;
+		int64_t scalarEquationsNumber = 0;
+		int64_t vectorEquationsNumber = 0;
 		for (BltBlock& bltBlock : model.getBltBlocks())
-			equationsNumber += bltBlock.equationsCount();
+		{
+			scalarEquationsNumber += bltBlock.equationsCount();
+			vectorEquationsNumber += bltBlock.size();
+		}
 
-		mlir::Value neq = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(equationsNumber));
-		mlir::Value userData = builder.create<AllocDataOp>(loc, neq);
+		int64_t vectorVariablesNumber = 0;
+		for (auto& var : model.getVariables())
+			if (var->isState() || (!var->isTrivial() && !var->isDerivative()))
+				vectorVariablesNumber++;
+
+		mlir::Value scalarEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEquationsNumber));
+		mlir::Value vectorEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEquationsNumber));
+		mlir::Value vectorVarValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEquationsNumber));
+		mlir::Value userData = builder.create<AllocDataOp>(loc, scalarEqValue, vectorEqValue, vectorVarValue);
 
 		// Add start time, end time and time step.
 		mlir::Value startTime = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.startTime().getValue()));
@@ -2302,13 +2313,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			var->getReference().getDefiningOp()->erase();
 		}
 
-		assert(variableOffset == equationsNumber);
+		assert(variableOffset == scalarEquationsNumber);
 
 		// Call the IDA initialization operation at the end of the init() function.
 		loc = simulationOp.getLoc();
 		builder.setInsertionPoint(terminator);
-		mlir::Value threads = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(options.threads));
-		builder.create<InitOp>(loc, userData, threads);
+		builder.create<InitOp>(loc, userData);
 
 		// Add userData inside the returned pointer in second position
 		mlir::Value userDataAlloc = builder.create<AllocOp>(loc, builder.getOpaquePointerType(), llvm::None, llvm::None, false, false);

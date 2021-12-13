@@ -78,7 +78,7 @@ namespace marco::codegen::ida
 
 	class AllocDataOp : public mlir::Op<AllocDataOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::NOperands<3>::Impl,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -91,7 +91,7 @@ namespace marco::codegen::ida
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value scalarEquations, mlir::Value vectorEquations, mlir::Value vectorVariables);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -100,7 +100,9 @@ namespace marco::codegen::ida
 
 		OpaquePointerType resultType();
 		mlir::ValueRange args();
-		mlir::Value equationsNumber();
+		mlir::Value scalarEquations();
+		mlir::Value vectorEquations();
+		mlir::Value vectorVariables();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -109,7 +111,7 @@ namespace marco::codegen::ida
 
 	class InitOp : public mlir::Op<InitOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -122,7 +124,7 @@ namespace marco::codegen::ida
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value threads);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -132,7 +134,6 @@ namespace marco::codegen::ida
 		BooleanType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
-		mlir::Value threads();
 	};
 
 	//===----------------------------------------------------------------------===//

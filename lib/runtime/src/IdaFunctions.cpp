@@ -9,12 +9,6 @@
 #include <sunlinsol/sunlinsol_klu.h>
 #include <sunmatrix/sunmatrix_sparse.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#else
-#define omp_get_max_threads() 1
-#endif
-
 #define PRINT_JACOBIAN false
 
 #define INIT_TIME_STEP 1e-6
@@ -38,6 +32,7 @@
 
 using Indexes = std::vector<size_t>;
 using Access = std::vector<std::pair<sunindextype, sunindextype>>;
+using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
 
 using VarDimension = std::vector<size_t>;
 using EqDimension = std::vector<std::pair<size_t, size_t>>;
@@ -62,25 +57,23 @@ using JacobianFunction = std::function<realtype(
  */
 typedef struct IdaUserData
 {
-	// Equations data
-	std::vector<EqDimension> equationDimensions;
-	std::vector<ResidualFunction> residuals;
-	std::vector<JacobianFunction> jacobians;
-
-	// Variables data
-	std::vector<sunindextype> variableOffsets;
-	std::vector<VarDimension> variableDimensions;
-	std::vector<std::vector<std::pair<sunindextype, Access>>> variableAccesses;
-
-	// Matrix size
+	// Model size
 	size_t vectorVariablesNumber;
 	size_t vectorEquationsNumber;
 	sunindextype scalarEquationsNumber;
 	sunindextype nonZeroValuesNumber;
 
+	// Equations data
+	std::vector<EqDimension> equationDimensions;
+	std::vector<ResidualFunction> residuals;
+	std::vector<JacobianFunction> jacobians;
+	std::vector<VarAccessList> variableAccesses;
+
+	// Variables data
+	std::vector<sunindextype> variableOffsets;
+	std::vector<VarDimension> variableDimensions;
+
 	// Jacobian indexes
-	std::vector<size_t> equationIndexes;
-	std::vector<std::vector<size_t>> nnzElements;
 	std::vector<std::vector<std::vector<size_t>>> columnIndexes;
 
 	// Simulation times
@@ -92,7 +85,6 @@ typedef struct IdaUserData
 
 	// Simulation options
 	bool equidistantTimeGrid;
-	sunindextype threads;
 
 	// Error tolerances
 	realtype relativeTolerance;
@@ -196,7 +188,11 @@ static bool checkRetval(int retval, const char* funcname)
  * from the provided UserData struct, iterating through every equation.
  */
 int residualFunction(
-		realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, void* userData)
+		realtype tt,
+		N_Vector yy,
+		N_Vector yp,
+		N_Vector rr,
+		void* userData)
 {
 	realtype* yval = N_VGetArrayPointer(yy);
 	realtype* ypval = N_VGetArrayPointer(yp);
@@ -204,14 +200,9 @@ int residualFunction(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
-#endif
+	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
-		// For every vector equation
-		size_t residualIndex = data->equationIndexes[eq];
-
 		// Initialize the multidimensional interval of the vector equation
 		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
 
@@ -222,13 +213,13 @@ int residualFunction(
 		do
 		{
 			// Compute the i-th residual function
-			rval[residualIndex++] =
-					data->residuals[eq](tt, yval, ypval, indexes);
+			*rval++ = data->residuals[eq](tt, yval, ypval, indexes);
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
-		assert(residualIndex == data->equationIndexes[eq+1]);
 		delete[] indexes;
 	}
+
+	assert(rval == N_VGetArrayPointer(rr) + data->scalarEquationsNumber);
 
 	return 0;
 }
@@ -261,13 +252,12 @@ int jacobianMatrix(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
-#endif
+	sunindextype nnzElements = 0;
+	*rowptrs++ = nnzElements;
+
+	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
-		// For every vector equation
-		size_t rowIndex = data->equationIndexes[eq];
 		size_t columnIndex = 0;
 
 		// Initialize the multidimensional interval of the vector equation
@@ -279,28 +269,27 @@ int jacobianMatrix(
 		// For every scalar equation in the vector equation
 		do
 		{
-			size_t jacobianIndex = data->nnzElements[eq][columnIndex];
-			rowptrs[rowIndex++] = data->nnzElements[eq][columnIndex];
+			nnzElements += data->columnIndexes[eq][columnIndex].size();
+			*rowptrs++ = nnzElements;
 
 			// For every variable with respect to which every equation must be
 			// partially differentiated
 			for (sunindextype var : data->columnIndexes[eq][columnIndex])
 			{
 				// Compute the i-th jacobian value
-				jacobian[jacobianIndex] =
-						data->jacobians[eq](tt, yval, ypval, indexes, cj, var);
-				colvals[jacobianIndex++] = var;
+				*jacobian++ = data->jacobians[eq](tt, yval, ypval, indexes, cj, var);
+				*colvals++ = var;
 			}
 
-			// Update multidimensional interval, exit while loop if finished
 			columnIndex++;
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
-		assert(rowIndex == data->equationIndexes[eq+1]);
 		delete[] indexes;
 	}
 
-	rowptrs[data->scalarEquationsNumber] = data->nonZeroValuesNumber;
+	assert(rowptrs == SUNSparseMatrix_IndexPointers(JJ) + data->scalarEquationsNumber + 1);
+	assert(colvals == SUNSparseMatrix_IndexValues(JJ) + data->nonZeroValuesNumber);
+	assert(jacobian == SUNSparseMatrix_Data(JJ) + data->nonZeroValuesNumber);
 
 	return 0;
 }
@@ -314,13 +303,14 @@ int jacobianMatrix(
  * number of scalar equations.
  */
 template<typename T>
-inline void* idaAllocData(T scalarEquationsNumber)
+inline void* idaAllocData(T scalarEquationsNumber, T vectorEquationsNumber, T vectorVariablesNumber)
 {
 	IdaUserData* data = new IdaUserData;
 
 	data->scalarEquationsNumber = scalarEquationsNumber;
 	data->vectorEquationsNumber = 0;
 	data->vectorVariablesNumber = 0;
+	data->nonZeroValuesNumber = 0;
 
 	// Create and initialize the required N-vectors for the variables.
 	data->variablesVector = N_VNew_Serial(data->scalarEquationsNumber);
@@ -340,28 +330,29 @@ inline void* idaAllocData(T scalarEquationsNumber)
 	data->idValues = N_VGetArrayPointer(data->idVector);
 	data->toleranceValues = N_VGetArrayPointer(data->tolerancesVector);
 
+	data->equationDimensions.resize(vectorEquationsNumber);
+	data->residuals.resize(vectorEquationsNumber);
+	data->jacobians.resize(vectorEquationsNumber);
+	data->variableAccesses.resize(vectorEquationsNumber);
+
+	data->variableOffsets.resize(vectorVariablesNumber);
+	data->variableDimensions.resize(vectorVariablesNumber);
+
+	data->columnIndexes.resize(vectorEquationsNumber);
+
 	return static_cast<void*>(data);
 }
 
-RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t, int64_t, int64_t)
 
 /**
- * Precompute the row and column indexes of all non-zero values in the Jacobian
- * Matrix. This avoids the recomputation of such indexes and allows
- * parallelization of the Jacobian computation. Returns the number of non-zero
- * values in the Jacobian Matrix.
+ * Compute the number of non-zero values in the Jacobian Matrix. Also compute
+ * the column indexes of all non-zero values in the Jacobian Matrix. This avoids
+ * the recomputation of such indexes during the Jacobian evaluation.
  */
-sunindextype precomputeJacobianIndexes(IdaUserData* data)
+void precomputeJacobianIndexes(IdaUserData* data)
 {
-	sunindextype nnzElements = 0;
-
-	data->equationIndexes.resize(data->vectorEquationsNumber + 1);
-	data->columnIndexes.resize(data->vectorEquationsNumber);
-	data->nnzElements.resize(data->vectorEquationsNumber);
-
-	data->equationIndexes[0] = 0;
-
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		sunindextype equationSize = 1;
@@ -370,14 +361,7 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
-		{
-			auto& dim = data->equationDimensions[eq][i];
-			indexes[i] = dim.first;
-			equationSize *= (dim.second - dim.first);
-		}
-
-		// Compute the number of scalar equations in every vector equation
-		data->equationIndexes[eq + 1] = equationSize + data->equationIndexes[eq];
+			indexes[i] = data->equationDimensions[eq][i].first;
 
 		// For every scalar equation in the vector equation
 		do
@@ -386,24 +370,23 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 			std::set<size_t> columnIndexesSet;
 			for (auto& access : data->variableAccesses[eq])
 			{
-				VarDimension dimensions = data->variableDimensions[access.first];
+				VarDimension& dimensions = data->variableDimensions[access.first];
 				sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
 				columnIndexesSet.insert(data->variableOffsets[access.first] + varOffset);
 			}
 
 			// Compute the number of non-zero values in each scalar equation
-			data->columnIndexes[eq].push_back(
-					std::vector(columnIndexesSet.begin(), columnIndexesSet.end()));
-			data->nnzElements[eq].push_back(nnzElements);
-			nnzElements += data->columnIndexes[eq].back().size();
+			data->columnIndexes[eq].push_back(std::vector(columnIndexesSet.begin(), columnIndexesSet.end()));
+			data->nonZeroValuesNumber += data->columnIndexes[eq].back().size();
 
-			// Update multidimensional interval, exit while loop if finished
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 
 		delete[] indexes;
 	}
 
-	return nnzElements;
+	// Erase the variable accesses vector.
+	data->variableAccesses.clear();
+	std::vector<VarAccessList>().swap(data->variableAccesses);
 }
 
 /**
@@ -412,8 +395,7 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
  * for IDA. It must be called before the first usage of idaStep() and after a
  * call to idaAllocData(). It may fail in case of malformed model.
  */
-template<typename T>
-inline bool idaInit(void* userData, T threads)
+inline bool idaInit(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -421,17 +403,7 @@ inline bool idaInit(void* userData, T threads)
 		return true;
 
 	// Compute the total amount of non-zero values in the Jacobian Matrix.
-	data->nonZeroValuesNumber = precomputeJacobianIndexes(data);
-	data->threads = threads == 0 ? omp_get_max_threads() : threads;
-
-	// Check that the data was correctly initialized.	
-	assert(data->vectorEquationsNumber == data->equationDimensions.size());
-	assert(data->vectorEquationsNumber == data->residuals.size());
-	assert(data->vectorEquationsNumber == data->jacobians.size());
-	assert(data->vectorEquationsNumber == data->nnzElements.size());
-	assert(data->vectorEquationsNumber == data->columnIndexes.size());
-	assert(data->vectorVariablesNumber == data->variableOffsets.size());
-	assert(data->vectorVariablesNumber == data->variableDimensions.size());
+	precomputeJacobianIndexes(data);
 
 	// Create and initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -527,8 +499,7 @@ inline bool idaInit(void* userData, T threads)
 	return true;
 }
 
-RUNTIME_FUNC_DEF(idaInit, bool, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(idaInit, bool, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(idaInit, bool, PTR(void))
 
 /**
  * Invoke IDA to perform one step of the computation. Returns false if the
@@ -642,16 +613,14 @@ inline void addEquation(void* userData, UnsizedArrayDescriptor<T> dimension)
 	assert(dimension.getRank() == 2);
 	assert(dimension.getDimensionSize(0) == 2);
 
-	// Increase the number of vector equation, add an other item to the equation
-	// dimensions and variable accesses vectors.
-	data->vectorEquationsNumber++;
-	data->variableAccesses.push_back({});
-	data->equationDimensions.push_back({});
-
 	// Add the start and end dimensions of the current equation.
+	EqDimension& eqDimension = data->equationDimensions[data->vectorEquationsNumber];
+
 	size_t size = dimension.getDimensionSize(1);
 	for (size_t i = 0; i < size; i++)
-		data->equationDimensions.back().push_back({ dimension[i], dimension[i + size] });
+		eqDimension.push_back({ dimension[i], dimension[i + size] });
+
+	data->vectorEquationsNumber++;
 }
 
 RUNTIME_FUNC_DEF(addEquation, void, PTR(void), ARRAY(int32_t))
@@ -665,7 +634,7 @@ template<typename T>
 inline void addResidual(void* userData, T residualFunction)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	data->residuals.push_back(residualFunction);
+	data->residuals[data->vectorEquationsNumber - 1] = residualFunction;
 }
 
 #if defined(SUNDIALS_SINGLE_PRECISION)
@@ -682,7 +651,7 @@ template<typename T>
 inline void addJacobian(void* userData, T jacobianFunction)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	data->jacobians.push_back(jacobianFunction);
+	data->jacobians[data->vectorEquationsNumber - 1] = jacobianFunction;
 }
 
 #if defined(SUNDIALS_SINGLE_PRECISION)
@@ -697,7 +666,7 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(double))
 
 /**
  * Add and initialize a new variable given its array.
- * 
+ *
  * @param userData opaque pointer to the IDA user data.
  * @param offset offset of the current variable from the beginning of the array.
  * @param array allocation operation containing the rank and dimensions.
@@ -715,13 +684,10 @@ inline void addVariable(
 	assert(offset >= 0);
 	assert(offset + array.getNumElements() <= (size_t) data->scalarEquationsNumber);
 
-	// Add variable offset.
+	// Add variable offset and dimension.
+	data->variableOffsets[data->vectorVariablesNumber] = offset;
+	data->variableDimensions[data->vectorVariablesNumber] = array.getDimensions();
 	data->vectorVariablesNumber++;
-	data->variableOffsets.push_back(offset);
-
-	// Add variable dimensions.
-	VarDimension dimensions(array.getDimensions());
-	data->variableDimensions.push_back(dimensions);
 
 	// Compute idValue and absoluteTolerance.
 	realtype idValue = isState ? 1.0 : 0.0;
@@ -775,11 +741,12 @@ inline void addVarAccess(
 	assert(access.getRank() == 2);
 	assert(access.getDimensionSize(0) == 2);
 
-	data->variableAccesses.back().push_back({ variableIndex, {} });
+	VarAccessList& varAccessList = data->variableAccesses[data->vectorEquationsNumber - 1];
+	varAccessList.push_back({ variableIndex, {} });
 
 	size_t size = access.getDimensionSize(1);
 	for (size_t i = 0; i < size; i++)
-		data->variableAccesses.back().back().second.push_back({ access[i], access[i + size] });
+		varAccessList.back().second.push_back({ access[i], access[i + size] });
 }
 
 RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int32_t, ARRAY(int32_t))
@@ -790,7 +757,7 @@ RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
 //===----------------------------------------------------------------------===//
 
 /**
- * Returns the time reached by the solver after the last step. 
+ * Returns the time reached by the solver after the last step.
  */
 inline double getIdaTime(void* userData)
 {

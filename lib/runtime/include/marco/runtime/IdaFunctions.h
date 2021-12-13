@@ -8,11 +8,10 @@
 // Allocation, initialization, usage and deletion
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(idaAllocData, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(idaAllocData, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(idaAllocData, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(idaAllocData, PTR(void), int64_t, int64_t, int64_t)
 
-RUNTIME_FUNC_DECL(idaInit, bool, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(idaInit, bool, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(idaInit, bool, PTR(void))
 
 RUNTIME_FUNC_DECL(idaStep, bool, PTR(void))
 
