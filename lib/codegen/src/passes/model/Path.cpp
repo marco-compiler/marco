@@ -78,6 +78,16 @@ size_t ExpressionPath::size() const
   return path.size();
 }
 
+ExpressionPath::const_iterator ExpressionPath::begin() const
+{
+  return path.begin();
+}
+
+ExpressionPath::const_iterator ExpressionPath::end() const
+{
+  return path.end();
+}
+
 void ExpressionPath::append(size_t index)
 {
   path.push_back(index);

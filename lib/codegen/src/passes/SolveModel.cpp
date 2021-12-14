@@ -23,52 +23,6 @@ using namespace marco;
 using namespace codegen;
 using namespace modelica;
 
-using Path = std::vector<size_t>;
-
-class PathGuard
-{
-  public:
-  PathGuard(Path* path) : path(path), size(path->size())
-  {
-  }
-
-  ~PathGuard()
-  {
-    path->erase(path->begin() + size, path->end());
-  }
-
-  private:
-  Path* path;
-  size_t size;
-};
-
-/*
-class Access
-{
-  public:
-  class Impl;
-
-  private:
-  std::unique_ptr<Impl> impl;
-};
-
-class RealAccess
-{
-  public:
-
-  private:
-
-};
-
-class FakeAccess
-{
-  public:
-
-  private:
-
-};
- */
-
 // TODO factor out from here and AD pass (and maybe also from somewhere else)
 template <class T>
 unsigned int numDigits(T number)
@@ -1330,11 +1284,17 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
     // Remove the derivative operations and allocate the appropriate variables
     if (failed(removeDerivatives(builder, model, derivatives)))
-        return signalPassFailure();
+    {
+      model.emitError("Derivative could not be converted to variables");
+      return signalPassFailure();
+    }
 
-    matching::MatchingGraph<Variable, Equation> graph;
+    // Matching process
+    matching::MatchingGraph<Variable, Equation> matchingGraph;
 
+    llvm::SmallVector<Equation, 3> equations;
     llvm::SmallVector<Variable, 3> variables;
+
     mlir::ValueRange vars = model.body().getArguments();
 
     for (size_t i = 1; i < vars.size(); ++i)
@@ -1346,51 +1306,42 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         if (!variable.isConstant())
         {
           variables.push_back(variable);
-          graph.addVariable(variable);
+          matchingGraph.addVariable(variable);
         }
       }
     }
 
     model.walk([&](EquationOp equationOp) {
       Equation equation(equationOp, variables);
-      graph.addEquation(equation);
+      equations.push_back(equation);
+      matchingGraph.addEquation(equation);
     });
 
-    llvm::errs() << "vars: " << graph.getNumberOfScalarVariables() << "\n";
-    llvm::errs() << "equs: " << graph.getNumberOfScalarEquations() << "\n";
-
-    //graph.dump();
-    //bool simplify = graph.simplify();
-    //llvm::errs() << "simplify: " << (simplify ? "y" : "n") << "\n";
-    //graph.dump();
-
-    bool match = graph.match();
-    llvm::errs() << "match: " << (match ? "y" : "n") << "\n";
-    //graph.dump();
-
-    llvm::errs() << "all matched " << (graph.allNodesMatched() ? "y" : "n") << "\n";
-
-    for (const auto& solution : graph.getMatch())
+    if (!matchingGraph.simplify())
     {
-      solution.getEquation().getId()->dump();
-      auto access = solution.getAccess();
-
-      llvm::errs() << "access: ";
-
-      if (access.getEquationSide() == marco::codegen::EquationPath::LEFT)
-        llvm::errs() << "LEFT";
-      else
-        llvm::errs() << "RIGHT";
-
-      llvm::errs() << " [";
-
-      for (size_t i = 0, e = access.size(); i < e; ++i)
-      {
-        llvm::errs() << access[i] << " ";
-      }
-
-      llvm::errs() << "]\n";
+      model.emitError("Inconsistency found during the matching simplification process");
+      return signalPassFailure();
     }
+
+    if (!matchingGraph.match())
+    {
+      model.emitError("Matching failed");
+      return signalPassFailure();
+    }
+
+    for (auto& solution : matchingGraph.getMatch())
+    {
+      auto& equation = solution.getEquation();
+      auto clone = equation.cloneIR();
+      const auto& access = solution.getAccess();
+
+      if (auto status = clone.explicitate(access); mlir::failed(status))
+        return signalPassFailure();
+    }
+
+    // Erase the old equations
+    for (auto& equation : equations)
+      equation.eraseIR();
 
     /*
     // Create the model

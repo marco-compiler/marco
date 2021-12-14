@@ -31,9 +31,12 @@ namespace marco::codegen
 
     Impl(EquationOp equation, llvm::ArrayRef<Variable> variables);
 
-    mlir::Operation* getId() const;
+      virtual std::unique_ptr<Equation::Impl> clone() const = 0;
 
-    virtual std::unique_ptr<Equation::Impl> clone() const = 0;
+    virtual std::unique_ptr<Impl> cloneIR() const = 0;
+    virtual void eraseIR() = 0;
+
+    mlir::Operation* getId() const;
 
     virtual size_t getNumOfIterationVars() const = 0;
     virtual long getRangeStart(size_t inductionVarIndex) const = 0;
@@ -75,9 +78,14 @@ namespace marco::codegen
 
     virtual matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const = 0;
 
-    virtual void explicitate(const EquationPath& path) = 0;
+    mlir::LogicalResult explicitate(const EquationPath& path);
+
+    protected:
+    llvm::ArrayRef<Variable> getVariables() const;
 
     private:
+    mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, EquationPath::EquationSide side);
+
     mlir::Operation* equationOp;
     llvm::ArrayRef<Variable> variables;
   };
@@ -256,6 +264,52 @@ std::pair<mlir::Value, long> Equation::Impl::evaluateDimensionAccess(mlir::Value
   return std::make_pair(induction, first.second - second.second);
 }
 
+llvm::ArrayRef<Variable> Equation::Impl::getVariables() const
+{
+  return variables;
+}
+
+mlir::LogicalResult Equation::Impl::explicitate(const EquationPath& path)
+{
+  auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  mlir::OpBuilder builder(terminator);
+
+  for (auto index : path)
+  {
+    if (auto status = explicitate(builder, index, path.getEquationSide()); mlir::failed(status))
+      return status;
+  }
+
+  if (path.getEquationSide() == EquationPath::RIGHT)
+  {
+    builder.setInsertionPointAfter(terminator);
+    builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
+    terminator->erase();
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult Equation::Impl::explicitate(
+        mlir::OpBuilder& builder,
+        size_t argumentIndex,
+        EquationPath::EquationSide side)
+{
+  auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  assert(terminator.lhs().size() == 1);
+  assert(terminator.rhs().size() == 1);
+
+  mlir::Value toExplicitate = side == EquationPath::LEFT ? terminator.lhs()[0] : terminator.rhs()[0];
+  mlir::Value otherExp = side == EquationPath::RIGHT ? terminator.lhs()[0] : terminator.rhs()[0];
+
+  mlir::Operation* op = toExplicitate.getDefiningOp();
+
+  if (!op->hasTrait<InvertibleOpInterface::Trait>())
+    return op->emitError("Operation is not invertible");
+
+  return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
+}
+
 /**
  * Scalar Equation with Scalar Assignments.
  *
@@ -271,6 +325,9 @@ class ScalarEquation : public Equation::Impl
 
   std::unique_ptr<Equation::Impl> clone() const override;
 
+  std::unique_ptr<Impl> cloneIR() const override;
+  void eraseIR() override;
+
   size_t getNumOfIterationVars() const override;
 
   long getRangeStart(size_t inductionVarIndex) const override;
@@ -279,8 +336,6 @@ class ScalarEquation : public Equation::Impl
   void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override;
 
   matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
-
-  void explicitate(const EquationPath& path) override;
 };
 
 ScalarEquation::ScalarEquation(EquationOp equation, llvm::ArrayRef<Variable> variables)
@@ -306,6 +361,19 @@ std::unique_ptr<Equation::Impl> ScalarEquation::clone() const
   return std::make_unique<ScalarEquation>(*this);
 }
 
+std::unique_ptr<Equation::Impl> ScalarEquation::cloneIR() const
+{
+  EquationOp equationOp = getOperation();
+  mlir::OpBuilder builder(equationOp);
+  auto clone = mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation()));
+  return std::make_unique<ScalarEquation>(clone, getVariables());
+}
+
+void ScalarEquation::eraseIR()
+{
+  getOperation().erase();
+}
+
 size_t ScalarEquation::getNumOfIterationVars() const
 {
   return 1;
@@ -329,19 +397,14 @@ void ScalarEquation::getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses
     searchAccesses(accesses, value, std::move(path));
   };
 
-  processFn(terminator.lhs()[0], EquationPath(EquationPath::LEFT, 0));
-  processFn(terminator.rhs()[0], EquationPath(EquationPath::RIGHT, 0));
+  processFn(terminator.lhs()[0], EquationPath(EquationPath::LEFT));
+  processFn(terminator.rhs()[0], EquationPath(EquationPath::RIGHT));
 }
 
 matching::DimensionAccess ScalarEquation::resolveDimensionAccess(std::pair<mlir::Value, long> access) const
 {
   assert(access.first == nullptr);
   return matching::DimensionAccess::constant(access.second);
-}
-
-void ScalarEquation::explicitate(const EquationPath& path)
-{
-  // TODO
 }
 
 /**
@@ -358,6 +421,9 @@ class LoopEquation : public Equation::Impl
 
   std::unique_ptr<Equation::Impl> clone() const override;
 
+  std::unique_ptr<Impl> cloneIR() const override;
+  void eraseIR() override;
+
   size_t getNumOfIterationVars() const override;
 
   long getRangeStart(size_t inductionVarIndex) const override;
@@ -366,8 +432,6 @@ class LoopEquation : public Equation::Impl
   void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override;
 
   matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
-
-  void explicitate(const EquationPath& path) override;
 
   private:
   size_t getNumberOfExplicitLoops() const;
@@ -413,6 +477,48 @@ LoopEquation::LoopEquation(EquationOp equation, llvm::ArrayRef<Variable> variabl
 std::unique_ptr<Equation::Impl> LoopEquation::clone() const
 {
   return std::make_unique<LoopEquation>(*this);
+}
+
+std::unique_ptr<Equation::Impl> LoopEquation::cloneIR() const
+{
+  EquationOp equationOp = getOperation();
+  mlir::OpBuilder builder(equationOp);
+
+  ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+  llvm::SmallVector<ForEquationOp, 3> explicitLoops;
+
+  while (parent != nullptr)
+  {
+    explicitLoops.push_back(parent);
+    parent = parent->getParentOfType<ForEquationOp>();
+  }
+
+  mlir::BlockAndValueMapping mapping;
+  builder.setInsertionPoint(explicitLoops.back());
+
+  for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it)
+  {
+    auto loop = builder.create<ForEquationOp>(it->getLoc(), it->start(), it->end());
+    builder.setInsertionPointToStart(loop.body());
+    mapping.map(it->induction(), loop.induction());
+  }
+
+  auto clone = mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation(), mapping));
+  return std::make_unique<LoopEquation>(clone, getVariables());
+}
+
+void LoopEquation::eraseIR()
+{
+  EquationOp equationOp = getOperation();
+  ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+  equationOp.erase();
+
+  while (parent != nullptr)
+  {
+    ForEquationOp newParent = parent->getParentOfType<ForEquationOp>();
+    parent->erase();
+    parent = newParent;
+  }
 }
 
 size_t LoopEquation::getNumOfIterationVars() const
@@ -462,8 +568,8 @@ void LoopEquation::getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) 
     searchAccesses(accesses, value, implicitDimensionAccesses, std::move(path));
   };
 
-  processFn(terminator.lhs()[0], EquationPath(EquationPath::LEFT, 0));
-  processFn(terminator.rhs()[0], EquationPath(EquationPath::RIGHT, 0));
+  processFn(terminator.lhs()[0], EquationPath(EquationPath::LEFT));
+  processFn(terminator.rhs()[0], EquationPath(EquationPath::RIGHT));
 }
 
 matching::DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::Value, long> access) const
@@ -486,11 +592,6 @@ matching::DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::V
 
   size_t inductionVarIndex = loops.end() - loopIt - 1;
   return matching::DimensionAccess::relative(inductionVarIndex, access.second);
-}
-
-void LoopEquation::explicitate(const EquationPath& path)
-{
-  // TODO
 }
 
 size_t LoopEquation::getNumberOfExplicitLoops() const
@@ -563,6 +664,10 @@ Equation::Equation(EquationOp equation, llvm::ArrayRef<Variable> variables)
     impl = std::make_unique<ScalarEquation>(equation, variables);
 }
 
+Equation::Equation(std::unique_ptr<Equation::Impl> impl) : impl(std::move(impl))
+{
+}
+
 Equation::Equation(const Equation& other)
         : impl(other.impl->clone())
 {
@@ -586,6 +691,16 @@ namespace marco::codegen
     using std::swap;
     swap(first.impl, second.impl);
   }
+}
+
+Equation Equation::cloneIR() const
+{
+  return Equation(impl->cloneIR());
+}
+
+void Equation::eraseIR()
+{
+  impl->eraseIR();
 }
 
 Equation::Id Equation::getId() const
@@ -613,7 +728,7 @@ void Equation::getVariableAccesses(llvm::SmallVectorImpl<Equation::Access>& acce
   impl->getVariableAccesses(accesses);
 }
 
-void Equation::explicitate(const EquationPath& path)
+mlir::LogicalResult Equation::explicitate(const EquationPath& path)
 {
-  impl->explicitate(path);
+  return impl->explicitate(path);
 }

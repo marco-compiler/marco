@@ -28,15 +28,21 @@ namespace marco::codegen
 
     friend void swap(Equation& first, Equation& second);
 
+    Equation cloneIR() const;
+
+    void eraseIR();
+
     Id getId() const;
     size_t getNumOfIterationVars() const;
     long getRangeStart(size_t inductionVarIndex) const;
     long getRangeEnd(size_t inductionVarIndex) const;
     void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const;
 
-    void explicitate(const EquationPath& path);
+    mlir::LogicalResult explicitate(const EquationPath& path);
 
     private:
+    Equation(std::unique_ptr<Impl> impl);
+
     std::unique_ptr<Impl> impl;
   };
 }

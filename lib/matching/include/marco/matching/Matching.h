@@ -840,6 +840,11 @@ namespace marco::matching
       {
       }
 
+      EquationProperty& getEquation()
+      {
+        return equation;
+      }
+
       const EquationProperty& getEquation() const
       {
         return equation;

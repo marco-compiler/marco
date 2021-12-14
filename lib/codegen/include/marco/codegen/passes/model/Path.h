@@ -9,28 +9,6 @@ namespace marco::codegen
   class ExpressionPath
   {
     public:
-      /*
-    class Step
-    {
-      public:
-      class Impl;
-
-      ~Step();
-
-      Step(const Step& other);
-
-      static Step real(size_t index);
-      static Step fake(size_t index);
-
-      size_t getIndex() const;
-
-      private:
-      Step(std::unique_ptr<Impl> impl);
-
-      std::unique_ptr<Impl> impl;
-    };
-       */
-
     class Guard
     {
       public:
@@ -43,15 +21,24 @@ namespace marco::codegen
       size_t size;
     };
 
+    private:
+    using Container = llvm::SmallVector<size_t, 3>;
+
+    public:
+    using const_iterator = Container::const_iterator;
+
     ExpressionPath(llvm::ArrayRef<size_t> path);
 
     size_t operator[](size_t index) const;
     size_t size() const;
 
+    const_iterator begin() const;
+    const_iterator end() const;
+
     void append(size_t index);
 
     private:
-    llvm::SmallVector<size_t, 3> path;
+    Container path;
   };
 
   class EquationPath : public ExpressionPath
