@@ -15,6 +15,7 @@ set(SOURCES
         src/passes/SolveModel.cpp
         src/passes/TypeConverter.cpp
         src/passes/model/Equation.cpp
+        src/passes/model/Path.cpp
         src/passes/model/Variable.cpp
         src/CodeGen.cpp
         src/Runner.cpp)

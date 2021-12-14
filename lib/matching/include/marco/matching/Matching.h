@@ -10,6 +10,7 @@
 #include <marco/utils/TreeOStream.h>
 #include <memory>
 #include <numeric>
+#include <type_traits>
 #include <variant>
 
 #include "AccessFunction.h"
@@ -66,6 +67,7 @@ namespace marco::matching
     {
       public:
       using Id = typename VariableProperty::Id;
+      using Property = VariableProperty;
 
       VariableVertex(VariableProperty property)
               : Matchable(getRanges(property)),
@@ -183,15 +185,34 @@ namespace marco::matching
       // TODO: move to graph
       bool visible;
     };
+
+    class EmptyAccessProperty
+    {
+    };
+
+    template<class T>
+    struct get_access_property
+    {
+      template<class U, typename = typename U::AccessProperty>
+      static typename U::AccessProperty property(int);
+
+      template<class U>
+      static EmptyAccessProperty property(...);
+
+      using type = decltype(property<T>(0));
+    };
   }
 
-  template<typename VariableProperty>
+  template<typename VariableProperty, typename AccessProperty = detail::EmptyAccessProperty>
   class Access
   {
     public:
-    Access(VariableProperty variable, AccessFunction accessFunction)
+    using Property = AccessProperty;
+
+    Access(VariableProperty variable, AccessFunction accessFunction, AccessProperty property)
             : variable(std::move(variable)),
-              accessFunction(std::move(accessFunction))
+              accessFunction(std::move(accessFunction)),
+              property(std::move(property))
     {
     }
 
@@ -212,9 +233,15 @@ namespace marco::matching
       return accessFunction;
     }
 
+    const AccessProperty& getProperty() const
+    {
+      return property;
+    }
+
     private:
     VariableProperty variable;
     AccessFunction accessFunction;
+    AccessProperty property;
   };
 
   namespace detail
@@ -247,6 +274,11 @@ namespace marco::matching
     {
       public:
       using Id = typename EquationProperty::Id;
+      using Property = EquationProperty;
+
+      using Access = marco::matching::Access<
+              VariableProperty,
+              typename get_access_property<EquationProperty>::type>;
 
       EquationVertex(EquationProperty property)
               : Matchable(getIterationRanges(property)),
@@ -310,7 +342,7 @@ namespace marco::matching
         return getIterationRanges().flatSize();
       }
 
-      void getVariableAccesses(llvm::SmallVectorImpl<Access<VariableProperty>>& accesses) const
+      void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const
       {
         getVariableAccesses(property, accesses);
       }
@@ -349,7 +381,7 @@ namespace marco::matching
 
       static void getVariableAccesses(
               const EquationProperty& p,
-              llvm::SmallVectorImpl<Access<VariableProperty>>& accesses)
+              llvm::SmallVectorImpl<Access>& accesses)
       {
         p.getVariableAccesses(accesses);
       }
@@ -366,16 +398,22 @@ namespace marco::matching
     class Edge : public Dumpable
     {
       public:
+      using AccessProperty = typename Equation::Access::Property;
+
       Edge(typename Equation::Id equation,
            typename Variable::Id variable,
            MultidimensionalRange equationRanges,
-           MultidimensionalRange variableRanges)
+           MultidimensionalRange variableRanges,
+           typename Equation::Access access)
               : equation(std::move(equation)),
                 variable(std::move(variable)),
+                accessFunction(access.getAccessFunction()),
+                accessProperty(access.getProperty()),
                 incidenceMatrix(equationRanges, variableRanges),
                 matchMatrix(equationRanges, variableRanges),
                 visible(true)
       {
+        incidenceMatrix.apply(getAccessFunction());
       }
 
       using Dumpable::dump;
@@ -394,15 +432,14 @@ namespace marco::matching
         stream << std::endl;
       }
 
-      llvm::ArrayRef<AccessFunction> getAccessFunctions() const
+      const AccessFunction& getAccessFunction() const
       {
-        return accessFunctions;
+        return accessFunction;
       }
 
-      void addAccessFunction(AccessFunction accessFunction)
+      const AccessProperty& getAccessProperty() const
       {
-        accessFunctions.push_back(accessFunction);
-        incidenceMatrix.apply(accessFunction);
+        return accessProperty;
       }
 
       const MCIM& getIncidenceMatrix() const
@@ -447,7 +484,8 @@ namespace marco::matching
       // Variable's ID. Just for debugging purpose
       typename Variable::Id variable;
 
-      llvm::SmallVector<AccessFunction, 3> accessFunctions;
+      AccessFunction accessFunction;
+      AccessProperty accessProperty;
       MCIM incidenceMatrix;
       MCIM matchMatrix;
 
@@ -786,40 +824,48 @@ namespace marco::matching
       Container<Flow> flows;
     };
 
-    /*
-    template<typename VariableId, typename EquationId>
+    template<typename EquationProperty, typename VariableProperty, typename AccessProperty>
     class MatchingSolution
     {
       public:
       MatchingSolution(
-              VariableId variable,
-              EquationId equation,
-              const detail::IncidenceMatrix* matchMatrix)
-              : variable(std::move(variable)), equation(std::move(equation)), matchMatrix(matchMatrix)
+              EquationProperty equation,
+              VariableProperty variable,
+              MCIS equationRanges,
+              AccessProperty access)
+              : equation(std::move(equation)),
+                variable(std::move(variable)),
+                equationRanges(std::move(equationRanges)),
+                access(std::move(access))
       {
       }
 
-      const VariableId& getVariable() const
-      {
-        return variable;
-      }
-
-      const EquationId& getEquation() const
+      const EquationProperty& getEquation() const
       {
         return equation;
       }
 
-      const detail::IncidenceMatrix* getMatchMatrix() const
+      const VariableProperty& getVariable() const
       {
-        return matchMatrix;
+        return variable;
+      }
+
+      const MCIS& getEquationRanges() const
+      {
+        return equationRanges;
+      }
+
+      const AccessProperty& getAccess() const
+      {
+        return access;
       }
 
       private:
-      VariableId variable;
-      EquationId equation;
-      const detail::IncidenceMatrix* matchMatrix;
+      EquationProperty equation;
+      VariableProperty variable;
+      MCIS equationRanges;
+      AccessProperty access;
     };
-     */
   }
 
   template<typename VariableProperty, typename EquationProperty>
@@ -852,7 +898,8 @@ namespace marco::matching
     using VariableIterator = typename Graph::FilteredVertexIterator;
     using EquationIterator = typename Graph::FilteredVertexIterator;
 
-    //using MatchingSolution = detail::MatchingSolution<typename Variable::Id, typename Equation::Id>;
+    using AccessProperty = typename Equation::Access::Property;
+    using MatchingSolution = detail::MatchingSolution<EquationProperty, VariableProperty, AccessProperty>;
 
     using Dumpable::dump;
 
@@ -998,7 +1045,7 @@ namespace marco::matching
       auto equationDescriptor = graph.addVertex(std::move(eq));
       Equation& equation = getEquation(equationDescriptor);
 
-      llvm::SmallVector<Access<VariableProperty>, 3> accesses;
+      llvm::SmallVector<Access<VariableProperty, AccessProperty>, 3> accesses;
       equation.getVariableAccesses(accesses);
 
       // The equation may access multiple variables or even multiple indexes
@@ -1010,9 +1057,8 @@ namespace marco::matching
         auto variableDescriptor = getVariableVertex(access.getVariable().getId());
         Variable& variable = getVariable(variableDescriptor);
 
-        Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), variable.getRanges());
-        auto edgeDescriptor = graph.addEdge(equationDescriptor, variableDescriptor, edge);
-        graph[edgeDescriptor].addAccessFunction(access.getAccessFunction());
+        Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), variable.getRanges(), access);
+        graph.addEdge(equationDescriptor, variableDescriptor, edge);
       }
     }
 
@@ -1115,7 +1161,7 @@ namespace marco::matching
         auto matchOptions = detail::solveLocalMatchingProblem(
                 u.getEquationRanges(),
                 u.getVariableRanges(),
-                edge.getAccessFunctions());
+                edge.getAccessFunction());
 
         // The simplification steps is executed only in case of a single
         // matching option. In case of multiple ones, in fact, the choice
@@ -1215,6 +1261,32 @@ namespace marco::matching
       } while(success && !complete);
 
       return success;
+    }
+
+    std::vector<MatchingSolution> getMatch() const
+    {
+      std::vector<MatchingSolution> result;
+
+      for (auto equationDescriptor : getEquations())
+      {
+        for (auto edgeDescriptor : getEdges(equationDescriptor))
+        {
+          const Edge& edge = graph[edgeDescriptor];
+
+          if (const auto& matched = edge.getMatched(); !matched.empty())
+          {
+            auto variableDescriptor = edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;
+
+            result.emplace_back(
+                    getEquation(equationDescriptor).getProperty(),
+                    getVariable(variableDescriptor).getProperty(),
+                    matched.flattenVariables(),
+                    edge.getAccessProperty());
+          }
+        }
+      }
+
+      return result;
     }
 
     private:
@@ -1345,8 +1417,6 @@ namespace marco::matching
             if (isEquation(vertexDescriptor))
             {
               assert(isVariable(nextNode));
-              const Equation& equation = getEquation(vertexDescriptor);
-              const Variable& variable = getVariable(nextNode);
               auto unmatchedMatrix = edge.getUnmatched();
               auto filteredMatrix = unmatchedMatrix.filterEquations(step.getCandidates());
               detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);

@@ -3,5 +3,6 @@
 
 #include "Variable.h"
 #include "Equation.h"
+#include "Path.h"
 
 #endif // MARCO_MATCHING_MODEL_H

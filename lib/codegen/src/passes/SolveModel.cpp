@@ -1370,6 +1370,28 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
     llvm::errs() << "all matched " << (graph.allNodesMatched() ? "y" : "n") << "\n";
 
+    for (const auto& solution : graph.getMatch())
+    {
+      solution.getEquation().getId()->dump();
+      auto access = solution.getAccess();
+
+      llvm::errs() << "access: ";
+
+      if (access.getEquationSide() == marco::codegen::EquationPath::LEFT)
+        llvm::errs() << "LEFT";
+      else
+        llvm::errs() << "RIGHT";
+
+      llvm::errs() << " [";
+
+      for (size_t i = 0, e = access.size(); i < e; ++i)
+      {
+        llvm::errs() << access[i] << " ";
+      }
+
+      llvm::errs() << "]\n";
+    }
+
     /*
     // Create the model
     Model model = Model::build(simulation);

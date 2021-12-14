@@ -4,6 +4,7 @@
 #include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 #include <marco/matching/Matching.h>
 
+#include "Path.h"
 #include "Variable.h"
 
 namespace marco::codegen
@@ -13,7 +14,8 @@ namespace marco::codegen
     public:
     class Impl;
     using Id = mlir::Operation*;
-    using Access = matching::Access<Variable>;
+    using AccessProperty = EquationPath;
+    using Access = matching::Access<Variable, AccessProperty>;
 
     Equation(modelica::EquationOp equation, llvm::ArrayRef<Variable> variables);
 
@@ -31,6 +33,8 @@ namespace marco::codegen
     long getRangeStart(size_t inductionVarIndex) const;
     long getRangeEnd(size_t inductionVarIndex) const;
     void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const;
+
+    void explicitate(const EquationPath& path);
 
     private:
     std::unique_ptr<Impl> impl;
