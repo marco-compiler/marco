@@ -102,6 +102,10 @@ static marco::MultiDimInterval cyclicDependentSet(
 	for (size_t i : marco::irange(c.size()))
 	{
 		IndexesOfEquation eq = graph[target(c[i], graph.getImpl())];
+
+		if (areDisjoint(dep[i].map(set), eq.getInterval()))
+			return {};
+
 		set = intersection(dep[i].map(set), eq.getInterval());
 	}
 
@@ -114,6 +118,9 @@ static IndexSetVector cyclicDependentSets(
 	DependenciesVector dep = cycleToDependenciesVector(c, graph);
 	marco::MultiDimInterval cyclicSet = cyclicDependentSet(c, graph, dep);
 	IndexSetVector v({ cyclicSet });
+
+	if (v[0].empty())
+		return v;
 
 	for (size_t i : marco::irange(c.size() - 1))
 		v.emplace_back(dep[i].map(v.back()));
@@ -331,13 +338,8 @@ namespace marco::codegen::model
 		llvm::SmallVector<Equation, 3> equations;
 
 		for (EquationsVector& equationsList : possibleEquations)
-		{
 			for (Equation& equation : equationsList)
-			{
-				//equation.getOp()->moveBefore(terminator);
 				equations.push_back(equation);
-			}
-		}
 
 		model = Model(model.getOp(), model.getVariables(), equations, algebraicLoops);
 		return mlir::success();
