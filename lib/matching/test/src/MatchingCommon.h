@@ -4,18 +4,12 @@
 #include <llvm/ADT/StringRef.h>
 #include <marco/matching/Matching.h>
 
-namespace llvm
-{
-    std::ostream& operator<<(
-            std::ostream& stream, const llvm::StringRef& str);
-}
-
 namespace marco::matching
 {
 	class Variable
 	{
 		public:
-		using Id = llvm::StringRef;
+		using Id = std::string;
 
 		Variable(llvm::StringRef name, llvm::ArrayRef<long> dimensions = llvm::None)
 				: name(name.str()), dimensions(dimensions.begin(), dimensions.end())
@@ -26,7 +20,7 @@ namespace marco::matching
 
 		Id getId() const
 		{
-			return getName();
+			return name;
 		}
 
 		unsigned int getRank() const
@@ -52,7 +46,7 @@ namespace marco::matching
 	class Equation
 	{
 		public:
-		using Id = llvm::StringRef;
+		using Id = std::string;
 
 		Equation(llvm::StringRef name) : name(name.str())
 		{
@@ -60,7 +54,7 @@ namespace marco::matching
 
 		Id getId() const
 		{
-			return getName();
+			return name;
 		}
 
 		unsigned int getNumOfIterationVars() const

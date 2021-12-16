@@ -1,5 +1,5 @@
 set(SOURCES
-        src/Common.cpp
+        src/MatchingCommon.cpp
         src/FlatMCIMTest.cpp
         src/UndirectedGraphTest.cpp
         src/MatchingGraphTest.cpp
@@ -11,7 +11,9 @@ set(SOURCES
         src/RegularMCIMTest.cpp
         src/SimplifyTest.cpp
         src/SolveLocalMatchingProblemTest.cpp
-        src/TestCases.cpp)
+        src/MatchingTestCases.cpp
+        src/VVarDependencyGraphTest.cpp
+        src/SCCTestCases.cpp)
 
 marco_add_unittest(MARCOTest MatchingTest ${SOURCES})
 

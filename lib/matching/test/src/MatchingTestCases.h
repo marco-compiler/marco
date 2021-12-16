@@ -3,7 +3,7 @@
 
 #include <marco/matching/Matching.h>
 
-#include "Common.h"
+#include "MatchingCommon.h"
 
 namespace marco::matching
 {

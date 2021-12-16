@@ -1278,6 +1278,7 @@ namespace marco::matching
         {
           const Edge& edge = graph[edgeDescriptor];
 
+
           if (const auto& matched = edge.getMatched(); !matched.empty())
           {
             auto variableDescriptor = edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;

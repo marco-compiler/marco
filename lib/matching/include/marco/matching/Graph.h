@@ -1,57 +1,65 @@
 #ifndef MARCO_MATCHING_GRAPH_H
 #define MARCO_MATCHING_GRAPH_H
 
+#include <functional>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/SmallVector.h>
 #include <map>
 
 namespace marco::matching::detail
 {
-  template<typename T>
+  template<typename Graph, typename P>
   struct VertexDescriptorWrapper
   {
     public:
-    VertexDescriptorWrapper(T* value) : value(std::move(value))
+    using Property = P;
+
+    VertexDescriptorWrapper(const Graph* graph, Property* value)
+          : graph(std::move(graph)), value(std::move(value))
     {
     }
 
-    bool operator==(const VertexDescriptorWrapper<T>& other) const
+    bool operator==(const VertexDescriptorWrapper<Graph, Property>& other) const
     {
       return value == other.value;
     }
 
-    bool operator!=(const VertexDescriptorWrapper<T>& other) const
+    bool operator!=(const VertexDescriptorWrapper<Graph, Property>& other) const
     {
       return value != other.value;
     }
 
-    bool operator<(const VertexDescriptorWrapper<T>& other) const
+    bool operator<(const VertexDescriptorWrapper<Graph, Property>& other) const
     {
       return value < other.value;
     }
 
-    T* value;
+    const Graph* graph;
+    Property* value;
   };
 
-  template<typename T, typename VertexDescriptor>
+  template<typename Graph, typename T, typename VertexDescriptor>
   struct EdgeDescriptorWrapper
   {
     public:
-    EdgeDescriptorWrapper(VertexDescriptor from, VertexDescriptor to, T* value) : from(std::move(from)), to(std::move(to)), value(std::move(value))
+    EdgeDescriptorWrapper(const Graph* graph, VertexDescriptor from, VertexDescriptor to, T* value)
+            : graph(std::move(graph)), from(std::move(from)), to(std::move(to)), value(std::move(value))
     {
     }
 
-    bool operator==(const EdgeDescriptorWrapper<T, VertexDescriptor>& other) const
+    bool operator==(const EdgeDescriptorWrapper<Graph, T, VertexDescriptor>& other) const
     {
       return from == other.from && to == other.to && value == other.value;
     }
 
-    bool operator!=(const EdgeDescriptorWrapper<T, VertexDescriptor>& other) const
+    bool operator!=(const EdgeDescriptorWrapper<Graph, T, VertexDescriptor>& other) const
     {
       return from != other.from || to != other.to || value != other.value;
     }
 
+    const Graph* graph;
     VertexDescriptor from;
     VertexDescriptor to;
     T* value;
@@ -130,7 +138,7 @@ namespace marco::matching::detail
     std::function<bool(value_type)> visibilityFn;
   };
 
-  template<typename VertexDescriptor, typename VerticesContainer>
+  template<typename Graph, typename VertexDescriptor, typename VerticesContainer>
   class VertexIterator
   {
     public:
@@ -144,7 +152,8 @@ namespace marco::matching::detail
     using Iterator = typename VerticesContainer::const_iterator;
 
     public:
-    VertexIterator(Iterator current) : current(current)
+    VertexIterator(const Graph* graph, Iterator current)
+            : graph(std::move(graph)), current(std::move(current))
     {
     }
 
@@ -173,14 +182,15 @@ namespace marco::matching::detail
 
     VertexDescriptor operator*() const
     {
-      return VertexDescriptor(*current);
+      return VertexDescriptor(graph, *current);
     }
 
     private:
+    const Graph* graph;
     Iterator current;
   };
 
-  template<typename EdgeDescriptor, typename VertexIterator, typename AdjacencyList>
+  template<typename Graph, typename EdgeDescriptor, typename VertexIterator, typename AdjacencyList>
   class EdgeIterator
   {
     public:
@@ -192,8 +202,9 @@ namespace marco::matching::detail
 
     using VertexDescriptor = typename VertexIterator::value_type;
 
-    EdgeIterator(VertexIterator currentVertexIt, VertexIterator endVertexIt, const AdjacencyList& adj, bool directed)
-            : currentVertexIt(std::move(currentVertexIt)),
+    EdgeIterator(const Graph* graph, VertexIterator currentVertexIt, VertexIterator endVertexIt, const AdjacencyList& adj, bool directed)
+            : graph(std::move(graph)),
+              currentVertexIt(std::move(currentVertexIt)),
               endVertexIt(std::move(endVertexIt)),
               adj(&adj),
               currentEdge(0),
@@ -233,7 +244,7 @@ namespace marco::matching::detail
       auto& edge = incidentEdges[currentEdge];
       auto to = edge.first;
       auto* ptr = edge.second;
-      return EdgeDescriptor(from, to, ptr);
+      return EdgeDescriptor(graph, from, to, ptr);
     }
 
     private:
@@ -291,6 +302,7 @@ namespace marco::matching::detail
       } while (shouldProceed());
     }
 
+    const Graph* graph;
     VertexIterator currentVertexIt;
     VertexIterator endVertexIt;
     const AdjacencyList* adj;
@@ -298,7 +310,7 @@ namespace marco::matching::detail
     bool directed;
   };
 
-  template<typename VertexDescriptor, typename EdgeDescriptor, typename IncidentEdgesList>
+  template<typename Graph, typename VertexDescriptor, typename EdgeDescriptor, typename IncidentEdgesList>
   class IncidentEdgeIterator
   {
     public:
@@ -310,8 +322,8 @@ namespace marco::matching::detail
 
     using Iterator = typename IncidentEdgesList::const_iterator;
 
-    IncidentEdgeIterator(VertexDescriptor from, Iterator current)
-            : from(std::move(from)), current(current)
+    IncidentEdgeIterator(const Graph* graph, VertexDescriptor from, Iterator current)
+            : graph(std::move(graph)), from(std::move(from)), current(current)
     {
     }
 
@@ -343,20 +355,76 @@ namespace marco::matching::detail
       auto& edge = *current;
       VertexDescriptor to = edge.first;
       auto* property = edge.second;
-      return EdgeDescriptor(from, to, property);
+      return EdgeDescriptor(graph, from, to, property);
     }
 
     private:
+    const Graph* graph;
     VertexDescriptor from;
     Iterator current;
+  };
+
+  template<typename Graph, typename VertexDescriptor, typename EdgeDescriptor, typename IncidentEdgesList>
+  class LinkedVerticesIterator
+  {
+    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = VertexDescriptor;
+    using difference_type = std::ptrdiff_t;
+    using pointer = VertexDescriptor*;
+    using reference = VertexDescriptor&;
+
+    using EdgeIt = IncidentEdgeIterator<Graph, VertexDescriptor, EdgeDescriptor, IncidentEdgesList>;
+
+    LinkedVerticesIterator(EdgeIt current)
+            : current(current)
+    {
+    }
+
+    bool operator==(const LinkedVerticesIterator& it) const
+    {
+      return current == it.current;
+    }
+
+    bool operator!=(const LinkedVerticesIterator& it) const
+    {
+      return current != it.current;
+    }
+
+    LinkedVerticesIterator& operator++()
+    {
+      ++current;
+      return *this;
+    }
+
+    LinkedVerticesIterator operator++(int)
+    {
+      auto temp = *this;
+      ++current;
+      return temp;
+    }
+
+    VertexDescriptor operator*() const
+    {
+      return (*current).to;
+    }
+
+    private:
+    EdgeIt current;
   };
 
   template<typename VertexProperty, typename EdgeProperty>
   class Graph
   {
     public:
-    using VertexDescriptor = VertexDescriptorWrapper<VertexProperty>;
-    using EdgeDescriptor = EdgeDescriptorWrapper<EdgeProperty, VertexDescriptor>;
+    using VertexDescriptor = VertexDescriptorWrapper<
+            Graph<VertexProperty, EdgeProperty>,
+                    VertexProperty>;
+
+    using EdgeDescriptor = EdgeDescriptorWrapper<
+            Graph<VertexProperty, EdgeProperty>,
+            EdgeProperty,
+            VertexDescriptor>;
 
     private:
     using VerticesContainer = llvm::SmallVector<VertexProperty*, 3>;
@@ -364,14 +432,36 @@ namespace marco::matching::detail
     using AdjacencyList = std::map<VertexDescriptor, IncidentEdgesList>;
 
     public:
-    using VertexIterator = detail::VertexIterator<VertexDescriptor, VerticesContainer>;
+    using VertexIterator = detail::VertexIterator<
+            Graph<VertexProperty, EdgeProperty>,
+            VertexDescriptor,
+            VerticesContainer>;
+
     using FilteredVertexIterator = detail::FilteredIterator<VertexIterator>;
 
-    using EdgeIterator = detail::EdgeIterator<EdgeDescriptor, VertexIterator, AdjacencyList>;
+    using EdgeIterator = detail::EdgeIterator<
+            Graph<VertexProperty, EdgeProperty>,
+            EdgeDescriptor,
+            VertexIterator,
+            AdjacencyList>;
+
     using FilteredEdgeIterator = detail::FilteredIterator<EdgeIterator>;
 
-    using IncidentEdgeIterator = detail::IncidentEdgeIterator<VertexDescriptor, EdgeDescriptor, IncidentEdgesList>;
+    using IncidentEdgeIterator = detail::IncidentEdgeIterator<
+            Graph<VertexProperty, EdgeProperty>,
+            VertexDescriptor,
+            EdgeDescriptor,
+            IncidentEdgesList>;
+
     using FilteredIncidentEdgeIterator = detail::FilteredIterator<IncidentEdgeIterator>;
+
+    using LinkedVerticesIterator = detail::LinkedVerticesIterator<
+            Graph<VertexProperty, EdgeProperty>,
+            VertexDescriptor,
+            EdgeDescriptor,
+            IncidentEdgesList>;
+
+    using FilteredLinkedVerticesIterator = detail::FilteredIterator<LinkedVerticesIterator>;
 
     Graph(bool directed) : directed(directed)
     {
@@ -406,19 +496,24 @@ namespace marco::matching::detail
       return *descriptor.value;
     }
 
+    size_t size() const
+    {
+      return vertices.size();
+    }
+
     VertexDescriptor addVertex(VertexProperty property)
     {
       auto* ptr = new VertexProperty(std::move(property));
       vertices.push_back(ptr);
-      VertexDescriptor result(ptr);
+      VertexDescriptor result(this, ptr);
       adj.emplace(result, IncidentEdgesList());
       return result;
     }
 
     llvm::iterator_range<VertexIterator> getVertices() const
     {
-      VertexIterator begin(vertices.begin());
-      VertexIterator end(vertices.end());
+      VertexIterator begin(this, vertices.begin());
+      VertexIterator end(this, vertices.end());
 
       return llvm::iterator_range<VertexIterator>(begin, end);
     }
@@ -448,15 +543,15 @@ namespace marco::matching::detail
       if (!directed)
         adj[to].push_back(std::make_pair(from, ptr));
 
-      return EdgeDescriptor(from, to, ptr);
+      return EdgeDescriptor(this, from, to, ptr);
     }
 
     llvm::iterator_range<EdgeIterator> getEdges() const
     {
       auto verticesDescriptors = this->getVertices();
 
-      EdgeIterator begin(verticesDescriptors.begin(), verticesDescriptors.end(), adj, directed);
-      EdgeIterator end(verticesDescriptors.end(), verticesDescriptors.end(), adj, directed);
+      EdgeIterator begin(this, verticesDescriptors.begin(), verticesDescriptors.end(), adj, directed);
+      EdgeIterator end(this, verticesDescriptors.end(), verticesDescriptors.end(), adj, directed);
 
       return llvm::iterator_range<EdgeIterator>(begin, end);
     }
@@ -482,8 +577,8 @@ namespace marco::matching::detail
       assert(it != this->adj.end());
       const auto& incidentEdges = it->second;
 
-      IncidentEdgeIterator begin(vertex, incidentEdges.begin());
-      IncidentEdgeIterator end(vertex, incidentEdges.end());
+      IncidentEdgeIterator begin(this, vertex, incidentEdges.begin());
+      IncidentEdgeIterator end(this, vertex, incidentEdges.end());
 
       return llvm::iterator_range<IncidentEdgeIterator>(begin, end);
     }
@@ -504,6 +599,32 @@ namespace marco::matching::detail
       return llvm::iterator_range<FilteredIncidentEdgeIterator>(begin, end);
     }
 
+    llvm::iterator_range<LinkedVerticesIterator> getLinkedVertices(VertexDescriptor vertex) const
+    {
+      auto incidentEdges = getIncidentEdges(vertex);
+
+      LinkedVerticesIterator begin(incidentEdges.begin());
+      LinkedVerticesIterator end(incidentEdges.end());
+
+      return llvm::iterator_range<LinkedVerticesIterator>(begin, end);
+    }
+
+    llvm::iterator_range<FilteredLinkedVerticesIterator> getIncidentEdges(
+            VertexDescriptor vertex,
+            std::function<bool(const VertexProperty&)> visibilityFn) const
+    {
+      auto filter = [=](const VertexDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+      };
+
+      auto allEdges = getLinkedVertices(vertex);
+
+      FilteredLinkedVerticesIterator begin(allEdges.begin(), allEdges.end(), filter);
+      FilteredLinkedVerticesIterator end(allEdges.end(), allEdges.end(), filter);
+
+      return llvm::iterator_range<FilteredLinkedVerticesIterator>(begin, end);
+    }
+
     private:
     bool directed;
     VerticesContainer vertices;
@@ -511,7 +632,11 @@ namespace marco::matching::detail
     AdjacencyList adj;
   };
 
-  template<typename VertexProperty, typename EdgeProperty>
+  class EmptyEdgeProperty
+  {
+  };
+
+  template<typename VertexProperty, typename EdgeProperty = EmptyEdgeProperty>
   class UndirectedGraph : public Graph<VertexProperty, EdgeProperty>
   {
     public:
@@ -532,7 +657,7 @@ namespace marco::matching::detail
     }
   };
 
-  template<typename VertexProperty, typename EdgeProperty>
+  template<typename VertexProperty, typename EdgeProperty = EmptyEdgeProperty>
   class DirectedGraph : public Graph<VertexProperty, EdgeProperty>
   {
     public:
@@ -550,6 +675,97 @@ namespace marco::matching::detail
 
     DirectedGraph() : Graph<VertexProperty, EdgeProperty>(true)
     {
+    }
+  };
+}
+
+namespace llvm
+{
+  template<typename Graph, typename AccessProperty>
+  struct DenseMapInfo<marco::matching::detail::VertexDescriptorWrapper<Graph, AccessProperty>> {
+    using Key = marco::matching::detail::VertexDescriptorWrapper<Graph, AccessProperty>;
+
+    static inline Key getEmptyKey()
+    {
+      return Key(nullptr, nullptr);
+    }
+
+    static inline Key getTombstoneKey()
+    {
+      return Key(nullptr, nullptr);
+    }
+
+    static unsigned getHashValue(const Key& Val)
+    {
+      return std::hash<typename Key::Property*>{}(Val.value);
+    }
+
+    static bool isEqual(const Key& LHS, const Key& RHS)
+    {
+      return LHS.value == RHS.value;
+    }
+  };
+
+  template<typename VertexProperty, typename EdgeProperty>
+  struct GraphTraits<marco::matching::detail::DirectedGraph<VertexProperty, EdgeProperty>>
+  {
+    using Graph = marco::matching::detail::DirectedGraph<VertexProperty, EdgeProperty>;
+
+    using NodeRef = typename Graph::VertexDescriptor;
+    using ChildIteratorType = typename Graph::LinkedVerticesIterator;
+
+    static NodeRef getEntryNode(const Graph& graph)
+    {
+      return *graph.getVertices().begin();
+    }
+
+    static ChildIteratorType child_begin(NodeRef node)
+    {
+      auto vertices = node.graph->getLinkedVertices(node);
+      return vertices.begin();
+    }
+
+    static ChildIteratorType child_end(NodeRef node)
+    {
+      auto vertices = node.graph->getLinkedVertices(node);
+      return vertices.end();
+    }
+
+    using nodes_iterator = typename Graph::VertexIterator;
+
+    static nodes_iterator nodes_begin(Graph* graph)
+    {
+      return graph->getVertices().begin();
+    }
+
+    static nodes_iterator nodes_end(Graph* graph)
+    {
+      return graph->getVertices().end();
+    }
+
+    using EdgeRef = typename Graph::EdgeDescriptor;
+    using ChildEdgeIteratorType = typename Graph::IncidentEdgeIterator;
+
+    static ChildEdgeIteratorType child_edge_begin(NodeRef node)
+    {
+      auto edges = node.graph->getIncidentEdges(node);
+      return edges.begin();
+    }
+
+    static ChildEdgeIteratorType child_edge_end(NodeRef node)
+    {
+      auto edges = node.graph->getIncidentEdges(node);
+      return edges.end();
+    }
+
+    static NodeRef edge_dest(EdgeRef edge)
+    {
+      return edge.to;
+    }
+
+    static size_t size(Graph* graph)
+    {
+      return graph->size();
     }
   };
 }

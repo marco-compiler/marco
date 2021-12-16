@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <marco/matching/Matching.h>
 
-#include "Common.h"
-#include "TestCases.h"
+#include "MatchingCommon.h"
+#include "MatchingTestCases.h"
 
 using namespace marco::matching;
 using namespace marco::matching::detail;

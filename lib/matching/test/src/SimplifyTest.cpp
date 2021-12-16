@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <marco/matching/Matching.h>
 
-#include "TestCases.h"
+#include "MatchingTestCases.h"
 
 using namespace marco::matching;
 using namespace marco::matching::detail;
