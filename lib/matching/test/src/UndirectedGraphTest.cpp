@@ -3,7 +3,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <marco/matching/Graph.h>
 
-using namespace marco::matching::base;
+using namespace marco::matching::detail;
 using namespace testing;
 
 class Vertex
@@ -62,14 +62,14 @@ class Edge
 
 TEST(Graph, addVertex)
 {
-  Graph<Vertex, Edge> graph;
+  UndirectedGraph<Vertex, Edge> graph;
   auto x = graph.addVertex(Vertex("x"));
   EXPECT_EQ(graph[x].getName(), "x");
 }
 
 TEST(Graph, filteredVertices)
 {
-  Graph<Vertex, Edge> graph;
+  UndirectedGraph<Vertex, Edge> graph;
 
   Vertex x("x", 1);
   Vertex y("y", 0);
@@ -93,7 +93,7 @@ TEST(Graph, filteredVertices)
 
 TEST(Graph, addEdge)
 {
-  Graph<Vertex, Edge> graph;
+  UndirectedGraph<Vertex, Edge> graph;
 
   auto x = graph.addVertex(Vertex("x"));
   auto y = graph.addVertex(Vertex("y"));
@@ -104,7 +104,7 @@ TEST(Graph, addEdge)
 
 TEST(Graph, incidentEdges)
 {
-  Graph<Vertex, Edge> graph;
+  UndirectedGraph<Vertex, Edge> graph;
 
   auto x = graph.addVertex(Vertex("x"));
   auto y = graph.addVertex(Vertex("y"));
@@ -129,7 +129,7 @@ TEST(Graph, incidentEdges)
 
 TEST(Graph, edges)
 {
-  Graph<Vertex, Edge> graph;
+  UndirectedGraph<Vertex, Edge> graph;
 
   auto x = graph.addVertex(Vertex("x"));
   auto y = graph.addVertex(Vertex("y"));
@@ -154,7 +154,7 @@ TEST(Graph, edges)
 
 TEST(Graph, filteredEdges)
 {
-  Graph<Vertex, Edge> graph;
+  UndirectedGraph<Vertex, Edge> graph;
 
   auto x = graph.addVertex(Vertex("x"));
   auto y = graph.addVertex(Vertex("y"));

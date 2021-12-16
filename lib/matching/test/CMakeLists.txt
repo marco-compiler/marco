@@ -1,7 +1,7 @@
 set(SOURCES
         src/Common.cpp
         src/FlatMCIMTest.cpp
-        src/GraphTest.cpp
+        src/UndirectedGraphTest.cpp
         src/MatchingGraphTest.cpp
         src/MatchingTest.cpp
         src/MultidimensionalRangeTest.cpp

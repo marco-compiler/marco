@@ -78,6 +78,9 @@ namespace marco::codegen
 
     virtual matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const = 0;
 
+    virtual void getWrites(llvm::SmallVectorImpl<Access>& accesses) const = 0;
+    virtual void getReads(llvm::SmallVectorImpl<Access>& accesses) const = 0;
+
     mlir::LogicalResult explicitate(const EquationPath& path);
 
     protected:
@@ -336,6 +339,9 @@ class ScalarEquation : public Equation::Impl
   void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override;
 
   matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
+
+  void getWrites(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const override;
+  void getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const override;
 };
 
 ScalarEquation::ScalarEquation(EquationOp equation, llvm::ArrayRef<Variable> variables)
@@ -407,6 +413,22 @@ matching::DimensionAccess ScalarEquation::resolveDimensionAccess(std::pair<mlir:
   return matching::DimensionAccess::constant(access.second);
 }
 
+void ScalarEquation::getWrites(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
+{
+  std::vector<Access> result;
+  auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  searchAccesses(result, terminator.lhs()[0], EquationPath(EquationPath::LEFT));
+  return result;
+}
+
+void ScalarEquation::getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
+{
+  std::vector<Access> result;
+  auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  searchAccesses(result, terminator.rhs()[0], EquationPath(EquationPath::LEFT));
+  return result;
+}
+
 /**
  * Loop Equation.
  *
@@ -432,6 +454,9 @@ class LoopEquation : public Equation::Impl
   void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const override;
 
   matching::DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
+
+  void getWrites(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const override;
+  void getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const override;
 
   private:
   size_t getNumberOfExplicitLoops() const;
@@ -594,6 +619,48 @@ matching::DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::V
   return matching::DimensionAccess::relative(inductionVarIndex, access.second);
 }
 
+void LoopEquation::getWrites(llvm::SmallVectorImpl<LoopEquation::Access>& accesses) const
+{
+  auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  size_t explicitInductions = getNumberOfExplicitLoops();
+
+  llvm::SmallVector<matching::DimensionAccess> implicitDimensionAccesses;
+  size_t implicitInductionVar = 0;
+
+  if (auto arrayType = value.getType().dyn_cast<ArrayType>())
+  {
+    for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
+    {
+      auto dimensionAccess = matching::DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
+      implicitDimensionAccesses.push_back(dimensionAccess);
+      ++implicitInductionVar;
+    }
+  }
+
+  searchAccesses(accesses, terminator.lhs()[0], implicitDimensionAccesses, EquationPath(EquationPath::LEFT));
+}
+
+void LoopEquation::getReads(llvm::SmallVectorImpl<LoopEquation::Access>& accesses) const
+{
+  auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  size_t explicitInductions = getNumberOfExplicitLoops();
+
+  llvm::SmallVector<matching::DimensionAccess> implicitDimensionAccesses;
+  size_t implicitInductionVar = 0;
+
+  if (auto arrayType = value.getType().dyn_cast<ArrayType>())
+  {
+    for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
+    {
+      auto dimensionAccess = matching::DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
+      implicitDimensionAccesses.push_back(dimensionAccess);
+      ++implicitInductionVar;
+    }
+  }
+
+  searchAccesses(accesses, terminator.rhs()[0], implicitDimensionAccesses, EquationPath(EquationPath::LEFT));
+}
+
 size_t LoopEquation::getNumberOfExplicitLoops() const
 {
   size_t result = 0;
@@ -726,6 +793,16 @@ long Equation::getRangeEnd(size_t inductionVarIndex) const
 void Equation::getVariableAccesses(llvm::SmallVectorImpl<Equation::Access>& accesses) const
 {
   impl->getVariableAccesses(accesses);
+}
+
+void Equation::getWrites(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
+{
+  return impl->getWrites();
+}
+
+void Equation::getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
+{
+  return impl->getReads();
 }
 
 mlir::LogicalResult Equation::explicitate(const EquationPath& path)

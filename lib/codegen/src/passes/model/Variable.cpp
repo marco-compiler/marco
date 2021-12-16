@@ -53,27 +53,27 @@ namespace marco::codegen
  */
 class ScalarVariable : public Variable::Impl
 {
-public:
-    ScalarVariable(mlir::Value value) : Impl(value)
-    {
-      assert(value.getType().isa<ArrayType>());
-      assert(value.getType().cast<ArrayType>().getRank() == 0);
-    }
+  public:
+  ScalarVariable(mlir::Value value) : Impl(value)
+  {
+    assert(value.getType().isa<ArrayType>());
+    assert(value.getType().cast<ArrayType>().getRank() == 0);
+  }
 
-    std::unique_ptr<Variable::Impl> clone() const override
-    {
-      return std::make_unique<ScalarVariable>(*this);
-    }
+  std::unique_ptr<Variable::Impl> clone() const override
+  {
+    return std::make_unique<ScalarVariable>(*this);
+  }
 
-    size_t getRank() const override
-    {
-      return 1;
-    }
+  size_t getRank() const override
+  {
+    return 1;
+  }
 
-    long getDimensionSize(size_t index) const override
-    {
-      return 1;
-    }
+  long getDimensionSize(size_t index) const override
+  {
+    return 1;
+  }
 };
 
 /**
@@ -82,27 +82,27 @@ public:
  */
 class ArrayVariable : public Variable::Impl
 {
-public:
-    ArrayVariable(mlir::Value value) : Impl(value)
-    {
-      assert(value.getType().isa<ArrayType>());
-      assert(value.getType().cast<ArrayType>().getRank() != 0);
-    }
+  public:
+  ArrayVariable(mlir::Value value) : Impl(value)
+  {
+    assert(value.getType().isa<ArrayType>());
+    assert(value.getType().cast<ArrayType>().getRank() != 0);
+  }
 
-    std::unique_ptr<Variable::Impl> clone() const override
-    {
-      return std::make_unique<ArrayVariable>(*this);
-    }
+  std::unique_ptr<Variable::Impl> clone() const override
+  {
+    return std::make_unique<ArrayVariable>(*this);
+  }
 
-    size_t getRank() const override
-    {
-      return getValue().getType().cast<ArrayType>().getRank();
-    }
+  size_t getRank() const override
+  {
+    return getValue().getType().cast<ArrayType>().getRank();
+  }
 
-    long getDimensionSize(size_t index) const override
-    {
-      return getValue().getType().cast<ArrayType>().getShape()[index];
-    }
+  long getDimensionSize(size_t index) const override
+  {
+    return getValue().getType().cast<ArrayType>().getShape()[index];
+  }
 };
 
 Variable::Variable(mlir::Value value)

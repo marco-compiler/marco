@@ -38,6 +38,9 @@ namespace marco::codegen
     long getRangeEnd(size_t inductionVarIndex) const;
     void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const;
 
+    void getWrites(llvm::SmallVectorImpl<Access>& accesses) const;
+    void getReads(llvm::SmallVectorImpl<Access>& accesses) const;
+
     mlir::LogicalResult explicitate(const EquationPath& path);
 
     private:

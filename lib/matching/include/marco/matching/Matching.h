@@ -883,7 +883,7 @@ namespace marco::matching
     using Edge = detail::Edge<Variable, Equation>;
 
     private:
-    using Graph = base::Graph<Vertex, Edge>;
+    using Graph = detail::UndirectedGraph<Vertex, Edge>;
 
     using VertexDescriptor = typename Graph::VertexDescriptor;
     using EdgeDescriptor = typename Graph::EdgeDescriptor;

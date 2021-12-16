@@ -17,6 +17,7 @@ set(SOURCES
         src/passes/model/Equation.cpp
         src/passes/model/Path.cpp
         src/passes/model/Variable.cpp
+        src/passes/model/VVarDependencyGraph.cpp
         src/CodeGen.cpp
         src/Runner.cpp)
 
