@@ -3,10 +3,12 @@
 
 #include <functional>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/DenseSet.h>
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/SmallVector.h>
 #include <map>
+#include <stack>
 
 namespace marco::matching::detail
 {
@@ -413,16 +415,16 @@ namespace marco::matching::detail
     EdgeIt current;
   };
 
-  template<typename VertexProperty, typename EdgeProperty>
+  template<template<typename, typename> class Derived, typename VertexProperty, typename EdgeProperty>
   class Graph
   {
     public:
     using VertexDescriptor = VertexDescriptorWrapper<
-            Graph<VertexProperty, EdgeProperty>,
-                    VertexProperty>;
+            Graph<Derived, VertexProperty, EdgeProperty>,
+            VertexProperty>;
 
     using EdgeDescriptor = EdgeDescriptorWrapper<
-            Graph<VertexProperty, EdgeProperty>,
+            Graph<Derived, VertexProperty, EdgeProperty>,
             EdgeProperty,
             VertexDescriptor>;
 
@@ -433,14 +435,14 @@ namespace marco::matching::detail
 
     public:
     using VertexIterator = detail::VertexIterator<
-            Graph<VertexProperty, EdgeProperty>,
+            Graph<Derived, VertexProperty, EdgeProperty>,
             VertexDescriptor,
             VerticesContainer>;
 
     using FilteredVertexIterator = detail::FilteredIterator<VertexIterator>;
 
     using EdgeIterator = detail::EdgeIterator<
-            Graph<VertexProperty, EdgeProperty>,
+            Graph<Derived, VertexProperty, EdgeProperty>,
             EdgeDescriptor,
             VertexIterator,
             AdjacencyList>;
@@ -448,7 +450,7 @@ namespace marco::matching::detail
     using FilteredEdgeIterator = detail::FilteredIterator<EdgeIterator>;
 
     using IncidentEdgeIterator = detail::IncidentEdgeIterator<
-            Graph<VertexProperty, EdgeProperty>,
+            Graph<Derived, VertexProperty, EdgeProperty>,
             VertexDescriptor,
             EdgeDescriptor,
             IncidentEdgesList>;
@@ -456,7 +458,7 @@ namespace marco::matching::detail
     using FilteredIncidentEdgeIterator = detail::FilteredIterator<IncidentEdgeIterator>;
 
     using LinkedVerticesIterator = detail::LinkedVerticesIterator<
-            Graph<VertexProperty, EdgeProperty>,
+            Graph<Derived, VertexProperty, EdgeProperty>,
             VertexDescriptor,
             EdgeDescriptor,
             IncidentEdgesList>;
@@ -465,6 +467,25 @@ namespace marco::matching::detail
 
     Graph(bool directed) : directed(directed)
     {
+    }
+
+    Graph(const Graph& other) : directed(other.directed)
+    {
+      llvm::DenseMap<VertexDescriptor, VertexDescriptor> verticesMap;
+      llvm::DenseMap<VertexDescriptor, VertexDescriptor> edgesMap;
+
+      for (auto vertex : other.getVertices())
+      {
+        auto vertexClone = addVertex(this->operator[](vertex));
+        verticesMap.try_emplace(vertex, vertexClone);
+      }
+
+      for (auto edge : other.getEdges())
+      {
+        auto from = verticesMap.find(edge.from)->second;
+        auto to = verticesMap.find(edge.to)->second;
+        addEdge(from, to, this->operator[](edge));
+      }
     }
 
     virtual ~Graph()
@@ -625,6 +646,70 @@ namespace marco::matching::detail
       return llvm::iterator_range<FilteredLinkedVerticesIterator>(begin, end);
     }
 
+    /**
+     * Split the graph into multiple ones, each of them containing vertices that are
+     * connected among themselves.
+     *
+     * @return connected graphs
+     */
+    std::vector<Derived<VertexProperty, EdgeProperty>> getConnectedComponents() const
+    {
+      std::vector<Derived<VertexProperty, EdgeProperty>> result;
+
+      llvm::DenseSet<VertexDescriptor> visited;
+      llvm::DenseMap<VertexDescriptor, VertexDescriptor> newVertices;
+
+      for (auto vertex : getVertices())
+      {
+        if (visited.contains(vertex))
+        {
+          // If the node has already been visited, then it already belongs to
+          // an identified sub-graph. The same holds for its connected nodes.
+          continue;
+        }
+
+        // Instead, if the node has not been visited yet, then a new connected
+        // component is found. Thus create a new graph to hold the connected nodes.
+
+        visited.insert(vertex);
+        auto& subGraph = result.emplace_back();
+        newVertices.try_emplace(vertex, subGraph.addVertex(this->operator[](vertex)));
+
+        // Depth-first search
+        std::stack<VertexDescriptor> stack;
+        stack.push(vertex);
+
+        while (!stack.empty())
+        {
+          auto currentVertex = stack.top();
+          stack.pop();
+
+          auto mappedCurrentVertex = newVertices.find(currentVertex)->second;
+
+          for (auto edgeDescriptor : getIncidentEdges(currentVertex))
+          {
+            auto child = edgeDescriptor.to;
+
+            if (visited.contains(child))
+            {
+              auto mappedChild = newVertices.find(child)->second;
+              subGraph.addEdge(mappedCurrentVertex, mappedChild, this->operator[](edgeDescriptor));
+            }
+            else
+            {
+              stack.push(child);
+              visited.insert(child);
+              auto mappedChild = subGraph.addVertex(this->operator[](child));
+              newVertices.try_emplace(child, mappedChild);
+              subGraph.addEdge(mappedCurrentVertex, mappedChild, this->operator[](edgeDescriptor));
+            }
+          }
+        }
+      }
+
+      return result;
+    }
+
     private:
     bool directed;
     VerticesContainer vertices;
@@ -637,43 +722,43 @@ namespace marco::matching::detail
   };
 
   template<typename VertexProperty, typename EdgeProperty = EmptyEdgeProperty>
-  class UndirectedGraph : public Graph<VertexProperty, EdgeProperty>
+  class UndirectedGraph : public Graph<UndirectedGraph, VertexProperty, EdgeProperty>
   {
     public:
-    using VertexDescriptor = typename Graph<VertexProperty, EdgeProperty>::VertexDescriptor;
-    using EdgeDescriptor = typename Graph<VertexProperty, EdgeProperty>::EdgeDescriptor;
+    using VertexDescriptor = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::VertexDescriptor;
+    using EdgeDescriptor = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::EdgeDescriptor;
 
-    using VertexIterator = typename Graph<VertexProperty, EdgeProperty>::VertexIterator;
-    using FilteredVertexIterator = typename Graph<VertexProperty, EdgeProperty>::FilteredVertexIterator;
+    using VertexIterator = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::VertexIterator;
+    using FilteredVertexIterator = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::FilteredVertexIterator;
 
-    using EdgeIterator = typename Graph<VertexProperty, EdgeProperty>::EdgeIterator;
-    using FilteredEdgeIterator = typename Graph<VertexProperty, EdgeProperty>::FilteredEdgeIterator;
+    using EdgeIterator = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::EdgeIterator;
+    using FilteredEdgeIterator = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::FilteredEdgeIterator;
 
-    using IncidentEdgeIterator = typename Graph<VertexProperty, EdgeProperty>::IncidentEdgeIterator;
-    using FilteredIncidentEdgeIterator = typename Graph<VertexProperty, EdgeProperty>::FilteredIncidentEdgeIterator;
+    using IncidentEdgeIterator = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::IncidentEdgeIterator;
+    using FilteredIncidentEdgeIterator = typename Graph<UndirectedGraph, VertexProperty, EdgeProperty>::FilteredIncidentEdgeIterator;
 
-    UndirectedGraph() : Graph<VertexProperty, EdgeProperty>(false)
+    UndirectedGraph() : Graph<UndirectedGraph, VertexProperty, EdgeProperty>(false)
     {
     }
   };
 
   template<typename VertexProperty, typename EdgeProperty = EmptyEdgeProperty>
-  class DirectedGraph : public Graph<VertexProperty, EdgeProperty>
+  class DirectedGraph : public Graph<DirectedGraph, VertexProperty, EdgeProperty>
   {
     public:
-    using VertexDescriptor = typename Graph<VertexProperty, EdgeProperty>::VertexDescriptor;
-    using EdgeDescriptor = typename Graph<VertexProperty, EdgeProperty>::EdgeDescriptor;
+    using VertexDescriptor = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::VertexDescriptor;
+    using EdgeDescriptor = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::EdgeDescriptor;
 
-    using VertexIterator = typename Graph<VertexProperty, EdgeProperty>::VertexIterator;
-    using FilteredVertexIterator = typename Graph<VertexProperty, EdgeProperty>::FilteredVertexIterator;
+    using VertexIterator = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::VertexIterator;
+    using FilteredVertexIterator = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::FilteredVertexIterator;
 
-    using EdgeIterator = typename Graph<VertexProperty, EdgeProperty>::EdgeIterator;
-    using FilteredEdgeIterator = typename Graph<VertexProperty, EdgeProperty>::FilteredEdgeIterator;
+    using EdgeIterator = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::EdgeIterator;
+    using FilteredEdgeIterator = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::FilteredEdgeIterator;
 
-    using IncidentEdgeIterator = typename Graph<VertexProperty, EdgeProperty>::IncidentEdgeIterator;
-    using FilteredIncidentEdgeIterator = typename Graph<VertexProperty, EdgeProperty>::FilteredIncidentEdgeIterator;
+    using IncidentEdgeIterator = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::IncidentEdgeIterator;
+    using FilteredIncidentEdgeIterator = typename Graph<DirectedGraph, VertexProperty, EdgeProperty>::FilteredIncidentEdgeIterator;
 
-    DirectedGraph() : Graph<VertexProperty, EdgeProperty>(true)
+    DirectedGraph() : Graph<DirectedGraph, VertexProperty, EdgeProperty>(true)
     {
     }
   };

@@ -191,6 +191,8 @@ namespace marco::scc
 
     VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
     {
+      Graph graph;
+
       for (const auto& equationProperty : equations)
       {
         Equation equation(equationProperty);
@@ -212,9 +214,12 @@ namespace marco::scc
           assert(writingEquations.first != writingEquations.second);
 
           for (auto& writingEquation : llvm::make_range(writingEquations.first, writingEquations.second))
-            graph.addEdge(writingEquation.second, equationDescriptor, Edge());
+            graph.addEdge(equationDescriptor, writingEquation.second, Edge());
         }
       }
+
+      auto subGraphs = graph.getConnectedComponents();
+      connectedGraphs.insert(connectedGraphs.begin(), subGraphs.begin(), subGraphs.end());
     }
 
     /*
@@ -247,6 +252,7 @@ namespace marco::scc
 
     void findSCCs()
     {
+      for (const auto& graph : connectedGraphs)
       for (auto it = llvm::scc_begin(graph); it != llvm::scc_end(graph); ++it)
       {
         std::cout << "Found\n";
@@ -254,7 +260,7 @@ namespace marco::scc
     }
 
     private:
-    Graph graph;
+    std::vector<Graph> connectedGraphs;
     //llvm::SmallVector<Variable*, 3> variables;
     std::multimap<typename VariableProperty::Id, EquationDescriptor> writes;
   };

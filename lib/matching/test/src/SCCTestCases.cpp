@@ -8,6 +8,8 @@ namespace marco::scc
 
     Variable x("x");
     Variable y("y");
+    Variable z("z");
+    Variable t("t");
 
     Equation eq1("eq1", Access(x), {
       Access(y)
@@ -17,6 +19,14 @@ namespace marco::scc
       Access(x)
     });
 
-    return VVarDependencyGraph<Variable, Equation>({ eq1, eq2 });
+    Equation eq3("eq3", Access(z), {
+            Access(t)
+    });
+
+    Equation eq4("eq4", Access(t), {
+            Access(z)
+    });
+
+    return VVarDependencyGraph<Variable, Equation>({ eq1, eq2, eq3, eq4 });
   }
 }
