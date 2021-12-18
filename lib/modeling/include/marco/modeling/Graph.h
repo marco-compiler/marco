@@ -14,7 +14,8 @@ namespace marco::modeling::internal
 {
   namespace impl {
     template<typename Graph, typename P>
-    struct VertexDescriptor {
+    struct VertexDescriptor
+    {
       public:
       using Property = P;
 
@@ -39,7 +40,8 @@ namespace marco::modeling::internal
     };
 
     template<typename Graph, typename T, typename VertexDescriptor>
-    struct EdgeDescriptor {
+    struct EdgeDescriptor
+    {
       public:
       EdgeDescriptor(const Graph *graph, VertexDescriptor from, VertexDescriptor to, T *value)
               : graph(std::move(graph)), from(std::move(from)), to(std::move(to)), value(std::move(value)) {
@@ -61,7 +63,8 @@ namespace marco::modeling::internal
 
     // TODO: use SFINAE to check that Iterator iterates on values with Descriptor type
     template<typename Iterator>
-    class FilteredIterator {
+    class FilteredIterator
+    {
       public:
       using iterator_category = std::forward_iterator_tag;
       using value_type = typename Iterator::value_type;
@@ -366,9 +369,13 @@ namespace marco::modeling::internal
     };
   }
 
-  template<template<typename, typename> class Derived, typename VertexProperty, typename EdgeProperty>
-  class Graph {
+  template<template<typename, typename> class Derived, typename VP, typename EP>
+  class Graph
+  {
     public:
+    using VertexProperty = VP;
+    using EdgeProperty = EP;
+
     using VertexDescriptor = impl::VertexDescriptor<
             Graph<Derived, VertexProperty, EdgeProperty>,
             VertexProperty>;
@@ -446,15 +453,31 @@ namespace marco::modeling::internal
         delete edge;
     }
 
-    VertexProperty &operator[](VertexDescriptor descriptor) {
+    Graph& operator=(const Graph& other)
+    {
+      Graph result(other);
+      swap(*this, result);
+      return *this;
+    }
+
+    friend void swap(Graph& first, Graph& second)
+    {
+      using std::swap;
+      swap(first.directed, second.directed);
+      swap(first.vertices, second.vertices);
+      swap(first.edges, second.edges);
+      swap(first.adj, second.adj);
+    }
+
+    VertexProperty& operator[](VertexDescriptor descriptor) {
       return *descriptor.value;
     }
 
-    const VertexProperty &operator[](VertexDescriptor descriptor) const {
+    const VertexProperty& operator[](VertexDescriptor descriptor) const {
       return *descriptor.value;
     }
 
-    virtual EdgeProperty &operator[](EdgeDescriptor descriptor) {
+    virtual EdgeProperty& operator[](EdgeDescriptor descriptor) {
       return *descriptor.value;
     }
 
@@ -714,13 +737,16 @@ namespace marco::modeling::internal
   class EmptyEdgeProperty {
   };
 
-  template<typename VertexProperty, typename EdgeProperty = internal::EmptyEdgeProperty>
-  class UndirectedGraph : public Graph<UndirectedGraph, VertexProperty, EdgeProperty>
+  template<typename VP, typename EP = internal::EmptyEdgeProperty>
+  class UndirectedGraph : public Graph<UndirectedGraph, VP, EP>
   {
     private:
-    using Base = internal::Graph<UndirectedGraph, VertexProperty, EdgeProperty>;
+    using Base = internal::Graph<UndirectedGraph, VP, EP>;
 
     public:
+    using VertexProperty = typename Base::VertexProperty;
+    using EdgeProperty = typename Base::EdgeProperty;
+
     using VertexDescriptor = typename Base::VertexDescriptor;
     using EdgeDescriptor = typename Base::EdgeDescriptor;
 
@@ -746,13 +772,16 @@ namespace marco::modeling::internal
     UndirectedGraph& operator=(const UndirectedGraph& other) = default;
   };
 
-  template<typename VertexProperty, typename EdgeProperty = internal::EmptyEdgeProperty>
-  class DirectedGraph : public Graph<DirectedGraph, VertexProperty, EdgeProperty>
+  template<typename VP, typename EP = internal::EmptyEdgeProperty>
+  class DirectedGraph : public Graph<DirectedGraph, VP, EP>
   {
     private:
-    using Base = internal::Graph<DirectedGraph, VertexProperty, EdgeProperty>;
+    using Base = internal::Graph<DirectedGraph, VP, EP>;
 
     public:
+    using VertexProperty = typename Base::VertexProperty;
+    using EdgeProperty = typename Base::EdgeProperty;
+
     using VertexDescriptor = typename Base::VertexDescriptor;
     using EdgeDescriptor = typename Base::EdgeDescriptor;
 

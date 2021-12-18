@@ -1,5 +1,5 @@
-#ifndef MARCO_SCHEDULINGCOMMON_H
-#define MARCO_SCHEDULINGCOMMON_H
+#ifndef MARCO_MODELING_TEST_SCCCOMMON_H
+#define MARCO_MODELING_TEST_SCCCOMMON_H
 
 #include <llvm/ADT/StringRef.h>
 #include <marco/modeling/VVarDependencyGraph.h>
@@ -11,15 +11,9 @@ namespace marco::modeling::scc::test
     public:
     using Id = std::string;
 
-    Variable(llvm::StringRef name)
-            : name(name.str())
-    {
-    }
+    Variable(llvm::StringRef name);
 
-    Id getId() const
-    {
-      return name;
-    }
+    Id getId() const;
 
     private:
     std::string name;
@@ -31,45 +25,21 @@ namespace marco::modeling::scc::test
     using Id = std::string;
     using Range = internal::Range;
 
-    Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads)
-            : name(name.str()), write(std::move(write)), reads(reads.begin(), reads.end())
-    {
-    }
+    Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads);
 
-    Id getId() const
-    {
-      return name;
-    }
+    Id getId() const;
 
-    unsigned int getNumOfIterationVars() const
-    {
-      return ranges.size();
-    }
+    unsigned int getNumOfIterationVars() const;
 
-    long getRangeStart(size_t index) const
-    {
-      return ranges[index].getBegin();
-    }
+    long getRangeStart(size_t index) const;
 
-    long getRangeEnd(size_t index) const
-    {
-      return ranges[index].getEnd();
-    }
+    long getRangeEnd(size_t index) const;
 
-    void addIterationRange(Range range)
-    {
-      ranges.push_back(range);
-    }
+    void addIterationRange(Range range);
 
-    const Access<Variable>& getWrite() const
-    {
-      return write;
-    }
+    const Access<Variable>& getWrite() const;
 
-    void getReads(llvm::SmallVectorImpl<Access<Variable>>& v) const
-    {
-      v.append(reads);
-    }
+    void getReads(llvm::SmallVectorImpl<Access<Variable>>& v) const;
 
     private:
     std::string name;
@@ -79,4 +49,4 @@ namespace marco::modeling::scc::test
   };
 }
 
-#endif //MARCO_SCHEDULINGCOMMON_H
+#endif // MARCO_MODELING_TEST_SCCCOMMON_H

@@ -4,9 +4,9 @@
 #include "MatchingCommon.h"
 #include "MatchingTestCases.h"
 
-using namespace marco::modeling;
-using namespace marco::modeling::internal;
-using namespace marco::modeling::matching::test;
+using namespace ::marco::modeling;
+using namespace ::marco::modeling::internal;
+using namespace ::marco::modeling::matching::test;
 
 TEST(MatchingGraph, singleVariableInsertion)
 {

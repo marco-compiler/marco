@@ -2,8 +2,8 @@
 #include <gmock/gmock.h>
 #include <marco/modeling/Matching.h>
 
-using namespace marco::modeling;
-using namespace marco::modeling::internal;
+using namespace ::marco::modeling;
+using namespace ::marco::modeling::internal;
 
 /**
  * var x[3]

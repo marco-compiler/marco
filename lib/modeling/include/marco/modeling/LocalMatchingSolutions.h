@@ -5,7 +5,7 @@
 
 #include "AccessFunction.h"
 #include "MCIM.h"
-#include "Range.h"
+#include "MultidimensionalRange.h"
 
 namespace marco::modeling::internal
 {

@@ -2,7 +2,7 @@
 #include <gmock/gmock.h>
 #include <marco/modeling/MCIS.h>
 
-using namespace marco::modeling::internal;
+using namespace ::marco::modeling::internal;
 
 TEST(MCIS, empty)
 {

@@ -10,11 +10,11 @@ set(SOURCES
         src/Point.cpp
         src/Range.cpp)
 
-marco_add_library(matching SHARED ${SOURCES})
+marco_add_library(modeling SHARED ${SOURCES})
 
-marco_link_llvm_libs(matching USE_SHARED core support)
+marco_link_llvm_libs(modeling USE_SHARED core support)
 
-target_link_libraries(matching
+target_link_libraries(modeling
         PUBLIC marco::utils)
 
 add_subdirectory(test)

@@ -3,7 +3,7 @@
 
 #include "SCCTestCases.h"
 
-using namespace marco::modeling::scc::test;
+using namespace ::marco::modeling::scc::test;
 
 TEST(VVarDependencyGraph, test)
 {

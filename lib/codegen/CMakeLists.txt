@@ -39,7 +39,7 @@ marco_add_library(codegen SHARED ${SOURCES})
 
 target_link_libraries(codegen
         PUBLIC marco::frontend
-        PUBLIC marco::matching
+        PUBLIC marco::modeling
         PUBLIC marco::runtime
         PUBLIC marco::utils
         PRIVATE ${MLIR_LIBS}

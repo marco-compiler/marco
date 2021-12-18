@@ -1,6 +1,6 @@
 #include "MatchingTestCases.h"
 
-using namespace marco::modeling::internal;
+using namespace ::marco::modeling::internal;
 
 namespace marco::modeling::matching::test
 {

@@ -1,5 +1,5 @@
-#ifndef MARCO_MATCHING_TEST_REALSCENARIOS_H
-#define MARCO_MATCHING_TEST_REALSCENARIOS_H
+#ifndef MARCO_MODELING_TEST_MATCHINGTESTCASES_H
+#define MARCO_MODELING_TEST_MATCHINGTESTCASES_H
 
 #include <marco/modeling/Matching.h>
 
@@ -145,4 +145,4 @@ namespace marco::modeling::matching::test
   MatchingGraph<Variable, Equation> testCase10();
 }
 
-#endif //MARCO_MATCHING_TEST_REALSCENARIOS_H
+#endif // MARCO_MODELING_TEST_MATCHINGTESTCASES_H

@@ -3,8 +3,65 @@
 #include <llvm/ADT/StringRef.h>
 #include <marco/modeling/Graph.h>
 
-using namespace marco::modeling::internal;
-using namespace testing;
+using namespace ::marco::modeling::internal;
+using namespace ::testing;
+
+template<typename VertexProperty>
+struct UnwrappedVertex
+{
+  UnwrappedVertex(VertexProperty property) : property(property)
+  {
+  }
+
+  bool operator==(const UnwrappedVertex& other) const
+  {
+    return property == other.property;
+  }
+
+  VertexProperty property;
+};
+
+template<typename Graph, typename Range>
+std::vector<UnwrappedVertex<typename Graph::VertexProperty>>
+unwrapVertices(const Graph& graph, Range edges)
+{
+  std::vector<UnwrappedVertex<typename Graph::VertexProperty>> result;
+
+  for (auto descriptor : edges)
+    result.emplace_back(graph[descriptor]);
+
+  return result;
+}
+
+template<typename VertexDescriptor, typename EdgeProperty>
+struct UnwrappedEdge
+{
+  UnwrappedEdge(VertexDescriptor from, VertexDescriptor to, EdgeProperty property)
+          : from(from), to(to), property(property)
+  {
+  }
+
+  bool operator==(const UnwrappedEdge& other) const
+  {
+    return from == other.from && to == other.to && property == other.property;
+  }
+
+  VertexDescriptor from;
+  VertexDescriptor to;
+  EdgeProperty property;
+};
+
+template<typename Graph, typename Range>
+std::vector<UnwrappedEdge<typename Graph::VertexDescriptor, typename Graph::EdgeProperty>>
+unwrapEdges(const Graph& graph, Range edges)
+{
+  std::vector<UnwrappedEdge<typename Graph::VertexDescriptor, typename Graph::EdgeProperty>> result;
+
+  for (auto descriptor : edges)
+    result.emplace_back(descriptor.from, descriptor.to, graph[descriptor]);
+
+  return result;
+}
 
 class Vertex
 {
@@ -67,9 +124,27 @@ TEST(DirectedGraph, addVertex)
   EXPECT_EQ(graph[x].getName(), "x");
 }
 
+TEST(DirectedGraph, vertices)
+{
+  DirectedGraph<Vertex, Edge> graph;
+
+  Vertex x("x");
+  Vertex y("y");
+  Vertex z("z");
+
+  graph.addVertex(x);
+  graph.addVertex(y);
+  graph.addVertex(z);
+
+  EXPECT_THAT(unwrapVertices(graph, graph.getVertices()),
+              UnorderedElementsAre(UnwrappedVertex(x),
+                                   UnwrappedVertex(y),
+                                   UnwrappedVertex(z)));
+}
+
 TEST(DirectedGraph, filteredVertices)
 {
-  UndirectedGraph<Vertex, Edge> graph;
+  DirectedGraph<Vertex, Edge> graph;
 
   Vertex x("x", 1);
   Vertex y("y", 0);
@@ -83,12 +158,9 @@ TEST(DirectedGraph, filteredVertices)
       return vertex.getValue() == 1;
   };
 
-  std::vector<Vertex> vertices;
-
-  for (const auto& vertexDescriptor : graph.getVertices(filter))
-    vertices.push_back(graph[vertexDescriptor]);
-
-  EXPECT_THAT(vertices, UnorderedElementsAre(x, z));
+  EXPECT_THAT(unwrapVertices(graph, graph.getVertices(filter)),
+              UnorderedElementsAre(UnwrappedVertex(x),
+                                   UnwrappedVertex(z)));
 }
 
 TEST(DirectedGraph, addEdge)
@@ -112,39 +184,64 @@ TEST(DirectedGraph, outgoingEdges)
 
   Edge e1("e1");
   Edge e2("e2");
+  Edge e3("e3");
 
   graph.addEdge(x, y, e1);
-  graph.addEdge(x, z, e2);
+  graph.addEdge(x, y, e2);
+  graph.addEdge(x, z, e3);
 
-  Edge e3("e3");
-  graph.addEdge(y, z, e3);
+  Edge e4("e4");
+  graph.addEdge(y, z, e4);
 
-  std::vector<Edge> xEdges;
-  std::vector<Edge> yEdges;
-  std::vector<Edge> zEdges;
+  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(x)),
+              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+                                   UnwrappedEdge(x, y, e2),
+                                   UnwrappedEdge(x, z, e3)));
 
-  for (const auto& edgeDescriptor : graph.getOutgoingEdges(x))
-    xEdges.push_back(graph[edgeDescriptor]);
+  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(y)),
+              UnorderedElementsAre(UnwrappedEdge(y, z, e4)));
 
-  for (const auto& edgeDescriptor : graph.getOutgoingEdges(y))
-    yEdges.push_back(graph[edgeDescriptor]);
-
-  for (const auto& edgeDescriptor : graph.getOutgoingEdges(z))
-    zEdges.push_back(graph[edgeDescriptor]);
-
-  EXPECT_THAT(xEdges, UnorderedElementsAre(e1, e2));
-  EXPECT_THAT(yEdges, UnorderedElementsAre(e3));
-  EXPECT_THAT(zEdges, IsEmpty());
-
-  std::vector<Vertex> test;
-
-  for (const auto& vertexDescriptor : graph.getLinkedVertices(x))
-    test.push_back(graph[vertexDescriptor]);
-
-  std::cout << "size: " << test.size() << "\n";
+  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(z)),
+              IsEmpty());
 }
 
-/*
+TEST(DirectedGraph, filteredOutgoingEdges)
+{
+  DirectedGraph<Vertex, Edge> graph;
+
+  auto x = graph.addVertex(Vertex("x"));
+  auto y = graph.addVertex(Vertex("y"));
+  auto z = graph.addVertex(Vertex("z"));
+
+  Edge e1("e1", 1);
+  Edge e2("e2", 0);
+  Edge e3("e3", 1);
+
+  graph.addEdge(x, y, e1);
+  graph.addEdge(x, y, e2);
+  graph.addEdge(x, z, e3);
+
+  Edge e4("e4", 1);
+  graph.addEdge(y, z, e4);
+
+  Edge e5("e5", 0);
+  graph.addEdge(z, x, e5);
+
+  auto filter = [](const Edge& edge) -> bool {
+      return edge.getValue() == 1;
+  };
+
+  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(x, filter)),
+              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+                                   UnwrappedEdge(x, z, e3)));
+
+  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(y, filter)),
+              UnorderedElementsAre(UnwrappedEdge(y, z, e4)));
+
+  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(z, filter)),
+              IsEmpty());
+}
+
 TEST(DirectedGraph, edges)
 {
   DirectedGraph<Vertex, Edge> graph;
@@ -155,19 +252,20 @@ TEST(DirectedGraph, edges)
 
   Edge e1("e1");
   Edge e2("e2");
+  Edge e3("e3");
 
   graph.addEdge(x, y, e1);
   graph.addEdge(x, y, e2);
+  graph.addEdge(x, z, e3);
 
-  Edge e3("e3");
-  graph.addEdge(y, z, e3);
+  Edge e4("e4");
+  graph.addEdge(y, z, e4);
 
-  std::vector<Edge> edges;
-
-  for (const auto& edgeDescriptor : graph.getEdges())
-    edges.push_back(graph[edgeDescriptor]);
-
-  EXPECT_THAT(edges, UnorderedElementsAre(e1, e2, e3));
+  EXPECT_THAT(unwrapEdges(graph, graph.getEdges()),
+              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+                                   UnwrappedEdge(x, y, e2),
+                                   UnwrappedEdge(x, z, e3),
+                                   UnwrappedEdge(y, z, e4)));
 }
 
 TEST(DirectedGraph, filteredEdges)
@@ -180,22 +278,21 @@ TEST(DirectedGraph, filteredEdges)
 
   Edge e1("e1", 1);
   Edge e2("e2", 0);
+  Edge e3("e3", 1);
 
   graph.addEdge(x, y, e1);
   graph.addEdge(x, y, e2);
+  graph.addEdge(x, z, e3);
 
-  Edge e3("e3", 1);
-  graph.addEdge(y, z, e3);
+  Edge e4("e4", 1);
+  graph.addEdge(y, z, e4);
 
   auto filter = [](const Edge& edge) -> bool {
       return edge.getValue() == 1;
   };
 
-  std::vector<Edge> edges;
-
-  for (const auto& edgeDescriptor : graph.getEdges(filter))
-    edges.push_back(graph[edgeDescriptor]);
-
-  EXPECT_THAT(edges, UnorderedElementsAre(e1, e3));
+  EXPECT_THAT(unwrapEdges(graph, graph.getEdges(filter)),
+              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+                                   UnwrappedEdge(x, z, e3),
+                                   UnwrappedEdge(y, z, e4)));
 }
-*/

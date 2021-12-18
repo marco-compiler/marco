@@ -1,5 +1,5 @@
-#ifndef MARCO_MATCHING_TEST_COMMON_H
-#define MARCO_MATCHING_TEST_COMMON_H
+#ifndef MARCO_MODELING_TEST_MATCHINGCOMMON_H
+#define MARCO_MODELING_TEST_MATCHINGCOMMON_H
 
 #include <llvm/ADT/StringRef.h>
 #include <marco/modeling/Matching.h>
@@ -11,32 +11,15 @@ namespace marco::modeling::matching::test
 		public:
 		using Id = std::string;
 
-		Variable(llvm::StringRef name, llvm::ArrayRef<long> dimensions = llvm::None)
-				: name(name.str()), dimensions(dimensions.begin(), dimensions.end())
-		{
-			if (this->dimensions.empty())
-				this->dimensions.emplace_back(1);
-		}
+		Variable(llvm::StringRef name, llvm::ArrayRef<long> dimensions = llvm::None);
 
-		Id getId() const
-		{
-			return name;
-		}
+		Id getId() const;
 
-		unsigned int getRank() const
-		{
-			return dimensions.size();
-		}
+		unsigned int getRank() const;
 
-		long getDimensionSize(size_t index) const
-		{
-			return dimensions[index];
-		}
+		long getDimensionSize(size_t index) const;
 
-		llvm::StringRef getName() const
-		{
-			return name;
-		}
+		llvm::StringRef getName() const;
 
 		private:
 		std::string name;
@@ -48,49 +31,23 @@ namespace marco::modeling::matching::test
 		public:
 		using Id = std::string;
 
-		Equation(llvm::StringRef name) : name(name.str())
-		{
-		}
+		Equation(llvm::StringRef name);
 
-		Id getId() const
-		{
-			return name;
-		}
+		Id getId() const;
 
-		unsigned int getNumOfIterationVars() const
-		{
-			return ranges.size();
-		}
+		unsigned int getNumOfIterationVars() const;
 
-		long getRangeStart(size_t index) const
-		{
-			return ranges[index].getBegin();
-		}
+		long getRangeStart(size_t index) const;
 
-    long getRangeEnd(size_t index) const
-    {
-      return ranges[index].getEnd();
-    }
+    long getRangeEnd(size_t index) const;
 
-		void addIterationRange(internal::Range range)
-		{
-			ranges.push_back(range);
-		}
+		void addIterationRange(internal::Range range);
 
-		void getVariableAccesses(llvm::SmallVectorImpl<Access<Variable>>& v) const
-		{
-			v.insert(v.begin(), this->accesses.begin(), this->accesses.end());
-		}
+		void getVariableAccesses(llvm::SmallVectorImpl<Access<Variable>>& v) const;
 
-		void addVariableAccess(Access<Variable> access)
-		{
-			accesses.push_back(access);
-		}
+		void addVariableAccess(Access<Variable> access);
 
-		llvm::StringRef getName() const
-		{
-			return name;
-		}
+		llvm::StringRef getName() const;
 
 		private:
 		std::string name;
@@ -99,4 +56,4 @@ namespace marco::modeling::matching::test
 	};
 }
 
-#endif	// MARCO_MATCHING_TEST_COMMON_H
+#endif	// MARCO_MODELING_TEST_MATCHINGCOMMON_H
