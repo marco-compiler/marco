@@ -8,7 +8,7 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 3 });
+    Variable x("x", {3});
     graph.addVariable(x);
 
     Equation eq1("eq1");
@@ -29,7 +29,7 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 4 });
+    Variable x("x", {4});
     graph.addVariable(x);
 
     Equation eq1("eq1");
@@ -49,25 +49,25 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable l("l", { 1 });
+    Variable l("l", {1});
     graph.addVariable(l);
 
-    Variable h("h", { 1 });
+    Variable h("h", {1});
     graph.addVariable(h);
 
-    Variable fl("fl", { 1 });
+    Variable fl("fl", {1});
     graph.addVariable(fl);
 
-    Variable fh("fh", { 1 });
+    Variable fh("fh", {1});
     graph.addVariable(fh);
 
-    Variable x("x", { 5 });
+    Variable x("x", {5});
     graph.addVariable(x);
 
-    Variable y("y", { 5 });
+    Variable y("y", {5});
     graph.addVariable(y);
 
-    Variable f("f", { 5 });
+    Variable f("f", {5});
     graph.addVariable(f);
 
     Equation eq1("eq1");
@@ -118,16 +118,16 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable l("l", { 1 });
+    Variable l("l", {1});
     graph.addVariable(l);
 
-    Variable h("h", { 1 });
+    Variable h("h", {1});
     graph.addVariable(h);
 
-    Variable x("x", { 5 });
+    Variable x("x", {5});
     graph.addVariable(x);
 
-    Variable f("f", { 6 });
+    Variable f("f", {6});
     graph.addVariable(f);
 
     Equation eq1("eq1");
@@ -171,13 +171,13 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 5 });
+    Variable x("x", {5});
     graph.addVariable(x);
 
-    Variable y("y", { 4 });
+    Variable y("y", {4});
     graph.addVariable(y);
 
-    Variable z("z", { 5 });
+    Variable z("z", {5});
     graph.addVariable(z);
 
     Equation eq1("eq1");
@@ -211,10 +211,10 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 6 });
+    Variable x("x", {6});
     graph.addVariable(x);
 
-    Variable y("y", { 3 });
+    Variable y("y", {3});
     graph.addVariable(y);
 
     Equation eq1("eq1");
@@ -236,13 +236,13 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 2 });
+    Variable x("x", {2});
     graph.addVariable(x);
 
-    Variable y("y", { 1 });
+    Variable y("y", {1});
     graph.addVariable(y);
 
-    Variable z("z", { 1 });
+    Variable z("z", {1});
     graph.addVariable(z);
 
     Equation eq1("eq1");
@@ -275,10 +275,10 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 9 });
+    Variable x("x", {9});
     graph.addVariable(x);
 
-    Variable y("y", { 3 });
+    Variable y("y", {3});
     graph.addVariable(y);
 
     Equation eq1("eq1");
@@ -311,10 +311,10 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 5 });
+    Variable x("x", {5});
     graph.addVariable(x);
 
-    Variable y("y", { 5 });
+    Variable y("y", {5});
     graph.addVariable(y);
 
     Equation eq1("eq1");
@@ -375,10 +375,10 @@ namespace marco::modeling::matching::test
   {
     MatchingGraph<Variable, Equation> graph;
 
-    Variable x("x", { 2 });
+    Variable x("x", {2});
     graph.addVariable(x);
 
-    Variable y("y", { 2 });
+    Variable y("y", {2});
     graph.addVariable(y);
 
     Equation eq1("eq1");

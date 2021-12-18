@@ -3,7 +3,7 @@
 namespace marco::modeling::matching::test
 {
   Variable::Variable(llvm::StringRef name, llvm::ArrayRef<long> dimensions)
-          : name(name.str()), dimensions(dimensions.begin(), dimensions.end())
+      : name(name.str()), dimensions(dimensions.begin(), dimensions.end())
   {
     if (this->dimensions.empty())
       this->dimensions.emplace_back(1);

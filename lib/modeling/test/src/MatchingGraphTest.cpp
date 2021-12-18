@@ -30,7 +30,7 @@ TEST(MatchingGraph, multipleVariablesInsertion)
 TEST(MatchingGraph, multidimensionalVariableInsertion)
 {
   MatchingGraph<Variable, Equation> graph;
-  graph.addVariable(Variable("x", { 2, 3, 4 }));
+  graph.addVariable(Variable("x", {2, 3, 4}));
 
   auto var = graph.getVariable("x");
   EXPECT_EQ(var.getRank(), 3);
@@ -43,7 +43,7 @@ TEST(MatchingGraph, addEquation)
 {
   MatchingGraph<Variable, Equation> graph;
 
-  Variable x("x", { 2 });
+  Variable x("x", {2});
 
   Equation eq1("eq1");
   eq1.addIterationRange(Range(0, 1));

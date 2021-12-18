@@ -13,7 +13,7 @@ TEST(Point, 1d)
 
 TEST(Point, 2d)
 {
-  Point p({ 2, 5 });
+  Point p({2, 5});
 
   EXPECT_EQ(p.rank(), 2);
 
@@ -23,7 +23,7 @@ TEST(Point, 2d)
 
 TEST(Point, 3d)
 {
-  Point p({ 2, 5, 3 });
+  Point p({2, 5, 3});
 
   EXPECT_EQ(p.rank(), 3);
 
@@ -34,7 +34,7 @@ TEST(Point, 3d)
 
 TEST(Point, iteration)
 {
-  Point p({ 2, 5, 3 });
+  Point p({2, 5, 3});
 
   size_t counter = 0;
   std::vector<Point::data_type> expected;
@@ -42,7 +42,7 @@ TEST(Point, iteration)
   expected.push_back(5);
   expected.push_back(3);
 
-  for (const auto& value : p)
+  for (const auto& value: p)
     EXPECT_EQ(value, expected[counter++]);
 
   EXPECT_EQ(counter, 3);
@@ -50,10 +50,10 @@ TEST(Point, iteration)
 
 TEST(Point, equality)
 {
-  Point a({ 2, 5, 3 });
-  Point b({ 2, 5, 3 });
-  Point c({ 2, 4, 3 });
-  Point d({ 2, 5 });
+  Point a({2, 5, 3});
+  Point b({2, 5, 3});
+  Point c({2, 4, 3});
+  Point d({2, 5});
 
   EXPECT_TRUE(a == b);
   EXPECT_TRUE(b == a);
@@ -67,10 +67,10 @@ TEST(Point, equality)
 
 TEST(Point, inequality)
 {
-  Point a({ 2, 5, 3 });
-  Point b({ 2, 5, 3 });
-  Point c({ 2, 4, 3 });
-  Point d({ 2, 5 });
+  Point a({2, 5, 3});
+  Point b({2, 5, 3});
+  Point c({2, 4, 3});
+  Point d({2, 5});
 
   EXPECT_FALSE(a != b);
   EXPECT_FALSE(b != a);

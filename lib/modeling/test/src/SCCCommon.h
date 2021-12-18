@@ -9,43 +9,43 @@ namespace marco::modeling::scc::test
   class Variable
   {
     public:
-    using Id = std::string;
+      using Id = std::string;
 
-    Variable(llvm::StringRef name);
+      Variable(llvm::StringRef name);
 
-    Id getId() const;
+      Id getId() const;
 
     private:
-    std::string name;
+      std::string name;
   };
 
   class Equation
   {
     public:
-    using Id = std::string;
-    using Range = internal::Range;
+      using Id = std::string;
+      using Range = internal::Range;
 
-    Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads);
+      Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads);
 
-    Id getId() const;
+      Id getId() const;
 
-    unsigned int getNumOfIterationVars() const;
+      unsigned int getNumOfIterationVars() const;
 
-    long getRangeStart(size_t index) const;
+      long getRangeStart(size_t index) const;
 
-    long getRangeEnd(size_t index) const;
+      long getRangeEnd(size_t index) const;
 
-    void addIterationRange(Range range);
+      void addIterationRange(Range range);
 
-    const Access<Variable>& getWrite() const;
+      const Access<Variable>& getWrite() const;
 
-    void getReads(llvm::SmallVectorImpl<Access<Variable>>& v) const;
+      void getReads(llvm::SmallVectorImpl<Access<Variable>>& v) const;
 
     private:
-    std::string name;
-    llvm::SmallVector<Range, 3> ranges;
-    Access<Variable> write;
-    llvm::SmallVector<Access<Variable>, 3> reads;
+      std::string name;
+      llvm::SmallVector<Range, 3> ranges;
+      Access<Variable> write;
+      llvm::SmallVector<Access<Variable>, 3> reads;
   };
 }
 

@@ -9,98 +9,112 @@
 
 namespace marco::modeling::internal
 {
-	/**
-	 * Multidimensional Compressed Index Map (MCIM).
-	 *
-	 * It replaces the multidimensional incidence matrices in order to achieve
-	 * O(1) scaling.
-	 */
-	class MCIM
-	{
-		public:
-    class Impl;
+  /**
+   * Multidimensional Compressed Index Map (MCIM).
+   *
+   * It replaces the multidimensional incidence matrices in order to achieve
+   * O(1) scaling.
+   */
+  class MCIM
+  {
+    public:
+      class Impl;
 
-    class IndexesIterator
-    {
-      public:
-      using iterator_category = std::input_iterator_tag;
-      using value_type = std::pair<Point, Point>;
-      using difference_type = std::ptrdiff_t;
-      using pointer = std::pair<Point, Point>*;
-      using reference = std::pair<Point, Point>&;
+      class IndexesIterator
+      {
+        public:
+          using iterator_category = std::input_iterator_tag;
+          using value_type = std::pair<Point, Point>;
+          using difference_type = std::ptrdiff_t;
+          using pointer = std::pair<Point, Point>*;
+          using reference = std::pair<Point, Point>&;
 
-      using Iterator = MultidimensionalRange::const_iterator;
+          using Iterator = MultidimensionalRange::const_iterator;
 
-      IndexesIterator(
+          IndexesIterator(
               const MultidimensionalRange& equationRanges,
               const MultidimensionalRange& variableRanges,
               std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction);
 
-      bool operator==(const IndexesIterator &it) const;
-      bool operator!=(const IndexesIterator &it) const;
-      IndexesIterator& operator++();
-      IndexesIterator operator++(int);
-      value_type operator*() const;
+          bool operator==(const IndexesIterator& it) const;
 
-      private:
-      void advance();
+          bool operator!=(const IndexesIterator& it) const;
 
-      Iterator eqCurrentIt;
-      Iterator eqEndIt;
-      Iterator varBeginIt;
-      Iterator varCurrentIt;
-      Iterator varEndIt;
-    };
+          IndexesIterator& operator++();
 
-		MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+          IndexesIterator operator++(int);
 
-    MCIM(const MCIM& other);
-    MCIM(MCIM&& other);
+          value_type operator*() const;
 
-    ~MCIM();
+        private:
+          void advance();
 
-    MCIM& operator=(const MCIM& other);
+          Iterator eqCurrentIt;
+          Iterator eqEndIt;
+          Iterator varBeginIt;
+          Iterator varCurrentIt;
+          Iterator varEndIt;
+      };
 
-    friend void swap(MCIM& first, MCIM& second);
+      MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
-    bool operator==(const MCIM& other) const;
-    bool operator!=(const MCIM& other) const;
+      MCIM(const MCIM& other);
 
-    const MultidimensionalRange& getEquationRanges() const;
-    const MultidimensionalRange& getVariableRanges() const;
+      MCIM(MCIM&& other);
 
-    llvm::iterator_range<IndexesIterator> getIndexes() const;
+      ~MCIM();
 
-    MCIM& operator+=(const MCIM& rhs);
-    MCIM operator+(const MCIM& rhs) const;
+      MCIM& operator=(const MCIM& other);
 
-    MCIM& operator-=(const MCIM& rhs);
-    MCIM operator-(const MCIM& rhs) const;
+      friend void swap(MCIM& first, MCIM& second);
 
-    void apply(const AccessFunction& access);
+      bool operator==(const MCIM& other) const;
 
-    bool get(const Point& equation, const Point& variable) const;
-    void set(const Point& equation, const Point& variable);
-    void unset(const Point& equation, const Point& variable);
+      bool operator!=(const MCIM& other) const;
 
-    bool empty() const;
-    void clear();
+      const MultidimensionalRange& getEquationRanges() const;
 
-    MCIS flattenEquations() const;
-    MCIS flattenVariables() const;
+      const MultidimensionalRange& getVariableRanges() const;
 
-    MCIM filterEquations(const MCIS& filter) const;
-    MCIM filterVariables(const MCIS& filter) const;
+      llvm::iterator_range<IndexesIterator> getIndexes() const;
 
-    std::vector<MCIM> splitGroups() const;
+      MCIM& operator+=(const MCIM& rhs);
 
-		private:
-    MCIM(std::unique_ptr<Impl> impl);
+      MCIM operator+(const MCIM& rhs) const;
 
-    std::unique_ptr<Impl> impl;
-	};
+      MCIM& operator-=(const MCIM& rhs);
+
+      MCIM operator-(const MCIM& rhs) const;
+
+      void apply(const AccessFunction& access);
+
+      bool get(const Point& equation, const Point& variable) const;
+
+      void set(const Point& equation, const Point& variable);
+
+      void unset(const Point& equation, const Point& variable);
+
+      bool empty() const;
+
+      void clear();
+
+      MCIS flattenEquations() const;
+
+      MCIS flattenVariables() const;
+
+      MCIM filterEquations(const MCIS& filter) const;
+
+      MCIM filterVariables(const MCIS& filter) const;
+
+      std::vector<MCIM> splitGroups() const;
+
+    private:
+      MCIM(std::unique_ptr<Impl> impl);
+
+      std::unique_ptr<Impl> impl;
+  };
 
   std::ostream& operator<<(std::ostream& stream, const MCIM& mcim);
 }
 
-#endif	// MARCO_MODELING_MCIM_H
+#endif  // MARCO_MODELING_MCIM_H

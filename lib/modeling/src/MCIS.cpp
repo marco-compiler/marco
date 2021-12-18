@@ -4,10 +4,11 @@
 namespace marco::modeling::internal
 {
   MCIS::MCIS(llvm::ArrayRef<MultidimensionalRange> ranges)
-          : ranges(ranges.begin(), ranges.end())
+      : ranges(ranges.begin(), ranges.end())
   {
-    for (const auto& range : ranges)
+    for (const auto& range: ranges) {
       this->operator+=(range);
+    }
   }
 
   bool MCIS::operator==(const MCIS& rhs) const
@@ -30,8 +31,9 @@ namespace marco::modeling::internal
   {
     llvm::SmallVector<Range, 3> elementRanges;
 
-    for (const auto& index : rhs)
+    for (const auto& index: rhs) {
       elementRanges.emplace_back(index, index + 1);
+    }
 
     return this->operator+=(MultidimensionalRange(std::move(elementRanges)));
   }
@@ -39,10 +41,11 @@ namespace marco::modeling::internal
   MCIS& MCIS::operator+=(const MultidimensionalRange& rhs)
   {
     auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
-        if (ranges.empty())
-          return true;
+      if (ranges.empty()) {
+        return true;
+      }
 
-        return ranges.front().rank() == range.rank();
+      return ranges.front().rank() == range.rank();
     };
 
     assert(hasCompatibleRank(rhs) && "Incompatible ranges");
@@ -50,25 +53,25 @@ namespace marco::modeling::internal
     std::vector<MultidimensionalRange> nonOverlappingRanges;
     nonOverlappingRanges.push_back(std::move(rhs));
 
-    for (const auto& range : ranges)
-    {
+    for (const auto& range: ranges) {
       std::vector<MultidimensionalRange> newCandidates;
 
-      for (const auto& candidate : nonOverlappingRanges)
-        for (const auto& subRange : candidate.subtract(range))
+      for (const auto& candidate: nonOverlappingRanges) {
+        for (const auto& subRange: candidate.subtract(range)) {
           newCandidates.push_back(std::move(subRange));
+        }
+      }
 
       nonOverlappingRanges = std::move(newCandidates);
     }
 
-    for (const auto& range : nonOverlappingRanges)
-    {
+    for (const auto& range: nonOverlappingRanges) {
       assert(llvm::none_of(ranges, [&](const MultidimensionalRange& r) {
-          return r.overlaps(range);
+        return r.overlaps(range);
       }) && "New range must not overlap the existing ones");
 
       auto it = std::find_if(ranges.begin(), ranges.end(), [&range](const MultidimensionalRange& r) {
-          return r > range;
+        return r > range;
       });
 
       ranges.insert(it, std::move(range));
@@ -83,16 +86,18 @@ namespace marco::modeling::internal
   MCIS& MCIS::operator+=(const MCIS& rhs)
   {
     auto hasCompatibleRank = [&](const MCIS& mcis) {
-        if (ranges.empty() || mcis.ranges.empty())
-          return true;
+      if (ranges.empty() || mcis.ranges.empty()) {
+        return true;
+      }
 
-        return ranges.front().rank() == mcis.ranges.front().rank();
+      return ranges.front().rank() == mcis.ranges.front().rank();
     };
 
     assert(hasCompatibleRank(rhs) && "Incompatible ranges");
 
-    for (const auto& range : rhs.ranges)
+    for (const auto& range: rhs.ranges) {
       this->operator+=(range);
+    }
 
     return *this;
   }
@@ -120,23 +125,27 @@ namespace marco::modeling::internal
 
   MCIS& MCIS::operator-=(const MultidimensionalRange& rhs)
   {
-    if (ranges.empty())
+    if (ranges.empty()) {
       return *this;
+    }
 
     auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
-        if (ranges.empty())
-          return true;
+      if (ranges.empty()) {
+        return true;
+      }
 
-        return ranges.front().rank() == range.rank();
+      return ranges.front().rank() == range.rank();
     };
 
     assert(hasCompatibleRank(rhs) && "Incompatible ranges");
 
     llvm::SmallVector<MultidimensionalRange, 3> newRanges;
 
-    for (const auto& range : ranges)
-      for (const auto& diff : range.subtract(rhs))
+    for (const auto& range: ranges) {
+      for (const auto& diff: range.subtract(rhs)) {
         newRanges.push_back(std::move(diff));
+      }
+    }
 
     ranges.clear();
     llvm::sort(newRanges);
@@ -148,8 +157,9 @@ namespace marco::modeling::internal
 
   MCIS& MCIS::operator-=(const MCIS& rhs)
   {
-    for (const auto& range : rhs.ranges)
+    for (const auto& range: rhs.ranges) {
       this->operator-=(range);
+    }
 
     return *this;
   }
@@ -177,8 +187,9 @@ namespace marco::modeling::internal
   {
     size_t result = 0;
 
-    for (const auto& range : ranges)
+    for (const auto& range: ranges) {
       result += range.flatSize();
+    }
 
     return result;
   }
@@ -195,22 +206,25 @@ namespace marco::modeling::internal
 
   bool MCIS::contains(const Point& other) const
   {
-    for (const auto& range : ranges)
-      if (range.contains(other))
+    for (const auto& range: ranges) {
+      if (range.contains(other)) {
         return true;
+      }
+    }
 
     return false;
   }
 
   bool MCIS::contains(const MultidimensionalRange& other) const
   {
-    for (const auto& range : ranges)
-    {
-      if (range.contains(other))
+    for (const auto& range: ranges) {
+      if (range.contains(other)) {
         return true;
+      }
 
-      if (range > other)
+      if (range > other) {
         return false;
+      }
     }
 
     return false;
@@ -220,22 +234,25 @@ namespace marco::modeling::internal
   {
     llvm::SmallVector<MultidimensionalRange, 3> current;
 
-    for (const auto& range : other.ranges)
-      if (!contains(range))
+    for (const auto& range: other.ranges) {
+      if (!contains(range)) {
         return false;
+      }
+    }
 
     return true;
   }
 
   bool MCIS::overlaps(const MultidimensionalRange& other) const
   {
-    for (const auto& range : ranges)
-    {
-      if (range.overlaps(other))
+    for (const auto& range: ranges) {
+      if (range.overlaps(other)) {
         return true;
+      }
 
-      if (range > other)
+      if (range > other) {
         return false;
+      }
     }
 
     return false;
@@ -243,9 +260,11 @@ namespace marco::modeling::internal
 
   bool MCIS::overlaps(const MCIS& other) const
   {
-    for (const auto& range : ranges)
-      if (other.overlaps(range))
+    for (const auto& range: ranges) {
+      if (other.overlaps(range)) {
         return true;
+      }
+    }
 
     return false;
   }
@@ -254,36 +273,38 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& range1 : ranges)
-      for (const auto& range2 : other.ranges)
-        if (range1.overlaps(range2))
+    for (const auto& range1: ranges) {
+      for (const auto& range2: other.ranges) {
+        if (range1.overlaps(range2)) {
           result += range1.intersect(range2);
+        }
+      }
+    }
 
     return result;
   }
 
   MCIS MCIS::complement(const MultidimensionalRange& other) const
   {
-    if (ranges.empty())
+    if (ranges.empty()) {
       return MCIS(other);
+    }
 
     llvm::SmallVector<MultidimensionalRange, 3> result;
 
     llvm::SmallVector<MultidimensionalRange, 3> current;
     current.push_back(other);
 
-    for (const auto& range : ranges)
-    {
+    for (const auto& range: ranges) {
       llvm::SmallVector<MultidimensionalRange, 3> next;
 
-      for (const auto& curr : current)
-      {
-        for (const auto& diff : curr.subtract(range))
-        {
-          if (overlaps(diff))
+      for (const auto& curr: current) {
+        for (const auto& diff: curr.subtract(range)) {
+          if (overlaps(diff)) {
             next.push_back(std::move(diff));
-          else
+          } else {
             result.push_back(std::move(diff));
+          }
         }
       }
 
@@ -296,7 +317,7 @@ namespace marco::modeling::internal
   void MCIS::sort()
   {
     ranges.sort([](const MultidimensionalRange& first, const MultidimensionalRange& second) {
-        return first < second;
+      return first < second;
     });
   }
 
@@ -305,18 +326,20 @@ namespace marco::modeling::internal
     using It = decltype(ranges)::iterator;
 
     auto findCandidates = [&](It begin, It end) -> std::tuple<It, It, size_t> {
-        for (It it1 = begin; it1 != end; ++it1)
-          for (It it2 = std::next(it1); it2 != end; ++it2)
-            if (auto mergePossibility = it1->canBeMerged(*it2); mergePossibility.first)
-              return std::make_tuple(it1, it2, mergePossibility.second);
+      for (It it1 = begin; it1 != end; ++it1) {
+        for (It it2 = std::next(it1); it2 != end; ++it2) {
+          if (auto mergePossibility = it1->canBeMerged(*it2); mergePossibility.first) {
+            return std::make_tuple(it1, it2, mergePossibility.second);
+          }
+        }
+      }
 
-        return std::make_tuple(end, end, 0);
+      return std::make_tuple(end, end, 0);
     };
 
     auto candidates = findCandidates(ranges.begin(), ranges.end());
 
-    while (std::get<0>(candidates) != ranges.end() && std::get<1>(candidates) != ranges.end())
-    {
+    while (std::get<0>(candidates) != ranges.end() && std::get<1>(candidates) != ranges.end()) {
       auto& first = std::get<0>(candidates);
       auto& second = std::get<1>(candidates);
       size_t dimension = std::get<2>(candidates);
@@ -331,14 +354,13 @@ namespace marco::modeling::internal
   {
     stream << "{";
 
-    for (const auto& range : obj.ranges)
-    {
+    for (const auto& range: obj.ranges) {
       bool positionSeparator = false;
 
-      for (auto indexes : range)
-      {
-        if (positionSeparator)
+      for (auto indexes: range) {
+        if (positionSeparator) {
           stream << ", ";
+        }
 
         positionSeparator = true;
         stream << indexes;

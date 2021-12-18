@@ -8,35 +8,41 @@ namespace marco::modeling::internal
   }
 
   Point::Point(std::initializer_list<Point::data_type> values)
-          : values(std::move(values))
+      : values(std::move(values))
   {
   }
 
   Point::Point(llvm::ArrayRef<Point::data_type> values)
-          : values(values.begin(), values.end())
+      : values(values.begin(), values.end())
   {
   }
 
   bool Point::operator==(const Point& other) const
   {
-    if (values.size() != other.values.size())
+    if (values.size() != other.values.size()) {
       return false;
+    }
 
-    for (size_t i = 0, e = rank(); i < e; ++i)
-      if (values[i] != other.values[i])
+    for (size_t i = 0, e = rank(); i < e; ++i) {
+      if (values[i] != other.values[i]) {
         return false;
+      }
+    }
 
     return true;
   }
 
   bool Point::operator!=(const Point& other) const
   {
-    if (values.size() != other.values.size())
+    if (values.size() != other.values.size()) {
       return true;
+    }
 
-    for (size_t i = 0, e = rank(); i < e; ++i)
-      if (values[i] != other.values[i])
+    for (size_t i = 0, e = rank(); i < e; ++i) {
+      if (values[i] != other.values[i]) {
         return true;
+      }
+    }
 
     return false;
   }
@@ -66,10 +72,10 @@ namespace marco::modeling::internal
   {
     stream << "(";
 
-    for (size_t i = 0, e = obj.rank(); i < e; ++i)
-    {
-      if (i != 0)
+    for (size_t i = 0, e = obj.rank(); i < e; ++i) {
+      if (i != 0) {
         stream << ",";
+      }
 
       stream << obj[i];
     }

@@ -5,12 +5,12 @@ using namespace marco::modeling::internal;
 namespace marco::modeling
 {
   DimensionAccess::DimensionAccess(
-          bool constantAccess,
-          Point::data_type position,
-          unsigned int inductionVariableIndex)
-          : constantAccess(constantAccess),
-            position(position),
-            inductionVariableIndex(inductionVariableIndex)
+      bool constantAccess,
+      Point::data_type position,
+      unsigned int inductionVariableIndex)
+      : constantAccess(constantAccess),
+        position(position),
+        inductionVariableIndex(inductionVariableIndex)
   {
   }
 
@@ -26,8 +26,9 @@ namespace marco::modeling
 
   Point::data_type DimensionAccess::operator()(const Point& equationIndexes) const
   {
-    if (isConstantAccess())
+    if (isConstantAccess()) {
       return getPosition();
+    }
 
     return equationIndexes[getInductionVariableIndex()] + getOffset();
   }
@@ -56,7 +57,7 @@ namespace marco::modeling
   }
 
   AccessFunction::AccessFunction(llvm::ArrayRef<DimensionAccess> functions)
-          : functions(functions.begin(), functions.end())
+      : functions(functions.begin(), functions.end())
   {
   }
 
@@ -85,8 +86,9 @@ namespace marco::modeling
   {
     llvm::SmallVector<Point::data_type, 3> results;
 
-    for (const auto& function : functions)
+    for (const auto& function: functions) {
       results.push_back(function(equationIndexes));
+    }
 
     return Point(std::move(results));
   }

@@ -8,11 +8,11 @@ namespace marco::modeling::internal
   class Dumpable
   {
     public:
-    virtual ~Dumpable();
+      virtual ~Dumpable();
 
-    void dump() const;
+      void dump() const;
 
-    virtual void dump(std::ostream& os) const = 0;
+      virtual void dump(std::ostream& os) const = 0;
   };
 }
 

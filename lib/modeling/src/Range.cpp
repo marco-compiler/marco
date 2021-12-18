@@ -3,7 +3,7 @@
 namespace marco::modeling::internal
 {
   Range::Range(Range::data_type begin, Range::data_type end)
-          : _begin(begin), _end(end)
+      : _begin(begin), _end(end)
   {
     assert(begin < end && "Range is not well-formed");
   }
@@ -20,16 +20,18 @@ namespace marco::modeling::internal
 
   bool Range::operator<(const Range& other) const
   {
-    if (getBegin() == other.getBegin())
+    if (getBegin() == other.getBegin()) {
       return getEnd() < other.getEnd();
+    }
 
     return getBegin() < other.getBegin();
   }
 
   bool Range::operator>(const Range& other) const
   {
-    if (getBegin() == other.getBegin())
+    if (getBegin() == other.getBegin()) {
       return getEnd() > other.getEnd();
+    }
 
     return getBegin() > other.getBegin();
   }
@@ -68,14 +70,17 @@ namespace marco::modeling::internal
   {
     assert(overlaps(other));
 
-    if (contains(other))
+    if (contains(other)) {
       return other;
+    }
 
-    if (other.contains(*this))
+    if (other.contains(*this)) {
       return *this;
+    }
 
-    if (getBegin() <= other.getBegin())
+    if (getBegin() <= other.getBegin()) {
       return Range(other.getBegin(), getEnd());
+    }
 
     return Range(getBegin(), other.getEnd());
   }
@@ -89,11 +94,13 @@ namespace marco::modeling::internal
   {
     assert(canBeMerged(other));
 
-    if (overlaps(other))
+    if (overlaps(other)) {
       return Range(std::min(getBegin(), other.getBegin()), std::max(getEnd(), other.getEnd()));
+    }
 
-    if (getBegin() == other.getEnd())
+    if (getBegin() == other.getEnd()) {
       return Range(other.getBegin(), getEnd());
+    }
 
     return Range(getBegin(), other.getEnd());
   }
@@ -102,24 +109,22 @@ namespace marco::modeling::internal
   {
     std::vector<Range> results;
 
-    if (!overlaps(other))
-    {
+    if (!overlaps(other)) {
       results.push_back(*this);
-    }
-    else if (contains(other))
-    {
-      if (getBegin() != other.getBegin())
+    } else if (contains(other)) {
+      if (getBegin() != other.getBegin()) {
         results.emplace_back(getBegin(), other.getBegin());
+      }
 
-      if (getEnd() != other.getEnd())
+      if (getEnd() != other.getEnd()) {
         results.emplace_back(other.getEnd(), getEnd());
-    }
-    else if (!other.contains(*this))
-    {
-      if (getBegin() <= other.getBegin())
+      }
+    } else if (!other.contains(*this)) {
+      if (getBegin() <= other.getBegin()) {
         results.emplace_back(getBegin(), other.getBegin());
-      else
+      } else {
         results.emplace_back(other.getEnd(), getEnd());
+      }
     }
 
     return results;

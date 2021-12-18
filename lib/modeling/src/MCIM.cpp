@@ -6,29 +6,30 @@
 namespace marco::modeling::internal
 {
   MCIM::IndexesIterator::IndexesIterator(
-          const MultidimensionalRange& equationRange,
-          const MultidimensionalRange& variableRange,
-          std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
-          : eqCurrentIt(initFunction(equationRange)),
-            eqEndIt(equationRange.end()),
-            varBeginIt(variableRange.begin()),
-            varCurrentIt(initFunction(variableRange)),
-            varEndIt(variableRange.end())
+      const MultidimensionalRange& equationRange,
+      const MultidimensionalRange& variableRange,
+      std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
+      : eqCurrentIt(initFunction(equationRange)),
+        eqEndIt(equationRange.end()),
+        varBeginIt(variableRange.begin()),
+        varCurrentIt(initFunction(variableRange)),
+        varEndIt(variableRange.end())
   {
-    if (eqCurrentIt != eqEndIt)
-    {
+    if (eqCurrentIt != eqEndIt) {
       assert(varCurrentIt != varEndIt);
     }
   }
 
   bool MCIM::IndexesIterator::operator==(const MCIM::IndexesIterator& it) const
   {
-    return eqCurrentIt == it.eqCurrentIt && eqEndIt == it.eqEndIt && varBeginIt == it.varBeginIt && varCurrentIt == it.varCurrentIt && varEndIt == it.varEndIt;
+    return eqCurrentIt == it.eqCurrentIt && eqEndIt == it.eqEndIt && varBeginIt == it.varBeginIt
+        && varCurrentIt == it.varCurrentIt && varEndIt == it.varEndIt;
   }
 
   bool MCIM::IndexesIterator::operator!=(const MCIM::IndexesIterator& it) const
   {
-    return eqCurrentIt != it.eqCurrentIt || eqEndIt != it.eqEndIt || varBeginIt != it.varBeginIt || varCurrentIt != it.varCurrentIt || varEndIt != it.varEndIt;
+    return eqCurrentIt != it.eqCurrentIt || eqEndIt != it.eqEndIt || varBeginIt != it.varBeginIt
+        || varCurrentIt != it.varCurrentIt || varEndIt != it.varEndIt;
   }
 
   MCIM::IndexesIterator& MCIM::IndexesIterator::operator++()
@@ -51,17 +52,18 @@ namespace marco::modeling::internal
 
   void MCIM::IndexesIterator::advance()
   {
-    if (eqCurrentIt == eqEndIt)
+    if (eqCurrentIt == eqEndIt) {
       return;
+    }
 
     ++varCurrentIt;
 
-    if (varCurrentIt == varEndIt)
-    {
+    if (varCurrentIt == varEndIt) {
       ++eqCurrentIt;
 
-      if (eqCurrentIt == eqEndIt)
+      if (eqCurrentIt == eqEndIt) {
         return;
+      }
 
       varCurrentIt = varBeginIt;
     }
@@ -70,75 +72,83 @@ namespace marco::modeling::internal
   class MCIM::Impl
   {
     public:
-    enum MCIMKind
-    {
-      Regular,
-      Flat
-    };
+      enum MCIMKind
+      {
+        Regular,
+        Flat
+      };
 
-    Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+      Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
-    MCIMKind getKind() const
-    {
-      return kind;
-    }
+      MCIMKind getKind() const
+      {
+        return kind;
+      }
 
-    template<typename T>
-    bool isa() const
-    {
-      return llvm::isa<T>(this);
-    }
+      template<typename T>
+      bool isa() const
+      {
+        return llvm::isa<T>(this);
+      }
 
-    template<typename T>
-    T* dyn_cast()
-    {
-      return llvm::dyn_cast<T>(this);
-    }
+      template<typename T>
+      T* dyn_cast()
+      {
+        return llvm::dyn_cast<T>(this);
+      }
 
-    template<typename T>
-    const T* dyn_cast() const
-    {
-      return llvm::dyn_cast<T>(this);
-    }
+      template<typename T>
+      const T* dyn_cast() const
+      {
+        return llvm::dyn_cast<T>(this);
+      }
 
-    virtual bool operator==(const MCIM::Impl& rhs) const;
-    virtual bool operator!=(const MCIM::Impl& rhs) const;
+      virtual bool operator==(const MCIM::Impl& rhs) const;
 
-    virtual std::unique_ptr<MCIM::Impl> clone() = 0;
+      virtual bool operator!=(const MCIM::Impl& rhs) const;
 
-    const MultidimensionalRange& getEquationRanges() const;
-    const MultidimensionalRange& getVariableRanges() const;
+      virtual std::unique_ptr<MCIM::Impl> clone() = 0;
 
-    llvm::iterator_range<IndexesIterator> getIndexes() const;
+      const MultidimensionalRange& getEquationRanges() const;
 
-    virtual MCIM::Impl& operator+=(const MCIM::Impl& rhs);
-    virtual MCIM::Impl& operator-=(const MCIM::Impl& rhs);
+      const MultidimensionalRange& getVariableRanges() const;
 
-    virtual void apply(const AccessFunction& access) = 0;
+      llvm::iterator_range<IndexesIterator> getIndexes() const;
 
-    virtual bool get(const Point& equation, const Point& variable) const = 0;
-    virtual void set(const Point& equation, const Point& variable) = 0;
-    virtual void unset(const Point& equation, const Point& variable) = 0;
+      virtual MCIM::Impl& operator+=(const MCIM::Impl& rhs);
 
-    virtual bool empty() const = 0;
-    virtual void clear() = 0;
+      virtual MCIM::Impl& operator-=(const MCIM::Impl& rhs);
 
-    virtual MCIS flattenEquations() const = 0;
-    virtual MCIS flattenVariables() const = 0;
+      virtual void apply(const AccessFunction& access) = 0;
 
-    virtual std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const = 0;
-    virtual std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const = 0;
+      virtual bool get(const Point& equation, const Point& variable) const = 0;
 
-    virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
+      virtual void set(const Point& equation, const Point& variable) = 0;
+
+      virtual void unset(const Point& equation, const Point& variable) = 0;
+
+      virtual bool empty() const = 0;
+
+      virtual void clear() = 0;
+
+      virtual MCIS flattenEquations() const = 0;
+
+      virtual MCIS flattenVariables() const = 0;
+
+      virtual std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const = 0;
+
+      virtual std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const = 0;
+
+      virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
 
     private:
-    const MCIMKind kind;
-    MultidimensionalRange equationRanges;
-    MultidimensionalRange variableRanges;
+      const MCIMKind kind;
+      MultidimensionalRange equationRanges;
+      MultidimensionalRange variableRanges;
   };
 
   MCIM::Impl::Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-          : kind(kind), equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
+      : kind(kind), equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
   {
   }
 
@@ -154,18 +164,22 @@ namespace marco::modeling::internal
 
   bool MCIM::Impl::operator==(const MCIM::Impl& rhs) const
   {
-    for (const auto& [equation, variable] : getIndexes())
-      if (get(equation, variable) != rhs.get(equation, variable))
+    for (const auto&[equation, variable]: getIndexes()) {
+      if (get(equation, variable) != rhs.get(equation, variable)) {
         return false;
+      }
+    }
 
     return true;
   }
 
   bool MCIM::Impl::operator!=(const MCIM::Impl& rhs) const
   {
-    for (const auto& [equation, variable] : getIndexes())
-      if (get(equation, variable) != rhs.get(equation, variable))
+    for (const auto&[equation, variable]: getIndexes()) {
+      if (get(equation, variable) != rhs.get(equation, variable)) {
         return true;
+      }
+    }
 
     return false;
   }
@@ -173,11 +187,11 @@ namespace marco::modeling::internal
   llvm::iterator_range<MCIM::IndexesIterator> MCIM::Impl::getIndexes() const
   {
     IndexesIterator begin(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
-        return range.begin();
+      return range.begin();
     });
 
     IndexesIterator end(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
-        return range.end();
+      return range.end();
     });
 
     return llvm::iterator_range<MCIM::IndexesIterator>(begin, end);
@@ -185,115 +199,130 @@ namespace marco::modeling::internal
 
   MCIM::Impl& MCIM::Impl::operator+=(const MCIM::Impl& rhs)
   {
-    for (const auto& [equation, variable] : getIndexes())
-      if (rhs.get(equation, variable))
+    for (const auto&[equation, variable]: getIndexes()) {
+      if (rhs.get(equation, variable)) {
         set(equation, variable);
+      }
+    }
 
     return *this;
   }
 
   MCIM::Impl& MCIM::Impl::operator-=(const MCIM::Impl& rhs)
   {
-    for (const auto& [equation, variable] : getIndexes())
+    for (const auto&[equation, variable]: getIndexes()) {
       set(equation, variable);
+    }
 
-    for (const auto& [equation, variable] : getIndexes())
-      if (rhs.get(equation, variable))
+    for (const auto&[equation, variable]: getIndexes()) {
+      if (rhs.get(equation, variable)) {
         unset(equation, variable);
+      }
+    }
 
     return *this;
   }
 
-
-
-
   class RegularMCIM : public MCIM::Impl
   {
     public:
-    class Delta
-    {
-      public:
-      Delta(const Point& keys, const Point& values);
+      class Delta
+      {
+        public:
+          Delta(const Point& keys, const Point& values);
 
-      bool operator==(const Delta& other) const;
-      long operator[](size_t index) const;
+          bool operator==(const Delta& other) const;
 
-      size_t size() const;
+          long operator[](size_t index) const;
 
-      Delta inverse() const;
+          size_t size() const;
 
-      private:
-      llvm::SmallVector<Point::data_type, 3> values;
-    };
+          Delta inverse() const;
 
-    class MCIMElement
-    {
-      public:
-      MCIMElement(MCIS keys, Delta delta);
+        private:
+          llvm::SmallVector<Point::data_type, 3> values;
+      };
 
-      const MCIS& getKeys() const;
-      void addKeys(MCIS newKeys);
-      const Delta& getDelta() const;
-      MCIS getValues() const;
+      class MCIMElement
+      {
+        public:
+          MCIMElement(MCIS keys, Delta delta);
 
-      MCIMElement inverse() const;
+          const MCIS& getKeys() const;
 
-      private:
-      MCIS keys;
-      Delta delta;
-    };
+          void addKeys(MCIS newKeys);
 
-    RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+          const Delta& getDelta() const;
 
-    static bool classof(const MCIM::Impl* obj)
-    {
-      return obj->getKind() == Regular;
-    }
+          MCIS getValues() const;
 
-    bool operator==(const MCIM::Impl& rhs) const override;
-    bool operator!=(const MCIM::Impl& rhs) const override;
+          MCIMElement inverse() const;
 
-    std::unique_ptr<MCIM::Impl> clone() override;
+        private:
+          MCIS keys;
+          Delta delta;
+      };
 
-    MCIM::Impl& operator+=(const MCIM::Impl& rhs) override;
-    MCIM::Impl& operator-=(const MCIM::Impl& rhs) override;
+      RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
-    void apply(const AccessFunction& access) override;
+      static bool classof(const MCIM::Impl* obj)
+      {
+        return obj->getKind() == Regular;
+      }
 
-    bool get(const Point& equation, const Point& variable) const override;
-    void set(const Point& equation, const Point& variable) override;
-    void unset(const Point& equation, const Point& variable) override;
+      bool operator==(const MCIM::Impl& rhs) const override;
 
-    bool empty() const override;
-    void clear() override;
+      bool operator!=(const MCIM::Impl& rhs) const override;
 
-    MCIS flattenEquations() const override;
-    MCIS flattenVariables() const override;
+      std::unique_ptr<MCIM::Impl> clone() override;
 
-    std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
-    std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+      MCIM::Impl& operator+=(const MCIM::Impl& rhs) override;
 
-    std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
+      MCIM::Impl& operator-=(const MCIM::Impl& rhs) override;
+
+      void apply(const AccessFunction& access) override;
+
+      bool get(const Point& equation, const Point& variable) const override;
+
+      void set(const Point& equation, const Point& variable) override;
+
+      void unset(const Point& equation, const Point& variable) override;
+
+      bool empty() const override;
+
+      void clear() override;
+
+      MCIS flattenEquations() const override;
+
+      MCIS flattenVariables() const override;
+
+      std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
+
+      std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+
+      std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
     private:
-    void set(llvm::ArrayRef<long> equationIndexes, llvm::ArrayRef<long> variableIndexes);
-    void add(MCIS keys, Delta delta);
+      void set(llvm::ArrayRef<long> equationIndexes, llvm::ArrayRef<long> variableIndexes);
 
-    llvm::SmallVector<MCIMElement, 3> groups;
+      void add(MCIS keys, Delta delta);
+
+      llvm::SmallVector<MCIMElement, 3> groups;
   };
 
   RegularMCIM::Delta::Delta(const Point& keys, const Point& values)
   {
     assert(keys.rank() == values.rank());
 
-    for (const auto& [key, value] : llvm::zip(keys, values))
+    for (const auto&[key, value]: llvm::zip(keys, values)) {
       this->values.push_back(value - key);
+    }
   }
 
-  bool RegularMCIM::Delta::operator==(const Delta &other) const
+  bool RegularMCIM::Delta::operator==(const Delta& other) const
   {
     return llvm::all_of(llvm::zip(values, other.values), [](const auto& pair) {
-        return std::get<0>(pair) == std::get<1>(pair);
+      return std::get<0>(pair) == std::get<1>(pair);
     });
   }
 
@@ -312,14 +341,15 @@ namespace marco::modeling::internal
   {
     Delta result(*this);
 
-    for (auto& value : result.values)
+    for (auto& value: result.values) {
       value *= -1;
+    }
 
     return result;
   }
 
   RegularMCIM::MCIMElement::MCIMElement(MCIS keys, Delta delta)
-          : keys(std::move(keys)), delta(std::move(delta))
+      : keys(std::move(keys)), delta(std::move(delta))
   {
   }
 
@@ -342,14 +372,13 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& range : keys)
-    {
-      for (const auto& keyRange : keys)
-      {
+    for (const auto& range: keys) {
+      for (const auto& keyRange: keys) {
         llvm::SmallVector<Range, 3> valueRanges;
 
-        for (size_t i = 0, e = keyRange.rank(); i < e; ++i)
+        for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
           valueRanges.emplace_back(keyRange[i].getBegin() + delta[i], keyRange[i].getEnd() + delta[i]);
+        }
 
         result += MultidimensionalRange(valueRanges);
       }
@@ -364,32 +393,34 @@ namespace marco::modeling::internal
   }
 
   RegularMCIM::RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-          : MCIM::Impl(Regular, std::move(equationRanges), std::move(variableRanges))
+      : MCIM::Impl(Regular, std::move(equationRanges), std::move(variableRanges))
   {
     assert(getEquationRanges().rank() == getVariableRanges().rank());
   }
 
   bool RegularMCIM::operator==(const MCIM::Impl& rhs) const
   {
-    if (auto other = rhs.dyn_cast<RegularMCIM>())
-    {
-      if (groups.empty() && other->groups.empty())
+    if (auto other = rhs.dyn_cast<RegularMCIM>()) {
+      if (groups.empty() && other->groups.empty()) {
         return true;
+      }
 
-      if (groups.size() != other->groups.size())
+      if (groups.size() != other->groups.size()) {
         return false;
+      }
 
-      for (const auto& group : other->groups)
-      {
+      for (const auto& group: other->groups) {
         auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
           return obj.getDelta() == group.getDelta();
         });
 
-        if (groupIt == groups.end())
+        if (groupIt == groups.end()) {
           return false;
+        }
 
-        if (group.getKeys() != groupIt->getKeys())
+        if (group.getKeys() != groupIt->getKeys()) {
           return false;
+        }
       }
 
       return true;
@@ -400,25 +431,27 @@ namespace marco::modeling::internal
 
   bool RegularMCIM::operator!=(const MCIM::Impl& rhs) const
   {
-    if (auto other = rhs.dyn_cast<RegularMCIM>())
-    {
-      if (groups.empty() && other->groups.empty())
+    if (auto other = rhs.dyn_cast<RegularMCIM>()) {
+      if (groups.empty() && other->groups.empty()) {
         return false;
+      }
 
-      if (groups.size() != other->groups.size())
+      if (groups.size() != other->groups.size()) {
         return true;
+      }
 
-      for (const auto& group : other->groups)
-      {
+      for (const auto& group: other->groups) {
         auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
           return obj.getDelta() == group.getDelta();
         });
 
-        if (groupIt == groups.end())
+        if (groupIt == groups.end()) {
           return true;
+        }
 
-        if (group.getKeys() != groupIt->getKeys())
+        if (group.getKeys() != groupIt->getKeys()) {
           return true;
+        }
       }
 
       return false;
@@ -434,10 +467,10 @@ namespace marco::modeling::internal
 
   MCIM::Impl& RegularMCIM::operator+=(const MCIM::Impl& rhs)
   {
-    if (auto other = rhs.dyn_cast<RegularMCIM>())
-    {
-      for (const auto& group : other->groups)
+    if (auto other = rhs.dyn_cast<RegularMCIM>()) {
+      for (const auto& group: other->groups) {
         add(group.getKeys(), group.getDelta());
+      }
 
       return *this;
     }
@@ -447,22 +480,17 @@ namespace marco::modeling::internal
 
   MCIM::Impl& RegularMCIM::operator-=(const MCIM::Impl& rhs)
   {
-    if (auto other = rhs.dyn_cast<RegularMCIM>())
-    {
+    if (auto other = rhs.dyn_cast<RegularMCIM>()) {
       llvm::SmallVector<MCIMElement, 3> newGroups;
 
-      for (const auto& group : groups)
-      {
+      for (const auto& group: groups) {
         auto groupIt = llvm::find_if(other->groups, [&](const MCIMElement& obj) {
-            return obj.getDelta() == group.getDelta();
+          return obj.getDelta() == group.getDelta();
         });
 
-        if (groupIt == other->groups.end())
-        {
+        if (groupIt == other->groups.end()) {
           newGroups.push_back(std::move(group));
-        }
-        else
-        {
+        } else {
           MCIS diff = group.getKeys() - groupIt->getKeys();
           newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
         }
@@ -477,8 +505,7 @@ namespace marco::modeling::internal
 
   void RegularMCIM::apply(const AccessFunction& access)
   {
-    for (const auto& equationIndexes : getEquationRanges())
-    {
+    for (const auto& equationIndexes: getEquationRanges()) {
       assert(access.size() == getVariableRanges().rank());
       auto variableIndexes = access.map(equationIndexes);
       set(equationIndexes, variableIndexes);
@@ -493,7 +520,7 @@ namespace marco::modeling::internal
     Delta delta(equation, variable);
 
     return llvm::any_of(groups, [&](const MCIMElement& group) -> bool {
-        return group.getDelta() == delta && group.getKeys().contains(equation);
+      return group.getDelta() == delta && group.getKeys().contains(equation);
     });
   }
 
@@ -505,8 +532,9 @@ namespace marco::modeling::internal
     Delta delta(equation, variable);
     llvm::SmallVector<Range, 3> ranges;
 
-    for (const auto& index : equation)
+    for (const auto& index: equation) {
       ranges.emplace_back(index, index + 1);
+    }
 
     MCIS keys(MultidimensionalRange(std::move(ranges)));
     add(std::move(keys), std::move(delta));
@@ -519,17 +547,18 @@ namespace marco::modeling::internal
 
     llvm::SmallVector<Range, 3> ranges;
 
-    for (size_t i = 0; i < equation.rank(); ++i)
+    for (size_t i = 0; i < equation.rank(); ++i) {
       ranges.emplace_back(equation[i], equation[i] + 1);
+    }
 
     llvm::SmallVector<MCIMElement, 3> newGroups;
 
-    for (const auto& group : groups)
-    {
+    for (const auto& group: groups) {
       MCIS diff = group.getKeys() - MultidimensionalRange(std::move(ranges));
 
-      if (!diff.empty())
+      if (!diff.empty()) {
         newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+      }
     }
 
     groups = std::move(newGroups);
@@ -549,8 +578,9 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& group : groups)
+    for (const auto& group: groups) {
       result += group.getValues();
+    }
 
     return result;
   }
@@ -559,8 +589,9 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& group : groups)
+    for (const auto& group: groups) {
       result += group.getKeys();
+    }
 
     return result;
   }
@@ -569,9 +600,11 @@ namespace marco::modeling::internal
   {
     auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
-    for (const MCIMElement& group : groups)
-      if (auto& equations = group.getKeys(); equations.overlaps(filter))
+    for (const MCIMElement& group: groups) {
+      if (auto& equations = group.getKeys(); equations.overlaps(filter)) {
         result->add(equations.intersect(filter), group.getDelta());
+      }
+    }
 
     return result;
   }
@@ -580,12 +613,10 @@ namespace marco::modeling::internal
   {
     auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
-    for (const auto& group : groups)
-    {
+    for (const auto& group: groups) {
       auto invertedGroup = group.inverse();
 
-      if (auto& variables = invertedGroup.getKeys(); variables.overlaps(filter))
-      {
+      if (auto& variables = invertedGroup.getKeys(); variables.overlaps(filter)) {
         MCIS filteredVariables = variables.intersect(filter);
         MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
         MCIMElement filteredEquations = filteredVariableGroup.inverse();
@@ -600,8 +631,7 @@ namespace marco::modeling::internal
   {
     std::vector<std::unique_ptr<MCIM::Impl>> result;
 
-    for (const auto& group : groups)
-    {
+    for (const auto& group: groups) {
       auto mcim = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
       mcim->groups.push_back(group);
       result.push_back(std::move(mcim));
@@ -615,8 +645,9 @@ namespace marco::modeling::internal
     Delta delta(equationIndexes, variableIndexes);
     llvm::SmallVector<Range, 3> ranges;
 
-    for (const auto& index : equationIndexes)
+    for (const auto& index: equationIndexes) {
       ranges.emplace_back(index, index + 1);
+    }
 
     MCIS keys(MultidimensionalRange(std::move(ranges)));
     add(std::move(keys), std::move(delta));
@@ -625,106 +656,118 @@ namespace marco::modeling::internal
   void RegularMCIM::add(MCIS keys, Delta delta)
   {
     auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
-        return group.getDelta() == delta;
+      return group.getDelta() == delta;
     });
 
-    if (groupIt == groups.end())
+    if (groupIt == groups.end()) {
       groups.emplace_back(std::move(keys), std::move(delta));
-    else
+    } else {
       groupIt->addKeys(std::move(keys));
+    }
   }
 
   class FlatMCIM : public MCIM::Impl
   {
     public:
-    class Delta
-    {
-      public:
-      using data_type = std::make_unsigned_t<Point::data_type>;
+      class Delta
+      {
+        public:
+          using data_type = std::make_unsigned_t<Point::data_type>;
 
-      Delta(data_type key, data_type value);
+          Delta(data_type key, data_type value);
 
-      bool operator==(const Delta& other) const;
+          bool operator==(const Delta& other) const;
 
-      std::make_signed_t<data_type> getValue() const;
-      Delta inverse() const;
+          std::make_signed_t<data_type> getValue() const;
 
-      private:
-      std::make_signed_t<data_type> value;
-    };
+          Delta inverse() const;
 
-    class MCIMElement
-    {
-      public:
-      MCIMElement(MCIS keys, Delta delta);
+        private:
+          std::make_signed_t<data_type> value;
+      };
 
-      const MCIS& getKeys() const;
-      void addKeys(MCIS newKeys);
-      const Delta& getDelta() const;
-      MCIS getValues() const;
+      class MCIMElement
+      {
+        public:
+          MCIMElement(MCIS keys, Delta delta);
 
-      MCIMElement inverse() const;
+          const MCIS& getKeys() const;
 
-      private:
-      MCIS keys;
-      Delta delta;
-    };
+          void addKeys(MCIS newKeys);
 
-    FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+          const Delta& getDelta() const;
 
-    static bool classof(const MCIM::Impl* obj)
-    {
-      return obj->getKind() == Flat;
-    }
+          MCIS getValues() const;
 
-    bool operator==(const MCIM::Impl& rhs) const override;
-    bool operator!=(const MCIM::Impl& rhs) const override;
+          MCIMElement inverse() const;
 
-    std::unique_ptr<MCIM::Impl> clone() override;
+        private:
+          MCIS keys;
+          Delta delta;
+      };
 
-    MCIM::Impl& operator+=(const MCIM::Impl& rhs) override;
-    MCIM::Impl& operator-=(const MCIM::Impl& rhs) override;
+      FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
-    void apply(const AccessFunction& access) override;
+      static bool classof(const MCIM::Impl* obj)
+      {
+        return obj->getKind() == Flat;
+      }
 
-    bool get(const Point& equation, const Point& variable) const override;
-    void set(const Point& equation, const Point& variable) override;
-    void unset(const Point& equation, const Point& variable) override;
+      bool operator==(const MCIM::Impl& rhs) const override;
 
-    bool empty() const override;
-    void clear() override;
+      bool operator!=(const MCIM::Impl& rhs) const override;
 
-    MCIS flattenEquations() const override;
-    MCIS flattenVariables() const override;
+      std::unique_ptr<MCIM::Impl> clone() override;
 
-    std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
-    std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+      MCIM::Impl& operator+=(const MCIM::Impl& rhs) override;
 
-    std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
+      MCIM::Impl& operator-=(const MCIM::Impl& rhs) override;
+
+      void apply(const AccessFunction& access) override;
+
+      bool get(const Point& equation, const Point& variable) const override;
+
+      void set(const Point& equation, const Point& variable) override;
+
+      void unset(const Point& equation, const Point& variable) override;
+
+      bool empty() const override;
+
+      void clear() override;
+
+      MCIS flattenEquations() const override;
+
+      MCIS flattenVariables() const override;
+
+      std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
+
+      std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+
+      std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
     private:
-    Point getFlatEquation(const Point& equation) const;
-    Point getFlatVariable(const Point& variable) const;
+      Point getFlatEquation(const Point& equation) const;
 
-    void add(MCIS keys, Delta delta);
+      Point getFlatVariable(const Point& variable) const;
 
-    llvm::SmallVector<MCIMElement, 3> groups;
+      void add(MCIS keys, Delta delta);
 
-    // Stored for faster lookup
-    llvm::SmallVector<size_t, 3> equationDimensions;
-    llvm::SmallVector<size_t, 3> variableDimensions;
+      llvm::SmallVector<MCIMElement, 3> groups;
+
+      // Stored for faster lookup
+      llvm::SmallVector<size_t, 3> equationDimensions;
+      llvm::SmallVector<size_t, 3> variableDimensions;
   };
 
   template<typename T = Point::data_type>
   static void convertIndexesToZeroBased(
-          llvm::ArrayRef<T> indexes,
-          const MultidimensionalRange& base,
-          llvm::SmallVectorImpl<std::make_unsigned_t<T>>& rescaled)
+      llvm::ArrayRef<T> indexes,
+      const MultidimensionalRange& base,
+      llvm::SmallVectorImpl<std::make_unsigned_t<T>>& rescaled)
   {
     assert(base.rank() == indexes.size());
 
-    for (unsigned int i = 0, e = base.rank(); i < e; ++i)
-    {
+    for (unsigned int i = 0, e = base.rank(); i < e; ++i) {
       const auto& monoDimRange = base[i];
       T index = indexes[i] - monoDimRange.getBegin();
       assert(index >= 0 && index < monoDimRange.getEnd() - monoDimRange.getBegin());
@@ -734,14 +777,13 @@ namespace marco::modeling::internal
 
   template<typename T = Point::data_type>
   static void convertIndexesFromZeroBased(
-          llvm::ArrayRef<std::make_unsigned_t<T>> indexes,
-          const MultidimensionalRange& base,
-          llvm::SmallVectorImpl<T>& rescaled)
+      llvm::ArrayRef<std::make_unsigned_t<T>> indexes,
+      const MultidimensionalRange& base,
+      llvm::SmallVectorImpl<T>& rescaled)
   {
     assert(base.rank() == indexes.size());
 
-    for (size_t i = 0, e = base.rank(); i < e; ++i)
-    {
+    for (size_t i = 0, e = base.rank(); i < e; ++i) {
       const auto& monoDimRange = base[i];
       T index = indexes[i] + monoDimRange.getBegin();
       assert(index < monoDimRange.getEnd());
@@ -761,18 +803,18 @@ namespace marco::modeling::internal
    */
   template<typename T = Point::data_type>
   static std::make_unsigned_t<T> flattenIndexes(
-          llvm::ArrayRef<std::make_unsigned_t<T>> indexes,
-          llvm::ArrayRef<size_t> dimensions)
+      llvm::ArrayRef<std::make_unsigned_t<T>> indexes,
+      llvm::ArrayRef<size_t> dimensions)
   {
     assert(dimensions.size() == indexes.size());
     std::make_unsigned_t<T> result = 0;
 
-    for (auto index : llvm::enumerate(indexes))
-    {
+    for (auto index: llvm::enumerate(indexes)) {
       result += index.value();
 
-      if (index.index() < indexes.size() - 1)
+      if (index.index() < indexes.size() - 1) {
         result *= dimensions[index.index() + 1];
+      }
     }
 
     return result;
@@ -788,9 +830,9 @@ namespace marco::modeling::internal
    */
   template<typename T = Point::data_type>
   static void unflattenIndex(
-          llvm::ArrayRef<size_t> dimensions,
-          std::make_unsigned_t<T> index,
-          llvm::SmallVectorImpl<std::make_unsigned_t<T>>& results)
+      llvm::ArrayRef<size_t> dimensions,
+      std::make_unsigned_t<T> index,
+      llvm::SmallVectorImpl<std::make_unsigned_t<T>>& results)
   {
     assert(dimensions.size() != 0);
 
@@ -799,11 +841,11 @@ namespace marco::modeling::internal
 
     size_t size = 1;
 
-    for (size_t i = 1, e = dimensions.size(); i < e; ++i)
+    for (size_t i = 1, e = dimensions.size(); i < e; ++i) {
       size *= dimensions[i];
+    }
 
-    for (size_t i = 1, e = dimensions.size(); i < e; ++i)
-    {
+    for (size_t i = 1, e = dimensions.size(); i < e; ++i) {
       results.push_back(index / size);
       index %= size;
       size /= dimensions[i];
@@ -819,13 +861,11 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& multiDimRange : value)
-    {
+    for (const auto& multiDimRange: value) {
       llvm::SmallVector<Point::data_type, 3> firstItemIndexes;
       llvm::SmallVector<Point::data_type, 3> lastItemIndexes;
 
-      for (size_t i = 0, e = multiDimRange.rank(); i < e; ++i)
-      {
+      for (size_t i = 0, e = multiDimRange.rank(); i < e; ++i) {
         const auto& monoDimRange = multiDimRange[i];
         firstItemIndexes.push_back(monoDimRange.getBegin());
         lastItemIndexes.push_back(monoDimRange.getEnd() - 1);
@@ -850,16 +890,14 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& multiDimRange : value)
-    {
+    for (const auto& multiDimRange: value) {
       assert(multiDimRange.rank() == 1);
       auto& monoDimRange = multiDimRange[0];
 
       std::make_unsigned_t<Point::data_type> firstItemFlattened = monoDimRange.getBegin();
       std::make_unsigned_t<Point::data_type> lastItemFlattened = monoDimRange.getEnd() - 1;
 
-      for (auto flattened = firstItemFlattened; flattened <= lastItemFlattened; ++flattened)
-      {
+      for (auto flattened = firstItemFlattened; flattened <= lastItemFlattened; ++flattened) {
         llvm::SmallVector<std::make_unsigned_t<Point::data_type>, 3> rescaled;
         unflattenIndex(dimensions, flattened, rescaled);
 
@@ -868,8 +906,9 @@ namespace marco::modeling::internal
 
         llvm::SmallVector<Range, 3> ranges;
 
-        for (const auto& index : indexes)
+        for (const auto& index: indexes) {
           ranges.emplace_back(index, index + 1);
+        }
 
         result += MultidimensionalRange(std::move(ranges));
       }
@@ -900,7 +939,7 @@ namespace marco::modeling::internal
   }
 
   FlatMCIM::MCIMElement::MCIMElement(MCIS keys, Delta delta)
-          : keys(std::move(keys)), delta(std::move(delta))
+      : keys(std::move(keys)), delta(std::move(delta))
   {
   }
 
@@ -923,12 +962,12 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& keyRange : keys)
-    {
+    for (const auto& keyRange: keys) {
       llvm::SmallVector<Range, 3> valueRanges;
 
-      for (size_t i = 0, e = keyRange.rank(); i < e; ++i)
+      for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
         valueRanges.emplace_back(keyRange[i].getBegin() + delta.getValue(), keyRange[i].getEnd() + delta.getValue());
+      }
 
       result += MultidimensionalRange(valueRanges);
     }
@@ -942,38 +981,42 @@ namespace marco::modeling::internal
   }
 
   FlatMCIM::FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-          : MCIM::Impl(Flat, std::move(equationRanges), std::move(variableRanges))
+      : MCIM::Impl(Flat, std::move(equationRanges), std::move(variableRanges))
   {
     assert(getEquationRanges().rank() != getVariableRanges().rank());
 
-    for (size_t i = 0, e = getEquationRanges().rank(); i < e; ++i)
+    for (size_t i = 0, e = getEquationRanges().rank(); i < e; ++i) {
       equationDimensions.push_back(getEquationRanges()[i].size());
+    }
 
-    for (size_t i = 0, e = getVariableRanges().rank(); i < e; ++i)
+    for (size_t i = 0, e = getVariableRanges().rank(); i < e; ++i) {
       variableDimensions.push_back(getVariableRanges()[i].size());
+    }
   }
 
   bool FlatMCIM::operator==(const MCIM::Impl& rhs) const
   {
-    if (auto other = rhs.dyn_cast<FlatMCIM>())
-    {
-      if (groups.empty() && other->groups.empty())
+    if (auto other = rhs.dyn_cast<FlatMCIM>()) {
+      if (groups.empty() && other->groups.empty()) {
         return true;
+      }
 
-      if (groups.size() != other->groups.size())
+      if (groups.size() != other->groups.size()) {
         return false;
+      }
 
-      for (const auto& group : other->groups)
-      {
+      for (const auto& group: other->groups) {
         auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
-            return obj.getDelta() == group.getDelta();
+          return obj.getDelta() == group.getDelta();
         });
 
-        if (groupIt == groups.end())
+        if (groupIt == groups.end()) {
           return false;
+        }
 
-        if (group.getKeys() != groupIt->getKeys())
+        if (group.getKeys() != groupIt->getKeys()) {
           return false;
+        }
       }
 
       return true;
@@ -984,25 +1027,27 @@ namespace marco::modeling::internal
 
   bool FlatMCIM::operator!=(const MCIM::Impl& rhs) const
   {
-    if (auto other = rhs.dyn_cast<FlatMCIM>())
-    {
-      if (groups.empty() && other->groups.empty())
+    if (auto other = rhs.dyn_cast<FlatMCIM>()) {
+      if (groups.empty() && other->groups.empty()) {
         return false;
+      }
 
-      if (groups.size() != other->groups.size())
+      if (groups.size() != other->groups.size()) {
         return true;
+      }
 
-      for (const auto& group : other->groups)
-      {
+      for (const auto& group: other->groups) {
         auto groupIt = llvm::find_if(groups, [&](const MCIMElement& obj) {
-            return obj.getDelta() == group.getDelta();
+          return obj.getDelta() == group.getDelta();
         });
 
-        if (groupIt == groups.end())
+        if (groupIt == groups.end()) {
           return true;
+        }
 
-        if (group.getKeys() != groupIt->getKeys())
+        if (group.getKeys() != groupIt->getKeys()) {
           return true;
+        }
       }
 
       return false;
@@ -1018,10 +1063,10 @@ namespace marco::modeling::internal
 
   MCIM::Impl& FlatMCIM::operator+=(const MCIM::Impl& rhs)
   {
-    if (auto other = rhs.dyn_cast<FlatMCIM>())
-    {
-      for (const auto& group : other->groups)
+    if (auto other = rhs.dyn_cast<FlatMCIM>()) {
+      for (const auto& group: other->groups) {
         add(group.getKeys(), group.getDelta());
+      }
 
       return *this;
     }
@@ -1031,22 +1076,17 @@ namespace marco::modeling::internal
 
   MCIM::Impl& FlatMCIM::operator-=(const MCIM::Impl& rhs)
   {
-    if (auto other = rhs.dyn_cast<FlatMCIM>())
-    {
+    if (auto other = rhs.dyn_cast<FlatMCIM>()) {
       llvm::SmallVector<MCIMElement, 3> newGroups;
 
-      for (const auto& group : groups)
-      {
+      for (const auto& group: groups) {
         auto groupIt = llvm::find_if(other->groups, [&](const MCIMElement& obj) {
-            return obj.getDelta() == group.getDelta();
+          return obj.getDelta() == group.getDelta();
         });
 
-        if (groupIt == other->groups.end())
-        {
+        if (groupIt == other->groups.end()) {
           newGroups.push_back(std::move(group));
-        }
-        else
-        {
+        } else {
           MCIS diff = group.getKeys() - groupIt->getKeys();
           newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
         }
@@ -1061,8 +1101,7 @@ namespace marco::modeling::internal
 
   void FlatMCIM::apply(const AccessFunction& access)
   {
-    for (const auto& equation : getEquationRanges())
-    {
+    for (const auto& equation: getEquationRanges()) {
       assert(access.size() == getVariableRanges().rank());
       auto variable = access.map(equation);
       set(equation, variable);
@@ -1077,7 +1116,7 @@ namespace marco::modeling::internal
     Delta delta(flatEquation[0], flatVariable[0]);
 
     return llvm::any_of(groups, [&](const MCIMElement& group) -> bool {
-        return group.getDelta() == delta && group.getKeys().contains(flatEquation);
+      return group.getDelta() == delta && group.getKeys().contains(flatEquation);
     });
   }
 
@@ -1087,7 +1126,8 @@ namespace marco::modeling::internal
     auto flatVariable = getFlatVariable(variable);
 
     Delta delta(flatEquation[0], flatVariable[0]);
-    MCIS keys(MultidimensionalRange(Range(flatEquation[0], flatEquation[0] + 1)));
+    MCIS keys(MultidimensionalRange(Range(flatEquation[0], flatEquation[0]
+    +1)));
     add(std::move(keys), std::move(delta));
   }
 
@@ -1097,12 +1137,12 @@ namespace marco::modeling::internal
 
     llvm::SmallVector<MCIMElement, 3> newGroups;
 
-    for (const auto& group : groups)
-    {
+    for (const auto& group: groups) {
       MCIS diff = group.getKeys() - MultidimensionalRange(Range(flatEquation[0], flatEquation[0] + 1));
 
-      if (!diff.empty())
+      if (!diff.empty()) {
         newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+      }
     }
 
     groups = std::move(newGroups);
@@ -1122,8 +1162,9 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& group : groups)
+    for (const auto& group: groups) {
       result += group.getValues();
+    }
 
     return unflattenMCIS(result, getVariableRanges(), variableDimensions);
   }
@@ -1132,8 +1173,9 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& group : groups)
+    for (const auto& group: groups) {
       result += group.getKeys();
+    }
 
     return unflattenMCIS(result, getEquationRanges(), equationDimensions);
   }
@@ -1143,9 +1185,11 @@ namespace marco::modeling::internal
     MCIS flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
-    for (const MCIMElement& group : groups)
-      if (auto& equations = group.getKeys(); equations.overlaps(flattenedFilter))
+    for (const MCIMElement& group: groups) {
+      if (auto& equations = group.getKeys(); equations.overlaps(flattenedFilter)) {
         result->add(equations.intersect(flattenedFilter), group.getDelta());
+      }
+    }
 
     return result;
   }
@@ -1155,12 +1199,10 @@ namespace marco::modeling::internal
     MCIS flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
-    for (const auto& group : groups)
-    {
+    for (const auto& group: groups) {
       auto invertedGroup = group.inverse();
 
-      if (auto& variables = invertedGroup.getKeys(); variables.overlaps(flattenedFilter))
-      {
+      if (auto& variables = invertedGroup.getKeys(); variables.overlaps(flattenedFilter)) {
         MCIS filteredVariables = variables.intersect(flattenedFilter);
         MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
         MCIMElement filteredEquations = filteredVariableGroup.inverse();
@@ -1175,8 +1217,7 @@ namespace marco::modeling::internal
   {
     std::vector<std::unique_ptr<MCIM::Impl>> result;
 
-    for (const auto& group : groups)
-    {
+    for (const auto& group: groups) {
       auto mcim = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
       mcim->groups.push_back(group);
       result.push_back(std::move(mcim));
@@ -1214,21 +1255,23 @@ namespace marco::modeling::internal
   void FlatMCIM::add(MCIS keys, Delta delta)
   {
     auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
-        return group.getDelta() == delta;
+      return group.getDelta() == delta;
     });
 
-    if (groupIt == groups.end())
+    if (groupIt == groups.end()) {
       groups.emplace_back(std::move(keys), std::move(delta));
-    else
+    } else {
       groupIt->addKeys(std::move(keys));
+    }
   }
 
   MCIM::MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
   {
-    if (equationRanges.rank() == variableRanges.rank())
+    if (equationRanges.rank() == variableRanges.rank()) {
       impl = std::make_unique<RegularMCIM>(std::move(equationRanges), std::move(variableRanges));
-    else
+    } else {
       impl = std::make_unique<FlatMCIM>(std::move(equationRanges), std::move(variableRanges));
+    }
   }
 
   MCIM::MCIM(std::unique_ptr<Impl> impl) : impl(std::move(impl))
@@ -1258,22 +1301,26 @@ namespace marco::modeling::internal
 
   bool MCIM::operator==(const MCIM& other) const
   {
-    if (getEquationRanges() != other.getEquationRanges())
+    if (getEquationRanges() != other.getEquationRanges()) {
       return false;
+    }
 
-    if (getVariableRanges() != other.getVariableRanges())
+    if (getVariableRanges() != other.getVariableRanges()) {
       return false;
+    }
 
     return (*impl) == *other.impl;
   }
 
   bool MCIM::operator!=(const MCIM& other) const
   {
-    if (getEquationRanges() != other.getEquationRanges())
+    if (getEquationRanges() != other.getEquationRanges()) {
       return true;
+    }
 
-    if (getVariableRanges() != other.getVariableRanges())
+    if (getVariableRanges() != other.getVariableRanges()) {
       return true;
+    }
 
     return (*impl) != *other.impl;
   }
@@ -1380,18 +1427,19 @@ namespace marco::modeling::internal
     std::vector<MCIM> result;
     auto groups = impl->splitGroups();
 
-    for (auto& group : groups)
+    for (auto& group: groups) {
       result.push_back(MCIM(std::move(group)));
+    }
 
     return result;
   }
 
-
-  template <class T>
+  template<class T>
   static size_t numDigits(T value)
   {
-    if (value > -10 && value < 10)
+    if (value > -10 && value < 10) {
       return 1;
+    }
 
     size_t digits = 0;
 
@@ -1408,11 +1456,13 @@ namespace marco::modeling::internal
     size_t beginDigits = numDigits(range.getBegin());
     size_t endDigits = numDigits(range.getEnd());
 
-    if (range.getBegin() < 0)
+    if (range.getBegin() < 0) {
       ++beginDigits;
+    }
 
-    if (range.getEnd() < 0)
+    if (range.getEnd() < 0) {
       ++endDigits;
+    }
 
     return std::max(beginDigits, endDigits);
   }
@@ -1421,12 +1471,12 @@ namespace marco::modeling::internal
   {
     size_t result = 0;
 
-    for (const auto& index : indexes)
-    {
+    for (const auto& index: indexes) {
       result += numDigits(index);
 
-      if (index < 0)
+      if (index < 0) {
         ++result;
+      }
     }
 
     return result;
@@ -1452,8 +1502,9 @@ namespace marco::modeling::internal
     // will be properly aligned.
     llvm::SmallVector<size_t, 3> equationIndexesCols;
 
-    for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
+    for (size_t i = 0, e = equationRanges.rank(); i < e; ++i) {
       equationIndexesCols.push_back(getRangeMaxColumns(equationRanges[i]));
+    }
 
     size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), 0);
     size_t equationIndexesColumnWidth = getWrappedIndexesLength(equationIndexesMaxWidth, equationRanges.rank());
@@ -1462,24 +1513,26 @@ namespace marco::modeling::internal
     // same among all the items.
     llvm::SmallVector<size_t, 3> variableIndexesCols;
 
-    for (size_t i = 0, e = variableRanges.rank(); i < e; ++i)
+    for (size_t i = 0, e = variableRanges.rank(); i < e; ++i) {
       variableIndexesCols.push_back(getRangeMaxColumns(variableRanges[i]));
+    }
 
     size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), 0);
     size_t variableIndexesColumnWidth = getWrappedIndexesLength(variableIndexesMaxWidth, variableRanges.rank());
 
     // Print the spacing of the first line
-    for (size_t i = 0, e = equationIndexesColumnWidth; i < e; ++i)
+    for (size_t i = 0, e = equationIndexesColumnWidth; i < e; ++i) {
       stream << " ";
+    }
 
     // Print the variable indexes
-    for (const auto& variableIndexes : variableRanges)
-    {
+    for (const auto& variableIndexes: variableRanges) {
       stream << " ";
       size_t columnWidth = getIndexesWidth(variableIndexes);
 
-      for (size_t i = columnWidth; i < variableIndexesMaxWidth; ++i)
+      for (size_t i = columnWidth; i < variableIndexesMaxWidth; ++i) {
         stream << " ";
+      }
 
       stream << variableIndexes;
     }
@@ -1488,28 +1541,29 @@ namespace marco::modeling::internal
     stream << "\n";
 
     // Print a line for each equation
-    for (const auto& equation : equationRanges)
-    {
-      for (size_t i = getIndexesWidth(equation); i < equationIndexesMaxWidth; ++i)
+    for (const auto& equation: equationRanges) {
+      for (size_t i = getIndexesWidth(equation); i < equationIndexesMaxWidth; ++i) {
         stream << " ";
+      }
 
       stream << equation;
 
-      for (const auto& variable : variableRanges)
-      {
+      for (const auto& variable: variableRanges) {
         stream << " ";
 
         size_t columnWidth = variableIndexesColumnWidth;
         size_t spacesAfter = (columnWidth - 1) / 2;
         size_t spacesBefore = columnWidth - 1 - spacesAfter;
 
-        for (size_t i = 0; i < spacesBefore; ++i)
+        for (size_t i = 0; i < spacesBefore; ++i) {
           stream << " ";
+        }
 
         stream << (mcim.get(equation, variable) ? 1 : 0);
 
-        for (size_t i = 0; i < spacesAfter; ++i)
+        for (size_t i = 0; i < spacesAfter; ++i) {
           stream << " ";
+        }
       }
 
       stream << "\n";

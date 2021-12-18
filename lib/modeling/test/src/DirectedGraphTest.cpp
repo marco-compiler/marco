@@ -27,8 +27,9 @@ unwrapVertices(const Graph& graph, Range edges)
 {
   std::vector<UnwrappedVertex<typename Graph::VertexProperty>> result;
 
-  for (auto descriptor : edges)
+  for (auto descriptor: edges) {
     result.emplace_back(graph[descriptor]);
+  }
 
   return result;
 }
@@ -37,7 +38,7 @@ template<typename VertexDescriptor, typename EdgeProperty>
 struct UnwrappedEdge
 {
   UnwrappedEdge(VertexDescriptor from, VertexDescriptor to, EdgeProperty property)
-          : from(from), to(to), property(property)
+      : from(from), to(to), property(property)
   {
   }
 
@@ -57,8 +58,9 @@ unwrapEdges(const Graph& graph, Range edges)
 {
   std::vector<UnwrappedEdge<typename Graph::VertexDescriptor, typename Graph::EdgeProperty>> result;
 
-  for (auto descriptor : edges)
+  for (auto descriptor: edges) {
     result.emplace_back(descriptor.from, descriptor.to, graph[descriptor]);
+  }
 
   return result;
 }
@@ -66,55 +68,55 @@ unwrapEdges(const Graph& graph, Range edges)
 class Vertex
 {
   public:
-  Vertex(llvm::StringRef name, int value = 0) : name(name.str()), value(value)
-  {
-  }
+    Vertex(llvm::StringRef name, int value = 0) : name(name.str()), value(value)
+    {
+    }
 
-  bool operator==(const Vertex& other) const
-  {
-    return name == other.name;
-  }
+    bool operator==(const Vertex& other) const
+    {
+      return name == other.name;
+    }
 
-  llvm::StringRef getName() const
-  {
-    return name;
-  }
+    llvm::StringRef getName() const
+    {
+      return name;
+    }
 
-  int getValue() const
-  {
-    return value;
-  }
+    int getValue() const
+    {
+      return value;
+    }
 
   private:
-  std::string name;
-  int value;
+    std::string name;
+    int value;
 };
 
 class Edge
 {
   public:
-  Edge(llvm::StringRef name, int value = 0) : name(name.str()), value(value)
-  {
-  }
+    Edge(llvm::StringRef name, int value = 0) : name(name.str()), value(value)
+    {
+    }
 
-  bool operator==(const Edge& other) const
-  {
-    return name == other.name;
-  }
+    bool operator==(const Edge& other) const
+    {
+      return name == other.name;
+    }
 
-  llvm::StringRef getName() const
-  {
-    return name;
-  }
+    llvm::StringRef getName() const
+    {
+      return name;
+    }
 
-  int getValue() const
-  {
-    return value;
-  }
+    int getValue() const
+    {
+      return value;
+    }
 
   private:
-  std::string name;
-  int value;
+    std::string name;
+    int value;
 };
 
 TEST(DirectedGraph, addVertex)
@@ -137,9 +139,9 @@ TEST(DirectedGraph, vertices)
   graph.addVertex(z);
 
   EXPECT_THAT(unwrapVertices(graph, graph.getVertices()),
-              UnorderedElementsAre(UnwrappedVertex(x),
-                                   UnwrappedVertex(y),
-                                   UnwrappedVertex(z)));
+      UnorderedElementsAre(UnwrappedVertex(x),
+          UnwrappedVertex(y),
+          UnwrappedVertex(z)));
 }
 
 TEST(DirectedGraph, filteredVertices)
@@ -155,12 +157,12 @@ TEST(DirectedGraph, filteredVertices)
   graph.addVertex(z);
 
   auto filter = [](const Vertex& vertex) -> bool {
-      return vertex.getValue() == 1;
+    return vertex.getValue() == 1;
   };
 
   EXPECT_THAT(unwrapVertices(graph, graph.getVertices(filter)),
-              UnorderedElementsAre(UnwrappedVertex(x),
-                                   UnwrappedVertex(z)));
+      UnorderedElementsAre(UnwrappedVertex(x),
+          UnwrappedVertex(z)));
 }
 
 TEST(DirectedGraph, addEdge)
@@ -194,15 +196,15 @@ TEST(DirectedGraph, outgoingEdges)
   graph.addEdge(y, z, e4);
 
   EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(x)),
-              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
-                                   UnwrappedEdge(x, y, e2),
-                                   UnwrappedEdge(x, z, e3)));
+      UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+          UnwrappedEdge(x, y, e2),
+          UnwrappedEdge(x, z, e3)));
 
   EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(y)),
-              UnorderedElementsAre(UnwrappedEdge(y, z, e4)));
+      UnorderedElementsAre(UnwrappedEdge(y, z, e4)));
 
   EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(z)),
-              IsEmpty());
+      IsEmpty());
 }
 
 TEST(DirectedGraph, filteredOutgoingEdges)
@@ -228,18 +230,18 @@ TEST(DirectedGraph, filteredOutgoingEdges)
   graph.addEdge(z, x, e5);
 
   auto filter = [](const Edge& edge) -> bool {
-      return edge.getValue() == 1;
+    return edge.getValue() == 1;
   };
 
   EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(x, filter)),
-              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
-                                   UnwrappedEdge(x, z, e3)));
+      UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+          UnwrappedEdge(x, z, e3)));
 
   EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(y, filter)),
-              UnorderedElementsAre(UnwrappedEdge(y, z, e4)));
+      UnorderedElementsAre(UnwrappedEdge(y, z, e4)));
 
   EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(z, filter)),
-              IsEmpty());
+      IsEmpty());
 }
 
 TEST(DirectedGraph, edges)
@@ -262,10 +264,10 @@ TEST(DirectedGraph, edges)
   graph.addEdge(y, z, e4);
 
   EXPECT_THAT(unwrapEdges(graph, graph.getEdges()),
-              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
-                                   UnwrappedEdge(x, y, e2),
-                                   UnwrappedEdge(x, z, e3),
-                                   UnwrappedEdge(y, z, e4)));
+      UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+          UnwrappedEdge(x, y, e2),
+          UnwrappedEdge(x, z, e3),
+          UnwrappedEdge(y, z, e4)));
 }
 
 TEST(DirectedGraph, filteredEdges)
@@ -288,11 +290,11 @@ TEST(DirectedGraph, filteredEdges)
   graph.addEdge(y, z, e4);
 
   auto filter = [](const Edge& edge) -> bool {
-      return edge.getValue() == 1;
+    return edge.getValue() == 1;
   };
 
   EXPECT_THAT(unwrapEdges(graph, graph.getEdges(filter)),
-              UnorderedElementsAre(UnwrappedEdge(x, y, e1),
-                                   UnwrappedEdge(x, z, e3),
-                                   UnwrappedEdge(y, z, e4)));
+      UnorderedElementsAre(UnwrappedEdge(x, y, e1),
+          UnwrappedEdge(x, z, e3),
+          UnwrappedEdge(y, z, e4)));
 }

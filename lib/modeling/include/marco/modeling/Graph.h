@@ -12,53 +12,61 @@
 
 namespace marco::modeling::internal
 {
-  namespace impl {
+  namespace impl
+  {
     template<typename Graph, typename P>
     struct VertexDescriptor
     {
       public:
-      using Property = P;
+        using Property = P;
 
-      VertexDescriptor(const Graph *graph, Property *value)
-              : graph(std::move(graph)), value(std::move(value)) {
-      }
+        VertexDescriptor(const Graph* graph, Property* value)
+            : graph(std::move(graph)), value(std::move(value))
+        {
+        }
 
-      bool operator==(const VertexDescriptor<Graph, Property> &other) const {
-        return value == other.value;
-      }
+        bool operator==(const VertexDescriptor<Graph, Property>& other) const
+        {
+          return value == other.value;
+        }
 
-      bool operator!=(const VertexDescriptor<Graph, Property> &other) const {
-        return value != other.value;
-      }
+        bool operator!=(const VertexDescriptor<Graph, Property>& other) const
+        {
+          return value != other.value;
+        }
 
-      bool operator<(const VertexDescriptor<Graph, Property> &other) const {
-        return value < other.value;
-      }
+        bool operator<(const VertexDescriptor<Graph, Property>& other) const
+        {
+          return value < other.value;
+        }
 
-      const Graph *graph;
-      Property *value;
+        const Graph* graph;
+        Property* value;
     };
 
     template<typename Graph, typename T, typename VertexDescriptor>
     struct EdgeDescriptor
     {
       public:
-      EdgeDescriptor(const Graph *graph, VertexDescriptor from, VertexDescriptor to, T *value)
-              : graph(std::move(graph)), from(std::move(from)), to(std::move(to)), value(std::move(value)) {
-      }
+        EdgeDescriptor(const Graph* graph, VertexDescriptor from, VertexDescriptor to, T* value)
+            : graph(std::move(graph)), from(std::move(from)), to(std::move(to)), value(std::move(value))
+        {
+        }
 
-      bool operator==(const EdgeDescriptor<Graph, T, VertexDescriptor> &other) const {
-        return from == other.from && to == other.to && value == other.value;
-      }
+        bool operator==(const EdgeDescriptor<Graph, T, VertexDescriptor>& other) const
+        {
+          return from == other.from && to == other.to && value == other.value;
+        }
 
-      bool operator!=(const EdgeDescriptor<Graph, T, VertexDescriptor> &other) const {
-        return from != other.from || to != other.to || value != other.value;
-      }
+        bool operator!=(const EdgeDescriptor<Graph, T, VertexDescriptor>& other) const
+        {
+          return from != other.from || to != other.to || value != other.value;
+        }
 
-      const Graph *graph;
-      VertexDescriptor from;
-      VertexDescriptor to;
-      T *value;
+        const Graph* graph;
+        VertexDescriptor from;
+        VertexDescriptor to;
+        T* value;
     };
 
     // TODO: use SFINAE to check that Iterator iterates on values with Descriptor type
@@ -66,306 +74,352 @@ namespace marco::modeling::internal
     class FilteredIterator
     {
       public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = typename Iterator::value_type;
-      using difference_type = std::ptrdiff_t;
-      using pointer = typename Iterator::pointer;
-      using reference = typename Iterator::reference;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = typename Iterator::value_type;
+        using difference_type = std::ptrdiff_t;
+        using pointer = typename Iterator::pointer;
+        using reference = typename Iterator::reference;
 
-      FilteredIterator(Iterator currentIt, Iterator endIt, std::function<bool(value_type)> visibilityFn)
-              : currentIt(std::move(currentIt)),
-                endIt(std::move(endIt)),
-                visibilityFn(std::move(visibilityFn)) {
-        if (shouldProceed())
+        FilteredIterator(Iterator currentIt, Iterator endIt, std::function<bool(value_type)> visibilityFn)
+            : currentIt(std::move(currentIt)),
+              endIt(std::move(endIt)),
+              visibilityFn(std::move(visibilityFn))
+        {
+          if (shouldProceed()) {
+            fetchNext();
+          }
+        }
+
+        bool operator==(const FilteredIterator& it) const
+        {
+          return currentIt == it.currentIt && endIt == it.endIt;
+        }
+
+        bool operator!=(const FilteredIterator& it) const
+        {
+          return currentIt != it.currentIt || endIt != it.endIt;
+        }
+
+        FilteredIterator& operator++()
+        {
           fetchNext();
-      }
+          return *this;
+        }
 
-      bool operator==(const FilteredIterator &it) const {
-        return currentIt == it.currentIt && endIt == it.endIt;
-      }
+        FilteredIterator operator++(int)
+        {
+          auto temp = *this;
+          fetchNext();
+          return temp;
+        }
 
-      bool operator!=(const FilteredIterator &it) const {
-        return currentIt != it.currentIt || endIt != it.endIt;
-      }
-
-      FilteredIterator &operator++() {
-        fetchNext();
-        return *this;
-      }
-
-      FilteredIterator operator++(int) {
-        auto temp = *this;
-        fetchNext();
-        return temp;
-      }
-
-      value_type operator*() const {
-        return *currentIt;
-      }
+        value_type operator*() const
+        {
+          return *currentIt;
+        }
 
       private:
-      bool shouldProceed() const {
-        if (currentIt == endIt)
-          return false;
+        bool shouldProceed() const
+        {
+          if (currentIt == endIt) {
+            return false;
+          }
 
-        auto descriptor = *currentIt;
-        return !visibilityFn(descriptor);
-      }
+          auto descriptor = *currentIt;
+          return !visibilityFn(descriptor);
+        }
 
-      void fetchNext() {
-        if (currentIt == endIt)
-          return;
+        void fetchNext()
+        {
+          if (currentIt == endIt) {
+            return;
+          }
 
-        do {
-          ++currentIt;
-        } while (shouldProceed());
-      }
+          do {
+            ++currentIt;
+          } while (shouldProceed());
+        }
 
-      Iterator currentIt;
-      Iterator endIt;
-      std::function<bool(value_type)> visibilityFn;
+        Iterator currentIt;
+        Iterator endIt;
+        std::function<bool(value_type)> visibilityFn;
     };
 
     template<typename Graph, typename VertexDescriptor, typename VerticesContainer>
     class VertexIterator
     {
       public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = VertexDescriptor;
-      using difference_type = std::ptrdiff_t;
-      using pointer = VertexDescriptor *;
-      using reference = VertexDescriptor &;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = VertexDescriptor;
+        using difference_type = std::ptrdiff_t;
+        using pointer = VertexDescriptor*;
+        using reference = VertexDescriptor&;
 
       private:
-      using Iterator = typename VerticesContainer::const_iterator;
+        using Iterator = typename VerticesContainer::const_iterator;
 
       public:
-      VertexIterator(const Graph *graph, Iterator current)
-              : graph(std::move(graph)), current(std::move(current)) {
-      }
+        VertexIterator(const Graph* graph, Iterator current)
+            : graph(std::move(graph)), current(std::move(current))
+        {
+        }
 
-      bool operator==(const VertexIterator &it) const {
-        return current == it.current;
-      }
+        bool operator==(const VertexIterator& it) const
+        {
+          return current == it.current;
+        }
 
-      bool operator!=(const VertexIterator &it) const {
-        return current != it.current;
-      }
+        bool operator!=(const VertexIterator& it) const
+        {
+          return current != it.current;
+        }
 
-      VertexIterator &operator++() {
-        ++current;
-        return *this;
-      }
+        VertexIterator& operator++()
+        {
+          ++current;
+          return *this;
+        }
 
-      VertexIterator operator++(int) {
-        auto temp = *this;
-        ++current;
-        return temp;
-      }
+        VertexIterator operator++(int)
+        {
+          auto temp = *this;
+          ++current;
+          return temp;
+        }
 
-      VertexDescriptor operator*() const {
-        return VertexDescriptor(graph, *current);
-      }
+        VertexDescriptor operator*() const
+        {
+          return VertexDescriptor(graph, *current);
+        }
 
       private:
-      const Graph *graph;
-      Iterator current;
+        const Graph* graph;
+        Iterator current;
     };
 
     template<typename Graph, typename EdgeDescriptor, typename VertexIterator, typename AdjacencyList>
-    class EdgeIterator {
+    class EdgeIterator
+    {
       public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = EdgeDescriptor;
-      using difference_type = std::ptrdiff_t;
-      using pointer = EdgeDescriptor *;
-      using reference = EdgeDescriptor &;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = EdgeDescriptor;
+        using difference_type = std::ptrdiff_t;
+        using pointer = EdgeDescriptor*;
+        using reference = EdgeDescriptor&;
 
-      using VertexDescriptor = typename VertexIterator::value_type;
+        using VertexDescriptor = typename VertexIterator::value_type;
 
-      EdgeIterator(const Graph *graph, VertexIterator currentVertexIt, VertexIterator endVertexIt,
-                   const AdjacencyList &adj, bool directed)
-              : graph(std::move(graph)),
-                currentVertexIt(std::move(currentVertexIt)),
-                endVertexIt(std::move(endVertexIt)),
-                adj(&adj),
-                currentEdge(0),
-                directed(directed) {
-        if (shouldProceed())
+        EdgeIterator(const Graph* graph, VertexIterator currentVertexIt, VertexIterator endVertexIt,
+                     const AdjacencyList& adj, bool directed)
+            : graph(std::move(graph)),
+              currentVertexIt(std::move(currentVertexIt)),
+              endVertexIt(std::move(endVertexIt)),
+              adj(&adj),
+              currentEdge(0),
+              directed(directed)
+        {
+          if (shouldProceed()) {
+            fetchNext();
+          }
+        }
+
+        bool operator==(const EdgeIterator& it) const
+        {
+          return currentVertexIt == it.currentVertexIt && currentEdge == it.currentEdge;
+        }
+
+        bool operator!=(const EdgeIterator& it) const
+        {
+          return currentVertexIt != it.currentVertexIt || currentEdge != it.currentEdge;
+        }
+
+        EdgeIterator& operator++()
+        {
           fetchNext();
-      }
+          return *this;
+        }
 
-      bool operator==(const EdgeIterator &it) const {
-        return currentVertexIt == it.currentVertexIt && currentEdge == it.currentEdge;
-      }
+        EdgeIterator operator++(int)
+        {
+          auto temp = *this;
+          fetchNext();
+          return temp;
+        }
 
-      bool operator!=(const EdgeIterator &it) const {
-        return currentVertexIt != it.currentVertexIt || currentEdge != it.currentEdge;
-      }
-
-      EdgeIterator &operator++() {
-        fetchNext();
-        return *this;
-      }
-
-      EdgeIterator operator++(int) {
-        auto temp = *this;
-        fetchNext();
-        return temp;
-      }
-
-      EdgeDescriptor operator*() const {
-        VertexDescriptor from = *currentVertexIt;
-        auto &incidentEdges = adj->find(from)->second;
-        auto &edge = incidentEdges[currentEdge];
-        auto to = edge.first;
-        auto *ptr = edge.second;
-        return EdgeDescriptor(graph, from, to, ptr);
-      }
-
-      private:
-      bool shouldProceed() const {
-        if (currentVertexIt == endVertexIt)
-          return false;
-
-        VertexDescriptor from = *currentVertexIt;
-        auto incidentEdgesIt = adj->find(from);
-
-        if (incidentEdgesIt == adj->end())
-          return true;
-
-        auto &incidentEdges = incidentEdgesIt->second;
-
-        if (currentEdge == incidentEdges.size())
-          return true;
-
-        auto &edge = incidentEdges[currentEdge];
-
-        if (directed)
-          return false;
-
-        return from < edge.first;
-      }
-
-      void fetchNext() {
-        if (currentVertexIt == endVertexIt)
-          return;
-
-        do {
+        EdgeDescriptor operator*() const
+        {
           VertexDescriptor from = *currentVertexIt;
+          auto& incidentEdges = adj->find(from)->second;
+          auto& edge = incidentEdges[currentEdge];
+          auto to = edge.first;
+          auto* ptr = edge.second;
+          return EdgeDescriptor(graph, from, to, ptr);
+        }
 
+      private:
+        bool shouldProceed() const
+        {
+          if (currentVertexIt == endVertexIt) {
+            return false;
+          }
+
+          VertexDescriptor from = *currentVertexIt;
           auto incidentEdgesIt = adj->find(from);
-          bool advanceToNextVertex = incidentEdgesIt == adj->end();
 
-          if (!advanceToNextVertex) {
-            auto &incidentEdges = incidentEdgesIt->second;
-            advanceToNextVertex = currentEdge == incidentEdges.size();
+          if (incidentEdgesIt == adj->end()) {
+            return true;
           }
 
-          if (advanceToNextVertex) {
-            ++currentVertexIt;
-            currentEdge = 0;
-          } else {
-            ++currentEdge;
-          }
-        } while (shouldProceed());
-      }
+          auto& incidentEdges = incidentEdgesIt->second;
 
-      const Graph *graph;
-      VertexIterator currentVertexIt;
-      VertexIterator endVertexIt;
-      const AdjacencyList *adj;
-      size_t currentEdge;
-      bool directed;
+          if (currentEdge == incidentEdges.size()) {
+            return true;
+          }
+
+          auto& edge = incidentEdges[currentEdge];
+
+          if (directed) {
+            return false;
+          }
+
+          return from < edge.first;
+        }
+
+        void fetchNext()
+        {
+          if (currentVertexIt == endVertexIt) {
+            return;
+          }
+
+          do {
+            VertexDescriptor from = *currentVertexIt;
+
+            auto incidentEdgesIt = adj->find(from);
+            bool advanceToNextVertex = incidentEdgesIt == adj->end();
+
+            if (!advanceToNextVertex) {
+              auto& incidentEdges = incidentEdgesIt->second;
+              advanceToNextVertex = currentEdge == incidentEdges.size();
+            }
+
+            if (advanceToNextVertex) {
+              ++currentVertexIt;
+              currentEdge = 0;
+            } else {
+              ++currentEdge;
+            }
+          } while (shouldProceed());
+        }
+
+        const Graph* graph;
+        VertexIterator currentVertexIt;
+        VertexIterator endVertexIt;
+        const AdjacencyList* adj;
+        size_t currentEdge;
+        bool directed;
     };
 
     template<typename Graph, typename VertexDescriptor, typename EdgeDescriptor, typename IncidentEdgesList>
-    class IncidentEdgeIterator {
+    class IncidentEdgeIterator
+    {
       public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = EdgeDescriptor;
-      using difference_type = std::ptrdiff_t;
-      using pointer = EdgeDescriptor *;
-      using reference = EdgeDescriptor &;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = EdgeDescriptor;
+        using difference_type = std::ptrdiff_t;
+        using pointer = EdgeDescriptor*;
+        using reference = EdgeDescriptor&;
 
-      using Iterator = typename IncidentEdgesList::const_iterator;
+        using Iterator = typename IncidentEdgesList::const_iterator;
 
-      IncidentEdgeIterator(const Graph *graph, VertexDescriptor from, Iterator current)
-              : graph(std::move(graph)), from(std::move(from)), current(current) {
-      }
+        IncidentEdgeIterator(const Graph* graph, VertexDescriptor from, Iterator current)
+            : graph(std::move(graph)), from(std::move(from)), current(current)
+        {
+        }
 
-      bool operator==(const IncidentEdgeIterator &it) const {
-        return from == it.from && current == it.current;
-      }
+        bool operator==(const IncidentEdgeIterator& it) const
+        {
+          return from == it.from && current == it.current;
+        }
 
-      bool operator!=(const IncidentEdgeIterator &it) const {
-        return from != it.from || current != it.current;
-      }
+        bool operator!=(const IncidentEdgeIterator& it) const
+        {
+          return from != it.from || current != it.current;
+        }
 
-      IncidentEdgeIterator &operator++() {
-        ++current;
-        return *this;
-      }
+        IncidentEdgeIterator& operator++()
+        {
+          ++current;
+          return *this;
+        }
 
-      IncidentEdgeIterator operator++(int) {
-        auto temp = *this;
-        ++current;
-        return temp;
-      }
+        IncidentEdgeIterator operator++(int)
+        {
+          auto temp = *this;
+          ++current;
+          return temp;
+        }
 
-      EdgeDescriptor operator*() const {
-        auto &edge = *current;
-        VertexDescriptor to = edge.first;
-        auto *property = edge.second;
-        return EdgeDescriptor(graph, from, to, property);
-      }
+        EdgeDescriptor operator*() const
+        {
+          auto& edge = *current;
+          VertexDescriptor to = edge.first;
+          auto* property = edge.second;
+          return EdgeDescriptor(graph, from, to, property);
+        }
 
       private:
-      const Graph *graph;
-      VertexDescriptor from;
-      Iterator current;
+        const Graph* graph;
+        VertexDescriptor from;
+        Iterator current;
     };
 
     template<typename Graph, typename VertexDescriptor, typename EdgeDescriptor, typename IncidentEdgesList>
-    class LinkedVerticesIterator {
+    class LinkedVerticesIterator
+    {
       public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = VertexDescriptor;
-      using difference_type = std::ptrdiff_t;
-      using pointer = VertexDescriptor *;
-      using reference = VertexDescriptor &;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = VertexDescriptor;
+        using difference_type = std::ptrdiff_t;
+        using pointer = VertexDescriptor*;
+        using reference = VertexDescriptor&;
 
-      using EdgeIt = IncidentEdgeIterator<Graph, VertexDescriptor, EdgeDescriptor, IncidentEdgesList>;
+        using EdgeIt = IncidentEdgeIterator<Graph, VertexDescriptor, EdgeDescriptor, IncidentEdgesList>;
 
-      LinkedVerticesIterator(EdgeIt current)
-              : current(current) {
-      }
+        LinkedVerticesIterator(EdgeIt current)
+            : current(current)
+        {
+        }
 
-      bool operator==(const LinkedVerticesIterator &it) const {
-        return current == it.current;
-      }
+        bool operator==(const LinkedVerticesIterator& it) const
+        {
+          return current == it.current;
+        }
 
-      bool operator!=(const LinkedVerticesIterator &it) const {
-        return current != it.current;
-      }
+        bool operator!=(const LinkedVerticesIterator& it) const
+        {
+          return current != it.current;
+        }
 
-      LinkedVerticesIterator &operator++() {
-        ++current;
-        return *this;
-      }
+        LinkedVerticesIterator& operator++()
+        {
+          ++current;
+          return *this;
+        }
 
-      LinkedVerticesIterator operator++(int) {
-        auto temp = *this;
-        ++current;
-        return temp;
-      }
+        LinkedVerticesIterator operator++(int)
+        {
+          auto temp = *this;
+          ++current;
+          return temp;
+        }
 
-      VertexDescriptor operator*() const {
-        return (*current).to;
-      }
+        VertexDescriptor operator*() const
+        {
+          return (*current).to;
+        }
 
       private:
-      EdgeIt current;
+        EdgeIt current;
     };
   }
 
@@ -373,437 +427,463 @@ namespace marco::modeling::internal
   class Graph
   {
     public:
-    using VertexProperty = VP;
-    using EdgeProperty = EP;
+      using VertexProperty = VP;
+      using EdgeProperty = EP;
 
-    using VertexDescriptor = impl::VertexDescriptor<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            VertexProperty>;
+      using VertexDescriptor = impl::VertexDescriptor<
+          Graph<Derived, VertexProperty, EdgeProperty>,
+          VertexProperty>;
 
-    using EdgeDescriptor = impl::EdgeDescriptor<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            EdgeProperty,
-            VertexDescriptor>;
+      using EdgeDescriptor = impl::EdgeDescriptor<
+          Graph<Derived, VertexProperty, EdgeProperty>,
+          EdgeProperty,
+          VertexDescriptor>;
 
     private:
-    using VerticesContainer = llvm::SmallVector<VertexProperty *, 3>;
-    using IncidentEdgesList = std::vector<std::pair<VertexDescriptor, EdgeProperty *>>;
-    using AdjacencyList = std::map<VertexDescriptor, IncidentEdgesList>;
+      using VerticesContainer = llvm::SmallVector<VertexProperty*, 3>;
+      using IncidentEdgesList = std::vector<std::pair<VertexDescriptor, EdgeProperty*>>;
+      using AdjacencyList = std::map<VertexDescriptor, IncidentEdgesList>;
 
     public:
-    using VertexIterator = impl::VertexIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            VertexDescriptor,
-            VerticesContainer>;
+      using VertexIterator = impl::VertexIterator<
+          Graph<Derived, VertexProperty, EdgeProperty>,
+          VertexDescriptor,
+          VerticesContainer>;
 
-    using FilteredVertexIterator = impl::FilteredIterator<VertexIterator>;
+      using FilteredVertexIterator = impl::FilteredIterator<VertexIterator>;
 
-    using EdgeIterator = impl::EdgeIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            EdgeDescriptor,
-            VertexIterator,
-            AdjacencyList>;
+      using EdgeIterator = impl::EdgeIterator<
+          Graph<Derived, VertexProperty, EdgeProperty>,
+          EdgeDescriptor,
+          VertexIterator,
+          AdjacencyList>;
 
-    using FilteredEdgeIterator = impl::FilteredIterator<EdgeIterator>;
+      using FilteredEdgeIterator = impl::FilteredIterator<EdgeIterator>;
 
-    using IncidentEdgeIterator = impl::IncidentEdgeIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            VertexDescriptor,
-            EdgeDescriptor,
-            IncidentEdgesList>;
+      using IncidentEdgeIterator = impl::IncidentEdgeIterator<
+          Graph<Derived, VertexProperty, EdgeProperty>,
+          VertexDescriptor,
+          EdgeDescriptor,
+          IncidentEdgesList>;
 
-    using FilteredIncidentEdgeIterator = impl::FilteredIterator<IncidentEdgeIterator>;
+      using FilteredIncidentEdgeIterator = impl::FilteredIterator<IncidentEdgeIterator>;
 
-    using LinkedVerticesIterator = impl::LinkedVerticesIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            VertexDescriptor,
-            EdgeDescriptor,
-            IncidentEdgesList>;
+      using LinkedVerticesIterator = impl::LinkedVerticesIterator<
+          Graph<Derived, VertexProperty, EdgeProperty>,
+          VertexDescriptor,
+          EdgeDescriptor,
+          IncidentEdgesList>;
 
-    using FilteredLinkedVerticesIterator = impl::FilteredIterator<LinkedVerticesIterator>;
+      using FilteredLinkedVerticesIterator = impl::FilteredIterator<LinkedVerticesIterator>;
 
-    Graph(bool directed) : directed(std::move(directed)) {
-    }
-
-    Graph(const Graph &other) : directed(other.directed) {
-      // Perform a deep copy of the graph.
-      // Cloning the descriptors is in fact insufficient, as the wrapped nodes
-      // would be deallocated once the original graph ceases to exist.
-
-      llvm::DenseMap<VertexDescriptor, VertexDescriptor> verticesMap;
-      llvm::DenseMap<VertexDescriptor, VertexDescriptor> edgesMap;
-
-      for (auto vertex: other.getVertices()) {
-        auto vertexClone = addVertex(this->operator[](vertex));
-        verticesMap.try_emplace(vertex, vertexClone);
+      Graph(bool directed) : directed(std::move(directed))
+      {
       }
 
-      for (auto edge: other.getEdges()) {
-        auto from = verticesMap.find(edge.from)->second;
-        auto to = verticesMap.find(edge.to)->second;
-        addEdge(from, to, this->operator[](edge));
-      }
-    }
+      Graph(const Graph& other) : directed(other.directed)
+      {
+        // Perform a deep copy of the graph.
+        // Cloning the descriptors is in fact insufficient, as the wrapped nodes
+        // would be deallocated once the original graph ceases to exist.
 
-    virtual ~Graph() {
-      for (auto *vertex: vertices)
-        delete vertex;
+        llvm::DenseMap<VertexDescriptor, VertexDescriptor> verticesMap;
+        llvm::DenseMap<VertexDescriptor, VertexDescriptor> edgesMap;
 
-      for (auto *edge: edges)
-        delete edge;
-    }
-
-    Graph& operator=(const Graph& other)
-    {
-      Graph result(other);
-      swap(*this, result);
-      return *this;
-    }
-
-    friend void swap(Graph& first, Graph& second)
-    {
-      using std::swap;
-      swap(first.directed, second.directed);
-      swap(first.vertices, second.vertices);
-      swap(first.edges, second.edges);
-      swap(first.adj, second.adj);
-    }
-
-    VertexProperty& operator[](VertexDescriptor descriptor) {
-      return *descriptor.value;
-    }
-
-    const VertexProperty& operator[](VertexDescriptor descriptor) const {
-      return *descriptor.value;
-    }
-
-    virtual EdgeProperty& operator[](EdgeDescriptor descriptor) {
-      return *descriptor.value;
-    }
-
-    virtual const EdgeProperty &operator[](EdgeDescriptor descriptor) const {
-      return *descriptor.value;
-    }
-
-    /**
-     * Get the number of vertices.
-     *
-     * @return vertices count
-     */
-    size_t verticesCount() const {
-      return vertices.size();
-    }
-
-    /**
-     * Get the number of edges.
-     *
-     * @return edges count
-     */
-    size_t edgesCount() const {
-      if (directed)
-        return edges.size();
-
-      return edges.size() / 2;
-    }
-
-    /**
-     * Add a vertex to the graph.
-     * The property is cloned and stored into the graph data structures.
-     *
-     * @param property  vertex property
-     * @return vertex descriptor
-     */
-    VertexDescriptor addVertex(VertexProperty property) {
-      auto *ptr = new VertexProperty(std::move(property));
-      vertices.push_back(ptr);
-      VertexDescriptor result(this, ptr);
-      // TODO Replace with multimap
-      adj.emplace(result, IncidentEdgesList());
-      return result;
-    }
-
-    /**
-     * Get the vertices of the graph.
-     *
-     * @return iterable range of vertex descriptors
-     */
-    llvm::iterator_range<VertexIterator> getVertices() const {
-      VertexIterator begin(this, vertices.begin());
-      VertexIterator end(this, vertices.end());
-
-      return llvm::iterator_range<VertexIterator>(begin, end);
-    }
-
-    /**
-     * Get the vertices of the graph that match a certain property.
-     *
-     * @param visibilityFn  function determining whether a vertex should be considered or not
-     * @return iterable range of vertex descriptors
-     */
-    llvm::iterator_range<FilteredVertexIterator> getVertices(
-            std::function<bool(const VertexProperty &)> visibilityFn) const {
-      auto filter = [=](const VertexDescriptor &descriptor) -> bool {
-          return visibilityFn((*this)[descriptor]);
-      };
-
-      auto allVertices = getVertices();
-
-      FilteredVertexIterator begin(allVertices.begin(), allVertices.end(), filter);
-      FilteredVertexIterator end(allVertices.end(), allVertices.end(), filter);
-
-      return llvm::iterator_range<FilteredVertexIterator>(begin, end);
-    }
-
-    /**
-     * Add an edge to the graph.
-     * The property is cloned and stored into the graph data structures.
-     *
-     * @param from        source vertex descriptor
-     * @param to          destination vertex descriptor
-     * @param property    edge property
-     * @return edge descriptor
-     */
-    EdgeDescriptor addEdge(
-            VertexDescriptor from,
-            VertexDescriptor to,
-            EdgeProperty property) {
-      auto *ptr = new EdgeProperty(std::move(property));
-      edges.push_back(ptr);
-
-      adj[from].push_back(std::make_pair(to, ptr));
-
-      if (!directed)
-        adj[to].push_back(std::make_pair(from, ptr));
-
-      return EdgeDescriptor(this, from, to, ptr);
-    }
-
-    /**
-     * Get all the edges of the graph.
-     * If the graph is undirected, then the edge between two nodes is
-     * returned only once and its source / destination order is casual,
-     * as it is indeed conceptually irrelevant.
-     *
-     * @return iterable range of edge descriptors
-     */
-    llvm::iterator_range<EdgeIterator> getEdges() const {
-      auto verticesDescriptors = this->getVertices();
-
-      EdgeIterator begin(this, verticesDescriptors.begin(), verticesDescriptors.end(), adj, directed);
-      EdgeIterator end(this, verticesDescriptors.end(), verticesDescriptors.end(), adj, directed);
-
-      return llvm::iterator_range<EdgeIterator>(begin, end);
-    }
-
-    /**
-     * Get all the edges of the graph that match a certain property.
-     * If the graph is undirected, then the edge between two nodes is
-     * returned only once and its source / destination order is casual,
-     * as it is indeed conceptually irrelevant.
-     *
-     * @param visibilityFn  function determining whether an edge should be considered or not
-     * @return iterable range of edge descriptors
-     */
-    llvm::iterator_range<FilteredEdgeIterator> getEdges(
-            std::function<bool(const EdgeProperty &)> visibilityFn) const {
-      auto filter = [=](const EdgeDescriptor &descriptor) -> bool {
-          return visibilityFn((*this)[descriptor]);
-      };
-
-      auto allEdges = getEdges();
-
-      FilteredEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
-      FilteredEdgeIterator end(allEdges.end(), allEdges.end(), filter);
-
-      return llvm::iterator_range<FilteredEdgeIterator>(begin, end);
-    }
-
-    llvm::iterator_range<IncidentEdgeIterator> getOutgoingEdges(VertexDescriptor vertex) const {
-      auto it = adj.find(vertex);
-      assert(it != this->adj.end());
-      const auto &incidentEdges = it->second;
-
-      IncidentEdgeIterator begin(this, vertex, incidentEdges.begin());
-      IncidentEdgeIterator end(this, vertex, incidentEdges.end());
-
-      return llvm::iterator_range<IncidentEdgeIterator>(begin, end);
-    }
-
-    llvm::iterator_range<FilteredIncidentEdgeIterator> getOutgoingEdges(
-            VertexDescriptor vertex,
-            std::function<bool(const EdgeProperty &)> visibilityFn) const {
-      auto filter = [=](const EdgeDescriptor &descriptor) -> bool {
-          return visibilityFn((*this)[descriptor]);
-      };
-
-      auto allEdges = getOutgoingEdges(vertex);
-
-      FilteredIncidentEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
-      FilteredIncidentEdgeIterator end(allEdges.end(), allEdges.end(), filter);
-
-      return llvm::iterator_range<FilteredIncidentEdgeIterator>(begin, end);
-    }
-
-    llvm::iterator_range<LinkedVerticesIterator> getLinkedVertices(VertexDescriptor vertex) const {
-      auto incidentEdges = getOutgoingEdges(vertex);
-
-      LinkedVerticesIterator begin(incidentEdges.begin());
-      LinkedVerticesIterator end(incidentEdges.end());
-
-      return llvm::iterator_range<LinkedVerticesIterator>(begin, end);
-    }
-
-    llvm::iterator_range<FilteredLinkedVerticesIterator> getOutgoingEdges(
-            VertexDescriptor vertex,
-            std::function<bool(const VertexProperty &)> visibilityFn) const {
-      auto filter = [=](const VertexDescriptor &descriptor) -> bool {
-          return visibilityFn((*this)[descriptor]);
-      };
-
-      auto allEdges = getLinkedVertices(vertex);
-
-      FilteredLinkedVerticesIterator begin(allEdges.begin(), allEdges.end(), filter);
-      FilteredLinkedVerticesIterator end(allEdges.end(), allEdges.end(), filter);
-
-      return llvm::iterator_range<FilteredLinkedVerticesIterator>(begin, end);
-    }
-
-    /**
-     * Split the graph into multiple ones, each of them containing vertices that are
-     * connected among themselves.
-     *
-     * @return connected graphs
-     */
-    std::vector<Derived<VertexProperty, EdgeProperty>> getConnectedComponents() const {
-      std::vector<Derived<VertexProperty, EdgeProperty>> result;
-
-      llvm::DenseSet<VertexDescriptor> visited;
-      llvm::DenseMap<VertexDescriptor, VertexDescriptor> newVertices;
-
-      for (auto vertex: getVertices()) {
-        if (visited.contains(vertex)) {
-          // If the node has already been visited, then it already belongs to
-          // an identified sub-graph. The same holds for its connected nodes.
-          continue;
+        for (auto vertex: other.getVertices()) {
+          auto vertexClone = addVertex(this->operator[](vertex));
+          verticesMap.try_emplace(vertex, vertexClone);
         }
 
-        // Instead, if the node has not been visited yet, then a new connected
-        // component is found. Thus create a new graph to hold the connected nodes.
+        for (auto edge: other.getEdges()) {
+          auto from = verticesMap.find(edge.from)->second;
+          auto to = verticesMap.find(edge.to)->second;
+          addEdge(from, to, this->operator[](edge));
+        }
+      }
 
-        visited.insert(vertex);
-        auto &subGraph = result.emplace_back();
-        newVertices.try_emplace(vertex, subGraph.addVertex(this->operator[](vertex)));
+      virtual ~Graph()
+      {
+        for (auto* vertex: vertices) {
+          delete vertex;
+        }
 
-        // Depth-first search
-        std::stack<VertexDescriptor> stack;
-        stack.push(vertex);
+        for (auto* edge: edges) {
+          delete edge;
+        }
+      }
 
-        while (!stack.empty()) {
-          auto currentVertex = stack.top();
-          stack.pop();
+      Graph& operator=(const Graph& other)
+      {
+        Graph result(other);
+        swap(*this, result);
+        return *this;
+      }
 
-          auto mappedCurrentVertex = newVertices.find(currentVertex)->second;
+      friend void swap(Graph& first, Graph& second)
+      {
+        using std::swap;
+        swap(first.directed, second.directed);
+        swap(first.vertices, second.vertices);
+        swap(first.edges, second.edges);
+        swap(first.adj, second.adj);
+      }
 
-          for (auto edgeDescriptor: getOutgoingEdges(currentVertex)) {
-            auto child = edgeDescriptor.to;
+      VertexProperty& operator[](VertexDescriptor descriptor)
+      {
+        return *descriptor.value;
+      }
 
-            if (visited.contains(child)) {
-              auto mappedChild = newVertices.find(child)->second;
-              subGraph.addEdge(mappedCurrentVertex, mappedChild, this->operator[](edgeDescriptor));
-            } else {
-              stack.push(child);
-              visited.insert(child);
-              auto mappedChild = subGraph.addVertex(this->operator[](child));
-              newVertices.try_emplace(child, mappedChild);
-              subGraph.addEdge(mappedCurrentVertex, mappedChild, this->operator[](edgeDescriptor));
+      const VertexProperty& operator[](VertexDescriptor descriptor) const
+      {
+        return *descriptor.value;
+      }
+
+      virtual EdgeProperty& operator[](EdgeDescriptor descriptor)
+      {
+        return *descriptor.value;
+      }
+
+      virtual const EdgeProperty& operator[](EdgeDescriptor descriptor) const
+      {
+        return *descriptor.value;
+      }
+
+      /**
+       * Get the number of vertices.
+       *
+       * @return vertices count
+       */
+      size_t verticesCount() const
+      {
+        return vertices.size();
+      }
+
+      /**
+       * Get the number of edges.
+       *
+       * @return edges count
+       */
+      size_t edgesCount() const
+      {
+        if (directed) {
+          return edges.size();
+        }
+
+        return edges.size() / 2;
+      }
+
+      /**
+       * Add a vertex to the graph.
+       * The property is cloned and stored into the graph data structures.
+       *
+       * @param property  vertex property
+       * @return vertex descriptor
+       */
+      VertexDescriptor addVertex(VertexProperty property)
+      {
+        auto* ptr = new VertexProperty(std::move(property));
+        vertices.push_back(ptr);
+        VertexDescriptor result(this, ptr);
+        // TODO Replace with multimap
+        adj.emplace(result, IncidentEdgesList());
+        return result;
+      }
+
+      /**
+       * Get the vertices of the graph.
+       *
+       * @return iterable range of vertex descriptors
+       */
+      llvm::iterator_range<VertexIterator> getVertices() const
+      {
+        VertexIterator begin(this, vertices.begin());
+        VertexIterator end(this, vertices.end());
+
+        return llvm::iterator_range<VertexIterator>(begin, end);
+      }
+
+      /**
+       * Get the vertices of the graph that match a certain property.
+       *
+       * @param visibilityFn  function determining whether a vertex should be considered or not
+       * @return iterable range of vertex descriptors
+       */
+      llvm::iterator_range<FilteredVertexIterator> getVertices(
+          std::function<bool(const VertexProperty&)> visibilityFn) const
+      {
+        auto filter = [=](const VertexDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+        };
+
+        auto allVertices = getVertices();
+
+        FilteredVertexIterator begin(allVertices.begin(), allVertices.end(), filter);
+        FilteredVertexIterator end(allVertices.end(), allVertices.end(), filter);
+
+        return llvm::iterator_range<FilteredVertexIterator>(begin, end);
+      }
+
+      /**
+       * Add an edge to the graph.
+       * The property is cloned and stored into the graph data structures.
+       *
+       * @param from        source vertex descriptor
+       * @param to          destination vertex descriptor
+       * @param property    edge property
+       * @return edge descriptor
+       */
+      EdgeDescriptor addEdge(
+          VertexDescriptor from,
+          VertexDescriptor to,
+          EdgeProperty property)
+      {
+        auto* ptr = new EdgeProperty(std::move(property));
+        edges.push_back(ptr);
+
+        adj[from].push_back(std::make_pair(to, ptr));
+
+        if (!directed) {
+          adj[to].push_back(std::make_pair(from, ptr));
+        }
+
+        return EdgeDescriptor(this, from, to, ptr);
+      }
+
+      /**
+       * Get all the edges of the graph.
+       * If the graph is undirected, then the edge between two nodes is
+       * returned only once and its source / destination order is casual,
+       * as it is indeed conceptually irrelevant.
+       *
+       * @return iterable range of edge descriptors
+       */
+      llvm::iterator_range<EdgeIterator> getEdges() const
+      {
+        auto verticesDescriptors = this->getVertices();
+
+        EdgeIterator begin(this, verticesDescriptors.begin(), verticesDescriptors.end(), adj, directed);
+        EdgeIterator end(this, verticesDescriptors.end(), verticesDescriptors.end(), adj, directed);
+
+        return llvm::iterator_range<EdgeIterator>(begin, end);
+      }
+
+      /**
+       * Get all the edges of the graph that match a certain property.
+       * If the graph is undirected, then the edge between two nodes is
+       * returned only once and its source / destination order is casual,
+       * as it is indeed conceptually irrelevant.
+       *
+       * @param visibilityFn  function determining whether an edge should be considered or not
+       * @return iterable range of edge descriptors
+       */
+      llvm::iterator_range<FilteredEdgeIterator> getEdges(
+          std::function<bool(const EdgeProperty&)> visibilityFn) const
+      {
+        auto filter = [=](const EdgeDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+        };
+
+        auto allEdges = getEdges();
+
+        FilteredEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
+        FilteredEdgeIterator end(allEdges.end(), allEdges.end(), filter);
+
+        return llvm::iterator_range<FilteredEdgeIterator>(begin, end);
+      }
+
+      llvm::iterator_range<IncidentEdgeIterator> getOutgoingEdges(VertexDescriptor vertex) const
+      {
+        auto it = adj.find(vertex);
+        assert(it != this->adj.end());
+        const auto& incidentEdges = it->second;
+
+        IncidentEdgeIterator begin(this, vertex, incidentEdges.begin());
+        IncidentEdgeIterator end(this, vertex, incidentEdges.end());
+
+        return llvm::iterator_range<IncidentEdgeIterator>(begin, end);
+      }
+
+      llvm::iterator_range<FilteredIncidentEdgeIterator> getOutgoingEdges(
+          VertexDescriptor vertex,
+          std::function<bool(const EdgeProperty&)> visibilityFn) const
+      {
+        auto filter = [=](const EdgeDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+        };
+
+        auto allEdges = getOutgoingEdges(vertex);
+
+        FilteredIncidentEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
+        FilteredIncidentEdgeIterator end(allEdges.end(), allEdges.end(), filter);
+
+        return llvm::iterator_range<FilteredIncidentEdgeIterator>(begin, end);
+      }
+
+      llvm::iterator_range<LinkedVerticesIterator> getLinkedVertices(VertexDescriptor vertex) const
+      {
+        auto incidentEdges = getOutgoingEdges(vertex);
+
+        LinkedVerticesIterator begin(incidentEdges.begin());
+        LinkedVerticesIterator end(incidentEdges.end());
+
+        return llvm::iterator_range<LinkedVerticesIterator>(begin, end);
+      }
+
+      llvm::iterator_range<FilteredLinkedVerticesIterator> getOutgoingEdges(
+          VertexDescriptor vertex,
+          std::function<bool(const VertexProperty&)> visibilityFn) const
+      {
+        auto filter = [=](const VertexDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+        };
+
+        auto allEdges = getLinkedVertices(vertex);
+
+        FilteredLinkedVerticesIterator begin(allEdges.begin(), allEdges.end(), filter);
+        FilteredLinkedVerticesIterator end(allEdges.end(), allEdges.end(), filter);
+
+        return llvm::iterator_range<FilteredLinkedVerticesIterator>(begin, end);
+      }
+
+      /**
+       * Split the graph into multiple ones, each of them containing vertices that are
+       * connected among themselves.
+       *
+       * @return connected graphs
+       */
+      std::vector<Derived<VertexProperty, EdgeProperty>> getConnectedComponents() const
+      {
+        std::vector<Derived<VertexProperty, EdgeProperty>> result;
+
+        llvm::DenseSet<VertexDescriptor> visited;
+        llvm::DenseMap<VertexDescriptor, VertexDescriptor> newVertices;
+
+        for (auto vertex: getVertices()) {
+          if (visited.contains(vertex)) {
+            // If the node has already been visited, then it already belongs to
+            // an identified sub-graph. The same holds for its connected nodes.
+            continue;
+          }
+
+          // Instead, if the node has not been visited yet, then a new connected
+          // component is found. Thus create a new graph to hold the connected nodes.
+
+          visited.insert(vertex);
+          auto& subGraph = result.emplace_back();
+          newVertices.try_emplace(vertex, subGraph.addVertex(this->operator[](vertex)));
+
+          // Depth-first search
+          std::stack<VertexDescriptor> stack;
+          stack.push(vertex);
+
+          while (!stack.empty()) {
+            auto currentVertex = stack.top();
+            stack.pop();
+
+            auto mappedCurrentVertex = newVertices.find(currentVertex)->second;
+
+            for (auto edgeDescriptor: getOutgoingEdges(currentVertex)) {
+              auto child = edgeDescriptor.to;
+
+              if (visited.contains(child)) {
+                auto mappedChild = newVertices.find(child)->second;
+                subGraph.addEdge(mappedCurrentVertex, mappedChild, this->operator[](edgeDescriptor));
+              } else {
+                stack.push(child);
+                visited.insert(child);
+                auto mappedChild = subGraph.addVertex(this->operator[](child));
+                newVertices.try_emplace(child, mappedChild);
+                subGraph.addEdge(mappedCurrentVertex, mappedChild, this->operator[](edgeDescriptor));
+              }
             }
           }
         }
+
+        return result;
       }
 
-      return result;
-    }
-
     private:
-    bool directed;
-    VerticesContainer vertices;
-    llvm::SmallVector<EdgeProperty *, 3> edges;
-    AdjacencyList adj;
+      bool directed;
+      VerticesContainer vertices;
+      llvm::SmallVector<EdgeProperty*, 3> edges;
+      AdjacencyList adj;
   };
 
   /**
    * Default edge property.
    */
-  class EmptyEdgeProperty {
+  class EmptyEdgeProperty
+  {
   };
 
   template<typename VP, typename EP = internal::EmptyEdgeProperty>
   class UndirectedGraph : public Graph<UndirectedGraph, VP, EP>
   {
     private:
-    using Base = internal::Graph<UndirectedGraph, VP, EP>;
+      using Base = internal::Graph<UndirectedGraph, VP, EP>;
 
     public:
-    using VertexProperty = typename Base::VertexProperty;
-    using EdgeProperty = typename Base::EdgeProperty;
+      using VertexProperty = typename Base::VertexProperty;
+      using EdgeProperty = typename Base::EdgeProperty;
 
-    using VertexDescriptor = typename Base::VertexDescriptor;
-    using EdgeDescriptor = typename Base::EdgeDescriptor;
+      using VertexDescriptor = typename Base::VertexDescriptor;
+      using EdgeDescriptor = typename Base::EdgeDescriptor;
 
-    using VertexIterator = typename Base::VertexIterator;
-    using FilteredVertexIterator = typename Base::FilteredVertexIterator;
+      using VertexIterator = typename Base::VertexIterator;
+      using FilteredVertexIterator = typename Base::FilteredVertexIterator;
 
-    using EdgeIterator = typename Base::EdgeIterator;
-    using FilteredEdgeIterator = typename Base::FilteredEdgeIterator;
+      using EdgeIterator = typename Base::EdgeIterator;
+      using FilteredEdgeIterator = typename Base::FilteredEdgeIterator;
 
-    using IncidentEdgeIterator = typename Base::IncidentEdgeIterator;
-    using FilteredIncidentEdgeIterator = typename Base::FilteredIncidentEdgeIterator;
+      using IncidentEdgeIterator = typename Base::IncidentEdgeIterator;
+      using FilteredIncidentEdgeIterator = typename Base::FilteredIncidentEdgeIterator;
 
-    UndirectedGraph() : Base(false)
-    {
-    }
+      UndirectedGraph() : Base(false)
+      {
+      }
 
-    UndirectedGraph(const UndirectedGraph& other) = default;
+      UndirectedGraph(const UndirectedGraph& other) = default;
 
-    UndirectedGraph(UndirectedGraph&& other) = default;
+      UndirectedGraph(UndirectedGraph&& other) = default;
 
-    ~UndirectedGraph() = default;
+      ~UndirectedGraph() = default;
 
-    UndirectedGraph& operator=(const UndirectedGraph& other) = default;
+      UndirectedGraph& operator=(const UndirectedGraph& other) = default;
   };
 
   template<typename VP, typename EP = internal::EmptyEdgeProperty>
   class DirectedGraph : public Graph<DirectedGraph, VP, EP>
   {
     private:
-    using Base = internal::Graph<DirectedGraph, VP, EP>;
+      using Base = internal::Graph<DirectedGraph, VP, EP>;
 
     public:
-    using VertexProperty = typename Base::VertexProperty;
-    using EdgeProperty = typename Base::EdgeProperty;
+      using VertexProperty = typename Base::VertexProperty;
+      using EdgeProperty = typename Base::EdgeProperty;
 
-    using VertexDescriptor = typename Base::VertexDescriptor;
-    using EdgeDescriptor = typename Base::EdgeDescriptor;
+      using VertexDescriptor = typename Base::VertexDescriptor;
+      using EdgeDescriptor = typename Base::EdgeDescriptor;
 
-    using VertexIterator = typename Base::VertexIterator;
-    using FilteredVertexIterator = typename Base::FilteredVertexIterator;
+      using VertexIterator = typename Base::VertexIterator;
+      using FilteredVertexIterator = typename Base::FilteredVertexIterator;
 
-    using EdgeIterator = typename Base::EdgeIterator;
-    using FilteredEdgeIterator = typename Base::FilteredEdgeIterator;
+      using EdgeIterator = typename Base::EdgeIterator;
+      using FilteredEdgeIterator = typename Base::FilteredEdgeIterator;
 
-    using IncidentEdgeIterator = typename Base::IncidentEdgeIterator;
-    using FilteredIncidentEdgeIterator = typename Base::FilteredIncidentEdgeIterator;
+      using IncidentEdgeIterator = typename Base::IncidentEdgeIterator;
+      using FilteredIncidentEdgeIterator = typename Base::FilteredIncidentEdgeIterator;
 
-    DirectedGraph() : Base(true) {
-    }
+      DirectedGraph() : Base(true)
+      {
+      }
 
-    DirectedGraph(const DirectedGraph& other) = default;
+      DirectedGraph(const DirectedGraph& other) = default;
 
-    DirectedGraph(DirectedGraph&& other) = default;
+      DirectedGraph(DirectedGraph&& other) = default;
 
-    ~DirectedGraph() = default;
+      ~DirectedGraph() = default;
 
-    DirectedGraph& operator=(const DirectedGraph& other) = default;
+      DirectedGraph& operator=(const DirectedGraph& other) = default;
   };
 }
 
@@ -899,4 +979,4 @@ namespace llvm
   };
 }
 
-#endif	// MARCO_MODELING_GRAPH_H
+#endif  // MARCO_MODELING_GRAPH_H

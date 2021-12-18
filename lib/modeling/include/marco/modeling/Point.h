@@ -14,30 +14,34 @@ namespace marco::modeling::internal
   class Point
   {
     public:
-    using data_type = long;
+      using data_type = long;
 
     private:
-    using Container = llvm::SmallVector<data_type>;
+      using Container = llvm::SmallVector<data_type>;
 
     public:
-    using const_iterator = Container::const_iterator;
+      using const_iterator = Container::const_iterator;
 
-    Point(data_type value);
-    Point(std::initializer_list<data_type> values);
-    Point(llvm::ArrayRef<data_type> values);
+      Point(data_type value);
 
-    bool operator==(const Point& other) const;
-    bool operator!=(const Point& other) const;
+      Point(std::initializer_list<data_type> values);
 
-    data_type operator[](size_t index) const;
+      Point(llvm::ArrayRef<data_type> values);
 
-    size_t rank() const;
+      bool operator==(const Point& other) const;
 
-    const_iterator begin() const;
-    const_iterator end() const;
+      bool operator!=(const Point& other) const;
+
+      data_type operator[](size_t index) const;
+
+      size_t rank() const;
+
+      const_iterator begin() const;
+
+      const_iterator end() const;
 
     private:
-    llvm::SmallVector<data_type> values;
+      llvm::SmallVector<data_type> values;
   };
 
   std::ostream& operator<<(std::ostream& stream, const Point& obj);

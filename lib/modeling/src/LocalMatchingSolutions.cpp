@@ -5,8 +5,9 @@ namespace marco::modeling::internal
   class LocalMatchingSolutions::ImplInterface
   {
     public:
-    virtual MCIM& operator[](size_t index) = 0;
-    virtual size_t size() const = 0;
+      virtual MCIM& operator[](size_t index) = 0;
+
+      virtual size_t size() const = 0;
   };
 }
 
@@ -20,48 +21,48 @@ using namespace marco::modeling::internal;
 class VAFSolutions : public LocalMatchingSolutions::ImplInterface
 {
   public:
-  VAFSolutions(
-          llvm::ArrayRef<AccessFunction> accessFunctions,
-          MultidimensionalRange equationRanges,
-          MultidimensionalRange variableRanges);
+    VAFSolutions(
+        llvm::ArrayRef<AccessFunction> accessFunctions,
+        MultidimensionalRange equationRanges,
+        MultidimensionalRange variableRanges);
 
-  MCIM& operator[](size_t index) override;
+    MCIM& operator[](size_t index) override;
 
-  size_t size() const override;
+    size_t size() const override;
 
   private:
-  void fetchNext();
+    void fetchNext();
 
-  void getInductionVariablesUsage(
-          llvm::SmallVectorImpl<size_t>& usages,
-          const AccessFunction& accessFunction) const;
+    void getInductionVariablesUsage(
+        llvm::SmallVectorImpl<size_t>& usages,
+        const AccessFunction& accessFunction) const;
 
-  llvm::SmallVector<AccessFunction, 3> accessFunctions;
-  MultidimensionalRange equationRanges;
-  MultidimensionalRange variableRanges;
+    llvm::SmallVector<AccessFunction, 3> accessFunctions;
+    MultidimensionalRange equationRanges;
+    MultidimensionalRange variableRanges;
 
-  // Total number of possible match matrices
-  size_t solutionsAmount;
+    // Total number of possible match matrices
+    size_t solutionsAmount;
 
-  // List of the computed match matrices
-  llvm::SmallVector<MCIM, 3> matrices;
+    // List of the computed match matrices
+    llvm::SmallVector<MCIM, 3> matrices;
 
-  size_t currentAccessFunction = 0;
-  size_t groupSize;
-  llvm::SmallVector<Range, 3> reorderedRanges;
-  std::unique_ptr<MultidimensionalRange> range;
-  llvm::SmallVector<size_t, 3> ordering;
-  std::unique_ptr<MultidimensionalRange::const_iterator> rangeIt;
-  std::unique_ptr<MultidimensionalRange::const_iterator> rangeEnd;
+    size_t currentAccessFunction = 0;
+    size_t groupSize;
+    llvm::SmallVector<Range, 3> reorderedRanges;
+    std::unique_ptr<MultidimensionalRange> range;
+    llvm::SmallVector<size_t, 3> ordering;
+    std::unique_ptr<MultidimensionalRange::const_iterator> rangeIt;
+    std::unique_ptr<MultidimensionalRange::const_iterator> rangeEnd;
 };
 
 VAFSolutions::VAFSolutions(
-        llvm::ArrayRef<AccessFunction> accessFunctions,
-        MultidimensionalRange equationRanges,
-        MultidimensionalRange variableRanges)
-        : accessFunctions(accessFunctions.begin(), accessFunctions.end()),
-          equationRanges(std::move(equationRanges)),
-          variableRanges(std::move(variableRanges))
+    llvm::ArrayRef<AccessFunction> accessFunctions,
+    MultidimensionalRange equationRanges,
+    MultidimensionalRange variableRanges)
+    : accessFunctions(accessFunctions.begin(), accessFunctions.end()),
+      equationRanges(std::move(equationRanges)),
+      variableRanges(std::move(variableRanges))
 {
   // Sort the access functions so that we prefer the ones referring to
   // induction variables. More in details, we prefer the ones covering the
@@ -69,20 +70,20 @@ VAFSolutions::VAFSolutions(
   // groups.
 
   llvm::sort(this->accessFunctions, [&](const AccessFunction& lhs, const AccessFunction& rhs) -> bool {
-      llvm::SmallVector<size_t, 3> lhsUsages;
-      llvm::SmallVector<size_t, 3> rhsUsages;
+    llvm::SmallVector<size_t, 3> lhsUsages;
+    llvm::SmallVector<size_t, 3> rhsUsages;
 
-      getInductionVariablesUsage(lhsUsages, lhs);
-      getInductionVariablesUsage(rhsUsages, rhs);
+    getInductionVariablesUsage(lhsUsages, lhs);
+    getInductionVariablesUsage(rhsUsages, rhs);
 
-      auto counter = [](const size_t& usage) {
-          return usage == 1;
-      };
+    auto counter = [](const size_t& usage) {
+      return usage == 1;
+    };
 
-      size_t lhsUniqueUsages = llvm::count_if(lhsUsages, counter);
-      size_t rhsUniqueUsages = llvm::count_if(rhsUsages, counter);
+    size_t lhsUniqueUsages = llvm::count_if(lhsUsages, counter);
+    size_t rhsUniqueUsages = llvm::count_if(rhsUsages, counter);
 
-      return lhsUniqueUsages >= rhsUniqueUsages;
+    return lhsUniqueUsages >= rhsUniqueUsages;
   });
 
   // Determine the amount of solutions. Precomputing it allows the actual
@@ -93,14 +94,15 @@ VAFSolutions::VAFSolutions(
   solutionsAmount = 0;
   llvm::SmallVector<size_t, 3> inductionsUsage;
 
-  for (const auto& accessFunction : this->accessFunctions)
-  {
+  for (const auto& accessFunction: this->accessFunctions) {
     size_t count = 1;
     getInductionVariablesUsage(inductionsUsage, accessFunction);
 
-    for (const auto& usage : llvm::enumerate(inductionsUsage))
-      if (usage.value() == 0)
+    for (const auto& usage: llvm::enumerate(inductionsUsage)) {
+      if (usage.value() == 0) {
         count *= this->equationRanges[usage.index()].size();
+      }
+    }
 
     solutionsAmount += count;
   }
@@ -110,8 +112,9 @@ MCIM& VAFSolutions::operator[](size_t index)
 {
   assert(index < size());
 
-  while (matrices.size() <= index)
+  while (matrices.size() <= index) {
     fetchNext();
+  }
 
   return matrices[index];
 }
@@ -123,10 +126,9 @@ size_t VAFSolutions::size() const
 
 void VAFSolutions::fetchNext()
 {
-  if (rangeIt == nullptr || *rangeIt == *rangeEnd)
-  {
+  if (rangeIt == nullptr || *rangeIt == *rangeEnd) {
     assert(currentAccessFunction < accessFunctions.size() &&
-           "No more access functions to be processed");
+        "No more access functions to be processed");
 
     llvm::SmallVector<size_t, 3> inductionsUsage;
     getInductionVariablesUsage(inductionsUsage, accessFunctions[currentAccessFunction]);
@@ -143,19 +145,15 @@ void VAFSolutions::fetchNext()
     // leading to repetitions among variable usages, and thus lead to a new
     // group for each time they change value.
 
-    for (const auto& usage : llvm::enumerate(inductionsUsage))
-    {
-      if (usage.value() == 0)
-      {
+    for (const auto& usage: llvm::enumerate(inductionsUsage)) {
+      if (usage.value() == 0) {
         ordering[usage.index()] = reorderedRanges.size();
         reorderedRanges.push_back(equationRanges[usage.index()]);
       }
     }
 
-    for (const auto& usage : llvm::enumerate(inductionsUsage))
-    {
-      if (usage.value() != 0)
-      {
+    for (const auto& usage: llvm::enumerate(inductionsUsage)) {
+      if (usage.value() != 0) {
         ordering[usage.index()] = reorderedRanges.size();
         reorderedRanges.push_back(equationRanges[usage.index()]);
         groupSize *= equationRanges[usage.index()].size();
@@ -177,34 +175,37 @@ void VAFSolutions::fetchNext()
   llvm::SmallVector<Point::data_type, 3> equationIndexes;
   size_t counter = 0;
 
-  while (counter++ != groupSize)
-  {
+  while (counter++ != groupSize) {
     auto reorderedIndexes = **rangeIt;
     equationIndexes.clear();
 
-    for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
+    for (size_t i = 0, e = equationRanges.rank(); i < e; ++i) {
       equationIndexes.push_back(reorderedIndexes[ordering[i]]);
+    }
 
     Point equation(equationIndexes);
     auto variable = accessFunctions[currentAccessFunction].map(equation);
     matrix.set(equation, variable);
 
-    if (counter == groupSize)
+    if (counter == groupSize) {
       matrices.push_back(std::move(matrix));
+    }
 
     ++(*rangeIt);
   }
 }
 
 void VAFSolutions::getInductionVariablesUsage(
-        llvm::SmallVectorImpl<size_t>& usages,
-        const AccessFunction& accessFunction) const
+    llvm::SmallVectorImpl<size_t>& usages,
+    const AccessFunction& accessFunction) const
 {
   usages.insert(usages.begin(), equationRanges.rank(), 0);
 
-  for (const auto& dimensionAccess : accessFunction)
-    if (!dimensionAccess.isConstantAccess())
+  for (const auto& dimensionAccess: accessFunction) {
+    if (!dimensionAccess.isConstantAccess()) {
       ++usages[dimensionAccess.getInductionVariableIndex()];
+    }
+  }
 }
 
 /**
@@ -214,16 +215,16 @@ void VAFSolutions::getInductionVariablesUsage(
 class MCIMSolutions : public LocalMatchingSolutions::ImplInterface
 {
   public:
-  MCIMSolutions(const MCIM& obj);
+    MCIMSolutions(const MCIM& obj);
 
-  MCIM& operator[](size_t index) override;
+    MCIM& operator[](size_t index) override;
 
-  size_t size() const override;
+    size_t size() const override;
 
   private:
-  void compute(const MCIM& obj);
+    void compute(const MCIM& obj);
 
-  llvm::SmallVector<MCIM, 3> solutions;
+    llvm::SmallVector<MCIM, 3> solutions;
 };
 
 MCIMSolutions::MCIMSolutions(const MCIM& obj)
@@ -243,25 +244,26 @@ size_t MCIMSolutions::size() const
 
 void MCIMSolutions::compute(const MCIM& obj)
 {
-  for (const auto& solution : obj.splitGroups())
+  for (const auto& solution: obj.splitGroups()) {
     solutions.push_back(std::move(solution));
+  }
 }
 
 namespace marco::modeling::internal
 {
   LocalMatchingSolutions::LocalMatchingSolutions(
-          llvm::ArrayRef<AccessFunction> accessFunctions,
-          MultidimensionalRange equationRanges,
-          MultidimensionalRange variableRanges)
-          : impl(std::make_unique<VAFSolutions>(
-          std::move(accessFunctions),
-          std::move(equationRanges),
-          std::move(variableRanges)))
+      llvm::ArrayRef<AccessFunction> accessFunctions,
+      MultidimensionalRange equationRanges,
+      MultidimensionalRange variableRanges)
+      : impl(std::make_unique<VAFSolutions>(
+      std::move(accessFunctions),
+      std::move(equationRanges),
+      std::move(variableRanges)))
   {
   }
 
   LocalMatchingSolutions::LocalMatchingSolutions(const MCIM& obj)
-          : impl(std::make_unique<MCIMSolutions>(obj))
+      : impl(std::make_unique<MCIMSolutions>(obj))
   {
   }
 
@@ -288,14 +290,14 @@ namespace marco::modeling::internal
   }
 
   LocalMatchingSolutions solveLocalMatchingProblem(
-          const MultidimensionalRange& equationRanges,
-          const MultidimensionalRange& variableRanges,
-          llvm::ArrayRef<AccessFunction> accessFunctions)
+      const MultidimensionalRange& equationRanges,
+      const MultidimensionalRange& variableRanges,
+      llvm::ArrayRef<AccessFunction> accessFunctions)
   {
     return LocalMatchingSolutions(
-            std::move(accessFunctions),
-            equationRanges,
-            variableRanges);
+        std::move(accessFunctions),
+        equationRanges,
+        variableRanges);
   }
 
   LocalMatchingSolutions solveLocalMatchingProblem(const MCIM& obj)

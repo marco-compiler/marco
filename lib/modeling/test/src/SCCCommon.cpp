@@ -3,7 +3,7 @@
 namespace marco::modeling::scc::test
 {
   Variable::Variable(llvm::StringRef name)
-          : name(name.str())
+      : name(name.str())
   {
   }
 
@@ -13,7 +13,7 @@ namespace marco::modeling::scc::test
   }
 
   Equation::Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads)
-          : name(name.str()), write(std::move(write)), reads(reads.begin(), reads.end())
+      : name(name.str()), write(std::move(write)), reads(reads.begin(), reads.end())
   {
   }
 
