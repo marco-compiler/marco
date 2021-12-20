@@ -372,16 +372,14 @@ namespace marco::modeling::internal
   {
     MCIS result;
 
-    for (const auto& range: keys) {
-      for (const auto& keyRange: keys) {
-        llvm::SmallVector<Range, 3> valueRanges;
+    for (const auto& keyRange: keys) {
+      llvm::SmallVector<Range, 3> valueRanges;
 
-        for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
-          valueRanges.emplace_back(keyRange[i].getBegin() + delta[i], keyRange[i].getEnd() + delta[i]);
-        }
-
-        result += MultidimensionalRange(valueRanges);
+      for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
+        valueRanges.emplace_back(keyRange[i].getBegin() + delta[i], keyRange[i].getEnd() + delta[i]);
       }
+
+      result += MultidimensionalRange(valueRanges);
     }
 
     return result;

@@ -4,7 +4,6 @@
 #include <functional>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/DenseSet.h>
-#include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/SmallVector.h>
 #include <map>
@@ -746,12 +745,11 @@ namespace marco::modeling::internal
       }
 
       /**
-       * Split the graph into multiple ones, each of them containing vertices that are
-       * connected among themselves.
+       * Split the graph into multiple independent ones, if possible.
        *
-       * @return connected graphs
+       * @return disjoint graphs
        */
-      std::vector<Derived<VertexProperty, EdgeProperty>> getConnectedComponents() const
+      std::vector<Derived<VertexProperty, EdgeProperty>> getDisjointSubGraphs() const
       {
         std::vector<Derived<VertexProperty, EdgeProperty>> result;
 
@@ -912,69 +910,6 @@ namespace llvm
     static bool isEqual(const Key& LHS, const Key& RHS)
     {
       return LHS.value == RHS.value;
-    }
-  };
-
-  template<typename VertexProperty, typename EdgeProperty>
-  struct GraphTraits<marco::modeling::internal::DirectedGraph<VertexProperty, EdgeProperty>>
-  {
-    using Graph = marco::modeling::internal::DirectedGraph<VertexProperty, EdgeProperty>;
-
-    using NodeRef = typename Graph::VertexDescriptor;
-    using ChildIteratorType = typename Graph::LinkedVerticesIterator;
-
-    static NodeRef getEntryNode(const Graph& graph)
-    {
-      return *graph.getVertices().begin();
-    }
-
-    static ChildIteratorType child_begin(NodeRef node)
-    {
-      auto vertices = node.graph->getLinkedVertices(node);
-      return vertices.begin();
-    }
-
-    static ChildIteratorType child_end(NodeRef node)
-    {
-      auto vertices = node.graph->getLinkedVertices(node);
-      return vertices.end();
-    }
-
-    using nodes_iterator = typename Graph::VertexIterator;
-
-    static nodes_iterator nodes_begin(Graph* graph)
-    {
-      return graph->getVertices().begin();
-    }
-
-    static nodes_iterator nodes_end(Graph* graph)
-    {
-      return graph->getVertices().end();
-    }
-
-    using EdgeRef = typename Graph::EdgeDescriptor;
-    using ChildEdgeIteratorType = typename Graph::IncidentEdgeIterator;
-
-    static ChildEdgeIteratorType child_edge_begin(NodeRef node)
-    {
-      auto edges = node.graph->getOutgoingEdges(node);
-      return edges.begin();
-    }
-
-    static ChildEdgeIteratorType child_edge_end(NodeRef node)
-    {
-      auto edges = node.graph->getOutgoingEdges(node);
-      return edges.end();
-    }
-
-    static NodeRef edge_dest(EdgeRef edge)
-    {
-      return edge.to;
-    }
-
-    static size_t size(Graph* graph)
-    {
-      return graph->size();
     }
   };
 }

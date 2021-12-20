@@ -8,6 +8,7 @@
 namespace marco::modeling::scc::test
 {
   VVarDependencyGraph<Variable, Equation> testCase1();
+  VVarDependencyGraph<Variable, Equation> testCase2();
 }
 
 #endif // MARCO_MODELING_TEST_SCCTESTCASES_H

@@ -11,12 +11,17 @@ namespace marco::modeling::scc::test
     public:
       using Id = std::string;
 
-      Variable(llvm::StringRef name);
+      Variable(llvm::StringRef name,  llvm::ArrayRef<long> dimensions = llvm::None);
 
       Id getId() const;
 
+      unsigned int getRank() const;
+
+      long getDimensionSize(size_t index) const;
+
     private:
       std::string name;
+      llvm::SmallVector<long, 3> dimensions;
   };
 
   class Equation

@@ -4,7 +4,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 
-#include "Point.h"
+#include "MultidimensionalRange.h"
 
 namespace marco::modeling
 {
@@ -18,6 +18,8 @@ namespace marco::modeling
   {
     private:
       using Point = internal::Point;
+      using Range = internal::Range;
+      using MultidimensionalRange = internal::MultidimensionalRange;
 
       DimensionAccess(
           bool constantAccess,
@@ -32,6 +34,16 @@ namespace marco::modeling
           Point::data_type relativePosition);
 
       Point::data_type operator()(const Point& equationIndexes) const;
+
+      /**
+       * Get the mapped dimension access.
+       * The input must be a multidimensional range, as the single dimension
+       * access may refer to any of the range dimensions.
+       *
+       * @param range  multidimensional range
+       * @return mapped mono-dimensional range
+       */
+      Range operator()(const MultidimensionalRange& range) const;
 
       bool isConstantAccess() const;
 
@@ -54,6 +66,7 @@ namespace marco::modeling
   {
     private:
       using Point = internal::Point;
+      using MultidimensionalRange = internal::MultidimensionalRange;
       using Container = llvm::SmallVector<DimensionAccess, 3>;
 
     public:
@@ -62,6 +75,10 @@ namespace marco::modeling
       AccessFunction(llvm::ArrayRef<DimensionAccess> functions);
 
       const DimensionAccess& operator[](size_t index) const;
+
+      AccessFunction combine(const AccessFunction& other) const;
+
+      DimensionAccess combine(const DimensionAccess& other) const;
 
       /**
        * Get the number of single dimension accesses.
@@ -74,6 +91,8 @@ namespace marco::modeling
 
       const_iterator end() const;
 
+      bool isIdentity() const;
+
       /**
        * Apply the access function to the equation indexes, in order
        * to obtain the accessed variable.
@@ -82,6 +101,17 @@ namespace marco::modeling
        * @return accessed scalar variable
        */
       Point map(const Point& equationIndexes) const;
+
+      /**
+       * Apply the access function to a range, in order to obtain
+       * the mapped range.
+       *
+       * @param range  multidimensional range
+       * @return mapped multidimensional range
+       */
+      MultidimensionalRange map(const MultidimensionalRange& range) const;
+
+      AccessFunction invert() const;
 
     private:
       Container functions;

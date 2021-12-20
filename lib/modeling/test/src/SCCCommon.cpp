@@ -2,14 +2,26 @@
 
 namespace marco::modeling::scc::test
 {
-  Variable::Variable(llvm::StringRef name)
-      : name(name.str())
+  Variable::Variable(llvm::StringRef name, llvm::ArrayRef<long> dimensions)
+      : name(name.str()), dimensions(dimensions.begin(), dimensions.end())
   {
+    if (this->dimensions.empty())
+      this->dimensions.emplace_back(1);
   }
 
   Variable::Id Variable::getId() const
   {
     return name;
+  }
+
+  unsigned int Variable::getRank() const
+  {
+    return dimensions.size();
+  }
+
+  long Variable::getDimensionSize(size_t index) const
+  {
+    return dimensions[index];
   }
 
   Equation::Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads)

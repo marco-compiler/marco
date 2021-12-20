@@ -5,9 +5,16 @@
 
 using namespace ::marco::modeling::scc::test;
 
-TEST(VVarDependencyGraph, test)
+TEST(VVarDependencyGraph, test1)
 {
+  std::cout << "TEST CASE 1\n";
   auto graph = testCase1();
   graph.findSCCs();
-  std::cout << "Prova";
+}
+
+TEST(VVarDependencyGraph, test2)
+{
+  std::cout << "TEST CASE 2\n";
+  auto graph = testCase2();
+  graph.findSCCs();
 }
