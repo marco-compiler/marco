@@ -9,25 +9,6 @@
 #include <sunlinsol/sunlinsol_klu.h>
 #include <sunmatrix/sunmatrix_sparse.h>
 
-#define PRINT_JACOBIAN false
-
-#define INIT_TIME_STEP 1e-6
-#define ALGEBRAIC_TOLERANCE 1e-12
-
-#define MAX_NUM_STEPS 1000
-#define MAX_ERR_TEST_FAIL 10
-#define MAX_NONLIN_ITERS 4
-#define MAX_CONV_FAILS 10
-#define NONLIN_CONV_COEF 0.33
-
-#define MAX_NUM_STEPS_IC 5
-#define MAX_NUM_JACS_IC 4
-#define MAX_NUM_ITERS_IC 10
-#define NONLIN_CONV_COEF_IC 0.0033
-
-#define SUPPRESS_ALG SUNFALSE
-#define LINE_SEARCH_OFF SUNFALSE
-
 #define exitOnError(success) if (!success) return false;
 
 using Indexes = std::vector<size_t>;
@@ -50,6 +31,30 @@ using JacobianFunction = std::function<realtype(
 		sunindextype* ind,
 		realtype cj,
 		sunindextype var)>;
+
+// Debugging options
+const bool printJacobian = false;
+
+// Arbitrary initial guesses on 20/12/2021 Modelica Call
+const realtype algebraicTolerance = 1e-12;
+const realtype timeScalingFactorInit = 1e5;
+
+// Default IDA values
+const realtype initTimeStep = 0.0;
+
+const long maxNumSteps = 1e4;
+const int maxErrTestFail = 10;
+const int maxNonlinIters = 4;
+const int maxConvFails = 10;
+const realtype nonlinConvCoef = 0.33;
+
+const int maxNumStepsIC = 5;
+const int maxNumJacsIC = 4;
+const int maxNumItersIC = 10;
+const realtype nonlinConvCoefIC = 0.0033;
+
+const int suppressAlg = SUNFALSE;
+const int lineSearchOff = SUNFALSE;
 
 /**
  * Container for all the data required by IDA in order to compute the residual
@@ -204,7 +209,7 @@ int residualFunction(
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
+		sunindextype indexes[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
@@ -215,13 +220,11 @@ int residualFunction(
 			// Compute the i-th residual function
 			*rval++ = data->residuals[eq](tt, yval, ypval, indexes);
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
-
-		delete[] indexes;
 	}
 
 	assert(rval == N_VGetArrayPointer(rr) + data->scalarEquationsNumber);
 
-	return 0;
+	return IDA_SUCCESS;
 }
 
 /**
@@ -244,10 +247,8 @@ int jacobianMatrix(
 {
 	realtype* yval = N_VGetArrayPointer(yy);
 	realtype* ypval = N_VGetArrayPointer(yp);
-
 	sunindextype* rowptrs = SUNSparseMatrix_IndexPointers(JJ);
 	sunindextype* colvals = SUNSparseMatrix_IndexValues(JJ);
-
 	realtype* jacobian = SUNSparseMatrix_Data(JJ);
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
@@ -261,7 +262,7 @@ int jacobianMatrix(
 		size_t columnIndex = 0;
 
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
+		sunindextype indexes[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
@@ -274,24 +275,21 @@ int jacobianMatrix(
 
 			// For every variable with respect to which every equation must be
 			// partially differentiated
-			for (sunindextype var : data->columnIndexes[eq][columnIndex])
+			for (sunindextype var : data->columnIndexes[eq][columnIndex++])
 			{
 				// Compute the i-th jacobian value
 				*jacobian++ = data->jacobians[eq](tt, yval, ypval, indexes, cj, var);
 				*colvals++ = var;
 			}
 
-			columnIndex++;
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
-
-		delete[] indexes;
 	}
 
 	assert(rowptrs == SUNSparseMatrix_IndexPointers(JJ) + data->scalarEquationsNumber + 1);
 	assert(colvals == SUNSparseMatrix_IndexValues(JJ) + data->nonZeroValuesNumber);
 	assert(jacobian == SUNSparseMatrix_Data(JJ) + data->nonZeroValuesNumber);
 
-	return 0;
+	return IDA_SUCCESS;
 }
 
 //===----------------------------------------------------------------------===//
@@ -355,10 +353,8 @@ void precomputeJacobianIndexes(IdaUserData* data)
 {
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
-		sunindextype equationSize = 1;
-
 		// Initialize the multidimensional interval of the vector equation
-		sunindextype* indexes = new sunindextype[data->equationDimensions[eq].size()];
+		sunindextype indexes[data->equationDimensions[eq].size()];
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
@@ -380,8 +376,6 @@ void precomputeJacobianIndexes(IdaUserData* data)
 			data->nonZeroValuesNumber += data->columnIndexes[eq].back().size();
 
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
-
-		delete[] indexes;
 	}
 
 	// Erase the variable accesses vector.
@@ -417,9 +411,14 @@ inline bool idaInit(void* userData)
 			data->derivativesVector);
 	exitOnError(checkRetval(retval, "IDAInit"));
 
-	// Call IDASVtolerances to set tolerances.
+	// Set tolerance and id of every scalar value.
 	retval = IDASVtolerances(data->idaMemory, data->relativeTolerance, data->tolerancesVector);
 	exitOnError(checkRetval(retval, "IDASVtolerances"));
+	N_VDestroy(data->tolerancesVector);
+
+	retval = IDASetId(data->idaMemory, data->idVector);
+	exitOnError(checkRetval(retval, "IDASetId"));
+	N_VDestroy(data->idVector);
 
 	// Create sparse SUNMatrix for use in linear solver.
 	data->sparseMatrix = SUNSparseMatrix(
@@ -444,56 +443,56 @@ inline bool idaInit(void* userData)
 	retval = IDASetUserData(data->idaMemory, (void*) data);
 	exitOnError(checkRetval(retval, "IDASetUserData"));
 
-	retval = IDASetId(data->idaMemory, data->idVector);
-	exitOnError(checkRetval(retval, "IDASetId"));
-
 	retval = IDASetStopTime(data->idaMemory, data->endTime);
 	exitOnError(checkRetval(retval, "IDASetStopTime"));
 
 	// Add the remaining optional paramters.
-	retval = IDASetInitStep(data->idaMemory, 0.0);
+	retval = IDASetInitStep(data->idaMemory, initTimeStep);
 	exitOnError(checkRetval(retval, "IDASetInitStep"));
 
 	retval = IDASetMaxStep(data->idaMemory, data->endTime);
 	exitOnError(checkRetval(retval, "IDASetMaxStep"));
 
-	retval = IDASetSuppressAlg(data->idaMemory, SUPPRESS_ALG);
+	retval = IDASetSuppressAlg(data->idaMemory, suppressAlg);
 	exitOnError(checkRetval(retval, "IDASetSuppressAlg"));
 
 	// Increase the maximum number of iterations taken by IDA before failing.
-	retval = IDASetMaxNumSteps(data->idaMemory, MAX_NUM_STEPS);
+	retval = IDASetMaxNumSteps(data->idaMemory, maxNumSteps);
 	exitOnError(checkRetval(retval, "IDASetMaxNumSteps"));
 
-	retval = IDASetMaxErrTestFails(data->idaMemory, MAX_ERR_TEST_FAIL);
+	retval = IDASetMaxErrTestFails(data->idaMemory, maxErrTestFail);
 	exitOnError(checkRetval(retval, "IDASetMaxErrTestFails"));
 
-	retval = IDASetMaxNonlinIters(data->idaMemory, MAX_NONLIN_ITERS);
+	retval = IDASetMaxNonlinIters(data->idaMemory, maxNonlinIters);
 	exitOnError(checkRetval(retval, "IDASetMaxNonlinIters"));
 
-	retval = IDASetMaxConvFails(data->idaMemory, MAX_CONV_FAILS);
+	retval = IDASetMaxConvFails(data->idaMemory, maxConvFails);
 	exitOnError(checkRetval(retval, "IDASetMaxConvFails"));
 
-	retval = IDASetNonlinConvCoef(data->idaMemory, NONLIN_CONV_COEF);
+	retval = IDASetNonlinConvCoef(data->idaMemory, nonlinConvCoef);
 	exitOnError(checkRetval(retval, "IDASetNonlinConvCoef"));
 
 	// Increase the maximum number of iterations taken by IDA IC before failing.
-	retval = IDASetMaxNumStepsIC(data->idaMemory, MAX_NUM_STEPS_IC);
+	retval = IDASetMaxNumStepsIC(data->idaMemory, maxNumStepsIC);
 	exitOnError(checkRetval(retval, "IDASetMaxNumStepsIC"));
 
-	retval = IDASetMaxNumJacsIC(data->idaMemory, MAX_NUM_JACS_IC);
+	retval = IDASetMaxNumJacsIC(data->idaMemory, maxNumJacsIC);
 	exitOnError(checkRetval(retval, "IDASetMaxNumJacsIC"));
 
-	retval = IDASetMaxNumItersIC(data->idaMemory, MAX_NUM_ITERS_IC);
+	retval = IDASetMaxNumItersIC(data->idaMemory, maxNumItersIC);
 	exitOnError(checkRetval(retval, "IDASetMaxNumItersIC"));
 
-	retval = IDASetNonlinConvCoefIC(data->idaMemory, NONLIN_CONV_COEF_IC);
+	retval = IDASetNonlinConvCoefIC(data->idaMemory, nonlinConvCoefIC);
 	exitOnError(checkRetval(retval, "IDASetNonlinConvCoefIC"));
 
-	retval = IDASetLineSearchOffIC(data->idaMemory, LINE_SEARCH_OFF);
+	retval = IDASetLineSearchOffIC(data->idaMemory, lineSearchOff);
 	exitOnError(checkRetval(retval, "IDASetLineSearchOffIC"));
 
 	// Call IDACalcIC to correct the initial values.
-	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, INIT_TIME_STEP);
+	realtype firstOutTime = data->equidistantTimeGrid
+			? data->timeStep
+			: (data->endTime - data->startTime) / timeScalingFactorInit;
+	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, firstOutTime);
 	exitOnError(checkRetval(retval, "IDACalcIC"));
 
 	return true;
@@ -551,8 +550,6 @@ inline bool idaFreeData(void* userData)
 	SUNMatDestroy(data->sparseMatrix);
 	N_VDestroy(data->variablesVector);
 	N_VDestroy(data->derivativesVector);
-	N_VDestroy(data->idVector);
-	N_VDestroy(data->tolerancesVector);
 
 	delete data;
 
@@ -693,7 +690,7 @@ inline void addVariable(
 	realtype idValue = isState ? 1.0 : 0.0;
 	realtype absTol = isState 
 			? data->absoluteTolerance
-			: std::min(ALGEBRAIC_TOLERANCE, data->absoluteTolerance);
+			: std::min(algebraicTolerance, data->absoluteTolerance);
 
 	// Initialize derivativeValues, idValues and absoluteTolerances.
 	std::fill_n(&data->derivativeValues[offset], array.getNumElements(), 0.0);
@@ -740,6 +737,7 @@ inline void addVarAccess(
 	assert((size_t) variableIndex < data->vectorVariablesNumber);
 	assert(access.getRank() == 2);
 	assert(access.getDimensionSize(0) == 2);
+	assert(access.getDimensionSize(1) == data->variableDimensions[variableIndex].size());
 
 	VarAccessList& varAccessList = data->variableAccesses[data->vectorEquationsNumber - 1];
 	varAccessList.push_back({ variableIndex, {} });
@@ -823,11 +821,11 @@ inline void printStatistics(void* userData)
 	if (data->scalarEquationsNumber == 0)
 		return;
 
-	if (PRINT_JACOBIAN)
+	if (printJacobian)
 		printIncidenceMatrix(userData);
 
 	int64_t nst, nre, nje, nni, nli, netf, nncf;
-	realtype is, ls;
+	realtype ais, ls;
 
 	IDAGetNumSteps(data->idaMemory, &nst);
 	IDAGetNumResEvals(data->idaMemory, &nre);
@@ -836,7 +834,7 @@ inline void printStatistics(void* userData)
 	IDAGetNumLinIters(data->idaMemory, &nli);
 	IDAGetNumErrTestFails(data->idaMemory, &netf);
 	IDAGetNumNonlinSolvConvFails(data->idaMemory, &nncf);
-	IDAGetActualInitStep(data->idaMemory, &is);
+	IDAGetActualInitStep(data->idaMemory, &ais);
 	IDAGetLastStep(data->idaMemory, &ls);
 
 	llvm::errs() << "\nFinal Run Statistics:\n";
@@ -857,7 +855,7 @@ inline void printStatistics(void* userData)
 	llvm::errs() << "Number of error test failures    = " << netf << "\n";
 	llvm::errs() << "Number of nonlin. conv. failures = " << nncf << "\n";
 
-	llvm::errs() << "Actual initial step size used    = " << is << "\n";
+	llvm::errs() << "Actual initial step size used    = " << ais << "\n";
 	llvm::errs() << "Step size used for the last step = " << ls << "\n";
 }
 
