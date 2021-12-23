@@ -42,8 +42,8 @@ namespace marco::modeling
 
         Access(VariableProperty variable, AccessFunction accessFunction, AccessProperty property = AccessProperty())
             : variable(std::move(variable)),
-            accessFunction(std::move(accessFunction)),
-            property(std::move(property))
+              accessFunction(std::move(accessFunction)),
+              property(std::move(property))
         {
         }
 
@@ -180,7 +180,7 @@ namespace marco::modeling
         {
           llvm::SmallVector<Range, 3> ranges;
 
-          for (unsigned int i = 0, e = getNumOfIterationVars(p); i < e; ++i) {
+          for (unsigned int i = 0, e = getNumOfIterationVars(p) ; i < e ; ++i) {
             ranges.push_back(getIterationRange(p, i));
           }
 
@@ -208,7 +208,7 @@ namespace marco::modeling
     {
       public:
         WriteInfo(EquationDescriptor equation, MultidimensionalRange writtenVariableIndexes)
-          : equation(std::move(equation)), writtenVariableIndexes(std::move(writtenVariableIndexes))
+            : equation(std::move(equation)), writtenVariableIndexes(std::move(writtenVariableIndexes))
         {
         }
 
@@ -231,42 +231,40 @@ namespace marco::modeling
     class Dependence
     {
       public:
-        Dependence(EquationProperty reader, EquationProperty writer, MultidimensionalRange overlappingReadingEquationRange)
-          : graph(graph),
-            reader(std::move(reader)),
-            writer(std::move(writer)),
-            overlappingReadingEquationRange(std::move(overlappingReadingEquationRange))
+        Dependence(EquationProperty reader, EquationProperty writer,
+                   MultidimensionalRange overlappingReadingEquationRange, Access access)
+            : reader(std::move(reader)),
+              writer(std::move(writer)),
+              overlappingReadingEquationRange(std::move(overlappingReadingEquationRange)),
+              access(std::move(access))
         {
         }
 
-        const Graph* getGraph() const {
-          return graph;
-        }
-
-        const EquationProperty& getReader() const {
+        const EquationProperty& getReader() const
+        {
           return reader;
         }
 
-        const EquationProperty& getWriter() const {
+        const EquationProperty& getWriter() const
+        {
           return writer;
         }
 
-        const MultidimensionalRange& getOverlappingReadingEquationRange() {
+        const MultidimensionalRange& getOverlappingReadingEquationRange()
+        {
           return overlappingReadingEquationRange;
         }
 
-        /*
-        const Access& getAccess() {
+        const Access& getAccess()
+        {
           return access;
         }
-         */
 
       private:
-        const Graph* graph;
         EquationProperty reader;
         EquationProperty writer;
         MultidimensionalRange overlappingReadingEquationRange;
-        //Access access;
+        Access access;
     };
 
     template<typename Dependence>
@@ -277,39 +275,13 @@ namespace marco::modeling
         {
         }
 
-        llvm::ArrayRef<Dependence> getDependencies() const {
+        llvm::ArrayRef<Dependence> getDependencies() const
+        {
           return dependencies;
         }
 
       private:
         llvm::SmallVector<Dependence, 3> dependencies;
-    };
-
-    template<typename EquationDescriptor, typename Access>
-    class Step
-    {
-      public:
-        Step(EquationDescriptor equation, MultidimensionalRange equationRange, llvm::ArrayRef<Access> reads)
-          : equation(std::move(equation)), equationRange(std::move(equationRange)), reads(reads.begin(), reads.end())
-        {
-        }
-
-        const EquationDescriptor& getEquation() const {
-          return equation;
-        }
-
-        const MultidimensionalRange& getEquationRange() const {
-          return equationRange;
-        }
-
-        llvm::ArrayRef<Access> getReads() const {
-          return reads;
-        }
-
-      private:
-        EquationDescriptor equation;
-        MultidimensionalRange equationRange;
-        llvm::SmallVector<Access> reads;
     };
 
     class EmptyEdgeProperty
@@ -333,19 +305,23 @@ namespace marco::modeling
         {
         }
 
-        auto& operator[](VertexDescriptor vertex) {
+        auto& operator[](VertexDescriptor vertex)
+        {
           return graph[vertex];
         }
 
-        const auto& operator[](VertexDescriptor vertex) const {
+        const auto& operator[](VertexDescriptor vertex) const
+        {
           return graph[vertex];
         }
 
-        auto& operator[](EdgeDescriptor edge) {
+        auto& operator[](EdgeDescriptor edge)
+        {
           return graph[edge];
         }
 
-        const auto& operator[](EdgeDescriptor edge) const {
+        const auto& operator[](EdgeDescriptor edge) const
+        {
           return graph[edge];
         }
 
@@ -476,47 +452,39 @@ namespace marco::modeling
 
       using WritesMap = std::multimap<typename VariableProperty::Id, WriteInfo>;
 
-      //using Step = internal::scc::Step<EquationDescriptor, Access>;
-
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
         Graph graph;
-        WritesMap writes;
 
-        // First we need to determine which equation writes into which variable, together with the accessed indexes.
-
-        for (const auto& equationProperty: equations) {
-          // Add the equation to the graph
-          auto equationDescriptor = graph.addVertex(Equation(equationProperty));
-          const auto& equation = graph[equationDescriptor];
-
-          // Store the information about the written variable
-          const auto& write = equation.getWrite();
-          Variable writtenVariable(write.getVariable());
-          const auto& accessFunction = write.getAccessFunction();
-          auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
-          writes.emplace(writtenVariable.getId(), WriteInfo(equationDescriptor, std::move(writtenIndexes)));
+        // Add the equations to the graph
+        for (const auto& equationProperty : equations) {
+          graph.addVertex(Equation(equationProperty));
         }
+
+        // Determine which equation writes into which variable, together with the accessed indexes.
+        auto vertices = graph.getVertices();
+        auto writes = getWritesMap(graph, vertices.begin(), vertices.end());
 
         // Now that the writes are known, we can explore the reads in order to determine the dependencies among
         // the equations. An equation e1 depends on another equation e2 if e1 reads (a part) of a variable that is
         // written by e2.
 
-        for (const auto& equationDescriptor: graph.getVertices()) {
+        for (const auto& equationDescriptor : graph.getVertices()) {
           const Equation& equation = graph[equationDescriptor];
 
           llvm::SmallVector<Access> reads;
           equation.getReads(reads);
 
-          for (const Access& read: reads) {
+          for (const Access& read : reads) {
             auto readIndexes = read.getAccessFunction().map(equation.getIterationRanges());
             auto writeInfos = writes.equal_range(read.getVariable().getId());
 
-            for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
+            for (const auto&[variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
               const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
-              if (writtenIndexes.overlaps(readIndexes))
+              if (writtenIndexes.overlaps(readIndexes)) {
                 graph.addEdge(equationDescriptor, writeInfo.getEquation(), Edge());
+              }
             }
           }
         }
@@ -527,64 +495,58 @@ namespace marco::modeling
         // algorithm on each of them.
         auto subGraphs = graph.getDisjointSubGraphs();
 
-        for (const auto& subGraph : subGraphs)
+        for (const auto& subGraph : subGraphs) {
           graphs.emplace_back(std::move(subGraph));
+        }
       }
 
-      std::vector<SCC> findCircularDependencies()
+      std::vector<SCC> getCircularDependencies()
       {
         std::vector<SCC> SCCs;
 
         for (const auto& graph : graphs) {
           for (auto scc : llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
-            WritesMap writes;
             llvm::SmallVector<Dependence, 3> dependencies;
+            auto writes = getWritesMap(graph, scc.begin(), scc.end());
 
             for (const auto& equationDescriptor : scc) {
               const Equation& equation = graph[equationDescriptor];
-              const auto& write = equation.getWrite();
-              Variable writtenVariable(write.getVariable());
-              const auto& accessFunction = write.getAccessFunction();
-              auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
-              writes.emplace(writtenVariable.getId(), WriteInfo(equationDescriptor, std::move(writtenIndexes)));
-            }
-
-            for (const auto& equationDescriptor : scc) {
-              std::stack<MultidimensionalRange> ranges;
-
-              const Equation& equation = graph[equationDescriptor];
-              ranges.push(graph[equationDescriptor].getIterationRanges());
+              auto equationRange = graph[equationDescriptor].getIterationRanges();
 
               llvm::SmallVector<Access> reads;
               equation.getReads(reads);
 
-              while (!ranges.empty()) {
-                auto equationRange = ranges.top();
-                ranges.pop();
+              for (const Access& read : reads) {
+                const auto& accessFunction = read.getAccessFunction();
+                auto readIndexes = accessFunction.map(equationRange);
+                auto writeInfos = writes.equal_range(read.getVariable().getId());
 
-                for (const Access& read : reads) {
-                  auto readIndexes = read.getAccessFunction().map(equationRange);
-                  auto writeInfos = writes.equal_range(read.getVariable().getId());
+                for (const auto&[variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
+                  const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
-                  for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
-                    const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+                  if (!readIndexes.overlaps(writtenIndexes)) {
+                    continue;
+                  }
 
-                    if (writtenIndexes.overlaps(readIndexes)) {
-                      auto intersection = writtenIndexes.intersect(readIndexes);
+                  auto intersection = readIndexes.intersect(writtenIndexes);
 
-                      if (const auto& accessFunction = read.getAccessFunction(); accessFunction.isInvertible()) {
-                        dependencies.emplace_back(graph[equationDescriptor], graph[writeInfo.getEquation()], accessFunction.inverseMap(intersection));
-                      } else {
-                        MCIS mcis;
+                  if (accessFunction.isInvertible()) {
+                    dependencies.emplace_back(
+                        graph[equationDescriptor],
+                        graph[writeInfo.getEquation()],
+                        accessFunction.inverseMap(intersection),
+                        read);
+                  } else {
+                    MCIS mcis;
 
-                        for (const auto& point : equationRange) {
-                          if (readIndexes.contains(accessFunction.map(point)))
-                            mcis += point;
-                        }
-
-                        for (const auto& range : mcis)
-                          dependencies.emplace_back(graph[equationDescriptor], graph[writeInfo.getEquation()], range);
+                    for (const auto& point : equationRange) {
+                      if (intersection.contains(accessFunction.map(point))) {
+                        mcis += point;
                       }
+                    }
+
+                    for (const auto& range : mcis) {
+                      dependencies.emplace_back(graph[equationDescriptor], graph[writeInfo.getEquation()], range, read);
                     }
                   }
                 }
@@ -593,22 +555,29 @@ namespace marco::modeling
 
             SCCs.emplace_back(std::move(dependencies));
           }
-
-          /*
-          for (auto it = llvm::scc_begin(graph); it != llvm::scc_end(graph); ++it) {
-            std::cout << "Found SCC " << it.hasCycle() << " \n";
-
-            for (const auto& node: *it) {
-              std::cout << "ID: " << graph[node].getId() << "\n";
-            }
-          }
-           */
         }
 
         return SCCs;
       }
 
     private:
+      template<typename Graph, typename It>
+      WritesMap getWritesMap(const Graph& graph, It equationsBegin, It equationsEnd)
+      {
+        WritesMap result;
+
+        for (It it = equationsBegin ; it != equationsEnd ; ++it) {
+          const auto& equation = graph[*it];
+          const auto& write = equation.getWrite();
+          Variable writtenVariable(write.getVariable());
+          const auto& accessFunction = write.getAccessFunction();
+          auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
+          result.emplace(writtenVariable.getId(), WriteInfo(*it, std::move(writtenIndexes)));
+        }
+
+        return result;
+      }
+
       std::vector<ConnectedGraph> graphs;
   };
 }
