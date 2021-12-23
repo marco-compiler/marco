@@ -69,6 +69,8 @@ namespace marco::modeling::internal
 
       bool overlaps(const MCIS& other) const;
 
+      MultidimensionalRange intersect(const MultidimensionalRange& other) const;
+
       MCIS intersect(const MCIS& other) const;
 
       MCIS complement(const MultidimensionalRange& other) const;

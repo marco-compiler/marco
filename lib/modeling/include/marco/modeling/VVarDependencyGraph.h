@@ -1,6 +1,7 @@
 #ifndef MARCO_MODELING_VVARDEPENDENCYGRAPH_H
 #define MARCO_MODELING_VVARDEPENDENCYGRAPH_H
 
+#include <list>
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/SCCIterator.h>
 #include <stack>
@@ -227,44 +228,86 @@ namespace marco::modeling
         MultidimensionalRange writtenVariableIndexes;
     };
 
-    template<typename Graph, typename EquationProperty, typename Access>
-    class Dependence
+    template<typename EquationProperty, typename Access>
+    class DependencyList
     {
       public:
-        Dependence(EquationProperty reader, EquationProperty writer,
-                   MultidimensionalRange overlappingReadingEquationRange, Access access)
-            : reader(std::move(reader)),
-              writer(std::move(writer)),
-              overlappingReadingEquationRange(std::move(overlappingReadingEquationRange)),
-              access(std::move(access))
+        class Interval
+        {
+          private:
+            using Destination = std::pair<Access, EquationProperty>;
+            using Container = std::vector<Destination>;
+
+          public:
+            Interval(MultidimensionalRange range, llvm::ArrayRef<Destination> destinations)
+              : range(std::move(range)), destinations(destinations.begin(), destinations.end())
+            {
+            }
+
+            Interval(MultidimensionalRange range, Access access, EquationProperty destination)
+              : range(std::move(range))
+            {
+              destinations.emplace_back(std::move(access), std::move(destination));
+            }
+
+            const MultidimensionalRange& getRange() const
+            {
+              return range;
+            }
+
+            llvm::ArrayRef<Destination> getDestinations() const
+            {
+              return destinations;
+            }
+
+            void addDestination(Access access, EquationProperty equation)
+            {
+              destinations.emplace_back(std::move(access), std::move(equation));
+            }
+
+          private:
+            MultidimensionalRange range;
+            Container destinations;
+        };
+
+        DependencyList(EquationProperty source)
+            : source(std::move(source))
         {
         }
 
-        const EquationProperty& getReader() const
+        const EquationProperty& getSource() const
         {
-          return reader;
+          return source;
         }
 
-        const EquationProperty& getWriter() const
+        void addDestination(MultidimensionalRange range, Access access, EquationProperty equation)
         {
-          return writer;
-        }
+          std::vector<Interval> newIntervals;
+          MCIS mcis(range);
 
-        const MultidimensionalRange& getOverlappingReadingEquationRange()
-        {
-          return overlappingReadingEquationRange;
-        }
+          for (const Interval& interval : intervals) {
+            if (!interval.getRange().overlaps(range))
+              continue;
 
-        const Access& getAccess()
-        {
-          return access;
+            mcis -= interval.getRange();
+
+            for (const auto& subRange : interval.getRange().subtract(range))
+              newIntervals.emplace_back(subRange, interval.getDestinations());
+
+            Interval newInterval(interval.getRange().intersect(range), interval.getDestinations());
+            newInterval.addDestination(access, equation);
+            newIntervals.push_back(std::move(newInterval));
+          }
+
+          for (const auto& subRange : mcis)
+            newIntervals.emplace_back(subRange, access, equation);
+
+          intervals = newIntervals;
         }
 
       private:
-        EquationProperty reader;
-        EquationProperty writer;
-        MultidimensionalRange overlappingReadingEquationRange;
-        Access access;
+        EquationProperty source;
+        std::vector<Interval> intervals;
     };
 
     template<typename Dependence>
@@ -281,7 +324,7 @@ namespace marco::modeling
         }
 
       private:
-        llvm::SmallVector<Dependence, 3> dependencies;
+        std::vector<Dependence> dependencies;
     };
 
     class EmptyEdgeProperty
@@ -447,8 +490,8 @@ namespace marco::modeling
       using Access = scc::Access<VariableProperty, AccessProperty>;
       using WriteInfo = internal::scc::WriteInfo<EquationDescriptor>;
 
-      using Dependence = internal::scc::Dependence<ConnectedGraph, Equation, Access>;
-      using SCC = internal::scc::SCC<Dependence>;
+      using DependencyList = internal::scc::DependencyList<Equation, Access>;
+      using SCC = internal::scc::SCC<DependencyList>;
 
       using WritesMap = std::multimap<typename VariableProperty::Id, WriteInfo>;
 
@@ -506,12 +549,14 @@ namespace marco::modeling
 
         for (const auto& graph : graphs) {
           for (auto scc : llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
-            llvm::SmallVector<Dependence, 3> dependencies;
+            std::vector<DependencyList> dependencies;
             auto writes = getWritesMap(graph, scc.begin(), scc.end());
 
             for (const auto& equationDescriptor : scc) {
               const Equation& equation = graph[equationDescriptor];
-              auto equationRange = graph[equationDescriptor].getIterationRanges();
+              DependencyList dependencyList(equation.getProperty());
+
+              auto equationRange = equation.getIterationRanges();
 
               llvm::SmallVector<Access> reads;
               equation.getReads(reads);
@@ -531,11 +576,7 @@ namespace marco::modeling
                   auto intersection = readIndexes.intersect(writtenIndexes);
 
                   if (accessFunction.isInvertible()) {
-                    dependencies.emplace_back(
-                        graph[equationDescriptor],
-                        graph[writeInfo.getEquation()],
-                        accessFunction.inverseMap(intersection),
-                        read);
+                    dependencyList.addDestination(accessFunction.inverseMap(intersection), read, graph[writeInfo.getEquation()]);
                   } else {
                     MCIS mcis;
 
@@ -546,11 +587,13 @@ namespace marco::modeling
                     }
 
                     for (const auto& range : mcis) {
-                      dependencies.emplace_back(graph[equationDescriptor], graph[writeInfo.getEquation()], range, read);
+                      dependencyList.addDestination(range, read, graph[writeInfo.getEquation()]);
                     }
                   }
                 }
               }
+
+              dependencies.push_back(std::move(dependencyList));
             }
 
             SCCs.emplace_back(std::move(dependencies));
