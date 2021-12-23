@@ -9,12 +9,14 @@ TEST(VVarDependencyGraph, test1)
 {
   std::cout << "TEST CASE 1\n";
   auto graph = testCase1();
-  graph.findSCCs();
+  auto SCCs = graph.findCircularDependencies();
+  std::cout << "Number of SCCs: " << SCCs.size() << "\n";
 }
 
 TEST(VVarDependencyGraph, test2)
 {
   std::cout << "TEST CASE 2\n";
   auto graph = testCase2();
-  graph.findSCCs();
+  auto SCCs = graph.findCircularDependencies();
+  std::cout << "Number of SCCs: " << SCCs.size() << "\n";
 }

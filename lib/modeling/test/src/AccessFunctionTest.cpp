@@ -127,3 +127,54 @@ TEST(AccessFunction, combine) {
   EXPECT_EQ(result[1].getInductionVariableIndex(), 0);
   EXPECT_EQ(result[1].getOffset(), 7);
 }
+
+TEST(AccessFunction, canBeInverted)
+{
+  AccessFunction access({
+    DimensionAccess::relative(1, -2),
+    DimensionAccess::relative(0, 3)
+  });
+
+  EXPECT_TRUE(access.isInvertible());
+}
+
+TEST(AccessFunction, constantAccessCantBeInverted)
+{
+  AccessFunction access({
+    DimensionAccess::relative(1, -2),
+    DimensionAccess::constant(4)
+  });
+
+  EXPECT_FALSE(access.isInvertible());
+}
+
+TEST(AccessFunction, incompleteAccessCantBeInverted)
+{
+  AccessFunction access({
+    DimensionAccess::relative(1, -2),
+    DimensionAccess::relative(1, 3)
+  });
+
+  EXPECT_FALSE(access.isInvertible());
+}
+
+TEST(AccessFunction, inverse)
+{
+  AccessFunction access({
+    DimensionAccess::relative(1, -2),
+    DimensionAccess::relative(0, 3)
+  });
+
+  ASSERT_TRUE(access.isInvertible());
+  auto inverse = access.inverse();
+
+  EXPECT_EQ(inverse.size(), 2);
+
+  EXPECT_FALSE(inverse[0].isConstantAccess());
+  EXPECT_EQ(inverse[0].getInductionVariableIndex(), 1);
+  EXPECT_EQ(inverse[0].getOffset(), -3);
+
+  EXPECT_FALSE(inverse[1].isConstantAccess());
+  EXPECT_EQ(inverse[1].getInductionVariableIndex(), 0);
+  EXPECT_EQ(inverse[1].getOffset(), 2);
+}

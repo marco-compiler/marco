@@ -3,10 +3,12 @@
 
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/SCCIterator.h>
+#include <stack>
 
 #include "AccessFunction.h"
 #include "Dumpable.h"
 #include "Graph.h"
+#include "MCIS.h"
 #include "MultidimensionalRange.h"
 
 namespace marco::modeling
@@ -50,7 +52,7 @@ namespace marco::modeling
           return variable;
         }
 
-        AccessFunction getAccessFunction() const
+        const AccessFunction& getAccessFunction() const
         {
           return accessFunction;
         }
@@ -159,7 +161,7 @@ namespace marco::modeling
 
         void getReads(llvm::SmallVectorImpl<Access>& accesses) const
         {
-          getVariableAccesses(property, accesses);
+          getReads(property, accesses);
         }
 
       private:
@@ -185,7 +187,7 @@ namespace marco::modeling
           return MultidimensionalRange(ranges);
         }
 
-        static void getVariableAccesses(
+        static void getReads(
             const EquationProperty& p,
             llvm::SmallVectorImpl<Access>& accesses)
         {
@@ -225,27 +227,89 @@ namespace marco::modeling
         MultidimensionalRange writtenVariableIndexes;
     };
 
-    class DependenceInfo
+    template<typename Graph, typename EquationProperty, typename Access>
+    class Dependence
     {
-      /*public:
-        DependenceInfo(MultidimensionalRange equationRange, MultidimensionalRange variableIndexes)
-          : equationRange(std::move(equationRange)), variableIndexes(std::move(variableIndexes))
+      public:
+        Dependence(EquationProperty reader, EquationProperty writer, MultidimensionalRange overlappingReadingEquationRange)
+          : graph(graph),
+            reader(std::move(reader)),
+            writer(std::move(writer)),
+            overlappingReadingEquationRange(std::move(overlappingReadingEquationRange))
         {
         }
 
-        const MultidimensionalRange& getEquationRange() const
-        {
-          return equationRange;
+        const Graph* getGraph() const {
+          return graph;
         }
 
-        const MultidimensionalRange& getVariableIndexes() const
+        const EquationProperty& getReader() const {
+          return reader;
+        }
+
+        const EquationProperty& getWriter() const {
+          return writer;
+        }
+
+        const MultidimensionalRange& getOverlappingReadingEquationRange() {
+          return overlappingReadingEquationRange;
+        }
+
+        /*
+        const Access& getAccess() {
+          return access;
+        }
+         */
+
+      private:
+        const Graph* graph;
+        EquationProperty reader;
+        EquationProperty writer;
+        MultidimensionalRange overlappingReadingEquationRange;
+        //Access access;
+    };
+
+    template<typename Dependence>
+    class SCC
+    {
+      public:
+        SCC(llvm::ArrayRef<Dependence> dependencies) : dependencies(dependencies.begin(), dependencies.end())
         {
-          return variableIndexes;
+        }
+
+        llvm::ArrayRef<Dependence> getDependencies() const {
+          return dependencies;
         }
 
       private:
+        llvm::SmallVector<Dependence, 3> dependencies;
+    };
+
+    template<typename EquationDescriptor, typename Access>
+    class Step
+    {
+      public:
+        Step(EquationDescriptor equation, MultidimensionalRange equationRange, llvm::ArrayRef<Access> reads)
+          : equation(std::move(equation)), equationRange(std::move(equationRange)), reads(reads.begin(), reads.end())
+        {
+        }
+
+        const EquationDescriptor& getEquation() const {
+          return equation;
+        }
+
+        const MultidimensionalRange& getEquationRange() const {
+          return equationRange;
+        }
+
+        llvm::ArrayRef<Access> getReads() const {
+          return reads;
+        }
+
+      private:
+        EquationDescriptor equation;
         MultidimensionalRange equationRange;
-        MultidimensionalRange variableIndexes;*/
+        llvm::SmallVector<Access> reads;
     };
 
     class EmptyEdgeProperty
@@ -392,10 +456,12 @@ namespace marco::modeling
   class VVarDependencyGraph
   {
     public:
+      using MultidimensionalRange = internal::MultidimensionalRange;
+      using MCIS = internal::MCIS;
+
       using Variable = internal::scc::VariableWrapper<VariableProperty>;
       using Equation = internal::scc::EquationVertex<EquationProperty, VariableProperty>;
 
-      using DependenceInfo = internal::scc::DependenceInfo;
       using Edge = internal::scc::EmptyEdgeProperty;
       using Graph = internal::DirectedGraph<Equation, Edge>;
       using ConnectedGraph = internal::scc::DisjointDirectedGraph<Equation, Edge>;
@@ -405,7 +471,12 @@ namespace marco::modeling
       using Access = scc::Access<VariableProperty, AccessProperty>;
       using WriteInfo = internal::scc::WriteInfo<EquationDescriptor>;
 
+      using Dependence = internal::scc::Dependence<ConnectedGraph, Equation, Access>;
+      using SCC = internal::scc::SCC<Dependence>;
+
       using WritesMap = std::multimap<typename VariableProperty::Id, WriteInfo>;
+
+      //using Step = internal::scc::Step<EquationDescriptor, Access>;
 
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
@@ -460,62 +531,70 @@ namespace marco::modeling
           graphs.emplace_back(std::move(subGraph));
       }
 
-      void findSCCs()
+      std::vector<SCC> findCircularDependencies()
       {
-        for (const auto& graph: graphs) {
-          for (auto scc : llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph)))
-          {
-            WritesMap writes;
+        std::vector<SCC> SCCs;
 
-            for (auto writingEquationIt = scc.begin(); writingEquationIt != scc.end(); ++writingEquationIt)
-            {
-              const auto& writingEquation = graph[*writingEquationIt];
-              const auto& write = writingEquation.getWrite();
+        for (const auto& graph : graphs) {
+          for (auto scc : llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
+            WritesMap writes;
+            llvm::SmallVector<Dependence, 3> dependencies;
+
+            for (const auto& equationDescriptor : scc) {
+              const Equation& equation = graph[equationDescriptor];
+              const auto& write = equation.getWrite();
               Variable writtenVariable(write.getVariable());
               const auto& accessFunction = write.getAccessFunction();
-              auto writtenIndexes = accessFunction.map(writingEquation.getIterationRanges());
+              auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
+              writes.emplace(writtenVariable.getId(), WriteInfo(equationDescriptor, std::move(writtenIndexes)));
+            }
 
-              for (auto readingEquationIt = std::next(writingEquationIt); readingEquationIt != scc.end(); ++readingEquationIt)
-              {
-                const auto& readingEquation = graph[*readingEquationIt];
+            for (const auto& equationDescriptor : scc) {
+              std::stack<MultidimensionalRange> ranges;
 
-                llvm::SmallVector<Access> reads;
-                readingEquation.getReads(reads);
+              const Equation& equation = graph[equationDescriptor];
+              ranges.push(graph[equationDescriptor].getIterationRanges());
 
-                for (const Access& read: reads) {
-                  Variable readVariable(read.getVariable());
+              llvm::SmallVector<Access> reads;
+              equation.getReads(reads);
 
-                  if (writtenVariable == readVariable)
-                  {
-                    auto readIndexes = read.getAccessFunction().map(readingEquation.getIterationRanges());
+              while (!ranges.empty()) {
+                auto equationRange = ranges.top();
+                ranges.pop();
 
-                    if (writtenIndexes.overlaps(readIndexes))
-                    {
-
-                    }
-                  }
-
+                for (const Access& read : reads) {
+                  auto readIndexes = read.getAccessFunction().map(equationRange);
                   auto writeInfos = writes.equal_range(read.getVariable().getId());
 
                   for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
-                    //const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+                    const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
-                    //if (writtenIndexes.overlaps(readIndexes))
-                    //  graph.addEdge(equationDescriptor, writeInfo.getEquation(), Edge());
+                    if (writtenIndexes.overlaps(readIndexes)) {
+                      auto intersection = writtenIndexes.intersect(readIndexes);
+
+                      if (const auto& accessFunction = read.getAccessFunction(); accessFunction.isInvertible()) {
+                        dependencies.emplace_back(graph[equationDescriptor], graph[writeInfo.getEquation()], accessFunction.inverseMap(intersection));
+                      } else {
+                        MCIS mcis;
+
+                        for (const auto& point : equationRange) {
+                          if (readIndexes.contains(accessFunction.map(point)))
+                            mcis += point;
+                        }
+
+                        for (const auto& range : mcis)
+                          dependencies.emplace_back(graph[equationDescriptor], graph[writeInfo.getEquation()], range);
+                      }
+                    }
                   }
                 }
-
               }
             }
 
-            for (const auto& equationDescriptor : scc)
-            {
-              const auto& equation = graph[equationDescriptor];
-
-            }
-
+            SCCs.emplace_back(std::move(dependencies));
           }
 
+          /*
           for (auto it = llvm::scc_begin(graph); it != llvm::scc_end(graph); ++it) {
             std::cout << "Found SCC " << it.hasCycle() << " \n";
 
@@ -523,7 +602,10 @@ namespace marco::modeling
               std::cout << "ID: " << graph[node].getId() << "\n";
             }
           }
+           */
         }
+
+        return SCCs;
       }
 
     private:

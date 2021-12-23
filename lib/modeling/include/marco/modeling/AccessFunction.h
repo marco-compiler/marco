@@ -35,14 +35,6 @@ namespace marco::modeling
 
       Point::data_type operator()(const Point& equationIndexes) const;
 
-      /**
-       * Get the mapped dimension access.
-       * The input must be a multidimensional range, as the single dimension
-       * access may refer to any of the range dimensions.
-       *
-       * @param range  multidimensional range
-       * @return mapped mono-dimensional range
-       */
       Range operator()(const MultidimensionalRange& range) const;
 
       bool isConstantAccess() const;
@@ -52,6 +44,18 @@ namespace marco::modeling
       Point::data_type getOffset() const;
 
       unsigned int getInductionVariableIndex() const;
+
+      Point::data_type map(const Point& equationIndexes) const;
+
+      /**
+       * Get the mapped dimension access.
+       * The input must be a multidimensional range, as the single dimension
+       * access may refer to any of the range dimensions.
+       *
+       * @param range  multidimensional range
+       * @return mapped mono-dimensional range
+       */
+      Range map(const MultidimensionalRange& range) const;
 
     private:
       bool constantAccess;
@@ -93,6 +97,10 @@ namespace marco::modeling
 
       bool isIdentity() const;
 
+      bool isInvertible() const;
+
+      AccessFunction inverse() const;
+
       /**
        * Apply the access function to the equation indexes, in order
        * to obtain the accessed variable.
@@ -111,7 +119,7 @@ namespace marco::modeling
        */
       MultidimensionalRange map(const MultidimensionalRange& range) const;
 
-      AccessFunction invert() const;
+      MultidimensionalRange inverseMap(const MultidimensionalRange& range) const;
 
     private:
       Container functions;
