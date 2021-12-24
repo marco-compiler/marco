@@ -2,26 +2,14 @@
 
 namespace marco::modeling::scc::test
 {
-  Variable::Variable(llvm::StringRef name, llvm::ArrayRef<long> dimensions)
-      : name(name.str()), dimensions(dimensions.begin(), dimensions.end())
+  Variable::Variable(llvm::StringRef name)
+      : name(name.str())
   {
-    if (this->dimensions.empty())
-      this->dimensions.emplace_back(1);
   }
 
-  Variable::Id Variable::getId() const
+  llvm::StringRef Variable::getName() const
   {
     return name;
-  }
-
-  unsigned int Variable::getRank() const
-  {
-    return dimensions.size();
-  }
-
-  long Variable::getDimensionSize(size_t index) const
-  {
-    return dimensions[index];
   }
 
   Equation::Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads)
@@ -29,17 +17,17 @@ namespace marco::modeling::scc::test
   {
   }
 
-  Equation::Id Equation::getId() const
+  llvm::StringRef Equation::getName() const
   {
     return name;
   }
 
-  unsigned int Equation::getNumOfIterationVars() const
+  size_t Equation::getNumOfIterationVars() const
   {
     return ranges.size();
   }
 
-  long Equation::getRangeStart(size_t index) const
+  long Equation::getRangeBegin(size_t index) const
   {
     return ranges[index].getBegin();
   }
@@ -59,8 +47,13 @@ namespace marco::modeling::scc::test
     return write;
   }
 
-  void Equation::getReads(llvm::SmallVectorImpl<Access<Variable>>& v) const
+  std::vector<Access<Variable>> Equation::getReads() const
   {
-    v.append(reads);
+    std::vector<Access<Variable>> result;
+
+    for (const auto& read : reads)
+      result.push_back(read);
+
+    return result;
   }
 }

@@ -58,21 +58,18 @@ namespace marco::modeling
       // static size_t getNumOfIterationVars(const EquationType*)
       //    return the number of induction variables.
       //
-      // static long getRangeStart(const EquationType*, size_t inductionVarIndex)
-      //    return the start (included) of the range of an iteration variable.
+      // static long getRangeBegin(const EquationType*, size_t inductionVarIndex)
+      //    return the beginning (included) of the range of an iteration variable.
       //
       // static long getRangeEnd(const EquationType*, size_t inductionVarIndex)
-      //    return the end (not included) of the range of an iteration variable.
+      //    return the ending (not included) of the range of an iteration variable.
       //
       // typedef VariableType : the type of the accessed variable
       //
       // typedef AccessProperty : the access property (this is optional, and if not specified an empty one is used)
       //
-      // typedef AccessIt : the type of the iterator of the accesses
-      //
-      // static AccessIt accessesBegin(const EquationType*)
-      // static AccessIt accessesEnd(const EquationType*)
-      //    return iterators that point to the beginning and ending of the accesses done by the equation.
+      // static std::vector<Access<VariableType, AccessProperty>> getAccesses(const EquationType*)
+      //    return the access done by the equation.
 
       using Id = typename EquationType::UnknownEquationTypeError;
     };
@@ -129,6 +126,7 @@ namespace marco::modeling
                 property(property),
                 visible(true)
           {
+            // Scalar variables can be represented by means of an array with just one element
             assert(getRank() > 0 && "Scalar variables are not supported");
           }
 
@@ -244,16 +242,19 @@ namespace marco::modeling
       {
       };
 
-      template<class T>
+      template<class EquationProperty>
       struct get_access_property
       {
-        template<class U, typename = typename U::AccessProperty>
-        static typename U::AccessProperty property(int);
+        template<typename U>
+        using Traits = ::marco::modeling::matching::EquationTraits<U>;
+
+        template<class U, typename = typename Traits<U>::AccessProperty>
+        static typename Traits<U>::AccessProperty property(int);
 
         template<class U>
         static EmptyAccessProperty property(...);
 
-        using type = decltype(property<T>(0));
+        using type = decltype(property<EquationProperty>(0));
       };
     }
   }
@@ -265,10 +266,9 @@ namespace marco::modeling
     {
       public:
         using Property = AccessProperty;
-        using VarTraits = VariableTraits<VariableProperty>;
 
         Access(const VariableProperty& variable, AccessFunction accessFunction, AccessProperty property)
-            : variable(VarTraits::getId(&variable)),
+            : variable(VariableTraits<VariableProperty>::getId(&variable)),
               accessFunction(std::move(accessFunction)),
               property(std::move(property))
         {
@@ -276,12 +276,12 @@ namespace marco::modeling
 
         template<typename... T>
         Access(VariableProperty variable, T&& ... accesses)
-            : variable(VarTraits::getId(&variable)),
+            : variable(VariableTraits<VariableProperty>::getId(&variable)),
               accessFunction(llvm::ArrayRef<DimensionAccess>({std::forward<T>(accesses)...}))
         {
         }
 
-        typename VarTraits::Id getVariable() const
+        typename VariableTraits<VariableProperty>::Id getVariable() const
         {
           return variable;
         }
@@ -297,7 +297,7 @@ namespace marco::modeling
         }
 
       private:
-        typename VarTraits::Id variable;
+        typename VariableTraits<VariableProperty>::Id variable;
         AccessFunction accessFunction;
         AccessProperty property;
     };
@@ -318,7 +318,7 @@ namespace marco::modeling
     /**
      * Graph node representing an equation.
      */
-    template<typename EquationProperty, typename VariableProperty>
+    template<typename EquationProperty>
     class EquationVertex : public Matchable, public Dumpable
     {
       public:
@@ -327,7 +327,7 @@ namespace marco::modeling
         using Id = typename Traits::Id;
 
         using Access = ::marco::modeling::matching::Access<
-            VariableProperty,
+            typename Traits::VariableType,
             typename get_access_property<EquationProperty>::type>;
 
         EquationVertex(EquationProperty property)
@@ -393,11 +393,9 @@ namespace marco::modeling
           return getIterationRanges().flatSize();
         }
 
-        llvm::iterator_range<typename Traits::AccessIt> getVariableAccesses() const
+        std::vector<Access> getVariableAccesses() const
         {
-          auto begin = Traits::accessesBegin(&property);
-          auto end = Traits::accessesEnd(&property);
-          return llvm::iterator_range<typename Traits::AccessIt>(std::move(begin), std::move(end));
+          return Traits::getAccesses(&property);
         }
 
         bool isVisible() const
@@ -419,7 +417,7 @@ namespace marco::modeling
         static Range getIterationRange(const EquationProperty& p, size_t index)
         {
           assert(index < getNumOfIterationVars(p));
-          auto begin = Traits::getRangeStart(&p, index);
+          auto begin = Traits::getRangeBegin(&p, index);
           auto end = Traits::getRangeEnd(&p, index);
           return Range(begin, end);
         }
@@ -924,7 +922,7 @@ namespace marco::modeling
   {
     public:
       using Variable = internal::matching::VariableVertex<VariableProperty>;
-      using Equation = internal::matching::EquationVertex<EquationProperty, VariableProperty>;
+      using Equation = internal::matching::EquationVertex<EquationProperty>;
       using Vertex = std::variant<Variable, Equation>;
       using Edge = internal::matching::Edge<Variable, Equation>;
 

@@ -269,11 +269,6 @@ namespace marco::modeling::internal
     return false;
   }
 
-  MultidimensionalRange MCIS::intersect(const MultidimensionalRange& other) const
-  {
-
-  }
-
   MCIS MCIS::intersect(const MCIS& other) const
   {
     MCIS result;

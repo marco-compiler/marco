@@ -10,8 +10,8 @@ namespace marco::modeling::scc::test
   {
     using Access = Access<Variable>;
 
-    Variable x("x", {5});
-    Variable y("y", {5});
+    Variable x("x");
+    Variable y("y");
 
     Equation eq1(
         "eq1",
@@ -38,8 +38,8 @@ namespace marco::modeling::scc::test
   {
     using Access = Access<Variable>;
 
-    Variable x("x", {5});
-    Variable y("y", {5});
+    Variable x("x");
+    Variable y("y");
 
     Equation eq1(
         "eq1",

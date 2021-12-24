@@ -54,25 +54,19 @@ namespace marco::modeling::matching
       public:
         using VariableType = Variable;
 
-      private:
-        using AccessContainer = llvm::SmallVector<Access<VariableType>>;
-
-      public:
-        using AccessIt = AccessContainer::const_iterator;
-
         Equation(llvm::StringRef name);
 
         llvm::StringRef getName() const;
 
         size_t getNumOfIterationVars() const;
 
-        long getRangeStart(size_t index) const;
+        long getRangeBegin(size_t index) const;
 
         long getRangeEnd(size_t index) const;
 
         void addIterationRange(internal::Range range);
 
-        llvm::iterator_range<AccessIt> getVariableAccesses() const;
+        std::vector<Access<Variable>> getVariableAccesses() const;
 
         void addVariableAccess(Access<Variable> access);
 
@@ -98,9 +92,9 @@ namespace marco::modeling::matching
       return equation->getNumOfIterationVars();
     }
 
-    static long getRangeStart(const test::Equation* equation, size_t inductionVarIndex)
+    static long getRangeBegin(const test::Equation* equation, size_t inductionVarIndex)
     {
-      return equation->getRangeStart(inductionVarIndex);
+      return equation->getRangeBegin(inductionVarIndex);
     }
 
     static long getRangeEnd(const test::Equation* equation, size_t inductionVarIndex)
@@ -110,16 +104,9 @@ namespace marco::modeling::matching
 
     using VariableType = test::Variable;
 
-    using AccessIt = test::Equation::AccessIt;
-
-    static AccessIt accessesBegin(const test::Equation* equation)
+    static std::vector<Access<VariableType>> getAccesses(const test::Equation* equation)
     {
-      return equation->getVariableAccesses().begin();
-    }
-
-    static AccessIt accessesEnd(const test::Equation* equation)
-    {
-      return equation->getVariableAccesses().end();
+      return equation->getVariableAccesses();
     }
   };
 }

@@ -38,7 +38,7 @@ namespace marco::modeling::matching::test
     return ranges.size();
   }
 
-  long Equation::getRangeStart(size_t index) const
+  long Equation::getRangeBegin(size_t index) const
   {
     return ranges[index].getBegin();
   }
@@ -53,9 +53,14 @@ namespace marco::modeling::matching::test
     ranges.push_back(range);
   }
 
-  llvm::iterator_range<Equation::AccessIt> Equation::getVariableAccesses() const
+  std::vector<Access<Variable>> Equation::getVariableAccesses() const
   {
-    return llvm::iterator_range<Equation::AccessIt>(accesses.begin(), accesses.end());
+    std::vector<Access<Variable>> result;
+
+    for (const auto& access : accesses)
+      result.push_back(access);
+
+    return result;
   }
 
   void Equation::addVariableAccess(Access<Variable> access)

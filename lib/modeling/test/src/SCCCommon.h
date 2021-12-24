@@ -4,53 +4,101 @@
 #include <llvm/ADT/StringRef.h>
 #include <marco/modeling/VVarDependencyGraph.h>
 
-namespace marco::modeling::scc::test
+namespace marco::modeling::scc
 {
-  class Variable
+  namespace test
   {
-    public:
-      using Id = std::string;
+    class Variable
+    {
+      public:
+        Variable(llvm::StringRef name);
 
-      Variable(llvm::StringRef name,  llvm::ArrayRef<long> dimensions = llvm::None);
+        llvm::StringRef getName() const;
 
-      Id getId() const;
+      private:
+        std::string name;
+    };
+  }
 
-      unsigned int getRank() const;
+  template<>
+  struct VariableTraits<test::Variable>
+  {
+    using Id = std::string;
 
-      long getDimensionSize(size_t index) const;
-
-    private:
-      std::string name;
-      llvm::SmallVector<long, 3> dimensions;
+    static Id getId(const test::Variable* variable)
+    {
+      return variable->getName().str();
+    }
   };
 
-  class Equation
+  namespace test
   {
-    public:
-      using Id = std::string;
-      using Range = internal::Range;
+    class Equation
+    {
+      public:
+        using Id = std::string;
+        using Range = internal::Range;
 
-      Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads);
+        Equation(llvm::StringRef name, Access<Variable> write, llvm::ArrayRef<Access<Variable>> reads);
 
-      Id getId() const;
+        llvm::StringRef getName() const;
 
-      unsigned int getNumOfIterationVars() const;
+        size_t getNumOfIterationVars() const;
 
-      long getRangeStart(size_t index) const;
+        long getRangeBegin(size_t index) const;
 
-      long getRangeEnd(size_t index) const;
+        long getRangeEnd(size_t index) const;
 
-      void addIterationRange(Range range);
+        void addIterationRange(Range range);
 
-      const Access<Variable>& getWrite() const;
+        const Access<Variable>& getWrite() const;
 
-      void getReads(llvm::SmallVectorImpl<Access<Variable>>& v) const;
+        std::vector<Access<Variable>> getReads() const;
 
-    private:
-      std::string name;
-      llvm::SmallVector<Range, 3> ranges;
-      Access<Variable> write;
-      llvm::SmallVector<Access<Variable>, 3> reads;
+      private:
+        std::string name;
+        llvm::SmallVector<Range, 3> ranges;
+        Access<Variable> write;
+        llvm::SmallVector<Access<Variable>, 3> reads;
+    };
+  }
+
+  template<>
+  struct EquationTraits<test::Equation>
+  {
+    using Id = std::string;
+
+    static Id getId(const test::Equation* equation)
+    {
+      return equation->getName().str();
+    }
+
+    static size_t getNumOfIterationVars(const test::Equation* equation)
+    {
+      return equation->getNumOfIterationVars();
+    }
+
+    static long getRangeBegin(const test::Equation* equation, size_t inductionVarIndex)
+    {
+      return equation->getRangeBegin(inductionVarIndex);
+    }
+
+    static long getRangeEnd(const test::Equation* equation, size_t inductionVarIndex)
+    {
+      return equation->getRangeEnd(inductionVarIndex);
+    }
+
+    using VariableType = test::Variable;
+
+    static Access<VariableType> getWrite(const test::Equation* equation)
+    {
+      return equation->getWrite();
+    }
+
+    static std::vector<Access<VariableType>> getReads(const test::Equation* equation)
+    {
+      return equation->getReads();
+    }
   };
 }
 

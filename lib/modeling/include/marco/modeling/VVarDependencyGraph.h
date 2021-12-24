@@ -14,6 +14,56 @@
 
 namespace marco::modeling
 {
+  namespace scc
+  {
+    // This class must be specialized for the variable type that is used during the loops identification process.
+    template<typename VariableType>
+    struct VariableTraits
+    {
+      // Elements to provide:
+      //
+      // typedef Id : the ID type of the variable.
+      //
+      // static Id getId(const VariableType*)
+      //    return the ID of the variable.
+
+      using Id = typename VariableType::UnknownVariableTypeError;
+    };
+
+    // This class must be specialized for the equation type that is used during the matching process.
+    template<typename EquationType>
+    struct EquationTraits
+    {
+      // Elements to provide:
+      //
+      // typedef Id : the ID type of the equation.
+      //
+      // static Id getId(const EquationType*)
+      //    return the ID of the equation.
+      //
+      // static size_t getNumOfIterationVars(const EquationType*)
+      //    return the number of induction variables.
+      //
+      // static long getRangeBegin(const EquationType*, size_t inductionVarIndex)
+      //    return the beginning (included) of the range of an iteration variable.
+      //
+      // static long getRangeEnd(const EquationType*, size_t inductionVarIndex)
+      //    return the ending (not included) of the range of an iteration variable.
+      //
+      // typedef VariableType : the type of the accessed variable
+      //
+      // typedef AccessProperty : the access property (this is optional, and if not specified an empty one is used)
+      //
+      // static Access<VariableType, AccessProperty> getWrite(const EquationType*)
+      //    return the write access done by the equation.
+      //
+      // static std::vector<Access<VariableType, AccessProperty>> getReads(const EquationType*)
+      //    return the read access done by the equation.
+
+      using Id = typename EquationType::UnknownEquationTypeError;
+    };
+  }
+
   namespace internal::scc
   {
     class EmptyAccessProperty
@@ -23,8 +73,11 @@ namespace marco::modeling
     template<class T>
     struct get_access_property
     {
-      template<class U, typename = typename U::AccessProperty>
-      static typename U::AccessProperty property(int);
+      template<typename U>
+      using Traits = ::marco::modeling::scc::EquationTraits<U>;
+
+      template<class U, typename = typename Traits<U>::AccessProperty>
+      static typename Traits<U>::AccessProperty property(int);
 
       template<class U>
       static EmptyAccessProperty property(...);
@@ -42,13 +95,13 @@ namespace marco::modeling
         using Property = AccessProperty;
 
         Access(VariableProperty variable, AccessFunction accessFunction, AccessProperty property = AccessProperty())
-            : variable(std::move(variable)),
+            : variable(VariableTraits<VariableProperty>::getId(&variable)),
               accessFunction(std::move(accessFunction)),
               property(std::move(property))
         {
         }
 
-        const VariableProperty& getVariable() const
+        const typename VariableTraits<VariableProperty>::Id& getVariable() const
         {
           return variable;
         }
@@ -64,7 +117,7 @@ namespace marco::modeling
         }
 
       private:
-        VariableProperty variable;
+        typename VariableTraits<VariableProperty>::Id variable;
         AccessFunction accessFunction;
         AccessProperty property;
     };
@@ -76,8 +129,9 @@ namespace marco::modeling
     class VariableWrapper
     {
       public:
-        using Id = typename VariableProperty::Id;
         using Property = VariableProperty;
+        using Traits = ::marco::modeling::scc::VariableTraits<VariableProperty>;
+        using Id = typename Traits::Id;
 
         VariableWrapper(VariableProperty property)
             : property(property)
@@ -94,30 +148,21 @@ namespace marco::modeling
           return property.getId();
         }
 
-        size_t getRank() const
-        {
-          return getRank(property);
-        }
-
-        long getDimensionSize(size_t index) const
-        {
-          return getDimensionSize(property, index);
-        }
-
       private:
-        // Custom equation property
+        // Custom variable property
         VariableProperty property;
     };
 
-    template<class EquationProperty, class VariableProperty>
+    template<typename EquationProperty>
     class EquationVertex
     {
       public:
-        using Id = typename EquationProperty::Id;
         using Property = EquationProperty;
+        using Traits = ::marco::modeling::scc::EquationTraits<EquationProperty>;
+        using Id = typename Traits::Id;
 
         using Access = marco::modeling::scc::Access<
-            VariableProperty,
+            typename Traits::VariableType,
             typename internal::scc::get_access_property<EquationProperty>::type>;
 
         EquationVertex(EquationProperty property)
@@ -137,69 +182,44 @@ namespace marco::modeling
 
         Id getId() const
         {
-          return property.getId();
+          return Traits::getId(&property);
         }
 
         size_t getNumOfIterationVars() const
         {
-          return getNumOfIterationVars(property);
+          return Traits::getNumOfIterationVars(&property);
         }
 
         Range getIterationRange(size_t index) const
         {
-          return getIterationRange(property, index);
+          assert(index < getNumOfIterationVars());
+          auto begin = Traits::getRangeBegin(&property, index);
+          auto end = Traits::getRangeEnd(&property, index);
+          return Range(begin, end);
         }
 
         MultidimensionalRange getIterationRanges() const
         {
-          return getIterationRanges(property);
-        }
-
-        Access getWrite() const
-        {
-          return getWrite(property);
-        }
-
-        void getReads(llvm::SmallVectorImpl<Access>& accesses) const
-        {
-          getReads(property, accesses);
-        }
-
-      private:
-        static size_t getNumOfIterationVars(const EquationProperty& p)
-        {
-          return p.getNumOfIterationVars();
-        }
-
-        static Range getIterationRange(const EquationProperty& p, size_t index)
-        {
-          assert(index < getNumOfIterationVars(p));
-          return Range(p.getRangeStart(index), p.getRangeEnd(index));
-        }
-
-        static MultidimensionalRange getIterationRanges(const EquationProperty& p)
-        {
           llvm::SmallVector<Range, 3> ranges;
 
-          for (unsigned int i = 0, e = getNumOfIterationVars(p) ; i < e ; ++i) {
-            ranges.push_back(getIterationRange(p, i));
+          for (size_t i = 0, e = getNumOfIterationVars(); i < e; ++i) {
+            ranges.push_back(getIterationRange(i));
           }
 
           return MultidimensionalRange(ranges);
         }
 
-        static void getReads(
-            const EquationProperty& p,
-            llvm::SmallVectorImpl<Access>& accesses)
+        Access getWrite() const
         {
-          p.getReads(accesses);
+          return Traits::getWrite(&property);
         }
 
-        static Access getWrite(const EquationProperty& p)
+        std::vector<Access> getReads() const
         {
-          return p.getWrite();
+          return Traits::getReads(&property);
         }
 
+      private:
         // Custom equation property
         EquationProperty property;
     };
@@ -240,12 +260,12 @@ namespace marco::modeling
 
           public:
             Interval(MultidimensionalRange range, llvm::ArrayRef<Destination> destinations)
-              : range(std::move(range)), destinations(destinations.begin(), destinations.end())
+                : range(std::move(range)), destinations(destinations.begin(), destinations.end())
             {
             }
 
             Interval(MultidimensionalRange range, Access access, EquationProperty destination)
-              : range(std::move(range))
+                : range(std::move(range))
             {
               destinations.emplace_back(std::move(access), std::move(destination));
             }
@@ -285,22 +305,25 @@ namespace marco::modeling
           std::vector<Interval> newIntervals;
           MCIS mcis(range);
 
-          for (const Interval& interval : intervals) {
-            if (!interval.getRange().overlaps(range))
+          for (const Interval& interval: intervals) {
+            if (!interval.getRange().overlaps(range)) {
               continue;
+            }
 
             mcis -= interval.getRange();
 
-            for (const auto& subRange : interval.getRange().subtract(range))
+            for (const auto& subRange: interval.getRange().subtract(range)) {
               newIntervals.emplace_back(subRange, interval.getDestinations());
+            }
 
             Interval newInterval(interval.getRange().intersect(range), interval.getDestinations());
             newInterval.addDestination(access, equation);
             newIntervals.push_back(std::move(newInterval));
           }
 
-          for (const auto& subRange : mcis)
+          for (const auto& subRange: mcis) {
             newIntervals.emplace_back(subRange, access, equation);
+          }
 
           intervals = newIntervals;
         }
@@ -479,7 +502,7 @@ namespace marco::modeling
       using MCIS = internal::MCIS;
 
       using Variable = internal::scc::VariableWrapper<VariableProperty>;
-      using Equation = internal::scc::EquationVertex<EquationProperty, VariableProperty>;
+      using Equation = internal::scc::EquationVertex<EquationProperty>;
 
       using Edge = internal::scc::EmptyEdgeProperty;
       using Graph = internal::DirectedGraph<Equation, Edge>;
@@ -493,14 +516,14 @@ namespace marco::modeling
       using DependencyList = internal::scc::DependencyList<Equation, Access>;
       using SCC = internal::scc::SCC<DependencyList>;
 
-      using WritesMap = std::multimap<typename VariableProperty::Id, WriteInfo>;
+      using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
 
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
         Graph graph;
 
         // Add the equations to the graph
-        for (const auto& equationProperty : equations) {
+        for (const auto& equationProperty: equations) {
           graph.addVertex(Equation(equationProperty));
         }
 
@@ -512,17 +535,16 @@ namespace marco::modeling
         // the equations. An equation e1 depends on another equation e2 if e1 reads (a part) of a variable that is
         // written by e2.
 
-        for (const auto& equationDescriptor : graph.getVertices()) {
+        for (const auto& equationDescriptor: graph.getVertices()) {
           const Equation& equation = graph[equationDescriptor];
 
-          llvm::SmallVector<Access> reads;
-          equation.getReads(reads);
+          auto reads = equation.getReads();
 
-          for (const Access& read : reads) {
+          for (const Access& read: reads) {
             auto readIndexes = read.getAccessFunction().map(equation.getIterationRanges());
-            auto writeInfos = writes.equal_range(read.getVariable().getId());
+            auto writeInfos = writes.equal_range(read.getVariable());
 
-            for (const auto&[variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
+            for (const auto&[variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
               const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
               if (writtenIndexes.overlaps(readIndexes)) {
@@ -538,7 +560,7 @@ namespace marco::modeling
         // algorithm on each of them.
         auto subGraphs = graph.getDisjointSubGraphs();
 
-        for (const auto& subGraph : subGraphs) {
+        for (const auto& subGraph: subGraphs) {
           graphs.emplace_back(std::move(subGraph));
         }
       }
@@ -547,26 +569,25 @@ namespace marco::modeling
       {
         std::vector<SCC> SCCs;
 
-        for (const auto& graph : graphs) {
-          for (auto scc : llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
+        for (const auto& graph: graphs) {
+          for (auto scc: llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
             std::vector<DependencyList> dependencies;
             auto writes = getWritesMap(graph, scc.begin(), scc.end());
 
-            for (const auto& equationDescriptor : scc) {
+            for (const auto& equationDescriptor: scc) {
               const Equation& equation = graph[equationDescriptor];
               DependencyList dependencyList(equation.getProperty());
 
               auto equationRange = equation.getIterationRanges();
 
-              llvm::SmallVector<Access> reads;
-              equation.getReads(reads);
+              auto reads = equation.getReads();
 
-              for (const Access& read : reads) {
+              for (const Access& read: reads) {
                 const auto& accessFunction = read.getAccessFunction();
                 auto readIndexes = accessFunction.map(equationRange);
-                auto writeInfos = writes.equal_range(read.getVariable().getId());
+                auto writeInfos = writes.equal_range(read.getVariable());
 
-                for (const auto&[variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
+                for (const auto&[variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
                   const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
                   if (!readIndexes.overlaps(writtenIndexes)) {
@@ -576,17 +597,20 @@ namespace marco::modeling
                   auto intersection = readIndexes.intersect(writtenIndexes);
 
                   if (accessFunction.isInvertible()) {
-                    dependencyList.addDestination(accessFunction.inverseMap(intersection), read, graph[writeInfo.getEquation()]);
+                    dependencyList.addDestination(
+                        accessFunction.inverseMap(intersection),
+                        read,
+                        graph[writeInfo.getEquation()]);
                   } else {
                     MCIS mcis;
 
-                    for (const auto& point : equationRange) {
+                    for (const auto& point: equationRange) {
                       if (intersection.contains(accessFunction.map(point))) {
                         mcis += point;
                       }
                     }
 
-                    for (const auto& range : mcis) {
+                    for (const auto& range: mcis) {
                       dependencyList.addDestination(range, read, graph[writeInfo.getEquation()]);
                     }
                   }
@@ -609,13 +633,12 @@ namespace marco::modeling
       {
         WritesMap result;
 
-        for (It it = equationsBegin ; it != equationsEnd ; ++it) {
+        for (It it = equationsBegin; it != equationsEnd; ++it) {
           const auto& equation = graph[*it];
           const auto& write = equation.getWrite();
-          Variable writtenVariable(write.getVariable());
           const auto& accessFunction = write.getAccessFunction();
           auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
-          result.emplace(writtenVariable.getId(), WriteInfo(*it, std::move(writtenIndexes)));
+          result.emplace(write.getVariable(), WriteInfo(*it, std::move(writtenIndexes)));
         }
 
         return result;
