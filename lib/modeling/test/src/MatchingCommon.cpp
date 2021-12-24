@@ -9,12 +9,12 @@ namespace marco::modeling::matching::test
       this->dimensions.emplace_back(1);
   }
 
-  Variable::Id Variable::getId() const
+  llvm::StringRef Variable::getName() const
   {
     return name;
   }
 
-  unsigned int Variable::getRank() const
+  size_t Variable::getRank() const
   {
     return dimensions.size();
   }
@@ -24,21 +24,16 @@ namespace marco::modeling::matching::test
     return dimensions[index];
   }
 
-  llvm::StringRef Variable::getName() const
-  {
-    return name;
-  }
-
   Equation::Equation(llvm::StringRef name) : name(name.str())
   {
   }
 
-  Equation::Id Equation::getId() const
+  llvm::StringRef Equation::getName() const
   {
     return name;
   }
 
-  unsigned int Equation::getNumOfIterationVars() const
+  size_t Equation::getNumOfIterationVars() const
   {
     return ranges.size();
   }
@@ -58,18 +53,13 @@ namespace marco::modeling::matching::test
     ranges.push_back(range);
   }
 
-  void Equation::getVariableAccesses(llvm::SmallVectorImpl<Access<Variable>>& v) const
+  llvm::iterator_range<Equation::AccessIt> Equation::getVariableAccesses() const
   {
-    v.insert(v.begin(), this->accesses.begin(), this->accesses.end());
+    return llvm::iterator_range<Equation::AccessIt>(accesses.begin(), accesses.end());
   }
 
   void Equation::addVariableAccess(Access<Variable> access)
   {
     accesses.push_back(access);
-  }
-
-  llvm::StringRef Equation::getName() const
-  {
-    return name;
   }
 }

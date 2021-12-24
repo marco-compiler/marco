@@ -22,6 +22,62 @@
 
 namespace marco::modeling
 {
+  namespace matching
+  {
+    // This class must be specialized for the variable type that is used during the matching process.
+    template<typename VariableType>
+    struct VariableTraits
+    {
+      // Elements to provide:
+      //
+      // typedef Id : the ID type of the variable.
+      //
+      // static Id getId(const VariableType*)
+      //    return the ID of the variable.
+      //
+      // static size_t getRank(const VariableType*)
+      //    return the number of dimensions.
+      //
+      // static long getDimensionSize(const VariableType*, size_t index)
+      //    return the size of a dimension.
+
+      using Id = typename VariableType::UnknownVariableTypeError;
+    };
+
+    // This class must be specialized for the equation type that is used during the matching process.
+    template<typename EquationType>
+    struct EquationTraits
+    {
+      // Elements to provide:
+      //
+      // typedef Id : the ID type of the equation.
+      //
+      // static Id getId(const EquationType*)
+      //    return the ID of the equation.
+      //
+      // static size_t getNumOfIterationVars(const EquationType*)
+      //    return the number of induction variables.
+      //
+      // static long getRangeStart(const EquationType*, size_t inductionVarIndex)
+      //    return the start (included) of the range of an iteration variable.
+      //
+      // static long getRangeEnd(const EquationType*, size_t inductionVarIndex)
+      //    return the end (not included) of the range of an iteration variable.
+      //
+      // typedef VariableType : the type of the accessed variable
+      //
+      // typedef AccessProperty : the access property (this is optional, and if not specified an empty one is used)
+      //
+      // typedef AccessIt : the type of the iterator of the accesses
+      //
+      // static AccessIt accessesBegin(const EquationType*)
+      // static AccessIt accessesEnd(const EquationType*)
+      //    return iterators that point to the beginning and ending of the accesses done by the equation.
+
+      using Id = typename EquationType::UnknownEquationTypeError;
+    };
+  }
+
   namespace internal
   {
     namespace matching
@@ -59,19 +115,14 @@ namespace marco::modeling
 
       /**
        * Graph node representing a variable.
-       *
-       * Requires the underlying variable property to define the Id type and
-       * implement the following methods:
-       *  - Id getId() const : get the ID of the variable
-       *  - size_t getRank() const : get the number of dimensions
-       *  - long getDimensionSize(size_t index) const : get the size of a dimension
        */
-      template<class VariableProperty>
-      class VariableVertex : public Matchable, public marco::modeling::internal::Dumpable
+      template<typename VariableProperty>
+      class VariableVertex : public Matchable, public Dumpable
       {
         public:
-          using Id = typename VariableProperty::Id;
           using Property = VariableProperty;
+          using Traits = typename ::marco::modeling::matching::VariableTraits<VariableProperty>;
+          using Id = typename Traits::Id;
 
           VariableVertex(VariableProperty property)
               : Matchable(getRanges(property)),
@@ -93,7 +144,7 @@ namespace marco::modeling
             os << tree_property << "Rank: " << getRank() << "\n";
             os << tree_property << "Dimensions: ";
 
-            for (size_t i = 0; i < getRank(); ++i) {
+            for (size_t i = 0 ; i < getRank() ; ++i) {
               os << "[" << getDimensionSize(i) << "]";
             }
 
@@ -113,9 +164,9 @@ namespace marco::modeling
             return property;
           }
 
-          VariableVertex::Id getId() const
+          Id getId() const
           {
-            return property.getId();
+            return Traits::getId(&property);
           }
 
           size_t getRank() const
@@ -137,7 +188,7 @@ namespace marco::modeling
           {
             unsigned int result = 1;
 
-            for (unsigned int i = 0, rank = getRank(); i < rank; ++i) {
+            for (unsigned int i = 0, rank = getRank() ; i < rank ; ++i) {
               long size = getDimensionSize(i);
               assert(size > 0);
               result *= size;
@@ -159,13 +210,13 @@ namespace marco::modeling
         private:
           static size_t getRank(const VariableProperty& p)
           {
-            return p.getRank();
+            return Traits::getRank(&p);
           }
 
           static long getDimensionSize(const VariableProperty& p, size_t index)
           {
             assert(index < getRank(p));
-            return p.getDimensionSize(index);
+            return Traits::getDimensionSize(&p, index);
           }
 
           static MultidimensionalRange getRanges(const VariableProperty& p)
@@ -214,9 +265,10 @@ namespace marco::modeling
     {
       public:
         using Property = AccessProperty;
+        using VarTraits = VariableTraits<VariableProperty>;
 
-        Access(VariableProperty variable, AccessFunction accessFunction, AccessProperty property)
-            : variable(std::move(variable)),
+        Access(const VariableProperty& variable, AccessFunction accessFunction, AccessProperty property)
+            : variable(VarTraits::getId(&variable)),
               accessFunction(std::move(accessFunction)),
               property(std::move(property))
         {
@@ -224,12 +276,12 @@ namespace marco::modeling
 
         template<typename... T>
         Access(VariableProperty variable, T&& ... accesses)
-            : variable(std::move(variable)),
+            : variable(VarTraits::getId(&variable)),
               accessFunction(llvm::ArrayRef<DimensionAccess>({std::forward<T>(accesses)...}))
         {
         }
 
-        VariableProperty getVariable() const
+        typename VarTraits::Id getVariable() const
         {
           return variable;
         }
@@ -245,7 +297,7 @@ namespace marco::modeling
         }
 
       private:
-        VariableProperty variable;
+        typename VarTraits::Id variable;
         AccessFunction accessFunction;
         AccessProperty property;
     };
@@ -265,26 +317,16 @@ namespace marco::modeling
 
     /**
      * Graph node representing an equation.
-     *
-     * Requires the underlying equation property to define the Id type and
-     * implement the following methods:
-     *  - Id getId() const : get the ID of the equation
-     *  - size_t getNumOfIterationVars() : get the number of induction variables
-     *  - long getRangeStart(size_t inductionVarIndex) const : get the start (included)
-     *    of the range of an iteration variable.
-     *  - long getRangeEnd(size_t inductionVarIndex) const : get the end (excluded)
-     *    of the range of an iteration variable.
-     *  - void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const : get
-     *    the variable accesses done by this equation.
      */
-    template<class EquationProperty, class VariableProperty>
+    template<typename EquationProperty, typename VariableProperty>
     class EquationVertex : public Matchable, public Dumpable
     {
       public:
-        using Id = typename EquationProperty::Id;
         using Property = EquationProperty;
+        using Traits = typename ::marco::modeling::matching::EquationTraits<EquationProperty>;
+        using Id = typename Traits::Id;
 
-        using Access = marco::modeling::matching::Access<
+        using Access = ::marco::modeling::matching::Access<
             VariableProperty,
             typename get_access_property<EquationProperty>::type>;
 
@@ -306,7 +348,7 @@ namespace marco::modeling
           os << tree_property << "ID: " << getId() << "\n";
           os << tree_property << "Iteration ranges: ";
 
-          for (size_t i = 0; i < getNumOfIterationVars(); ++i) {
+          for (size_t i = 0 ; i < getNumOfIterationVars() ; ++i) {
             os << getIterationRange(i);
           }
 
@@ -328,7 +370,7 @@ namespace marco::modeling
 
         Id getId() const
         {
-          return property.getId();
+          return Traits::getId(&property);
         }
 
         size_t getNumOfIterationVars() const
@@ -351,9 +393,11 @@ namespace marco::modeling
           return getIterationRanges().flatSize();
         }
 
-        void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) const
+        llvm::iterator_range<typename Traits::AccessIt> getVariableAccesses() const
         {
-          getVariableAccesses(property, accesses);
+          auto begin = Traits::accessesBegin(&property);
+          auto end = Traits::accessesEnd(&property);
+          return llvm::iterator_range<typename Traits::AccessIt>(std::move(begin), std::move(end));
         }
 
         bool isVisible() const
@@ -369,13 +413,15 @@ namespace marco::modeling
       private:
         static size_t getNumOfIterationVars(const EquationProperty& p)
         {
-          return p.getNumOfIterationVars();
+          return Traits::getNumOfIterationVars(&p);
         }
 
         static Range getIterationRange(const EquationProperty& p, size_t index)
         {
           assert(index < getNumOfIterationVars(p));
-          return Range(p.getRangeStart(index), p.getRangeEnd(index));
+          auto begin = Traits::getRangeStart(&p, index);
+          auto end = Traits::getRangeEnd(&p, index);
+          return Range(begin, end);
         }
 
         static MultidimensionalRange getIterationRanges(const EquationProperty& p)
@@ -387,13 +433,6 @@ namespace marco::modeling
           }
 
           return MultidimensionalRange(ranges);
-        }
-
-        static void getVariableAccesses(
-            const EquationProperty& p,
-            llvm::SmallVectorImpl<Access>& accesses)
-        {
-          p.getVariableAccesses(accesses);
         }
 
         // Custom equation property
@@ -665,7 +704,7 @@ namespace marco::modeling
           TreeOStream os(stream);
           os << "Frontier\n";
 
-          for (const auto& step: steps) {
+          for (const auto& step : steps) {
             os << tree_property;
             step.dump(os);
             os << "\n";
@@ -804,7 +843,7 @@ namespace marco::modeling
           TreeOStream os(stream);
           os << "Augmenting path\n";
 
-          for (const auto& flow: flows) {
+          for (const auto& flow : flows) {
             os << tree_property;
             flow.dump(os);
             os << "\n";
@@ -923,14 +962,15 @@ namespace marco::modeling
         TreeOStream os(stream);
         os << "Matching graph\n";
 
-        for (auto descriptor: graph.getVertices()) {
-          std::visit([&](const auto& vertex) {
-            os << tree_property;
-            vertex.dump(os);
-          }, graph[descriptor]);
+        for (auto descriptor : graph.getVertices()) {
+          std::visit(
+              [&](const auto& vertex) {
+                os << tree_property;
+                vertex.dump(os);
+              }, graph[descriptor]);
         }
 
-        for (auto descriptor: graph.getEdges()) {
+        for (auto descriptor : graph.getEdges()) {
           os << tree_property;
           graph[descriptor].dump(os);
         }
@@ -1056,15 +1096,15 @@ namespace marco::modeling
         auto equationDescriptor = graph.addVertex(std::move(eq));
         Equation& equation = getEquation(equationDescriptor);
 
-        llvm::SmallVector<Access, 3> accesses;
-        equation.getVariableAccesses(accesses);
+        auto accesses = equation.getVariableAccesses();
 
         // The equation may access multiple variables or even multiple indexes
         // of the same variable. Add an edge to the graph for each of those
         // accesses.
 
-        for (const auto& access: accesses) {
-          auto variableDescriptor = getVariableVertex(access.getVariable().getId());
+        for (const auto& access : accesses) {
+
+          auto variableDescriptor = getVariableVertex(access.getVariable());
           Variable& variable = getVariable(variableDescriptor);
 
           Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), variable.getRanges(), access);
@@ -1081,9 +1121,10 @@ namespace marco::modeling
       {
         auto vars = getVariables();
 
-        return std::accumulate(vars.begin(), vars.end(), 0, [&](size_t sum, const auto& desc) {
-          return sum + getVariable(desc).flatSize();
-        });
+        return std::accumulate(
+            vars.begin(), vars.end(), 0, [&](size_t sum, const auto& desc) {
+              return sum + getVariable(desc).flatSize();
+            });
       }
 
       /**
@@ -1097,9 +1138,10 @@ namespace marco::modeling
       {
         auto eqs = getEquations();
 
-        return std::accumulate(eqs.begin(), eqs.end(), 0, [&](size_t sum, const auto& desc) {
-          return sum + getEquation(desc).flatSize();
-        });
+        return std::accumulate(
+            eqs.begin(), eqs.end(), 0, [&](size_t sum, const auto& desc) {
+              return sum + getEquation(desc).flatSize();
+            });
       }
 
       bool allNodesMatched() const
@@ -1110,12 +1152,13 @@ namespace marco::modeling
           return obj.allComponentsMatched();
         };
 
-        return llvm::all_of(vertices, [&](const auto& descriptor) {
-          return std::visit(allComponentsMatchedFn, graph[descriptor]);
-        });
+        return llvm::all_of(
+            vertices, [&](const auto& descriptor) {
+              return std::visit(allComponentsMatchedFn, graph[descriptor]);
+            });
       }
 
-      bool hasEdge(typename EquationProperty::Id equationId, typename VariableProperty::Id variableId) const
+      bool hasEdge(typename Equation::Id equationId, typename Variable::Id variableId) const
       {
         if (findEdge<Equation, Variable>(equationId, variableId).first) {
           return true;
@@ -1145,7 +1188,7 @@ namespace marco::modeling
         std::list<VertexDescriptor> candidates;
 
         // Determine the initial set of vertices with exactly one incident edge
-        for (VertexDescriptor vertex: graph.getVertices()) {
+        for (VertexDescriptor vertex : graph.getVertices()) {
           auto incidentEdges = getVertexVisibilityDegree(vertex);
 
           if (incidentEdges == 0) {
@@ -1213,7 +1256,7 @@ namespace marco::modeling
               // v2 is removed because fully matched.
               // v3 and v4 become new candidates for the simplification pass.
 
-              for (auto e: graph.getOutgoingEdges(v2)) {
+              for (auto e : graph.getOutgoingEdges(v2)) {
                 remove(e);
 
                 VertexDescriptor v = e.from == v2 ? e.to : e.from;
@@ -1235,9 +1278,10 @@ namespace marco::modeling
               // Remove the v2 vertex and remove it from the candidates
               remove(v2);
 
-              candidates.remove_if([&](auto v) {
-                return v == v2;
-              });
+              candidates.remove_if(
+                  [&](auto v) {
+                    return v == v2;
+                  });
             } else {
               // When an edge is removed but one its vertices survives, we must
               // check if the remaining vertex has an obliged match.
@@ -1278,8 +1322,8 @@ namespace marco::modeling
       {
         std::vector<MatchingSolution> result;
 
-        for (auto equationDescriptor: getEquations()) {
-          for (auto edgeDescriptor: getEdges(equationDescriptor)) {
+        for (auto equationDescriptor : getEquations()) {
+          for (auto edgeDescriptor : getEdges(equationDescriptor)) {
             const Edge& edge = graph[edgeDescriptor];
 
             if (const auto& matched = edge.getMatched(); !matched.empty()) {
@@ -1310,15 +1354,16 @@ namespace marco::modeling
       {
         auto vertices = graph.getVertices();
 
-        auto it = std::find_if(vertices.begin(), vertices.end(), [&](const VertexDescriptor& v) {
-          const auto& vertex = graph[v];
+        auto it = std::find_if(
+            vertices.begin(), vertices.end(), [&](const VertexDescriptor& v) {
+              const auto& vertex = graph[v];
 
-          if (!std::holds_alternative<T>(vertex)) {
-            return false;
-          }
+              if (!std::holds_alternative<T>(vertex)) {
+                return false;
+              }
 
-          return std::get<T>(vertex).getId() == id;
-        });
+              return std::get<T>(vertex).getId() == id;
+            });
 
         return std::make_pair(it != vertices.end(), it);
       }
@@ -1331,9 +1376,10 @@ namespace marco::modeling
 
       void remove(VertexDescriptor vertex)
       {
-        std::visit([](auto& obj) -> void {
-          obj.setVisibility(false);
-        }, graph[vertex]);
+        std::visit(
+            [](auto& obj) -> void {
+              obj.setVisibility(false);
+            }, graph[vertex]);
       }
 
       template<typename From, typename To>
@@ -1341,16 +1387,17 @@ namespace marco::modeling
       {
         auto edges = graph.getEdges();
 
-        auto it = std::find_if(edges.begin(), edges.end(), [&](const EdgeDescriptor& e) {
-          auto& source = graph[e.from];
-          auto& target = graph[e.to];
+        auto it = std::find_if(
+            edges.begin(), edges.end(), [&](const EdgeDescriptor& e) {
+              auto& source = graph[e.from];
+              auto& target = graph[e.to];
 
-          if (!std::holds_alternative<From>(source) || !std::holds_alternative<To>(target)) {
-            return false;
-          }
+              if (!std::holds_alternative<From>(source) || !std::holds_alternative<To>(target)) {
+                return false;
+              }
 
-          return std::get<From>(source).getId() == from && std::get<To>(target).getId() == to;
-        });
+              return std::get<From>(source).getId() == from && std::get<To>(target).getId() == to;
+            });
 
         return std::make_pair(it != edges.end(), it);
       }
@@ -1383,7 +1430,7 @@ namespace marco::modeling
           return false;
         }
 
-        for (auto& path: augmentingPaths) {
+        for (auto& path : augmentingPaths) {
           applyPath(path);
         }
 
@@ -1401,7 +1448,7 @@ namespace marco::modeling
         // Calculation of the initial frontier
         auto equations = getEquations();
 
-        for (auto equationDescriptor: equations) {
+        for (auto equationDescriptor : equations) {
           const Equation& equation = getEquation(equationDescriptor);
 
           if (auto unmatchedEquations = equation.getUnmatched(); !unmatchedEquations.empty()) {
@@ -1416,10 +1463,10 @@ namespace marco::modeling
         Frontier foundPaths;
 
         while (!frontier.empty() && foundPaths.empty()) {
-          for (const BFSStep& step: frontier) {
+          for (const BFSStep& step : frontier) {
             auto vertexDescriptor = step.getNode();
 
-            for (EdgeDescriptor edgeDescriptor: getEdges(vertexDescriptor)) {
+            for (EdgeDescriptor edgeDescriptor : getEdges(vertexDescriptor)) {
               assert(edgeDescriptor.from == vertexDescriptor);
               VertexDescriptor nextNode = edgeDescriptor.to;
               const Edge& edge = graph[edgeDescriptor];
@@ -1430,7 +1477,7 @@ namespace marco::modeling
                 auto filteredMatrix = unmatchedMatrix.filterEquations(step.getCandidates());
                 internal::LocalMatchingSolutions solutions = internal::solveLocalMatchingProblem(filteredMatrix);
 
-                for (auto solution: solutions) {
+                for (auto solution : solutions) {
                   Variable var = getVariable(edgeDescriptor.to);
                   auto unmatchedScalarVariables = var.getUnmatched();
                   auto matched = solution.filterVariables(unmatchedScalarVariables);
@@ -1446,7 +1493,7 @@ namespace marco::modeling
                 auto filteredMatrix = edge.getMatched().filterVariables(step.getCandidates());
                 internal::LocalMatchingSolutions solutions = internal::solveLocalMatchingProblem(filteredMatrix);
 
-                for (auto solution: solutions) {
+                for (auto solution : solutions) {
                   newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenVariables(), solution);
                 }
               }
@@ -1467,7 +1514,7 @@ namespace marco::modeling
         // accepted only if it does not traverse any of them.
         std::map<VertexDescriptor, MCIS> visited;
 
-        for (const BFSStep& pathEnd: foundPaths) {
+        for (const BFSStep& pathEnd : foundPaths) {
           // All the candidate paths consist in at least two nodes by construction
           assert(pathEnd.hasPrevious());
 
@@ -1520,7 +1567,7 @@ namespace marco::modeling
           if (validPath) {
             paths.emplace_back(std::move(flows));
 
-            for (auto& p: newVisits) {
+            for (auto& p : newVisits) {
               visited.insert_or_assign(p.first, p.second);
             }
           }
@@ -1551,7 +1598,7 @@ namespace marco::modeling
         // Update the match matrices on the edges and store the information
         // about the vertices to be updated later.
 
-        for (auto& flow: path) {
+        for (auto& flow : path) {
           auto& edge = graph[flow.edge];
 
           VertexDescriptor from = flow.source;
@@ -1575,16 +1622,18 @@ namespace marco::modeling
 
         // Update the match information stored on the vertices
 
-        for (const auto& match: removedMatches) {
-          std::visit([&match](auto& node) {
-            node.removeMatch(match.second);
-          }, graph[match.first]);
+        for (const auto& match : removedMatches) {
+          std::visit(
+              [&match](auto& node) {
+                node.removeMatch(match.second);
+              }, graph[match.first]);
         }
 
-        for (const auto& match: newMatches) {
-          std::visit([&match](auto& node) {
-            node.addMatch(match.second);
-          }, graph[match.first]);
+        for (const auto& match : newMatches) {
+          std::visit(
+              [&match](auto& node) {
+                node.addMatch(match.second);
+              }, graph[match.first]);
         }
       }
 
