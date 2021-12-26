@@ -78,6 +78,9 @@ namespace marco::modeling
 
       AccessFunction(llvm::ArrayRef<DimensionAccess> functions);
 
+      // TODO test
+      static AccessFunction::identity(size_t dimensionality);
+
       const DimensionAccess& operator[](size_t index) const;
 
       AccessFunction combine(const AccessFunction& other) const;

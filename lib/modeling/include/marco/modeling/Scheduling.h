@@ -1,0 +1,9 @@
+#ifndef MARCO_MODELING_SCHEDULING_H
+#define MARCO_MODELING_SCHEDULING_H
+
+namespace marco::modeling
+{
+
+}
+
+#endif // MARCO_MODELING_SCHEDULING_H

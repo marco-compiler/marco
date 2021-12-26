@@ -634,7 +634,7 @@ namespace marco::modeling::internal
       EdgeDescriptor addEdge(
           VertexDescriptor from,
           VertexDescriptor to,
-          EdgeProperty property)
+          EdgeProperty property = EdgeProperty())
       {
         auto* ptr = new EdgeProperty(std::move(property));
         edges.push_back(ptr);

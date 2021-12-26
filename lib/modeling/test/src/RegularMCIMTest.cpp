@@ -253,7 +253,7 @@ TEST(RegularMCIM, difference)
  * Expected result:
  * {(0,1), (1,0), (1,1), (2,0), (3,0), (3,1), (4,0), (4,1)}
  */
-TEST(RegularMCIM, flattenEquations)
+TEST(RegularMCIM, flattenRows)
 {
   MultidimensionalRange eq({
       Range(4, 6),
@@ -281,7 +281,7 @@ TEST(RegularMCIM, flattenEquations)
   mcim.set({5, 3}, {4, 0});
   mcim.set({5, 3}, {4, 1});
 
-  MCIS flattened = mcim.flattenEquations();
+  MCIS flattened = mcim.flattenRows();
 
   EXPECT_FALSE(flattened.contains({0, 0}));
   EXPECT_TRUE(flattened.contains({0, 1}));
@@ -311,7 +311,7 @@ TEST(RegularMCIM, flattenEquations)
  * Expected result:
  * {(4,1), (4,2), (4,3), (5,1), (5,2), (5,3), (6,1), (6,2), (6,3)}
  */
-TEST(RegularMCIM, flattenVariables)
+TEST(RegularMCIM, flattenColumns)
 {
   MultidimensionalRange eq({
       Range(4, 7),
@@ -339,7 +339,7 @@ TEST(RegularMCIM, flattenVariables)
   mcim.set({6, 3}, {1, 0});
   mcim.set({6, 3}, {1, 1});
 
-  MCIS flattened = mcim.flattenVariables();
+  MCIS flattened = mcim.flattenColumns();
 
   EXPECT_FALSE(flattened.contains({4, 1}));
   EXPECT_TRUE(flattened.contains({4, 2}));
@@ -353,7 +353,7 @@ TEST(RegularMCIM, flattenVariables)
 }
 
 /**
- * Filter a MCIM by equation.
+ * Filter a MCIM by row.
  *
  * Input:
  * 			 (0,0)  (0,1)  (1,0)  (1,1)
@@ -371,7 +371,7 @@ TEST(RegularMCIM, flattenVariables)
  * (5,2)   0      0      0      0
  * (5,3)   1      0      1      0
  */
-TEST(RegularMCIM, equationsFilter)
+TEST(RegularMCIM, rowsFilter)
 {
   MultidimensionalRange eq({
       Range(4, 6),
@@ -393,16 +393,11 @@ TEST(RegularMCIM, equationsFilter)
   mcim.set({5, 3}, {0, 0});
   mcim.set({5, 3}, {1, 0});
 
-  MultidimensionalRange filterEq({
-      Range(4, 6),
-      Range(2, 4)
-  });
-
   MCIS filter;
   filter += {4, 2};
   filter += {5, 3};
 
-  MCIM result = mcim.filterEquations(filter);
+  MCIM result = mcim.filterRows(filter);
 
   for (const auto&[equation, variable]: result.getIndexes()) {
     bool value = result.get(equation, variable);
@@ -421,7 +416,7 @@ TEST(RegularMCIM, equationsFilter)
 }
 
 /**
- * Filter a MCIM by variable.
+ * Filter a MCIM by column.
  *
  * Input:
  * 			 (0,0)  (0,1)  (1,0)  (1,1)
@@ -439,7 +434,7 @@ TEST(RegularMCIM, equationsFilter)
  * (5,2)   0      0      0      1
  * (5,3)   1      0      0      0
  */
-TEST(RegularMCIM, variablesFilter)
+TEST(RegularMCIM, columnsFilter)
 {
   MultidimensionalRange eq({
       Range(4, 6),
@@ -461,16 +456,11 @@ TEST(RegularMCIM, variablesFilter)
   mcim.set({5, 3}, {0, 0});
   mcim.set({5, 3}, {1, 0});
 
-  MultidimensionalRange filterEq({
-      Range(4, 6),
-      Range(2, 4)
-  });
-
   MCIS filter;
   filter += {0, 0};
   filter += {1, 1};
 
-  MCIM result = mcim.filterVariables(filter);
+  MCIM result = mcim.filterColumns(filter);
 
   for (const auto&[equation, variable]: result.getIndexes()) {
     bool value = result.get(equation, variable);

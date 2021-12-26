@@ -98,13 +98,13 @@ namespace marco::modeling::internal
 
       void clear();
 
-      MCIS flattenEquations() const;
+      MCIS flattenRows() const;
 
-      MCIS flattenVariables() const;
+      MCIS flattenColumns() const;
 
-      MCIM filterEquations(const MCIS& filter) const;
+      MCIM filterRows(const MCIS& filter) const;
 
-      MCIM filterVariables(const MCIS& filter) const;
+      MCIM filterColumns(const MCIS& filter) const;
 
       std::vector<MCIM> splitGroups() const;
 

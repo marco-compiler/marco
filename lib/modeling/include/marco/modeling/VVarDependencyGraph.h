@@ -1,5 +1,5 @@
-#ifndef MARCO_MODELING_VVARDEPENDENCYGRAPH_H
-#define MARCO_MODELING_VVARDEPENDENCYGRAPH_H
+#ifndef MARCO_MODELING_SCC_H
+#define MARCO_MODELING_SCC_H
 
 #include <list>
 #include <llvm/ADT/GraphTraits.h>
@@ -350,15 +350,11 @@ namespace marco::modeling
         std::vector<Dependence> dependencies;
     };
 
-    class EmptyEdgeProperty
-    {
-    };
-
-    template<typename VertexProperty, typename EdgeProperty>
+    template<typename VertexProperty>
     class DisjointDirectedGraph
     {
       public:
-        using Graph = DirectedGraph<VertexProperty, EdgeProperty>;
+        using Graph = DirectedGraph<VertexProperty>;
 
         using VertexDescriptor = typename Graph::VertexDescriptor;
         using EdgeDescriptor = typename Graph::EdgeDescriptor;
@@ -419,6 +415,21 @@ namespace marco::modeling
       private:
         Graph graph;
     };
+
+    template<typename VariableId, typename Equation>
+    class DFSStep
+    {
+      public:
+        DFSStep(VariableId variable, Equation equation, MultidimensionalRange range)
+          : variable(std::move(variable)), equation(std::move(equation)), range(std::move(range))
+        {
+        }
+
+      //private:
+        VariableId variable;
+        Equation equation;
+        MultidimensionalRange range;
+    };
   }
 }
 
@@ -426,10 +437,10 @@ namespace llvm
 {
   // We specialize the LLVM's graph traits in order leverage the Tarjan algorithm
   // that is built into LLVM itself. This way we don't have to implement it from scratch.
-  template<typename VertexProperty, typename EdgeProperty>
-  struct GraphTraits<marco::modeling::internal::scc::DisjointDirectedGraph<VertexProperty, EdgeProperty>>
+  template<typename VertexProperty>
+  struct GraphTraits<marco::modeling::internal::scc::DisjointDirectedGraph<VertexProperty>>
   {
-    using Graph = marco::modeling::internal::scc::DisjointDirectedGraph<VertexProperty, EdgeProperty>;
+    using Graph = marco::modeling::internal::scc::DisjointDirectedGraph<VertexProperty>;
 
     using NodeRef = typename Graph::VertexDescriptor;
     using ChildIteratorType = typename Graph::LinkedVerticesIterator;
@@ -504,9 +515,8 @@ namespace marco::modeling
       using Variable = internal::scc::VariableWrapper<VariableProperty>;
       using Equation = internal::scc::EquationVertex<EquationProperty>;
 
-      using Edge = internal::scc::EmptyEdgeProperty;
-      using Graph = internal::DirectedGraph<Equation, Edge>;
-      using ConnectedGraph = internal::scc::DisjointDirectedGraph<Equation, Edge>;
+      using Graph = internal::DirectedGraph<Equation>;
+      using ConnectedGraph = internal::scc::DisjointDirectedGraph<Equation>;
 
       using EquationDescriptor = typename Graph::VertexDescriptor;
       using AccessProperty = typename Equation::Access::Property;
@@ -517,6 +527,7 @@ namespace marco::modeling
       using SCC = internal::scc::SCC<DependencyList>;
 
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
+      using DFSStep = internal::scc::DFSStep<typename Variable::Id, Equation>;
 
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
@@ -548,7 +559,7 @@ namespace marco::modeling
               const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
               if (writtenIndexes.overlaps(readIndexes)) {
-                graph.addEdge(equationDescriptor, writeInfo.getEquation(), Edge());
+                graph.addEdge(equationDescriptor, writeInfo.getEquation());
               }
             }
           }
@@ -565,6 +576,117 @@ namespace marco::modeling
         }
       }
 
+      MCIS inverseAccessRange(
+          const MultidimensionalRange& parentRange,
+          const AccessFunction& accessFunction,
+          const MultidimensionalRange& access)
+      {
+        MCIS result;
+
+        if (accessFunction.isInvertible()) {
+          auto mapped = accessFunction.inverseMap(access);
+          assert(accessFunction.map(mapped).contains(access));
+          result += std::move(mapped);
+          return result;
+        }
+
+        // If the access function is not invertible, then not all the iteration variables are
+        // used. This loss of information don't allow to reconstruct the equation ranges that
+        // leads to the dependency loop. Thus, we need to iterate on all the original equation
+        // points and determine which of them lead to a loop.
+
+        MCIS mcis;
+
+        for (const auto& point: parentRange) {
+          if (access.contains(accessFunction.map(point))) {
+            mcis += point;
+          }
+        }
+
+        return result;
+      }
+
+      void processRead(
+          std::vector<std::list<DFSStep>>& results,
+          std::list<DFSStep> steps,
+          AccessFunction composedAccess,
+          const WritesMap& writes,
+          const Equation& equation,
+          const Access& read)
+      {
+        assert(!steps.empty());
+
+        const auto& equationRange = steps.back().range;
+
+        const auto& accessFunction = read.getAccessFunction();
+        //composedAccess = composedAccess.combine(read.getAccessFunction());
+
+        auto readIndexes = accessFunction.map(equationRange);
+
+        // Get the equations writing into the read variable
+        auto writeInfos = writes.equal_range(read.getVariable());
+
+        for (const auto& [variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
+          const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+
+          // If the ranges do not overlap, then there is no loop involving the writing equation
+          if (!readIndexes.overlaps(writtenIndexes)) {
+            continue;
+          }
+
+          auto intersection = readIndexes.intersect(writtenIndexes);
+          const Equation& writingEquation = writeInfo.getEquation();
+
+          auto usedWritingEquationIndexes = inverseAccessRange(
+              writingEquation.getIterationRanges(),
+              writingEquation.getWrite().getAccessFunction(),
+              intersection);
+
+          for (const auto& range : usedWritingEquationIndexes) {
+            processEquation(results, steps, composedAccess, writes, writingEquation, range);
+          }
+
+
+          /*
+          if (variableId == steps.front().variable && composedAccess.isIdentity()) {
+            // Loop detected
+            results.push_back(steps);
+          } else {
+            processEquation(results, steps, composedAccess, writes, writeInfo.getEquation(), intersection);
+          }
+           */
+        }
+      }
+
+      void processEquation(
+          std::vector<std::list<DFSStep>>& results,
+          std::list<DFSStep> steps,
+          AccessFunction composedAccess,
+          const WritesMap& writes,
+          const Equation& equation,
+          const MultidimensionalRange& equationRange)
+      {
+        steps.emplace_back(equation, equationRange);
+        //auto writeFunction = equation.getWrite().getAccessFunction();
+        //assert(writeFunction.isInvertible());
+        //composedAccess = composedAccess.combine(writeFunction.inverse());
+
+        for (const Access& read : equation.getReads()) {
+          processRead(results, steps, composedAccess, writes, equation, read);
+        }
+      }
+
+      void processEquation(
+          std::vector<std::list<DFSStep>>& results,
+          const WritesMap& writes,
+          const Equation& equation)
+      {
+        std::list<DFSStep> steps;
+        auto equationRange = equation.getIterationRanges();
+        auto identityAccess = AccessFunction::identity(equation.getNumOfIterationVars());
+        processEquation(results, steps, identityAccess, writes, equation, equationRange);
+      }
+
       std::vector<SCC> getCircularDependencies()
       {
         std::vector<SCC> SCCs;
@@ -574,6 +696,14 @@ namespace marco::modeling
             std::vector<DependencyList> dependencies;
             auto writes = getWritesMap(graph, scc.begin(), scc.end());
 
+            for (const auto& equationDescriptor : scc) {
+              const Equation& equation = graph[equationDescriptor];
+              std::vector<std::list<DFSStep>> results;
+              processEquation(results, writes, equation);
+            }
+
+
+            /*
             for (const auto& equationDescriptor: scc) {
               const Equation& equation = graph[equationDescriptor];
               DependencyList dependencyList(equation.getProperty());
@@ -602,6 +732,11 @@ namespace marco::modeling
                         read,
                         graph[writeInfo.getEquation()]);
                   } else {
+                    // If the access function is not invertible, then not all the iteration variables are
+                    // used. This loss of information don't allow to reconstruct the equation ranges that
+                    // leads to the dependency loop. Thus we need to iterate on all the original equation
+                    // points and determine which of them lead to a loop.
+
                     MCIS mcis;
 
                     for (const auto& point: equationRange) {
@@ -619,8 +754,9 @@ namespace marco::modeling
 
               dependencies.push_back(std::move(dependencyList));
             }
+             */
 
-            SCCs.emplace_back(std::move(dependencies));
+            //SCCs.emplace_back(std::move(dependencies));
           }
         }
 
@@ -648,4 +784,4 @@ namespace marco::modeling
   };
 }
 
-#endif // MARCO_MODELING_VVARDEPENDENCYGRAPH_H
+#endif // MARCO_MODELING_SCC_H

@@ -131,13 +131,13 @@ namespace marco::modeling::internal
 
       virtual void clear() = 0;
 
-      virtual MCIS flattenEquations() const = 0;
+      virtual MCIS flattenRows() const = 0;
 
-      virtual MCIS flattenVariables() const = 0;
+      virtual MCIS flattenColumns() const = 0;
 
-      virtual std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const = 0;
+      virtual std::unique_ptr<MCIM::Impl> filterRows(const MCIS& filter) const = 0;
 
-      virtual std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const = 0;
+      virtual std::unique_ptr<MCIM::Impl> filterColumns(const MCIS& filter) const = 0;
 
       virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
 
@@ -292,13 +292,13 @@ namespace marco::modeling::internal
 
       void clear() override;
 
-      MCIS flattenEquations() const override;
+      MCIS flattenRows() const override;
 
-      MCIS flattenVariables() const override;
+      MCIS flattenColumns() const override;
 
-      std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
+      std::unique_ptr<MCIM::Impl> filterRows(const MCIS& filter) const override;
 
-      std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+      std::unique_ptr<MCIM::Impl> filterColumns(const MCIS& filter) const override;
 
       std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
@@ -572,7 +572,7 @@ namespace marco::modeling::internal
     groups.clear();
   }
 
-  MCIS RegularMCIM::flattenEquations() const
+  MCIS RegularMCIM::flattenRows() const
   {
     MCIS result;
 
@@ -583,7 +583,7 @@ namespace marco::modeling::internal
     return result;
   }
 
-  MCIS RegularMCIM::flattenVariables() const
+  MCIS RegularMCIM::flattenColumns() const
   {
     MCIS result;
 
@@ -594,7 +594,7 @@ namespace marco::modeling::internal
     return result;
   }
 
-  std::unique_ptr<MCIM::Impl> RegularMCIM::filterEquations(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> RegularMCIM::filterRows(const MCIS& filter) const
   {
     auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
@@ -607,7 +607,7 @@ namespace marco::modeling::internal
     return result;
   }
 
-  std::unique_ptr<MCIM::Impl> RegularMCIM::filterVariables(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> RegularMCIM::filterColumns(const MCIS& filter) const
   {
     auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
@@ -733,13 +733,13 @@ namespace marco::modeling::internal
 
       void clear() override;
 
-      MCIS flattenEquations() const override;
+      MCIS flattenRows() const override;
 
-      MCIS flattenVariables() const override;
+      MCIS flattenColumns() const override;
 
-      std::unique_ptr<MCIM::Impl> filterEquations(const MCIS& filter) const override;
+      std::unique_ptr<MCIM::Impl> filterRows(const MCIS& filter) const override;
 
-      std::unique_ptr<MCIM::Impl> filterVariables(const MCIS& filter) const override;
+      std::unique_ptr<MCIM::Impl> filterColumns(const MCIS& filter) const override;
 
       std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
@@ -1156,7 +1156,7 @@ namespace marco::modeling::internal
     groups.clear();
   }
 
-  MCIS FlatMCIM::flattenEquations() const
+  MCIS FlatMCIM::flattenRows() const
   {
     MCIS result;
 
@@ -1167,7 +1167,7 @@ namespace marco::modeling::internal
     return unflattenMCIS(result, getVariableRanges(), variableDimensions);
   }
 
-  MCIS FlatMCIM::flattenVariables() const
+  MCIS FlatMCIM::flattenColumns() const
   {
     MCIS result;
 
@@ -1178,7 +1178,7 @@ namespace marco::modeling::internal
     return unflattenMCIS(result, getEquationRanges(), equationDimensions);
   }
 
-  std::unique_ptr<MCIM::Impl> FlatMCIM::filterEquations(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> FlatMCIM::filterRows(const MCIS& filter) const
   {
     MCIS flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
@@ -1192,7 +1192,7 @@ namespace marco::modeling::internal
     return result;
   }
 
-  std::unique_ptr<MCIM::Impl> FlatMCIM::filterVariables(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> FlatMCIM::filterColumns(const MCIS& filter) const
   {
     MCIS flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
@@ -1400,24 +1400,24 @@ namespace marco::modeling::internal
     impl->clear();
   }
 
-  MCIS MCIM::flattenEquations() const
+  MCIS MCIM::flattenRows() const
   {
-    return impl->flattenEquations();
+    return impl->flattenRows();
   }
 
-  MCIS MCIM::flattenVariables() const
+  MCIS MCIM::flattenColumns() const
   {
-    return impl->flattenVariables();
+    return impl->flattenColumns();
   }
 
-  MCIM MCIM::filterEquations(const MCIS& filter) const
+  MCIM MCIM::filterRows(const MCIS& filter) const
   {
-    return MCIM(impl->filterEquations(filter));
+    return MCIM(impl->filterRows(filter));
   }
 
-  MCIM MCIM::filterVariables(const MCIS& filter) const
+  MCIM MCIM::filterColumns(const MCIS& filter) const
   {
-    return MCIM(impl->filterVariables(filter));
+    return MCIM(impl->filterColumns(filter));
   }
 
   std::vector<MCIM> MCIM::splitGroups() const

@@ -85,6 +85,16 @@ namespace marco::modeling
   {
   }
 
+  AccessFunction AccessFunction::identity(size_t dimensionality)
+  {
+    llvm::SmallVector<DimensionAccess, 3> accesses;
+
+    for (size_t i = 0; i < dimensionality; ++i)
+      accesses.push_back(DimensionAccess::relative(i, 0));
+
+    return AccessFunction(std::move(accesses));
+  }
+
   const DimensionAccess& AccessFunction::operator[](size_t index) const
   {
     assert(index < size());

@@ -1226,8 +1226,8 @@ namespace marco::modeling
             Variable& variable = isVariable(v1) ? getVariable(v1) : getVariable(v2);
             Equation& equation = isEquation(v1) ? getEquation(v1) : getEquation(v2);
 
-            variable.addMatch(matchOptions[0].flattenEquations());
-            equation.addMatch(matchOptions[0].flattenVariables());
+            variable.addMatch(matchOptions[0].flattenRows());
+            equation.addMatch(matchOptions[0].flattenColumns());
 
             auto allComponentsMatchedVisitor = [](const auto& vertex) -> bool {
               return vertex.allComponentsMatched();
@@ -1331,7 +1331,7 @@ namespace marco::modeling
               result.emplace_back(
                   getEquation(equationDescriptor).getProperty(),
                   getVariable(variableDescriptor).getProperty(),
-                  matched.flattenVariables(),
+                  matched.flattenColumns(),
                   edge.getAccessProperty());
             }
           }
@@ -1472,27 +1472,27 @@ namespace marco::modeling
               if (isEquation(vertexDescriptor)) {
                 assert(isVariable(nextNode));
                 auto unmatchedMatrix = edge.getUnmatched();
-                auto filteredMatrix = unmatchedMatrix.filterEquations(step.getCandidates());
+                auto filteredMatrix = unmatchedMatrix.filterRows(step.getCandidates());
                 internal::LocalMatchingSolutions solutions = internal::solveLocalMatchingProblem(filteredMatrix);
 
                 for (auto solution : solutions) {
                   Variable var = getVariable(edgeDescriptor.to);
                   auto unmatchedScalarVariables = var.getUnmatched();
-                  auto matched = solution.filterVariables(unmatchedScalarVariables);
+                  auto matched = solution.filterColumns(unmatchedScalarVariables);
 
                   if (!matched.empty()) {
-                    foundPaths.emplace(graph, step, edgeDescriptor, nextNode, matched.flattenEquations(), matched);
+                    foundPaths.emplace(graph, step, edgeDescriptor, nextNode, matched.flattenRows(), matched);
                   } else {
-                    newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenEquations(), solution);
+                    newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenRows(), solution);
                   }
                 }
               } else {
                 assert(isEquation(nextNode));
-                auto filteredMatrix = edge.getMatched().filterVariables(step.getCandidates());
+                auto filteredMatrix = edge.getMatched().filterColumns(step.getCandidates());
                 internal::LocalMatchingSolutions solutions = internal::solveLocalMatchingProblem(filteredMatrix);
 
                 for (auto solution : solutions) {
-                  newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenVariables(), solution);
+                  newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenColumns(), solution);
                 }
               }
             }
@@ -1534,16 +1534,16 @@ namespace marco::modeling
                 const auto& prevMap = flows.front().delta;
 
                 if (isVariable(curStep->getNode())) {
-                  map = curStep->getMappedFlow().filterVariables(prevMap.flattenEquations());
+                  map = curStep->getMappedFlow().filterColumns(prevMap.flattenRows());
                 } else {
-                  map = curStep->getMappedFlow().filterEquations(prevMap.flattenVariables());
+                  map = curStep->getMappedFlow().filterRows(prevMap.flattenColumns());
                 }
               }
 
               flows.emplace(flows.begin(), graph, curStep->getPrevious().getNode(), curStep->getEdge(), map);
             }
 
-            auto touchedIndexes = isVariable(curStep->getNode()) ? map.flattenEquations() : map.flattenVariables();
+            auto touchedIndexes = isVariable(curStep->getNode()) ? map.flattenRows() : map.flattenColumns();
 
             if (auto it = visited.find(curStep->getNode()); it != visited.end()) {
               auto& alreadyTouchedIndices = it->second;
@@ -1602,8 +1602,8 @@ namespace marco::modeling
           VertexDescriptor from = flow.source;
           VertexDescriptor to = flow.edge.from == from ? flow.edge.to : flow.edge.from;
 
-          auto deltaEquations = flow.delta.flattenVariables();
-          auto deltaVariables = flow.delta.flattenEquations();
+          auto deltaEquations = flow.delta.flattenColumns();
+          auto deltaVariables = flow.delta.flattenRows();
 
           if (isVariable(from)) {
             // Backward node
