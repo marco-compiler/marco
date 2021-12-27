@@ -80,6 +80,26 @@ namespace marco::modeling
     return Range(sourceRange.getBegin() + getOffset(), sourceRange.getEnd() + getOffset());
   }
 
+  std::ostream& operator<<(std::ostream& stream, const DimensionAccess& obj)
+  {
+    stream << "[";
+
+    if (obj.isConstantAccess()) {
+      stream << obj.getPosition();
+    } else {
+      stream << "i" << obj.getInductionVariableIndex();
+
+      if (auto offset = obj.getOffset(); offset > 0) {
+        stream << " + " << offset;
+      } else if (offset < 0) {
+        stream << " - " << (-1 * offset);
+      }
+    }
+
+    stream << "]";
+    return stream;
+  }
+
   AccessFunction::AccessFunction(llvm::ArrayRef<DimensionAccess> functions)
       : functions(functions.begin(), functions.end())
   {
@@ -219,5 +239,17 @@ namespace marco::modeling
   MultidimensionalRange AccessFunction::inverseMap(const MultidimensionalRange& range) const
   {
     return inverse().map(range);
+  }
+
+  std::ostream& operator<<(std::ostream& stream, const AccessFunction& obj)
+  {
+    stream << "[";
+
+    for (const auto& access : obj) {
+      stream << access;
+    }
+
+    stream << "]";
+    return stream;
   }
 }

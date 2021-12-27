@@ -1,6 +1,7 @@
 #ifndef MARCO_MODELING_ACCESSFUNCTION_H
 #define MARCO_MODELING_ACCESSFUNCTION_H
 
+#include <iostream>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 
@@ -63,6 +64,8 @@ namespace marco::modeling
       unsigned int inductionVariableIndex;
   };
 
+  std::ostream& operator<<(std::ostream& stream, const DimensionAccess& obj);
+
   /**
    * The access function describes how an array variable is accessed.
    */
@@ -79,7 +82,7 @@ namespace marco::modeling
       AccessFunction(llvm::ArrayRef<DimensionAccess> functions);
 
       // TODO test
-      static AccessFunction::identity(size_t dimensionality);
+      static AccessFunction identity(size_t dimensionality);
 
       const DimensionAccess& operator[](size_t index) const;
 
@@ -127,6 +130,8 @@ namespace marco::modeling
     private:
       Container functions;
   };
+
+  std::ostream& operator<<(std::ostream& stream, const AccessFunction& obj);
 }
 
 #endif  // MARCO_MODELING_ACCESSFUNCTION_H
