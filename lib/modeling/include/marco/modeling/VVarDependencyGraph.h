@@ -66,6 +66,9 @@ namespace marco::modeling
 
   namespace internal::scc
   {
+    /**
+     * Fallback access property, in case the user didn't provide one.
+     */
     class EmptyAccessProperty
     {
     };
@@ -420,7 +423,7 @@ namespace marco::modeling
     class DFSStep
     {
       public:
-        DFSStep(VariableId variable, Equation equation, MultidimensionalRange range, Access access)
+        DFSStep(VariableId variable, Equation equation, MCIS range, Access access)
           : variable(std::move(variable)),
             equation(std::move(equation)),
             range(std::move(range)),
@@ -431,7 +434,7 @@ namespace marco::modeling
       //private:
         VariableId variable;
         Equation equation;
-        MultidimensionalRange range;
+        MCIS range;
         Access access;
     };
   }
@@ -581,27 +584,29 @@ namespace marco::modeling
       }
 
       MCIS inverseAccessRange(
-          const MultidimensionalRange& parentRange,
+          const MCIS& parentRange,
           const AccessFunction& accessFunction,
-          const MultidimensionalRange& access) const
+          const MCIS& access) const
       {
-        MCIS result;
-
         if (accessFunction.isInvertible()) {
           auto mapped = accessFunction.inverseMap(access);
           assert(accessFunction.map(mapped).contains(access));
-          result += std::move(mapped);
-          return result;
+          return mapped;
         }
 
         // If the access function is not invertible, then not all the iteration variables are
         // used. This loss of information don't allow to reconstruct the equation ranges that
         // leads to the dependency loop. Thus, we need to iterate on all the original equation
-        // points and determine which of them lead to a loop.
+        // points and determine which of them lead to a loop. This is highly expensive but also
+        // inevitable, and confined only to very few cases within real scenarios.
 
-        for (const auto& point: parentRange) {
-          if (access.contains(accessFunction.map(point))) {
-            result += point;
+        MCIS result;
+
+        for (const auto& range : parentRange) {
+          for (const auto& point: range) {
+            if (access.contains(accessFunction.map(point))) {
+              result += point;
+            }
           }
         }
 
@@ -614,7 +619,7 @@ namespace marco::modeling
           const ConnectedGraph& graph,
           const WritesMap& writes,
           const Equation& equation,
-          const MultidimensionalRange& equationRange,
+          const MCIS& equationRange,
           const Access& read) const
       {
         steps.emplace_back(equation.getWrite().getVariable(), equation, equationRange, read);
@@ -635,15 +640,14 @@ namespace marco::modeling
 
           auto intersection = readIndexes.intersect(writtenIndexes);
           const Equation& writingEquation = graph[writeInfo.getEquation()];
+          MCIS writingEquationIndexes(writingEquation.getIterationRanges());
 
           auto usedWritingEquationIndexes = inverseAccessRange(
-              writingEquation.getIterationRanges(),
+              writingEquationIndexes,
               writingEquation.getWrite().getAccessFunction(),
               intersection);
 
-          for (const auto& range : usedWritingEquationIndexes) {
-            processEquation(results, steps, graph, writes, writingEquation, range);
-          }
+          processEquation(results, steps, graph, writes, writingEquation, usedWritingEquationIndexes);
         }
       }
 
@@ -653,7 +657,7 @@ namespace marco::modeling
           const ConnectedGraph& graph,
           const WritesMap& writes,
           const Equation& equation,
-          const MultidimensionalRange& equationRange) const
+          const MCIS& equationRange) const
       {
         if (!steps.empty()) {
           if (steps.front().equation.getId() == equation.getId() && steps.front().range.contains(equationRange)) {
@@ -665,10 +669,7 @@ namespace marco::modeling
 
             for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
               auto readAccessFunction = it->access.getAccessFunction();
-
-              auto restricted = inverseAccessRange(it->range, readAccessFunction, previouslyWrittenIndexes);
-              // TODO: can we avoid [0] ?
-              it->range = restricted[0];
+              it->range = inverseAccessRange(it->range, readAccessFunction, previouslyWrittenIndexes);
 
               previousWriteAccessFunction = it->equation.getWrite().getAccessFunction();
               previouslyWrittenIndexes = previousWriteAccessFunction.map(it->range);
@@ -714,9 +715,9 @@ namespace marco::modeling
         std::list<DFSStep> steps;
 
         // The first equation starts with the full range, as it has no predecessors
-        auto equationRange = equation.getIterationRanges();
+        MCIS range(equation.getIterationRanges());
 
-        processEquation(results, steps, graph, writes, equation, equationRange);
+        processEquation(results, steps, graph, writes, equation, range);
       }
 
       std::vector<SCC> getCircularDependencies() const

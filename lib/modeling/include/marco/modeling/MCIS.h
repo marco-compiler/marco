@@ -1,10 +1,10 @@
 #ifndef MARCO_MODELING_MCIS_H
-  #define MARCO_MODELING_MCIM_H
+#define MARCO_MODELING_MCIS_H
 
-  #include <list>
-  #include <llvm/ADT/ArrayRef.h>
+#include <list>
+#include <llvm/ADT/ArrayRef.h>
 
-  #include "MultidimensionalRange.h"
+#include "MultidimensionalRange.h"
 
 namespace marco::modeling::internal
 {
@@ -69,6 +69,8 @@ namespace marco::modeling::internal
 
       bool overlaps(const MCIS& other) const;
 
+      MCIS intersect(const MultidimensionalRange& other) const;
+
       MCIS intersect(const MCIS& other) const;
 
       MCIS complement(const MultidimensionalRange& other) const;
@@ -82,4 +84,4 @@ namespace marco::modeling::internal
   };
 }
 
-#endif  // MARCO_MODELING_MCIM_H
+#endif  // MARCO_MODELING_MCIS_H

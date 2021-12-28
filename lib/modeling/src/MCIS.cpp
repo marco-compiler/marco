@@ -269,6 +269,19 @@ namespace marco::modeling::internal
     return false;
   }
 
+  MCIS MCIS::intersect(const MultidimensionalRange& other) const
+  {
+    MCIS result;
+
+    for (const auto& range : ranges) {
+      if (range.overlaps(other)) {
+        result += range.intersect(other);
+      }
+    }
+
+    return result;
+  }
+
   MCIS MCIS::intersect(const MCIS& other) const
   {
     MCIS result;
@@ -364,7 +377,6 @@ namespace marco::modeling::internal
 
         positionSeparator = true;
         stream << indexes;
-        stream << ")";
       }
     }
 

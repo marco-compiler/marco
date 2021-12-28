@@ -5,6 +5,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 
+#include "MCIS.h"
 #include "MultidimensionalRange.h"
 
 namespace marco::modeling
@@ -74,6 +75,7 @@ namespace marco::modeling
     private:
       using Point = internal::Point;
       using MultidimensionalRange = internal::MultidimensionalRange;
+      using MCIS = internal::MCIS;
       using Container = llvm::SmallVector<DimensionAccess, 3>;
 
     public:
@@ -125,7 +127,11 @@ namespace marco::modeling
        */
       MultidimensionalRange map(const MultidimensionalRange& range) const;
 
+      MCIS map(const MCIS& indexes) const;
+
       MultidimensionalRange inverseMap(const MultidimensionalRange& range) const;
+
+      MCIS inverseMap(const MCIS& indexes) const;
 
     private:
       Container functions;

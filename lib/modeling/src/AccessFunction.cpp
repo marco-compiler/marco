@@ -236,9 +236,24 @@ namespace marco::modeling
     return MultidimensionalRange(std::move(ranges));
   }
 
+  MCIS AccessFunction::map(const MCIS& indexes) const
+  {
+    MCIS result;
+
+    for (const auto& range : indexes)
+      result += map(range);
+
+    return result;
+  }
+
   MultidimensionalRange AccessFunction::inverseMap(const MultidimensionalRange& range) const
   {
     return inverse().map(range);
+  }
+
+  MCIS AccessFunction::inverseMap(const MCIS& indexes) const
+  {
+    return inverse().map(indexes);
   }
 
   std::ostream& operator<<(std::ostream& stream, const AccessFunction& obj)
