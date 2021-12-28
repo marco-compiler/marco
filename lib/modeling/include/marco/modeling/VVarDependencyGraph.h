@@ -583,7 +583,7 @@ namespace marco::modeling
       MCIS inverseAccessRange(
           const MultidimensionalRange& parentRange,
           const AccessFunction& accessFunction,
-          const MultidimensionalRange& access)
+          const MultidimensionalRange& access) const
       {
         MCIS result;
 
@@ -599,11 +599,9 @@ namespace marco::modeling
         // leads to the dependency loop. Thus, we need to iterate on all the original equation
         // points and determine which of them lead to a loop.
 
-        MCIS mcis;
-
         for (const auto& point: parentRange) {
           if (access.contains(accessFunction.map(point))) {
-            mcis += point;
+            result += point;
           }
         }
 
@@ -617,7 +615,7 @@ namespace marco::modeling
           const WritesMap& writes,
           const Equation& equation,
           const MultidimensionalRange& equationRange,
-          const Access& read)
+          const Access& read) const
       {
         steps.emplace_back(equation.getWrite().getVariable(), equation, equationRange, read);
 
@@ -649,53 +647,58 @@ namespace marco::modeling
         }
       }
 
-      void restrictFlow(std::list<DFSStep>& steps)
-      {
-        auto previous = steps.rbegin();
-
-        for (auto it = std::next(steps.rbegin()); it != steps.rend(); ++it) {
-          const auto& accessFunction = it->access.getAccessFunction();
-          auto range = inverseAccessRange(it->range, accessFunction, previous->range);
-          //std::cout << "MCIS: " << range << "\n";
-          //assert(range.size() == 1);
-          it->range = range[0];
-
-          //it->range = it->access.getAccessFunction().map(previous->range);
-
-          previous = it;
-        }
-      }
-
       void processEquation(
           std::vector<std::list<DFSStep>>& results,
           std::list<DFSStep> steps,
           const ConnectedGraph& graph,
           const WritesMap& writes,
           const Equation& equation,
-          const MultidimensionalRange& equationRange)
+          const MultidimensionalRange& equationRange) const
       {
-        if (steps.size() > 1) {
-          const auto& firstEquation = steps.front().equation;
-          const auto& firstRange = steps.front().range;
-
+        if (!steps.empty()) {
           if (steps.front().equation.getId() == equation.getId() && steps.front().range.contains(equationRange)) {
-            restrictFlow(steps);
+            // The first and current equation are the same and the first range contains the current one, so the path
+            // is a loop candidate. Restrict the flow (starting from the end) and see if it holds true.
+
+            auto previousWriteAccessFunction = equation.getWrite().getAccessFunction();
+            auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationRange);
+
+            for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
+              auto readAccessFunction = it->access.getAccessFunction();
+
+              auto restricted = inverseAccessRange(it->range, readAccessFunction, previouslyWrittenIndexes);
+              // TODO: can we avoid [0] ?
+              it->range = restricted[0];
+
+              previousWriteAccessFunction = it->equation.getWrite().getAccessFunction();
+              previouslyWrittenIndexes = previousWriteAccessFunction.map(it->range);
+            }
 
             if (steps.front().range == equationRange) {
-              // Loop detected
-              results.push_back(steps);
+              // If the two ranges are the same, then a loop has been detected for what regards the variable defined
+              // by the first equation.
+
+              results.push_back(std::move(steps));
               return;
             }
           }
+
+          // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
+          // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
+          // the (infinite) tree. Two steps are considered to be equal if they traverse the same equation with the
+          // same iteration indexes.
+
+          auto equalStep = std::find_if(std::next(steps.rbegin()), steps.rend(), [&](const DFSStep& step) {
+            return step.equation.getId() == equation.getId() && step.range == equationRange;
+          });
+
+          if (equalStep != steps.rend()) {
+            return;
+          }
         }
 
-        auto equalStep = std::find_if(std::next(steps.rbegin()), steps.rend(), [&](const DFSStep& step) {
-          return step.equation.getId() == equation.getId() && step.range == equationRange;
-        });
-
-        if (equalStep != steps.rend()) {
-          return;
-        }
+        // The reached equation does not lead to loops, so we can proceed visiting its children (that are the
+        // equations it depends on).
 
         for (const Access& read : equation.getReads()) {
           processRead(results, steps, graph, writes, equation, equationRange, read);
@@ -706,14 +709,17 @@ namespace marco::modeling
           std::vector<std::list<DFSStep>>& results,
           const ConnectedGraph& graph,
           const WritesMap& writes,
-          const Equation& equation)
+          const Equation& equation) const
       {
         std::list<DFSStep> steps;
+
+        // The first equation starts with the full range, as it has no predecessors
         auto equationRange = equation.getIterationRanges();
+
         processEquation(results, steps, graph, writes, equation, equationRange);
       }
 
-      std::vector<SCC> getCircularDependencies()
+      std::vector<SCC> getCircularDependencies() const
       {
         std::vector<SCC> SCCs;
 
@@ -747,8 +753,16 @@ namespace marco::modeling
       }
 
     private:
+      /**
+       * Map each array variable to the equations that write into some of its scalar positions.
+       *
+       * @param graph           graph containing the equation
+       * @param equationsBegin  beginning of the equations list
+       * @param equationsEnd    ending of the equations list
+       * @return variable - equations map
+       */
       template<typename Graph, typename It>
-      WritesMap getWritesMap(const Graph& graph, It equationsBegin, It equationsEnd)
+      WritesMap getWritesMap(const Graph& graph, It equationsBegin, It equationsEnd) const
       {
         WritesMap result;
 

@@ -20,3 +20,11 @@ TEST(VVarDependencyGraph, test2)
   auto SCCs = graph.getCircularDependencies();
   std::cout << "Number of SCCs: " << SCCs.size() << "\n";
 }
+
+TEST(VVarDependencyGraph, test3)
+{
+  std::cout << "TEST CASE 3\n";
+  auto graph = testCase3();
+  auto SCCs = graph.getCircularDependencies();
+  std::cout << "Number of SCCs: " << SCCs.size() << "\n";
+}

@@ -71,4 +71,42 @@ namespace marco::modeling::scc::test
 
     return VVarDependencyGraph<Variable, Equation>({eq1, eq2, eq3});
   }
+
+  VVarDependencyGraph<Variable, Equation> testCase3()
+  {
+    using Access = Access<Variable>;
+
+    Variable x("x");
+    Variable y("y");
+
+    Equation eq1(
+        "eq1",
+        Access(x, AccessFunction(DimensionAccess::relative(0, -1))),
+        {
+            Access(y, AccessFunction(DimensionAccess::relative(0, -3))),
+            Access(y, AccessFunction(DimensionAccess::relative(0, -2)))
+        });
+
+    eq1.addIterationRange(Range(4, 7));
+
+    Equation eq2(
+        "eq2",
+        Access(y, AccessFunction(DimensionAccess::relative(0, 0))),
+        {
+            Access(x, AccessFunction(DimensionAccess::relative(0, 2)))
+        });
+
+    eq2.addIterationRange(Range(1, 4));
+
+    Equation eq3(
+        "eq3",
+        Access(y, AccessFunction(DimensionAccess::relative(0, 0))),
+        {
+            Access(x, AccessFunction(DimensionAccess::relative(0, -1)))
+        });
+
+    eq3.addIterationRange(Range(4, 5));
+
+    return VVarDependencyGraph<Variable, Equation>({eq1, eq2, eq3});
+  }
 }
