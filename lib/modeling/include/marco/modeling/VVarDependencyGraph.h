@@ -173,6 +173,11 @@ namespace marco::modeling
         {
         }
 
+        bool operator==(const EquationVertex& other) const
+        {
+          return getId() == other.getId();
+        }
+
         EquationProperty& getProperty()
         {
           return property;
@@ -249,108 +254,6 @@ namespace marco::modeling
       private:
         EquationDescriptor equation;
         MultidimensionalRange writtenVariableIndexes;
-    };
-
-    template<typename EquationProperty, typename Access>
-    class DependencyList
-    {
-      public:
-        class Interval
-        {
-          private:
-            using Destination = std::pair<Access, EquationProperty>;
-            using Container = std::vector<Destination>;
-
-          public:
-            Interval(MultidimensionalRange range, llvm::ArrayRef<Destination> destinations)
-                : range(std::move(range)), destinations(destinations.begin(), destinations.end())
-            {
-            }
-
-            Interval(MultidimensionalRange range, Access access, EquationProperty destination)
-                : range(std::move(range))
-            {
-              destinations.emplace_back(std::move(access), std::move(destination));
-            }
-
-            const MultidimensionalRange& getRange() const
-            {
-              return range;
-            }
-
-            llvm::ArrayRef<Destination> getDestinations() const
-            {
-              return destinations;
-            }
-
-            void addDestination(Access access, EquationProperty equation)
-            {
-              destinations.emplace_back(std::move(access), std::move(equation));
-            }
-
-          private:
-            MultidimensionalRange range;
-            Container destinations;
-        };
-
-        DependencyList(EquationProperty source)
-            : source(std::move(source))
-        {
-        }
-
-        const EquationProperty& getSource() const
-        {
-          return source;
-        }
-
-        void addDestination(MultidimensionalRange range, Access access, EquationProperty equation)
-        {
-          std::vector<Interval> newIntervals;
-          MCIS mcis(range);
-
-          for (const Interval& interval: intervals) {
-            if (!interval.getRange().overlaps(range)) {
-              continue;
-            }
-
-            mcis -= interval.getRange();
-
-            for (const auto& subRange: interval.getRange().subtract(range)) {
-              newIntervals.emplace_back(subRange, interval.getDestinations());
-            }
-
-            Interval newInterval(interval.getRange().intersect(range), interval.getDestinations());
-            newInterval.addDestination(access, equation);
-            newIntervals.push_back(std::move(newInterval));
-          }
-
-          for (const auto& subRange: mcis) {
-            newIntervals.emplace_back(subRange, access, equation);
-          }
-
-          intervals = newIntervals;
-        }
-
-      private:
-        EquationProperty source;
-        std::vector<Interval> intervals;
-    };
-
-    template<typename Dependence>
-    class SCC
-    {
-      public:
-        SCC(llvm::ArrayRef<Dependence> dependencies) : dependencies(dependencies.begin(), dependencies.end())
-        {
-        }
-
-        llvm::ArrayRef<Dependence> getDependencies() const
-        {
-          return dependencies;
-        }
-
-      private:
-        std::vector<Dependence> dependencies;
     };
 
     template<typename VertexProperty>
@@ -436,6 +339,192 @@ namespace marco::modeling
         Equation equation;
         MCIS range;
         Access access;
+    };
+
+    template<typename VariableId, typename Equation, typename Access>
+    class Node
+    {
+      private:
+        class Dependency
+        {
+          public:
+            Dependency(Access access, std::unique_ptr<Node> node)
+              : access(std::move(access)), node(std::move(node))
+            {
+            }
+
+            Dependency(const Dependency& other)
+                : access(other.access), node(std::make_unique<Node>(*other.node))
+            {
+            }
+
+            Dependency(Dependency&& other) = default;
+
+            ~Dependency() = default;
+
+            friend void swap(Dependency& first, Dependency& second)
+            {
+              using std::swap;
+              swap(first.access, second.access);
+              swap(first.node, second.node);
+            }
+
+            Dependency& operator=(const Dependency& other)
+            {
+              Dependency result(other);
+              swap(*this, result);
+              return *this;
+            }
+
+            const Access& getAccess() const
+            {
+              return access;
+            }
+
+            Node& getNode()
+            {
+              assert(node != nullptr);
+              return *node;
+            }
+
+            const Node& getNode() const
+            {
+              assert(node != nullptr);
+              return *node;
+            }
+
+          private:
+            Access access;
+            std::unique_ptr<Node> node;
+        };
+
+        class Interval
+        {
+          public:
+            using Container = std::vector<Dependency>;
+
+          public:
+            Interval(MultidimensionalRange range, llvm::ArrayRef<Dependency> destinations)
+                : range(std::move(range)), destinations(destinations.begin(), destinations.end())
+            {
+            }
+
+            Interval(MultidimensionalRange range, Access access, std::unique_ptr<Node> destination)
+                : range(std::move(range))
+            {
+              destinations.emplace_back(std::move(access), std::move(destination));
+            }
+
+            const MultidimensionalRange& getRange() const
+            {
+              return range;
+            }
+
+            llvm::ArrayRef<Dependency> getDestinations() const
+            {
+              return destinations;
+            }
+
+            void addDestination(Access access, std::unique_ptr<Node> destination)
+            {
+              destinations.emplace_back(std::move(access), std::move(destination));
+            }
+
+          private:
+            MultidimensionalRange range;
+            Container destinations;
+        };
+
+        using Container = std::vector<Interval>;
+
+      public:
+        using const_iterator = typename Container::const_iterator;
+        using EquationProperty = typename Equation::Property;
+        using Step = DFSStep<VariableId, Equation, Access>;
+
+        Node(Equation equation) : equation(std::move(equation))
+        {
+        }
+
+        const EquationProperty& getEquation() const
+        {
+          return equation.getProperty();
+        }
+
+        const_iterator begin() const
+        {
+          return intervals.begin();
+        }
+
+        const_iterator end() const
+        {
+          return intervals.end();
+        }
+
+        template<typename It>
+        void addListIt(It step, It end)
+        {
+          if (step == end)
+            return;
+
+          if (auto next = std::next(step); next != end) {
+            Container newIntervals;
+            MCIS range = step->range;
+
+            for (const auto& interval: intervals) {
+              if (!range.overlaps(interval.getRange())) {
+                newIntervals.push_back(interval);
+                continue;
+              }
+
+              MCIS restrictedRanges(interval.getRange());
+              restrictedRanges -= range;
+
+              for (const auto& restrictedRange: restrictedRanges) {
+                newIntervals.emplace_back(restrictedRange, interval.getDestinations());
+              }
+
+              for (const MultidimensionalRange& intersectingRange : range.intersect(interval.getRange())) {
+                range -= intersectingRange;
+
+                llvm::ArrayRef<Dependency> dependencies = interval.getDestinations();
+                std::vector<Dependency> newDependencies(dependencies.begin(), dependencies.end());
+
+                auto dependency = llvm::find_if(newDependencies, [&](const Dependency& dependency) {
+                  return dependency.getNode().equation == step->equation;
+                });
+
+                if (dependency == newDependencies.end()) {
+                  auto& newDependency = newDependencies.emplace_back(step->access, std::make_unique<Node>(next->equation));
+                  newDependency.getNode().addListIt(next, end);
+                } else {
+                  dependency->getNode().addListIt(next, end);
+                }
+
+                Interval newInterval(intersectingRange, newDependencies);
+                newIntervals.push_back(std::move(newInterval));
+              }
+            }
+
+            for (const auto& subRange: range) {
+              std::vector<Dependency> dependencies;
+              auto& dependency = dependencies.emplace_back(step->access, std::make_unique<Node>(next->equation));
+              dependency.getNode().addListIt(next, end);
+              newIntervals.emplace_back(subRange, dependencies);
+            }
+
+            intervals = std::move(newIntervals);
+          }
+        }
+
+        void addList(const std::list<Step>& steps)
+        {
+          addListIt(steps.begin(), steps.end());
+        }
+
+      private:
+        Equation equation;
+        Container intervals;
     };
   }
 }
@@ -529,12 +618,9 @@ namespace marco::modeling
       using AccessProperty = typename Equation::Access::Property;
       using Access = scc::Access<VariableProperty, AccessProperty>;
       using WriteInfo = internal::scc::WriteInfo<EquationDescriptor>;
-
-      using DependencyList = internal::scc::DependencyList<Equation, Access>;
-      using SCC = internal::scc::SCC<DependencyList>;
-
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
       using DFSStep = internal::scc::DFSStep<typename Variable::Id, Equation, Access>;
+      using Node = internal::scc::Node<typename Variable::Id, Equation, Access>;
 
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
@@ -720,13 +806,10 @@ namespace marco::modeling
         processEquation(results, steps, graph, writes, equation, range);
       }
 
-      std::vector<SCC> getCircularDependencies() const
+      void getCircularDependencies() const
       {
-        std::vector<SCC> SCCs;
-
         for (const auto& graph: graphs) {
           for (auto scc: llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
-            std::vector<DependencyList> dependencies;
             auto writes = getWritesMap(graph, scc.begin(), scc.end());
 
             for (const auto& equationDescriptor : scc) {
@@ -734,9 +817,9 @@ namespace marco::modeling
               std::vector<std::list<DFSStep>> results;
               processEquation(results, graph, writes, equation);
 
-
               for (const auto& l : results) {
-                std::cout << "SCC\n";
+                std::cout << "SCC from ";
+                std::cout << equation.getId() << "\n";
 
                 for (const auto& step : l) {
                   std::cout << "id: " << step.equation.getId() << "\n";
@@ -746,11 +829,17 @@ namespace marco::modeling
 
                 std::cout << "\n";
               }
+
+              Node dependencyList(equation);
+
+              for (const auto& list : results) {
+                dependencyList.addList(list);
+              }
+
+              std::cout << "Done";
             }
           }
         }
-
-        return SCCs;
       }
 
     private:
