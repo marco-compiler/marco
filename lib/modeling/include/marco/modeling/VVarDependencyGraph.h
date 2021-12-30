@@ -4,6 +4,7 @@
 #include <list>
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/SCCIterator.h>
+#include <marco/utils/TreeOStream.h>
 #include <stack>
 
 #include "AccessFunction.h"
@@ -323,22 +324,61 @@ namespace marco::modeling
     };
 
     template<typename VariableId, typename Equation, typename Access>
-    class DFSStep
+    class DFSStep : public Dumpable
     {
       public:
-        DFSStep(VariableId variable, Equation equation, MCIS range, Access access)
-          : variable(std::move(variable)),
+        DFSStep(VariableId writtenVariable, Equation equation, MCIS equationIndexes, Access read)
+          : writtenVariable(std::move(writtenVariable)),
             equation(std::move(equation)),
-            range(std::move(range)),
-            access(std::move(access))
+            equationIndexes(std::move(equationIndexes)),
+            read(std::move(read))
         {
         }
 
-      //private:
-        VariableId variable;
+        using Dumpable::dump;
+
+        void dump(std::ostream& stream) const override
+        {
+          using namespace marco::utils;
+
+          TreeOStream os(stream);
+          os << "DFS step\n";
+          os << tree_property << "Written variable: " << writtenVariable << "\n";
+          os << tree_property << "Writing equation: " << equation.getId() << "\n";
+          os << tree_property << "Filtered equation indexes: " << equationIndexes << "\n";
+          os << tree_property << "Read access: " << read.getAccessFunction() << "\n";
+        }
+
+        const VariableId& getWrittenVariable() const
+        {
+          return writtenVariable;
+        }
+
+        const Equation& getEquation() const
+        {
+          return equation;
+        }
+
+        const MCIS& getEquationIndexes() const
+        {
+          return equationIndexes;
+        }
+
+        void setEquationIndexes(MCIS indexes)
+        {
+          equationIndexes = std::move(indexes);
+        }
+
+        const Access& getRead() const
+        {
+          return read;
+        }
+
+      private:
+        VariableId writtenVariable;
         Equation equation;
-        MCIS range;
-        Access access;
+        MCIS equationIndexes;
+        Access read;
     };
 
     template<typename VariableId, typename Equation, typename Access>
@@ -469,7 +509,7 @@ namespace marco::modeling
 
           if (auto next = std::next(step); next != end) {
             Container newIntervals;
-            MCIS range = step->range;
+            MCIS range = step->getEquationIndexes();
 
             for (const auto& interval: intervals) {
               if (!range.overlaps(interval.getRange())) {
@@ -491,11 +531,11 @@ namespace marco::modeling
                 std::vector<Dependency> newDependencies(dependencies.begin(), dependencies.end());
 
                 auto dependency = llvm::find_if(newDependencies, [&](const Dependency& dependency) {
-                  return dependency.getNode().equation == step->equation;
+                  return dependency.getNode().equation == step->getEquation();
                 });
 
                 if (dependency == newDependencies.end()) {
-                  auto& newDependency = newDependencies.emplace_back(step->access, std::make_unique<Node>(next->equation));
+                  auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<Node>(next->getEquation()));
                   newDependency.getNode().addListIt(next, end);
                 } else {
                   dependency->getNode().addListIt(next, end);
@@ -508,7 +548,7 @@ namespace marco::modeling
 
             for (const auto& subRange: range) {
               std::vector<Dependency> dependencies;
-              auto& dependency = dependencies.emplace_back(step->access, std::make_unique<Node>(next->equation));
+              auto& dependency = dependencies.emplace_back(step->getRead(), std::make_unique<Node>(next->getEquation()));
               dependency.getNode().addListIt(next, end);
               newIntervals.emplace_back(subRange, dependencies);
             }
@@ -746,7 +786,7 @@ namespace marco::modeling
           const MCIS& equationRange) const
       {
         if (!steps.empty()) {
-          if (steps.front().equation.getId() == equation.getId() && steps.front().range.contains(equationRange)) {
+          if (steps.front().getEquation() == equation && steps.front().getEquationIndexes().contains(equationRange)) {
             // The first and current equation are the same and the first range contains the current one, so the path
             // is a loop candidate. Restrict the flow (starting from the end) and see if it holds true.
 
@@ -754,14 +794,14 @@ namespace marco::modeling
             auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationRange);
 
             for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
-              auto readAccessFunction = it->access.getAccessFunction();
-              it->range = inverseAccessRange(it->range, readAccessFunction, previouslyWrittenIndexes);
+              const auto& readAccessFunction = it->getRead().getAccessFunction();
+              it->setEquationIndexes(inverseAccessRange(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
 
-              previousWriteAccessFunction = it->equation.getWrite().getAccessFunction();
-              previouslyWrittenIndexes = previousWriteAccessFunction.map(it->range);
+              previousWriteAccessFunction = it->getEquation().getWrite().getAccessFunction();
+              previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
             }
 
-            if (steps.front().range == equationRange) {
+            if (steps.front().getEquationIndexes() == equationRange) {
               // If the two ranges are the same, then a loop has been detected for what regards the variable defined
               // by the first equation.
 
@@ -776,7 +816,7 @@ namespace marco::modeling
           // same iteration indexes.
 
           auto equalStep = std::find_if(std::next(steps.rbegin()), steps.rend(), [&](const DFSStep& step) {
-            return step.equation.getId() == equation.getId() && step.range == equationRange;
+            return step.getEquation() == equation && step.getEquationIndexes() == equationRange;
           });
 
           if (equalStep != steps.rend()) {
@@ -822,9 +862,7 @@ namespace marco::modeling
                 std::cout << equation.getId() << "\n";
 
                 for (const auto& step : l) {
-                  std::cout << "id: " << step.equation.getId() << "\n";
-                  std::cout << "range: " << step.range << "\n";
-                  std::cout << "access: " << step.access.getAccessFunction() << "\n";
+                  step.dump(std::cout);
                 }
 
                 std::cout << "\n";
