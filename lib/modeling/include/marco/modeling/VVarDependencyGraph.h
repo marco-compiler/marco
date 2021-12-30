@@ -129,6 +129,10 @@ namespace marco::modeling
 
   namespace internal::scc
   {
+    /**
+     * Wrapper for variables.
+     * Used to provide some utility methods.
+     */
     template<typename VariableProperty>
     class VariableWrapper
     {
@@ -147,7 +151,7 @@ namespace marco::modeling
           return getId() == other.getId();
         }
 
-        VariableWrapper::Id getId() const
+        Id getId() const
         {
           return property.getId();
         }
@@ -157,6 +161,10 @@ namespace marco::modeling
         VariableProperty property;
     };
 
+    /**
+     * Wrapper for equations.
+     * Used to provide some utility methods.
+     */
     template<typename EquationProperty>
     class EquationVertex
     {
@@ -233,13 +241,34 @@ namespace marco::modeling
         EquationProperty property;
     };
 
-    template<typename EquationDescriptor>
-    class WriteInfo
+    /**
+     * Keeps track of which variable, together with its indexes, are written by an equation.
+     */
+    template<typename Graph, typename VariableId, typename EquationDescriptor>
+    class WriteInfo : public Dumpable
     {
       public:
-        WriteInfo(EquationDescriptor equation, MultidimensionalRange writtenVariableIndexes)
-            : equation(std::move(equation)), writtenVariableIndexes(std::move(writtenVariableIndexes))
+        WriteInfo(const Graph& graph, VariableId variable, EquationDescriptor equation, MultidimensionalRange indexes)
+            : graph(&graph), variable(std::move(variable)), equation(std::move(equation)), indexes(std::move(indexes))
         {
+        }
+
+        using Dumpable::dump;
+
+        void dump(std::ostream& stream) const override
+        {
+          using namespace marco::utils;
+
+          TreeOStream os(stream);
+          os << "Write information\n";
+          os << tree_property << "Variable: " << variable << "\n";
+          os << tree_property << "Equation: " << (*graph)[equation].getId() << "\n";
+          os << tree_property << "Written variable indexes: " << indexes << "\n";
+        }
+
+        const VariableId& getVariable() const
+        {
+          return variable;
         }
 
         EquationDescriptor getEquation() const
@@ -249,12 +278,16 @@ namespace marco::modeling
 
         const MultidimensionalRange& getWrittenVariableIndexes() const
         {
-          return writtenVariableIndexes;
+          return indexes;
         }
 
       private:
+        // Used for debugging purpose
+        const Graph* graph;
+        VariableId variable;
+
         EquationDescriptor equation;
-        MultidimensionalRange writtenVariableIndexes;
+        MultidimensionalRange indexes;
     };
 
     template<typename VertexProperty>
@@ -377,19 +410,19 @@ namespace marco::modeling
     };
 
     template<typename Graph, typename EquationDescriptor, typename Equation, typename Access>
-    class Node
+    class FilteredEquation
     {
       private:
         class Dependency
         {
           public:
-            Dependency(Access access, std::unique_ptr<Node> node)
-              : access(std::move(access)), node(std::move(node))
+            Dependency(Access access, std::unique_ptr<FilteredEquation> equation)
+              : access(std::move(access)), equation(std::move(equation))
             {
             }
 
             Dependency(const Dependency& other)
-                : access(other.access), node(std::make_unique<Node>(*other.node))
+                : access(other.access), equation(std::make_unique<FilteredEquation>(*other.equation))
             {
             }
 
@@ -416,21 +449,21 @@ namespace marco::modeling
               return access;
             }
 
-            Node& getNode()
+            FilteredEquation& getNode()
             {
-              assert(node != nullptr);
-              return *node;
+              assert(equation != nullptr);
+              return *equation;
             }
 
-            const Node& getNode() const
+            const FilteredEquation& getNode() const
             {
-              assert(node != nullptr);
-              return *node;
+              assert(equation != nullptr);
+              return *equation;
             }
 
           private:
             Access access;
-            std::unique_ptr<Node> node;
+            std::unique_ptr<FilteredEquation> equation;
         };
 
         class Interval
@@ -444,7 +477,7 @@ namespace marco::modeling
             {
             }
 
-            Interval(MultidimensionalRange range, Access access, std::unique_ptr<Node> destination)
+            Interval(MultidimensionalRange range, Access access, std::unique_ptr<FilteredEquation> destination)
                 : range(std::move(range))
             {
               destinations.emplace_back(std::move(access), std::move(destination));
@@ -460,7 +493,7 @@ namespace marco::modeling
               return destinations;
             }
 
-            void addDestination(Access access, std::unique_ptr<Node> destination)
+            void addDestination(Access access, std::unique_ptr<FilteredEquation> destination)
             {
               destinations.emplace_back(std::move(access), std::move(destination));
             }
@@ -474,9 +507,8 @@ namespace marco::modeling
 
       public:
         using const_iterator = typename Container::const_iterator;
-        using Step = DFSStep<Graph, EquationDescriptor, Access>;
 
-        Node(const Graph& graph, EquationDescriptor equation)
+        FilteredEquation(const Graph& graph, EquationDescriptor equation)
           : graph(&graph), equation(std::move(equation))
         {
         }
@@ -496,6 +528,12 @@ namespace marco::modeling
           return intervals.end();
         }
 
+        void addCyclicDependency(const std::list<DFSStep<Graph, EquationDescriptor, Access>>& steps)
+        {
+          addListIt(steps.begin(), steps.end());
+        }
+
+      private:
         template<typename It>
         void addListIt(It step, It end)
         {
@@ -530,7 +568,7 @@ namespace marco::modeling
                 });
 
                 if (dependency == newDependencies.end()) {
-                  auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<Node>(*graph, next->getEquation()));
+                  auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<FilteredEquation>(*graph, next->getEquation()));
                   newDependency.getNode().addListIt(next, end);
                 } else {
                   dependency->getNode().addListIt(next, end);
@@ -543,7 +581,7 @@ namespace marco::modeling
 
             for (const auto& subRange: range) {
               std::vector<Dependency> dependencies;
-              auto& dependency = dependencies.emplace_back(step->getRead(), std::make_unique<Node>(*graph, next->getEquation()));
+              auto& dependency = dependencies.emplace_back(step->getRead(), std::make_unique<FilteredEquation>(*graph, next->getEquation()));
               dependency.getNode().addListIt(next, end);
               newIntervals.emplace_back(subRange, dependencies);
             }
@@ -552,12 +590,6 @@ namespace marco::modeling
           }
         }
 
-        void addList(const std::list<Step>& steps)
-        {
-          addListIt(steps.begin(), steps.end());
-        }
-
-      private:
         const Graph* graph;
         EquationDescriptor equation;
         Container intervals;
@@ -654,11 +686,11 @@ namespace marco::modeling
       using AccessProperty = typename Equation::Access::Property;
       using Access = scc::Access<VariableProperty, AccessProperty>;
 
-      using WriteInfo = internal::scc::WriteInfo<EquationDescriptor>;
+      using WriteInfo = internal::scc::WriteInfo<ConnectedGraph, typename Variable::Id, EquationDescriptor>;
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
 
       using DFSStep = internal::scc::DFSStep<ConnectedGraph, EquationDescriptor, Access>;
-      using Node = internal::scc::Node<ConnectedGraph, EquationDescriptor, Equation, Access>;
+      using FilteredEquation = internal::scc::FilteredEquation<ConnectedGraph, EquationDescriptor, Equation, Access>;
 
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
@@ -707,6 +739,216 @@ namespace marco::modeling
         }
       }
 
+      void getCircularDependencies() const
+      {
+        for (const auto& graph: graphs) {
+          for (auto scc: llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
+            auto writes = getWritesMap(graph, scc.begin(), scc.end());
+
+            for (const auto& equationDescriptor : scc) {
+              const Equation& equation = graph[equationDescriptor];
+              //std::vector<std::list<DFSStep>> results;
+              //processEquation(results, graph, writes, equationDescriptor);
+              auto results = getEquationCyclicDependencies(graph, writes, equationDescriptor);
+
+              for (const auto& l : results) {
+                std::cout << "SCC from ";
+                std::cout << equation.getId() << "\n";
+
+                for (const auto& step : l) {
+                  step.dump(std::cout);
+                }
+
+                std::cout << "\n";
+              }
+
+              FilteredEquation dependencyList(graph, equationDescriptor);
+
+              for (const auto& list : results) {
+                dependencyList.addCyclicDependency(list);
+              }
+
+              std::cout << "Done";
+            }
+          }
+        }
+      }
+
+    private:
+      /**
+       * Map each array variable to the equations that write into some of its scalar positions.
+       *
+       * @param graph           graph containing the equation
+       * @param equationsBegin  beginning of the equations list
+       * @param equationsEnd    ending of the equations list
+       * @return variable - equations map
+       */
+      template<typename Graph, typename It>
+      WritesMap getWritesMap(const Graph& graph, It equationsBegin, It equationsEnd) const
+      {
+        WritesMap result;
+
+        for (It it = equationsBegin; it != equationsEnd; ++it) {
+          const auto& equation = graph[*it];
+          const auto& write = equation.getWrite();
+          const auto& accessFunction = write.getAccessFunction();
+
+          // Determine the indexes of the variable that are written by the equation
+          auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
+
+          result.emplace(write.getVariable(), WriteInfo(graph, write.getVariable(), *it, std::move(writtenIndexes)));
+        }
+
+        return result;
+      }
+
+      std::vector<std::list<DFSStep>> getEquationCyclicDependencies(
+          const ConnectedGraph& graph,
+          const WritesMap& writes,
+          EquationDescriptor equation) const
+      {
+        std::vector<std::list<DFSStep>> cyclicPaths;
+        std::stack<std::list<DFSStep>> stack;
+
+        // The first equation starts with the full range, as it has no predecessors
+        MCIS indexes(graph[equation].getIterationRanges());
+
+        std::list<DFSStep> emptyPath;
+
+        for (auto& extendedPath : appendReads(graph, emptyPath, equation, indexes)) {
+          stack.push(extendedPath);
+        }
+
+        while (!stack.empty()) {
+          auto& path = stack.top();
+
+          std::vector<std::list<DFSStep>> extendedPaths;
+
+          const auto& equationIndexes = path.back().getEquationIndexes();
+          const auto& read = path.back().getRead();
+          const auto& accessFunction = read.getAccessFunction();
+          auto readIndexes = accessFunction.map(equationIndexes);
+
+          // Get the equations writing into the read variable
+          auto writeInfos = writes.equal_range(read.getVariable());
+
+          for (const auto& [variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
+            const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+
+            // If the ranges do not overlap, then there is no loop involving the writing equation
+            if (!readIndexes.overlaps(writtenIndexes)) {
+              continue;
+            }
+
+            auto intersection = readIndexes.intersect(writtenIndexes);
+            EquationDescriptor writingEquation = writeInfo.getEquation();
+            MCIS writingEquationIndexes(graph[writingEquation].getIterationRanges());
+
+            auto usedWritingEquationIndexes = inverseAccessIndexes(
+                writingEquationIndexes,
+                graph[writingEquation].getWrite().getAccessFunction(),
+                intersection);
+
+            if (detectLoop(cyclicPaths, path, graph, writingEquation, usedWritingEquationIndexes)) {
+              // Loop detected. It may either be a loop regarding the first variable or not. In any case, we should
+              // stop visiting the tree, which would be infinite.
+              continue;
+            }
+
+            for (auto& extendedPath : appendReads(graph, path, writingEquation, usedWritingEquationIndexes))
+              extendedPaths.push_back(std::move(extendedPath));
+          }
+
+          stack.pop();
+
+          for (auto& extendedPath : extendedPaths) {
+            stack.push(extendedPath);
+          }
+        }
+
+        // TODO: merge the paths
+
+        return cyclicPaths;
+      }
+
+      std::vector<std::list<DFSStep>> appendReads(
+          const ConnectedGraph& graph,
+          const std::list<DFSStep>& path,
+          EquationDescriptor equation,
+          const MCIS& equationRange) const
+      {
+        std::vector<std::list<DFSStep>> result;
+
+        for (const Access& read : graph[equation].getReads()) {
+          std::list<DFSStep> extendedPath = path;
+          extendedPath.emplace_back(graph, equation, equationRange, read);
+          result.push_back(std::move(extendedPath));
+        }
+
+        return result;
+      }
+
+      /**
+       * Detect whether adding a new equation with a given range would lead to a loop.
+       * The path to be check is intentionally passed by copy, as its flow may get restricted depending on the
+       * equation to be added and such modification must not interfere with other paths.
+       *
+       * @param cyclicPaths
+       * @param path
+       * @param graph
+       * @param equation
+       * @param equationIndexes
+       * @return
+       */
+      bool detectLoop(
+          std::vector<std::list<DFSStep>>& cyclicPaths,
+          std::list<DFSStep> path,
+          const ConnectedGraph& graph,
+          EquationDescriptor equation,
+          const MCIS& equationIndexes) const
+      {
+        if (!path.empty()) {
+          if (path.front().getEquation() == equation && path.front().getEquationIndexes().contains(equationIndexes)) {
+            // The first and current equation are the same and the first range contains the current one, so the path
+            // is a loop candidate. Restrict the flow (starting from the end) and see if it holds true.
+
+            auto previousWriteAccessFunction = graph[equation].getWrite().getAccessFunction();
+            auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationIndexes);
+
+            for (auto it = path.rbegin(); it != path.rend(); ++it) {
+              const auto& readAccessFunction = it->getRead().getAccessFunction();
+              it->setEquationIndexes(inverseAccessIndexes(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
+
+              previousWriteAccessFunction = graph[it->getEquation()].getWrite().getAccessFunction();
+              previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
+            }
+
+            if (path.front().getEquationIndexes() == equationIndexes) {
+              // If the two ranges are the same, then a loop has been detected for what regards the variable defined
+              // by the first equation.
+
+              cyclicPaths.push_back(std::move(path));
+              return true;
+            }
+          }
+
+          // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
+          // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
+          // the (infinite) tree. Two steps are considered to be equal if they traverse the same equation with the
+          // same iteration indexes.
+
+          auto equalStep = std::find_if(std::next(path.rbegin()), path.rend(), [&](const DFSStep& step) {
+            return step.getEquation() == equation && step.getEquationIndexes() == equationIndexes;
+          });
+
+          if (equalStep != path.rend()) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
       /**
        * Apply the inverse of an access function to a set of indices.
        * If the access function is not invertible, then the inverse indexes are determined starting from a parent set.
@@ -741,172 +983,6 @@ namespace marco::modeling
               result += point;
             }
           }
-        }
-
-        return result;
-      }
-
-      void processRead(
-          std::vector<std::list<DFSStep>>& results,
-          std::list<DFSStep> steps,
-          const ConnectedGraph& graph,
-          const WritesMap& writes,
-          EquationDescriptor equation,
-          const MCIS& equationRange,
-          const Access& read) const
-      {
-        steps.emplace_back(graph, equation, equationRange, read);
-
-        const auto& accessFunction = read.getAccessFunction();
-        auto readIndexes = accessFunction.map(equationRange);
-
-        // Get the equations writing into the read variable
-        auto writeInfos = writes.equal_range(read.getVariable());
-
-        for (const auto& [variableId, writeInfo] : llvm::make_range(writeInfos.first, writeInfos.second)) {
-          const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
-
-          // If the ranges do not overlap, then there is no loop involving the writing equation
-          if (!readIndexes.overlaps(writtenIndexes)) {
-            continue;
-          }
-
-          auto intersection = readIndexes.intersect(writtenIndexes);
-          EquationDescriptor writingEquation = writeInfo.getEquation();
-          MCIS writingEquationIndexes(graph[writingEquation].getIterationRanges());
-
-          auto usedWritingEquationIndexes = inverseAccessIndexes(
-              writingEquationIndexes,
-              graph[writingEquation].getWrite().getAccessFunction(),
-              intersection);
-
-          processEquation(results, steps, graph, writes, writingEquation, usedWritingEquationIndexes);
-        }
-      }
-
-      void processEquation(
-          std::vector<std::list<DFSStep>>& results,
-          std::list<DFSStep> steps,
-          const ConnectedGraph& graph,
-          const WritesMap& writes,
-          EquationDescriptor equation,
-          const MCIS& equationRange) const
-      {
-        if (!steps.empty()) {
-          if (steps.front().getEquation() == equation && steps.front().getEquationIndexes().contains(equationRange)) {
-            // The first and current equation are the same and the first range contains the current one, so the path
-            // is a loop candidate. Restrict the flow (starting from the end) and see if it holds true.
-
-            auto previousWriteAccessFunction = graph[equation].getWrite().getAccessFunction();
-            auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationRange);
-
-            for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
-              const auto& readAccessFunction = it->getRead().getAccessFunction();
-              it->setEquationIndexes(inverseAccessIndexes(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
-
-              previousWriteAccessFunction = graph[it->getEquation()].getWrite().getAccessFunction();
-              previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
-            }
-
-            if (steps.front().getEquationIndexes() == equationRange) {
-              // If the two ranges are the same, then a loop has been detected for what regards the variable defined
-              // by the first equation.
-
-              results.push_back(std::move(steps));
-              return;
-            }
-          }
-
-          // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
-          // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
-          // the (infinite) tree. Two steps are considered to be equal if they traverse the same equation with the
-          // same iteration indexes.
-
-          auto equalStep = std::find_if(std::next(steps.rbegin()), steps.rend(), [&](const DFSStep& step) {
-            return step.getEquation() == equation && step.getEquationIndexes() == equationRange;
-          });
-
-          if (equalStep != steps.rend()) {
-            return;
-          }
-        }
-
-        // The reached equation does not lead to loops, so we can proceed visiting its children (that are the
-        // equations it depends on).
-
-        for (const Access& read : graph[equation].getReads()) {
-          processRead(results, steps, graph, writes, equation, equationRange, read);
-        }
-      }
-
-      void processEquation(
-          std::vector<std::list<DFSStep>>& results,
-          const ConnectedGraph& graph,
-          const WritesMap& writes,
-          EquationDescriptor equation) const
-      {
-        std::list<DFSStep> steps;
-
-        // The first equation starts with the full range, as it has no predecessors
-        MCIS range(graph[equation].getIterationRanges());
-
-        processEquation(results, steps, graph, writes, equation, range);
-      }
-
-      void getCircularDependencies() const
-      {
-        for (const auto& graph: graphs) {
-          for (auto scc: llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
-            auto writes = getWritesMap(graph, scc.begin(), scc.end());
-
-            for (const auto& equationDescriptor : scc) {
-              const Equation& equation = graph[equationDescriptor];
-              std::vector<std::list<DFSStep>> results;
-              processEquation(results, graph, writes, equationDescriptor);
-
-              for (const auto& l : results) {
-                std::cout << "SCC from ";
-                std::cout << equation.getId() << "\n";
-
-                for (const auto& step : l) {
-                  step.dump(std::cout);
-                }
-
-                std::cout << "\n";
-              }
-
-              Node dependencyList(graph, equationDescriptor);
-
-              for (const auto& list : results) {
-                dependencyList.addList(list);
-              }
-
-              std::cout << "Done";
-            }
-          }
-        }
-      }
-
-    private:
-      /**
-       * Map each array variable to the equations that write into some of its scalar positions.
-       *
-       * @param graph           graph containing the equation
-       * @param equationsBegin  beginning of the equations list
-       * @param equationsEnd    ending of the equations list
-       * @return variable - equations map
-       */
-      template<typename Graph, typename It>
-      WritesMap getWritesMap(const Graph& graph, It equationsBegin, It equationsEnd) const
-      {
-        WritesMap result;
-
-        for (It it = equationsBegin; it != equationsEnd; ++it) {
-          const auto& equation = graph[*it];
-          const auto& write = equation.getWrite();
-          const auto& accessFunction = write.getAccessFunction();
-          auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
-          result.emplace(write.getVariable(), WriteInfo(*it, std::move(writtenIndexes)));
         }
 
         return result;
