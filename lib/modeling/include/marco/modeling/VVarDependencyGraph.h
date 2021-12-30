@@ -209,7 +209,7 @@ namespace marco::modeling
 
         MultidimensionalRange getIterationRanges() const
         {
-          llvm::SmallVector<Range, 3> ranges;
+          llvm::SmallVector<Range> ranges;
 
           for (size_t i = 0, e = getNumOfIterationVars(); i < e; ++i) {
             ranges.push_back(getIterationRange(i));
@@ -242,7 +242,7 @@ namespace marco::modeling
         {
         }
 
-        const EquationDescriptor& getEquation() const
+        EquationDescriptor getEquation() const
         {
           return equation;
         }
@@ -323,12 +323,12 @@ namespace marco::modeling
         Graph graph;
     };
 
-    template<typename VariableId, typename Equation, typename Access>
+    template<typename Graph, typename EquationDescriptor, typename Access>
     class DFSStep : public Dumpable
     {
       public:
-        DFSStep(VariableId writtenVariable, Equation equation, MCIS equationIndexes, Access read)
-          : writtenVariable(std::move(writtenVariable)),
+        DFSStep(const Graph& graph, EquationDescriptor equation, MCIS equationIndexes, Access read)
+          : graph(&graph),
             equation(std::move(equation)),
             equationIndexes(std::move(equationIndexes)),
             read(std::move(read))
@@ -343,18 +343,13 @@ namespace marco::modeling
 
           TreeOStream os(stream);
           os << "DFS step\n";
-          os << tree_property << "Written variable: " << writtenVariable << "\n";
-          os << tree_property << "Writing equation: " << equation.getId() << "\n";
+          os << tree_property << "Written variable: " << (*graph)[equation].getWrite().getVariable() << "\n";
+          os << tree_property << "Writing equation: " << (*graph)[equation].getId() << "\n";
           os << tree_property << "Filtered equation indexes: " << equationIndexes << "\n";
           os << tree_property << "Read access: " << read.getAccessFunction() << "\n";
         }
 
-        const VariableId& getWrittenVariable() const
-        {
-          return writtenVariable;
-        }
-
-        const Equation& getEquation() const
+        EquationDescriptor getEquation() const
         {
           return equation;
         }
@@ -375,13 +370,13 @@ namespace marco::modeling
         }
 
       private:
-        VariableId writtenVariable;
-        Equation equation;
+        const Graph* graph;
+        EquationDescriptor equation;
         MCIS equationIndexes;
         Access read;
     };
 
-    template<typename VariableId, typename Equation, typename Access>
+    template<typename Graph, typename EquationDescriptor, typename Equation, typename Access>
     class Node
     {
       private:
@@ -479,16 +474,16 @@ namespace marco::modeling
 
       public:
         using const_iterator = typename Container::const_iterator;
-        using EquationProperty = typename Equation::Property;
-        using Step = DFSStep<VariableId, Equation, Access>;
+        using Step = DFSStep<Graph, EquationDescriptor, Access>;
 
-        Node(Equation equation) : equation(std::move(equation))
+        Node(const Graph& graph, EquationDescriptor equation)
+          : graph(&graph), equation(std::move(equation))
         {
         }
 
-        const EquationProperty& getEquation() const
+        const Equation& getEquation() const
         {
-          return equation.getProperty();
+          return (*graph)[equation];
         }
 
         const_iterator begin() const
@@ -535,7 +530,7 @@ namespace marco::modeling
                 });
 
                 if (dependency == newDependencies.end()) {
-                  auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<Node>(next->getEquation()));
+                  auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<Node>(*graph, next->getEquation()));
                   newDependency.getNode().addListIt(next, end);
                 } else {
                   dependency->getNode().addListIt(next, end);
@@ -548,7 +543,7 @@ namespace marco::modeling
 
             for (const auto& subRange: range) {
               std::vector<Dependency> dependencies;
-              auto& dependency = dependencies.emplace_back(step->getRead(), std::make_unique<Node>(next->getEquation()));
+              auto& dependency = dependencies.emplace_back(step->getRead(), std::make_unique<Node>(*graph, next->getEquation()));
               dependency.getNode().addListIt(next, end);
               newIntervals.emplace_back(subRange, dependencies);
             }
@@ -563,7 +558,8 @@ namespace marco::modeling
         }
 
       private:
-        Equation equation;
+        const Graph* graph;
+        EquationDescriptor equation;
         Container intervals;
     };
   }
@@ -657,10 +653,12 @@ namespace marco::modeling
       using EquationDescriptor = typename Graph::VertexDescriptor;
       using AccessProperty = typename Equation::Access::Property;
       using Access = scc::Access<VariableProperty, AccessProperty>;
+
       using WriteInfo = internal::scc::WriteInfo<EquationDescriptor>;
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
-      using DFSStep = internal::scc::DFSStep<typename Variable::Id, Equation, Access>;
-      using Node = internal::scc::Node<typename Variable::Id, Equation, Access>;
+
+      using DFSStep = internal::scc::DFSStep<ConnectedGraph, EquationDescriptor, Access>;
+      using Node = internal::scc::Node<ConnectedGraph, EquationDescriptor, Equation, Access>;
 
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
@@ -709,14 +707,23 @@ namespace marco::modeling
         }
       }
 
-      MCIS inverseAccessRange(
-          const MCIS& parentRange,
+      /**
+       * Apply the inverse of an access function to a set of indices.
+       * If the access function is not invertible, then the inverse indexes are determined starting from a parent set.
+       *
+       * @param parentIndexes   parent index set
+       * @param accessFunction  access function to be inverted and applied (if possible)
+       * @param accessIndexes   indexes to be inverted
+       * @return indexes mapping to accessIndexes when accessFunction is applied to them
+       */
+      MCIS inverseAccessIndexes(
+          const MCIS& parentIndexes,
           const AccessFunction& accessFunction,
-          const MCIS& access) const
+          const MCIS& accessIndexes) const
       {
         if (accessFunction.isInvertible()) {
-          auto mapped = accessFunction.inverseMap(access);
-          assert(accessFunction.map(mapped).contains(access));
+          auto mapped = accessFunction.inverseMap(accessIndexes);
+          assert(accessFunction.map(mapped).contains(accessIndexes));
           return mapped;
         }
 
@@ -728,9 +735,9 @@ namespace marco::modeling
 
         MCIS result;
 
-        for (const auto& range : parentRange) {
+        for (const auto& range: parentIndexes) {
           for (const auto& point: range) {
-            if (access.contains(accessFunction.map(point))) {
+            if (accessIndexes.contains(accessFunction.map(point))) {
               result += point;
             }
           }
@@ -744,11 +751,11 @@ namespace marco::modeling
           std::list<DFSStep> steps,
           const ConnectedGraph& graph,
           const WritesMap& writes,
-          const Equation& equation,
+          EquationDescriptor equation,
           const MCIS& equationRange,
           const Access& read) const
       {
-        steps.emplace_back(equation.getWrite().getVariable(), equation, equationRange, read);
+        steps.emplace_back(graph, equation, equationRange, read);
 
         const auto& accessFunction = read.getAccessFunction();
         auto readIndexes = accessFunction.map(equationRange);
@@ -765,12 +772,12 @@ namespace marco::modeling
           }
 
           auto intersection = readIndexes.intersect(writtenIndexes);
-          const Equation& writingEquation = graph[writeInfo.getEquation()];
-          MCIS writingEquationIndexes(writingEquation.getIterationRanges());
+          EquationDescriptor writingEquation = writeInfo.getEquation();
+          MCIS writingEquationIndexes(graph[writingEquation].getIterationRanges());
 
-          auto usedWritingEquationIndexes = inverseAccessRange(
+          auto usedWritingEquationIndexes = inverseAccessIndexes(
               writingEquationIndexes,
-              writingEquation.getWrite().getAccessFunction(),
+              graph[writingEquation].getWrite().getAccessFunction(),
               intersection);
 
           processEquation(results, steps, graph, writes, writingEquation, usedWritingEquationIndexes);
@@ -782,7 +789,7 @@ namespace marco::modeling
           std::list<DFSStep> steps,
           const ConnectedGraph& graph,
           const WritesMap& writes,
-          const Equation& equation,
+          EquationDescriptor equation,
           const MCIS& equationRange) const
       {
         if (!steps.empty()) {
@@ -790,14 +797,14 @@ namespace marco::modeling
             // The first and current equation are the same and the first range contains the current one, so the path
             // is a loop candidate. Restrict the flow (starting from the end) and see if it holds true.
 
-            auto previousWriteAccessFunction = equation.getWrite().getAccessFunction();
+            auto previousWriteAccessFunction = graph[equation].getWrite().getAccessFunction();
             auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationRange);
 
             for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
               const auto& readAccessFunction = it->getRead().getAccessFunction();
-              it->setEquationIndexes(inverseAccessRange(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
+              it->setEquationIndexes(inverseAccessIndexes(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
 
-              previousWriteAccessFunction = it->getEquation().getWrite().getAccessFunction();
+              previousWriteAccessFunction = graph[it->getEquation()].getWrite().getAccessFunction();
               previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
             }
 
@@ -827,7 +834,7 @@ namespace marco::modeling
         // The reached equation does not lead to loops, so we can proceed visiting its children (that are the
         // equations it depends on).
 
-        for (const Access& read : equation.getReads()) {
+        for (const Access& read : graph[equation].getReads()) {
           processRead(results, steps, graph, writes, equation, equationRange, read);
         }
       }
@@ -836,12 +843,12 @@ namespace marco::modeling
           std::vector<std::list<DFSStep>>& results,
           const ConnectedGraph& graph,
           const WritesMap& writes,
-          const Equation& equation) const
+          EquationDescriptor equation) const
       {
         std::list<DFSStep> steps;
 
         // The first equation starts with the full range, as it has no predecessors
-        MCIS range(equation.getIterationRanges());
+        MCIS range(graph[equation].getIterationRanges());
 
         processEquation(results, steps, graph, writes, equation, range);
       }
@@ -855,7 +862,7 @@ namespace marco::modeling
             for (const auto& equationDescriptor : scc) {
               const Equation& equation = graph[equationDescriptor];
               std::vector<std::list<DFSStep>> results;
-              processEquation(results, graph, writes, equation);
+              processEquation(results, graph, writes, equationDescriptor);
 
               for (const auto& l : results) {
                 std::cout << "SCC from ";
@@ -868,7 +875,7 @@ namespace marco::modeling
                 std::cout << "\n";
               }
 
-              Node dependencyList(equation);
+              Node dependencyList(graph, equationDescriptor);
 
               for (const auto& list : results) {
                 dependencyList.addList(list);

@@ -24,17 +24,17 @@ namespace marco::modeling::internal
         {
         }
 
-        bool operator==(const VertexDescriptor<Graph, Property>& other) const
+        bool operator==(const VertexDescriptor& other) const
         {
           return value == other.value;
         }
 
-        bool operator!=(const VertexDescriptor<Graph, Property>& other) const
+        bool operator!=(const VertexDescriptor& other) const
         {
           return value != other.value;
         }
 
-        bool operator<(const VertexDescriptor<Graph, Property>& other) const
+        bool operator<(const VertexDescriptor& other) const
         {
           return value < other.value;
         }
