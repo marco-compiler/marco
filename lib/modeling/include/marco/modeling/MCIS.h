@@ -21,11 +21,23 @@ namespace marco::modeling::internal
     public:
       using const_iterator = Container::const_iterator;
 
-      MCIS(llvm::ArrayRef<MultidimensionalRange> ranges = llvm::None);
+      MCIS();
+
+      MCIS(llvm::ArrayRef<Point> points);
+
+      MCIS(llvm::ArrayRef<MultidimensionalRange> ranges);
 
       friend std::ostream& operator<<(std::ostream& stream, const MCIS& obj);
 
+      bool operator==(const Point& rhs) const;
+
+      bool operator==(const MultidimensionalRange& rhs) const;
+
       bool operator==(const MCIS& rhs) const;
+
+      bool operator!=(const Point& rhs) const;
+
+      bool operator!=(const MultidimensionalRange& rhs) const;
 
       bool operator!=(const MCIS& rhs) const;
 

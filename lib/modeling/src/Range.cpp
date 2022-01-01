@@ -8,9 +8,19 @@ namespace marco::modeling::internal
     assert(begin < end && "Range is not well-formed");
   }
 
+  bool Range::operator==(Range::data_type other) const
+  {
+    return getBegin() == other && getEnd() == other + 1;
+  }
+
   bool Range::operator==(const Range& other) const
   {
     return getBegin() == other.getBegin() && getEnd() == other.getEnd();
+  }
+
+  bool Range::operator!=(Range::data_type other) const
+  {
+    return getBegin() != other && getEnd() != other + 1;
   }
 
   bool Range::operator!=(const Range& other) const

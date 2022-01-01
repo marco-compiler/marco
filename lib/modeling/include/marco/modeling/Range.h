@@ -67,7 +67,11 @@ namespace marco::modeling::internal
 
       Range(data_type begin, data_type end);
 
+      bool operator==(data_type other) const;
+
       bool operator==(const Range& other) const;
+
+      bool operator!=(data_type other) const;
 
       bool operator!=(const Range& other) const;
 

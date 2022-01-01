@@ -3,17 +3,61 @@
 
 namespace marco::modeling::internal
 {
+  MCIS::MCIS() = default;
+
+  MCIS::MCIS(llvm::ArrayRef<Point> points)
+  {
+    for (const auto& point: points) {
+      this->operator+=(point);
+    }
+  }
+
   MCIS::MCIS(llvm::ArrayRef<MultidimensionalRange> ranges)
-      : ranges(ranges.begin(), ranges.end())
   {
     for (const auto& range: ranges) {
       this->operator+=(range);
     }
   }
 
+  bool MCIS::operator==(const Point& rhs) const
+  {
+    if (ranges.size() != 1) {
+      return false;
+    }
+
+    return ranges.front() == rhs;
+  }
+
+  bool MCIS::operator==(const MultidimensionalRange& rhs) const
+  {
+    if (ranges.size() != 1) {
+      return false;
+    }
+
+    return ranges.front() == rhs;
+  }
+
   bool MCIS::operator==(const MCIS& rhs) const
   {
     return contains(rhs) && rhs.contains(*this);
+  }
+
+  bool MCIS::operator!=(const Point& rhs) const
+  {
+    if (ranges.size() != 1) {
+      return true;
+    }
+
+    return ranges.front() != rhs;
+  }
+
+  bool MCIS::operator!=(const MultidimensionalRange& rhs) const
+  {
+    if (ranges.size() != 1) {
+      return true;
+    }
+
+    return ranges.front() != rhs;
   }
 
   bool MCIS::operator!=(const MCIS& rhs) const

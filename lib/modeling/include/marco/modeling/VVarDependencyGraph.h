@@ -98,7 +98,7 @@ namespace marco::modeling
       public:
         using Property = AccessProperty;
 
-        Access(VariableProperty variable, AccessFunction accessFunction, AccessProperty property = AccessProperty())
+        Access(const VariableProperty& variable, AccessFunction accessFunction, AccessProperty property = AccessProperty())
             : variable(VariableTraits<VariableProperty>::getId(&variable)),
               accessFunction(std::move(accessFunction)),
               property(std::move(property))
@@ -410,10 +410,10 @@ namespace marco::modeling
     };
 
     template<typename Graph, typename EquationDescriptor, typename Equation, typename Access>
-    class FilteredEquation
+    class FilteredEquation : public Dumpable
     {
       private:
-        class Dependency
+        class Dependency : public Dumpable
         {
           public:
             Dependency(Access access, std::unique_ptr<FilteredEquation> equation)
@@ -444,6 +444,18 @@ namespace marco::modeling
               return *this;
             }
 
+            using Dumpable::dump;
+
+            void dump(std::ostream& stream) const override
+            {
+              using namespace marco::utils;
+
+              TreeOStream os(stream);
+              os << "Access function: " << access.getAccessFunction() << "\n";
+              os << tree_property;
+              equation->dump(os);
+            }
+
             const Access& getAccess() const
             {
               return access;
@@ -466,7 +478,7 @@ namespace marco::modeling
             std::unique_ptr<FilteredEquation> equation;
         };
 
-        class Interval
+        class Interval : public Dumpable
         {
           public:
             using Container = std::vector<Dependency>;
@@ -481,6 +493,22 @@ namespace marco::modeling
                 : range(std::move(range))
             {
               destinations.emplace_back(std::move(access), std::move(destination));
+            }
+
+            using Dumpable::dump;
+
+            void dump(std::ostream& stream) const override
+            {
+              using namespace marco::utils;
+
+              TreeOStream os(stream);
+              os << tree_property << "Indexes: " << range << "\n";
+
+              for (const auto& destination : destinations) {
+                os << tree_property;
+                destination.dump(os);
+                os << "\n";
+              }
             }
 
             const MultidimensionalRange& getRange() const
@@ -513,9 +541,30 @@ namespace marco::modeling
         {
         }
 
-        const Equation& getEquation() const
+        using Dumpable::dump;
+
+        void dump(std::ostream& stream) const override
         {
-          return (*graph)[equation];
+          using namespace marco::utils;
+
+          TreeOStream os(stream);
+          os << "Equation (" <<  (*graph)[equation].getId() << ")\n";
+
+          for (const auto& interval : intervals) {
+            os << tree_property;
+            interval.dump(os);
+          }
+        }
+
+        /**
+         * Get the equation property that is provided by the user.
+         * The method has been created to serve as an API.
+         *
+         * @return equation property
+         */
+        const typename Equation::Property& getEquation() const
+        {
+          return (*graph)[equation].getProperty();
         }
 
         const_iterator begin() const
@@ -739,39 +788,28 @@ namespace marco::modeling
         }
       }
 
-      void getCircularDependencies() const
+      std::vector<FilteredEquation> getEquationsCycles() const
       {
+        std::vector<FilteredEquation> result;
+
         for (const auto& graph: graphs) {
           for (auto scc: llvm::make_range(llvm::scc_begin(graph), llvm::scc_end(graph))) {
             auto writes = getWritesMap(graph, scc.begin(), scc.end());
 
             for (const auto& equationDescriptor : scc) {
-              const Equation& equation = graph[equationDescriptor];
-              //std::vector<std::list<DFSStep>> results;
-              //processEquation(results, graph, writes, equationDescriptor);
-              auto results = getEquationCyclicDependencies(graph, writes, equationDescriptor);
+              auto cycles = getEquationCyclicDependencies(graph, writes, equationDescriptor);
+              FilteredEquation dependencies(graph, equationDescriptor);
 
-              for (const auto& l : results) {
-                std::cout << "SCC from ";
-                std::cout << equation.getId() << "\n";
-
-                for (const auto& step : l) {
-                  step.dump(std::cout);
-                }
-
-                std::cout << "\n";
+              for (const auto& cycle : cycles) {
+                dependencies.addCyclicDependency(cycle);
               }
 
-              FilteredEquation dependencyList(graph, equationDescriptor);
-
-              for (const auto& list : results) {
-                dependencyList.addCyclicDependency(list);
-              }
-
-              std::cout << "Done";
+              result.push_back(std::move(dependencies));
             }
           }
         }
+
+        return result;
       }
 
     private:
@@ -866,8 +904,6 @@ namespace marco::modeling
           }
         }
 
-        // TODO: merge the paths
-
         return cyclicPaths;
       }
 
@@ -890,15 +926,15 @@ namespace marco::modeling
 
       /**
        * Detect whether adding a new equation with a given range would lead to a loop.
-       * The path to be check is intentionally passed by copy, as its flow may get restricted depending on the
+       * The path to be check is intentionally passed by copy, as its flow is restricted depending on the
        * equation to be added and such modification must not interfere with other paths.
        *
-       * @param cyclicPaths
-       * @param path
-       * @param graph
-       * @param equation
-       * @param equationIndexes
-       * @return
+       * @param cyclicPaths      cyclic paths results list
+       * @param path             candidate path
+       * @param graph            graph to which the equations belong to
+       * @param equation         equation that should be added to the path
+       * @param equationIndexes  indexes of the equation to be added
+       * @return true if the candidate equation would create a loop when added to the path; false otherwise
        */
       bool detectLoop(
           std::vector<std::list<DFSStep>>& cyclicPaths,
@@ -908,40 +944,37 @@ namespace marco::modeling
           const MCIS& equationIndexes) const
       {
         if (!path.empty()) {
-          if (path.front().getEquation() == equation && path.front().getEquationIndexes().contains(equationIndexes)) {
-            // The first and current equation are the same and the first range contains the current one, so the path
-            // is a loop candidate. Restrict the flow (starting from the end) and see if it holds true.
+          // Restrict the flow (starting from the end).
 
-            auto previousWriteAccessFunction = graph[equation].getWrite().getAccessFunction();
-            auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationIndexes);
+          auto previousWriteAccessFunction = graph[equation].getWrite().getAccessFunction();
+          auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationIndexes);
 
-            for (auto it = path.rbegin(); it != path.rend(); ++it) {
-              const auto& readAccessFunction = it->getRead().getAccessFunction();
-              it->setEquationIndexes(inverseAccessIndexes(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
+          for (auto it = path.rbegin(); it != path.rend(); ++it) {
+            const auto& readAccessFunction = it->getRead().getAccessFunction();
+            it->setEquationIndexes(inverseAccessIndexes(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
 
-              previousWriteAccessFunction = graph[it->getEquation()].getWrite().getAccessFunction();
-              previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
-            }
+            previousWriteAccessFunction = graph[it->getEquation()].getWrite().getAccessFunction();
+            previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
+          }
 
-            if (path.front().getEquationIndexes() == equationIndexes) {
-              // If the two ranges are the same, then a loop has been detected for what regards the variable defined
-              // by the first equation.
+          // Search along the restricted path if the candidate equation has already been visited with the same indexes
+          auto step = llvm::find_if(path, [&](const DFSStep& step) {
+            return step.getEquation() == equation && step.getEquationIndexes() == equationIndexes;
+          });
 
-              cyclicPaths.push_back(std::move(path));
-              return true;
-            }
+          if (step == path.begin()) {
+            // We have found a loop involving the variable defined by the first equation. This is the kind of loops
+            // we are interested to find, so add it to the results.
+
+            cyclicPaths.push_back(std::move(path));
+            return true;
           }
 
           // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
           // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
-          // the (infinite) tree. Two steps are considered to be equal if they traverse the same equation with the
-          // same iteration indexes.
+          // the (infinite) tree.
 
-          auto equalStep = std::find_if(std::next(path.rbegin()), path.rend(), [&](const DFSStep& step) {
-            return step.getEquation() == equation && step.getEquationIndexes() == equationIndexes;
-          });
-
-          if (equalStep != path.rend()) {
+          if (step != path.end()) {
             return true;
           }
         }

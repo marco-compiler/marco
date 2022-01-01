@@ -11,8 +11,6 @@ set(SOURCES
     src/PointTest.cpp
     src/RangeTest.cpp
     src/RegularMCIMTest.cpp
-    src/SCCCommon.cpp
-    src/SCCTestCases.cpp
     src/SimplifyTest.cpp
     src/SolveLocalMatchingProblemTest.cpp
     src/UndirectedGraphTest.cpp
