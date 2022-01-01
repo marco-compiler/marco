@@ -854,7 +854,7 @@ namespace marco::modeling
         std::list<DFSStep> emptyPath;
 
         for (auto& extendedPath : appendReads(graph, emptyPath, equation, indexes)) {
-          stack.push(extendedPath);
+          stack.push(std::move(extendedPath));
         }
 
         while (!stack.empty()) {
@@ -900,7 +900,7 @@ namespace marco::modeling
           stack.pop();
 
           for (auto& extendedPath : extendedPaths) {
-            stack.push(extendedPath);
+            stack.push(std::move(extendedPath));
           }
         }
 
