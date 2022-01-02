@@ -2123,22 +2123,23 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		//===--------------------------------------------------------------===//
 
 		// Allocate IDA user data, starting from the number of scalar equations.
-		int64_t scalarEquationsNumber = 0;
-		int64_t vectorEquationsNumber = 0;
+		int64_t scalarEqNumber = 0;
+		int64_t vectorEqNumber = 0;
+		int64_t vectorVarNumber = 0;
+
 		for (BltBlock& bltBlock : model.getBltBlocks())
 		{
-			scalarEquationsNumber += bltBlock.equationsCount();
-			vectorEquationsNumber += bltBlock.size();
+			scalarEqNumber += bltBlock.equationsCount();
+			vectorEqNumber += bltBlock.size();
 		}
 
-		int64_t vectorVariablesNumber = 0;
 		for (auto& var : model.getVariables())
-			if (var->isState() || (!var->isTrivial() && !var->isDerivative()))
-				vectorVariablesNumber++;
+			if ((var->isState() && !var->isTime()) || (!var->isTrivial() && !var->isDerivative()))
+				vectorVarNumber++;
 
-		mlir::Value scalarEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEquationsNumber));
-		mlir::Value vectorEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEquationsNumber));
-		mlir::Value vectorVarValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEquationsNumber));
+		mlir::Value scalarEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEqNumber));
+		mlir::Value vectorEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(vectorEqNumber));
+		mlir::Value vectorVarValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(vectorVarNumber));
 		mlir::Value userData = builder.create<AllocDataOp>(loc, scalarEqValue, vectorEqValue, vectorVarValue);
 
 		// Add start time, end time and time step.
@@ -2165,45 +2166,37 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		mlir::Value zero = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(0));
 		mlir::Value one = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(1));
 
-		// Compute all non-trivial variable offsets and dimensions.
-		for (BltBlock& bltBlock : model.getBltBlocks())
+		// Compute and initialize all non-trivial variables.
+		for (auto& var : model.getVariables())
 		{
-			for (Equation& equation : bltBlock.getEquations())
+			// If the variable has not been insterted yet, initialize it.
+			if (var->isTrivial() || var->hasIdaIndex())
+				continue;
+
+			// Initialize variableOffset, variableDimensions, derivativesValues and idValues inside IDA.
+			loc = var->getReference().getLoc();
+			mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableOffset));
+			mlir::Value isState = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var->isState() || var->isDerivative()));
+			builder.create<AddVariableOp>(loc, userData, varOffsetOp, var->isDerivative() ? var->getState() : var->getReference(), isState);
+
+			// Store the variable index and offset.
+			mlir::Value varIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableCount++));
+			var->setIdaOffset(variableOffset);
+			var->setIdaIndex(varIndex);
+
+			if (var->isState())
 			{
-				// Get the variable matched with every equation.
-				Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
-
-				assert(!var.isTrivial());
-
-				// If the variable has not been insterted yet, initialize it.
-				if (var.hasIdaIndex())
-					continue;
-
-				// Initialize variableOffset, variableDimensions, derivativesValues and idValues inside IDA.
-				loc = var.getReference().getLoc();
-				mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableOffset));
-				mlir::Value isState = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var.isState() || var.isDerivative()));
-				builder.create<AddVariableOp>(loc, userData, varOffsetOp, var.isDerivative() ? var.getState() : var.getReference(), isState);
-
-				// Store the variable index.
-				mlir::Value varIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableCount++));
-				var.setIdaOffset(variableOffset);
-				var.setIdaIndex(varIndex);
-
-				if (var.isState())
-				{
-					model.getVariable(var.getDerivative()).setIdaOffset(variableOffset);
-					model.getVariable(var.getDerivative()).setIdaIndex(varIndex);
-				}
-				else if (var.isDerivative())
-				{
-					model.getVariable(var.getState()).setIdaOffset(variableOffset);
-					model.getVariable(var.getState()).setIdaIndex(varIndex);
-				}
-
-				// Increase the length of the current row.
-				variableOffset += var.toMultiDimInterval().size();
+				model.getVariable(var->getDerivative()).setIdaOffset(variableOffset);
+				model.getVariable(var->getDerivative()).setIdaIndex(varIndex);
 			}
+			else if (var->isDerivative())
+			{
+				model.getVariable(var->getState()).setIdaOffset(variableOffset);
+				model.getVariable(var->getState()).setIdaIndex(varIndex);
+			}
+
+			// Increase the length of the current row.
+			variableOffset += var->toMultiDimInterval().size();
 		}
 
 		// Add to IDA all non-trivial variable accesses and the dimensions of each
@@ -2313,7 +2306,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			var->getReference().getDefiningOp()->erase();
 		}
 
-		assert(variableOffset == scalarEquationsNumber);
+		assert(variableOffset == scalarEqNumber);
+		assert(variableCount == vectorVarNumber);
+		assert(equationCount == vectorEqNumber);
 
 		// Call the IDA initialization operation at the end of the init() function.
 		loc = simulationOp.getLoc();
