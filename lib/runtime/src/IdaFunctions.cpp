@@ -78,9 +78,6 @@ typedef struct IdaUserData
 	std::vector<sunindextype> variableOffsets;
 	std::vector<VarDimension> variableDimensions;
 
-	// Jacobian indexes
-	std::vector<std::vector<std::vector<size_t>>> columnIndexes;
-
 	// Simulation times
 	realtype startTime;
 	realtype endTime;
@@ -155,6 +152,24 @@ static sunindextype computeOffset(
 	}
 
 	return offset;
+}
+
+/**
+ * Compute the column indexes of the current row of the Jacobian Matrix given
+ * the current vector equation and an array of indexes.
+ */
+static std::set<size_t> computeIndexSet(IdaUserData* data, size_t eq, sunindextype* indexes)
+{
+	std::set<size_t> columnIndexesSet;
+
+	for (auto& access : data->variableAccesses[eq])
+	{
+		VarDimension& dimensions = data->variableDimensions[access.first];
+		sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
+		columnIndexesSet.insert(data->variableOffsets[access.first] + varOffset);
+	}
+
+	return columnIndexesSet;
 }
 
 /**
@@ -270,12 +285,15 @@ int jacobianMatrix(
 		// For every scalar equation in the vector equation
 		do
 		{
-			nnzElements += data->columnIndexes[eq][columnIndex].size();
+			// Compute the column indexes that may be non-zeros
+			std::set<size_t> columnIndexesSet = computeIndexSet(data, eq, indexes);
+
+			nnzElements += columnIndexesSet.size();
 			*rowptrs++ = nnzElements;
 
 			// For every variable with respect to which every equation must be
 			// partially differentiated
-			for (sunindextype var : data->columnIndexes[eq][columnIndex++])
+			for (sunindextype var : columnIndexesSet)
 			{
 				// Compute the i-th jacobian value
 				*jacobian++ = data->jacobians[eq](tt, yval, ypval, indexes, cj, var);
@@ -336,8 +354,6 @@ inline void* idaAllocData(T scalarEquationsNumber, T vectorEquationsNumber, T ve
 	data->variableOffsets.resize(vectorVariablesNumber);
 	data->variableDimensions.resize(vectorVariablesNumber);
 
-	data->columnIndexes.resize(vectorEquationsNumber);
-
 	return static_cast<void*>(data);
 }
 
@@ -349,7 +365,7 @@ RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t, int64_t, int64_t)
  * the column indexes of all non-zero values in the Jacobian Matrix. This avoids
  * the recomputation of such indexes during the Jacobian evaluation.
  */
-void precomputeJacobianIndexes(IdaUserData* data)
+void computeNNZ(IdaUserData* data)
 {
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
@@ -363,24 +379,9 @@ void precomputeJacobianIndexes(IdaUserData* data)
 		do
 		{
 			// Compute the column indexes that may be non-zeros
-			std::set<size_t> columnIndexesSet;
-			for (auto& access : data->variableAccesses[eq])
-			{
-				VarDimension& dimensions = data->variableDimensions[access.first];
-				sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
-				columnIndexesSet.insert(data->variableOffsets[access.first] + varOffset);
-			}
-
-			// Compute the number of non-zero values in each scalar equation
-			data->columnIndexes[eq].push_back(std::vector(columnIndexesSet.begin(), columnIndexesSet.end()));
-			data->nonZeroValuesNumber += data->columnIndexes[eq].back().size();
-
+			data->nonZeroValuesNumber += computeIndexSet(data, eq, indexes).size();
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
-
-	// Erase the variable accesses vector.
-	data->variableAccesses.clear();
-	std::vector<VarAccessList>().swap(data->variableAccesses);
 }
 
 /**
@@ -397,7 +398,7 @@ inline bool idaInit(void* userData)
 		return true;
 
 	// Compute the total amount of non-zero values in the Jacobian Matrix.
-	precomputeJacobianIndexes(data);
+	computeNNZ(data);
 
 	// Create and initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -787,13 +788,19 @@ static void printIncidenceMatrix(void* userData)
 	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
+		// Initialize the multidimensional interval of the vector equation
+		sunindextype indexes[data->equationDimensions[eq].size()];
+
+		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
+			indexes[i] = data->equationDimensions[eq][i].first;
+	
 		// For every scalar equation in the vector equation
-		for (auto& row : data->columnIndexes[eq])
+		do
 		{
 			llvm::errs() << "│";
 
 			// Get the column indexes that may be non-zeros.
-			std::set<sunindextype> columnIndexesSet(row.begin(), row.end());
+			std::set<size_t> columnIndexesSet = computeIndexSet(data, eq, indexes);
 
 			for (sunindextype i = 0; i < data->scalarEquationsNumber; i++)
 			{
@@ -807,7 +814,7 @@ static void printIncidenceMatrix(void* userData)
 			}
 
 			llvm::errs() << "│\n";
-		}
+		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 }
 
