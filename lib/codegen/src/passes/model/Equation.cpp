@@ -4,6 +4,7 @@ using namespace marco;
 using namespace marco::codegen;
 using namespace marco::codegen::modelica;
 
+/*
 static long getIntFromAttribute(mlir::Attribute attribute)
 {
   if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>())
@@ -312,6 +313,7 @@ mlir::LogicalResult Equation::Impl::explicitate(
 
   return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
 }
+ */
 
 /**
  * Scalar Equation with Scalar Assignments.
@@ -319,6 +321,7 @@ mlir::LogicalResult Equation::Impl::explicitate(
  * An equation that does not present induction variables, neither
  * explicit or implicit.
  */
+ /*
 class ScalarEquation : public Equation::Impl
 {
   public:
@@ -428,12 +431,14 @@ void ScalarEquation::getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& acc
   searchAccesses(result, terminator.rhs()[0], EquationPath(EquationPath::LEFT));
   return result;
 }
+  */
 
 /**
  * Loop Equation.
  *
  * An equation that present explicit or implicit induction variables.
  */
+ /*
 class LoopEquation : public Equation::Impl
 {
   public:
@@ -468,6 +473,7 @@ class LoopEquation : public Equation::Impl
   long getImplicitLoopStart(size_t index) const;
   long getImplicitLoopEnd(size_t index) const;
 };
+  */
 
 /**
  * Check if an equation has explicit or implicit induction variables.
@@ -475,6 +481,7 @@ class LoopEquation : public Equation::Impl
  * @param equation  equation
  * @return true if the equation is surrounded by explicit loops or defines implicit ones
  */
+ /*
 static bool hasInductionVariables(EquationOp equation)
 {
   auto hasExplicitLoops = [&]() -> bool {
@@ -809,3 +816,4 @@ mlir::LogicalResult Equation::explicitate(const EquationPath& path)
 {
   return impl->explicitate(path);
 }
+*/

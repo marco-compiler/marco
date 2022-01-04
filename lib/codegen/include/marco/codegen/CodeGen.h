@@ -5,8 +5,8 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
-#include <marco/frontend/AST.h>
-#include <marco/frontend/SymbolTable.hpp>
+#include <marco/ast/AST.h>
+#include <marco/ast/SymbolTable.hpp>
 #include <marco/codegen/dialects/modelica/ModelicaBuilder.h>
 #include <marco/utils/SourcePosition.h>
 
@@ -65,39 +65,39 @@ namespace marco::codegen
 		public:
 		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
-		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<frontend::Class>> classes);
+		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<ast::Class>> classes);
 
 		private:
-		mlir::Operation* lower(const frontend::Class& cls);
-		mlir::Operation* lower(const frontend::PartialDerFunction& function);
-		mlir::Operation* lower(const frontend::StandardFunction& function);
-		mlir::Operation* lower(const frontend::Model& model);
-		mlir::Operation* lower(const frontend::Package& package);
-		mlir::Operation* lower(const frontend::Record& record);
+		mlir::Operation* lower(const ast::Class& cls);
+		mlir::Operation* lower(const ast::PartialDerFunction& function);
+		mlir::Operation* lower(const ast::StandardFunction& function);
+		mlir::Operation* lower(const ast::Model& model);
+		mlir::Operation* lower(const ast::Package& package);
+		mlir::Operation* lower(const ast::Record& record);
 
-		mlir::Type lower(const frontend::Type& type, modelica::BufferAllocationScope allocationScope);
-		mlir::Type lower(const frontend::BuiltInType& type, modelica::BufferAllocationScope allocationScope);
-		mlir::Type lower(const frontend::PackedType& type, modelica::BufferAllocationScope allocationScope);
-		mlir::Type lower(const frontend::UserDefinedType& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const ast::Type& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const ast::BuiltInType& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const ast::PackedType& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const ast::UserDefinedType& type, modelica::BufferAllocationScope allocationScope);
 
 		template<typename Context>
-		void lower(const frontend::Member& member);
+		void lower(const ast::Member& member);
 
-		void lower(const frontend::Equation& equation);
-		void lower(const frontend::ForEquation& forEquation);
+		void lower(const ast::Equation& equation);
+		void lower(const ast::ForEquation& forEquation);
 
-		void lower(const frontend::Algorithm& algorithm);
-		void lower(const frontend::Statement& statement);
-		void lower(const frontend::AssignmentStatement& statement);
-		void lower(const frontend::IfStatement& statement);
-		void lower(const frontend::ForStatement& statement);
-		void lower(const frontend::WhileStatement& statement);
-		void lower(const frontend::WhenStatement& statement);
-		void lower(const frontend::BreakStatement& statement);
-		void lower(const frontend::ReturnStatement& statement);
+		void lower(const ast::Algorithm& algorithm);
+		void lower(const ast::Statement& statement);
+		void lower(const ast::AssignmentStatement& statement);
+		void lower(const ast::IfStatement& statement);
+		void lower(const ast::ForStatement& statement);
+		void lower(const ast::WhileStatement& statement);
+		void lower(const ast::WhenStatement& statement);
+		void lower(const ast::BreakStatement& statement);
+		void lower(const ast::ReturnStatement& statement);
 
 		template<typename T>
-		Container<Reference> lower(const frontend::Expression& expression);
+		Container<Reference> lower(const ast::Expression& expression);
 
 		/**
 		 * The builder is a helper class to create IR inside a function. The
@@ -136,7 +136,7 @@ namespace marco::codegen
 		 * @param operation operation whose arguments have to be lowered
 		 * @return lowered args
  		 */
-		Container<mlir::Value> lowerOperationArgs(const frontend::Operation& operation);
+		Container<mlir::Value> lowerOperationArgs(const ast::Operation& operation);
 
 		/**
 		 * Helper to convert an AST location to a MLIR location.
@@ -158,38 +158,38 @@ namespace marco::codegen
 	};
 
 	template<>
-	void MLIRLowerer::lower<frontend::Model>(
-			const frontend::Member& member);
+	void MLIRLowerer::lower<ast::Model>(
+			const ast::Member& member);
 
 	template<>
-	void MLIRLowerer::lower<frontend::Function>(
-			const frontend::Member& member);
+	void MLIRLowerer::lower<ast::Function>(
+			const ast::Member& member);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Expression>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Expression>(
+			const ast::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Operation>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Operation>(
+			const ast::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Constant>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Constant>(
+			const ast::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::ReferenceAccess>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::ReferenceAccess>(
+			const ast::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Call>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Call>(
+			const ast::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Tuple>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Tuple>(
+			const ast::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Array>(
-			const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Array>(
+			const ast::Expression& expression);
 }

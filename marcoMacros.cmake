@@ -36,6 +36,54 @@ macro(marco_add_library name)
 	install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endmacro()
 
+macro(marco_add_library_new name)
+	marco_canonize_library_name(canonized_name ${name})
+	set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
+
+	cmake_parse_arguments(ARG
+			"SHARED"
+			""
+			"ADDITIONAL_HEADERS"
+			${ARGN})
+	set(srcs)
+
+	if (srcs OR ARG_ADDITIONAL_HEADERS)
+		set(srcs
+				ADDITIONAL_HEADERS
+				${srcs}
+				${ARG_ADDITIONAL_HEADERS}) # It may contain unparsed unknown args.
+	endif()
+
+	if (ARG_SHARED)
+		set(LIBTYPE SHARED)
+	else()
+		# llvm_add_library ignores BUILD_SHARED_LIBS if STATIC is explicitly set,
+		# so we need to handle it here.
+		if (BUILD_SHARED_LIBS)
+			set(LIBTYPE SHARED OBJECT)
+		else()
+			set(LIBTYPE STATIC OBJECT)
+		endif()
+		set_property(GLOBAL APPEND PROPERTY MARCO_STATIC_LIBS ${name})
+	endif()
+
+	llvm_add_library(${name} ${LIBTYPE} ${ARG_UNPARSED_ARGUMENTS} ${srcs})
+	add_library(marco::${name} ALIAS ${name})
+
+	set_target_properties(${name} PROPERTIES OUTPUT_NAME ${canonized_name})
+	target_compile_features(${name} PUBLIC cxx_std_17)
+
+	target_include_directories(${name} PRIVATE
+			src
+			PUBLIC
+			$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+			$<INSTALL_INTERFACE:include>)
+
+	include(GNUInstallDirs)
+	install(TARGETS ${name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endmacro()
+
 # Declare a MARCO tool
 macro(marco_add_tool name)
 	add_llvm_executable(${name} ${ARGN})

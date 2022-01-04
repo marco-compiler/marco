@@ -10,8 +10,8 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Utils.h>
-#include <marco/frontend/Parser.h>
-#include <marco/frontend/Passes.h>
+#include <marco/ast/Parser.h>
+#include <marco/ast/Passes.h>
 #include <marco/codegen/CodeGen.h>
 #include <marco/codegen/Passes.h>
 #include <marco/utils/VariableFilter.h>
@@ -28,99 +28,159 @@
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
 
+#include "clang/Driver/Driver.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/DiagnosticIDs.h"
+#include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Driver/Compilation.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/Option/ArgList.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/VirtualFileSystem.h"
+
+#include <marco/frontend/CompilerInstance.h>
+#include <marco/frontend/CompilerInvocation.h>
+#include <marco/frontend/TextDiagnosticBuffer.h>
+#include <marco/frontendTool/Utils.h>
+#include <clang/Driver/DriverDiagnostic.h>
+#include <llvm/Option/Arg.h>
+#include <llvm/Option/ArgList.h>
+#include <llvm/Option/OptTable.h>
+
+#include <marco/frontend/CompilerInvocation.h>
+#include <marco/frontend/TextDiagnosticPrinter.h>
+
 using namespace llvm;
 using namespace marco;
+using namespace marco::frontend;
 using namespace std;
 
-static cl::OptionCategory modelSolvingOptions("Model solving options");
-
-static cl::opt<int> matchingMaxIterations("matching-max-iterations", cl::desc("Maximum number of iterations for the matching phase (default: 1000)"), cl::init(1000), cl::cat(modelSolvingOptions));
-static cl::opt<int> sccMaxIterations("scc-max-iterations", cl::desc("Maximum number of iterations for the SCC resolution phase (default: 1000)"), cl::init(1000), cl::cat(modelSolvingOptions));
-static cl::opt<codegen::Solver> solver(cl::desc("Solvers:"),
-																			 cl::values(
-																					 clEnumValN(codegen::ForwardEuler, "forward-euler", "Forward Euler (default)"),
-																					 clEnumValN(codegen::CleverDAE, "clever-dae", "Clever DAE")),
-																			 cl::init(codegen::ForwardEuler),
-																			 cl::cat(modelSolvingOptions));
-
-static cl::opt<string> filter("filter", cl::desc("Variable filtering expression"), cl::init(""), cl::cat(modelSolvingOptions));
-
-static cl::OptionCategory codeGenOptions("Code generation options");
-
-static cl::list<std::string> inputFiles(cl::Positional, cl::desc("<input files>"), cl::OneOrMore, cl::cat(codeGenOptions));
-static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
-static cl::opt<bool> emitMain("emit-main", cl::desc("Whether to emit the main function that will start the simulation (default: true)"), cl::init(true), cl::cat(codeGenOptions));
-static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> inlining("no-inlining", cl::desc("Disable the inlining pass"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("Don't move the static output buffer to input arguments"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
-
-enum OptLevel {
-	O0, O1, O2, O3
-};
-
-static cl::opt<OptLevel> optimizationLevel(cl::desc("Optimization level:"),
-																					 cl::values(
-																							 clEnumValN(O0, "O0", "No optimizations"),
-																							 clEnumValN(O1, "O1", "Trivial optimizations"),
-																							 clEnumValN(O2, "O2", "Default optimizations"),
-																							 clEnumValN(O3, "O3", "Expensive optimizations")),
-																					 cl::cat(codeGenOptions),
-																					 cl::init(O2));
-
-static cl::OptionCategory debugOptions("Debug options");
-
-static cl::opt<bool> printParsedAST("print-parsed-ast", cl::desc("Print the AST right after being parsed"), cl::init(false), cl::cat(debugOptions));
-static cl::opt<bool> printLegalizedAST("print-legalized-ast", cl::desc("Print the AST after it has been legalized"), cl::init(false), cl::cat(debugOptions));
-static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print the Modelica dialect IR obtained right after the AST lowering"), cl::init(false), cl::cat(debugOptions));
-static cl::opt<bool> printLLVMDialectIR("print-llvm", cl::desc("Print the LLVM dialect IR"), cl::init(false), cl::cat(debugOptions));
-
-static cl::opt<bool> debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(debugOptions));
-static cl::opt<bool> enableAssertions("enable-assertions", cl::desc("Enable assertions (default: true for O0, false otherwise)"), cl::init(true), cl::cat(debugOptions));
-
-static cl::OptionCategory simulationOptions("Simulation options");
-
-static cl::opt<double> startTime("start-time", cl::desc("Start time (in seconds) (default: 0)"), cl::init(0), cl::cat(simulationOptions));
-static cl::opt<double> endTime("end-time", cl::desc("End time (in seconds) (default: 10)"), cl::init(10), cl::cat(simulationOptions));
-static cl::opt<double> timeStep("time-step", cl::desc("Time step (in seconds) (default: 0.1)"), cl::init(0.1), cl::cat(simulationOptions));
-
-static llvm::ExitOnError exitOnErr;
-
-struct ModelicaLoweringOptions
+bool isFrontendTool(llvm::StringRef tool)
 {
-    bool x64 = true;
-    codegen::SolveModelOptions solveModelOptions = codegen::SolveModelOptions::getDefaultOptions();
-    codegen::FunctionsVectorizationOptions functionsVectorizationOptions = codegen::FunctionsVectorizationOptions::getDefaultOptions();
-    bool inlining = true;
-    bool resultBuffersToArgs = true;
-    bool cse = true;
-    bool openmp = false;
-    codegen::ModelicaConversionOptions conversionOptions = codegen::ModelicaConversionOptions::getDefaultOptions();
-    codegen::ModelicaToLLVMConversionOptions llvmOptions = codegen::ModelicaToLLVMConversionOptions::getDefaultOptions();
-    bool debug = true;
+  return tool == "-mc1";
+}
 
-    unsigned int getBitWidth() const
-    {
-      if (x64)
-        return 64;
+extern bool isFrontendOption(llvm::StringRef option);
+extern int marcoFrontend(llvm::ArrayRef<const char*> argv, const char* argv0);
 
-      return 32;
+static int executeMarcoFrontend(llvm::StringRef tool, int argc, const char** argv)
+{
+  if (tool == "-mc1") {
+    return marcoFrontend(makeArrayRef(argv).slice(2), argv[0]);
+  }
+
+  // Reject unknown tools.
+  // At the moment it only supports mc1. Any mc1[*] is rejected.
+
+  llvm::errs() << "error: unknown integrated tool '" << tool << "'. "
+               << "Valid tools include '-mc1'.\n";
+  return 1;
+}
+
+static std::string GetExecutablePath(const char* argv0)
+{
+  // This just needs to be some symbol in the binary
+  void* p = (void*) (intptr_t) GetExecutablePath;
+  return llvm::sys::fs::getMainExecutable(argv0, p);
+}
+
+// This lets us create the DiagnosticsEngine with a properly-filled-out
+// DiagnosticOptions instance
+static clang::DiagnosticOptions *CreateAndPopulateDiagOpts(
+    llvm::ArrayRef<const char *> argv) {
+  auto *diagOpts = new clang::DiagnosticOptions;
+
+  // Ignore missingArgCount and the return value of ParseDiagnosticArgs.
+  // Any errors that would be diagnosed here will also be diagnosed later,
+  // when the DiagnosticsEngine actually exists.
+  unsigned missingArgIndex, missingArgCount;
+
+  llvm::opt::InputArgList args = clang::driver::getDriverOptTable().ParseArgs(
+      argv.slice(1), missingArgIndex, missingArgCount);
+
+  return diagOpts;
+}
+
+
+
+int main(int argc, const char** argv)
+{
+  // Initialize variables to call the driver
+  llvm::InitLLVM x(argc, argv);
+
+  llvm::ArrayRef args(argv, argv + argc);
+
+  // Check if MARCO is in the frontend mode
+  auto firstArg = std::find_if(args.begin() + 1, args.end(), [](const char* arg) {
+    return arg != nullptr;
+  });
+
+  if (firstArg != args.end()) {
+    if (llvm::StringRef(*firstArg).startswith("-mc1")) {
+      return executeMarcoFrontend(llvm::StringRef(*firstArg), argc, argv);
+    }
+  }
+
+  // Not in the frontend mode. Continue in the compiler driver mode.
+
+  // Create the diagnostics engine for the driver
+  llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts = CreateAndPopulateDiagOpts(args);
+  llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(new clang::DiagnosticIDs());
+
+  marco::frontend::TextDiagnosticPrinter* diagClient =
+      new marco::frontend::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
+
+  diagClient->set_prefix(std::string(llvm::sys::path::stem(GetExecutablePath(args[0]))));
+
+  clang::DiagnosticsEngine diags(diagID, &*diagOpts, diagClient);
+
+  // Prepare the driver
+  clang::driver::ParsedClangName targetAndMode("marco", "--driver-mode=marco");
+  std::string driverPath = GetExecutablePath(args[0]);
+  clang::driver::Driver theDriver(driverPath, llvm::sys::getDefaultTargetTriple(), diags, "MARCO");
+  theDriver.setTargetAndMode(targetAndMode);
+  std::unique_ptr<clang::driver::Compilation> c(theDriver.BuildCompilation(args));
+  llvm::SmallVector<std::pair<int, const clang::driver::Command*>, 4> failingCommands;
+
+  // Run the driver
+  int res = 1;
+  bool isCrash = false;
+  res = theDriver.ExecuteCompilation(*c, failingCommands);
+
+  for (const auto& p: failingCommands) {
+    int CommandRes = p.first;
+    const clang::driver::Command* failingCommand = p.second;
+    if (!res) {
+      res = CommandRes;
     }
 
-    static const ModelicaLoweringOptions& getDefaultOptions()
-    {
-      static ModelicaLoweringOptions options;
-      return options;
+    // If result status is < 0 (e.g. when sys::ExecuteAndWait returns -1),
+    // then the driver command signalled an error. On Windows, abort will
+    // return an exit code of 3. In these cases, generate additional diagnostic
+    // information if possible.
+    isCrash = CommandRes < 0;
+    #ifdef _WIN32
+    isCrash |= CommandRes == 3;
+    #endif
+    if (isCrash) {
+      theDriver.generateCompilationDiagnostics(*c, *failingCommand);
+      break;
     }
-};
+  }
 
-static mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions options);
+  diags.getClient()->finish();
 
-int main(int argc, char* argv[])
-{
+  // If we have multiple failing commands, we return the result of the first
+  // failing command.
+  return res;
+
+
+
+
+
+  /*
   // Setup the command line options
 	llvm::SmallVector<const cl::OptionCategory*> categories;
 	categories.push_back(&modelSolvingOptions);
@@ -290,8 +350,10 @@ int main(int argc, char* argv[])
 
 	llvm::WriteBitcodeToFile(*llvmModule, os);
 	return 0;
+   */
 }
 
+/*
 mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions options)
 {
   mlir::PassManager passManager(module.getContext());
@@ -299,7 +361,6 @@ mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions option
   //passManager.addPass(codegen::createAutomaticDifferentiationPass());
   passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass(options.solveModelOptions));
 
-  /*
   passManager.addPass(codegen::createFunctionsVectorizationPass(options.functionsVectorizationOptions));
   passManager.addPass(codegen::createExplicitCastInsertionPass());
 
@@ -335,7 +396,79 @@ mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions option
 
   if (!options.debug)
     passManager.addPass(mlir::createStripDebugInfoPass());
-    */
 
   return passManager.run(module);
 }
+    */
+
+/*
+static int execute(std::string cmd, std::string& output);
+static int runOMC();
+static int runMARCO();
+static int runBackend();
+
+int mainNew(int argc, const char** argv)
+{
+  llvm::InitLLVM x(argc, argv);
+
+  llvm::SmallVector<const cl::OptionCategory*> categories;
+  categories.push_back(&openModelicaOptions);
+  categories.push_back(&modelSolvingOptions);
+  categories.push_back(&codeGenOptions);
+  categories.push_back(&debugOptions);
+  categories.push_back(&simulationOptions);
+  HideUnrelatedOptions(categories);
+
+  cl::ParseCommandLineOptions(argc, argv, "MARCO - MLIR-based Modelica compiler");
+
+  switch (driverMode) {
+    case OMC:
+      return runOMC();
+
+    case MARCO:
+      return runMARCO();
+
+    case BACKEND:
+      return runBackend();
+  }
+
+  std::cerr << "Unknown driver mode" << std::endl;
+  return EXIT_FAILURE;
+}
+
+int execute(std::string cmd, std::string& output) {
+  const int bufsize=128;
+  std::array<char, bufsize> buffer;
+
+  auto pipe = popen(cmd.c_str(), "r");
+
+  if (!pipe) {
+    return EXIT_FAILURE;
+  }
+
+  size_t count;
+
+  do {
+    if ((count = fread(buffer.data(), 1, bufsize, pipe)) > 0) {
+      output.insert(output.end(), std::begin(buffer), std::next(std::begin(buffer), count));
+    }
+  } while(count > 0);
+
+  return pclose(pipe) == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+int runOMC()
+{
+  return EXIT_SUCCESS;
+}
+
+int runMARCO()
+{
+  return EXIT_SUCCESS;
+}
+
+int runBackend()
+{
+  return EXIT_SUCCESS;
+}
+*/

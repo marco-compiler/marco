@@ -2,13 +2,14 @@
 #define MARCO_CODEGEN_EQUATION_H
 
 #include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <marco/matching/Matching.h>
+#include <marco/modeling/Matching.h>
 
 #include "Path.h"
 #include "Variable.h"
 
 namespace marco::codegen
 {
+  /*
   class Equation
   {
     public:
@@ -48,6 +49,7 @@ namespace marco::codegen
 
     std::unique_ptr<Impl> impl;
   };
+   */
 }
 
 #endif // MARCO_CODEGEN_EQUATION_H

@@ -38,7 +38,7 @@ set(MLIR_LIBS
 marco_add_library(codegen SHARED ${SOURCES})
 
 target_link_libraries(codegen
-        PUBLIC marco::frontend
+        PUBLIC marco::ast
         PUBLIC marco::modeling
         PUBLIC marco::runtime
         PUBLIC marco::utils

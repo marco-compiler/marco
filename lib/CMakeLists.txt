@@ -1,5 +1,8 @@
+add_subdirectory(ast)
 add_subdirectory(codegen)
+add_subdirectory(diagnostic)
 add_subdirectory(frontend)
+add_subdirectory(frontendTool)
 add_subdirectory(modeling)
 add_subdirectory(utils)
 add_subdirectory(runtime)

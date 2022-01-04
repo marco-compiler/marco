@@ -11,6 +11,7 @@ target_link_libraries(modelica-opt
         PRIVATE ${conversion_libs}
         PRIVATE MLIROptLib
         PRIVATE marco::codegen
+        PRIVATE marco::ast
         PRIVATE marco::frontend)
 
 mlir_check_all_link_libraries(modelica-opt)

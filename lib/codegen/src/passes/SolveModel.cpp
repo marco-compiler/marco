@@ -15,7 +15,7 @@
 #include <marco/codegen/passes/TypeConverter.h>
 #include <marco/codegen/passes/model/Equation.h>
 #include <marco/codegen/passes/model/Model.h>
-#include <marco/matching/Matching.h>
+#include <marco/modeling/Matching.h>
 #include <marco/utils/VariableFilter.h>
 #include <memory>
 
@@ -1527,6 +1527,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
   mlir::LogicalResult matching(mlir::OpBuilder& builder, const mlir::BlockAndValueMapping& derivatives)
   {
+    /*
     ModelOp model = getOperation();
     matching::MatchingGraph<Variable, Equation> matchingGraph;
 
@@ -1580,6 +1581,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     // Erase the old equations
     for (auto& equation : equations)
       equation.eraseIR();
+    */
 
     return mlir::success();
   }

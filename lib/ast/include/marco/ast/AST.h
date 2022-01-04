@@ -1,0 +1,27 @@
+#pragma once
+
+// Just a convenience header file to include the AST nodes declarations
+
+#include "nodes/Algorithm.h"
+#include "nodes/Annotation.h"
+#include "nodes/Array.h"
+#include "nodes/Call.h"
+#include "nodes/Class.h"
+#include "nodes/ConditionalBlock.h"
+#include "nodes/Constant.h"
+#include "nodes/Equation.h"
+#include "nodes/Expression.h"
+#include "nodes/ForEquation.h"
+#include "nodes/Function.h"
+#include "nodes/Induction.h"
+#include "nodes/Member.h"
+#include "nodes/Model.h"
+#include "nodes/Modification.h"
+#include "nodes/Operation.h"
+#include "nodes/Package.h"
+#include "nodes/Record.h"
+#include "nodes/ReferenceAccess.h"
+#include "nodes/Statement.h"
+#include "nodes/Tuple.h"
+#include "nodes/Type.h"
+#include "nodes/TypePrefix.h"

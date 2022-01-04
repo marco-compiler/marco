@@ -1,11 +1,11 @@
 #include <llvm/ADT/SmallVector.h>
-#include <marco/frontend/AST.h>
+#include <marco/ast/AST.h>
 #include <marco/codegen/CodeGen.h>
 #include <marco/codegen/dialects/modelica/ModelicaDialect.h>
 #include <mlir/IR/Verifier.h>
 
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 using namespace marco::codegen;
 using namespace modelica;
 using namespace std;
@@ -148,14 +148,14 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::run(llvm::ArrayRef<std::unique_ptr<C
 	return module;
 }
 
-mlir::Operation* MLIRLowerer::lower(const frontend::Class& cls)
+mlir::Operation* MLIRLowerer::lower(const ast::Class& cls)
 {
 	return cls.visit([&](const auto& obj) {
 		return lower(obj);
 	});
 }
 
-mlir::Operation* MLIRLowerer::lower(const frontend::PartialDerFunction& function)
+mlir::Operation* MLIRLowerer::lower(const ast::PartialDerFunction& function)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	auto location = loc(function.getLocation());
@@ -169,7 +169,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::PartialDerFunction& function
 	return builder.create<DerFunctionOp>(location, function.getName(), derivedFunction, independentVariables);
 }
 
-mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
+mlir::Operation* MLIRLowerer::lower(const ast::StandardFunction& function)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -296,7 +296,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 	return functionOp;
 }
 
-mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
+mlir::Operation* MLIRLowerer::lower(const ast::Model& model)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -349,7 +349,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 
 		for (const auto& member : model.getMembers())
 		{
-			lower<frontend::Model>(*member);
+			lower<ast::Model>(*member);
 			vars.push_back(symbolTable.lookup(member->getName()).getReference());
 		}
 
@@ -378,7 +378,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 	return modelOp;
 }
 
-mlir::Operation* MLIRLowerer::lower(const frontend::Package& package)
+mlir::Operation* MLIRLowerer::lower(const ast::Package& package)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
@@ -395,7 +395,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Package& package)
 	return module;
 }
 
-mlir::Operation* MLIRLowerer::lower(const Record& record)
+mlir::Operation* MLIRLowerer::lower(const ast::Record& record)
 {
 	/*
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -508,7 +508,7 @@ mlir::Type MLIRLowerer::lower(const UserDefinedType& type, BufferAllocationScope
 }
 
 template<>
-void MLIRLowerer::lower<frontend::Model>(const Member& member)
+void MLIRLowerer::lower<ast::Model>(const Member& member)
 {
 	auto location = loc(member.getLocation());
 

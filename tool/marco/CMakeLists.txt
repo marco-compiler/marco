@@ -1,5 +1,6 @@
 set(SOURCES
-        marco.cpp)
+    marco.cpp
+    marco-frontend.cpp)
 
 marco_add_tool(marco ${SOURCES})
 
@@ -12,10 +13,16 @@ set(MLIR_LIBS
         MLIROptLib)
 
 target_link_libraries(marco
+        PRIVATE marco::ast
         PRIVATE marco::codegen
         PRIVATE marco::frontend
+        PRIVATE marco::frontendTool
         PRIVATE marco::utils
         PRIVATE ${MLIR_LIBS})
+
+clang_target_link_libraries(marco
+    PRIVATE
+    clangDriver)
 
 mlir_check_all_link_libraries(marco)
 
