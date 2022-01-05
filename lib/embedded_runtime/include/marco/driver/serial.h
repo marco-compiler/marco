@@ -27,6 +27,8 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+#include "stdio.h"
+
 class SerialPort
 {
 public:

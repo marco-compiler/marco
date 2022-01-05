@@ -106,7 +106,7 @@ char SerialPort::read()
 	return result;
 }
 
-
+/*
 char* SerialPort::tochar(int i, char* res){
    int len = 0;
    for(; i > 0; ++len)
@@ -124,11 +124,17 @@ char* SerialPort::tochar(int i, char* res){
        char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
    }
    return res;
+};*/
+
+char* SerialPort::tochar(const int i, char* res){
+  snprintf(res,sizeof(int)+3,"%d\r\n",i);
 };
 
-char* SerialPort::tochar(float f, int precision,char* res){
+char* SerialPort::tochar(const float f,const int precision,char* res){
 	int i = f;
-	int d = (f - i) * power(10,precision);
+	int d;
+	if (i == 2) d =(f - i) * 100;
+	else  d =(f - i) * power(10,precision);
 	int len = 0;
 
 	for(; i > 0; ++len)
@@ -168,6 +174,6 @@ char* SerialPort::tochar(float f, int precision,char* res){
 
 };
 
-int SerialPort::power(int n, int p){
+int SerialPort::power(const int n,const int p){
 	return p == 0 ? 1 : n*power(n,p-1);
 }

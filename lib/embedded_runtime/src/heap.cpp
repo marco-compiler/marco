@@ -7,7 +7,7 @@ st* sbrk(int incr) {
   extern char _end;     /* Defined by the linker */
   static char *heap_end;
   char *prev_heap_end;
- 
+
   if (heap_end == 0) {
     heap_end = &_end;
   }
@@ -22,13 +22,13 @@ st* sbrk(int incr) {
 
 
 void *malloc(st size) {
-    st blk_size = ALIGN(size + SIZE_T_SIZE);
+    st blk_size = ALIGN(size + TYPE_SIZE);
     st *header = sbrk(blk_size);
     *header = blk_size | 1; // mark allocated bit
-    return (char *)header + SIZE_T_SIZE;
+    return (char *)header + TYPE_SIZE;
 }
 
 void free(void *ptr) {
-    st *header = (st *)ptr - SIZE_T_SIZE;
+    st *header = (st *)ptr - TYPE_SIZE;
     *header = *header & ~1L; // unmark allocated bit
 }
