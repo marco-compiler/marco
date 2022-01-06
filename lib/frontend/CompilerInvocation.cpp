@@ -215,11 +215,9 @@ namespace marco::frontend
     }
   */
 
-    /*
-    opts.outputFile = args.getLastArgValue(clang::driver::options::OPT_o);
-    opts.showHelp = args.hasArg(clang::driver::options::OPT_help);
-    opts.showVersion = args.hasArg(clang::driver::options::OPT_version);
-     */
+    //opts.outputFile = args.getLastArgValue(marco::frontend::options::OPT_o);
+    opts.showHelp = args.hasArg(marco::frontend::options::OPT_help);
+    opts.showVersion = args.hasArg(marco::frontend::options::OPT_version);
 
     // Get the input kind (from the value passed via `-x`)
     InputKind dashX(Language::Unknown);
@@ -248,18 +246,22 @@ namespace marco::frontend
      */
 
     // Collect the input files and save them in our instance of FrontendOptions.
-    std::vector<std::string> inputs =
-        args.getAllArgValues(clang::driver::options::OPT_INPUT);
+
+    /*
+    std::vector<std::string> inputs = args.getAllArgValues(marco::frontend::options::OPT_INPUT);
     opts.inputs.clear();
+
     if (inputs.empty()) {
-      // '-' is the default input if none is given.
+      // '-' is the default input if none is given
       inputs.push_back("-");
     }
+
     for (unsigned i = 0, e = inputs.size(); i != e; ++i) {
       InputKind ik = dashX;
+
       if (ik.IsUnknown()) {
-        ik = FrontendOptions::GetInputKindForExtension(
-            llvm::StringRef(inputs[i]).rsplit('.').second);
+        ik = FrontendOptions::GetInputKindForExtension(llvm::StringRef(inputs[i]).rsplit('.').second);
+
         if (ik.IsUnknown()) {
           ik = Language::Unknown;
         }
@@ -270,6 +272,7 @@ namespace marco::frontend
 
       opts.inputs.emplace_back(std::move(inputs[i]), ik);
     }
+     */
 
     /*
     if (const llvm::opt::Arg* arg =
@@ -392,17 +395,24 @@ namespace marco::frontend
     // Parse the arguments
     const llvm::opt::OptTable& opts = marco::frontend::getDriverOptTable();
 
+    const unsigned includedFlagsBitmask = marco::frontend::options::MC1Option;
     unsigned missingArgIndex, missingArgCount;
-    llvm::opt::InputArgList args = opts.ParseArgs(commandLineArgs, missingArgIndex, missingArgCount);
 
-    /*
+    llvm::opt::InputArgList args = opts.ParseArgs(
+        commandLineArgs, missingArgIndex, missingArgCount, includedFlagsBitmask);
+
     // Check for missing argument error.
     if (missingArgCount) {
-      diagnosticEngine.Report(clang::diag::err_drv_missing_argument)
-          << args.getArgString(missingArgIndex) << missingArgCount;
+      diagnosticEngine.Report(clang::diag::err_drv_missing_argument) << args.getArgString(missingArgIndex) << missingArgCount;
       success = false;
     }
-     */
+
+    // Issue errors on unknown arguments
+    for (const auto *a : args.filtered(clang::driver::options::OPT_UNKNOWN)) {
+      auto argString = a->getAsString(args);
+      diagnosticEngine.Report(clang::diag::err_drv_unknown_argument) << argString;
+      success = false;
+    }
 
     success &= ParseFrontendArgs(res.frontendOpts(), args, diagnosticEngine);
 

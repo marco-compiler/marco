@@ -5,12 +5,12 @@
 #include <llvm/Support/CommandLine.h>
 #include <marco/frontend/CompilerInstance.h>
 #include <marco/frontend/FrontendActions.h>
+#include <marco/frontend/Options.h>
 #include <marco/frontendTool/Utils.h>
 
 namespace marco::frontend
 {
-  static std::unique_ptr<CompilerAction> CreateFrontendBaseAction(
-      CompilerInstance& ci)
+  static std::unique_ptr<CompilerAction> CreateFrontendBaseAction(CompilerInstance& ci)
   {
     ActionKind action = ci.frontendOpts().programAction;
 
@@ -48,6 +48,22 @@ namespace marco::frontend
 
   bool ExecuteCompilerInvocation(CompilerInstance* instance)
   {
+    // Honor -help
+    if (instance->frontendOpts().showHelp) {
+      marco::frontend::getDriverOptTable().printHelp(
+          llvm::outs(),
+          "marco-driver -mc1 [options] input-files", "MLIR Modelica compiler",
+          false);
+
+      return true;
+    }
+
+    // Honor -version
+    if (instance->frontendOpts().showVersion) {
+      llvm::cl::PrintVersionMessage();
+      return true;
+    }
+
     // Create and execute the frontend action
     std::unique_ptr<CompilerAction> act(CreateFrontendAction(*instance));
 

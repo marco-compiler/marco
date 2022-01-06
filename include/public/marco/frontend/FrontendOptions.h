@@ -110,6 +110,10 @@ namespace marco::frontend
   struct FrontendOptions {
     FrontendOptions() {}
 
+    bool showHelp = false;
+
+    bool showVersion = false;
+
     /// The input files and their types.
     std::vector<FrontendInputFile> inputs;
 

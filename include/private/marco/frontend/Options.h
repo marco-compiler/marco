@@ -5,8 +5,11 @@
 
 namespace marco::frontend
 {
+  //#define ORIGINAL 1
+
   namespace options
   {
+    #ifdef ORIGINAL
     enum ClangFlags {
       NoXarchOption = (1 << 4),
       LinkerInput = (1 << 5),
@@ -23,13 +26,18 @@ namespace marco::frontend
       FlangOnlyOption = (1 << 16),
       Ignored = (1 << 17),
     };
+    #else
+    enum MARCOFlags {
+      MC1Option = (1 << 4),
+    };
+    #endif
 
     enum ID {
       OPT_INVALID = 0, // This is not an option ID.
       #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
       OPT_##ID,
-      #include <clang/Driver/Options.inc>
+      #include <marco/frontend/Options.inc>
       LastOption
       #undef OPTION
     };
