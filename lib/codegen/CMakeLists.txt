@@ -1,25 +1,25 @@
 set(SOURCES
-        src/dialects/modelica/Attribute.cpp
-        src/dialects/modelica/ModelicaBuilder.cpp
-        src/dialects/modelica/ModelicaDialect.cpp
-        src/dialects/modelica/Ops.cpp
-        src/dialects/modelica/Type.cpp
-        src/passes/AutomaticDifferentiation.cpp
-        src/passes/BufferDeallocation.cpp
-        src/passes/ExplicitCastInsertion.cpp
-        src/passes/FunctionsVectorization.cpp
-        src/passes/ModelicaConversion.cpp
-        src/passes/LowerToCFG.cpp
-        src/passes/LowerToLLVM.cpp
-        src/passes/ResultBuffersToArgs.cpp
-        src/passes/SolveModel.cpp
-        src/passes/TypeConverter.cpp
-        src/passes/model/Equation.cpp
-        src/passes/model/Path.cpp
-        src/passes/model/Variable.cpp
-        src/passes/model/VVarDependencyGraph.cpp
-        src/CodeGen.cpp
-        src/Runner.cpp)
+        dialects/modelica/Attribute.cpp
+        dialects/modelica/ModelicaBuilder.cpp
+        dialects/modelica/ModelicaDialect.cpp
+        dialects/modelica/Ops.cpp
+        dialects/modelica/Type.cpp
+        passes/AutomaticDifferentiation.cpp
+        passes/BufferDeallocation.cpp
+        passes/ExplicitCastInsertion.cpp
+        passes/FunctionsVectorization.cpp
+        passes/ModelicaConversion.cpp
+        passes/LowerToCFG.cpp
+        passes/LowerToLLVM.cpp
+        passes/ResultBuffersToArgs.cpp
+        passes/SolveModel.cpp
+        passes/TypeConverter.cpp
+        passes/model/Equation.cpp
+        passes/model/Path.cpp
+        passes/model/Variable.cpp
+        passes/model/VVarDependencyGraph.cpp
+        CodeGen.cpp
+        Runner.cpp)
 
 set(MLIR_LIBS
         MLIRIR
@@ -45,7 +45,5 @@ target_link_libraries(codegen
         PRIVATE ${MLIR_LIBS}
         PRIVATE pthread
         PRIVATE boost)
-
-add_subdirectory(test)
 
 add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")

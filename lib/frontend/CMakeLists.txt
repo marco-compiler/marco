@@ -1,17 +1,19 @@
 set(SOURCES
-    src/CompilerInstance.cpp
-    src/CompilerInvocation.cpp
-    src/FrontendAction.cpp
-    src/FrontendActions.cpp
-    src/FrontendOptions.cpp
-    src/TextDiagnostic.cpp
-    src/TextDiagnosticBuffer.cpp
-    src/TextDiagnosticPrinter.cpp)
+    CompilerInstance.cpp
+    CompilerInvocation.cpp
+    FrontendAction.cpp
+    FrontendActions.cpp
+    FrontendOptions.cpp
+    Options.cpp
+    TextDiagnostic.cpp
+    TextDiagnosticBuffer.cpp
+    TextDiagnosticPrinter.cpp)
 
-marco_add_library_new(frontend SHARED
+marco_add_library(frontend SHARED
     ${SOURCES}
 
     DEPENDS
+    MARCOFrontendOptions
 
     LINK_LIBS
     clangDriver

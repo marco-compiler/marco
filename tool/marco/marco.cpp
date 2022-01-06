@@ -63,12 +63,14 @@ bool isFrontendTool(llvm::StringRef tool)
 }
 
 extern bool isFrontendOption(llvm::StringRef option);
-extern int marcoFrontend(llvm::ArrayRef<const char*> argv, const char* argv0);
+extern int mc1_main(llvm::ArrayRef<const char *> argv, const char *argv0);
 
-static int executeMarcoFrontend(llvm::StringRef tool, int argc, const char** argv)
+static int executeMC1Tool(llvm::SmallVectorImpl<const char *>& argV)
 {
+  llvm::StringRef tool = argV[1];
+
   if (tool == "-mc1") {
-    return marcoFrontend(makeArrayRef(argv).slice(2), argv[0]);
+    return mc1_main(makeArrayRef(argV).slice(2), argV[0]);
   }
 
   // Reject unknown tools.
@@ -103,14 +105,12 @@ static clang::DiagnosticOptions *CreateAndPopulateDiagOpts(
   return diagOpts;
 }
 
-
-
 int main(int argc, const char** argv)
 {
   // Initialize variables to call the driver
   llvm::InitLLVM x(argc, argv);
 
-  llvm::ArrayRef args(argv, argv + argc);
+  llvm::SmallVector<const char *, 256> args(argv, argv + argc);
 
   // Check if MARCO is in the frontend mode
   auto firstArg = std::find_if(args.begin() + 1, args.end(), [](const char* arg) {
@@ -119,7 +119,7 @@ int main(int argc, const char** argv)
 
   if (firstArg != args.end()) {
     if (llvm::StringRef(*firstArg).startswith("-mc1")) {
-      return executeMarcoFrontend(llvm::StringRef(*firstArg), argc, argv);
+      return executeMC1Tool(args);
     }
   }
 

@@ -1,20 +1,21 @@
 set(SOURCES
-        src/AccessFunction.cpp
-        src/Dumpable.cpp
-        src/Graph.cpp
-        src/LocalMatchingSolutions.cpp
-        src/Matching.cpp
-        src/MCIM.cpp
-        src/MCIS.cpp
-        src/MultidimensionalRange.cpp
-        src/Point.cpp
-        src/Range.cpp)
+        AccessFunction.cpp
+        Dumpable.cpp
+        Graph.cpp
+        LocalMatchingSolutions.cpp
+        Matching.cpp
+        MCIM.cpp
+        MCIS.cpp
+        MultidimensionalRange.cpp
+        Point.cpp
+        Range.cpp)
 
-marco_add_library(modeling SHARED ${SOURCES})
+marco_add_library(modeling SHARED
+    ${SOURCES}
 
-marco_link_llvm_libs(modeling USE_SHARED core support)
+    LINK_LIBS
+    marco::utils
 
-target_link_libraries(modeling
-        PUBLIC marco::utils)
-
-add_subdirectory(test)
+    LINK_COMPONENTS
+    Core
+    Support)

@@ -1,9 +1,9 @@
 set(SOURCES
-    src/Diagnostic.cpp
-    src/Location.cpp
-    src/LogMessage.cpp)
+    Diagnostic.cpp
+    Location.cpp
+    LogMessage.cpp)
 
-marco_add_library_new(diagnostic SHARED
+marco_add_library(diagnostic SHARED
     ${SOURCES}
 
     LINK_LIBS

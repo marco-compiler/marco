@@ -17,6 +17,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"  "MinSizeRel" "RelWithDebInfo")
 endif()
 
+# Set the root of the project
+#set(MARCO_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/public)
+#set(MARCO_PRIVATE_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/public)
+
+
 ######################################################################
 #                              Testing                               #
 ######################################################################
@@ -50,15 +55,16 @@ include(HandleLLVMOptions)
 include_directories(${CLANG_INCLUDE_DIRS})
 include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${MLIR_INCLUDE_DIRS})
-include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_BINARY_DIR}/include)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 add_definitions(${LLVM_DEFINITIONS})
 
 # inherit build options from the LLVM build we are linking against
 include(HandleLLVMOptions)
 
-set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+#set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+
+# Search the tablegen executable
+find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR})
 
 ######################################################################
 #                              Profiling                             #
@@ -82,9 +88,12 @@ endif()
 
 include(marcoMacros.cmake)
 include(extra.cmake)
-add_subdirectory(tool)
+
+add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(test)
+add_subdirectory(tool)
+add_subdirectory(unittest)
 
 ######################################################################
 #                                Boost                               #

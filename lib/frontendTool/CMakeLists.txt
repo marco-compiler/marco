@@ -1,11 +1,12 @@
 set(SOURCES
-    src/ExecuteCompilerInvocation.cpp)
+    ExecuteCompilerInvocation.cpp)
 
-marco_add_library(frontendTool SHARED ${SOURCES})
+marco_add_library(frontendTool SHARED
+    ${SOURCES}
 
-marco_link_llvm_libs(frontendTool USE_SHARED core support)
+    LINK_LIBS
+    marco::frontend
 
-target_link_libraries(frontendTool
-    PUBLIC marco::frontend)
-
-#add_subdirectory(test)
+    LINK_COMPONENTS
+    Core
+    Support)

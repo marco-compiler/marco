@@ -13,6 +13,7 @@
 #include <llvm/Support/FileUtilities.h>
 #include <llvm/Support/Process.h>
 #include <llvm/Support/raw_ostream.h>
+#include <marco/frontend/Options.h>
 #include <memory>
 
 namespace marco::frontend
@@ -389,7 +390,7 @@ namespace marco::frontend
     bool success = true;
 
     // Parse the arguments
-    const llvm::opt::OptTable& opts = clang::driver::getDriverOptTable();
+    const llvm::opt::OptTable& opts = marco::frontend::getDriverOptTable();
 
     unsigned missingArgIndex, missingArgCount;
     llvm::opt::InputArgList args = opts.ParseArgs(commandLineArgs, missingArgIndex, missingArgCount);

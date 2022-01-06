@@ -50,6 +50,7 @@
 #include <llvm/Option/OptTable.h>
 
 #include <marco/frontend/CompilerInvocation.h>
+#include <marco/frontend/Options.h>
 #include <marco/frontend/TextDiagnosticPrinter.h>
 
 using namespace llvm;
@@ -59,6 +60,7 @@ using namespace std;
 
 //static cl::OptionCategory driverModeOptions("Driver mode");
 
+/*
 enum DriverMode {
   OMC, MARCO, BACKEND
 };
@@ -178,6 +180,8 @@ static cl::opt<double>
 static cl::opt<double>
     timeStep("time-step", cl::desc("Time step (in seconds) (default: 0.1)"), cl::init(0.1), cl::cat(simulationOptions));
 
+    */
+
 static llvm::ExitOnError exitOnErr;
 
 struct ModelicaLoweringOptions
@@ -222,7 +226,7 @@ struct Options : public FrontendOptions {
    */
 };
 
-extern int marcoFrontend(llvm::ArrayRef<const char*> argv, const char* argv0)
+extern int mc1_main(llvm::ArrayRef<const char*> argv, const char* argv0)
 {
   // Create CompilerInstance
   std::unique_ptr<CompilerInstance> instance(new CompilerInstance());

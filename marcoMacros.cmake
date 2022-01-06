@@ -19,27 +19,6 @@ macro(marco_add_library name)
 	marco_canonize_library_name(canonized_name ${name})
 	set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
 
-	add_library(${name} ${ARGN})
-	add_library(marco::${name} ALIAS ${name})
-
-	set_target_properties(${name} PROPERTIES OUTPUT_NAME ${canonized_name})
-	target_compile_features(${name} PUBLIC cxx_std_17)
-
-	target_include_directories(${name} PRIVATE
-			src
-			PUBLIC
-			$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-			$<INSTALL_INTERFACE:include>)
-
-	include(GNUInstallDirs)
-	install(TARGETS ${name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-	install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-endmacro()
-
-macro(marco_add_library_new name)
-	marco_canonize_library_name(canonized_name ${name})
-	set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
-
 	cmake_parse_arguments(ARG
 			"SHARED"
 			""
@@ -64,24 +43,27 @@ macro(marco_add_library_new name)
 		else()
 			set(LIBTYPE STATIC OBJECT)
 		endif()
+
 		set_property(GLOBAL APPEND PROPERTY MARCO_STATIC_LIBS ${name})
 	endif()
 
-	llvm_add_library(${name} ${LIBTYPE} ${ARG_UNPARSED_ARGUMENTS} ${srcs})
+	llvm_add_library(${name} ${LIBTYPE} OUTPUT_NAME ${canonized_name} ${ARG_UNPARSED_ARGUMENTS} ${srcs})
 	add_library(marco::${name} ALIAS ${name})
 
-	set_target_properties(${name} PROPERTIES OUTPUT_NAME ${canonized_name})
 	target_compile_features(${name} PUBLIC cxx_std_17)
 
 	target_include_directories(${name} PRIVATE
 			src
 			PUBLIC
-			$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+			$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/public>
+			$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/private>
+			$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/public>
+			$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/private>
 			$<INSTALL_INTERFACE:include>)
 
 	include(GNUInstallDirs)
 	install(TARGETS ${name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-	install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+	#install(DIRECTORY ${MARCO_PUBLIC_HEADERS}/${name} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endmacro()
 
 # Declare a MARCO tool

@@ -44,27 +44,16 @@ namespace marco::frontend
   class CompilerInvocation : public CompilerInvocationBase
   {
       /// Options for the frontend driver
-      // TODO: Merge with or translate to parserOpts_. We shouldn't need two sets of
-      // options.
-      std::unique_ptr<FrontendOptions> frontendOpts_;
+      FrontendOptions frontendOpts_;
 
       bool debugModuleDir_ = false;
 
     public:
       CompilerInvocation() = default;
 
-      /*
-      CompilerInvocation(
-          std::unique_ptr<FrontendOptions> options,
-          clang::DiagnosticsEngine& diagnosticsEngine)
-          : frontendOpts_(std::move(options))
-      {
-      }
-       */
+      FrontendOptions& frontendOpts() { return frontendOpts_; }
 
-      FrontendOptions& frontendOpts() { return *frontendOpts_; }
-
-      const FrontendOptions& frontendOpts() const { return *frontendOpts_; }
+      const FrontendOptions& frontendOpts() const { return frontendOpts_; }
 
       /// Create a compiler invocation from a list of input options.
       /// \returns true on success.
