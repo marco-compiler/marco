@@ -1,17 +1,16 @@
 #ifndef MARCO_FRONTEND_COMPILERINSTANCE_H
 #define MARCO_FRONTEND_COMPILERINSTANCE_H
 
-//#include "flang/Parser/parsing.h"
-//#include "flang/Parser/provenance.h"
-//#include "flang/Semantics/semantics.h"
-
 #include <clang/Basic/DiagnosticOptions.h>
 #include <list>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
+#include <mlir/IR/BuiltinOps.h>
+#include <marco/ast/AST.h>
 
 #include "CompilerInvocation.h"
-#include "CompilerAction.h"
-//#include "FrontendAction.h"
+#include "FrontendAction.h"
 
 namespace marco::frontend
 {
@@ -116,7 +115,7 @@ namespace marco::frontend
       /// Get the current stream for verbose output.
       llvm::raw_ostream& semaOutputStream() { return *semaOutputStream_; }
 
-      bool ExecuteAction(CompilerAction& act);
+      bool ExecuteAction(FrontendAction& act);
 
       clang::DiagnosticOptions& GetDiagnosticOpts()
       {
@@ -128,11 +127,11 @@ namespace marco::frontend
         return invocation_->GetDiagnosticOpts();
       }
 
-      FrontendOptions& frontendOpts() { return invocation_->frontendOpts(); }
+      FrontendOptions& frontendOpts() { return invocation_->frontendOptions(); }
 
       const FrontendOptions& frontendOpts() const
       {
-        return invocation_->frontendOpts();
+        return invocation_->frontendOptions();
       }
 
       /// Get the current diagnostics engine.
@@ -177,10 +176,6 @@ namespace marco::frontend
           llvm::StringRef outputPath, bool binary);
 
     public:
-      /// }
-      /// @name Construction Utility Methods
-      /// {
-
       /// Create a DiagnosticsEngine object
       ///
       /// If no diagnostic client is provided, this method creates a
@@ -198,14 +193,11 @@ namespace marco::frontend
       /// \return The new object on success, or null on failure.
       static clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> CreateDiagnostics(
           clang::DiagnosticOptions* opts,
-          clang::DiagnosticConsumer* client = nullptr, bool shouldOwnClient = true);
+          clang::DiagnosticConsumer* client = nullptr,
+          bool shouldOwnClient = true);
 
-      void CreateDiagnostics(
-          clang::DiagnosticConsumer* client = nullptr, bool shouldOwnClient = true);
+      void CreateDiagnostics(clang::DiagnosticConsumer* client = nullptr, bool shouldOwnClient = true);
 
-      /// }
-      /// @name Output Stream Methods
-      /// {
       void set_outputStream(std::unique_ptr<llvm::raw_pwrite_stream> outStream)
       {
         outputStream_ = std::move(outStream);
@@ -218,6 +210,82 @@ namespace marco::frontend
       {
         *outputStream_ << message;
       }
+
+    public:
+      std::vector<std::unique_ptr<ast::Class>>& classes()
+      {
+        return classes_;
+      }
+
+      const std::vector<std::unique_ptr<ast::Class>>& classes() const
+      {
+        return classes_;
+      }
+
+      mlir::MLIRContext& mlirContext()
+      {
+        assert(mlirContext_ != nullptr && "MLIR context not set");
+        return *mlirContext_;
+      }
+
+      const mlir::MLIRContext& mlirContext() const
+      {
+        assert(mlirContext_ != nullptr && "MLIR context not set");
+        return *mlirContext_;
+      }
+
+      mlir::ModuleOp& mlirModule()
+      {
+        assert(mlirModule_ != nullptr && "MLIR module not set");
+        return *mlirModule_;
+      }
+
+      const mlir::ModuleOp& mlirModule() const
+      {
+        assert(mlirModule_ != nullptr && "MLIR module not set");
+        return *mlirModule_;
+      }
+
+      void setMlirModule(std::unique_ptr<mlir::ModuleOp> module)
+      {
+        mlirModule_ = std::move(module);
+      }
+
+      llvm::LLVMContext& llvmContext()
+      {
+        assert(llvmContext_ != nullptr && "LLVM context not set");
+        return *llvmContext_;
+      }
+
+      const llvm::LLVMContext& llvmContext() const
+      {
+        assert(llvmContext_ != nullptr && "LLVM context not set");
+        return *llvmContext_;
+      }
+
+      llvm::Module& llvmModule()
+      {
+        assert(mlirModule_ != nullptr && "LLVM module not set");
+        return *llvmModule_;
+      }
+
+      const llvm::Module& llvmModule() const
+      {
+        assert(mlirModule_ != nullptr && "LLVM module not set");
+        return *llvmModule_;
+      }
+
+      void setLLVMModule(std::unique_ptr<llvm::Module> module)
+      {
+        llvmModule_ = std::move(module);
+      }
+
+    private:
+      std::vector<std::unique_ptr<ast::Class>> classes_;
+      std::unique_ptr<mlir::MLIRContext> mlirContext_;
+      std::unique_ptr<mlir::ModuleOp> mlirModule_;
+      std::unique_ptr<llvm::LLVMContext> llvmContext_;
+      std::unique_ptr<llvm::Module> llvmModule_;
   };
 }
 

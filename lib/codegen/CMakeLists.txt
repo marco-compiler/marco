@@ -35,15 +35,24 @@ set(MLIR_LIBS
         MLIRTranslation
         MLIRExecutionEngine)
 
-marco_add_library(codegen SHARED ${SOURCES})
+marco_add_library(codegen
+    SHARED
+    ${SOURCES}
 
-target_link_libraries(codegen
-        PUBLIC marco::ast
-        PUBLIC marco::modeling
-        PUBLIC marco::runtime
-        PUBLIC marco::utils
-        PRIVATE ${MLIR_LIBS}
-        PRIVATE pthread
-        PRIVATE boost)
+    DEPENDS
+    marco::ast
+    marco::modeling
+    marco::runtime #remove
+    marco::utils
 
-add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")
+    LINK_LIBS
+    marco::ast
+    marco::modeling
+    marco::runtime #remove
+    marco::utils
+    ${MLIR_LIBS} #private (?)
+    pthread #private
+    boost #private
+    )
+
+#add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")

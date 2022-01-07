@@ -1,4 +1,3 @@
-#include <clang/Driver/Options.h>
 #include <llvm/Option/OptTable.h>
 #include <llvm/Option/Option.h>
 #include <llvm/Support/BuryPointer.h>
@@ -10,22 +9,28 @@
 
 namespace marco::frontend
 {
-  static std::unique_ptr<CompilerAction> CreateFrontendBaseAction(CompilerInstance& ci)
+  static std::unique_ptr<FrontendAction> CreateFrontendBaseAction(CompilerInstance& ci)
   {
     ActionKind action = ci.frontendOpts().programAction;
 
     switch (action) {
-      case PrintAST:
-        // TODO
+      case InitOnly:
+        return std::make_unique<InitOnlyAction>();
 
-      case EmitMLIR:
-        // TODO
+      case EmitAST:
+        return std::make_unique<EmitASTAction>();
 
-      case EmitLLVM:
-        // TODO
+      case EmitModelicaDialect:
+        return std::make_unique<EmitModelicaDialectAction>();
+
+      case EmitLLVMDialect:
+        return std::make_unique<EmitLLVMDialectAction>();
+
+      case EmitLLVMIR:
+        return std::make_unique<EmitLLVMIRAction>();
 
       case EmitBitcode:
-        // TODO
+        return std::make_unique<EmitBitcodeAction>();
 
       default:
         break;
@@ -34,10 +39,10 @@ namespace marco::frontend
     return 0;
   }
 
-  std::unique_ptr<CompilerAction> CreateFrontendAction(CompilerInstance& ci)
+  std::unique_ptr<FrontendAction> CreateFrontendAction(CompilerInstance& ci)
   {
     // Create the underlying action.
-    std::unique_ptr<CompilerAction> act = CreateFrontendBaseAction(ci);
+    std::unique_ptr<FrontendAction> act = CreateFrontendBaseAction(ci);
 
     if (!act) {
       return nullptr;
@@ -65,7 +70,7 @@ namespace marco::frontend
     }
 
     // Create and execute the frontend action
-    std::unique_ptr<CompilerAction> act(CreateFrontendAction(*instance));
+    std::unique_ptr<FrontendAction> act(CreateFrontendAction(*instance));
 
     if (!act) {
       return false;

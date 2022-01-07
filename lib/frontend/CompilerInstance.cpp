@@ -1,29 +1,24 @@
-#include <marco/frontend/CompilerInstance.h>
-#include <marco/frontend/CompilerInvocation.h>
-#include <marco/frontend/TextDiagnosticPrinter.h>
 #include <llvm/Support/Errc.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
+#include <marco/frontend/CompilerInstance.h>
+#include <marco/frontend/CompilerInvocation.h>
+#include <marco/frontend/TextDiagnosticPrinter.h>
+#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 namespace marco::frontend
 {
   CompilerInstance::CompilerInstance()
-      : invocation_(new CompilerInvocation()) {
-  }
-
-  /*
-  CompilerInstance::CompilerInstance()
       : invocation_(new CompilerInvocation()),
-        allSources_(new Fortran::parser::AllSources()),
-        allCookedSources_(new Fortran::parser::AllCookedSources(*allSources_)),
-        parsing_(new Fortran::parser::Parsing(*allCookedSources_)) {
-    // TODO: This is a good default during development, but ultimately we should
-    // give the user the opportunity to specify this.
-    allSources_->set_encoding(Fortran::parser::Encoding::UTF_8);
+        mlirContext_(std::make_unique<mlir::MLIRContext>()),
+        llvmContext_(std::make_unique<llvm::LLVMContext>())
+  {
+    mlirContext_->loadDialect<marco::codegen::modelica::ModelicaDialect>();
+    mlirContext_->loadDialect<mlir::StandardOpsDialect>();
   }
-   */
 
   CompilerInstance::~CompilerInstance() {
     assert(outputFiles_.empty() && "Still output files in flight?");
@@ -71,10 +66,9 @@ namespace marco::frontend
     return outFile;
   }
 
-  std::unique_ptr<llvm::raw_pwrite_stream>
-  CompilerInstance::CreateDefaultOutputFile(
-      bool binary, llvm::StringRef baseName, llvm::StringRef extension) {
-
+  std::unique_ptr<llvm::raw_pwrite_stream> CompilerInstance::CreateDefaultOutputFile(
+      bool binary, llvm::StringRef baseName, llvm::StringRef extension)
+  {
     // Get the path of the output file
     std::string outputFilePath =
         GetOutputFilePath(frontendOpts().outputFile, baseName, extension);
@@ -95,13 +89,13 @@ namespace marco::frontend
         clang::DiagnosticsEngine::Error, "unable to open output file '%0': '%1'");
     diagnostics().Report(DiagID)
         << outputFilePath << llvm::errorToErrorCode(os.takeError()).message();
+
     return nullptr;
   }
 
-  llvm::Expected<std::unique_ptr<llvm::raw_pwrite_stream>>
-  CompilerInstance::CreateOutputFileImpl(
-      llvm::StringRef outputFilePath, bool binary) {
-
+  llvm::Expected<std::unique_ptr<llvm::raw_pwrite_stream>> CompilerInstance::CreateOutputFileImpl(
+      llvm::StringRef outputFilePath, bool binary)
+  {
     // Creates the file descriptor for the output file
     std::unique_ptr<llvm::raw_fd_ostream> os;
 
@@ -130,25 +124,29 @@ namespace marco::frontend
     outputFiles_.clear();
   }
 
-  bool CompilerInstance::ExecuteAction(CompilerAction &act) {
-    auto &invoc = this->invocation();
+  bool CompilerInstance::ExecuteAction(FrontendAction &act) {
+    auto& invoc = this->invocation();
 
     // Set some sane defaults for the frontend.
-    invoc.SetDefaultFortranOpts();
+    //invoc.SetDefaultFortranOpts();
     // Update the fortran options based on user-based input.
-    invoc.setFortranOpts();
+    //invoc.setFortranOpts();
     // Set the encoding to read all input files in based on user input.
     //allSources_->set_encoding(invoc.fortranOpts().encoding);
     // Create the semantics context and set semantic options.
     //invoc.setSemanticsOpts(*this->allCookedSources_);
 
-    // Run the frontend action `act` for every input file.
+    act.setCompilerInstance(*this);
+    act.execute();
+
     /*
+    // Run the frontend action `act` for every input file.ì
     for (const FrontendInputFile &fif : frontendOpts().inputs) {
       if (act.BeginSourceFile(*this, fif)) {
         if (llvm::Error err = act.Execute()) {
           consumeError(std::move(err));
         }
+
         act.EndSourceFile();
       }
     }

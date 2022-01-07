@@ -61,33 +61,6 @@ using namespace std;
 //static cl::OptionCategory driverModeOptions("Driver mode");
 
 /*
-enum DriverMode {
-  OMC, MARCO, BACKEND
-};
-
-cl::opt<DriverMode> driverMode(cl::desc("Choose optimization level:"),
-    cl::values(
-        clEnumVal(OMC , "omc"),
-        clEnumVal(MARCO, "marco"),
-        clEnumVal(BACKEND, "backend")));
-
-static cl::OptionCategory openModelicaOptions("OpenModelica");
-
-static cl::opt<string> omcPath("omc-path", cl::desc("OMC executable path"), cl::init(""), cl::cat(openModelicaOptions));
-static cl::opt<bool> omcBypass("bypass-omc", cl::desc("Bypass OMC and pass the sources directly to MARCO"), cl::init(false), cl::cat(openModelicaOptions));
-
-static cl::OptionCategory modelSolvingOptions("Model solving options");
-
-static cl::opt<int> matchingMaxIterations(
-    "matching-max-iterations",
-    cl::desc("Maximum number of iterations for the matching phase (default: 1000)"),
-    cl::init(1000),
-    cl::cat(modelSolvingOptions));
-static cl::opt<int> sccMaxIterations(
-    "scc-max-iterations",
-    cl::desc("Maximum number of iterations for the SCC resolution phase (default: 1000)"),
-    cl::init(1000),
-    cl::cat(modelSolvingOptions));
 static cl::opt<codegen::Solver> solver(
     cl::desc("Solvers:"),
     cl::values(
@@ -101,33 +74,35 @@ static cl::opt<string>
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
-static cl::list<std::string>
-    inputFiles(cl::Positional, cl::desc("<input files>"), cl::OneOrMore, cl::cat(codeGenOptions));
-
-static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
-
 static cl::opt<bool> emitMain(
     "emit-main",
     cl::desc("Whether to emit the main function that will start the simulation (default: true)"),
     cl::init(true),
     cl::cat(codeGenOptions));
+
 static cl::opt<bool>
     x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(codeGenOptions));
+
 static cl::opt<bool>
     inlining("no-inlining", cl::desc("Disable the inlining pass"), cl::init(false), cl::cat(codeGenOptions));
+
 static cl::opt<bool> resultBuffersToArgs(
     "no-result-buffers-to-args",
     cl::desc("Don't move the static output buffer to input arguments"),
     cl::init(false),
     cl::cat(codeGenOptions));
+
 static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
+
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
+
 static cl::opt<bool> disableRuntimeLibrary(
     "disable-runtime-library",
     cl::desc(
         "Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"),
     cl::init(false),
     cl::cat(codeGenOptions));
+
 static cl::opt<bool>
     emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
 
@@ -165,6 +140,7 @@ static cl::opt<bool>
 
 static cl::opt<bool>
     debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(debugOptions));
+
 static cl::opt<bool> enableAssertions(
     "enable-assertions",
     cl::desc("Enable assertions (default: true for O0, false otherwise)"),

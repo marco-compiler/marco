@@ -5,13 +5,13 @@ namespace marco::frontend
 {
   class CompilerInstance;
 
-  class CompilerAction;
+  class FrontendAction;
 
   /// Construct the FrontendAction of a compiler invocation based on the
   /// options specified for the compiler invocation.
   ///
   /// \return - The created FrontendAction object
-  std::unique_ptr<CompilerAction> CreateFrontendAction(CompilerInstance& ci);
+  std::unique_ptr<FrontendAction> CreateFrontendAction(CompilerInstance& ci);
 
   /// ExecuteCompilerInvocation - Execute the given actions described by the
   /// compiler invocation object in the given compiler instance.

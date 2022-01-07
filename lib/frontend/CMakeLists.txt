@@ -1,3 +1,5 @@
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+
 set(SOURCES
     CompilerInstance.cpp
     CompilerInvocation.cpp
@@ -9,16 +11,36 @@ set(SOURCES
     TextDiagnosticBuffer.cpp
     TextDiagnosticPrinter.cpp)
 
+set(MLIR_LIBS
+    MLIRIR
+    MLIRMathToLLVM
+    MLIROpenMPToLLVM
+    MLIROpenMPToLLVMIRTranslation
+    MLIRSCF
+    MLIRSCFToStandard
+    MLIRSCFToOpenMP
+    MLIRStandard
+    MLIRStandardToLLVM
+    MLIRTransforms
+    MLIRTranslation
+    MLIRExecutionEngine)
+
 marco_add_library(frontend SHARED
     ${SOURCES}
 
     DEPENDS
+    marco::ast
+    marco::codegen
+    marco::utils
     MARCOFrontendOptions
 
     LINK_LIBS
     clangDriver
     marco::ast
+    marco::codegen
     marco::utils
+    ${dialect_libs}
+    ${MLIR_LIBS}
 
     LINK_COMPONENTS
     Option

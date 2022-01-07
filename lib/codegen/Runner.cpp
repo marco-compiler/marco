@@ -18,7 +18,7 @@ Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries,
 	llvm::InitializeNativeTargetAsmPrinter();
 
 	llvm::SmallVector<mlir::StringRef, 3> allLibraries(libraries.begin(), libraries.end());
-	allLibraries.push_back(RUNTIME_LIBRARY);
+	//allLibraries.push_back(RUNTIME_LIBRARY);
 
 	// Create the engine
 	auto optPipeline = mlir::makeOptimizingTransformer(speedOptimization, sizeOptimization, nullptr);

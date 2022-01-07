@@ -14,6 +14,44 @@ namespace marco::frontend
    */
   class FrontendAction
   {
+    public:
+      FrontendAction() : instance_(nullptr)
+      {
+      }
+
+      virtual ~FrontendAction() = default;
+
+      void setCompilerInstance(CompilerInstance& ci)
+      {
+        instance_ = &ci;
+      }
+
+      virtual void execute() = 0;
+
+    protected:
+      CompilerInstance& instance()
+      {
+        assert(instance_ != nullptr && "Compiler instance not registered");
+        return *instance_;
+      }
+
+      bool runParse();
+      bool runFrontendPasses();
+      bool runASTConversion();
+      bool runDialectConversion();
+      bool runLLVMIRGeneration();
+
+    private:
+      CompilerInstance* instance_;
+  };
+
+
+  /**
+   * Abstract base class for the actions which can be performed by the frontend.
+   */
+   /*
+  class FrontendActionOld
+  {
       FrontendInputFile currentInput_;
       CompilerInstance* instance_;
 
@@ -82,11 +120,6 @@ namespace marco::frontend
       /// \return True on success; on failure the compilation of this file should
       bool BeginSourceFile(CompilerInstance& ci, const FrontendInputFile& input);
 
-      /**
-       * Run the action.
-       *
-       * @return whether the action has been executed successfully
-       */
       llvm::Error Execute();
 
       /// Perform any per-file post processing, deallocate per-file
@@ -94,9 +127,7 @@ namespace marco::frontend
       void EndSourceFile();
 
     protected:
-      // Parse the current input file. Return False if fatal errors are reported,
-      // True otherwise.
-      bool RunParse();
+      bool runParse();
 
       // Report fatal semantic errors. Return True if present, false otherwise.
       //bool reportFatalSemanticErrors();
@@ -116,6 +147,8 @@ namespace marco::frontend
       template<unsigned N>
       bool reportFatalErrors(const char (& message)[N]);
   };
+
+*/
 }
 
 #endif // MARCO_FRONTEND_FRONTENDACTION_H

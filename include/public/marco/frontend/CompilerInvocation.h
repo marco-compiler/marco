@@ -6,6 +6,8 @@
 #include <llvm/Option/ArgList.h>
 #include <memory>
 
+#include "CodegenOptions.h"
+#include "DialectOptions.h"
 #include "FrontendOptions.h"
 
 namespace marco::frontend
@@ -14,9 +16,11 @@ namespace marco::frontend
   ///
   /// When errors are encountered, return false and, if Diags is non-null,
   /// report the error(s).
+  /*
   bool ParseDiagnosticArgs(
       clang::DiagnosticOptions& opts,
       llvm::opt::ArgList& args, bool defaultDiagColor = true);
+      */
 
   class CompilerInvocationBase
   {
@@ -43,17 +47,20 @@ namespace marco::frontend
 
   class CompilerInvocation : public CompilerInvocationBase
   {
-      /// Options for the frontend driver
-      FrontendOptions frontendOpts_;
-
-      bool debugModuleDir_ = false;
-
     public:
       CompilerInvocation() = default;
 
-      FrontendOptions& frontendOpts() { return frontendOpts_; }
+      FrontendOptions& frontendOptions() { return frontendOptions_; }
 
-      const FrontendOptions& frontendOpts() const { return frontendOpts_; }
+      const FrontendOptions& frontendOptions() const { return frontendOptions_; }
+
+      DialectOptions& dialectOptions() { return dialectOptions_; }
+
+      const DialectOptions& dialectOptions() const { return dialectOptions_; }
+
+      CodegenOptions& codegenOptions() { return codegenOptions_; }
+
+      const CodegenOptions& codegenOptions() const { return codegenOptions_; }
 
       /// Create a compiler invocation from a list of input options.
       /// \returns true on success.
@@ -64,15 +71,10 @@ namespace marco::frontend
           llvm::ArrayRef<const char*> commandLineArgs,
           clang::DiagnosticsEngine& diags);
 
-      /// Set the Fortran options to predefined defaults.
-      // TODO: We should map frontendOpts_ to parserOpts_ instead. For that, we
-      // need to extend frontendOpts_ first. Next, we need to add the corresponding
-      // compiler driver options in libclangDriver.
-      void SetDefaultFortranOpts();
-
-      /// Set the Fortran options to user-specified values.
-      /// These values are found in the preprocessor options.
-      void setFortranOpts();
+    private:
+      FrontendOptions frontendOptions_;
+      DialectOptions dialectOptions_;
+      CodegenOptions codegenOptions_;
   };
 }
 
