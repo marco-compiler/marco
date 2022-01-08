@@ -14,7 +14,7 @@
 
 namespace marco::codegen
 {
-	struct ModelicaOptions
+	struct CodegenOptions
 	{
 		double startTime = 0;
 		double endTime = 10;
@@ -25,8 +25,8 @@ namespace marco::codegen
 		 *
 		 * @return default options
 		 */
-		static const ModelicaOptions& getDefaultOptions() {
-			static ModelicaOptions options;
+		static const CodegenOptions& getDefaultOptions() {
+			static CodegenOptions options;
 			return options;
 		}
 	};
@@ -63,7 +63,7 @@ namespace marco::codegen
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
+		explicit MLIRLowerer(mlir::MLIRContext& context, CodegenOptions options = CodegenOptions::getDefaultOptions());
 
 		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<ast::Class>> classes);
 
@@ -121,14 +121,14 @@ namespace marco::codegen
 		 */
 		std::deque<llvm::StringRef> scopes;
 
-		 /**
-		  * Apply a binary operation to a list of values.
-		  *
-		  * @param args      arguments
-		  * @param callback  callback that should process the current args and return a result
-		  * @return folded value
-		  */
-		 mlir::Value foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback);
+    /**
+     * Apply a binary operation to a list of values.
+     *
+     * @param args      arguments
+     * @param callback  callback that should process the current args and return a result
+     * @return folded value
+    */
+    mlir::Value foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback);
 
 		/**
 		 * Lower the arguments of an operation.
@@ -154,7 +154,7 @@ namespace marco::codegen
 		 */
 		mlir::Location loc(SourceRange location);
 
-		ModelicaOptions options;
+		CodegenOptions options;
 	};
 
 	template<>

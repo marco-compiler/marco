@@ -34,23 +34,6 @@ namespace marco::frontend
       /// The options used in this compiler instance.
       std::shared_ptr<CompilerInvocation> invocation_;
 
-      /// Flang file manager.
-      /*
-      std::shared_ptr<Fortran::parser::AllSources> allSources_;
-
-      std::shared_ptr<Fortran::parser::AllCookedSources> allCookedSources_;
-
-      std::shared_ptr<Fortran::parser::Parsing> parsing_;
-
-      std::unique_ptr<Fortran::semantics::Semantics> semantics_;
-       */
-
-      /// The stream for diagnostics from Semantics
-      llvm::raw_ostream* semaOutputStream_ = &llvm::errs();
-
-      /// The stream for diagnostics from Semantics if owned, otherwise nullptr.
-      std::unique_ptr<llvm::raw_ostream> ownedSemaOutputStream_;
-
       /// The diagnostics engine instance.
       llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diagnostics_;
 
@@ -105,15 +88,6 @@ namespace marco::frontend
       /// Return parsing to be used by Actions.
       Fortran::parser::Parsing& parsing() const { return *parsing_; }
        */
-
-      /// Replace the current stream for verbose output.
-      void set_semaOutputStream(llvm::raw_ostream& Value);
-
-      /// Replace the current stream for verbose output.
-      void set_semaOutputStream(std::unique_ptr<llvm::raw_ostream> Value);
-
-      /// Get the current stream for verbose output.
-      llvm::raw_ostream& semaOutputStream() { return *semaOutputStream_; }
 
       bool ExecuteAction(FrontendAction& act);
 

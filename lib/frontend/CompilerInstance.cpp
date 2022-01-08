@@ -29,17 +29,6 @@ namespace marco::frontend
     invocation_ = std::move(value);
   }
 
-  void CompilerInstance::set_semaOutputStream(llvm::raw_ostream &Value) {
-    ownedSemaOutputStream_.release();
-    semaOutputStream_ = &Value;
-  }
-
-  void CompilerInstance::set_semaOutputStream(
-      std::unique_ptr<llvm::raw_ostream> Value) {
-    ownedSemaOutputStream_.swap(Value);
-    semaOutputStream_ = ownedSemaOutputStream_.get();
-  }
-
   // Helper method to generate the path of the output file. The following logic
   // applies:
   // 1. If the user specifies the output file via `-o`, then use that (i.e.

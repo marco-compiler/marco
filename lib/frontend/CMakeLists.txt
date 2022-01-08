@@ -7,6 +7,7 @@ set(SOURCES
     FrontendActions.cpp
     FrontendOptions.cpp
     Options.cpp
+    SimulationOptions.cpp
     TextDiagnostic.cpp
     TextDiagnosticBuffer.cpp
     TextDiagnosticPrinter.cpp)

@@ -9,6 +9,7 @@
 #include "CodegenOptions.h"
 #include "DialectOptions.h"
 #include "FrontendOptions.h"
+#include "SimulationOptions.h"
 
 namespace marco::frontend
 {
@@ -62,6 +63,10 @@ namespace marco::frontend
 
       const CodegenOptions& codegenOptions() const { return codegenOptions_; }
 
+      SimulationOptions& simulationOptions() { return simulationOptions_; }
+
+      const SimulationOptions& simulationOptions() const { return simulationOptions_; }
+
       /// Create a compiler invocation from a list of input options.
       /// \returns true on success.
       /// \returns false if an error was encountered while parsing the arguments
@@ -75,6 +80,7 @@ namespace marco::frontend
       FrontendOptions frontendOptions_;
       DialectOptions dialectOptions_;
       CodegenOptions codegenOptions_;
+      SimulationOptions simulationOptions_;
   };
 }
 

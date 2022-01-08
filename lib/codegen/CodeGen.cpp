@@ -95,7 +95,7 @@ Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
 			});
 }
 
-MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
+MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, CodegenOptions options)
 		: builder(&context),
 			options(options)
 {

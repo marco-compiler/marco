@@ -5,9 +5,15 @@ namespace marco::frontend
 {
   struct CodegenOptions
   {
-    bool debug = false;
+    bool debug;
+    bool assertions;
 
-
+    bool generateMain;
+    bool inlining;
+    bool outputArraysPromotion;
+    bool cse;
+    bool omp;
+    bool cWrappers;
   };
 }
 

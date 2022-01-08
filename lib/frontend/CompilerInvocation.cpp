@@ -1,9 +1,9 @@
-#include <marco/frontend/CompilerInvocation.h>
 #include <clang/Basic/AllDiagnostics.h>
 #include <clang/Basic/DiagnosticDriver.h>
 #include <clang/Basic/DiagnosticOptions.h>
 #include <clang/Driver/DriverDiagnostic.h>
 #include <clang/Driver/Options.h>
+#include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <llvm/Option/Arg.h>
@@ -13,6 +13,7 @@
 #include <llvm/Support/FileUtilities.h>
 #include <llvm/Support/Process.h>
 #include <llvm/Support/raw_ostream.h>
+#include <marco/frontend/CompilerInvocation.h>
 #include <marco/frontend/Options.h>
 #include <memory>
 
@@ -208,12 +209,60 @@ namespace marco::frontend
   }
 
   static bool ParseCodegenArgs(
-      CodegenOptions& opts, llvm::opt::ArgList& args,
-      clang::DiagnosticsEngine& diags)
+      CodegenOptions& options, llvm::opt::ArgList& args, clang::DiagnosticsEngine& diags)
   {
     unsigned numErrorsBefore = diags.getNumErrors();
 
-    // TODO
+    options.debug = args.hasArg(marco::frontend::options::OPT_debug);
+
+    options.assertions = args.hasFlag(
+        marco::frontend::options::OPT_assertions, marco::frontend::options::OPT_no_assertions, false);
+
+    options.generateMain = args.hasFlag(
+        marco::frontend::options::OPT_generate_main, marco::frontend::options::OPT_no_generate_main, true);
+
+    options.inlining = args.hasFlag(
+        marco::frontend::options::OPT_function_inlining, marco::frontend::options::OPT_no_function_inlining, true);
+
+    options.outputArraysPromotion = args.hasFlag(
+        marco::frontend::options::OPT_output_arrays_promotion,
+        marco::frontend::options::OPT_no_output_arrays_promotion,
+        true);
+
+    options.cse = args.hasFlag(
+        marco::frontend::options::OPT_cse, marco::frontend::options::OPT_no_cse, true);
+
+    options.omp = args.hasFlag(
+        marco::frontend::options::OPT_omp, marco::frontend::options::OPT_no_omp, false);
+
+    options.cWrappers = args.hasFlag(
+        marco::frontend::options::OPT_c_wrappers, marco::frontend::options::OPT_no_c_wrappers, false);
+
+    return diags.getNumErrors() == numErrorsBefore;
+  }
+
+  static bool ParseSimulationArgs(
+      SimulationOptions& options, llvm::opt::ArgList& args, clang::DiagnosticsEngine& diags)
+  {
+    unsigned numErrorsBefore = diags.getNumErrors();
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_start_time)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
+      options.startTime = numericValue.convertToDouble();
+    }
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_end_time)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
+      options.endTime = numericValue.convertToDouble();
+    }
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_time_step)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
+      options.timeStep = numericValue.convertToDouble();
+    }
 
     return diags.getNumErrors() == numErrorsBefore;
   }
@@ -261,6 +310,7 @@ namespace marco::frontend
     success &= ParseFrontendArgs(res.frontendOptions(), args, diagnosticEngine);
     success &= ParseDialectArgs(res.dialectOptions(), args, diagnosticEngine);
     success &= ParseCodegenArgs(res.codegenOptions(), args, diagnosticEngine);
+    success &= ParseSimulationArgs(res.simulationOptions(), args, diagnosticEngine);
 
     return success;
   }
