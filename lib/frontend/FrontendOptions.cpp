@@ -6,7 +6,7 @@ namespace marco::frontend
     return suffix == "mo";
   }
 
-  InputKind FrontendOptions::GetInputKindForExtension(llvm::StringRef extension) {
+  InputKind FrontendOptions::getInputKindForExtension(llvm::StringRef extension) {
     if (extension == "mo") {
       return Language::Modelica;
     }

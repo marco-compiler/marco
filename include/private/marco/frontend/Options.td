@@ -265,6 +265,11 @@ defm c_wrappers : BoolOption<"", "c-wrappers",
     BothFlags<[MC1Option], " the C wrappers">>,
     Group<c_Group>;
 
+def model : Joined<["--"], "model=">,
+    Group<s_Group>,
+    Flags<[MC1Option]>,
+    HelpText<"Model name">;
+
 def start_time : Joined<["--"], "start-time=">,
     Group<s_Group>,
     Flags<[MC1Option]>,

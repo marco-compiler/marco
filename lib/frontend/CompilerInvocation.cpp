@@ -19,68 +19,17 @@
 
 namespace marco::frontend
 {
-  //===----------------------------------------------------------------------===//
-  // Initialization.
-  //===----------------------------------------------------------------------===//
   CompilerInvocationBase::CompilerInvocationBase()
-      : diagnosticOpts_(new clang::DiagnosticOptions()) {}
+      : diagnosticOpts_(new clang::DiagnosticOptions())
+  {
+  }
 
   CompilerInvocationBase::CompilerInvocationBase(const CompilerInvocationBase& x)
-      : diagnosticOpts_(new clang::DiagnosticOptions(x.GetDiagnosticOpts())) {}
+      : diagnosticOpts_(new clang::DiagnosticOptions(x.GetDiagnosticOpts()))
+  {
+  }
 
   CompilerInvocationBase::~CompilerInvocationBase() = default;
-
-  //===----------------------------------------------------------------------===//
-  // Deserialization (from args)
-  //===----------------------------------------------------------------------===//
-  /*
-  static bool parseShowColorsArgs(
-      const llvm::opt::ArgList& args, bool defaultColor)
-  {
-    // Color diagnostics default to auto ("on" if terminal supports) in the driver
-    // but default to off in cc1, needing an explicit OPT_fdiagnostics_color.
-    // Support both clang's -f[no-]color-diagnostics and gcc's
-    // -f[no-]diagnostics-colors[=never|always|auto].
-    enum
-    {
-      Colors_On,
-      Colors_Off,
-      Colors_Auto
-    } ShowColors = defaultColor ? Colors_Auto : Colors_Off;
-
-    for (auto* a: args) {
-      const llvm::opt::Option& O = a->getOption();
-      if (O.matches(clang::driver::options::OPT_fcolor_diagnostics) ||
-          O.matches(clang::driver::options::OPT_fdiagnostics_color)) {
-        ShowColors = Colors_On;
-      } else if (O.matches(clang::driver::options::OPT_fno_color_diagnostics) ||
-          O.matches(clang::driver::options::OPT_fno_diagnostics_color)) {
-        ShowColors = Colors_Off;
-      } else if (O.matches(clang::driver::options::OPT_fdiagnostics_color_EQ)) {
-        llvm::StringRef value(a->getValue());
-        if (value == "always") {
-          ShowColors = Colors_On;
-        } else if (value == "never") {
-          ShowColors = Colors_Off;
-        } else if (value == "auto") {
-          ShowColors = Colors_Auto;
-        }
-      }
-    }
-
-    return ShowColors == Colors_On ||
-        (ShowColors == Colors_Auto && llvm::sys::Process::StandardErrHasColors());
-  }
-
-  bool ParseDiagnosticArgs(
-      clang::DiagnosticOptions& opts,
-      llvm::opt::ArgList& args, bool defaultDiagColor)
-  {
-    opts.ShowColors = parseShowColorsArgs(args, defaultDiagColor);
-
-    return true;
-  }
-  */
 
   // Tweak the frontend configuration based on the frontend action
   static void setUpFrontendBasedOnAction(FrontendOptions& opts)
@@ -88,7 +37,7 @@ namespace marco::frontend
     assert(opts.programAction != InvalidAction && "Frontend action not set!");
   }
 
-  static bool ParseFrontendArgs(
+  static bool parseFrontendArgs(
       FrontendOptions& opts, llvm::opt::ArgList& args,
       clang::DiagnosticsEngine& diags)
   {
@@ -163,7 +112,7 @@ namespace marco::frontend
       InputKind ik = dashX;
 
       if (ik.IsUnknown()) {
-        ik = FrontendOptions::GetInputKindForExtension(llvm::StringRef(inputs[i]).rsplit('.').second);
+        ik = FrontendOptions::getInputKindForExtension(llvm::StringRef(inputs[i]).rsplit('.').second);
 
         if (ik.IsUnknown()) {
           ik = Language::Unknown;
@@ -177,38 +126,35 @@ namespace marco::frontend
     }
 
     /*
-    if (const llvm::opt::Arg* arg =
-        args.getLastArg(clang::driver::options::OPT_finput_charset_EQ)) {
+    if (const llvm::opt::Arg* arg = args.getLastArg(clang::driver::options::OPT_finput_charset_EQ)) {
       llvm::StringRef argValue = arg->getValue();
+
       if (argValue == "utf-8") {
         opts.encoding = Fortran::parser::Encoding::UTF_8;
       } else if (argValue == "latin-1") {
         opts.encoding = Fortran::parser::Encoding::LATIN_1;
       } else {
-        diags.Report(clang::diag::err_drv_invalid_value)
-            << arg->getAsString(args) << argValue;
+        diags.Report(clang::diag::err_drv_invalid_value) << arg->getAsString(args) << argValue;
       }
     }
      */
 
     setUpFrontendBasedOnAction(opts);
-    //opts.dashX = dashX;
+    //opts.inputType = dashX;
 
     return diags.getNumErrors() == numErrorsBefore;
   }
 
-  static bool ParseDialectArgs(
+  static bool parseDialectArgs(
       DialectOptions& opts, llvm::opt::ArgList& args,
       clang::DiagnosticsEngine& diags)
   {
     unsigned numErrorsBefore = diags.getNumErrors();
 
-    // TODO
-
     return diags.getNumErrors() == numErrorsBefore;
   }
 
-  static bool ParseCodegenArgs(
+  static bool parseCodegenArgs(
       CodegenOptions& options, llvm::opt::ArgList& args, clang::DiagnosticsEngine& diags)
   {
     unsigned numErrorsBefore = diags.getNumErrors();
@@ -241,10 +187,21 @@ namespace marco::frontend
     return diags.getNumErrors() == numErrorsBefore;
   }
 
-  static bool ParseSimulationArgs(
+  static bool parseSimulationArgs(
       SimulationOptions& options, llvm::opt::ArgList& args, clang::DiagnosticsEngine& diags)
   {
     unsigned numErrorsBefore = diags.getNumErrors();
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_model)) {
+      llvm::StringRef value = arg->getValue();
+      options.modelName = value.str();
+    }
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_start_time)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
+      options.startTime = numericValue.convertToDouble();
+    }
 
     if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_start_time)) {
       llvm::StringRef value = arg->getValue();
@@ -267,18 +224,7 @@ namespace marco::frontend
     return diags.getNumErrors() == numErrorsBefore;
   }
 
-  /// Parses all diagnostics related arguments and populates the variables
-  /// options accordingly. Returns false if new errors are generated.
-  static bool parseDiagArgs(
-      CompilerInvocation& res, llvm::opt::ArgList& args,
-      clang::DiagnosticsEngine& diags)
-  {
-    unsigned numErrorsBefore = diags.getNumErrors();
-
-    return diags.getNumErrors() == numErrorsBefore;
-  }
-
-  bool CompilerInvocation::CreateFromArgs(
+  bool CompilerInvocation::createFromArgs(
       CompilerInvocation& res,
       llvm::ArrayRef<const char*> commandLineArgs,
       clang::DiagnosticsEngine& diagnosticEngine)
@@ -294,23 +240,24 @@ namespace marco::frontend
     llvm::opt::InputArgList args = opts.ParseArgs(
         commandLineArgs, missingArgIndex, missingArgCount, includedFlagsBitmask);
 
-    // Check for missing argument error.
+    // Check for missing argument error
     if (missingArgCount) {
-      diagnosticEngine.Report(clang::diag::err_drv_missing_argument) << args.getArgString(missingArgIndex) << missingArgCount;
+      diagnosticEngine.Report(clang::diag::err_drv_missing_argument) << args.getArgString(missingArgIndex)
+                                                                     << missingArgCount;
       success = false;
     }
 
     // Issue errors on unknown arguments
-    for (const auto *a : args.filtered(clang::driver::options::OPT_UNKNOWN)) {
+    for (const auto* a: args.filtered(marco::frontend::options::OPT_UNKNOWN)) {
       auto argString = a->getAsString(args);
       diagnosticEngine.Report(clang::diag::err_drv_unknown_argument) << argString;
       success = false;
     }
 
-    success &= ParseFrontendArgs(res.frontendOptions(), args, diagnosticEngine);
-    success &= ParseDialectArgs(res.dialectOptions(), args, diagnosticEngine);
-    success &= ParseCodegenArgs(res.codegenOptions(), args, diagnosticEngine);
-    success &= ParseSimulationArgs(res.simulationOptions(), args, diagnosticEngine);
+    success &= parseFrontendArgs(res.frontendOptions(), args, diagnosticEngine);
+    success &= parseDialectArgs(res.dialectOptions(), args, diagnosticEngine);
+    success &= parseCodegenArgs(res.codegenOptions(), args, diagnosticEngine);
+    success &= parseSimulationArgs(res.simulationOptions(), args, diagnosticEngine);
 
     return success;
   }

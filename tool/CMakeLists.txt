@@ -1,3 +1,2 @@
-add_subdirectory(ASTDumper)
-add_subdirectory(marco)
+add_subdirectory(marco-driver)
 add_subdirectory(modelica-opt)

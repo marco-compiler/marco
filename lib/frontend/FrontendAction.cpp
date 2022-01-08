@@ -25,7 +25,9 @@ namespace marco::frontend
 {
   bool FrontendAction::runParse()
   {
-    instance().classes().clear();
+    CompilerInstance& ci = instance();
+
+    ci.classes().clear();
 
     for (const auto& input : instance().frontendOpts().inputs) {
       auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(input.file());

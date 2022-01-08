@@ -13,22 +13,9 @@
 
 namespace marco::frontend
 {
-  /// Fill out Opts based on the options given in Args.
-  ///
-  /// When errors are encountered, return false and, if Diags is non-null,
-  /// report the error(s).
-  /*
-  bool ParseDiagnosticArgs(
-      clang::DiagnosticOptions& opts,
-      llvm::opt::ArgList& args, bool defaultDiagColor = true);
-      */
-
   class CompilerInvocationBase
   {
     public:
-      /// Options controlling the diagnostic engine.
-      llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagnosticOpts_;
-
       CompilerInvocationBase();
 
       CompilerInvocationBase(const CompilerInvocationBase& x);
@@ -44,6 +31,10 @@ namespace marco::frontend
       {
         return *diagnosticOpts_.get();
       }
+
+    private:
+      /// Options controlling the diagnostic engine.
+      llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagnosticOpts_;
   };
 
   class CompilerInvocation : public CompilerInvocationBase
@@ -71,7 +62,7 @@ namespace marco::frontend
       /// \returns true on success.
       /// \returns false if an error was encountered while parsing the arguments
       /// \param [out] res - The resulting invocation.
-      static bool CreateFromArgs(
+      static bool createFromArgs(
           CompilerInvocation& res,
           llvm::ArrayRef<const char*> commandLineArgs,
           clang::DiagnosticsEngine& diags);

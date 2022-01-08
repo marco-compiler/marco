@@ -5,6 +5,8 @@ namespace marco::frontend
 {
   struct SimulationOptions
   {
+    std::string modelName;
+
     double startTime;
     double endTime;
     double timeStep;
