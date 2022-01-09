@@ -8,11 +8,14 @@ using namespace marco::frontend;
 
 static std::unique_ptr<FrontendAction> createFrontendBaseAction(CompilerInstance& ci)
 {
-  ActionKind action = ci.frontendOpts().programAction;
+  ActionKind action = ci.getFrontendOptions().programAction;
 
   switch (action) {
     case InitOnly:
       return std::make_unique<InitOnlyAction>();
+
+    case EmitFlattened:
+      return std::make_unique<EmitFlattenedAction>();
 
     case EmitAST:
       return std::make_unique<EmitASTAction>();
@@ -54,7 +57,7 @@ namespace marco::frontend
   bool executeCompilerInvocation(CompilerInstance* ci)
   {
     // Honor -help
-    if (ci->frontendOpts().showHelp) {
+    if (ci->getFrontendOptions().showHelp) {
       getDriverOptTable().printHelp(
           llvm::outs(),
           "marco-driver -mc1 [options] input-files", "MLIR Modelica compiler",
@@ -66,13 +69,13 @@ namespace marco::frontend
     }
 
     // Honor -version
-    if (ci->frontendOpts().showVersion) {
+    if (ci->getFrontendOptions().showVersion) {
       llvm::cl::PrintVersionMessage();
       return true;
     }
 
     // If there were errors in processing arguments, don't do anything else
-    if (ci->diagnostics().hasErrorOccurred()) {
+    if (ci->getDiagnostics().hasErrorOccurred()) {
       return false;
     }
 

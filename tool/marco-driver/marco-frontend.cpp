@@ -32,7 +32,7 @@ extern int mc1_main(llvm::ArrayRef<const char*> argv, const char* argv0)
 
   bool success = CompilerInvocation::createFromArgs(instance->invocation(), argv, diagnosticEngine);
 
-  diagnosticBuffer->FlushDiagnostics(instance->diagnostics());
+  diagnosticBuffer->FlushDiagnostics(instance->getDiagnostics());
 
   if (!success) {
     return 1;

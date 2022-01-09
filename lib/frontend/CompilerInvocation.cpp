@@ -46,46 +46,50 @@ namespace marco::frontend
     // Default action
     opts.programAction = EmitBitcode;
 
-    if (const llvm::opt::Arg* a = args.getLastArg(marco::frontend::options::OPT_Action_Group)) {
+    if (const llvm::opt::Arg* a = args.getLastArg(options::OPT_Action_Group)) {
       switch (a->getOption().getID()) {
-        default: {
-          llvm_unreachable("Invalid option in group!");
-        }
-
-        case marco::frontend::options::OPT_init_only:
+        case options::OPT_init_only:
           opts.programAction = InitOnly;
           break;
 
-        case marco::frontend::options::OPT_emit_ast:
+        case options::OPT_emit_flattened:
+          opts.programAction = EmitFlattened;
+          break;
+
+        case options::OPT_emit_ast:
           opts.programAction = EmitAST;
           break;
 
-        case marco::frontend::options::OPT_emit_modelica_dialect:
+        case options::OPT_emit_modelica_dialect:
           opts.programAction = EmitModelicaDialect;
           break;
 
-        case marco::frontend::options::OPT_emit_llvm_dialect:
+        case options::OPT_emit_llvm_dialect:
           opts.programAction = EmitLLVMDialect;
           break;
 
-        case marco::frontend::options::OPT_emit_llvm_ir:
+        case options::OPT_emit_llvm_ir:
           opts.programAction = EmitLLVMIR;
           break;
 
-        case marco::frontend::options::OPT_emit_bitcode:
+        case options::OPT_emit_bitcode:
           opts.programAction = EmitBitcode;
           break;
+
+        default: {
+          llvm_unreachable("Invalid option in group!");
+        }
       }
     }
 
-    opts.outputFile = args.getLastArgValue(marco::frontend::options::OPT_o);
-    opts.showHelp = args.hasArg(marco::frontend::options::OPT_help);
-    opts.showVersion = args.hasArg(marco::frontend::options::OPT_version);
+    opts.outputFile = args.getLastArgValue(options::OPT_o);
+    opts.showHelp = args.hasArg(options::OPT_help);
+    opts.showVersion = args.hasArg(options::OPT_version);
 
     // Get the input kind (from the value passed via `-x`)
     InputKind dashX(Language::Unknown);
 
-    if (const llvm::opt::Arg* a = args.getLastArg(marco::frontend::options::OPT_x)) {
+    if (const llvm::opt::Arg* a = args.getLastArg(options::OPT_x)) {
       llvm::StringRef XValue = a->getValue();
 
       // Principal languages.
@@ -100,7 +104,7 @@ namespace marco::frontend
     }
 
     // Collect the input files and save them in our instance of FrontendOptions
-    std::vector<std::string> inputs = args.getAllArgValues(marco::frontend::options::OPT_INPUT);
+    std::vector<std::string> inputs = args.getAllArgValues(options::OPT_INPUT);
     opts.inputs.clear();
 
     if (inputs.empty()) {
@@ -142,6 +146,8 @@ namespace marco::frontend
     setUpFrontendBasedOnAction(opts);
     //opts.inputType = dashX;
 
+    opts.omcBypass = args.hasArg(options::OPT_omc_bypass);
+
     return diags.getNumErrors() == numErrorsBefore;
   }
 
@@ -162,27 +168,27 @@ namespace marco::frontend
     options.debug = args.hasArg(marco::frontend::options::OPT_debug);
 
     options.assertions = args.hasFlag(
-        marco::frontend::options::OPT_assertions, marco::frontend::options::OPT_no_assertions, false);
+        marco::frontend::options::OPT_assertions, options::OPT_no_assertions, false);
 
     options.generateMain = args.hasFlag(
-        marco::frontend::options::OPT_generate_main, marco::frontend::options::OPT_no_generate_main, true);
+        marco::frontend::options::OPT_generate_main, options::OPT_no_generate_main, true);
 
     options.inlining = args.hasFlag(
-        marco::frontend::options::OPT_function_inlining, marco::frontend::options::OPT_no_function_inlining, true);
+        marco::frontend::options::OPT_function_inlining, options::OPT_no_function_inlining, true);
 
     options.outputArraysPromotion = args.hasFlag(
-        marco::frontend::options::OPT_output_arrays_promotion,
-        marco::frontend::options::OPT_no_output_arrays_promotion,
+        options::OPT_output_arrays_promotion,
+        options::OPT_no_output_arrays_promotion,
         true);
 
     options.cse = args.hasFlag(
-        marco::frontend::options::OPT_cse, marco::frontend::options::OPT_no_cse, true);
+        marco::frontend::options::OPT_cse, options::OPT_no_cse, true);
 
     options.omp = args.hasFlag(
-        marco::frontend::options::OPT_omp, marco::frontend::options::OPT_no_omp, false);
+        marco::frontend::options::OPT_omp, options::OPT_no_omp, false);
 
     options.cWrappers = args.hasFlag(
-        marco::frontend::options::OPT_c_wrappers, marco::frontend::options::OPT_no_c_wrappers, false);
+        marco::frontend::options::OPT_c_wrappers, options::OPT_no_c_wrappers, false);
 
     return diags.getNumErrors() == numErrorsBefore;
   }
@@ -192,30 +198,30 @@ namespace marco::frontend
   {
     unsigned numErrorsBefore = diags.getNumErrors();
 
-    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_model)) {
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_model)) {
       llvm::StringRef value = arg->getValue();
       options.modelName = value.str();
     }
 
-    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_start_time)) {
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_start_time)) {
       llvm::StringRef value = arg->getValue();
       llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
       options.startTime = numericValue.convertToDouble();
     }
 
-    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_start_time)) {
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_start_time)) {
       llvm::StringRef value = arg->getValue();
       llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
       options.startTime = numericValue.convertToDouble();
     }
 
-    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_end_time)) {
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_end_time)) {
       llvm::StringRef value = arg->getValue();
       llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
       options.endTime = numericValue.convertToDouble();
     }
 
-    if (const llvm::opt::Arg* arg = args.getLastArg(marco::frontend::options::OPT_time_step)) {
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_time_step)) {
       llvm::StringRef value = arg->getValue();
       llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
       options.timeStep = numericValue.convertToDouble();
@@ -248,7 +254,7 @@ namespace marco::frontend
     }
 
     // Issue errors on unknown arguments
-    for (const auto* a: args.filtered(marco::frontend::options::OPT_UNKNOWN)) {
+    for (const auto* a: args.filtered(options::OPT_UNKNOWN)) {
       auto argString = a->getAsString(args);
       diagnosticEngine.Report(clang::diag::err_drv_unknown_argument) << argString;
       success = false;

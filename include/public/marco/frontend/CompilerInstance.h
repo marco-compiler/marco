@@ -11,6 +11,7 @@
 
 #include "CompilerInvocation.h"
 #include "FrontendAction.h"
+#include "SimulationOptions.h"
 
 namespace marco::frontend
 {
@@ -33,30 +34,6 @@ namespace marco::frontend
 
       ~CompilerInstance();
 
-      /// Create the default output file (based on the invocation's options) and
-      /// add it to the list of tracked output files. If the name of the output
-      /// file is not provided, it will be derived from the input file.
-      ///
-      /// \param binary     The mode to open the file in.
-      /// \param baseInput  If the invocation contains no output file name (i.e.
-      ///                   outputFile in FrontendOptions is empty), the input path
-      ///                   name to use for deriving the output path.
-      /// \param extension  The extension to use for output names derived from
-      ///                   \p baseInput.
-      /// \return           Null on error, ostream for the output file otherwise
-      std::unique_ptr<llvm::raw_pwrite_stream> CreateDefaultOutputFile(
-          bool binary = true, llvm::StringRef baseInput = "",
-          llvm::StringRef extension = "");
-
-    private:
-      /// Create a new output file
-      ///
-      /// \param outputPath   The path to the output file.
-      /// \param binary       The mode to open the file in.
-      /// \return             Null on error, ostream for the output file otherwise
-      llvm::Expected<std::unique_ptr<llvm::raw_pwrite_stream>> CreateOutputFileImpl(
-          llvm::StringRef outputPath, bool binary);
-
     public:
       void set_outputStream(std::unique_ptr<llvm::raw_pwrite_stream> outStream)
       {
@@ -72,8 +49,17 @@ namespace marco::frontend
       }
 
     public:
+      CompilerInstance(const CompilerInstance&) = delete;
+
+      void operator=(const CompilerInstance&) = delete;
+
+      // TODO rename to getInvocation()
       /// Get the current compiler invocation.
       CompilerInvocation& invocation();
+
+      // TODO
+      /// setInvocation - Replace the current invocation.
+      //void setInvocation(std::shared_ptr<CompilerInvocation> Value);
 
       /// Create a diagnostics engine instance
       ///
@@ -96,22 +82,34 @@ namespace marco::frontend
       void createDiagnostics(clang::DiagnosticConsumer* client = nullptr, bool shouldOwnClient = true);
 
       /// Get the current diagnostics engine.
-      clang::DiagnosticsEngine& diagnostics() const;
+      clang::DiagnosticsEngine& getDiagnostics() const;
 
       /// Get the current diagnostics client.
-      clang::DiagnosticConsumer& diagnosticClient() const;
+      clang::DiagnosticConsumer& getDiagnosticClient() const;
 
       /// Get the frontend options.
-      FrontendOptions& frontendOpts();
+      FrontendOptions& getFrontendOptions();
 
       /// Get the frontend options.
-      const FrontendOptions& frontendOpts() const;
+      const FrontendOptions& getFrontendOptions() const;
+
+      /// Get the code generation options.
+      CodegenOptions& getCodegenOptions();
+
+      /// Get the code generation options.
+      const CodegenOptions& getCodegenOptions() const;
+
+      /// Get the simulation options.
+      SimulationOptions& getSimulationOptions();
+
+      /// Get the simulation options.
+      const SimulationOptions& getSimulationOptions() const;
 
       /// Get the diagnostic options.
-      clang::DiagnosticOptions& diagnosticOptions();
+      clang::DiagnosticOptions& getDiagnosticOptions();
 
       /// Get the diagnostic options.
-      const clang::DiagnosticOptions& diagnosticOptions() const;
+      const clang::DiagnosticOptions& getDiagnosticOptions() const;
 
       /// Execute a frontend action.
       ///
@@ -125,32 +123,63 @@ namespace marco::frontend
       void clearOutputFiles(bool eraseFiles);
 
       /// Get the MLIR context.
-      mlir::MLIRContext& mlirContext();
+      mlir::MLIRContext& getMLIRContext();
 
       /// Get the MLIR context.
-      const mlir::MLIRContext& mlirContext() const;
+      const mlir::MLIRContext& getMLIRContext() const;
 
       /// Get the LLVM context.
-      llvm::LLVMContext& llvmContext();
+      llvm::LLVMContext& getLLVMContext();
 
       /// Get the LLVM context.
-      const llvm::LLVMContext& llvmContext() const;
+      const llvm::LLVMContext& getLLVMContext() const;
 
-      std::vector<std::unique_ptr<ast::Class>>& classes();
+      std::string& getFlattened();
 
-      const std::vector<std::unique_ptr<ast::Class>>& classes() const;
+      const std::string& getFlattened() const;
 
-      mlir::ModuleOp& mlirModule();
+      void setFlattened(std::string value);
 
-      const mlir::ModuleOp& mlirModule() const;
+      std::unique_ptr<ast::Class>& getAST();
 
-      void setMlirModule(std::unique_ptr<mlir::ModuleOp> module);
+      const std::unique_ptr<ast::Class>& getAST() const;
 
-      llvm::Module& llvmModule();
+      void setAST(std::unique_ptr<ast::Class> value);
 
-      const llvm::Module& llvmModule() const;
+      mlir::ModuleOp& getMLIRModule();
+
+      const mlir::ModuleOp& getMLIRModule() const;
+
+      void setMLIRModule(std::unique_ptr<mlir::ModuleOp> module);
+
+      llvm::Module& getLLVMModule();
+
+      const llvm::Module& getLLVMModule() const;
 
       void setLLVMModule(std::unique_ptr<llvm::Module> module);
+
+      /// Create the default output file (based on the invocation's options) and
+      /// add it to the list of tracked output files. If the name of the output
+      /// file is not provided, it will be derived from the input file.
+      ///
+      /// @param binary     the mode to open the file in.
+      /// @param baseInput  if the invocation contains no output file name (i.e.
+      ///                   outputFile in FrontendOptions is empty), the input path
+      ///                   name to use for deriving the output path.
+      /// @param extension  the extension to use for output names derived from
+      ///                   the baseInput parameter.
+      /// @return null on error, ostream for the output file otherwise
+      std::unique_ptr<llvm::raw_pwrite_stream> createDefaultOutputFile(
+          bool binary = true, llvm::StringRef baseInput = "", llvm::StringRef extension = "");
+
+    private:
+      /// Create a new output file
+      ///
+      /// @param outputPath   the path to the output file.
+      /// @param binary       the mode to open the file in.
+      /// @return null on error, ostream for the output file otherwise
+      llvm::Expected<std::unique_ptr<llvm::raw_pwrite_stream>> createOutputFileImpl(
+          llvm::StringRef outputPath, bool binary);
 
     private:
       /// The options used in this compiler instance
@@ -171,7 +200,8 @@ namespace marco::frontend
       std::unique_ptr<mlir::MLIRContext> mlirContext_;
       std::unique_ptr<llvm::LLVMContext> llvmContext_;
 
-      std::vector<std::unique_ptr<ast::Class>> classes_;
+      std::string flattened_;
+      std::unique_ptr<ast::Class> ast_;
       std::unique_ptr<mlir::ModuleOp> mlirModule_;
       std::unique_ptr<llvm::Module> llvmModule_;
   };

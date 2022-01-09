@@ -8,6 +8,7 @@
 #include <marco/frontend/FrontendOptions.h>
 #include <marco/codegen/CodeGen.h>
 #include <clang/Basic/DiagnosticFrontend.h>
+#include <llvm/ADT/SmallString.h>
 #include <llvm/Support/Errc.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/VirtualFileSystem.h>
@@ -16,21 +17,52 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/Pass/PassManager.h>
+#include <llvm/Support/Path.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
 
+bool exec(const char* cmd, std::string& result)
+{
+  std::array<char, 128> buffer;
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+
+  if (!pipe) {
+    return false;
+  }
+
+  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+    result += buffer.data();
+  }
+
+  return true;
+}
+
 namespace marco::frontend
 {
-  bool FrontendAction::runParse()
+  bool FrontendAction::beginAction()
+  {
+    return true;
+  }
+
+  bool FrontendAction::runFlattening()
   {
     CompilerInstance& ci = instance();
 
-    ci.classes().clear();
+    if (ci.getFrontendOptions().omcBypass) {
+      const auto& inputs = ci.getFrontendOptions().inputs;
 
-    for (const auto& input : instance().frontendOpts().inputs) {
-      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(input.file());
+      if (inputs.size() > 1) {
+        unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal,
+            "MARCO can receive only one input flattened file");
+
+        ci.getDiagnostics().Report(diagID);
+        return false;
+      }
+
+      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputs[0].file());
       auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
 
       if (!buffer) {
@@ -38,17 +70,51 @@ namespace marco::frontend
         return false;
       }
 
-      ast::Parser parser(input.file(), (*buffer)->getBufferStart());
-      auto cls = parser.classDefinition();
-
-      if (!cls) {
-        llvm::consumeError(cls.takeError());
-        return false;
-      }
-
-      instance().classes().push_back(std::move(*cls));
+      ci.setFlattened((*buffer)->getBuffer().str());
+      return true;
     }
 
+    llvm::SmallString<256> cmd;
+
+    if (auto path = ci.getFrontendOptions().omcPath; !path.empty()) {
+      llvm::sys::path::append(cmd, path, "omc");
+    } else {
+      llvm::sys::path::append(cmd, "omc");
+    }
+
+    for (const auto& input : ci.getFrontendOptions().inputs) {
+      cmd += " \"" + input.file().str() + "\"";
+    }
+
+    cmd += " +i=" + ci.getSimulationOptions().modelName;
+
+    if (const auto& args = ci.getFrontendOptions().omcCustomArgs; args.empty()) {
+      cmd += " -f";
+      cmd += " -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes";
+      cmd += " --newBackend";
+      cmd += " --showStructuralAnnotations";
+    } else {
+      for (const auto& arg : args) {
+        cmd += " " + arg;
+      }
+    }
+
+    return exec(cmd.c_str(), ci.getFlattened());
+  }
+
+  bool FrontendAction::runParse()
+  {
+    CompilerInstance& ci = instance();
+
+    ast::Parser parser(ci.getFlattened());
+    auto cls = parser.classDefinition();
+
+    if (!cls) {
+      llvm::consumeError(cls.takeError());
+      return false;
+    }
+
+    instance().setAST(std::move(*cls));
     return true;
   }
 
@@ -57,7 +123,7 @@ namespace marco::frontend
     marco::ast::PassManager frontendPassManager;
     frontendPassManager.addPass(ast::createTypeCheckingPass());
     frontendPassManager.addPass(ast::createConstantFolderPass());
-    auto error = frontendPassManager.run(instance().classes());
+    auto error = frontendPassManager.run(instance().getAST());
 
     if (error) {
       llvm::consumeError(std::move(error));
@@ -69,29 +135,40 @@ namespace marco::frontend
 
   bool FrontendAction::runASTConversion()
   {
-    marco::codegen::MLIRLowerer lowerer(instance().mlirContext());
-    auto module = lowerer.run(instance().classes());
+    marco::codegen::MLIRLowerer lowerer(instance().getMLIRContext());
+    auto module = lowerer.run(instance().getAST());
 
     if (!module) {
       return false;
     }
 
-    instance().setMlirModule(std::make_unique<mlir::ModuleOp>(std::move(*module)));
+    instance().setMLIRModule(std::make_unique<mlir::ModuleOp>(std::move(*module)));
     return true;
   }
 
   bool FrontendAction::runDialectConversion()
   {
-    mlir::PassManager passManager(&instance().mlirContext());
+    auto& codegenOptions = instance().getCodegenOptions();
+    mlir::PassManager passManager(&instance().getMLIRContext());
 
     passManager.addPass(codegen::createAutomaticDifferentiationPass());
-    //passManager.addPass(codegen::createSolveModelPass());
+    passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass());
     passManager.addPass(codegen::createFunctionsVectorizationPass());
     passManager.addPass(codegen::createExplicitCastInsertionPass());
 
-    passManager.addPass(codegen::createResultBuffersToArgsPass());
+    if (codegenOptions.outputArraysPromotion) {
+      passManager.addPass(codegen::createResultBuffersToArgsPass());
+    }
+
+    if (codegenOptions.inlining) {
+      passManager.addPass(mlir::createInlinerPass());
+    }
 
     passManager.addPass(mlir::createCanonicalizerPass());
+
+    if (codegenOptions.cse) {
+      passManager.addNestedPass<codegen::modelica::FunctionOp>(mlir::createCSEPass());
+    }
 
     passManager.addPass(codegen::createFunctionConversionPass());
 
@@ -105,25 +182,29 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createModelicaConversionPass());
 
+    if (codegenOptions.omp) {
+      passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+    }
+
     passManager.addPass(codegen::createLowerToCFGPass());
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
     passManager.addPass(codegen::createLLVMLoweringPass());
 
-    return passManager.run(instance().mlirModule()).succeeded();
+    return passManager.run(instance().getMLIRModule()).succeeded();
   }
 
   bool FrontendAction::runLLVMIRGeneration()
   {
     // Register the conversions to LLVM IR
-    mlir::registerLLVMDialectTranslation(instance().mlirContext());
-    mlir::registerOpenMPDialectTranslation(instance().mlirContext());
+    mlir::registerLLVMDialectTranslation(instance().getMLIRContext());
+    mlir::registerOpenMPDialectTranslation(instance().getMLIRContext());
 
     // Initialize LLVM targets
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
 
     // Convert to LLVM IR
-    auto llvmModule = mlir::translateModuleToLLVMIR(instance().mlirModule(), instance().llvmContext());
+    auto llvmModule = mlir::translateModuleToLLVMIR(instance().getMLIRModule(), instance().getLLVMContext());
 
     if (!llvmModule) {
       llvm::errs() << "Failed to emit LLVM IR\n";

@@ -1,3 +1,4 @@
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <marco/frontend/CompilerInstance.h>
 #include <marco/frontend/FrontendActions.h>
 
@@ -7,57 +8,72 @@ namespace marco::frontend
   {
     CompilerInstance& ci = this->instance();
 
-    unsigned int DiagID = ci.diagnostics().getCustomDiagID(
+    unsigned int DiagID = ci.getDiagnostics().getCustomDiagID(
         clang::DiagnosticsEngine::Warning,
         "Use '-init-only' for testing purposes only");
 
-    ci.diagnostics().Report(DiagID);
+    ci.getDiagnostics().Report(DiagID);
+  }
+
+  bool EmitFlattenedAction::beginAction()
+  {
+    return runFlattening();
+  }
+
+  void EmitFlattenedAction::execute()
+  {
+    llvm::outs() << instance().getFlattened() << "\n";
+  }
+
+  bool EmitASTAction::beginAction()
+  {
+    return runFlattening() && runParse();
   }
 
   void EmitASTAction::execute()
   {
-    if (!runParse()) {
-      return;
-    }
+    instance().getAST()->dump(llvm::outs());
+  }
 
-    for (const auto& cls : instance().classes()) {
-      cls->dump(llvm::outs());
-    }
+  bool EmitModelicaDialectAction::beginAction()
+  {
+    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion();
   }
 
   void EmitModelicaDialectAction::execute()
   {
-    if (!runParse() || !runFrontendPasses() || !runASTConversion()) {
-      return;
-    }
+    instance().getMLIRModule().print(llvm::outs());
+  }
 
-    instance().mlirModule().dump();
+  bool EmitLLVMDialectAction::beginAction()
+  {
+    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion();
   }
 
   void EmitLLVMDialectAction::execute()
   {
-    if (!runParse() || !runFrontendPasses() || !runASTConversion() || !runDialectConversion()) {
-      return;
-    }
+    instance().getMLIRModule().print(llvm::outs());
+  }
 
-    instance().mlirModule().dump();
+  bool EmitLLVMIRAction::beginAction()
+  {
+    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion() && runLLVMIRGeneration();
   }
 
   void EmitLLVMIRAction::execute()
   {
-    if (!runParse() || !runFrontendPasses() || !runASTConversion() || !runDialectConversion() || !runLLVMIRGeneration()) {
-      return;
-    }
+    llvm::outs() << instance().getLLVMModule();
+  }
 
-    instance().llvmModule().dump();
+  bool EmitBitcodeAction::beginAction()
+  {
+    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion() && runLLVMIRGeneration();
   }
 
   void EmitBitcodeAction::execute()
   {
-    if (!runParse() || !runFrontendPasses() || !runASTConversion() || !runDialectConversion() || !runLLVMIRGeneration()) {
-      return;
-    }
-
-    // TODO
+    CompilerInstance& ci = instance();
+    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "bc");
+    llvm::WriteBitcodeToFile(ci.getLLVMModule(), *os);
   }
 }

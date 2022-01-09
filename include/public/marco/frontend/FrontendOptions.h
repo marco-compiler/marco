@@ -14,6 +14,7 @@ namespace marco::frontend
     InvalidAction = 0,
 
     InitOnly,
+    EmitFlattened,
     EmitAST,
     EmitModelicaDialect,
     EmitLLVMDialect,
@@ -114,6 +115,11 @@ namespace marco::frontend
 
     // The frontend action to perform.
     frontend::ActionKind programAction;
+
+    // OMC options
+    bool omcBypass = false;
+    std::string omcPath = "";
+    std::vector<std::string> omcCustomArgs;
 
     // Return the appropriate input kind for a file extension
     static InputKind getInputKindForExtension(llvm::StringRef extension);

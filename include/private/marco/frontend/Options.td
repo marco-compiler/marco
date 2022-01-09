@@ -38,6 +38,14 @@ def g_Group : OptionGroup<"<g group>">,
     Group<DebugInfo_Group>,
     DocName<"Kind and level of debug information">;
 
+def OpenModelica_Group : OptionGroup<"<omc group>">,
+    DocName<"OpenModelica compiler">,
+    DocBrief<[{Flags controlling the OpenModelica compiler.}]>;
+
+def omc_Group : OptionGroup<"<omc group>">,
+    Group<OpenModelica_Group>,
+    DocName<"OpenModelica compiler">;
+
 def Codegen_Group : OptionGroup<"<c group>">,
     DocName<"Code generation">,
     DocBrief<[{Flags controlling the code generation and lowering processes.}]>;
@@ -209,6 +217,14 @@ def debug : Flag<["-"], "g">,
     Group<g_Group>,
     HelpText<"Generate source-level debug information">;
 
+def omc_bypass : Flag<["-"], "omc-bypass">,
+    Flags<[MC1Option]>,
+    HelpText<"Bypass OMC and pass the source directly to MARCO">;
+
+def omc_arg : Joined<["--"], "Xomc=">,
+    Flags<[MC1Option]>,
+    HelpText<"Pass a custom argument to the OpenModelica compiler (the option can be used multiple times)">;
+
 defm assertions : BoolOption<"", "assertions",
     CodegenOpts<"Assertions">,
     DefaultFalse,
@@ -293,6 +309,11 @@ def init_only : Flag<["-", "--"], "init-only">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Only execute frontend initialization">;
+
+def emit_flattened : Flag<["-", "--"], "emit-flattened">,
+    Flags<[MC1Option]>,
+    Group<Action_Group>,
+    HelpText<"Emit flattened Modelica">;
 
 def emit_ast : Flag<["-", "--"], "emit-ast">,
     Flags<[MC1Option]>,
