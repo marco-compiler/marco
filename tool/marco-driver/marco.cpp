@@ -57,35 +57,55 @@ using namespace marco;
 using namespace marco::frontend;
 using namespace std;
 
-bool isFrontendTool(llvm::StringRef tool)
+extern int mc1_main(llvm::ArrayRef<const char *> argv, const char *argv0);
+extern int cc1_main(ArrayRef<const char*> argv, const char* argv0, void* mainAddr);
+
+static std::string getExecutablePath(const char* argv0)
 {
-  return tool == "-mc1";
+  // This just needs to be some symbol in the binary
+  void* p = (void*) (intptr_t) getExecutablePath;
+  return llvm::sys::fs::getMainExecutable(argv0, p);
 }
 
-extern bool isFrontendOption(llvm::StringRef option);
-extern int mc1_main(llvm::ArrayRef<const char *> argv, const char *argv0);
-
-static int executeMC1Tool(llvm::SmallVectorImpl<const char *>& argV)
+static int executeMC1Tool(llvm::SmallVectorImpl<const char *>& argv)
 {
-  llvm::StringRef tool = argV[1];
+  llvm::StringRef tool = argv[1];
 
   if (tool == "-mc1") {
-    return mc1_main(makeArrayRef(argV).slice(2), argV[0]);
+    return mc1_main(makeArrayRef(argv).slice(2), argv[0]);
   }
 
-  // Reject unknown tools.
-  // At the moment it only supports mc1. Any mc1[*] is rejected.
-
+  // Reject unknown tools
   llvm::errs() << "error: unknown integrated tool '" << tool << "'. "
                << "Valid tools include '-mc1'.\n";
+
   return 1;
 }
 
-static std::string GetExecutablePath(const char* argv0)
-{
-  // This just needs to be some symbol in the binary
-  void* p = (void*) (intptr_t) GetExecutablePath;
-  return llvm::sys::fs::getMainExecutable(argv0, p);
+static int executeCC1Tool(SmallVectorImpl<const char*>& argv) {
+  // If we call the cc1 tool from the clangDriver library (through
+  // Driver::CC1Main), we need to clean up the options usage count. The options
+  // are currently global, and they might have been used previously by the
+  // driver.
+  llvm::cl::ResetAllOptionOccurrences();
+
+  llvm::BumpPtrAllocator A;
+  llvm::StringSaver Saver(A);
+  llvm::cl::ExpandResponseFiles(Saver, &llvm::cl::TokenizeGNUCommandLine, argv, false);
+
+  StringRef tool = argv[1];
+
+  void* GetExecutablePathVP = (void*)(intptr_t)getExecutablePath;
+
+  if (tool == "-cc1") {
+    return cc1_main(makeArrayRef(argv).slice(1), argv[0], GetExecutablePathVP);
+  }
+
+  // Reject unknown tools
+  llvm::errs() << "error: unknown integrated tool '" << tool << "'. "
+               << "Valid tools include '-cc1'.\n";
+
+  return 1;
 }
 
 // This lets us create the DiagnosticsEngine with a properly-filled-out
@@ -121,9 +141,16 @@ int main(int argc, const char** argv)
     if (llvm::StringRef(*firstArg).startswith("-mc1")) {
       return executeMC1Tool(args);
     }
+
+    if (llvm::StringRef(*firstArg).startswith("-cc1")) {
+      return executeCC1Tool(args);
+    }
   }
 
   // Not in the frontend mode. Continue in the compiler driver mode.
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
 
   // Create the diagnostics engine for the driver
   llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> diagOpts = CreateAndPopulateDiagOpts(args);
@@ -132,14 +159,16 @@ int main(int argc, const char** argv)
   marco::frontend::TextDiagnosticPrinter* diagClient =
       new marco::frontend::TextDiagnosticPrinter(llvm::errs(), &*diagOpts);
 
-  diagClient->set_prefix(std::string(llvm::sys::path::stem(GetExecutablePath(args[0]))));
+  diagClient->set_prefix(std::string(llvm::sys::path::stem(getExecutablePath(args[0]))));
 
   clang::DiagnosticsEngine diags(diagID, &*diagOpts, diagClient);
 
   // Prepare the driver
-  clang::driver::ParsedClangName targetAndMode("marco", "--driver-mode=marco");
-  std::string driverPath = GetExecutablePath(args[0]);
-  clang::driver::Driver theDriver(driverPath, llvm::sys::getDefaultTargetTriple(), diags, "MARCO");
+  auto triple = llvm::sys::getDefaultTargetTriple();
+  clang::driver::ParsedClangName targetAndMode(triple, "cc1", "--driver-mode=cc1", true);
+  std::string driverPath = getExecutablePath(args[0]);
+
+  clang::driver::Driver theDriver(driverPath, triple, diags, "MARCO");
   theDriver.setTargetAndMode(targetAndMode);
   std::unique_ptr<clang::driver::Compilation> c(theDriver.BuildCompilation(args));
   llvm::SmallVector<std::pair<int, const clang::driver::Command*>, 4> failingCommands;
@@ -164,6 +193,7 @@ int main(int argc, const char** argv)
     #ifdef _WIN32
     isCrash |= CommandRes == 3;
     #endif
+
     if (isCrash) {
       theDriver.generateCompilationDiagnostics(*c, *failingCommand);
       break;
