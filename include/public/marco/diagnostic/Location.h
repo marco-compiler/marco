@@ -1,6 +1,7 @@
 #ifndef MARCO_DIAGNOSTIC_LOCATION_H
 #define MARCO_DIAGNOSTIC_LOCATION_H
 
+/*
 namespace marco::diagnostic
 {
   class SourcePosition
@@ -54,5 +55,6 @@ namespace marco::diagnostic
       bool isUnknown;
   };
 }
+ */
 
 #endif // MARCO_DIAGNOSTIC_LOCATION_H

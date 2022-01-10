@@ -1,6 +1,7 @@
 #include <marco/diagnostic/Diagnostic.h>
 #include <marco/diagnostic/LogMessage.h>
 
+/*
 namespace marco::diagnostic
 {
   Message::Message() = default;
@@ -64,3 +65,4 @@ namespace marco::diagnostic
     // TODO printLines();
   }
 }
+*/

@@ -1,5 +1,6 @@
 #include <marco/diagnostic/Diagnostic.h>
 
+/*
 static const enum llvm::raw_ostream::Colors noteColor = llvm::raw_ostream::BLACK;
 static const enum llvm::raw_ostream::Colors remarkColor = llvm::raw_ostream::BLUE;
 static const enum llvm::raw_ostream::Colors warningColor = llvm::raw_ostream::YELLOW;
@@ -90,3 +91,4 @@ namespace marco::diagnostic
     printer->print(llvm::errs(), level, message, options.showColors());
   }
 }
+*/

@@ -4,6 +4,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <marco/utils/SourcePosition.h>
 
+/*
 namespace marco::diagnostic
 {
   class PrintInstance;
@@ -51,5 +52,6 @@ namespace marco::diagnostic
       SourceRange location;
 	};
 }
+ */
 
 #endif // MARCO_DIAGNOSTIC_LOGMESSAGE_H

@@ -7,6 +7,7 @@
 
 #include "LogMessage.h"
 
+/*
 namespace marco::diagnostic
 {
   enum class Level
@@ -90,5 +91,6 @@ namespace marco::diagnostic
       std::unique_ptr<Printer> printer;
   };
 }
+ */
 
 #endif // MARCO_DIAGNOSTIC_DIAGNOSTIC_H
