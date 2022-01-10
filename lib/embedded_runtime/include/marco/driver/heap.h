@@ -1,16 +1,18 @@
 #ifndef HEAP_H
 #define HEAP_H
 
+#include <cstddef>
+
 #define ALIGNMENT 8
 #define ALIGN(size) (((size) + (ALIGNMENT - 1)) & ~(ALIGNMENT -1))
 
-#define TYPE_SIZE (ALIGN(sizeof(st))) // header size
-typedef unsigned long st;
+#define HEADER_SIZE (ALIGN(sizeof(size_t))) // header size -contains packet length and determine whether the block is free or not
 
-void *malloc(st size);
+
+void *malloc(size_t size);
 
 void free(void *ptr);
 
-st sbrk();
+size_t sbrk();
 
 #endif

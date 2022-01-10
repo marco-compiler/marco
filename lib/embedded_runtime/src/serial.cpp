@@ -78,7 +78,7 @@ void SerialPort::write(const int n){
 }
 
 
-void SerialPort::write(const float f, const int p){
+void SerialPort::write(float f, const int p){
 	char s[64];
 	tochar(f,p,s);
 	this->write(s);
@@ -106,7 +106,7 @@ char SerialPort::read()
 	return result;
 }
 
-/*
+
 char* SerialPort::tochar(int i, char* res){
    int len = 0;
    for(; i > 0; ++len)
@@ -124,11 +124,11 @@ char* SerialPort::tochar(int i, char* res){
        char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
    }
    return res;
-};*/
-
+};
+/*
 char* SerialPort::tochar(const int i, char* res){
   snprintf(res,sizeof(int)+3,"%d\r\n",i);
-};
+};*/
 
 char* SerialPort::tochar(const float f,const int precision,char* res){
 	int i = f;
