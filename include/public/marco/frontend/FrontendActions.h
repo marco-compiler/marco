@@ -39,17 +39,21 @@ namespace marco::frontend
       void execute() override;
   };
 
-  class EmitLLVMIRAction : public FrontendAction
+  class CodegenAction : public FrontendAction
   {
     public:
       bool beginAction() override;
+  };
+
+  class EmitLLVMIRAction : public CodegenAction
+  {
+    public:
       void execute() override;
   };
 
-  class EmitBitcodeAction : public FrontendAction
+  class EmitObjectAction : public CodegenAction
   {
     public:
-      bool beginAction() override;
       void execute() override;
   };
 }

@@ -7,7 +7,7 @@
 
 using namespace marco::frontend;
 
-extern int mc1_main(llvm::ArrayRef<const char*> argv, const char* argv0)
+extern int mc1_main(llvm::ArrayRef<const char*> argv)
 {
   // Create CompilerInstance
   std::unique_ptr<CompilerInstance> instance(new CompilerInstance());
@@ -29,6 +29,7 @@ extern int mc1_main(llvm::ArrayRef<const char*> argv, const char* argv0)
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
 
   bool success = CompilerInvocation::createFromArgs(instance->invocation(), argv, diagnosticEngine);
 

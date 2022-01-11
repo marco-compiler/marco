@@ -1,4 +1,10 @@
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Support/Host.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
 #include <marco/frontend/CompilerInstance.h>
 #include <marco/frontend/FrontendActions.h>
 
@@ -55,7 +61,7 @@ namespace marco::frontend
     instance().getMLIRModule().print(llvm::outs());
   }
 
-  bool EmitLLVMIRAction::beginAction()
+  bool CodegenAction::beginAction()
   {
     return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion() && runLLVMIRGeneration();
   }
@@ -65,15 +71,45 @@ namespace marco::frontend
     llvm::outs() << instance().getLLVMModule();
   }
 
-  bool EmitBitcodeAction::beginAction()
-  {
-    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion() && runLLVMIRGeneration();
-  }
-
-  void EmitBitcodeAction::execute()
+  void EmitObjectAction::execute()
   {
     CompilerInstance& ci = instance();
-    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "bc");
-    llvm::WriteBitcodeToFile(ci.getLLVMModule(), *os);
+
+    auto targetTriple = llvm::sys::getDefaultTargetTriple();
+    ci.getLLVMModule().setTargetTriple(targetTriple);
+
+    std::string error;
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+
+    // Print an error and exit if we couldn't find the requested target.
+    // This generally occurs if we've forgotten to initialise the
+    // TargetRegistry or we have a bogus target triple.
+
+    if (!target) {
+      llvm::errs() << error;
+      return;
+    }
+
+    auto cpu = "generic";
+    auto features = "";
+
+    llvm::TargetOptions opt;
+    auto RM = llvm::Optional<llvm::Reloc::Model>();
+    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, RM);
+
+    ci.getLLVMModule().setDataLayout(targetMachine->createDataLayout());
+    ci.getLLVMModule().setTargetTriple(targetTriple);
+
+    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
+
+    llvm::legacy::PassManager pass;
+    auto fileType = llvm::CGFT_ObjectFile;
+
+    if (targetMachine->addPassesToEmitFile(pass, *os, nullptr, fileType)) {
+      llvm::errs() << "TargetMachine can't emit a file of this type";
+      return;
+    }
+
+    pass.run(ci.getLLVMModule());
   }
 }

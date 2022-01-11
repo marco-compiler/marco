@@ -29,8 +29,8 @@ static std::unique_ptr<FrontendAction> createFrontendBaseAction(CompilerInstance
     case EmitLLVMIR:
       return std::make_unique<EmitLLVMIRAction>();
 
-    case EmitBitcode:
-      return std::make_unique<EmitBitcodeAction>();
+    case EmitObject:
+      return std::make_unique<EmitObjectAction>();
 
     default:
       break;

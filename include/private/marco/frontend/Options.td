@@ -305,37 +305,37 @@ def time_step : Joined<["--"], "time-step=">,
 // Frontend Options - mc1
 //===----------------------------------------------------------------------===//
 
-def init_only : Flag<["-", "--"], "init-only">,
+def init_only : Flag<["-"], "init-only">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Only execute frontend initialization">;
 
-def emit_flattened : Flag<["-", "--"], "emit-flattened">,
+def emit_flattened : Flag<["-"], "emit-flattened">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit flattened Modelica">;
 
-def emit_ast : Flag<["-", "--"], "emit-ast">,
+def emit_ast : Flag<["-"], "emit-ast">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit AST">;
 
-def emit_modelica_dialect : Flag<["-", "--"], "emit-modelica-dialect">,
+def emit_modelica_dialect : Flag<["-"], "emit-modelica-dialect">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit Modelica dialect">;
 
-def emit_llvm_dialect : Flag<["-", "--"], "emit-llvm-dialect">,
+def emit_llvm_dialect : Flag<["-"], "emit-llvm-dialect">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit LLVM dialect">;
 
-def emit_llvm_ir : Flag<["-", "--"], "emit-llvm-ir">,
+def emit_llvm_ir : Flag<["-"], "emit-llvm-ir">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit LLVM-IR">;
 
-def emit_bitcode : Flag<["-", "--"], "emit-bitcode">,
+def emit_object : Flag<["-"], "emit-object">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
-    HelpText<"Emit bitcode">;
+    HelpText<"Emit object">;

@@ -59,6 +59,10 @@ namespace marco::frontend
             "MARCO can receive only one input flattened file");
 
         ci.getDiagnostics().Report(diagID);
+
+        for (const auto& file : inputs)
+          llvm::errs() << file.file() << "\n";
+
         return false;
       }
 

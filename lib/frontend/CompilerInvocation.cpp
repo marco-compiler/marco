@@ -44,7 +44,7 @@ namespace marco::frontend
     unsigned numErrorsBefore = diags.getNumErrors();
 
     // Default action
-    opts.programAction = EmitBitcode;
+    opts.programAction = DefaultAction;
 
     if (const llvm::opt::Arg* a = args.getLastArg(options::OPT_Action_Group)) {
       switch (a->getOption().getID()) {
@@ -72,8 +72,8 @@ namespace marco::frontend
           opts.programAction = EmitLLVMIR;
           break;
 
-        case options::OPT_emit_bitcode:
-          opts.programAction = EmitBitcode;
+        case options::OPT_emit_object:
+          opts.programAction = EmitObject;
           break;
 
         default: {
