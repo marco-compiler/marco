@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 
-SCRIPT_PATH=$(dirname "$BASH_SOURCE")
+SCRIPT_PATH=$(dirname "${BASH_SOURCE[0]}")
+TEMPORARY_DIR=""
 
-# Global variables to make the parsing of input arguments a bit easier
 INPUT_FILES=()
 OPTIONS=()
 OUTPUT_FILE=""
+PRINT_HELP="False"
+PRINT_VERSION="False"
+COMPILE_ONLY="False"
 SHOULD_LINK="True"
 
 parse_args()
@@ -22,24 +25,23 @@ parse_args()
         fi
 
         # This is a regular option - just add it to the list.
-        OPTIONS+=($1)
+        OPTIONS+=("$1")
 
-        if [[ $1 == "-c" ]]; then
-          COMPILE_ONLY="True"
-          SHOULD_LINK="False"
-        elif [[ $1 == "-init-only" ]]; then
-          SHOULD_LINK="False"
-        elif [[ $1 == "-emit-flattened" ]]; then
-          SHOULD_LINK="False"
-        elif [[ $1 == "-emit-ast" ]]; then
-          SHOULD_LINK="False"
-        elif [[ $1 == "-emit-modelica-dialect" ]]; then
-          SHOULD_LINK="False"
-        elif [[ $1 == "-emit-llvm-dialect" ]]; then
-          SHOULD_LINK="False"
-        elif [[ $1 == "-emit-llvm-ir" ]]; then
-          SHOULD_LINK="False"
-        fi
+        case $1 in
+          -help | -h | --help)
+            PRINT_HELP="True"
+            ;;
+          -version | -v | --version)
+            PRINT_VERSION="True"
+            ;;
+          -c)
+            COMPILE_ONLY="True"
+            SHOULD_LINK="False"
+            ;;
+          -init-only | --init-only | --emit-flattened | --emit-ast | --emit-modelica-dialect | --emit-llvm-dialect | --emit-llvm-ir)
+            SHOULD_LINK="False"
+            ;;
+        esac
 
         shift
         continue
@@ -58,37 +60,57 @@ parse_args()
   done
 }
 
-main() {
-  parse_args "$@"
-  temporary_dir=$(mktemp -d)
+cleanup()
+{
+  if [[ $TEMPORARY_DIR != "" ]]; then
+    rm -rf "$TEMPORARY_DIR"
+  fi
+}
 
-  marco-driver "${OPTIONS[@]}" "${INPUT_FILES[@]}" -o "$temporary_dir/simulation.o"
+main()
+{
+  parse_args "$@"
+
+  if [[ $PRINT_HELP == "True" ]]; then
+    marco-driver --help
+    exit 0
+  fi
+
+  if [[ $PRINT_VERSION == "True" ]]; then
+    marco-driver --version
+    exit 0
+  fi
+
+  TEMPORARY_DIR=$(mktemp -d)
+
+  marco-driver "${OPTIONS[@]}" "${INPUT_FILES[@]}" -o "$TEMPORARY_DIR/simulation.o"
   resultCode=$?
 
   if [ $resultCode -ne 0 ]; then
     echo "Compilation error"
-    rm -rf "${temporary_dir}"
+    cleanup
     exit $resultCode
   fi
 
   if [[ $COMPILE_ONLY == "True" ]]; then
-    mv "$temporary_dir/simulation.o" "$OUTPUT_FILE.o"
-    rm -rf "${temporary_dir}"
+    mv "$TEMPORARY_DIR/simulation.o" "$OUTPUT_FILE.o"
+    cleanup
     exit 0
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    g++ "$temporary_dir/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.so -o "$OUTPUT_FILE" -Wl,-R$SCRIPT_PATH/../lib
+    g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.so -o "$OUTPUT_FILE" -Wl,-R$SCRIPT_PATH/../lib
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then
       echo "Link error"
-      rm -rf "${temporary_dir}"
+      cleanup
       exit $resultCode
     fi
   fi
 
-  rm -r $temporary_dir
+  cleanup
+  exit 0
 }
 
 main "${@}"

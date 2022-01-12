@@ -59,10 +59,6 @@ namespace marco::frontend
             "MARCO can receive only one input flattened file");
 
         ci.getDiagnostics().Report(diagID);
-
-        for (const auto& file : inputs)
-          llvm::errs() << file.file() << "\n";
-
         return false;
       }
 
@@ -70,6 +66,11 @@ namespace marco::frontend
       auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
 
       if (!buffer) {
+        unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+            clang::DiagnosticsEngine::Fatal,
+            "Can't open the input file");
+
+        ci.getDiagnostics().Report(diagID);
         llvm::consumeError(buffer.takeError());
         return false;
       }
@@ -90,7 +91,15 @@ namespace marco::frontend
       cmd += " \"" + input.file().str() + "\"";
     }
 
-    cmd += " +i=" + ci.getSimulationOptions().modelName;
+    if (const auto& modelName = ci.getSimulationOptions().modelName; modelName.empty()) {
+      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Warning,
+          "Model name not specified");
+
+      ci.getDiagnostics().Report(diagID);
+    } else {
+      cmd += " +i=" + ci.getSimulationOptions().modelName;
+    }
 
     if (const auto& args = ci.getFrontendOptions().omcCustomArgs; args.empty()) {
       cmd += " -f";
@@ -114,6 +123,11 @@ namespace marco::frontend
     auto cls = parser.classDefinition();
 
     if (!cls) {
+      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "AST generation failed");
+
+      ci.getDiagnostics().Report(diagID);
       llvm::consumeError(cls.takeError());
       return false;
     }
@@ -124,12 +138,19 @@ namespace marco::frontend
 
   bool FrontendAction::runFrontendPasses()
   {
+    CompilerInstance& ci = instance();
+
     marco::ast::PassManager frontendPassManager;
     frontendPassManager.addPass(ast::createTypeCheckingPass());
     frontendPassManager.addPass(ast::createConstantFolderPass());
     auto error = frontendPassManager.run(instance().getAST());
 
     if (error) {
+      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Frontend passes failed");
+
+      ci.getDiagnostics().Report(diagID);
       llvm::consumeError(std::move(error));
       return false;
     }
@@ -139,10 +160,17 @@ namespace marco::frontend
 
   bool FrontendAction::runASTConversion()
   {
-    marco::codegen::MLIRLowerer lowerer(instance().getMLIRContext());
-    auto module = lowerer.run(instance().getAST());
+    CompilerInstance& ci = instance();
+
+    marco::codegen::MLIRLowerer lowerer(ci.getMLIRContext());
+    auto module = lowerer.run(ci.getAST());
 
     if (!module) {
+      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "MLIR conversion failed");
+
+      ci.getDiagnostics().Report(diagID);
       return false;
     }
 
@@ -152,8 +180,10 @@ namespace marco::frontend
 
   bool FrontendAction::runDialectConversion()
   {
-    auto& codegenOptions = instance().getCodegenOptions();
-    mlir::PassManager passManager(&instance().getMLIRContext());
+    CompilerInstance& ci = instance();
+
+    auto& codegenOptions = ci.getCodegenOptions();
+    mlir::PassManager passManager(&ci.getMLIRContext());
 
     passManager.addPass(codegen::createAutomaticDifferentiationPass());
     passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass());
@@ -194,152 +224,57 @@ namespace marco::frontend
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
     passManager.addPass(codegen::createLLVMLoweringPass());
 
-    return passManager.run(instance().getMLIRModule()).succeeded();
+    if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
+      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Fatal,
+          "Modelica dialect conversion failure");
+
+      ci.getDiagnostics().Report(diagID);
+      return false;
+    }
+
+    return true;
   }
 
   bool FrontendAction::runLLVMIRGeneration()
   {
+    CompilerInstance& ci = instance();
+
     // Register the conversions to LLVM IR
-    mlir::registerLLVMDialectTranslation(instance().getMLIRContext());
-    mlir::registerOpenMPDialectTranslation(instance().getMLIRContext());
+    mlir::registerLLVMDialectTranslation(ci.getMLIRContext());
+    mlir::registerOpenMPDialectTranslation(ci.getMLIRContext());
 
     // Initialize LLVM targets
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
 
     // Convert to LLVM IR
-    auto llvmModule = mlir::translateModuleToLLVMIR(instance().getMLIRModule(), instance().getLLVMContext());
+    auto llvmModule = mlir::translateModuleToLLVMIR(ci.getMLIRModule(), ci.getLLVMContext());
 
     if (!llvmModule) {
-      llvm::errs() << "Failed to emit LLVM IR\n";
+      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Error,
+          "Failed to emit LLVM IR");
+
+      ci.getDiagnostics().Report(diagId);
       return false;
     }
 
     // Optimize the IR
-    int optLevel = 2;
+    auto optLevel = ci.getCodegenOptions().optLevel;
+    auto optPipeline = mlir::makeOptimizingTransformer(optLevel.time, optLevel.size, nullptr);
 
-    auto optPipeline = mlir::makeOptimizingTransformer(optLevel, 0, nullptr);
+    if (auto error = optPipeline(llvmModule.get())) {
+      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Error,
+          "Failed to optimize LLVM IR");
 
-    if (auto err = optPipeline(llvmModule.get())) {
-      llvm::errs() << "Failed to optimize LLVM IR: " << err << "\n";
+      ci.getDiagnostics().Report(diagId);
+      llvm::consumeError(std::move(error));
       return false;
     }
 
     instance().setLLVMModule(std::move(llvmModule));
     return true;
   }
-
-
-  /*
-  void FrontendAction::set_currentInput(const FrontendInputFile &currentInput) {
-    this->currentInput_ = currentInput;
-  }
-
-  // Call this method if BeginSourceFile fails.
-  // Deallocate compiler instance, input and output descriptors
-  static void BeginSourceFileCleanUp(FrontendAction &fa, CompilerInstance &ci) {
-    ci.ClearOutputFiles(true);
-    fa.set_currentInput(FrontendInputFile());
-    fa.set_instance(nullptr);
-  }
-
-  bool FrontendAction::BeginSourceFile(CompilerInstance& ci, const FrontendInputFile& realInput) {
-    FrontendInputFile input(realInput);
-
-    // Return immediately if the input file does not exist or is not a file.
-    // Note that we cannot check this for input from stdin.
-
-    if (input.file() != "-") {
-      if (!llvm::sys::fs::is_regular_file(input.file())) {
-        // Create a diagnostic ID to report
-        unsigned int diagID;
-
-        if (llvm::vfs::getRealFileSystem()->exists(input.file())) {
-          ci.diagnostics().Report(clang::diag::err_fe_error_reading) << input.file();
-          diagID = ci.diagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 is not a regular file");
-        } else {
-          diagID = ci.diagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 does not exist");
-        }
-
-        // Report the diagnostic and return
-        ci.diagnostics().Report(diagID) << input.file();
-        BeginSourceFileCleanUp(*this, ci);
-        return false;
-      }
-    }
-
-    assert(!instance_ && "Already processing a source file!");
-    assert(!realInput.IsEmpty() && "Unexpected empty filename!");
-
-    set_currentInput(realInput);
-    set_instance(&ci);
-
-    if (!ci.HasAllSources()) {
-      BeginSourceFileCleanUp(*this, ci);
-      return false;
-    }
-
-    if (!BeginSourceFileAction()) {
-      BeginSourceFileCleanUp(*this, ci);
-      return false;
-    }
-
-    return true;
-  }
-
-  bool FrontendAction::ShouldEraseOutputFiles() {
-    return instance().diagnostics().hasErrorOccurred();
-  }
-
-  llvm::Error FrontendAction::Execute() {
-    ExecuteAction();
-
-    return llvm::Error::success();
-  }
-
-  void FrontendAction::EndSourceFile() {
-    CompilerInstance &ci = instance();
-
-    // Cleanup the output streams, and erase the output files if instructed by the
-    // FrontendAction.
-    ci.ClearOutputFiles(ShouldEraseOutputFiles());
-
-    set_instance(nullptr);
-    set_currentInput(FrontendInputFile());
-  }
-
-  bool FrontendAction::runParse() {
-    CompilerInstance &ci = this->instance();
-
-    ci.inputFiles()
-
-    // Parse. In case of failure, report and return.
-    ci.parsing().Parse(llvm::outs());
-
-    if (reportFatalParsingErrors()) {
-      return false;
-    }
-
-    // Report the diagnostics from parsing
-    ci.parsing().messages().Emit(llvm::errs(), ci.allCookedSources());
-
-    return true;
-  }
-
-  template <unsigned N>
-  bool FrontendAction::reportFatalErrors(const char (&message)[N]) {
-
-    if (!instance_->parsing().messages().empty() &&
-        (instance_->invocation().warnAsErr() ||
-            instance_->parsing().messages().AnyFatalError())) {
-      const unsigned diagID = instance_->diagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Error, message);
-      instance_->diagnostics().Report(diagID) << GetCurrentFileOrBufferName();
-      instance_->parsing().messages().Emit(
-          llvm::errs(), instance_->allCookedSources());
-      return true;
-    }
-    return false;
-  }
-  */
 }

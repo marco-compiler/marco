@@ -19,9 +19,7 @@ namespace marco::frontend
     EmitModelicaDialect,
     EmitLLVMDialect,
     EmitLLVMIR,
-    EmitObject,
-
-    DefaultAction = EmitObject
+    EmitObject
   };
 
   /// \param suffix The file extension

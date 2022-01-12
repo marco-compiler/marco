@@ -41,6 +41,7 @@ namespace marco::frontend
       bool runASTConversion();
       bool runDialectConversion();
       bool runLLVMIRGeneration();
+      bool runLLVMIROptimizations();
 
     private:
       CompilerInstance* instance_;

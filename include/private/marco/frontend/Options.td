@@ -198,7 +198,7 @@ def help : Flag<["-", "--"], "help">,
     HelpText<"Display available options">,
     MarshallingInfoFlag<FrontendOpts<"ShowHelp">>;
 
-def version : Flag<["-"], "version">,
+def version : Flag<["-", "--"], "version">,
     Flags<[MC1Option]>,
     HelpText<"Print the compiler version">,
     MarshallingInfoFlag<FrontendOpts<"ShowVersion">>;
@@ -208,22 +208,21 @@ def o : JoinedOrSeparate<["-"], "o">,
     HelpText<"Write output to <file>">, MetaVarName<"<file>">,
     MarshallingInfoString<FrontendOpts<"OutputFile">>;
 
-def x : JoinedOrSeparate<["-"], "x">,
-    Flags<[MC1Option]>,
-    HelpText<"Treat subsequent input files as having type <language>">,
-    MetaVarName<"<language>">;
-
 def debug : Flag<["-"], "g">,
     Group<g_Group>,
     HelpText<"Generate source-level debug information">;
 
-def omc_bypass : Flag<["-"], "omc-bypass">,
+def omc_path : Joined<["--"], "omc-path=">,
     Flags<[MC1Option]>,
-    HelpText<"Bypass OMC and pass the source directly to MARCO">;
+    HelpText<"Set a custom path for the OpenModelica compiler">;
 
 def omc_arg : Joined<["--"], "Xomc=">,
     Flags<[MC1Option]>,
     HelpText<"Pass a custom argument to the OpenModelica compiler (the option can be used multiple times)">;
+
+def omc_bypass : Flag<["--"], "omc-bypass">,
+    Flags<[MC1Option]>,
+    HelpText<"Bypass OMC and pass the source directly to MARCO">;
 
 defm assertions : BoolOption<"", "assertions",
     CodegenOpts<"Assertions">,
@@ -281,6 +280,26 @@ defm c_wrappers : BoolOption<"", "c-wrappers",
     BothFlags<[MC1Option], " the C wrappers">>,
     Group<c_Group>;
 
+def opt : Joined<["-"], "O">,
+  Flags<[MC1Option]>,
+  HelpText<"Set optimization level">,
+  Group<c_Group>;
+
+def : Alias<opt>, AliasArgs<["0"]>,
+  HelpText<"Disable optimization">;
+
+def : Alias<opt>, AliasArgs<["1"]>,
+  HelpText<"Optimize for speed">;
+
+def : Alias<opt>, AliasArgs<["2"]>,
+  HelpText<"Optimize for speed">;
+
+def : Alias<opt>, AliasArgs<["3"]>,
+  HelpText<"Optimize for speed">;
+
+def : Alias<opt>, AliasArgs<["s"]>,
+  HelpText<"Optimize for size">;
+
 def model : Joined<["--"], "model=">,
     Group<s_Group>,
     Flags<[MC1Option]>,
@@ -305,37 +324,38 @@ def time_step : Joined<["--"], "time-step=">,
 // Frontend Options - mc1
 //===----------------------------------------------------------------------===//
 
-def init_only : Flag<["-"], "init-only">,
+def init_only : Flag<["--"], "init-only">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Only execute frontend initialization">;
 
-def emit_flattened : Flag<["-"], "emit-flattened">,
+def emit_flattened : Flag<["--"], "emit-flattened">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit flattened Modelica">;
 
-def emit_ast : Flag<["-"], "emit-ast">,
+def emit_ast : Flag<["--"], "emit-ast">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit AST">;
 
-def emit_modelica_dialect : Flag<["-"], "emit-modelica-dialect">,
+def emit_modelica_dialect : Flag<["--"], "emit-modelica-dialect">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit Modelica dialect">;
 
-def emit_llvm_dialect : Flag<["-"], "emit-llvm-dialect">,
+def emit_llvm_dialect : Flag<["--"], "emit-llvm-dialect">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit LLVM dialect">;
 
-def emit_llvm_ir : Flag<["-"], "emit-llvm-ir">,
+def emit_llvm_ir : Flag<["--"], "emit-llvm-ir">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit LLVM-IR">;
 
-def emit_object : Flag<["-"], "emit-object">,
+// Used by the driver script to determine whether the link phase should take place.
+def compile_only : Flag<["-"], "c">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
-    HelpText<"Emit object">;
+    HelpText<"Compile only">;

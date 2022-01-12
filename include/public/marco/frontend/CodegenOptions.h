@@ -3,17 +3,25 @@
 
 namespace marco::frontend
 {
+  struct OptLevel
+  {
+    unsigned int time = 2;
+    unsigned int size = 0;
+  };
+
   struct CodegenOptions
   {
-    bool debug;
-    bool assertions;
+    bool debug = false;
+    bool assertions = true;
 
-    bool generateMain;
-    bool inlining;
-    bool outputArraysPromotion;
-    bool cse;
-    bool omp;
-    bool cWrappers;
+    bool generateMain = true;
+    bool inlining = true;
+    bool outputArraysPromotion = true;
+    bool cse = true;
+    bool omp = false;
+    bool cWrappers = false;
+
+    OptLevel optLevel;
   };
 }
 

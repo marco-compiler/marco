@@ -28,6 +28,7 @@ namespace marco::frontend
 
   void EmitFlattenedAction::execute()
   {
+    // Print the flattened source on the standard output
     llvm::outs() << instance().getFlattened() << "\n";
   }
 
@@ -38,6 +39,7 @@ namespace marco::frontend
 
   void EmitASTAction::execute()
   {
+    // Print the AST on the standard output
     instance().getAST()->dump(llvm::outs());
   }
 
@@ -48,6 +50,7 @@ namespace marco::frontend
 
   void EmitModelicaDialectAction::execute()
   {
+    // Print the module on the standard output
     instance().getMLIRModule().print(llvm::outs());
   }
 
@@ -68,6 +71,7 @@ namespace marco::frontend
 
   void EmitLLVMIRAction::execute()
   {
+    // Print the module on the standard output
     llvm::outs() << instance().getLLVMModule();
   }
 
@@ -86,7 +90,8 @@ namespace marco::frontend
     // TargetRegistry or we have a bogus target triple.
 
     if (!target) {
-      llvm::errs() << error;
+      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%s");
+      ci.getDiagnostics().Report(diagId) << error;
       return;
     }
 
@@ -100,16 +105,20 @@ namespace marco::frontend
     ci.getLLVMModule().setDataLayout(targetMachine->createDataLayout());
     ci.getLLVMModule().setTargetTriple(targetTriple);
 
-    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
+    llvm::legacy::PassManager passManager;
 
-    llvm::legacy::PassManager pass;
+    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
     auto fileType = llvm::CGFT_ObjectFile;
 
-    if (targetMachine->addPassesToEmitFile(pass, *os, nullptr, fileType)) {
-      llvm::errs() << "TargetMachine can't emit a file of this type";
+    if (targetMachine->addPassesToEmitFile(passManager, *os, nullptr, fileType)) {
+      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Error,
+          "TargetMachine can't emit a file of this type");
+
+      ci.getDiagnostics().Report(diagId);
       return;
     }
 
-    pass.run(ci.getLLVMModule());
+    passManager.run(ci.getLLVMModule());
   }
 }
