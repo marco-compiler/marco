@@ -23,7 +23,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 #-------------------------------------------------------------------------------
 # Project setup
 #-------------------------------------------------------------------------------
-project(marco LANGUAGES CXX)
+project(marco LANGUAGES C CXX)
 
 # Disable exceptions and RTTI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
@@ -102,7 +102,7 @@ include(AddMARCO)
 # Installing the headers and docs needs to depend on generating any public tablegen'd targets
 add_custom_target(marco-headers)
 set_target_properties(marco-headers PROPERTIES FOLDER "Misc")
-#add_custom_target(marco-doc)
+add_custom_target(marco-doc)
 
 # Add MLIR and LLVM headers to the include path
 include_directories(${CLANG_INCLUDE_DIRS})
@@ -116,12 +116,9 @@ include_directories(${MARCO_INCLUDE_DIRS})
 # MARCO profiling
 #-------------------------------------------------------------------------------
 
-# Set the profiling system to default OFF
-if(NOT DEFINED MARCO_PROFILING)
-	set(MARCO_PROFILING OFF)
-endif()
+option(MARCO_PROFILING "Generate code for runtime profiling.")
 
-if (${MARCO_PROFILING} STREQUAL ON)
+if (MARCO_PROFILING)
 	# If the profiling system is enabled, the macro is propagated to the libraries
 	# so that the required code is inserted.
 
@@ -137,6 +134,17 @@ add_subdirectory(lib)
 add_subdirectory(test)
 add_subdirectory(tool)
 add_subdirectory(unittest)
+
+option(MARCO_INCLUDE_DOCS "Generate build targets for the MARCO docs." ON)
+option(MARCO_BUILD_DOCS "Generate the documentation for MARCO." OFF)
+
+if (MARCO_BUILD_DOCS)
+	add_custom_target(doxygen ALL)
+endif()
+
+if (MARCO_INCLUDE_DOCS)
+	add_subdirectory(docs)
+endif()
 
 install(DIRECTORY ${MARCO_INCLUDE_PUBLIC_DIR}/marco
 		DESTINATION include

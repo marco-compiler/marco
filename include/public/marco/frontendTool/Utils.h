@@ -1,7 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
 //  This header contains miscellaneous utilities for various frontend actions.
-//  It is split from Frontend in order to minimise frontend's dependencies.
+//  It is split from Frontend in order to minimise the dependencies of the
+//  frontend library.
 //
 //===----------------------------------------------------------------------===//
 

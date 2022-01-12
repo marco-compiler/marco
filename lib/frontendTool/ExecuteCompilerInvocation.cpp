@@ -56,7 +56,7 @@ namespace marco::frontend
 
   bool executeCompilerInvocation(CompilerInstance* ci)
   {
-    // Honor -help
+    // Honor --help
     if (ci->getFrontendOptions().showHelp) {
       getDriverOptTable().printHelp(
           llvm::outs(),
@@ -68,7 +68,7 @@ namespace marco::frontend
       return true;
     }
 
-    // Honor -version
+    // Honor --version
     if (ci->getFrontendOptions().showVersion) {
       llvm::cl::PrintVersionMessage();
       return true;
