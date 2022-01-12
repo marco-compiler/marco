@@ -224,6 +224,10 @@ namespace marco::frontend
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
     passManager.addPass(codegen::createLLVMLoweringPass());
 
+    if (!codegenOptions.debug) {
+      passManager.addPass(mlir::createStripDebugInfoPass());
+    }
+
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,

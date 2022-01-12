@@ -193,22 +193,24 @@ multiclass BoolOption<string prefix = "", string spelling_base,
 /////////
 // Options
 
-def help : Flag<["-", "--"], "help">,
+def help : Flag<["--"], "help">,
     Flags<[MC1Option]>,
     HelpText<"Display available options">,
     MarshallingInfoFlag<FrontendOpts<"ShowHelp">>;
 
-def version : Flag<["-", "--"], "version">,
+def version : Flag<["--"], "version">,
     Flags<[MC1Option]>,
     HelpText<"Print the compiler version">,
     MarshallingInfoFlag<FrontendOpts<"ShowVersion">>;
 
 def o : JoinedOrSeparate<["-"], "o">,
     Flags<[MC1Option]>,
-    HelpText<"Write output to <file>">, MetaVarName<"<file>">,
+    HelpText<"Write output to <file>">,
+    MetaVarName<"<file>">,
     MarshallingInfoString<FrontendOpts<"OutputFile">>;
 
 def debug : Flag<["-"], "g">,
+    Flags<[MC1Option]>,
     Group<g_Group>,
     HelpText<"Generate source-level debug information">;
 
@@ -298,6 +300,9 @@ def : Alias<opt>, AliasArgs<["3"]>,
   HelpText<"Optimize for speed">;
 
 def : Alias<opt>, AliasArgs<["s"]>,
+  HelpText<"Optimize for size">;
+
+def : Alias<opt>, AliasArgs<["z"]>,
   HelpText<"Optimize for size">;
 
 def model : Joined<["--"], "model=">,

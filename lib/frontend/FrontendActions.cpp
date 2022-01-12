@@ -95,7 +95,7 @@ namespace marco::frontend
       return;
     }
 
-    auto cpu = "generic";
+    std::string cpu = std::string(llvm::sys::getHostCPUName());
     auto features = "";
 
     llvm::TargetOptions opt;

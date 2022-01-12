@@ -28,17 +28,17 @@ parse_args()
         OPTIONS+=("$1")
 
         case $1 in
-          -help | -h | --help)
+          --help)
             PRINT_HELP="True"
             ;;
-          -version | -v | --version)
+          --version)
             PRINT_VERSION="True"
             ;;
           -c)
             COMPILE_ONLY="True"
             SHOULD_LINK="False"
             ;;
-          -init-only | --init-only | --emit-flattened | --emit-ast | --emit-modelica-dialect | --emit-llvm-dialect | --emit-llvm-ir)
+          --init-only | --emit-flattened | --emit-ast | --emit-modelica-dialect | --emit-llvm-dialect | --emit-llvm-ir)
             SHOULD_LINK="False"
             ;;
         esac
