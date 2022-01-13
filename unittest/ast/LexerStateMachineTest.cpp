@@ -3,7 +3,7 @@
 #include <marco/utils/Lexer.hpp>
 
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 
 TEST(LexerStateMachineTest, checkDefaults)
 {

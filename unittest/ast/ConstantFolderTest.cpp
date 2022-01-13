@@ -5,7 +5,7 @@
 #include <marco/ast/SymbolTable.hpp>
 
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 using namespace std;
 
 TEST(folderTest, sumShouldFold)

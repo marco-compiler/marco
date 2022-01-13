@@ -5,7 +5,7 @@
 
 using namespace marco::codegen;
 using namespace marco::codegen::modelica;
-
+/*
 static ModelOp createModel(mlir::OpBuilder& builder, mlir::TypeRange varTypes)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
@@ -95,12 +95,10 @@ TEST(Codegen, matching_arrayVariable)
   EXPECT_EQ(variables[0].getDimensionSize(2), 5);
 }
 
-/**
- * Real x;
- * Real y;
- *
- * x = y
- */
+/// Real x;
+/// Real y;
+///
+/// x = y
 TEST(Codegen, matching_scalarEquationInductionVars)
 {
   mlir::MLIRContext context;
@@ -130,12 +128,10 @@ TEST(Codegen, matching_scalarEquationInductionVars)
   EXPECT_EQ(equation.getRangeEnd(0), 1);
 }
 
-/**
- * Real x;
- * Real y;
- *
- * x = y
- */
+/// Real x;
+/// Real y;
+///
+/// x = y
 TEST(Codegen, matching_scalarEquationAccesses)
 {
   mlir::MLIRContext context;
@@ -176,16 +172,14 @@ TEST(Codegen, matching_scalarEquationAccesses)
   EXPECT_EQ(yAccesses[0].getPosition(), 0);
 }
 
-/**
- * Real[4,5] x;
- * Real[6] y;
- *
- * for i in 2:5 loop
- *   for j in 2:4 loop
- *     x[i - 1, j + 2] = y[i];
- *   end for;
- * end for;
- */
+/// Real[4,5] x;
+/// Real[6] y;
+///
+/// for i in 2:5 loop
+///   for j in 2:4 loop
+///     x[i - 1, j + 2] = y[i];
+///   end for;
+/// end for;
 TEST(Codegen, matching_equationWithExplicitLoops)
 {
   mlir::MLIRContext context;
@@ -250,12 +244,10 @@ TEST(Codegen, matching_equationWithExplicitLoops)
   EXPECT_EQ(yAccesses[0].getOffset(), 0);
 }
 
-/**
- * Real[3] x;
- * Real[3] y;
- *
- * x = y;
- */
+/// Real[3] x;
+/// Real[3] y;
+///
+/// x = y;
 TEST(Codegen, matching_equationWithImplicitLoops)
 {
   mlir::MLIRContext context;
@@ -301,3 +293,4 @@ TEST(Codegen, matching_equationWithImplicitLoops)
   EXPECT_EQ(yAccesses[0].getInductionVariableIndex(), 0);
   EXPECT_EQ(yAccesses[0].getOffset(), 0);
 }
+*/

@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 #include <llvm/Support/Error.h>
-#include <marco/frontend/AST.h>
-#include <marco/frontend/Parser.h>
+#include <marco/ast/AST.h>
+#include <marco/ast/Parser.h>
 
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 
 TEST(ParserTest, primaryIntTest)
 {

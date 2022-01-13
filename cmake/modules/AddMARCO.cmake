@@ -73,6 +73,26 @@ macro(marco_add_tool name)
   install(TARGETS ${name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endmacro()
 
+# Declare a MARCO unit test leveraging Google Test
+function(marco_add_unittest test_name)
+  set(test_suite MARCOUnitTests)
+  add_executable(${test_name} ${ARGN})
+
+  set(outdir ${CMAKE_CURRENT_BINARY_DIR})
+  set_output_directory(${test_name} BINARY_DIR ${outdir} LIBRARY_DIR ${outdir})
+  target_link_directories(${test_name} PRIVATE ${MARCO_LIBS_DIR})
+  target_link_libraries(${test_name} PRIVATE gtest_main gmock)
+
+  add_dependencies(${test_suite} ${test_name})
+  get_target_property(test_suite_folder ${test_suite} FOLDER)
+
+  if (test_suite_folder)
+    set_property(TARGET ${test_name} PROPERTY FOLDER "${test_suite_folder}")
+  endif()
+
+  gtest_discover_tests(${test_name})
+endfunction()
+
 # Convert the "friendly" names of MARCO libraries into the ones to be used for linking
 function(marco_map_components_to_libnames out_libs)
   set(link_components ${ARGN})
@@ -107,16 +127,6 @@ function(marco_map_components_to_libnames out_libs)
 
   set(${out_libs} ${expanded_components} PARENT_SCOPE)
 endfunction()
-
-# Declare a MARCO unit test leveraging Google Test
-macro(marco_add_unittest test_suite test_name)
-  add_executable(${test_name} ${ARGN})
-  target_compile_features(${test_name} PUBLIC cxx_std_17)
-
-  include(GoogleTest)
-  target_link_libraries(${test_name} PRIVATE gmock gtest_main)
-  gtest_discover_tests(${test_name})
-endmacro()
 
 ###
 ###  marco_link_llvm_libs

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <llvm/Support/Error.h>
-#include <marco/frontend/Parser.h>
-#include <marco/frontend/Passes.h>
+#include <marco/ast/Parser.h>
+#include <marco/ast/Passes.h>
 #include <marco/utils/ErrorTest.hpp>
 
 using namespace marco::ast;

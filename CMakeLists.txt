@@ -82,7 +82,7 @@ set(MARCO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(MARCO_INCLUDE_PUBLIC_DIR ${MARCO_ROOT}/include/public)
 set(MARCO_INCLUDE_PRIVATE_DIR ${MARCO_ROOT}/include/private)
 
-set(MARCO_BUILD_DIR ${PROJECT_BINARY_DIR})
+set(MARCO_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(MARCO_BUILD_INCLUDE_PUBLIC_DIR ${MARCO_BUILD_DIR}/include/public)
 set(MARCO_BUILD_INCLUDE_PRIVATE_DIR ${MARCO_BUILD_DIR}/include/private)
 
@@ -92,7 +92,8 @@ set(MARCO_INCLUDE_DIRS
 		${MARCO_BUILD_INCLUDE_PUBLIC_DIR}
 		${MARCO_BUILD_INCLUDE_PRIVATE_DIR})
 
-set(MARCO_TOOLS_DIR ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
+set(MARCO_TOOLS_DIR ${MARCO_BUILD_DIR}/${CMAKE_INSTALL_BINDIR})
+set(MARCO_LIBS_DIR ${MARCO_BUILD_DIR}/${CMAKE_INSTALL_LIBDIR})
 
 list(APPEND CMAKE_MODULE_PATH "${MLIR_MAIN_SRC_DIR}/cmake/modules")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
@@ -102,7 +103,6 @@ include(AddMARCO)
 # Installing the headers and docs needs to depend on generating any public tablegen'd targets
 add_custom_target(marco-headers)
 set_target_properties(marco-headers PROPERTIES FOLDER "Misc")
-add_custom_target(marco-doc)
 
 # Add MLIR and LLVM headers to the include path
 include_directories(${CLANG_INCLUDE_DIRS})
@@ -113,7 +113,7 @@ include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${MARCO_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# MARCO profiling
+# Simulation runtime profiling
 #-------------------------------------------------------------------------------
 
 option(MARCO_PROFILING "Generate code for runtime profiling.")
@@ -131,20 +131,7 @@ endif()
 
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(test)
 add_subdirectory(tool)
-add_subdirectory(unittest)
-
-option(MARCO_INCLUDE_DOCS "Generate build targets for the MARCO docs." ON)
-option(MARCO_BUILD_DOCS "Generate the documentation for MARCO." OFF)
-
-if (MARCO_BUILD_DOCS)
-	add_custom_target(doxygen ALL)
-endif()
-
-if (MARCO_INCLUDE_DOCS)
-	add_subdirectory(docs)
-endif()
 
 install(DIRECTORY ${MARCO_INCLUDE_PUBLIC_DIR}/marco
 		DESTINATION include
@@ -164,6 +151,44 @@ install(DIRECTORY ${MARCO_BUILD_INCLUDE_PUBLIC_DIR}/marco
 		PATTERN "CMakeFiles" EXCLUDE)
 
 add_subdirectory(cmake/modules)
+
+#-------------------------------------------------------------------------------
+# Documentation
+#-------------------------------------------------------------------------------
+add_custom_target(marco-docs)
+
+option(MARCO_INCLUDE_DOCS "Generate build targets for the MARCO docs." ON)
+option(MARCO_BUILD_DOCS "Generate the documentation for MARCO." OFF)
+
+if (MARCO_BUILD_DOCS)
+	add_custom_target(doxygen ALL)
+endif()
+
+if (MARCO_INCLUDE_DOCS)
+	add_subdirectory(docs)
+	#add_dependencies(marco-docs mlir-doc)
+endif()
+
+#-------------------------------------------------------------------------------
+# Tests
+#-------------------------------------------------------------------------------
+include(CTest)
+
+set(INSTALL_GTEST OFF)
+add_subdirectory(googletest)
+include(GoogleTest)
+
+# Define the default arguments to use with 'lit', and an option for the user to override
+set(LIT_ARGS_DEFAULT "-sv")
+
+if (MSVC_IDE OR XCODE)
+	set(LIT_ARGS_DEFAULT "${LIT_ARGS_DEFAULT} --no-progress-bar")
+endif()
+
+set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}" CACHE STRING "Default options for lit")
+
+add_subdirectory(test)
+add_subdirectory(unittest)
 
 #-------------------------------------------------------------------------------
 # Boost (will be removed soon)

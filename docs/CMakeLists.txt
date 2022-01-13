@@ -14,7 +14,6 @@ if(DOXYGEN_FOUND)
 
   if (MARCO_BUILD_DOCS)
     add_dependencies(doxygen doxygen-marco)
+    install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen/html DESTINATION docs)
   endif()
-
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen/html DESTINATION docs)
 endif()

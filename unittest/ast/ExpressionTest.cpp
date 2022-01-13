@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <marco/frontend/AST.h>
+#include <marco/ast/AST.h>
 
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 
 TEST(AST, expressionConstantCanBeBuilt)	 // NOLINT
 {

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <marco/frontend/Parser.h>
+#include <marco/ast/Parser.h>
 
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 
 TEST(Parser, algorithmWithNoStatements)	 // NOLINT
 {

@@ -1,0 +1,35 @@
+# -*- Python -*-
+
+# Configuration file for the 'lit' test runner.
+
+import lit.formats
+import os
+
+from lit.llvm import llvm_config
+
+# name: The name of this test suite.
+config.name = 'MARCO-Unit'
+
+# suffixes: A list of file extensions to treat as test files.
+config.suffixes = []
+
+# test_source_root: The root path where unit test binaries are located.
+config.test_source_root = os.path.join(config.marco_obj_root, 'unittest')
+
+# test_exec_root: The root path where tests should be run.
+config.test_exec_root = config.test_source_root
+
+# test_format: The test format to use to interpret tests.
+config.test_format = lit.formats.GoogleTest(config.llvm_build_mode, 'Test')
+
+# Tweak the PATH to include the tools dir.
+path = os.path.pathsep.join((config.marco_tools_dir, config.llvm_tools_dir, config.environment['PATH']))
+config.environment['PATH'] = path
+
+# Set the LD_LIBRARY_PATH
+ld_library_path = os.path.pathsep.join((
+    config.marco_libs_dir,
+    config.llvm_libs_dir,
+    config.environment.get('LD_LIBRARY_PATH','')))
+
+config.environment['LD_LIBRARY_PATH'] = ld_library_path

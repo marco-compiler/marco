@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/Error.h>
-#include <marco/frontend/AST.h>
-#include <marco/frontend/Parser.h>
-#include <marco/frontend/passes/TypeCheckingPass.h>
+#include <marco/ast/AST.h>
+#include <marco/ast/Parser.h>
+#include <marco/ast/passes/TypeCheckingPass.h>
 #include <marco/utils/ErrorTest.hpp>
 
 using namespace llvm;
 using namespace marco;
-using namespace frontend;
+using namespace marco::ast;
 using namespace std;
 
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
