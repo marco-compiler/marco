@@ -7,6 +7,8 @@ namespace marco::codegen
 	struct ModelicaConversionOptions
 	{
 		bool assertions = true;
+
+    // TODO remove
 		bool useRuntimeLibrary = true;
 
 		static const ModelicaConversionOptions& getDefaultOptions() {

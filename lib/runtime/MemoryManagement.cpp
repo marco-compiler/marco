@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <marco/runtime/MemoryManagement.h>
 
 #ifdef MARCO_PROFILING
@@ -97,13 +98,13 @@ MemoryProfiler& profiler()
 
 #endif
 
-inline void* heapAlloc(int64_t sizeInBytes)
+inline void* heapAlloc_pvoid(int64_t sizeInBytes)
 {
 #ifdef MARCO_PROFILING
   profiler().startTimer();
 #endif
 
-	void* result = sizeInBytes == 0 ? nullptr : malloc(sizeInBytes);
+	void* result = sizeInBytes == 0 ? nullptr : std::malloc(sizeInBytes);
 
 #ifdef MARCO_PROFILING
 	profiler().stopTimer();
@@ -115,15 +116,16 @@ inline void* heapAlloc(int64_t sizeInBytes)
 
 RUNTIME_FUNC_DEF(heapAlloc, PTR(void), int64_t)
 
-inline void heapFree(void* ptr)
+inline void heapFree_void(void* ptr)
 {
 #ifdef MARCO_PROFILING
   profiler().free(ptr);
   profiler().startTimer();
 #endif
 
-  if (ptr != nullptr)
-	  free(ptr);
+  if (ptr != nullptr) {
+    std::free(ptr);
+  }
 
 #ifdef MARCO_PROFILING
   profiler().stopTimer();

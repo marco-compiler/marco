@@ -22,6 +22,7 @@ int main(int argc, char* argv[])
 	mlir::DialectRegistry registry;
 	registry.insert<modelica::ModelicaDialect>();
 	registry.insert<mlir::BuiltinDialect>();
+  registry.insert<mlir::math::MathDialect>();
 	registry.insert<mlir::StandardOpsDialect>();
 
 	auto result = mlir::MlirOptMain(argc, argv, "Modelica optimizer driver\n", registry);

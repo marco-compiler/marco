@@ -186,8 +186,18 @@ namespace marco::frontend
     mlir::PassManager passManager(&ci.getMLIRContext());
 
     passManager.addPass(codegen::createAutomaticDifferentiationPass());
-    passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass());
-    passManager.addPass(codegen::createFunctionsVectorizationPass());
+
+    // Solve model pass
+    codegen::SolveModelOptions solveModelOptions;
+    solveModelOptions.emitMain = ci.getCodegenOptions().generateMain;
+    // TODO: variable filter
+    passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass(solveModelOptions));
+
+    // Functions vectorization pass
+    codegen::FunctionsVectorizationOptions functionsVectorizationOptions;
+    functionsVectorizationOptions.assertions = ci.getCodegenOptions().assertions;
+    passManager.addPass(codegen::createFunctionsVectorizationPass(functionsVectorizationOptions));
+
     passManager.addPass(codegen::createExplicitCastInsertionPass());
 
     if (codegenOptions.outputArraysPromotion) {
@@ -214,7 +224,10 @@ namespace marco::frontend
     // order to take into consideration their memory effects.
     passManager.addPass(codegen::createBufferDeallocationPass());
 
-    passManager.addPass(codegen::createModelicaConversionPass());
+    // Modelica conversion pass
+    codegen::ModelicaConversionOptions modelicaConversionOptions;
+    modelicaConversionOptions.assertions = ci.getCodegenOptions().assertions;
+    passManager.addPass(codegen::createModelicaConversionPass(modelicaConversionOptions));
 
     if (codegenOptions.omp) {
       passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
@@ -222,7 +235,12 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createLowerToCFGPass());
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
-    passManager.addPass(codegen::createLLVMLoweringPass());
+
+    // Conversion to LLVM dialect
+    codegen::ModelicaToLLVMConversionOptions llvmLoweringOptions;
+    llvmLoweringOptions.assertions = ci.getCodegenOptions().assertions;
+    llvmLoweringOptions.emitCWrappers = ci.getCodegenOptions().cWrappers;
+    passManager.addPass(codegen::createLLVMLoweringPass(llvmLoweringOptions));
 
     if (!codegenOptions.debug) {
       passManager.addPass(mlir::createStripDebugInfoPass());

@@ -1,5 +1,6 @@
 set(SOURCES
 		BuiltInFunctions.cpp
+		Math.cpp
 		MemoryManagement.cpp
 		Profiling.cpp
 		Runtime.cpp

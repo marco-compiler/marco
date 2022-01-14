@@ -1,26 +1,29 @@
 #include <iostream>
 #include <marco/runtime/UtilityFunctions.h>
 
-/**
- * Clone an array into another one.
- *
- * @tparam T 					destination array type
- * @tparam U 					source array type
- * @param destination destination array
- * @param values 			source values
- */
+//===----------------------------------------------------------------------===//
+// clone
+//===----------------------------------------------------------------------===//
+
+/// Clone an array into another one.
+///
+/// @tparam T 					destination array type
+/// @tparam U 					source array type
+/// @param destination  destination array
+/// @param values 			source values
 template<typename T, typename U>
-inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
 {
 	assert(source.getNumElements() == destination.getNumElements());
 
-	for (const auto& [source, destination] : llvm::zip(source, destination))
-		destination = source;
+	for (const auto& [source, destination] : llvm::zip(source, destination)) {
+    destination = source;
+  }
 }
 
 // Optimization for arrays with the same type
 template<typename T>
-inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
 {
 	auto sourceSize = source.getNumElements();
 	auto destinationSize = destination.getNumElements();
@@ -59,23 +62,30 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 
+//===----------------------------------------------------------------------===//
+// print
+//===----------------------------------------------------------------------===//
+
 template<typename T>
-inline void print(T value)
+inline void print_void(T value)
 {
 	std::cout << value << std::endl;
 }
 
-inline void print(bool value)
+template<>
+inline void print_void<bool>(bool value)
 {
 	std::cout << std::boolalpha << value << std::endl;
 }
 
-inline void print(float value)
+template<>
+inline void print_void<float>(float value)
 {
 	std::cout << std::scientific << value << std::endl;
 }
 
-inline void print(double value)
+template<>
+inline void print_void<double>(double value)
 {
 	std::cout << std::scientific << value << std::endl;
 }
@@ -87,15 +97,15 @@ RUNTIME_FUNC_DEF(print, void, float)
 RUNTIME_FUNC_DEF(print, void, double)
 
 template<typename T>
-inline void print(UnsizedArrayDescriptor<T> array)
+inline void print_void(UnsizedArrayDescriptor<T> array)
 {
 	std::cout << array << std::endl;
 }
 
-inline void print(UnsizedArrayDescriptor<bool> array)
+template<>
+inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
 {
-	for (const auto& value : array)
-		std::cout << std::boolalpha << value << std::endl;
+  std::cout << std::boolalpha << array;
 }
 
 RUNTIME_FUNC_DEF(print, void, ARRAY(bool))

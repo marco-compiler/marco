@@ -99,11 +99,11 @@
 #define RUNTIME_FUNC_DEF(name, returnType, ...) \
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
 	{ \
-		return name(ARGS_NAMES(__VA_ARGS__)); \
+		return CONCAT_ALL(name, TYPES_MANGLED(returnType))(ARGS_NAMES(__VA_ARGS__)); \
 	} \
 	TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
 	{ \
-		return name(ARGS_NAMES(__VA_ARGS__)); \
+		return CONCAT_ALL(name, TYPES_MANGLED(returnType))(ARGS_NAMES(__VA_ARGS__)); \
 	}
 
 #endif	// MARCO_RUNTIME_MANGLING_H

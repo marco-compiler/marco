@@ -569,29 +569,18 @@ struct ArrayCloneOpLowering : public ModelicaOpConversion<ArrayCloneOp>
 
 		mlir::Value result = allocate(rewriter, loc, op.resultType(), dynamicDimensions, op.shouldBeFreed());
 
-		if (options.useRuntimeLibrary)
-		{
-			llvm::SmallVector<mlir::Value, 2> args;
-			args.push_back(rewriter.create<ArrayCastOp>(loc, result, result.getType().cast<ArrayType>().toUnsized()));
-			args.push_back(rewriter.create<ArrayCastOp>(loc, op.source(), op.source().getType().cast<ArrayType>().toUnsized()));
+    llvm::SmallVector<mlir::Value, 2> args;
+    args.push_back(rewriter.create<ArrayCastOp>(loc, result, result.getType().cast<ArrayType>().toUnsized()));
+    args.push_back(rewriter.create<ArrayCastOp>(loc, op.source(), op.source().getType().cast<ArrayType>().toUnsized()));
 
-			auto callee = getOrDeclareFunction(
-					rewriter,
-					op->getParentOfType<mlir::ModuleOp>(),
-					getMangledFunctionName("clone", llvm::None, args),
-					llvm::None,
-					args);
+    auto callee = getOrDeclareFunction(
+        rewriter,
+        op->getParentOfType<mlir::ModuleOp>(),
+        getMangledFunctionName("clone", llvm::None, args),
+        llvm::None,
+        args);
 
-			rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
-		}
-		else
-		{
-			iterateArray(rewriter, loc, op.source(), [&](mlir::ValueRange indexes) {
-				mlir::Value value = rewriter.create<LoadOp>(loc, op.source(), indexes);
-				value = rewriter.create<CastOp>(loc, value, op.resultType().cast<ArrayType>().getElementType());
-				rewriter.create<StoreOp>(loc, value, result, indexes);
-			});
-		}
+    rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 
 		rewriter.replaceOp(op, result);
 		return mlir::success();
@@ -2420,16 +2409,18 @@ struct PowOpLowering: public ModelicaOpConversion<PowOp>
 			return rewriter.notifyMatchFailure(op, "Base is not a scalar");
 
 		// Compute the result
-		mlir::Value base = rewriter.create<CastOp>(loc, op.base(), RealType::get(op.getContext()));
-		base = materializeTargetConversion(rewriter, base);
+    llvm::SmallVector<mlir::Value, 3> args;
+    args.push_back(op.base());
+    args.push_back(op.exponent());
 
-		mlir::Value exponent = rewriter.create<CastOp>(loc, op.exponent(), RealType::get(op.getContext()));
-		exponent = materializeTargetConversion(rewriter, exponent);
+    auto callee = getOrDeclareFunction(
+        rewriter,
+        op->getParentOfType<mlir::ModuleOp>(),
+        getMangledFunctionName("pow", op.resultType(), args),
+        op.resultType(),
+        mlir::ValueRange(args).getTypes());
 
-		mlir::Value result = rewriter.create<mlir::math::PowFOp>(loc, base, exponent);
-		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, RealType::get(op.getContext()), result);
-		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-
+    rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), op.resultType(), args);
 		return mlir::success();
 	}
 };
@@ -2767,30 +2758,18 @@ struct FillOpLowering : public ModelicaOpConversion<FillOp>
 		mlir::Location loc = op.getLoc();
 		auto arrayType = op.memory().getType().cast<ArrayType>();
 
-		if (options.useRuntimeLibrary)
-		{
-			llvm::SmallVector<mlir::Value, 3> args;
-			args.push_back(rewriter.create<ArrayCastOp>(loc, op.memory(), arrayType.toUnsized()));
-			args.push_back(rewriter.create<CastOp>(loc, op.value(), arrayType.getElementType()));
+    llvm::SmallVector<mlir::Value, 3> args;
+    args.push_back(rewriter.create<ArrayCastOp>(loc, op.memory(), arrayType.toUnsized()));
+    args.push_back(rewriter.create<CastOp>(loc, op.value(), arrayType.getElementType()));
 
-			auto callee = getOrDeclareFunction(
-					rewriter,
-					op->getParentOfType<mlir::ModuleOp>(),
-					getMangledFunctionName("fill", llvm::None, args),
-					llvm::None,
-					mlir::ValueRange(args).getTypes());
+    auto callee = getOrDeclareFunction(
+        rewriter,
+        op->getParentOfType<mlir::ModuleOp>(),
+        getMangledFunctionName("fill", llvm::None, args),
+        llvm::None,
+        mlir::ValueRange(args).getTypes());
 
-			rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
-		}
-		else
-		{
-			mlir::Value value = rewriter.create<CastOp>(loc, op.value(), arrayType.getElementType());
-
-			iterateArray(rewriter, loc, op.memory(),
-									 [&](mlir::ValueRange position) {
-										 rewriter.create<StoreOp>(loc, value, op.memory(), position);
-									 });
-		}
+    rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 
 		rewriter.eraseOp(op);
 		return mlir::success();

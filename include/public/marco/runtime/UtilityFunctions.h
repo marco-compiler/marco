@@ -1,6 +1,8 @@
 #ifndef MARCO_RUNTIME_UTILITYFUNCTIONS_H
 #define MARCO_RUNTIME_UTILITYFUNCTIONS_H
 
+#include <cstdint>
+
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
 
