@@ -52,8 +52,6 @@ macro(marco_add_library name)
   llvm_add_library(${name} ${LIBTYPE} OUTPUT_NAME ${canonized_name} ${ARG_UNPARSED_ARGUMENTS} ${srcs})
   add_library(marco::${name} ALIAS ${name})
 
-  include(GNUInstallDirs)
-
   install(TARGETS ${name}
       COMPONENT ${name}
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -69,7 +67,6 @@ macro(marco_add_tool name)
 
   llvm_update_compile_flags(${name})
 
-  include(GNUInstallDirs)
   install(TARGETS ${name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endmacro()
 
