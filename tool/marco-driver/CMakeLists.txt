@@ -16,10 +16,17 @@ install(TARGETS marco-driver RUNTIME DESTINATION bin)
 
 # This shell script will only work in a POSIX shell.
 if (NOT WIN32)
-  add_custom_command(TARGET marco-driver POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/marco.sh
-      $<TARGET_FILE_DIR:marco-driver>/marco)
+  #add_custom_command(TARGET marco-driver POST_BUILD
+  #    COMMAND ${CMAKE_COMMAND} -E copy
+  #    ${CMAKE_CURRENT_SOURCE_DIR}/marco.sh
+  #    $<TARGET_FILE_DIR:marco-driver>/marco)
+
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/script.cmake" "file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/marco.sh
+    DESTINATION $<TARGET_FILE_DIR:marco-driver>/marco
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_WRITE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)")
+
+  add_custom_command(TARGET marco-driver POST_BUILD COMMAND
+      ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/script.cmake)
 
   add_custom_target(copyRunScript ALL
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
