@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.9)
 
-if(POLICY CMP0068)
+if (POLICY CMP0068)
 	cmake_policy(SET CMP0068 NEW)
 	set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 endif()
 
-if(POLICY CMP0075)
+if (POLICY CMP0075)
 	cmake_policy(SET CMP0075 NEW)
 endif()
 
-if(POLICY CMP0077)
+if (POLICY CMP0077)
 	cmake_policy(SET CMP0077 NEW)
 endif()
 
@@ -29,7 +29,7 @@ project(marco LANGUAGES C CXX)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
 # Set the default build type if none was specified
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	message(STATUS "Setting build type to 'Release' as none was specified")
 	set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 
@@ -46,13 +46,42 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 # Clang / MLIR / LLVM configuration
 #-------------------------------------------------------------------------------
 
-find_package(Clang REQUIRED CONFIG)
+# Treat CLANG_DIR in a special way, as CMake is case sensitive and the correct
+# name of the variable is Clang_DIR.
+if (DEFINED CLANG_DIR AND NOT DEFINED Clang_DIR)
+	set(Clang_DIR ${CLANG_DIR})
+endif()
+
+if (DEFINED LLVM_PATH)
+	# Emit a warning if both LLVM_ROOT and LLVM_DIR have been set
+	if (DEFINED LLVM_DIR)
+		message(WARNING "Both LLVM_PATH and LLVM_DIR have been set. LLVM_PATH has been ignored")
+	else()
+		set(LLVM_DIR "${LLVM_PATH}/lib/cmake/llvm")
+	endif()
+
+	# Emit a warning if both LLVM_ROOT and MLIR_DIR have been set
+	if (DEFINED MLIR_DIR)
+		message(WARNING "Both LLVM_PATH and MLIR_DIR have been set. LLVM_PATH has been ignored")
+	else()
+		set(MLIR_DIR "${LLVM_PATH}/lib/cmake/mlir")
+	endif()
+
+	# Emit a warning if both LLVM_ROOT and Clang_DIR have been set
+	if (DEFINED Clang_DIR)
+		message(WARNING "Both LLVM_PATH and Clang_DIR have been set. LLVM_PATH has been ignored")
+	else()
+		set(Clang_DIR "${LLVM_PATH}/lib/cmake/clang")
+	endif()
+endif()
+
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
 
-message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 
 # These are a bit of a hack, because we're hijacking alot of LLVM machinery
 set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
