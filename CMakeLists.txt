@@ -206,7 +206,7 @@ endif()
 enable_testing()
 
 set(INSTALL_GTEST OFF)
-add_subdirectory(googletest)
+add_subdirectory(utils/googletest)
 include(GoogleTest)
 
 # Define the default arguments to use with 'lit', and an option for the user to override
