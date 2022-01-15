@@ -190,7 +190,7 @@ namespace marco::frontend
     // Solve model pass
     codegen::SolveModelOptions solveModelOptions;
     solveModelOptions.emitMain = ci.getCodegenOptions().generateMain;
-    // TODO: variable filter
+    solveModelOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
     passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass(solveModelOptions));
 
     // Functions vectorization pass

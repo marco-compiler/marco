@@ -112,6 +112,22 @@ namespace marco::frontend
 
     options.omcBypass = args.hasArg(options::OPT_omc_bypass);
 
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_filter)) {
+      llvm::StringRef value = arg->getValue();
+      auto variableFilter = VariableFilter::fromString(value);
+
+      if (!variableFilter) {
+        unsigned int diagID = diags.getCustomDiagID(
+            clang::DiagnosticsEngine::Warning,
+            "Invalid variable filter string. No filtering will take place");
+
+        diags.Report(diagID);
+
+      } else {
+        options.variableFilter = *variableFilter;
+      }
+    }
+
     return diags.getNumErrors() == numErrorsBefore;
   }
 

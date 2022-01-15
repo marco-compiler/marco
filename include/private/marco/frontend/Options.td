@@ -325,6 +325,11 @@ def time_step : Joined<["--"], "time-step=">,
     Flags<[MC1Option]>,
     HelpText<"Time step of the simulation (in seconds)">;
 
+def filter : Joined<["--"], "filter=">,
+    Group<s_Group>,
+    Flags<[MC1Option]>,
+    HelpText<"Filter for the variables to be printed">;
+
 //===----------------------------------------------------------------------===//
 // Frontend Options - mc1
 //===----------------------------------------------------------------------===//

@@ -135,7 +135,6 @@ namespace marco::frontend
 
   bool CompilerInstance::executeAction(FrontendAction& action)
   {
-    auto& invoc = this->invocation();
     action.setCompilerInstance(this);
 
     // Run the frontend action

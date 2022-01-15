@@ -56,7 +56,7 @@ git submodule update --recursive --init
 
 The project can be built with the following instructions.
 The `LLVM_PATH` variable must be set to the installation path that was used during the LLVM installation process.
-The `LLVM_EXTERNAL_LIT` represent the path (including the executable name) to the `lit` tool. If it has been installed in user mode, it is usually `/home/user/.local/bin/lit`.
+The `LLVM_EXTERNAL_LIT` variable represent the path (including the executable name) to the `lit` tool. If it has been installed in user mode, it is usually `/home/user/.local/bin/lit`.
 
 ```
 cd marco

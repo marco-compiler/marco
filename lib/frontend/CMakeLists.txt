@@ -23,12 +23,14 @@ marco_add_library(frontend SHARED
     DEPENDS
     marco::ast
     marco::codegen
+    marco::utils
     MARCOFrontendOptions
 
     LINK_LIBS
     clangDriver
     marco::ast
     marco::codegen
+    marco::utils
     ${MLIR_LIBS}
 
     LINK_COMPONENTS

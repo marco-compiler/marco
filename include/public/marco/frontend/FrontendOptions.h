@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/MemoryBuffer.h>
+#include <marco/utils/VariableFilter.h>
 
 #include <cstdint>
 #include <string>
@@ -120,6 +121,8 @@ namespace marco::frontend
     bool omcBypass = false;
     std::string omcPath = "";
     std::vector<std::string> omcCustomArgs;
+
+    VariableFilter variableFilter;
 
     // Return the appropriate input kind for a file extension
     static InputKind getInputKindForExtension(llvm::StringRef extension);
