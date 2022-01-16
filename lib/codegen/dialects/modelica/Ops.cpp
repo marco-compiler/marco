@@ -1850,31 +1850,34 @@ void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 
 mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indexes;
-	llvm::SmallVector<mlir::Type, 3> indexesTypes;
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> dimensions;
+	llvm::SmallVector<mlir::Type, 3> dimensionsTypes;
 
 	mlir::Type resultType;
 
-	llvm::SMLoc indexesLoc = parser.getCurrentLocation();
+	llvm::SMLoc dimensionsLoc = parser.getCurrentLocation();
 
-	if (parser.parseOperandList(indexes))
+	if (parser.parseOperandList(dimensions))
 		return mlir::failure();
 
 	if (parser.parseColon())
 		return mlir::failure();
 
-	if (!indexes.empty())
+	if (!dimensions.empty())
 	{
 		if (mlir::succeeded(parser.parseOptionalLParen()))
 		{
-			if (parser.parseTypeList(indexesTypes) ||
+			if (parser.parseTypeList(dimensionsTypes) ||
 					parser.parseRParen())
 				return mlir::failure();
 		}
-		else if (parser.parseTypeList(indexesTypes))
+		else if (parser.parseTypeList(dimensionsTypes))
 		{
 			return mlir::failure();
 		}
+
+    if (parser.resolveOperands(dimensions, dimensionsTypes, dimensionsLoc, result.operands))
+      return mlir::failure();
 
 		if (parser.parseArrow())
 			return mlir::failure();
@@ -1916,15 +1919,16 @@ mlir::LogicalResult AllocaOp::verify()
 	auto shape = resultType().getShape();
 	unsigned int unknownSizes = 0;
 
-	for (const auto& size : shape)
-		if (size == -1)
-			++unknownSizes;
+	for (const auto& size : shape) {
+    if (size == -1)
+      ++unknownSizes;
+  }
 
 	if (unknownSizes != dynamicDimensions().size())
 		return emitOpError("requires the dynamic dimensions amount (" +
-											 std::to_string(dynamicDimensions().size()) +
+											 std::to_string(unknownSizes) +
 											 ") to match the number of provided values (" +
-											 std::to_string(unknownSizes) + ")");
+											 std::to_string(dynamicDimensions().size()) + ")");
 
 	return mlir::success();
 }
@@ -8815,7 +8819,7 @@ mlir::ParseResult SumOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 
 	if (parser.parseOperand(array) ||
 			parser.parseColon() ||
-			parser.parseType(resultType) ||
+			parser.parseType(arrayType) ||
 			parser.resolveOperand(array, arrayType, result.operands) ||
 			parser.parseArrow() ||
 			parser.parseType(resultType))
@@ -8880,7 +8884,7 @@ mlir::ParseResult ProductOp::parse(mlir::OpAsmParser& parser, mlir::OperationSta
 
 	if (parser.parseOperand(array) ||
 			parser.parseColon() ||
-			parser.parseType(resultType) ||
+			parser.parseType(arrayType) ||
 			parser.resolveOperand(array, arrayType, result.operands) ||
 			parser.parseArrow() ||
 			parser.parseType(resultType))

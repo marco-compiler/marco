@@ -69,25 +69,13 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 template<typename T>
 inline void print_void(T value)
 {
-	std::cout << value << std::endl;
+	std::cout << std::scientific << value << std::endl;
 }
 
 template<>
 inline void print_void<bool>(bool value)
 {
 	std::cout << std::boolalpha << value << std::endl;
-}
-
-template<>
-inline void print_void<float>(float value)
-{
-	std::cout << std::scientific << value << std::endl;
-}
-
-template<>
-inline void print_void<double>(double value)
-{
-	std::cout << std::scientific << value << std::endl;
 }
 
 RUNTIME_FUNC_DEF(print, void, bool)
@@ -99,13 +87,13 @@ RUNTIME_FUNC_DEF(print, void, double)
 template<typename T>
 inline void print_void(UnsizedArrayDescriptor<T> array)
 {
-	std::cout << array << std::endl;
+	std::cout << std::scientific << array << std::endl;
 }
 
 template<>
 inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
 {
-  std::cout << std::boolalpha << array;
+  std::cout << std::boolalpha << array << std::endl;
 }
 
 RUNTIME_FUNC_DEF(print, void, ARRAY(bool))

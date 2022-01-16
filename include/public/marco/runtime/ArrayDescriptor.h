@@ -3,8 +3,6 @@
 #include <iostream>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Support/raw_os_ostream.h>
 
 template <typename T>
 class ArrayIterator;
@@ -86,15 +84,15 @@ class ArrayDescriptor
 
 	void dump() const
 	{
-		dump(llvm::outs());
+		dump(std::cout);
 	}
 
-	void dump(llvm::raw_ostream& os) const
+	void dump(std::ostream& os) const
 	{
 		os << "Array descriptor";
-		os.indent(2) << "address: " << getData();
-		os.indent(2) << "rank: " << getRank();
-		os.indent(2) << "values: " << *this;
+		os << "  - address: " << getData();
+		os << "  - rank: " << getRank();
+		os << "  - values: " << *this;
 		os << "\n";
 	}
 
@@ -217,7 +215,7 @@ class ArrayDescriptor
 namespace impl
 {
 	template<typename T, unsigned int Rank>
-	void printArrayDescriptor(llvm::raw_ostream& stream,
+	void printArrayDescriptor(std::ostream& stream,
 														const ArrayDescriptor<T, Rank>& descriptor,
 														llvm::SmallVectorImpl<typename ArrayDescriptor<T, Rank>::dimension_t>& indexes,
 														typename ArrayDescriptor<T, Rank>::rank_t dimension)
@@ -245,20 +243,12 @@ namespace impl
 }
 
 template<typename T, unsigned int Rank>
-llvm::raw_ostream& operator<<(
-		llvm::raw_ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
+std::ostream& operator<<(
+    std::ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
 {
 	using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
 	llvm::SmallVector<dimension_t, Rank> indexes(descriptor.getRank(), 0);
 	impl::printArrayDescriptor(stream, descriptor, indexes, 0);
-	return stream;
-}
-
-template<typename T, unsigned int Rank>
-std::ostream& operator<<(
-		std::ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
-{
-	llvm::raw_os_ostream(stream) << descriptor;
 	return stream;
 }
 
@@ -272,8 +262,8 @@ template<typename T>
 class UnsizedArrayDescriptor;
 
 template<typename T>
-llvm::raw_ostream& operator<<(
-		llvm::raw_ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+std::ostream& operator<<(
+    std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
 
 template<typename T>
 class UnsizedArrayDescriptor
@@ -359,8 +349,8 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->hasSameSizes();
 	}
 
-	friend llvm::raw_ostream& operator<< <>(
-			llvm::raw_ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+	friend std::ostream& operator<< <>(
+      std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
 
 	private:
 	[[nodiscard]] ArrayDescriptor<T, 0>* getDescriptor() const
@@ -380,18 +370,10 @@ class UnsizedArrayDescriptor
 };
 
 template<typename T>
-llvm::raw_ostream& operator<<(
-		llvm::raw_ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
+std::ostream& operator<<(
+    std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
 {
 	return stream << *descriptor.getDescriptor();
-}
-
-template<typename T>
-std::ostream& operator<<(
-		std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
-{
-	llvm::raw_os_ostream(stream) << descriptor;
-	return stream;
 }
 
 /**
