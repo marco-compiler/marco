@@ -35,8 +35,8 @@ marco_add_library(ast SHARED
 		${SOURCES}
 
 		LINK_LIBS
-		marco::utils
-		boost
+		PRIVATE marco::utils
+		PRIVATE boost
 
 		LINK_COMPONENTS
 		Core

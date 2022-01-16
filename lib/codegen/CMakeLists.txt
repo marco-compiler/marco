@@ -42,17 +42,11 @@ marco_add_library(codegen
     DEPENDS
     marco::ast
     marco::modeling
-    marco::runtime #remove
+    marco::runtime
     marco::utils
 
     LINK_LIBS
-    marco::ast
-    marco::modeling
-    marco::runtime #remove
-    marco::utils
-    ${MLIR_LIBS} #private (?)
-    pthread #private
-    boost #private
-    )
-
-#add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")
+    PRIVATE marco::ast
+    PRIVATE marco::modeling
+    PRIVATE marco::utils
+    PRIVATE ${MLIR_LIBS})

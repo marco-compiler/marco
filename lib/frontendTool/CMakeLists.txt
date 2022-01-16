@@ -8,7 +8,7 @@ marco_add_library(frontendTool SHARED
     marco::frontend
 
     LINK_LIBS
-    marco::frontend
+    PRIVATE marco::frontend
 
     LINK_COMPONENTS
     Core

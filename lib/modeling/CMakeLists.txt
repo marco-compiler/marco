@@ -14,7 +14,7 @@ marco_add_library(modeling SHARED
     ${SOURCES}
 
     LINK_LIBS
-    marco::utils
+    PRIVATE marco::utils
 
     LINK_COMPONENTS
     Core

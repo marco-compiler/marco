@@ -27,11 +27,11 @@ marco_add_library(frontend SHARED
     MARCOFrontendOptions
 
     LINK_LIBS
-    clangDriver
-    marco::ast
-    marco::codegen
-    marco::utils
-    ${MLIR_LIBS}
+    PRIVATE clangDriver
+    PRIVATE marco::ast
+    PRIVATE marco::codegen
+    PRIVATE marco::utils
+    PRIVATE ${MLIR_LIBS}
 
     LINK_COMPONENTS
     Option

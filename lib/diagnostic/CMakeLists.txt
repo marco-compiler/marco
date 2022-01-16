@@ -7,7 +7,7 @@ marco_add_library(diagnostic SHARED
     ${SOURCES}
 
     LINK_LIBS
-    marco::utils
+    PRIVATE marco::utils
 
     LINK_COMPONENTS
     Option
