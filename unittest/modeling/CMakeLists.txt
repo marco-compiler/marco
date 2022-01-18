@@ -11,6 +11,7 @@ set(SOURCES
     PointTest.cpp
     RangeTest.cpp
     RegularMCIMTest.cpp
+    SchedulingTest.cpp
     SimplifyTest.cpp
     SolveLocalMatchingProblemTest.cpp
     UndirectedGraphTest.cpp

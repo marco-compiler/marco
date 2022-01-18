@@ -1,14 +1,16 @@
 set(SOURCES
-        AccessFunction.cpp
-        Dumpable.cpp
-        Graph.cpp
-        LocalMatchingSolutions.cpp
-        Matching.cpp
-        MCIM.cpp
-        MCIS.cpp
-        MultidimensionalRange.cpp
-        Point.cpp
-        Range.cpp)
+    AccessFunction.cpp
+    Dependency.cpp
+    Dumpable.cpp
+    Graph.cpp
+    LocalMatchingSolutions.cpp
+    Matching.cpp
+    MCIM.cpp
+    MCIS.cpp
+    MultidimensionalRange.cpp
+    Point.cpp
+    Range.cpp
+    Scheduling.cpp)
 
 marco_add_library(modeling SHARED
     ${SOURCES}
