@@ -2,7 +2,7 @@
 #include <gmock/gmock.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
-#include <marco/modeling/VVarDependencyGraph.h>
+#include <marco/modeling/Cycles.h>
 
 using namespace ::marco::modeling;
 using ::marco::modeling::internal::MCIS;
@@ -14,7 +14,7 @@ class Variable
     MOCK_CONST_METHOD0(name, std::string());
 };
 
-namespace marco::modeling::scc
+namespace marco::modeling::dependency
 {
   template<>
   struct VariableTraits<Variable*>
@@ -32,7 +32,7 @@ class Equation
 {
   public:
     using AccessProperty = std::string;
-    using Access = scc::Access<Variable*, AccessProperty>;
+    using Access = dependency::Access<Variable*, AccessProperty>;
 
     MOCK_CONST_METHOD0(name, std::string());
     MOCK_CONST_METHOD0(rank, size_t());
@@ -42,7 +42,7 @@ class Equation
     MOCK_CONST_METHOD0(reads, std::vector<Access>());
 };
 
-namespace marco::modeling::scc
+namespace marco::modeling::dependency
 {
   template<>
   struct EquationTraits<Equation*>
@@ -219,7 +219,7 @@ TEST(SCC, oneStepCycle) {
 
   EXPECT_CALL(eq2, reads()).WillRepeatedly(Return(eq2r));
 
-  VVarDependencyGraph<Variable*, Equation*> graph({ &eq1, &eq2 });
+  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2 });
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(2));
@@ -301,7 +301,7 @@ TEST(SCC, twoStepsCycle) {
 
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
-  VVarDependencyGraph<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 });
+  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 });
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(3));
@@ -392,7 +392,7 @@ TEST(SCC, oneStepCycleWithMultipleReads) {
 
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
-  VVarDependencyGraph<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 });
+  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 });
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(3));

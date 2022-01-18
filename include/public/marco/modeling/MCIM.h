@@ -9,12 +9,8 @@
 
 namespace marco::modeling::internal
 {
-  /**
-   * Multidimensional Compressed Index Map (MCIM).
-   *
-   * It replaces the multidimensional incidence matrices in order to achieve
-   * O(1) scaling.
-   */
+  /// Multidimensional Compressed Index Map (MCIM).
+  ///It replaces the multidimensional incidence matrices in order to achieve O(1) scaling.
   class MCIM
   {
     public:

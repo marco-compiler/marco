@@ -10,12 +10,10 @@
 
 namespace marco::modeling
 {
-  /**
-   * Single dimension access.
-   *
-   * The access can either be constant or with an offset with respect
-   * to an induction variable.
-   */
+  /// Single dimension access.
+  ///
+  /// The access can either be constant or with an offset with respect
+  /// to an induction variable.
   class DimensionAccess
   {
     private:
@@ -49,14 +47,12 @@ namespace marco::modeling
 
       Point::data_type map(const Point& equationIndexes) const;
 
-      /**
-       * Get the mapped dimension access.
-       * The input must be a multidimensional range, as the single dimension
-       * access may refer to any of the range dimensions.
-       *
-       * @param range  multidimensional range
-       * @return mapped mono-dimensional range
-       */
+      /// Get the mapped dimension access.
+      /// The input must be a multidimensional range, as the single dimension
+      /// access may refer to any of the range dimensions.
+      ///
+      /// @param range  multidimensional range
+      /// @return mapped mono-dimensional range
       Range map(const MultidimensionalRange& range) const;
 
     private:
@@ -67,9 +63,7 @@ namespace marco::modeling
 
   std::ostream& operator<<(std::ostream& stream, const DimensionAccess& obj);
 
-  /**
-   * The access function describes how an array variable is accessed.
-   */
+  /// The access function describes how an array variable is accessed.
   class AccessFunction
   {
     private:
@@ -92,11 +86,7 @@ namespace marco::modeling
 
       DimensionAccess combine(const DimensionAccess& other) const;
 
-      /**
-       * Get the number of single dimension accesses.
-       *
-       * @return number of accesses
-       */
+      /// Get the number of single dimension accesses.
       size_t size() const;
 
       const_iterator begin() const;
@@ -109,22 +99,15 @@ namespace marco::modeling
 
       AccessFunction inverse() const;
 
-      /**
-       * Apply the access function to the equation indexes, in order
-       * to obtain the accessed variable.
-       *
-       * @param equationIndexes  equation indexes
-       * @return accessed scalar variable
-       */
+      /// Apply the access function to the equation indexes, in order
+      /// to obtain the accessed variable.
+      ///
+      /// @param equationIndexes  equation indexes
+      /// @return accessed scalar variable
       Point map(const Point& equationIndexes) const;
 
-      /**
-       * Apply the access function to a range, in order to obtain
-       * the mapped range.
-       *
-       * @param range  multidimensional range
-       * @return mapped multidimensional range
-       */
+      /// Apply the access function to a range, in order to obtain
+      /// the mapped range.
       MultidimensionalRange map(const MultidimensionalRange& range) const;
 
       MCIS map(const MCIS& indexes) const;

@@ -104,9 +104,7 @@ namespace marco::modeling::internal
     };
   }
 
-  /**
-   * n-D range. Each dimension is half-open as the 1-D range.
-   */
+  /// n-D range. Each dimension is half-open as the 1-D range.
   class MultidimensionalRange
   {
     private:
@@ -148,12 +146,10 @@ namespace marco::modeling::internal
 
       MultidimensionalRange intersect(const MultidimensionalRange& other) const;
 
-      /**
-       * Check if two multidimensional ranges can be merged.
-       *
-       * @return a pair whose first element is whether the merge is possible
-       * and the second is the dimension to be merged
-       */
+      /// Check if two multidimensional ranges can be merged.
+      ///
+      /// @return a pair whose first element is whether the merge is possible
+      /// and the second is the dimension to be merged
       std::pair<bool, size_t> canBeMerged(const MultidimensionalRange& other) const;
 
       MultidimensionalRange merge(const MultidimensionalRange& other, size_t dimension) const;

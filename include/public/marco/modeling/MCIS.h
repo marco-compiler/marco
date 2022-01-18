@@ -8,11 +8,8 @@
 
 namespace marco::modeling::internal
 {
-  /**
-   * Multidimensional Compressed Index Set (MCIS).
-   *
-   * It replaces the multidimensional vectors in order to achieve O(1) scaling.
-   */
+   /// Multidimensional Compressed Index Set (MCIS).
+   /// It replaces the multidimensional vectors in order to achieve O(1) scaling.
   class MCIS
   {
     private:

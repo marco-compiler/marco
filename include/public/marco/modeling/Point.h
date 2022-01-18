@@ -8,9 +8,7 @@
 
 namespace marco::modeling::internal
 {
-  /**
-   * n-D point.
-   */
+  /// n-D point.
   class Point
   {
     public:

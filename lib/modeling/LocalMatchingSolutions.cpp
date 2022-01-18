@@ -14,10 +14,8 @@ namespace marco::modeling::internal
 using namespace marco::modeling;
 using namespace marco::modeling::internal;
 
-/**
- * Compute the local matching solution starting from a given set of variable access functions (VAF).
- * The computation is done in a lazy way, that is each result is computed only when requested.
- */
+/// Compute the local matching solution starting from a given set of variable access functions (VAF).
+/// The computation is done in a lazy way, that is each result is computed only when requested.
 class VAFSolutions : public LocalMatchingSolutions::ImplInterface
 {
   public:
@@ -208,10 +206,8 @@ void VAFSolutions::getInductionVariablesUsage(
   }
 }
 
-/**
- * Compute the local matching solutions starting from an incidence matrix.
- * Differently from the VAF case, the computation is done in an eager way.
- */
+/// Compute the local matching solutions starting from an incidence matrix.
+/// Differently from the VAF case, the computation is done in an eager way.
 class MCIMSolutions : public LocalMatchingSolutions::ImplInterface
 {
   public:

@@ -56,9 +56,7 @@ namespace marco::modeling::internal
     };
   }
 
-  /**
-   * 1-D half-open range [a,b).
-   */
+  /// 1-D half-open range [a,b).
   class Range
   {
     public:
@@ -95,32 +93,17 @@ namespace marco::modeling::internal
 
       Range intersect(const Range& other) const;
 
-      /**
-       * Check whether the range can be merged with another one.
-       * Two ranges can be merged if they overlap or if they are contiguous.
-       *
-       * @param other  range to be merged
-       * @return whether the ranges can be merged
-       */
+      /// Check whether the range can be merged with another one.
+      /// Two ranges can be merged if they overlap or if they are contiguous.
       bool canBeMerged(const Range& other) const;
 
-      /**
-       * Create a range that is the resulting of merging this one with
-       * another one that can be merged.
-       *
-       * @param other  ranged to be merged
-       * @return merged range
-       */
+      /// Create a range that is the resulting of merging this one with
+      /// another one that can be merged.
       Range merge(const Range& other) const;
 
-      /**
-       * Subtract a range from the current one.
-       * Multiple results are created if the removed range is fully contained
-       * and does not touch the borders.
-       *
-       * @param other  ranged to be removed
-       * @return ranges resulting from the subtraction
-       */
+      /// Subtract a range from the current one.
+      /// Multiple results are created if the removed range is fully contained
+      /// and does not touch the borders.
       std::vector<Range> subtract(const Range& other) const;
 
       const_iterator begin() const;

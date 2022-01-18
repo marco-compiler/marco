@@ -789,16 +789,14 @@ namespace marco::modeling::internal
     }
   }
 
-  /**
-   * Get the index to be used to access a flattened array.
-   * If an array is declared as [a][b][c], then the access [i][j][k] corresponds
-   * to the access [k + c * (j + b * (i))] of the flattened array of size
-   * [a * b * c].
-   *
-   * @param indexes 		access with respect to the original dimensions
-   * @param dimensions 	original array dimensions
-   * @return flattened index
-   */
+  /// Get the index to be used to access a flattened array.
+  /// If an array is declared as [a][b][c], then the access [i][j][k] corresponds
+  /// to the access [k + c * (j + b * (i))] of the flattened array of size
+  /// [a * b * c].
+  ///
+  /// @param indexes 		access with respect to the original dimensions
+  /// @param dimensions 	original array dimensions
+  /// @return flattened index
   template<typename T = Point::data_type>
   static std::make_unsigned_t<T> flattenIndexes(
       llvm::ArrayRef<std::make_unsigned_t<T>> indexes,
@@ -818,14 +816,12 @@ namespace marco::modeling::internal
     return result;
   }
 
-  /**
-   * Convert a flattened index into the ones to be used to access the array
-   * in its non-flattened version.
-   *
-   * @param dimensions  original array dimensions
-   * @param index       flattened index
-   * @param results     where the non-flattened access indexes are saved
-   */
+  /// Convert a flattened index into the ones to be used to access the array
+  /// in its non-flattened version.
+  ///
+  /// @param dimensions  original array dimensions
+  /// @param index       flattened index
+  /// @param results     where the non-flattened access indexes are saved
   template<typename T = Point::data_type>
   static void unflattenIndex(
       llvm::ArrayRef<size_t> dimensions,
