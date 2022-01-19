@@ -146,5 +146,5 @@ TEST(SCC, testSchedule) {
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
   Scheduler<Variable*, Equation*> scheduler;
-  //auto schedule = scheduler.schedule({ &eq1, &eq2, &eq3 });
+  auto schedule = scheduler.schedule({ &eq1, &eq2, &eq3 });
 }

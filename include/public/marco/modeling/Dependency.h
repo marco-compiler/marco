@@ -3,6 +3,7 @@
 
 #include <list>
 #include <llvm/ADT/GraphTraits.h>
+#include <llvm/ADT/PostOrderIterator.h>
 #include <llvm/ADT/SCCIterator.h>
 #include <llvm/ADT/STLExtras.h>
 #include <marco/utils/TreeOStream.h>
@@ -241,7 +242,7 @@ namespace marco::modeling
     class WriteInfo : public Dumpable
     {
       public:
-        WriteInfo(const Graph& graph, VariableId variable, EquationDescriptor equation, MultidimensionalRange indexes)
+        WriteInfo(const Graph& graph, VariableId variable, EquationDescriptor equation, MCIS indexes)
             : graph(&graph), variable(std::move(variable)), equation(std::move(equation)), indexes(std::move(indexes))
         {
         }
@@ -269,7 +270,7 @@ namespace marco::modeling
           return equation;
         }
 
-        const MultidimensionalRange& getWrittenVariableIndexes() const
+        const MCIS& getWrittenVariableIndexes() const
         {
           return indexes;
         }
@@ -280,7 +281,7 @@ namespace marco::modeling
         VariableId variable;
 
         EquationDescriptor equation;
-        MultidimensionalRange indexes;
+        MCIS indexes;
     };
 
     template<typename Property>
@@ -325,12 +326,17 @@ namespace marco::modeling
     /// The single entry point also ensure the visit of all the nodes.
     /// The entry point is hidden from iteration upon vertices and can be accessed
     /// only by means of its dedicated getter.
-    template<typename VertexProperty, typename EdgeProperty = EmptyEdgeProperty>
+    template<typename VP, typename EP = EmptyEdgeProperty>
     class SingleEntryWeaklyConnectedDigraph
     {
       public:
+        using VertexProperty = VP;
+        using EdgeProperty = EP;
+
+      private:
         using Graph = DirectedGraph<PtrProperty<VertexProperty>, PtrProperty<EdgeProperty>>;
 
+      public:
         using VertexDescriptor = typename Graph::VertexDescriptor;
         using EdgeDescriptor = typename Graph::EdgeDescriptor;
 
@@ -426,11 +432,12 @@ namespace marco::modeling
 
     /// List of the equations composing an SCC.
     /// All the equations belong to a given graph.
-    template<typename Graph>
+    template<typename G>
     class SCC
     {
       public:
-        //using Equation = typename Graph::VertexProperty;
+        using Graph = G;
+        using Equation = typename Graph::VertexProperty;
         using EquationDescriptor = typename Graph::VertexDescriptor;
 
       private:
@@ -553,7 +560,7 @@ namespace llvm
   };
 }
 
-namespace marco::modeling
+namespace marco::modeling::internal
 {
   template<typename VariableProperty, typename EquationProperty>
   class VVarDependencyGraph
@@ -568,7 +575,7 @@ namespace marco::modeling
 
       using EquationDescriptor = typename Graph::VertexDescriptor;
       using AccessProperty = typename Equation::Access::Property;
-      using Access = dependency::Access<VariableProperty, AccessProperty>;
+      using Access = ::marco::modeling::dependency::Access<VariableProperty, AccessProperty>;
 
       using WriteInfo = internal::dependency::WriteInfo<Graph, typename Variable::Id, EquationDescriptor>;
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
@@ -657,7 +664,7 @@ namespace marco::modeling
           const auto& accessFunction = write.getAccessFunction();
 
           // Determine the indexes of the variable that are written by the equation
-          auto writtenIndexes = accessFunction.map(equation.getIterationRanges());
+          MCIS writtenIndexes(accessFunction.map(equation.getIterationRanges()));
 
           result.emplace(write.getVariable(), WriteInfo(graph, write.getVariable(), *it, std::move(writtenIndexes)));
         }
@@ -672,36 +679,75 @@ namespace marco::modeling
   class SCCDependencyGraph
   {
     public:
-      //using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<Equation>;
+      using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<SCC>;
 
-      using Graph = internal::DirectedGraph<SCC>;
-      using Equation = internal::dependency::EquationVertex<typename SCC::EquationProperty>;
+      using Equation = typename SCC::Equation;
+      using EquationDescriptor = typename SCC::EquationDescriptor;
+      using SCCDescriptor = typename Graph::VertexDescriptor;
 
       SCCDependencyGraph(llvm::ArrayRef<SCC> SCCs)
       {
-        Graph graph;
+        // Keep track of the SCC an equation belongs to
+        llvm::DenseMap<EquationDescriptor, SCCDescriptor> parentSCC;
 
         // Add the SCCs to the graph
         for (const auto& scc : SCCs) {
-          graph.addVertex(scc);
-        }
+          auto sccDescriptor = graph.addVertex(scc);
 
-        for (const auto& scc : SCCs) {
           for (const auto& equationDescriptor : scc) {
-            const auto& equation = scc.getGraph()[equationDescriptor];
-            auto reads = equation.getReads();
-
-
+            parentSCC.try_emplace(equationDescriptor, sccDescriptor);
           }
         }
 
-        for (const auto& subGraph : graph.getDisjointSubGraphs()) {
-          graphs.push_back(subGraph);
+        // Connect the SCCs
+        for (const auto& sccDescriptor : graph.getVertices()) {
+          const auto& scc = graph[sccDescriptor];
+          const auto& originalGraph = scc.getGraph();
+
+          // The set of SCCs that have already been connected to the current SCC.
+          // This allows to avoid duplicate edges.
+          llvm::DenseSet<SCCDescriptor> connectedSCCs;
+
+          for (const auto& equationDescriptor : scc) {
+            for (const auto& edgeDescriptor : originalGraph.getOutgoingEdges(equationDescriptor)) {
+              auto destinationSCC = parentSCC.find(edgeDescriptor.to)->second;
+
+              if (!connectedSCCs.contains(destinationSCC)) {
+                graph.addEdge(sccDescriptor, destinationSCC);
+                connectedSCCs.insert(destinationSCC);
+              }
+            }
+          }
         }
       }
 
+      SCC& operator[](SCCDescriptor descriptor)
+      {
+        return graph[descriptor];
+      }
+
+      const SCC& operator[](SCCDescriptor descriptor) const
+      {
+        return graph[descriptor];
+      }
+
+      std::vector<SCCDescriptor> postOrder() const
+      {
+        std::vector<SCCDescriptor> result;
+        std::set<SCCDescriptor> set;
+
+        for (SCCDescriptor scc : llvm::post_order_ext(graph, set)) {
+          // Ignore the entry node
+          if (scc != graph.getEntryNode()) {
+            result.push_back(scc);
+          }
+        }
+
+        return result;
+      }
+
     private:
-      Graph graphs;
+      Graph graph;
   };
 
   template<typename VariableProperty, typename EquationProperty>

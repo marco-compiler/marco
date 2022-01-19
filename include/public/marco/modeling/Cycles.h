@@ -316,7 +316,7 @@ namespace marco::modeling
       using MultidimensionalRange = internal::MultidimensionalRange;
       using MCIS = internal::MCIS;
 
-      using DependencyGraph = VVarDependencyGraph<VariableProperty, EquationProperty>;
+      using DependencyGraph = internal::VVarDependencyGraph<VariableProperty, EquationProperty>;
 
       using Variable = typename DependencyGraph::Variable;
       using Equation = typename DependencyGraph::Equation;

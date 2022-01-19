@@ -27,30 +27,27 @@ namespace marco::modeling
   class Scheduler
   {
     private:
-      using VectorDependencyGraph = VVarDependencyGraph<VariableProperty, EquationProperty>;
-      //using SCCDependencyGraph = internal::dependency::SCCDependencyGraph<typename VectorDependencyGraph::SCC>;
+      using VectorDependencyGraph = internal::VVarDependencyGraph<VariableProperty, EquationProperty>;
+      using SCCDependencyGraph = internal::SCCDependencyGraph<typename VectorDependencyGraph::SCC>;
 
     public:
       bool schedule(llvm::ArrayRef<EquationProperty> equations) const
       {
         VectorDependencyGraph vectorDependencyGraph(equations);
         auto SCCs = vectorDependencyGraph.getSCCs();
+        SCCDependencyGraph sccDependencyGraph(SCCs);
+        auto scheduledSCCs = sccDependencyGraph.postOrder();
 
-        //SCCDependencyGraph sccDependencyGraph(SCCs);
+        for (const auto& sccDescriptor : scheduledSCCs) {
+          const auto& scc = sccDependencyGraph[sccDescriptor];
+          const auto& originalGraph = scc.getGraph();
 
-        /*
-        // Sort the SCCs in topological order
-
-        for (const auto& graph : graphs) {
-          std::set<EquationDescriptor> set;
-
-          for (EquationDescriptor node : llvm::post_order_ext(graph, set)) {
-            std::cout << graph[node].getId() << " ";
+          for (const auto& equationDescriptor : scc) {
+            std::cout << originalGraph[equationDescriptor].getId() << " ";
           }
 
           std::cout << "\n";
         }
-         */
 
         return true;
       }
