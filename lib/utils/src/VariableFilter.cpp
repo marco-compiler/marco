@@ -325,7 +325,7 @@ Token LexerStateMachine::scan<LexerStateMachine::State::ParsingId>()
 {
 	lastIdentifier.push_back(current);
 
-	if (!isDigit(next) && !isNonDigit(next))
+	if (!isDigit(next) && !isNonDigit(next) && next != '.')
 	{
 		state = State::Normal;
 		setTokenEndPosition();

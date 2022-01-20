@@ -303,7 +303,8 @@ void SimulationOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.simulation ("
 					<< "start: " << startTime().getValue()
 					<< ", end: " << endTime().getValue()
-					<< ", step: " << timeStep().getValue() << ")";
+					<< ", step: " << timeStep().getValue() << ")"
+          << ", variables: " << variableNames();
 
 	printer << " init";
 	printer.printRegion(init(), false);
