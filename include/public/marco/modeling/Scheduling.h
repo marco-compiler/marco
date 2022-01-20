@@ -97,7 +97,7 @@ namespace marco::modeling
         auto equationRange = equation.getIterationRanges();
         const auto& write = equation.getWrite();
         const auto& writtenVariable = write.getVariable();
-        const AccessFunction& writeAccessFunction = write.getAccesFunction();
+        const AccessFunction& writeAccessFunction = write.getAccessFunction();
         MCIS writtenIndexes(writeAccessFunction.map(equationRange));
 
         auto direction = scheduling::Direction::Unknown;
