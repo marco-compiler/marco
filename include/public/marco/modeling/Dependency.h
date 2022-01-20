@@ -464,6 +464,17 @@ namespace marco::modeling
           return cycle;
         }
 
+        EquationDescriptor operator[](size_t index) const
+        {
+          assert(index < size());
+          return equations[index];
+        }
+
+        size_t size() const
+        {
+          return equations.size();
+        }
+
         iterator begin()
         {
           return equations.begin();

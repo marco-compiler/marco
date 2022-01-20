@@ -84,10 +84,10 @@ namespace marco::modeling::dependency
 
 /**
  * for i in 3:8
- *   x[i - 1] = f0(y[i + 9])
+ *   x[i - 1] = f0(x[i - 2])
  *
  * for i in 10:13
- *   y[i + 3] = f1(x[i - 7], z[i + 5])
+ *   y[i + 3] = f1(y[i - 7], z[i + 5])
  *
  * for i in 14:24
  *   z[i] = 9
@@ -112,7 +112,7 @@ TEST(SCC, testSchedule) {
   EXPECT_CALL(eq1, write()).WillRepeatedly(Return(eq1w));
 
   std::vector<Equation::Access> eq1r = {
-      Equation::Access(&y, AccessFunction(DimensionAccess::relative(0, 9)), "eq1r1")
+      Equation::Access(&x, AccessFunction(DimensionAccess::relative(0, -2)), "eq1r1")
   };
 
   EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
@@ -127,7 +127,7 @@ TEST(SCC, testSchedule) {
   EXPECT_CALL(eq2, write()).WillRepeatedly(Return(eq2w));
 
   std::vector<Equation::Access> eq2r = {
-      Equation::Access(&x, AccessFunction(DimensionAccess::relative(0, -7)), "eq2r1"),
+      Equation::Access(&y, AccessFunction(DimensionAccess::relative(0, -7)), "eq2r1"),
       Equation::Access(&z, AccessFunction(DimensionAccess::relative(0, 5)), "eq2r2")
   };
 
