@@ -7,6 +7,13 @@ namespace marco::modeling::internal
   {
   }
 
+  MultidimensionalRange::MultidimensionalRange(Point point)
+  {
+    for (const auto& index : point) {
+      ranges.emplace_back(index, index + 1);
+    }
+  }
+
   bool MultidimensionalRange::operator==(const Point& other) const
   {
     if (rank() != other.rank())

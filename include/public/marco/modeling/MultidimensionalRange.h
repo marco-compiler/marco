@@ -116,6 +116,9 @@ namespace marco::modeling::internal
 
       MultidimensionalRange(llvm::ArrayRef<Range> ranges);
 
+      // TODO test
+      MultidimensionalRange(Point point);
+
       bool operator==(const Point& other) const;
 
       bool operator==(const MultidimensionalRange& other) const;

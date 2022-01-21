@@ -646,7 +646,7 @@ namespace marco::modeling::internal
         for (auto scc = llvm::scc_begin(graph), end = llvm::scc_end(graph); scc != end; ++scc) {
           std::vector<EquationDescriptor> equations;
 
-          for (const auto& equation : *scc) {
+          for (const auto& equation: *scc) {
             equations.push_back(equation);
           }
 
@@ -760,11 +760,138 @@ namespace marco::modeling::internal
     private:
       Graph graph;
   };
+}
+
+namespace marco::modeling::internal
+{
+  namespace dependency
+  {
+    /// An equation defined on a single (multidimensional) index.
+    /// Differently from the vector equation, this does not have dedicated traits. This is because the class
+    /// itself is made for internal usage and all the needed information by applying the vector equation traits
+    /// on the equation property. In other words, this class is used just to restrict the indexes upon a vector
+    /// equaion iterates.
+    template<typename EquationProperty>
+    class ScalarEquation
+    {
+      public:
+        using Property = EquationProperty;
+        using VectorEquationTraits = ::marco::modeling::dependency::EquationTraits<EquationProperty>;
+        using Id = typename VectorEquationTraits::Id;
+
+        ScalarEquation(EquationProperty property, Point index)
+          : property(std::move(property)), index(std::move(index))
+        {
+        }
+
+        Id getId() const
+        {
+          return VectorEquationTraits::getId(&property);
+        }
+
+        const EquationProperty& getProperty() const
+        {
+          return property;
+        }
+
+        const Point& getIndex() const
+        {
+          return index;
+        }
+
+      private:
+        EquationProperty property;
+        Point index;
+    };
+  }
 
   template<typename VariableProperty, typename EquationProperty>
   class SVarDependencyGraph
   {
-    // TODO
+    public:
+      using Variable = internal::dependency::VariableWrapper<VariableProperty>;
+      using VectorEquation = internal::dependency::EquationVertex<EquationProperty>;
+      using ScalarEquation = internal::dependency::ScalarEquation<EquationProperty>;
+
+      using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<ScalarEquation>;
+
+      using ScalarEquationDescriptor = typename Graph::VertexDescriptor;
+      using AccessProperty = typename VectorEquation::Access::Property;
+      using Access = ::marco::modeling::dependency::Access<VariableProperty, AccessProperty>;
+
+      using WriteInfo = internal::dependency::WriteInfo<Graph, typename Variable::Id, ScalarEquationDescriptor>;
+      using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
+
+      SVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
+      {
+        // Add the equations to the graph, while keeping track of which scalar equation
+        // writes into each scalar variable.
+        WritesMap writes;
+
+        for (const auto& equationProperty: equations) {
+          VectorEquation vectorEquation(equationProperty);
+          const auto& write = vectorEquation.getWrite();
+          const auto& accessFunction = write.getAccessFunction();
+
+          for (const auto& equationIndexes : vectorEquation.getIterationRanges()) {
+            auto scalarEquationDescriptor = graph.addVertex(ScalarEquation(equationProperty, equationIndexes));
+            MCIS writtenIndexes(accessFunction.map(equationIndexes));
+
+            writes.emplace(
+                write.getVariable(),
+                WriteInfo(graph, write.getVariable(), scalarEquationDescriptor, std::move(writtenIndexes)));
+          }
+        }
+
+        // Determine the dependencies among the equations
+        for (const auto& equationDescriptor: graph.getVertices()) {
+          const ScalarEquation& scalarEquation = graph[equationDescriptor];
+          VectorEquation vectorEquation(scalarEquation.getProperty());
+
+          auto reads = vectorEquation.getReads();
+
+          for (const Access& read: reads) {
+            auto readIndexes = read.getAccessFunction().map(scalarEquation.getIndex());
+            auto writeInfos = writes.equal_range(read.getVariable());
+
+            for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
+              const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+
+              if (writtenIndexes == readIndexes) {
+                graph.addEdge(equationDescriptor, writeInfo.getEquation());
+              }
+            }
+          }
+        }
+      }
+
+      ScalarEquation& operator[](ScalarEquationDescriptor descriptor)
+      {
+        return graph[descriptor];
+      }
+
+      const ScalarEquation& operator[](ScalarEquationDescriptor descriptor) const
+      {
+        return graph[descriptor];
+      }
+
+      std::vector<ScalarEquationDescriptor> postOrder() const
+      {
+        std::vector<ScalarEquationDescriptor> result;
+        std::set<ScalarEquationDescriptor> set;
+
+        for (ScalarEquationDescriptor equation : llvm::post_order_ext(graph, set)) {
+          // Ignore the entry node
+          if (equation != graph.getEntryNode()) {
+            result.push_back(equation);
+          }
+        }
+
+        return result;
+      }
+
+    private:
+      Graph graph;
   };
 }
 
