@@ -1509,7 +1509,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& ex
 
 	for (const auto& exp : *tuple)
 	{
-		auto values = lower<Expression>(expression);
+		auto values = lower<Expression>(*exp);
 
 		// The only way to have multiple returns is to call a function, but this
 		// is forbidden in a tuple declaration. In fact, a tuple is just a
