@@ -15,7 +15,7 @@ namespace marco::modeling::internal
       using data_type = long;
 
     private:
-      using Container = llvm::SmallVector<data_type>;
+      using Container = llvm::SmallVector<data_type, 3>;
 
     public:
       using const_iterator = Container::const_iterator;
@@ -32,6 +32,7 @@ namespace marco::modeling::internal
 
       data_type operator[](size_t index) const;
 
+      /// Get the number of dimensions.
       size_t rank() const;
 
       const_iterator begin() const;
@@ -39,7 +40,7 @@ namespace marco::modeling::internal
       const_iterator end() const;
 
     private:
-      llvm::SmallVector<data_type> values;
+      Container values;
   };
 
   std::ostream& operator<<(std::ostream& stream, const Point& obj);

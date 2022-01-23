@@ -1118,8 +1118,8 @@ namespace marco::modeling
         auto eqs = getEquations();
 
         return std::accumulate(
-            eqs.begin(), eqs.end(), 0, [&](size_t sum, const auto& desc) {
-              return sum + getEquation(desc).flatSize();
+            eqs.begin(), eqs.end(), 0, [&](size_t sum, VertexDescriptor descriptor) {
+              return sum + getEquation(descriptor).flatSize();
             });
       }
 

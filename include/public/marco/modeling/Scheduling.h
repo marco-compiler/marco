@@ -28,7 +28,7 @@ namespace marco::modeling
         using Direction = ::marco::modeling::scheduling::Direction;
 
         ScheduledEquation(EquationProperty property, MultidimensionalRange indexes, Direction direction)
-          : property(std::move(property)), indexes(std::move(indexes)), direction(direction)
+            : property(std::move(property)), indexes(std::move(indexes)), direction(direction)
         {
         }
 

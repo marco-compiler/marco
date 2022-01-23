@@ -2,6 +2,7 @@
 #define MARCO_MODELING_DEPENDENCY_H
 
 #include <list>
+#include <llvm/ADT/DepthFirstIterator.h>
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/PostOrderIterator.h>
 #include <llvm/ADT/SCCIterator.h>
@@ -74,6 +75,8 @@ namespace marco::modeling
     {
     };
 
+    /// Determine the access property to be used according to the user-provided
+    /// equation property.
     template<class T>
     struct get_access_property
     {
@@ -105,16 +108,19 @@ namespace marco::modeling
         {
         }
 
+        /// Get the ID of the accesses variable.
         const typename VariableTraits<VariableProperty>::Id& getVariable() const
         {
           return variable;
         }
 
+        /// Get the access function.
         const AccessFunction& getAccessFunction() const
         {
           return accessFunction;
         }
 
+        /// Get the user-defined access property.
         const AccessProperty& getProperty() const
         {
           return property;
@@ -130,7 +136,6 @@ namespace marco::modeling
   namespace internal::dependency
   {
     /// Wrapper for variables.
-    /// Used to provide some utility methods.
     template<typename VariableProperty>
     class VariableWrapper
     {
@@ -159,26 +164,98 @@ namespace marco::modeling
         VariableProperty property;
     };
 
-    /// Wrapper for equations.
-    /// Used to provide some utility methods.
+    /// Utility class to provide additional methods relying on the ones provided by
+    /// the user specialization.
     template<typename EquationProperty>
-    class EquationVertex
+    class VectorEquationTraits
+    {
+      private:
+        using Base = ::marco::modeling::dependency::EquationTraits<EquationProperty>;
+
+      public:
+        using Id = typename Base::Id;
+        using VariableType = typename Base::VariableType;
+        using AccessProperty = typename get_access_property<EquationProperty>::type;
+
+        /// @name Forwarding methods
+        /// {
+
+        static Id getId(const EquationProperty* equation)
+        {
+          return Base::getId(equation);
+        }
+
+        static size_t getNumOfIterationVars(const EquationProperty* equation)
+        {
+          return Base::getNumOfIterationVars(equation);
+        }
+
+        static long getRangeBegin(const EquationProperty* equation, size_t inductionVarIndex)
+        {
+          return Base::getRangeBegin(equation, inductionVarIndex);
+        }
+
+        static long getRangeEnd(const EquationProperty* equation, size_t inductionVarIndex)
+        {
+          return Base::getRangeEnd(equation, inductionVarIndex);
+        }
+
+        using Access = ::marco::modeling::dependency::Access<VariableType, AccessProperty>;
+
+        static Access getWrite(const EquationProperty* equation)
+        {
+          return Base::getWrite(equation);
+        }
+
+        static std::vector<Access> getReads(const EquationProperty* equation)
+        {
+          return Base::getReads(equation);
+        }
+
+        /// }
+        /// @name Utility methods
+        /// {
+
+        /// Get the iteration range of a specific iteration variable.
+        static Range getIterationRange(const EquationProperty* equation, size_t index)
+        {
+          assert(index < getNumOfIterationVars(equation));
+          auto begin = getRangeBegin(equation, index);
+          auto end = getRangeEnd(equation, index);
+          return Range(begin, end);
+        }
+
+        /// Get the multidimensional iteration range of the whole equation.
+        static MultidimensionalRange getIterationRanges(const EquationProperty* equation)
+        {
+          llvm::SmallVector<Range> ranges;
+
+          for (size_t i = 0, e = getNumOfIterationVars(equation); i < e; ++i) {
+            ranges.push_back(getIterationRange(equation, i));
+          }
+
+          return MultidimensionalRange(ranges);
+        }
+
+        /// }
+    };
+
+    /// Wrapper for equations.
+    template<typename EquationProperty>
+    class VectorEquation
     {
       public:
         using Property = EquationProperty;
-        using Traits = ::marco::modeling::dependency::EquationTraits<EquationProperty>;
+        using Traits = VectorEquationTraits<EquationProperty>;
         using Id = typename Traits::Id;
+        using Access = typename Traits::Access;
 
-        using Access = marco::modeling::dependency::Access<
-            typename Traits::VariableType,
-            typename internal::dependency::get_access_property<EquationProperty>::type>;
-
-        EquationVertex(EquationProperty property)
+        VectorEquation(EquationProperty property)
             : property(property)
         {
         }
 
-        bool operator==(const EquationVertex& other) const
+        bool operator==(const VectorEquation& other) const
         {
           return getId() == other.getId();
         }
@@ -193,6 +270,9 @@ namespace marco::modeling
           return property;
         }
 
+        /// @name Forwarding methods
+        /// {
+
         Id getId() const
         {
           return Traits::getId(&property);
@@ -205,21 +285,12 @@ namespace marco::modeling
 
         Range getIterationRange(size_t index) const
         {
-          assert(index < getNumOfIterationVars());
-          auto begin = Traits::getRangeBegin(&property, index);
-          auto end = Traits::getRangeEnd(&property, index);
-          return Range(begin, end);
+          return Traits::getIterationRange(&property, index);
         }
 
         MultidimensionalRange getIterationRanges() const
         {
-          llvm::SmallVector<Range> ranges;
-
-          for (size_t i = 0, e = getNumOfIterationVars(); i < e; ++i) {
-            ranges.push_back(getIterationRange(i));
-          }
-
-          return MultidimensionalRange(ranges);
+          return Traits::getIterationRanges(&property);
         }
 
         Access getWrite() const
@@ -231,6 +302,8 @@ namespace marco::modeling
         {
           return Traits::getReads(&property);
         }
+
+        /// }
 
       private:
         // Custom equation property
@@ -387,7 +460,6 @@ namespace marco::modeling
           // Connect the entry node to the new vertex
           graph.addEdge(entryNode, descriptor, PtrProperty<EdgeProperty>());
 
-          assert(checkConsistency());
           return descriptor;
         }
 
@@ -420,12 +492,6 @@ namespace marco::modeling
         }
 
       private:
-        bool checkConsistency() const
-        {
-          // TODO
-          return true;
-        }
-
         Graph graph;
         VertexDescriptor entryNode;
     };
@@ -578,7 +644,7 @@ namespace marco::modeling::internal
   {
     public:
       using Variable = internal::dependency::VariableWrapper<VariableProperty>;
-      using Equation = internal::dependency::EquationVertex<EquationProperty>;
+      using Equation = internal::dependency::VectorEquation<EquationProperty>;
 
       // In order to search for SCCs we need to provide an entry point to the graph and the graph itself must
       // not be disjoint. We achieve this by creating a fake entry point that is connected to all the nodes.
@@ -628,6 +694,9 @@ namespace marco::modeling::internal
         }
       }
 
+      /// @name Forwarding methods
+      /// {
+
       Equation& operator[](EquationDescriptor descriptor)
       {
         return graph[descriptor];
@@ -637,6 +706,8 @@ namespace marco::modeling::internal
       {
         return graph[descriptor];
       }
+
+      /// }
 
       /// Get all the SCCs.
       std::vector<SCC> getSCCs() const
@@ -732,6 +803,9 @@ namespace marco::modeling::internal
         }
       }
 
+      /// @name Forwarding methods
+      /// {
+
       SCC& operator[](SCCDescriptor descriptor)
       {
         return graph[descriptor];
@@ -741,6 +815,8 @@ namespace marco::modeling::internal
       {
         return graph[descriptor];
       }
+
+      /// }
 
       std::vector<SCCDescriptor> postOrder() const
       {
@@ -809,14 +885,15 @@ namespace marco::modeling::internal
   class SVarDependencyGraph
   {
     public:
+      using VectorEquationTraits = ::marco::modeling::internal::dependency::VectorEquationTraits<EquationProperty>;
+
       using Variable = internal::dependency::VariableWrapper<VariableProperty>;
-      using VectorEquation = internal::dependency::EquationVertex<EquationProperty>;
       using ScalarEquation = internal::dependency::ScalarEquation<EquationProperty>;
 
       using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<ScalarEquation>;
 
       using ScalarEquationDescriptor = typename Graph::VertexDescriptor;
-      using AccessProperty = typename VectorEquation::Access::Property;
+      using AccessProperty = typename VectorEquationTraits::AccessProperty;
       using Access = ::marco::modeling::dependency::Access<VariableProperty, AccessProperty>;
 
       using WriteInfo = internal::dependency::WriteInfo<Graph, typename Variable::Id, ScalarEquationDescriptor>;
@@ -829,13 +906,12 @@ namespace marco::modeling::internal
         WritesMap writes;
 
         for (const auto& equationProperty: equations) {
-          VectorEquation vectorEquation(equationProperty);
-          const auto& write = vectorEquation.getWrite();
+          const auto& write = VectorEquationTraits::getWrite(&equationProperty);
           const auto& accessFunction = write.getAccessFunction();
 
-          for (const auto& equationIndexes : vectorEquation.getIterationRanges()) {
-            auto scalarEquationDescriptor = graph.addVertex(ScalarEquation(equationProperty, equationIndexes));
-            MCIS writtenIndexes(accessFunction.map(equationIndexes));
+          for (const auto& equationIndex : VectorEquationTraits::getIterationRanges(&equationProperty)) {
+            auto scalarEquationDescriptor = graph.addVertex(ScalarEquation(equationProperty, equationIndex));
+            MCIS writtenIndexes(accessFunction.map(equationIndex));
 
             writes.emplace(
                 write.getVariable(),
@@ -846,9 +922,7 @@ namespace marco::modeling::internal
         // Determine the dependencies among the equations
         for (const auto& equationDescriptor: graph.getVertices()) {
           const ScalarEquation& scalarEquation = graph[equationDescriptor];
-          VectorEquation vectorEquation(scalarEquation.getProperty());
-
-          auto reads = vectorEquation.getReads();
+          auto reads = VectorEquationTraits::getReads(&scalarEquation.getProperty());
 
           for (const Access& read: reads) {
             auto readIndexes = read.getAccessFunction().map(scalarEquation.getIndex());
@@ -865,6 +939,9 @@ namespace marco::modeling::internal
         }
       }
 
+      /// @name Forwarding methods
+      /// {
+
       ScalarEquation& operator[](ScalarEquationDescriptor descriptor)
       {
         return graph[descriptor];
@@ -874,6 +951,8 @@ namespace marco::modeling::internal
       {
         return graph[descriptor];
       }
+
+      /// }
 
       std::vector<ScalarEquationDescriptor> postOrder() const
       {
