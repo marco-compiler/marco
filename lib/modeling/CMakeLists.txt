@@ -4,8 +4,12 @@ set(SOURCES
     Dumpable.cpp
     Graph.cpp
     LocalMatchingSolutions.cpp
+    LocalMatchingSolutionsMCIM.cpp
+    LocalMatchingSolutionsVAF.cpp
     Matching.cpp
     MCIM.cpp
+    MCIMFlat.cpp
+    MCIMRegular.cpp
     MCIS.cpp
     MultidimensionalRange.cpp
     Point.cpp

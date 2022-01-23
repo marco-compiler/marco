@@ -136,14 +136,42 @@ namespace marco::modeling::internal
         }
     };
 
-    /// Wrapper for the LLVM's iterator, in order to return descriptors instead of raw pointers.
-    template<
-        typename Graph,
-        typename Vertex,
-        typename Edge,
-        typename VertexDescriptor>
+    /// Utility class to group the common properties of a graph.
+    template<typename Derived, typename VP, typename EP>
+    struct GraphTraits
+    {
+      using Type = Derived;
+
+      using VertexProperty = VP;
+      using EdgeProperty = EP;
+
+      // We use the LLVM's directed graph implementation.
+      // However, nodes and edges are not owned by the LLVM's graph implementation
+      // and thus we need to manage their lifetime.
+      // Moreover, in case of undirected graph the edge property should be shared
+      // among the two directed edges connecting two nodes. This is why the edge
+      // property is used as pointer.
+      using Vertex = VertexWrapper<VertexProperty, EdgeProperty*>;
+      using Edge = EdgeWrapper<VertexProperty, EdgeProperty*>;
+
+      using Base = llvm::DirectedGraph<Vertex, Edge>;
+      using BaseVertexIterator = typename Base::const_iterator;
+      using BaseEdgeIterator = typename llvm::DGNode<Vertex, Edge>::const_iterator;
+
+      using VertexDescriptor = impl::VertexDescriptor<Derived, Vertex>;
+      using EdgeDescriptor = impl::EdgeDescriptor<Derived, Edge, VertexDescriptor>;
+    };
+
+    template<typename GraphTraits>
     class VertexIterator
     {
+      private:
+        using VertexDescriptor = typename GraphTraits::VertexDescriptor;
+        using Graph = typename GraphTraits::Type;
+        using Vertex = typename GraphTraits::Vertex;
+        using BaseGraph = typename GraphTraits::Base;
+        using BaseVertexIterator = typename GraphTraits::BaseVertexIterator;
+
       public:
         using iterator_category = std::input_iterator_tag;
         using value_type = VertexDescriptor;
@@ -154,9 +182,6 @@ namespace marco::modeling::internal
         using reference = VertexDescriptor;
 
       private:
-        using BaseGraph = llvm::DirectedGraph<Vertex, Edge>;
-        using BaseVertexIterator = typename BaseGraph::const_iterator;
-
         VertexIterator(const Graph& graph, BaseVertexIterator current)
             : graph(&graph), current(std::move(current))
         {
@@ -212,15 +237,18 @@ namespace marco::modeling::internal
         BaseVertexIterator current;
     };
 
-    /// Wrapper for the LLVM's iterator, in order to return descriptors instead of raw pointers.
-    template<
-        typename Graph,
-        typename Vertex,
-        typename Edge,
-        typename VertexDescriptor,
-        typename EdgeDescriptor>
+    template<typename GraphTraits>
     class EdgeIterator
     {
+      private:
+        using VertexDescriptor = typename GraphTraits::VertexDescriptor;
+        using EdgeDescriptor = typename GraphTraits::EdgeDescriptor;
+        using Graph = typename GraphTraits::Type;
+        using Vertex = typename GraphTraits::Vertex;
+        using BaseGraph = typename GraphTraits::Base;
+        using BaseVertexIterator = typename GraphTraits::BaseVertexIterator;
+        using BaseEdgeIterator = typename GraphTraits::BaseEdgeIterator;
+
       public:
         using iterator_category = std::input_iterator_tag;
         using value_type = EdgeDescriptor;
@@ -231,11 +259,6 @@ namespace marco::modeling::internal
         using reference = EdgeDescriptor;
 
       private:
-        using BaseGraph = llvm::DirectedGraph<Vertex, Edge>;
-        using BaseVertexIterator = typename BaseGraph::const_iterator;
-        using Node = llvm::DGNode<Vertex, Edge>;
-        using BaseEdgeIterator = typename Node::const_iterator;
-
         EdgeIterator(const Graph& graph,
                      bool directed,
                      BaseVertexIterator currentVertexIt,
@@ -366,15 +389,17 @@ namespace marco::modeling::internal
         llvm::Optional<BaseEdgeIterator> endEdgeIt;
     };
 
-    /// Wrapper for the LLVM's iterator, in order to return descriptors instead of raw pointers.
-    template<
-        typename Graph,
-        typename Vertex,
-        typename Edge,
-        typename VertexDescriptor,
-        typename EdgeDescriptor>
+    template<typename GraphTraits>
     class IncidentEdgeIterator
     {
+      private:
+        using VertexDescriptor = typename GraphTraits::VertexDescriptor;
+        using EdgeDescriptor = typename GraphTraits::EdgeDescriptor;
+        using Graph = typename GraphTraits::Type;
+        using Vertex = typename GraphTraits::Vertex;
+        using BaseGraph = typename GraphTraits::Base;
+        using BaseEdgeIterator = typename GraphTraits::BaseEdgeIterator;
+
       public:
         using iterator_category = std::input_iterator_tag;
         using value_type = EdgeDescriptor;
@@ -385,10 +410,6 @@ namespace marco::modeling::internal
         using reference = EdgeDescriptor;
 
       private:
-        using BaseGraph = llvm::DirectedGraph<Vertex, Edge>;
-        using Node = llvm::DGNode<Vertex, Edge>;
-        using BaseEdgeIterator = typename Node::const_iterator;
-
         IncidentEdgeIterator(const Graph& graph, VertexDescriptor from, BaseEdgeIterator current)
             : graph(&graph), from(std::move(from)), current(std::move(current))
         {
@@ -450,14 +471,16 @@ namespace marco::modeling::internal
         BaseEdgeIterator current;
     };
 
-    template<
-        typename Graph,
-        typename Vertex,
-        typename Edge,
-        typename VertexDescriptor,
-        typename EdgeDescriptor>
+    template<typename GraphTraits>
     class LinkedVerticesIterator
     {
+      private:
+        using VertexDescriptor = typename GraphTraits::VertexDescriptor;
+        using Graph = typename GraphTraits::Type;
+        using Vertex = typename GraphTraits::Vertex;
+        using BaseGraph = typename GraphTraits::Base;
+        using BaseEdgeIterator = typename GraphTraits::BaseEdgeIterator;
+
       public:
         using iterator_category = std::forward_iterator_tag;
         using value_type = VertexDescriptor;
@@ -466,9 +489,6 @@ namespace marco::modeling::internal
         using reference = VertexDescriptor&;
 
       private:
-        using BaseGraph = llvm::DirectedGraph<Vertex, Edge>;
-        using BaseEdgeIterator = typename llvm::DGNode<Vertex, Edge>::const_iterator;
-
         LinkedVerticesIterator(const Graph& graph, BaseEdgeIterator current)
           : graph(&graph), current(std::move(current))
         {
@@ -533,67 +553,34 @@ namespace marco::modeling::internal
     template<typename Derived, typename VP, typename EP>
     class Graph
     {
-      public:
-        using VertexProperty = VP;
-        using EdgeProperty = EP;
-
       private:
-        // We use the LLVM's directed graph implementation.
-        // However, nodes and edges are not owned by the LLVM's graph implementation
-        // and thus we need to manage their lifetime.
-        // Moreover, in case of undirected graph the edge property should be shared
-        // among the two directed edges connecting two nodes. This is why the edge
-        // property is used as pointer.
-        using Vertex = VertexWrapper<VertexProperty, EdgeProperty*>;
-        using Edge = EdgeWrapper<VertexProperty, EdgeProperty*>;
-
-        using Base = llvm::DirectedGraph<Vertex, Edge>;
+        using Traits = GraphTraits<Graph<Derived, VP, EP>, VP, EP>;
+        using Vertex = typename Traits::Vertex;
+        using Edge = typename Traits::Edge;
 
       public:
-        using VertexDescriptor = impl::VertexDescriptor<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            Vertex>;
+        using VertexProperty = typename Traits::VertexProperty;
+        using EdgeProperty = typename Traits::EdgeProperty;
 
-        using EdgeDescriptor = impl::EdgeDescriptor<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            Edge,
-            VertexDescriptor>;
+        using VertexDescriptor = typename Traits::VertexDescriptor;
+        using EdgeDescriptor = typename Traits::EdgeDescriptor;
 
-        using VertexIterator = impl::VertexIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            Vertex,
-            Edge,
-            VertexDescriptor>;
+        using VertexIterator = impl::VertexIterator<Traits>;
 
         using FilteredVertexIterator = llvm::filter_iterator<
             VertexIterator, std::function<bool(VertexDescriptor)>>;
 
-        using EdgeIterator = impl::EdgeIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            Vertex,
-            Edge,
-            VertexDescriptor,
-            EdgeDescriptor>;
+        using EdgeIterator = impl::EdgeIterator<Traits>;
 
         using FilteredEdgeIterator = llvm::filter_iterator<
             EdgeIterator, std::function<bool(EdgeDescriptor)>>;
 
-        using IncidentEdgeIterator = impl::IncidentEdgeIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            Vertex,
-            Edge,
-            VertexDescriptor,
-            EdgeDescriptor>;
+        using IncidentEdgeIterator = impl::IncidentEdgeIterator<Traits>;
 
         using FilteredIncidentEdgeIterator = llvm::filter_iterator<
             IncidentEdgeIterator, std::function<bool(EdgeDescriptor)>>;
 
-        using LinkedVerticesIterator = impl::LinkedVerticesIterator<
-            Graph<Derived, VertexProperty, EdgeProperty>,
-            Vertex,
-            Edge,
-            VertexDescriptor,
-            EdgeDescriptor>;
+        using LinkedVerticesIterator = impl::LinkedVerticesIterator<Traits>;
 
         using FilteredLinkedVerticesIterator = llvm::filter_iterator<
             LinkedVerticesIterator, std::function<bool(VertexDescriptor)>>;
@@ -813,6 +800,10 @@ namespace marco::modeling::internal
         }
 
         /// Get the edges exiting from a node that match a certain property.
+        ///
+        /// @param vertex        source vertex
+        /// @param visibilityFn  function determining whether an edge should be considered or not
+        /// @return iterable range of edge descriptors
         llvm::iterator_range<FilteredIncidentEdgeIterator> getOutgoingEdges(
             VertexDescriptor vertex,
             std::function<bool(const EdgeProperty&)> visibilityFn) const
@@ -838,6 +829,10 @@ namespace marco::modeling::internal
         }
 
         /// Get the vertices connected to a node that match a certain property.
+        ///
+        /// @param vertex        source vertex
+        /// @param visibilityFn  function determining whether a vertex should be considered or not
+        /// @return iterable range of vertex descriptors
         llvm::iterator_range<FilteredLinkedVerticesIterator> getLinkedVertices(
             VertexDescriptor vertex,
             std::function<bool(const VertexProperty&)> visibilityFn) const
@@ -960,7 +955,7 @@ namespace marco::modeling::internal
         std::vector<Vertex*> vertices;
         std::vector<Edge*> edges;
         std::vector<EdgeProperty*> edgeProperties;
-        Base graph;
+        typename Traits::Base graph;
     };
   }
 

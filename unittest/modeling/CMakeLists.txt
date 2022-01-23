@@ -1,16 +1,16 @@
 set(SOURCES
     AccessFunctionTest.cpp
     DirectedGraphTest.cpp
-    FlatMCIMTest.cpp
     MatchingCommon.cpp
     MatchingGraphTest.cpp
     MatchingTest.cpp
     MatchingTestCases.cpp
+    MCIMFlatTest.cpp
+    MCIMRegularTest.cpp
     MCISTest.cpp
     MultidimensionalRangeTest.cpp
     PointTest.cpp
     RangeTest.cpp
-    RegularMCIMTest.cpp
     SchedulingTest.cpp
     SimplifyTest.cpp
     SolveLocalMatchingProblemTest.cpp
