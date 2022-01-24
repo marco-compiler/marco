@@ -1,4 +1,4 @@
-#include <marco/modeling/MCIMFlat.h>
+#include "marco/modeling/MCIMFlat.h"
 #include <numeric>
 
 namespace marco::modeling::internal

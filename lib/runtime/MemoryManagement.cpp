@@ -1,12 +1,12 @@
+#include "marco/runtime/MemoryManagement.h"
 #include <cstdlib>
-#include <marco/runtime/MemoryManagement.h>
 
 #ifdef MARCO_PROFILING
 
+#include "marco/runtime/Profiling.h"
 #include <chrono>
 #include <iostream>
 #include <map>
-#include <marco/runtime/Profiling.h>
 
 class MemoryProfiler : public Profiler
 {

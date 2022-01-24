@@ -1,11 +1,10 @@
 #pragma once
 
-#include <boost/iterator/indirect_iterator.hpp>
-#include <llvm/ADT/Optional.h>
-#include <llvm/ADT/SmallVector.h>
+#include "boost/iterator/indirect_iterator.hpp"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallVector.h"
+#include "marco/ast/nodes/ASTNode.h"
 #include <variant>
-
-#include "ASTNode.h"
 
 namespace marco::ast
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <marco/utils/SourcePosition.h>
+#include "marco/utils/SourcePosition.h"
 #include <variant>
 
 namespace marco::ast

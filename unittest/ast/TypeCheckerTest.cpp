@@ -1,10 +1,10 @@
-#include <gtest/gtest.h>
-#include <llvm/ADT/StringMap.h>
-#include <llvm/Support/Error.h>
-#include <marco/ast/AST.h>
-#include <marco/ast/Parser.h>
-#include <marco/ast/passes/TypeCheckingPass.h>
-#include <marco/utils/ErrorTest.hpp>
+#include "gtest/gtest.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/Support/Error.h"
+#include "marco/ast/AST.h"
+#include "marco/ast/Parser.h"
+#include "marco/ast/passes/TypeCheckingPass.h"
+#include "marco/utils/ErrorTest.h"
 
 using namespace llvm;
 using namespace marco;

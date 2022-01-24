@@ -1,11 +1,10 @@
 #ifndef MARCO_MODELING_MCIM_H
 #define MARCO_MODELING_MCIM_H
 
-#include <llvm/ADT/iterator_range.h>
-
-#include "AccessFunction.h"
-#include "MCIS.h"
-#include "MultidimensionalRange.h"
+#include "llvm/ADT/iterator_range.h"
+#include "marco/modeling/AccessFunction.h"
+#include "marco/modeling/MCIS.h"
+#include "marco/modeling/MultidimensionalRange.h"
 
 namespace marco::modeling::internal
 {

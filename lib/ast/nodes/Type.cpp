@@ -1,5 +1,5 @@
+#include "marco/ast/AST.h"
 #include <iostream>
-#include <marco/ast/AST.h>
 #include <numeric>
 
 using namespace marco::ast;

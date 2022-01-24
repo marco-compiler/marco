@@ -1,5 +1,6 @@
 set(SOURCES
     AccessFunctionTest.cpp
+    CyclesTest.cpp
     DirectedGraphTest.cpp
     MatchingCommon.cpp
     MatchingGraphTest.cpp
@@ -14,8 +15,7 @@ set(SOURCES
     SchedulingTest.cpp
     SimplifyTest.cpp
     SolveLocalMatchingProblemTest.cpp
-    UndirectedGraphTest.cpp
-    VVarDependencyGraphTest.cpp)
+    UndirectedGraphTest.cpp)
 
 marco_add_unittest(ModelingTest ${SOURCES})
 

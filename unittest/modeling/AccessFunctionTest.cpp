@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <marco/modeling/AccessFunction.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "marco/modeling/AccessFunction.h"
 
 using namespace ::marco::modeling;
 using namespace ::marco::modeling::internal;

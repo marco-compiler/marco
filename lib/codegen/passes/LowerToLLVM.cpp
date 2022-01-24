@@ -1,13 +1,13 @@
-#include <mlir/Conversion/LLVMCommon/Pattern.h>
-#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
-#include <mlir/Conversion/OpenMPToLLVM/ConvertOpenMPToLLVM.h>
-#include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
-#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/OpenMP/OpenMPDialect.h>
-#include <mlir/Support/MathExtras.h>
-#include <marco/codegen/passes/LowerToLLVM.h>
-#include <marco/codegen/passes/TypeConverter.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include "marco/codegen/passes/LowerToLLVM.h"
+#include "marco/codegen/passes/TypeConverter.h"
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "mlir/Conversion/LLVMCommon/Pattern.h"
+#include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
+#include "mlir/Conversion/OpenMPToLLVM/ConvertOpenMPToLLVM.h"
+#include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/OpenMP/OpenMPDialect.h"
+#include "mlir/Support/MathExtras.h"
 
 using namespace marco::codegen;
 using namespace modelica;

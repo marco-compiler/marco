@@ -1,7 +1,7 @@
 #ifndef MARCO_FRONTEND_OPTIONS_H
 #define MARCO_FRONTEND_OPTIONS_H
 
-#include <llvm/Option/Option.h>
+#include "llvm/Option/Option.h"
 
 namespace marco::frontend
 {
@@ -16,7 +16,7 @@ namespace marco::frontend
       #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
       OPT_##ID,
-      #include <marco/frontend/Options.inc>
+      #include "marco/frontend/Options.inc"
       LastOption
       #undef OPTION
     };

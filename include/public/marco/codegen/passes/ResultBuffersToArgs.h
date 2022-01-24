@@ -1,12 +1,12 @@
 #pragma once
 
-#include <mlir/Dialect/SCF/SCF.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/PatternMatch.h>
-#include <mlir/Pass/Pass.h>
-#include <mlir/Transforms/DialectConversion.h>
-#include <marco/codegen/dialects/modelica/Ops.h>
-#include <marco/codegen/passes/TypeConverter.h>
+#include "marco/codegen/dialects/modelica/Ops.h"
+#include "marco/codegen/passes/TypeConverter.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/PatternMatch.h"
+#include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 namespace marco::codegen
 {

@@ -1,8 +1,7 @@
 #pragma once
 
+#include "marco/ast/nodes/ASTNode.h"
 #include <memory>
-
-#include "ASTNode.h"
 
 namespace marco::ast
 {

@@ -1,10 +1,9 @@
 #ifndef MARCO_MODELING_MULTIDIMENSIONALRANGE_H
 #define MARCO_MODELING_MULTIDIMENSIONALRANGE_H
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
-
-#include "Range.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+#include "marco/modeling/Range.h"
 
 namespace marco::modeling::internal
 {

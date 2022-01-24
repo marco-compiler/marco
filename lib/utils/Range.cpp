@@ -1,9 +1,7 @@
-#include "marco/utils/IndexSet.hpp"
-
-#include <algorithm>
-
 #include "llvm/Support/raw_ostream.h"
-#include "marco/utils/Interval.hpp"
+#include "marco/utils/IndexSet.h"
+#include "marco/utils/Interval.h"
+#include <algorithm>
 
 using namespace marco;
 using namespace llvm;

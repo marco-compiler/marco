@@ -1,10 +1,9 @@
-#include <llvm/ADT/DenseMap.h>
-#include <llvm/ADT/Optional.h>
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/BuiltinOps.h>
-
-#include "Attribute.h"
-#include "Type.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Optional.h"
+#include "marco/codegen/dialects/modelica/Attribute.h"
+#include "marco/codegen/dialects/modelica/Type.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
 
 namespace marco::codegen::modelica
 {

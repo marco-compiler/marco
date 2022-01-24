@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
+#include "marco/utils/Lexer.h"
 #include <algorithm>
-
-#include "marco/utils/Lexer.hpp"
 
 enum class TestToken
 {

@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
-#include <marco/utils/VariableFilter.h>
+#include "gtest/gtest.h"
+#include "marco/utils/VariableFilter.h"
 
 using namespace marco;
 

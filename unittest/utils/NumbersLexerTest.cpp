@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
-
-#include "marco/utils/NumbersLexer.hpp"
+#include "marco/utils/NumbersLexer.h"
 
 TEST(IntegerLexerTest, defaultShouldBeZero)
 {

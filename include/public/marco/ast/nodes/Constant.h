@@ -1,11 +1,10 @@
 #pragma once
 
+#include "marco/ast/nodes/ASTNode.h"
+#include "marco/ast/nodes/Type.h"
 #include <cassert>
 #include <string>
 #include <type_traits>
-
-#include "ASTNode.h"
-#include "Type.h"
 
 namespace marco::ast
 {

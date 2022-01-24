@@ -1,9 +1,9 @@
-#include <clang/Basic/DiagnosticOptions.h>
-#include <llvm/ADT/SmallString.h>
-#include <llvm/Support/ErrorHandling.h>
-#include <llvm/Support/raw_ostream.h>
-#include <marco/frontend/TextDiagnostic.h>
-#include <marco/frontend/TextDiagnosticPrinter.h>
+#include "clang/Basic/DiagnosticOptions.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/frontend/TextDiagnostic.h"
+#include "marco/frontend/TextDiagnosticPrinter.h"
 
 namespace marco::frontend
 {

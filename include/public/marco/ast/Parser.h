@@ -1,14 +1,13 @@
 #pragma once
 
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/Error.h>
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
+#include "marco/ast/AST.h"
+#include "marco/ast/Errors.h"
+#include "marco/ast/LexerStateMachine.h"
+#include "marco/utils/Lexer.h"
 #include <memory>
-#include <marco/ast/LexerStateMachine.h>
-#include <marco/utils/Lexer.hpp>
 #include <optional>
-
-#include "AST.h"
-#include "Errors.h"
 
 namespace marco::ast
 {

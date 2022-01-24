@@ -1,12 +1,12 @@
 #pragma once
 
-#include <mlir/Conversion/LLVMCommon/TypeConverter.h>
-#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinDialect.h>
-#include <mlir/IR/MLIRContext.h>
-#include <mlir/Transforms/DialectConversion.h>
-#include <marco/codegen/dialects/modelica/Type.h>
+#include "marco/codegen/dialects/modelica/Type.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 namespace marco::codegen {
 	class TypeConverter : public mlir::LLVMTypeConverter {

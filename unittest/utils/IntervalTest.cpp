@@ -1,8 +1,7 @@
 #include "gtest/gtest.h"
+#include "marco/utils/IndexSet.h"
+#include "marco/utils/Interval.h"
 #include <vector>
-
-#include "marco/utils/IndexSet.hpp"
-#include "marco/utils/Interval.hpp"
 
 using namespace marco;
 using namespace std;

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <llvm/ADT/SmallVector.h>
-#include <mlir/IR/Types.h>
+#include "llvm/ADT/SmallVector.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/Types.h"
 
 namespace marco::codegen::modelica
 {

@@ -1,8 +1,8 @@
-#include <llvm/ADT/SmallVector.h>
-#include <marco/ast/AST.h>
-#include <marco/codegen/CodeGen.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <mlir/IR/Verifier.h>
+#include "llvm/ADT/SmallVector.h"
+#include "marco/ast/AST.h"
+#include "marco/codegen/CodeGen.h"
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "mlir/IR/Verifier.h"
 
 using namespace marco;
 using namespace marco::ast;

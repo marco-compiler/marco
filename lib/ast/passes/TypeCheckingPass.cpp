@@ -1,7 +1,7 @@
+#include "marco/ast/AST.h"
+#include "marco/ast/Errors.h"
+#include "marco/ast/passes/TypeCheckingPass.h"
 #include <cstdio>
-#include <marco/ast/AST.h>
-#include <marco/ast/Errors.h>
-#include <marco/ast/passes/TypeCheckingPass.h>
 #include <numeric>
 #include <queue>
 #include <stack>

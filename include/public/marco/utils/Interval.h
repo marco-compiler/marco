@@ -1,11 +1,12 @@
 #pragma once
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
-#include "marco/utils/IRange.hpp"
-#include "marco/utils/MultiDimensionalIterator.hpp"
+#include "marco/utils/IRange.h"
+#include "marco/utils/MultiDimensionalIterator.h"
 
 namespace marco
 {

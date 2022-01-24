@@ -1,5 +1,5 @@
-#include <marco/ast/AST.h>
-#include <marco/utils/IRange.hpp>
+#include "marco/ast/AST.h"
+#include "marco/utils/IRange.h"
 
 using namespace marco::ast;
 

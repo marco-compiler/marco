@@ -1,10 +1,10 @@
 #pragma once
 
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/IR/OpDefinition.h>
-#include <mlir/IR/BlockAndValueMapping.h>
-
-#include "Type.h"
+#include "marco/codegen/dialects/modelica/Type.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/BlockAndValueMapping.h"
 
 namespace marco::codegen::modelica
 {

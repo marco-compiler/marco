@@ -1,8 +1,8 @@
 #ifdef MARCO_PROFILING
 
+#include "llvm/ADT/SmallVector.h"
+#include "marco/runtime/Profiling.h"
 #include <iostream>
-#include <llvm/ADT/SmallVector.h>
-#include <marco/runtime/Profiling.h>
 
 Profiler::Profiler(llvm::StringRef name) : name(name.str())
 {

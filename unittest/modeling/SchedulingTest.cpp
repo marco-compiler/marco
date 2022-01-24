@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <marco/modeling/Scheduling.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "marco/modeling/Scheduling.h"
 
 using namespace ::marco::modeling;
 using ::marco::modeling::internal::MCIS;
@@ -85,22 +85,10 @@ namespace marco::modeling::dependency
 /**
  * for i in 3:8
  *   x[i - 1] = f0(x[i - 2])
- *
- * for i in 10:13
- *   y[i + 3] = f1(y[i - 7], z[i + 5])
- *
- * for i in 14:24
- *   z[i] = 9
  */
-TEST(SCC, testSchedule) {
+TEST(Scheduling, forwardSchedulable) {
   Variable x;
   EXPECT_CALL(x, name()).WillRepeatedly(Return("x"));
-
-  Variable y;
-  EXPECT_CALL(y, name()).WillRepeatedly(Return("y"));
-
-  Variable z;
-  EXPECT_CALL(z, name()).WillRepeatedly(Return("z"));
 
   Equation eq1;
   EXPECT_CALL(eq1, name()).WillRepeatedly(Return("eq1"));
@@ -117,51 +105,24 @@ TEST(SCC, testSchedule) {
 
   EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
 
-  Equation eq2;
-  EXPECT_CALL(eq2, name()).WillRepeatedly(Return("eq2"));
-  EXPECT_CALL(eq2, rank()).WillRepeatedly(Return(1));
-  EXPECT_CALL(eq2, rangeBegin(0)).WillRepeatedly(Return(10));
-  EXPECT_CALL(eq2, rangeEnd(0)).WillRepeatedly(Return(14));
-
-  Equation::Access eq2w(&y, AccessFunction(DimensionAccess::relative(0, 3)), "eq2w");
-  EXPECT_CALL(eq2, write()).WillRepeatedly(Return(eq2w));
-
-  std::vector<Equation::Access> eq2r = {
-      Equation::Access(&y, AccessFunction(DimensionAccess::relative(0, -7)), "eq2r1"),
-      Equation::Access(&z, AccessFunction(DimensionAccess::relative(0, 5)), "eq2r2")
-  };
-
-  EXPECT_CALL(eq2, reads()).WillRepeatedly(Return(eq2r));
-
-  Equation eq3;
-  EXPECT_CALL(eq3, name()).WillRepeatedly(Return("eq3"));
-  EXPECT_CALL(eq3, rank()).WillRepeatedly(Return(1));
-  EXPECT_CALL(eq3, rangeBegin(0)).WillRepeatedly(Return(15));
-  EXPECT_CALL(eq3, rangeEnd(0)).WillRepeatedly(Return(25));
-
-  Equation::Access eq3w(&z, AccessFunction(DimensionAccess::relative(0, 0)), "eq3w");
-  EXPECT_CALL(eq3, write()).WillRepeatedly(Return(eq3w));
-
-  std::vector<Equation::Access> eq3r;
-  EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
-
   Scheduler<Variable*, Equation*> scheduler;
-  auto schedule = scheduler.schedule({ &eq1, &eq2, &eq3 });
+  auto schedule = scheduler.schedule({ &eq1 });
+
+  EXPECT_THAT(schedule, testing::SizeIs(1));
+  EXPECT_EQ(schedule[0].getProperty()->name(), "eq1");
+  EXPECT_EQ(schedule[0].getIndexes().rank(), 1);
+  EXPECT_EQ(schedule[0].getIndexes()[0].getBegin(), 3);
+  EXPECT_EQ(schedule[0].getIndexes()[0].getEnd(), 9);
+  EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Forward);
 }
 
 /**
  * for i in 3:8
  *   x[i + 1] = f0(x[i + 2])
  */
-TEST(SCC, scheduleForward) {
+TEST(Scheduling, backwardSchedulable) {
   Variable x;
   EXPECT_CALL(x, name()).WillRepeatedly(Return("x"));
-
-  Variable y;
-  EXPECT_CALL(y, name()).WillRepeatedly(Return("y"));
-
-  Variable z;
-  EXPECT_CALL(z, name()).WillRepeatedly(Return("z"));
 
   Equation eq1;
   EXPECT_CALL(eq1, name()).WillRepeatedly(Return("eq1"));
@@ -180,21 +141,22 @@ TEST(SCC, scheduleForward) {
 
   Scheduler<Variable*, Equation*> scheduler;
   auto schedule = scheduler.schedule({ &eq1 });
+
+  EXPECT_THAT(schedule, testing::SizeIs(1));
+  EXPECT_EQ(schedule[0].getProperty()->name(), "eq1");
+  EXPECT_EQ(schedule[0].getIndexes().rank(), 1);
+  EXPECT_EQ(schedule[0].getIndexes()[0].getBegin(), 3);
+  EXPECT_EQ(schedule[0].getIndexes()[0].getEnd(), 9);
+  EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Backward);
 }
 
 /**
  * for i in 3:8
- *   x[i - 1] = f0(x[i - 2])
+ *   x[i + 1] = f0(x[i + 2])
  */
-TEST(SCC, scheduleBackward) {
+TEST(Scheduling, test) {
   Variable x;
   EXPECT_CALL(x, name()).WillRepeatedly(Return("x"));
-
-  Variable y;
-  EXPECT_CALL(y, name()).WillRepeatedly(Return("y"));
-
-  Variable z;
-  EXPECT_CALL(z, name()).WillRepeatedly(Return("z"));
 
   Equation eq1;
   EXPECT_CALL(eq1, name()).WillRepeatedly(Return("eq1"));
@@ -202,15 +164,22 @@ TEST(SCC, scheduleBackward) {
   EXPECT_CALL(eq1, rangeBegin(0)).WillRepeatedly(Return(3));
   EXPECT_CALL(eq1, rangeEnd(0)).WillRepeatedly(Return(9));
 
-  Equation::Access eq1w(&x, AccessFunction(DimensionAccess::relative(0, -1)), "eq1w");
+  Equation::Access eq1w(&x, AccessFunction(DimensionAccess::relative(0, 1)), "eq1w");
   EXPECT_CALL(eq1, write()).WillRepeatedly(Return(eq1w));
 
   std::vector<Equation::Access> eq1r = {
-      Equation::Access(&x, AccessFunction(DimensionAccess::relative(0, -2)), "eq1r1")
+      Equation::Access(&x, AccessFunction(DimensionAccess::relative(0, 2)), "eq1r1")
   };
 
   EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
 
   Scheduler<Variable*, Equation*> scheduler;
   auto schedule = scheduler.schedule({ &eq1 });
+
+  EXPECT_THAT(schedule, testing::SizeIs(1));
+  EXPECT_EQ(schedule[0].getProperty()->name(), "eq1");
+  EXPECT_EQ(schedule[0].getIndexes().rank(), 1);
+  EXPECT_EQ(schedule[0].getIndexes()[0].getBegin(), 3);
+  EXPECT_EQ(schedule[0].getIndexes()[0].getEnd(), 9);
+  EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Backward);
 }

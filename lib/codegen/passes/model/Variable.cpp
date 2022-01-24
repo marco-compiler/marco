@@ -1,4 +1,4 @@
-#include <marco/codegen/passes/model/Variable.h>
+#include "marco/codegen/passes/model/Variable.h"
 
 using namespace marco::codegen;
 using namespace marco::codegen::modelica;

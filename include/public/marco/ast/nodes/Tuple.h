@@ -1,11 +1,10 @@
 #pragma once
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+#include "marco/ast/nodes/ASTNode.h"
+#include "marco/ast/nodes/Type.h"
 #include <memory>
-
-#include "ASTNode.h"
-#include "Type.h"
 
 namespace marco::ast
 {

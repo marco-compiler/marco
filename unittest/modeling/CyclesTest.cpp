@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/StringRef.h>
-#include <marco/modeling/Cycles.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "marco/modeling/Cycles.h"
 
 using namespace ::marco::modeling;
 using ::marco::modeling::internal::MCIS;
@@ -177,12 +177,53 @@ MATCHER_P(HasPath, path, "") {
 
 /**
  * for i in 3:8
+ *   x[i + 1] = f0(x[i - 1], x[i + 3])
+ */
+TEST(Cycles, selfDependency) {
+  Variable x;
+  EXPECT_CALL(x, name()).WillRepeatedly(Return("x"));
+
+  Equation eq1;
+  EXPECT_CALL(eq1, name()).WillRepeatedly(Return("eq1"));
+  EXPECT_CALL(eq1, rank()).WillRepeatedly(Return(1));
+  EXPECT_CALL(eq1, rangeBegin(0)).WillRepeatedly(Return(3));
+  EXPECT_CALL(eq1, rangeEnd(0)).WillRepeatedly(Return(9));
+
+  Equation::Access eq1w(&x, AccessFunction(DimensionAccess::relative(0, -1)), "eq1w");
+  EXPECT_CALL(eq1, write()).WillRepeatedly(Return(eq1w));
+
+  std::vector<Equation::Access> eq1r = {
+      Equation::Access(&x, AccessFunction(DimensionAccess::relative(0, -1)), "eq1r1"),
+      Equation::Access(&x, AccessFunction(DimensionAccess::relative(0, 3)), "eq1r2")
+  };
+
+  EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
+
+  CyclesFinder<Variable*, Equation*> graph(&eq1);
+  auto cycles = graph.getEquationsCycles();
+
+  // TODO
+  EXPECT_THAT(cycles, testing::SizeIs(1));
+
+  EXPECT_THAT(cycles, testing::Contains(CycleStartingWithEquation("eq1")));
+
+  EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
+      { 2, MCIS({5, 6, 7, 8, 9}), "eq1r1", "eq1"}
+  })));
+
+  EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
+      { 2, MCIS({10, 11, 12, 13}), "eq1r2", "eq1"}
+  })));
+}
+
+/**
+ * for i in 3:8
  *   x[i - 1] = f0(y[i + 9])
  *
  * for i in 10:13
  *   y[i + 3] = f1(x[i - 7])
  */
-TEST(SCC, oneStepCycle) {
+TEST(Cycles, oneStepCycle) {
   Variable x;
   EXPECT_CALL(x, name()).WillRepeatedly(Return("x"));
 

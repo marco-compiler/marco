@@ -1,4 +1,4 @@
-#include <marco/codegen/passes/model/Equation.h>
+#include "marco/codegen/passes/model/Equation.h"
 
 using namespace marco;
 using namespace marco::codegen;

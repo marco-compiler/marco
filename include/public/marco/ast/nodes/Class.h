@@ -1,12 +1,11 @@
 #pragma once
 
+#include "marco/ast/nodes/ASTNode.h"
+#include "marco/ast/nodes/Function.h"
+#include "marco/ast/nodes/Model.h"
+#include "marco/ast/nodes/Package.h"
+#include "marco/ast/nodes/Record.h"
 #include <variant>
-
-#include "ASTNode.h"
-#include "Function.h"
-#include "Model.h"
-#include "Package.h"
-#include "Record.h"
 
 namespace marco::ast
 {

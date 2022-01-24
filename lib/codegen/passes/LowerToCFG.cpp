@@ -1,10 +1,10 @@
-#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
-#include <mlir/Dialect/SCF/SCF.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/Transforms/DialectConversion.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <marco/codegen/passes/LowerToCFG.h>
-#include <marco/codegen/passes/TypeConverter.h>
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/codegen/passes/LowerToCFG.h"
+#include "marco/codegen/passes/TypeConverter.h"
+#include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include <stack>
 
 using namespace marco::codegen;

@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
+#include "marco/utils/IRange.h"
 #include <algorithm>
-
-#include "marco/utils/IRange.hpp"
 
 using namespace marco;
 using namespace llvm;

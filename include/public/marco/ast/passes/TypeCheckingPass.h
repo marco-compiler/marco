@@ -7,7 +7,7 @@
 #include <memory>
 #include <marco/ast/Errors.h>
 #include <marco/ast/Pass.h>
-#include <marco/ast/Symbol.hpp>
+#include <marco/ast/Symbol.h>
 
 namespace marco::ast
 {

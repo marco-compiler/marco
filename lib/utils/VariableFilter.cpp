@@ -1,10 +1,10 @@
-#include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Regex.h>
-#include <marco/utils/Lexer.hpp>
-#include <marco/utils/LogMessage.h>
-#include <marco/utils/NumbersLexer.hpp>
-#include <marco/utils/SourcePosition.h>
-#include <marco/utils/VariableFilter.h>
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Regex.h"
+#include "marco/utils/Lexer.h"
+#include "marco/utils/LogMessage.h"
+#include "marco/utils/NumbersLexer.h"
+#include "marco/utils/SourcePosition.h"
+#include "marco/utils/VariableFilter.h"
 #include <map>
 
 using namespace marco;

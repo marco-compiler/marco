@@ -1,10 +1,10 @@
 #ifndef MARCO_MODELING_POINT_H
 #define MARCO_MODELING_POINT_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include <initializer_list>
 #include <iostream>
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
 
 namespace marco::modeling::internal
 {

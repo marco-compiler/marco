@@ -1,10 +1,9 @@
 #ifndef MARCO_MODELING_MCIS_H
 #define MARCO_MODELING_MCIS_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "marco/modeling/MultidimensionalRange.h"
 #include <list>
-#include <llvm/ADT/ArrayRef.h>
-
-#include "MultidimensionalRange.h"
 
 namespace marco::modeling::internal
 {

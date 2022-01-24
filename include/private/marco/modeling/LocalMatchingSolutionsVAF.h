@@ -1,13 +1,12 @@
 #ifndef MARCO_MODELING_LOCALMATCHINGSOLUTIONSVAF_H
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONSVAF_H
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
-#include <marco/modeling/AccessFunction.h>
-#include <marco/modeling/MultidimensionalRange.h>
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+#include "marco/modeling/AccessFunction.h"
+#include "marco/modeling/LocalMatchingSolutionsImpl.h"
+#include "marco/modeling/MultidimensionalRange.h"
 #include <memory>
-
-#include "LocalMatchingSolutionsImpl.h"
 
 namespace marco::modeling::internal
 {

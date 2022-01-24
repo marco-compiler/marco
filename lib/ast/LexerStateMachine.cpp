@@ -1,4 +1,4 @@
-#include <marco/ast/LexerStateMachine.h>
+#include "marco/ast/LexerStateMachine.h"
 
 using namespace llvm;
 using namespace marco;

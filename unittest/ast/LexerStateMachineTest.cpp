@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <marco/ast/LexerStateMachine.h>
-#include <marco/utils/Lexer.hpp>
+#include "gtest/gtest.h"
+#include "marco/ast/LexerStateMachine.h"
+#include "marco/utils/Lexer.h"
 
 using namespace marco;
 using namespace marco::ast;

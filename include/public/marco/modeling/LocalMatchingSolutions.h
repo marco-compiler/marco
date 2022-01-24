@@ -1,11 +1,10 @@
 #ifndef MARCO_MODELING_LOCALMATCHINGSOLUTIONS_H
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONS_H
 
+#include "marco/modeling/AccessFunction.h"
+#include "marco/modeling/MCIM.h"
+#include "marco/modeling/MultidimensionalRange.h"
 #include <memory>
-
-#include "AccessFunction.h"
-#include "MCIM.h"
-#include "MultidimensionalRange.h"
 
 namespace marco::modeling::internal
 {

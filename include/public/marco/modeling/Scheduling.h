@@ -1,7 +1,7 @@
 #ifndef MARCO_MODELING_SCHEDULING_H
 #define MARCO_MODELING_SCHEDULING_H
 
-#include "Dependency.h"
+#include "marco/modeling/Dependency.h"
 
 namespace marco::modeling
 {

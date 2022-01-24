@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <llvm/ADT/STLExtras.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <marco/codegen/passes/model/Model.h>
+#include "gtest/gtest.h"
+#include "llvm/ADT/STLExtras.h"
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/codegen/passes/model/Model.h"
 
 using namespace marco::codegen;
 using namespace marco::codegen::modelica;

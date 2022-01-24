@@ -1,6 +1,6 @@
+#include "marco/runtime/Math.h"
 #include <cassert>
 #include <cmath>
-#include <marco/runtime/Math.h>
 
 //===----------------------------------------------------------------------===//
 // pow

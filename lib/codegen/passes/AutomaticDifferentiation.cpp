@@ -1,9 +1,9 @@
-#include <llvm/ADT/STLExtras.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BlockAndValueMapping.h>
-#include <mlir/Transforms/DialectConversion.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <marco/codegen/passes/AutomaticDifferentiation.h>
+#include "llvm/ADT/STLExtras.h"
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/codegen/passes/AutomaticDifferentiation.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include <queue>
 #include <set>
 

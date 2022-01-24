@@ -1,9 +1,9 @@
-#include <mlir/Conversion/Passes.h>
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/FunctionImplementation.h>
-#include <mlir/IR/OpImplementation.h>
-#include <marco/codegen/dialects/modelica/Attribute.h>
-#include <marco/codegen/dialects/modelica/Ops.h>
+#include "marco/codegen/dialects/modelica/Attribute.h"
+#include "marco/codegen/dialects/modelica/Ops.h"
+#include "mlir/Conversion/Passes.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/FunctionImplementation.h"
+#include "mlir/IR/OpImplementation.h"
 
 using namespace marco::codegen::modelica;
 

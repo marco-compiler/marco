@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ASTNode.h"
+#include "marco/ast/nodes/ASTNode.h"
 
 namespace marco::ast
 {

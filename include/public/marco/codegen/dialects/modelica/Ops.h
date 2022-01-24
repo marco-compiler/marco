@@ -1,16 +1,15 @@
 #pragma once
 
-#include <mlir/Interfaces/CallInterfaces.h>
-#include <mlir/Interfaces/ControlFlowInterfaces.h>
-#include <mlir/Interfaces/LoopLikeInterface.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-#include <mlir/Interfaces/ViewLikeInterface.h>
-#include <mlir/IR/FunctionSupport.h>
-#include <mlir/IR/OpDefinition.h>
-#include <mlir/IR/RegionKindInterface.h>
-
-#include "Traits.h"
-#include "Type.h"
+#include "marco/codegen/dialects/modelica/Traits.h"
+#include "marco/codegen/dialects/modelica/Type.h"
+#include "mlir/Interfaces/CallInterfaces.h"
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
+#include "mlir/Interfaces/LoopLikeInterface.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "mlir/Interfaces/ViewLikeInterface.h"
+#include "mlir/IR/FunctionSupport.h"
+#include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/RegionKindInterface.h"
 
 namespace marco::codegen::modelica
 {

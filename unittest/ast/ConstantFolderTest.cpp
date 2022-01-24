@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-#include <marco/ast/AST.h>
-#include <marco/ast/Parser.h>
-#include <marco/ast/Passes.h>
-#include <marco/ast/SymbolTable.hpp>
+#include "gtest/gtest.h"
+#include "marco/ast/AST.h"
+#include "marco/ast/Parser.h"
+#include "marco/ast/Passes.h"
+#include "marco/ast/SymbolTable.h"
 
 using namespace marco;
 using namespace marco::ast;

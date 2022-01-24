@@ -1,4 +1,4 @@
-#include <marco/ast/Symbol.hpp>
+#include <marco/ast/Symbol.h>
 
 using namespace marco::ast;
 

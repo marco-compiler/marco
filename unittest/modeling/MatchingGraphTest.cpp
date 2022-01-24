@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
-#include <marco/modeling/Matching.h>
+#include "gtest/gtest.h"
+#include "marco/modeling/Matching.h"
 
 #include "MatchingCommon.h"
 #include "MatchingTestCases.h"

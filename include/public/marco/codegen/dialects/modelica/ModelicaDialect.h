@@ -1,10 +1,9 @@
 #pragma once
 
-#include <mlir/IR/Dialect.h>
-
-#include "Attribute.h"
-#include "Ops.h"
-#include "Type.h"
+#include "marco/codegen/dialects/modelica/Attribute.h"
+#include "marco/codegen/dialects/modelica/Ops.h"
+#include "marco/codegen/dialects/modelica/Type.h"
+#include "mlir/IR/Dialect.h"
 
 namespace marco::codegen::modelica
 {

@@ -1,4 +1,4 @@
-#include <marco/ast/SymbolTable.hpp>
+#include <marco/ast/SymbolTable.h>
 
 using namespace llvm;
 using namespace marco::ast;

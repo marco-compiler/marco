@@ -1,11 +1,10 @@
 #pragma once
 
+#include "marco/ast/nodes/ASTNode.h"
+#include "marco/ast/nodes/Type.h"
+#include "marco/ast/nodes/TypePrefix.h"
 #include <optional>
 #include <string>
-
-#include "ASTNode.h"
-#include "Type.h"
-#include "TypePrefix.h"
 
 namespace marco::ast
 {

@@ -1,15 +1,14 @@
 #pragma once
 
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/ast/nodes/ASTNode.h"
+#include "marco/ast/nodes/Type.h"
 #include <initializer_list>
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <utility>
 #include <variant>
 #include <vector>
-
-#include "ASTNode.h"
-#include "Type.h"
 
 namespace marco::ast
 {

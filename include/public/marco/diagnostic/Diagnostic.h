@@ -1,11 +1,10 @@
 #ifndef MARCO_DIAGNOSTIC_DIAGNOSTIC_H
 #define MARCO_DIAGNOSTIC_DIAGNOSTIC_H
 
-#include <llvm/ADT/Twine.h>
-#include <llvm/Support/raw_ostream.h>
+#include "llvm/ADT/Twine.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/diagnostic/LogMessage.h"
 #include <memory>
-
-#include "LogMessage.h"
 
 /*
 namespace marco::diagnostic

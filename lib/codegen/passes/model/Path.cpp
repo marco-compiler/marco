@@ -1,4 +1,4 @@
-#include <marco/codegen/passes/model/Path.h>
+#include "marco/codegen/passes/model/Path.h"
 
 using namespace marco;
 using namespace marco::codegen;

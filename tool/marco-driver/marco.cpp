@@ -1,5 +1,5 @@
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/Support/InitLLVM.h>
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/InitLLVM.h"
 
 extern int mc1_main(llvm::ArrayRef<const char *> argv);
 

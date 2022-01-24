@@ -1,7 +1,7 @@
 #ifndef MARCO_MODELING_RANGE_H
 #define MARCO_MODELING_RANGE_H
 
-#include "Point.h"
+#include "marco/modeling/Point.h"
 
 namespace marco::modeling::internal
 {

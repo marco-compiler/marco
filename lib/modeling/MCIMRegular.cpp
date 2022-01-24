@@ -1,4 +1,4 @@
-#include <marco/modeling/MCIMRegular.h>
+#include "marco/modeling/MCIMRegular.h"
 
 namespace marco::modeling::internal
 {

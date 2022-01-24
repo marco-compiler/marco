@@ -1,10 +1,10 @@
-#include <llvm/ADT/STLExtras.h>
-#include <mlir/Dialect/SCF/SCF.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/FunctionSupport.h>
-#include <mlir/Transforms/DialectConversion.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <marco/codegen/passes/ExplicitCastInsertion.h>
+#include "llvm/ADT/STLExtras.h"
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/codegen/passes/ExplicitCastInsertion.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/FunctionSupport.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 using namespace marco::codegen;
 using namespace modelica;

@@ -1,8 +1,8 @@
 #ifndef MARCO_FRONTEND_TEXTDIAGNOSTICBUFFER_H
 #define MARCO_FRONTEND_TEXTDIAGNOSTICBUFFER_H
 
-#include <clang/Basic/Diagnostic.h>
-#include <clang/Basic/SourceLocation.h>
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/SourceLocation.h"
 #include <cstddef>
 #include <string>
 #include <utility>

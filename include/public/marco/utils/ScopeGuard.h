@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <utility>
+
 namespace marco
 {
 	template<typename Lambda>

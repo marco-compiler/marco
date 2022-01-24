@@ -1,7 +1,7 @@
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/Transforms/InliningUtils.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Transforms/InliningUtils.h"
 
 using namespace marco::codegen::modelica;
 

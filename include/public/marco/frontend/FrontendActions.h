@@ -1,7 +1,7 @@
 #ifndef MARCO_FRONTEND_FRONTENDACTIONS_H
 #define MARCO_FRONTEND_FRONTENDACTIONS_H
 
-#include "FrontendAction.h"
+#include "marco/frontend/FrontendAction.h"
 
 namespace marco::frontend
 {

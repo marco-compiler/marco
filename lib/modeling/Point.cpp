@@ -1,4 +1,4 @@
-#include <marco/modeling/Point.h>
+#include "marco/modeling/Point.h"
 
 namespace marco::modeling::internal
 {

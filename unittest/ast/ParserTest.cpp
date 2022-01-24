@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include <llvm/Support/Error.h>
-#include <marco/ast/AST.h>
-#include <marco/ast/Parser.h>
+#include "gtest/gtest.h"
+#include "llvm/Support/Error.h"
+#include "marco/ast/AST.h"
+#include "marco/ast/Parser.h"
 
 using namespace marco;
 using namespace marco::ast;

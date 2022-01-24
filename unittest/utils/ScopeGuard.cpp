@@ -1,6 +1,5 @@
-#include "marco/utils/ScopeGuard.hpp"
-
 #include "gtest/gtest.h"
+#include "marco/utils/ScopeGuard.h"
 
 using namespace marco;
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <llvm/ADT/StringRef.h>
-#include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/IR/BuiltinOps.h>
+#include "llvm/ADT/StringRef.h"
+#include "mlir/ExecutionEngine/ExecutionEngine.h"
+#include "mlir/IR/BuiltinOps.h"
 
 namespace marco::jit
 {

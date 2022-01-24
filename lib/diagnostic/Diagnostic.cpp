@@ -1,4 +1,4 @@
-#include <marco/diagnostic/Diagnostic.h>
+#include "marco/diagnostic/Diagnostic.h"
 
 /*
 static const enum llvm::raw_ostream::Colors noteColor = llvm::raw_ostream::BLACK;

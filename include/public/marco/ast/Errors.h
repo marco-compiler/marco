@@ -1,14 +1,13 @@
 #pragma once
 
-#include <llvm/Support/Error.h>
-#include <llvm/Support/WithColor.h>
-#include <marco/utils/LogMessage.h>
-#include <marco/utils/SourcePosition.h>
+#include "llvm/Support/Error.h"
+#include "llvm/Support/WithColor.h"
+#include "marco/ast/LexerStateMachine.h"
+#include "marco/utils/LogMessage.h"
+#include "marco/utils/SourcePosition.h"
 #include <string>
 #include <system_error>
 #include <utility>
-
-#include "LexerStateMachine.h"
 
 namespace marco::ast::detail
 {

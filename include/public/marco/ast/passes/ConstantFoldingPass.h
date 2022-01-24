@@ -5,7 +5,7 @@
 #include <llvm/Support/Error.h>
 #include <memory>
 #include <marco/ast/Pass.h>
-#include <marco/ast/SymbolTable.hpp>
+#include <marco/ast/SymbolTable.h>
 
 namespace marco::ast
 {

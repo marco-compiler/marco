@@ -1,6 +1,6 @@
-#include <mlir/Conversion/Passes.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <marco/codegen/passes/ResultBuffersToArgs.h>
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/codegen/passes/ResultBuffersToArgs.h"
+#include "mlir/Conversion/Passes.h"
 
 using namespace marco::codegen;
 using namespace modelica;

@@ -1,13 +1,12 @@
 #pragma once
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/ADT/StringMap.h>
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "marco/ast/nodes/ASTNode.h"
+#include "marco/ast/nodes/Class.h"
 #include <memory>
 #include <string>
-
-#include "ASTNode.h"
-#include "Class.h"
 
 namespace marco::ast
 {

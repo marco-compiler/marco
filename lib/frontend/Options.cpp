@@ -1,11 +1,11 @@
-#include <marco/frontend/Options.h>
-#include <llvm/ADT/STLExtras.h>
-#include <llvm/Option/OptTable.h>
-#include <llvm/Option/Option.h>
+#include "marco/frontend/Options.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Option/OptTable.h"
+#include "llvm/Option/Option.h"
 #include <cassert>
 
 #define PREFIX(NAME, VALUE) static const char *const NAME[] = VALUE;
-#include <marco/frontend/Options.inc>
+#include "marco/frontend/Options.inc"
 #undef PREFIX
 
 using namespace marco::frontend;
@@ -17,7 +17,7 @@ static const llvm::opt::OptTable::Info InfoTable[] = {
                   HELPTEXT, METAVAR, VALUES)                                      \
      {PREFIX, NAME,  HELPTEXT,    METAVAR,     OPT_##ID,  Option::KIND##Class,    \
       PARAM,  FLAGS, OPT_##GROUP, OPT_##ALIAS, ALIASARGS, VALUES},
-    #include <marco/frontend/Options.inc>
+    #include "marco/frontend/Options.inc"
     #undef OPTION
 };
 
@@ -40,7 +40,7 @@ namespace marco::frontend
       llvm::opt::OptTable &Opt = *Result;
 
       #define OPTTABLE_ARG_INIT
-      #include <marco/frontend/Options.inc>
+      #include "marco/frontend/Options.inc"
       #undef OPTTABLE_ARG_INIT
 
       return Result.release();

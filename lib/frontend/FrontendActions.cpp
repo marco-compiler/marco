@@ -1,12 +1,12 @@
-#include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
-#include <marco/frontend/CompilerInstance.h>
-#include <marco/frontend/FrontendActions.h>
+#include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "marco/frontend/CompilerInstance.h"
+#include "marco/frontend/FrontendActions.h"
 
 namespace marco::frontend
 {

@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
-#include <marco/ast/AST.h>
+#include "gtest/gtest.h"
+#include "marco/ast/AST.h"
 
 using namespace marco;
 using namespace marco::ast;

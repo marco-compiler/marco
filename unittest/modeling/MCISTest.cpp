@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-#include <marco/modeling/MCIS.h>
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "marco/modeling/MCIS.h"
 
 using namespace ::marco::modeling::internal;
 

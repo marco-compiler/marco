@@ -1,3 +1,3 @@
-#include "marco/utils/Lexer.hpp"
+#include "marco/utils/Lexer.h"
 
 using namespace marco;

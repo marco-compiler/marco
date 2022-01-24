@@ -1,8 +1,7 @@
-#include "marco/utils/Interval.hpp"
-
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
-#include "marco/utils/MultiDimensionalIterator.hpp"
+#include "marco/utils/Interval.h"
+#include "marco/utils/MultiDimensionalIterator.h"
 
 using namespace llvm;
 using namespace marco;

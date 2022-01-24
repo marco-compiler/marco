@@ -1,5 +1,5 @@
-#include <marco/diagnostic/Diagnostic.h>
-#include <marco/diagnostic/LogMessage.h>
+#include "marco/diagnostic/Diagnostic.h"
+#include "marco/diagnostic/LogMessage.h"
 
 /*
 namespace marco::diagnostic

@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
-#include <marco/runtime/ArrayDescriptor.h>
+#include "gtest/gtest.h"
+#include "marco/runtime/ArrayDescriptor.h"
 
 template<typename T, unsigned int N> using ArraySizes =
 		std::array<typename ArrayDescriptor<T, N>::dimension_t, N>;

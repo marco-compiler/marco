@@ -1,8 +1,7 @@
 #ifndef MARCO_MODELING_MCIMREGULAR_H
 #define MARCO_MODELING_MCIMREGULAR_H
 
-#include <llvm/ADT/SmallVector.h>
-
+#include "llvm/ADT/SmallVector.h"
 #include "MCIMImpl.h"
 
 namespace marco::modeling::internal

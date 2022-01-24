@@ -1,5 +1,5 @@
-#include <marco/codegen/CodeGen.h>
-#include <marco/frontend/SimulationOptions.h>
+#include "marco/codegen/CodeGen.h"
+#include "marco/frontend/SimulationOptions.h"
 
 namespace marco::frontend
 {

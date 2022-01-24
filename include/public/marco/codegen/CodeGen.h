@@ -1,16 +1,15 @@
 #pragma once
 
-#include <llvm/ADT/ScopedHashTable.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/MLIRContext.h>
-#include <marco/ast/AST.h>
-#include <marco/ast/SymbolTable.hpp>
-#include <marco/codegen/dialects/modelica/ModelicaBuilder.h>
-#include <marco/utils/SourcePosition.h>
-
-#include "Passes.h"
+#include "llvm/ADT/ScopedHashTable.h"
+#include "marco/ast/AST.h"
+#include "marco/ast/SymbolTable.h"
+#include "marco/codegen/dialects/modelica/ModelicaBuilder.h"
+#include "marco/codegen/Passes.h"
+#include "marco/utils/SourcePosition.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/MLIRContext.h"
 
 namespace marco::codegen
 {

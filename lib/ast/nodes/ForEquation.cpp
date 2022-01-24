@@ -1,6 +1,6 @@
+#include "marco/ast/AST.h"
+#include "marco/utils/IRange.h"
 #include <memory>
-#include <marco/ast/AST.h>
-#include <marco/utils/IRange.hpp>
 
 using namespace marco::ast;
 

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <llvm/ADT/StringMap.h>
-#include <llvm/Support/raw_ostream.h>
+#include "llvm/ADT/StringMap.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/utils/NumbersLexer.h"
+#include "marco/utils/SourcePosition.h"
 #include <map>
-#include <marco/utils/NumbersLexer.hpp>
-#include <marco/utils/SourcePosition.h>
 #include <optional>
 #include <string>
 

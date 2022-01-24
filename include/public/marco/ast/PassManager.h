@@ -1,10 +1,9 @@
 #pragma once
 
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/Error.h>
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
+#include "marco/ast/Pass.h"
 #include <memory>
-
-#include "Pass.h"
 
 namespace marco::ast
 {

@@ -1,5 +1,5 @@
-#include <marco/runtime/Profiling.h>
-#include <marco/runtime/Runtime.h>
+#include "marco/runtime/Profiling.h"
+#include "marco/runtime/Runtime.h"
 
 void runtimeInit()
 {

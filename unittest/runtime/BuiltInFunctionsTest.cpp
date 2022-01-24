@@ -1,7 +1,7 @@
+#include "gtest/gtest.h"
+#include "marco/runtime/BuiltInFunctions.h"
+#include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cmath>
-#include <gtest/gtest.h>
-#include <marco/runtime/BuiltInFunctions.h>
-#include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <numeric>
 
 template<typename T, unsigned int N> using ArraySizes =

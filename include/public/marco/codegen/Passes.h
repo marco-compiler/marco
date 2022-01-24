@@ -2,15 +2,15 @@
 
 // Just a convenience header file to include the Modelica passes
 
-#include "passes/AutomaticDifferentiation.h"
-#include "passes/BufferDeallocation.h"
-#include "passes/ExplicitCastInsertion.h"
-#include "passes/FunctionsVectorization.h"
-#include "passes/LowerToCFG.h"
-#include "passes/LowerToLLVM.h"
-#include "passes/ModelicaConversion.h"
-#include "passes/ResultBuffersToArgs.h"
-#include "passes/SolveModel.h"
+#include "marco/codegen/passes/AutomaticDifferentiation.h"
+#include "marco/codegen/passes/BufferDeallocation.h"
+#include "marco/codegen/passes/ExplicitCastInsertion.h"
+#include "marco/codegen/passes/FunctionsVectorization.h"
+#include "marco/codegen/passes/LowerToCFG.h"
+#include "marco/codegen/passes/LowerToLLVM.h"
+#include "marco/codegen/passes/ModelicaConversion.h"
+#include "marco/codegen/passes/ResultBuffersToArgs.h"
+#include "marco/codegen/passes/SolveModel.h"
 
 namespace marco::codegen
 {

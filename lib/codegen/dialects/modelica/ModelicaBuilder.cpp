@@ -1,4 +1,4 @@
-#include <marco/codegen/dialects/modelica/ModelicaBuilder.h>
+#include "marco/codegen/dialects/modelica/ModelicaBuilder.h"
 
 using namespace marco::codegen::modelica;
 

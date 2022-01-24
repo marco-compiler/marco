@@ -1,6 +1,6 @@
-#include <clang/Basic/DiagnosticOptions.h>
-#include <llvm/Support/raw_ostream.h>
-#include <marco/frontend/TextDiagnostic.h>
+#include "clang/Basic/DiagnosticOptions.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/frontend/TextDiagnostic.h"
 
 static const enum llvm::raw_ostream::Colors noteColor = llvm::raw_ostream::BLACK;
 static const enum llvm::raw_ostream::Colors remarkColor = llvm::raw_ostream::BLUE;

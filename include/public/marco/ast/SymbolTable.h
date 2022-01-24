@@ -1,11 +1,10 @@
 #pragma once
 
-#include <llvm/ADT/StringMap.h>
-#include <llvm/ADT/StringRef.h>
-#include <marco/ast/Symbol.hpp>
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
+#include "marco/ast/AST.h"
+#include "marco/ast/Symbol.h"
 #include <variant>
-
-#include "AST.h"
 
 namespace marco::ast
 {

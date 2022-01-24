@@ -1,7 +1,7 @@
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/DialectImplementation.h>
-#include <marco/codegen/dialects/modelica/Attribute.h>
-#include <marco/codegen/dialects/modelica/Type.h>
+#include "marco/codegen/dialects/modelica/Attribute.h"
+#include "marco/codegen/dialects/modelica/Type.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/DialectImplementation.h"
 #include <numeric>
 
 using namespace marco::codegen::modelica;

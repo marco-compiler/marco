@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
-#include <marco/modeling/Point.h>
+#include "gtest/gtest.h"
+#include "marco/modeling/Point.h"
 
 using namespace ::marco::modeling::internal;
 

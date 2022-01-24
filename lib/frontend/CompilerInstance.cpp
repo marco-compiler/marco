@@ -1,13 +1,13 @@
-#include <llvm/Support/Errc.h>
-#include <llvm/Support/Error.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Path.h>
-#include <llvm/Support/raw_ostream.h>
-#include <marco/frontend/CompilerInstance.h>
-#include <marco/frontend/CompilerInvocation.h>
-#include <marco/frontend/TextDiagnosticPrinter.h>
-#include <marco/codegen/dialects/modelica/ModelicaDialect.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include "llvm/Support/Errc.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/frontend/CompilerInstance.h"
+#include "marco/frontend/CompilerInvocation.h"
+#include "marco/frontend/TextDiagnosticPrinter.h"
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 // Helper method to generate the path of the output file. The following logic
 // applies:

@@ -1,10 +1,12 @@
 #pragma once
 
-#include <llvm/ADT/APFloat.h>
-#include <llvm/ADT/APInt.h>
-#include <llvm/ADT/SmallVector.h>
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/SmallVector.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/Types.h"
 #include <map>
-#include <mlir/IR/Attributes.h>
 
 namespace marco::codegen::modelica
 {
