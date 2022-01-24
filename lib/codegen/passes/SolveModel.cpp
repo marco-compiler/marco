@@ -1,6 +1,6 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/codegen/dialects/modelica/MOdelicaBuilder.h"
+#include "marco/codegen/dialects/modelica/ModelicaBuilder.h"
 #include "marco/codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/codegen/passes/SolveModel.h"
 #include "marco/codegen/passes/TypeConverter.h"
