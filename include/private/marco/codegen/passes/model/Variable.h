@@ -4,6 +4,7 @@
 #include "marco/codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/modeling/Dependency.h"
 #include "marco/modeling/Matching.h"
+#include "marco/utils/Shape.h"
 #include <memory>
 
 namespace marco::codegen
@@ -28,7 +29,7 @@ namespace marco::codegen
 
       Id getId() const;
       size_t getRank() const;
-      long getDimensionSize(size_t index) const;
+      Shape::DimensionSize getDimensionSize(size_t index) const;
 
       mlir::Value getValue() const;
       modelica::MemberCreateOp getDefiningOp() const;
@@ -110,7 +111,7 @@ namespace marco::modeling
         return (*variable)->getRank();
       }
 
-      static long getDimensionSize(const Variable* variable, size_t index)
+      static Shape::DimensionSize getDimensionSize(const Variable* variable, size_t index)
       {
         return (*variable)->getDimensionSize(index);
       }

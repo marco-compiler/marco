@@ -7,6 +7,8 @@
 #include <queue>
 #include <set>
 
+
+using namespace marco;
 using namespace marco::codegen;
 using namespace modelica;
 
@@ -29,7 +31,7 @@ static void getDynamicDimensions(mlir::OpBuilder& builder,
 	{
 		for (const auto& dimension : llvm::enumerate(arrayType.getShape()))
 		{
-			if (dimension.value() == -1)
+			if (dimension.value().isUndefined())
 			{
 				mlir::Value index = builder.create<ConstantOp>(value.getLoc(), builder.getIndexAttr(dimension.index()));
 				mlir::Value dim = builder.create<DimOp>(value.getLoc(), value, index);
@@ -131,7 +133,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	// then the result should become an array in which every index stores
 	// the partial derivative with respect to that argument array index.
 
-	llvm::SmallVector<long, 3> resultDimensions;
+	Shape resultDimensions;
 
 	{
 		auto argIndex = [&](llvm::StringRef name) -> llvm::Optional<size_t> {
@@ -170,8 +172,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	{
 		if (isVectorized)
 		{
-			llvm::SmallVector<long, 3> dimensions(
-					resultDimensions.begin(), resultDimensions.end());
+			Shape dimensions = resultDimensions;
 
 			if (auto arrayType = type.dyn_cast<ArrayType>())
 			{

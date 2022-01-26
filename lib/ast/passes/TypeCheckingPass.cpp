@@ -12,6 +12,9 @@ using namespace marco::ast;
 
 static bool operator>=(Type x, Type y)
 {
+	if (x.to({1})==y.to({1})) //check if equal, not considering dimensions.
+		return true;
+
 	assert(x.isa<BuiltInType>());
 	assert(y.isa<BuiltInType>());
 
@@ -1694,7 +1697,7 @@ llvm::Error TypeChecker::run(Member& member)
 		auto pre = dimensions.begin();
 
 		if(pre->isRagged())
-			llvm::make_error<BadSemantic>(
+			return llvm::make_error<BadSemantic>(
 					member.getLocation(),"invalid ragged type shape: the first dimension cannot be ragged.");
 
 		for(auto it=std::next(pre); it!=dimensions.end(); it++)
@@ -2508,12 +2511,14 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 
 			auto arg=[&](size_t index){ return op->getArg(index)->get<Constant>()->as<BuiltInType::Integer>();};
 
-			long begin=arg(0), end=arg(1), step=1;
+			size_t end_index = 1;
+			long begin=arg(0), end=arg(end_index), step=1;
 
 			if(op->argumentsCount()==3)
 			{
 				step=end;
-				end=arg(2);
+				end_index = 2;
+				end=arg(end_index);
 			}
 
 			assert(begin>=0);
@@ -2521,6 +2526,10 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 			assert(step>=1);
 
 			if(end==-1){
+				end = dimensions.front().getNumericSize();
+				// update the ast end value as well
+				op->getArg(end_index)->get<Constant>()->visit([&](auto &val){val=end;});
+
 				if(begin==0 && step==1)
 				{
 					// keep the whole dimensions, like in x[:,2]
@@ -2542,7 +2551,6 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 					continue;
 				}
 
-				end = dimensions.front().getNumericSize();
 			}
 
 			*it = (end-begin) / step;

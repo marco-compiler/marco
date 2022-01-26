@@ -9,6 +9,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include <numeric>
 
+using namespace marco;
 using namespace marco::codegen;
 using namespace modelica;
 
@@ -30,7 +31,7 @@ static void getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location l
 
 	for (const auto& dimension : llvm::enumerate(arrayType.getShape()))
 	{
-		if (dimension.value() == -1)
+		if (dimension.value().isUndefined())
 		{
 			mlir::Value dim = builder.create<ConstantOp>(loc, builder.getIndexAttr(dimension.index()));
 			dimensions.push_back(builder.create<DimOp>(loc, array, dim));
@@ -369,7 +370,7 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 				// We need to allocate a fake buffer in order to allow the first
 				// free operation to operate on a valid memory area.
 
-				ArrayType::Shape shape(arrayType.getRank(), 0);
+				Shape shape(arrayType.getRank(), 0);
 				mlir::Value var = rewriter.create<AllocOp>(loc, arrayType.getElementType(), shape, llvm::None, false);
 				var = rewriter.create<ArrayCastOp>(loc, var, arrayType);
 				rewriter.create<StoreOp>(loc, var, stackValue);
@@ -559,7 +560,7 @@ struct ArrayCloneOpLowering : public ModelicaOpConversion<ArrayCloneOp>
 
 		for (auto size : llvm::enumerate(op.resultType().getShape()))
 		{
-			if (size.value() == -1)
+			if (size.value().isUndefined())
 			{
 				mlir::Value index = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
 				mlir::Value dim = rewriter.create<DimOp>(loc, op.source(), index);
@@ -709,7 +710,7 @@ struct AndOpArrayLowering : public mlir::OpRewritePattern<AndOp>
 
 			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
-				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				if (lhsShape[i].isUndefined() || rhsShape[i].isUndefined())
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
 					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -807,7 +808,7 @@ struct OrOpArrayLowering : public mlir::OpRewritePattern<OrOp>
 
 			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
-				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				if (lhsShape[i].isUndefined() || rhsShape[i].isUndefined())
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
 					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -1226,7 +1227,7 @@ struct AddOpLikeArraysLowering : public mlir::OpRewritePattern<FromOp>
 			auto lhsDimension = std::get<0>(pair);
 			auto rhsDimension = std::get<1>(pair);
 
-			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+			if (!lhsDimension.isUndefined() && !rhsDimension.isUndefined() && lhsDimension != rhsDimension)
 				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
 		}
 
@@ -1246,7 +1247,7 @@ struct AddOpLikeArraysLowering : public mlir::OpRewritePattern<FromOp>
 
 			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
-				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				if (lhsShape[i].isUndefined() || rhsShape[i].isUndefined())
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
 					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -1422,7 +1423,7 @@ struct SubOpLikeArraysLowering : public mlir::OpRewritePattern<FromOp>
 			auto lhsDimension = std::get<0>(pair);
 			auto rhsDimension = std::get<1>(pair);
 
-			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+			if (!lhsDimension.isUndefined() && !rhsDimension.isUndefined() && lhsDimension != rhsDimension)
 				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
 		}
 
@@ -1442,7 +1443,7 @@ struct SubOpLikeArraysLowering : public mlir::OpRewritePattern<FromOp>
 
 			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
-				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				if (lhsShape[i].isUndefined() || rhsShape[i].isUndefined())
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
 					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -1683,7 +1684,7 @@ struct MulOpCrossProductLowering : public ModelicaOpConversion<MulOp>
 		if (rhsArrayType.getRank() != 1)
 			return rewriter.notifyMatchFailure(op, "Cross product: right-hand side arrays is not 1D");
 
-		if (lhsArrayType.getShape()[0] != -1 && rhsArrayType.getShape()[0] != -1)
+		if (!lhsArrayType.getShape()[0].isUndefined() && !rhsArrayType.getShape()[0].isUndefined())
 			if (lhsArrayType.getShape()[0] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Cross product: the two arrays have different shape");
 
@@ -1696,7 +1697,7 @@ struct MulOpCrossProductLowering : public ModelicaOpConversion<MulOp>
 			auto lhsShape = lhsArrayType.getShape();
 			auto rhsShape = rhsArrayType.getShape();
 
-			if (lhsShape[0] == -1 || rhsShape[0] == -1)
+			if (lhsShape[0].isUndefined() || rhsShape[0].isUndefined())
 			{
 				mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -1770,7 +1771,7 @@ struct MulOpVectorMatrixLowering : public ModelicaOpConversion<MulOp>
 		if (rhsArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Vector-matrix product: right-hand side matrix is not 2-D");
 
-		if (lhsArrayType.getShape()[0] != -1 && rhsArrayType.getShape()[0] != -1)
+		if (!lhsArrayType.getShape()[0].isUndefined() && !rhsArrayType.getShape()[0].isUndefined())
 			if (lhsArrayType.getShape()[0] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Vector-matrix product: incompatible shapes");
 
@@ -1783,7 +1784,7 @@ struct MulOpVectorMatrixLowering : public ModelicaOpConversion<MulOp>
 			auto lhsShape = lhsArrayType.getShape();
 			auto rhsShape = rhsArrayType.getShape();
 
-			if (lhsShape[0] == -1 || rhsShape[0] == -1)
+			if (lhsShape[0].isUndefined() || rhsShape[0].isUndefined())
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), zero);
@@ -1801,7 +1802,7 @@ struct MulOpVectorMatrixLowering : public ModelicaOpConversion<MulOp>
 
 		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
-		if (shape[0] == -1)
+		if (shape[0].isUndefined())
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
 					loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1))));
 
@@ -1876,7 +1877,7 @@ struct MulOpMatrixVectorLowering : public ModelicaOpConversion<MulOp>
 		if (rhsArrayType.getRank() != 1)
 			return rewriter.notifyMatchFailure(op, "Matrix-vector product: right-hand side matrix is not 1-D");
 
-		if (lhsArrayType.getShape()[1] != -1 && rhsArrayType.getShape()[0] != -1)
+		if (!lhsArrayType.getShape()[1].isUndefined() && !rhsArrayType.getShape()[0].isUndefined())
 			if (lhsArrayType.getShape()[1] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Matrix-vector product: incompatible shapes");
 
@@ -1889,7 +1890,7 @@ struct MulOpMatrixVectorLowering : public ModelicaOpConversion<MulOp>
 			auto lhsShape = lhsArrayType.getShape();
 			auto rhsShape = rhsArrayType.getShape();
 
-			if (lhsShape[1] == -1 || rhsShape[0] == -1)
+			if (lhsShape[1].isUndefined() || rhsShape[0].isUndefined())
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
@@ -1907,7 +1908,7 @@ struct MulOpMatrixVectorLowering : public ModelicaOpConversion<MulOp>
 
 		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
-		if (shape[0] == -1)
+		if (shape[0].isUndefined())
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
 					loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0))));
 
@@ -1984,7 +1985,7 @@ struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 		if (rhsArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Matrix product: right-hand side matrix is not 2-D");
 
-		if (lhsArrayType.getShape()[1] != -1 && rhsArrayType.getShape()[0] != -1)
+		if (!lhsArrayType.getShape()[1].isUndefined() && !rhsArrayType.getShape()[0].isUndefined())
 			if (lhsArrayType.getShape()[1] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Matrix-vector product: incompatible shapes");
 
@@ -1997,7 +1998,7 @@ struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 			auto lhsShape = lhsArrayType.getShape();
 			auto rhsShape = rhsArrayType.getShape();
 
-			if (lhsShape[1] == -1 || rhsShape[0] == -1)
+			if (lhsShape[1].isUndefined() || rhsShape[0].isUndefined())
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
@@ -2015,11 +2016,11 @@ struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 
 		llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
 
-		if (shape[0] == -1)
+		if (shape[0].isUndefined())
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
 					loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0))));
 
-		if (shape[1] == -1)
+		if (shape[1].isUndefined())
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
 					loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1))));
 
@@ -2108,7 +2109,7 @@ struct MulElementWiseOpArraysLowering : public mlir::OpRewritePattern<MulElement
 			auto lhsDimension = std::get<0>(pair);
 			auto rhsDimension = std::get<1>(pair);
 
-			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+			if (!lhsDimension.isUndefined() && !rhsDimension.isUndefined() && lhsDimension != rhsDimension)
 				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
 		}
 
@@ -2128,7 +2129,7 @@ struct MulElementWiseOpArraysLowering : public mlir::OpRewritePattern<MulElement
 
 			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
-				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				if (lhsShape[i].isUndefined() || rhsShape[i].isUndefined())
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
 					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -2336,7 +2337,7 @@ struct DivElementWiseOpArraysLowering : public mlir::OpRewritePattern<DivElement
 			auto lhsDimension = std::get<0>(pair);
 			auto rhsDimension = std::get<1>(pair);
 
-			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+			if (!lhsDimension.isUndefined() && !rhsDimension.isUndefined() && lhsDimension != rhsDimension)
 				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
 		}
 
@@ -2356,7 +2357,7 @@ struct DivElementWiseOpArraysLowering : public mlir::OpRewritePattern<DivElement
 
 			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
-				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				if (lhsShape[i].isUndefined() || rhsShape[i].isUndefined())
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
 					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
@@ -2446,7 +2447,7 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 		if (baseArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Base array is not 2-D");
 
-		if (baseArrayType.getShape()[0] != -1 && baseArrayType.getShape()[1] != -1)
+		if (!baseArrayType.getShape()[0].isUndefined() && !baseArrayType.getShape()[1].isUndefined())
 			if (baseArrayType.getShape()[0] != baseArrayType.getShape()[1])
 				return rewriter.notifyMatchFailure(op, "Base is not a square matrix");
 
@@ -2460,7 +2461,7 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 			// Check if the matrix is a square one
 			auto shape = baseArrayType.getShape();
 
-			if (shape[0] == -1 || shape[1] == -1)
+			if (shape[0].isUndefined() || shape[1].isUndefined())
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
@@ -2687,7 +2688,7 @@ struct DiagonalOpLowering : public ModelicaOpConversion<DiagonalOp>
 
 		for (const auto& size : arrayType.getShape())
 		{
-			if (size == -1)
+			if (size.isUndefined())
 			{
 				if (castedSize == nullptr)
 				{
@@ -2790,7 +2791,7 @@ struct IdentityOpLowering : public ModelicaOpConversion<IdentityOp>
 
 		for (const auto& size : arrayType.getShape())
 		{
-			if (size == -1)
+			if (size.isUndefined())
 			{
 				if (castedSize == nullptr)
 					castedSize = rewriter.create<CastOp>(loc, op.size(), rewriter.getIndexType());
@@ -2933,7 +2934,7 @@ struct OnesOpLowering : public ModelicaOpConversion<OnesOp>
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
 		for (auto size : llvm::enumerate(arrayType.getShape()))
-			if (size.value() == -1)
+			if (size.value().isUndefined())
 				dynamicDimensions.push_back(rewriter.create<CastOp>(loc, op.sizes()[size.index()], rewriter.getIndexType()));
 
 		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
@@ -3334,7 +3335,7 @@ struct SymmetricOpLowering : public ModelicaOpConversion<SymmetricOp>
 
 		for (auto size : llvm::enumerate(shape))
 		{
-			if (size.value() == -1)
+			if (size.value().isUndefined())
 			{
 				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
 				dynamicDimensions.push_back(rewriter.create<DimOp>(loc, op.matrix(), index));
@@ -3344,7 +3345,7 @@ struct SymmetricOpLowering : public ModelicaOpConversion<SymmetricOp>
 		if (options.assertions)
 		{
 			// Check if the matrix is a square one
-			if (shape[0] == -1 || shape[1] == -1)
+			if (shape[0].isUndefined() || shape[1].isUndefined())
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
@@ -3442,7 +3443,7 @@ struct TransposeOpLowering : public ModelicaOpConversion<TransposeOp>
 
 		for (auto size : llvm::enumerate(shape))
 		{
-			if (size.value() == -1)
+			if (size.value().isUndefined())
 			{
 				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(shape.size() - size.index() - 1));
 				mlir::Value dim = rewriter.create<DimOp>(loc, op.matrix(), index);
@@ -3487,7 +3488,7 @@ struct ZerosOpLowering : public ModelicaOpConversion<ZerosOp>
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
 		for (auto size : llvm::enumerate(arrayType.getShape()))
-			if (size.value() == -1)
+			if (size.value().isUndefined())
 				dynamicDimensions.push_back(rewriter.create<CastOp>(loc, op.sizes()[size.index()], rewriter.getIndexType()));
 
 		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
