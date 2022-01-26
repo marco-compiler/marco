@@ -19,9 +19,10 @@
 #include <cassert>
 #include <memory>
 
-using namespace marco;
-using namespace codegen;
-using namespace modelica;
+using namespace ::marco;
+using namespace ::marco::codegen;
+using namespace ::marco::codegen::modelica;
+using namespace ::marco::modeling;
 
 // TODO factor out from here and AD pass (and maybe also from somewhere else)
 template <class T>
@@ -62,22 +63,6 @@ static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsig
 
   return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
 }
-
-
-
-
-class Model
-{
-
-   void add(EquationOp equation)
-   {
-     equations.push_back(equation.getOperation());
-   }
-
-  llvm::SmallVector<mlir::Operation*, 3> equations;
-
-  std::map<EquationOp, std::vector<std::pair<long, long>>> map;
-};
 
 
 struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
@@ -1333,11 +1318,209 @@ struct EquationSidesOpPattern : public mlir::OpRewritePattern<EquationSidesOp>
   }
 };
 
-/**
- * Model solver pass.
- * Its objective is to convert a descriptive (and thus not sequential) model
- * into an algorithmic one.
- */
+/// Remove the derivative operations by replacing them with appropriate
+/// buffers, and set the derived variables as state variables.
+static mlir::LogicalResult removeDerivatives(
+    mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  auto appendIndexesFn = [](llvm::SmallVectorImpl<mlir::Value>& destination, mlir::ValueRange indexes) {
+    for (size_t i = 0, e = indexes.size(); i < e; ++i) {
+      mlir::Value index = indexes[e - 1 - i];
+      destination.push_back(index);
+    }
+  };
+
+  auto derivativeOrder = [&](mlir::Value value) -> unsigned int {
+    auto inverseMap = derivatives.getInverse();
+    unsigned int result = 0;
+
+    while (inverseMap.contains(value)) {
+      ++result;
+      value = inverseMap.lookup(value);
+    }
+
+    return result;
+  };
+
+  model.getOperation().walk([&](DerOp op) {
+    mlir::Location loc = op->getLoc();
+    mlir::Value operand = op.operand();
+
+    // If the value to be derived belongs to an array, then also the derived
+    // value is stored within an array. Thus, we need to store its position.
+
+    llvm::SmallVector<mlir::Value, 3> subscriptions;
+
+    while (!operand.isa<mlir::BlockArgument>())
+    {
+      mlir::Operation* definingOp = operand.getDefiningOp();
+      assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
+
+      if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp))
+      {
+        appendIndexesFn(subscriptions, loadOp.indexes());
+        operand = loadOp.memory();
+      }
+
+      auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
+      appendIndexesFn(subscriptions, subscriptionOp.indexes());
+      operand = subscriptionOp.source();
+    }
+
+    if (!derivatives.contains(operand))
+    {
+      auto model = op->getParentOfType<ModelOp>();
+      auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
+      builder.setInsertionPoint(terminator);
+
+      size_t index = operand.cast<mlir::BlockArgument>().getArgNumber();
+      auto memberCreateOp = terminator.values()[index].getDefiningOp<MemberCreateOp>();
+      auto nextDerName = getNextFullDerVariableName(memberCreateOp.name(), derivativeOrder(operand) + 1);
+
+      assert(operand.getType().isa<ArrayType>());
+      auto arrayType = operand.getType().cast<ArrayType>().toElementType(RealType::get(builder.getContext()));
+
+      // Create the member and initialize it
+      auto memberType = MemberType::get(arrayType.toAllocationScope(BufferAllocationScope::heap));
+      mlir::Value memberDer = builder.create<MemberCreateOp>(loc, nextDerName, memberType, memberCreateOp.dynamicDimensions(), memberCreateOp.isConstant());
+      mlir::Value zero = builder.create<ConstantOp>(loc, RealAttribute::get(builder.getContext(), 0));
+      mlir::Value array = builder.create<MemberLoadOp>(loc, memberType.unwrap(), memberDer);
+      builder.create<FillOp>(loc, zero, array);
+
+      // Update the terminator values
+      llvm::SmallVector<mlir::Value, 3> args(terminator.values().begin(), terminator.values().end());
+      args.push_back(memberDer);
+      builder.create<YieldOp>(loc, args);
+      terminator.erase();
+
+      // Add the new argument to the body of the model
+      auto bodyArgument = model.body().addArgument(arrayType);
+      derivatives.map(operand, bodyArgument);
+    }
+
+    builder.setInsertionPoint(op);
+    mlir::Value derVar = derivatives.lookup(operand);
+
+    llvm::SmallVector<mlir::Value, 3> reverted(subscriptions.rbegin(), subscriptions.rend());
+
+    if (!subscriptions.empty()) {
+      derVar = builder.create<SubscriptionOp>(loc, derVar, reverted);
+    }
+
+    if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0) {
+      derVar = builder.create<LoadOp>(loc, derVar);
+    }
+
+    op.replaceAllUsesWith(derVar);
+    op.erase();
+  });
+
+  return mlir::success();
+}
+
+/// Get all the variables that are declared inside the Model operation, independently
+/// from their nature (state variables, constants, etc.).
+static Variables discoverVariables(const Model& model)
+{
+  Variables result;
+
+  mlir::ValueRange vars = model.getOperation().body().getArguments();
+
+  for (size_t i = 1; i < vars.size(); ++i) {
+    result.add(std::make_unique<Variable>(vars[i]));
+  }
+
+  return result;
+}
+
+/// Get the equations that are declared inside the Model operation.
+static Equations discoverEquations(const Model& model)
+{
+  Equations result;
+  auto variables = model.getVariables();
+
+  model.getOperation().walk([&](EquationOp equationOp) {
+    result.add(std::make_unique<Equation>(equationOp, variables));
+  });
+
+  return result;
+}
+
+/// Match each scalar variable to a scalar equation.
+static mlir::LogicalResult matching(
+    mlir::OpBuilder& builder, Model& model, const mlir::BlockAndValueMapping& derivatives)
+{
+  ModelOp modelOp = model.getOperation();
+  Variables allVariables = model.getVariables();
+
+  // Filter the variables. State and constant ones must not in fact
+  // take part into the matching process as their values are already
+  // determined (state variables depend on their derivatives, while
+  // constants have a fixed value).
+
+  Variables variables;
+
+  for (const auto& variable : allVariables) {
+    mlir::Value var = variable->getValue();
+
+    if (!derivatives.contains(var)) {
+      auto nonStateVariable = std::make_unique<Variable>(var);
+
+      if (!nonStateVariable->isConstant()) {
+        variables.add(std::move(nonStateVariable));
+      }
+    }
+  }
+
+  model.setVariables(variables);
+  model.getEquations().setVariables(model.getVariables());
+
+  MatchingGraph<Variable*, Equation*> matchingGraph;
+
+  for (const auto& variable : model.getVariables()) {
+    matchingGraph.addVariable(variable.get());
+  }
+
+  for (const auto& equation : model.getEquations()) {
+    matchingGraph.addEquation(equation.get());
+  }
+
+  if (!matchingGraph.simplify())
+  {
+    model.getOperation().emitError("Inconsistency found during the matching simplification process");
+    return mlir::failure();
+  }
+
+  if (!matchingGraph.match())
+  {
+    model.getOperation().emitError("Matching failed");
+    return mlir::failure();
+  }
+
+  /*
+  for (auto& solution : matchingGraph.getMatch())
+  {
+    auto& equation = solution.getEquation();
+    auto clone = equation.cloneIR();
+    const auto& access = solution.getAccess();
+
+    if (auto status = clone.explicitate(access); mlir::failed(status))
+      return status;
+  }
+
+  // Erase the old equations
+  for (auto& equation : equations)
+    equation.eraseIR();
+    */
+
+  return mlir::success();
+}
+
+/// Model solving pass.
+/// Its objective is to convert a descriptive (and thus not sequential) model
+/// into an algorithmic one and to create the functions controlling the simulation.
 class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<ModelOp>>
 {
 	public:
@@ -1356,21 +1539,27 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	void runOnOperation() override
 	{
-		mlir::BlockAndValueMapping derivatives;
-    ModelOp model = getOperation();
-    mlir::OpBuilder builder(model);
+    Model model(getOperation());
+    mlir::OpBuilder builder(model.getOperation());
 
-    // Remove the derivative operations and allocate the appropriate variables
-    if (failed(removeDerivatives(builder, model, derivatives)))
-    {
-      model.emitError("Derivative could not be converted to variables");
+    // Remove the derivative operations and allocate the appropriate memory buffers
+    mlir::BlockAndValueMapping derivatives;
+
+    if (failed(removeDerivatives(builder, model, derivatives))) {
+      model.getOperation().emitError("Derivative could not be converted to variables");
       return signalPassFailure();
     }
 
-    // Matching process
-    if (mlir::failed(matching(builder, derivatives)))
-      return signalPassFailure();
+    // Now that the additional variables have been created, we can start a discovery process
+    model.setVariables(discoverVariables(model));
+    model.setEquations(discoverEquations(model));
 
+    // Matching process
+    if (mlir::failed(::matching(builder, model, derivatives))) {
+      return signalPassFailure();
+    }
+
+    /*
     // Select and use the solver
     if (failed(selectSolver(builder, derivatives)))
       return signalPassFailure();
@@ -1379,6 +1568,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     // functions and, if requested, the main simulation loop.
     if (auto status = createSimulationFunctions(derivatives); failed(status))
     	return signalPassFailure();
+     */
 
     /*
     // Create the model
@@ -1418,173 +1608,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		//	return signalPassFailure();
 	}
 
-	/**
-	 * Remove the derivative operations by replacing them with appropriate
-	 * buffers, and set the derived variables as state variables.
-	 *
-	 * @param builder         operation builder
-	 * @param derivatives     derivatives map
-	 * @return conversion result
-	 */
-	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, ModelOp& model, mlir::BlockAndValueMapping& derivatives)
-	{
-    mlir::OpBuilder::InsertionGuard guard(builder);
 
-    auto appendIndexesFn = [](llvm::SmallVectorImpl<mlir::Value>& destination, mlir::ValueRange indexes) {
-      for (size_t i = 0, e = indexes.size(); i < e; ++i)
-      {
-        mlir::Value index = indexes[e - 1 - i];
-        destination.push_back(index);
-      }
-    };
 
-    auto derivativeOrder = [&](mlir::Value value) -> unsigned int {
-      auto inverseMap = derivatives.getInverse();
-      unsigned int result = 0;
-
-      while (inverseMap.contains(value))
-      {
-        ++result;
-        value = inverseMap.lookup(value);
-      }
-
-      return result;
-    };
-
-    model.walk([&](DerOp op) {
-      mlir::Location loc = op->getLoc();
-      mlir::Value operand = op.operand();
-
-      // If the value to be derived belongs to an array, then also the derived
-      // value is stored within an array. Thus, we need to store its position.
-
-      llvm::SmallVector<mlir::Value, 3> subscriptions;
-
-      while (!operand.isa<mlir::BlockArgument>())
-      {
-        mlir::Operation* definingOp = operand.getDefiningOp();
-        assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
-
-        if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp))
-        {
-          appendIndexesFn(subscriptions, loadOp.indexes());
-          operand = loadOp.memory();
-        }
-
-        auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
-        appendIndexesFn(subscriptions, subscriptionOp.indexes());
-        operand = subscriptionOp.source();
-      }
-
-      if (!derivatives.contains(operand))
-      {
-        auto model = op->getParentOfType<ModelOp>();
-        auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
-        builder.setInsertionPoint(terminator);
-
-        size_t index = operand.cast<mlir::BlockArgument>().getArgNumber();
-        auto memberCreateOp = terminator.values()[index].getDefiningOp<MemberCreateOp>();
-        auto nextDerName = getNextFullDerVariableName(memberCreateOp.name(), derivativeOrder(operand) + 1);
-
-        assert(operand.getType().isa<ArrayType>());
-        auto arrayType = operand.getType().cast<ArrayType>().toElementType(RealType::get(builder.getContext()));
-
-        // Create the member and initialize it
-        auto memberType = MemberType::get(arrayType.toAllocationScope(BufferAllocationScope::heap));
-        mlir::Value memberDer = builder.create<MemberCreateOp>(loc, nextDerName, memberType, memberCreateOp.dynamicDimensions(), memberCreateOp.isConstant());
-        mlir::Value zero = builder.create<ConstantOp>(loc, RealAttribute::get(builder.getContext(), 0));
-        mlir::Value array = builder.create<MemberLoadOp>(loc, memberType.unwrap(), memberDer);
-        builder.create<FillOp>(loc, zero, array);
-
-        // Update the terminator values
-        llvm::SmallVector<mlir::Value, 3> args(terminator.values().begin(), terminator.values().end());
-        args.push_back(memberDer);
-        builder.create<YieldOp>(loc, args);
-        terminator.erase();
-
-        // Add the new argument to the body of the model
-        auto bodyArgument = model.body().addArgument(arrayType);
-        derivatives.map(operand, bodyArgument);
-      }
-
-      builder.setInsertionPoint(op);
-      mlir::Value derVar = derivatives.lookup(operand);
-
-      llvm::SmallVector<mlir::Value, 3> reverted(subscriptions.rbegin(), subscriptions.rend());
-
-      if (!subscriptions.empty())
-        derVar = builder.create<SubscriptionOp>(loc, derVar, reverted);
-
-      if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0)
-        derVar = builder.create<LoadOp>(loc, derVar);
-
-      op.replaceAllUsesWith(derVar);
-      op.erase();
-    });
-
-    return mlir::success();
-	}
-
-  mlir::LogicalResult matching(mlir::OpBuilder& builder, const mlir::BlockAndValueMapping& derivatives)
-  {
-    /*
-    ModelOp model = getOperation();
-    matching::MatchingGraph<Variable, Equation> matchingGraph;
-
-    llvm::SmallVector<Equation, 3> equations;
-    llvm::SmallVector<Variable, 3> variables;
-
-    mlir::ValueRange vars = model.body().getArguments();
-
-    for (size_t i = 1; i < vars.size(); ++i)
-    {
-      if (!derivatives.contains(vars[i]))
-      {
-        Variable variable(vars[i]);
-
-        if (!variable.isConstant())
-        {
-          variables.push_back(variable);
-          matchingGraph.addVariable(variable);
-        }
-      }
-    }
-
-    model.walk([&](EquationOp equationOp) {
-        Equation equation(equationOp, variables);
-        equations.push_back(equation);
-        matchingGraph.addEquation(equation);
-    });
-
-    if (!matchingGraph.simplify())
-    {
-      model.emitError("Inconsistency found during the matching simplification process");
-      return mlir::failure();
-    }
-
-    if (!matchingGraph.match())
-    {
-      model.emitError("Matching failed");
-      return mlir::failure();
-    }
-
-    for (auto& solution : matchingGraph.getMatch())
-    {
-      auto& equation = solution.getEquation();
-      auto clone = equation.cloneIR();
-      const auto& access = solution.getAccess();
-
-      if (auto status = clone.explicitate(access); mlir::failed(status))
-        return status;
-    }
-
-    // Erase the old equations
-    for (auto& equation : equations)
-      equation.eraseIR();
-    */
-
-    return mlir::success();
-  }
 
 	mlir::LogicalResult selectSolver(mlir::OpBuilder& builder, const mlir::BlockAndValueMapping& derivatives)
 	{

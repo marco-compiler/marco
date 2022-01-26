@@ -272,6 +272,10 @@ namespace marco::modeling
                 llvm::ArrayRef<Dependency> dependencies = interval.getDestinations();
                 std::vector<Dependency> newDependencies(dependencies.begin(), dependencies.end());
 
+                auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<FilteredEquation>(*graph, next->getEquation()));
+                newDependency.getNode().addListIt(next, end);
+
+                /*
                 auto dependency = llvm::find_if(newDependencies, [&](const Dependency& dependency) {
                   return dependency.getNode().equation == step->getEquation();
                 });
@@ -282,6 +286,7 @@ namespace marco::modeling
                 } else {
                   dependency->getNode().addListIt(next, end);
                 }
+                 */
 
                 Interval newInterval(intersectingRange, newDependencies);
                 newIntervals.push_back(std::move(newInterval));
@@ -481,6 +486,12 @@ namespace marco::modeling
             cyclicPaths.push_back(std::move(path));
             return true;
           }
+
+          // Also search in the already identified cycles
+
+          //auto cycle = llvm::find_if(cyclicPaths, [&](const std::list<DFSStep>& cycle) {
+
+          //});
 
           // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
           // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
