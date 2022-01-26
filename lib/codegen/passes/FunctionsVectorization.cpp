@@ -3,6 +3,7 @@
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/SCF/SCF.h"
 
+using namespace marco;
 using namespace marco::codegen;
 using namespace modelica;
 
@@ -17,7 +18,7 @@ static unsigned int getVectorizationRank(VectorizableOpInterface op)
 	// List of the additional dimensions with respect to the expected scalar
 	// arguments.
 
-	llvm::SmallVector<long, 3> dimensions;
+	Shape dimensions;
 
 	auto args = op.getArgs();
 
@@ -63,18 +64,18 @@ static unsigned int getVectorizationRank(VectorizableOpInterface op)
 
 				// If the dimension is dynamic, then no further checks or
 				// specializations are possible.
-				if (dimension == -1)
+				if (dimension.isUndefined())
 					continue;
 
 				// If the dimension determined by the first argument is fixed,
 				// then also the dimension of the other arguments must match
 				// (when that's fixed too).
-				if (dimensions[i] != -1 && dimensions[i] != dimension)
+				if (!dimensions[i].isUndefined() && dimensions[i] != dimension)
 					return 0;
 
 				// If the dimension determined by the first argument is dynamic, then
 				// set it to a required size.
-				if (dimensions[i] == -1)
+				if (dimensions[i].isUndefined())
 					dimensions[i] = dimension;
 			}
 		}
@@ -148,14 +149,14 @@ class FunctionsVectorizationPass: public mlir::PassWrapper<FunctionsVectorizatio
 		for (const auto& resultType : op->getResultTypes())
 		{
 			assert(resultType.isa<ArrayType>());
-			llvm::SmallVector<long, 3> shape;
+			Shape shape;
 			llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
 			for (const auto& dimension : llvm::enumerate(resultType.cast<ArrayType>().getShape()))
 			{
 				shape.push_back(dimension.value());
 
-				if (dimension.value() == -1)
+				if (dimension.value().isUndefined())
 				{
 					// Get the actual size from the first operand. Others should have
 					// the same size by construction.

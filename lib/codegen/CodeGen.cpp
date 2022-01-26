@@ -441,6 +441,27 @@ mlir::Operation* MLIRLowerer::lower(const ast::Record& record)
 	return nullptr;
 }
 
+
+Shape::DimensionSize convertArrayDimension(const ArrayDimension &dimension)
+{
+	Shape::DimensionSize dim;
+
+	if (dimension.isDynamic())
+		return Shape::DimensionSize::makeUndefined();
+	else if(dimension.isRagged())
+	{
+		llvm::SmallVector<Shape::DimensionSize,3> arr;
+
+		for(const auto r : dimension.getRaggedSize()){
+			arr.push_back(convertArrayDimension(r));
+		}
+		return Shape::DimensionSize(arr);
+	}
+	else
+		return dimension.getNumericSize();
+	
+}
+
 mlir::Type MLIRLowerer::lower(const Type& type, BufferAllocationScope desiredAllocationScope)
 {
 	auto visitor = [&](const auto& obj) -> mlir::Type
@@ -449,15 +470,11 @@ mlir::Type MLIRLowerer::lower(const Type& type, BufferAllocationScope desiredAll
 
 		if (!type.isScalar())
 		{
-			const auto& dimensions = type.getDimensions();
-			llvm::SmallVector<long, 3> shape;
+			Shape shape;
 
 			for (const auto& dimension : type.getDimensions())
 			{
-				if (dimension.isDynamic())
-					shape.emplace_back(-1);
-				else
-					shape.emplace_back(dimension.getNumericSize());
+				shape.push_back(convertArrayDimension(dimension));
 			}
 
 			return builder.getArrayType(desiredAllocationScope, baseType, shape).toMinAllowedAllocationScope();
@@ -579,7 +596,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 	mlir::Type type = lower(frontendType, member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
 	llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
-	MemberType::Shape shape;
+	Shape shape;
 
 	if (auto arrayType = type.dyn_cast<ArrayType>())
 	{

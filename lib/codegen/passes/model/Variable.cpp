@@ -1,5 +1,6 @@
 #include "marco/codegen/passes/model/Variable.h"
 
+using namespace marco;
 using namespace marco::codegen;
 using namespace marco::codegen::modelica;
 
@@ -32,7 +33,7 @@ namespace marco::codegen
 
     virtual size_t getRank() const = 0;
 
-    virtual long getDimensionSize(size_t index) const = 0;
+    virtual Shape::DimensionSize getDimensionSize(size_t index) const = 0;
 
     mlir::Value getValue() const
     {
@@ -72,7 +73,7 @@ class ScalarVariable : public Variable::Impl
     return 1;
   }
 
-  long getDimensionSize(size_t index) const override
+  Shape::DimensionSize getDimensionSize(size_t index) const override
   {
     return 1;
   }
@@ -99,7 +100,7 @@ class ArrayVariable : public Variable::Impl
     return getValue().getType().cast<ArrayType>().getRank();
   }
 
-  long getDimensionSize(size_t index) const override
+  Shape::DimensionSize getDimensionSize(size_t index) const override
   {
     return getValue().getType().cast<ArrayType>().getShape()[index];
   }
@@ -148,7 +149,7 @@ namespace marco::codegen
     return impl->getRank();
   }
 
-  long Variable::getDimensionSize(size_t index) const
+  Shape::DimensionSize Variable::getDimensionSize(size_t index) const
   {
     return impl->getDimensionSize(index);
   }

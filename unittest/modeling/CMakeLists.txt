@@ -22,4 +22,4 @@ marco_add_unittest(ModelingTest ${SOURCES})
 marco_link_llvm_libs(ModelingTest Core Support)
 
 target_link_libraries(ModelingTest
-    PRIVATE marco::modeling)
+    PRIVATE marco::modeling  PRIVATE marco::utils)

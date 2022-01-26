@@ -334,7 +334,7 @@ namespace marco::codegen
 
     if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>()) {
       for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
-        result.emplace_back(0, arrayType.getShape()[i]);
+        result.emplace_back(0, arrayType.getShape()[i].getNumericValue()); //todo: handle ragged case
       }
     }
 
