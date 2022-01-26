@@ -1630,6 +1630,42 @@ llvm::Error TypeChecker::run<RecordInstance>(Expression& expression)
 	return llvm::Error::success();
 }
 
+llvm::Error checkRuggedDimensions(const ArrayDimension &pre, const ArrayDimension &it, const SourceRange location)
+{
+	if(it.isRagged()){
+		auto d_it  = it.getRaggedSize();
+
+		if(pre.isDynamic() || it.isDynamic())
+			return llvm::make_error<BadSemantic>(location,"ragged dynamic type not supported.");
+		
+		if(pre.isRagged()){
+			auto d_pre = pre.getRaggedSize();
+
+			if(d_it.size() != d_pre.size())
+				return llvm::make_error<BadSemantic>(location,"inconsistent ragged dimensions.");
+
+			for (const auto& [l, r] : llvm::zip(d_pre, d_it))
+			{
+				if(auto result=checkRuggedDimensions(l,r,location);!result)
+					return result;
+			}
+		}
+		else
+		{
+			//pre is a number
+			size_t num = pre.getNumericSize();
+
+			if(num != d_it.size())
+				return llvm::make_error<BadSemantic>(location,"inconsistent ragged dimensions.");
+			
+			for(auto d : d_it)
+				if(d.isRagged())
+					return llvm::make_error<BadSemantic>(location,"inconsistent ragged dimensions.");
+		}
+	}
+	return llvm::Error::success();	
+};
+
 llvm::Error TypeChecker::run(Member& member)
 {
 	auto &type = member.getType();
@@ -1649,6 +1685,22 @@ llvm::Error TypeChecker::run(Member& member)
 					("invalid type '"+ name + "' used for member declaration").str());
 	}
 
+	if(type.isRagged()){
+		//check if ragged dimensions are well-formed
+		auto dimensions = type.getDimensions();
+		auto pre = dimensions.begin();
+
+		if(pre->isRagged())
+			llvm::make_error<BadSemantic>(
+					member.getLocation(),"invalid ragged type shape: the first dimension cannot be ragged.");
+
+		for(auto it=std::next(pre); it!=dimensions.end(); it++)
+		{
+			checkRuggedDimensions(*pre,*it,member.getLocation());
+		}
+	}
+
+	
 	for (auto& dimension : type.getDimensions())
 		if (dimension.hasExpression())
 			if (auto error = run<Expression>(*dimension.getExpression()); error)
