@@ -1,9 +1,8 @@
-#include <algorithm>
 #include <ida/ida.h>
+#include <llvm/Support/raw_ostream.h>
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
 #include <set>
-#include <stdlib.h>
 #include <sundials/sundials_config.h>
 #include <sundials/sundials_types.h>
 #include <sunlinsol/sunlinsol_klu.h>
@@ -274,8 +273,6 @@ int jacobianMatrix(
 	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
-		size_t columnIndex = 0;
-
 		// Initialize the multidimensional interval of the vector equation
 		sunindextype indexes[data->equationDimensions[eq].size()];
 
@@ -490,9 +487,7 @@ inline bool idaInit(void* userData)
 	exitOnError(checkRetval(retval, "IDASetLineSearchOffIC"));
 
 	// Call IDACalcIC to correct the initial values.
-	realtype firstOutTime = data->equidistantTimeGrid
-			? data->timeStep
-			: (data->endTime - data->startTime) / timeScalingFactorInit;
+	realtype firstOutTime = (data->endTime - data->startTime) / timeScalingFactorInit;
 	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, firstOutTime);
 	exitOnError(checkRetval(retval, "IDACalcIC"));
 
@@ -694,33 +689,16 @@ inline void addVariable(
 			: std::min(algebraicTolerance, data->absoluteTolerance);
 
 	// Initialize derivativeValues, idValues and absoluteTolerances.
-	std::fill_n(&data->derivativeValues[offset], array.getNumElements(), 0.0);
-	std::fill_n(&data->idValues[offset], array.getNumElements(), idValue);
-	std::fill_n(&data->toleranceValues[offset], array.getNumElements(), absTol);
+	for (size_t i = 0; i < array.getNumElements(); i++)
+	{
+		data->derivativeValues[offset + i] = 0.0;
+		data->idValues[offset + i] = idValue;
+		data->toleranceValues[offset + i] = absTol;
+	}
 }
 
 RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int32_t, ARRAY(float), bool)
 RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
-
-/**
- * Return the pointer to the start of the memory of the requested variable given
- * its offset and if it is a derivative or not.
- */
-template<typename T>
-inline void* getVariableAlloc(void* userData, T offset, bool isDerivative)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	assert(offset >= 0);
-	assert(offset < data->scalarEquationsNumber);
-
-	if (isDerivative)
-		return (void*) &data->derivativeValues[offset];
-	return (void*) &data->variableValues[offset];
-}
-
-RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int32_t, bool)
-RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
 
 /**
  * Add a variable access to the var-th variable, where ind is the induction
@@ -754,6 +732,26 @@ RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
 //===----------------------------------------------------------------------===//
 // Getters
 //===----------------------------------------------------------------------===//
+
+/**
+ * Returns the pointer to the start of the memory of the requested variable given
+ * its offset and if it is a derivative or not.
+ */
+template<typename T>
+inline void* getVariableAlloc(void* userData, T offset, bool isDerivative)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	assert(offset >= 0);
+	assert(offset < data->scalarEquationsNumber);
+
+	if (isDerivative)
+		return (void*) &data->derivativeValues[offset];
+	return (void*) &data->variableValues[offset];
+}
+
+RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int32_t, bool)
+RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
 
 /**
  * Returns the time reached by the solver after the last step.
@@ -831,7 +829,7 @@ inline void printStatistics(void* userData)
 	if (printJacobian)
 		printIncidenceMatrix(userData);
 
-	int64_t nst, nre, nje, nni, nli, netf, nncf;
+	long nst, nre, nje, nni, nli, netf, nncf;
 	realtype ais, ls;
 
 	IDAGetNumSteps(data->idaMemory, &nst);

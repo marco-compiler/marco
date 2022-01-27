@@ -1,8 +1,8 @@
-#include <mlir/Transforms/DialectConversion.h>
 #include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/IdaConversion.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <mlir/Transforms/DialectConversion.h>
 #include <numeric>
 
 using namespace marco::codegen;
@@ -110,35 +110,6 @@ class IdaOpConversion : public mlir::OpConversionPattern<FromOp>
 
 		assert(false && "Unreachable");
 		return "";
-	}
-};
-
-struct ConstantValueOpLowering : public IdaOpConversion<ConstantValueOp>
-{
-	using IdaOpConversion<ConstantValueOp>::IdaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(ConstantValueOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		llvm::Optional<mlir::Attribute> attribute = convertAttribute(rewriter, op.resultType(), op.value());
-
-		rewriter.replaceOpWithNewOp<mlir::ConstantOp>(op, *attribute);
-		return mlir::success();
-	}
-
-	private:
-	llvm::Optional<mlir::Attribute> convertAttribute(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Attribute attribute) const
-	{
-		if (attribute.getType().isa<mlir::IndexType>())
-			return attribute;
-
-		if (auto booleanAttribute = attribute.dyn_cast<BooleanAttribute>())
-			return builder.getBoolAttr(booleanAttribute.getValue());
-
-		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
-			return builder.getIntegerAttr(convertType(resultType), integerAttribute.getValue());
-
-		assert(attribute.isa<RealAttribute>());
-		return builder.getFloatAttr(convertType(resultType), attribute.cast<RealAttribute>().getValue());
 	}
 };
 
@@ -461,7 +432,6 @@ static void populateIdaConversionPatterns(
 {
 	// Allocation, initialization, usage and deletion.
 	patterns.insert<
-			ConstantValueOpLowering,
 			AllocDataOpLowering,
 			InitOpLowering,
 			StepOpLowering,
@@ -523,7 +493,6 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 
 		// Allocation, initialization, usage and deletion.
 		target.addIllegalOp<
-				ConstantValueOp,
 				AllocDataOp,
 				InitOp,
 				StepOp,

@@ -1,5 +1,6 @@
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/Ops.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 using namespace marco::codegen::ida;
 
@@ -10,7 +11,6 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 
 	// Allocation, initialization, usage and deletion.
 	addOperations<
-			ConstantValueOp,
 			AllocDataOp,
 			InitOp,
 			StepOp,
@@ -27,11 +27,12 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	// Variable setters.
 	addOperations<
 			AddVariableOp,
-			GetVariableAllocOp,
 			AddVarAccessOp>();
 
 	// Getters.
-	addOperations<GetTimeOp>();
+	addOperations<
+			GetVariableAllocOp,
+			GetTimeOp>();
 
 	// Residual and Jacobian construction helpers.
 	addOperations<
@@ -72,5 +73,5 @@ void IdaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrint
 
 mlir::Operation* IdaDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value, mlir::Type type, mlir::Location loc)
 {
-	return builder.create<ConstantValueOp>(loc, value);
+	return builder.create<modelica::ConstantOp>(loc, value);
 }

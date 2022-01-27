@@ -45,34 +45,6 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Ida::ConstantValueOp
-	//===----------------------------------------------------------------------===//
-
-	class ConstantValueOp : public mlir::Op<ConstantValueOp,
-																		mlir::OpTrait::ZeroRegion,
-																		mlir::OpTrait::OneResult,
-																		mlir::OpTrait::ZeroOperands,
-																		mlir::OpTrait::ConstantLike>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.constant";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute value);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::OpFoldResult fold(llvm::ArrayRef<mlir::Attribute> operands);
-
-		mlir::Attribute value();
-		mlir::Type resultType();
-	};
-
-	//===----------------------------------------------------------------------===//
 	// Ida::AllocDataOp
 	//===----------------------------------------------------------------------===//
 
@@ -390,6 +362,38 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::AddVarAccessOp
+	//===----------------------------------------------------------------------===//
+
+	class AddVarAccessOp : public mlir::Op<AddVarAccessOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_var_access";
+		}
+
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value access);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value variable();
+		mlir::Value access();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::GetVariableAllocOp
 	//===----------------------------------------------------------------------===//
 
@@ -421,38 +425,6 @@ namespace marco::codegen::ida
 		mlir::Value userData();
 		mlir::Value offset();
 		mlir::Value isDer();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Ida::AddVarAccessOp
-	//===----------------------------------------------------------------------===//
-
-	class AddVarAccessOp : public mlir::Op<AddVarAccessOp,
-																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
-																mlir::OpTrait::ZeroResult,
-																mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.add_var_access";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value access);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange args();
-		mlir::Value userData();
-		mlir::Value variable();
-		mlir::Value access();
 	};
 
 	//===----------------------------------------------------------------------===//
