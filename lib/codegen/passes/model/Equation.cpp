@@ -49,134 +49,19 @@ static bool hasInductionVariables(EquationOp equation)
 
 namespace marco::codegen
 {
-  Equation::Equation(EquationOp equation, Variables variables)
+  std::unique_ptr<Equation> Equation::build(modelica::EquationOp equation, Variables variables)
   {
     if (hasInductionVariables(equation)) {
-      impl = std::make_unique<LoopEquation>(std::move(equation), std::move(variables));
-    } else {
-      impl = std::make_unique<ScalarEquation>(std::move(equation), std::move(variables));
+      return std::make_unique<LoopEquation>(std::move(equation), std::move(variables));
     }
+
+    return std::make_unique<ScalarEquation>(std::move(equation), std::move(variables));
   }
 
-  Equation::Equation(std::unique_ptr<Equation::Impl> impl) : impl(std::move(impl))
-  {
-  }
-
-  Equation::Equation(const Equation& other)
-      : impl(other.impl->clone())
-  {
-  }
-
-  Equation::~Equation() = default;
-
-  Equation& Equation::operator=(const Equation& other)
-  {
-    Equation result(other);
-    swap(*this, result);
-    return *this;
-  }
-
-  Equation& Equation::operator=(Equation&& other) = default;
-
-  void swap(Equation& first, Equation& second)
-  {
-    using std::swap;
-    swap(first.impl, second.impl);
-  }
-
-  modelica::EquationOp Equation::getOperation() const
-  {
-    return impl->getOperation();
-  }
-
-  void Equation::setVariables(Variables variables)
-  {
-    impl->setVariables(std::move(variables));
-  }
-
-  Equation Equation::cloneIR() const
-  {
-    return Equation(impl->cloneIR());
-  }
-
-  void Equation::eraseIR()
-  {
-    impl->eraseIR();
-  }
-
-  size_t Equation::getNumOfIterationVars() const
-  {
-    return impl->getNumOfIterationVars();
-  }
-
-  long Equation::getRangeBegin(size_t inductionVarIndex) const
-  {
-    return impl->getRangeBegin(inductionVarIndex);
-  }
-
-  long Equation::getRangeEnd(size_t inductionVarIndex) const
-  {
-    return impl->getRangeEnd(inductionVarIndex);
-  }
-
-  std::vector<Access> Equation::getAccesses() const
-  {
-    return impl->getAccesses();
-  }
-
-  /*
-  void Equation::getWrites(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
-  {
-    return impl->getWrites();
-  }
-
-  void Equation::getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
-  {
-    return impl->getReads();
-  }
-   */
-
-  mlir::LogicalResult Equation::explicitate(const EquationPath& path)
-  {
-    return impl->explicitate(path);
-  }
-
-  bool Equation::isMatched() const
-  {
-    return impl->isMatched();
-  }
-
-  const EquationPath& Equation::getMatchedPath() const
-  {
-    return impl->getMatchedPath();
-  }
-
-  void Equation::setMatchedPath(EquationPath path)
-  {
-    impl->setMatchedPath(std::move(path));
-  }
-
-  Equation::Impl::Impl(EquationOp equation, Variables variables)
-      : equationOp(equation.getOperation()), variables(std::move(variables))
-  {
-    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-    assert(terminator.lhs().size() == 1);
-    assert(terminator.rhs().size() == 1);
-  }
-
-  EquationOp Equation::Impl::getOperation() const
-  {
-    return mlir::cast<EquationOp>(equationOp);
-  }
-
-  void Equation::Impl::setVariables(Variables value)
-  {
-    this->variables = value;
-  }
-
-  llvm::Optional<Variable*> Equation::Impl::findVariable(mlir::Value value) const
+  llvm::Optional<Variable*> Equation::findVariable(mlir::Value value) const
   {
     assert(value.isa<mlir::BlockArgument>());
+    const auto& variables = getVariables();
 
     auto it = llvm::find_if(variables, [&](const std::unique_ptr<Variable>& variable) {
       return value == variable->getValue();
@@ -189,7 +74,7 @@ namespace marco::codegen
     return (*it).get();
   }
 
-  bool Equation::Impl::isVariable(mlir::Value value) const
+  bool Equation::isVariable(mlir::Value value) const
   {
     if (value.isa<mlir::BlockArgument>()) {
       return mlir::isa<ModelOp>(value.getParentRegion()->getParentOp());
@@ -198,7 +83,7 @@ namespace marco::codegen
     return false;
   }
 
-  bool Equation::Impl::isReferenceAccess(mlir::Value value) const
+  bool Equation::isReferenceAccess(mlir::Value value) const
   {
     if (isVariable(value))
       return true;
@@ -216,7 +101,7 @@ namespace marco::codegen
     return false;
   }
 
-  void Equation::Impl::searchAccesses(
+  void Equation::searchAccesses(
       std::vector<Access>& accesses,
       mlir::Value value,
       EquationPath path) const
@@ -225,47 +110,41 @@ namespace marco::codegen
     searchAccesses(accesses, value, dimensionAccesses, std::move(path));
   }
 
-  void Equation::Impl::searchAccesses(
+  void Equation::searchAccesses(
       std::vector<Access>& accesses,
       mlir::Value value,
       std::vector<DimensionAccess>& dimensionAccesses,
       EquationPath path) const
   {
-    if (isVariable(value))
+    if (isVariable(value)) {
       resolveAccess(accesses, value, dimensionAccesses, std::move(path));
-    else if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr)
+    } else if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr) {
       searchAccesses(accesses, definingOp, dimensionAccesses, std::move(path));
+    }
   }
 
-  void Equation::Impl::searchAccesses(
+  void Equation::searchAccesses(
       std::vector<Access>& accesses,
       mlir::Operation* op,
       std::vector<DimensionAccess>& dimensionAccesses,
       EquationPath path) const
   {
     auto processIndexesFn = [&](mlir::ValueRange indexes) {
-      for (size_t i = 0, e = indexes.size(); i < e; ++i)
-      {
+      for (size_t i = 0, e = indexes.size(); i < e; ++i) {
         mlir::Value index = indexes[e - 1 - i];
         auto evaluatedAccess = evaluateDimensionAccess(index);
         dimensionAccesses.push_back(resolveDimensionAccess(evaluatedAccess));
       }
     };
 
-    if (auto loadOp = mlir::dyn_cast<LoadOp>(op))
-    {
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
       processIndexesFn(loadOp.indexes());
       searchAccesses(accesses, loadOp.memory(), dimensionAccesses, std::move(path));
-    }
-    else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
-    {
+    } else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
       processIndexesFn(subscriptionOp.indexes());
       searchAccesses(accesses, subscriptionOp.source(), dimensionAccesses, std::move(path));
-    }
-    else
-    {
-      for (size_t i = 0, e = op->getNumOperands(); i < e; ++i)
-      {
+    } else {
+      for (size_t i = 0, e = op->getNumOperands(); i < e; ++i) {
         EquationPath::Guard guard(path);
         path.append(i);
         searchAccesses(accesses, op->getOperand(i), path);
@@ -273,7 +152,7 @@ namespace marco::codegen
     }
   }
 
-  void Equation::Impl::resolveAccess(
+  void Equation::resolveAccess(
       std::vector<Access>& accesses,
       mlir::Value value,
       std::vector<DimensionAccess>& dimensionsAccesses,
@@ -281,8 +160,7 @@ namespace marco::codegen
   {
     auto variable = findVariable(value);
 
-    if (variable.hasValue())
-    {
+    if (variable.hasValue()) {
       std::vector<DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());
       mlir::Type type = value.getType();
 
@@ -293,28 +171,57 @@ namespace marco::codegen
         assert(dimensionsAccesses.empty());
         reverted.push_back(DimensionAccess::constant(0));
         accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
-      }
-      else
-      {
-        if (arrayType.getShape().size() == dimensionsAccesses.size())
+      } else {
+        if (arrayType.getShape().size() == dimensionsAccesses.size()) {
           accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
+        }
       }
     }
   }
 
-  std::pair<mlir::Value, long> Equation::Impl::evaluateDimensionAccess(mlir::Value value) const
+  Access Equation::getAccessFromPath(const EquationPath& path) const
   {
-    if (value.isa<mlir::BlockArgument>())
+    std::vector<Access> accesses;
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+
+    auto traverseFn = [&](mlir::Value value, const ExpressionPath& path) -> mlir::Value {
+      mlir::Value current = value;
+
+      for (const auto& index : path) {
+        mlir::Operation* op = current.getDefiningOp();
+        assert(index < op->getNumOperands() && "Invalid expression path");
+        current = op->getOperand(index);
+      }
+
+      return current;
+    };
+
+    if (path.getEquationSide() == EquationPath::LEFT) {
+      mlir::Value access = traverseFn(terminator.lhs()[0], path);
+      searchAccesses(accesses, access, path);
+    } else {
+      mlir::Value access = traverseFn(terminator.rhs()[0], path);
+      searchAccesses(accesses, access, path);
+    }
+
+    assert(accesses.size() == 1);
+    return accesses[0];
+  }
+
+  std::pair<mlir::Value, long> Equation::evaluateDimensionAccess(mlir::Value value) const
+  {
+    if (value.isa<mlir::BlockArgument>()) {
       return std::make_pair(value, 0);
+    }
 
     mlir::Operation* op = value.getDefiningOp();
     assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) || mlir::isa<SubOp>(op)) && "Invalid access pattern");
 
-    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op))
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
       return std::make_pair(nullptr, getIntFromAttribute(constantOp.value()));
+    }
 
-    if (auto addOp = mlir::dyn_cast<AddOp>(op))
-    {
+    if (auto addOp = mlir::dyn_cast<AddOp>(op)) {
       auto first = evaluateDimensionAccess(addOp.lhs());
       auto second = evaluateDimensionAccess(addOp.rhs());
 
@@ -333,11 +240,31 @@ namespace marco::codegen
     return std::make_pair(induction, first.second - second.second);
   }
 
-  const Variables& Equation::Impl::getVariables() const
+  BaseEquation::BaseEquation(modelica::EquationOp equation, Variables variables)
+      : equationOp(equation.getOperation()),
+        variables(std::move(variables))
+  {
+    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
+    assert(terminator.lhs().size() == 1);
+    assert(terminator.rhs().size() == 1);
+  }
+
+  modelica::EquationOp BaseEquation::getOperation() const
+  {
+    return mlir::cast<EquationOp>(equationOp);
+  }
+
+  const Variables& BaseEquation::getVariables() const
   {
     return variables;
   }
 
+  void BaseEquation::setVariables(Variables value)
+  {
+    this->variables = std::move(value);
+  }
+
+  /*
   mlir::LogicalResult Equation::Impl::explicitate(const EquationPath& path)
   {
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
@@ -359,22 +286,6 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  bool Equation::Impl::isMatched() const
-  {
-    return matchedPath != llvm::None;
-  }
-
-  const EquationPath& Equation::Impl::getMatchedPath() const
-  {
-    assert(isMatched() && "Equation is not matched");
-    return *matchedPath;
-  }
-
-  void Equation::Impl::setMatchedPath(EquationPath path)
-  {
-    this->matchedPath = std::move(path);
-  }
-
   mlir::LogicalResult Equation::Impl::explicitate(
       mlir::OpBuilder& builder,
       size_t argumentIndex,
@@ -394,108 +305,5 @@ namespace marco::codegen
 
     return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
   }
-
-  //===----------------------------------------------------------------------===//
-  // Equations container
-  //===----------------------------------------------------------------------===//
-
-  class Equations::Impl
-  {
-    public:
-      void add(std::unique_ptr<Equation> equation)
-      {
-        equations.push_back(std::move(equation));
-      }
-
-      size_t size() const
-      {
-        return equations.size();
-      }
-
-      std::unique_ptr<Equation>& operator[](size_t index)
-      {
-        assert(index < size());
-        return equations[index];
-      }
-
-      const std::unique_ptr<Equation>& operator[](size_t index) const
-      {
-        assert(index < size());
-        return equations[index];
-      }
-
-      Equations::iterator begin()
-      {
-        return equations.begin();
-      }
-
-      Equations::const_iterator begin() const
-      {
-        return equations.begin();
-      }
-
-      Equations::iterator end()
-      {
-        return equations.end();
-      }
-
-      Equations::const_iterator end() const
-      {
-        return equations.end();
-      }
-
-    private:
-      Equations::Container equations;
-  };
-
-  Equations::Equations() : impl(std::make_shared<Impl>())
-  {
-  }
-
-  void Equations::add(std::unique_ptr<Equation> equation)
-  {
-    impl->add(std::move(equation));
-  }
-
-  size_t Equations::size() const
-  {
-    return impl->size();
-  }
-
-  std::unique_ptr<Equation>& Equations::operator[](size_t index)
-  {
-    return (*impl)[index];
-  }
-
-  const std::unique_ptr<Equation>& Equations::operator[](size_t index) const
-  {
-    return (*impl)[index];
-  }
-
-  Equations::iterator Equations::begin()
-  {
-    return impl->begin();
-  }
-
-  Equations::const_iterator Equations::begin() const
-  {
-    return impl->begin();
-  }
-
-  Equations::iterator Equations::end()
-  {
-    return impl->end();
-  }
-
-  Equations::const_iterator Equations::end() const
-  {
-    return impl->end();
-  }
-
-  void Equations::setVariables(Variables variables)
-  {
-    for (auto& equation : *this) {
-      equation->setVariables(variables);
-    }
-  }
+   */
 }

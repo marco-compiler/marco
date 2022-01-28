@@ -7,15 +7,16 @@ using namespace ::marco::modeling;
 namespace marco::codegen
 {
   LoopEquation::LoopEquation(EquationOp equation, Variables variables)
-      : Impl(equation, variables)
+      : BaseEquation(equation, variables)
   {
   }
 
-  std::unique_ptr<Equation::Impl> LoopEquation::clone() const
+  std::unique_ptr<Equation> LoopEquation::clone() const
   {
     return std::make_unique<LoopEquation>(*this);
   }
 
+  /*
   std::unique_ptr<Equation::Impl> LoopEquation::cloneIR() const
   {
     EquationOp equationOp = getOperation();
@@ -57,6 +58,7 @@ namespace marco::codegen
       parent = newParent;
     }
   }
+   */
 
   size_t LoopEquation::getNumOfIterationVars() const
   {
@@ -110,6 +112,8 @@ namespace marco::codegen
 
     processFn(terminator.lhs()[0], EquationPath(EquationPath::LEFT));
     processFn(terminator.rhs()[0], EquationPath(EquationPath::RIGHT));
+
+    return accesses;
   }
 
   DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::Value, long> access) const

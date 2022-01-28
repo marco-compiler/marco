@@ -5,6 +5,7 @@
 #include "marco/codegen/passes/SolveModel.h"
 #include "marco/codegen/passes/TypeConverter.h"
 #include "marco/codegen/passes/model/Equation.h"
+#include "marco/codegen/passes/model/Matching.h"
 #include "marco/codegen/passes/model/Model.h"
 #include "marco/modeling/Matching.h"
 #include "marco/utils/VariableFilter.h"
@@ -1320,8 +1321,9 @@ struct EquationSidesOpPattern : public mlir::OpRewritePattern<EquationSidesOp>
 
 /// Remove the derivative operations by replacing them with appropriate
 /// buffers, and set the derived variables as state variables.
+template<typename EquationType>
 static mlir::LogicalResult removeDerivatives(
-    mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
+    mlir::OpBuilder& builder, Model<EquationType>& model, mlir::BlockAndValueMapping& derivatives)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -1422,11 +1424,11 @@ static mlir::LogicalResult removeDerivatives(
 
 /// Get all the variables that are declared inside the Model operation, independently
 /// from their nature (state variables, constants, etc.).
-static Variables discoverVariables(const Model& model)
+static Variables discoverVariables(ModelOp model)
 {
   Variables result;
 
-  mlir::ValueRange vars = model.getOperation().body().getArguments();
+  mlir::ValueRange vars = model.body().getArguments();
 
   for (size_t i = 1; i < vars.size(); ++i) {
     result.add(std::make_unique<Variable>(vars[i]));
@@ -1436,23 +1438,25 @@ static Variables discoverVariables(const Model& model)
 }
 
 /// Get the equations that are declared inside the Model operation.
-static Equations discoverEquations(const Model& model)
+static Equations<Equation> discoverEquations(ModelOp model, Variables variables)
 {
-  Equations result;
-  auto variables = model.getVariables();
+  Equations<Equation> result;
 
-  model.getOperation().walk([&](EquationOp equationOp) {
-    result.add(std::make_unique<Equation>(equationOp, variables));
+  model.walk([&](EquationOp equationOp) {
+    result.add(Equation::build(equationOp, variables));
   });
 
   return result;
 }
 
 /// Match each scalar variable to a scalar equation.
+template<typename EquationType>
 static mlir::LogicalResult matching(
-    mlir::OpBuilder& builder, Model& model, const mlir::BlockAndValueMapping& derivatives)
+    Model<MatchedEquation>& result,
+    mlir::OpBuilder& builder,
+    Model<EquationType>& model,
+    const mlir::BlockAndValueMapping& derivatives)
 {
-  ModelOp modelOp = model.getOperation();
   Variables allVariables = model.getVariables();
 
   // Filter the variables. State and constant ones must not in fact
@@ -1475,6 +1479,8 @@ static mlir::LogicalResult matching(
   }
 
   model.setVariables(variables);
+  result.setVariables(variables);
+
   model.getEquations().setVariables(model.getVariables());
 
   MatchingGraph<Variable*, Equation*> matchingGraph;
@@ -1499,22 +1505,20 @@ static mlir::LogicalResult matching(
     return mlir::failure();
   }
 
-  /*
-  for (auto& solution : matchingGraph.getMatch())
-  {
-    auto& equation = solution.getEquation();
-    auto clone = equation.cloneIR();
-    const auto& access = solution.getAccess();
+  Equations<MatchedEquation> matchedEquations;
 
-    if (auto status = clone.explicitate(access); mlir::failed(status))
-      return status;
+  for (auto& solution : matchingGraph.getMatch()) {
+    auto clone = solution.getEquation()->clone();
+    auto matchedEquation = std::make_unique<MatchedEquation>(std::move(clone), solution.getAccess());
+
+    for (size_t i = 0, e = solution.getEquation()->getNumOfIterationVars(); i < e; ++i) {
+      matchedEquation->setMatchedIndexes(i, solution.getRangeBegin(i), solution.getRangeEnd(i));
+    }
+
+    matchedEquations.add(std::move(matchedEquation));
   }
 
-  // Erase the old equations
-  for (auto& equation : equations)
-    equation.eraseIR();
-    */
-
+  result.setEquations(matchedEquations);
   return mlir::success();
 }
 
@@ -1551,13 +1555,17 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     }
 
     // Now that the additional variables have been created, we can start a discovery process
-    model.setVariables(discoverVariables(model));
-    model.setEquations(discoverEquations(model));
+    model.setVariables(discoverVariables(model.getOperation()));
+    model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
 
     // Matching process
-    if (mlir::failed(::matching(builder, model, derivatives))) {
+    Model<MatchedEquation> matchedModel(model.getOperation());
+
+    if (mlir::failed(::matching(matchedModel, builder, model, derivatives))) {
       return signalPassFailure();
     }
+
+    matchedModel.getOperation().erase();
 
     /*
     // Select and use the solver

@@ -57,6 +57,16 @@ ExpressionPath::Step::Step(const ExpressionPath::Step& other) : impl(other.impl-
   {
   }
 
+  bool ExpressionPath::operator==(const ExpressionPath& other) const
+  {
+    return path == other.path;
+  }
+
+  bool ExpressionPath::operator!=(const ExpressionPath& other) const
+  {
+    return path != other.path;
+  }
+
   size_t ExpressionPath::operator[](size_t index) const
   {
     assert(index < path.size());
@@ -86,6 +96,24 @@ ExpressionPath::Step::Step(const ExpressionPath::Step& other) : impl(other.impl-
   EquationPath::EquationPath(EquationSide equationSide, llvm::ArrayRef<size_t> path)
       : ExpressionPath(path), equationSide(equationSide)
   {
+  }
+
+  bool EquationPath::operator==(const EquationPath& other) const
+  {
+    if (static_cast<const ExpressionPath&>(*this) != static_cast<const ExpressionPath&>(other)) {
+      return false;
+    }
+
+    return equationSide == other.equationSide;
+  }
+
+  bool EquationPath::operator!=(const EquationPath& other) const
+  {
+    if (static_cast<const ExpressionPath&>(*this) != static_cast<const ExpressionPath&>(other)) {
+      return true;
+    }
+
+    return equationSide != other.equationSide;
   }
 
   EquationPath::EquationSide EquationPath::getEquationSide() const

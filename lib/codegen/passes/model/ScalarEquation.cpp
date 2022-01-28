@@ -6,7 +6,7 @@ using namespace ::marco::modeling;
 namespace marco::codegen
 {
   ScalarEquation::ScalarEquation(EquationOp equation, Variables variables)
-      : Impl(equation, variables)
+      : BaseEquation(equation, variables)
   {
     // Check that the equation is not enclosed in a loop
     assert(equation->getParentOfType<ForEquationOp>() == nullptr);
@@ -23,11 +23,12 @@ namespace marco::codegen
     assert(llvm::all_of(terminator.rhs(), isScalarFn));
   }
 
-  std::unique_ptr<Equation::Impl> ScalarEquation::clone() const
+  std::unique_ptr<Equation> ScalarEquation::clone() const
   {
     return std::make_unique<ScalarEquation>(*this);
   }
 
+  /*
   std::unique_ptr<Equation::Impl> ScalarEquation::cloneIR() const
   {
     EquationOp equationOp = getOperation();
@@ -40,6 +41,7 @@ namespace marco::codegen
   {
     getOperation().erase();
   }
+   */
 
   size_t ScalarEquation::getNumOfIterationVars() const
   {

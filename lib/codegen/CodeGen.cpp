@@ -298,9 +298,6 @@ mlir::Operation* MLIRLowerer::lower(const ast::StandardFunction& function)
 
 mlir::Operation* MLIRLowerer::lower(const ast::Model& model)
 {
-  return nullptr;
-
-  /*
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
@@ -379,7 +376,6 @@ mlir::Operation* MLIRLowerer::lower(const ast::Model& model)
 	}
 
 	return modelOp;
-   */
 }
 
 mlir::Operation* MLIRLowerer::lower(const ast::Package& package)

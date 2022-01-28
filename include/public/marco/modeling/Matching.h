@@ -856,6 +856,7 @@ namespace marco::modeling
         Container<Flow> flows;
     };
 
+    /// Represents how an equation has been matched (i.e. the selected indexes and access).
     template<typename EquationProperty, typename VariableProperty, typename AccessProperty>
     class MatchingSolution
     {
@@ -863,11 +864,11 @@ namespace marco::modeling
         MatchingSolution(
             EquationProperty equation,
             VariableProperty variable,
-            MCIS equationRanges,
+            MultidimensionalRange indexes,
             AccessProperty access)
             : equation(std::move(equation)),
               variable(std::move(variable)),
-              equationRanges(std::move(equationRanges)),
+              indexes(std::move(indexes)),
               access(std::move(access))
         {
         }
@@ -887,20 +888,25 @@ namespace marco::modeling
           return variable;
         }
 
-        const MCIS& getEquationRanges() const
-        {
-          return equationRanges;
-        }
-
         const AccessProperty& getAccess() const
         {
           return access;
         }
 
+        Point::data_type getRangeBegin(size_t inductionVarIndex) const
+        {
+          return indexes[inductionVarIndex].getBegin();
+        }
+
+        Point::data_type getRangeEnd(size_t inductionVarIndex) const
+        {
+          return indexes[inductionVarIndex].getEnd();
+        }
+
       private:
         EquationProperty equation;
         VariableProperty variable;
-        MCIS equationRanges;
+        MultidimensionalRange indexes;
         AccessProperty access;
     };
   }
@@ -1292,8 +1298,10 @@ namespace marco::modeling
         return success;
       }
 
+      /// Get the solution of the matching problem.
       std::vector<MatchingSolution> getMatch() const
       {
+        assert(allNodesMatched() && "Not all the nodes have been fully matched");
         std::vector<MatchingSolution> result;
 
         for (auto equationDescriptor : getEquations()) {
@@ -1304,11 +1312,15 @@ namespace marco::modeling
               auto variableDescriptor =
                   edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;
 
-              result.emplace_back(
-                  getEquation(equationDescriptor).getProperty(),
-                  getVariable(variableDescriptor).getProperty(),
-                  matched.flattenColumns(),
-                  edge.getAccessProperty());
+              MCIS allIndexes = matched.flattenColumns();
+
+              for (const auto& groupedIndexes : allIndexes) {
+                result.emplace_back(
+                    getEquation(equationDescriptor).getProperty(),
+                    getVariable(variableDescriptor).getProperty(),
+                    groupedIndexes,
+                    edge.getAccessProperty());
+              }
             }
           }
         }

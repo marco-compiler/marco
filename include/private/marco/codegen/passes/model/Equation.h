@@ -13,139 +13,195 @@ namespace marco::codegen
   class Equation
   {
     public:
-    class Impl;
+      static std::unique_ptr<Equation> build(
+          modelica::EquationOp equation, Variables variables);
 
-    Equation(modelica::EquationOp equation, Variables variables);
+      virtual std::unique_ptr<Equation> clone() const = 0;
 
-    Equation(const Equation& other);
+      /// Get the IR operation.
+      virtual modelica::EquationOp getOperation() const = 0;
 
-    ~Equation();
+      /// Get the variables considered by the equation while determining the accesses.
+      virtual const Variables& getVariables() const = 0;
 
-    Equation& operator=(const Equation& other);
-    Equation& operator=(Equation&& other);
+      /// Set the variables considered by the equation while determining the accesses.
+      virtual void setVariables(Variables variables) = 0;
 
-    friend void swap(Equation& first, Equation& second);
+      virtual size_t getNumOfIterationVars() const = 0;
+      virtual long getRangeBegin(size_t inductionVarIndex) const = 0;
+      virtual long getRangeEnd(size_t inductionVarIndex) const = 0;
 
-    modelica::EquationOp getOperation() const;
+      virtual std::vector<Access> getAccesses() const = 0;
 
-    void setVariables(Variables variables);
+      virtual ::marco::modeling::DimensionAccess resolveDimensionAccess(
+          std::pair<mlir::Value, long> access) const = 0;
 
-    Equation cloneIR() const;
+    protected:
+      llvm::Optional<Variable*> findVariable(mlir::Value value) const;
 
-    void eraseIR();
+      bool isVariable(mlir::Value value) const;
 
-    size_t getNumOfIterationVars() const;
-    long getRangeBegin(size_t inductionVarIndex) const;
-    long getRangeEnd(size_t inductionVarIndex) const;
+      bool isReferenceAccess(mlir::Value value) const;
 
-    std::vector<Access> getAccesses() const;
+      void searchAccesses(
+          std::vector<Access>& accesses,
+          mlir::Value value,
+          EquationPath path) const;
 
-    /*
-    void getWrites(llvm::SmallVectorImpl<Access>& accesses) const;
-    void getReads(llvm::SmallVectorImpl<Access>& accesses) const;
-     */
+      void searchAccesses(
+          std::vector<Access>& accesses,
+          mlir::Value value,
+          std::vector<::marco::modeling::DimensionAccess>& dimensionAccesses,
+          EquationPath path) const;
 
-    mlir::LogicalResult explicitate(const EquationPath& path);
+      void searchAccesses(
+          std::vector<Access>& accesses,
+          mlir::Operation* op,
+          std::vector<::marco::modeling::DimensionAccess>& dimensionAccesses,
+          EquationPath path) const;
 
-    /// @name Matching
-    /// {
+      void resolveAccess(
+          std::vector<Access>& accesses,
+          mlir::Value value,
+          std::vector<::marco::modeling::DimensionAccess>& dimensionsAccesses,
+          EquationPath path) const;
 
-    bool isMatched() const;
+      Access getAccessFromPath(const EquationPath& path) const;
 
-    const EquationPath& getMatchedPath() const;
+      std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
 
-    void setMatchedPath(EquationPath path);
+      //mlir::LogicalResult explicitate(const EquationPath& path);
 
-    /// }
-
-    private:
-    Equation(std::unique_ptr<Impl> impl);
-
-    std::unique_ptr<Impl> impl;
+      //mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, EquationPath::EquationSide side);
   };
 
-  /// Container for the equations of the model.
-  class Equations
+  namespace impl
   {
-    public:
-      using Container = std::vector<std::unique_ptr<Equation>>;
-      using iterator = typename Container::iterator;
-      using const_iterator = typename Container::const_iterator;
-
-      Equations();
-
-      void add(std::unique_ptr<Equation> equation);
-
-      size_t size() const;
-
-      std::unique_ptr<Equation>& operator[](size_t index);
-
-      const std::unique_ptr<Equation>& operator[](size_t index) const;
-
-      iterator begin();
-
-      const_iterator begin() const;
-
-      iterator end();
-
-      const_iterator end() const;
-
-      /// For each equation, set the variables it should consider while determining the accesses.
-      void setVariables(Variables variables);
-
-    private:
-      class Impl;
-      std::shared_ptr<Impl> impl;
-  };
-}
-
-// Specializations for the modeling library
-namespace marco::modeling
-{
-  namespace matching
-  {
-    template<>
-    struct EquationTraits<::marco::codegen::Equation*>
+    /// Implementation of the equations container.
+    template<typename EquationType>
+    class Equations
     {
-      using Equation = ::marco::codegen::Equation*;
-      using Id = mlir::Operation*;
+      public:
+        using Container = std::vector<std::unique_ptr<EquationType>>;
+        using iterator = typename Container::iterator;
+        using const_iterator = typename Container::const_iterator;
 
-      static Id getId(const Equation* equation)
-      {
-        return (*equation)->getOperation().getOperation();
-      }
-
-      static size_t getNumOfIterationVars(const Equation* equation)
-      {
-        return (*equation)->getNumOfIterationVars();
-      }
-
-      static long getRangeBegin(const Equation* equation, size_t inductionVarIndex)
-      {
-        return (*equation)->getRangeBegin(inductionVarIndex);
-      }
-
-      static long getRangeEnd(const Equation* equation, size_t inductionVarIndex)
-      {
-        return (*equation)->getRangeEnd(inductionVarIndex);
-      }
-
-      using VariableType = codegen::Variable*;
-
-      using AccessProperty = codegen::EquationPath;
-
-      static std::vector<Access<VariableType, AccessProperty>> getAccesses(const Equation* equation)
-      {
-        std::vector<Access<VariableType, AccessProperty>> accesses;
-
-        for (const auto& access : (*equation)->getAccesses()) {
-          accesses.emplace_back(access.getVariable(), access.getAccessFunction(), access.getPath());
+        void add(std::unique_ptr<EquationType> equation)
+        {
+          equations.push_back(std::move(equation));
         }
 
-        return accesses;
-      }
+        size_t size() const
+        {
+          return equations.size();
+        }
+
+        std::unique_ptr<EquationType>& operator[](size_t index)
+        {
+          assert(index < size());
+          return equations[index];
+        }
+
+        const std::unique_ptr<EquationType>& operator[](size_t index) const
+        {
+          assert(index < size());
+          return equations[index];
+        }
+
+        Equations::iterator begin()
+        {
+          return equations.begin();
+        }
+
+        Equations::const_iterator begin() const
+        {
+          return equations.begin();
+        }
+
+        Equations::iterator end()
+        {
+          return equations.end();
+        }
+
+        Equations::const_iterator end() const
+        {
+          return equations.end();
+        }
+
+      private:
+        Container equations;
     };
   }
+
+  /// Container for the equations of the model.
+  /// The container has value semantics. In fact, the implementation consists in a shared pointer and a copy
+  /// of the container would refer to the same set of equations.
+  /// The template parameter is used to control which type of equations it should contain.
+  template<typename EquationType = Equation>
+  class Equations
+  {
+    private:
+      using Impl = impl::Equations<EquationType>;
+
+    public:
+      using iterator = typename Impl::iterator;
+      using const_iterator = typename Impl::const_iterator;
+
+      Equations() : impl(std::make_shared<Impl>())
+      {
+      }
+
+      void add(std::unique_ptr<EquationType> equation)
+      {
+        impl->add(std::move(equation));
+      }
+
+      size_t size() const
+      {
+        return impl->size();
+      }
+
+      std::unique_ptr<EquationType>& operator[](size_t index)
+      {
+        return (*impl)[index];
+      }
+
+      const std::unique_ptr<EquationType>& operator[](size_t index) const
+      {
+        return (*impl)[index];
+      }
+
+      iterator begin()
+      {
+        return impl->begin();
+      }
+
+      const_iterator begin() const
+      {
+        return impl->begin();
+      }
+
+      iterator end()
+      {
+        return impl->end();
+      }
+
+      const_iterator end() const
+      {
+        return impl->end();
+      }
+
+      /// For each equation, set the variables it should consider while determining the accesses.
+      void setVariables(Variables variables)
+      {
+        for (auto& equation : *this) {
+          equation->setVariables(variables);
+        }
+      }
+
+    private:
+      std::shared_ptr<Impl> impl;
+  };
 }
 
 #endif // MARCO_CODEGEN_EQUATION_H

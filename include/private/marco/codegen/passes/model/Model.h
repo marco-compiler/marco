@@ -5,43 +5,51 @@
 #include "marco/codegen/passes/model/Equation.h"
 #include "marco/codegen/passes/model/Path.h"
 #include "marco/codegen/passes/model/Variable.h"
-#include "mlir/IR/BlockAndValueMapping.h"
 
 namespace marco::codegen
 {
+  template<typename EquationType = Equation>
   class Model
   {
     public:
-      Model(modelica::ModelOp modelOp);
+      Model(modelica::ModelOp modelOp)
+        : modelOp(modelOp.getOperation())
+      {
+      }
 
-      modelica::ModelOp getOperation() const;
+      modelica::ModelOp getOperation() const
+      {
+        return mlir::cast<modelica::ModelOp>(modelOp);
+      }
 
       /// Get the variables that are managed by this model.
-      Variables getVariables() const;
+      Variables getVariables() const
+      {
+        return variables;
+      }
 
       /// Set the variables the are managed by this model.
-      void setVariables(Variables variables);
+      void setVariables(Variables value)
+      {
+        this->variables = std::move(value);
+      }
 
       /// Get the equations that are managed by this model.
-      Equations getEquations() const;
+      Equations<EquationType> getEquations() const
+      {
+        return equations;
+      }
 
       /// Set the equations that are managed by this model.
-      void setEquations(Equations equations);
-
-      /*
-      mlir::BlockAndValueMapping& getDerivatives();
-
-      const mlir::BlockAndValueMapping& getDerivatives() const;
-       */
+      void setEquations(Equations<EquationType> value)
+      {
+        this->equations = std::move(value);
+      }
 
     private:
       mlir::Operation* modelOp;
-
-      // Map between a value and its derivative
-      //mlir::BlockAndValueMapping derivatives;
-
       Variables variables;
-      Equations equations;
+      Equations<EquationType> equations;
   };
 }
 

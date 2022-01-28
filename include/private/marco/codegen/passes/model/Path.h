@@ -29,6 +29,9 @@ namespace marco::codegen
 
       ExpressionPath(llvm::ArrayRef<size_t> path);
 
+      bool operator==(const ExpressionPath& other) const;
+      bool operator!=(const ExpressionPath& other) const;
+
       size_t operator[](size_t index) const;
       size_t size() const;
 
@@ -53,6 +56,9 @@ namespace marco::codegen
       using Guard = ExpressionPath::Guard;
 
       EquationPath(EquationSide equationSide, llvm::ArrayRef<size_t> path = llvm::None);
+
+      bool operator==(const EquationPath& other) const;
+      bool operator!=(const EquationPath& other) const;
 
       EquationSide getEquationSide() const;
 
