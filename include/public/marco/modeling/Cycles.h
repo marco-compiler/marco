@@ -346,6 +346,10 @@ namespace marco::modeling
         for (const auto& scc: SCCs) {
           auto writes = vectorDependencyGraph.getWritesMap(scc.begin(), scc.end());
 
+          if (!scc.hasCycle()) {
+            continue;
+          }
+
           for (const auto& equationDescriptor : scc) {
             auto cycles = getEquationCyclicDependencies(writes, equationDescriptor);
             FilteredEquation dependencies(vectorDependencyGraph, equationDescriptor);

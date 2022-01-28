@@ -7,7 +7,8 @@
 #include "marco/codegen/passes/model/Equation.h"
 #include "marco/codegen/passes/model/Matching.h"
 #include "marco/codegen/passes/model/Model.h"
-#include "marco/modeling/Matching.h"
+#include "marco/codegen/passes/model/Scheduling.h"
+#include "marco/modeling/Cycles.h"
 #include "marco/utils/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -64,7 +65,6 @@ static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsig
 
   return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
 }
-
 
 struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
 {
@@ -1438,7 +1438,7 @@ static Variables discoverVariables(ModelOp model)
 }
 
 /// Get the equations that are declared inside the Model operation.
-static Equations<Equation> discoverEquations(ModelOp model, Variables variables)
+static Equations<Equation> discoverEquations(ModelOp model, const Variables& variables)
 {
   Equations<Equation> result;
 
@@ -1453,7 +1453,6 @@ static Equations<Equation> discoverEquations(ModelOp model, Variables variables)
 template<typename EquationType>
 static mlir::LogicalResult matching(
     Model<MatchedEquation>& result,
-    mlir::OpBuilder& builder,
     Model<EquationType>& model,
     const mlir::BlockAndValueMapping& derivatives)
 {
@@ -1522,6 +1521,57 @@ static mlir::LogicalResult matching(
   return mlir::success();
 }
 
+/// Modify the IR in order to solve the algebraic loops
+static mlir::LogicalResult solveAlgebraicLoops(
+    Model<MatchedEquation>& model, mlir::OpBuilder& builder)
+{
+  std::vector<MatchedEquation*> equations;
+
+  for (const auto& equation : model.getEquations()) {
+    equations.push_back(equation.get());
+  }
+
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
+  auto cycles = cyclesFinder.getEquationsCycles();
+
+  if (!cycles.empty()) {
+    // TODO solve algebraic loops
+    model.getOperation().emitError("Algebraic loops solving is not implemented yet");
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+/// Schedule the equations.
+static mlir::LogicalResult scheduling(
+    Model<ScheduledEquation>& result, const Model<MatchedEquation>& model)
+{
+  result.setVariables(model.getVariables());
+  std::vector<MatchedEquation*> equations;
+
+  for (const auto& equation : model.getEquations()) {
+    equations.push_back(equation.get());
+  }
+
+  Scheduler<Variable*, MatchedEquation*> scheduler;
+  Equations<ScheduledEquation> scheduledEquations;
+
+  for (const auto& solution : scheduler.schedule(equations)) {
+    auto clone = std::make_unique<MatchedEquation>(*solution.getEquation());
+    auto scheduledEquation = std::make_unique<ScheduledEquation>(std::move(clone), solution.getIterationDirection());
+
+    for (size_t i = 0, e = solution.getEquation()->getNumOfIterationVars(); i < e; ++i) {
+      scheduledEquation->setScheduledIndexes(i, solution.getRangeBegin(i), solution.getRangeEnd(i));
+    }
+
+    scheduledEquations.add(std::move(scheduledEquation));
+  }
+
+  result.setEquations(std::move(scheduledEquations));
+  return mlir::success();
+}
+
 /// Model solving pass.
 /// Its objective is to convert a descriptive (and thus not sequential) model
 /// into an algorithmic one and to create the functions controlling the simulation.
@@ -1561,7 +1611,19 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     // Matching process
     Model<MatchedEquation> matchedModel(model.getOperation());
 
-    if (mlir::failed(::matching(matchedModel, builder, model, derivatives))) {
+    if (mlir::failed(::matching(matchedModel, model, derivatives))) {
+      return signalPassFailure();
+    }
+
+    // Resolve the algebraic loops
+    if (mlir::failed(::solveAlgebraicLoops(matchedModel, builder))) {
+      return signalPassFailure();
+    }
+
+    // Schedule the equations
+    Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());
+
+    if (mlir::failed(::scheduling(scheduledModel, matchedModel))) {
       return signalPassFailure();
     }
 

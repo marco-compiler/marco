@@ -227,11 +227,11 @@ namespace marco::modeling
 
   MultidimensionalRange AccessFunction::map(const MultidimensionalRange& range) const
   {
-    assert(functions.size() == range.rank());
     llvm::SmallVector<Range, 3> ranges;
 
-    for (const auto& function : functions)
+    for (const auto& function : functions) {
       ranges.push_back(function(range));
+    }
 
     return MultidimensionalRange(std::move(ranges));
   }

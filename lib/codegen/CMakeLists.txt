@@ -20,6 +20,7 @@ set(SOURCES
     passes/model/Model.cpp
     passes/model/Path.cpp
     passes/model/ScalarEquation.cpp
+    passes/model/Scheduling.cpp
     passes/model/LoopEquation.cpp
     passes/model/Variable.cpp
     passes/model/Cycles.cpp

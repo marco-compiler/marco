@@ -204,4 +204,50 @@ namespace marco::codegen
   };
 }
 
+// Traits specializations for the modeling library
+namespace marco::modeling::matching
+{
+  template<>
+  struct EquationTraits<::marco::codegen::Equation*>
+  {
+    using Equation = ::marco::codegen::Equation*;
+    using Id = mlir::Operation*;
+
+    static Id getId(const Equation* equation)
+    {
+      return (*equation)->getOperation().getOperation();
+    }
+
+    static size_t getNumOfIterationVars(const Equation* equation)
+    {
+      return (*equation)->getNumOfIterationVars();
+    }
+
+    static long getRangeBegin(const Equation* equation, size_t inductionVarIndex)
+    {
+      return (*equation)->getRangeBegin(inductionVarIndex);
+    }
+
+    static long getRangeEnd(const Equation* equation, size_t inductionVarIndex)
+    {
+      return (*equation)->getRangeEnd(inductionVarIndex);
+    }
+
+    using VariableType = codegen::Variable*;
+
+    using AccessProperty = codegen::EquationPath;
+
+    static std::vector<Access<VariableType, AccessProperty>> getAccesses(const Equation* equation)
+    {
+      std::vector<Access<VariableType, AccessProperty>> accesses;
+
+      for (const auto& access : (*equation)->getAccesses()) {
+        accesses.emplace_back(access.getVariable(), access.getAccessFunction(), access.getPath());
+      }
+
+      return accesses;
+    }
+  };
+}
+
 #endif // MARCO_CODEGEN_EQUATION_H

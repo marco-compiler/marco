@@ -32,17 +32,22 @@ namespace marco::modeling
         {
         }
 
-        const EquationProperty& getProperty()
+        const EquationProperty& getEquation() const
         {
           return property;
         }
 
-        const MultidimensionalRange& getIndexes()
+        Point::data_type getRangeBegin(size_t inductionVarIndex) const
         {
-          return indexes;
+          return indexes[inductionVarIndex].getBegin();
         }
 
-        Direction getIterationDirection()
+        Point::data_type getRangeEnd(size_t inductionVarIndex) const
+        {
+          return indexes[inductionVarIndex].getEnd();
+        }
+
+        Direction getIterationDirection() const
         {
           return direction;
         }
@@ -143,8 +148,9 @@ namespace marco::modeling
       {
         if (!scc.hasCycle()) {
           // If there is no cycle, then the iteration variable of the equation is irrelevant.
-          // We prefer the forward direction for simplicity.
-          return scheduling::Direction::Forward;
+          // We prefer the forward direction for simplicity, so we need to return a backward
+          // dependency (which will be converted into a forward iteration).
+          return scheduling::Direction::Backward;
         }
 
         // If all the dependencies have the same direction, then we can set

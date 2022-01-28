@@ -1,7 +1,9 @@
 #ifndef MARCO_CODEGEN_PASSES_MODEL_MATCHING_H
 #define MARCO_CODEGEN_PASSES_MODEL_MATCHING_H
 
-#include "marco/codegen/passes/model/EquationImpl.h"
+#include "marco/codegen/passes/model/Equation.h"
+#include "marco/codegen/passes/model/Variable.h"
+#include "marco/modeling/Dependency.h"
 #include <memory>
 #include <vector>
 
@@ -56,18 +58,18 @@ namespace marco::codegen
 
     private:
       std::unique_ptr<Equation> equation;
-
       std::vector<std::pair<long, long>> matchedIndexes;
       EquationPath matchedPath;
   };
 }
 
-namespace marco::modeling::matching
+// Traits specializations for the modeling library
+namespace marco::modeling::dependency
 {
   template<>
-  struct EquationTraits<::marco::codegen::Equation*>
+  struct EquationTraits<::marco::codegen::MatchedEquation*>
   {
-    using Equation = ::marco::codegen::Equation*;
+    using Equation = ::marco::codegen::MatchedEquation*;
     using Id = mlir::Operation*;
 
     static Id getId(const Equation* equation)
@@ -94,15 +96,21 @@ namespace marco::modeling::matching
 
     using AccessProperty = codegen::EquationPath;
 
-    static std::vector<Access<VariableType, AccessProperty>> getAccesses(const Equation* equation)
+    static Access<VariableType, AccessProperty> getWrite(const Equation* equation)
     {
-      std::vector<Access<VariableType, AccessProperty>> accesses;
+      auto write = (*equation)->getWrite();
+      return Access(write.getVariable(), write.getAccessFunction(), write.getPath());
+    }
 
-      for (const auto& access : (*equation)->getAccesses()) {
-        accesses.emplace_back(access.getVariable(), access.getAccessFunction(), access.getPath());
+    static std::vector<Access<VariableType, AccessProperty>> getReads(const Equation* equation)
+    {
+      std::vector<Access<VariableType, AccessProperty>> reads;
+
+      for (const auto& read : (*equation)->getReads()) {
+        reads.emplace_back(read.getVariable(), read.getAccessFunction(), read.getPath());
       }
 
-      return accesses;
+      return reads;
     }
   };
 }

@@ -2,6 +2,7 @@
 #define MARCO_CODEGEN_VARIABLE_H
 
 #include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/modeling/Dependency.h"
 #include "marco/modeling/Matching.h"
 #include <memory>
 
@@ -73,8 +74,24 @@ namespace marco::codegen
   };
 }
 
+// Traits specializations for the modeling library
 namespace marco::modeling
 {
+  namespace dependency
+  {
+    template<>
+    struct VariableTraits<::marco::codegen::Variable*>
+    {
+      using Variable = ::marco::codegen::Variable*;
+      using Id = mlir::Operation*;
+
+      static Id getId(const Variable* variable)
+      {
+        return (*variable)->getId();
+      }
+    };
+  }
+
   namespace matching
   {
     template<>
