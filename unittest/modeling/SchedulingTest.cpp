@@ -109,10 +109,9 @@ TEST(Scheduling, forwardSchedulable) {
   auto schedule = scheduler.schedule({ &eq1 });
 
   EXPECT_THAT(schedule, testing::SizeIs(1));
-  EXPECT_EQ(schedule[0].getProperty()->name(), "eq1");
-  EXPECT_EQ(schedule[0].getIndexes().rank(), 1);
-  EXPECT_EQ(schedule[0].getIndexes()[0].getBegin(), 3);
-  EXPECT_EQ(schedule[0].getIndexes()[0].getEnd(), 9);
+  EXPECT_EQ(schedule[0].getEquation()->name(), "eq1");
+  EXPECT_EQ(schedule[0].getRangeBegin(0), 3);
+  EXPECT_EQ(schedule[0].getRangeEnd(0), 9);
   EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Forward);
 }
 
@@ -143,10 +142,9 @@ TEST(Scheduling, backwardSchedulable) {
   auto schedule = scheduler.schedule({ &eq1 });
 
   EXPECT_THAT(schedule, testing::SizeIs(1));
-  EXPECT_EQ(schedule[0].getProperty()->name(), "eq1");
-  EXPECT_EQ(schedule[0].getIndexes().rank(), 1);
-  EXPECT_EQ(schedule[0].getIndexes()[0].getBegin(), 3);
-  EXPECT_EQ(schedule[0].getIndexes()[0].getEnd(), 9);
+  EXPECT_EQ(schedule[0].getEquation()->name(), "eq1");
+  EXPECT_EQ(schedule[0].getRangeBegin(0), 3);
+  EXPECT_EQ(schedule[0].getRangeEnd(0), 9);
   EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Backward);
 }
 
@@ -177,9 +175,8 @@ TEST(Scheduling, test) {
   auto schedule = scheduler.schedule({ &eq1 });
 
   EXPECT_THAT(schedule, testing::SizeIs(1));
-  EXPECT_EQ(schedule[0].getProperty()->name(), "eq1");
-  EXPECT_EQ(schedule[0].getIndexes().rank(), 1);
-  EXPECT_EQ(schedule[0].getIndexes()[0].getBegin(), 3);
-  EXPECT_EQ(schedule[0].getIndexes()[0].getEnd(), 9);
+  EXPECT_EQ(schedule[0].getEquation()->name(), "eq1");
+  EXPECT_EQ(schedule[0].getRangeBegin(0), 3);
+  EXPECT_EQ(schedule[0].getRangeEnd(0), 9);
   EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Backward);
 }
