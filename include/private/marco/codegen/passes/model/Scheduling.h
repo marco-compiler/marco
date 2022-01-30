@@ -44,6 +44,19 @@ namespace marco::codegen
 
       Access getWrite() const;
 
+      mlir::LogicalResult explicitate(mlir::OpBuilder& builder);
+
+      mlir::FuncOp createTemplateFunction(
+          mlir::OpBuilder& builder,
+          llvm::StringRef functionName,
+          mlir::ValueRange vars,
+          const EquationPath& path) const override;
+
+      mlir::FuncOp createTemplateFunction(
+          mlir::OpBuilder& builder,
+          llvm::StringRef functionName,
+          mlir::ValueRange vars) const;
+
       /// }
       /// @name Modified methods
       /// {

@@ -1,4 +1,7 @@
 #include "marco/codegen/passes/model/Scheduling.h"
+#include "marco/codegen/passes/model/EquationImpl.h"
+
+using namespace ::marco::codegen::modelica;
 
 namespace marco::codegen
 {
@@ -73,6 +76,23 @@ namespace marco::codegen
   Access ScheduledEquation::getWrite() const
   {
     return equation->getWrite();
+  }
+
+  mlir::FuncOp ScheduledEquation::createTemplateFunction(
+      mlir::OpBuilder& builder,
+      llvm::StringRef functionName,
+      mlir::ValueRange vars,
+      const EquationPath& path) const
+  {
+    return equation->createTemplateFunction(builder, functionName, vars, path);
+  }
+
+  mlir::FuncOp ScheduledEquation::createTemplateFunction(
+      mlir::OpBuilder& builder,
+      llvm::StringRef functionName,
+      mlir::ValueRange vars) const
+  {
+    return equation->createTemplateFunction(builder, functionName, vars);
   }
 
   size_t ScheduledEquation::getNumOfIterationVars() const

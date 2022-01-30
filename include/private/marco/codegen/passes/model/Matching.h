@@ -39,6 +39,12 @@ namespace marco::codegen
       ::marco::modeling::DimensionAccess resolveDimensionAccess(
           std::pair<mlir::Value, long> access) const override;
 
+      mlir::FuncOp createTemplateFunction(
+          mlir::OpBuilder& builder,
+          llvm::StringRef functionName,
+          mlir::ValueRange vars,
+          const EquationPath& path) const override;
+
       /// }
       /// @name Modified methods
       /// {
@@ -55,6 +61,11 @@ namespace marco::codegen
       std::vector<Access> getReads() const;
 
       Access getWrite() const;
+
+      mlir::FuncOp createTemplateFunction(
+          mlir::OpBuilder& builder,
+          llvm::StringRef functionName,
+          mlir::ValueRange vars) const;
 
     private:
       std::unique_ptr<Equation> equation;

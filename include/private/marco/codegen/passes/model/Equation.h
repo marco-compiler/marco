@@ -6,6 +6,7 @@
 #include "marco/codegen/passes/model/Path.h"
 #include "marco/codegen/passes/model/Variable.h"
 #include "marco/modeling/Matching.h"
+#include "mlir/IR/BuiltinOps.h"
 #include <memory>
 
 namespace marco::codegen
@@ -35,6 +36,12 @@ namespace marco::codegen
 
       virtual ::marco::modeling::DimensionAccess resolveDimensionAccess(
           std::pair<mlir::Value, long> access) const = 0;
+
+      virtual mlir::FuncOp createTemplateFunction(
+          mlir::OpBuilder& builder,
+          llvm::StringRef functionName,
+          mlir::ValueRange vars,
+          const EquationPath& path) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;
@@ -69,10 +76,6 @@ namespace marco::codegen
       Access getAccessFromPath(const EquationPath& path) const;
 
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
-
-      //mlir::LogicalResult explicitate(const EquationPath& path);
-
-      //mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, EquationPath::EquationSide side);
   };
 
   namespace impl

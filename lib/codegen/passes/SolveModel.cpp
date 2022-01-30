@@ -5,6 +5,7 @@
 #include "marco/codegen/passes/SolveModel.h"
 #include "marco/codegen/passes/TypeConverter.h"
 #include "marco/codegen/passes/model/Equation.h"
+#include "marco/codegen/passes/model/EquationImpl.h"
 #include "marco/codegen/passes/model/Matching.h"
 #include "marco/codegen/passes/model/Model.h"
 #include "marco/codegen/passes/model/Scheduling.h"
@@ -485,6 +486,16 @@ struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
 				loc, rewriter.getBoolAttr(true));
 
 		rewriter.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
+    size_t counter = 0;
+
+    for (const auto& equation : model->getEquations()) {
+      std::string functionName = "eq_template_" + std::to_string(counter);
+      ++counter;
+      auto templateFunction = equation->createTemplateFunction(rewriter, functionName, op.body().getArguments());
+
+      if (templateFunction != nullptr)
+        templateFunction.dump();
+    }
 
     /*
     // Copy the body of the simulation
@@ -611,70 +622,7 @@ struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
     }
 
     function.eraseArguments(argsToBeRemoved);
-
-    // Move loop invariants. This is needed because we scalarize the array
-    // assignments, and thus arrays may be allocated way more times than
-    // needed.
-
-    function.walk([&](mlir::LoopLikeOpInterface loopLike) {
-      moveLoopInvariantCode(loopLike);
-    });
-
     return function;
-  }
-
-  mlir::LogicalResult moveLoopInvariantCode(mlir::LoopLikeOpInterface loopLike) const
-  {
-    auto& loopBody = loopLike.getLoopBody();
-
-    // We use two collections here as we need to preserve the order for insertion
-    // and this is easiest.
-    llvm::SmallPtrSet<mlir::Operation*, 8> willBeMovedSet;
-    llvm::SmallVector<mlir::Operation*, 8> opsToMove;
-
-    // Helper to check whether an operation is loop invariant wrt. SSA properties.
-    auto isDefinedOutsideOfBody = [&](mlir::Value value) {
-        auto definingOp = value.getDefiningOp();
-
-        return (definingOp && !!willBeMovedSet.count(definingOp)) ||
-               loopLike.isDefinedOutsideOfLoop(value);
-    };
-
-    // Do not use walk here, as we do not want to go into nested regions and hoist
-    // operations from there. These regions might have semantics unknown to this
-    // rewriting. If the nested regions are loops, they will have been processed.
-
-    for (auto& block : loopBody)
-    {
-      for (auto& op : block.without_terminator())
-      {
-        if (canBeHoisted(&op, isDefinedOutsideOfBody))
-        {
-          opsToMove.push_back(&op);
-          willBeMovedSet.insert(&op);
-        }
-      }
-    }
-
-    return loopLike.moveOutOfLoop(opsToMove);
-  }
-
-  static bool canBeHoisted(mlir::Operation* op, std::function<bool(mlir::Value)> definedOutside)
-  {
-    if (!llvm::all_of(op->getOperands(), definedOutside))
-      return false;
-
-    for (auto& region : op->getRegions())
-    {
-      for (auto& block : region)
-      {
-        for (auto& innerOp : block.without_terminator())
-          if (!canBeHoisted(&innerOp, definedOutside))
-            return false;
-      }
-    }
-
-    return true;
   }
 
 	void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
@@ -1458,6 +1406,149 @@ static mlir::LogicalResult scheduling(
   return mlir::success();
 }
 
+static mlir::Type getVoidPtrType(mlir::MLIRContext* context)
+{
+  return mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
+}
+
+/// Load the data structure from the opaque pointer that is passed around the
+/// simulation functions.
+///
+/// @param builder	 operation builder
+/// @param ptr 	     opaque pointer
+/// @param varTypes  types of the variables
+/// @return data structure containing the variables
+static mlir::Value loadDataFromOpaquePtr(
+    mlir::OpBuilder& builder,
+    mlir::TypeConverter& typeConverter,
+    mlir::Value ptr,
+    mlir::TypeRange varTypes)
+{
+  mlir::Location loc = ptr.getLoc();
+  llvm::SmallVector<mlir::Type, 3> structTypes;
+
+  for (const auto& type : varTypes) {
+    structTypes.push_back(typeConverter.convertType(type));
+  }
+
+  mlir::Type structType = mlir::LLVM::LLVMStructType::getLiteral(ptr.getContext(), structTypes);
+  mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
+  mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, ptr);
+  mlir::Value structValue = builder.create<mlir::LLVM::LoadOp>(loc, structPtr);
+
+  return structValue;
+}
+
+/// Extract a value from the data structure shared between the various
+/// simulation main functions.
+///
+/// @param builder 			  operation builder
+/// @param typeConverter  type converter
+/// @param structValue 	  data structure
+/// @param type 				  value type
+/// @param position 		  value position
+/// @return extracted value
+mlir::Value extractValue(
+    mlir::OpBuilder& builder,
+    mlir::TypeConverter& typeConverter,
+    mlir::Value structValue,
+    mlir::Type type,
+    unsigned int position)
+{
+  mlir::Location loc = structValue.getLoc();
+
+  assert(structValue.getType().isa<mlir::LLVM::LLVMStructType>() && "Not an LLVM struct");
+  auto structType = structValue.getType().cast<mlir::LLVM::LLVMStructType>();
+  auto structTypes = structType.getBody();
+  assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
+
+  mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
+  return typeConverter.materializeSourceConversion(builder, loc, type, var);
+}
+
+static mlir::LogicalResult createStepFunction(
+    mlir::OpBuilder& builder,
+    mlir::TypeConverter& typeConverter,
+    const Model<ScheduledEquation>& model)
+{
+  ModelOp modelOp = model.getOperation();
+  mlir::Location loc = modelOp.getLoc();
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  // Create the function inside the parent module
+  builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+
+  auto function = builder.create<mlir::FuncOp>(
+      loc, "step",
+      builder.getFunctionType(getVoidPtrType(builder.getContext()), builder.getI1Type()));
+
+  auto* entryBlock = function.addEntryBlock();
+  builder.setInsertionPointToStart(entryBlock);
+
+  // Extract the data from the struct
+  mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+  mlir::Value structValue = loadDataFromOpaquePtr(builder, typeConverter, function.getArgument(0), varTypes);
+
+  llvm::SmallVector<mlir::Value, 3> vars;
+
+  for (const auto& varType : llvm::enumerate(varTypes)) {
+    vars.push_back(extractValue(builder, typeConverter, structValue, varTypes[varType.index()], varType.index()));
+  }
+
+  // Increment the time
+  mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+  mlir::Value currentTime = builder.create<LoadOp>(loc, vars[0]);
+  mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+  builder.create<StoreOp>(loc, increasedTime, vars[0]);
+
+  // Check if the current time is less than the end time
+  mlir::Value endTime = builder.create<ConstantOp>(loc, modelOp.endTime());
+
+  mlir::Value condition = builder.create<LteOp>(loc, BooleanType::get(modelOp->getContext()), increasedTime, endTime);
+  condition = typeConverter.materializeTargetConversion(builder, condition.getLoc(), builder.getI1Type(), condition);
+
+  auto ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getI1Type(), condition, true);
+  builder.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
+
+  // If we didn't reach the end time update the variables and return
+  // true to continue the simulation.
+  builder.setInsertionPointToStart(&ifOp.thenRegion().front());
+
+  auto trueValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(true));
+  builder.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
+  size_t counter = 0;
+
+  for (const auto& equation : model.getEquations()) {
+    std::string functionName = "eq_template_" + std::to_string(counter);
+    ++counter;
+
+    auto templateFunction = equation->createTemplateFunction(builder, functionName, modelOp.body().getArguments());
+
+    if (templateFunction != nullptr)
+      templateFunction.dump();
+  }
+
+  // Otherwise, return false to stop the simulation
+  builder.setInsertionPointToStart(&ifOp.elseRegion().front());
+  mlir::Value falseValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(false));
+  builder.create<mlir::scf::YieldOp>(loc, falseValue);
+
+  return mlir::success();
+}
+
+static mlir::LogicalResult createSimulationFunctions(
+    mlir::OpBuilder& builder,
+    mlir::TypeConverter& typeConverter,
+    const Model<ScheduledEquation>& model,
+    const mlir::BlockAndValueMapping& derivatives)
+{
+  if (auto status = createStepFunction(builder, typeConverter, model); mlir::failed(status)) {
+    return status;
+  }
+
+  return mlir::success();
+}
+
 /// Model solving pass.
 /// Its objective is to convert a descriptive (and thus not sequential) model
 /// into an algorithmic one and to create the functions controlling the simulation.
@@ -1514,9 +1605,20 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     }
 
     // Create the simulation functions
+    /*
     if (mlir::failed(convertModel(scheduledModel, derivatives))) {
       return signalPassFailure();
     }
+     */
+
+    mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+    TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
+    if (mlir::failed(::createSimulationFunctions(builder, typeConverter, scheduledModel, derivatives))) {
+      return signalPassFailure();
+    }
+
+    scheduledModel.getOperation().erase();
 	}
 
 	/**

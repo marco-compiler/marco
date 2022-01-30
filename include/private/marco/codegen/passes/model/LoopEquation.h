@@ -17,11 +17,6 @@ namespace marco::codegen
 
       std::unique_ptr<Equation> clone() const override;
 
-      /*
-      std::unique_ptr<Impl> cloneIR() const override;
-      void eraseIR() override;
-       */
-
       size_t getNumOfIterationVars() const override;
       long getRangeBegin(size_t inductionVarIndex) const override;
       long getRangeEnd(size_t inductionVarIndex) const override;
@@ -29,6 +24,22 @@ namespace marco::codegen
       std::vector<Access> getAccesses() const override;
 
       DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
+
+      mlir::FuncOp createTemplateFunction(
+          mlir::OpBuilder& builder,
+          llvm::StringRef functionName,
+          mlir::ValueRange vars,
+          const EquationPath& path) const override;
+
+    protected:
+      std::vector<mlir::Value> createTemplateFunctionLoops(
+          mlir::OpBuilder& builder,
+          mlir::ValueRange lowerBounds,
+          mlir::ValueRange upperBounds,
+          mlir::ValueRange steps) const override;
+
+      void mapIterationVars(mlir::BlockAndValueMapping& mapping, mlir::ValueRange variables) const override;
+
     private:
       size_t getNumberOfExplicitLoops() const;
 

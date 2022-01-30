@@ -116,6 +116,28 @@ ExpressionPath::Step::Step(const ExpressionPath::Step& other) : impl(other.impl-
     return equationSide != other.equationSide;
   }
 
+  void EquationPath::dump() const
+  {
+    dump(std::clog);
+  }
+
+  void EquationPath::dump(std::ostream& os) const
+  {
+    os << "Equation path: [";
+
+    if (equationSide == LEFT) {
+      os << "left";
+    } else {
+      os << "right";
+    }
+
+    for (const auto& index : *this) {
+      os << ", " << index;
+    }
+
+    os << "]\n";
+  }
+
   EquationPath::EquationSide EquationPath::getEquationSide() const
   {
     return equationSide;

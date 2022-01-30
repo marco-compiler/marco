@@ -1,4 +1,5 @@
 #include "marco/codegen/passes/model/ScalarEquation.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
@@ -27,21 +28,6 @@ namespace marco::codegen
   {
     return std::make_unique<ScalarEquation>(*this);
   }
-
-  /*
-  std::unique_ptr<Equation::Impl> ScalarEquation::cloneIR() const
-  {
-    EquationOp equationOp = getOperation();
-    mlir::OpBuilder builder(equationOp);
-    auto clone = mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation()));
-    return std::make_unique<ScalarEquation>(clone, getVariables());
-  }
-
-  void ScalarEquation::eraseIR()
-  {
-    getOperation().erase();
-  }
-   */
 
   size_t ScalarEquation::getNumOfIterationVars() const
   {
@@ -78,22 +64,4 @@ namespace marco::codegen
     assert(access.first == nullptr);
     return DimensionAccess::constant(access.second);
   }
-
-  /*
-  void ScalarEquation::getWrites(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
-  {
-    std::vector<Access> result;
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-    searchAccesses(result, terminator.lhs()[0], EquationPath(EquationPath::LEFT));
-    return result;
-  }
-
-  void ScalarEquation::getReads(llvm::SmallVectorImpl<ScalarEquation::Access>& accesses) const
-  {
-    std::vector<Access> result;
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-    searchAccesses(result, terminator.rhs()[0], EquationPath(EquationPath::LEFT));
-    return result;
-  }
-   */
 }

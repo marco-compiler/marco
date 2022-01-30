@@ -1,4 +1,6 @@
 #include "marco/codegen/passes/model/LoopEquation.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include <memory>
 
 using namespace ::marco::codegen::modelica;
@@ -15,50 +17,6 @@ namespace marco::codegen
   {
     return std::make_unique<LoopEquation>(*this);
   }
-
-  /*
-  std::unique_ptr<Equation::Impl> LoopEquation::cloneIR() const
-  {
-    EquationOp equationOp = getOperation();
-    mlir::OpBuilder builder(equationOp);
-
-    ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
-    llvm::SmallVector<ForEquationOp, 3> explicitLoops;
-
-    while (parent != nullptr)
-    {
-      explicitLoops.push_back(parent);
-      parent = parent->getParentOfType<ForEquationOp>();
-    }
-
-    mlir::BlockAndValueMapping mapping;
-    builder.setInsertionPoint(explicitLoops.back());
-
-    for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it)
-    {
-      auto loop = builder.create<ForEquationOp>(it->getLoc(), it->start(), it->end());
-      builder.setInsertionPointToStart(loop.body());
-      mapping.map(it->induction(), loop.induction());
-    }
-
-    auto clone = mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation(), mapping));
-    return std::make_unique<LoopEquation>(clone, getVariables());
-  }
-
-  void LoopEquation::eraseIR()
-  {
-    EquationOp equationOp = getOperation();
-    ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
-    equationOp.erase();
-
-    while (parent != nullptr)
-    {
-      ForEquationOp newParent = parent->getParentOfType<ForEquationOp>();
-      parent->erase();
-      parent = newParent;
-    }
-  }
-   */
 
   size_t LoopEquation::getNumOfIterationVars() const
   {
@@ -138,57 +96,47 @@ namespace marco::codegen
     return DimensionAccess::relative(inductionVarIndex, access.second);
   }
 
-  /*
-  void LoopEquation::getWrites(llvm::SmallVectorImpl<LoopEquation::Access>& accesses) const
+  mlir::FuncOp LoopEquation::createTemplateFunction(
+      mlir::OpBuilder& builder,
+      llvm::StringRef functionName,
+      mlir::ValueRange vars) const
   {
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-    size_t explicitInductions = getNumberOfExplicitLoops();
-
-    llvm::SmallVector<matching::DimensionAccess> implicitDimensionAccesses;
-    size_t implicitInductionVar = 0;
-
-    if (auto arrayType = value.getType().dyn_cast<ArrayType>())
-    {
-      for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
-      {
-        auto dimensionAccess = matching::DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
-        implicitDimensionAccesses.push_back(dimensionAccess);
-        ++implicitInductionVar;
-      }
-    }
-
-    searchAccesses(accesses, terminator.lhs()[0], implicitDimensionAccesses, EquationPath(EquationPath::LEFT));
+    return nullptr;
   }
 
-  void LoopEquation::getReads(llvm::SmallVectorImpl<LoopEquation::Access>& accesses) const
+  std::vector<mlir::Value> LoopEquation::createTemplateFunctionLoops(
+      mlir::OpBuilder& builder,
+      mlir::ValueRange lowerBounds,
+      mlir::ValueRange upperBounds,
+      mlir::ValueRange steps) const
   {
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-    size_t explicitInductions = getNumberOfExplicitLoops();
+    // TODO create loops
+    return {};
+  }
 
-    llvm::SmallVector<matching::DimensionAccess> implicitDimensionAccesses;
-    size_t implicitInductionVar = 0;
+  void LoopEquation::mapIterationVars(mlir::BlockAndValueMapping& mapping, mlir::ValueRange iterationVars) const
+  {
+    std::vector<ForEquationOp> loops;
+    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
 
-    if (auto arrayType = value.getType().dyn_cast<ArrayType>())
-    {
-      for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
-      {
-        auto dimensionAccess = matching::DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
-        implicitDimensionAccesses.push_back(dimensionAccess);
-        ++implicitInductionVar;
-      }
+    while (parent != nullptr) {
+      loops.push_back(parent);
+      parent = parent->getParentOfType<ForEquationOp>();
     }
 
-    searchAccesses(accesses, terminator.rhs()[0], implicitDimensionAccesses, EquationPath(EquationPath::LEFT));
+    assert(loops.size() <= iterationVars.size());
+
+    for (size_t i = 0, e = loops.size(); i < e; ++i) {
+      mapping.map(loops[e - i - 1].induction(), iterationVars[i]);
+    }
   }
-   */
 
   size_t LoopEquation::getNumberOfExplicitLoops() const
   {
     size_t result = 0;
     ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
 
-    while (parent != nullptr)
-    {
+    while (parent != nullptr) {
       ++result;
       parent = parent->getParentOfType<ForEquationOp>();
     }
@@ -201,8 +149,7 @@ namespace marco::codegen
     llvm::SmallVector<ForEquationOp, 3> loops;
     ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
 
-    while (parent != nullptr)
-    {
+    while (parent != nullptr) {
       loops.push_back(parent);
       parent = parent->getParentOfType<ForEquationOp>();
     }
@@ -216,8 +163,9 @@ namespace marco::codegen
     size_t result = 0;
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
 
-    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>())
+    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>()) {
       result += arrayType.getRank();
+    }
 
     return result;
   }
@@ -235,10 +183,13 @@ namespace marco::codegen
     size_t counter = 0;
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
 
-    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>())
-      for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter)
-        if (counter == index)
+    if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>()) {
+      for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
+        if (counter == index) {
           return arrayType.getShape()[i];
+        }
+      }
+    }
 
     assert(false && "Implicit loop not found");
     return 0;

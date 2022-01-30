@@ -3,6 +3,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include <iostream>
 
 namespace marco::codegen
 {
@@ -59,6 +60,10 @@ namespace marco::codegen
 
       bool operator==(const EquationPath& other) const;
       bool operator!=(const EquationPath& other) const;
+
+      void dump() const;
+
+      void dump(std::ostream& os) const;
 
       EquationSide getEquationSide() const;
 

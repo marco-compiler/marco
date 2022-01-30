@@ -1,4 +1,7 @@
 #include "marco/codegen/passes/model/Matching.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+
+using namespace ::marco::codegen::modelica;
 
 namespace marco::codegen
 {
@@ -63,6 +66,23 @@ namespace marco::codegen
       std::pair<mlir::Value, long> access) const
   {
     return equation->resolveDimensionAccess(std::move(access));
+  }
+
+  mlir::FuncOp MatchedEquation::createTemplateFunction(
+      mlir::OpBuilder& builder,
+      llvm::StringRef functionName,
+      mlir::ValueRange vars,
+      const EquationPath& path) const
+  {
+    return equation->createTemplateFunction(builder, functionName, vars, path);
+  }
+
+  mlir::FuncOp MatchedEquation::createTemplateFunction(
+      mlir::OpBuilder& builder,
+      llvm::StringRef functionName,
+      mlir::ValueRange vars) const
+  {
+    return equation->createTemplateFunction(builder, functionName, vars, getWrite().getPath());
   }
 
   size_t MatchedEquation::getNumOfIterationVars() const
