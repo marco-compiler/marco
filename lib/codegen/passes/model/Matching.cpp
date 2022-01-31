@@ -92,6 +92,11 @@ namespace marco::codegen
     return equation->cloneIR();
   }
 
+  void MatchedEquation::eraseIR()
+  {
+    equation->eraseIR();
+  }
+
   EquationOp MatchedEquation::getOperation() const
   {
     return equation->getOperation();
@@ -121,9 +126,10 @@ namespace marco::codegen
   mlir::FuncOp MatchedEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars) const
+      mlir::ValueRange vars,
+      ::marco::modeling::scheduling::Direction iterationDirection) const
   {
-    return equation->createTemplateFunction(builder, functionName, vars);
+    return equation->createTemplateFunction(builder, functionName, vars, iterationDirection);
   }
 
   std::unique_ptr<Equation> MatchedEquation::explicitate(mlir::OpBuilder& builder)

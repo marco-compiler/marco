@@ -31,6 +31,8 @@ namespace marco::codegen
 
       modelica::EquationOp cloneIR() const override;
 
+      void eraseIR() override;
+
       modelica::EquationOp getOperation() const override;
 
       const Variables& getVariables() const override;
@@ -51,7 +53,8 @@ namespace marco::codegen
       mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars) const override;
+          mlir::ValueRange vars,
+          ::marco::modeling::scheduling::Direction iterationDirection) const override;
 
       /// }
       /// @name Modified methods

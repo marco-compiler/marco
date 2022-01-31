@@ -42,6 +42,19 @@ namespace marco::codegen
     return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation(), mapping));
   }
 
+  void LoopEquation::eraseIR()
+  {
+    EquationOp equationOp = getOperation();
+    ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+    equationOp.erase();
+
+    while (parent != nullptr) {
+      ForEquationOp newParent = parent->getParentOfType<ForEquationOp>();
+      parent->erase();
+      parent = newParent;
+    }
+  }
+
   size_t LoopEquation::getNumOfIterationVars() const
   {
     return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
@@ -120,39 +133,91 @@ namespace marco::codegen
     return DimensionAccess::relative(inductionVarIndex, access.second);
   }
 
-  mlir::FuncOp LoopEquation::createTemplateFunction(
+  mlir::LogicalResult LoopEquation::createTemplateFunctionBody(
       mlir::OpBuilder& builder,
-      llvm::StringRef functionName,
-      mlir::ValueRange vars) const
+      mlir::BlockAndValueMapping& mapping,
+      mlir::ValueRange beginIndexes,
+      mlir::ValueRange endIndexes,
+      mlir::ValueRange steps,
+      ::marco::modeling::scheduling::Direction iterationDirection) const
   {
-    return nullptr;
-  }
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto equation = getOperation();
+    auto loc = equation.getLoc();
 
-  std::vector<mlir::Value> LoopEquation::createTemplateFunctionLoops(
-      mlir::OpBuilder& builder,
-      mlir::ValueRange lowerBounds,
-      mlir::ValueRange upperBounds,
-      mlir::ValueRange steps) const
-  {
-    // TODO create loops
-    return {};
-  }
+    auto conditionFn = [&](mlir::Value index, mlir::Value end) -> mlir::Value {
+      assert(iterationDirection == modeling::scheduling::Direction::Forward ||
+              iterationDirection == modeling::scheduling::Direction::Backward);
 
-  void LoopEquation::mapIterationVars(mlir::BlockAndValueMapping& mapping, mlir::ValueRange iterationVars) const
-  {
-    std::vector<ForEquationOp> loops;
-    ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
+      if (iterationDirection == modeling::scheduling::Direction::Backward) {
+        return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::sgt, index, end).getResult();
+      }
 
-    while (parent != nullptr) {
-      loops.push_back(parent);
-      parent = parent->getParentOfType<ForEquationOp>();
+      return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::slt, index, end).getResult();
+    };
+
+    auto updateFn = [&](mlir::Value index, mlir::Value step) -> mlir::Value {
+      assert(iterationDirection == modeling::scheduling::Direction::Forward ||
+          iterationDirection == modeling::scheduling::Direction::Backward);
+
+      if (iterationDirection == modeling::scheduling::Direction::Backward) {
+        return builder.create<mlir::SubIOp>(loc, index, step).getResult();
+      }
+
+      return builder.create<mlir::AddIOp>(loc, index, step).getResult();
+    };
+
+    // Create the explicit loops
+    auto explicitLoops = getExplicitLoops();
+
+    std::vector<mlir::Value> inductionVars;
+
+    for (size_t i = 0; i < explicitLoops.size(); ++i) {
+      auto whileOp = builder.create<mlir::scf::WhileOp>(loc, builder.getIndexType(), beginIndexes[i]);
+
+      // Check the condition.
+      // A naive check can consist in the equality comparison. However, in order to be future-proof with
+      // respect to steps greater than one, we need to check if the current value is beyond the end boundary.
+      // This in turn requires to know the iteration direction.
+      mlir::Block* beforeBlock = builder.createBlock(&whileOp.before(), {}, builder.getIndexType());
+      builder.setInsertionPointToStart(beforeBlock);
+      mlir::Value condition = conditionFn(whileOp.before().getArgument(0), endIndexes[i]);
+      builder.create<mlir::scf::ConditionOp>(loc, condition, whileOp.before().getArgument(0));
+
+      // Execute the loop body
+      mlir::Block* afterBlock = builder.createBlock(&whileOp.after(), {}, builder.getIndexType());
+      mlir::Value inductionVariable = afterBlock->getArgument(0);
+      mapping.map(explicitLoops[i].induction(), inductionVariable);
+      builder.setInsertionPointToStart(afterBlock);
+
+      // Update the induction variable
+      mlir::Value nextValue = updateFn(inductionVariable, steps[i]);
+      builder.create<mlir::scf::YieldOp>(loc, nextValue);
+      builder.setInsertionPoint(nextValue.getDefiningOp());
     }
 
-    assert(loops.size() <= iterationVars.size());
+    // Clone the equation body
+    for (auto& op : equation.body()->getOperations()) {
+      if (auto terminator = mlir::dyn_cast<modelica::EquationSidesOp>(op)) {
+        // Convert the equality into an assignment
+        for (auto [lhs, rhs] : llvm::zip(terminator.lhs(), terminator.rhs())) {
+          auto mappedLhs = mapping.lookup(lhs);
+          auto mappedRhs = mapping.lookup(rhs);
 
-    for (size_t i = 0, e = loops.size(); i < e; ++i) {
-      mapping.map(loops[e - i - 1].induction(), iterationVars[i]);
+          if (auto loadOp = mlir::dyn_cast<LoadOp>(mappedLhs.getDefiningOp())) {
+            assert(loadOp.indexes().empty());
+            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.memory());
+          } else {
+            builder.create<AssignmentOp>(loc, mappedRhs, mappedLhs);
+          }
+        }
+      } else {
+        // Clone all the other operations
+        builder.clone(op, mapping);
+      }
     }
+
+    return mlir::success();
   }
 
   size_t LoopEquation::getNumberOfExplicitLoops() const
@@ -168,9 +233,9 @@ namespace marco::codegen
     return result;
   }
 
-  ForEquationOp LoopEquation::getExplicitLoop(size_t index) const
+  std::vector<ForEquationOp> LoopEquation::getExplicitLoops() const
   {
-    llvm::SmallVector<ForEquationOp, 3> loops;
+    std::vector<ForEquationOp> loops;
     ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
 
     while (parent != nullptr) {
@@ -178,8 +243,15 @@ namespace marco::codegen
       parent = parent->getParentOfType<ForEquationOp>();
     }
 
+    std::reverse(loops.begin(), loops.end());
+    return loops;
+  }
+
+  ForEquationOp LoopEquation::getExplicitLoop(size_t index) const
+  {
+    auto loops = getExplicitLoops();
     assert(index < loops.size());
-    return loops[loops.size() - 1 - index];
+    return loops[index];
   }
 
   size_t LoopEquation::getNumberOfImplicitLoops() const

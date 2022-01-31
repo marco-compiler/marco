@@ -268,7 +268,8 @@ namespace marco::codegen
   mlir::FuncOp BaseEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars) const
+      mlir::ValueRange vars,
+      ::marco::modeling::scheduling::Direction iterationDirection) const
   {
     auto equation = getOperation();
 
@@ -315,45 +316,12 @@ namespace marco::codegen
     }
 
     // Delegate the body creation to the actual equation implementation
-    if (auto status = createTemplateFunctionBody(builder, mapping, lowerBounds, upperBounds, steps); mlir::failed(status)) {
-      return status;
-    }
-
-    // Clone the equation body
-    for (auto& op : equation.body()->getOperations()) {
-      if (auto terminator = mlir::dyn_cast<modelica::EquationSidesOp>(op)) {
-        // Convert the equality into an assignment
-        for (auto [lhs, rhs] : llvm::zip(terminator.lhs(), terminator.rhs())) {
-          auto mappedLhs = mapping.lookup(lhs);
-          auto mappedRhs = mapping.lookup(rhs);
-
-          if (auto loadOp = mlir::dyn_cast<LoadOp>(mappedLhs.getDefiningOp())) {
-            assert(loadOp.indexes().empty());
-            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.memory());
-          } else {
-            builder.create<AssignmentOp>(loc, mappedRhs, mappedLhs);
-          }
-        }
-      } else {
-        // Clone all the other operations
-        builder.clone(op, mapping);
-      }
+    if (auto status = createTemplateFunctionBody(
+        builder, mapping, lowerBounds, upperBounds, steps, iterationDirection); mlir::failed(status)) {
+      return nullptr;
     }
 
     builder.create<mlir::ReturnOp>(loc);
     return function;
-  }
-
-  std::vector<mlir::Value> BaseEquation::createTemplateFunctionLoops(
-      mlir::OpBuilder& builder,
-      mlir::ValueRange lowerBounds,
-      mlir::ValueRange upperBounds,
-      mlir::ValueRange steps) const
-  {
-    return {};
-  }
-
-  void BaseEquation::mapIterationVars(mlir::BlockAndValueMapping& mapping, mlir::ValueRange iterationVars) const
-  {
   }
 }

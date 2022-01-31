@@ -20,16 +20,17 @@ namespace marco::codegen
       virtual mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars) const override;
+          mlir::ValueRange vars,
+          ::marco::modeling::scheduling::Direction iterationDirection) const override;
 
     protected:
-      virtual std::vector<mlir::Value> createTemplateFunctionLoops(
+      virtual mlir::LogicalResult createTemplateFunctionBody(
           mlir::OpBuilder& builder,
-          mlir::ValueRange lowerBounds,
-          mlir::ValueRange upperBounds,
-          mlir::ValueRange steps) const;
-
-      virtual void mapIterationVars(mlir::BlockAndValueMapping& mapping, mlir::ValueRange iterationVars) const;
+          mlir::BlockAndValueMapping& mapping,
+          mlir::ValueRange beginIndexes,
+          mlir::ValueRange endIndexes,
+          mlir::ValueRange steps,
+          ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
 
     private:
       mlir::Operation* equationOp;

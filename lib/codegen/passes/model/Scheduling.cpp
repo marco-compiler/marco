@@ -47,6 +47,11 @@ namespace marco::codegen
     return equation->cloneIR();
   }
 
+  void ScheduledEquation::eraseIR()
+  {
+    equation->eraseIR();
+  }
+
   EquationOp ScheduledEquation::getOperation() const
   {
     return equation->getOperation();
@@ -91,9 +96,10 @@ namespace marco::codegen
   mlir::FuncOp ScheduledEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars) const
+      mlir::ValueRange vars,
+      ::marco::modeling::scheduling::Direction iterationDirection) const
   {
-    return equation->createTemplateFunction(builder, functionName, vars);
+    return equation->createTemplateFunction(builder, functionName, vars, iterationDirection);
   }
 
   size_t ScheduledEquation::getNumOfIterationVars() const

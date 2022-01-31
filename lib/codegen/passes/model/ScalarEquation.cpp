@@ -36,6 +36,11 @@ namespace marco::codegen
     return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation()));
   }
 
+  void ScalarEquation::eraseIR()
+  {
+    getOperation().erase();
+  }
+
   size_t ScalarEquation::getNumOfIterationVars() const
   {
     return 1;
@@ -70,5 +75,39 @@ namespace marco::codegen
   {
     assert(access.first == nullptr);
     return DimensionAccess::constant(access.second);
+  }
+
+  mlir::LogicalResult ScalarEquation::createTemplateFunctionBody(
+      mlir::OpBuilder& builder,
+      mlir::BlockAndValueMapping& mapping,
+      mlir::ValueRange beginIndexes,
+      mlir::ValueRange endIndexes,
+      mlir::ValueRange steps,
+      ::marco::modeling::scheduling::Direction iterationDirection) const
+  {
+    auto equation = getOperation();
+    auto loc = equation.getLoc();
+
+    for (auto& op : equation.body()->getOperations()) {
+      if (auto terminator = mlir::dyn_cast<modelica::EquationSidesOp>(op)) {
+        // Convert the equality into an assignment
+        for (auto [lhs, rhs] : llvm::zip(terminator.lhs(), terminator.rhs())) {
+          auto mappedLhs = mapping.lookup(lhs);
+          auto mappedRhs = mapping.lookup(rhs);
+
+          if (auto loadOp = mlir::dyn_cast<LoadOp>(mappedLhs.getDefiningOp())) {
+            assert(loadOp.indexes().empty());
+            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.memory());
+          } else {
+            builder.create<AssignmentOp>(loc, mappedRhs, mappedLhs);
+          }
+        }
+      } else {
+        // Clone all the other operations
+        builder.clone(op, mapping);
+      }
+    }
+
+    return mlir::success();
   }
 }

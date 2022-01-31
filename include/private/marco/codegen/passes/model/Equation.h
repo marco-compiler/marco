@@ -6,6 +6,7 @@
 #include "marco/codegen/passes/model/Path.h"
 #include "marco/codegen/passes/model/Variable.h"
 #include "marco/modeling/Matching.h"
+#include "marco/modeling/Scheduling.h"
 #include "mlir/IR/BuiltinOps.h"
 #include <memory>
 
@@ -20,6 +21,8 @@ namespace marco::codegen
       virtual std::unique_ptr<Equation> clone() const = 0;
 
       virtual modelica::EquationOp cloneIR() const = 0;
+
+      virtual void eraseIR() = 0;
 
       /// Get the IR operation.
       virtual modelica::EquationOp getOperation() const = 0;
@@ -42,7 +45,8 @@ namespace marco::codegen
       virtual mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars) const = 0;
+          mlir::ValueRange vars,
+          ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;

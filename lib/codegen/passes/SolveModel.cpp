@@ -491,10 +491,14 @@ struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
     for (const auto& equation : model->getEquations()) {
       std::string functionName = "eq_template_" + std::to_string(counter);
       ++counter;
-      auto templateFunction = equation->createTemplateFunction(rewriter, functionName, op.body().getArguments());
+
+      /*
+      auto templateFunction = equation->createTemplateFunction(
+          rewriter, functionName, op.body().getArguments());
 
       if (templateFunction != nullptr)
         templateFunction.dump();
+        */
     }
 
     /*
@@ -1466,6 +1470,64 @@ mlir::Value extractValue(
   return typeConverter.materializeSourceConversion(builder, loc, type, var);
 }
 
+static mlir::FuncOp createEquationFunction(
+    mlir::OpBuilder& builder,
+    const ScheduledEquation& equation,
+    llvm::StringRef equationFunctionName,
+    mlir::FuncOp templateFunction,
+    mlir::TypeRange varsTypes)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  auto loc = equation.getOperation().getLoc();
+
+  auto module = equation.getOperation()->getParentOfType<mlir::ModuleOp>();
+  builder.setInsertionPointToEnd(module.getBody());
+
+  auto functionType = builder.getFunctionType(varsTypes, llvm::None);
+  auto function = builder.create<mlir::FuncOp>(loc, equationFunctionName, functionType);
+
+  auto* entryBlock = function.addEntryBlock();
+  builder.setInsertionPointToStart(entryBlock);
+
+  auto valuesFn = [&](marco::modeling::scheduling::Direction iterationDirection, size_t index) -> std::tuple<mlir::Value, mlir::Value, mlir::Value> {
+    assert(iterationDirection == marco::modeling::scheduling::Direction::Forward ||
+            iterationDirection == marco::modeling::scheduling::Direction::Backward);
+
+    if (iterationDirection == marco::modeling::scheduling::Direction::Forward) {
+      mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index)));
+      mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index)));
+      mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+
+      return std::make_tuple(begin, end, step);
+    }
+
+    mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index) - 1));
+    mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index) - 1));
+    mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+
+    return std::make_tuple(begin, end, step);
+  };
+
+  std::vector<mlir::Value> args;
+
+  for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
+    auto values = valuesFn(equation.getSchedulingDirection(), i);
+
+    args.push_back(std::get<0>(values));
+    args.push_back(std::get<1>(values));
+    args.push_back(std::get<2>(values));
+  }
+
+  mlir::ValueRange vars = function.getArguments();
+  args.insert(args.end(), vars.begin(), vars.end());
+
+  // Call the equation template function
+  builder.create<mlir::CallOp>(loc, templateFunction, args);
+
+  builder.create<mlir::ReturnOp>(loc);
+  return function;
+}
+
 static mlir::LogicalResult createStepFunction(
     mlir::OpBuilder& builder,
     mlir::TypeConverter& typeConverter,
@@ -1510,17 +1572,17 @@ static mlir::LogicalResult createStepFunction(
   auto ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getI1Type(), condition, true);
   builder.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
 
-  // If we didn't reach the end time update the variables and return
-  // true to continue the simulation.
+  // Perform the step
   builder.setInsertionPointToStart(&ifOp.thenRegion().front());
 
-  auto trueValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(true));
-  builder.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
-  size_t counter = 0;
+  size_t equationTemplateCounter = 0;
+  size_t equationCounter = 0;
+
+  std::vector<mlir::FuncOp> equationTemplateFunctions;
 
   for (const auto& equation : model.getEquations()) {
-    std::string functionName = "eq_template_" + std::to_string(counter);
-    ++counter;
+    std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
+    ++equationTemplateCounter;
 
     auto clonedExplicitEquation = equation->explicitate(builder);
 
@@ -1530,15 +1592,30 @@ static mlir::LogicalResult createStepFunction(
     }
 
     auto templateFunction = clonedExplicitEquation->createTemplateFunction(
-        builder, functionName, modelOp.body().getArguments());
+        builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
 
-    if (templateFunction != nullptr) {
-      llvm::outs() << "TEMPLATE\n";
-      templateFunction.dump();
-    }
+    equationTemplateFunctions.push_back(templateFunction);
 
-    clonedExplicitEquation->getOperation().erase();
+    // Erase the temporary EquationOp clone (and its ForEquationOp parents) that has been used to
+    // create the template function.
+    clonedExplicitEquation->eraseIR();
+
+    // Create the function that calls the template.
+    // This function dictates the indices the template will work with.
+    std::string equationFunctionName = "eq_" + std::to_string(equationCounter);
+    ++equationCounter;
+
+    auto equationFunction = createEquationFunction(
+        builder, *equation, equationFunctionName, templateFunction, modelOp.body().getArgumentTypes());
+
+    // Create the call to the instantiated template function
+    builder.create<mlir::CallOp>(loc, equationFunction, vars);
   }
+
+  // If we didn't reach the end time update the variables and return
+  // true to continue the simulation.
+  auto trueValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(true));
+  builder.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
 
   // Otherwise, return false to stop the simulation
   builder.setInsertionPointToStart(&ifOp.elseRegion().front());
