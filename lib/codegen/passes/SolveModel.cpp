@@ -1522,10 +1522,22 @@ static mlir::LogicalResult createStepFunction(
     std::string functionName = "eq_template_" + std::to_string(counter);
     ++counter;
 
-    auto templateFunction = equation->createTemplateFunction(builder, functionName, modelOp.body().getArguments());
+    auto clonedExplicitEquation = equation->explicitate(builder);
 
-    if (templateFunction != nullptr)
+    if (clonedExplicitEquation == nullptr) {
+      model.getOperation().emitError("Could not explicitate equation");
+      return mlir::failure();
+    }
+
+    auto templateFunction = clonedExplicitEquation->createTemplateFunction(
+        builder, functionName, modelOp.body().getArguments());
+
+    if (templateFunction != nullptr) {
+      llvm::outs() << "TEMPLATE\n";
       templateFunction.dump();
+    }
+
+    clonedExplicitEquation->getOperation().erase();
   }
 
   // Otherwise, return false to stop the simulation

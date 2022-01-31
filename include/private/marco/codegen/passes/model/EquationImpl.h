@@ -6,20 +6,6 @@
 
 namespace marco::codegen
 {
-  namespace impl
-  {
-    mlir::LogicalResult explicitate(
-        mlir::OpBuilder& builder,
-        modelica::EquationOp equationOp,
-        const EquationPath& path);
-
-    mlir::LogicalResult explicitate(
-        mlir::OpBuilder& builder,
-        modelica::EquationOp equationOp,
-        size_t argumentIndex,
-        EquationPath::EquationSide side);
-  }
-
   class BaseEquation : public Equation
   {
     public:
@@ -34,8 +20,7 @@ namespace marco::codegen
       virtual mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars,
-          const EquationPath& path) const override;
+          mlir::ValueRange vars) const override;
 
     protected:
       virtual std::vector<mlir::Value> createTemplateFunctionLoops(

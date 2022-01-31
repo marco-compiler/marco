@@ -29,6 +29,13 @@ namespace marco::codegen
     return std::make_unique<ScalarEquation>(*this);
   }
 
+  EquationOp ScalarEquation::cloneIR() const
+  {
+    EquationOp equationOp = getOperation();
+    mlir::OpBuilder builder(equationOp);
+    return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation()));
+  }
+
   size_t ScalarEquation::getNumOfIterationVars() const
   {
     return 1;

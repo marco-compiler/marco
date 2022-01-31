@@ -1,7 +1,52 @@
+#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/codegen/passes/model/Matching.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
+using namespace ::marco::codegen;
 using namespace ::marco::codegen::modelica;
+
+static mlir::LogicalResult explicitate(
+    mlir::OpBuilder& builder,
+    modelica::EquationOp equation,
+    size_t argumentIndex,
+    EquationPath::EquationSide side)
+{
+  auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
+  assert(terminator.lhs().size() == 1);
+  assert(terminator.rhs().size() == 1);
+
+  mlir::Value toExplicitate = side == EquationPath::LEFT ? terminator.lhs()[0] : terminator.rhs()[0];
+  mlir::Value otherExp = side == EquationPath::RIGHT ? terminator.lhs()[0] : terminator.rhs()[0];
+
+  mlir::Operation* op = toExplicitate.getDefiningOp();
+
+  if (!op->hasTrait<InvertibleOpInterface::Trait>()) {
+    return op->emitError("Operation is not invertible");
+  }
+
+  return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
+}
+
+static mlir::LogicalResult explicitate(
+    mlir::OpBuilder& builder, modelica::EquationOp equation, const EquationPath& path)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
+  builder.setInsertionPoint(terminator);
+
+  for (auto index : path) {
+    if (auto status = explicitate(builder, equation, index, path.getEquationSide()); mlir::failed(status)) {
+      return status;
+    }
+  }
+
+  if (path.getEquationSide() == EquationPath::RIGHT) {
+    builder.setInsertionPointAfter(terminator);
+    builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
+    terminator->erase();
+  }
+
+  return mlir::success();
+}
 
 namespace marco::codegen
 {
@@ -42,7 +87,12 @@ namespace marco::codegen
     return std::make_unique<MatchedEquation>(*this);
   }
 
-  modelica::EquationOp MatchedEquation::getOperation() const
+  EquationOp MatchedEquation::cloneIR() const
+  {
+    return equation->cloneIR();
+  }
+
+  EquationOp MatchedEquation::getOperation() const
   {
     return equation->getOperation();
   }
@@ -71,18 +121,20 @@ namespace marco::codegen
   mlir::FuncOp MatchedEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars,
-      const EquationPath& path) const
-  {
-    return equation->createTemplateFunction(builder, functionName, vars, path);
-  }
-
-  mlir::FuncOp MatchedEquation::createTemplateFunction(
-      mlir::OpBuilder& builder,
-      llvm::StringRef functionName,
       mlir::ValueRange vars) const
   {
-    return equation->createTemplateFunction(builder, functionName, vars, getWrite().getPath());
+    return equation->createTemplateFunction(builder, functionName, vars);
+  }
+
+  std::unique_ptr<Equation> MatchedEquation::explicitate(mlir::OpBuilder& builder)
+  {
+    EquationOp clonedOp = cloneIR();
+
+    if (auto status = ::explicitate(builder, clonedOp, getWrite().getPath()); mlir::failed(status)) {
+      return nullptr;
+    }
+
+    return Equation::build(clonedOp, getVariables());
   }
 
   size_t MatchedEquation::getNumOfIterationVars() const

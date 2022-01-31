@@ -17,6 +17,8 @@ namespace marco::codegen
 
       std::unique_ptr<Equation> clone() const override;
 
+      modelica::EquationOp cloneIR() const override;
+
       size_t getNumOfIterationVars() const override;
       long getRangeBegin(size_t inductionVarIndex) const override;
       long getRangeEnd(size_t inductionVarIndex) const override;
@@ -28,8 +30,7 @@ namespace marco::codegen
       mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars,
-          const EquationPath& path) const override;
+          mlir::ValueRange vars) const override;
 
     protected:
       std::vector<mlir::Value> createTemplateFunctionLoops(

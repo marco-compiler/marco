@@ -42,7 +42,12 @@ namespace marco::codegen
     return std::make_unique<ScheduledEquation>(*this);
   }
 
-  modelica::EquationOp ScheduledEquation::getOperation() const
+  EquationOp ScheduledEquation::cloneIR() const
+  {
+    return equation->cloneIR();
+  }
+
+  EquationOp ScheduledEquation::getOperation() const
   {
     return equation->getOperation();
   }
@@ -78,13 +83,9 @@ namespace marco::codegen
     return equation->getWrite();
   }
 
-  mlir::FuncOp ScheduledEquation::createTemplateFunction(
-      mlir::OpBuilder& builder,
-      llvm::StringRef functionName,
-      mlir::ValueRange vars,
-      const EquationPath& path) const
+  std::unique_ptr<Equation> ScheduledEquation::explicitate(mlir::OpBuilder& builder)
   {
-    return equation->createTemplateFunction(builder, functionName, vars, path);
+    return equation->explicitate(builder);
   }
 
   mlir::FuncOp ScheduledEquation::createTemplateFunction(

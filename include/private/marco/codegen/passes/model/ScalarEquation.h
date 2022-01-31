@@ -18,10 +18,7 @@ namespace marco::codegen
 
       std::unique_ptr<Equation> clone() const override;
 
-      /*
-      std::unique_ptr<Impl> cloneIR() const override;
-      void eraseIR() override;
-       */
+      modelica::EquationOp cloneIR() const override;
 
       size_t getNumOfIterationVars() const override;
       long getRangeBegin(size_t inductionVarIndex) const override;

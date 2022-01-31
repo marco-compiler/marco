@@ -265,69 +265,17 @@ namespace marco::codegen
     this->variables = std::move(value);
   }
 
-  namespace impl
-  {
-    mlir::LogicalResult explicitate(
-        mlir::OpBuilder& builder, modelica::EquationOp equation, const EquationPath& path)
-    {
-      auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-
-      for (auto index : path) {
-        if (auto status = explicitate(builder, equation, index, path.getEquationSide()); mlir::failed(status)) {
-          return status;
-        }
-      }
-
-      if (path.getEquationSide() == EquationPath::RIGHT) {
-        builder.setInsertionPointAfter(terminator);
-        builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
-        terminator->erase();
-      }
-
-      return mlir::success();
-    }
-
-    mlir::LogicalResult explicitate(
-        mlir::OpBuilder& builder,
-        modelica::EquationOp equation,
-        size_t argumentIndex,
-        EquationPath::EquationSide side)
-    {
-      auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-      assert(terminator.lhs().size() == 1);
-      assert(terminator.rhs().size() == 1);
-
-      mlir::Value toExplicitate = side == EquationPath::LEFT ? terminator.lhs()[0] : terminator.rhs()[0];
-      mlir::Value otherExp = side == EquationPath::RIGHT ? terminator.lhs()[0] : terminator.rhs()[0];
-
-      mlir::Operation* op = toExplicitate.getDefiningOp();
-
-      if (!op->hasTrait<InvertibleOpInterface::Trait>()) {
-        return op->emitError("Operation is not invertible");
-      }
-
-      return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
-    }
-  }
-
   mlir::FuncOp BaseEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars,
-      const EquationPath& path) const
+      mlir::ValueRange vars) const
   {
+    auto equation = getOperation();
+
     auto loc = getOperation()->getLoc();
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    // Create the clone of the equation to be modified
-    builder.setInsertionPoint(getOperation());
-    auto clonedOp = mlir::cast<EquationOp>(builder.clone(*getOperation().getOperation()));
-
-    if (auto status = impl::explicitate(builder, clonedOp, path); mlir::failed(status)) {
-      return nullptr;
-    }
-
-    auto module = clonedOp->getParentOfType<mlir::ModuleOp>();
+    auto module = equation->getParentOfType<mlir::ModuleOp>();
     builder.setInsertionPointToEnd(module.getBody());
 
     llvm::SmallVector<mlir::Type, 6> argsTypes;
@@ -357,12 +305,7 @@ namespace marco::codegen
       steps.push_back(function.getArgument(2 + i * 3));
     }
 
-    std::vector<mlir::Value> iterationVars = createTemplateFunctionLoops(builder, lowerBounds, upperBounds, steps);
-
     mlir::BlockAndValueMapping mapping;
-
-    // Map the induction variables
-    mapIterationVars(mapping, iterationVars);
 
     // Map the variables
     size_t varsOffset = getNumOfIterationVars() * 3;
@@ -371,8 +314,13 @@ namespace marco::codegen
       mapping.map(vars[i], function.getArgument(i + varsOffset));
     }
 
+    // Delegate the body creation to the actual equation implementation
+    if (auto status = createTemplateFunctionBody(builder, mapping, lowerBounds, upperBounds, steps); mlir::failed(status)) {
+      return status;
+    }
+
     // Clone the equation body
-    for (auto& op : clonedOp.body()->getOperations()) {
+    for (auto& op : equation.body()->getOperations()) {
       if (auto terminator = mlir::dyn_cast<modelica::EquationSidesOp>(op)) {
         // Convert the equality into an assignment
         for (auto [lhs, rhs] : llvm::zip(terminator.lhs(), terminator.rhs())) {
@@ -393,10 +341,6 @@ namespace marco::codegen
     }
 
     builder.create<mlir::ReturnOp>(loc);
-
-    // Erase the cloned equation
-    clonedOp.erase();
-
     return function;
   }
 

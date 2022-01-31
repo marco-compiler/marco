@@ -18,6 +18,30 @@ namespace marco::codegen
     return std::make_unique<LoopEquation>(*this);
   }
 
+  EquationOp LoopEquation::cloneIR() const
+  {
+    EquationOp equationOp = getOperation();
+    mlir::OpBuilder builder(equationOp);
+    ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+    llvm::SmallVector<ForEquationOp, 3> explicitLoops;
+
+    while (parent != nullptr) {
+      explicitLoops.push_back(parent);
+      parent = parent->getParentOfType<ForEquationOp>();
+    }
+
+    mlir::BlockAndValueMapping mapping;
+    builder.setInsertionPoint(explicitLoops.back());
+
+    for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it) {
+      auto loop = builder.create<ForEquationOp>(it->getLoc(), it->start(), it->end());
+      builder.setInsertionPointToStart(loop.body());
+      mapping.map(it->induction(), loop.induction());
+    }
+
+    return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation(), mapping));
+  }
+
   size_t LoopEquation::getNumOfIterationVars() const
   {
     return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();

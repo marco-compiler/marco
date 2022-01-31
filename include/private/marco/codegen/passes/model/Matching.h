@@ -2,7 +2,6 @@
 #define MARCO_CODEGEN_PASSES_MODEL_MATCHING_H
 
 #include "marco/codegen/passes/model/Equation.h"
-#include "marco/codegen/passes/model/Variable.h"
 #include "marco/modeling/Dependency.h"
 #include <memory>
 #include <vector>
@@ -28,6 +27,8 @@ namespace marco::codegen
       /// @name Forwarded methods
       /// {
 
+      modelica::EquationOp cloneIR() const override;
+
       modelica::EquationOp getOperation() const override;
 
       const Variables& getVariables() const override;
@@ -42,8 +43,7 @@ namespace marco::codegen
       mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars,
-          const EquationPath& path) const override;
+          mlir::ValueRange vars) const override;
 
       /// }
       /// @name Modified methods
@@ -62,10 +62,7 @@ namespace marco::codegen
 
       Access getWrite() const;
 
-      mlir::FuncOp createTemplateFunction(
-          mlir::OpBuilder& builder,
-          llvm::StringRef functionName,
-          mlir::ValueRange vars) const;
+      std::unique_ptr<Equation> explicitate(mlir::OpBuilder& builder);
 
     private:
       std::unique_ptr<Equation> equation;
