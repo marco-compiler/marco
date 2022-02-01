@@ -99,8 +99,8 @@ namespace marco::frontend
     auto features = "";
 
     llvm::TargetOptions opt;
-    auto RM = llvm::Optional<llvm::Reloc::Model>();
-    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, RM);
+    auto relocationModel = llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
+    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, relocationModel);
 
     ci.getLLVMModule().setDataLayout(targetMachine->createDataLayout());
     ci.getLLVMModule().setTargetTriple(targetTriple);

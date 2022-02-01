@@ -67,1094 +67,1115 @@ static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsig
   return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
 }
 
-struct ModelOpPattern : public mlir::ConvertOpToLLVMPattern<ModelOp>
+class ModelConverter
 {
-	private:
-	// The derivatives map keeps track of whether a variable is the derivative
-	// of another one. Each variable is identified by its position within the
-	// list of the "body" region arguments.
+  private:
+    // The derivatives map keeps track of whether a variable is the derivative
+    // of another one. Each variable is identified by its position within the
+    // list of the "body" region arguments.
 
-	using DerivativesPositionsMap = std::map<size_t, size_t>;
+    using DerivativesPositionsMap = std::map<size_t, size_t>;
 
-	// Name for the functions of the simulation
-	static constexpr llvm::StringLiteral mainFunctionName = "main";
-	static constexpr llvm::StringLiteral initFunctionName = "init";
-	static constexpr llvm::StringLiteral stepFunctionName = "step";
-	static constexpr llvm::StringLiteral printHeaderFunctionName = "printHeader";
-	static constexpr llvm::StringLiteral printFunctionName = "print";
-	static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
-  static constexpr llvm::StringLiteral runFunctionName = "runSimulation";
+    // Name for the functions of the simulation
+    static constexpr llvm::StringLiteral mainFunctionName = "main";
+    static constexpr llvm::StringLiteral initFunctionName = "init";
+    static constexpr llvm::StringLiteral stepFunctionName = "step";
+    static constexpr llvm::StringLiteral updateStateVariablesFunctionName = "updateStateVariables";
+    static constexpr llvm::StringLiteral printHeaderFunctionName = "printHeader";
+    static constexpr llvm::StringLiteral printFunctionName = "print";
+    static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
+    static constexpr llvm::StringLiteral runFunctionName = "runSimulation";
 
-	public:
-  ModelOpPattern(mlir::MLIRContext* ctx,
-                 TypeConverter& typeConverter,
-                 SolveModelOptions options,
-                 const Model<ScheduledEquation>& model,
-                 const mlir::BlockAndValueMapping& derivativesMap)
-			: mlir::ConvertOpToLLVMPattern<ModelOp>(typeConverter),
-				options(std::move(options)),
-        model(&model),
-				derivativesMap(&derivativesMap)
-	{
-	}
-
-	mlir::LogicalResult matchAndRewrite(
-      ModelOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-    assert(model->getOperation() == op && "The received model is not the one the conversion pattern is operating on");
-
-		// Convert the original derivatives map between values into a map between positions
-		DerivativesPositionsMap derivativesPositions;
-
-		for (size_t i = 0, e = op.body().getNumArguments(); i < e; ++i) {
-			mlir::Value var = op.body().getArgument(i);
-
-			if (derivativesMap->contains(var)) {
-				mlir::Value derivative = derivativesMap->lookup(var);
-				bool derivativeFound = false;
-				unsigned int position = 0;
-
-				for (size_t j = 0; j < e && !derivativeFound; ++j) {
-					mlir::Value arg = op.body().getArgument(j);
-
-					if (arg == derivative) {
-						derivativeFound = true;
-						position = j;
-					}
-				}
-
-				assert(derivativeFound && "Derivative not found among arguments");
-				derivativesPositions[i] = position;
-			}
-		}
-
-    // Create the various functions composing the simulation
-    mlir::TypeRange varTypes = op.body().getArgumentTypes();
-
-    /*
-		if (auto status = createInitFunction(rewriter, op, varTypes); failed(status)) {
-      model->getOperation().emitError("Could not create the '" + initFunctionName + "' function");
-      return status;
+  public:
+    ModelConverter(
+        SolveModelOptions options,
+        TypeConverter& typeConverter)
+      : options(std::move(options)),
+        typeConverter(&typeConverter)
+    {
     }
 
-		if (auto status = createDeinitFunction(rewriter, op, varTypes); failed(status)) {
-      model->getOperation().emitError("Could not create the '" + deinitFunctionName + "' function");
-			return status;
-    }
-     */
+    mlir::LogicalResult convert(
+        mlir::OpBuilder& builder,
+        const Model<ScheduledEquation>& model,
+        const mlir::BlockAndValueMapping& derivatives) const
+    {
+      ModelOp modelOp = model.getOperation();
 
-		if (auto status = createStepFunction(rewriter, op, varTypes); failed(status)) {
-      model->getOperation().emitError("Could not create the '" + stepFunctionName + "' function");
-			return status;
-    }
+      // Convert the original derivatives map between values into a map between positions
+      DerivativesPositionsMap derivativesPositions;
 
-    /*
-		if (auto status = createPrintHeaderFunction(rewriter, op, varTypes, derivativesPositions); failed(status)) {
-      model->getOperation().emitError("Could not create the '" + printHeaderFunctionName + "' function");
-			return status;
-    }
+      for (size_t i = 0, e = modelOp.body().getNumArguments(); i < e; ++i) {
+        mlir::Value var = modelOp.body().getArgument(i);
 
-		if (auto status = createPrintFunction(rewriter, op, varTypes, derivativesPositions); failed(status)) {
-      model->getOperation().emitError("Could not create the '" + printFunctionName + "' function");
-			return status;
-    }
+        if (derivatives.contains(var)) {
+          mlir::Value derivative = derivatives.lookup(var);
+          bool derivativeFound = false;
+          unsigned int position = 0;
 
-		if (options.emitMain) {
-			if (auto status = createMainFunction(rewriter, op); failed(status)) {
-        model->getOperation().emitError("Could not create the '" + mainFunctionName + "' function");
-				return status;
+          for (size_t j = 0; j < e && !derivativeFound; ++j) {
+            mlir::Value arg = modelOp.body().getArgument(j);
+
+            if (arg == derivative) {
+              derivativeFound = true;
+              position = j;
+            }
+          }
+
+          assert(derivativeFound && "Derivative not found among arguments");
+          derivativesPositions[i] = position;
+        }
       }
+
+      // Create the various functions composing the simulation
+      if (auto res = createInitFunction(builder, modelOp); failed(res)) {
+        model.getOperation().emitError("Could not create the '" + initFunctionName + "' function");
+        return res;
+      }
+
+      if (auto res = createDeinitFunction(builder, modelOp); failed(res)) {
+        model.getOperation().emitError("Could not create the '" + deinitFunctionName + "' function");
+        return res;
+      }
+
+      if (auto res = createStepFunction(builder, model, derivatives); mlir::failed(res)) {
+        model.getOperation().emitError("Could not create the '" + stepFunctionName + "' function");
+        return res;
+      }
+
+      if (auto res = createUpdateStateVariablesFunction(builder, modelOp, derivativesPositions); mlir::failed(res)) {
+        model.getOperation().emitError("Could not create the '" + updateStateVariablesFunctionName + "' function");
+        return res;
+      }
+
+      if (auto res = createPrintHeaderFunction(builder, modelOp, derivativesPositions); failed(res)) {
+        model.getOperation().emitError("Could not create the '" + printHeaderFunctionName + "' function");
+        return res;
+      }
+
+      if (auto res = createPrintFunction(builder, modelOp, derivativesPositions); failed(res)) {
+        model.getOperation().emitError("Could not create the '" + printFunctionName + "' function");
+        return res;
+      }
+
+      if (options.emitMain) {
+        if (auto res = createMainFunction(builder, model); mlir::failed(res)) {
+          model.getOperation().emitError("Could not create the '" + mainFunctionName + "' function");
+          return res;
+        }
+      }
+
+      // Erase the model operation, which has been converted to algorithmic code
+      model.getOperation().erase();
+
+      return mlir::success();
     }
-     */
 
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-
-	private:
-	/// Load the data structure from the opaque pointer that is passed around the
-	/// simulation functions.
-	///
-	/// @param builder	 operation builder
-	/// @param ptr 	     opaque pointer
-	/// @param varTypes  types of the variables
-	/// @return data structure containing the variables
-	mlir::Value loadDataFromOpaquePtr(mlir::OpBuilder& builder, mlir::Value ptr, mlir::TypeRange varTypes) const
-	{
-		mlir::Location loc = ptr.getLoc();
-		llvm::SmallVector<mlir::Type, 3> structTypes;
-
-		for (const auto& type : varTypes) {
-      structTypes.push_back(this->getTypeConverter()->convertType(type));
+  private:
+    /// Get the MLIR type corresponding to void*.
+    mlir::Type getVoidPtrType() const
+    {
+      return mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(&typeConverter->getContext(), 8));
     }
 
-		mlir::Type structType = mlir::LLVM::LLVMStructType::getLiteral(ptr.getContext(), structTypes);
-		mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
-		mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, ptr);
-		mlir::Value structValue = builder.create<mlir::LLVM::LoadOp>(loc, structPtr);
+    /// Get the MLIR function with the given name, or declare it inside the module if not present.
+    mlir::LLVM::LLVMFuncOp getOrInsertFunction(
+        mlir::OpBuilder& builder,
+        mlir::ModuleOp module,
+        llvm::StringRef name,
+        mlir::LLVM::LLVMFunctionType type) const
+    {
+      if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
+        return foo;
+      }
 
-		return structValue;
-	}
+      mlir::OpBuilder::InsertionGuard insertGuard(builder);
+      builder.setInsertionPointToStart(module.getBody());
+      return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
+    }
 
-	/// Extract a value from the data structure shared between the various
-	/// simulation main functions.
-	///
-	/// @param builder 			operation builder
-	/// @param structValue 	data structure
-	/// @param type 				value type
-	/// @param position 		value position
-	/// @return extracted value
-	mlir::Value extractValue(
-      mlir::OpBuilder& builder, mlir::Value structValue, mlir::Type type, unsigned int position) const
-	{
-		mlir::Location loc = structValue.getLoc();
+    /// Create the main function, which is called when the executable of the simulation is run.
+    /// In order to keep the code generation simpler, the real implementation of the function
+    /// managing the simulation lives within the runtime library and the main just consists in
+    /// a call to such function.
+    template<typename EquationType>
+    mlir::LogicalResult createMainFunction(mlir::OpBuilder& builder, const Model<EquationType>& model) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      ModelOp modelOp = model.getOperation();
+      mlir::Location loc = modelOp.getLoc();
 
-		assert(structValue.getType().isa<mlir::LLVM::LLVMStructType>() && "Not an LLVM struct");
-		auto structType = structValue.getType().cast<mlir::LLVM::LLVMStructType>();
-		auto structTypes = structType.getBody();
-		assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
+      // Create the function inside the parent module
+      auto module = modelOp->getParentOfType<mlir::ModuleOp>();
+      builder.setInsertionPointToEnd(module.getBody());
 
-		mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
-		return this->getTypeConverter()->materializeSourceConversion(builder, loc, type, var);
-	}
+      llvm::SmallVector<mlir::Type, 3> argsTypes;
+      llvm::SmallVector<mlir::Type, 3> resultsTypes;
 
-  /// Bufferize the variables and convert the subsequent load/store operations to operate on the
-  /// allocated memory buffer.
-  mlir::Value convertMember(mlir::ConversionPatternRewriter& rewriter, MemberCreateOp op) const
-  {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
+      argsTypes.push_back(builder.getI32Type());
+      argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8))));
+      resultsTypes.push_back(builder.getI32Type());
 
-    using LoadReplacer = std::function<void(MemberLoadOp)>;
-    using StoreReplacer = std::function<void(MemberStoreOp)>;
+      auto function = builder.create<mlir::FuncOp>(
+          loc, mainFunctionName, builder.getFunctionType(argsTypes, resultsTypes));
 
-    mlir::Location loc = op->getLoc();
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
 
-    auto memberType = op.resultType().cast<MemberType>();
-    auto arrayType = memberType.toArrayType();
-    assert(arrayType.getAllocationScope() == BufferAllocationScope::heap);
+      mlir::Type voidType = mlir::LLVM::LLVMVoidType::get(modelOp.getContext());
 
-    // Create the memory buffer for the variable
-    rewriter.setInsertionPoint(op);
+      auto runFunction = getOrInsertFunction(
+          builder, module, runFunctionName, mlir::LLVM::LLVMFunctionType::get(voidType, llvm::None));
 
-    mlir::Value reference = rewriter.create<AllocOp>(
-            loc, arrayType.getElementType(), arrayType.getShape(), op.dynamicDimensions(), false);
+      builder.create<mlir::LLVM::CallOp>(loc, runFunction, llvm::None);
 
-    // Replace loads and stores with appropriate instructions operating on the new memory buffer.
-    // The way such replacements are executed depend on the nature of the variable.
+      mlir::Value returnValue = builder.create<mlir::ConstantOp>(loc, builder.getI32IntegerAttr(0));
+      builder.create<mlir::ReturnOp>(loc, returnValue);
 
-    auto replacers = [&]() {
-      if (arrayType.isScalar()) {
-        assert(op.dynamicDimensions().empty());
+      return mlir::success();
+    }
 
-        auto loadReplacer = [&rewriter, reference](MemberLoadOp loadOp) -> void {
-          mlir::OpBuilder::InsertionGuard guard(rewriter);
-          rewriter.setInsertionPoint(loadOp);
-          rewriter.replaceOpWithNewOp<LoadOp>(loadOp, reference);
+    /// Load the data structure from the opaque pointer that is passed around the
+    /// simulation functions.
+    ///
+    /// @param builder	 operation builder
+    /// @param ptr 	     opaque pointer
+    /// @param varTypes  types of the variables
+    /// @return data structure containing the variables
+    mlir::Value loadDataFromOpaquePtr(
+        mlir::OpBuilder& builder,
+        mlir::Value ptr,
+        mlir::TypeRange varTypes) const
+    {
+      mlir::Location loc = ptr.getLoc();
+      llvm::SmallVector<mlir::Type, 3> structTypes;
+
+      for (const auto& type : varTypes) {
+        structTypes.push_back(typeConverter->convertType(type));
+      }
+
+      mlir::Type structType = mlir::LLVM::LLVMStructType::getLiteral(ptr.getContext(), structTypes);
+      mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
+      mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, ptr);
+      mlir::Value structValue = builder.create<mlir::LLVM::LoadOp>(loc, structPtr);
+
+      return structValue;
+    }
+
+    /// Extract a value from the data structure shared between the various
+    /// simulation main functions.
+    ///
+    /// @param builder 			  operation builder
+    /// @param typeConverter  type converter
+    /// @param structValue 	  data structure
+    /// @param type 				  value type
+    /// @param position 		  value position
+    /// @return extracted value
+    mlir::Value extractValue(
+        mlir::OpBuilder& builder,
+        mlir::Value structValue,
+        mlir::Type type,
+        unsigned int position) const
+    {
+      mlir::Location loc = structValue.getLoc();
+
+      assert(structValue.getType().isa<mlir::LLVM::LLVMStructType>() && "Not an LLVM struct");
+      auto structType = structValue.getType().cast<mlir::LLVM::LLVMStructType>();
+      auto structTypes = structType.getBody();
+      assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
+
+      mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
+      return typeConverter->materializeSourceConversion(builder, loc, type, var);
+    }
+
+    /// Bufferize the variables and convert the subsequent load/store operations to operate on the
+    /// allocated memory buffer.
+    mlir::Value convertMember(mlir::OpBuilder& builder, MemberCreateOp op) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+
+      using LoadReplacer = std::function<void(MemberLoadOp)>;
+      using StoreReplacer = std::function<void(MemberStoreOp)>;
+
+      mlir::Location loc = op->getLoc();
+
+      auto memberType = op.resultType().cast<MemberType>();
+      auto arrayType = memberType.toArrayType();
+      assert(arrayType.getAllocationScope() == BufferAllocationScope::heap);
+
+      // Create the memory buffer for the variable
+      builder.setInsertionPoint(op);
+
+      mlir::Value reference = builder.create<AllocOp>(
+          loc, arrayType.getElementType(), arrayType.getShape(), op.dynamicDimensions(), false);
+
+      // Replace loads and stores with appropriate instructions operating on the new memory buffer.
+      // The way such replacements are executed depend on the nature of the variable.
+
+      auto replacers = [&]() {
+        if (arrayType.isScalar()) {
+          assert(op.dynamicDimensions().empty());
+
+          auto loadReplacer = [&builder, reference](MemberLoadOp loadOp) -> void {
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPoint(loadOp);
+            loadOp.replaceAllUsesWith(reference);
+            loadOp.erase();
+          };
+
+          auto storeReplacer = [&builder, reference](MemberStoreOp storeOp) -> void {
+            mlir::OpBuilder::InsertionGuard guard(builder);
+            builder.setInsertionPoint(storeOp);
+            auto assignment = builder.create<AssignmentOp>(storeOp.getLoc(), storeOp.value(), reference);
+            storeOp->replaceAllUsesWith(assignment);
+            storeOp.erase();
+          };
+
+          return std::make_pair<LoadReplacer, StoreReplacer>(loadReplacer, storeReplacer);
+        }
+
+        auto loadReplacer = [&builder, reference](MemberLoadOp loadOp) -> void {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPoint(loadOp);
+          loadOp.replaceAllUsesWith(reference);
+          loadOp.erase();
         };
 
-        auto storeReplacer = [&rewriter, reference](MemberStoreOp storeOp) -> void {
-          mlir::OpBuilder::InsertionGuard guard(rewriter);
-          rewriter.setInsertionPoint(storeOp);
-          rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), reference);
+        auto storeReplacer = [&builder, reference](MemberStoreOp storeOp) -> void {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPoint(storeOp);
+          auto assignment = builder.create<AssignmentOp>(storeOp.getLoc(), storeOp.value(), reference);
+          storeOp->replaceAllUsesWith(assignment);
+          storeOp.erase();
         };
 
         return std::make_pair<LoadReplacer, StoreReplacer>(loadReplacer, storeReplacer);
-      }
-
-      auto loadReplacer = [&rewriter, reference](MemberLoadOp loadOp) -> void {
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(loadOp);
-        rewriter.replaceOp(loadOp, reference);
       };
 
-      auto storeReplacer = [&rewriter, reference](MemberStoreOp storeOp) -> void {
-        mlir::OpBuilder::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(storeOp);
-        rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), reference);
+      LoadReplacer loadReplacer;
+      StoreReplacer storeReplacer;
+      std::tie(loadReplacer, storeReplacer) = replacers();
+
+      for (auto* user : op->getUsers()) {
+        if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
+          loadReplacer(loadOp);
+        } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {
+          storeReplacer(storeOp);
+        }
+      }
+
+      op.replaceAllUsesWith(reference);
+      op.erase();
+      return reference;
+    }
+
+    /// Create the initialization function that allocates the variables and
+    /// stores them into an appropriate data structure to be passed to the other
+    /// simulation functions.
+    mlir::LogicalResult createInitFunction(
+        mlir::OpBuilder& builder, ModelOp modelOp) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::Location loc = modelOp.getLoc();
+
+      // Create the function inside the parent module
+      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+
+      auto functionType = builder.getFunctionType(llvm::None, getVoidPtrType());
+      auto function = builder.create<mlir::FuncOp>(loc, initFunctionName, functionType);
+
+      mlir::BlockAndValueMapping mapping;
+
+      // Move the initialization instructions into the new function
+      modelOp.init().cloneInto(&function.getBody(), mapping);
+
+      llvm::SmallVector<mlir::Value, 3> values;
+      auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
+      builder.setInsertionPointAfter(terminator);
+
+      auto removeAllocationScopeFn = [&](mlir::Value value) -> mlir::Value {
+        return builder.create<ArrayCastOp>(
+            loc, value,
+            value.getType().cast<ArrayType>().toUnknownAllocationScope());
       };
 
-      return std::make_pair<LoadReplacer, StoreReplacer>(loadReplacer, storeReplacer);
-    };
+      // Add variables to the struct to be passed around (i.e. to the step and
+      // print functions).
 
-    LoadReplacer loadReplacer;
-    StoreReplacer storeReplacer;
-    std::tie(loadReplacer, storeReplacer) = replacers();
-
-    for (auto* user : op->getUsers()) {
-      if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
-        loadReplacer(loadOp);
-      } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {
-        storeReplacer(storeOp);
+      for (const auto& var : terminator.values()) {
+        auto memberCreateOp = var.getDefiningOp<MemberCreateOp>();
+        mlir::Value array = convertMember(builder, memberCreateOp);
+        builder.setInsertionPointAfterValue(array);
+        values.push_back(removeAllocationScopeFn(array));
       }
+
+      builder.setInsertionPointAfter(terminator);
+
+      // Set the start time
+      mlir::Value startTime = builder.create<ConstantOp>(loc, modelOp.startTime());
+      builder.create<StoreOp>(loc, startTime, values[0]);
+
+      // Pack the values
+      mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+      std::vector<mlir::Type> structTypes;
+
+      for (const auto& type : varTypes) {
+        structTypes.push_back(typeConverter->convertType(type));
+      }
+
+      auto structType = mlir::LLVM::LLVMStructType::getLiteral(modelOp.getContext(), structTypes);
+      mlir::Value structValue = builder.create<mlir::LLVM::UndefOp>(loc, structType);
+
+      for (const auto& var : llvm::enumerate(values)) {
+        mlir::Type convertedType = typeConverter->convertType(var.value().getType());
+        mlir::Value convertedVar = typeConverter->materializeTargetConversion(builder, loc, convertedType, var.value());
+        structValue = builder.create<mlir::LLVM::InsertValueOp>(loc, structValue, convertedVar, builder.getIndexArrayAttr(var.index()));
+      }
+
+      // The data structure must be stored on the heap in order to escape
+      // from the function.
+
+      // Add the "malloc" function to the module
+      // TODO replace with runtime library call
+      auto mallocFunc = mlir::LLVM::lookupOrCreateMallocFn(modelOp->getParentOfType<mlir::ModuleOp>(), typeConverter->getIndexType());
+
+      // Determine the size (in bytes) of the memory to be allocated
+      mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
+      mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, structPtrType);
+
+      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      one = typeConverter->materializeTargetConversion(builder, loc, typeConverter->getIndexType(), one);
+
+      mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, structPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, one});
+      mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, typeConverter->getIndexType(), gepPtr);
+      mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, mallocFunc, sizeBytes, getVoidPtrType())[0];
+
+      // Store the struct into the heap memory
+      mlir::Value resultCastedPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, resultOpaquePtr);
+      builder.create<mlir::LLVM::StoreOp>(loc, structValue, resultCastedPtr);
+
+      builder.create<mlir::ReturnOp>(loc, resultOpaquePtr);
+      terminator->erase();
+
+      return mlir::success();
     }
 
-    rewriter.replaceOp(op, reference);
-    return reference;
-  }
-
-	/// Create the initialization function that allocates the variables and
-	/// stores them into an appropriate data structure to be passed to the other
-	/// simulation functions.
-	///
-	/// @param rewriter 	operation rewriter
-	/// @param op 				simulation op
-	/// @param varTypes 	types of the variables
-	/// @return conversion result status
-	mlir::LogicalResult createInitFunction(
-      mlir::ConversionPatternRewriter& rewriter, ModelOp op, mlir::TypeRange varTypes) const
-	{
-		mlir::Location loc = op->getLoc();
-		mlir::OpBuilder::InsertionGuard guard(rewriter);
-
-		// Create the function inside the parent module
-		rewriter.setInsertionPointToEnd(op->getParentOfType<mlir::ModuleOp>().getBody());
-
-		auto functionType = rewriter.getFunctionType(llvm::None, getVoidPtrType());
-		auto function = rewriter.create<mlir::FuncOp>(loc, initFunctionName, functionType);
-
-		auto* entryBlock = function.addEntryBlock();
-		rewriter.setInsertionPointToStart(entryBlock);
-
-		// Move the initialization instructions into the new function
-		rewriter.mergeBlocks(&op.init().front(), &function.body().front(), llvm::None);
-
-		llvm::SmallVector<mlir::Value, 3> values;
-		auto terminator = mlir::cast<YieldOp>(entryBlock->getTerminator());
-
-		auto removeAllocationScopeFn = [&](mlir::Value value) -> mlir::Value {
-			return rewriter.create<ArrayCastOp>(
-					loc, value,
-					value.getType().cast<ArrayType>().toUnknownAllocationScope());
-		};
-
-		// Add variables to the struct to be passed around (i.e. to the step and
-		// print functions).
-
-		for (const auto& var : terminator.values()) {
-      auto memberCreateOp = var.getDefiningOp<MemberCreateOp>();
-      mlir::Value array = convertMember(rewriter, memberCreateOp);
-      values.push_back(removeAllocationScopeFn(array));
-    }
-
-		// Set the start time
-		mlir::Value startTime = rewriter.create<ConstantOp>(loc, op.startTime());
-		rewriter.create<StoreOp>(loc, startTime, values[0]);
-
-		// Pack the values
-		llvm::SmallVector<mlir::Type, 3> structTypes;
-
-		for (const auto& type : varTypes) {
-      structTypes.push_back(this->getTypeConverter()->convertType(type));
-    }
-
-		auto structType = mlir::LLVM::LLVMStructType::getLiteral(op->getContext(), structTypes);
-		mlir::Value structValue = rewriter.create<mlir::LLVM::UndefOp>(loc, structType);
-
-		for (const auto& var : llvm::enumerate(values)) {
-			mlir::Type convertedType = this->getTypeConverter()->convertType(var.value().getType());
-			mlir::Value convertedVar = this->getTypeConverter()->materializeTargetConversion(rewriter, loc, convertedType, var.value());
-			structValue = rewriter.create<mlir::LLVM::InsertValueOp>(loc, structValue, convertedVar, rewriter.getIndexArrayAttr(var.index()));
-		}
-
-		// The data structure must be stored on the heap in order to escape
-		// from the function.
-
-		// Add the "malloc" function to the module
-    // TODO replace with runtime library call
-		auto mallocFunc = mlir::LLVM::lookupOrCreateMallocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
-
-		// Determine the size (in bytes) of the memory to be allocated
-		mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
-		mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, structPtrType);
-
-		mlir::Value one = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
-		one = this->getTypeConverter()->materializeTargetConversion(rewriter, loc, getIndexType(), one);
-
-		mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, structPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, one});
-		mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
-		mlir::Value resultOpaquePtr = createLLVMCall(rewriter, loc, mallocFunc, sizeBytes, getVoidPtrType())[0];
-
-		// Store the struct into the heap memory
-		mlir::Value resultCastedPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, structPtrType, resultOpaquePtr);
-		rewriter.create<mlir::LLVM::StoreOp>(loc, structValue, resultCastedPtr);
-
-		rewriter.replaceOpWithNewOp<mlir::ReturnOp>(terminator, resultOpaquePtr);
-		return mlir::success();
-	}
-
-	/**
-	 * Create a function to be called when the simulation has finished and the
-	 * variables together with its data structure are not required anymore and
-	 * thus can be deallocated.
-	 *
-	 * @param builder		operation builder
-	 * @param op 				simulation op
-	 * @param varTypes 	types of the variables
-	 * @return conversion result status
-	 */
-	mlir::LogicalResult createDeinitFunction(
-      mlir::OpBuilder& builder, ModelOp op, mlir::TypeRange varTypes) const
-	{
-		mlir::Location loc = op.getLoc();
-		mlir::OpBuilder::InsertionGuard guard(builder);
-
-		// Create the function inside the parent module
-		builder.setInsertionPointToEnd(op->getParentOfType<mlir::ModuleOp>().getBody());
-
-		auto function = builder.create<mlir::FuncOp>(
-				loc, deinitFunctionName,
-				builder.getFunctionType(getVoidPtrType(), llvm::None));
-
-		auto* entryBlock = function.addEntryBlock();
-		builder.setInsertionPointToStart(entryBlock);
-
-		// Extract the data from the struct
-		mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
-
-		// Deallocate the arrays
-		for (const auto& type : llvm::enumerate(varTypes)) {
-			if (auto arrayType = type.value().dyn_cast<ArrayType>()) {
-				mlir::Value var = extractValue(builder, structValue, varTypes[type.index()], type.index());
-				var = builder.create<ArrayCastOp>(loc, var, arrayType.toAllocationScope(BufferAllocationScope::heap));
-				builder.create<FreeOp>(loc, var);
-			}
-		}
-
-		// Add "free" function to the module
-    // TODO replace with runtime library call
-		auto freeFunc = mlir::LLVM::lookupOrCreateFreeFn(op->getParentOfType<mlir::ModuleOp>());
-
-		// Deallocate the data structure
-		builder.create<mlir::LLVM::CallOp>(loc, llvm::None, builder.getSymbolRefAttr(freeFunc), function.getArgument(0));
-
-		builder.create<mlir::ReturnOp>(loc);
-		return mlir::success();
-	}
-
-	/**
-	 * Create the function to be called at each time step.
-	 *
-	 * @param rewriter		operation rewriter
-	 * @param op					simulation op
-	 * @param varTypes		types of the variables
-	 * @return conversion result status
-	 */
-	mlir::LogicalResult createStepFunction(mlir::ConversionPatternRewriter& rewriter, ModelOp op, mlir::TypeRange varTypes) const
-	{
-		mlir::Location loc = op.getLoc();
-		mlir::OpBuilder::InsertionGuard guard(rewriter);
-
-		// Create the function inside the parent module
-		rewriter.setInsertionPointToEnd(op->getParentOfType<mlir::ModuleOp>().getBody());
-
-		auto function = rewriter.create<mlir::FuncOp>(
-				loc, stepFunctionName,
-				rewriter.getFunctionType(getVoidPtrType(), rewriter.getI1Type()));
-
-		auto* entryBlock = function.addEntryBlock();
-		rewriter.setInsertionPointToStart(entryBlock);
-
-		// Extract the data from the struct
-		mlir::Value structValue = loadDataFromOpaquePtr(rewriter, function.getArgument(0), varTypes);
-
-		llvm::SmallVector<mlir::Value, 3> vars;
-
-		for (const auto& varType : llvm::enumerate(varTypes)) {
-      vars.push_back(extractValue(rewriter, structValue, varTypes[varType.index()], varType.index()));
-    }
-
-		// Increment the time
-		mlir::Value timeStep = rewriter.create<ConstantOp>(loc, op.timeStep());
-		mlir::Value currentTime = rewriter.create<LoadOp>(loc, vars[0]);
-		mlir::Value increasedTime = rewriter.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
-		rewriter.create<StoreOp>(loc, increasedTime, vars[0]);
-
-		// Check if the current time is less than the end time
-		mlir::Value endTime = rewriter.create<ConstantOp>(loc, op.endTime());
-
-		mlir::Value condition = rewriter.create<LteOp>(loc, BooleanType::get(op->getContext()), increasedTime, endTime);
-		condition = getTypeConverter()->materializeTargetConversion(rewriter, condition.getLoc(), rewriter.getI1Type(), condition);
-
-		auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, rewriter.getI1Type(), condition, true);
-		rewriter.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
-
-		// If we didn't reach the end time update the variables and return
-		// true to continue the simulation.
-		rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
-
-		auto trueValue = rewriter.create<mlir::ConstantOp>(
-				loc, rewriter.getBoolAttr(true));
-
-		rewriter.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
-    size_t counter = 0;
-
-    for (const auto& equation : model->getEquations()) {
-      std::string functionName = "eq_template_" + std::to_string(counter);
-      ++counter;
-
-      /*
-      auto templateFunction = equation->createTemplateFunction(
-          rewriter, functionName, op.body().getArguments());
-
-      if (templateFunction != nullptr)
-        templateFunction.dump();
-        */
-    }
-
-    /*
-    // Copy the body of the simulation
-    mlir::BlockAndValueMapping mapping;
-
-    for (const auto& [oldVar, newVar] : llvm::zip(op.body().getArguments(), vars))
-      mapping.map(oldVar, newVar);
-
-    // We need to keep track of the amount of equations processed, so that
-    // we can give a unique name to each function generated.
-    size_t equationCounter = 0;
-
-    rewriter.setInsertionPoint(trueValue);
-
-    for (auto& bodyOp : op.body().front().without_terminator())
+    /// Create a function to be called when the simulation has finished and the
+    /// variables together with its data structure are not required anymore and
+    /// thus can be deallocated.
+    mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, ModelOp modelOp) const
     {
-      if (!mlir::isa<EquationOp>(bodyOp) && !mlir::isa<ForEquationOp>(bodyOp))
-        rewriter.clone(bodyOp, mapping);
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::Location loc = modelOp.getLoc();
+
+      // Create the function inside the parent module
+      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+
+      auto function = builder.create<mlir::FuncOp>(
+          loc, deinitFunctionName,
+          builder.getFunctionType(getVoidPtrType(), llvm::None));
+
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
+
+      // Extract the data from the struct
+      mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+      mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
+
+      // Deallocate the arrays
+      for (const auto& type : llvm::enumerate(varTypes)) {
+        if (auto arrayType = type.value().dyn_cast<ArrayType>()) {
+          mlir::Value var = extractValue(builder, structValue, varTypes[type.index()], type.index());
+          var = builder.create<ArrayCastOp>(loc, var, arrayType.toAllocationScope(BufferAllocationScope::heap));
+          builder.create<FreeOp>(loc, var);
+        }
+      }
+
+      // Add "free" function to the module
+      // TODO replace with runtime library call
+      auto freeFunc = mlir::LLVM::lookupOrCreateFreeFn(modelOp->getParentOfType<mlir::ModuleOp>());
+
+      // Deallocate the data structure
+      builder.create<mlir::LLVM::CallOp>(
+          loc, llvm::None, builder.getSymbolRefAttr(freeFunc), function.getArgument(0));
+
+      builder.create<mlir::ReturnOp>(loc);
+      return mlir::success();
     }
 
-    op.body().walk([&](EquationOp equationOp) {
-      auto insertionPoint = rewriter.saveInsertionPoint();
-
-      llvm::SmallVector<ForEquationOp, 3> loops;
-      ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
-
-      while (parent != nullptr)
-      {
-        loops.push_back(parent);
-        parent = parent->getParentOfType<ForEquationOp>();
-      }
-
-      llvm::SmallVector<mlir::Value, 3> originalInductions;
-      llvm::SmallVector<mlir::Value, 3> inductions;
-
-      // Create the loops
-      for (auto it = loops.rbegin(); it != loops.rend(); ++it)
-      {
-        mlir::Value lowerBound = rewriter.create<ConstantOp>(it->getLoc(), rewriter.getIndexAttr(it->start()));
-        mlir::Value upperBound = rewriter.create<ConstantOp>(it->getLoc(), rewriter.getIndexAttr(it->end()));
-        mlir::Value step = rewriter.create<ConstantOp>(it->getLoc(), rewriter.getIndexAttr(1));
-
-        auto forOp = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step);
-        originalInductions.push_back(it->induction());
-        inductions.push_back(forOp.getInductionVar());
-        rewriter.setInsertionPointToStart(forOp.getBody());
-      }
-
-      llvm::SmallVector<mlir::Value, 3> usedVars;
-      mlir::FuncOp equationFunction = convertEquation(rewriter, equationOp, equationCounter, vars, originalInductions, usedVars);
-      usedVars.append(inductions);
-      auto call = rewriter.create<mlir::CallOp>(equationOp->getLoc(), equationFunction, usedVars);
-      ++equationCounter;
-
-      rewriter.restoreInsertionPoint(insertionPoint);
-    });
-     */
-
-		// Otherwise, return false to stop the simulation
-		mlir::OpBuilder::InsertionGuard g(rewriter);
-		rewriter.setInsertionPointToStart(&ifOp.elseRegion().front());
-		mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(false));
-		rewriter.create<mlir::scf::YieldOp>(loc, falseValue);
-
-		return mlir::success();
-	}
-
-  mlir::FuncOp convertEquation(
-          mlir::ConversionPatternRewriter& rewriter,
-          EquationOp eq, size_t counter,
-          mlir::ValueRange vars,
-          mlir::ValueRange originalInductions,
-          llvm::SmallVectorImpl<mlir::Value>& usedVars) const
-  {
-    mlir::OpBuilder::InsertionGuard guard(rewriter);
-    mlir::Location loc = eq->getLoc();
-
-    auto module = eq->getParentOfType<mlir::ModuleOp>();
-    rewriter.setInsertionPointToEnd(module.getBody());
-
-    auto varsTypes = vars.getTypes();
-    llvm::SmallVector<mlir::Type, 3> argsTypes(varsTypes.begin(), varsTypes.end());
-    argsTypes.append(originalInductions.size(), rewriter.getIndexType());
-
-    auto functionType = rewriter.getFunctionType(argsTypes, llvm::None);
-    auto name = "eq" + std::to_string(counter);
-
-    auto function = rewriter.create<mlir::FuncOp>(loc, name, functionType);
-
-    auto* entryBlock = function.addEntryBlock();
-    rewriter.setInsertionPointToStart(entryBlock);
-
-    // Before moving the equation body, we need to map the old variables of
-    // the ModelOp to the new ones living in the dedicated function.
-    // The same must be done with the induction variables.
-    mlir::BlockAndValueMapping mapping;
-
-    auto originalVars = eq->getParentOfType<ModelOp>().body().getArguments();
-
-    for (size_t i = 0; i < originalVars.size(); ++i)
-      mapping.map(originalVars[i], function.getArgument(i));
-
-    for (size_t i = 0; i < originalInductions.size(); ++i)
-      mapping.map(originalInductions[i], function.getArgument(originalVars.size() + i));
-
-    for (auto& op : eq.body()->getOperations())
-      rewriter.clone(op, mapping);
-
-    // Create the return instruction
-    rewriter.setInsertionPointToEnd(&function.body().back());
-    rewriter.create<mlir::ReturnOp>(loc);
-
-    // Remove the arguments that are not used
-    llvm::SmallVector<unsigned int, 3> argsToBeRemoved;
-
-    for (size_t i = 0; i < vars.size(); ++i)
+    mlir::FuncOp createEquationFunction(
+        mlir::OpBuilder& builder,
+        const ScheduledEquation& equation,
+        llvm::StringRef equationFunctionName,
+        mlir::FuncOp templateFunction,
+        mlir::TypeRange varsTypes) const
     {
-      mlir::Value arg = function.getArgument(i);
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::Location loc = equation.getOperation().getLoc();
 
-      if (arg.getUsers().empty())
-        argsToBeRemoved.push_back(i);
-      else
-        usedVars.push_back(vars[i]);
+      auto module = equation.getOperation()->getParentOfType<mlir::ModuleOp>();
+      builder.setInsertionPointToEnd(module.getBody());
+
+      auto functionType = builder.getFunctionType(varsTypes, llvm::None);
+      auto function = builder.create<mlir::FuncOp>(loc, equationFunctionName, functionType);
+
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
+
+      auto valuesFn = [&](marco::modeling::scheduling::Direction iterationDirection, size_t index) -> std::tuple<mlir::Value, mlir::Value, mlir::Value> {
+        assert(iterationDirection == marco::modeling::scheduling::Direction::Forward ||
+            iterationDirection == marco::modeling::scheduling::Direction::Backward);
+
+        if (iterationDirection == marco::modeling::scheduling::Direction::Forward) {
+          mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index)));
+          mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index)));
+          mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+
+          return std::make_tuple(begin, end, step);
+        }
+
+        mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index) - 1));
+        mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index) - 1));
+        mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+
+        return std::make_tuple(begin, end, step);
+      };
+
+      std::vector<mlir::Value> args;
+
+      for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
+        auto values = valuesFn(equation.getSchedulingDirection(), i);
+
+        args.push_back(std::get<0>(values));
+        args.push_back(std::get<1>(values));
+        args.push_back(std::get<2>(values));
+      }
+
+      mlir::ValueRange vars = function.getArguments();
+      args.insert(args.end(), vars.begin(), vars.end());
+
+      // Call the equation template function
+      builder.create<mlir::CallOp>(loc, templateFunction, args);
+
+      builder.create<mlir::ReturnOp>(loc);
+      return function;
     }
 
-    function.eraseArguments(argsToBeRemoved);
-    return function;
-  }
+    /// Create the function to be called at each time step.
+    mlir::LogicalResult createStepFunction(
+        mlir::OpBuilder& builder,
+        const Model<ScheduledEquation>& model,
+        const mlir::BlockAndValueMapping& derivatives) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      ModelOp modelOp = model.getOperation();
+      mlir::Location loc = modelOp.getLoc();
 
-	void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
-	{
-		auto module = separator.getParentRegion()->getParentOfType<mlir::ModuleOp>();
-		auto printfRef = getOrInsertPrintf(builder, module);
-		builder.create<mlir::LLVM::CallOp>(separator.getLoc(), printfRef, separator);
-	}
+      // Create the function inside the parent module
+      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-	mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder& builder, mlir::StringRef name, mlir::StringRef value, mlir::ModuleOp module) const
-	{
-		// Create the global at the entry of the module
-		mlir::LLVM::GlobalOp global;
+      auto function = builder.create<mlir::FuncOp>(
+          loc, stepFunctionName,
+          builder.getFunctionType(getVoidPtrType(), builder.getI1Type()));
 
-		if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
-		{
-			mlir::OpBuilder::InsertionGuard insertGuard(builder);
-			builder.setInsertionPointToStart(module.getBody());
-			auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
-			global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
-		}
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
 
-		// Get the pointer to the first character in the global string
-		mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+      // Extract the data from the struct
+      mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+      mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
-		mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
-				loc,
-				mlir::IntegerType::get(builder.getContext(), 64),
-				builder.getIntegerAttr(builder.getIndexType(), 0));
+      llvm::SmallVector<mlir::Value, 3> vars;
 
-		return builder.create<mlir::LLVM::GEPOp>(
-				loc,
-				mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(builder.getContext(), 8)),
-				globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
-	}
+      for (const auto& varType : llvm::enumerate(varTypes)) {
+        vars.push_back(extractValue(builder, structValue, varTypes[varType.index()], varType.index()));
+      }
 
-	mlir::Value getSeparatorString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
-	{
-		return getOrCreateGlobalString(loc, builder, "semicolon", mlir::StringRef(";\0", 2), module);
-	}
+      // Increment the time
+      mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+      mlir::Value currentTime = builder.create<LoadOp>(loc, vars[0]);
+      mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+      builder.create<StoreOp>(loc, increasedTime, vars[0]);
 
-	mlir::Value getNewlineString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
-	{
-		return getOrCreateGlobalString(loc, builder, "newline", mlir::StringRef("\n\0", 2), module);
-	}
+      // Check if the current time is less than the end time
+      mlir::Value endTime = builder.create<ConstantOp>(loc, modelOp.endTime());
 
-	mlir::LLVM::LLVMFuncOp getOrInsertFunction(
-      mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::LLVM::LLVMFunctionType type) const
-  {
-    if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
-      return foo;
+      mlir::Value condition = builder.create<LteOp>(loc, BooleanType::get(modelOp->getContext()), increasedTime, endTime);
+      condition = typeConverter->materializeTargetConversion(builder, condition.getLoc(), builder.getI1Type(), condition);
+
+      auto ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getI1Type(), condition, true);
+      builder.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
+
+      // Convert the equations into algorithmic code
+      builder.setInsertionPointToStart(&ifOp.thenRegion().front());
+
+      size_t equationTemplateCounter = 0;
+      size_t equationCounter = 0;
+
+      std::vector<mlir::FuncOp> equationTemplateFunctions;
+
+      for (const auto& equation : model.getEquations()) {
+        std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
+        ++equationTemplateCounter;
+
+        auto clonedExplicitEquation = equation->explicitate(builder);
+
+        if (clonedExplicitEquation == nullptr) {
+          model.getOperation().emitError("Could not explicitate equation");
+          return mlir::failure();
+        }
+
+        auto templateFunction = clonedExplicitEquation->createTemplateFunction(
+            builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
+
+        equationTemplateFunctions.push_back(templateFunction);
+
+        // Erase the temporary EquationOp clone (and its ForEquationOp parents) that has been used to
+        // create the template function.
+        clonedExplicitEquation->eraseIR();
+
+        // Create the function that calls the template.
+        // This function dictates the indices the template will work with.
+        std::string equationFunctionName = "eq_" + std::to_string(equationCounter);
+        ++equationCounter;
+
+        auto equationFunction = createEquationFunction(
+            builder, *equation, equationFunctionName, templateFunction, modelOp.body().getArgumentTypes());
+
+        // Create the call to the instantiated template function
+        builder.create<mlir::CallOp>(loc, equationFunction, vars);
+      }
+
+      // If we didn't reach the end time update the variables and return
+      // true to continue the simulation.
+      auto trueValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(true));
+      builder.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
+
+      // Otherwise, return false to stop the simulation
+      builder.setInsertionPointToStart(&ifOp.elseRegion().front());
+      mlir::Value falseValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(false));
+      builder.create<mlir::scf::YieldOp>(loc, falseValue);
+
+      return mlir::success();
     }
 
-    mlir::OpBuilder::InsertionGuard insertGuard(builder);
-    builder.setInsertionPointToStart(module.getBody());
-    return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
-  }
-
-	mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& builder, mlir::ModuleOp module) const
-	{
-    auto *context = module.getContext();
-
-		// Create a function declaration for printf, the signature is:
-		//   * `i32 (i8*, ...)`
-		auto llvmI32Ty = mlir::IntegerType::get(context, 32);
-		auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
-		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
-
-		// Insert the printf function into the body of the parent module
-		return getOrInsertFunction(builder, module, "printf", llvmFnType);
-	}
-
-	void printVariableName(
-			mlir::OpBuilder& builder,
-			mlir::Value name,
-			mlir::Type type,
-			VariableFilter::Filter filter,
-			std::function<mlir::Value()> structValue,
-			unsigned int position,
-			mlir::ModuleOp module,
-			mlir::Value separator,
-			bool shouldPreprendSeparator = true) const
-	{
-		if (auto arrayType = type.dyn_cast<ArrayType>())
-		{
-			if (arrayType.getRank() == 0)
-				printScalarVariableName(builder, name, module, separator, shouldPreprendSeparator);
-			else
-				printArrayVariableName(builder, name, type, filter, structValue, position, module, separator, shouldPreprendSeparator);
-		}
-		else
-		{
-			printScalarVariableName(builder, name, module, separator, shouldPreprendSeparator);
-		}
-	}
-
-	void printScalarVariableName(
-			mlir::OpBuilder& builder,
-			mlir::Value name,
-			mlir::ModuleOp module,
-			mlir::Value separator,
-			bool shouldPrependSeparator) const
-	{
-		if (shouldPrependSeparator)
-			printSeparator(builder, separator);
-
-		mlir::Location loc = name.getLoc();
-		mlir::Value formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_str", mlir::StringRef("%s\0", 3), module);
-		auto printfRef = getOrInsertPrintf(builder, module);
-		builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ formatSpecifier, name }));
-	}
-
-	void printArrayVariableName(
-			mlir::OpBuilder& builder,
-			mlir::Value name,
-			mlir::Type type,
-			VariableFilter::Filter filter,
-			std::function<mlir::Value()> structValue,
-			unsigned int position,
-			mlir::ModuleOp module,
-			mlir::Value separator,
-			bool shouldPrependSeparator) const
-	{
-		mlir::Location loc = name.getLoc();
-		assert(type.isa<ArrayType>());
-
-		// Get a reference to the printf function
-		auto printfRef = getOrInsertPrintf(builder, module);
-
-		// Create the brackets and comma strings
-		mlir::Value lSquare = getOrCreateGlobalString(loc, builder, "lsquare", llvm::StringRef("[\0", 2), module);
-		mlir::Value rSquare = getOrCreateGlobalString(loc, builder, "rsquare", llvm::StringRef("]\0", 2), module);
-		mlir::Value comma = getOrCreateGlobalString(loc, builder, "comma", llvm::StringRef(",\0", 2), module);
-
-		// Create the format strings
-		mlir::Value stringFormatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_str", mlir::StringRef("%s\0", 3), module);
-		mlir::Value integerFormatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
-
-		// Allow for the variable to lazily extracted if one of its dimension size
-		// must be determined.
-		bool valueLoaded = false;
-		mlir::Value extractedValue = nullptr;
-		auto insertionPoint = builder.saveInsertionPoint();
-
-		auto var = [&]() -> mlir::Value {
-			if (!valueLoaded)
-			{
-				mlir::OpBuilder::InsertionGuard guard(builder);
-				builder.restoreInsertionPoint(insertionPoint);
-				extractedValue = extractValue(builder, structValue(), type, position);
-				valueLoaded = true;
-			}
-
-			return extractedValue;
-		};
-
-		// Create the lower and upper bounds
-		auto ranges = filter.getRanges();
-		auto arrayType = type.cast<ArrayType>();
-		assert(arrayType.getRank() == ranges.size());
-
-		llvm::SmallVector<mlir::Value, 3> lowerBounds;
-		llvm::SmallVector<mlir::Value, 3> upperBounds;
-
-		mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-		llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
-
-		for (const auto& range : llvm::enumerate(ranges))
-		{
-			// In Modelica, arrays are 1-based. If present, we need to lower by 1
-			// the value given by the variable filter.
-
-			unsigned int lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
-			lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
-
-			// The upper bound is not lowered because the SCF's for operation assumes
-			// them as excluded.
-
-			if (range.value().hasUpperBound())
-			{
-				mlir::Value upperBound = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.value().getUpperBound()));
-				upperBounds.push_back(upperBound);
-			}
-			else
-			{
-				mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.index()));
-				mlir::Value upperBound = builder.create<DimOp>(loc, var(), dim);
-				upperBounds.push_back(upperBound);
-			}
-		}
-
-		bool shouldPrintSeparator = false;
-
-		// Create nested loops in order to iterate on each dimension of the array
-		mlir::scf::buildLoopNest(
-				builder, loc, lowerBounds, upperBounds, steps,
-				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indexes) {
-					// Print the separator, the variable name and the left square bracket
-					printSeparator(builder, separator);
-					builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ stringFormatSpecifier, name }));
-					builder.create<mlir::LLVM::CallOp>(loc, printfRef, lSquare);
-
-					for (mlir::Value index : indexes)
-					{
-						if (shouldPrintSeparator)
-							builder.create<mlir::LLVM::CallOp>(loc, printfRef, comma);
-
-						shouldPrintSeparator = true;
-
-						mlir::Type convertedType = this->getTypeConverter()->convertType(index.getType());
-						index = this->getTypeConverter()->materializeTargetConversion(builder, loc, convertedType, index);
-
-						// Arrays are 1-based in Modelica, so we add 1 in order to print
-						// indexes that are coherent with the model source.
-						mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(index.getType(), 1));
-						index = builder.create<mlir::AddIOp>(loc, index.getType(), index, increment);
-
-						builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ integerFormatSpecifier, index }));
-					}
-
-					// Print the right square bracket
-					builder.create<mlir::LLVM::CallOp>(loc, printfRef, rSquare);
-				});
-
-	}
-
-	mlir::LogicalResult createPrintHeaderFunction(
-			mlir::OpBuilder& builder,
-      ModelOp op,
-			mlir::TypeRange varTypes,
-			DerivativesPositionsMap& derivativesPositions) const
-	{
-		auto callback = [&](std::function<mlir::Value()> structValue, llvm::StringRef name, unsigned int position, VariableFilter::Filter filter, mlir::Value separator) -> mlir::LogicalResult {
-			mlir::Location loc = op.getLoc();
-			auto module = op->getParentOfType<mlir::ModuleOp>();
-
-			std::string symbolName = "var" + std::to_string(position);
-			llvm::SmallString<10> terminatedName(name);
-			terminatedName.append("\0");
-			mlir::Value symbol = getOrCreateGlobalString(loc, builder, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1), module);
-
-			bool shouldPrintSeparator = position != 0;
-			printVariableName(builder, symbol, varTypes[position], filter, structValue, position, module, separator, shouldPrintSeparator);
-			return mlir::success();
-		};
-
-		return createPrintFunctionBody(builder, op, varTypes, derivativesPositions, printHeaderFunctionName, callback);
-	}
-
-	void printVariable(mlir::OpBuilder& builder, mlir::Value var, VariableFilter::Filter filter, mlir::Value separator, bool shouldPreprendSeparator = true) const
-	{
-		if (auto arrayType = var.getType().dyn_cast<ArrayType>())
-		{
-			if (arrayType.getRank() == 0)
-			{
-				mlir::Value value = builder.create<LoadOp>(var.getLoc(), var);
-				printScalarVariable(builder, value, separator, shouldPreprendSeparator);
-			}
-			else
-			{
-				printArrayVariable(builder, var, filter, separator, shouldPreprendSeparator);
-			}
-		}
-		else
-		{
-			printScalarVariable(builder, var, separator, shouldPreprendSeparator);
-		}
-	}
-
-	void printScalarVariable(mlir::OpBuilder& builder, mlir::Value var, mlir::Value separator, bool shouldPreprendSeparator = true) const
-	{
-		if (shouldPreprendSeparator)
-			printSeparator(builder, separator);
-
-		printElement(builder, var);
-	}
-
-	void printArrayVariable(mlir::OpBuilder& builder, mlir::Value var, VariableFilter::Filter filter, mlir::Value separator, bool shouldPreprendSeparator = true) const
-	{
-		mlir::Location loc = var.getLoc();
-		assert(var.getType().isa<ArrayType>());
-
-		auto ranges = filter.getRanges();
-		auto arrayType = var.getType().cast<ArrayType>();
-		assert(arrayType.getRank() == ranges.size());
-
-		llvm::SmallVector<mlir::Value, 3> lowerBounds;
-		llvm::SmallVector<mlir::Value, 3> upperBounds;
-
-		mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-		llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
-
-		for (const auto& range : llvm::enumerate(ranges))
-		{
-			// In Modelica, arrays are 1-based. If present, we need to lower by 1
-			// the value given by the variable filter.
-
-			unsigned int lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
-			lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
-
-			// The upper bound is not lowered because the SCF's for operation assumes
-			// them as excluded.
-
-			if (range.value().hasUpperBound())
-			{
-				mlir::Value upperBound = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.value().getUpperBound()));
-				upperBounds.push_back(upperBound);
-			}
-			else
-			{
-				mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.index()));
-				mlir::Value upperBound = builder.create<DimOp>(loc, var, dim);
-				upperBounds.push_back(upperBound);
-			}
-		}
-
-		// Create nested loops in order to iterate on each dimension of the array
-		mlir::scf::buildLoopNest(
-				builder, loc, lowerBounds, upperBounds, steps,
-				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
-					mlir::Value value = nestedBuilder.create<LoadOp>(loc, var, position);
-
-					printSeparator(nestedBuilder, separator);
-					printElement(nestedBuilder, value);
-				});
-	}
-
-	void printElement(mlir::OpBuilder& builder, mlir::Value value) const
-	{
-		mlir::Location loc = value.getLoc();
-		auto module = value.getParentRegion()->getParentOfType<mlir::ModuleOp>();
-		auto printfRef = getOrInsertPrintf(builder, module);
-
-		mlir::Type convertedType = this->getTypeConverter()->convertType(value.getType());
-		value = this->getTypeConverter()->materializeTargetConversion(builder, loc, convertedType, value);
-		mlir::Type type = value.getType();
-
-		mlir::Value formatSpecifier;
-
-		if (type.isa<mlir::IntegerType>())
-			formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
-		else if (type.isa<mlir::FloatType>())
-			formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_float", mlir::StringRef("%.12f\0", 6), module);
-		else
-			assert(false && "Unknown type");
-
-		builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
-	}
-
-	mlir::LogicalResult createPrintFunction(
-			mlir::OpBuilder& builder,
-      ModelOp op,
-			mlir::TypeRange varTypes,
-			DerivativesPositionsMap& derivativesPositions) const
-	{
-		auto callback = [&](std::function<mlir::Value()> structValue, llvm::StringRef name, unsigned int position, VariableFilter::Filter filter, mlir::Value separator) -> mlir::LogicalResult {
-			mlir::Value var = extractValue(builder, structValue(), varTypes[position], position);
-			bool shouldPrintSeparator = position != 0;
-			printVariable(builder, var, filter, separator, shouldPrintSeparator);
-			return mlir::success();
-		};
-
-		return createPrintFunctionBody(builder, op, varTypes, derivativesPositions, printFunctionName, callback);
-	}
-
-	mlir::LogicalResult createPrintFunctionBody(
-			mlir::OpBuilder& builder,
-      ModelOp op,
-			mlir::TypeRange varTypes,
-			DerivativesPositionsMap& derivativesPositions,
-			llvm::StringRef functionName,
-			std::function<mlir::LogicalResult(std::function<mlir::Value()>, llvm::StringRef, unsigned int, VariableFilter::Filter, mlir::Value)> elementCallback) const
-	{
-		mlir::Location loc = op.getLoc();
-		mlir::OpBuilder::InsertionGuard guard(builder);
-		auto module = op->getParentOfType<mlir::ModuleOp>();
-
-		// Create the function inside the parent module
-		builder.setInsertionPointToEnd(module.getBody());
-
-		auto function = builder.create<mlir::FuncOp>(
-				loc, functionName,
-				builder.getFunctionType(getVoidPtrType(), llvm::None));
-
-		auto* entryBlock = function.addEntryBlock();
-		builder.setInsertionPointToStart(entryBlock);
-
-		// Create the separator and newline global strings
-		mlir::Value separator = getSeparatorString(loc, builder, module);
-		mlir::Value newline = getNewlineString(loc, builder, module);
-
-		// Create the callback to load the data structure whenever needed
-		bool structValueLoaded = false;
-		mlir::Value structValue = nullptr;
-		auto structValueInsertionPoint = builder.saveInsertionPoint();
-
-		auto structValueCallback = [&]() -> mlir::Value {
-			if (!structValueLoaded)
-			{
-				mlir::OpBuilder::InsertionGuard guard(builder);
-				builder.restoreInsertionPoint(structValueInsertionPoint);
-				structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
-			}
-
-			return structValue;
-		};
-
-		// Get the names of the variables
-		llvm::SmallVector<llvm::StringRef, 8> variableNames =
-				llvm::to_vector<8>(op.variableNames().getAsValueRange<mlir::StringAttr>());
-
-		// Map each variable to its position inside the data structure.
-		// It must be noted that the data structure also contains derivative (if
-		// existent), so its size can be greater than the number of names.
-
-		assert(op.variableNames().size() <= varTypes.size());
-		llvm::StringMap<size_t> variablePositionByName;
-
-		for (const auto& var : llvm::enumerate(variableNames))
-			variablePositionByName[var.value()] = var.index() + 1; // + 1 to skip the "time" variable
-
-		// The positions have been saved, so we can now sort the names
-		llvm::sort(variableNames, [](llvm::StringRef x, llvm::StringRef y) -> bool {
-			return x.compare_insensitive(y) < 0;
-		});
-
-		if (auto status = elementCallback(structValueCallback, "time", 0, VariableFilter::Filter::visibleScalar(), separator); failed(status))
-			return status;
-
-		// Print the other variables
-		for (const auto& name : variableNames)
-		{
-			assert(variablePositionByName.count(name) != 0);
-			size_t position = variablePositionByName[name];
-
-			unsigned int rank = 0;
-
-			if (auto arrayType = varTypes[position].dyn_cast<ArrayType>())
-				rank = arrayType.getRank();
-
-			auto filter = options.variableFilter->getVariableInfo(name, rank);
-
-			if (!filter.isVisible())
-				continue;
-
-			if (auto status = elementCallback(structValueCallback, name, position, filter, separator); failed(status))
-				return status;
-		}
-
-		// Print the derivatives
-		for (const auto& name : variableNames)
-		{
-			size_t varPosition = variablePositionByName[name];
-
-			if (derivativesPositions.count(varPosition) == 0)
-			{
-				// The variable has no derivative
-				continue;
-			}
-
-			size_t derivedVarPosition = derivativesPositions[varPosition];
-
-			unsigned int rank = 0;
-
-			if (auto arrayType = varTypes[derivedVarPosition].dyn_cast<ArrayType>())
-				rank = arrayType.getRank();
-
-			auto filter = options.variableFilter->getVariableDerInfo(name, rank);
-
-			if (!filter.isVisible())
-				continue;
-
-			llvm::SmallString<15> derName;
-			derName.append("der(");
-			derName.append(name);
-			derName.append(")");
-
-			if (auto status = elementCallback(structValueCallback, derName, derivedVarPosition, filter, separator); failed(status))
-				return status;
-		}
-
-		// Print a newline character after all the variables have been processed
-		builder.create<mlir::LLVM::CallOp>(loc, getOrInsertPrintf(builder, module), newline);
-
-		builder.create<mlir::ReturnOp>(loc);
-		return mlir::success();
-	}
-
-  /// Create the main function, which is called when the executable of the simulation is run.
-  /// In order to keep the code generation simpler, the real implementation of the function
-  /// managing the simulation lives within the runtime library and the main just consists in
-  /// a call to such function.
-	mlir::LogicalResult createMainFunction(mlir::OpBuilder& builder, ModelOp op) const
-	{
-		mlir::Location loc = op.getLoc();
-		mlir::OpBuilder::InsertionGuard guard(builder);
-
-		// Create the function inside the parent module
-    auto module = op->getParentOfType<mlir::ModuleOp>();
-		builder.setInsertionPointToEnd(module.getBody());
-
-		llvm::SmallVector<mlir::Type, 3> argsTypes;
-		llvm::SmallVector<mlir::Type, 3> resultsTypes;
-
-		argsTypes.push_back(builder.getI32Type());
-		argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8))));
-		resultsTypes.push_back(builder.getI32Type());
-
-		auto function = builder.create<mlir::FuncOp>(
-				loc, mainFunctionName, builder.getFunctionType(argsTypes, resultsTypes));
-
-		auto* entryBlock = function.addEntryBlock();
-		builder.setInsertionPointToStart(entryBlock);
-
-    auto runFunction = getOrInsertFunction(
-        builder, module, runFunctionName, mlir::LLVM::LLVMFunctionType::get(getVoidType(), llvm::None));
-
-    builder.create<mlir::LLVM::CallOp>(loc, runFunction, llvm::None);
-
-		mlir::Value returnValue = builder.create<mlir::ConstantOp>(loc, builder.getI32IntegerAttr(0));
-		builder.create<mlir::ReturnOp>(loc, returnValue);
-
-		return mlir::success();
-	}
-
-	SolveModelOptions options;
-  const Model<ScheduledEquation>* model;
-	const mlir::BlockAndValueMapping* derivativesMap;
+    mlir::LogicalResult createUpdateStateVariablesFunction(
+        mlir::OpBuilder& builder, ModelOp modelOp, const DerivativesPositionsMap& derivatives) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::Location loc = modelOp.getLoc();
+
+      // Create the function inside the parent module
+      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+
+      auto function = builder.create<mlir::FuncOp>(
+          loc, updateStateVariablesFunctionName,
+          builder.getFunctionType(getVoidPtrType(), llvm::None));
+
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
+
+      // Extract the state variables from the opaque pointer
+      mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+      mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
+
+      // Update the state variables by applying the forward Euler method
+      mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+
+      std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
+
+      for (const auto& variable : modelOp.body().getArguments()) {
+        size_t index = variable.getArgNumber();
+        auto it = derivatives.find(variable.getArgNumber());
+
+        if (it != derivatives.end()) {
+          mlir::Value var = extractValue(builder, structValue, varTypes[index], index);
+          mlir::Value der = extractValue(builder, structValue, varTypes[it->second], it->second);
+          varsAndDers.emplace_back(var, der);
+        }
+      }
+
+      for (const auto& [var, der] : varsAndDers) {
+        mlir::Value nextValue = builder.create<MulOp>(loc, der.getType(), der, timeStep);
+        nextValue = builder.create<AddOp>(loc, var.getType(), nextValue, var);
+        builder.create<AssignmentOp>(loc, nextValue, var);
+      }
+
+      builder.create<mlir::ReturnOp>(loc);
+      return mlir::success();
+    }
+
+    void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
+    {
+      auto module = separator.getParentRegion()->getParentOfType<mlir::ModuleOp>();
+      auto printfRef = getOrInsertPrintf(builder, module);
+      builder.create<mlir::LLVM::CallOp>(separator.getLoc(), printfRef, separator);
+    }
+
+    mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder& builder, mlir::StringRef name, mlir::StringRef value, mlir::ModuleOp module) const
+    {
+      // Create the global at the entry of the module
+      mlir::LLVM::GlobalOp global;
+
+      if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name))) {
+        mlir::OpBuilder::InsertionGuard insertGuard(builder);
+        builder.setInsertionPointToStart(module.getBody());
+        auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
+        global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
+      }
+
+      // Get the pointer to the first character in the global string
+      mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+
+      mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
+          loc,
+          mlir::IntegerType::get(builder.getContext(), 64),
+          builder.getIntegerAttr(builder.getIndexType(), 0));
+
+      return builder.create<mlir::LLVM::GEPOp>(
+          loc,
+          mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(builder.getContext(), 8)),
+          globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
+    }
+
+    mlir::Value getSeparatorString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
+    {
+      return getOrCreateGlobalString(loc, builder, "semicolon", mlir::StringRef(";\0", 2), module);
+    }
+
+    mlir::Value getNewlineString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
+    {
+      return getOrCreateGlobalString(loc, builder, "newline", mlir::StringRef("\n\0", 2), module);
+    }
+
+    mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+    {
+      auto *context = module.getContext();
+
+      // Create a function declaration for printf, the signature is:
+      //   * `i32 (i8*, ...)`
+      auto llvmI32Ty = mlir::IntegerType::get(context, 32);
+      auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
+      auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
+
+      // Insert the printf function into the body of the parent module
+      return getOrInsertFunction(builder, module, "printf", llvmFnType);
+    }
+
+    void printVariableName(
+        mlir::OpBuilder& builder,
+        mlir::Value name,
+        mlir::Type type,
+        VariableFilter::Filter filter,
+        std::function<mlir::Value()> structValue,
+        unsigned int position,
+        mlir::ModuleOp module,
+        mlir::Value separator,
+        bool shouldPreprendSeparator = true) const
+    {
+      if (auto arrayType = type.dyn_cast<ArrayType>()) {
+        if (arrayType.getRank() == 0) {
+          printScalarVariableName(builder, name, module, separator, shouldPreprendSeparator);
+        } else {
+          printArrayVariableName(
+              builder, name, type, filter, structValue, position, module, separator, shouldPreprendSeparator);
+        }
+      } else {
+        printScalarVariableName(builder, name, module, separator, shouldPreprendSeparator);
+      }
+    }
+
+    void printScalarVariableName(
+        mlir::OpBuilder& builder,
+        mlir::Value name,
+        mlir::ModuleOp module,
+        mlir::Value separator,
+        bool shouldPrependSeparator) const
+    {
+      if (shouldPrependSeparator) {
+        printSeparator(builder, separator);
+      }
+
+      mlir::Location loc = name.getLoc();
+      mlir::Value formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_str", mlir::StringRef("%s\0", 3), module);
+      auto printfRef = getOrInsertPrintf(builder, module);
+      builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ formatSpecifier, name }));
+    }
+
+    void printArrayVariableName(
+        mlir::OpBuilder& builder,
+        mlir::Value name,
+        mlir::Type type,
+        VariableFilter::Filter filter,
+        std::function<mlir::Value()> structValue,
+        unsigned int position,
+        mlir::ModuleOp module,
+        mlir::Value separator,
+        bool shouldPrependSeparator) const
+    {
+      mlir::Location loc = name.getLoc();
+      assert(type.isa<ArrayType>());
+
+      // Get a reference to the printf function
+      auto printfRef = getOrInsertPrintf(builder, module);
+
+      // Create the brackets and comma strings
+      mlir::Value lSquare = getOrCreateGlobalString(loc, builder, "lsquare", llvm::StringRef("[\0", 2), module);
+      mlir::Value rSquare = getOrCreateGlobalString(loc, builder, "rsquare", llvm::StringRef("]\0", 2), module);
+      mlir::Value comma = getOrCreateGlobalString(loc, builder, "comma", llvm::StringRef(",\0", 2), module);
+
+      // Create the format strings
+      mlir::Value stringFormatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_str", mlir::StringRef("%s\0", 3), module);
+      mlir::Value integerFormatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
+
+      // Allow for the variable to lazily extracted if one of its dimension size
+      // must be determined.
+      bool valueLoaded = false;
+      mlir::Value extractedValue = nullptr;
+      auto insertionPoint = builder.saveInsertionPoint();
+
+      auto var = [&]() -> mlir::Value {
+        if (!valueLoaded) {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.restoreInsertionPoint(insertionPoint);
+          extractedValue = extractValue(builder, structValue(), type, position);
+          valueLoaded = true;
+        }
+
+        return extractedValue;
+      };
+
+      // Create the lower and upper bounds
+      auto ranges = filter.getRanges();
+      auto arrayType = type.cast<ArrayType>();
+      assert(arrayType.getRank() == ranges.size());
+
+      llvm::SmallVector<mlir::Value, 3> lowerBounds;
+      llvm::SmallVector<mlir::Value, 3> upperBounds;
+
+      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
+
+      for (const auto& range : llvm::enumerate(ranges)) {
+        // In Modelica, arrays are 1-based. If present, we need to lower by 1
+        // the value given by the variable filter.
+
+        unsigned int lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
+        lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
+
+        // The upper bound is not lowered because the SCF's for operation assumes
+        // them as excluded.
+
+        if (range.value().hasUpperBound()) {
+          mlir::Value upperBound = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.value().getUpperBound()));
+          upperBounds.push_back(upperBound);
+        } else {
+          mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.index()));
+          mlir::Value upperBound = builder.create<DimOp>(loc, var(), dim);
+          upperBounds.push_back(upperBound);
+        }
+      }
+
+      bool shouldPrintSeparator = false;
+
+      // Create nested loops in order to iterate on each dimension of the array
+      mlir::scf::buildLoopNest(
+          builder, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indexes) {
+            // Print the separator, the variable name and the left square bracket
+            printSeparator(builder, separator);
+            builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ stringFormatSpecifier, name }));
+            builder.create<mlir::LLVM::CallOp>(loc, printfRef, lSquare);
+
+            for (mlir::Value index : indexes) {
+              if (shouldPrintSeparator)
+                builder.create<mlir::LLVM::CallOp>(loc, printfRef, comma);
+
+              shouldPrintSeparator = true;
+
+              mlir::Type convertedType = typeConverter->convertType(index.getType());
+              index = typeConverter->materializeTargetConversion(builder, loc, convertedType, index);
+
+              // Arrays are 1-based in Modelica, so we add 1 in order to print
+              // indexes that are coherent with the model source.
+              mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(index.getType(), 1));
+              index = builder.create<mlir::AddIOp>(loc, index.getType(), index, increment);
+
+              builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ integerFormatSpecifier, index }));
+            }
+
+            // Print the right square bracket
+            builder.create<mlir::LLVM::CallOp>(loc, printfRef, rSquare);
+          });
+    }
+
+    mlir::LogicalResult createPrintHeaderFunction(
+        mlir::OpBuilder& builder,
+        ModelOp op,
+        DerivativesPositionsMap& derivativesPositions) const
+    {
+      mlir::TypeRange varTypes = op.body().getArgumentTypes();
+
+      auto callback = [&](std::function<mlir::Value()> structValue, llvm::StringRef name, unsigned int position, VariableFilter::Filter filter, mlir::Value separator) -> mlir::LogicalResult {
+        mlir::Location loc = op.getLoc();
+        auto module = op->getParentOfType<mlir::ModuleOp>();
+
+        std::string symbolName = "var" + std::to_string(position);
+        llvm::SmallString<10> terminatedName(name);
+        terminatedName.append("\0");
+        mlir::Value symbol = getOrCreateGlobalString(loc, builder, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1), module);
+
+        bool shouldPrintSeparator = position != 0;
+        printVariableName(builder, symbol, varTypes[position], filter, structValue, position, module, separator, shouldPrintSeparator);
+        return mlir::success();
+      };
+
+      return createPrintFunctionBody(builder, op, varTypes, derivativesPositions, printHeaderFunctionName, callback);
+    }
+
+    void printVariable(mlir::OpBuilder& builder, mlir::Value var, VariableFilter::Filter filter, mlir::Value separator, bool shouldPreprendSeparator = true) const
+    {
+      if (auto arrayType = var.getType().dyn_cast<ArrayType>()) {
+        if (arrayType.getRank() == 0) {
+          mlir::Value value = builder.create<LoadOp>(var.getLoc(), var);
+          printScalarVariable(builder, value, separator, shouldPreprendSeparator);
+        } else {
+          printArrayVariable(builder, var, filter, separator, shouldPreprendSeparator);
+        }
+      } else {
+        printScalarVariable(builder, var, separator, shouldPreprendSeparator);
+      }
+    }
+
+    void printScalarVariable(mlir::OpBuilder& builder, mlir::Value var, mlir::Value separator, bool shouldPreprendSeparator = true) const
+    {
+      if (shouldPreprendSeparator) {
+        printSeparator(builder, separator);
+      }
+
+      printElement(builder, var);
+    }
+
+    void printArrayVariable(mlir::OpBuilder& builder, mlir::Value var, VariableFilter::Filter filter, mlir::Value separator, bool shouldPreprendSeparator = true) const
+    {
+      mlir::Location loc = var.getLoc();
+      assert(var.getType().isa<ArrayType>());
+
+      auto ranges = filter.getRanges();
+      auto arrayType = var.getType().cast<ArrayType>();
+      assert(arrayType.getRank() == ranges.size());
+
+      llvm::SmallVector<mlir::Value, 3> lowerBounds;
+      llvm::SmallVector<mlir::Value, 3> upperBounds;
+
+      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
+
+      for (const auto& range : llvm::enumerate(ranges)) {
+        // In Modelica, arrays are 1-based. If present, we need to lower by 1
+        // the value given by the variable filter.
+
+        unsigned int lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
+        lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
+
+        // The upper bound is not lowered because the SCF's for operation assumes
+        // them as excluded.
+
+        if (range.value().hasUpperBound()) {
+          mlir::Value upperBound = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.value().getUpperBound()));
+          upperBounds.push_back(upperBound);
+        } else {
+          mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.index()));
+          mlir::Value upperBound = builder.create<DimOp>(loc, var, dim);
+          upperBounds.push_back(upperBound);
+        }
+      }
+
+      // Create nested loops in order to iterate on each dimension of the array
+      mlir::scf::buildLoopNest(
+          builder, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
+            mlir::Value value = nestedBuilder.create<LoadOp>(loc, var, position);
+
+            printSeparator(nestedBuilder, separator);
+            printElement(nestedBuilder, value);
+          });
+    }
+
+    void printElement(mlir::OpBuilder& builder, mlir::Value value) const
+    {
+      mlir::Location loc = value.getLoc();
+      auto module = value.getParentRegion()->getParentOfType<mlir::ModuleOp>();
+      auto printfRef = getOrInsertPrintf(builder, module);
+
+      mlir::Type convertedType = typeConverter->convertType(value.getType());
+      value = typeConverter->materializeTargetConversion(builder, loc, convertedType, value);
+      mlir::Type type = value.getType();
+
+      mlir::Value formatSpecifier;
+
+      if (type.isa<mlir::IntegerType>()) {
+        formatSpecifier = getOrCreateGlobalString(
+            loc, builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
+      } else if (type.isa<mlir::FloatType>()) {
+        formatSpecifier = getOrCreateGlobalString(
+            loc, builder, "frmt_spec_float", mlir::StringRef("%.12f\0", 6), module);
+      } else {
+        assert(false && "Unknown type");
+      }
+
+      builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
+    }
+
+    mlir::LogicalResult createPrintFunction(
+        mlir::OpBuilder& builder,
+        ModelOp op,
+        DerivativesPositionsMap& derivativesPositions) const
+    {
+      mlir::TypeRange varTypes = op.body().getArgumentTypes();
+
+      auto callback = [&](std::function<mlir::Value()> structValue, llvm::StringRef name, unsigned int position, VariableFilter::Filter filter, mlir::Value separator) -> mlir::LogicalResult {
+        mlir::Value var = extractValue(builder, structValue(), varTypes[position], position);
+        bool shouldPrintSeparator = position != 0;
+        printVariable(builder, var, filter, separator, shouldPrintSeparator);
+        return mlir::success();
+      };
+
+      return createPrintFunctionBody(builder, op, varTypes, derivativesPositions, printFunctionName, callback);
+    }
+
+    mlir::LogicalResult createPrintFunctionBody(
+        mlir::OpBuilder& builder,
+        ModelOp op,
+        mlir::TypeRange varTypes,
+        DerivativesPositionsMap& derivativesPositions,
+        llvm::StringRef functionName,
+        std::function<mlir::LogicalResult(std::function<mlir::Value()>, llvm::StringRef, unsigned int, VariableFilter::Filter, mlir::Value)> elementCallback) const
+    {
+      mlir::Location loc = op.getLoc();
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+
+      // Create the function inside the parent module
+      builder.setInsertionPointToEnd(module.getBody());
+
+      auto function = builder.create<mlir::FuncOp>(
+          loc, functionName,
+          builder.getFunctionType(getVoidPtrType(), llvm::None));
+
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
+
+      // Create the separator and newline global strings
+      mlir::Value separator = getSeparatorString(loc, builder, module);
+      mlir::Value newline = getNewlineString(loc, builder, module);
+
+      // Create the callback to load the data structure whenever needed
+      bool structValueLoaded = false;
+      mlir::Value structValue = nullptr;
+      auto structValueInsertionPoint = builder.saveInsertionPoint();
+
+      auto structValueCallback = [&]() -> mlir::Value {
+        if (!structValueLoaded) {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.restoreInsertionPoint(structValueInsertionPoint);
+          structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
+        }
+
+        return structValue;
+      };
+
+      // Get the names of the variables
+      llvm::SmallVector<llvm::StringRef, 8> variableNames =
+          llvm::to_vector<8>(op.variableNames().getAsValueRange<mlir::StringAttr>());
+
+      // Map each variable to its position inside the data structure.
+      // It must be noted that the data structure also contains derivative (if
+      // existent), so its size can be greater than the number of names.
+
+      assert(op.variableNames().size() <= varTypes.size());
+      llvm::StringMap<size_t> variablePositionByName;
+
+      for (const auto& var : llvm::enumerate(variableNames))
+        variablePositionByName[var.value()] = var.index() + 1; // + 1 to skip the "time" variable
+
+      // The positions have been saved, so we can now sort the names
+      llvm::sort(variableNames, [](llvm::StringRef x, llvm::StringRef y) -> bool {
+        return x.compare_insensitive(y) < 0;
+      });
+
+      if (auto status = elementCallback(
+          structValueCallback, "time", 0, VariableFilter::Filter::visibleScalar(), separator); mlir::failed(status)) {
+        return status;
+      }
+
+      // Print the other variables
+      for (const auto& name : variableNames) {
+        assert(variablePositionByName.count(name) != 0);
+        size_t position = variablePositionByName[name];
+
+        unsigned int rank = 0;
+
+        if (auto arrayType = varTypes[position].dyn_cast<ArrayType>()) {
+          rank = arrayType.getRank();
+        }
+
+        auto filter = options.variableFilter->getVariableInfo(name, rank);
+
+        if (!filter.isVisible()) {
+          continue;
+        }
+
+        if (auto status = elementCallback(
+            structValueCallback, name, position, filter, separator); mlir::failed(status)) {
+          return status;
+        }
+      }
+
+      // Print the derivatives
+      for (const auto& name : variableNames) {
+        size_t varPosition = variablePositionByName[name];
+
+        if (derivativesPositions.count(varPosition) == 0) {
+          // The variable has no derivative
+          continue;
+        }
+
+        size_t derivedVarPosition = derivativesPositions[varPosition];
+
+        unsigned int rank = 0;
+
+        if (auto arrayType = varTypes[derivedVarPosition].dyn_cast<ArrayType>()) {
+          rank = arrayType.getRank();
+        }
+
+        auto filter = options.variableFilter->getVariableDerInfo(name, rank);
+
+        if (!filter.isVisible()) {
+          continue;
+        }
+
+        llvm::SmallString<15> derName;
+        derName.append("der(");
+        derName.append(name);
+        derName.append(")");
+
+        if (auto status = elementCallback(
+            structValueCallback, derName, derivedVarPosition, filter, separator); mlir::failed(status)) {
+          return status;
+        }
+      }
+
+      // Print a newline character after all the variables have been processed
+      builder.create<mlir::LLVM::CallOp>(loc, getOrInsertPrintf(builder, module), newline);
+
+      builder.create<mlir::ReturnOp>(loc);
+      return mlir::success();
+    }
+
+  private:
+    SolveModelOptions options;
+    TypeConverter* typeConverter;
 };
 
 /// Remove the derivative operations by replacing them with appropriate
@@ -1410,230 +1431,39 @@ static mlir::LogicalResult scheduling(
   return mlir::success();
 }
 
-static mlir::Type getVoidPtrType(mlir::MLIRContext* context)
-{
-  return mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
-}
-
-/// Load the data structure from the opaque pointer that is passed around the
-/// simulation functions.
-///
-/// @param builder	 operation builder
-/// @param ptr 	     opaque pointer
-/// @param varTypes  types of the variables
-/// @return data structure containing the variables
-static mlir::Value loadDataFromOpaquePtr(
+/// Calculate the values that the state variables will have in the next iteration.
+template<typename EquationType>
+static mlir::LogicalResult updateStates(
     mlir::OpBuilder& builder,
-    mlir::TypeConverter& typeConverter,
-    mlir::Value ptr,
-    mlir::TypeRange varTypes)
-{
-  mlir::Location loc = ptr.getLoc();
-  llvm::SmallVector<mlir::Type, 3> structTypes;
-
-  for (const auto& type : varTypes) {
-    structTypes.push_back(typeConverter.convertType(type));
-  }
-
-  mlir::Type structType = mlir::LLVM::LLVMStructType::getLiteral(ptr.getContext(), structTypes);
-  mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
-  mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, ptr);
-  mlir::Value structValue = builder.create<mlir::LLVM::LoadOp>(loc, structPtr);
-
-  return structValue;
-}
-
-/// Extract a value from the data structure shared between the various
-/// simulation main functions.
-///
-/// @param builder 			  operation builder
-/// @param typeConverter  type converter
-/// @param structValue 	  data structure
-/// @param type 				  value type
-/// @param position 		  value position
-/// @return extracted value
-mlir::Value extractValue(
-    mlir::OpBuilder& builder,
-    mlir::TypeConverter& typeConverter,
-    mlir::Value structValue,
-    mlir::Type type,
-    unsigned int position)
-{
-  mlir::Location loc = structValue.getLoc();
-
-  assert(structValue.getType().isa<mlir::LLVM::LLVMStructType>() && "Not an LLVM struct");
-  auto structType = structValue.getType().cast<mlir::LLVM::LLVMStructType>();
-  auto structTypes = structType.getBody();
-  assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
-
-  mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
-  return typeConverter.materializeSourceConversion(builder, loc, type, var);
-}
-
-static mlir::FuncOp createEquationFunction(
-    mlir::OpBuilder& builder,
-    const ScheduledEquation& equation,
-    llvm::StringRef equationFunctionName,
-    mlir::FuncOp templateFunction,
-    mlir::TypeRange varsTypes)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  auto loc = equation.getOperation().getLoc();
-
-  auto module = equation.getOperation()->getParentOfType<mlir::ModuleOp>();
-  builder.setInsertionPointToEnd(module.getBody());
-
-  auto functionType = builder.getFunctionType(varsTypes, llvm::None);
-  auto function = builder.create<mlir::FuncOp>(loc, equationFunctionName, functionType);
-
-  auto* entryBlock = function.addEntryBlock();
-  builder.setInsertionPointToStart(entryBlock);
-
-  auto valuesFn = [&](marco::modeling::scheduling::Direction iterationDirection, size_t index) -> std::tuple<mlir::Value, mlir::Value, mlir::Value> {
-    assert(iterationDirection == marco::modeling::scheduling::Direction::Forward ||
-            iterationDirection == marco::modeling::scheduling::Direction::Backward);
-
-    if (iterationDirection == marco::modeling::scheduling::Direction::Forward) {
-      mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index)));
-      mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index)));
-      mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-
-      return std::make_tuple(begin, end, step);
-    }
-
-    mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index) - 1));
-    mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index) - 1));
-    mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-
-    return std::make_tuple(begin, end, step);
-  };
-
-  std::vector<mlir::Value> args;
-
-  for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
-    auto values = valuesFn(equation.getSchedulingDirection(), i);
-
-    args.push_back(std::get<0>(values));
-    args.push_back(std::get<1>(values));
-    args.push_back(std::get<2>(values));
-  }
-
-  mlir::ValueRange vars = function.getArguments();
-  args.insert(args.end(), vars.begin(), vars.end());
-
-  // Call the equation template function
-  builder.create<mlir::CallOp>(loc, templateFunction, args);
-
-  builder.create<mlir::ReturnOp>(loc);
-  return function;
-}
-
-static mlir::LogicalResult createStepFunction(
-    mlir::OpBuilder& builder,
-    mlir::TypeConverter& typeConverter,
-    const Model<ScheduledEquation>& model)
-{
-  ModelOp modelOp = model.getOperation();
-  mlir::Location loc = modelOp.getLoc();
-  mlir::OpBuilder::InsertionGuard guard(builder);
-
-  // Create the function inside the parent module
-  builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
-
-  auto function = builder.create<mlir::FuncOp>(
-      loc, "step",
-      builder.getFunctionType(getVoidPtrType(builder.getContext()), builder.getI1Type()));
-
-  auto* entryBlock = function.addEntryBlock();
-  builder.setInsertionPointToStart(entryBlock);
-
-  // Extract the data from the struct
-  mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
-  mlir::Value structValue = loadDataFromOpaquePtr(builder, typeConverter, function.getArgument(0), varTypes);
-
-  llvm::SmallVector<mlir::Value, 3> vars;
-
-  for (const auto& varType : llvm::enumerate(varTypes)) {
-    vars.push_back(extractValue(builder, typeConverter, structValue, varTypes[varType.index()], varType.index()));
-  }
-
-  // Increment the time
-  mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
-  mlir::Value currentTime = builder.create<LoadOp>(loc, vars[0]);
-  mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
-  builder.create<StoreOp>(loc, increasedTime, vars[0]);
-
-  // Check if the current time is less than the end time
-  mlir::Value endTime = builder.create<ConstantOp>(loc, modelOp.endTime());
-
-  mlir::Value condition = builder.create<LteOp>(loc, BooleanType::get(modelOp->getContext()), increasedTime, endTime);
-  condition = typeConverter.materializeTargetConversion(builder, condition.getLoc(), builder.getI1Type(), condition);
-
-  auto ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getI1Type(), condition, true);
-  builder.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
-
-  // Perform the step
-  builder.setInsertionPointToStart(&ifOp.thenRegion().front());
-
-  size_t equationTemplateCounter = 0;
-  size_t equationCounter = 0;
-
-  std::vector<mlir::FuncOp> equationTemplateFunctions;
-
-  for (const auto& equation : model.getEquations()) {
-    std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
-    ++equationTemplateCounter;
-
-    auto clonedExplicitEquation = equation->explicitate(builder);
-
-    if (clonedExplicitEquation == nullptr) {
-      model.getOperation().emitError("Could not explicitate equation");
-      return mlir::failure();
-    }
-
-    auto templateFunction = clonedExplicitEquation->createTemplateFunction(
-        builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
-
-    equationTemplateFunctions.push_back(templateFunction);
-
-    // Erase the temporary EquationOp clone (and its ForEquationOp parents) that has been used to
-    // create the template function.
-    clonedExplicitEquation->eraseIR();
-
-    // Create the function that calls the template.
-    // This function dictates the indices the template will work with.
-    std::string equationFunctionName = "eq_" + std::to_string(equationCounter);
-    ++equationCounter;
-
-    auto equationFunction = createEquationFunction(
-        builder, *equation, equationFunctionName, templateFunction, modelOp.body().getArgumentTypes());
-
-    // Create the call to the instantiated template function
-    builder.create<mlir::CallOp>(loc, equationFunction, vars);
-  }
-
-  // If we didn't reach the end time update the variables and return
-  // true to continue the simulation.
-  auto trueValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(true));
-  builder.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
-
-  // Otherwise, return false to stop the simulation
-  builder.setInsertionPointToStart(&ifOp.elseRegion().front());
-  mlir::Value falseValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(false));
-  builder.create<mlir::scf::YieldOp>(loc, falseValue);
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult createSimulationFunctions(
-    mlir::OpBuilder& builder,
-    mlir::TypeConverter& typeConverter,
-    const Model<ScheduledEquation>& model,
+    const Model<EquationType>& model,
+    mlir::ValueRange vars,
     const mlir::BlockAndValueMapping& derivatives)
 {
-  if (auto status = createStepFunction(builder, typeConverter, model); mlir::failed(status)) {
-    return status;
+  /*
+  ModelOp modelOp = model.getOperation();
+  mlir::Location loc = modelOp.getLoc();
+
+  // Theoretically, given a state variable x and the current step time n,
+  // the value of x(n + 1) should be determined at the end of the step of
+  // time n, and the assignment of the new value should be done at time
+  // n + 1. Anyway, doing so would require to create an additional buffer
+  // to store x(n + 1), so that it can be assigned at the beginning of step
+  // n + 1. This allocation can be avoided by computing x(n + 1) right at
+  // the beginning of step n + 1, when the derivatives still have the values
+  // of step n.
+
+  builder.setInsertionPointToStart(&modelOp.body().front());
+  mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+
+  for (mlir::Value variable : modelOp.body().getArguments()) {
+    if (derivatives.contains(variable)) {
+      mlir::Value derivative = derivatives.lookup(variable);
+      mlir::Value nextValue = builder.create<MulOp>(loc, derivative.getType(), derivative, timeStep);
+      nextValue = builder.create<AddOp>(loc, variable.getType(), nextValue, variable);
+      builder.create<AssignmentOp>(loc, nextValue, variable);
+    }
   }
+   */
 
   return mlir::success();
 }
@@ -1694,20 +1524,13 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     }
 
     // Create the simulation functions
-    /*
-    if (mlir::failed(convertModel(scheduledModel, derivatives))) {
-      return signalPassFailure();
-    }
-     */
-
     mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
     TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+    ModelConverter modelConverter(options, typeConverter);
 
-    if (mlir::failed(::createSimulationFunctions(builder, typeConverter, scheduledModel, derivatives))) {
+    if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
       return signalPassFailure();
     }
-
-    scheduledModel.getOperation().erase();
 	}
 
 	/**
@@ -1741,34 +1564,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         nextValue = builder.create<AddOp>(loc, variable.getType(), nextValue, variable);
         builder.create<AssignmentOp>(loc, nextValue, variable);
       }
-    }
-
-		return mlir::success();
-	}
-
-	mlir::LogicalResult convertModel(
-      const Model<ScheduledEquation>& model, const mlir::BlockAndValueMapping& derivativesMap)
-	{
-		mlir::ConversionTarget target(getContext());
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-
-		target.addIllegalOp<
-		        ModelOp,
-            MemberCreateOp,
-            MemberLoadOp,
-            MemberStoreOp,
-            EquationOp,
-            ForEquationOp,
-            EquationSidesOp>();
-
-		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<ModelOpPattern>(&getContext(), typeConverter, options, model, derivativesMap);
-
-		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status)) {
-      return status;
     }
 
 		return mlir::success();

@@ -162,7 +162,12 @@ namespace marco::frontend
   {
     CompilerInstance& ci = instance();
 
-    marco::codegen::MLIRLowerer lowerer(ci.getMLIRContext());
+    codegen::CodegenOptions options;
+    options.startTime = ci.getSimulationOptions().startTime;
+    options.endTime = ci.getSimulationOptions().endTime;
+    options.timeStep = ci.getSimulationOptions().timeStep;
+
+    marco::codegen::MLIRLowerer lowerer(ci.getMLIRContext(), options);
     auto module = lowerer.run(ci.getAST());
 
     if (!module) {

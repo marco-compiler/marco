@@ -12,10 +12,8 @@ namespace marco::codegen
 	struct SolveModelOptions
 	{
 		bool emitMain = true;
-		int matchingMaxIterations = 1000;
-		int sccMaxIterations = 1000;
 		Solver solver = ForwardEuler;
-    marco::VariableFilter* variableFilter;
+    marco::VariableFilter* variableFilter = nullptr;
 
     static const SolveModelOptions& getDefaultOptions() {
 			static SolveModelOptions options;

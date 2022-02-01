@@ -17,6 +17,7 @@ static void runtimeDeinit()
 
 extern "C" void* init();
 extern "C" bool step(void* data);
+extern "C" void updateStateVariables(void* data);
 extern "C" void deinit(void* data);
 
 extern "C" void printHeader(void* data);
@@ -31,6 +32,7 @@ void runSimulation() {
 
   while (step(data)) {
     print(data);
+    updateStateVariables(data);
   }
 
   deinit(data);
