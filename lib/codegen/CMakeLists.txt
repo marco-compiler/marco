@@ -48,7 +48,6 @@ marco_add_library(codegen
     DEPENDS
     marco::ast
     marco::modeling
-    marco::runtime
     marco::utils
 
     LINK_LIBS

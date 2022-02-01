@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "llvm/ADT/STLExtras.h"
 #include "marco/runtime/UtilityFunctions.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 

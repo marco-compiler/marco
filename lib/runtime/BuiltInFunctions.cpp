@@ -1,6 +1,8 @@
 #include "marco/runtime/BuiltInFunctions.h"
+#include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <vector>
 
 //===----------------------------------------------------------------------===//
 // abs
@@ -184,7 +186,7 @@ inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDes
 		auto indexes = it.getCurrentIndexes();
 		assert(!indexes.empty());
 
-		bool isIdentityAccess = llvm::all_of(indexes, [&indexes](const auto& i) {
+		bool isIdentityAccess = std::all_of(indexes.begin(), indexes.end(), [&indexes](const auto& i) {
 			return i == indexes[0];
 		});
 
@@ -288,7 +290,7 @@ inline void identity_void(UnsizedArrayDescriptor<T> array)
 		auto indexes = it.getCurrentIndexes();
 		assert(!indexes.empty());
 
-		bool isIdentityAccess = llvm::all_of(indexes, [&indexes](const auto& i) {
+		bool isIdentityAccess = std::all_of(indexes.begin(), indexes.end(), [&indexes](const auto& i) {
 			return i == indexes[0];
 		});
 
@@ -801,14 +803,12 @@ void symmetric_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 	// Manually iterate on the dimensions, so that we can explore just half
 	// of the source matrix.
 
-	for (dimension_t i = 0; i < size; ++i)
-	{
-		for (dimension_t j = i; j < size; ++j)
-		{
-			destination.set({ i, j }, source.get(i, j));
+	for (dimension_t i = 0; i < size; ++i) {
+		for (dimension_t j = i; j < size; ++j) {
+			destination.set({ i, j }, source.get({ i, j }));
 
 			if (i != j) {
-        destination.set({j, i}, source.get(i, j));
+        destination.set({j, i}, source.get({ i, j }));
       }
 		}
 	}
@@ -909,7 +909,7 @@ void transpose_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 		auto indexes = it.getCurrentIndexes();
 		assert(indexes.size() == 2);
 
-		llvm::SmallVector<dimension_t, 2> transposedIndexes;
+		std::vector<dimension_t> transposedIndexes;
 
 		for (auto revIt = indexes.rbegin(), revEnd = indexes.rend(); revIt != revEnd; ++revIt) {
       transposedIndexes.push_back(*revIt);

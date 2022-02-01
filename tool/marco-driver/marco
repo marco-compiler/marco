@@ -99,7 +99,7 @@ main()
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.a $(llvm-config --ldflags --libs) -o "$OUTPUT_FILE"
+    g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.a -o "$OUTPUT_FILE"
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then

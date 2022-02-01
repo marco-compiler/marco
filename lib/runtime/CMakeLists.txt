@@ -12,8 +12,13 @@ set(SOURCES
 # Moreover, apart from this technical detail, it makes more sense to just provide one single executable
 # rather than the both the executable and the shared runtime library.
 
-marco_add_library(runtime STATIC
-		${SOURCES}
+marco_add_library(runtime STATIC ${SOURCES})
 
-		LINK_COMPONENTS
-		Support)
+#add_library(MARCORuntime STATIC ${SOURCES})
+
+#install(TARGETS MARCORuntime
+#		COMPONENT MARCORuntime
+#		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#		PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+#install(TARGETS MARCORuntime LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "llvm/ADT/STLExtras.h"
 #include "marco/runtime/ArrayDescriptor.h"
 
 template<typename T, unsigned int N> using ArraySizes =

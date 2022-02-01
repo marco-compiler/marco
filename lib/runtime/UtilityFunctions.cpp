@@ -1,4 +1,6 @@
 #include "marco/runtime/UtilityFunctions.h"
+#include <cassert>
+#include <cstring>
 #include <iostream>
 
 //===----------------------------------------------------------------------===//
@@ -16,8 +18,14 @@ inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescri
 {
 	assert(source.getNumElements() == destination.getNumElements());
 
-	for (const auto& [source, destination] : llvm::zip(source, destination)) {
-    destination = source;
+  auto sourceIt = source.begin();
+  auto destinationIt = destination.begin();
+
+  for (size_t i = 0, e = source.getNumElements(); i < e; ++i) {
+    *destinationIt = *sourceIt;
+
+    ++sourceIt;
+    ++destinationIt;
   }
 }
 

@@ -1,24 +1,24 @@
 #pragma once
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
+#include <array>
+#include <cassert>
+#include <initializer_list>
 #include <iostream>
+#include <vector>
 
 template <typename T>
 class ArrayIterator;
 
-/**
- * This class represents how the arrays are described inside the Modelica IR.
- * Note that the Rank template argument is used only to allocate an
- * appropriately sized array of sizes. It is not used during the elements
- * access, where pointer arithmetics are used instead; this last point
- * allows to instantiate iterators on descriptor whose rank is not known
- * at compile time, and thus allows to iterate over descriptors received
- * from the IR calls.
- *
- * @tparam T 	  data type
- * @tparam Rank number of dimensions
- */
+/// This class represents how the arrays are described inside the Modelica IR.
+/// Note that the Rank template argument is used only to allocate an
+/// appropriately sized array of sizes. It is not used during the elements
+/// access, where pointer arithmetics are used instead; this last point
+/// allows to instantiate iterators on descriptor whose rank is not known
+/// at compile time, and thus allows to iterate over descriptors received
+/// from the IR calls.
+///
+/// @tparam T 	  data type
+/// @tparam Rank number of dimensions
 template<typename T, unsigned int Rank>
 class ArrayDescriptor
 {
@@ -29,12 +29,10 @@ class ArrayDescriptor
 	using rank_t = uint64_t;
 	using dimension_t = uint64_t;
 
-	/**
-	 * Utility constructor for tests.
-	 *
-	 * @param data  data pointer
-	 * @param sizes sizes of the array
-	 */
+	/// Utility constructor for tests.
+	///
+	/// @param data  data pointer
+	/// @param sizes sizes of the array
 	template<unsigned long Size>
 	ArrayDescriptor(std::array<T, Size>& data)
 			: data(data.data()), rank(1), sizes{}
@@ -43,39 +41,32 @@ class ArrayDescriptor
 		this->sizes[0] = Size;
 	}
 
-	/**
-	 * Utility constructor for tests.
-	 *
-	 * @param data  data pointer
-	 * @param sizes sizes of the array
-	 */
-	ArrayDescriptor(T* data, llvm::ArrayRef<dimension_t> sizes)
+	/// Utility constructor for tests.
+	///
+	/// @param data  data pointer
+	/// @param sizes sizes of the array
+	ArrayDescriptor(T* data, std::array<dimension_t, Rank> sizes)
 			: data(data), rank(sizes.size()), sizes{}
 	{
-		assert(Rank == rank);
-
-		for (auto size : llvm::enumerate(sizes))
-			this->sizes[size.index()] = size.value();
+    for (rank_t i = 0; i < rank; ++i) {
+      this->sizes[i] = sizes[i];
+    }
 	}
 
-	/**
-	 * Get element at offset.
-	 *
-	 * @param offset	 index of the flat array
-	 * @return value
-	 */
+	/// Get element at offset.
+	///
+	/// @param offset	 index of the flat array
+	/// @return value
 	T& operator[](dimension_t offset)
 	{
 		assert(data != nullptr);
 		return data[offset];
 	}
 
-	/**
-	 * Get element at offset.
-	 *
-	 * @param offset	 index of the flat array
-	 * @return value
-	 */
+	/// Get element at offset.
+	///
+	/// @param offset	 index of the flat array
+	/// @return value
 	const T& operator[](dimension_t offset) const
 	{
 		assert(data != nullptr);
@@ -96,110 +87,173 @@ class ArrayDescriptor
 		os << "\n";
 	}
 
-	template<typename... Index>
-	T& get(Index... indexes)
+  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  T& get(const Index& index)
+  {
+    assert(data != nullptr);
+    return (*this)[index];
+  }
+
+  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  const T& get(const Index& index) const
+  {
+    assert(data != nullptr);
+    return (*this)[index];
+  }
+
+  template<typename First, typename Second, typename... Others>
+  T& get(const First& firstIndex, const Second& secondIndex, Others&&... otherIndexes)
+  {
+    return get({
+      firstIndex,
+      secondIndex,
+      std::forward<Others>(otherIndexes)...
+    });
+  }
+
+  template<typename First, typename Second, typename... Others>
+  const T& get(const First& firstIndex, const Second& secondIndex, Others&&... otherIndexes) const
+  {
+    return get({
+        firstIndex,
+        secondIndex,
+        std::forward<Others>(otherIndexes)...
+    });
+  }
+
+  template<typename Index>
+  T& get(std::initializer_list<Index> indexes)
+  {
+    assert(data != nullptr);
+    dimension_t offset = computeOffset(indexes);
+    return (*this)[offset];
+  }
+
+  template<typename Index>
+  const T& get(std::initializer_list<Index> indexes) const
+  {
+    assert(data != nullptr);
+    dimension_t offset = computeOffset(indexes);
+    return (*this)[offset];
+  }
+
+  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+	T& get(const Indexes& indexesBegin)
 	{
-		llvm::SmallVector<dimension_t, 3> positions{ static_cast<dimension_t>(indexes)... };
-		return get(static_cast<llvm::ArrayRef<dimension_t>>(positions));
+		assert(data != nullptr);
+		dimension_t offset = computeOffset(indexesBegin);
+		return (*this)[offset];
 	}
 
-	T& get(llvm::ArrayRef<dimension_t> indexes)
+  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+	const T& get(const Indexes& indexes) const
 	{
 		assert(data != nullptr);
 		dimension_t offset = computeOffset(indexes);
 		return (*this)[offset];
 	}
 
-	const T& get(llvm::ArrayRef<dimension_t> indexes) const
-	{
-		assert(data != nullptr);
-		dimension_t offset = computeOffset(indexes);
-		return (*this)[offset];
-	}
+  template<typename Index>
+  void set(std::initializer_list<Index> indexes, T value)
+  {
+    assert(data != nullptr);
+    dimension_t offset = computeOffset(indexes);
+    (*this)[offset] = value;
+  }
 
-	void set(llvm::ArrayRef<dimension_t> indexes, T value)
+  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+	void set(const Indexes& indexes, T value)
 	{
 		assert(data != nullptr);
 		dimension_t offset = computeOffset(indexes);
 		(*this)[offset] = value;
 	}
 
-	[[nodiscard]] T* getData() const
+	T* getData() const
 	{
 		return data;
 	}
 
-	[[nodiscard]] rank_t getRank() const
+	rank_t getRank() const
 	{
 		return rank;
 	}
 
-	[[nodiscard]] dimension_t getDimension(rank_t index) const
+	dimension_t getDimension(rank_t index) const
 	{
 		assert(index >= 0 && index < rank);
 		return sizes[index];
 	}
 
-	[[nodiscard]] llvm::ArrayRef<dimension_t> getDimensions() const
-	{
-		return llvm::ArrayRef<dimension_t>(sizes, rank);
-	}
-
-	[[nodiscard]] dimension_t getNumElements() const
+	dimension_t getNumElements() const
 	{
 		dimension_t result = 1;
 
-		for (const auto& dimension : getDimensions())
-			result *= dimension;
+    for (rank_t i = 0, e = getRank(); i < e; ++i) {
+      result *= getDimension(i);
+    }
 
 		return result;
 	}
 
-	[[nodiscard]] iterator begin()
+	iterator begin()
 	{
 		return iterator(*this, false);
 	}
 
-	[[nodiscard]] const_iterator begin() const
+	const_iterator begin() const
 	{
 		return const_iterator(*this, false);
 	}
 
-	[[nodiscard]] iterator end()
+	iterator end()
 	{
 		return iterator(*this, true);
 	}
 
-	[[nodiscard]] const_iterator end() const
+	const_iterator end() const
 	{
 		return const_iterator(*this, true);
 	}
 
-	[[nodiscard]] bool hasSameSizes() const
+	bool hasSameSizes() const
 	{
-		for (rank_t i = 1; i < rank; ++i)
-			if (sizes[i] != sizes[0])
-				return false;
+		for (rank_t i = 1; i < rank; ++i) {
+      if (sizes[i] != sizes[0]) {
+        return false;
+      }
+    }
 
 		return true;
 	}
 
 	private:
-	[[nodiscard]] dimension_t computeOffset(llvm::ArrayRef<dimension_t> indexes) const
+  template<typename Indexes>
+	dimension_t computeOffset(Indexes indexes) const
 	{
-		assert(indexes.size() == rank && "Wrong amount of indexes");
-		assert(llvm::all_of(indexes, [](const auto& index) { return index >= 0; }));
+    auto begin = std::begin(indexes);
+    auto end = std::end(indexes);
 
-		dimension_t offset = indexes[0];
+    if (begin == end) {
+      return 0;
+    }
 
-		for (size_t i = 1; i < indexes.size(); ++i)
-		{
-			dimension_t size = getDimension(i);
-			assert(size > 0);
-			offset = offset * size + indexes[i];
-		}
+    dimension_t offset = *begin;
+    ++begin;
 
-		return offset;
+    size_t currentDimension = 1;
+
+    for (auto it = begin; it != end; ++it) {
+      dimension_t size = getDimension(currentDimension);
+      assert(size > 0);
+      auto index = *it;
+      assert(index >= 0);
+      offset = offset * size + index;
+      ++currentDimension;
+    }
+
+    assert(currentDimension == rank && "Wrong number of indexes");
+    return offset;
 	}
 
 	T* data;
@@ -217,24 +271,24 @@ namespace impl
 	template<typename T, unsigned int Rank>
 	void printArrayDescriptor(std::ostream& stream,
 														const ArrayDescriptor<T, Rank>& descriptor,
-														llvm::SmallVectorImpl<typename ArrayDescriptor<T, Rank>::dimension_t>& indexes,
+														std::vector<typename ArrayDescriptor<T, Rank>::dimension_t>& indexes,
 														typename ArrayDescriptor<T, Rank>::rank_t dimension)
 	{
 		using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
 
 		stream << "[";
 
-		for (dimension_t i = 0, e = descriptor.getDimension(dimension); i < e; ++i)
-		{
+		for (dimension_t i = 0, e = descriptor.getDimension(dimension); i < e; ++i) {
 			indexes[dimension] = i;
 
 			if (i > 0)
 				stream << ", ";
 
-			if (dimension == descriptor.getRank() - 1)
-				stream << descriptor.get(indexes);
-			else
-				printArrayDescriptor(stream, descriptor, indexes, dimension + 1);
+			if (dimension == descriptor.getRank() - 1) {
+        stream << descriptor.get(indexes);
+      } else {
+        printArrayDescriptor(stream, descriptor, indexes, dimension + 1);
+      }
 		}
 
 		indexes[dimension] = 0;
@@ -247,17 +301,15 @@ std::ostream& operator<<(
     std::ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
 {
 	using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
-	llvm::SmallVector<dimension_t, Rank> indexes(descriptor.getRank(), 0);
+	std::vector<dimension_t> indexes(descriptor.getRank(), 0);
 	impl::printArrayDescriptor(stream, descriptor, indexes, 0);
 	return stream;
 }
 
-/**
- * This class allows to accept a generically sized array as input argument
- * to a function.
- *
- * @tparam T data type
- */
+/// This class allows to accept a generically sized array as input argument
+/// to a function.
+///
+/// @tparam T data type
 template<typename T>
 class UnsizedArrayDescriptor;
 
@@ -281,70 +333,108 @@ class UnsizedArrayDescriptor
 	{
 	}
 
-	template<typename... Index>
-	T& get(Index... indexes)
-	{
-		assert(descriptor != nullptr);
-		return getDescriptor()->get(indexes...);
-	}
+  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  T& get(const Index& index)
+  {
+    return getDescriptor()->get(index);
+  }
 
-	T& get(llvm::ArrayRef<dimension_t> indexes)
+  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  const T& get(const Index& index) const
+  {
+    return getDescriptor()->get(index);
+  }
+
+  template<typename First, typename Second, typename... Others>
+  T& get(const First& firstIndex, const Second& secondIndex, Others&&... otherIndexes)
+  {
+    return getDescriptor()->get(firstIndex, secondIndex, std::forward<Others>(otherIndexes)...);
+  }
+
+  template<typename First, typename Second, typename... Others>
+  const T& get(const First& firstIndex, const Second& secondIndex, Others&&... otherIndexes) const
+  {
+    return getDescriptor()->get(firstIndex, secondIndex, std::forward<Others>(otherIndexes)...);
+  }
+
+  template<typename Index>
+  T& get(std::initializer_list<Index> indexes)
+  {
+    return getDescriptor()->get(indexes);
+  }
+
+  template<typename Index>
+  const T& get(std::initializer_list<Index> indexes) const
+  {
+    return getDescriptor()->get(indexes);
+  }
+
+  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+	T& get(const Indexes& indexes)
 	{
 		return getDescriptor()->get(indexes);
 	}
 
-	void set(llvm::ArrayRef<dimension_t> indexes, T value)
+  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  const T& get(const Indexes& indexes) const
+  {
+    return getDescriptor()->get(indexes);
+  }
+
+  template<typename Index>
+  void set(std::initializer_list<Index> indexes, T value)
+  {
+    getDescriptor()->set(indexes, value);
+  }
+
+  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+	void set(const Indexes& indexes, T value)
 	{
 		getDescriptor()->set(indexes, value);
 	}
 
-	[[nodiscard]] T* getData() const
+	T* getData() const
 	{
 		return getDescriptor()->getData();
 	}
 
-	[[nodiscard]] rank_t getRank() const
+	rank_t getRank() const
 	{
 		assert(getDescriptor()->getRank() == rank);
 		return rank;
 	}
 
-	[[nodiscard]] dimension_t getDimensionSize(dimension_t index) const
+	dimension_t getDimensionSize(dimension_t index) const
 	{
 		return getDescriptor()->getDimension(index);
 	}
 
-	[[nodiscard]] llvm::ArrayRef<dimension_t> getDimensions() const
-	{
-		return getDescriptor()->getDimensions();
-	}
-
-	[[nodiscard]] dimension_t getNumElements() const
+	dimension_t getNumElements() const
 	{
 		return getDescriptor()->getNumElements();
 	}
 
-	[[nodiscard]] iterator begin()
+	iterator begin()
 	{
 		return getDescriptor()->begin();
 	}
 
-	[[nodiscard]] const_iterator begin() const
+	const_iterator begin() const
 	{
 		return getDescriptor()->begin();
 	}
 
-	[[nodiscard]] iterator end()
+	iterator end()
 	{
 		return getDescriptor()->end();
 	}
 
-	[[nodiscard]] const_iterator end() const
+	const_iterator end() const
 	{
 		return getDescriptor()->end();
 	}
 
-	[[nodiscard]] bool hasSameSizes() const
+	bool hasSameSizes() const
 	{
 		return getDescriptor()->hasSameSizes();
 	}
@@ -353,7 +443,7 @@ class UnsizedArrayDescriptor
       std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
 
 	private:
-	[[nodiscard]] ArrayDescriptor<T, 0>* getDescriptor() const
+	ArrayDescriptor<T, 0>* getDescriptor() const
 	{
 		assert(descriptor != nullptr);
 
@@ -376,17 +466,15 @@ std::ostream& operator<<(
 	return stream << *descriptor.getDescriptor();
 }
 
-/**
- * Iterate over all the elements of a multi-dimensional array as if it was
- * a flat one.
- *
- * For example, an array declared as
- *   v[3][2] = {{1, 2}, {3, 4}, {5, 6}}
- * would have its elements visited in the order
- *   1, 2, 3, 4, 5, 6.
- *
- * @tparam T 		data type
- */
+/// Iterate over all the elements of a multi-dimensional array as if it was
+/// a flat one.
+///
+/// For example, an array declared as
+///   v[3][2] = {{1, 2}, {3, 4}, {5, 6}}
+/// would have its elements visited in the order
+///   1, 2, 3, 4, 5, 6.
+///
+/// @tparam T 		data type
 template<typename T>
 class ArrayIterator
 {
@@ -418,22 +506,19 @@ class ArrayIterator
 	{
 		rank_t rank = descriptor->getRank();
 
-		if (rank == 0)
-		{
+		if (rank == 0) {
 			finished = true;
 			return *this;
 		}
 
 		rank_t consumedDimensions = 0;
 
-		for (dimension_t i = 0; i < rank && indexes[rank - 1 - i] + 1 == descriptor->getDimension(rank - 1 - i); ++i)
-		{
+		for (dimension_t i = 0; i < rank && indexes[rank - 1 - i] + 1 == descriptor->getDimension(rank - 1 - i); ++i) {
 			indexes[rank - 1 - i] = 0;
 			++consumedDimensions;
 		}
 
-		if (consumedDimensions == rank)
-		{
+		if (consumedDimensions == rank) {
 			finished = true;
 			offset = 0;
 			return *this;
@@ -480,7 +565,7 @@ class ArrayIterator
 					 other.descriptor != descriptor;
 	}
 
-	[[nodiscard]] llvm::ArrayRef<dimension_t> getCurrentIndexes() const
+	const std::vector<dimension_t>& getCurrentIndexes() const
 	{
 		return indexes;
 	}
@@ -488,6 +573,6 @@ class ArrayIterator
 	private:
 	bool finished = false;
 	dimension_t offset = 0;
-	llvm::SmallVector<dimension_t, 3> indexes;
+	std::vector<dimension_t> indexes;
 	ArrayDescriptor<ArrayType, 0>* descriptor;
 };

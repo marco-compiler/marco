@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "llvm/ADT/STLExtras.h"
 #include "marco/runtime/BuiltInFunctions.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cmath>
