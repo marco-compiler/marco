@@ -369,6 +369,20 @@ class ModelConverter
       return reference;
     }
 
+    mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+    {
+      std::string name = "_MheapAlloc_pvoid_i64";
+
+      if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
+        return foo;
+      }
+
+      mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+      builder.setInsertionPointToStart(module.getBody());
+      auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidPtrType(), builder.getI64Type());
+      return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
+    }
+
     /// Create the initialization function that allocates the variables and
     /// stores them into an appropriate data structure to be passed to the other
     /// simulation functions.
@@ -377,9 +391,10 @@ class ModelConverter
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       mlir::Location loc = modelOp.getLoc();
+      auto module = modelOp->getParentOfType<mlir::ModuleOp>();
 
       // Create the function inside the parent module
-      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+      builder.setInsertionPointToEnd(module.getBody());
 
       auto functionType = builder.getFunctionType(llvm::None, getVoidPtrType());
       auto function = builder.create<mlir::FuncOp>(loc, initFunctionName, functionType);
@@ -436,8 +451,7 @@ class ModelConverter
       // from the function.
 
       // Add the "malloc" function to the module
-      // TODO replace with runtime library call
-      auto mallocFunc = mlir::LLVM::lookupOrCreateMallocFn(modelOp->getParentOfType<mlir::ModuleOp>(), typeConverter->getIndexType());
+      auto heapAllocFunc = lookupOrCreateHeapAllocFn(builder, module);
 
       // Determine the size (in bytes) of the memory to be allocated
       mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
@@ -448,7 +462,7 @@ class ModelConverter
 
       mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, structPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, one});
       mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, typeConverter->getIndexType(), gepPtr);
-      mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, mallocFunc, sizeBytes, getVoidPtrType())[0];
+      mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, heapAllocFunc, sizeBytes, getVoidPtrType())[0];
 
       // Store the struct into the heap memory
       mlir::Value resultCastedPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, resultOpaquePtr);
@@ -460,6 +474,21 @@ class ModelConverter
       return mlir::success();
     }
 
+    mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+    {
+      std::string name = "_MheapFree_void_pvoid";
+
+      if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
+        return foo;
+      }
+
+      mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+      builder.setInsertionPointToStart(module.getBody());
+      mlir::Type voidType = mlir::LLVM::LLVMVoidType::get(module.getContext());
+      auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, getVoidPtrType());
+      return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
+    }
+
     /// Create a function to be called when the simulation has finished and the
     /// variables together with its data structure are not required anymore and
     /// thus can be deallocated.
@@ -467,9 +496,10 @@ class ModelConverter
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       mlir::Location loc = modelOp.getLoc();
+      auto module = modelOp->getParentOfType<mlir::ModuleOp>();
 
       // Create the function inside the parent module
-      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+      builder.setInsertionPointToEnd(module.getBody());
 
       auto function = builder.create<mlir::FuncOp>(
           loc, deinitFunctionName,
@@ -492,8 +522,7 @@ class ModelConverter
       }
 
       // Add "free" function to the module
-      // TODO replace with runtime library call
-      auto freeFunc = mlir::LLVM::lookupOrCreateFreeFn(modelOp->getParentOfType<mlir::ModuleOp>());
+      auto freeFunc = lookupOrCreateHeapFreeFn(builder, module);
 
       // Deallocate the data structure
       builder.create<mlir::LLVM::CallOp>(
@@ -659,6 +688,8 @@ class ModelConverter
       return mlir::success();
     }
 
+    /// Create the functions that calculates the values that the state variables will have
+    /// in the next iteration.
     mlir::LogicalResult createUpdateStateVariablesFunction(
         mlir::OpBuilder& builder, ModelOp modelOp, const DerivativesPositionsMap& derivatives) const
     {
@@ -1431,43 +1462,6 @@ static mlir::LogicalResult scheduling(
   return mlir::success();
 }
 
-/// Calculate the values that the state variables will have in the next iteration.
-template<typename EquationType>
-static mlir::LogicalResult updateStates(
-    mlir::OpBuilder& builder,
-    const Model<EquationType>& model,
-    mlir::ValueRange vars,
-    const mlir::BlockAndValueMapping& derivatives)
-{
-  /*
-  ModelOp modelOp = model.getOperation();
-  mlir::Location loc = modelOp.getLoc();
-
-  // Theoretically, given a state variable x and the current step time n,
-  // the value of x(n + 1) should be determined at the end of the step of
-  // time n, and the assignment of the new value should be done at time
-  // n + 1. Anyway, doing so would require to create an additional buffer
-  // to store x(n + 1), so that it can be assigned at the beginning of step
-  // n + 1. This allocation can be avoided by computing x(n + 1) right at
-  // the beginning of step n + 1, when the derivatives still have the values
-  // of step n.
-
-  builder.setInsertionPointToStart(&modelOp.body().front());
-  mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
-
-  for (mlir::Value variable : modelOp.body().getArguments()) {
-    if (derivatives.contains(variable)) {
-      mlir::Value derivative = derivatives.lookup(variable);
-      mlir::Value nextValue = builder.create<MulOp>(loc, derivative.getType(), derivative, timeStep);
-      nextValue = builder.create<AddOp>(loc, variable.getType(), nextValue, variable);
-      builder.create<AssignmentOp>(loc, nextValue, variable);
-    }
-  }
-   */
-
-  return mlir::success();
-}
-
 /// Model solving pass.
 /// Its objective is to convert a descriptive (and thus not sequential) model
 /// into an algorithmic one and to create the functions controlling the simulation.
@@ -1531,42 +1525,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
       return signalPassFailure();
     }
-	}
-
-	/**
-	 * Calculate the values that the state variables will have in the next
-	 * iteration.
-	 */
-	mlir::LogicalResult updateStates(mlir::OpBuilder& builder, const mlir::BlockAndValueMapping& derivatives)
-	{
-		mlir::OpBuilder::InsertionGuard guard(builder);
-    ModelOp model = getOperation();
-		mlir::Location loc = model->getLoc();
-
-		// Theoretically, given a state variable x and the current step time n,
-		// the value of x(n + 1) should be determined at the end of the step of
-		// time n, and the assignment of the new value should be done at time
-		// n + 1. Anyway, doing so would require to create an additional buffer
-		// to store x(n + 1), so that it can be assigned at the beginning of step
-		// n + 1. This allocation can be avoided by computing x(n + 1) right at
-		// the beginning of step n + 1, when the derivatives still have the values
-		// of step n.
-
-		builder.setInsertionPointToStart(&model.body().front());
-		mlir::Value timeStep = builder.create<ConstantOp>(loc, model.timeStep());
-
-    for (mlir::Value variable : model.body().getArguments())
-    {
-      if (derivatives.contains(variable))
-      {
-        mlir::Value derivative = derivatives.lookup(variable);
-        mlir::Value nextValue = builder.create<MulOp>(loc, derivative.getType(), derivative, timeStep);
-        nextValue = builder.create<AddOp>(loc, variable.getType(), nextValue, variable);
-        builder.create<AssignmentOp>(loc, nextValue, variable);
-      }
-    }
-
-		return mlir::success();
 	}
 
 	private:

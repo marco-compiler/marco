@@ -11,8 +11,9 @@
 template<typename T>
 inline T abs(T value)
 {
-	if (value >= 0)
-		return value;
+	if (value >= 0) {
+    return value;
+  }
 
 	return -1 * value;
 }
@@ -181,8 +182,7 @@ inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDes
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
 
-	for (auto it = destination.begin(), end = destination.end(); it != end; ++it)
-	{
+	for (auto it = destination.begin(), end = destination.end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
 		assert(!indexes.empty());
 
@@ -285,8 +285,7 @@ inline void identity_void(UnsizedArrayDescriptor<T> array)
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
 
-	for (auto it = array.begin(), end = array.end(); it != end; ++it)
-	{
+	for (auto it = array.begin(), end = array.end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
 		assert(!indexes.empty());
 
@@ -323,8 +322,9 @@ inline void linspace_void(UnsizedArrayDescriptor<T> array, double start, double 
 	auto n = array.getDimensionSize(0);
 	double step = (end - start) / ((double) n - 1);
 
-	for (dimension_t i = 0; i < n; ++i)
-		array.get(i) = start + static_cast<double>(i) * step;
+	for (dimension_t i = 0; i < n; ++i) {
+    array.get(i) = start + static_cast<double>(i) * step;
+  }
 }
 
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(bool), float, float)
@@ -904,8 +904,7 @@ void transpose_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 	// Directly use the iterators, as we need to determine the current
 	// indexes and transpose them to access the other matrix.
 
-	for (auto it = source.begin(), end = source.end(); it != end; ++it)
-	{
+	for (auto it = source.begin(), end = source.end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
 		assert(indexes.size() == 2);
 

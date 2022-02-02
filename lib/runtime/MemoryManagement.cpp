@@ -31,10 +31,11 @@ class MemoryProfiler : public Profiler
     std::cout << "Number of 'malloc' invocations: " << mallocCalls << "\n";
     std::cout << "Number of 'free' invocations: " << freeCalls << "\n";
 
-    if (mallocCalls > freeCalls)
+    if (mallocCalls > freeCalls) {
       std::cout << "[Warning] Possible memory leak detected\n";
-    else if (mallocCalls < freeCalls)
+    } else if (mallocCalls < freeCalls) {
       std::cout << "[Warning] Possible double 'free' detected\n";
+    }
 
     std::cout << "Total amount of heap allocated memory: " << totalHeapMemory << " bytes\n";
     std::cout << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
@@ -49,16 +50,16 @@ class MemoryProfiler : public Profiler
     currentHeapMemory += bytes;
     sizes[address] = bytes;
 
-    if (currentHeapMemory > peakHeapMemory)
+    if (currentHeapMemory > peakHeapMemory) {
       peakHeapMemory = currentHeapMemory;
+    }
   }
 
   void free(void* address)
   {
     ++freeCalls;
 
-    if (auto it = sizes.find(address); it != sizes.end())
-    {
+    if (auto it = sizes.find(address); it != sizes.end()) {
       currentHeapMemory -= it->second;
       sizes.erase(it);
     }
