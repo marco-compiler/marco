@@ -16,7 +16,7 @@ Array based models:
 ```
 Automatic vectorization of model with many scalar instances of the same components:
 ```
--f -d=mergeComponents,combineSubscripts,printRecordTypes --newBackend --showStructuralAnnotations
+-f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes --newBackend --showStructuralAnnotations
 ```
 
 
