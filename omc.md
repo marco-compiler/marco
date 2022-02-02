@@ -10,9 +10,16 @@ Some extensions are then introduced to handle non-scalarized arrays.
 
 Full set of compiler flags
 --------------------------
+Array based models:
 ```
 -f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes --newBackend --showStructuralAnnotations
 ```
+Automatic vectorization of model with many scalar instances of the same components:
+```
+-f -d=mergeComponents,combineSubscripts,printRecordTypes --newBackend --showStructuralAnnotations
+```
+
+
 These flags should be set in [run-marco.sh](https://github.com/modelica-polimi/marco/blob/5bac719666ea7e050463ef584b74be520ee7e955/run-marco.sh#L99), around line 99.
 
 Explanations
@@ -25,6 +32,9 @@ Explanations
   Handles array connect equations.
 - [``-d=combineSubscripts``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-arrayconnect)
   Turns ``a[j].b[k]`` into ``a.b[j,k]``.
+- [``-d=mergeComponents``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-mergecomponents)
+  Merges instances of the same model with the same type of modifications into arrays.
+  
 - [``-d=printRecordTypes``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-debug-printrecordtypes)
   Prints flat record type definitions instead of constructor function definitions, which is the default.
 - [``--newBackend``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-newbackend)
