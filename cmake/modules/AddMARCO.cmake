@@ -21,35 +21,7 @@ macro(marco_add_library name)
   marco_canonize_library_name(canonized_name ${name})
   set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
 
-  cmake_parse_arguments(ARG
-      "SHARED"
-      ""
-      "ADDITIONAL_HEADERS"
-      ${ARGN})
-  set(srcs)
-
-  if (srcs OR ARG_ADDITIONAL_HEADERS)
-    set(srcs
-        ADDITIONAL_HEADERS
-        ${srcs}
-        ${ARG_ADDITIONAL_HEADERS}) # It may contain unparsed unknown args.
-  endif()
-
-  if (ARG_SHARED)
-    set(LIBTYPE SHARED)
-  else()
-    # llvm_add_library ignores BUILD_SHARED_LIBS if STATIC is explicitly set,
-    # so we need to handle it here.
-    if (BUILD_SHARED_LIBS)
-      set(LIBTYPE SHARED OBJECT)
-    else()
-      set(LIBTYPE STATIC OBJECT)
-    endif()
-
-    set_property(GLOBAL APPEND PROPERTY MARCO_STATIC_LIBS ${name})
-  endif()
-
-  llvm_add_library(${name} ${LIBTYPE} OUTPUT_NAME ${canonized_name} ${ARG_UNPARSED_ARGUMENTS} ${srcs})
+  llvm_add_library(${name} OUTPUT_NAME ${canonized_name} ${ARGN})
   add_library(marco::${name} ALIAS ${name})
 
   install(TARGETS ${name}

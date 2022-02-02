@@ -22,7 +22,7 @@ set(MARCO_TEST_DEPENDS
     mlir-cpu-runner count not
     marco-driver
     modelica-opt
-    marco::runtime)
+    marco::runtimeShared)
 
 list(APPEND MARCO_TEST_DEPENDS MARCOUnitTests)
 
