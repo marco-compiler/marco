@@ -41,6 +41,11 @@ namespace marco::codegen
     getOperation().erase();
   }
 
+  void ScalarEquation::dumpIR() const
+  {
+    getOperation().dump();
+  }
+
   size_t ScalarEquation::getNumOfIterationVars() const
   {
     return 1;
@@ -75,6 +80,21 @@ namespace marco::codegen
   {
     assert(access.first == nullptr);
     return DimensionAccess::constant(access.second);
+  }
+
+  std::vector<mlir::Value> ScalarEquation::getInductionVariables() const
+  {
+    return {};
+  }
+
+  mlir::LogicalResult ScalarEquation::mapInductionVariables(
+      mlir::OpBuilder& builder,
+      mlir::BlockAndValueMapping& mapping,
+      Equation& destination,
+      const ::marco::modeling::AccessFunction& transformation) const
+  {
+    // Nothing to be mapped
+    return mlir::success();
   }
 
   mlir::LogicalResult ScalarEquation::createTemplateFunctionBody(

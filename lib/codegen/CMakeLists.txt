@@ -16,6 +16,7 @@ set(SOURCES
     passes/TypeConverter.cpp
     passes/model/Access.cpp
     passes/model/Equation.cpp
+    passes/model/LinearSolver.cpp
     passes/model/Matching.cpp
     passes/model/Model.cpp
     passes/model/Path.cpp

@@ -40,6 +40,9 @@ namespace marco::codegen
       return mlir::cast<MemberCreateOp>(definingOp);
     }
 
+    virtual mlir::Value createAccess(
+        mlir::OpBuilder& builder, const ::marco::modeling::AccessFunction& accessFunction) const = 0;
+
     private:
     mlir::Value value;
     mlir::Operation* definingOp;
@@ -72,6 +75,12 @@ class ScalarVariable : public Variable::Impl
   {
     return 1;
   }
+
+  mlir::Value createAccess(
+      mlir::OpBuilder& builder, const ::marco::modeling::AccessFunction& accessFunction) const override
+  {
+    // TODO
+  }
 };
 
 /// Variable implementation for array values.
@@ -98,6 +107,12 @@ class ArrayVariable : public Variable::Impl
   long getDimensionSize(size_t index) const override
   {
     return getValue().getType().cast<ArrayType>().getShape()[index];
+  }
+
+  mlir::Value createAccess(
+      mlir::OpBuilder& builder, const ::marco::modeling::AccessFunction& accessFunction) const override
+  {
+    // TODO
   }
 };
 
@@ -162,6 +177,12 @@ namespace marco::codegen
   bool Variable::isConstant() const
   {
     return getDefiningOp().isConstant();
+  }
+
+  mlir::Value Variable::createAccess(
+      mlir::OpBuilder& builder, const modeling::AccessFunction& accessFunction) const
+  {
+    return impl->createAccess(builder, accessFunction);
   }
 
   //===----------------------------------------------------------------------===//

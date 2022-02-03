@@ -52,6 +52,11 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
+  void ScheduledEquation::dumpIR() const
+  {
+    equation->dumpIR();
+  }
+
   EquationOp ScheduledEquation::getOperation() const
   {
     return equation->getOperation();
@@ -78,6 +83,11 @@ namespace marco::codegen
     return equation->resolveDimensionAccess(std::move(access));
   }
 
+  mlir::Value ScheduledEquation::getValueAtPath(const EquationPath& path) const
+  {
+    return equation->getValueAtPath(path);
+  }
+
   std::vector<Access> ScheduledEquation::getReads() const
   {
     return equation->getReads();
@@ -88,9 +98,36 @@ namespace marco::codegen
     return equation->getWrite();
   }
 
-  std::unique_ptr<Equation> ScheduledEquation::explicitate(mlir::OpBuilder& builder)
+  mlir::LogicalResult ScheduledEquation::explicitate(
+      mlir::OpBuilder& builder, const EquationPath& path)
   {
-    return equation->explicitate(builder);
+    return equation->explicitate(builder, path);
+  }
+
+  std::unique_ptr<Equation> ScheduledEquation::cloneAndExplicitate(
+      mlir::OpBuilder& builder, const EquationPath& path) const
+  {
+    return equation->cloneAndExplicitate(builder, path);
+  }
+
+  std::unique_ptr<Equation> ScheduledEquation::cloneAndExplicitate(mlir::OpBuilder& builder) const
+  {
+    return equation->cloneAndExplicitate(builder);
+  }
+
+  std::vector<mlir::Value> ScheduledEquation::getInductionVariables() const
+  {
+    return equation->getInductionVariables();
+  }
+
+  mlir::LogicalResult ScheduledEquation::replaceInto(
+      mlir::OpBuilder& builder,
+      Equation& destination,
+      const ::marco::modeling::AccessFunction& destinationAccessFunction,
+      const EquationPath& destinationPath,
+      const Access& sourceAccess) const
+  {
+    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
   }
 
   mlir::FuncOp ScheduledEquation::createTemplateFunction(

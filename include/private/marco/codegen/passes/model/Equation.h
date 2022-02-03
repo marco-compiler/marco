@@ -24,6 +24,8 @@ namespace marco::codegen
 
       virtual void eraseIR() = 0;
 
+      virtual void dumpIR() const = 0;
+
       /// Get the IR operation.
       virtual modelica::EquationOp getOperation() const = 0;
 
@@ -33,14 +35,43 @@ namespace marco::codegen
       /// Set the variables considered by the equation while determining the accesses.
       virtual void setVariables(Variables variables) = 0;
 
+      /// Get the number of induction variables.
       virtual size_t getNumOfIterationVars() const = 0;
+
+      /// Get the beginning (included) of the i-th iteration range.
       virtual long getRangeBegin(size_t inductionVarIndex) const = 0;
+
+      /// Get the ending (excluded) of the i-th iteration range.
       virtual long getRangeEnd(size_t inductionVarIndex) const = 0;
 
+      /// Get the accesses to variables.
       virtual std::vector<Access> getAccesses() const = 0;
 
       virtual ::marco::modeling::DimensionAccess resolveDimensionAccess(
           std::pair<mlir::Value, long> access) const = 0;
+
+      /// Get the IR value at a given path.
+      virtual mlir::Value getValueAtPath(const EquationPath& path) const = 0;
+
+      /// Transform the equation IR such that the access at the given equation path is the
+      /// only term on the left hand side of the equation.
+      virtual mlir::LogicalResult explicitate(
+          mlir::OpBuilder& builder, const EquationPath& path) = 0;
+
+      /// Clone the equation IR and make it explicit with respect to the given equation path.
+      virtual std::unique_ptr<Equation> cloneAndExplicitate(
+          mlir::OpBuilder& builder, const EquationPath& path) const = 0;
+
+      virtual std::vector<mlir::Value> getInductionVariables() const = 0;
+
+      /// Replace an access in an equation with the right-hand side of the current one.
+      /// This equation is assumed to already be explicit.
+      virtual mlir::LogicalResult replaceInto(
+          mlir::OpBuilder& builder,
+          Equation& destination,
+          const ::marco::modeling::AccessFunction& destinationAccessFunction,
+          const EquationPath& destinationPath,
+          const Access& sourceAccess) const = 0;
 
       virtual mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
@@ -78,6 +109,7 @@ namespace marco::codegen
           std::vector<::marco::modeling::DimensionAccess>& dimensionsAccesses,
           EquationPath path) const;
 
+      /// Obtain the access to a variable that is reached through a given path inside the equation.
       Access getAccessFromPath(const EquationPath& path) const;
 
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
@@ -86,6 +118,7 @@ namespace marco::codegen
   namespace impl
   {
     /// Implementation of the equations container.
+    // TODO: make specialization for scheduled equations (forcing a sequential container)
     template<typename EquationType>
     class Equations
     {

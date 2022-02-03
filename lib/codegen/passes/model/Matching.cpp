@@ -4,50 +4,6 @@
 using namespace ::marco::codegen;
 using namespace ::marco::codegen::modelica;
 
-static mlir::LogicalResult explicitate(
-    mlir::OpBuilder& builder,
-    modelica::EquationOp equation,
-    size_t argumentIndex,
-    EquationPath::EquationSide side)
-{
-  auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-  assert(terminator.lhs().size() == 1);
-  assert(terminator.rhs().size() == 1);
-
-  mlir::Value toExplicitate = side == EquationPath::LEFT ? terminator.lhs()[0] : terminator.rhs()[0];
-  mlir::Value otherExp = side == EquationPath::RIGHT ? terminator.lhs()[0] : terminator.rhs()[0];
-
-  mlir::Operation* op = toExplicitate.getDefiningOp();
-
-  if (!op->hasTrait<InvertibleOpInterface::Trait>()) {
-    return op->emitError("Operation is not invertible");
-  }
-
-  return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
-}
-
-static mlir::LogicalResult explicitate(
-    mlir::OpBuilder& builder, modelica::EquationOp equation, const EquationPath& path)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-  builder.setInsertionPoint(terminator);
-
-  for (auto index : path) {
-    if (auto status = explicitate(builder, equation, index, path.getEquationSide()); mlir::failed(status)) {
-      return status;
-    }
-  }
-
-  if (path.getEquationSide() == EquationPath::RIGHT) {
-    builder.setInsertionPointAfter(terminator);
-    builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
-    terminator->erase();
-  }
-
-  return mlir::success();
-}
-
 namespace marco::codegen
 {
   MatchedEquation::MatchedEquation(std::unique_ptr<Equation> equation, EquationPath matchedPath)
@@ -97,6 +53,11 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
+  void MatchedEquation::dumpIR() const
+  {
+    equation->dumpIR();
+  }
+
   EquationOp MatchedEquation::getOperation() const
   {
     return equation->getOperation();
@@ -132,15 +93,41 @@ namespace marco::codegen
     return equation->createTemplateFunction(builder, functionName, vars, iterationDirection);
   }
 
-  std::unique_ptr<Equation> MatchedEquation::explicitate(mlir::OpBuilder& builder)
+  mlir::Value MatchedEquation::getValueAtPath(const EquationPath& path) const
   {
-    EquationOp clonedOp = cloneIR();
+    return equation->getValueAtPath(path);
+  }
 
-    if (auto status = ::explicitate(builder, clonedOp, getWrite().getPath()); mlir::failed(status)) {
-      return nullptr;
-    }
+  mlir::LogicalResult MatchedEquation::explicitate(
+      mlir::OpBuilder& builder, const EquationPath& path)
+  {
+    return equation->explicitate(builder, path);
+  }
 
-    return Equation::build(clonedOp, getVariables());
+  std::unique_ptr<Equation> MatchedEquation::cloneAndExplicitate(
+      mlir::OpBuilder& builder, const EquationPath& path) const
+  {
+    return equation->cloneAndExplicitate(builder, path);
+  }
+
+  std::unique_ptr<Equation> MatchedEquation::cloneAndExplicitate(mlir::OpBuilder& builder) const
+  {
+    return cloneAndExplicitate(builder, getWrite().getPath());
+  }
+
+  std::vector<mlir::Value> MatchedEquation::getInductionVariables() const
+  {
+    return equation->getInductionVariables();
+  }
+
+  mlir::LogicalResult MatchedEquation::replaceInto(
+      mlir::OpBuilder& builder,
+      Equation& destination,
+      const ::marco::modeling::AccessFunction& destinationAccessFunction,
+      const EquationPath& destinationPath,
+      const Access& sourceAccess) const
+  {
+    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
   }
 
   size_t MatchedEquation::getNumOfIterationVars() const

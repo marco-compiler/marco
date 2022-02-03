@@ -3,6 +3,7 @@
 
 #include "marco/codegen/passes/model/Equation.h"
 #include "marco/codegen/passes/model/Path.h"
+#include "marco/modeling/AccessFunction.h"
 
 namespace marco::codegen
 {
@@ -17,6 +18,21 @@ namespace marco::codegen
 
       void setVariables(Variables variables) override;
 
+      mlir::Value getValueAtPath(const EquationPath& path) const override;
+
+      mlir::LogicalResult explicitate(
+          mlir::OpBuilder& builder, const EquationPath& path) override;
+
+      std::unique_ptr<Equation> cloneAndExplicitate(
+          mlir::OpBuilder& builder, const EquationPath& path) const override;
+
+      mlir::LogicalResult replaceInto(
+          mlir::OpBuilder& builder,
+          Equation& destination,
+          const ::marco::modeling::AccessFunction& destinationAccessFunction,
+          const EquationPath& destinationPath,
+          const Access& sourceAccess) const override;
+
       virtual mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
@@ -24,6 +40,24 @@ namespace marco::codegen
           ::marco::modeling::scheduling::Direction iterationDirection) const override;
 
     protected:
+      mlir::LogicalResult explicitate(
+          mlir::OpBuilder& builder,
+          size_t argumentIndex,
+          EquationPath::EquationSide side);
+
+      mlir::LogicalResult groupLeftHandSide(
+          mlir::OpBuilder& builder,
+          const Variable& variable,
+          const ::marco::modeling::AccessFunction& accessFunction);
+
+      std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndexes(mlir::Value value) const;
+
+      virtual mlir::LogicalResult mapInductionVariables(
+          mlir::OpBuilder& builder,
+          mlir::BlockAndValueMapping& mapping,
+          Equation& destination,
+          const ::marco::modeling::AccessFunction& transformation) const = 0;
+
       virtual mlir::LogicalResult createTemplateFunctionBody(
           mlir::OpBuilder& builder,
           mlir::BlockAndValueMapping& mapping,

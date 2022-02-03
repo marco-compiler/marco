@@ -26,6 +26,32 @@ namespace marco::modeling
     return DimensionAccess(false, relativePosition, inductionVariableIndex);
   }
 
+  bool DimensionAccess::operator==(const DimensionAccess& other) const
+  {
+    if (isConstantAccess() && other.isConstantAccess()) {
+      return getPosition() == other.getPosition();
+    }
+
+    if (!isConstantAccess() && !other.isConstantAccess()) {
+      return getOffset() == other.getOffset();
+    }
+
+    return false;
+  }
+
+  bool DimensionAccess::operator!=(const DimensionAccess& other) const
+  {
+    if (isConstantAccess() && other.isConstantAccess()) {
+      return getPosition() != other.getPosition();
+    }
+
+    if (!isConstantAccess() && !other.isConstantAccess()) {
+      return getOffset() != other.getOffset();
+    }
+
+    return true;
+  }
+
   Point::data_type DimensionAccess::operator()(const Point& equationIndexes) const
   {
     return map(equationIndexes);
@@ -115,6 +141,36 @@ namespace marco::modeling
     return AccessFunction(std::move(accesses));
   }
 
+  bool AccessFunction::operator==(const AccessFunction& other) const
+  {
+    if (size() != other.size()) {
+      return false;
+    }
+
+    for (const auto& [first, second] : llvm::zip(*this, other)) {
+      if (first != second) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool AccessFunction::operator!=(const AccessFunction& other) const
+  {
+    if (size() != other.size()) {
+      return true;
+    }
+
+    for (const auto& [first, second] : llvm::zip(*this, other)) {
+      if (first != second) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   const DimensionAccess& AccessFunction::operator[](size_t index) const
   {
     assert(index < size());
@@ -125,21 +181,28 @@ namespace marco::modeling
   {
     llvm::SmallVector<DimensionAccess, 3> accesses;
 
-    for (const auto& function : other.functions)
+    for (const auto& function : other.functions) {
       accesses.push_back(combine(function));
+    }
 
     return AccessFunction(std::move(accesses));
   }
 
   DimensionAccess AccessFunction::combine(const DimensionAccess& other) const
   {
-    if (other.isConstantAccess())
+    if (other.isConstantAccess()) {
       return other;
+    }
 
     unsigned int inductionVariableIndex = other.getInductionVariableIndex();
     assert(inductionVariableIndex < functions.size());
 
     const auto& mapped = functions[inductionVariableIndex];
+
+    if (mapped.isConstantAccess()) {
+      return DimensionAccess::constant(mapped.getPosition() + other.getOffset());
+    }
+
     return DimensionAccess::relative(mapped.getInductionVariableIndex(), mapped.getOffset() + other.getOffset());
   }
 
@@ -163,14 +226,17 @@ namespace marco::modeling
     for (size_t i = 0; i < size(); ++i) {
       const auto& function = functions[i];
 
-      if (function.isConstantAccess())
+      if (function.isConstantAccess()) {
         return false;
+      }
 
-      if (function.getInductionVariableIndex() != i)
+      if (function.getInductionVariableIndex() != i) {
         return false;
+      }
 
-      if (function.getOffset() != 0)
+      if (function.getOffset() != 0) {
         return false;
+      }
     }
 
     return true;
@@ -180,9 +246,11 @@ namespace marco::modeling
   {
     llvm::SmallVector<bool, 3> usedDimensions(size(), false);
 
-    for (const auto& function : functions)
-      if (!function.isConstantAccess())
+    for (const auto& function : functions) {
+      if (!function.isConstantAccess()) {
         usedDimensions[function.getInductionVariableIndex()] = true;
+      }
+    }
 
     return llvm::all_of(usedDimensions, [](const auto& used) {
       return used;
@@ -193,30 +261,30 @@ namespace marco::modeling
   {
     assert(isInvertible());
 
-    llvm::SmallVector<DimensionAccess, 2> remapped;
+    std::vector<DimensionAccess> remapped;
     remapped.reserve(functions.size());
 
-    llvm::SmallVector<size_t, 3> positionsMap;
+    std::vector<size_t> positionsMap;
     positionsMap.resize(functions.size());
 
-    for (size_t i = 0; i < functions.size(); ++i)
-    {
+    for (size_t i = 0; i < functions.size(); ++i) {
       auto inductionVar = functions[i].getInductionVariableIndex();
       remapped.push_back(DimensionAccess::relative(i, -1 * functions[i].getOffset()));
       positionsMap[inductionVar] = i;
     }
 
-    llvm::SmallVector<DimensionAccess, 2> reordered;
+    std::vector<DimensionAccess> reordered;
 
-    for (const auto& position : positionsMap)
+    for (const auto& position : positionsMap) {
       reordered.push_back(std::move(remapped[position]));
+    }
 
     return AccessFunction(std::move(reordered));
   }
 
   Point AccessFunction::map(const Point& equationIndexes) const
   {
-    llvm::SmallVector<Point::data_type, 3> results;
+    std::vector<Point::data_type> results;
 
     for (const auto& function: functions) {
       results.push_back(function(equationIndexes));
@@ -227,7 +295,7 @@ namespace marco::modeling
 
   MultidimensionalRange AccessFunction::map(const MultidimensionalRange& range) const
   {
-    llvm::SmallVector<Range, 3> ranges;
+    std::vector<Range> ranges;
 
     for (const auto& function : functions) {
       ranges.push_back(function(range));
@@ -240,8 +308,9 @@ namespace marco::modeling
   {
     MCIS result;
 
-    for (const auto& range : indexes)
+    for (const auto& range : indexes) {
       result += map(range);
+    }
 
     return result;
   }

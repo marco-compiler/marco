@@ -21,6 +21,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include <cassert>
 #include <memory>
+#include <set>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -647,7 +648,7 @@ class ModelConverter
         std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
         ++equationTemplateCounter;
 
-        auto clonedExplicitEquation = equation->explicitate(builder);
+        auto clonedExplicitEquation = equation->cloneAndExplicitate(builder);
 
         if (clonedExplicitEquation == nullptr) {
           model.getOperation().emitError("Could not explicitate equation");
@@ -1382,14 +1383,14 @@ static mlir::LogicalResult matching(
     matchingGraph.addEquation(equation.get());
   }
 
-  if (!matchingGraph.simplify())
-  {
+  // Apply the simplification algorithm to solve the obliged matches
+  if (!matchingGraph.simplify()) {
     model.getOperation().emitError("Inconsistency found during the matching simplification process");
     return mlir::failure();
   }
 
-  if (!matchingGraph.match())
-  {
+  // Apply the full matching algorithm for the equations and variables that are still unmatched
+  if (!matchingGraph.match()) {
     model.getOperation().emitError("Matching failed");
     return mlir::failure();
   }
@@ -1411,6 +1412,63 @@ static mlir::LogicalResult matching(
   return mlir::success();
 }
 
+static mlir::LogicalResult replaceAccesses(
+    mlir::OpBuilder& builder,
+    Equation& destination,
+    const AccessFunction& accessFunction,
+    const EquationPath& accessPath,
+    const MatchedEquation& source)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  auto writeAccess = source.getWrite();
+  const auto& writeAccessFunction = writeAccess.getAccessFunction();
+
+  if (!writeAccessFunction.isInvertible()) {
+    source.getOperation().emitError("The write access is not invertible");
+    return mlir::failure();
+  }
+
+  auto inverseWriteFunction = writeAccessFunction.inverse();
+  auto transformation = accessFunction.combine(inverseWriteFunction);
+
+  llvm::errs() << "BEFORE REPLACING\n";
+  destination.dumpIR();
+
+  if (auto res = source.replaceInto(builder, destination, accessFunction, accessPath, source.getWrite()); mlir::failed(res)) {
+    return res;
+  }
+
+  llvm::errs() << "AFTER REPLACING\n";
+  destination.dumpIR();
+
+  /*
+  auto clone = source.cloneAndExplicitate(builder);
+
+  // TODO getAccesses is wrong, because it doesn't consider subscription executed on expressions
+  for (auto& sourceAccess : clone->getAccesses()) {
+    mlir::Value accessToBeUpdated = clone->getValueAtPath(sourceAccess.getPath());
+    builder.setInsertionPointAfterValue(accessToBeUpdated);
+    auto sourceVariable = sourceAccess.getVariable();
+    const auto& sourceAccessFunction = sourceAccess.getAccessFunction();
+
+    if (sourceVariable == writeAccess.getVariable() && sourceAccessFunction == writeAccess.getAccessFunction()) {
+      mlir::Value newAccess = sourceVariable->createAccess(builder, inverseWriteFunction.combine(sourceAccessFunction));
+      accessToBeUpdated.replaceAllUsesWith(newAccess);
+    } else {
+      mlir::Value newAccess = sourceVariable->createAccess(builder, transformation.combine(sourceAccessFunction));
+      accessToBeUpdated.replaceAllUsesWith(newAccess);
+    }
+  }
+
+  mlir::Value valueToBeReplaced = destination.getValueAtPath(access.getPath());
+
+  // Erase the cloned source IR
+  clone->eraseIR();
+  */
+
+  return mlir::success();
+}
+
 /// Modify the IR in order to solve the algebraic loops
 static mlir::LogicalResult solveAlgebraicLoops(
     Model<MatchedEquation>& model, mlir::OpBuilder& builder)
@@ -1424,11 +1482,40 @@ static mlir::LogicalResult solveAlgebraicLoops(
   CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
   auto cycles = cyclesFinder.getEquationsCycles();
 
-  if (!cycles.empty()) {
-    // TODO solve algebraic loops
-    model.getOperation().emitError("Algebraic loops solving is not implemented yet");
-    return mlir::failure();
+  // The new equations without cycles
+  Equations<MatchedEquation> newEquations;
+
+  for (const auto& cycle : cycles) {
+    for (const auto& interval : cycle) {
+      auto clonedEquation = Equation::build(
+          cycle.getEquation()->cloneIR(),
+          cycle.getEquation()->getVariables());
+
+      for (const auto& dependency : interval.getDestinations()) {
+        const auto& access = dependency.getAccess();
+        const auto& destination = dependency.getNode();
+
+        if (auto res = replaceAccesses(
+            builder, *clonedEquation,
+            access.getAccessFunction(),
+            access.getProperty(),
+            *destination.getEquation()); mlir::failed(res)) {
+          return res;
+        }
+      }
+
+      // TODO process multiple levels
+    }
   }
+
+  // Add the equations which had no cycle
+  std::set<MatchedEquation*> equationsWithCycles;
+
+  for (const auto& cycle : cycles) {
+    equationsWithCycles.insert(cycle.getEquation());
+  }
+
+  // TODO: add equations with no cycles. And also add the indices without loops of the equations with cycles
 
   return mlir::success();
 }
@@ -1468,68 +1555,81 @@ static mlir::LogicalResult scheduling(
 class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<ModelOp>>
 {
 	public:
-	explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
-			: options(std::move(options)),
-				bitWidth(std::move(bitWidth))
-	{
-	}
-
-	void getDependentDialects(mlir::DialectRegistry &registry) const override
-	{
-		registry.insert<ModelicaDialect>();
-		registry.insert<mlir::scf::SCFDialect>();
-		registry.insert<mlir::LLVM::LLVMDialect>();
-	}
-
-	void runOnOperation() override
-	{
-    Model model(getOperation());
-    mlir::OpBuilder builder(model.getOperation());
-
-    // Remove the derivative operations and allocate the appropriate memory buffers
-    mlir::BlockAndValueMapping derivatives;
-
-    if (failed(removeDerivatives(builder, model, derivatives))) {
-      model.getOperation().emitError("Derivative could not be converted to variables");
-      return signalPassFailure();
+    explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+        : options(std::move(options)),
+          bitWidth(std::move(bitWidth))
+    {
     }
 
-    // Now that the additional variables have been created, we can start a discovery process
-    model.setVariables(discoverVariables(model.getOperation()));
-    model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
-
-    // Matching process
-    Model<MatchedEquation> matchedModel(model.getOperation());
-
-    if (mlir::failed(::matching(matchedModel, model, derivatives))) {
-      return signalPassFailure();
+    void getDependentDialects(mlir::DialectRegistry &registry) const override
+    {
+      registry.insert<ModelicaDialect>();
+      registry.insert<mlir::scf::SCFDialect>();
+      registry.insert<mlir::LLVM::LLVMDialect>();
     }
 
-    // Resolve the algebraic loops
-    if (mlir::failed(::solveAlgebraicLoops(matchedModel, builder))) {
-      return signalPassFailure();
+    void runOnOperation() override
+    {
+      // Group chained subscriptions into a single one
+      if (mlir::failed(mergeChainedSubscriptions())) {
+        return signalPassFailure();
+      }
+
+      Model model(getOperation());
+      mlir::OpBuilder builder(model.getOperation());
+
+      // Remove the derivative operations and allocate the appropriate memory buffers
+      mlir::BlockAndValueMapping derivatives;
+
+      if (mlir::failed(removeDerivatives(builder, model, derivatives))) {
+        model.getOperation().emitError("Derivative could not be converted to variables");
+        return signalPassFailure();
+      }
+
+      // Now that the additional variables have been created, we can start a discovery process
+      model.setVariables(discoverVariables(model.getOperation()));
+      model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
+
+      // Matching process
+      Model<MatchedEquation> matchedModel(model.getOperation());
+
+      if (mlir::failed(::matching(matchedModel, model, derivatives))) {
+        return signalPassFailure();
+      }
+
+      // Resolve the algebraic loops
+      if (mlir::failed(::solveAlgebraicLoops(matchedModel, builder))) {
+        return signalPassFailure();
+      }
+
+      // Schedule the equations
+      Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());
+
+      if (mlir::failed(::scheduling(scheduledModel, matchedModel))) {
+        return signalPassFailure();
+      }
+
+      // Create the simulation functions
+      mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+      TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+      ModelConverter modelConverter(options, typeConverter);
+
+      if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
+        return signalPassFailure();
+      }
     }
 
-    // Schedule the equations
-    Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());
+  private:
+    mlir::LogicalResult mergeChainedSubscriptions()
+    {
+      // TODO
 
-    if (mlir::failed(::scheduling(scheduledModel, matchedModel))) {
-      return signalPassFailure();
+      return mlir::success();
     }
-
-    // Create the simulation functions
-    mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-    TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-    ModelConverter modelConverter(options, typeConverter);
-
-    if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
-      return signalPassFailure();
-    }
-	}
 
 	private:
-	SolveModelOptions options;
-	unsigned int bitWidth;
+	  SolveModelOptions options;
+	  unsigned int bitWidth;
 };
 
 std::unique_ptr<mlir::Pass> marco::codegen::createSolveModelPass(SolveModelOptions options, unsigned int bitWidth)

@@ -22,6 +22,8 @@ namespace marco::codegen
 
       void eraseIR() override;
 
+      void dumpIR() const override;
+
       size_t getNumOfIterationVars() const override;
       long getRangeBegin(size_t inductionVarIndex) const override;
       long getRangeEnd(size_t inductionVarIndex) const override;
@@ -29,6 +31,15 @@ namespace marco::codegen
       std::vector<Access> getAccesses() const override;
 
       DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
+
+      std::vector<mlir::Value> getInductionVariables() const override;
+
+    protected:
+      mlir::LogicalResult mapInductionVariables(
+          mlir::OpBuilder& builder,
+          mlir::BlockAndValueMapping& mapping,
+          Equation& destination,
+          const ::marco::modeling::AccessFunction& transformation) const override;
 
       mlir::LogicalResult createTemplateFunctionBody(
           mlir::OpBuilder& builder,

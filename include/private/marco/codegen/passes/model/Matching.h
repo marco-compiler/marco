@@ -31,6 +31,8 @@ namespace marco::codegen
 
       void eraseIR() override;
 
+      void dumpIR() const override;
+
       modelica::EquationOp getOperation() const override;
 
       const Variables& getVariables() const override;
@@ -41,6 +43,23 @@ namespace marco::codegen
 
       ::marco::modeling::DimensionAccess resolveDimensionAccess(
           std::pair<mlir::Value, long> access) const override;
+
+      mlir::Value getValueAtPath(const EquationPath& path) const override;
+
+      mlir::LogicalResult explicitate(
+          mlir::OpBuilder& builder, const EquationPath& path) override;
+
+      std::unique_ptr<Equation> cloneAndExplicitate(
+          mlir::OpBuilder& builder, const EquationPath& path) const override;
+
+      std::vector<mlir::Value> getInductionVariables() const override;
+
+      mlir::LogicalResult replaceInto(
+          mlir::OpBuilder& builder,
+          Equation& destination,
+          const ::marco::modeling::AccessFunction& destinationAccessFunction,
+          const EquationPath& destinationPath,
+          const Access& sourceAccess) const override;
 
       mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
@@ -65,7 +84,7 @@ namespace marco::codegen
 
       Access getWrite() const;
 
-      std::unique_ptr<Equation> explicitate(mlir::OpBuilder& builder);
+      std::unique_ptr<Equation> cloneAndExplicitate(mlir::OpBuilder& builder) const;
 
     private:
       std::unique_ptr<Equation> equation;

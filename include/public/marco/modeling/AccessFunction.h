@@ -32,6 +32,12 @@ namespace marco::modeling
           unsigned int inductionVariableIndex,
           Point::data_type relativePosition);
 
+      // TODO test
+      bool operator==(const DimensionAccess& other) const;
+
+      // TODO test
+      bool operator!=(const DimensionAccess& other) const;
+
       Point::data_type operator()(const Point& equationIndexes) const;
 
       Range operator()(const MultidimensionalRange& range) const;
@@ -75,6 +81,12 @@ namespace marco::modeling
       using const_iterator = Container::const_iterator;
 
       AccessFunction(llvm::ArrayRef<DimensionAccess> functions);
+
+      // TODO test
+      bool operator==(const AccessFunction& other) const;
+
+      // TODO test
+      bool operator!=(const AccessFunction& other) const;
 
       // TODO test
       static AccessFunction identity(size_t dimensionality);

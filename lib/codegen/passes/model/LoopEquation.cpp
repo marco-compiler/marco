@@ -55,6 +55,18 @@ namespace marco::codegen
     }
   }
 
+  void LoopEquation::dumpIR() const
+  {
+    EquationOp equationOp = getOperation();
+    mlir::Operation* op = equationOp.getOperation();
+
+    while (auto parent = op->getParentOfType<ForEquationOp>()) {
+      op = parent.getOperation();
+    }
+
+    op->dump();
+  }
+
   size_t LoopEquation::getNumOfIterationVars() const
   {
     return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
@@ -92,10 +104,8 @@ namespace marco::codegen
       std::vector<DimensionAccess> implicitDimensionAccesses;
       size_t implicitInductionVar = 0;
 
-      if (auto arrayType = value.getType().dyn_cast<ArrayType>())
-      {
-        for (size_t i = 0, e = arrayType.getRank(); i < e; ++i)
-        {
+      if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
+        for (size_t i = 0, e = arrayType.getRank(); i < e; ++i) {
           auto dimensionAccess = DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
           implicitDimensionAccesses.push_back(dimensionAccess);
           ++implicitInductionVar;
@@ -113,14 +123,14 @@ namespace marco::codegen
 
   DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::Value, long> access) const
   {
-    if (access.first == nullptr)
+    if (access.first == nullptr) {
       return DimensionAccess::constant(access.second);
+    }
 
     llvm::SmallVector<ForEquationOp, 3> loops;
     ForEquationOp parent = getOperation()->getParentOfType<ForEquationOp>();
 
-    while (parent != nullptr)
-    {
+    while (parent != nullptr) {
       loops.push_back(parent);
       parent = parent->getParentOfType<ForEquationOp>();
     }
@@ -131,6 +141,63 @@ namespace marco::codegen
 
     size_t inductionVarIndex = loops.end() - loopIt - 1;
     return DimensionAccess::relative(inductionVarIndex, access.second);
+  }
+
+  std::vector<mlir::Value> LoopEquation::getInductionVariables() const
+  {
+    std::vector<mlir::Value> explicitInductionVariables;
+
+    for (auto explicitLoop : getExplicitLoops()) {
+      explicitInductionVariables.push_back(explicitLoop.induction());
+    }
+
+    return explicitInductionVariables;
+  }
+
+  mlir::LogicalResult LoopEquation::mapInductionVariables(
+      mlir::OpBuilder& builder,
+      mlir::BlockAndValueMapping& mapping,
+      Equation& destination,
+      const ::marco::modeling::AccessFunction& transformation) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto destinationInductionVariables = destination.getInductionVariables();
+
+    auto explicitLoops = getExplicitLoops();
+
+    if (explicitLoops.size() > transformation.size()) {
+      // Can't map all the induction variables. An IR substitution is not possible.
+      return mlir::failure();
+    }
+
+    for (size_t i = 0, e = explicitLoops.size(); i < e; ++i) {
+      auto dimensionAccess = DimensionAccess::relative(i, 0);
+      auto combinedDimensionAccess = transformation.combine(dimensionAccess);
+
+      if (combinedDimensionAccess.isConstantAccess()) {
+        builder.setInsertionPointToStart(destination.getOperation().body());
+
+        mlir::Value constantAccess = builder.create<ConstantOp>(
+            explicitLoops[i].getLoc(), IntegerAttribute::get(builder.getContext(), combinedDimensionAccess.getPosition()));
+
+        mapping.map(explicitLoops[i].induction(), constantAccess);
+      } else {
+        mlir::Value mapped = destinationInductionVariables[combinedDimensionAccess.getInductionVariableIndex()];
+
+        if (combinedDimensionAccess.getOffset() != 0) {
+          builder.setInsertionPointToStart(destination.getOperation().body());
+
+          mlir::Value offset = builder.create<ConstantOp>(
+              explicitLoops[i].getLoc(), IntegerAttribute::get(builder.getContext(), combinedDimensionAccess.getOffset()));
+
+          mapped = builder.create<AddOp>(offset.getLoc(), offset.getType(), mapped, offset);
+        }
+
+        mapping.map(explicitLoops[i].induction(), mapped);
+      }
+    }
+
+    return mlir::success();
   }
 
   mlir::LogicalResult LoopEquation::createTemplateFunctionBody(
