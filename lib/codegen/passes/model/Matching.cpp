@@ -127,7 +127,7 @@ namespace marco::codegen
       const EquationPath& destinationPath,
       const Access& sourceAccess) const
   {
-    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
+    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath, sourceAccess);
   }
 
   size_t MatchedEquation::getNumOfIterationVars() const
@@ -148,9 +148,11 @@ namespace marco::codegen
   std::vector<Access> MatchedEquation::getReads() const
   {
     std::vector<Access> result;
+    auto writeAccess = getWrite();
 
     for (const auto& access : getAccesses()) {
-      if (access.getPath() != matchedPath) {
+      if (access.getVariable() != writeAccess.getVariable() ||
+          access.getAccessFunction() != writeAccess.getAccessFunction()) {
         result.push_back(access);
       }
     }

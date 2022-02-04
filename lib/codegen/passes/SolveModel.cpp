@@ -1431,15 +1431,9 @@ static mlir::LogicalResult replaceAccesses(
   auto inverseWriteFunction = writeAccessFunction.inverse();
   auto transformation = accessFunction.combine(inverseWriteFunction);
 
-  llvm::errs() << "BEFORE REPLACING\n";
-  destination.dumpIR();
-
   if (auto res = source.replaceInto(builder, destination, accessFunction, accessPath, source.getWrite()); mlir::failed(res)) {
     return res;
   }
-
-  llvm::errs() << "AFTER REPLACING\n";
-  destination.dumpIR();
 
   /*
   auto clone = source.cloneAndExplicitate(builder);
@@ -1504,6 +1498,17 @@ static mlir::LogicalResult solveAlgebraicLoops(
         }
       }
 
+      // Create the matched equation on the cloned operation
+      auto matchedEquation = std::make_unique<MatchedEquation>(
+          std::move(clonedEquation), EquationPath(EquationPath::LEFT));
+
+      for (size_t i = 0, e = cycle.getEquation()->getNumOfIterationVars(); i < e; ++i) {
+        matchedEquation->setMatchedIndexes(
+            i, cycle.getEquation()->getRangeBegin(i), cycle.getEquation()->getRangeEnd(i));
+      }
+
+      newEquations.add(std::move(matchedEquation));
+
       // TODO process multiple levels
     }
   }
@@ -1516,6 +1521,16 @@ static mlir::LogicalResult solveAlgebraicLoops(
   }
 
   // TODO: add equations with no cycles. And also add the indices without loops of the equations with cycles
+
+  // Erase the original equations with cycles
+  for (auto& equation : model.getEquations()) {
+    if (equationsWithCycles.find(equation.get()) != equationsWithCycles.end()) {
+      equation->eraseIR();
+    }
+  }
+
+  // Set the new equations of the model
+  model.setEquations(newEquations);
 
   return mlir::success();
 }
@@ -1597,10 +1612,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         return signalPassFailure();
       }
 
+      llvm::errs() << "BEFORE LOOPS SOLVING\n";
+      matchedModel.getOperation().dump();
+
       // Resolve the algebraic loops
       if (mlir::failed(::solveAlgebraicLoops(matchedModel, builder))) {
         return signalPassFailure();
       }
+
+      llvm::errs() << "AFTER LOOPS SOLVING\n";
+      matchedModel.getOperation().dump();
 
       // Schedule the equations
       Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());

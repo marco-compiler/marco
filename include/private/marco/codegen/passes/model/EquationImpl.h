@@ -40,6 +40,8 @@ namespace marco::codegen
           ::marco::modeling::scheduling::Direction iterationDirection) const override;
 
     protected:
+      modelica::EquationSidesOp getTerminator() const;
+
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
           size_t argumentIndex,
@@ -47,10 +49,15 @@ namespace marco::codegen
 
       mlir::LogicalResult groupLeftHandSide(
           mlir::OpBuilder& builder,
-          const Variable& variable,
-          const ::marco::modeling::AccessFunction& accessFunction);
+          const Access& access);
 
       std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndexes(mlir::Value value) const;
+
+      mlir::Value getMultiplyingFactor(
+          mlir::OpBuilder& builder,
+          mlir::Value value,
+          mlir::Value variable,
+          const ::marco::modeling::AccessFunction& accessFunction) const;
 
       virtual mlir::LogicalResult mapInductionVariables(
           mlir::OpBuilder& builder,

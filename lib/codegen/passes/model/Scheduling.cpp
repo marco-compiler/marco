@@ -127,7 +127,7 @@ namespace marco::codegen
       const EquationPath& destinationPath,
       const Access& sourceAccess) const
   {
-    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
+    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath, sourceAccess);
   }
 
   mlir::FuncOp ScheduledEquation::createTemplateFunction(

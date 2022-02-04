@@ -3,6 +3,7 @@
 #include "marco/codegen/passes/model/LoopEquation.h"
 #include "marco/codegen/passes/model/ScalarEquation.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include <numeric>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -23,8 +24,25 @@ static long getIntFromAttribute(mlir::Attribute attribute)
   if (auto realAttr = attribute.dyn_cast<RealAttribute>())
     return realAttr.getValue();
 
-  assert(false && "Unknown attribute type");
+  llvm_unreachable("Unknown attribute type");
   return 0;
+}
+
+static mlir::Attribute getIntegerAttribute(mlir::OpBuilder& builder, mlir::Type type, int value)
+{
+  if (type.isa<BooleanType>()) {
+    return BooleanAttribute::get(type, value > 0);
+  }
+
+  if (type.isa<IntegerType>()) {
+    return IntegerAttribute::get(type, value);
+  }
+
+  if (type.isa<RealType>()) {
+    return RealAttribute::get(type, value);
+  }
+
+  return builder.getIndexAttr(value);
 }
 
 /// Check if an equation has explicit or implicit induction variables.
@@ -48,6 +66,38 @@ static bool hasInductionVariables(EquationOp equation)
   return hasExplicitLoops() || hasImplicitLoops();
 }
 
+static std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndexes(mlir::Value value)
+{
+  std::vector<mlir::Value> indexes;
+  mlir::Operation* op = value.getDefiningOp();
+
+  while (op != nullptr && mlir::isa<LoadOp, SubscriptionOp>(op)) {
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
+      auto loadIndexes = loadOp.indexes();
+
+      for (size_t i = 0, e = loadIndexes.size(); i < e; ++i) {
+        indexes.push_back(loadIndexes[e - i - 1]);
+      }
+
+      value = loadOp.memory();
+      op = value.getDefiningOp();
+    } else {
+      auto subscriptionOp = mlir::cast<SubscriptionOp>(op);
+      auto subscriptionIndexes = subscriptionOp.indexes();
+
+      for (size_t i = 0, e = subscriptionIndexes.size(); i < e; ++i) {
+        indexes.push_back(subscriptionIndexes[e - i - 1]);
+      }
+
+      value = subscriptionOp.source();
+      op = value.getDefiningOp();
+    }
+  }
+
+  std::reverse(indexes.begin(), indexes.end());
+  return std::make_pair(value, std::move(indexes));
+}
+
 static mlir::LogicalResult removeSubtractions(mlir::OpBuilder& builder, EquationOp equation)
 {
   equation.walk([&](SubOp op) {
@@ -67,8 +117,8 @@ static mlir::LogicalResult distributeMulAndDivOps(mlir::OpBuilder& builder, mlir
   }
 
   for (auto operand : op->getOperands()) {
-    if (auto status = distributeMulAndDivOps(builder, operand.getDefiningOp()); mlir::failed(status)) {
-      return status;
+    if (auto res = distributeMulAndDivOps(builder, operand.getDefiningOp()); mlir::failed(res)) {
+      return res;
     }
   }
 
@@ -92,8 +142,8 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
   }
 
   for (auto operand : op->getOperands()) {
-    if (auto status = pushNegateOps(builder, operand.getDefiningOp()); failed(status)) {
-      return status;
+    if (auto res = pushNegateOps(builder, operand.getDefiningOp()); mlir::failed(res)) {
+      return res;
     }
   }
 
@@ -108,52 +158,48 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
   return mlir::success();
 }
 
-static mlir::LogicalResult flattenSummedValues(mlir::Value value, llvm::SmallVectorImpl<mlir::Value>& values)
+static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result, mlir::Value root)
 {
-  if (auto addOp = mlir::dyn_cast<AddOp>(value.getDefiningOp())) {
-    if (auto status = flattenSummedValues(addOp.lhs(), values); mlir::failed(status)) {
-      return status;
+  if (auto addOp = mlir::dyn_cast<AddOp>(root.getDefiningOp())) {
+    if (auto res = collectSummedValues(result, addOp.lhs()); mlir::failed(res)) {
+      return res;
     }
 
-    if (auto status = flattenSummedValues(addOp.rhs(), values); mlir::failed(status)) {
-      return status;
+    if (auto res = collectSummedValues(result, addOp.rhs()); mlir::failed(res)) {
+      return res;
     }
 
     return mlir::success();
   }
 
-  values.emplace_back(value);
+  result.push_back(root);
   return mlir::success();
 }
 
-/*
-static bool usesMember(mlir::Value value, AccessToVar access)
+static mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
 {
-  if (value == access.getVar())
-    return true;
-
-  mlir::Operation* op = value.getDefiningOp();
-
-  if (mlir::isa<LoadOp, SubscriptionOp>(op)) {
-    auto subscriptionAccess = AccessToVar::fromExp(Expression::build(value));
-
-    if (access == subscriptionAccess)
-      return true;
+  if (x.isa<BooleanType>()) {
+    return y;
   }
 
-  if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
-    if (usesMember(negateOp.operand(), access))
-      return true;
+  if (y.isa<BooleanType>()) {
+    return x;
   }
 
-  if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
-    if (usesMember(mulOp.lhs(), access) || usesMember(mulOp.rhs(), access))
-      return true;
+  if (x.isa<RealType>()) {
+    return x;
   }
 
-  return false;
+  if (y.isa<RealType>()) {
+    return y;
+  }
+
+  if (x.isa<IntegerType>()) {
+    return x;
+  }
+
+  return y;
 }
- */
 
 namespace marco::codegen
 {
@@ -274,8 +320,7 @@ namespace marco::codegen
 
       auto arrayType = type.cast<ArrayType>();
 
-      if (arrayType.getRank() == 0)
-      {
+      if (arrayType.getRank() == 0) {
         assert(dimensionsAccesses.empty());
         reverted.push_back(DimensionAccess::constant(0));
         accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
@@ -429,7 +474,7 @@ namespace marco::codegen
     // If there are multiple accesses, then we must group all of them and
     // extract the common multiplying factor.
 
-    if (auto res = groupLeftHandSide(builder, *requestedAccess.getVariable(), requestedAccess.getAccessFunction()); mlir::failed(res)) {
+    if (auto res = groupLeftHandSide(builder, requestedAccess); mlir::failed(res)) {
       return res;
     }
 
@@ -495,21 +540,21 @@ namespace marco::codegen
 
     // Perform a depth-first traversal of the tree to determine
     // which operations must be cloned and in which order.
-    std::stack<mlir::Operation*> stack;
+    std::stack<mlir::Operation*> cloneStack;
 
     if (auto op = replacement.getDefiningOp(); op != nullptr) {
-      stack.push(op);
+      cloneStack.push(op);
     }
 
-    while (!stack.empty()) {
-      auto op = stack.top();
-      stack.pop();
+    while (!cloneStack.empty()) {
+      auto op = cloneStack.top();
+      cloneStack.pop();
 
       toBeCloned.push_back(op);
 
-      for (auto operand : op->getOperands()) {
+      for (const auto& operand : op->getOperands()) {
         if (auto operandOp = operand.getDefiningOp(); operandOp != nullptr) {
-          stack.push(operandOp);
+          cloneStack.push(operandOp);
         }
       }
     }
@@ -517,20 +562,40 @@ namespace marco::codegen
     // Clone the operations
     for (auto it = toBeCloned.rbegin(); it != toBeCloned.rend(); ++it) {
       mlir::Operation* op = *it;
-
-      if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
-        collectSubscriptionIndexes(subscriptionOp.getResult());
-      } else if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-        collectSubscriptionIndexes(loadOp.getResult());
-      } else {
-        builder.clone(*op, mapping);
-      }
+      builder.clone(*op, mapping);
     }
 
     // Replace the original value with the one obtained through the cloned operations
     destinationValue.replaceAllUsesWith(mapping.lookup(replacement));
 
+    // Erase the replaced operations, which are now useless
+    std::stack<mlir::Operation*> eraseStack;
+
+    if (auto op = destinationValue.getDefiningOp(); op != nullptr) {
+      eraseStack.push(op);
+    }
+
+    while (!eraseStack.empty()) {
+      auto op = eraseStack.top();
+      eraseStack.pop();
+
+      if (op->getUsers().empty()) {
+        for (const auto& operand : op->getOperands()) {
+          if (auto operandOp = operand.getDefiningOp(); operandOp != nullptr) {
+            eraseStack.push(operandOp);
+          }
+        }
+
+        op->erase();
+      }
+    }
+
     return mlir::success();
+  }
+
+  EquationSidesOp BaseEquation::getTerminator() const
+  {
+    return mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
   }
 
   mlir::LogicalResult BaseEquation::explicitate(
@@ -553,153 +618,265 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult BaseEquation::groupLeftHandSide(
-      mlir::OpBuilder& builder, const Variable& variable, const AccessFunction& accessFunction)
+      mlir::OpBuilder& builder, const Access& access)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    llvm::errs() << "BEFORE GROUPING\n";
-    getOperation().dump();
+    // Determine whether the access to be grouped is inside both the equation's sides or just one of them.
+    // When the requested access is found, also check that the path goes through linear operations. If not,
+    // explicitation is not possible.
+    bool lhsHasAccess = false;
+    bool rhsHasAccess = false;
 
-    if (auto status = removeSubtractions(builder, getOperation()); mlir::failed(status)) {
-      return status;
+    for (const auto& acc : getAccesses()) {
+      if (acc.getVariable() == access.getVariable() && acc.getAccessFunction() == access.getAccessFunction()) {
+        lhsHasAccess |= acc.getPath().getEquationSide() == EquationPath::LEFT;
+        rhsHasAccess |= acc.getPath().getEquationSide() == EquationPath::RIGHT;
+
+        // TODO check linearity
+      }
     }
 
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
-
-    if (auto status = distributeMulAndDivOps(builder, terminator.lhs()[0].getDefiningOp()); mlir::failed(status)) {
-      return status;
+    if (auto res = removeSubtractions(builder, getOperation()); mlir::failed(res)) {
+      return res;
     }
 
-    if (auto status = distributeMulAndDivOps(builder, terminator.rhs()[0].getDefiningOp()); mlir::failed(status)) {
-      return status;
+    auto convertToSumsFn = [&](std::function<mlir::Value()> root) -> mlir::LogicalResult {
+      if (auto res = distributeMulAndDivOps(builder, root().getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = pushNegateOps(builder, root().getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
+
+      return mlir::success();
+    };
+
+    std::vector<mlir::Value> lhsSummedValues;
+    std::vector<mlir::Value> rhsSummedValues;
+
+    if (lhsHasAccess) {
+      auto rootFn = [&]() -> mlir::Value {
+        return getTerminator().lhs()[0];
+      };
+
+      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = collectSummedValues(lhsSummedValues, rootFn()); mlir::failed(res)) {
+        return res;
+      }
     }
 
-    if (auto status = pushNegateOps(builder, terminator.lhs()[0].getDefiningOp()); mlir::failed(status)) {
-      return status;
+    if (rhsHasAccess) {
+      auto rootFn = [&]() -> mlir::Value {
+        return getTerminator().rhs()[0];
+      };
+
+      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = collectSummedValues(rhsSummedValues, rootFn()); mlir::failed(res)) {
+        return res;
+      }
     }
 
-    if (auto status = pushNegateOps(builder, terminator.rhs()[0].getDefiningOp()); mlir::failed(status)) {
-      return status;
+    auto containsAccessFn = [&](mlir::Value value, const Access& access, EquationPath::EquationSide side) -> bool {
+      EquationPath path(side);
+      std::vector<Access> accesses;
+      searchAccesses(accesses, value, path);
+
+      return llvm::any_of(accesses, [&](const Access& acc) {
+        return acc.getVariable() == access.getVariable() && acc.getAccessFunction() == access.getAccessFunction();
+      });
+    };
+
+    builder.setInsertionPoint(getTerminator());
+
+    if (lhsHasAccess && rhsHasAccess) {
+      auto leftPos = llvm::partition(lhsSummedValues, [&](const auto& value) {
+        return containsAccessFn(value, access, EquationPath::LEFT);
+      });
+
+      auto rightPos = llvm::partition(rhsSummedValues, [&](const auto& value) {
+        return containsAccessFn(value, access, EquationPath::RIGHT);
+      });
+
+      mlir::Value lhsFactor = std::accumulate(
+          lhsSummedValues.begin(), leftPos,
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
+          });
+
+      mlir::Value rhsFactor = std::accumulate(
+          rhsSummedValues.begin(), rightPos,
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
+          });
+
+      mlir::Value lhsRemaining = std::accumulate(
+          leftPos, lhsSummedValues.end(),
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
+          });
+
+      mlir::Value rhsRemaining = std::accumulate(
+          rightPos, rhsSummedValues.end(),
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
+          });
+
+      auto terminator = getTerminator();
+      auto loc = terminator->getLoc();
+
+      auto lhs = getValueAtPath(access.getPath());
+
+      mlir::Value rhs = builder.create<DivOp>(
+          loc, lhs.getType(),
+          builder.create<SubOp>(loc, getMostGenericType(rhsRemaining.getType(), lhsRemaining.getType()), rhsRemaining, lhsRemaining),
+          builder.create<SubOp>(loc, getMostGenericType(lhsFactor.getType(), rhsFactor.getType()), lhsFactor, rhsFactor));
+
+      builder.create<EquationSidesOp>(loc, lhs, rhs);
+      terminator->erase();
+
+      return mlir::success();
     }
 
-    llvm::errs() << "AFTER GROUPING\n";
-    getOperation().dump();
+    if (lhsHasAccess) {
+      auto leftPos = llvm::partition(lhsSummedValues, [&](const auto& value) {
+        return containsAccessFn(value, access, EquationPath::LEFT);
+      });
 
-    llvm::SmallVector<mlir::Value, 3> lhsSummedValues;
-    llvm::SmallVector<mlir::Value, 3> rhsSummedValues;
+      mlir::Value lhsFactor = std::accumulate(
+          lhsSummedValues.begin(), leftPos,
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
+          });
 
-    if (auto status = flattenSummedValues(terminator.rhs()[0], lhsSummedValues); mlir::failed(status)) {
-      return status;
+      mlir::Value lhsRemaining = std::accumulate(
+          leftPos, lhsSummedValues.end(),
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
+          });
+
+      auto terminator = getTerminator();
+      auto loc = terminator->getLoc();
+
+      auto lhs = getValueAtPath(access.getPath());
+
+      mlir::Value rhs = builder.create<DivOp>(
+          loc, lhs.getType(),
+          builder.create<SubOp>(loc, getMostGenericType(terminator.rhs()[0].getType(), lhsRemaining.getType()), terminator.rhs()[0], lhsRemaining),
+          lhsFactor);
+
+      builder.create<EquationSidesOp>(loc, lhs, rhs);
+      terminator->erase();
+
+      return mlir::success();
     }
 
-    llvm::errs() << "LHS flattened sums\n";
+    if (rhsHasAccess) {
+      auto rightPos = llvm::partition(rhsSummedValues, [&](const auto& value) {
+        return containsAccessFn(value, access, EquationPath::RIGHT);
+      });
 
-    for (const auto& value : lhsSummedValues) {
-      if (auto op = value.getDefiningOp())
-        op->dump();
+      mlir::Value rhsFactor = std::accumulate(
+          rhsSummedValues.begin(), rightPos,
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
+          });
+
+      mlir::Value rhsRemaining = std::accumulate(
+          rightPos, rhsSummedValues.end(),
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
+          });
+
+      auto terminator = getTerminator();
+      auto loc = terminator->getLoc();
+
+      auto lhs = getValueAtPath(access.getPath());
+
+      mlir::Value rhs = builder.create<DivOp>(
+          loc, lhs.getType(),
+          builder.create<SubOp>(loc, getMostGenericType(terminator.lhs()[0].getType(), rhsRemaining.getType()), terminator.lhs()[0], rhsRemaining),
+          rhsFactor);
+
+      builder.create<EquationSidesOp>(loc, lhs, rhs);
+      terminator->erase();
+
+      return mlir::success();
     }
 
-    llvm::errs() << "RHS flattened sums\n";
-
-    for (const auto& value : lhsSummedValues) {
-      if (auto op = value.getDefiningOp())
-        op->dump();
-    }
-
-    if (auto status = flattenSummedValues(terminator.rhs()[0], rhsSummedValues); mlir::failed(status)) {
-      return status;
-    }
-
+    llvm_unreachable("Access not found");
     return mlir::failure();
-
-    /*
-    auto* pos = llvm::partition(lhsSummedValues, [&](auto value) {
-      return usesMember(value, access);
-    });
-
-    builder.setInsertionPoint(equation.getTerminator());
-
-    if (pos == summedValues.begin())
-    {
-      // There is nothing to be moved to the left-hand side of the equation
-      return mlir::success();
-    }
-
-    if (pos == summedValues.end())
-    {
-      // All the right-hand side components should be moved to the left-hand
-      // side and thus the variable will take value 0.
-      auto terminator = equation.getTerminator();
-      mlir::Value zeroValue = builder.create<ConstantOp>(equation.getOp().getLoc(), getIntegerAttribute(builder, terminator.lhs()[0].getType(), 0));
-      builder.setInsertionPointAfter(terminator);
-      builder.create<EquationSidesOp>(terminator.getLoc(), terminator.lhs(), zeroValue);
-      terminator.erase();
-      return mlir::success();
-    }
-
-    mlir::Value toBeMoved = std::accumulate(
-        summedValues.begin(), pos,
-        builder.create<ConstantOp>(equation.getOp()->getLoc(), getIntegerAttribute(builder, summedValues[0].getType(), 0)).getResult(),
-        [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-          mlir::Value factor = getMultiplyingFactor(builder, value, access);
-          return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
-        });
-
-    mlir::Value leftFactor = builder.create<SubOp>(
-        toBeMoved.getLoc(), toBeMoved.getType(),
-        builder.create<ConstantOp>(equation.getOp()->getLoc(), getIntegerAttribute(builder, toBeMoved.getType(), 1)),
-        toBeMoved);
-
-    mlir::Value rhs = std::accumulate(
-        summedValues.begin() + 1, summedValues.end(),
-        builder.create<ConstantOp>(equation.getOp()->getLoc(), getIntegerAttribute(builder, summedValues[0].getType(), 0)).getResult(),
-        [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-          return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
-        });
-
-    rhs = builder.create<DivOp>(
-        rhs.getLoc(),
-        equation.getTerminator().lhs()[0].getType(),
-        rhs, leftFactor);
-
-    auto terminator = equation.getTerminator();
-    builder.setInsertionPointAfter(terminator);
-    builder.create<EquationSidesOp>(terminator.getLoc(), terminator.lhs(), rhs);
-    terminator->erase();
-     */
-
-    //return mlir::success();
   }
-
 
   std::pair<mlir::Value, std::vector<mlir::Value>> BaseEquation::collectSubscriptionIndexes(mlir::Value value) const
   {
-    std::vector<mlir::Value> indexes;
-    mlir::Operation* op = value.getDefiningOp();
+    return ::collectSubscriptionIndexes(value);
+  }
 
-    while (mlir::isa<LoadOp, SubscriptionOp>(op)) {
-      if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-        auto loadIndexes = loadOp.indexes();
+  mlir::Value BaseEquation::getMultiplyingFactor(
+      mlir::OpBuilder& builder,
+      mlir::Value value,
+      mlir::Value variable,
+      const AccessFunction& accessFunction) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
 
-        for (size_t i = 0, e = loadIndexes.size(); i < e; ++i) {
-          indexes.push_back(loadIndexes[e - i - 1]);
-        }
+    auto subscription = collectSubscriptionIndexes(value);
 
-        value = loadOp.memory();
+    if (subscription.first == variable) {
+      std::vector<DimensionAccess> dimensionAccesses;
+
+      for (mlir::Value index : subscription.second) {
+        dimensionAccesses.push_back(resolveDimensionAccess(evaluateDimensionAccess(index)));
       }
 
-      auto subscriptionOp = mlir::cast<SubscriptionOp>(op);
-      auto subscriptionIndexes = subscriptionOp.indexes();
-
-      for (size_t i = 0, e = subscriptionIndexes.size(); i < e; ++i) {
-        indexes.push_back(subscriptionIndexes[e - i - 1]);
+      if (accessFunction == AccessFunction(std::move(dimensionAccesses))) {
+        return builder.create<ConstantOp>(value.getLoc(), getIntegerAttribute(builder, value.getType(), 1));
       }
-
-      value = subscriptionOp.source();
     }
 
-    std::reverse(indexes.begin(), indexes.end());
-    return std::make_pair(value, std::move(indexes));
+    mlir::Operation* op = value.getDefiningOp();
+
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
+      return constantOp.getResult();
+    }
+
+    if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
+      mlir::Value operand = getMultiplyingFactor(builder, negateOp.operand(), variable, accessFunction);
+      return builder.create<NegateOp>(negateOp.getLoc(), negateOp.resultType(), operand);
+    }
+
+    if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
+      mlir::Value lhs = getMultiplyingFactor(builder, mulOp.lhs(), variable, accessFunction);
+      mlir::Value rhs = getMultiplyingFactor(builder, mulOp.rhs(), variable, accessFunction);
+      return builder.create<MulOp>(mulOp.getLoc(), mulOp.resultType(), lhs, rhs);
+    }
+
+    if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
+      mlir::Value dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
+      return builder.create<DivOp>(divOp.getLoc(), divOp.resultType(), dividend, divOp.rhs());
+    }
+
+    return value;
   }
 
   mlir::FuncOp BaseEquation::createTemplateFunction(
