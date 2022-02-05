@@ -9,6 +9,7 @@
 #include "marco/modeling/Scheduling.h"
 #include "mlir/IR/BuiltinOps.h"
 #include <memory>
+#include <vector>
 
 namespace marco::codegen
 {
@@ -117,60 +118,139 @@ namespace marco::codegen
 
   namespace impl
   {
+    // This class must be specialized for the type that is used as container of the equations.
+    template<
+        typename EquationType,
+        template<typename T> class Container>
+    struct EquationsTrait
+    {
+      // Elements to provide:
+      //
+      // static void add(Container<std::unique_ptr<EquationType>>& container, std::unique_ptr<EquationType> equation);
+      // static size_t size(const Container<std::unique_ptr<EquationType>>& container);
+      // static std::unique_ptr<EquationType>& get(Container<std::unique_ptr<EquationType>>& container, size_t index);
+      // static const std::unique_ptr<EquationType>& get(const Container<std::unique_ptr<EquationType>>& container, size_t index);
+    };
+
     /// Implementation of the equations container.
-    // TODO: make specialization for scheduled equations (forcing a sequential container)
-    template<typename EquationType>
-    class Equations
+    /// The actual container can be specified by means of the template parameter.
+    template<
+        typename EquationType,
+        template<typename T> class Container>
+    class BaseEquations
     {
       public:
-        using Container = std::vector<std::unique_ptr<EquationType>>;
-        using iterator = typename Container::iterator;
-        using const_iterator = typename Container::const_iterator;
+        using iterator = typename Container<std::unique_ptr<EquationType>>::iterator;
+        using const_iterator = typename Container<std::unique_ptr<EquationType>>::const_iterator;
 
+      private:
+        using Trait = EquationsTrait<EquationType, std::vector>;
+
+      public:
         void add(std::unique_ptr<EquationType> equation)
         {
-          equations.push_back(std::move(equation));
+          Trait::add(equations, std::move(equation));
         }
 
         size_t size() const
         {
-          return equations.size();
+          return Trait::size(equations);
         }
 
         std::unique_ptr<EquationType>& operator[](size_t index)
         {
           assert(index < size());
-          return equations[index];
+          return Trait::get(equations, index);
         }
 
         const std::unique_ptr<EquationType>& operator[](size_t index) const
         {
           assert(index < size());
-          return equations[index];
+          return Trait::get(equations, index);
         }
 
-        Equations::iterator begin()
+        BaseEquations::iterator begin()
         {
-          return equations.begin();
+          using std::begin;
+          return begin(equations);
         }
 
-        Equations::const_iterator begin() const
+        BaseEquations::const_iterator begin() const
         {
-          return equations.begin();
+          using std::begin;
+          return begin(equations);
         }
 
-        Equations::iterator end()
+        BaseEquations::iterator end()
         {
-          return equations.end();
+          using std::end;
+          return end(equations);
         }
 
-        Equations::const_iterator end() const
+        BaseEquations::const_iterator end() const
         {
-          return equations.end();
+          using std::end;
+          return end(equations);
+        }
+
+        /// For each equation, set the variables it should consider while determining the accesses.
+        void setVariables(Variables variables)
+        {
+          for (auto& equation : *this) {
+            equation->setVariables(variables);
+          }
         }
 
       private:
-        Container equations;
+        Container<std::unique_ptr<EquationType>> equations;
+    };
+
+    template<
+        typename EquationType,
+        template<typename T> class Container = std::vector>
+    class Equations : public BaseEquations<EquationType, Container>
+    {
+      public:
+        using iterator = typename BaseEquations<EquationType, std::vector>::iterator;
+        using const_iterator = typename BaseEquations<EquationType, std::vector>::const_iterator;
+    };
+
+    /// Specialization of the equations container with std::vector as container.
+    template<typename EquationType>
+    class Equations<EquationType, std::vector> : public BaseEquations<EquationType, std::vector>
+    {
+      public:
+        using iterator = typename BaseEquations<EquationType, std::vector>::iterator;
+        using const_iterator = typename BaseEquations<EquationType, std::vector>::const_iterator;
+    };
+
+    template<typename EquationType>
+    class EquationsTrait<EquationType, std::vector>
+    {
+      public:
+        static void add(
+            std::vector<std::unique_ptr<EquationType>>& container,
+            std::unique_ptr<EquationType> equation)
+        {
+          container.push_back(std::move(equation));
+        }
+
+        static size_t size(const std::vector<std::unique_ptr<EquationType>>& container)
+        {
+          return container.size();
+        }
+
+        static std::unique_ptr<EquationType>& get(
+            std::vector<std::unique_ptr<EquationType>>& container, size_t index)
+        {
+          return container[index];
+        }
+
+        static const std::unique_ptr<EquationType>& get(
+            const std::vector<std::unique_ptr<EquationType>>& container, size_t index)
+        {
+          return container[index];
+        }
     };
   }
 
@@ -191,6 +271,9 @@ namespace marco::codegen
       Equations() : impl(std::make_shared<Impl>())
       {
       }
+
+      /// @name Forwarded methods
+      /// {
 
       void add(std::unique_ptr<EquationType> equation)
       {
@@ -232,13 +315,12 @@ namespace marco::codegen
         return impl->end();
       }
 
-      /// For each equation, set the variables it should consider while determining the accesses.
       void setVariables(Variables variables)
       {
-        for (auto& equation : *this) {
-          equation->setVariables(variables);
-        }
+        impl->setVariables(std::move(variables));
       }
+
+      /// }
 
     private:
       std::shared_ptr<Impl> impl;

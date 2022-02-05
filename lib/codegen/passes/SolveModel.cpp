@@ -1557,7 +1557,7 @@ static mlir::LogicalResult scheduling(
       scheduledEquation->setScheduledIndexes(i, solution.getRangeBegin(i), solution.getRangeEnd(i));
     }
 
-    scheduledEquations.add(std::move(scheduledEquation));
+    scheduledEquations.push_back(std::move(scheduledEquation));
   }
 
   result.setEquations(std::move(scheduledEquations));
