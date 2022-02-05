@@ -8048,6 +8048,53 @@ void SizeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 		state.addOperands(index);
 }
 
+mlir::ParseResult SizeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType array;
+  mlir::OpAsmParser::OperandType dimension;
+  mlir::Type arrayType;
+  mlir::Type dimensionType;
+  mlir::Type resultType;
+
+  if (parser.parseOperand(array))
+    return mlir::failure();
+
+  bool hasDimension = false;
+
+  if (mlir::succeeded(parser.parseOptionalComma())) {
+    hasDimension = true;
+
+    if (parser.parseOperand(dimension)) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseColon())
+    return mlir::failure();
+
+  if (hasDimension) {
+    if (parser.parseLParen() ||
+        parser.parseType(arrayType) ||
+        parser.parseComma() ||
+        parser.parseType(dimensionType) ||
+        parser.parseRParen() ||
+        parser.resolveOperand(array, arrayType, result.operands) ||
+        parser.resolveOperand(dimension, dimensionType, result.operands))
+      return mlir::failure();
+  } else {
+    if (parser.parseType(arrayType) ||
+          parser.resolveOperand(array, arrayType, result.operands))
+    return mlir::failure();
+  }
+
+  if (parser.parseArrow() ||
+      parser.parseType(resultType))
+    return mlir::failure();
+
+  result.addTypes(resultType);
+  return mlir::success();
+}
+
 void SizeOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName() << " " << memory();

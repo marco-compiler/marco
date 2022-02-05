@@ -80,10 +80,10 @@ class ArrayDescriptor
 
 	void dump(std::ostream& os) const
 	{
-		os << "Array descriptor";
-		os << "  - address: " << getData();
-		os << "  - rank: " << getRank();
-		os << "  - values: " << *this;
+		os << "Array descriptor\n";
+		os << "  - address: " << getData() << "\n";
+		os << "  - rank: " << getRank() << "\n";
+		os << "  - values: " << *this << "\n";
 		os << "\n";
 	}
 
@@ -281,8 +281,9 @@ namespace impl
 		for (dimension_t i = 0, e = descriptor.getDimension(dimension); i < e; ++i) {
 			indexes[dimension] = i;
 
-			if (i > 0)
-				stream << ", ";
+			if (i > 0) {
+        stream << ", ";
+      }
 
 			if (dimension == descriptor.getRank() - 1) {
         stream << descriptor.get(indexes);
@@ -332,6 +333,16 @@ class UnsizedArrayDescriptor
 			: rank(descriptor.getRank()), descriptor((void*) &descriptor)
 	{
 	}
+
+  void dump() const
+  {
+    getDescriptor()->dump();
+  }
+
+  void dump(std::ostream& os) const
+  {
+    getDescriptor()->dump(os);
+  }
 
   template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
   T& get(const Index& index)

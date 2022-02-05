@@ -33,10 +33,8 @@ inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescri
 template<typename T>
 inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
 {
-	auto sourceSize = source.getNumElements();
 	auto destinationSize = destination.getNumElements();
-
-	assert(sourceSize == destinationSize);
+	assert(source.getNumElements() == destinationSize);
 	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
 }
 

@@ -494,7 +494,7 @@ namespace marco::codegen
       return nullptr;
     }
 
-    return std::move(result);
+    return result;
   }
 
   mlir::LogicalResult BaseEquation::replaceInto(
