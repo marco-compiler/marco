@@ -17,6 +17,10 @@ namespace marco::modeling::internal
 
       Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+      Impl(const Impl& other);
+
+      virtual ~Impl();
+
       /// @name LLVM-style RTTI methods
       /// {
 

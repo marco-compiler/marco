@@ -9,6 +9,11 @@ class Profiler
 {
   public:
   Profiler(const std::string& name);
+
+  Profiler(const Profiler& other);
+
+  virtual ~Profiler();
+
   const std::string& getName() const;
 
   virtual void reset() = 0;

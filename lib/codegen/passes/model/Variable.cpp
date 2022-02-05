@@ -19,6 +19,10 @@ namespace marco::codegen
       assert(mlir::isa<MemberCreateOp>(definingOp));
     }
 
+    Impl(const Impl& other) = default;
+
+    virtual ~Impl() = default;
+
     virtual std::unique_ptr<Variable::Impl> clone() const = 0;
 
     mlir::Operation* getId() const

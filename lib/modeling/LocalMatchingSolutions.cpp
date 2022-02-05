@@ -3,6 +3,8 @@
 
 namespace marco::modeling::internal
 {
+  LocalMatchingSolutions::ImplInterface::~ImplInterface() = default;
+
   LocalMatchingSolutions::LocalMatchingSolutions(
       llvm::ArrayRef<AccessFunction> accessFunctions,
       MultidimensionalRange equationRanges,

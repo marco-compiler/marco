@@ -121,25 +121,24 @@ namespace marco::codegen
   namespace impl
   {
     // This class must be specialized for the type that is used as container of the equations.
-    // As for the template parameters, we could use a templated argument for the Container, but unfortunately
-    // this leads to a compilation error with Clang. For more details about this problem, see the following page:
-    // https://stackoverflow.com/questions/51282912/too-many-template-parameters-in-template-template-argument
-    template<typename Element, typename Container>
+    template<
+        typename EquationType,
+        template<typename... Args> class Container>
     struct EquationsTrait
     {
       // Elements to provide:
       //
-      // static void add(Container& container, Element equation);
-      // static size_t size(const Container& container);
-      // static Element& get(Container& container, size_t index);
-      // static const Element& get(const Container& container, size_t index);
+      // static void add(Container<std::unique_ptr<EquationType>>& container, std::unique_ptr<EquationType> equation);
+      // static size_t size(const Container<std::unique_ptr<EquationType>>& container);
+      // static std::unique_ptr<EquationType>& get(Container<std::unique_ptr<EquationType>>& container, size_t index);
+      // static const std::unique_ptr<EquationType>& get(const Container<std::unique_ptr<EquationType>>& container, size_t index);
     };
 
     /// Implementation of the equations container.
     /// The actual container can be specified by means of the template parameter.
     template<
         typename EquationType,
-        template<typename T> class Container>
+        template<typename... Args> class Container>
     class BaseEquations
     {
       public:
@@ -147,7 +146,7 @@ namespace marco::codegen
         using const_iterator = typename Container<std::unique_ptr<EquationType>>::const_iterator;
 
       private:
-        using Trait = EquationsTrait<std::unique_ptr<EquationType>, std::vector<std::unique_ptr<EquationType>>>;
+        using Trait = EquationsTrait<EquationType, std::vector>;
 
       public:
         void add(std::unique_ptr<EquationType> equation)
@@ -210,7 +209,7 @@ namespace marco::codegen
 
     template<
         typename EquationType,
-        template<typename T> class Container = std::vector>
+        template<typename... Args> class Container = std::vector>
     class Equations : public BaseEquations<EquationType, Container>
     {
       public:
@@ -228,7 +227,7 @@ namespace marco::codegen
     };
 
     template<typename EquationType>
-    class EquationsTrait<std::unique_ptr<EquationType>, std::vector<std::unique_ptr<EquationType>>>
+    class EquationsTrait<EquationType, std::vector>
     {
       public:
         static void add(

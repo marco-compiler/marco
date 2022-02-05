@@ -988,6 +988,10 @@ namespace marco::modeling::internal
       {
       }
 
+      Graph(const Graph& other) = default;
+
+      virtual ~Graph() = default;
+
       /// @name Forwarding methods
       /// {
 

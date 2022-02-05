@@ -75,6 +75,10 @@ namespace marco::modeling::internal
   {
   }
 
+  MCIM::Impl::Impl(const Impl& other) = default;
+
+  MCIM::Impl::~Impl() = default;
+
   const MultidimensionalRange& MCIM::Impl::getEquationRanges() const
   {
     return equationRanges;
