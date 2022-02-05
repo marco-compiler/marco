@@ -212,6 +212,8 @@ namespace marco::codegen
     return std::make_unique<ScalarEquation>(std::move(equation), std::move(variables));
   }
 
+  Equation::~Equation() = default;
+
   llvm::Optional<Variable*> Equation::findVariable(mlir::Value value) const
   {
     assert(value.isa<mlir::BlockArgument>());
