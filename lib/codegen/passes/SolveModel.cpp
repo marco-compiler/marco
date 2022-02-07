@@ -1435,31 +1435,6 @@ static mlir::LogicalResult replaceAccesses(
     return res;
   }
 
-  /*
-  auto clone = source.cloneAndExplicitate(builder);
-
-  // TODO getAccesses is wrong, because it doesn't consider subscription executed on expressions
-  for (auto& sourceAccess : clone->getAccesses()) {
-    mlir::Value accessToBeUpdated = clone->getValueAtPath(sourceAccess.getPath());
-    builder.setInsertionPointAfterValue(accessToBeUpdated);
-    auto sourceVariable = sourceAccess.getVariable();
-    const auto& sourceAccessFunction = sourceAccess.getAccessFunction();
-
-    if (sourceVariable == writeAccess.getVariable() && sourceAccessFunction == writeAccess.getAccessFunction()) {
-      mlir::Value newAccess = sourceVariable->createAccess(builder, inverseWriteFunction.combine(sourceAccessFunction));
-      accessToBeUpdated.replaceAllUsesWith(newAccess);
-    } else {
-      mlir::Value newAccess = sourceVariable->createAccess(builder, transformation.combine(sourceAccessFunction));
-      accessToBeUpdated.replaceAllUsesWith(newAccess);
-    }
-  }
-
-  mlir::Value valueToBeReplaced = destination.getValueAtPath(access.getPath());
-
-  // Erase the cloned source IR
-  clone->eraseIR();
-  */
-
   return mlir::success();
 }
 

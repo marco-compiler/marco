@@ -98,20 +98,37 @@ static std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndex
   return std::make_pair(value, std::move(indexes));
 }
 
-static mlir::LogicalResult removeSubtractions(mlir::OpBuilder& builder, EquationOp equation)
+static mlir::LogicalResult removeSubtractions(mlir::OpBuilder& builder, mlir::Operation* root)
 {
-  equation.walk([&](SubOp op) {
-    mlir::Value rhs = op.rhs();
-    rhs = builder.create<NegateOp>(rhs.getLoc(), rhs.getType(), rhs);
-    auto addOp = builder.create<AddOp>(rhs.getLoc(), op.resultType(), op.lhs(), rhs);
-    op.replaceAllUsesWith(addOp.getOperation());
-  });
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  mlir::Operation* op = root;
+
+  if (op == nullptr) {
+    return mlir::success();
+  }
+
+  for (auto operand : op->getOperands()) {
+    if (auto res = removeSubtractions(builder, operand.getDefiningOp()); mlir::failed(res)) {
+      return res;
+    }
+  }
+
+  if (auto subOp = mlir::dyn_cast<SubOp>(op)) {
+    mlir::Value rhs = subOp.rhs();
+    mlir::Value negatedRhs = builder.create<NegateOp>(rhs.getLoc(), rhs.getType(), rhs);
+    auto addOp = builder.create<AddOp>(subOp->getLoc(), subOp.resultType(), subOp.lhs(), negatedRhs);
+    subOp->replaceAllUsesWith(addOp.getOperation());
+    subOp->erase();
+  }
 
   return mlir::success();
 }
 
-static mlir::LogicalResult distributeMulAndDivOps(mlir::OpBuilder& builder, mlir::Operation* op)
+static mlir::LogicalResult distributeMulAndDivOps(mlir::OpBuilder& builder, mlir::Operation* root)
 {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  mlir::Operation* op = root;
+
   if (op == nullptr) {
     return mlir::success();
   }
@@ -128,6 +145,7 @@ static mlir::LogicalResult distributeMulAndDivOps(mlir::OpBuilder& builder, mlir
 
       if (result != op) {
         op->replaceAllUsesWith(result);
+        op->erase();
       }
     }
   }
@@ -135,8 +153,11 @@ static mlir::LogicalResult distributeMulAndDivOps(mlir::OpBuilder& builder, mlir
   return mlir::success();
 }
 
-static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operation* op)
+static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operation* root)
 {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  mlir::Operation* op = root;
+
   if (op == nullptr) {
     return mlir::success();
   }
@@ -152,6 +173,7 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
 
     if (result != op) {
       op->replaceAllUsesWith(result);
+      op->erase();
     }
   }
 
@@ -619,8 +641,7 @@ namespace marco::codegen
     return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
   }
 
-  mlir::LogicalResult BaseEquation::groupLeftHandSide(
-      mlir::OpBuilder& builder, const Access& access)
+  mlir::LogicalResult BaseEquation::groupLeftHandSide(mlir::OpBuilder& builder, const Access& access)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -639,11 +660,12 @@ namespace marco::codegen
       }
     }
 
-    if (auto res = removeSubtractions(builder, getOperation()); mlir::failed(res)) {
-      return res;
-    }
-
+    // Convert the expression to a sum of values.
     auto convertToSumsFn = [&](std::function<mlir::Value()> root) -> mlir::LogicalResult {
+      if (auto res = removeSubtractions(builder, root().getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
+
       if (auto res = distributeMulAndDivOps(builder, root().getDefiningOp()); mlir::failed(res)) {
         return res;
       }
@@ -696,6 +718,25 @@ namespace marco::codegen
       });
     };
 
+    auto groupFactorsFn = [&](auto beginIt, auto endIt) -> mlir::Value {
+      return std::accumulate(
+          beginIt, endIt,
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
+          });
+    };
+
+    auto groupRemainingFn = [&](auto beginIt, auto endIt) -> mlir::Value {
+      return std::accumulate(
+          beginIt, endIt,
+          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
+          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
+            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
+          });
+    };
+
     builder.setInsertionPoint(getTerminator());
 
     if (lhsHasAccess && rhsHasAccess) {
@@ -707,35 +748,10 @@ namespace marco::codegen
         return containsAccessFn(value, access, EquationPath::RIGHT);
       });
 
-      mlir::Value lhsFactor = std::accumulate(
-          lhsSummedValues.begin(), leftPos,
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
-          });
-
-      mlir::Value rhsFactor = std::accumulate(
-          rhsSummedValues.begin(), rightPos,
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
-          });
-
-      mlir::Value lhsRemaining = std::accumulate(
-          leftPos, lhsSummedValues.end(),
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
-          });
-
-      mlir::Value rhsRemaining = std::accumulate(
-          rightPos, rhsSummedValues.end(),
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
-          });
+      mlir::Value lhsFactor = groupFactorsFn(lhsSummedValues.begin(), leftPos);
+      mlir::Value rhsFactor = groupFactorsFn(rhsSummedValues.begin(), rightPos);
+      mlir::Value lhsRemaining = groupRemainingFn(leftPos, lhsSummedValues.end());
+      mlir::Value rhsRemaining = groupRemainingFn(rightPos, rhsSummedValues.end());
 
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
@@ -758,20 +774,8 @@ namespace marco::codegen
         return containsAccessFn(value, access, EquationPath::LEFT);
       });
 
-      mlir::Value lhsFactor = std::accumulate(
-          lhsSummedValues.begin(), leftPos,
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
-          });
-
-      mlir::Value lhsRemaining = std::accumulate(
-          leftPos, lhsSummedValues.end(),
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
-          });
+      mlir::Value lhsFactor = groupFactorsFn(lhsSummedValues.begin(), leftPos);
+      mlir::Value lhsRemaining = groupRemainingFn(leftPos, lhsSummedValues.end());
 
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
@@ -794,20 +798,8 @@ namespace marco::codegen
         return containsAccessFn(value, access, EquationPath::RIGHT);
       });
 
-      mlir::Value rhsFactor = std::accumulate(
-          rhsSummedValues.begin(), rightPos,
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
-          });
-
-      mlir::Value rhsRemaining = std::accumulate(
-          rightPos, rhsSummedValues.end(),
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, value);
-          });
+      mlir::Value rhsFactor = groupFactorsFn(rhsSummedValues.begin(), rightPos);
+      mlir::Value rhsRemaining = groupRemainingFn(rightPos, rhsSummedValues.end());
 
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
