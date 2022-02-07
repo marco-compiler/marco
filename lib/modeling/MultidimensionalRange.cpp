@@ -1,6 +1,6 @@
 #include "marco/modeling/MultidimensionalRange.h"
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
   MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
       : ranges(ranges.begin(), ranges.end())

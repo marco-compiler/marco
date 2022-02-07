@@ -1584,6 +1584,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         return signalPassFailure();
       }
 
+      /*
       llvm::errs() << "BEFORE LOOPS SOLVING\n";
       matchedModel.getOperation().dump();
 
@@ -1594,6 +1595,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
       llvm::errs() << "AFTER LOOPS SOLVING\n";
       matchedModel.getOperation().dump();
+       */
 
       // Schedule the equations
       Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());

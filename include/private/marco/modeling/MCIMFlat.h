@@ -29,20 +29,20 @@ namespace marco::modeling::internal
       class MCIMElement
       {
         public:
-          MCIMElement(MCIS keys, Delta delta);
+          MCIMElement(IndexSet keys, Delta delta);
 
-          const MCIS& getKeys() const;
+          const IndexSet& getKeys() const;
 
-          void addKeys(MCIS newKeys);
+          void addKeys(IndexSet newKeys);
 
           const Delta& getDelta() const;
 
-          MCIS getValues() const;
+          IndexSet getValues() const;
 
           MCIMElement inverse() const;
 
         private:
-          MCIS keys;
+          IndexSet keys;
           Delta delta;
       };
 
@@ -75,13 +75,13 @@ namespace marco::modeling::internal
 
       void clear() override;
 
-      MCIS flattenRows() const override;
+      IndexSet flattenRows() const override;
 
-      MCIS flattenColumns() const override;
+      IndexSet flattenColumns() const override;
 
-      std::unique_ptr<MCIM::Impl> filterRows(const MCIS& filter) const override;
+      std::unique_ptr<MCIM::Impl> filterRows(const IndexSet& filter) const override;
 
-      std::unique_ptr<MCIM::Impl> filterColumns(const MCIS& filter) const override;
+      std::unique_ptr<MCIM::Impl> filterColumns(const IndexSet& filter) const override;
 
       std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const override;
 
@@ -90,7 +90,7 @@ namespace marco::modeling::internal
 
       Point getFlatVariable(const Point& variable) const;
 
-      void add(MCIS keys, Delta delta);
+      void add(IndexSet keys, Delta delta);
 
       llvm::SmallVector<MCIMElement, 3> groups;
 

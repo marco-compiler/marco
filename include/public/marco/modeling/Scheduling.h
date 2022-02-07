@@ -68,9 +68,6 @@ namespace marco::modeling
   class Scheduler
   {
     private:
-      using MultidimensionalRange = internal::MultidimensionalRange;
-      using MCIS = internal::MCIS;
-
       using VectorDependencyGraph = internal::VVarDependencyGraph<VariableProperty, EquationProperty>;
       using Equation = typename VectorDependencyGraph::Equation;
       using SCC = typename VectorDependencyGraph::SCC;
@@ -161,7 +158,7 @@ namespace marco::modeling
         const auto& write = equation.getWrite();
         const auto& writtenVariable = write.getVariable();
         const AccessFunction& writeAccessFunction = write.getAccessFunction();
-        MCIS writtenIndexes(writeAccessFunction.map(equationRange));
+        IndexSet writtenIndexes(writeAccessFunction.map(equationRange));
 
         auto direction = scheduling::Direction::Unknown;
 
@@ -175,7 +172,7 @@ namespace marco::modeling
           }
 
           const AccessFunction& readAccessFunction = read.getAccessFunction();
-          MCIS readIndexes(readAccessFunction.map(equationRange));
+          IndexSet readIndexes(readAccessFunction.map(equationRange));
 
           if (!readIndexes.overlaps(writtenIndexes)) {
             continue;

@@ -3,7 +3,7 @@
 
 #include "marco/modeling/Point.h"
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
   namespace impl
   {

@@ -2,6 +2,7 @@
 #include "gmock/gmock.h"
 #include "marco/modeling/MCIM.h"
 
+using namespace ::marco::modeling;
 using namespace ::marco::modeling::internal;
 
 TEST(RegularMCIM, indexesIterator)
@@ -281,7 +282,7 @@ TEST(RegularMCIM, flattenRows)
   mcim.set({5, 3}, {4, 0});
   mcim.set({5, 3}, {4, 1});
 
-  MCIS flattened = mcim.flattenRows();
+  IndexSet flattened = mcim.flattenRows();
 
   EXPECT_FALSE(flattened.contains({0, 0}));
   EXPECT_TRUE(flattened.contains({0, 1}));
@@ -339,7 +340,7 @@ TEST(RegularMCIM, flattenColumns)
   mcim.set({6, 3}, {1, 0});
   mcim.set({6, 3}, {1, 1});
 
-  MCIS flattened = mcim.flattenColumns();
+  IndexSet flattened = mcim.flattenColumns();
 
   EXPECT_FALSE(flattened.contains({4, 1}));
   EXPECT_TRUE(flattened.contains({4, 2}));
@@ -393,7 +394,7 @@ TEST(RegularMCIM, rowsFilter)
   mcim.set({5, 3}, {0, 0});
   mcim.set({5, 3}, {1, 0});
 
-  MCIS filter;
+  IndexSet filter;
   filter += {4, 2};
   filter += {5, 3};
 
@@ -456,7 +457,7 @@ TEST(RegularMCIM, columnsFilter)
   mcim.set({5, 3}, {0, 0});
   mcim.set({5, 3}, {1, 0});
 
-  MCIS filter;
+  IndexSet filter;
   filter += {0, 0};
   filter += {1, 1};
 

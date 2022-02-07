@@ -3,7 +3,6 @@
 #include "marco/modeling/AccessFunction.h"
 
 using namespace ::marco::modeling;
-using namespace ::marco::modeling::internal;
 
 TEST(ConstantDimensionAccess, creation) {
   auto access = DimensionAccess::constant(5);

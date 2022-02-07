@@ -2,7 +2,7 @@
 #include "gmock/gmock.h"
 #include "marco/modeling/Range.h"
 
-using namespace ::marco::modeling::internal;
+using namespace ::marco::modeling;
 
 TEST(Range, borders)
 {

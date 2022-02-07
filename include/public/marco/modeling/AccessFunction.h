@@ -3,7 +3,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "marco/modeling/MCIS.h"
+#include "marco/modeling/IndexSet.h"
 #include "marco/modeling/MultidimensionalRange.h"
 #include <iostream>
 
@@ -16,10 +16,6 @@ namespace marco::modeling
   class DimensionAccess
   {
     private:
-      using Point = internal::Point;
-      using Range = internal::Range;
-      using MultidimensionalRange = internal::MultidimensionalRange;
-
       DimensionAccess(
           bool constantAccess,
           Point::data_type position,
@@ -72,9 +68,6 @@ namespace marco::modeling
   class AccessFunction
   {
     private:
-      using Point = internal::Point;
-      using MultidimensionalRange = internal::MultidimensionalRange;
-      using MCIS = internal::MCIS;
       using Container = llvm::SmallVector<DimensionAccess, 3>;
 
     public:
@@ -121,11 +114,11 @@ namespace marco::modeling
       /// the mapped range.
       MultidimensionalRange map(const MultidimensionalRange& range) const;
 
-      MCIS map(const MCIS& indexes) const;
+      IndexSet map(const IndexSet& indexes) const;
 
       MultidimensionalRange inverseMap(const MultidimensionalRange& range) const;
 
-      MCIS inverseMap(const MCIS& indexes) const;
+      IndexSet inverseMap(const IndexSet& indexes) const;
 
     private:
       Container functions;

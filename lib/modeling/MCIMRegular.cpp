@@ -40,17 +40,17 @@ namespace marco::modeling::internal
     return result;
   }
 
-  RegularMCIM::MCIMElement::MCIMElement(MCIS keys, Delta delta)
+  RegularMCIM::MCIMElement::MCIMElement(IndexSet keys, Delta delta)
       : keys(std::move(keys)), delta(std::move(delta))
   {
   }
 
-  const MCIS& RegularMCIM::MCIMElement::getKeys() const
+  const IndexSet& RegularMCIM::MCIMElement::getKeys() const
   {
     return keys;
   }
 
-  void RegularMCIM::MCIMElement::addKeys(MCIS newKeys)
+  void RegularMCIM::MCIMElement::addKeys(IndexSet newKeys)
   {
     keys += std::move(newKeys);
   }
@@ -60,9 +60,9 @@ namespace marco::modeling::internal
     return delta;
   }
 
-  MCIS RegularMCIM::MCIMElement::getValues() const
+  IndexSet RegularMCIM::MCIMElement::getValues() const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& keyRange: keys) {
       llvm::SmallVector<Range, 3> valueRanges;
@@ -181,7 +181,7 @@ namespace marco::modeling::internal
         if (groupIt == other->groups.end()) {
           newGroups.push_back(std::move(group));
         } else {
-          MCIS diff = group.getKeys() - groupIt->getKeys();
+          IndexSet diff = group.getKeys() - groupIt->getKeys();
           newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
         }
       }
@@ -226,7 +226,7 @@ namespace marco::modeling::internal
       ranges.emplace_back(index, index + 1);
     }
 
-    MCIS keys(MultidimensionalRange(std::move(ranges)));
+    IndexSet keys(MultidimensionalRange(std::move(ranges)));
     add(std::move(keys), std::move(delta));
   }
 
@@ -244,7 +244,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<MCIMElement, 3> newGroups;
 
     for (const auto& group: groups) {
-      MCIS diff = group.getKeys() - MultidimensionalRange(std::move(ranges));
+      IndexSet diff = group.getKeys() - MultidimensionalRange(std::move(ranges));
 
       if (!diff.empty()) {
         newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
@@ -264,9 +264,9 @@ namespace marco::modeling::internal
     groups.clear();
   }
 
-  MCIS RegularMCIM::flattenRows() const
+  IndexSet RegularMCIM::flattenRows() const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& group: groups) {
       result += group.getValues();
@@ -275,9 +275,9 @@ namespace marco::modeling::internal
     return result;
   }
 
-  MCIS RegularMCIM::flattenColumns() const
+  IndexSet RegularMCIM::flattenColumns() const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& group: groups) {
       result += group.getKeys();
@@ -286,7 +286,7 @@ namespace marco::modeling::internal
     return result;
   }
 
-  std::unique_ptr<MCIM::Impl> RegularMCIM::filterRows(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> RegularMCIM::filterRows(const IndexSet& filter) const
   {
     auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
@@ -299,7 +299,7 @@ namespace marco::modeling::internal
     return result;
   }
 
-  std::unique_ptr<MCIM::Impl> RegularMCIM::filterColumns(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> RegularMCIM::filterColumns(const IndexSet& filter) const
   {
     auto result = std::make_unique<RegularMCIM>(getEquationRanges(), getVariableRanges());
 
@@ -307,7 +307,7 @@ namespace marco::modeling::internal
       auto invertedGroup = group.inverse();
 
       if (auto& variables = invertedGroup.getKeys(); variables.overlaps(filter)) {
-        MCIS filteredVariables = variables.intersect(filter);
+        IndexSet filteredVariables = variables.intersect(filter);
         MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
         MCIMElement filteredEquations = filteredVariableGroup.inverse();
         result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
@@ -339,11 +339,11 @@ namespace marco::modeling::internal
       ranges.emplace_back(index, index + 1);
     }
 
-    MCIS keys(MultidimensionalRange(std::move(ranges)));
+    IndexSet keys(MultidimensionalRange(std::move(ranges)));
     add(std::move(keys), std::move(delta));
   }
 
-  void RegularMCIM::add(MCIS keys, Delta delta)
+  void RegularMCIM::add(IndexSet keys, Delta delta)
   {
     auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
       return group.getDelta() == delta;

@@ -64,7 +64,7 @@ namespace marco::modeling::matching
 
         long getRangeEnd(size_t index) const;
 
-        void addIterationRange(internal::Range range);
+        void addIterationRange(Range range);
 
         std::vector<Access<Variable>> getVariableAccesses() const;
 
@@ -72,7 +72,7 @@ namespace marco::modeling::matching
 
       private:
         std::string name;
-        llvm::SmallVector<internal::Range, 3> ranges;
+        llvm::SmallVector<Range, 3> ranges;
         llvm::SmallVector<Access<Variable>, 3> accesses;
     };
   }

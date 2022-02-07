@@ -6,12 +6,12 @@ namespace marco::modeling::internal::matching
   {
   }
 
-  const MCIS& Matchable::getMatched() const
+  const IndexSet& Matchable::getMatched() const
   {
     return match;
   }
 
-  MCIS Matchable::getUnmatched() const
+  IndexSet Matchable::getUnmatched() const
   {
     return match.complement(dimensions);
   }
@@ -21,12 +21,12 @@ namespace marco::modeling::internal::matching
     return match.contains(dimensions);
   }
 
-  void Matchable::addMatch(const MCIS& newMatch)
+  void Matchable::addMatch(const IndexSet& newMatch)
   {
     match += newMatch;
   }
 
-  void Matchable::removeMatch(const MCIS& removedMatch)
+  void Matchable::removeMatch(const IndexSet& removedMatch)
   {
     match -= removedMatch;
   }

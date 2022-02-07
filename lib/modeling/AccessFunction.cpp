@@ -1,7 +1,4 @@
-#include "llvm/ADT/DenseMap.h"
 #include "marco/modeling/AccessFunction.h"
-
-using namespace marco::modeling::internal;
 
 namespace marco::modeling
 {
@@ -304,9 +301,9 @@ namespace marco::modeling
     return MultidimensionalRange(std::move(ranges));
   }
 
-  MCIS AccessFunction::map(const MCIS& indexes) const
+  IndexSet AccessFunction::map(const IndexSet& indexes) const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& range : indexes) {
       result += map(range);
@@ -320,7 +317,7 @@ namespace marco::modeling
     return inverse().map(range);
   }
 
-  MCIS AccessFunction::inverseMap(const MCIS& indexes) const
+  IndexSet AccessFunction::inverseMap(const IndexSet& indexes) const
   {
     return inverse().map(indexes);
   }

@@ -2,7 +2,7 @@
 #include "gmock/gmock.h"
 #include "marco/modeling/MultidimensionalRange.h"
 
-using namespace ::marco::modeling::internal;
+using namespace ::marco::modeling;
 
 TEST(MultidimensionalRange, rank)
 {

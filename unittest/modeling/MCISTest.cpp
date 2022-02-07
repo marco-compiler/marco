@@ -1,15 +1,15 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-#include "marco/modeling/MCIS.h"
+#include "marco/modeling/IndexSet.h"
 
-using namespace ::marco::modeling::internal;
+using namespace ::marco::modeling;
 
-TEST(MCIS, empty)
+TEST(IndexSet, empty)
 {
-  MCIS emptyMCIS;
+  IndexSet emptyMCIS;
   EXPECT_TRUE(emptyMCIS.empty());
 
-  MCIS nonEmptyMCIS(MultidimensionalRange({
+  IndexSet nonEmptyMCIS(MultidimensionalRange({
       Range(2, 5),
       Range(3, 7)
   }));
@@ -17,9 +17,9 @@ TEST(MCIS, empty)
   EXPECT_FALSE(nonEmptyMCIS.empty());
 }
 
-TEST(MCIS, size)
+TEST(IndexSet, size)
 {
-  MCIS mcis;
+  IndexSet mcis;
 
   mcis += MultidimensionalRange({
       Range(1, 5),
@@ -34,7 +34,7 @@ TEST(MCIS, size)
   EXPECT_EQ(mcis.size(), 27);
 }
 
-TEST(MCIS, containsElement)
+TEST(IndexSet, containsElement)
 {
   MultidimensionalRange range1({
       Range(1, 3),
@@ -46,14 +46,14 @@ TEST(MCIS, containsElement)
       Range(1, 3)
   });
 
-  MCIS mcis({range1, range2});
+  IndexSet mcis({range1, range2});
 
   EXPECT_TRUE(mcis.contains({2, 5}));
   EXPECT_TRUE(mcis.contains({5, 1}));
   EXPECT_FALSE(mcis.contains({2, 7}));
 }
 
-TEST(MCIS, containsRange)
+TEST(IndexSet, containsRange)
 {
   MultidimensionalRange range1({
       Range(1, 3),
@@ -65,7 +65,7 @@ TEST(MCIS, containsRange)
       Range(1, 3)
   });
 
-  MCIS mcis({range1, range2});
+  IndexSet mcis({range1, range2});
 
   EXPECT_TRUE(mcis.contains(MultidimensionalRange({
       Range(2, 3),
@@ -83,7 +83,7 @@ TEST(MCIS, containsRange)
   })));
 }
 
-TEST(MCIS, overlapsRange)
+TEST(IndexSet, overlapsRange)
 {
   MultidimensionalRange range1({
       Range(1, 3),
@@ -95,7 +95,7 @@ TEST(MCIS, overlapsRange)
       Range(1, 3)
   });
 
-  MCIS mcis({range1, range2});
+  IndexSet mcis({range1, range2});
 
   EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
       Range(2, 4),
@@ -113,14 +113,14 @@ TEST(MCIS, overlapsRange)
   })));
 }
 
-TEST(MCIS, addRange)
+TEST(IndexSet, addRange)
 {
   MultidimensionalRange initialRange({
       Range(1, 3),
       Range(4, 7)
   });
 
-  MCIS mcis(initialRange);
+  IndexSet mcis(initialRange);
   EXPECT_FALSE(mcis.contains({2, 3}));
 
   MultidimensionalRange additionalRange({
@@ -132,14 +132,14 @@ TEST(MCIS, addRange)
   EXPECT_TRUE(mcis.contains({2, 3}));
 }
 
-TEST(MCIS, addOverlappingRange)
+TEST(IndexSet, addOverlappingRange)
 {
   MultidimensionalRange initialRange({
       Range(1, 3),
       Range(4, 7)
   });
 
-  MCIS mcis(initialRange);
+  IndexSet mcis(initialRange);
 
   mcis += MultidimensionalRange({
       Range(1, 9),
@@ -162,9 +162,9 @@ TEST(MCIS, addOverlappingRange)
   })));
 }
 
-TEST(MCIS, addMultipleRanges)
+TEST(IndexSet, addMultipleRanges)
 {
-  MCIS mcis;
+  IndexSet mcis;
 
   mcis += MultidimensionalRange({
       Range(3, 5),
@@ -194,27 +194,27 @@ TEST(MCIS, addMultipleRanges)
   EXPECT_TRUE(mcis.contains(range));
 }
 
-TEST(MCIS, removeRange)
+TEST(IndexSet, removeRange)
 {
   MultidimensionalRange range({
       Range(2, 5),
       Range(3, 7)
   });
 
-  MCIS original(range);
+  IndexSet original(range);
 
-  MCIS removed(MultidimensionalRange({
+  IndexSet removed(MultidimensionalRange({
       Range(3, 9),
       Range(1, 4)
   }));
 
-  MCIS result = original - removed;
+  IndexSet result = original - removed;
 
   for (auto indexes: range)
     EXPECT_EQ(result.contains(indexes), !removed.contains(indexes));
 }
 
-TEST(MCIS, complement)
+TEST(IndexSet, complement)
 {
   llvm::SmallVector<MultidimensionalRange, 3> ranges;
 
@@ -228,7 +228,7 @@ TEST(MCIS, complement)
       Range(2, 5)
   }));
 
-  MCIS original;
+  IndexSet original;
 
   for (const auto& range: ranges) {
     original += range;
@@ -239,7 +239,7 @@ TEST(MCIS, complement)
       Range(0, 6)
   });
 
-  MCIS result = original.complement(range);
+  IndexSet result = original.complement(range);
 
   for (auto indexes: ranges[0])
     EXPECT_FALSE(result.contains(indexes));
@@ -254,16 +254,16 @@ TEST(MCIS, complement)
   }
 }
 
-TEST(MCIS, complementEmptyBase)
+TEST(IndexSet, complementEmptyBase)
 {
-  MCIS original;
+  IndexSet original;
 
   MultidimensionalRange range({
       Range(2, 7),
       Range(0, 6)
   });
 
-  MCIS result = original.complement(range);
+  IndexSet result = original.complement(range);
 
   for (auto indexes: range)
     EXPECT_TRUE(result.contains(indexes));

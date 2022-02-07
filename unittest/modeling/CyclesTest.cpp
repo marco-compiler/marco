@@ -5,7 +5,7 @@
 #include "marco/modeling/Cycles.h"
 
 using namespace ::marco::modeling;
-using ::marco::modeling::internal::MCIS;
+using ::marco::modeling::IndexSet;
 using ::testing::Return;
 
 class Variable
@@ -101,7 +101,7 @@ class Path
     struct Step
     {
         size_t totalCoveredIndexes;
-        MCIS indexes;
+        IndexSet indexes;
         std::string access;
         std::string nextEquation;
     };
@@ -271,11 +271,11 @@ TEST(Cycles, oneStepCycle) {
   EXPECT_THAT(cycles, testing::Contains(CycleStartingWithEquation("eq2")));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
-    { 4, MCIS({4, 5, 6, 7}), "eq1r1", "eq2"}
+    { 4, IndexSet({4, 5, 6, 7}), "eq1r1", "eq2"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq2"), HasPath(Path({
-      { 4, MCIS({10, 11, 12, 13}), "eq2r1", "eq1"}
+      { 4, IndexSet({10, 11, 12, 13}), "eq2r1", "eq1"}
   })));
 }
 
@@ -354,18 +354,18 @@ TEST(SCC, twoStepsCycle) {
   EXPECT_THAT(cycles, testing::Contains(CycleStartingWithEquation("eq3")));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
-      { 2, MCIS({4, 5}), "eq1r1", "eq2"},
-      { 2, MCIS({10, 11}), "eq2r1", "eq3"}
+      { 2, IndexSet({4, 5}), "eq1r1", "eq2"},
+      { 2, IndexSet({10, 11}), "eq2r1", "eq3"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq2"), HasPath(Path({
-      { 2, MCIS({10, 11}), "eq2r1", "eq3"},
-      { 2, MCIS({5, 6}), "eq3r1", "eq1"}
+      { 2, IndexSet({10, 11}), "eq2r1", "eq3"},
+      { 2, IndexSet({5, 6}), "eq3r1", "eq1"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq3"), HasPath(Path({
-      { 2, MCIS({5, 6}), "eq3r1", "eq1"},
-      { 2, MCIS({4, 5}), "eq1r1", "eq2"}
+      { 2, IndexSet({5, 6}), "eq3r1", "eq1"},
+      { 2, IndexSet({4, 5}), "eq1r1", "eq2"}
   })));
 }
 
@@ -445,26 +445,26 @@ TEST(SCC, oneStepCycleWithMultipleReads) {
   EXPECT_THAT(cycles, testing::Contains(CycleStartingWithEquation("eq3")));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
-      { 5, MCIS({4, 5}), "eq1r1", "eq2"}
+      { 5, IndexSet({4, 5}), "eq1r1", "eq2"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
-      { 5, MCIS({6, 7}), "eq1r1", "eq2"}
+      { 5, IndexSet({6, 7}), "eq1r1", "eq2"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
-      { 5, MCIS({6, 7}), "eq1r2", "eq3"}
+      { 5, IndexSet({6, 7}), "eq1r2", "eq3"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq1"), HasPath(Path({
-      { 5, MCIS({8}), "eq1r1", "eq2"}
+      { 5, IndexSet({8}), "eq1r1", "eq2"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq2"), HasPath(Path({
-      { 5, MCIS({10, 11, 12, 13, 14}), "eq2r1", "eq1"}
+      { 5, IndexSet({10, 11, 12, 13, 14}), "eq2r1", "eq1"}
   })));
 
   EXPECT_THAT(getEquationCycles(cycles, "eq3"), HasPath(Path({
-      { 2, MCIS({11, 12}), "eq3r1", "eq1"}
+      { 2, IndexSet({11, 12}), "eq3r1", "eq1"}
   })));
 }

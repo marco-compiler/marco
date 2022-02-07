@@ -97,9 +97,9 @@ namespace marco::modeling::internal
     assert(results.size() == dimensions.size());
   }
 
-  static MCIS flattenMCIS(const MCIS& value, const MultidimensionalRange& range, llvm::ArrayRef<size_t> dimensions)
+  static IndexSet flattenMCIS(const IndexSet& value, const MultidimensionalRange& range, llvm::ArrayRef<size_t> dimensions)
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& multiDimRange: value) {
       llvm::SmallVector<Point::data_type, 3> firstItemIndexes;
@@ -126,9 +126,9 @@ namespace marco::modeling::internal
     return result;
   }
 
-  static MCIS unflattenMCIS(const MCIS& value, const MultidimensionalRange& range, llvm::ArrayRef<size_t> dimensions)
+  static IndexSet unflattenMCIS(const IndexSet& value, const MultidimensionalRange& range, llvm::ArrayRef<size_t> dimensions)
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& multiDimRange: value) {
       assert(multiDimRange.rank() == 1);
@@ -178,17 +178,17 @@ namespace marco::modeling::internal
     return result;
   }
 
-  FlatMCIM::MCIMElement::MCIMElement(MCIS keys, Delta delta)
+  FlatMCIM::MCIMElement::MCIMElement(IndexSet keys, Delta delta)
       : keys(std::move(keys)), delta(std::move(delta))
   {
   }
 
-  const MCIS& FlatMCIM::MCIMElement::getKeys() const
+  const IndexSet& FlatMCIM::MCIMElement::getKeys() const
   {
     return keys;
   }
 
-  void FlatMCIM::MCIMElement::addKeys(MCIS newKeys)
+  void FlatMCIM::MCIMElement::addKeys(IndexSet newKeys)
   {
     keys += std::move(newKeys);
   }
@@ -198,9 +198,9 @@ namespace marco::modeling::internal
     return delta;
   }
 
-  MCIS FlatMCIM::MCIMElement::getValues() const
+  IndexSet FlatMCIM::MCIMElement::getValues() const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& keyRange: keys) {
       llvm::SmallVector<Range, 3> valueRanges;
@@ -327,7 +327,7 @@ namespace marco::modeling::internal
         if (groupIt == other->groups.end()) {
           newGroups.push_back(std::move(group));
         } else {
-          MCIS diff = group.getKeys() - groupIt->getKeys();
+          IndexSet diff = group.getKeys() - groupIt->getKeys();
           newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
         }
       }
@@ -366,7 +366,7 @@ namespace marco::modeling::internal
     auto flatVariable = getFlatVariable(variable);
 
     Delta delta(flatEquation[0], flatVariable[0]);
-    MCIS keys(MultidimensionalRange(Range(flatEquation[0], flatEquation[0]
+    IndexSet keys(MultidimensionalRange(Range(flatEquation[0], flatEquation[0]
     +1)));
     add(std::move(keys), std::move(delta));
   }
@@ -378,7 +378,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<MCIMElement, 3> newGroups;
 
     for (const auto& group: groups) {
-      MCIS diff = group.getKeys() - MultidimensionalRange(Range(flatEquation[0], flatEquation[0] + 1));
+      IndexSet diff = group.getKeys() - MultidimensionalRange(Range(flatEquation[0], flatEquation[0] + 1));
 
       if (!diff.empty()) {
         newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
@@ -398,9 +398,9 @@ namespace marco::modeling::internal
     groups.clear();
   }
 
-  MCIS FlatMCIM::flattenRows() const
+  IndexSet FlatMCIM::flattenRows() const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& group: groups) {
       result += group.getValues();
@@ -409,9 +409,9 @@ namespace marco::modeling::internal
     return unflattenMCIS(result, getVariableRanges(), variableDimensions);
   }
 
-  MCIS FlatMCIM::flattenColumns() const
+  IndexSet FlatMCIM::flattenColumns() const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& group: groups) {
       result += group.getKeys();
@@ -420,9 +420,9 @@ namespace marco::modeling::internal
     return unflattenMCIS(result, getEquationRanges(), equationDimensions);
   }
 
-  std::unique_ptr<MCIM::Impl> FlatMCIM::filterRows(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> FlatMCIM::filterRows(const IndexSet& filter) const
   {
-    MCIS flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
+    IndexSet flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
     for (const MCIMElement& group: groups) {
@@ -434,16 +434,16 @@ namespace marco::modeling::internal
     return result;
   }
 
-  std::unique_ptr<MCIM::Impl> FlatMCIM::filterColumns(const MCIS& filter) const
+  std::unique_ptr<MCIM::Impl> FlatMCIM::filterColumns(const IndexSet& filter) const
   {
-    MCIS flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
+    IndexSet flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
     for (const auto& group: groups) {
       auto invertedGroup = group.inverse();
 
       if (auto& variables = invertedGroup.getKeys(); variables.overlaps(flattenedFilter)) {
-        MCIS filteredVariables = variables.intersect(flattenedFilter);
+        IndexSet filteredVariables = variables.intersect(flattenedFilter);
         MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
         MCIMElement filteredEquations = filteredVariableGroup.inverse();
         result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
@@ -492,7 +492,7 @@ namespace marco::modeling::internal
     return Point(flattened);
   }
 
-  void FlatMCIM::add(MCIS keys, Delta delta)
+  void FlatMCIM::add(IndexSet keys, Delta delta)
   {
     auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
       return group.getDelta() == delta;

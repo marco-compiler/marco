@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "marco/modeling/Point.h"
 
-using namespace ::marco::modeling::internal;
+using namespace ::marco::modeling;
 
 TEST(Point, 1d)
 {

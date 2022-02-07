@@ -5,7 +5,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "marco/modeling/Range.h"
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
   namespace impl
   {

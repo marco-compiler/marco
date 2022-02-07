@@ -9,7 +9,7 @@
 #include "marco/modeling/AccessFunction.h"
 #include "marco/modeling/Dumpable.h"
 #include "marco/modeling/Graph.h"
-#include "marco/modeling/MCIS.h"
+#include "marco/modeling/IndexSet.h"
 #include "marco/modeling/MultidimensionalRange.h"
 #include "marco/utils/TreeOStream.h"
 #include <list>
@@ -314,7 +314,7 @@ namespace marco::modeling
     class WriteInfo : public Dumpable
     {
       public:
-        WriteInfo(const Graph& graph, VariableId variable, EquationDescriptor equation, MCIS indexes)
+        WriteInfo(const Graph& graph, VariableId variable, EquationDescriptor equation, IndexSet indexes)
             : graph(&graph), variable(std::move(variable)), equation(std::move(equation)), indexes(std::move(indexes))
         {
         }
@@ -342,7 +342,7 @@ namespace marco::modeling
           return equation;
         }
 
-        const MCIS& getWrittenVariableIndexes() const
+        const IndexSet& getWrittenVariableIndexes() const
         {
           return indexes;
         }
@@ -353,7 +353,7 @@ namespace marco::modeling
         VariableId variable;
 
         EquationDescriptor equation;
-        MCIS indexes;
+        IndexSet indexes;
     };
 
     template<typename Property>
@@ -745,7 +745,7 @@ namespace marco::modeling::internal
           const auto& accessFunction = write.getAccessFunction();
 
           // Determine the indexes of the variable that are written by the equation
-          MCIS writtenIndexes(accessFunction.map(equation.getIterationRanges()));
+          IndexSet writtenIndexes(accessFunction.map(equation.getIterationRanges()));
 
           result.emplace(write.getVariable(), WriteInfo(graph, write.getVariable(), *it, std::move(writtenIndexes)));
         }
@@ -910,7 +910,7 @@ namespace marco::modeling::internal
 
           for (const auto& equationIndex : VectorEquationTraits::getIterationRanges(&equationProperty)) {
             auto scalarEquationDescriptor = graph.addVertex(ScalarEquation(equationProperty, equationIndex));
-            MCIS writtenIndexes(accessFunction.map(equationIndex));
+            IndexSet writtenIndexes(accessFunction.map(equationIndex));
 
             writes.emplace(
                 write.getVariable(),

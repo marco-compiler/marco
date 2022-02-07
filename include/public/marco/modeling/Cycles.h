@@ -7,7 +7,7 @@
 #include "marco/modeling/Dependency.h"
 #include "marco/modeling/Dumpable.h"
 #include "marco/modeling/Graph.h"
-#include "marco/modeling/MCIS.h"
+#include "marco/modeling/IndexSet.h"
 #include "marco/modeling/MultidimensionalRange.h"
 #include "marco/utils/TreeOStream.h"
 #include <list>
@@ -21,7 +21,7 @@ namespace marco::modeling
     class DFSStep : public Dumpable
     {
       public:
-        DFSStep(const Graph& graph, EquationDescriptor equation, MCIS equationIndexes, Access read)
+        DFSStep(const Graph& graph, EquationDescriptor equation, IndexSet equationIndexes, Access read)
           : graph(&graph),
             equation(std::move(equation)),
             equationIndexes(std::move(equationIndexes)),
@@ -48,12 +48,12 @@ namespace marco::modeling
           return equation;
         }
 
-        const MCIS& getEquationIndexes() const
+        const IndexSet& getEquationIndexes() const
         {
           return equationIndexes;
         }
 
-        void setEquationIndexes(MCIS indexes)
+        void setEquationIndexes(IndexSet indexes)
         {
           equationIndexes = std::move(indexes);
         }
@@ -66,11 +66,15 @@ namespace marco::modeling
       private:
         const Graph* graph;
         EquationDescriptor equation;
-        MCIS equationIndexes;
+        IndexSet equationIndexes;
         Access read;
     };
 
-    template<typename Graph, typename EquationDescriptor, typename Equation, typename Access>
+    template<
+        typename Graph,
+        typename EquationDescriptor,
+        typename Equation,
+        typename Access>
     class FilteredEquation : public Dumpable
     {
       private:
@@ -145,7 +149,7 @@ namespace marco::modeling
             using Container = std::vector<Dependency>;
 
           public:
-            Interval(MultidimensionalRange range, llvm::ArrayRef<Dependency> destinations)
+            Interval(MultidimensionalRange range, llvm::ArrayRef<Dependency> destinations = llvm::None)
                 : range(std::move(range)), destinations(destinations.begin(), destinations.end())
             {
             }
@@ -198,7 +202,7 @@ namespace marco::modeling
         using const_iterator = typename Container::const_iterator;
 
         FilteredEquation(const Graph& graph, EquationDescriptor equation)
-          : graph(&graph), equation(std::move(equation))
+            : graph(&graph), equation(std::move(equation))
         {
         }
 
@@ -246,12 +250,13 @@ namespace marco::modeling
         template<typename It>
         void addListIt(It step, It end)
         {
-          if (step == end)
+          if (step == end) {
             return;
+          }
 
           if (auto next = std::next(step); next != end) {
             Container newIntervals;
-            MCIS range = step->getEquationIndexes();
+            IndexSet range = step->getEquationIndexes();
 
             for (const auto& interval: intervals) {
               if (!range.overlaps(interval.getRange())) {
@@ -259,7 +264,7 @@ namespace marco::modeling
                 continue;
               }
 
-              MCIS restrictedRanges(interval.getRange());
+              IndexSet restrictedRanges(interval.getRange());
               restrictedRanges -= range;
 
               for (const auto& restrictedRange: restrictedRanges) {
@@ -272,7 +277,10 @@ namespace marco::modeling
                 llvm::ArrayRef<Dependency> dependencies = interval.getDestinations();
                 std::vector<Dependency> newDependencies(dependencies.begin(), dependencies.end());
 
-                auto& newDependency = newDependencies.emplace_back(step->getRead(), std::make_unique<FilteredEquation>(*graph, next->getEquation()));
+                auto& newDependency = newDependencies.emplace_back(
+                    step->getRead(),
+                    std::make_unique<FilteredEquation>(*graph, next->getEquation()));
+
                 newDependency.getNode().addListIt(next, end);
 
                 /*
@@ -295,7 +303,11 @@ namespace marco::modeling
 
             for (const auto& subRange: range) {
               std::vector<Dependency> dependencies;
-              auto& dependency = dependencies.emplace_back(step->getRead(), std::make_unique<FilteredEquation>(*graph, next->getEquation()));
+
+              auto& dependency = dependencies.emplace_back(
+                  step->getRead(),
+                  std::make_unique<FilteredEquation>(*graph, next->getEquation()));
+
               dependency.getNode().addListIt(next, end);
               newIntervals.emplace_back(subRange, dependencies);
             }
@@ -317,9 +329,6 @@ namespace marco::modeling
   class CyclesFinder
   {
     public:
-      using MultidimensionalRange = internal::MultidimensionalRange;
-      using MCIS = internal::MCIS;
-
       using DependencyGraph = internal::VVarDependencyGraph<VariableProperty, EquationProperty>;
 
       using Variable = typename DependencyGraph::Variable;
@@ -374,7 +383,7 @@ namespace marco::modeling
         std::stack<std::list<DFSStep>> stack;
 
         // The first equation starts with the full range, as it has no predecessors
-        MCIS indexes(vectorDependencyGraph[equation].getIterationRanges());
+        IndexSet indexes(vectorDependencyGraph[equation].getIterationRanges());
 
         std::list<DFSStep> emptyPath;
 
@@ -405,7 +414,7 @@ namespace marco::modeling
 
             auto intersection = readIndexes.intersect(writtenIndexes);
             EquationDescriptor writingEquation = writeInfo.getEquation();
-            MCIS writingEquationIndexes(vectorDependencyGraph[writingEquation].getIterationRanges());
+            IndexSet writingEquationIndexes(vectorDependencyGraph[writingEquation].getIterationRanges());
 
             auto usedWritingEquationIndexes = inverseAccessIndexes(
                 writingEquationIndexes,
@@ -435,7 +444,7 @@ namespace marco::modeling
       std::vector<std::list<DFSStep>> appendReads(
           const std::list<DFSStep>& path,
           EquationDescriptor equation,
-          const MCIS& equationRange) const
+          const IndexSet& equationRange) const
       {
         std::vector<std::list<DFSStep>> result;
 
@@ -462,7 +471,7 @@ namespace marco::modeling
           std::vector<std::list<DFSStep>>& cyclicPaths,
           std::list<DFSStep> path,
           EquationDescriptor equation,
-          const MCIS& equationIndexes) const
+          const IndexSet& equationIndexes) const
       {
         if (!path.empty()) {
           // Restrict the flow (starting from the end).
@@ -517,10 +526,10 @@ namespace marco::modeling
       /// @param accessFunction  access function to be inverted and applied (if possible)
       /// @param accessIndexes   indexes to be inverted
       /// @return indexes mapping to accessIndexes when accessFunction is applied to them
-      MCIS inverseAccessIndexes(
-          const MCIS& parentIndexes,
+      IndexSet inverseAccessIndexes(
+          const IndexSet& parentIndexes,
           const AccessFunction& accessFunction,
-          const MCIS& accessIndexes) const
+          const IndexSet& accessIndexes) const
       {
         if (accessFunction.isInvertible()) {
           auto mapped = accessFunction.inverseMap(accessIndexes);
@@ -534,7 +543,7 @@ namespace marco::modeling
         // points and determine which of them lead to a loop. This is highly expensive but also
         // inevitable, and confined only to very few cases within real scenarios.
 
-        MCIS result;
+        IndexSet result;
 
         for (const auto& range: parentIndexes) {
           for (const auto& point: range) {

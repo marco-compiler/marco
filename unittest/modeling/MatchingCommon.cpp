@@ -48,7 +48,7 @@ namespace marco::modeling::matching::test
     return ranges[index].getEnd();
   }
 
-  void Equation::addIterationRange(internal::Range range)
+  void Equation::addIterationRange(Range range)
   {
     ranges.push_back(range);
   }

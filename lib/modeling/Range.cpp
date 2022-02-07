@@ -1,6 +1,6 @@
 #include "marco/modeling/Range.h"
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
   Range::Range(Range::data_type begin, Range::data_type end)
       : _begin(begin), _end(end)

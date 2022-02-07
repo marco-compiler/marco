@@ -79,13 +79,13 @@ namespace marco::modeling::internal
 
       virtual void clear() = 0;
 
-      virtual MCIS flattenRows() const = 0;
+      virtual IndexSet flattenRows() const = 0;
 
-      virtual MCIS flattenColumns() const = 0;
+      virtual IndexSet flattenColumns() const = 0;
 
-      virtual std::unique_ptr<MCIM::Impl> filterRows(const MCIS& filter) const = 0;
+      virtual std::unique_ptr<MCIM::Impl> filterRows(const IndexSet& filter) const = 0;
 
-      virtual std::unique_ptr<MCIM::Impl> filterColumns(const MCIS& filter) const = 0;
+      virtual std::unique_ptr<MCIM::Impl> filterColumns(const IndexSet& filter) const = 0;
 
       virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
 

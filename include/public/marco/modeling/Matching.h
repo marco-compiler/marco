@@ -86,20 +86,20 @@ namespace marco::modeling
         public:
           Matchable(MultidimensionalRange dimensions);
 
-          const MCIS& getMatched() const;
+          const IndexSet& getMatched() const;
 
-          MCIS getUnmatched() const;
+          IndexSet getUnmatched() const;
 
           /// Check whether all the scalar elements of this array have been matched.
           bool allComponentsMatched() const;
 
-          void addMatch(const MCIS& newMatch);
+          void addMatch(const IndexSet& newMatch);
 
-          void removeMatch(const MCIS& removedMatch);
+          void removeMatch(const IndexSet& removedMatch);
 
         private:
           MultidimensionalRange dimensions;
-          MCIS match;
+          IndexSet match;
       };
 
       /// Graph node representing a variable.
@@ -296,7 +296,7 @@ namespace marco::modeling
   namespace internal::matching
   {
     template<typename T>
-    void insertOrAdd(std::map<T, MCIS>& map, T key, MCIS value)
+    void insertOrAdd(std::map<T, IndexSet>& map, T key, IndexSet value)
     {
       if (auto it = map.find(key); it != map.end()) {
         it->second += std::move(value);
@@ -537,7 +537,7 @@ namespace marco::modeling
 
         BFSStep(const Graph& graph,
                 VertexDescriptor node,
-                MCIS candidates)
+                IndexSet candidates)
             : graph(&graph),
               previous(nullptr),
               node(std::move(node)),
@@ -551,7 +551,7 @@ namespace marco::modeling
                 BFSStep previous,
                 EdgeDescriptor edge,
                 VertexDescriptor node,
-                MCIS candidates,
+                IndexSet candidates,
                 MCIM mappedFlow)
             : graph(&graph),
               previous(std::make_unique<BFSStep>(std::move(previous))),
@@ -623,7 +623,7 @@ namespace marco::modeling
           return node;
         }
 
-        const MCIS& getCandidates() const
+        const IndexSet& getCandidates() const
         {
           return candidates;
         }
@@ -646,7 +646,7 @@ namespace marco::modeling
 
         std::unique_ptr<BFSStep> previous;
         VertexDescriptor node;
-        MCIS candidates;
+        IndexSet candidates;
         llvm::Optional<EdgeDescriptor> edge;
         llvm::Optional<MCIM> mappedFlow;
     };
@@ -930,7 +930,6 @@ namespace marco::modeling
       using EdgeIterator = typename Graph::EdgeIterator;
       using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
-      using MCIS = internal::MCIS;
       using MCIM = internal::MCIM;
       using BFSStep = internal::matching::BFSStep<Graph>;
       using Frontier = internal::matching::Frontier<BFSStep>;
@@ -1312,7 +1311,7 @@ namespace marco::modeling
               auto variableDescriptor =
                   edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;
 
-              MCIS allIndexes = matched.flattenColumns();
+              IndexSet allIndexes = matched.flattenColumns();
 
               for (const auto& groupedIndexes : allIndexes) {
                 result.emplace_back(
@@ -1498,7 +1497,7 @@ namespace marco::modeling
         // For each traversed node, keep track of the indexes that have already
         // been traversed by some augmenting path. A new candidate path can be
         // accepted only if it does not traverse any of them.
-        std::map<VertexDescriptor, MCIS> visited;
+        std::map<VertexDescriptor, IndexSet> visited;
 
         for (const BFSStep& pathEnd : foundPaths) {
           // All the candidate paths consist in at least two nodes by construction
@@ -1509,7 +1508,7 @@ namespace marco::modeling
           // The path's validity is unknown, so we must avoid polluting the
           // list of visited scalar nodes. If the path will be marked as valid,
           // then the new visits will be merged with the already found ones.
-          std::map<VertexDescriptor, MCIS> newVisits;
+          std::map<VertexDescriptor, IndexSet> newVisits;
 
           const BFSStep* curStep = &pathEnd;
           MCIM map = curStep->getMappedFlow();
@@ -1574,8 +1573,8 @@ namespace marco::modeling
         // matched by eq1 would result as unmatched. If we instead first
         // apply the removals, the new matches are not wrongly erased anymore.
 
-        std::map<VertexDescriptor, MCIS> removedMatches;
-        std::map<VertexDescriptor, MCIS> newMatches;
+        std::map<VertexDescriptor, IndexSet> removedMatches;
+        std::map<VertexDescriptor, IndexSet> newMatches;
 
         // Update the match matrices on the edges and store the information
         // about the vertices to be updated later.

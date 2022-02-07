@@ -287,22 +287,22 @@ namespace marco::modeling::internal
     impl->clear();
   }
 
-  MCIS MCIM::flattenRows() const
+  IndexSet MCIM::flattenRows() const
   {
     return impl->flattenRows();
   }
 
-  MCIS MCIM::flattenColumns() const
+  IndexSet MCIM::flattenColumns() const
   {
     return impl->flattenColumns();
   }
 
-  MCIM MCIM::filterRows(const MCIS& filter) const
+  MCIM MCIM::filterRows(const IndexSet& filter) const
   {
     return MCIM(impl->filterRows(filter));
   }
 
-  MCIM MCIM::filterColumns(const MCIS& filter) const
+  MCIM MCIM::filterColumns(const IndexSet& filter) const
   {
     return MCIM(impl->filterColumns(filter));
   }

@@ -266,7 +266,7 @@ TEST(FlatMCIM, flattenRows)
   mcim.set({5, 2}, 8);
   mcim.set({5, 3}, 8);
 
-  MCIS flattened = mcim.flattenRows();
+  IndexSet flattened = mcim.flattenRows();
 
   EXPECT_FALSE(flattened.contains(0));
   EXPECT_TRUE(flattened.contains(1));
@@ -320,7 +320,7 @@ TEST(FlatMCIM, flattenColumns)
   mcim.set({6, 3}, 2);
   mcim.set({6, 3}, 3);
 
-  MCIS flattened = mcim.flattenColumns();
+  IndexSet flattened = mcim.flattenColumns();
 
   EXPECT_FALSE(flattened.contains({4, 1}));
   EXPECT_TRUE(flattened.contains({4, 2}));
@@ -371,7 +371,7 @@ TEST(FlatMCIM, rowsFilter)
   mcim.set({5, 3}, 0);
   mcim.set({5, 3}, 2);
 
-  MCIS filter;
+  IndexSet filter;
   filter += {4, 2};
   filter += {5, 3};
 
@@ -431,7 +431,7 @@ TEST(FlatMCIM, columnsFilter)
   mcim.set({5, 3}, 0);
   mcim.set({5, 3}, 2);
 
-  MCIS filter;
+  IndexSet filter;
   filter += 0;
   filter += 3;
 

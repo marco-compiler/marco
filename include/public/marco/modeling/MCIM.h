@@ -3,7 +3,7 @@
 
 #include "llvm/ADT/iterator_range.h"
 #include "marco/modeling/AccessFunction.h"
-#include "marco/modeling/MCIS.h"
+#include "marco/modeling/IndexSet.h"
 #include "marco/modeling/MultidimensionalRange.h"
 
 namespace marco::modeling::internal
@@ -93,13 +93,13 @@ namespace marco::modeling::internal
 
       void clear();
 
-      MCIS flattenRows() const;
+      IndexSet flattenRows() const;
 
-      MCIS flattenColumns() const;
+      IndexSet flattenColumns() const;
 
-      MCIM filterRows(const MCIS& filter) const;
+      MCIM filterRows(const IndexSet& filter) const;
 
-      MCIM filterColumns(const MCIS& filter) const;
+      MCIM filterColumns(const IndexSet& filter) const;
 
       std::vector<MCIM> splitGroups() const;
 

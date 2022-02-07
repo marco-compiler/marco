@@ -1,25 +1,25 @@
 #include "llvm/ADT/SmallVector.h"
-#include "marco/modeling/MCIS.h"
+#include "marco/modeling/IndexSet.h"
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
-  MCIS::MCIS() = default;
+  IndexSet::IndexSet() = default;
 
-  MCIS::MCIS(llvm::ArrayRef<Point> points)
+  IndexSet::IndexSet(llvm::ArrayRef<Point> points)
   {
     for (const auto& point: points) {
       this->operator+=(point);
     }
   }
 
-  MCIS::MCIS(llvm::ArrayRef<MultidimensionalRange> ranges)
+  IndexSet::IndexSet(llvm::ArrayRef<MultidimensionalRange> ranges)
   {
     for (const auto& range: ranges) {
       this->operator+=(range);
     }
   }
 
-  bool MCIS::operator==(const Point& rhs) const
+  bool IndexSet::operator==(const Point& rhs) const
   {
     if (ranges.size() != 1) {
       return false;
@@ -28,7 +28,7 @@ namespace marco::modeling::internal
     return ranges.front() == rhs;
   }
 
-  bool MCIS::operator==(const MultidimensionalRange& rhs) const
+  bool IndexSet::operator==(const MultidimensionalRange& rhs) const
   {
     if (ranges.size() != 1) {
       return false;
@@ -37,12 +37,12 @@ namespace marco::modeling::internal
     return ranges.front() == rhs;
   }
 
-  bool MCIS::operator==(const MCIS& rhs) const
+  bool IndexSet::operator==(const IndexSet& rhs) const
   {
     return contains(rhs) && rhs.contains(*this);
   }
 
-  bool MCIS::operator!=(const Point& rhs) const
+  bool IndexSet::operator!=(const Point& rhs) const
   {
     if (ranges.size() != 1) {
       return true;
@@ -51,7 +51,7 @@ namespace marco::modeling::internal
     return ranges.front() != rhs;
   }
 
-  bool MCIS::operator!=(const MultidimensionalRange& rhs) const
+  bool IndexSet::operator!=(const MultidimensionalRange& rhs) const
   {
     if (ranges.size() != 1) {
       return true;
@@ -60,18 +60,18 @@ namespace marco::modeling::internal
     return ranges.front() != rhs;
   }
 
-  bool MCIS::operator!=(const MCIS& rhs) const
+  bool IndexSet::operator!=(const IndexSet& rhs) const
   {
     return !contains(rhs) || !rhs.contains(*this);
   }
 
-  const MultidimensionalRange& MCIS::operator[](size_t index) const
+  const MultidimensionalRange& IndexSet::operator[](size_t index) const
   {
     assert(index < ranges.size());
     return *(std::next(ranges.begin(), index));
   }
 
-  MCIS& MCIS::operator+=(const Point& rhs)
+  IndexSet& IndexSet::operator+=(const Point& rhs)
   {
     llvm::SmallVector<Range, 3> elementRanges;
 
@@ -82,7 +82,7 @@ namespace marco::modeling::internal
     return this->operator+=(MultidimensionalRange(std::move(elementRanges)));
   }
 
-  MCIS& MCIS::operator+=(const MultidimensionalRange& rhs)
+  IndexSet& IndexSet::operator+=(const MultidimensionalRange& rhs)
   {
     auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
       if (ranges.empty()) {
@@ -127,9 +127,9 @@ namespace marco::modeling::internal
     return *this;
   }
 
-  MCIS& MCIS::operator+=(const MCIS& rhs)
+  IndexSet& IndexSet::operator+=(const IndexSet& rhs)
   {
-    auto hasCompatibleRank = [&](const MCIS& mcis) {
+    auto hasCompatibleRank = [&](const IndexSet& mcis) {
       if (ranges.empty() || mcis.ranges.empty()) {
         return true;
       }
@@ -146,28 +146,28 @@ namespace marco::modeling::internal
     return *this;
   }
 
-  MCIS MCIS::operator+(const Point& rhs) const
+  IndexSet IndexSet::operator+(const Point& rhs) const
   {
-    MCIS result(*this);
+    IndexSet result(*this);
     result += rhs;
     return result;
   }
 
-  MCIS MCIS::operator+(const MultidimensionalRange& rhs) const
+  IndexSet IndexSet::operator+(const MultidimensionalRange& rhs) const
   {
-    MCIS result(*this);
+    IndexSet result(*this);
     result += rhs;
     return result;
   }
 
-  MCIS MCIS::operator+(const MCIS& rhs) const
+  IndexSet IndexSet::operator+(const IndexSet& rhs) const
   {
-    MCIS result(*this);
+    IndexSet result(*this);
     result += rhs;
     return result;
   }
 
-  MCIS& MCIS::operator-=(const MultidimensionalRange& rhs)
+  IndexSet& IndexSet::operator-=(const MultidimensionalRange& rhs)
   {
     if (ranges.empty()) {
       return *this;
@@ -199,7 +199,7 @@ namespace marco::modeling::internal
     return *this;
   }
 
-  MCIS& MCIS::operator-=(const MCIS& rhs)
+  IndexSet& IndexSet::operator-=(const IndexSet& rhs)
   {
     for (const auto& range: rhs.ranges) {
       this->operator-=(range);
@@ -208,26 +208,26 @@ namespace marco::modeling::internal
     return *this;
   }
 
-  MCIS MCIS::operator-(const MultidimensionalRange& rhs) const
+  IndexSet IndexSet::operator-(const MultidimensionalRange& rhs) const
   {
-    MCIS result(*this);
+    IndexSet result(*this);
     result -= rhs;
     return result;
   }
 
-  MCIS MCIS::operator-(const MCIS& rhs) const
+  IndexSet IndexSet::operator-(const IndexSet& rhs) const
   {
-    MCIS result(*this);
+    IndexSet result(*this);
     result -= rhs;
     return result;
   }
 
-  bool MCIS::empty() const
+  bool IndexSet::empty() const
   {
     return ranges.empty();
   }
 
-  size_t MCIS::size() const
+  size_t IndexSet::size() const
   {
     size_t result = 0;
 
@@ -238,17 +238,17 @@ namespace marco::modeling::internal
     return result;
   }
 
-  MCIS::const_iterator MCIS::begin() const
+  IndexSet::const_iterator IndexSet::begin() const
   {
     return ranges.begin();
   }
 
-  MCIS::const_iterator MCIS::end() const
+  IndexSet::const_iterator IndexSet::end() const
   {
     return ranges.end();
   }
 
-  bool MCIS::contains(const Point& other) const
+  bool IndexSet::contains(const Point& other) const
   {
     for (const auto& range: ranges) {
       if (range.contains(other)) {
@@ -259,7 +259,7 @@ namespace marco::modeling::internal
     return false;
   }
 
-  bool MCIS::contains(const MultidimensionalRange& other) const
+  bool IndexSet::contains(const MultidimensionalRange& other) const
   {
     for (const auto& range: ranges) {
       if (range.contains(other)) {
@@ -274,7 +274,7 @@ namespace marco::modeling::internal
     return false;
   }
 
-  bool MCIS::contains(const MCIS& other) const
+  bool IndexSet::contains(const IndexSet& other) const
   {
     llvm::SmallVector<MultidimensionalRange, 3> current;
 
@@ -287,7 +287,7 @@ namespace marco::modeling::internal
     return true;
   }
 
-  bool MCIS::overlaps(const MultidimensionalRange& other) const
+  bool IndexSet::overlaps(const MultidimensionalRange& other) const
   {
     for (const auto& range: ranges) {
       if (range.overlaps(other)) {
@@ -302,7 +302,7 @@ namespace marco::modeling::internal
     return false;
   }
 
-  bool MCIS::overlaps(const MCIS& other) const
+  bool IndexSet::overlaps(const IndexSet& other) const
   {
     for (const auto& range: ranges) {
       if (other.overlaps(range)) {
@@ -313,9 +313,9 @@ namespace marco::modeling::internal
     return false;
   }
 
-  MCIS MCIS::intersect(const MultidimensionalRange& other) const
+  IndexSet IndexSet::intersect(const MultidimensionalRange& other) const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& range : ranges) {
       if (range.overlaps(other)) {
@@ -326,9 +326,9 @@ namespace marco::modeling::internal
     return result;
   }
 
-  MCIS MCIS::intersect(const MCIS& other) const
+  IndexSet IndexSet::intersect(const IndexSet& other) const
   {
-    MCIS result;
+    IndexSet result;
 
     for (const auto& range1: ranges) {
       for (const auto& range2: other.ranges) {
@@ -341,10 +341,10 @@ namespace marco::modeling::internal
     return result;
   }
 
-  MCIS MCIS::complement(const MultidimensionalRange& other) const
+  IndexSet IndexSet::complement(const MultidimensionalRange& other) const
   {
     if (ranges.empty()) {
-      return MCIS(other);
+      return IndexSet(other);
     }
 
     llvm::SmallVector<MultidimensionalRange, 3> result;
@@ -368,17 +368,17 @@ namespace marco::modeling::internal
       current = next;
     }
 
-    return MCIS(result);
+    return IndexSet(result);
   }
 
-  void MCIS::sort()
+  void IndexSet::sort()
   {
     ranges.sort([](const MultidimensionalRange& first, const MultidimensionalRange& second) {
       return first < second;
     });
   }
 
-  void MCIS::merge()
+  void IndexSet::merge()
   {
     using It = decltype(ranges)::iterator;
 
@@ -407,7 +407,7 @@ namespace marco::modeling::internal
     }
   }
 
-  std::ostream& operator<<(std::ostream& stream, const MCIS& obj)
+  std::ostream& operator<<(std::ostream& stream, const IndexSet& obj)
   {
     stream << "{";
 

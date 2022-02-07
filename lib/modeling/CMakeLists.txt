@@ -3,6 +3,7 @@ set(SOURCES
     Dependency.cpp
     Dumpable.cpp
     Graph.cpp
+    IndexSet.cpp
     LocalMatchingSolutions.cpp
     LocalMatchingSolutionsMCIM.cpp
     LocalMatchingSolutionsVAF.cpp
@@ -10,7 +11,6 @@ set(SOURCES
     MCIM.cpp
     MCIMFlat.cpp
     MCIMRegular.cpp
-    MCIS.cpp
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp

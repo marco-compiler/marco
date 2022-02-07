@@ -6,7 +6,7 @@
 #include <initializer_list>
 #include <iostream>
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
   /// n-D point.
   class Point

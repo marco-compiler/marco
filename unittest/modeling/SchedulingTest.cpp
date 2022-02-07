@@ -3,7 +3,7 @@
 #include "marco/modeling/Scheduling.h"
 
 using namespace ::marco::modeling;
-using ::marco::modeling::internal::MCIS;
+using ::marco::modeling::IndexSet;
 using ::testing::Return;
 
 class Variable
