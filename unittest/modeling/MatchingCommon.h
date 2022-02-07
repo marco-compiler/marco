@@ -92,14 +92,15 @@ namespace marco::modeling::matching
       return equation->getNumOfIterationVars();
     }
 
-    static long getRangeBegin(const test::Equation* equation, size_t inductionVarIndex)
+    static MultidimensionalRange getIterationRanges(const test::Equation* equation)
     {
-      return equation->getRangeBegin(inductionVarIndex);
-    }
+      std::vector<Range> ranges;
 
-    static long getRangeEnd(const test::Equation* equation, size_t inductionVarIndex)
-    {
-      return equation->getRangeEnd(inductionVarIndex);
+      for (size_t i = 0, e = getNumOfIterationVars(equation); i < e; ++i) {
+        ranges.emplace_back(equation->getRangeBegin(i), equation->getRangeEnd(i));
+      }
+
+      return MultidimensionalRange(std::move(ranges));
     }
 
     using VariableType = test::Variable;

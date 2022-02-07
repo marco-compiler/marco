@@ -2,19 +2,23 @@
 #include "marco/codegen/passes/model/EquationImpl.h"
 
 using namespace ::marco::codegen::modelica;
+using namespace ::marco::modeling;
 
 namespace marco::codegen
 {
   ScheduledEquation::ScheduledEquation(
       std::unique_ptr<MatchedEquation> equation,
-      ::marco::modeling::scheduling::Direction schedulingDirection)
+      MultidimensionalRange scheduledIndexes,
+      scheduling::Direction schedulingDirection)
     : equation(std::move(equation)),
+      scheduledIndexes(std::move(scheduledIndexes)),
       schedulingDirection(std::move(schedulingDirection))
   {
   }
 
   ScheduledEquation::ScheduledEquation(const ScheduledEquation& other)
     : equation(std::make_unique<MatchedEquation>(*other.equation)),
+      scheduledIndexes(other.scheduledIndexes),
       schedulingDirection(other.schedulingDirection)
   {
   }
@@ -141,27 +145,16 @@ namespace marco::codegen
 
   size_t ScheduledEquation::getNumOfIterationVars() const
   {
-    return scheduledIndexes.size();
+    return scheduledIndexes.rank();
   }
 
-  long ScheduledEquation::getRangeBegin(size_t inductionVarIndex) const
+  modeling::MultidimensionalRange ScheduledEquation::getIterationRanges() const
   {
-    return scheduledIndexes[inductionVarIndex].first;
-  }
-
-  long ScheduledEquation::getRangeEnd(size_t inductionVarIndex) const
-  {
-    return scheduledIndexes[inductionVarIndex].second;
+    return scheduledIndexes;
   }
 
   ::marco::modeling::scheduling::Direction ScheduledEquation::getSchedulingDirection() const
   {
     return schedulingDirection;
-  }
-
-  void ScheduledEquation::setScheduledIndexes(size_t inductionVarIndex, long begin, long end)
-  {
-    scheduledIndexes.resize(inductionVarIndex + 1);
-    scheduledIndexes[inductionVarIndex] = std::make_pair(begin, end);
   }
 }

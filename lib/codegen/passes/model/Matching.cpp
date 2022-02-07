@@ -3,18 +3,23 @@
 
 using namespace ::marco::codegen;
 using namespace ::marco::codegen::modelica;
+using namespace ::marco::modeling;
 
 namespace marco::codegen
 {
-  MatchedEquation::MatchedEquation(std::unique_ptr<Equation> equation, EquationPath matchedPath)
+  MatchedEquation::MatchedEquation(
+      std::unique_ptr<Equation> equation,
+      modeling::MultidimensionalRange matchedIndexes,
+      EquationPath matchedPath)
     : equation(std::move(equation)),
+      matchedIndexes(std::move(matchedIndexes)),
       matchedPath(std::move(matchedPath))
   {
   }
 
   MatchedEquation::MatchedEquation(const MatchedEquation& other)
     : equation(other.equation->clone()),
-      matchedIndexes(other.matchedIndexes.begin(), other.matchedIndexes.end()),
+      matchedIndexes(other.matchedIndexes),
       matchedPath(other.matchedPath)
   {
   }
@@ -132,17 +137,12 @@ namespace marco::codegen
 
   size_t MatchedEquation::getNumOfIterationVars() const
   {
-    return matchedIndexes.size();
+    return matchedIndexes.rank();
   }
 
-  long MatchedEquation::getRangeBegin(size_t inductionVarIndex) const
+  modeling::MultidimensionalRange MatchedEquation::getIterationRanges() const
   {
-    return matchedIndexes[inductionVarIndex].first;
-  }
-
-  long MatchedEquation::getRangeEnd(size_t inductionVarIndex) const
-  {
-    return matchedIndexes[inductionVarIndex].second;
+    return matchedIndexes;
   }
 
   std::vector<Access> MatchedEquation::getReads() const
@@ -163,11 +163,5 @@ namespace marco::codegen
   Access MatchedEquation::getWrite() const
   {
     return getAccessFromPath(matchedPath);
-  }
-
-  void MatchedEquation::setMatchedIndexes(size_t inductionVarIndex, long begin, long end)
-  {
-    matchedIndexes.resize(inductionVarIndex + 1);
-    matchedIndexes[inductionVarIndex] = std::make_pair(begin, end);
   }
 }

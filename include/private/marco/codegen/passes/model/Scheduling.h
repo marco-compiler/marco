@@ -13,7 +13,8 @@ namespace marco::codegen
     public:
       ScheduledEquation(
           std::unique_ptr<MatchedEquation> equation,
-          ::marco::modeling::scheduling::Direction schedulingDirection);
+          modeling::MultidimensionalRange scheduledIndexes,
+          modeling::scheduling::Direction schedulingDirection);
 
       ScheduledEquation(const ScheduledEquation& other);
 
@@ -65,7 +66,7 @@ namespace marco::codegen
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
           Equation& destination,
-          const ::marco::modeling::AccessFunction& destinationAccessFunction,
+          const modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath,
           const Access& sourceAccess) const override;
 
@@ -73,28 +74,25 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           mlir::ValueRange vars,
-          ::marco::modeling::scheduling::Direction iterationDirection) const override;
+          modeling::scheduling::Direction iterationDirection) const override;
 
       /// }
       /// @name Modified methods
       /// {
 
       size_t getNumOfIterationVars() const override;
-      long getRangeBegin(size_t inductionVarIndex) const override;
-      long getRangeEnd(size_t inductionVarIndex) const override;
+
+      modeling::MultidimensionalRange getIterationRanges() const override;
 
       /// }
 
       /// Get the direction to be used to update the iteration variables.
       ::marco::modeling::scheduling::Direction getSchedulingDirection() const;
 
-      /// Set the scheduled indexes
-      void setScheduledIndexes(size_t inductionVarIndex, long begin, long end);
-
     private:
       std::unique_ptr<MatchedEquation> equation;
-      std::vector<std::pair<long, long>> scheduledIndexes;
-      ::marco::modeling::scheduling::Direction schedulingDirection;
+      modeling::MultidimensionalRange scheduledIndexes;
+      modeling::scheduling::Direction schedulingDirection;
   };
 
   // Specialize the container for equations in case of scheduled ones, in order to

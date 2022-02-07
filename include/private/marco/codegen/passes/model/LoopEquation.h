@@ -24,8 +24,8 @@ namespace marco::codegen
       void dumpIR() const override;
 
       size_t getNumOfIterationVars() const override;
-      long getRangeBegin(size_t inductionVarIndex) const override;
-      long getRangeEnd(size_t inductionVarIndex) const override;
+
+      modeling::MultidimensionalRange getIterationRanges() const override;
 
       std::vector<Access> getAccesses() const override;
 
@@ -57,8 +57,7 @@ namespace marco::codegen
 
       size_t getNumberOfImplicitLoops() const;
 
-      long getImplicitLoopStart(size_t index) const;
-      long getImplicitLoopEnd(size_t index) const;
+      std::vector<modeling::Range> getImplicitLoops() const;
   };
 }
 

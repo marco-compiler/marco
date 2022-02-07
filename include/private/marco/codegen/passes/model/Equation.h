@@ -41,11 +41,8 @@ namespace marco::codegen
       /// Get the number of induction variables.
       virtual size_t getNumOfIterationVars() const = 0;
 
-      /// Get the beginning (included) of the i-th iteration range.
-      virtual long getRangeBegin(size_t inductionVarIndex) const = 0;
-
-      /// Get the ending (excluded) of the i-th iteration range.
-      virtual long getRangeEnd(size_t inductionVarIndex) const = 0;
+      /// Get the iteration ranges
+      virtual modeling::MultidimensionalRange getIterationRanges() const = 0;
 
       /// Get the accesses to variables.
       virtual std::vector<Access> getAccesses() const = 0;
@@ -348,14 +345,9 @@ namespace marco::modeling::matching
       return (*equation)->getNumOfIterationVars();
     }
 
-    static long getRangeBegin(const Equation* equation, size_t inductionVarIndex)
+    static MultidimensionalRange getIterationRanges(const Equation* equation)
     {
-      return (*equation)->getRangeBegin(inductionVarIndex);
-    }
-
-    static long getRangeEnd(const Equation* equation, size_t inductionVarIndex)
-    {
-      return (*equation)->getRangeEnd(inductionVarIndex);
+      return (*equation)->getIterationRanges();
     }
 
     using VariableType = codegen::Variable*;

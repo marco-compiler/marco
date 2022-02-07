@@ -37,14 +37,9 @@ namespace marco::modeling
           return property;
         }
 
-        Point::data_type getRangeBegin(size_t inductionVarIndex) const
+        const MultidimensionalRange& getIndexes() const
         {
-          return indexes[inductionVarIndex].getBegin();
-        }
-
-        Point::data_type getRangeEnd(size_t inductionVarIndex) const
-        {
-          return indexes[inductionVarIndex].getEnd();
+          return indexes;
         }
 
         Direction getIterationDirection() const

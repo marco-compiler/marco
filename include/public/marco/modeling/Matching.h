@@ -57,11 +57,8 @@ namespace marco::modeling
       // static size_t getNumOfIterationVars(const EquationType*)
       //    return the number of induction variables.
       //
-      // static long getRangeBegin(const EquationType*, size_t inductionVarIndex)
-      //    return the beginning (included) of the range of an iteration variable.
-      //
-      // static long getRangeEnd(const EquationType*, size_t inductionVarIndex)
-      //    return the ending (not included) of the range of an iteration variable.
+      // static MultidimensionalRange getIterationRanges(const EquationType*)
+      //    return the iteration ranges.
       //
       // typedef VariableType : the type of the accessed variable
       //
@@ -334,13 +331,7 @@ namespace marco::modeling
           TreeOStream os(stream);
           os << "Equation\n";
           os << tree_property << "ID: " << getId() << "\n";
-          os << tree_property << "Iteration ranges: ";
-
-          for (size_t i = 0 ; i < getNumOfIterationVars() ; ++i) {
-            os << getIterationRange(i);
-          }
-
-          os << "\n";
+          os << tree_property << "Iteration ranges: " << getIterationRanges() << "\n";
           os << tree_property << "Matched: " << getMatched() << "\n";
 
           stream << std::endl;
@@ -364,11 +355,6 @@ namespace marco::modeling
         size_t getNumOfIterationVars() const
         {
           return getNumOfIterationVars(property);
-        }
-
-        Range getIterationRange(size_t index) const
-        {
-          return getIterationRange(property, index);
         }
 
         MultidimensionalRange getIterationRanges() const
@@ -402,23 +388,9 @@ namespace marco::modeling
           return Traits::getNumOfIterationVars(&p);
         }
 
-        static Range getIterationRange(const EquationProperty& p, size_t index)
-        {
-          assert(index < getNumOfIterationVars(p));
-          auto begin = Traits::getRangeBegin(&p, index);
-          auto end = Traits::getRangeEnd(&p, index);
-          return Range(begin, end);
-        }
-
         static MultidimensionalRange getIterationRanges(const EquationProperty& p)
         {
-          llvm::SmallVector<Range, 3> ranges;
-
-          for (unsigned int i = 0, e = getNumOfIterationVars(p); i < e; ++i) {
-            ranges.push_back(getIterationRange(p, i));
-          }
-
-          return MultidimensionalRange(ranges);
+          return Traits::getIterationRanges(&p);
         }
 
         // Custom equation property
@@ -893,14 +865,9 @@ namespace marco::modeling
           return access;
         }
 
-        Point::data_type getRangeBegin(size_t inductionVarIndex) const
+        const MultidimensionalRange& getIndexes() const
         {
-          return indexes[inductionVarIndex].getBegin();
-        }
-
-        Point::data_type getRangeEnd(size_t inductionVarIndex) const
-        {
-          return indexes[inductionVarIndex].getEnd();
+          return indexes;
         }
 
       private:

@@ -1,5 +1,5 @@
-#include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "marco/modeling/Cycles.h"
@@ -59,14 +59,15 @@ namespace marco::modeling::dependency
       return (*equation)->rank();
     }
 
-    static long getRangeBegin(Equation* const* equation, size_t inductionVarIndex)
+    static MultidimensionalRange getIterationRanges(Equation* const* equation)
     {
-      return (*equation)->rangeBegin(inductionVarIndex);
-    }
+      std::vector<Range> ranges;
 
-    static long getRangeEnd(Equation* const* equation, size_t inductionVarIndex)
-    {
-      return (*equation)->rangeEnd(inductionVarIndex);
+      for (size_t i = 0, e = getNumOfIterationVars(equation); i < e; ++i) {
+        ranges.emplace_back((*equation)->rangeBegin(i), (*equation)->rangeEnd(i));
+      }
+
+      return MultidimensionalRange(std::move(ranges));
     }
 
     using VariableType = Variable*;

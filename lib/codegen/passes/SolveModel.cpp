@@ -552,29 +552,30 @@ class ModelConverter
       auto* entryBlock = function.addEntryBlock();
       builder.setInsertionPointToStart(entryBlock);
 
-      auto valuesFn = [&](marco::modeling::scheduling::Direction iterationDirection, size_t index) -> std::tuple<mlir::Value, mlir::Value, mlir::Value> {
+      auto valuesFn = [&](marco::modeling::scheduling::Direction iterationDirection, Range range) -> std::tuple<mlir::Value, mlir::Value, mlir::Value> {
         assert(iterationDirection == marco::modeling::scheduling::Direction::Forward ||
             iterationDirection == marco::modeling::scheduling::Direction::Backward);
 
         if (iterationDirection == marco::modeling::scheduling::Direction::Forward) {
-          mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index)));
-          mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index)));
+          mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getBegin()));
+          mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getEnd()));
           mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
 
           return std::make_tuple(begin, end, step);
         }
 
-        mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeEnd(index) - 1));
-        mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(equation.getRangeBegin(index) - 1));
+        mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getEnd() - 1));
+        mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getBegin() - 1));
         mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
 
         return std::make_tuple(begin, end, step);
       };
 
       std::vector<mlir::Value> args;
+      auto iterationRanges = equation.getIterationRanges();
 
       for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
-        auto values = valuesFn(equation.getSchedulingDirection(), i);
+        auto values = valuesFn(equation.getSchedulingDirection(), iterationRanges[i]);
 
         args.push_back(std::get<0>(values));
         args.push_back(std::get<1>(values));
@@ -1396,13 +1397,9 @@ static mlir::LogicalResult matching(
 
   for (auto& solution : matchingGraph.getMatch()) {
     auto clone = solution.getEquation()->clone();
-    auto matchedEquation = std::make_unique<MatchedEquation>(std::move(clone), solution.getAccess());
 
-    for (size_t i = 0, e = solution.getEquation()->getNumOfIterationVars(); i < e; ++i) {
-      matchedEquation->setMatchedIndexes(i, solution.getRangeBegin(i), solution.getRangeEnd(i));
-    }
-
-    matchedEquations.add(std::move(matchedEquation));
+    matchedEquations.add(std::make_unique<MatchedEquation>(
+        std::move(clone), solution.getIndexes(), solution.getAccess()));
   }
 
   result.setEquations(matchedEquations);
@@ -1471,15 +1468,8 @@ static mlir::LogicalResult solveAlgebraicLoops(
       }
 
       // Create the matched equation on the cloned operation
-      auto matchedEquation = std::make_unique<MatchedEquation>(
-          std::move(clonedEquation), EquationPath(EquationPath::LEFT));
-
-      for (size_t i = 0, e = cycle.getEquation()->getNumOfIterationVars(); i < e; ++i) {
-        matchedEquation->setMatchedIndexes(
-            i, cycle.getEquation()->getRangeBegin(i), cycle.getEquation()->getRangeEnd(i));
-      }
-
-      newEquations.add(std::move(matchedEquation));
+      newEquations.add(std::make_unique<MatchedEquation>(
+          std::move(clonedEquation), cycle.getEquation()->getIterationRanges(), EquationPath(EquationPath::LEFT)));
 
       // TODO process multiple levels
     }
@@ -1523,13 +1513,9 @@ static mlir::LogicalResult scheduling(
 
   for (const auto& solution : scheduler.schedule(equations)) {
     auto clone = std::make_unique<MatchedEquation>(*solution.getEquation());
-    auto scheduledEquation = std::make_unique<ScheduledEquation>(std::move(clone), solution.getIterationDirection());
 
-    for (size_t i = 0, e = solution.getEquation()->getNumOfIterationVars(); i < e; ++i) {
-      scheduledEquation->setScheduledIndexes(i, solution.getRangeBegin(i), solution.getRangeEnd(i));
-    }
-
-    scheduledEquations.push_back(std::move(scheduledEquation));
+    scheduledEquations.push_back(std::make_unique<ScheduledEquation>(
+        std::move(clone), solution.getIndexes(), solution.getIterationDirection()));
   }
 
   result.setEquations(std::move(scheduledEquations));
@@ -1584,7 +1570,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         return signalPassFailure();
       }
 
-      /*
       llvm::errs() << "BEFORE LOOPS SOLVING\n";
       matchedModel.getOperation().dump();
 
@@ -1595,7 +1580,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
       llvm::errs() << "AFTER LOOPS SOLVING\n";
       matchedModel.getOperation().dump();
-       */
 
       // Schedule the equations
       Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());

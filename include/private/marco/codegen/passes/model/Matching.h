@@ -11,7 +11,10 @@ namespace marco::codegen
   class MatchedEquation : public Equation
   {
     public:
-      MatchedEquation(std::unique_ptr<Equation> equation, EquationPath matchedPath);
+      MatchedEquation(
+          std::unique_ptr<Equation> equation,
+          modeling::MultidimensionalRange matchedIndexes,
+          EquationPath matchedPath);
 
       MatchedEquation(const MatchedEquation& other);
 
@@ -41,7 +44,7 @@ namespace marco::codegen
 
       std::vector<Access> getAccesses() const override;
 
-      ::marco::modeling::DimensionAccess resolveDimensionAccess(
+      modeling::DimensionAccess resolveDimensionAccess(
           std::pair<mlir::Value, long> access) const override;
 
       mlir::Value getValueAtPath(const EquationPath& path) const override;
@@ -57,7 +60,7 @@ namespace marco::codegen
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
           Equation& destination,
-          const ::marco::modeling::AccessFunction& destinationAccessFunction,
+          const modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath,
           const Access& sourceAccess) const override;
 
@@ -65,20 +68,17 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           mlir::ValueRange vars,
-          ::marco::modeling::scheduling::Direction iterationDirection) const override;
+          modeling::scheduling::Direction iterationDirection) const override;
 
       /// }
       /// @name Modified methods
       /// {
 
       size_t getNumOfIterationVars() const override;
-      long getRangeBegin(size_t inductionVarIndex) const override;
-      long getRangeEnd(size_t inductionVarIndex) const override;
+
+      modeling::MultidimensionalRange getIterationRanges() const override;
 
       /// }
-
-      /// Set the matched indexes
-      void setMatchedIndexes(size_t inductionVarIndex, long begin, long end);
 
       std::vector<Access> getReads() const;
 
@@ -88,7 +88,7 @@ namespace marco::codegen
 
     private:
       std::unique_ptr<Equation> equation;
-      std::vector<std::pair<long, long>> matchedIndexes;
+      modeling::MultidimensionalRange matchedIndexes;
       EquationPath matchedPath;
   };
 }
@@ -112,14 +112,9 @@ namespace marco::modeling::dependency
       return (*equation)->getNumOfIterationVars();
     }
 
-    static long getRangeBegin(const Equation* equation, size_t inductionVarIndex)
+    static MultidimensionalRange getIterationRanges(const Equation* equation)
     {
-      return (*equation)->getRangeBegin(inductionVarIndex);
-    }
-
-    static long getRangeEnd(const Equation* equation, size_t inductionVarIndex)
-    {
-      return (*equation)->getRangeEnd(inductionVarIndex);
+      return (*equation)->getIterationRanges();
     }
 
     using VariableType = codegen::Variable*;

@@ -72,26 +72,18 @@ namespace marco::codegen
     return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
   }
 
-  long LoopEquation::getRangeBegin(size_t inductionVarIndex) const
+  MultidimensionalRange LoopEquation::getIterationRanges() const
   {
-    size_t explicitLoops = getNumberOfExplicitLoops();
+    std::vector<Range> ranges;
 
-    if (inductionVarIndex < explicitLoops) {
-      return getExplicitLoop(inductionVarIndex).start();
+    for (auto& explicitLoop : getExplicitLoops()) {
+      ranges.emplace_back(explicitLoop.start(), explicitLoop.end() + 1);
     }
 
-    return getImplicitLoopStart(inductionVarIndex - explicitLoops);
-  }
+    auto implicitLoops = getImplicitLoops();
+    ranges.insert(ranges.end(), implicitLoops.begin(), implicitLoops.end());
 
-  long LoopEquation::getRangeEnd(size_t inductionVarIndex) const
-  {
-    size_t explicitLoops = getNumberOfExplicitLoops();
-
-    if (inductionVarIndex < explicitLoops) {
-      return getExplicitLoop(inductionVarIndex).end() + 1;
-    }
-
-    return getImplicitLoopEnd(inductionVarIndex - explicitLoops);
+    return MultidimensionalRange(std::move(ranges));
   }
 
   std::vector<Access> LoopEquation::getAccesses() const
@@ -333,28 +325,19 @@ namespace marco::codegen
     return result;
   }
 
-  long LoopEquation::getImplicitLoopStart(size_t index) const
+  std::vector<Range> LoopEquation::getImplicitLoops() const
   {
-    assert(index < getNumOfIterationVars() - getNumberOfExplicitLoops());
-    return 0;
-  }
-
-  long LoopEquation::getImplicitLoopEnd(size_t index) const
-  {
-    assert(index < getNumOfIterationVars() - getNumberOfExplicitLoops());
+    std::vector<Range> result;
 
     size_t counter = 0;
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
 
     if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>()) {
       for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
-        if (counter == index) {
-          return arrayType.getShape()[i];
-        }
+        result.emplace_back(0, arrayType.getShape()[i]);
       }
     }
 
-    assert(false && "Implicit loop not found");
-    return 0;
+    return result;
   }
 }

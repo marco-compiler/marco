@@ -51,14 +51,9 @@ namespace marco::codegen
     return 1;
   }
 
-  long ScalarEquation::getRangeBegin(size_t inductionVarIndex) const
+  MultidimensionalRange ScalarEquation::getIterationRanges() const
   {
-    return 0;
-  }
-
-  long ScalarEquation::getRangeEnd(size_t inductionVarIndex) const
-  {
-    return 1;
+    return MultidimensionalRange(Point(0));
   }
 
   std::vector<Access> ScalarEquation::getAccesses() const

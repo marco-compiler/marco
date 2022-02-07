@@ -47,11 +47,8 @@ namespace marco::modeling
       // static size_t getNumOfIterationVars(const EquationType*)
       //    return the number of induction variables.
       //
-      // static long getRangeBegin(const EquationType*, size_t inductionVarIndex)
-      //    return the beginning (included) of the range of an iteration variable.
-      //
-      // static long getRangeEnd(const EquationType*, size_t inductionVarIndex)
-      //    return the ending (not included) of the range of an iteration variable.
+      // static MultidimensionalRange getIterationRanges(const EquationType*)
+      //    return the iteration ranges.
       //
       // typedef VariableType : the type of the accessed variable
       //
@@ -169,11 +166,11 @@ namespace marco::modeling
     class VectorEquationTraits
     {
       private:
-        using Base = ::marco::modeling::dependency::EquationTraits<EquationProperty>;
+        using Traits = ::marco::modeling::dependency::EquationTraits<EquationProperty>;
 
       public:
-        using Id = typename Base::Id;
-        using VariableType = typename Base::VariableType;
+        using Id = typename Traits::Id;
+        using VariableType = typename Traits::VariableType;
         using AccessProperty = typename get_access_property<EquationProperty>::type;
 
         /// @name Forwarding methods
@@ -181,59 +178,29 @@ namespace marco::modeling
 
         static Id getId(const EquationProperty* equation)
         {
-          return Base::getId(equation);
+          return Traits::getId(equation);
         }
 
         static size_t getNumOfIterationVars(const EquationProperty* equation)
         {
-          return Base::getNumOfIterationVars(equation);
+          return Traits::getNumOfIterationVars(equation);
         }
 
-        static long getRangeBegin(const EquationProperty* equation, size_t inductionVarIndex)
+        static MultidimensionalRange getIterationRanges(const EquationProperty* equation)
         {
-          return Base::getRangeBegin(equation, inductionVarIndex);
-        }
-
-        static long getRangeEnd(const EquationProperty* equation, size_t inductionVarIndex)
-        {
-          return Base::getRangeEnd(equation, inductionVarIndex);
+          return Traits::getIterationRanges(equation);
         }
 
         using Access = ::marco::modeling::dependency::Access<VariableType, AccessProperty>;
 
         static Access getWrite(const EquationProperty* equation)
         {
-          return Base::getWrite(equation);
+          return Traits::getWrite(equation);
         }
 
         static std::vector<Access> getReads(const EquationProperty* equation)
         {
-          return Base::getReads(equation);
-        }
-
-        /// }
-        /// @name Utility methods
-        /// {
-
-        /// Get the iteration range of a specific iteration variable.
-        static Range getIterationRange(const EquationProperty* equation, size_t index)
-        {
-          assert(index < getNumOfIterationVars(equation));
-          auto begin = getRangeBegin(equation, index);
-          auto end = getRangeEnd(equation, index);
-          return Range(begin, end);
-        }
-
-        /// Get the multidimensional iteration range of the whole equation.
-        static MultidimensionalRange getIterationRanges(const EquationProperty* equation)
-        {
-          llvm::SmallVector<Range> ranges;
-
-          for (size_t i = 0, e = getNumOfIterationVars(equation); i < e; ++i) {
-            ranges.push_back(getIterationRange(equation, i));
-          }
-
-          return MultidimensionalRange(ranges);
+          return Traits::getReads(equation);
         }
 
         /// }

@@ -57,14 +57,15 @@ namespace marco::modeling::dependency
       return (*equation)->rank();
     }
 
-    static long getRangeBegin(Equation* const* equation, size_t inductionVarIndex)
+    static MultidimensionalRange getIterationRanges(Equation* const* equation)
     {
-      return (*equation)->rangeBegin(inductionVarIndex);
-    }
+      std::vector<Range> ranges;
 
-    static long getRangeEnd(Equation* const* equation, size_t inductionVarIndex)
-    {
-      return (*equation)->rangeEnd(inductionVarIndex);
+      for (size_t i = 0, e = getNumOfIterationVars(equation); i < e; ++i) {
+        ranges.emplace_back((*equation)->rangeBegin(i), (*equation)->rangeEnd(i));
+      }
+
+      return MultidimensionalRange(std::move(ranges));
     }
 
     using VariableType = Variable*;
@@ -110,8 +111,11 @@ TEST(Scheduling, forwardSchedulable) {
 
   EXPECT_THAT(schedule, testing::SizeIs(1));
   EXPECT_EQ(schedule[0].getEquation()->name(), "eq1");
-  EXPECT_EQ(schedule[0].getRangeBegin(0), 3);
-  EXPECT_EQ(schedule[0].getRangeEnd(0), 9);
+
+  auto scheduledIndexes = schedule[0].getIndexes();
+  EXPECT_EQ(scheduledIndexes[0].getBegin(), 3);
+  EXPECT_EQ(scheduledIndexes[0].getEnd(), 9);
+
   EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Forward);
 }
 
@@ -143,8 +147,11 @@ TEST(Scheduling, backwardSchedulable) {
 
   EXPECT_THAT(schedule, testing::SizeIs(1));
   EXPECT_EQ(schedule[0].getEquation()->name(), "eq1");
-  EXPECT_EQ(schedule[0].getRangeBegin(0), 3);
-  EXPECT_EQ(schedule[0].getRangeEnd(0), 9);
+
+  auto scheduledIndexes = schedule[0].getIndexes();
+  EXPECT_EQ(scheduledIndexes[0].getBegin(), 3);
+  EXPECT_EQ(scheduledIndexes[0].getEnd(), 9);
+
   EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Backward);
 }
 
@@ -176,7 +183,10 @@ TEST(Scheduling, test) {
 
   EXPECT_THAT(schedule, testing::SizeIs(1));
   EXPECT_EQ(schedule[0].getEquation()->name(), "eq1");
-  EXPECT_EQ(schedule[0].getRangeBegin(0), 3);
-  EXPECT_EQ(schedule[0].getRangeEnd(0), 9);
+
+  auto scheduledIndexes = schedule[0].getIndexes();
+  EXPECT_EQ(scheduledIndexes[0].getBegin(), 3);
+  EXPECT_EQ(scheduledIndexes[0].getEnd(), 9);
+
   EXPECT_EQ(schedule[0].getIterationDirection(), marco::modeling::scheduling::Direction::Backward);
 }
