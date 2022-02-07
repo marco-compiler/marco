@@ -493,13 +493,13 @@ namespace marco::codegen
         builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
         terminator->erase();
       }
-    }
+    } else {
+      // If there are multiple accesses, then we must group all of them and
+      // extract the common multiplying factor.
 
-    // If there are multiple accesses, then we must group all of them and
-    // extract the common multiplying factor.
-
-    if (auto res = groupLeftHandSide(builder, requestedAccess); mlir::failed(res)) {
-      return res;
+      if (auto res = groupLeftHandSide(builder, requestedAccess); mlir::failed(res)) {
+        return res;
+      }
     }
 
     return mlir::success();

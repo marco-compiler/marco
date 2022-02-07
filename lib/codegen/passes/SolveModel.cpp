@@ -1246,13 +1246,11 @@ static mlir::LogicalResult removeDerivatives(
 
     llvm::SmallVector<mlir::Value, 3> subscriptions;
 
-    while (!operand.isa<mlir::BlockArgument>())
-    {
+    while (!operand.isa<mlir::BlockArgument>()) {
       mlir::Operation* definingOp = operand.getDefiningOp();
       assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
 
-      if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp))
-      {
+      if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
         appendIndexesFn(subscriptions, loadOp.indexes());
         operand = loadOp.memory();
       }
@@ -1262,8 +1260,7 @@ static mlir::LogicalResult removeDerivatives(
       operand = subscriptionOp.source();
     }
 
-    if (!derivatives.contains(operand))
-    {
+    if (!derivatives.contains(operand)) {
       auto model = op->getParentOfType<ModelOp>();
       auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
       builder.setInsertionPoint(terminator);
