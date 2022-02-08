@@ -29,7 +29,7 @@ using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
 
 // TODO factor out from here and AD pass (and maybe also from somewhere else)
-template <class T>
+template<class T>
 unsigned int numDigits(T number)
 {
   unsigned int digits = 0;
@@ -95,6 +95,23 @@ static std::vector<unsigned int> removeUnusedFunctionArguments(
 
   return removedArgs;
 }
+
+class EquationTemplateInfo
+{
+  public:
+    EquationTemplateInfo(EquationOp equation, modeling::scheduling::Direction schedulingDirection)
+      : equation(equation.getOperation()), schedulingDirection(std::move(schedulingDirection))
+    {
+    }
+
+    bool operator<(const EquationTemplateInfo& other) const {
+      return equation < other.equation && schedulingDirection < other.schedulingDirection;
+    }
+
+  private:
+    mlir::Operation* equation;
+    modeling::scheduling::Direction schedulingDirection;
+};
 
 class ModelConverter
 {
@@ -676,31 +693,53 @@ class ModelConverter
       size_t equationTemplateCounter = 0;
       size_t equationCounter = 0;
 
-      std::vector<mlir::FuncOp> equationTemplateFunctions;
+      std::map<EquationTemplateInfo, mlir::FuncOp> equationTemplatesMap;
+      std::set<mlir::FuncOp> equationTemplateFunctions;
       std::multimap<mlir::FuncOp, mlir::CallOp> equationTemplateCalls;
-      std::vector<mlir::FuncOp> equationFunctions;
+      std::set<mlir::FuncOp> equationFunctions;
       std::multimap<mlir::FuncOp, mlir::CallOp> equationCalls;
 
-      for (const auto& equation : model.getEquations()) {
+      // Get or create the template equation function for a scheduled equation.
+      // Two templates are considered to be equal if they refer to the same EquationOp and have
+      // the same scheduling direction, which impacts on the function body itself due to the way
+      // the iteration indexes are updated.
+      auto getEquationTemplateFn = [&](const ScheduledEquation& equation) -> mlir::FuncOp {
+        EquationTemplateInfo requestedTemplate(equation.getOperation(), equation.getSchedulingDirection());
+        auto it = equationTemplatesMap.find(requestedTemplate);
+
+        if (it != equationTemplatesMap.end()) {
+          return it->second;
+        }
+
         std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
         ++equationTemplateCounter;
 
-        auto clonedExplicitEquation = equation->cloneAndExplicitate(builder);
+        auto clonedExplicitEquation = equation.cloneAndExplicitate(builder);
 
         if (clonedExplicitEquation == nullptr) {
           model.getOperation().emitError("Could not explicitate equation");
-          return mlir::failure();
+          return nullptr;
         }
 
-        // Create or get the function of the equation template
+        // Create the equation template function
         auto templateFunction = clonedExplicitEquation->createTemplateFunction(
-            builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
-
-        equationTemplateFunctions.push_back(templateFunction);
+            builder, templateFunctionName, modelOp.body().getArguments(), equation.getSchedulingDirection());
 
         // Erase the temporary EquationOp clone (and its ForEquationOp parents) that has been used to
         // create the template function.
         clonedExplicitEquation->eraseIR();
+
+        return templateFunction;
+      };
+
+      for (const auto& equation : model.getEquations()) {
+        auto templateFunction = getEquationTemplateFn(*equation);
+
+        if (templateFunction == nullptr) {
+          return mlir::failure();
+        }
+
+        equationTemplateFunctions.insert(templateFunction);
 
         // Create the function that calls the template.
         // This function dictates the indices the template will work with.
@@ -712,7 +751,7 @@ class ModelConverter
             equationTemplateCalls,
             modelOp.body().getArgumentTypes());
 
-        equationFunctions.push_back(equationFunction);
+        equationFunctions.insert(equationFunction);
 
         // Create the call to the instantiated template function
         auto equationCall = builder.create<mlir::CallOp>(loc, equationFunction, vars);
