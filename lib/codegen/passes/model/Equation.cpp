@@ -420,6 +420,15 @@ namespace marco::codegen
     return std::make_pair(induction, first.second - second.second);
   }
 
+  TemporaryEquationGuard::TemporaryEquationGuard(Equation& equation) : equation(&equation)
+  {
+  }
+
+  TemporaryEquationGuard::~TemporaryEquationGuard()
+  {
+    equation->eraseIR();
+  }
+
   BaseEquation::BaseEquation(modelica::EquationOp equation, Variables variables)
       : equationOp(equation.getOperation()),
         variables(std::move(variables))

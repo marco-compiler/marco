@@ -114,6 +114,20 @@ namespace marco::codegen
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
   };
 
+  /// Mark an equation as temporary and delete the underlying IR when the guard goes out of scope.
+  class TemporaryEquationGuard
+  {
+    public:
+      TemporaryEquationGuard(Equation& equation);
+
+      TemporaryEquationGuard(const TemporaryEquationGuard& other) = delete;
+
+      ~TemporaryEquationGuard();
+
+    private:
+      Equation* equation;
+  };
+
   namespace impl
   {
     // This class must be specialized for the type that is used as container of the equations.
