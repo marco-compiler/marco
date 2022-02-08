@@ -527,17 +527,19 @@ namespace marco::codegen
       const Access& sourceAccess) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    mlir::Value destinationValue = destination.getValueAtPath(destinationPath);
+    mlir::Value valueToBeReplaced = destination.getValueAtPath(destinationPath);
 
-    if (destinationValue.getUsers().empty()) {
-      // Substitution is useless
-      return mlir::success();
+    if (valueToBeReplaced.getUsers().empty()) {
+      // Substitution is useless.
+      // Just a safety check, normally not happening.
+      return mlir::failure();
     }
 
-    // Determine where the cloned operations will be placed
+    // Determine where the cloned operations will be placed, that is the first point
+    // within the IR where the value to be replaced is used.
     mlir::Operation* insertionPoint = destination.getOperation().body()->getTerminator();
 
-    for (const auto& user : destinationValue.getUsers()) {
+    for (const auto& user : valueToBeReplaced.getUsers()) {
       if (user->isBeforeInBlock(insertionPoint)) {
         insertionPoint = user;
       }
@@ -545,7 +547,19 @@ namespace marco::codegen
 
     builder.setInsertionPoint(insertionPoint);
 
-    // Compose the access
+    // Determine the access transformation to be applied to each induction variable usage.
+    // For example, given the following equations:
+    //   destination: x[i0, i1] = 1 - y[i1 + 3, i0 - 2]
+    //   source:      y[i1 + 5, i0 - 1] = 3 - x[i0 + 1, i1 + 2] + z[i1 + 3, i0] + i1
+    // In order to correctly insert the x[i0 + 1, i1 + 2] source access (and other ones,
+    // if existing) into the destination  equation, some operations have to be performed.
+    // First, the write access of the access must be inverted:
+    //   ([i1 + 5, i0 - 1]) ^ (-1) = [i1 + 1, i0 - 5]
+    // The destination access function is then composed with such inverted access:
+    //   [i1 + 3, i0 - 2] * [i1 + 1, i0 - 5] = [i0 - 1, i1 - 2]
+    // And finally it is combined with the access to be moved into the destination:
+    //   [i0 - 1, i1 - 2] * [i0 + 1, i1 + 2] = [i0, i1]
+    // In the same way, z[i1, i0] becomes z[i1 + 1, i0 - 1] and i1 becomes [i1 - 2].
     auto combinedAccess = destinationAccessFunction.combine(sourceAccess.getAccessFunction().inverse());
 
     // Map the induction variables of the source equation to the destination ones
@@ -562,8 +576,8 @@ namespace marco::codegen
     // The operations to be cloned, in reverse order
     std::vector<mlir::Operation*> toBeCloned;
 
-    // Perform a depth-first traversal of the tree to determine
-    // which operations must be cloned and in which order.
+    // Perform a depth-first traversal of the tree to determine which operations must
+    // be cloned and in which order.
     std::stack<mlir::Operation*> cloneStack;
 
     if (auto op = replacement.getDefiningOp(); op != nullptr) {
@@ -590,12 +604,40 @@ namespace marco::codegen
     }
 
     // Replace the original value with the one obtained through the cloned operations
-    destinationValue.replaceAllUsesWith(mapping.lookup(replacement));
+    mlir::Value mappedReplacement = mapping.lookup(replacement);
+
+    // Add the missing subscriptions, if any.
+    // This is required when the source equations has implicit loops.
+    if (auto mappedReplacementArrayType = mappedReplacement.getType().dyn_cast<ArrayType>()) {
+      size_t expectedRank = 0;
+
+      if (auto originalArrayType = valueToBeReplaced.getType().dyn_cast<ArrayType>()) {
+        expectedRank = originalArrayType.getRank();
+      }
+
+      if (mappedReplacementArrayType.getRank() > expectedRank) {
+        auto originalIndexes = collectSubscriptionIndexes(valueToBeReplaced);
+        size_t rankDifference = mappedReplacementArrayType.getRank() - expectedRank;
+        std::vector<mlir::Value> additionalIndexes;
+
+        for (size_t i = originalIndexes.second.size() - rankDifference; i < originalIndexes.second.size(); ++i) {
+          additionalIndexes.push_back(originalIndexes.second[i]);
+        }
+
+        mlir::Value subscription = builder.create<SubscriptionOp>(
+            mappedReplacement.getLoc(), mappedReplacement, additionalIndexes);
+
+        mappedReplacement = builder.create<LoadOp>(mappedReplacement.getLoc(), subscription);
+        mapping.map(replacement, mappedReplacement);
+      }
+    }
+
+    valueToBeReplaced.replaceAllUsesWith(mappedReplacement);
 
     // Erase the replaced operations, which are now useless
     std::stack<mlir::Operation*> eraseStack;
 
-    if (auto op = destinationValue.getDefiningOp(); op != nullptr) {
+    if (auto op = valueToBeReplaced.getDefiningOp(); op != nullptr) {
       eraseStack.push(op);
     }
 

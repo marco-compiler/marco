@@ -1449,7 +1449,11 @@ static mlir::LogicalResult solveAlgebraicLoops(
   Equations<MatchedEquation> newEquations;
 
   for (const auto& cycle : cycles) {
+    IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
+
     for (const auto& interval : cycle) {
+      indexesWithoutCycles -= interval.getRange();
+
       auto clonedEquation = Equation::build(
           cycle.getEquation()->cloneIR(),
           cycle.getEquation()->getVariables());
@@ -1473,6 +1477,16 @@ static mlir::LogicalResult solveAlgebraicLoops(
 
       // TODO process multiple levels
     }
+
+    // Add the indices that do not present any loop
+    for (const auto& range : indexesWithoutCycles) {
+      auto clonedEquation = Equation::build(
+          cycle.getEquation()->getOperation(),
+          cycle.getEquation()->getVariables());
+
+      newEquations.add(std::make_unique<MatchedEquation>(
+          std::move(clonedEquation), range, cycle.getEquation()->getWrite().getPath()));
+    }
   }
 
   // Add the equations which had no cycle
@@ -1482,12 +1496,9 @@ static mlir::LogicalResult solveAlgebraicLoops(
     equationsWithCycles.insert(cycle.getEquation());
   }
 
-  // TODO: add equations with no cycles. And also add the indices without loops of the equations with cycles
-
-  // Erase the original equations with cycles
   for (auto& equation : model.getEquations()) {
-    if (equationsWithCycles.find(equation.get()) != equationsWithCycles.end()) {
-      equation->eraseIR();
+    if (equationsWithCycles.find(equation.get()) == equationsWithCycles.end()) {
+      newEquations.add(std::move(equation));
     }
   }
 
