@@ -61,8 +61,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           Equation& destination,
           const modeling::AccessFunction& destinationAccessFunction,
-          const EquationPath& destinationPath,
-          const Access& sourceAccess) const override;
+          const EquationPath& destinationPath) const override;
 
       mlir::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,

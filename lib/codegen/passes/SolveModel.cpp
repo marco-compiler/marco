@@ -1413,22 +1413,19 @@ static mlir::LogicalResult replaceAccesses(
     const EquationPath& accessPath,
     const MatchedEquation& source)
 {
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  auto writeAccess = source.getWrite();
-  const auto& writeAccessFunction = writeAccess.getAccessFunction();
+  auto sourceClone = source.cloneAndExplicitate(builder);
 
-  if (!writeAccessFunction.isInvertible()) {
-    source.getOperation().emitError("The write access is not invertible");
+  if (sourceClone == nullptr) {
+    source.getOperation().emitError("Could not explicitate equation");
     return mlir::failure();
   }
 
-  auto inverseWriteFunction = writeAccessFunction.inverse();
-  auto transformation = accessFunction.combine(inverseWriteFunction);
-
-  if (auto res = source.replaceInto(builder, destination, accessFunction, accessPath, source.getWrite()); mlir::failed(res)) {
+  if (auto res = sourceClone->replaceInto(builder, destination, accessFunction, accessPath); mlir::failed(res)) {
+    sourceClone->eraseIR();
     return res;
   }
 
+  sourceClone->eraseIR();
   return mlir::success();
 }
 
@@ -1581,16 +1578,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         return signalPassFailure();
       }
 
-      llvm::errs() << "BEFORE LOOPS SOLVING\n";
-      matchedModel.getOperation().dump();
-
       // Resolve the algebraic loops
       if (mlir::failed(::solveAlgebraicLoops(matchedModel, builder))) {
         return signalPassFailure();
       }
-
-      llvm::errs() << "AFTER LOOPS SOLVING\n";
-      matchedModel.getOperation().dump();
 
       // Schedule the equations
       Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());

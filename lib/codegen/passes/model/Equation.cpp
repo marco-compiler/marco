@@ -114,6 +114,7 @@ static mlir::LogicalResult removeSubtractions(mlir::OpBuilder& builder, mlir::Op
   }
 
   if (auto subOp = mlir::dyn_cast<SubOp>(op)) {
+    builder.setInsertionPoint(subOp);
     mlir::Value rhs = subOp.rhs();
     mlir::Value negatedRhs = builder.create<NegateOp>(rhs.getLoc(), rhs.getType(), rhs);
     auto addOp = builder.create<AddOp>(subOp->getLoc(), subOp.resultType(), subOp.lhs(), negatedRhs);
@@ -141,6 +142,7 @@ static mlir::LogicalResult distributeMulAndDivOps(mlir::OpBuilder& builder, mlir
 
   if (auto distributableOp = mlir::dyn_cast<DistributableInterface>(op)) {
     if (!mlir::isa<NegateOp>(op)) {
+      builder.setInsertionPoint(distributableOp);
       mlir::Operation* result = distributableOp.distribute(builder).getDefiningOp();
 
       if (result != op) {
@@ -169,6 +171,7 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
   }
 
   if (auto distributableOp = mlir::dyn_cast<NegateOp>(op)) {
+    builder.setInsertionPoint(distributableOp);
     mlir::Operation* result = distributableOp.distribute(builder).getDefiningOp();
 
     if (result != op) {
@@ -523,8 +526,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
-      const EquationPath& destinationPath,
-      const Access& sourceAccess) const
+      const EquationPath& destinationPath) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     mlir::Value valueToBeReplaced = destination.getValueAtPath(destinationPath);
@@ -560,6 +562,13 @@ namespace marco::codegen
     // And finally it is combined with the access to be moved into the destination:
     //   [i0 - 1, i1 - 2] * [i0 + 1, i1 + 2] = [i0, i1]
     // In the same way, z[i1, i0] becomes z[i1 + 1, i0 - 1] and i1 becomes [i1 - 2].
+    auto sourceAccess = getAccessFromPath(EquationPath::LEFT);
+
+    if (!sourceAccess.getAccessFunction().isInvertible()) {
+      getOperation().emitError("The write access is not invertible");
+      return mlir::failure();
+    }
+
     auto combinedAccess = destinationAccessFunction.combine(sourceAccess.getAccessFunction().inverse());
 
     // Map the induction variables of the source equation to the destination ones

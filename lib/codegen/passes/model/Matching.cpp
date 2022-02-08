@@ -129,10 +129,9 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
-      const EquationPath& destinationPath,
-      const Access& sourceAccess) const
+      const EquationPath& destinationPath) const
   {
-    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath, sourceAccess);
+    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
   }
 
   size_t MatchedEquation::getNumOfIterationVars() const
