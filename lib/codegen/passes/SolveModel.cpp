@@ -14,12 +14,12 @@
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include <cassert>
+#include <map>
 #include <memory>
 #include <set>
 
@@ -66,6 +66,34 @@ static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsig
     return getFullDerVariableName(currentName.substr(4), requestedOrder);
 
   return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
+}
+
+template<typename CallIt>
+static std::vector<unsigned int> removeUnusedFunctionArguments(
+    mlir::FuncOp function, CallIt callsBegin, CallIt callsEnd)
+{
+  std::vector<unsigned int> removedArgs;
+
+  for (const auto& arg : function.getArguments()) {
+    if (arg.getUsers().empty()) {
+      removedArgs.push_back(arg.getArgNumber());
+    }
+  }
+
+  if (!removedArgs.empty()) {
+    function.eraseArguments(removedArgs);
+    std::sort(removedArgs.begin(), removedArgs.end());
+
+    for (auto callIt = callsBegin; callIt != callsEnd; ++callIt) {
+      mlir::CallOp call = callIt->second;
+
+      for (auto argIt = removedArgs.rbegin(); argIt != removedArgs.rend(); ++argIt) {
+        call->eraseOperand(*argIt);
+      }
+    }
+  }
+
+  return removedArgs;
 }
 
 class ModelConverter
@@ -223,6 +251,8 @@ class ModelConverter
       auto* entryBlock = function.addEntryBlock();
       builder.setInsertionPointToStart(entryBlock);
 
+      // Call the function to start the simulation.
+      // Its definition lives within the runtime library.
       mlir::Type voidType = mlir::LLVM::LLVMVoidType::get(modelOp.getContext());
 
       auto runFunction = getOrInsertFunction(
@@ -230,6 +260,7 @@ class ModelConverter
 
       builder.create<mlir::LLVM::CallOp>(loc, runFunction, llvm::None);
 
+      // Create the return statement
       mlir::Value returnValue = builder.create<mlir::ConstantOp>(loc, builder.getI32IntegerAttr(0));
       builder.create<mlir::ReturnOp>(loc, returnValue);
 
@@ -538,6 +569,7 @@ class ModelConverter
         const ScheduledEquation& equation,
         llvm::StringRef equationFunctionName,
         mlir::FuncOp templateFunction,
+        std::multimap<mlir::FuncOp, mlir::CallOp>& equationTemplateCalls,
         mlir::TypeRange varsTypes) const
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
@@ -586,7 +618,8 @@ class ModelConverter
       args.insert(args.end(), vars.begin(), vars.end());
 
       // Call the equation template function
-      builder.create<mlir::CallOp>(loc, templateFunction, args);
+      auto templateFunctionCall = builder.create<mlir::CallOp>(loc, templateFunction, args);
+      equationTemplateCalls.emplace(templateFunction, templateFunctionCall);
 
       builder.create<mlir::ReturnOp>(loc);
       return function;
@@ -644,6 +677,9 @@ class ModelConverter
       size_t equationCounter = 0;
 
       std::vector<mlir::FuncOp> equationTemplateFunctions;
+      std::multimap<mlir::FuncOp, mlir::CallOp> equationTemplateCalls;
+      std::vector<mlir::FuncOp> equationFunctions;
+      std::multimap<mlir::FuncOp, mlir::CallOp> equationCalls;
 
       for (const auto& equation : model.getEquations()) {
         std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
@@ -656,6 +692,7 @@ class ModelConverter
           return mlir::failure();
         }
 
+        // Create or get the function of the equation template
         auto templateFunction = clonedExplicitEquation->createTemplateFunction(
             builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
 
@@ -671,10 +708,15 @@ class ModelConverter
         ++equationCounter;
 
         auto equationFunction = createEquationFunction(
-            builder, *equation, equationFunctionName, templateFunction, modelOp.body().getArgumentTypes());
+            builder, *equation, equationFunctionName, templateFunction,
+            equationTemplateCalls,
+            modelOp.body().getArgumentTypes());
+
+        equationFunctions.push_back(equationFunction);
 
         // Create the call to the instantiated template function
-        builder.create<mlir::CallOp>(loc, equationFunction, vars);
+        auto equationCall = builder.create<mlir::CallOp>(loc, equationFunction, vars);
+        equationCalls.emplace(equationFunction, equationCall);
       }
 
       // If we didn't reach the end time update the variables and return
@@ -686,6 +728,17 @@ class ModelConverter
       builder.setInsertionPointToStart(&ifOp.elseRegion().front());
       mlir::Value falseValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(false));
       builder.create<mlir::scf::YieldOp>(loc, falseValue);
+
+      // Remove the unused function arguments
+      for (const auto& equationTemplateFunction : equationTemplateFunctions) {
+        auto calls = equationTemplateCalls.equal_range(equationTemplateFunction);
+        removeUnusedFunctionArguments(equationTemplateFunction, calls.first, calls.second);
+      }
+
+      for (const auto& equationFunction : equationFunctions) {
+        auto calls = equationCalls.equal_range(equationFunction);
+        removeUnusedFunctionArguments(equationFunction, calls.first, calls.second);
+      }
 
       return mlir::success();
     }

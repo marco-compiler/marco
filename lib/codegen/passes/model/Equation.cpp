@@ -872,11 +872,6 @@ namespace marco::codegen
     return mlir::failure();
   }
 
-  std::pair<mlir::Value, std::vector<mlir::Value>> BaseEquation::collectSubscriptionIndexes(mlir::Value value) const
-  {
-    return ::collectSubscriptionIndexes(value);
-  }
-
   mlir::Value BaseEquation::getMultiplyingFactor(
       mlir::OpBuilder& builder,
       mlir::Value value,

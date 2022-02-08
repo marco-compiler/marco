@@ -50,8 +50,6 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           const Access& access);
 
-      std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndexes(mlir::Value value) const;
-
       mlir::Value getMultiplyingFactor(
           mlir::OpBuilder& builder,
           mlir::Value value,
