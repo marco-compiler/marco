@@ -84,7 +84,7 @@ namespace marco::modeling
 
   IndexSet& IndexSet::operator+=(const MultidimensionalRange& rhs)
   {
-    auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
+    [[maybe_unused]] auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
       if (ranges.empty()) {
         return true;
       }
@@ -129,7 +129,7 @@ namespace marco::modeling
 
   IndexSet& IndexSet::operator+=(const IndexSet& rhs)
   {
-    auto hasCompatibleRank = [&](const IndexSet& mcis) {
+    [[maybe_unused]] auto hasCompatibleRank = [&](const IndexSet& mcis) {
       if (ranges.empty() || mcis.ranges.empty()) {
         return true;
       }
@@ -173,7 +173,7 @@ namespace marco::modeling
       return *this;
     }
 
-    auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
+    [[maybe_unused]] auto hasCompatibleRank = [&](const MultidimensionalRange& range) {
       if (ranges.empty()) {
         return true;
       }

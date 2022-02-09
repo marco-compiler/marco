@@ -13,7 +13,7 @@
 
 modelica.function @simpleVar(%arg0 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x"], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
-    modelica.member_store %0, %arg0 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %arg0 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -33,7 +33,7 @@ modelica.function @mulByScalar(%arg0 : !modelica.real) -> (!modelica.real) attri
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.constant #modelica.real<23.0> : !modelica.real
     %2 = modelica.mul %arg0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %2: !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %2: !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -52,7 +52,7 @@ func @test_mulByScalar() -> () {
 modelica.function @sumOfVars(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"]} {
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.add %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1: !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1: !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -72,7 +72,7 @@ func @test_sumOfVars() -> () {
 modelica.function @mulOfVars(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"]} {
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.mul %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1: !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1: !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -94,7 +94,7 @@ modelica.function @scalarMul(%arg0 : !modelica.real) -> (!modelica.real) attribu
     %0 = modelica.member_create {name = "y1"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.constant #modelica.real<23.0> : !modelica.real
     %2 = modelica.mul %arg0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %2: !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %2: !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -103,7 +103,7 @@ modelica.function @callOpDer(%arg0 : !modelica.real) -> (!modelica.real) attribu
     %1 = modelica.constant #modelica.int<57> : !modelica.int
     %2 = modelica.mul %1, %arg0 : (!modelica.int, !modelica.real) -> !modelica.real
     %3 = modelica.call @scalarMul(%2) : (!modelica.real) -> (!modelica.real)
-    modelica.member_store %0, %3: !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %3: !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 

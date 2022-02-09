@@ -14,7 +14,7 @@
 modelica.function @var(%arg0 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x"], results_names = ["y"], derivative = #modelica.derivative<"var_der", 1>} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.neg %arg0 : !modelica.real -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -32,7 +32,7 @@ func @test_var() -> () {
 modelica.function @neg(%arg0 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x"], results_names = ["y"], derivative = #modelica.derivative<"neg_der", 1>} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.neg %arg0 : !modelica.real -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -50,7 +50,7 @@ func @test_neg() -> () {
 modelica.function @add(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"], derivative = #modelica.derivative<"add_der", 1>} {
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.add %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -70,7 +70,7 @@ func @test_add() -> () {
 modelica.function @sub(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"], derivative = #modelica.derivative<"sub_der", 1>} {
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.sub %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -90,7 +90,7 @@ func @test_sub() -> () {
 modelica.function @mul(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"], derivative = #modelica.derivative<"mul_der", 1>} {
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.mul %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -110,7 +110,7 @@ func @test_mul() -> () {
 modelica.function @div(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"], derivative = #modelica.derivative<"div_der", 1>} {
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.div %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 

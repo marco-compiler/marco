@@ -13,15 +13,13 @@ namespace marco::codegen
     assert(equation->getParentOfType<ForEquationOp>() == nullptr);
 
     // Check that all the values are scalars
-    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-
-    auto isScalarFn = [](mlir::Value value) {
+    [[maybe_unused]] auto isScalarFn = [](mlir::Value value) {
       auto type = value.getType();
       return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
     };
 
-    assert(llvm::all_of(terminator.lhs(), isScalarFn));
-    assert(llvm::all_of(terminator.rhs(), isScalarFn));
+    assert(llvm::all_of(getTerminator().lhs(), isScalarFn));
+    assert(llvm::all_of(getTerminator().rhs(), isScalarFn));
   }
 
   std::unique_ptr<Equation> ScalarEquation::clone() const

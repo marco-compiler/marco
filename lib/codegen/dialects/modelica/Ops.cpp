@@ -934,7 +934,7 @@ mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser& parser, mlir::OperationSt
 
 void ConstantOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << value();
+	printer << getOperationName() << " " << value() << " : " << resultType();
 }
 
 mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
@@ -1070,18 +1070,18 @@ llvm::ArrayRef<llvm::StringRef> AssignmentOp::getAttributeNames()
 
 mlir::Value AssignmentOpAdaptor::source()
 {
-	return getValues()[0];
+	return getValues()[1];
 }
 
 mlir::Value AssignmentOpAdaptor::destination()
 {
-	return getValues()[1];
+	return getValues()[0];
 }
 
 void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
 {
+  state.addOperands(destination);
 	state.addOperands(source);
-	state.addOperands(destination);
 }
 
 mlir::ParseResult AssignmentOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -1092,15 +1092,15 @@ mlir::ParseResult AssignmentOp::parse(mlir::OpAsmParser& parser, mlir::Operation
 	mlir::Type sourceType;
 	mlir::Type destinationType;
 
-	if (parser.parseOperand(source) ||
+	if (parser.parseOperand(destination) ||
 			parser.parseComma() ||
-			parser.parseOperand(destination) ||
+			parser.parseOperand(source) ||
 			parser.parseColon() ||
-			parser.parseType(sourceType) ||
-			parser.parseComma() ||
 			parser.parseType(destinationType) ||
-			parser.resolveOperand(source, sourceType, result.operands) ||
-			parser.resolveOperand(destination, destinationType, result.operands))
+			parser.parseComma() ||
+			parser.parseType(sourceType) ||
+      parser.resolveOperand(destination, destinationType, result.operands) ||
+			parser.resolveOperand(source, sourceType, result.operands))
 		return mlir::failure();
 
 	return mlir::success();
@@ -1109,8 +1109,8 @@ mlir::ParseResult AssignmentOp::parse(mlir::OpAsmParser& parser, mlir::Operation
 void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName()
-					<< " " << source() << ", " << destination()
-					<< " : " << source().getType() << ", " << destination().getType();
+					<< " " << destination() << ", " << source()
+					<< " : " << destination().getType() << ", " << source().getType();
 }
 
 void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -1740,17 +1740,14 @@ mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::Operatio
 
 	llvm::SMLoc resultTypeLoc = parser.getCurrentLocation();
 
-	if (parser.parseType(memberType))
+	if (parser.parseType(memberType) ||
+      parser.parseComma() ||
+      parser.parseType(valueType))
 		return mlir::failure();
 
 	if (!memberType.isa<MemberType>())
 		return parser.emitError(resultTypeLoc)
 				<< "specified type must be a member type";
-
-	if (auto castedMemberType = memberType.cast<MemberType>(); castedMemberType.getRank() != 0)
-		valueType = castedMemberType.toArrayType();
-	else
-		valueType = castedMemberType.getElementType();
 
 	if (parser.resolveOperand(operands[0], memberType, result.operands) ||
 			parser.resolveOperand(operands[1], valueType, result.operands))
@@ -1763,7 +1760,7 @@ void MemberStoreOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName()
 					<< " " << member() << ", " << value()
-					<< " : " << member().getType();
+					<< " : " << member().getType() << ", " << value().getType();
 }
 
 mlir::LogicalResult MemberStoreOp::verify()
@@ -2205,6 +2202,25 @@ void ArrayCastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, m
 {
 	state.addOperands(memory);
 	state.addTypes(resultType);
+}
+
+mlir::ParseResult ArrayCastOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType array;
+  mlir::Type arrayType;
+  mlir::Type resultType;
+
+  if (parser.parseOperand(array) ||
+      parser.parseColon() ||
+      parser.parseType(arrayType) ||
+      parser.resolveOperand(array, arrayType, result.operands) ||
+      parser.parseArrow() ||
+      parser.parseType(resultType))
+    return mlir::failure();
+
+  result.addTypes(resultType);
+
+  return mlir::success();
 }
 
 void ArrayCastOp::print(mlir::OpAsmPrinter& printer)
@@ -8099,10 +8115,19 @@ void SizeOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName() << " " << memory();
 
-	if (hasIndex())
-		printer << "[" << index() << "]";
+	if (hasIndex()) {
+    printer << "[" << index() << "]";
+  }
 
-	printer << " : " << resultType();
+  printer << " : ";
+
+  if (hasIndex()) {
+    printer << "(" << memory().getType() << ", " << index().getType() << ")";
+  } else {
+    printer << memory().getType();
+  }
+
+  printer << " -> " << resultType();
 }
 
 mlir::LogicalResult SizeOp::verify()

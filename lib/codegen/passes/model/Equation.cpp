@@ -433,9 +433,8 @@ namespace marco::codegen
       : equationOp(equation.getOperation()),
         variables(std::move(variables))
   {
-    auto terminator = mlir::cast<EquationSidesOp>(equation.body()->getTerminator());
-    assert(terminator.lhs().size() == 1);
-    assert(terminator.rhs().size() == 1);
+    assert(getTerminator().lhs().size() == 1);
+    assert(getTerminator().rhs().size() == 1);
   }
 
   modelica::EquationOp BaseEquation::getOperation() const

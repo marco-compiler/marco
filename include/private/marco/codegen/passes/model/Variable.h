@@ -34,8 +34,6 @@ namespace marco::codegen
       modelica::MemberCreateOp getDefiningOp() const;
       bool isConstant() const;
 
-      mlir::Value createAccess(mlir::OpBuilder& builder, const modeling::AccessFunction& accessFunction) const;
-
     private:
       std::unique_ptr<Impl> impl;
   };

@@ -76,7 +76,9 @@ namespace marco::modeling::internal
   {
     assert(dimensions.size() != 0);
 
-    size_t totalSize = std::accumulate(dimensions.begin(), dimensions.end(), 1, std::multiplies<size_t>());
+    [[maybe_unused]] size_t totalSize = std::accumulate(
+        dimensions.begin(), dimensions.end(), 1, std::multiplies<size_t>());
+
     assert(index < totalSize && "Flattened index exceeds the flat array size");
 
     size_t size = 1;

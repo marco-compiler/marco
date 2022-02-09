@@ -483,8 +483,8 @@ struct ConstantOpLowering : public ModelicaOpConversion<ConstantOp>
 		if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
 			return builder.getFloatAttr(resultType, realAttribute.getValue());
 
-		assert(false && "Unreachable");
-		//return llvm::None;
+    llvm_unreachable("Unknown attribute type");
+		return nullptr;
 	}
 };
 

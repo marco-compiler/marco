@@ -248,7 +248,9 @@ namespace marco::modeling
 
   namespace matching
   {
-    template<typename VariableProperty, typename AccessProperty = internal::matching::EmptyAccessProperty>
+    template<
+        typename VariableProperty,
+        typename AccessProperty = internal::matching::EmptyAccessProperty>
     class Access
     {
       public:

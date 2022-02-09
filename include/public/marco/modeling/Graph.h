@@ -696,7 +696,7 @@ namespace marco::modeling::internal
         VertexDescriptor addVertex(VertexProperty property)
         {
           auto* ptr = new Vertex(std::move(property));
-          bool vertexInsertion = graph.addNode(*ptr);
+          [[maybe_unused]] bool vertexInsertion = graph.addNode(*ptr);
           assert(vertexInsertion);
           return VertexDescriptor(this, ptr);
         }
@@ -745,13 +745,13 @@ namespace marco::modeling::internal
 
           auto* ptr = new Edge(dest, edgeProperty);
           edges.push_back(ptr);
-          bool edgeInsertion = graph.connect(src, dest, *ptr);
+          [[maybe_unused]] bool edgeInsertion = graph.connect(src, dest, *ptr);
           assert(edgeInsertion);
 
           if (!directed) {
             auto* inversePtr = new Edge(src, edgeProperty);
             edges.push_back(inversePtr);
-            bool inverseEdgeInsertion = graph.connect(dest, src, *inversePtr);
+            [[maybe_unused]] bool inverseEdgeInsertion = graph.connect(dest, src, *inversePtr);
             assert(inverseEdgeInsertion);
           }
 

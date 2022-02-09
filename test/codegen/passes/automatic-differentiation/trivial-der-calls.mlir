@@ -14,7 +14,7 @@ modelica.function @sin_der(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.sin %arg0 : !modelica.real -> !modelica.real
     %2 = modelica.der %1 : !modelica.real -> !modelica.real
-    modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
@@ -32,7 +32,7 @@ modelica.function @cos_der(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.cos %arg0 : !modelica.real -> !modelica.real
     %2 = modelica.der %1 : !modelica.real -> !modelica.real
-    modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>
+    modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>, !modelica.real
     modelica.function_terminator
 }
 
