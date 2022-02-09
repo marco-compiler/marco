@@ -1529,6 +1529,95 @@ static mlir::LogicalResult replaceAccesses(
   return mlir::success();
 }
 
+template<typename DestinationIt>
+static mlir::LogicalResult processDependencies(
+    std::vector<std::unique_ptr<MatchedEquation>>& results,
+    mlir::OpBuilder& builder,
+    Equation& destination,
+    DestinationIt dependencyBegin,
+    DestinationIt dependencyEnd);
+
+template<typename IntervalIt>
+static mlir::LogicalResult processIntervals(
+    std::vector<std::unique_ptr<MatchedEquation>>& results,
+    IndexSet& indexesWithoutCycles,
+    mlir::OpBuilder& builder,
+    MatchedEquation& equation,
+    IntervalIt intervalBegin,
+    IntervalIt intervalEnd)
+{
+  for (auto interval = intervalBegin; interval != intervalEnd; ++interval) {
+    indexesWithoutCycles -= interval->getRange();
+    auto clonedEquation = Equation::build(equation.cloneIR(), equation.getVariables());
+    auto dependencies = interval->getDestinations();
+
+    if (auto res = processDependencies(
+        results,
+        builder,
+        *clonedEquation,
+        dependencies.begin(),
+        dependencies.end()); mlir::failed(res)) {
+      return res;
+    }
+
+    results.push_back(std::make_unique<MatchedEquation>(
+        std::move(clonedEquation), equation.getIterationRanges(), equation.getWrite().getPath()));
+  }
+
+  return mlir::success();
+}
+
+template<typename DependencyIt>
+mlir::LogicalResult processDependencies(
+    std::vector<std::unique_ptr<MatchedEquation>>& results,
+    mlir::OpBuilder& builder,
+    Equation& destination,
+    DependencyIt dependencyBegin,
+    DependencyIt dependencyEnd)
+{
+  for (auto dependency = dependencyBegin; dependency != dependencyEnd; ++dependency) {
+    const auto& access = dependency->getAccess();
+    const auto& accessFunction = access.getAccessFunction();
+    const auto& accessProperty = access.getProperty();
+    const auto& filteredEquation = dependency->getNode();
+
+    auto intervalBegin = filteredEquation.begin();
+    auto intervalEnd = filteredEquation.end();
+
+    if (intervalBegin != intervalEnd) {
+      std::vector<std::unique_ptr<MatchedEquation>> children;
+      IndexSet indexesWithoutCycles(filteredEquation.getEquation()->getIterationRanges());
+
+      if (auto res = processIntervals(
+            children,
+            indexesWithoutCycles,
+            builder,
+            *filteredEquation.getEquation(),
+            intervalBegin, intervalEnd); mlir::failed(res)) {
+        return res;
+      }
+
+      for (const auto& child : children) {
+        if (auto res = replaceAccesses(
+            builder, destination, accessFunction, accessProperty, *child); mlir::failed(res)) {
+          return res;
+        }
+      }
+
+      for (auto& child : children) {
+        child->eraseIR();
+      }
+    } else {
+      if (auto res = replaceAccesses(
+          builder, destination, accessFunction, accessProperty, *filteredEquation.getEquation()); mlir::failed(res)) {
+        return res;
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
 /// Modify the IR in order to solve the algebraic loops
 static mlir::LogicalResult solveAlgebraicLoops(
     Model<MatchedEquation>& model, mlir::OpBuilder& builder)
@@ -1546,33 +1635,21 @@ static mlir::LogicalResult solveAlgebraicLoops(
   Equations<MatchedEquation> newEquations;
 
   for (const auto& cycle : cycles) {
+    std::vector<std::unique_ptr<MatchedEquation>> resolvedEquations;
     IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
 
-    for (const auto& interval : cycle) {
-      indexesWithoutCycles -= interval.getRange();
+    if (auto res = processIntervals(
+        resolvedEquations,
+        indexesWithoutCycles,
+        builder,
+        *cycle.getEquation(),
+        cycle.begin(),
+        cycle.end()); mlir::failed(res)) {
+      return res;
+    }
 
-      auto clonedEquation = Equation::build(
-          cycle.getEquation()->cloneIR(),
-          cycle.getEquation()->getVariables());
-
-      for (const auto& dependency : interval.getDestinations()) {
-        const auto& access = dependency.getAccess();
-        const auto& destination = dependency.getNode();
-
-        if (auto res = replaceAccesses(
-            builder, *clonedEquation,
-            access.getAccessFunction(),
-            access.getProperty(),
-            *destination.getEquation()); mlir::failed(res)) {
-          return res;
-        }
-      }
-
-      // Create the matched equation on the cloned operation
-      newEquations.add(std::make_unique<MatchedEquation>(
-          std::move(clonedEquation), cycle.getEquation()->getIterationRanges(), EquationPath(EquationPath::LEFT)));
-
-      // TODO process multiple levels
+    for (auto& resolvedEquation : resolvedEquations) {
+      newEquations.add(std::move(resolvedEquation));
     }
 
     // Add the indices that do not present any loop
