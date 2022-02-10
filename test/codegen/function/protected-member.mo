@@ -4,7 +4,7 @@
 // CHECK-SAME: %arg0 : !modelica.array<?x!modelica.int>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create
 // CHECK-SAME: name = "y"
-// CHECK-SAME: !modelica.member<heap, !modelica.int>
+// CHECK-SAME: !modelica.member<stack, !modelica.int>
 // CHECK: %[[Z:[a-zA-Z0-9]*]] = modelica.member_create
 // CHECK-SAME: name = "z"
 // CHECK-SAME: !modelica.member<stack, 2x!modelica.int>
@@ -15,4 +15,7 @@ function foo
 
 protected
     Integer[2] z;
+
+algorithm
+
 end foo;
