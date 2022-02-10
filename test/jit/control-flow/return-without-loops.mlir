@@ -13,7 +13,7 @@
 // CHECK: true
 // CHECK-NEXT: false
 
-modelica.function @returnWithoutLoops_fn(%arg0 : !modelica.int) -> () attributes {args_names = ["x"], results_names = []} {
+modelica.function @foo(%arg0 : !modelica.int) -> () attributes {args_names = ["x"], results_names = []} {
     %c0 = modelica.constant #modelica.int<0> : !modelica.int
     %condition = modelica.lt %arg0, %c0 : (!modelica.int, !modelica.int) -> !modelica.bool
 
@@ -29,7 +29,7 @@ modelica.function @returnWithoutLoops_fn(%arg0 : !modelica.int) -> () attributes
     modelica.function_terminator
 }
 
-func @returnWithoutLoops() -> () {
+func @test() -> () {
     %size = constant 2 : index
     %values = modelica.alloca %size : index -> !modelica.array<stack, ?x!modelica.int>
 
@@ -46,13 +46,13 @@ func @returnWithoutLoops() -> () {
 
     scf.for %i = %lb to %size step %step {
       %value = modelica.load %values[%i] : !modelica.array<stack, ?x!modelica.int>
-      modelica.call @returnWithoutLoops_fn(%value) : (!modelica.int) -> ()
+      modelica.call @foo(%value) : (!modelica.int) -> ()
     }
 
     return
 }
 
 func @main() -> () {
-    call @returnWithoutLoops() : () -> ()
+    call @test() : () -> ()
     return
 }
