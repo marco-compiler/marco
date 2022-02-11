@@ -1,8 +1,9 @@
 add_mlir_dialect_library(MLIRModelica SHARED
-    ModelicaAttributes.cpp
+    Attributes.cpp
     ModelicaDialect.cpp
-    ModelicaOps.cpp
-    ModelicaTypes.cpp
+    Interfaces.cpp
+    Ops.cpp
+    Types.cpp
 
     ADDITIONAL_HEADER_DIRS
     ${MARCO_INCLUDE_PUBLIC_DIR}/marco/dialects/modelica
@@ -17,5 +18,4 @@ add_mlir_dialect_library(MLIRModelica SHARED
     MLIRIR
     MLIRSupport
     MLIRControlFlowInterfaces
-    MLIRInferTypeOpInterface
     MLIRSideEffectInterfaces)

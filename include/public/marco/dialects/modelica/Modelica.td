@@ -3,12 +3,11 @@
 
 include "marco/dialects/modelica/ModelicaAttributes.td"
 include "marco/dialects/modelica/ModelicaDialect.td"
+include "marco/dialects/modelica/ModelicaInterfaces.td"
 include "marco/dialects/modelica/ModelicaTypes.td"
-include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def Modelica_FooOp : Modelica_Op<"foo", [NoSideEffect,
-                                         SameOperandsAndResultType]> {
+def Modelica_FooOp : Modelica_Op<"foo", [NoSideEffect, SameOperandsAndResultType]> {
     let summary = "Illustrates how to define an operation.";
     let description = [{
         The `standalone.foo` operation illustrates how to define a new

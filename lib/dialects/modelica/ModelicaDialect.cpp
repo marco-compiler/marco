@@ -1,9 +1,9 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "mlir/IR/DialectImplementation.h"
-#include "marco/dialects/modelica/ModelicaAttributes.h"
+#include "marco/dialects/modelica/Attributes.h"
 #include "marco/dialects/modelica/ModelicaDialect.h"
-#include "marco/dialects/modelica/ModelicaOps.h"
-#include "marco/dialects/modelica/ModelicaTypes.h"
+#include "marco/dialects/modelica/Ops.h"
+#include "marco/dialects/modelica/Types.h"
 
 using namespace ::mlir;
 using namespace ::mlir::modelica;
@@ -31,28 +31,6 @@ void ModelicaDialect::initialize() {
   >();
 }
 
-mlir::Type ModelicaDialect::parseType(mlir::DialectAsmParser& parser) const
-{
-  return mlir::Type();
-  //return parseModelicaType(parser);
-}
-
-void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const
-{
-  //return printModelicaType(type, printer);
-}
-
-mlir::Attribute ModelicaDialect::parseAttribute(DialectAsmParser& parser, Type type) const
-{
-  return mlir::Attribute();
-  //return parseModelicaType(parser);
-}
-
-void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const
-{
-  //return printModelicaType(type, printer);
-}
-
 //===----------------------------------------------------------------------===//
 // Tablegen type definitions
 //===----------------------------------------------------------------------===//
@@ -60,9 +38,63 @@ void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsm
 #define GET_TYPEDEF_CLASSES
 #include "marco/dialects/modelica/ModelicaTypes.cpp.inc"
 
+mlir::Type ModelicaDialect::parseType(mlir::DialectAsmParser& parser) const
+{
+  llvm::SMLoc typeLoc = parser.getCurrentLocation();
+  llvm::StringRef mnemonic;
+
+  if (parser.parseKeyword(&mnemonic)) {
+    return mlir::Type();
+  }
+
+  mlir::Type genType;
+  mlir::OptionalParseResult parseResult = generatedTypeParser(getContext(), parser, mnemonic, genType);
+
+  if (parseResult.hasValue()) {
+    return genType;
+  }
+
+  parser.emitError(typeLoc, "Unknown type in 'Modelica' dialect");
+  return mlir::Type();
+}
+
+void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const
+{
+  if (mlir::failed(generatedTypePrinter(type, os))) {
+    llvm_unreachable("Unexpected 'Modelica' type kind");
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // Tablegen attribute definitions
 //===----------------------------------------------------------------------===//
 
 #define GET_ATTRDEF_CLASSES
 #include "marco/dialects/modelica/ModelicaAttributes.cpp.inc"
+
+mlir::Attribute ModelicaDialect::parseAttribute(DialectAsmParser& parser, mlir::Type type) const
+{
+  llvm::SMLoc typeLoc = parser.getCurrentLocation();
+  llvm::StringRef mnemonic;
+
+  if (parser.parseKeyword(&mnemonic)) {
+    return mlir::Attribute();
+  }
+
+  mlir::Attribute genAttr;
+  mlir::OptionalParseResult parseResult = generatedAttributeParser(getContext(), parser, mnemonic, type, genAttr);
+
+  if (parseResult.hasValue()) {
+    return genAttr;
+  }
+
+  parser.emitError(typeLoc, "Unknown attribute in 'Modelica' dialect");
+  return mlir::Attribute();
+}
+
+void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& os) const
+{
+  if (mlir::failed(generatedAttributePrinter(attribute, os))) {
+    llvm_unreachable("Unexpected 'Modelica' attribute kind");
+  }
+}

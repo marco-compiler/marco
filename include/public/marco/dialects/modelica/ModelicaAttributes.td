@@ -4,11 +4,16 @@
 include "marco/dialects/modelica/ModelicaDialect.td"
 include "mlir/IR/OpBase.td"
 
-class Modelica_Attr<string name> : AttrDef<Modelica_Dialect, name> { }
+//===----------------------------------------------------------------------===//
+// Modelica attribute definitions
+//===----------------------------------------------------------------------===//
 
-def BooleanAttr : Modelica_Attr<"Boolean"> {
-  let mnemonic = "bool";
+class Modelica_Attr<string name, string attrMnemonic>
+    : AttrDef<Modelica_Dialect, name> {
+  let mnemonic = attrMnemonic;
+}
 
+def BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
   let summary = "Modelica's Boolean attribute";
 
   let description = [{
