@@ -33,6 +33,7 @@ namespace marco::ast
 		subscription,
 		memberLookup,
 		powerOf,
+		range,
 	};
 
 	llvm::raw_ostream& operator<<(
@@ -92,6 +93,8 @@ namespace marco::ast
 
 		[[nodiscard]] iterator end();
 		[[nodiscard]] const_iterator end() const;
+
+		void removeArg(size_t index);
 
 		private:
 		friend class Expression;

@@ -230,6 +230,9 @@ llvm::Error ConstantFolder::run<Operation>(Expression& expression)
 		case OperationKind::powerOf:
 			return foldOperation(expression, &ConstantFolder::foldPowerOfOp);
 
+		case OperationKind::range:
+			return foldOperation(expression, &ConstantFolder::foldRangeOp);
+
 		case OperationKind::subscription:
 			return foldOperation(expression, &ConstantFolder::foldSubscriptionOp);
 
@@ -981,6 +984,18 @@ llvm::Error ConstantFolder::foldPowerOfOp(Expression& expression)
 {
 	auto* operation = expression.get<Operation>();
 	assert(operation->getOperationKind() == OperationKind::powerOf);
+
+	for (auto& arg : operation->getArguments())
+		if (auto error = run<Expression>(*arg); error)
+			return error;
+
+	return llvm::Error::success();
+}
+
+llvm::Error ConstantFolder::foldRangeOp(Expression& expression)
+{
+	auto* operation = expression.get<Operation>();
+	assert(operation->getOperationKind() == OperationKind::range);
 
 	for (auto& arg : operation->getArguments())
 		if (auto error = run<Expression>(*arg); error)

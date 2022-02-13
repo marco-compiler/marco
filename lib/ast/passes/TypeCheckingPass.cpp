@@ -1482,7 +1482,10 @@ llvm::Error TypeChecker::run<Operation>(Expression& expression)
 
 		case OperationKind::powerOf:
 			return checkOperation(expression, &TypeChecker::checkPowerOfOp);
-
+		
+		case OperationKind::range:
+			return checkOperation(expression, &TypeChecker::checkRangeOp);
+		
 		case OperationKind::subscription:
 			return checkOperation(expression, &TypeChecker::checkSubscriptionOp);
 
@@ -2391,6 +2394,47 @@ llvm::Error TypeChecker::checkPowerOfOp(Expression& expression)
 	return llvm::Error::success();
 }
 
+llvm::Error TypeChecker::checkRangeOp(Expression& expression)
+{
+	auto* operation = expression.get<Operation>();
+	auto args = operation->getArguments();
+
+	assert(operation->getOperationKind() == OperationKind::range);
+	assert(operation->argumentsCount()==2 || operation->argumentsCount()==3);
+
+	for (auto& arg : args)
+		if (auto error = run<Expression>(*arg); error)
+			return error;
+
+	auto checkAllArgs = [&](auto predicate){ 
+			return std::find_if(args.begin(), args.end(), [&](const auto &x){return !predicate(x);}) == args.end();
+		};
+
+	assert( checkAllArgs([&](const std::unique_ptr<Expression> &arg){ return arg->isa<Constant>(); }) );
+
+	// set the operation type as NumberType[range size]
+	bool is_integer = checkAllArgs([&](const std::unique_ptr<Expression> &arg){
+		 	return arg->get<Constant>()->isa<BuiltInType::Integer>();
+		 });
+
+	auto getArgValue= [&](size_t index){ return args[index]->get<Constant>()->as<BuiltInType::Float>(); };
+
+	float begin = getArgValue(0), end = getArgValue(1), step=1.0f;
+
+	if(args.size()==3)
+	{
+		step = end;
+		end = getArgValue(2);
+	}
+
+	operation->setType( Type( 
+		is_integer ? BuiltInType::Integer : BuiltInType::Float, 
+		{ 1 + std::floor((end-begin)/step)})  // we need to add 1 because 1:1=={1} for the modelica standard
+	);
+
+	return llvm::Error::success();
+}
+
 llvm::Error TypeChecker::checkSubOp(Expression& expression)
 {
 	return checkGenericOperation(expression);
@@ -2413,12 +2457,86 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 				operation->getLocation(), 
 				"too many subscriptions (should be "+std::to_string(source->getType().dimensionsCount())+" but got "+std::to_string(subscriptionIndexesCount)+")");
 
-	for (size_t i = 1; i < operation->argumentsCount(); ++i)
-		if (auto* index = operation->getArg(i); index->getType() != makeType<int>())
-			return llvm::make_error<BadSemantic>(
-					index->getLocation(), "index expression must be an integer");
+	// the following code calculates the resulting type shape, simplifying the subscription part of the AST if possible
+	Type type=source->getType();
+	auto original_dimensions = type.getDimensions();
+	std::vector<ArrayDimension> dimensions( original_dimensions.begin(), original_dimensions.end() );
+	auto it = dimensions.rbegin();
 
-	expression.setType(source->getType().subscript(subscriptionIndexesCount));
+	for (size_t i = operation->argumentsCount() - 1; i >= 1; --i, ++it){
+		auto* index = operation->getArg(i);
+		
+		if(index->getType() == makeType<int>())
+		{
+			// a single index
+			*it = -2;	// just a hard-coded value to soft-delete it, it will be actually removed after this loop
+		}
+		else if(index->isa<Operation>())
+		{
+			// or a range
+			auto op = index->get<Operation>();
+			assert(op->getOperationKind()==OperationKind::range);
+
+			auto arg=[&](size_t index){ return op->getArg(index)->get<Constant>()->as<BuiltInType::Integer>();};
+
+			long begin=arg(0), end=arg(1), step=1;
+
+			if(op->argumentsCount()==3)
+			{
+				step=end;
+				end=arg(2);
+			}
+			
+			assert(begin>=0);
+			assert(end==-1 || begin<=end);
+			assert(step>=1);
+
+			if(end==-1){
+				if(begin==0 && step==1)
+				{
+					// keep the whole dimensions, like in x[:,2]
+
+					// if it is the last subscription, just remove it
+					// e.g. x[:] == x
+					//		x[2,:] == x[2]  
+					if( i == operation->argumentsCount() - 1 )
+					{
+						if( operation->argumentsCount() == 2 )
+						{
+							expression = *source;
+							return llvm::Error::success();
+						}
+
+						operation->removeArg(i);
+					}
+
+					continue; 
+				}
+
+				end = dimensions.front().getNumericSize();
+			}
+
+			*it = (end-begin) / step;
+		}
+		else
+			return llvm::make_error<BadSemantic>(
+					index->getLocation(), "index expression must be an integer or a range");
+	}
+	
+	// actually remove the deleted values
+	dimensions.erase(std::remove(dimensions.begin(), dimensions.end(), -2), dimensions.end());
+
+	// set the resulting type
+	expression.setType(
+		type.visit([&](const auto& type) 
+		{ 
+			if(dimensions.size())
+				return Type(type,dimensions); 
+			else
+				return Type(type);	
+		})
+	);
+
 	return llvm::Error::success();
 }
 

@@ -73,6 +73,7 @@ namespace marco::ast
 		[[nodiscard]] llvm::Error foldMulOp(Expression& expression);
 		[[nodiscard]] llvm::Error foldNegateOp(Expression& expression);
 		[[nodiscard]] llvm::Error foldPowerOfOp(Expression& expression);
+		[[nodiscard]] llvm::Error foldRangeOp(Expression& expression);
 		[[nodiscard]] llvm::Error foldSubOp(Expression& expression);
 		[[nodiscard]] llvm::Error foldSubscriptionOp(Expression& expression);
 
