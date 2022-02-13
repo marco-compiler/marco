@@ -1,5 +1,5 @@
 #include <ida/ida.h>
-#include <llvm/Support/raw_ostream.h>
+#include <iostream>
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
 #include <set>
@@ -178,8 +178,8 @@ static bool checkAllocation(void* retval, const char* funcname)
 {
 	if (retval == NULL)
 	{
-		llvm::errs() << "SUNDIALS_ERROR: " << funcname;
-		llvm::errs() << "() failed - returned NULL pointer\n";
+		std::cerr << "SUNDIALS_ERROR: " << funcname;
+		std::cerr << "() failed - returned NULL pointer" << std::endl;
 		return false;
 	}
 
@@ -193,8 +193,8 @@ static bool checkRetval(int retval, const char* funcname)
 {
 	if (retval < 0)
 	{
-		llvm::errs() << "SUNDIALS_ERROR: " << funcname;
-		llvm::errs() << "() failed  with return value = " << retval << "\n";
+		std::cerr << "SUNDIALS_ERROR: " << funcname;
+		std::cerr << "() failed with return value = " << retval << std::endl;
 		return false;
 	}
 
@@ -734,8 +734,8 @@ RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
 //===----------------------------------------------------------------------===//
 
 /**
- * Returns the pointer to the start of the memory of the requested variable given
- * its offset and if it is a derivative or not.
+ * Returns the pointer to the start of the memory of the requested variable
+ * given its offset and if it is a derivative or not.
  */
 template<typename T>
 inline void* getVariableAlloc(void* userData, T offset, bool isDerivative)
@@ -781,7 +781,7 @@ static void printIncidenceMatrix(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	llvm::errs() << "\n";
+	std::cerr << std::endl;
 
 	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
@@ -791,11 +791,11 @@ static void printIncidenceMatrix(void* userData)
 
 		for (size_t i = 0; i < data->equationDimensions[eq].size(); i++)
 			indexes[i] = data->equationDimensions[eq][i].first;
-	
+
 		// For every scalar equation in the vector equation
 		do
 		{
-			llvm::errs() << "│";
+			std::cerr << "│";
 
 			// Get the column indexes that may be non-zeros.
 			std::set<size_t> columnIndexesSet = computeIndexSet(data, eq, indexes);
@@ -803,15 +803,15 @@ static void printIncidenceMatrix(void* userData)
 			for (sunindextype i = 0; i < data->scalarEquationsNumber; i++)
 			{
 				if (columnIndexesSet.find(i) != columnIndexesSet.end())
-					llvm::errs() << "*";
+					std::cerr << "*";
 				else
-					llvm::errs() << " ";
+					std::cerr << " ";
 
 				if (i < data->scalarEquationsNumber - 1)
-					llvm::errs() << " ";
+					std::cerr << " ";
 			}
 
-			llvm::errs() << "│\n";
+			std::cerr << "│" << std::endl;
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 }
@@ -842,26 +842,26 @@ inline void printStatistics(void* userData)
 	IDAGetActualInitStep(data->idaMemory, &ais);
 	IDAGetLastStep(data->idaMemory, &ls);
 
-	llvm::errs() << "\nFinal Run Statistics:\n";
+	std::cerr << std::endl << "Final Run Statistics:" << std::endl;
 
-	llvm::errs() << "Number of vector equations       = ";
-	llvm::errs() << data->vectorEquationsNumber << "\n";
-	llvm::errs() << "Number of scalar equations       = ";
-	llvm::errs() << data->scalarEquationsNumber << "\n";
-	llvm::errs() << "Number of non-zero values        = ";
-	llvm::errs() << data->nonZeroValuesNumber << "\n";
+	std::cerr << "Number of vector equations       = ";
+	std::cerr << data->vectorEquationsNumber << std::endl;
+	std::cerr << "Number of scalar equations       = ";
+	std::cerr << data->scalarEquationsNumber << std::endl;
+	std::cerr << "Number of non-zero values        = ";
+	std::cerr << data->nonZeroValuesNumber << std::endl;
 
-	llvm::errs() << "Number of steps                  = " << nst << "\n";
-	llvm::errs() << "Number of residual evaluations   = " << nre << "\n";
-	llvm::errs() << "Number of Jacobian evaluations   = " << nje << "\n";
+	std::cerr << "Number of steps                  = " << nst << std::endl;
+	std::cerr << "Number of residual evaluations   = " << nre << std::endl;
+	std::cerr << "Number of Jacobian evaluations   = " << nje << std::endl;
 
-	llvm::errs() << "Number of nonlinear iterations   = " << nni << "\n";
-	llvm::errs() << "Number of linear iterations      = " << nli << "\n";
-	llvm::errs() << "Number of error test failures    = " << netf << "\n";
-	llvm::errs() << "Number of nonlin. conv. failures = " << nncf << "\n";
+	std::cerr << "Number of nonlinear iterations   = " << nni << std::endl;
+	std::cerr << "Number of linear iterations      = " << nli << std::endl;
+	std::cerr << "Number of error test failures    = " << netf << std::endl;
+	std::cerr << "Number of nonlin. conv. failures = " << nncf << std::endl;
 
-	llvm::errs() << "Actual initial step size used    = " << ais << "\n";
-	llvm::errs() << "Step size used for the last step = " << ls << "\n";
+	std::cerr << "Actual initial step size used    = " << ais << std::endl;
+	std::cerr << "Step size used for the last step = " << ls << std::endl;
 }
 
 RUNTIME_FUNC_DEF(printStatistics, void, PTR(void))
