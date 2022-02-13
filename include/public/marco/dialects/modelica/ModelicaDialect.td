@@ -18,11 +18,4 @@ def Modelica_Dialect : Dialect {
     let cppNamespace = "::mlir::modelica";
 }
 
-//===----------------------------------------------------------------------===//
-// Operations
-//===----------------------------------------------------------------------===//
-
-class Modelica_Op<string mnemonic, list<OpTrait> traits = []> :
-    Op<Modelica_Dialect, mnemonic, traits>;
-
 #endif // MARCO_DIALECTS_MODELICA_MODELICA_DIALECT_TD

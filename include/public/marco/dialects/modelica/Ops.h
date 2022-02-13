@@ -5,6 +5,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "mlir/Interfaces/ViewLikeInterface.h"
 
 #define GET_OP_CLASSES
 #include "marco/dialects/modelica/Modelica.h.inc"
