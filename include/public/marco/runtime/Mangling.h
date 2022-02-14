@@ -93,8 +93,8 @@
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)))
 
 #define RUNTIME_FUNC_DECL(name, returnType, ...) \
-  extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
-  extern "C" TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
+  extern "C" __declspec(dllexport) TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
+  extern "C" __declspec(dllexport) TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
 
 #define RUNTIME_FUNC_DEF(name, returnType, ...) \
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \

@@ -3,8 +3,11 @@
 #include <array>
 #include <cassert>
 #include <initializer_list>
+#ifndef WINDOWS_NOSTDLIB
 #include <iostream>
+#endif
 #include <vector>
+#include <cstdint>
 
 template <typename T>
 class ArrayIterator;
@@ -77,6 +80,7 @@ class ArrayDescriptor
 		return data[offset];
 	}
 
+	#ifndef WINDOWS_NOSTDLIB
 	void dump() const
 	{
 		dump(std::cout);
@@ -90,6 +94,7 @@ class ArrayDescriptor
 		os << "  - values: " << *this << "\n";
 		os << "\n";
 	}
+	#endif // TODO: implement
 
   template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
   T& get(const Index& index)
@@ -270,6 +275,7 @@ class ArrayDescriptor
 	dimension_t sizes[Rank];
 };
 
+#ifndef WINDOWS_NOSTDLIB
 namespace impl
 {
 	template<typename T, unsigned int Rank>
@@ -310,6 +316,7 @@ std::ostream& operator<<(
 	impl::printArrayDescriptor(stream, descriptor, indexes, 0);
 	return stream;
 }
+#endif
 
 /// This class allows to accept a generically sized array as input argument
 /// to a function.
@@ -318,9 +325,11 @@ std::ostream& operator<<(
 template<typename T>
 class UnsizedArrayDescriptor;
 
+#ifndef WINDOWS_NOSTDLIB
 template<typename T>
 std::ostream& operator<<(
     std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+#endif
 
 template<typename T>
 class UnsizedArrayDescriptor
@@ -337,7 +346,7 @@ class UnsizedArrayDescriptor
 			: rank(descriptor.getRank()), descriptor((void*) &descriptor)
 	{
 	}
-
+  #ifndef WINDOWS_NOSTDLIB
   void dump() const
   {
     getDescriptor()->dump();
@@ -347,6 +356,7 @@ class UnsizedArrayDescriptor
   {
     getDescriptor()->dump(os);
   }
+  #endif
 
   template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
   T& get(const Index& index)
@@ -454,8 +464,10 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->hasSameSizes();
 	}
 
+	#ifndef WINDOWS_NOSTDLIB
 	friend std::ostream& operator<< <>(
       std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+	#endif
 
 	private:
 	ArrayDescriptor<T, 0>* getDescriptor() const
@@ -474,12 +486,14 @@ class UnsizedArrayDescriptor
 	void* descriptor;
 };
 
+#ifndef WINDOWS_NOSTDLIB
 template<typename T>
 std::ostream& operator<<(
     std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
 {
 	return stream << *descriptor.getDescriptor();
 }
+#endif
 
 /// Iterate over all the elements of a multi-dimensional array as if it was
 /// a flat one.

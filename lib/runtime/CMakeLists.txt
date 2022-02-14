@@ -3,7 +3,8 @@ set(SHARED_SOURCES
 		Math.cpp
 		MemoryManagement.cpp
 		Profiling.cpp
-		UtilityFunctions.cpp)
+		UtilityFunctions.cpp
+		Nostdlib.cpp)
 
 set(STATIC_SOURCES
 		${SHARED_SOURCES}
@@ -28,12 +29,27 @@ marco_add_library(runtimeShared
 		PARTIAL_SOURCES_INTENDED
 		${SHARED_SOURCES})
 
+if(MSVC)
+target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
+endif()
+if(MINGW)
+target_link_options(runtimeShared PRIVATE "-nostdlib" PRIVATE "-g")
+endif()
+
 add_dependencies(marco-runtime marco::runtimeShared)
 
 # Declare the static library
 marco_add_library(runtime
 		STATIC
 		${STATIC_SOURCES})
+
+if(MSVC)
+target_link_options(runtime PRIVATE "/NODEFAULTLIB")
+endif()
+if(MINGW)
+add_compile_definitions(WINDOWS_NOSTDLIB)
+target_link_options(runtime PRIVATE "-nostdlib" PRIVATE "-g")
+endif()
 
 add_dependencies(marco-runtime marco::runtime)
 
