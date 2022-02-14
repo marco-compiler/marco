@@ -33,7 +33,11 @@ class ArrayDescriptor
 	///
 	/// @param data  data pointer
 	/// @param sizes sizes of the array
+	#ifndef WIN32
 	template<unsigned long Size>
+	#else
+	template<unsigned long long Size>
+	#endif
 	ArrayDescriptor(std::array<T, Size>& data)
 			: data(data.data()), rank(1), sizes{}
 	{
