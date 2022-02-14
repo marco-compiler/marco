@@ -1,8 +1,74 @@
 #include "marco/runtime/BuiltInFunctions.h"
 #include <algorithm>
+#ifndef WINDOWS_NOSTDLIB
 #include <cmath>
+#endif
 #include <numeric>
 #include <vector>
+
+#ifdef WINDOWS_NOSTDLIB
+namespace std {
+    float acosf(float arg) {
+        return 0;
+    }
+
+    double acos(double arg) {
+        return 0;
+    }
+
+	double asin(double arg) {
+        return 0;
+    }
+
+	double atan(double arg) {
+        return 0;
+    }
+
+	double atan2(double y, double x) {
+        return 0;
+    }
+
+	double cos(double arg) {
+        return 0;
+    }
+
+	double cosh(double arg) {
+        return 0;
+    }
+
+	double exp(double arg) {
+        return 0;
+    }
+
+	double log(double arg) {
+        return 0;
+    }
+
+	double log10(double arg) {
+        return 0;
+    }
+
+	double sin(double arg) {
+        return 0;
+    }
+
+	double sinh(double arg) {
+        return 0;
+    }
+
+	double sqrt(double arg) {
+        return 0;
+    }
+
+	double tan(double arg) {
+        return 0;
+    }
+
+	double tanh(double arg) {
+        return 0;
+    }
+}
+#endif
 
 //===----------------------------------------------------------------------===//
 // abs

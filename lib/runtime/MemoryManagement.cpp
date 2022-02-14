@@ -1,5 +1,9 @@
 #include "marco/runtime/MemoryManagement.h"
+#ifndef WINDOWS_NOSTDLIB
 #include <cstdlib>
+#else
+#include <Windows.h>
+#endif
 
 #ifdef MARCO_PROFILING
 
@@ -105,7 +109,11 @@ inline void* heapAlloc_pvoid(int64_t sizeInBytes)
   profiler().startTimer();
 #endif
 
+  #ifndef WINDOWS_NOSTDLIB
 	void* result = sizeInBytes == 0 ? nullptr : std::malloc(sizeInBytes);
+  #else
+	void* result = sizeInBytes == 0 ? nullptr : HeapAlloc(GetProcessHeap(), 0x0, sizeInBytes);
+  #endif
 
 #ifdef MARCO_PROFILING
 	profiler().stopTimer();
@@ -125,7 +133,11 @@ inline void heapFree_void(void* ptr)
 #endif
 
   if (ptr != nullptr) {
+    #ifndef WINDOWS_NOSTDLIB
     std::free(ptr);
+    #else
+    HeapFree(GetProcessHeap(), 0x0, ptr);
+    #endif
   }
 
 #ifdef MARCO_PROFILING

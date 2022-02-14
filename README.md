@@ -62,6 +62,10 @@ The `LLVM_EXTERNAL_LIT` variable represent the path (including the executable na
 cd marco
 mkdir build && cd build
 cmake -DLLVM_PATH=llvm_install_path -DLLVM_EXTERNAL_LIT=lit_executable_path -DCMAKE_BUILD_TYPE=Release ..
+MSVC example:
+cmake -DLLVM_DIR=c:/llvm/lib/cmake/llvm -DMLIR_DIR=c:/llvm/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=C:\Users\ste\AppData\Local\Programs\Python\Python39\Scripts\lit.exe ..
+MINGW example:
+cmake -DLLVM_DIR=/mingw64/include/llvm -DMLIR_DIR=/mingw64/include/mlir -DLLVM_EXTERNAL_LIT=/usr/bin/lit ..
 make all
 ```
 

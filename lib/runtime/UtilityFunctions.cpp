@@ -1,7 +1,11 @@
 #include "marco/runtime/UtilityFunctions.h"
-#include <cassert>
+#ifndef WINDOWS_NOSTDLIB
 #include <cstring>
 #include <iostream>
+#else
+#include "marco/runtime/Printing.h"
+#endif
+#include <cassert>
 
 //===----------------------------------------------------------------------===//
 // clone
@@ -75,13 +79,21 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 template<typename T>
 inline void print_void(T value)
 {
+  #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::scientific << value << std::endl;
+  #else
+  ryuPrintf("%d\n", value); // TODO: guess value type'
+  #endif
 }
 
 template<>
 inline void print_void<bool>(bool value)
 {
+  #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::boolalpha << value << std::endl;
+  #else
+  printBool(value);
+  #endif
 }
 
 RUNTIME_FUNC_DEF(print, void, bool)
@@ -93,13 +105,21 @@ RUNTIME_FUNC_DEF(print, void, double)
 template<typename T>
 inline void print_void(UnsizedArrayDescriptor<T> array)
 {
+  #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::scientific << array << std::endl;
+  #else
+  // TODO: implement
+  #endif
 }
 
 template<>
 inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
 {
+  #ifndef WINDOWS_NOSTDLIB
   std::cout << std::boolalpha << array << std::endl;
+  #else
+  // TODO: implement
+  #endif
 }
 
 RUNTIME_FUNC_DEF(print, void, ARRAY(bool))
