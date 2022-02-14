@@ -52,6 +52,11 @@ function(marco_add_unittest test_name)
   target_link_directories(${test_name} PRIVATE ${MARCO_LIBS_DIR})
   target_link_libraries(${test_name} PRIVATE gtest_main gmock)
 
+  if(WIN32)
+    add_custom_command(TARGET ${test_name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
+    $<TARGET_RUNTIME_DLLS:${test_name}> $<TARGET_FILE_DIR:${test_name}> COMMAND_EXPAND_LISTS)
+  endif()
+
   add_dependencies(${test_suite} ${test_name})
   get_target_property(test_suite_folder ${test_suite} FOLDER)
 
