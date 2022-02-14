@@ -3,6 +3,7 @@
 
 #include "mlir/IR/Dialect.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "marco/dialects/modelica/Attributes.h"
 #include "marco/dialects/modelica/Interfaces.h"
 #include "marco/dialects/modelica/Ops.h"
 #include "marco/dialects/modelica/Types.h"
