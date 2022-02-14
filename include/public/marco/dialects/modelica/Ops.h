@@ -7,6 +7,9 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
 
+#include "marco/dialects/modelica/Attributes.h"
+#include "marco/dialects/modelica/Types.h"
+
 #define GET_OP_CLASSES
 #include "marco/dialects/modelica/Modelica.h.inc"
 

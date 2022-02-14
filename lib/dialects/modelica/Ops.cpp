@@ -169,7 +169,7 @@ static mlir::LogicalResult verify(ExpOp op)
   return mlir::success();
 }
 
-static mlir::LogicalResult verify(FillOp op)
+static mlir::LogicalResult verify(ArrayFillOp op)
 {
   return mlir::success();
 }
@@ -201,6 +201,15 @@ static mlir::LogicalResult verify(LinspaceOp op)
 
 static mlir::LogicalResult verify(LoadOp op)
 {
+  auto indicesAmount = op.getIndices().size();
+  auto rank = op.getArrayType().getRank();
+
+  if (indicesAmount != rank) {
+    return op.emitOpError(
+        "incorrect number of indices for load" +
+        " (expected " + std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+  }
+
   return mlir::success();
 }
 
@@ -311,6 +320,15 @@ static mlir::LogicalResult verify(SqrtOp op)
 
 static mlir::LogicalResult verify(StoreOp op)
 {
+  auto indicesAmount = op.getIndices().size();
+  auto rank = op.getArrayType().getRank();
+
+  if (indicesAmount != rank) {
+    return op.emitOpError(
+        "incorrect number of indices for store" +
+        " (expected " + std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+  }
+
   return mlir::success();
 }
 
