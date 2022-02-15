@@ -119,7 +119,7 @@ static mlir::LogicalResult verify(Atan2Op op)
   return mlir::success();
 }
 
-static mlir::LogicalResult verify(ConditionOp op)
+static mlir::LogicalResult verify(ConstantOp op)
 {
   return mlir::success();
 }
@@ -206,8 +206,8 @@ static mlir::LogicalResult verify(LoadOp op)
 
   if (indicesAmount != rank) {
     return op.emitOpError(
-        "incorrect number of indices for load" +
-        " (expected " + std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+        "incorrect number of indices for load (expected " +
+        std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
   }
 
   return mlir::success();
@@ -325,8 +325,8 @@ static mlir::LogicalResult verify(StoreOp op)
 
   if (indicesAmount != rank) {
     return op.emitOpError(
-        "incorrect number of indices for store" +
-        " (expected " + std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+        "incorrect number of indices for store (expected " +
+        std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
   }
 
   return mlir::success();

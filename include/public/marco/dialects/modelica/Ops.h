@@ -6,6 +6,7 @@
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
+#include "mlir/IR/RegionKindInterface.h"
 
 #include "marco/dialects/modelica/Attributes.h"
 #include "marco/dialects/modelica/Types.h"
