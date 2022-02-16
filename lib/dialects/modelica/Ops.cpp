@@ -249,11 +249,6 @@ static mlir::LogicalResult verify(MulEWOp op)
   return mlir::success();
 }
 
-static mlir::LogicalResult verify(NDimsOp op)
-{
-  return mlir::success();
-}
-
 static mlir::LogicalResult verify(NegateOp op)
 {
   return mlir::success();
@@ -348,11 +343,6 @@ static mlir::LogicalResult verify(SumOp op)
   return mlir::success();
 }
 
-static mlir::LogicalResult verify(SubscriptionOp op)
-{
-  return mlir::success();
-}
-
 static mlir::LogicalResult verify(SymmetricOp op)
 {
   return mlir::success();
@@ -384,10 +374,435 @@ static mlir::LogicalResult verify(ZerosOp op)
 namespace mlir::modelica
 {
   //===----------------------------------------------------------------------===//
+  // ModelOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::RegionKind ModelOp::getRegionKind(unsigned index)
+  {
+    if (index == 0) {
+      return mlir::RegionKind::SSACFG;
+    }
+
+    return mlir::RegionKind::Graph;
+  }
+
+  //===----------------------------------------------------------------------===//
+  // SqrtOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::ValueRange SqrtOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    // TODO
+    llvm_unreachable("Not implemented");
+    return llvm::None;
+  }
+
+  void SqrtOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+
+  }
+
+  void SqrtOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // MemberCreateOp
+  //===----------------------------------------------------------------------===//
+
+  void MemberCreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // MemberLoadOp
+  //===----------------------------------------------------------------------===//
+
+  void MemberLoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), member(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  mlir::ValueRange MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    auto derivedOp = builder.create<MemberLoadOp>(getLoc(), convertToRealType(result().getType()), derivatives.lookup(member()));
+    return derivedOp->getResults();
+  }
+
+  void MemberLoadOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    toBeDerived.push_back(member());
+  }
+
+  void MemberLoadOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // MemberStoreOp
+  //===----------------------------------------------------------------------===//
+
+  void MemberStoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), member(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  mlir::ValueRange MemberStoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    // Store operations should be derived only if they store a value into
+    // a member whose derivative is created by the current function. Otherwise,
+    // we would create a double store into that derived member.
+
+    assert(derivatives.contains(member()) && "Derived member not found");
+    mlir::Value derivedMember = derivatives.lookup(member());
+
+    if (!derivatives.contains(derivedMember))
+      builder.create<MemberStoreOp>(getLoc(), derivedMember, derivatives.lookup(value()));
+
+    return llvm::None;
+  }
+
+  void MemberStoreOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    toBeDerived.push_back(value());
+    toBeDerived.push_back(member());
+  }
+
+  void MemberStoreOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // CallOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::LogicalResult CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+    // Check that the callee attribute was specified.
+    auto fnAttr = (*this)->getAttrOfType<FlatSymbolRefAttr>("callee");
+
+    if (!fnAttr)
+      return emitOpError("requires a 'callee' symbol reference attribute");
+
+    FuncOp fn = symbolTable.lookupNearestSymbolFrom<FuncOp>(*this, fnAttr);
+    if (!fn)
+      return emitOpError() << "'" << fnAttr.getValue()
+                           << "' does not reference a valid function";
+
+    // Verify that the operand and result types match the callee.
+    auto fnType = fn.getType();
+    if (fnType.getNumInputs() != getNumOperands())
+      return emitOpError("incorrect number of operands for callee");
+
+    for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i)
+      if (getOperand(i).getType() != fnType.getInput(i))
+        return emitOpError("operand type mismatch: expected operand type ")
+            << fnType.getInput(i) << ", but provided "
+            << getOperand(i).getType() << " for operand number " << i;
+
+    if (fnType.getNumResults() != getNumResults())
+      return emitOpError("incorrect number of results for callee");
+
+    for (unsigned i = 0, e = fnType.getNumResults(); i != e; ++i)
+      if (getResult(i).getType() != fnType.getResult(i))
+        return emitOpError("result type mismatch");
+
+    return success();
+  }
+
+
+  void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    // The callee may have no arguments and no results, but still have side
+    // effects (i.e. an external function writing elsewhere). Thus we need to
+    // consider the call itself as if it is has side effects and prevent the
+    // CSE pass to erase it.
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+
+    // TODO
+    llvm_unreachable("Not implemented");
+  }
+
+  mlir::ValueRange CallOp::getArgs()
+  {
+    return operands();
+  }
+
+  unsigned int CallOp::getArgExpectedRank(unsigned int argIndex)
+  {
+    auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+    auto function = module.lookupSymbol<FunctionOp>(callee());
+
+    if (function == nullptr) {
+      // If the function is not declare, then assume that the arguments types
+      // already match its hypothetical signature.
+
+      mlir::Type argType = getArgs()[argIndex].getType();
+
+      if (auto arrayType = argType.dyn_cast<ArrayType>())
+        return arrayType.getRank();
+
+      return 0;
+    }
+
+    mlir::Type argType = function.getArgument(argIndex).getType();
+
+    if (auto arrayType = argType.dyn_cast<ArrayType>())
+      return arrayType.getRank();
+
+    return 0;
+  }
+
+  mlir::ValueRange CallOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+  {
+    llvm::SmallVector<mlir::Type, 3> newResultsTypes;
+
+    for (mlir::Type type : getResultTypes())
+    {
+      mlir::Type newResultType = type.cast<ArrayType>().slice(indexes.size());
+
+      if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+        newResultType = arrayType.getElementType();
+
+      newResultsTypes.push_back(newResultType);
+    }
+
+    llvm::SmallVector<mlir::Value, 3> newArgs;
+
+    for (mlir::Value arg : operands())
+    {
+      assert(arg.getType().isa<ArrayType>());
+      mlir::Value newArg = builder.create<SubscriptionOp>(getLoc(), arg, indexes);
+
+      if (auto arrayType = newArg.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+        newArg = builder.create<LoadOp>(getLoc(), newArg);
+
+      newArgs.push_back(newArg);
+    }
+
+    auto op = builder.create<CallOp>(getLoc(), callee(), newResultsTypes, newArgs);
+    return op->getResults();
+  }
+
+  mlir::LogicalResult CallOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+  {
+    /*
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    if (getNumResults() != 1)
+      return emitError("The callee must have one and only one result");
+
+    if (argumentIndex >= operands().size())
+      return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+
+    if (auto size = currentResult.size(); size != 1)
+      return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+    mlir::Value toNest = currentResult[0];
+
+    auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+    auto callee = module.lookupSymbol<FunctionOp>(this->callee());
+
+    if (!callee->hasAttr("inverse"))
+      return emitError("Function " + callee->getName().getStringRef() + " is not invertible");
+
+    auto inverseAnnotation = callee->getAttrOfType<InverseFunctionsAttr>("inverse");
+
+    if (!inverseAnnotation.isInvertible(argumentIndex))
+      return emitError("Function " + callee->getName().getStringRef() + " is not invertible for argument " + std::to_string(argumentIndex));
+
+    size_t argsSize = operands().size();
+    llvm::SmallVector<mlir::Value, 3> args;
+
+    for (auto arg : inverseAnnotation.getArgumentsIndexes(argumentIndex))
+    {
+      if (arg < argsSize)
+      {
+        args.push_back(this->operands()[arg]);
+      }
+      else
+      {
+        assert(arg == argsSize);
+        args.push_back(toNest);
+      }
+    }
+
+    auto invertedCall = builder.create<CallOp>(getLoc(), inverseAnnotation.getFunction(argumentIndex), this->args()[argumentIndex].getType(), args);
+
+    getResult(0).replaceAllUsesWith(this->operands()[argumentIndex]);
+    erase();
+
+    for (auto& use : toNest.getUses())
+      if (use.getOwner() != invertedCall)
+        use.set(invertedCall.getResult(0));
+
+    return mlir::success();
+     */
+
+    // TODO
+    llvm_unreachable("Not implemented");
+    return mlir::failure();
+  }
+
+  mlir::ValueRange CallOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    /*
+    assert(operands().size() == 1 && resultTypes().size() == 1 &&
+        "CallOp differentiation with multiple arguments or multiple return values is not supported yet");
+
+    llvm::StringRef pderName(getPartialDerFunctionName(callee()));
+    mlir::ModuleOp moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+
+    // Create the partial derivative function if it does not exist already.
+    if (moduleOp.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
+    {
+      FunctionOp base = moduleOp.lookupSymbol<FunctionOp>(callee());
+      assert(base != nullptr);
+      assert(base.argsNames().size() == 1 && base.resultsNames().size() == 1 &&
+          "CallOp differentiation with multiple arguments or multiple return values is not supported yet");
+
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointAfter(base);
+      mlir::Attribute independentVariable = base.argsNames()[0];
+      builder.create<DerFunctionOp>(base.getLoc(), pderName, base.getName(), independentVariable);
+    }
+
+    CallOp pderCall = builder.create<CallOp>(getLoc(), pderName, resultTypes(), args(), movedResults());
+
+    MulOp mulOp = builder.create<MulOp>(getLoc(), resultTypes()[0], derivatives.lookup(args()[0]), pderCall.getResult(0));
+    return mulOp->getResults();
+     */
+
+    // TODO
+    llvm_unreachable("Not implemented");
+    return llvm::None;
+  }
+
+  void CallOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    for (mlir::Value arg : operands()) {
+      toBeDerived.push_back(arg);
+    }
+  }
+
+  void CallOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // Atan2Op
+  //===----------------------------------------------------------------------===//
+
+  mlir::ValueRange Atan2Op::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    // TODO
+    llvm_unreachable("Not implemented");
+  }
+
+  void Atan2Op::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    llvm_unreachable("Not implemented");
+  }
+
+  void Atan2Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // AssignmentOp
+  //===----------------------------------------------------------------------===//
+
+  void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (value().getType().isa<ArrayType>())
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
+
+    if (destination().getType().isa<ArrayType>())
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), value(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  mlir::ValueRange AssignmentOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    mlir::Location loc = getLoc();
+
+    mlir::Value derivedSource = derivatives.lookup(value());
+    mlir::Value derivedDestination = derivatives.lookup(destination());
+
+    auto derivedOp = builder.create<AssignmentOp>(loc, derivedSource, derivedDestination);
+    return llvm::None;
+  }
+
+  void AssignmentOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+
+  }
+
+  void AssignmentOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // AllocaOp
+  //===----------------------------------------------------------------------===//
+
+  void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    populateAllocationEffects(effects, getResult());
+  }
+
+  mlir::ValueRange AllocaOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    return builder.clone(*getOperation())->getResults();
+  }
+
+  void AllocaOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+
+  }
+
+  void AllocaOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
+  // AllocOp
+  //===----------------------------------------------------------------------===//
+
+  void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    bool shouldBeDeallocated = mlir::cast<HeapAllocator>(getOperation()).shouldBeDeallocated();
+    populateAllocationEffects(effects, getResult(), !shouldBeDeallocated);
+  }
+
+  mlir::ValueRange AllocOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    return builder.clone(*getOperation())->getResults();
+  }
+
+  void AllocOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+
+  }
+
+  void AllocOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
   // DerFunctionOp
   //===----------------------------------------------------------------------===//
 
-  llvm::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults() {
+  mlir::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults()
+  {
     auto module = getOperation()->getParentOfType<::mlir::ModuleOp>();
     return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(derivedFunction())).getCallableResults();
   }

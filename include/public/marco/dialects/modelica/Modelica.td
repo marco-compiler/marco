@@ -16,47 +16,47 @@ include "mlir/IR/SymbolInterfaces.td"
 //===----------------------------------------------------------------------===//
 
 // Modelica Boolean type
-def Boolean : Type<CPred<"$_self.isa<::mlir::modelica::BooleanType>()">,
-                   "boolean", "::mlir::modelica::BooleanType">;
+def ModelicaBoolean : Type<CPred<"$_self.isa<::mlir::modelica::BooleanType>()">,
+                           "boolean", "::mlir::modelica::BooleanType">;
 
 // Modelica Boolean attribute
-def BooleanAttr : Attr<CPred<"$_self.isa<::mlir::modelica::BoolAttr>()">, "boolean attribute"> {
+def ModelicaBooleanAttr : Attr<CPred<"$_self.isa<::mlir::modelica::BoolAttr>()">, "boolean attribute"> {
   let storageType = [{ ::mlir::modelica::BoolAttr }];
   let returnType = [{ bool }];
-  let valueType = Boolean;
+  let valueType = ModelicaBoolean;
   let constBuilderCall = "::mlir::modelica::BooleanAttr::get($_builder.getContext(), $0)";
 }
 
 // Modelica Integer type
-def Integer : Type<CPred<"$_self.isa<::mlir::modelica::IntegerType>()">,
-                   "integer", "::mlir::modelica::IntegerType">;
+def ModelicaInteger : Type<CPred<"$_self.isa<::mlir::modelica::IntegerType>()">,
+                                 "integer", "::mlir::modelica::IntegerType">;
 
 // Modelica Integer attribute
-def IntegerAttr : Attr<CPred<"$_self.isa<::mlir::modelica::IntegerAttr>()">, "integer attribute"> {
+def ModelicaIntegerAttr : Attr<CPred<"$_self.isa<::mlir::modelica::IntegerAttr>()">, "integer attribute"> {
   let storageType = [{ ::mlir::modelica::IntegerAttr }];
   let returnType = [{ long }];
-  let valueType = Integer;
+  let valueType = ModelicaInteger;
   let constBuilderCall = "::mlir::modelica::IntegerAttr::get($_builder.getContext(), $0)";
 }
 
 // Modelica Real type
-def Real : Type<CPred<"$_self.isa<::mlir::modelica::RealType>()">,
-                "real", "::mlir::modelica::RealType">;
+def ModelicaReal : Type<CPred<"$_self.isa<::mlir::modelica::RealType>()">,
+                        "real", "::mlir::modelica::RealType">;
 
 // Modelica Real attribute
-def RealAttr : Attr<CPred<"$_self.isa<::mlir::modelica::RealAttr>()">, "real attribute"> {
+def ModelicaRealAttr : Attr<CPred<"$_self.isa<::mlir::modelica::RealAttr>()">, "real attribute"> {
   let storageType = [{ ::mlir::modelica::RealAttr }];
   let returnType = [{ double }];
-  let valueType = Real;
+  let valueType = ModelicaReal;
   let constBuilderCall = "::mlir::modelica::RealAttr::get($_builder.getContext(), $0)";
 }
 
 // Modelica Array type
-def Array : Type<CPred<"$_self.isa<::mlir::modelica::ArrayType>()">,
-                "array", "::mlir::modelica::ArrayType">;
+def ModelicaArray : Type<CPred<"$_self.isa<::mlir::modelica::ArrayType>()">,
+                         "array", "::mlir::modelica::ArrayType">;
 
 // Modelica-compatible scalar type
-def AnyScalar : AnyTypeOf<[Boolean, Integer, Real, Index]>;
+def AnyModelicaScalar : AnyTypeOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
 // Whether a type is an ArrayType.
 def IsArrayTypePred : CPred<"$_self.isa<::mlir::modelica::ArrayType>()">;
@@ -67,7 +67,7 @@ class ArrayOf<list<Type> allowedTypes> :
                   "$_self.cast<::mlir::modelica::ArrayType>().getElementType()",
                   "array", "::mlir::modelica::ArrayType">;
 
-def AnyArray : ArrayOf<[Boolean, Integer, Real, Index, Array]>;
+def AnyArray : ArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray]>;
 
 // Whether a type is a MemberType.
 def IsMemberTypePred : CPred<"$_self.isa<::mlir::modelica::MemberType>()">;
@@ -78,7 +78,7 @@ class MemberOf<list<Type> allowedTypes> :
                   "$_self.cast<::mlir::modelica::MemberType>().getElementType()",
                   "member", "::mlir::modelica::MemberType">;
 
-def AnyMember : MemberOf<[Boolean, Integer, Real]>;
+def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal]>;
 
 //===----------------------------------------------------------------------===//
 // Modelica operation definitions
@@ -170,7 +170,7 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
 }
 
 def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
-    [DeclareOpInterfaceMethods<ViewLikeOpInterface>]>
+    [ViewLikeOpInterface]>
 {
     let summary = "Cast operation for array types.";
 
@@ -221,7 +221,7 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
             return result().getType().cast<ArrayType>();
         }
 
-        ::mlir::Value getViewSources() {
+        ::mlir::Value getViewSource() {
             return source();
         }
     }];
@@ -615,6 +615,32 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     let verifier = [{ return ::verify(*this); }];
 }
 
+def Modelica_NegateOp : Modelica_Op<"neg",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<InvertibleOpInterface>,
+    DeclareOpInterfaceMethods<DistributableOpInterface>,
+    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Negation operation.";
+
+    let description = [{
+        The operation takes one argument and returns the value with
+        the opposite sign.
+    }];
+
+    let arguments = (ins AnyType:$operand);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $operand  attr-dict `:` type($operand) `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
 def Modelica_AddOp : Modelica_Op<"add",
     [Commutative,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
@@ -624,13 +650,20 @@ def Modelica_AddOp : Modelica_Op<"add",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Sum two values.";
+    let summary = "Sum of two values.";
 
     let description = [{
         The operation computes the sum of two values.
-        It takes two operands and returns one result. The type of the operands can
-        be different but yet must be shape-compatible. Also array values are allowed,
-        and in this case the result must have the same shape as the operands.
+        It takes two operands and returns one result. Array operands are also allowed,
+        but they must respect the Modelica specification.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = ... : !modelica.real
+        %2 = modelica.add %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -644,17 +677,27 @@ def Modelica_AddOp : Modelica_Op<"add",
 }
 
 def Modelica_AddEWOp : Modelica_Op<"add_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [Commutative,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<InvertibleOpInterface>,
     DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
     DeclareOpInterfaceMethods<MulOpDistributionInterface>,
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Element-wise sum of two values.";
 
     let description = [{
-        TODO
+        The operation computes the element-wise sum of a scalar and an array value.
+        It takes two operands and returns one result.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.array<?x!modelica.int>
+        %1 = ... : !modelica.real
+        %2 = modelica.add %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.real) -> !modelica.array<?x!modelica.real>
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -662,171 +705,6 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
 
     let assemblyFormat = [{
         $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_DivOp : Modelica_Op<"div",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<InvertibleOpInterface>,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_DivEWOp : Modelica_Op<"div_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<InvertibleOpInterface>,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_MulOp : Modelica_Op<"mul",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<InvertibleOpInterface>,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_MulEWOp : Modelica_Op<"mul_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<InvertibleOpInterface>,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_NegateOp : Modelica_Op<"neg",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<InvertibleOpInterface>,
-    DeclareOpInterfaceMethods<DistributableOpInterface>,
-    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
-    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $operand  attr-dict `:` type($operand) `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_PowOp : Modelica_Op<"pow",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$base, AnyType:$exponent);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-}
-
-def Modelica_PowEWOp : Modelica_Op<"pow_ew",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$base, AnyType:$exponent);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -880,6 +758,160 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     let verifier = [{ return ::verify(*this); }];
 }
 
+def Modelica_MulOp : Modelica_Op<"mul",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<InvertibleOpInterface>,
+    DeclareOpInterfaceMethods<DistributableOpInterface>,
+    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Multiplication of two values.";
+
+    let description = [{
+        The operation computes the product of two values.
+        It takes two operands and returns one result. Array operands are also allowed,
+        but they must respect the Modelica specification.
+    }];
+
+    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
+def Modelica_MulEWOp : Modelica_Op<"mul_ew",
+    [Commutative,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<InvertibleOpInterface>,
+    DeclareOpInterfaceMethods<DistributableOpInterface>,
+    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
+
+def Modelica_DivOp : Modelica_Op<"div",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<InvertibleOpInterface>,
+    DeclareOpInterfaceMethods<DistributableOpInterface>,
+    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Division between two values.";
+
+    let description = [{
+        The operation computes the division between two values.
+        It takes two operands and returns one result. Array operands are also allowed,
+        but they must respect the Modelica specification.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = ... : !modelica.real
+        %2 = modelica.div %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
+        ```
+    }];
+
+    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
+def Modelica_DivEWOp : Modelica_Op<"div_ew",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<InvertibleOpInterface>,
+    DeclareOpInterfaceMethods<DistributableOpInterface>,
+    DeclareOpInterfaceMethods<NegateOpDistributionInterface>,
+    DeclareOpInterfaceMethods<MulOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DivOpDistributionInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins AnyType:$lhs, AnyType:$rhs);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
+def Modelica_PowOp : Modelica_Op<"pow",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins AnyType:$base, AnyType:$exponent);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
+def Modelica_PowEWOp : Modelica_Op<"pow_ew",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins AnyType:$base, AnyType:$exponent);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
+    }];
+
+    let verifier = [{ return ::verify(*this); }];
+}
+
 //===----------------------------------------------------------------------===//
 // Comparison operations
 //===----------------------------------------------------------------------===//
@@ -888,10 +920,10 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
 class Modelica_ComparisonOp<string mnemonic, list<OpTrait> traits = []> :
     Modelica_Op<mnemonic, traits> {
     let arguments = (ins
-        AnyScalar:$lhs,
-        AnyScalar:$rhs);
+        AnyModelicaScalar:$lhs,
+        AnyModelicaScalar:$rhs);
 
-    let results = (outs AnyScalar:$result);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
@@ -1488,7 +1520,7 @@ def Modelica_ArrayMaxOp : Modelica_Op<"array_max", []>
     }];
 
     let arguments = (ins AnyArray:$array);
-    let results = (outs AnyScalar:$result);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $array attr-dict `:` type($array) `->` type($result)
@@ -1511,8 +1543,8 @@ def Modelica_MaxOp : Modelica_Op<"max", []>
         ```
     }];
 
-    let arguments = (ins AnyScalar:$first, AnyScalar:$second);
-    let results = (outs AnyScalar:$result);
+    let arguments = (ins AnyModelicaScalar:$first, AnyModelicaScalar:$second);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $first `,` $second attr-dict `:` `(` type($first) `,` type($second) `->` type($result)
@@ -1535,7 +1567,7 @@ def Modelica_ArrayMinOp : Modelica_Op<"array_min", []>
     }];
 
     let arguments = (ins AnyArray:$array);
-    let results = (outs AnyScalar:$result);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $array attr-dict `:` type($array) `->` type($result)
@@ -1558,8 +1590,8 @@ def Modelica_MinOp : Modelica_Op<"min", []>
         ```
     }];
 
-    let arguments = (ins AnyScalar:$first, AnyScalar:$second);
-    let results = (outs AnyScalar:$result);
+    let arguments = (ins AnyModelicaScalar:$first, AnyModelicaScalar:$second);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $first `,` $second attr-dict `:` `(` type($first) `,` type($second) `->` type($result)
@@ -1583,14 +1615,12 @@ def Modelica_NDimsOp : Modelica_Op<"ndims", []>
         ```
     }];
 
-    let arguments = (ins AnyType:$array);
-    let results = (outs AnyType:$result);
+    let arguments = (ins AnyArray:$array);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $array attr-dict `:` type($array) `->` type($result)
     }];
-
-    let verifier = [{ return ::verify(*this); }];
 }
 
 def Modelica_OnesOp : Modelica_Op<"ones",
@@ -2331,7 +2361,7 @@ def Modelica_DerFunctionOp : Modelica_Op<"der_function",
         }
 
         /// Returns the results types that the callable region produces when executed.
-        ArrayRef<Type> getCallableResults();
+        ::mlir::ArrayRef<::mlir::Type> getCallableResults();
 
         //===------------------------------------------------------------------===//
         // SymbolOpInterface Methods
@@ -2406,7 +2436,7 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
         TODO
     }];
 
-    let arguments = (ins Boolean:$condition);
+    let arguments = (ins ModelicaBoolean:$condition);
     let results = (outs);
 
     let assemblyFormat = [{
@@ -2542,8 +2572,8 @@ def Modelica_CastOp : Modelica_Op<"cast", []>
         ```
     }];
 
-    let arguments = (ins AnyScalar:$value);
-    let results = (outs AnyScalar:$result);
+    let arguments = (ins AnyModelicaScalar:$value);
+    let results = (outs AnyModelicaScalar:$result);
 
     let assemblyFormat = [{
         $value attr-dict `:` type($value) `->` type($result)

@@ -17,5 +17,6 @@ add_mlir_dialect_library(MLIRModelica SHARED
     LINK_LIBS PUBLIC
     MLIRIR
     MLIRSupport
+    MLIRCallInterfaces
     MLIRControlFlowInterfaces
     MLIRSideEffectInterfaces)
