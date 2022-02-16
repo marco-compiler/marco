@@ -13,7 +13,7 @@ class Modelica_Attr<string name, string attrMnemonic>
     let mnemonic = attrMnemonic;
 }
 
-def BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
+def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
     let summary = "Modelica's Boolean attribute";
 
     let description = [{
@@ -52,7 +52,7 @@ def BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
     }];
 }
 
-def IntegerAttr : Modelica_Attr<"Integer", "int"> {
+def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
     let summary = "Modelica's Integer attribute";
 
     let description = [{
@@ -85,7 +85,7 @@ def IntegerAttr : Modelica_Attr<"Integer", "int"> {
     }];
 }
 
-def RealAttr : Modelica_Attr<"Real", "real"> {
+def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
     let summary = "Modelica's Real attribute";
 
     let description = [{
@@ -118,9 +118,7 @@ def RealAttr : Modelica_Attr<"Real", "real"> {
     }];
 }
 
-def InverseFunctionsMap;
-
-def InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {
+def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {
     let summary = "Modelica's Real attribute";
 
     let description = [{
@@ -130,7 +128,7 @@ def InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {
     let parameters = (ins SelfAllocationParameter<"InverseFunctionsMap", "Inverse functions map">:$inverseFunctionsMap);
 }
 
-def DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {
+def Modelica_DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {
     let summary = "Modelica's Real attribute";
 
     let description = [{

@@ -1,5 +1,6 @@
 #include "marco/dialects/modelica/ModelicaDialect.h"
 #include "marco/dialects/modelica/Ops.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
 
 using namespace ::mlir;
@@ -89,6 +90,36 @@ static mlir::LogicalResult verify(AddEWOp op)
   return mlir::success();
 }
 
+static mlir::LogicalResult verify(AllocOp op)
+{
+  auto dynamicDimensionsAmount = op.getArrayType().getDynamicDimensionsCount();
+  auto valuesAmount = op.dynamicSizes().size();
+
+  if (dynamicDimensionsAmount != valuesAmount) {
+    return op.emitOpError(
+        "incorrect number of values for dynamic dimensions (expected " +
+        std::to_string(dynamicDimensionsAmount) + ", got " +
+        std::to_string(valuesAmount) + ")");
+  }
+
+  return mlir::success();
+}
+
+static mlir::LogicalResult verify(AllocaOp op)
+{
+  auto dynamicDimensionsAmount = op.getArrayType().getDynamicDimensionsCount();
+  auto valuesAmount = op.dynamicSizes().size();
+
+  if (dynamicDimensionsAmount != valuesAmount) {
+    return op.emitOpError(
+        "incorrect number of values for dynamic dimensions (expected " +
+            std::to_string(dynamicDimensionsAmount) + ", got " +
+            std::to_string(valuesAmount) + ")");
+  }
+
+  return mlir::success();
+}
+
 static mlir::LogicalResult verify(AndOp op)
 {
   return mlir::success();
@@ -159,11 +190,6 @@ static mlir::LogicalResult verify(DivEWOp op)
   return mlir::success();
 }
 
-static mlir::LogicalResult verify(EqOp op)
-{
-  return mlir::success();
-}
-
 static mlir::LogicalResult verify(ExpOp op)
 {
   return mlir::success();
@@ -175,16 +201,6 @@ static mlir::LogicalResult verify(ArrayFillOp op)
 }
 
 static mlir::LogicalResult verify(FreeOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(GtOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(GteOp op)
 {
   return mlir::success();
 }
@@ -223,16 +239,6 @@ static mlir::LogicalResult verify(Log10Op op)
   return mlir::success();
 }
 
-static mlir::LogicalResult verify(LtOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(LteOp op)
-{
-  return mlir::success();
-}
-
 static mlir::LogicalResult verify(MulOp op)
 {
   return mlir::success();
@@ -254,11 +260,6 @@ static mlir::LogicalResult verify(NegateOp op)
 }
 
 static mlir::LogicalResult verify(NotOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(NotEqOp op)
 {
   return mlir::success();
 }
@@ -382,6 +383,15 @@ static mlir::LogicalResult verify(ZerosOp op)
 
 namespace mlir::modelica
 {
+  //===----------------------------------------------------------------------===//
+  // DerFunctionOp
+  //===----------------------------------------------------------------------===//
+
+  llvm::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults() {
+    auto module = getOperation()->getParentOfType<::mlir::ModuleOp>();
+    return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(derivedFunction())).getCallableResults();
+  }
+
   //===----------------------------------------------------------------------===//
   // AbsOp
   //===----------------------------------------------------------------------===//
@@ -785,11 +795,6 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // ArrayCastOp
   //===----------------------------------------------------------------------===//
-
-  mlir::Value ArrayCastOp::getViewSource()
-  {
-    return array();
-  }
 
   //===----------------------------------------------------------------------===//
   // ArrayCloneOp
@@ -2820,11 +2825,6 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // SubscriptionOp
   //===----------------------------------------------------------------------===//
-
-  mlir::Value SubscriptionOp::getViewSource()
-  {
-
-  }
 
   mlir::ValueRange SubscriptionOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
