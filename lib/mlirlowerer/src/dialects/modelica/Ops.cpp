@@ -342,6 +342,7 @@ void SimulationOp::print(mlir::OpAsmPrinter& printer)
 					<< "start: " << startTime().getValue()
 					<< ", end: " << endTime().getValue()
 					<< ", step: " << timeStep().getValue()
+					<< ", variables: " << variableNames()
 					<< ", relTol: " << relTol().getValue()
 					<< ", absTol: " << absTol().getValue() << ")";
 

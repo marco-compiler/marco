@@ -2137,23 +2137,23 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if ((var->isState() && !var->isTime()) || (!var->isTrivial() && !var->isDerivative()))
 				vectorVarNumber++;
 
-		mlir::Value scalarEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(scalarEqNumber));
-		mlir::Value vectorEqValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(vectorEqNumber));
-		mlir::Value vectorVarValue = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(vectorVarNumber));
+		mlir::Value scalarEqValue = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(scalarEqNumber));
+		mlir::Value vectorEqValue = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(vectorEqNumber));
+		mlir::Value vectorVarValue = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(vectorVarNumber));
 		mlir::Value userData = builder.create<AllocDataOp>(loc, scalarEqValue, vectorEqValue, vectorVarValue);
 
 		// Add start time, end time and time step.
-		mlir::Value startTime = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.startTime().getValue()));
-		mlir::Value endTime = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.endTime().getValue()));
+		mlir::Value startTime = builder.create<ConstantOp>(loc, builder.getRealAttribute(simulationOp.startTime().getValue()));
+		mlir::Value endTime = builder.create<ConstantOp>(loc, builder.getRealAttribute(simulationOp.endTime().getValue()));
 
 		double timeStepValue = options.equidistantTimeGrid ? simulationOp.timeStep().getValue() : -1;
-		mlir::Value timeStep = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(timeStepValue));
+		mlir::Value timeStep = builder.create<ConstantOp>(loc, builder.getRealAttribute(timeStepValue));
 
 		builder.create<AddTimeOp>(loc, userData, startTime, endTime, timeStep);
 
 		// Add relative and absolute tolerances.
-		mlir::Value relTol = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.relTol().getValue()));
-		mlir::Value absTol = builder.create<ConstantValueOp>(loc, builder.getRealAttribute(simulationOp.absTol().getValue()));
+		mlir::Value relTol = builder.create<ConstantOp>(loc, builder.getRealAttribute(simulationOp.relTol().getValue()));
+		mlir::Value absTol = builder.create<ConstantOp>(loc, builder.getRealAttribute(simulationOp.absTol().getValue()));
 		builder.create<AddToleranceOp>(loc, userData, relTol, absTol);
 
 		// Initialize IDA user data.
@@ -2175,12 +2175,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			// Initialize variableOffset, variableDimensions, derivativesValues and idValues inside IDA.
 			loc = var->getReference().getLoc();
-			mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableOffset));
-			mlir::Value isState = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var->isState() || var->isDerivative()));
+			mlir::Value varOffsetOp = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(variableOffset));
+			mlir::Value isState = builder.create<ConstantOp>(loc, builder.getBooleanAttribute(var->isState() || var->isDerivative()));
 			builder.create<AddVariableOp>(loc, userData, varOffsetOp, var->isDerivative() ? var->getState() : var->getReference(), isState);
 
 			// Store the variable index and offset.
-			mlir::Value varIndex = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(variableCount++));
+			mlir::Value varIndex = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(variableCount++));
 			var->setIdaOffset(variableOffset);
 			var->setIdaIndex(varIndex);
 
@@ -2298,8 +2298,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			// Replace the AllocOp of variables and derivatives with the memory allocated by IDA.
 			builder.setInsertionPoint(var->getReference().getDefiningOp());
-			mlir::Value offset = builder.create<ConstantValueOp>(loc, builder.getIntegerAttribute(var->getIdaOffset()));
-			mlir::Value isDer = builder.create<ConstantValueOp>(loc, builder.getBooleanAttribute(var->isDerivative()));
+			mlir::Value offset = builder.create<ConstantOp>(loc, builder.getIntegerAttribute(var->getIdaOffset()));
+			mlir::Value isDer = builder.create<ConstantOp>(loc, builder.getBooleanAttribute(var->isDerivative()));
 			mlir::Value getVarAlloc = builder.create<GetVariableAllocOp>(loc, userData, offset, isDer, var->getReference().getType());
 
 			var->getReference().replaceAllUsesWith(getVarAlloc);

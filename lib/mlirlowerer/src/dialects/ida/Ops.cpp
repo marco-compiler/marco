@@ -15,15 +15,6 @@ using namespace ida;
 
 namespace marco::codegen::ida
 {
-	static bool isNumeric(mlir::Type type)
-	{
-		return type.isa<IntegerType, RealType>();
-	}
-
-	static bool isNumeric(mlir::Value value)
-	{
-		return isNumeric(value.getType());
-	}
 
 	static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result, int operandsNum)
 	{
@@ -290,55 +281,6 @@ namespace marco::codegen::ida
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::ConstantValueOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> ConstantValueOp::getAttributeNames()
-{
-	static llvm::StringRef attrNames[] = {llvm::StringRef("value")};
-	return llvm::makeArrayRef(attrNames);
-}
-
-void ConstantValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute attribute)
-{
-	state.addAttribute("value", attribute);
-	state.addTypes(attribute.getType());
-}
-
-mlir::ParseResult ConstantValueOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	mlir::Attribute value;
-
-	if (parser.parseAttribute(value))
-		return mlir::failure();
-
-	result.attributes.append("value", value);
-	result.addTypes(value.getType());
-	return mlir::success();
-}
-
-void ConstantValueOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << getOperationName() << " " << value();
-}
-
-mlir::OpFoldResult ConstantValueOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
-{
-	assert(operands.empty() && "constant has no operands");
-	return value();
-}
-
-mlir::Attribute ConstantValueOp::value()
-{
-	return getOperation()->getAttr("value");
-}
-
-mlir::Type ConstantValueOp::resultType()
-{
-	return getOperation()->getResultTypes()[0];
-}
-
-//===----------------------------------------------------------------------===//
 // Ida::AllocDataOp
 //===----------------------------------------------------------------------===//
 
@@ -602,8 +544,14 @@ mlir::LogicalResult AddTimeOp::verify()
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!isNumeric(start()) || !isNumeric(end()) || !isNumeric(step()))
-		return emitOpError("Requires start, end and step time to be numbers");
+	if (!start().getType().isa<RealType>())
+		return emitOpError("Requires start time to be a real number");
+
+	if (!end().getType().isa<RealType>())
+		return emitOpError("Requires end time to be a real number");
+
+	if (!step().getType().isa<RealType>())
+		return emitOpError("Requires time step to be a real number");
 
 	return mlir::success();
 }
@@ -669,8 +617,11 @@ mlir::LogicalResult AddToleranceOp::verify()
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!isNumeric(relTol()) || !isNumeric(absTol()))
-		return emitOpError("Requires relative and absolute tolerances to be numbers");
+	if (!relTol().getType().isa<RealType>())
+		return emitOpError("Requires relative tolerance to be a real number");
+
+	if (!absTol().getType().isa<RealType>())
+		return emitOpError("Requires absolute tolerance to be a real number");
 
 	return mlir::success();
 }
@@ -947,6 +898,73 @@ mlir::Value AddVariableOp::isState()
 }
 
 //===----------------------------------------------------------------------===//
+// Ida::AddVarAccessOp
+//===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddVarAccessOp::getAttributeNames()
+{
+	return {};
+}
+
+void AddVarAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value access)
+{
+	state.addOperands(userData);
+	state.addOperands(variable);
+	state.addOperands(access);
+}
+
+mlir::ParseResult AddVarAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return ida::parse(parser, result, 3);
+}
+
+void AddVarAccessOp::print(mlir::OpAsmPrinter& printer)
+{
+	ida::print(printer, getOperationName(), args());
+}
+
+mlir::LogicalResult AddVarAccessOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!variable().getType().isa<IntegerType>())
+		return emitOpError("Requires variable index to be an integer");
+
+	if (!access().getType().isa<ArrayType>() ||
+			!access().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
+		return emitOpError("Requires variable access to be an array of integers");
+
+	return mlir::success();
+}
+
+void AddVarAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), access(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AddVarAccessOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddVarAccessOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddVarAccessOp::variable()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddVarAccessOp::access()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
 // Ida::GetVariableAllocOp
 //===----------------------------------------------------------------------===//
 
@@ -1016,73 +1034,6 @@ mlir::Value GetVariableAllocOp::offset()
 }
 
 mlir::Value GetVariableAllocOp::isDer()
-{
-	return getOperation()->getOperand(2);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::AddVarAccessOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> AddVarAccessOp::getAttributeNames()
-{
-	return {};
-}
-
-void AddVarAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value access)
-{
-	state.addOperands(userData);
-	state.addOperands(variable);
-	state.addOperands(access);
-}
-
-mlir::ParseResult AddVarAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 3);
-}
-
-void AddVarAccessOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult AddVarAccessOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!variable().getType().isa<IntegerType>())
-		return emitOpError("Requires variable index to be an integer");
-
-	if (!access().getType().isa<ArrayType>() ||
-			!access().getType().cast<ArrayType>().getElementType().isa<IntegerType>())
-		return emitOpError("Requires variable access to be an array of integers");
-
-	return mlir::success();
-}
-
-void AddVarAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-	effects.emplace_back(mlir::MemoryEffects::Read::get(), access(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange AddVarAccessOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddVarAccessOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddVarAccessOp::variable()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value AddVarAccessOp::access()
 {
 	return getOperation()->getOperand(2);
 }
