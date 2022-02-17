@@ -349,6 +349,11 @@ def emit_ast : Flag<["--"], "emit-ast">,
     Group<Action_Group>,
     HelpText<"Emit AST">;
 
+def emit_final_ast : Flag<["--"], "emit-final-ast">,
+    Flags<[MC1Option]>,
+    Group<Action_Group>,
+    HelpText<"Emit the final AST, after the frontend passes.">;
+
 def emit_modelica_dialect : Flag<["--"], "emit-modelica-dialect">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
