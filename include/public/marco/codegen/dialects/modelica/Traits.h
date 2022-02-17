@@ -815,4 +815,60 @@ namespace marco::codegen::modelica
 			getImpl()->setAsManuallyFreed(getOperation());
 		}
 	};
+
+	namespace detail
+	{
+		struct FoldableOpTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual void foldConstants(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				void foldConstants(mlir::Operation* op, mlir::OpBuilder& builder) const final
+				{
+					mlir::cast<ConcreteOp>(op).foldConstants(builder);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				void foldConstants(mlir::Operation* op, mlir::OpBuilder& builder) const final
+				{
+					mlir::cast<ConcreteOp>(op).foldConstants(builder);
+				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
+			};
+		};
+	}
+
+	class FoldableOpInterface : public mlir::OpInterface<FoldableOpInterface, detail::FoldableOpTraits>
+	{
+		public:
+		using OpInterface<FoldableOpInterface, detail::FoldableOpTraits>::OpInterface;
+
+		void foldConstants(mlir::OpBuilder& builder)
+		{
+			getImpl()->foldConstants(getOperation(), builder);
+		}
+	};
 }

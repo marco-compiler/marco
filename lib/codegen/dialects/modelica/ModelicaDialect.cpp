@@ -64,7 +64,7 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
-	addTypes<BooleanType, IntegerType, RealType, MemberType, ArrayType, UnsizedArrayType, OpaquePointerType, StructType>();
+	addTypes<BooleanType, IntegerType, RealType, MemberType, ArrayType, UnsizedArrayType, StructType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, DerivativeAttribute, InverseFunctionsAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 

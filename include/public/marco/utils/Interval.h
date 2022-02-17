@@ -15,7 +15,7 @@ namespace marco
 		public:
 		explicit Interval(size_t min, size_t max): minVal(min), maxVal(max)
 		{
-			assert(min < max);
+			assert((long)min < (long)max);
 		}
 		Interval(std::initializer_list<size_t> list)
 		{
@@ -106,9 +106,23 @@ namespace marco
 		{
 			return contains({ coordinates... });
 		}
+
+		[[nodiscard]] Interval& at(size_t index)
+		{
+			return intervals[index];
+		}
 		[[nodiscard]] const Interval& at(size_t index) const
 		{
 			return intervals[index];
+		}
+
+		[[nodiscard]] Interval& operator[](size_t index)
+		{
+			return at(index);
+		}
+		[[nodiscard]] const Interval& operator[](size_t index) const
+		{
+			return at(index);
 		}
 
 		[[nodiscard]] bool contains(const MultiDimInterval& other) const

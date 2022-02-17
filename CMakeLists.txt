@@ -234,3 +234,35 @@ add_library(boost INTERFACE)
 target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIRS})
 target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
 target_compile_features(boost INTERFACE cxx_std_17)
+
+##############################
+###        SUNDIALS        ###
+##############################
+set(SUNDIALS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sundials_libraries/install"
+	CACHE PATH "Path to sundials_libraries/install folder")
+set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_DIR}/include)
+set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_DIR}/lib)
+
+find_library(SUNDIALS_SOLVER_LIB sundials_ida ${SUNDIALS_LIBRARY_DIR})
+find_library(SUNDIALS_NVEC_LIB sundials_nvecserial ${SUNDIALS_LIBRARY_DIR})
+find_library(SUNDIALS_MANYVEC_LIB sundials_nvecmanyvector ${SUNDIALS_LIBRARY_DIR})
+find_library(SUNDIALS_SUNLINSOLKLU_LIB sundials_sunlinsolklu ${SUNDIALS_LIBRARY_DIR})
+
+add_library(sundials INTERFACE)
+target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIR})
+target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIRS})
+target_link_libraries(sundials INTERFACE
+	${SUNDIALS_SOLVER_LIB}
+	${SUNDIALS_NVEC_LIB}
+	${SUNDIALS_MANYVEC_LIB}
+	${SUNDIALS_SUNLINSOLKLU_LIB})
+
+install(TARGETS sundials EXPORT sundialsTargets
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	RUNTIME DESTINATION bin
+	INCLUDES DESTINATION include)
+
+install(EXPORT sundialsTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
+	FILE sundialsTargets.cmake
+	NAMESPACE marco::)

@@ -134,7 +134,6 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 	{
 		ClassType classType = ClassType::Model;
 
-		bool partial = accept(Token::PartialKeyword);
 		bool op = accept(Token::OperatorKeyword);
 		bool pure = true;
 
@@ -494,7 +493,7 @@ llvm::Error Parser::equationSection(llvm::SmallVectorImpl<std::unique_ptr<Equati
 		if (current == Token::ForKeyword)
 		{
 			if (auto error = forEquation(forEquations, 0); error)
-				return std::move(error);
+				return error;
 		}
 		else
 		{
@@ -794,7 +793,7 @@ llvm::Error Parser::forEquation(llvm::SmallVectorImpl<std::unique_ptr<ForEquatio
 		llvm::SmallVector<std::unique_ptr<ForEquation>, 3> inner;
 
 		if (auto error = forEquationBody(inner, nestingLevel + 1); error)
-			return std::move(error);
+			return error;
 
 		for (auto& equation : inner)
 		{
@@ -821,7 +820,7 @@ llvm::Error Parser::forEquationBody(llvm::SmallVectorImpl<std::unique_ptr<ForEqu
 	}
 
 	if (auto error = forEquation(equations, nestingLevel); error)
-		return std::move(error);
+		return error;
 
 	return llvm::Error::success();
 }

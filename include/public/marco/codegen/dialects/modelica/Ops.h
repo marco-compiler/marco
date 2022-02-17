@@ -159,6 +159,7 @@ namespace marco::codegen::modelica
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
+    static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, RealAttribute relTol, RealAttribute absTol, mlir::TypeRange vars);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -169,6 +170,8 @@ namespace marco::codegen::modelica
 		RealAttribute startTime();
 		RealAttribute endTime();
 		RealAttribute timeStep();
+		RealAttribute relTol();
+		RealAttribute absTol();
 
 		mlir::Region& init();
 		mlir::Region& body();
@@ -1869,7 +1872,8 @@ namespace marco::codegen::modelica
 																	NegateOpDistributionInterface::Trait,
 																	MulOpDistributionInterface::Trait,
 																	DivOpDistributionInterface::Trait,
-																	DerivativeInterface::Trait>
+																	DerivativeInterface::Trait,
+																	FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1897,6 +1901,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -1926,7 +1932,8 @@ namespace marco::codegen::modelica
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
 															 DivOpDistributionInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1953,6 +1960,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2011,6 +2020,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -2039,7 +2050,8 @@ namespace marco::codegen::modelica
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
 															 DivOpDistributionInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2066,6 +2078,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2123,6 +2137,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -2152,7 +2168,8 @@ namespace marco::codegen::modelica
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
 															 DivOpDistributionInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2180,6 +2197,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2239,6 +2258,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -2268,7 +2289,8 @@ namespace marco::codegen::modelica
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
 															 DivOpDistributionInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2296,6 +2318,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2379,7 +2403,8 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::NOperands<2>::Impl,
 															 mlir::OpTrait::OneResult,
 															 mlir::MemoryEffectOpInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2401,6 +2426,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value base();
@@ -2470,7 +2497,9 @@ namespace marco::codegen::modelica
 	class AbsOp : public mlir::Op<AbsOp,
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
-															 VectorizableOpInterface::Trait>
+															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2489,6 +2518,12 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2511,7 +2546,9 @@ namespace marco::codegen::modelica
 	class SignOp : public mlir::Op<SignOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2530,6 +2567,12 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2552,7 +2595,9 @@ namespace marco::codegen::modelica
 	class SqrtOp : public mlir::Op<SqrtOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2571,6 +2616,12 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2594,7 +2645,8 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
 															 VectorizableOpInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2618,6 +2670,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2640,7 +2694,8 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
 															 VectorizableOpInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2664,6 +2719,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2686,7 +2743,8 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
 															 VectorizableOpInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2710,6 +2768,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2732,7 +2792,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
-																DerivativeInterface::Trait>
+																DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2756,6 +2817,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2778,7 +2841,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
-																DerivativeInterface::Trait>
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2802,6 +2866,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2824,7 +2890,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
-																DerivativeInterface::Trait>
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2848,6 +2915,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2870,7 +2939,9 @@ namespace marco::codegen::modelica
 	class Atan2Op : public mlir::Op<Atan2Op,
 																 mlir::OpTrait::NOperands<2>::Impl,
 																 mlir::OpTrait::OneResult,
-																 VectorizableOpInterface::Trait>
+																 VectorizableOpInterface::Trait,
+																 DerivativeInterface::Trait,
+																 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2889,6 +2960,12 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value y();
@@ -2913,7 +2990,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
-																DerivativeInterface::Trait>
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2937,6 +3015,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -2959,7 +3039,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
-																DerivativeInterface::Trait>
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2983,6 +3064,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -3005,7 +3088,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
-																DerivativeInterface::Trait>
+																DerivativeInterface::Trait,
+																FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -3029,6 +3113,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -3051,7 +3137,8 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
 															 VectorizableOpInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -3075,6 +3162,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value exponent();
 	};
@@ -3097,7 +3186,8 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
 															 VectorizableOpInterface::Trait,
-															 DerivativeInterface::Trait>
+															 DerivativeInterface::Trait,
+															 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -3121,6 +3211,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value operand();
 	};
@@ -3143,7 +3235,8 @@ namespace marco::codegen::modelica
 																 mlir::OpTrait::OneOperand,
 																 mlir::OpTrait::OneResult,
 																 VectorizableOpInterface::Trait,
-																 DerivativeInterface::Trait>
+																 DerivativeInterface::Trait,
+																 FoldableOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -3166,6 +3259,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value operand();

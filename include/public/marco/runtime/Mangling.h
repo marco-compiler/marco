@@ -1,8 +1,13 @@
 #ifndef MARCO_RUNTIME_MANGLING_H
 #define MARCO_RUNTIME_MANGLING_H
 
-#define NUM_ARGS_H1(dummy, x6, x5, x4, x3, x2, x1, x0, ...) x0
-#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 6, 5, 4, 3, 2, 1, 0)
+typedef float (*float_residual)(float, float*, float*, int32_t*);
+typedef double (*double_residual)(double, double*, double*, int64_t*);
+typedef float (*float_jacobian)(float, float*, float*, int32_t*, float, int32_t);
+typedef double (*double_jacobian)(double, double*, double*, int64_t*, double, int64_t);
+
+#define NUM_ARGS_H1(dummy, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
+#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 #define APPLY0(t, n, dummy)
 #define APPLY1(t, n, a) t(n, a)
@@ -11,6 +16,8 @@
 #define APPLY4(t, n, a, b, c, d) APPLY3(t, 3, a, b, c), t(n, d)
 #define APPLY5(t, n, a, b, c, d, e) APPLY4(t, 4, a, b, c, d), t(n, e)
 #define APPLY6(t, n, a, b, c, d, e, f) APPLY5(t, 5, a, b, c, d, e), t(n, f)
+#define APPLY7(t, n, a, b, c, d, e, f, g) APPLY6(t, 6, a, b, c, d, e, f), t(n, g)
+#define APPLY8(t, n, a, b, c, d, e, f, g, h) APPLY7(t, 7, a, b, c, d, e, f, g), t(n, h)
 
 #define APPLY_ALL_H3(t, n, ...) APPLY##n(t, n, __VA_ARGS__)
 #define APPLY_ALL_H2(t, n, ...) APPLY_ALL_H3(t, n, __VA_ARGS__)
@@ -23,6 +30,8 @@
 #define CONCAT4(a, b, c, d) a ##b ##c ##d
 #define CONCAT5(a, b, c, d, e) a ##b ##c ##d ##e
 #define CONCAT6(a, b, c, d, e, f) a ##b ##c ##d ##e ##f
+#define CONCAT7(a, b, c, d, e, f, g) a ##b ##c ##d ##e ##f ##g
+#define CONCAT8(a, b, c, d, e, f, g, h) a ##b ##c ##d ##e ##f ##g ##h
 
 #define CONCAT_ALL_H3(n, ...) CONCAT##n(__VA_ARGS__)
 #define CONCAT_ALL_H2(n, ...) CONCAT_ALL_H3(n, __VA_ARGS__)
@@ -75,6 +84,19 @@
 #define PTR_float_MANGLED _pf32
 #define PTR_double_MANGLED _pf64
 
+#define RESIDUAL(type) RESIDUAL_ ##type
+#define JACOBIAN(type) JACOBIAN_ ##type
+
+#define RESIDUAL_float_CPP float_residual
+#define RESIDUAL_double_CPP double_residual
+#define JACOBIAN_float_CPP float_jacobian
+#define JACOBIAN_double_CPP double_jacobian
+
+#define RESIDUAL_float_MANGLED _f32ptr
+#define RESIDUAL_double_MANGLED _f64ptr
+#define JACOBIAN_float_MANGLED _f32ptr
+#define JACOBIAN_double_MANGLED _f64ptr
+
 #define TYPE_MANGLED(n, type) type ##_MANGLED
 #define TYPES_MANGLED(...) APPLY_ALL(TYPE_MANGLED, __VA_ARGS__)
 
@@ -93,8 +115,8 @@
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)))
 
 #define RUNTIME_FUNC_DECL(name, returnType, ...) \
-  extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
-  extern "C" TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
+	extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
+	extern "C" TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
 
 #define RUNTIME_FUNC_DEF(name, returnType, ...) \
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \

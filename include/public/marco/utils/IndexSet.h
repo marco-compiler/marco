@@ -68,7 +68,7 @@ namespace marco
 			unite(MultiDimInterval(point));
 		}
 
-		void dump(llvm::raw_ostream& OS) const;
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] std::string toString() const;
 
 		private:

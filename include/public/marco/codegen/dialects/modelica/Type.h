@@ -198,13 +198,6 @@ namespace marco::codegen::modelica
 		[[nodiscard]] mlir::Type getElementType() const;
 	};
 
-	class OpaquePointerType : public mlir::Type::TypeBase<OpaquePointerType, mlir::Type, mlir::TypeStorage>
-	{
-		public:
-		using Base::Base;
-		static OpaquePointerType get(mlir::MLIRContext* context);
-	};
-
 	class StructType : public mlir::Type::TypeBase<StructType, mlir::Type, StructTypeStorage>
 	{
 		public:

@@ -4,7 +4,8 @@
 
 namespace marco::codegen
 {
-	std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass();
+	std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass(
+			SolveModelOptions options = SolveModelOptions::getDefaultOptions());
 
 	inline void registerAutomaticDifferentiationPass()
 	{

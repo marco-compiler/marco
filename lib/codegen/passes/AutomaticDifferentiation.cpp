@@ -89,6 +89,11 @@ static std::string getPartialDerVariableName(llvm::StringRef currentName, llvm::
 	return "pder_" + independentVar.str() + "_" + currentName.str();
 }
 
+static std::string getPartialDerFunctionName(llvm::StringRef baseName)
+{
+	return "pder_" + baseName.str();
+}
+
 static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, DerFunctionOp derFunction)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -738,6 +743,11 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
+	explicit AutomaticDifferentiationPass(SolveModelOptions options)
+			: options(std::move(options))
+	{
+	}
+
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
@@ -745,6 +755,12 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 	void runOnOperation() override
 	{
+		if (options.solver == CleverDAE && mlir::failed(addPartialDerFunctions()))
+		{
+			mlir::emitError(getOperation().getLoc(), "Error in adding the functions partial derivatives");
+			return signalPassFailure();
+		}
+
 		if (mlir::failed(createFullDerFunctions()))
 		{
 			mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
@@ -762,6 +778,59 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
 			return signalPassFailure();
 		}
+	}
+
+	mlir::LogicalResult addPartialDerFunctions()
+	{
+		// If using the SUNDIALS IDA library as a solver, we also need the partial
+		// function derivatives of all call operations in order to compute the
+		// symbolic jacobian.
+		// TODO: Fix partial derivatives of arrays and matrixes.
+		mlir::ModuleOp module = getOperation();
+		mlir::OpBuilder builder(module);
+		mlir::OpBuilder::InsertionGuard guard(builder);
+
+		llvm::SmallVector<FunctionOp, 3> funcToBeDerived;
+		llvm::SmallVector<DerFunctionOp, 3> derFuncToBeDerived;
+
+		module->walk([&](FunctionOp op) {
+			if (op.getNumArguments() == 1 && op.getNumResults() == 1)
+				funcToBeDerived.push_back(op);
+		});
+
+		module->walk([&](DerFunctionOp op) {
+			if (op.independentVariables().size() == 1)
+				derFuncToBeDerived.push_back(op);
+		});
+
+		// Add the partial derivative of all FunctionOp
+		for (FunctionOp& function : funcToBeDerived)
+		{
+			std::string pderName = getPartialDerFunctionName(function.name());
+
+			if (module.lookupSymbol<FunctionOp>(pderName) == nullptr &&
+					module.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
+			{
+				builder.setInsertionPointAfter(function);
+				mlir::Attribute independentVariable = function.argsNames()[0];
+				builder.create<DerFunctionOp>(function.getLoc(), pderName, function.getName(), independentVariable);
+			}
+		}
+
+		// Add the partial derivative of all DerFunctionOp
+		for (DerFunctionOp& op : derFuncToBeDerived)
+		{
+			std::string pderName = getPartialDerFunctionName(op.name());
+
+			if (module.lookupSymbol<FunctionOp>(pderName) == nullptr &&
+					module.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
+			{
+				builder.setInsertionPointAfter(op);
+				builder.create<DerFunctionOp>(op.getLoc(), pderName, op.getName(), op.independentVariables());
+			}
+		}
+
+		return mlir::success();
 	}
 
 	mlir::LogicalResult createFullDerFunctions()
@@ -879,9 +948,12 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 		return mlir::success();
 	}
+
+	private:
+	SolveModelOptions options;
 };
 
-std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass(SolveModelOptions options)
 {
-	return std::make_unique<AutomaticDifferentiationPass>();
+	return std::make_unique<AutomaticDifferentiationPass>(options);
 }

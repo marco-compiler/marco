@@ -1,5 +1,6 @@
 set(SHARED_SOURCES
 		BuiltInFunctions.cpp
+		IdaFunctions.cpp
 		Math.cpp
 		MemoryManagement.cpp
 		Profiling.cpp
@@ -22,18 +23,28 @@ set(STATIC_SOURCES
 
 add_custom_target(marco-runtime)
 
+# Libraries to be linked
+set(LIBS
+		PRIVATE sundials)
+
 # Declare the shared library
 marco_add_library(runtimeShared
 		SHARED
 		PARTIAL_SOURCES_INTENDED
-		${SHARED_SOURCES})
+		${SHARED_SOURCES}
+
+		LINK_LIBS
+		${LIBS})
 
 add_dependencies(marco-runtime marco::runtimeShared)
 
 # Declare the static library
 marco_add_library(runtime
 		STATIC
-		${STATIC_SOURCES})
+		${STATIC_SOURCES}
+
+		LINK_LIBS
+		${LIBS})
 
 add_dependencies(marco-runtime marco::runtime)
 
