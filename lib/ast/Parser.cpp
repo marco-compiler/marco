@@ -363,12 +363,29 @@ llvm::Expected<std::unique_ptr<Member>> Parser::element(bool publicSection)
 	{
 		TRY(init, expression());
 
+		// string comment, ignore it for now
 		accept<Token::String>();
+
+		// annotation
+		if (current == Token::AnnotationKeyword)
+		{
+			TRY(ann, annotation());
+			//todo: handle elements annotations
+		}
+
 		return Member::build(
 				name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), std::move(*init), publicSection);
 	}
 
+	// string comment, ignore it for now
 	accept<Token::String>();
+
+	// annotation
+	if (current == Token::AnnotationKeyword)
+	{
+		TRY(ann, annotation());
+		//todo: handle elements annotations
+	}
 
 	return Member::build(
 			name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), llvm::None, publicSection,
@@ -383,6 +400,7 @@ llvm::Expected<llvm::Optional<std::unique_ptr<Expression>>> Parser::termModifica
 
 	do
 	{
+		accept<Token::EachKeyword>();
 		auto lastIndent = lexer.getLastIdentifier();
 		EXPECT(Token::Ident);
 		EXPECT(Token::Equal);
