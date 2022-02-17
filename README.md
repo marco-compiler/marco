@@ -38,6 +38,22 @@ MARCO also needs the Boost libraries to work. They can be retrieved easily throu
 sudo apt install libboost-all-dev
 ```
 
+### Sundials
+The following dependencies must be installed before building the Sundials libraries:
+
+```bash
+sudo apt install libgmp3
+sudo apt install libmpc-dev
+```
+
+Then it is possible to build the libraries by running the script inside the `sundials_libraries` folder.
+The libraries will be installed inside the `sundials_libraries/install` folder.
+
+```bash
+cd sundials_libraries
+./buildlibs
+```
+
 ### LIT
 MARCO uses LLVM's LIT to run the regression tests. It is available through pip, the Python's package manager.
 

@@ -53,6 +53,20 @@ class ArrayDescriptor
     }
 	}
 
+  void dump() const
+  {
+    dump(std::cout);
+  }
+
+  void dump(std::ostream& os) const
+  {
+    os << "Array descriptor\n";
+    os << "  - address: " << getData() << "\n";
+    os << "  - rank: " << getRank() << "\n";
+    os << "  - values: " << *this << "\n";
+    os << "\n";
+  }
+
 	/// Get element at offset.
 	///
 	/// @param offset	 index of the flat array
@@ -71,20 +85,6 @@ class ArrayDescriptor
 	{
 		assert(data != nullptr);
 		return data[offset];
-	}
-
-	void dump() const
-	{
-		dump(std::cout);
-	}
-
-	void dump(std::ostream& os) const
-	{
-		os << "Array descriptor\n";
-		os << "  - address: " << getData() << "\n";
-		os << "  - rank: " << getRank() << "\n";
-		os << "  - values: " << *this << "\n";
-		os << "\n";
 	}
 
   template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
@@ -184,6 +184,18 @@ class ArrayDescriptor
 		assert(index >= 0 && index < rank);
 		return sizes[index];
 	}
+
+  std::vector<dimension_t> getDimensions() const
+  {
+    std::vector<dimension_t> result;
+    result.resize(rank);
+
+    for (rank_t i = 0; i < rank; ++i) {
+      result[i] = getDimension(i);
+    }
+
+    return result;
+  }
 
 	dimension_t getNumElements() const
 	{
@@ -344,6 +356,16 @@ class UnsizedArrayDescriptor
     getDescriptor()->dump(os);
   }
 
+  T& operator[](dimension_t offset)
+  {
+    return getDescriptor()->operator[](offset);
+  }
+
+  const T& operator[](dimension_t offset) const
+  {
+    return getDescriptor()->operator[](offset);
+  }
+
   template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
   T& get(const Index& index)
   {
@@ -415,10 +437,15 @@ class UnsizedArrayDescriptor
 		return rank;
 	}
 
-	dimension_t getDimensionSize(dimension_t index) const
+	dimension_t getDimension(dimension_t index) const
 	{
 		return getDescriptor()->getDimension(index);
 	}
+
+  std::vector<dimension_t> getDimensions() const
+  {
+    return getDescriptor()->getDimensions();
+  }
 
 	dimension_t getNumElements() const
 	{

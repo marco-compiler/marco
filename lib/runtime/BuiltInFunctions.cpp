@@ -177,7 +177,7 @@ inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDes
 
 	assert(destination.getRank() > 0);
 	assert(values.getRank() == 1);
-	assert(destination.getDimensionSize(0) == values.getDimensionSize(0));
+	assert(destination.getDimension(0) == values.getDimension(0));
 
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
@@ -319,7 +319,7 @@ inline void linspace_void(UnsizedArrayDescriptor<T> array, double start, double 
 	using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
 	assert(array.getRank() == 1);
 
-	auto n = array.getDimensionSize(0);
+	auto n = array.getDimension(0);
 	double step = (end - start) / ((double) n - 1);
 
 	for (dimension_t i = 0; i < n; ++i) {
@@ -795,10 +795,10 @@ void symmetric_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 	assert(source.getRank() == 2);
 
 	// The two matrixes must have the same dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
+	assert(destination.getDimension(0) == source.getDimension(0));
+	assert(destination.getDimension(1) == source.getDimension(1));
 
-	auto size = destination.getDimensionSize(0);
+	auto size = destination.getDimension(0);
 
 	// Manually iterate on the dimensions, so that we can explore just half
 	// of the source matrix.
@@ -898,8 +898,8 @@ void transpose_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 	assert(source.getRank() == 2);
 
 	// The two matrixes must have transposed dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(1));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(0));
+	assert(destination.getDimension(0) == source.getDimension(1));
+	assert(destination.getDimension(1) == source.getDimension(0));
 
 	// Directly use the iterators, as we need to determine the current
 	// indexes and transpose them to access the other matrix.

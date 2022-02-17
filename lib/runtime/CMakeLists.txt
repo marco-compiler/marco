@@ -1,6 +1,6 @@
 set(SHARED_SOURCES
 		BuiltInFunctions.cpp
-		IdaFunctions.cpp
+    IDA.cpp
 		Math.cpp
 		MemoryManagement.cpp
 		Profiling.cpp

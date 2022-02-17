@@ -1,8 +1,11 @@
 #ifndef MARCO_RUNTIME_MANGLING_H
 #define MARCO_RUNTIME_MANGLING_H
 
+#include <cstdint>
+
 typedef float (*float_residual)(float, float*, float*, int32_t*);
 typedef double (*double_residual)(double, double*, double*, int64_t*);
+
 typedef float (*float_jacobian)(float, float*, float*, int32_t*, float, int32_t);
 typedef double (*double_jacobian)(double, double*, double*, int64_t*, double, int64_t);
 

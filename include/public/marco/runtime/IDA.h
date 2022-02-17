@@ -1,5 +1,5 @@
-#ifndef MARCO_RUNTIME_IDAFUNCTIONS_H
-#define MARCO_RUNTIME_IDAFUNCTIONS_H
+#ifndef MARCO_RUNTIME_IDA_H
+#define MARCO_RUNTIME_IDA_H
 
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
@@ -62,4 +62,4 @@ RUNTIME_FUNC_DECL(getIdaTime, double, PTR(void))
 
 RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
 
-#endif	// MARCO_RUNTIME_IDAFUNCTIONS_H
+#endif // MARCO_RUNTIME_IDA_H
