@@ -16,7 +16,8 @@ get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs}
-    MLIRExecutionEngine)
+    MLIRExecutionEngine
+    MLIROpenMPToLLVMIRTranslation)
 
 marco_add_library(frontend SHARED
     ${SOURCES}
