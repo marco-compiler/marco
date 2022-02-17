@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 #else
-#include "marco/runtime/Printing.h"
+//#include "marco/runtime/Printing.h"
 #endif
 #include <cassert>
 
@@ -82,7 +82,7 @@ inline void print_void(T value)
   #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::scientific << value << std::endl;
   #else
-  ryuPrintf("%d\n", value); // TODO: guess value type'
+  printString("Unknown type\n");
   #endif
 }
 
@@ -96,6 +96,32 @@ inline void print_void<bool>(bool value)
   #endif
 }
 
+#ifdef WINDOWS_NOSTDLIB
+template<>
+inline void print_void<int32_t>(int32_t value)
+{
+  printInt(value);
+}
+
+template<>
+inline void print_void<int64_t>(int64_t value)
+{
+  printInt(value);
+}
+
+template<>
+inline void print_void<float>(float value)
+{
+  printFloat(value);
+}
+
+template<>
+inline void print_void<double>(double value)
+{
+  printDouble(value);
+}
+#endif
+
 RUNTIME_FUNC_DEF(print, void, bool)
 RUNTIME_FUNC_DEF(print, void, int32_t)
 RUNTIME_FUNC_DEF(print, void, int64_t)
@@ -108,7 +134,7 @@ inline void print_void(UnsizedArrayDescriptor<T> array)
   #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::scientific << array << std::endl;
   #else
-  // TODO: implement
+  printUnsized(array); //TODO: put getDescriptor private again
   #endif
 }
 
@@ -118,7 +144,7 @@ inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
   #ifndef WINDOWS_NOSTDLIB
   std::cout << std::boolalpha << array << std::endl;
   #else
-  // TODO: implement
+  printUnsized(array);
   #endif
 }
 

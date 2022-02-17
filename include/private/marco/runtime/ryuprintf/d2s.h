@@ -37,6 +37,7 @@
 #include <string.h>
 #else
 #include <Windows.h>
+#include <cstdint>
 #endif
 
 #ifdef RYU_DEBUG
@@ -455,7 +456,7 @@ static inline bool d2d_small_int(const uint64_t ieeeMantissa, const uint32_t iee
   return true;
 }
 
-int d2s_buffered_n(double f, char* result) {
+inline int d2s_buffered_n(double f, char* result) {
   // Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
   const uint64_t bits = double_to_bits(f);
 
@@ -499,14 +500,14 @@ int d2s_buffered_n(double f, char* result) {
   return to_chars(v, ieeeSign, result);
 }
 
-void d2s_buffered(double f, char* result) {
+inline void d2s_buffered(double f, char* result) {
   const int index = d2s_buffered_n(f, result);
 
   // Terminate the string.
   result[index] = '\0';
 }
 
-char* d2s(double f) {
+inline char* d2s(double f) {
   #ifndef WINDOWS_NOSTDLIB
   char* const result = (char*) malloc(25);
   #else

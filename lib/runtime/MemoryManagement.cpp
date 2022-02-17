@@ -8,9 +8,32 @@
 #ifdef MARCO_PROFILING
 
 #include "marco/runtime/Profiling.h"
+#ifndef WINDOWS_NOSTDLIB
 #include <chrono>
 #include <iostream>
+#else
+#include "marco/runtime/Printing.h"
+#endif
 #include <map>
+
+#ifdef WINDOWS_NOSTDLIB
+// This is needed because static objects are thread safe
+
+inline int __cxa_guard_acquire(uint64_t* guard_object)
+{
+  return 1;
+}
+
+inline void __cxa_guard_release(uint64_t* guard_object)
+{
+  return;
+}
+
+inline int atexit (void (*func)(void))
+{
+  return 0;
+}
+#endif
 
 class MemoryProfiler : public Profiler
 {
@@ -27,11 +50,16 @@ class MemoryProfiler : public Profiler
     totalHeapMemory = 0;
     currentHeapMemory = 0;
     peakHeapMemory = 0;
+    #ifndef WINDOWS_NOSTDLIB
     accumulatedTime = std::chrono::duration_values<std::chrono::nanoseconds>::zero();
+    #else
+    accumulatedTime = 0;
+    #endif
   }
 
   void print() const override
   {
+    #ifndef WINDOWS_NOSTDLIB
     std::cout << "Number of 'malloc' invocations: " << mallocCalls << "\n";
     std::cout << "Number of 'free' invocations: " << freeCalls << "\n";
 
@@ -44,6 +72,20 @@ class MemoryProfiler : public Profiler
     std::cout << "Total amount of heap allocated memory: " << totalHeapMemory << " bytes\n";
     std::cout << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
     std::cout << "Time spent in heap memory management: " << time() << " ms\n";
+    #else
+    ryuPrintf("Number of 'malloc' invocations: %d\n", mallocCalls);
+    ryuPrintf("Number of 'free' invocations: %d\n", freeCalls);
+
+    if (mallocCalls > freeCalls) {
+      ryuPrintf("[Warning] Possible memory leak detected\n");
+    } else if (mallocCalls < freeCalls) {
+      ryuPrintf("[Warning] Possible double 'free' detected\n");
+    }
+
+    ryuPrintf("Total amount of heap allocated memory: %d bytes\n", totalHeapMemory);
+    ryuPrintf("Peak of heap memory usage: %d bytes\n", peakHeapMemory);
+    ryuPrintf("Time spent in heap memory management: %d ms\n", time());
+    #endif
   }
 
   void malloc(void* address, int64_t bytes)
@@ -52,7 +94,7 @@ class MemoryProfiler : public Profiler
 
     totalHeapMemory += bytes;
     currentHeapMemory += bytes;
-    sizes[address] = bytes;
+    //sizes[address] = bytes; //TODO: implement map, as it does not work with -nostdlib
 
     if (currentHeapMemory > peakHeapMemory) {
       peakHeapMemory = currentHeapMemory;
@@ -63,25 +105,44 @@ class MemoryProfiler : public Profiler
   {
     ++freeCalls;
 
-    if (auto it = sizes.find(address); it != sizes.end()) {
-      currentHeapMemory -= it->second;
-      sizes.erase(it);
-    }
+    // if (auto it = sizes.find(address); it != sizes.end()) {
+    //   currentHeapMemory -= it->second;
+    //   sizes.erase(it);
+    // }
   }
 
   void startTimer()
   {
+    #ifndef WINDOWS_NOSTDLIB
     start = std::chrono::steady_clock::now();
+    #else
+    LARGE_INTEGER li;
+    if(!QueryPerformanceFrequency(&li))
+      ryuPrintf("QueryPerformanceFrequency failed!\n");
+    freq = double(li.QuadPart)/1000000; // nanoseconds
+    QueryPerformanceCounter(&li);
+    start = li.QuadPart;
+    #endif
   }
 
   void stopTimer()
   {
+    #ifndef WINDOWS_NOSTDLIB
     accumulatedTime += (std::chrono::steady_clock::now() - start);
+    #else
+    LARGE_INTEGER li;
+    QueryPerformanceCounter(&li);
+    accumulatedTime += double(li.QuadPart - start)/freq;
+    #endif
   }
 
   double time() const
   {
+    #ifndef WINDOWS_NOSTDLIB
     return static_cast<double>(accumulatedTime.count()) / 1e6;
+    #else
+    return accumulatedTime;
+    #endif
   }
 
   private:
@@ -90,9 +151,15 @@ class MemoryProfiler : public Profiler
   int64_t totalHeapMemory;
   int64_t currentHeapMemory;
   int64_t peakHeapMemory;
-  std::map<void*, int64_t> sizes;
+  //std::map<void*, int64_t> sizes;
+  #ifndef WINDOWS_NOSTDLIB
   std::chrono::steady_clock::time_point start;
   std::chrono::nanoseconds accumulatedTime;
+  #else
+  __int64 start;
+  double accumulatedTime;
+  double freq;
+  #endif
 };
 
 MemoryProfiler& profiler()

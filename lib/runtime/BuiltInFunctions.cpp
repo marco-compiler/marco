@@ -120,30 +120,6 @@ static const double aT[] = {
   1.62858201153657823623e-02, /* 0x3F90AD3A, 0xE322DA11 */
 };
 
-double power(double base, int exp) {
-  double res = base;
-
-  if(base == 0.0) return 0;
-
-  if(exp == 0.0) return 1;
-
-  for(int i = 0; i < exp; ++i) {
-    res = res * res;
-  }
-  return res;
-}
-
-int factorial(int arg) {
-  int res = 1;
-
-  if(arg == 0 || arg == 1) return res;
-
-  for(int i = 2; i <= arg; ++i)
-    res = res * i;
-  
-  return res;
-}
-
 /*
  * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi 
  */
@@ -685,10 +661,6 @@ double acos(double x)
 	    w = r*s+c;
 	    return 2.0*(df+w);
 	}
-}
-
-float acosf(float arg) {
-    return acos(arg);
 }
 
 double asin(double x)

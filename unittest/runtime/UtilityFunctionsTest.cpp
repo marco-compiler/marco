@@ -427,3 +427,38 @@ TEST(Runtime, clone_af64_af64)
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_DOUBLE_EQ(destination, source);
 }
+
+TEST(Runtime, print_bool)
+{
+	NAME_MANGLED(print, void, bool)(1.0);
+}
+
+TEST(Runtime, print_float)
+{
+	NAME_MANGLED(print, void, float)(1.0);
+}
+
+TEST(Runtime, print_double)
+{
+	NAME_MANGLED(print, void, double)(1.0);
+}
+
+TEST(Runtime, print_int32)
+{
+	NAME_MANGLED(print, void, int32_t)(1.0);
+}
+
+TEST(Runtime, print_int64)
+{
+	NAME_MANGLED(print, void, int64_t)(1.0);
+}
+
+// Broken for now due to memset segfault
+// TEST(Runtime, print_array_double)
+// {
+// 	std::array<double, 6> array = { 1, 2, 3, 4, 5, 6 };
+// 	ArrayDescriptor<double, 2> sourceDescriptor(array.data(), { 2, 3 });
+// 	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+// 	NAME_MANGLED(print, void, ARRAY(double))(unsizedSource);
+// }
+
