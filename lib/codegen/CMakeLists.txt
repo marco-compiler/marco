@@ -27,8 +27,7 @@ set(SOURCES
     passes/model/Cycles.cpp
     CodeGen.cpp
     Options.cpp
-    Reference.cpp
-    Runner.cpp)
+    Reference.cpp)
 
 set(MLIR_LIBS
     MLIRIR
@@ -41,8 +40,7 @@ set(MLIR_LIBS
     MLIRStandard
     MLIRStandardToLLVM
     MLIRTransforms
-    MLIRTranslation
-    MLIRExecutionEngine)
+    MLIRTranslation)
 
 marco_add_library(codegen
     SHARED
