@@ -16,6 +16,7 @@
 // KIND, either express or implied.
 #ifndef RYU_H
 #define RYU_H
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {

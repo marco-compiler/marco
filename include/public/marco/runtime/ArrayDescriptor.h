@@ -3,11 +3,14 @@
 #include <array>
 #include <cassert>
 #include <initializer_list>
-#ifndef WINDOWS_NOSTDLIB
-#include <iostream>
-#endif
 #include <vector>
 #include <cstdint>
+#ifndef WINDOWS_NOSTDLIB
+#include <iostream>
+#else
+#include "marco/runtime/Printing.h"
+#endif
+
 
 template <typename T>
 class ArrayIterator;
@@ -316,6 +319,45 @@ std::ostream& operator<<(
 	impl::printArrayDescriptor(stream, descriptor, indexes, 0);
 	return stream;
 }
+#else
+namespace impl
+{
+	template<typename T, unsigned int Rank>
+	void printArrayDescriptor(							const ArrayDescriptor<T, Rank>& descriptor,
+														std::vector<typename ArrayDescriptor<T, Rank>::dimension_t>& indexes,
+														typename ArrayDescriptor<T, Rank>::rank_t dimension)
+	{
+		using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
+
+		printString("[");
+
+		for (dimension_t i = 0, e = descriptor.getDimension(dimension); i < e; ++i) {
+			indexes[dimension] = i;
+
+			if (i > 0) {
+				printString(", ");
+			}
+
+			if (dimension == descriptor.getRank() - 1) {
+				print(descriptor.get(indexes));
+			} else {
+				printArrayDescriptor(descriptor, indexes, dimension + 1);
+			}
+		}
+
+		indexes[dimension] = 0;
+		printString("]");
+	}
+}
+
+template<typename T, unsigned int Rank>
+void printSized(const ArrayDescriptor<T, Rank>& descriptor)
+{
+	using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
+	descriptor.getRank();
+	std::vector<dimension_t> indexes(descriptor.getRank(), 0);
+	impl::printArrayDescriptor(descriptor, indexes, 0);
+}
 #endif
 
 /// This class allows to accept a generically sized array as input argument
@@ -469,7 +511,6 @@ class UnsizedArrayDescriptor
       std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
 	#endif
 
-	private:
 	ArrayDescriptor<T, 0>* getDescriptor() const
 	{
 		assert(descriptor != nullptr);
@@ -482,6 +523,9 @@ class UnsizedArrayDescriptor
 		return (ArrayDescriptor<T, 0>*) descriptor;
 	}
 
+	private: //TODO: understand why it does not work with private decriptor
+			 //      and also why it silently crashes while allocating a 
+			 //      vector with segmentation fault in gdb (in memset, defined by me)
 	rank_t rank;
 	void* descriptor;
 };
@@ -493,7 +537,14 @@ std::ostream& operator<<(
 {
 	return stream << *descriptor.getDescriptor();
 }
+#else
+template<typename T>
+void printUnsized(const UnsizedArrayDescriptor<T>& descriptor)
+{
+	printSized(*descriptor.getDescriptor());
+}
 #endif
+
 
 /// Iterate over all the elements of a multi-dimensional array as if it was
 /// a flat one.

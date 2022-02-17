@@ -5,7 +5,7 @@
 #include "ryuprintf/d2s.h"
 #include "ryuprintf/f2s.h"
 
-size_t strlen(const char* s)
+inline size_t strlen(const char* s)
 {
 	size_t i = 0;
 	while (*(s + i) != '\0')
@@ -13,7 +13,7 @@ size_t strlen(const char* s)
 	return i;
 }
 
-char* strncpy(char* dest, const char* src, size_t n)
+inline char* strncpy(char* dest, const char* src, size_t n)
 {
 	int i;
 
@@ -26,7 +26,7 @@ char* strncpy(char* dest, const char* src, size_t n)
 	return dest;
 }
 
-int printString(const char* str)
+inline int printString(const char* str)
 {
 	int len = strlen(str);
 	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -34,14 +34,14 @@ int printString(const char* str)
 	return len;
 }
 
-void swap(char* first, char* second)
+inline void swap(char* first, char* second)
 {
 	char tmp = *second;
 	*second = *first;
 	*first = tmp;
 }
 
-void reverse(char str[], int length)
+inline void reverse(char str[], int length)
 {
 	int start = 0;
 	int end = length - 1;
@@ -53,7 +53,7 @@ void reverse(char str[], int length)
 	}
 }
 
-char* i2s(int value)
+inline char* i2s(int value)
 {
 	char* str = (char*) HeapAlloc(GetProcessHeap(), 0x0, 25);
 	int i = 0;
@@ -96,7 +96,7 @@ char* i2s(int value)
 	return str;
 }
 
-char* findPercNull(const char* format)
+inline char* findPercNull(const char* format)
 {
     const char* char_ptr;
     unsigned char c = '%';
@@ -107,7 +107,7 @@ char* findPercNull(const char* format)
 }
 
 #define SIZE 1000
-char* composeString(const char* format, va_list ap)
+inline char* composeString(const char* format, va_list ap)
 {
 	//TODO: realloc if len of buf > SIZE with SIZE*2 and so on
 	const char* fmtptr;
@@ -163,7 +163,7 @@ char* composeString(const char* format, va_list ap)
     return buf;
 }
 
-int ryuPrintfInternal(const char* format, va_list ap) {
+inline int ryuPrintfInternal(const char* format, va_list ap) {
 	char* buf;
 	int len;
 
@@ -175,7 +175,7 @@ int ryuPrintfInternal(const char* format, va_list ap) {
     return len;
 }
 
-int ryuPrintf(const char* format, ...)
+inline int ryuPrintf(const char* format, ...)
 {
 	va_list arg;
 	int done;
@@ -187,7 +187,7 @@ int ryuPrintf(const char* format, ...)
 	return done;
 }
 
-int runtimePrintf(const char* format, ...)
+inline int runtimePrintf(const char* format, ...)
 {
 	va_list arg;
 	int done;
@@ -199,28 +199,64 @@ int runtimePrintf(const char* format, ...)
 	return done;
 }
 
-void printFloat(float value) {
+inline void printFloat(float value) {
 	char* str = f2s(value);
 	printString(str);
 	HeapFree(GetProcessHeap(), 0x0, str);
 }
 
-void printDouble(double value) {
+inline void printDouble(double value) {
 	char* str = d2s(value);
 	printString(str);
 	HeapFree(GetProcessHeap(), 0x0, str);
 }
 
-void printInt(int value) {
+inline void printInt(int value) {
 	char* str = i2s(value);
 	printString(str);
 	HeapFree(GetProcessHeap(), 0x0, str);
 }
 
-void printBool(bool value) {
+inline void printBool(bool value) {
 	if(value)
 		printString("True\n");
 	else
 		printString("False\n");
+}
+
+template<typename T>
+inline void print(T value)
+{
+  printString("Error: trying to print an unknown type\n");
+}
+
+template<>
+inline void print<bool>(bool value)
+{
+  printBool(value);
+}
+
+template<>
+inline void print<int32_t>(int32_t value)
+{
+  printInt(value);
+}
+
+template<>
+inline void print<int64_t>(int64_t value)
+{
+  printInt(value);
+}
+
+template<>
+inline void print<float>(float value)
+{
+  printFloat(value);
+}
+
+template<>
+inline void print<double>(double value)
+{
+  printDouble(value);
 }
 #endif // RYU

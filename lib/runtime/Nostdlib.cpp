@@ -68,10 +68,21 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 	return dstpp;
 }
 
-void* memset (void* ptr, int value, size_t num) {
-    unsigned char v = (unsigned char) value;
-    unsigned char* p = (unsigned char*) ptr;
-    for(int i = 0; i < num; i++) {
-        *(p + i) = v;
+// void* memset (void* ptr, int value, size_t num) {
+//     unsigned char v = (unsigned char) value;
+//     unsigned char* p = (unsigned char*) ptr;
+//     for(int i = 0; i < num; i++) {
+//         *(p + i) = v;
+//     }
+// }
+
+//TODO: understand why memset gives segfault
+void* memset(void* s, int c,  size_t len)
+{
+    unsigned char* p= (unsigned char*) s;
+    while(len--)
+    {
+        *p++ = (unsigned char)c;
     }
+    return s;
 }

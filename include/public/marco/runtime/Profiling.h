@@ -1,26 +1,28 @@
 #ifndef MARCO_RUNTIME_PROFILING_H
 #define MARCO_RUNTIME_PROFILING_H
 
-#include <string>
-
 #ifdef MARCO_PROFILING
+
+#ifndef WINDOWS_NOSTDLIB
+#include <string>
+#endif
 
 class Profiler
 {
   public:
-  Profiler(const std::string& name);
+  Profiler(const char* name);
 
   Profiler(const Profiler& other);
 
   virtual ~Profiler();
 
-  const std::string& getName() const;
+  const char* getName() const;
 
   virtual void reset() = 0;
   virtual void print() const = 0;
 
   private:
-  std::string name;
+  const char* name;
 };
 
 void registerProfiler(Profiler& profiler);
