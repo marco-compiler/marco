@@ -26,6 +26,8 @@ set(SOURCES
     passes/model/Variable.cpp
     passes/model/Cycles.cpp
     CodeGen.cpp
+    Options.cpp
+    Reference.cpp
     Runner.cpp)
 
 set(MLIR_LIBS

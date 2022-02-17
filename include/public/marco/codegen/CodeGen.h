@@ -3,6 +3,8 @@
 #include "llvm/ADT/ScopedHashTable.h"
 #include "marco/ast/AST.h"
 #include "marco/ast/SymbolTable.h"
+#include "marco/codegen/Options.h"
+#include "marco/codegen/Reference.h"
 #include "marco/codegen/dialects/modelica/ModelicaBuilder.h"
 #include "marco/codegen/Passes.h"
 #include "marco/utils/SourcePosition.h"
@@ -13,49 +15,6 @@
 
 namespace marco::codegen
 {
-	struct CodegenOptions
-	{
-		double startTime = 0;
-		double endTime = 10;
-		double timeStep = 0.1;
-
-		/**
-		 * Get a statically allocated copy of the default options.
-		 *
-		 * @return default options
-		 */
-		static const CodegenOptions& getDefaultOptions() {
-			static CodegenOptions options;
-			return options;
-		}
-	};
-
-	class Reference
-	{
-		public:
-		Reference();
-
-		[[nodiscard]] mlir::Value operator*();
-		[[nodiscard]] mlir::Value getReference() const;
-
-		void set(mlir::Value value);
-
-		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memory(mlir::OpBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference member(mlir::OpBuilder* builder, mlir::Value value);
-
-		private:
-		Reference(mlir::OpBuilder* builder,
-							mlir::Value value,
-							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
-							std::function<void(mlir::OpBuilder* builder, Reference& destination, mlir::Value)> writer);
-
-		mlir::OpBuilder* builder;
-		mlir::Value value;
-		std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader;
-		std::function<void(mlir::OpBuilder*, Reference&, mlir::Value)> writer;
-	};
-
 	class MLIRLowerer
 	{
 		private:

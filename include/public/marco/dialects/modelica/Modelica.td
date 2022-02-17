@@ -650,7 +650,7 @@ def Modelica_AddOp : Modelica_Op<"add",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Sum of two values.";
+    let summary = "Addition.";
 
     let description = [{
         The operation computes the sum of two values.
@@ -685,7 +685,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Element-wise sum of two values.";
+    let summary = "Element-wise addition.";
 
     let description = [{
         The operation computes the element-wise sum of a scalar and an array value.
@@ -718,10 +718,20 @@ def Modelica_SubOp : Modelica_Op<"sub",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Subtraction.";
 
     let description = [{
-        TODO
+        The operation computes the difference between two values.
+        It takes two operands and returns one result. Array operands are also allowed,
+        but they must respect the Modelica specification.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = ... : !modelica.real
+        %2 = modelica.sub %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -742,7 +752,7 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Element-wise subtraction.";
 
     let description = [{
         TODO
@@ -767,7 +777,7 @@ def Modelica_MulOp : Modelica_Op<"mul",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Multiplication of two values.";
+    let summary = "Multiplication.";
 
     let description = [{
         The operation computes the product of two values.
@@ -795,7 +805,7 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Element-wise multiplication.";
 
     let description = [{
         TODO
@@ -821,7 +831,7 @@ def Modelica_DivOp : Modelica_Op<"div",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Division between two values.";
+    let summary = "Division.";
 
     let description = [{
         The operation computes the division between two values.
@@ -856,7 +866,7 @@ def Modelica_DivEWOp : Modelica_Op<"div_ew",
     DeclareOpInterfaceMethods<DivOpDistributionInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Element-wise division.";
 
     let description = [{
         TODO
@@ -876,7 +886,7 @@ def Modelica_PowOp : Modelica_Op<"pow",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Pow.";
 
     let description = [{
         TODO
@@ -896,7 +906,7 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Element-wise pow.";
 
     let description = [{
         TODO
@@ -2017,7 +2027,7 @@ def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
     DeclareOpInterfaceMethods<RegionKindInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Modelica model.";
 
     let description = [{
         The operation represents a Modelica model.
