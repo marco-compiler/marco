@@ -1,19 +1,21 @@
-#include "marco/runtime/IDA.h"
 #include "marco/runtime/Profiling.h"
 #include "marco/runtime/Runtime.h"
 
-static void runtimeInit()
+namespace
 {
-#ifdef MARCO_PROFILING
-  profilingInit();
-#endif
-}
+  void runtimeInit()
+  {
+    #ifdef MARCO_PROFILING
+    profilingInit();
+    #endif
+  }
 
-static void runtimeDeinit()
-{
-#ifdef MARCO_PROFILING
-  printProfilingStats();
-#endif
+  void runtimeDeinit()
+  {
+    #ifdef MARCO_PROFILING
+    printProfilingStats();
+    #endif
+  }
 }
 
 extern "C" void* init();
