@@ -1,10 +1,10 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICA_DIALECT_TD
-#define MARCO_DIALECTS_MODELICA_MODELICA_DIALECT_TD
+#ifndef MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD
+#define MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD
 
 include "mlir/IR/OpBase.td"
 
 //===----------------------------------------------------------------------===//
-// Dialect
+// Modelica dialect
 //===----------------------------------------------------------------------===//
 
 def Modelica_Dialect : Dialect {
@@ -18,4 +18,4 @@ def Modelica_Dialect : Dialect {
     let cppNamespace = "::mlir::modelica";
 }
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICA_DIALECT_TD
+#endif // MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD

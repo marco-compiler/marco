@@ -1,5 +1,6 @@
 #include "marco/dialects/modelica/ModelicaDialect.h"
 #include "marco/dialects/modelica/Ops.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
 
