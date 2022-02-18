@@ -1063,7 +1063,14 @@ llvm::Error ConstantFolder::foldSubscriptionOp(Expression& expression)
 	for (auto &	it:args)
 		if (auto error = run<Expression>(*it); error)
 			return error;
-
+	
+	if (args[0]->isa<Constant>())
+	{
+		//todo handle implicit casting
+		expression = *args[0];
+		return llvm::Error::success();
+	}
+	
 	if(auto *lhs = args[0]->dyn_get<Operation>(); lhs && lhs->getOperationKind() == OperationKind::subscription)
 	{
 		// collapse multiple subscriptions together. e.g.  (a[1])[2] -> a[1][2] or a[1,2]  

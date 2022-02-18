@@ -12,6 +12,9 @@ using namespace marco::ast;
 
 static bool operator>=(Type x, Type y)
 {
+	if (x.to({1})==y.to({1})) //check if equal, not considering dimensions.
+		return true;
+
 	assert(x.isa<BuiltInType>());
 	assert(y.isa<BuiltInType>());
 
@@ -1694,7 +1697,7 @@ llvm::Error TypeChecker::run(Member& member)
 		auto pre = dimensions.begin();
 
 		if(pre->isRagged())
-			llvm::make_error<BadSemantic>(
+			return llvm::make_error<BadSemantic>(
 					member.getLocation(),"invalid ragged type shape: the first dimension cannot be ragged.");
 
 		for(auto it=std::next(pre); it!=dimensions.end(); it++)
@@ -1710,9 +1713,38 @@ llvm::Error TypeChecker::run(Member& member)
 				return error;
 
 	if (member.hasInitializer())
-		if (auto error = run<Expression>(*member.getInitializer()); error)
+	{
+		auto& initializer = *member.getInitializer();
+		if (auto error = run<Expression>(initializer); error)
 			return error;
 
+		auto initType = initializer.getType();
+
+		bool type_mismatch = true;
+
+		// check if the type of the initializing value can be implicity casted to 
+		// the type of the member
+		if ( type >= initType )
+		{
+			if (type.getDimensions() == initType.getDimensions())
+				type_mismatch = false;
+			else if (initType.isScalar())
+			{
+				// corresponding to the case:  Real[2,3] x = 2;
+				// it is equivalent to : Real[2,3] x = fill(2.0,2,3);
+				// it will be handled in the constant folding pass,
+				// where all subscriptions of the array will be substituted
+				// with the scalar constant value.
+				type_mismatch = false;
+			}
+		}
+
+		if(type_mismatch)
+			return llvm::make_error<BadSemantic>(
+					member.getLocation(),
+					"A member of type '"+toString(type)+
+					"' can not be initialized with a value of type '"+toString(initType)+"'");
+	}
 	if (member.hasStartOverload())
 		if (auto error = run<Expression>(*member.getStartOverload()); error)
 			return error;
