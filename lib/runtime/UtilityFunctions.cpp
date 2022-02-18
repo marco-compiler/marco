@@ -14,7 +14,7 @@
 /// @param destination  destination array
 /// @param values 			source values
 template<typename T, typename U>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+static void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
 {
 	assert(source.getNumElements() == destination.getNumElements());
 
@@ -31,7 +31,7 @@ inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescri
 
 // Optimization for arrays with the same type
 template<typename T>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+static void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
 {
 	auto destinationSize = destination.getNumElements();
 	assert(source.getNumElements() == destinationSize);
@@ -73,13 +73,13 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline void print_void(T value)
+static void print_void(T value)
 {
 	std::cout << std::scientific << value << std::endl;
 }
 
 template<>
-inline void print_void<bool>(bool value)
+static void print_void<bool>(bool value)
 {
 	std::cout << std::boolalpha << value << std::endl;
 }
@@ -91,13 +91,13 @@ RUNTIME_FUNC_DEF(print, void, float)
 RUNTIME_FUNC_DEF(print, void, double)
 
 template<typename T>
-inline void print_void(UnsizedArrayDescriptor<T> array)
+static void print_void(UnsizedArrayDescriptor<T> array)
 {
 	std::cout << std::scientific << array << std::endl;
 }
 
 template<>
-inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
+static void print_void<bool>(UnsizedArrayDescriptor<bool> array)
 {
   std::cout << std::boolalpha << array << std::endl;
 }

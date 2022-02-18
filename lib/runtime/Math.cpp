@@ -8,7 +8,7 @@
 // TODO tests
 
 template<typename Result, typename Base, typename Exp>
-inline Result pow(Base base, Exp exp)
+static Result pow(Base base, Exp exp)
 {
   if (base == 0) {
     assert(exp > 0);
@@ -23,7 +23,7 @@ inline Result pow(Base base, Exp exp)
 }
 
 template<typename Exp>
-inline bool pow_boolBase(bool base, Exp exp)
+static bool pow_boolBase(bool base, Exp exp)
 {
   if (base) {
     return true;
@@ -34,14 +34,14 @@ inline bool pow_boolBase(bool base, Exp exp)
 }
 
 template<>
-inline bool pow_boolBase<bool>(bool base, bool exp)
+static bool pow_boolBase<bool>(bool base, bool exp)
 {
   assert(base || exp);
   return base;
 }
 
 template<typename Result, typename Base>
-inline Result pow_boolExp(Base base, bool exp)
+static Result pow_boolExp(Base base, bool exp)
 {
   if (exp) {
     return base;
@@ -52,13 +52,13 @@ inline Result pow_boolExp(Base base, bool exp)
 }
 
 template<>
-inline bool pow_boolExp(bool base, bool exp)
+static bool pow_boolExp(bool base, bool exp)
 {
   return pow_boolBase(base, exp);
 }
 
 template<typename Base, typename Exp>
-inline bool pow_i1(Base base, Exp exp)
+static bool pow_i1(Base base, Exp exp)
 {
   assert(base != 0 || exp != 0);
 
@@ -69,47 +69,47 @@ inline bool pow_i1(Base base, Exp exp)
   return true;
 }
 
-inline bool pow_i1(bool base, bool exp)
+static bool pow_i1(bool base, bool exp)
 {
   return pow_boolBase(base, exp);
 }
 
-inline bool pow_i1(bool base, int32_t exp)
+static bool pow_i1(bool base, int32_t exp)
 {
   return pow_boolBase(base, exp);
 }
 
-inline bool pow_i1(bool base, int64_t exp)
+static bool pow_i1(bool base, int64_t exp)
 {
   return pow_boolBase(base, exp);
 }
 
-inline bool pow_i1(bool base, float exp)
+static bool pow_i1(bool base, float exp)
 {
   return pow_boolBase(base, exp);
 }
 
-inline bool pow_i1(bool base, double exp)
+static bool pow_i1(bool base, double exp)
 {
   return pow_boolBase(base, exp);
 }
 
-inline bool pow_i1(int32_t base, bool exp)
+static bool pow_i1(int32_t base, bool exp)
 {
   return pow_boolExp<int32_t>(base, exp) > 0;
 }
 
-inline bool pow_i1(int64_t base, bool exp)
+static bool pow_i1(int64_t base, bool exp)
 {
   return pow_boolExp<int64_t>(base, exp) > 0;
 }
 
-inline bool pow_i1(float base, bool exp)
+static bool pow_i1(float base, bool exp)
 {
   return pow_boolExp<float>(base, exp) > 0;
 }
 
-inline bool pow_i1(double base, bool exp)
+static bool pow_i1(double base, bool exp)
 {
   return pow_boolExp<double>(base, exp) > 0;
 }
@@ -137,37 +137,37 @@ RUNTIME_FUNC_DEF(pow, bool, double, int64_t)
 RUNTIME_FUNC_DEF(pow, bool, double, double)
 
 template<typename Base, typename Exp>
-inline int32_t pow_i32(Base base, Exp exp)
+static int32_t pow_i32(Base base, Exp exp)
 {
   return pow(base, exp);
 }
 
 template<>
-inline int32_t pow_i32<bool, bool>(bool base, bool exp)
+static int32_t pow_i32<bool, bool>(bool base, bool exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline int32_t pow_i32<bool, int32_t>(bool base, int32_t exp)
+static int32_t pow_i32<bool, int32_t>(bool base, int32_t exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline int32_t pow_i32<bool, float>(bool base, float exp)
+static int32_t pow_i32<bool, float>(bool base, float exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline int32_t pow_i32<int32_t, bool>(int32_t base, bool exp)
+static int32_t pow_i32<int32_t, bool>(int32_t base, bool exp)
 {
   return pow_boolExp<int32_t>(base, exp);
 }
 
 template<>
-inline int32_t pow_i32<float, bool>(float base, bool exp)
+static int32_t pow_i32<float, bool>(float base, bool exp)
 {
   return pow_boolExp<float>(base, exp);
 }
@@ -185,37 +185,37 @@ RUNTIME_FUNC_DEF(pow, int32_t, float, int32_t)
 RUNTIME_FUNC_DEF(pow, int32_t, float, float)
 
 template<typename Base, typename Exp>
-inline int64_t pow_i64(Base base, Exp exp)
+static int64_t pow_i64(Base base, Exp exp)
 {
   return pow(base, exp);
 }
 
 template<>
-inline int64_t pow_i64<bool, bool>(bool base, bool exp)
+static int64_t pow_i64<bool, bool>(bool base, bool exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline int64_t pow_i64<bool, int64_t>(bool base, int64_t exp)
+static int64_t pow_i64<bool, int64_t>(bool base, int64_t exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline int64_t pow_i64<bool, double>(bool base, double exp)
+static int64_t pow_i64<bool, double>(bool base, double exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline int64_t pow_i64<int64_t, bool>(int64_t base, bool exp)
+static int64_t pow_i64<int64_t, bool>(int64_t base, bool exp)
 {
   return pow_boolExp<int64_t>(base, exp);
 }
 
 template<>
-inline int64_t pow_i64<double, bool>(double base, bool exp)
+static int64_t pow_i64<double, bool>(double base, bool exp)
 {
   return pow_boolExp<double>(base, exp);
 }
@@ -233,37 +233,37 @@ RUNTIME_FUNC_DEF(pow, int64_t, double, int64_t)
 RUNTIME_FUNC_DEF(pow, int64_t, double, double)
 
 template<typename Base, typename Exp>
-inline float pow_f32(Base base, Exp exp)
+static float pow_f32(Base base, Exp exp)
 {
   return pow(base, exp);
 }
 
 template<>
-inline float pow_f32<bool, bool>(bool base, bool exp)
+static float pow_f32<bool, bool>(bool base, bool exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline float pow_f32<bool, int32_t>(bool base, int32_t exp)
+static float pow_f32<bool, int32_t>(bool base, int32_t exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline float pow_f32<bool, float>(bool base, float exp)
+static float pow_f32<bool, float>(bool base, float exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline float pow_f32<int32_t, bool>(int32_t base, bool exp)
+static float pow_f32<int32_t, bool>(int32_t base, bool exp)
 {
   return pow_boolExp<int32_t>(base, exp);
 }
 
 template<>
-inline float pow_f32<float, bool>(float base, bool exp)
+static float pow_f32<float, bool>(float base, bool exp)
 {
   return pow_boolExp<float>(base, exp);
 }
@@ -281,37 +281,37 @@ RUNTIME_FUNC_DEF(pow, float, float, int32_t)
 RUNTIME_FUNC_DEF(pow, float, float, float)
 
 template<typename Base, typename Exp>
-inline double pow_f64(Base base, Exp exp)
+static double pow_f64(Base base, Exp exp)
 {
   return pow(base, exp);
 }
 
 template<>
-inline double pow_f64<bool, bool>(bool base, bool exp)
+static double pow_f64<bool, bool>(bool base, bool exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline double pow_f64<bool, int64_t>(bool base, int64_t exp)
+static double pow_f64<bool, int64_t>(bool base, int64_t exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline double pow_f64<bool, double>(bool base, double exp)
+static double pow_f64<bool, double>(bool base, double exp)
 {
   return pow_boolBase(base, exp) ? 1 : 0;
 }
 
 template<>
-inline double pow_f64<int64_t, bool>(int64_t base, bool exp)
+static double pow_f64<int64_t, bool>(int64_t base, bool exp)
 {
   return pow_boolExp<int64_t>(base, exp);
 }
 
 template<>
-inline double pow_f64<double, bool>(double base, bool exp)
+static double pow_f64<double, bool>(double base, bool exp)
 {
   return pow_boolExp<double>(base, exp);
 }

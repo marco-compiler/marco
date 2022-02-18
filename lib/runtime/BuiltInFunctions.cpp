@@ -9,7 +9,7 @@
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T abs(T value)
+static T abs(T value)
 {
 	if (value >= 0) {
     return value;
@@ -18,27 +18,27 @@ inline T abs(T value)
 	return -1 * value;
 }
 
-inline bool abs_i1(bool value)
+static bool abs_i1(bool value)
 {
 	return value;
 }
 
-inline int32_t abs_i32(int32_t value)
+static int32_t abs_i32(int32_t value)
 {
   return abs(value);
 }
 
-inline int64_t abs_i64(int64_t value)
+static int64_t abs_i64(int64_t value)
 {
   return abs(value);
 }
 
-inline float abs_f32(float value)
+static float abs_f32(float value)
 {
   return abs(value);
 }
 
-inline double abs_f64(double value)
+static double abs_f64(double value)
 {
   return abs(value);
 }
@@ -53,12 +53,12 @@ RUNTIME_FUNC_DEF(abs, double, double)
 // acos
 //===----------------------------------------------------------------------===//
 
-inline float acos_f32(float value)
+static float acos_f32(float value)
 {
   return std::acos(value);
 }
 
-inline double acos_f64(double value)
+static double acos_f64(double value)
 {
   return std::acos(value);
 }
@@ -70,12 +70,12 @@ RUNTIME_FUNC_DEF(acos, double, double)
 // asin
 //===----------------------------------------------------------------------===//
 
-inline float asin_f32(float value)
+static float asin_f32(float value)
 {
   return std::asin(value);
 }
 
-inline double asin_f64(double value)
+static double asin_f64(double value)
 {
   return std::asin(value);
 }
@@ -87,12 +87,12 @@ RUNTIME_FUNC_DEF(asin, double, double)
 // atan
 //===----------------------------------------------------------------------===//
 
-inline float atan_f32(float value)
+static float atan_f32(float value)
 {
   return std::atan(value);
 }
 
-inline double atan_f64(double value)
+static double atan_f64(double value)
 {
   return std::atan(value);
 }
@@ -104,12 +104,12 @@ RUNTIME_FUNC_DEF(atan, double, double)
 // atan2
 //===----------------------------------------------------------------------===//
 
-inline float atan2_f32(float y, float x)
+static float atan2_f32(float y, float x)
 {
   return std::atan2(y, x);
 }
 
-inline double atan2_f64(double y, double x)
+static double atan2_f64(double y, double x)
 {
   return std::atan2(y, x);
 }
@@ -121,12 +121,12 @@ RUNTIME_FUNC_DEF(atan2, double, double, double)
 // cos
 //===----------------------------------------------------------------------===//
 
-inline float cos_f32(float value)
+static float cos_f32(float value)
 {
   return std::cos(value);
 }
 
-inline double cos_f64(double value)
+static double cos_f64(double value)
 {
   return std::cos(value);
 }
@@ -138,12 +138,12 @@ RUNTIME_FUNC_DEF(cos, double, double)
 // cosh
 //===----------------------------------------------------------------------===//
 
-inline float cosh_f32(float value)
+static float cosh_f32(float value)
 {
   return std::cosh(value);
 }
 
-inline double cosh_f64(double value)
+static double cosh_f64(double value)
 {
   return std::cosh(value);
 }
@@ -163,7 +163,7 @@ RUNTIME_FUNC_DEF(cosh, double, double)
 /// @param destination destination matrix
 /// @param values 			source values
 template<typename T, typename U>
-inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> values)
+static void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> values)
 {
 	// Check that the array is square-like (all the dimensions have the same
 	// size). Note that the implementation is generalized to n-D dimensions,
@@ -228,12 +228,12 @@ RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
 // exp
 //===----------------------------------------------------------------------===//
 
-inline float exp_f32(float value)
+static float exp_f32(float value)
 {
   return std::exp(value);
 }
 
-inline double exp_f64(double value)
+static double exp_f64(double value)
 {
 	return std::exp(value);
 }
@@ -251,7 +251,7 @@ RUNTIME_FUNC_DEF(exp, double, double)
 /// @param array  array to be populated
 /// @param value  value to be set
 template<typename T>
-inline void fill_void(UnsizedArrayDescriptor<T> array, T value)
+static void fill_void(UnsizedArrayDescriptor<T> array, T value)
 {
 	for (auto& element : array) {
     element = value;
@@ -273,7 +273,7 @@ RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
 /// @tparam T 	   data type
 /// @param array  array to be populated
 template<typename T>
-inline void identity_void(UnsizedArrayDescriptor<T> array)
+static void identity_void(UnsizedArrayDescriptor<T> array)
 {
 	// Check that the array is square-like (all the dimensions have the same
 	// size). Note that the implementation is generalized to n-D dimensions,
@@ -314,7 +314,7 @@ RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 /// @param start  start value
 /// @param end 	 end value
 template<typename T>
-inline void linspace_void(UnsizedArrayDescriptor<T> array, double start, double end)
+static void linspace_void(UnsizedArrayDescriptor<T> array, double start, double end)
 {
 	using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
 	assert(array.getRank() == 1);
@@ -342,13 +342,13 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
 // ln
 //===----------------------------------------------------------------------===//
 
-inline float log_f32(float value)
+static float log_f32(float value)
 {
 	assert(value > 0);
 	return std::log(value);
 }
 
-inline double log_f64(double value)
+static double log_f64(double value)
 {
   assert(value > 0);
   return std::log(value);
@@ -361,13 +361,13 @@ RUNTIME_FUNC_DEF(log, double, double)
 // log
 //===----------------------------------------------------------------------===//
 
-inline float log10_f32(float value)
+static float log10_f32(float value)
 {
   assert(value > 0);
   return std::log10(value);
 }
 
-inline double log10_f64(double value)
+static double log10_f64(double value)
 {
 	assert(value > 0);
 	return std::log10(value);
@@ -381,34 +381,34 @@ RUNTIME_FUNC_DEF(log10, double, double)
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T max(UnsizedArrayDescriptor<T> array)
+static T max(UnsizedArrayDescriptor<T> array)
 {
 	return *std::max_element(array.begin(), array.end());
 }
 
-inline bool max_i1(UnsizedArrayDescriptor<bool> array)
+static bool max_i1(UnsizedArrayDescriptor<bool> array)
 {
   return std::any_of(array.begin(), array.end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t max_i32(UnsizedArrayDescriptor<int32_t> array)
+static int32_t max_i32(UnsizedArrayDescriptor<int32_t> array)
 {
   return max(array);
 }
 
-inline int32_t max_i64(UnsizedArrayDescriptor<int64_t> array)
+static int32_t max_i64(UnsizedArrayDescriptor<int64_t> array)
 {
   return max(array);
 }
 
-inline float max_f32(UnsizedArrayDescriptor<float> array)
+static float max_f32(UnsizedArrayDescriptor<float> array)
 {
   return max(array);
 }
 
-inline double max_f64(UnsizedArrayDescriptor<double> array)
+static double max_f64(UnsizedArrayDescriptor<double> array)
 {
   return max(array);
 }
@@ -424,32 +424,32 @@ RUNTIME_FUNC_DEF(max, double, ARRAY(double))
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T max(T x, T y)
+static T max(T x, T y)
 {
 	return std::max(x, y);
 }
 
-inline bool max_i1(bool x, bool y)
+static bool max_i1(bool x, bool y)
 {
   return x || y;
 }
 
-inline int32_t max_i32(int32_t x, int32_t y)
+static int32_t max_i32(int32_t x, int32_t y)
 {
   return max(x, y);
 }
 
-inline int64_t max_i64(int64_t x, int64_t y)
+static int64_t max_i64(int64_t x, int64_t y)
 {
   return max(x, y);
 }
 
-inline float max_f32(float x, float y)
+static float max_f32(float x, float y)
 {
   return max(x, y);
 }
 
-inline double max_f64(double x, double y)
+static double max_f64(double x, double y)
 {
   return max(x, y);
 }
@@ -465,34 +465,34 @@ RUNTIME_FUNC_DEF(max, double, double, double)
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T min(UnsizedArrayDescriptor<T> array)
+static T min(UnsizedArrayDescriptor<T> array)
 {
 	return *std::min_element(array.begin(), array.end());
 }
 
-inline bool min_i1(UnsizedArrayDescriptor<bool> array)
+static bool min_i1(UnsizedArrayDescriptor<bool> array)
 {
   return std::all_of(array.begin(), array.end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t min_i32(UnsizedArrayDescriptor<int32_t> array)
+static int32_t min_i32(UnsizedArrayDescriptor<int32_t> array)
 {
   return min(array);
 }
 
-inline int32_t min_i64(UnsizedArrayDescriptor<int64_t> array)
+static int32_t min_i64(UnsizedArrayDescriptor<int64_t> array)
 {
   return min(array);
 }
 
-inline float min_f32(UnsizedArrayDescriptor<float> array)
+static float min_f32(UnsizedArrayDescriptor<float> array)
 {
   return min(array);
 }
 
-inline double min_f64(UnsizedArrayDescriptor<double> array)
+static double min_f64(UnsizedArrayDescriptor<double> array)
 {
   return min(array);
 }
@@ -508,32 +508,32 @@ RUNTIME_FUNC_DEF(min, double, ARRAY(double))
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T min(T x, T y)
+static T min(T x, T y)
 {
 	return std::min(x, y);
 }
 
-inline bool min_i1(bool x, bool y)
+static bool min_i1(bool x, bool y)
 {
   return x && y;
 }
 
-inline int32_t min_i32(int32_t x, int32_t y)
+static int32_t min_i32(int32_t x, int32_t y)
 {
   return min(x, y);
 }
 
-inline int64_t min_i64(int64_t x, int64_t y)
+static int64_t min_i64(int64_t x, int64_t y)
 {
   return min(x, y);
 }
 
-inline float min_f32(float x, float y)
+static float min_f32(float x, float y)
 {
   return min(x, y);
 }
 
-inline double min_f64(double x, double y)
+static double min_f64(double x, double y)
 {
   return min(x, y);
 }
@@ -553,7 +553,7 @@ RUNTIME_FUNC_DEF(min, double, double, double)
 /// @tparam T data type
 /// @param array   array to be populated
 template<typename T>
-inline void ones_void(UnsizedArrayDescriptor<T> array)
+static void ones_void(UnsizedArrayDescriptor<T> array)
 {
 	for (auto& element : array) {
     element = 1;
@@ -576,34 +576,34 @@ RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
 /// @param array  array
 /// @return product of all the values
 template<typename T>
-inline T product(UnsizedArrayDescriptor<T> array)
+static T product(UnsizedArrayDescriptor<T> array)
 {
 	return std::accumulate(array.begin(), array.end(), 1, std::multiplies<T>());
 }
 
-inline bool product_i1(UnsizedArrayDescriptor<bool> array)
+static bool product_i1(UnsizedArrayDescriptor<bool> array)
 {
   return std::all_of(array.begin(), array.end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t product_i32(UnsizedArrayDescriptor<int32_t> array)
+static int32_t product_i32(UnsizedArrayDescriptor<int32_t> array)
 {
   return product(array);
 }
 
-inline int64_t product_i64(UnsizedArrayDescriptor<int64_t> array)
+static int64_t product_i64(UnsizedArrayDescriptor<int64_t> array)
 {
   return product(array);
 }
 
-inline float product_f32(UnsizedArrayDescriptor<float> array)
+static float product_f32(UnsizedArrayDescriptor<float> array)
 {
   return product(array);
 }
 
-inline double product_f64(UnsizedArrayDescriptor<double> array)
+static double product_f64(UnsizedArrayDescriptor<double> array)
 {
   return product(array);
 }
@@ -624,7 +624,7 @@ RUNTIME_FUNC_DEF(product, double, ARRAY(double))
 /// @param value  value
 /// @return 1 if value is > 0, -1 if < 0, 0 if = 0
 template<typename T>
-inline long sign(T value)
+static long sign(T value)
 {
 	if (value == 0) {
     return 0;
@@ -638,25 +638,25 @@ inline long sign(T value)
 }
 
 template<typename T>
-inline int32_t sign_i32(T value)
+static int32_t sign_i32(T value)
 {
   return sign(value);
 }
 
 template<>
-inline int32_t sign_i32(bool value)
+static int32_t sign_i32(bool value)
 {
   return value ? 1 : 0;
 }
 
 template<typename T>
-inline int64_t sign_i64(T value)
+static int64_t sign_i64(T value)
 {
   return sign(value);
 }
 
 template<>
-inline int64_t sign_i64(bool value)
+static int64_t sign_i64(bool value)
 {
   return value ? 1 : 0;
 }
@@ -677,12 +677,12 @@ RUNTIME_FUNC_DEF(sign, int64_t, double)
 // sin
 //===----------------------------------------------------------------------===//
 
-inline float sin_f32(float value)
+static float sin_f32(float value)
 {
 	return std::sin(value);
 }
 
-inline double sin_f64(double value)
+static double sin_f64(double value)
 {
   return std::sin(value);
 }
@@ -694,12 +694,12 @@ RUNTIME_FUNC_DEF(sin, double, double)
 // sinh
 //===----------------------------------------------------------------------===//
 
-inline float sinh_f32(float value)
+static float sinh_f32(float value)
 {
   return std::sinh(value);
 }
 
-inline double sinh_f64(double value)
+static double sinh_f64(double value)
 {
   return std::sinh(value);
 }
@@ -711,13 +711,13 @@ RUNTIME_FUNC_DEF(sinh, double, double)
 // sqrt
 //===----------------------------------------------------------------------===//
 
-inline float sqrt_f32(float value)
+static float sqrt_f32(float value)
 {
   assert(value >= 0);
   return std::sqrt(value);
 }
 
-inline double sqrt_f64(double value)
+static double sqrt_f64(double value)
 {
 	assert(value >= 0);
 	return std::sqrt(value);
@@ -736,34 +736,34 @@ RUNTIME_FUNC_DEF(sqrt, double, double)
 /// @param array  array
 /// @return sum of all the values
 template<typename T>
-inline T sum(UnsizedArrayDescriptor<T> array)
+static T sum(UnsizedArrayDescriptor<T> array)
 {
 	return std::accumulate(array.begin(), array.end(), 0, std::plus<T>());
 }
 
-inline bool sum_i1(UnsizedArrayDescriptor<bool> array)
+static bool sum_i1(UnsizedArrayDescriptor<bool> array)
 {
   return std::any_of(array.begin(), array.end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t sum_i32(UnsizedArrayDescriptor<int32_t> array)
+static int32_t sum_i32(UnsizedArrayDescriptor<int32_t> array)
 {
   return sum(array);
 }
 
-inline int64_t sum_i64(UnsizedArrayDescriptor<int64_t> array)
+static int64_t sum_i64(UnsizedArrayDescriptor<int64_t> array)
 {
   return sum(array);
 }
 
-inline float sum_f32(UnsizedArrayDescriptor<float> array)
+static float sum_f32(UnsizedArrayDescriptor<float> array)
 {
   return sum(array);
 }
 
-inline double sum_f64(UnsizedArrayDescriptor<double> array)
+static double sum_f64(UnsizedArrayDescriptor<double> array)
 {
   return sum(array);
 }
@@ -848,12 +848,12 @@ RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(double))
 // tan
 //===----------------------------------------------------------------------===//
 
-inline float tan_f32(float value)
+static float tan_f32(float value)
 {
   return std::tan(value);
 }
 
-inline double tan_f64(double value)
+static double tan_f64(double value)
 {
 	return std::tan(value);
 }
@@ -865,12 +865,12 @@ RUNTIME_FUNC_DEF(tan, double, double)
 // tanh
 //===----------------------------------------------------------------------===//
 
-inline float tanh_f32(float value)
+static float tanh_f32(float value)
 {
   return std::tanh(value);
 }
 
-inline double tanh_f64(double value)
+static double tanh_f64(double value)
 {
 	return std::tanh(value);
 }
@@ -957,7 +957,7 @@ RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(double))
 /// @tparam T data type
 /// @param array   array to be populated
 template<typename T>
-inline void zeros_void(UnsizedArrayDescriptor<T> array)
+static void zeros_void(UnsizedArrayDescriptor<T> array)
 {
 	for (auto& element : array) {
     element = 0;

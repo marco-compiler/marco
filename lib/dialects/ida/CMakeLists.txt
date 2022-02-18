@@ -1,6 +1,7 @@
 add_mlir_dialect_library(MLIRIDA SHARED
     Attributes.cpp
     IDADialect.cpp
+    Interfaces.cpp
     Ops.cpp
     Types.cpp
 
@@ -16,4 +17,5 @@ add_mlir_dialect_library(MLIRIDA SHARED
     LINK_LIBS PUBLIC
     MLIRIR
     MLIRSupport
+    MLIRControlFlowInterfaces
     MLIRSideEffectInterfaces)

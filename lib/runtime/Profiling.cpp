@@ -36,13 +36,13 @@ class Statistics
   {
     constexpr size_t lineWidth = 80;
 
-    std::cout << "\n";
+    std::cerr << "\n";
     printHeader(lineWidth, "Runtime statistics");
 
     for (const auto& profiler : profilers) {
       printProfilerTitle(lineWidth, profiler->getName());
       profiler->print();
-      std::cout << "\n";
+      std::cerr << "\n";
     }
   }
 
@@ -50,10 +50,10 @@ class Statistics
   void printHeaderLine(size_t width) const
   {
     for (size_t i = 0; i < width; ++i) {
-      std::cout << "-";
+      std::cerr << "-";
     }
 
-    std::cout << "\n";
+    std::cerr << "\n";
   }
 
   void printHeaderTitle(size_t width, const std::string& title) const
@@ -62,19 +62,19 @@ class Statistics
     size_t left = spaces / 2;
     size_t right = spaces - left;
 
-    std::cout << "|";
+    std::cerr << "|";
 
     for (size_t i = 0; i < left; ++i) {
-      std::cout << " ";
+      std::cerr << " ";
     }
 
-    std::cout << title.data();
+    std::cerr << title.data();
 
     for (size_t i = 0; i < right; ++i) {
-      std::cout << " ";
+      std::cerr << " ";
     }
 
-    std::cout << "|\n";
+    std::cerr << "|\n";
   }
 
   void printHeader(size_t width, const std::string& title) const
@@ -91,16 +91,16 @@ class Statistics
     size_t right = symbols - left;
 
     for (size_t i = 0; i < left; ++i) {
-      std::cout << "=";
+      std::cerr << "=";
     }
 
-    std::cout << " " << title.data() << " ";
+    std::cerr << " " << title.data() << " ";
 
     for (size_t i = 0; i < right; ++i) {
-      std::cout << "=";
+      std::cerr << "=";
     }
 
-    std::cout << "\n";
+    std::cerr << "\n";
   }
 
   std::vector<Profiler*> profilers;

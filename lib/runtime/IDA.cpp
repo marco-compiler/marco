@@ -57,7 +57,7 @@ const int lineSearchOff = SUNFALSE;
 
 /// Container for all the data required by IDA in order to compute the residual
 /// functions and the Jacobian matrix.
-typedef struct IdaUserData
+struct IDAUserData
 {
 	// Model size
 	size_t vectorVariablesNumber;
@@ -103,7 +103,41 @@ typedef struct IdaUserData
 	void* idaMemory;
 	SUNMatrix sparseMatrix;
 	SUNLinearSolver linearSolver;
-} IdaUserData;
+};
+
+#ifdef MARCO_PROFILING
+
+#include "marco/runtime/Profiling.h"
+
+class IDAProfiler : public Profiler
+{
+  public:
+    IDAProfiler() : Profiler("IDA")
+    {
+      registerProfiler(*this);
+    }
+
+    void reset() override
+    {
+
+    }
+
+    void print() const override
+    {
+
+    }
+
+  private:
+
+};
+
+IDAProfiler& profiler()
+{
+  static IDAProfiler obj;
+  return obj;
+}
+
+#endif
 
 /// Given an array of indexes and the dimension of an equation, increase the
 /// indexes within the induction bounds of the equation. Return false if the
@@ -147,7 +181,7 @@ static sunindextype computeOffset(
 
 /// Compute the column indexes of the current row of the Jacobian Matrix given
 /// the current vector equation and an array of indexes.
-static std::set<size_t> computeIndexSet(IdaUserData* data, size_t eq, sunindextype* indexes)
+static std::set<size_t> computeIndexSet(IDAUserData* data, size_t eq, sunindextype* indexes)
 {
 	std::set<size_t> columnIndexesSet;
 
@@ -187,13 +221,13 @@ static bool checkRetval(int retval, const char* funcname)
 /// IDAResFn user-defined residual function, passed to IDA through IDAInit.
 /// It contains how to compute the Residual Function of the system, starting
 /// from the provided UserData struct, iterating through every equation.
-int residualFunction(realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, void* userData)
+static int residualFunction(realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, void* userData)
 {
 	realtype* yval = N_VGetArrayPointer(yy);
 	realtype* ypval = N_VGetArrayPointer(yp);
 	realtype* rval = N_VGetArrayPointer(rr);
 
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	// For every vector equation
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; ++eq) {
@@ -220,7 +254,7 @@ int residualFunction(realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, void* u
 /// through IDASetJacFn. It contains how to compute the Jacobian Matrix of
 /// the system, starting from the provided UserData struct, iterating through
 /// every equation and variable. The matrix is represented in CSR format.
-int jacobianMatrix(
+static int jacobianMatrix(
 		realtype tt,
 		realtype cj,
 		N_Vector yy,
@@ -238,7 +272,7 @@ int jacobianMatrix(
 	sunindextype* colvals = SUNSparseMatrix_IndexValues(JJ);
 	realtype* jacobian = SUNSparseMatrix_Data(JJ);
 
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	sunindextype nnzElements = 0;
 	*rowptrs++ = nnzElements;
@@ -285,9 +319,9 @@ int jacobianMatrix(
 /// Instantiate and initialize the struct of data needed by IDA, given the total
 /// number of scalar equations.
 template<typename T>
-inline void* idaAllocData_pvoid(T scalarEquationsNumber, T vectorEquationsNumber, T vectorVariablesNumber)
+static void* idaAllocData_pvoid(T scalarEquationsNumber, T vectorEquationsNumber, T vectorVariablesNumber)
 {
-	IdaUserData* data = new IdaUserData;
+  IDAUserData* data = new IDAUserData;
 
 	data->scalarEquationsNumber = scalarEquationsNumber;
 	data->vectorEquationsNumber = 0;
@@ -329,7 +363,7 @@ RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t, int64_t, int64_t)
 /// Compute the number of non-zero values in the Jacobian Matrix. Also compute
 /// the column indexes of all non-zero values in the Jacobian Matrix. This avoids
 /// the recomputation of such indexes during the Jacobian evaluation.
-void computeNNZ(IdaUserData* data)
+static void computeNNZ(IDAUserData* data)
 {
 	for (size_t eq = 0; eq < data->vectorEquationsNumber; ++eq) {
 		// Initialize the multidimensional interval of the vector equation
@@ -351,9 +385,9 @@ void computeNNZ(IdaUserData* data)
 /// the given system of equations. It also sets optional simulation parameters
 /// for IDA. It must be called before the first usage of idaStep() and after a
 /// call to idaAllocData(). It may fail in case of malformed model.
-inline bool idaInit_i1(void* userData)
+static bool idaInit_i1(void* userData)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	if (data->scalarEquationsNumber == 0) {
     return true;
@@ -465,9 +499,9 @@ RUNTIME_FUNC_DEF(idaInit, bool, PTR(void))
 
 /// Invoke IDA to perform one step of the computation. Returns false if the
 /// computation failed, true otherwise.
-inline bool idaStep_i1(void* userData)
+static bool idaStep_i1(void* userData)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	if (data->scalarEquationsNumber == 0) {
     return true;
@@ -495,9 +529,9 @@ inline bool idaStep_i1(void* userData)
 RUNTIME_FUNC_DEF(idaStep, bool, PTR(void))
 
 /// Free all the data allocated by IDA.
-inline bool idaFreeData_i1(void* userData)
+static bool idaFreeData_i1(void* userData)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	if (data->scalarEquationsNumber == 0) {
     return true;
@@ -525,9 +559,9 @@ RUNTIME_FUNC_DEF(idaFreeData, bool, PTR(void))
 /// equidistant time grid based on the step time parameter. Otherwise, the output
 /// will show the variables at every step of the computation.
 template<typename T>
-inline void addTime_void(void* userData, T startTime, T endTime, T timeStep)
+static void addTime_void(void* userData, T startTime, T endTime, T timeStep)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	data->startTime = startTime;
 	data->endTime = endTime;
@@ -542,9 +576,9 @@ RUNTIME_FUNC_DEF(addTime, void, PTR(void), double, double, double)
 
 /// Add the relative tolerance and the absolute tolerance to the IDA user data.
 template<typename T>
-inline void addTolerance_void(void* userData, T relTol, T absTol)
+static void addTolerance_void(void* userData, T relTol, T absTol)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	data->relativeTolerance = relTol;
 	data->absoluteTolerance = absTol;
@@ -559,9 +593,9 @@ RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
 
 /// Add the dimension of an equation to the IDA user data.
 template<typename T>
-inline void addEquation_void(void* userData, UnsizedArrayDescriptor<T> dimension)
+static void addEquation_void(void* userData, UnsizedArrayDescriptor<T> dimension)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	assert(dimension.getRank() == 2);
 	assert(dimension.getDimension(0) == 2);
@@ -585,9 +619,9 @@ RUNTIME_FUNC_DEF(addEquation, void, PTR(void), ARRAY(int64_t))
 /// Add the function pointer that computes the index-th residual function to the
 /// IDA user data.
 template<typename T>
-inline void addResidual_void(void* userData, T residualFunction)
+static void addResidual_void(void* userData, T residualFunction)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 	data->residuals[data->vectorEquationsNumber - 1] = residualFunction;
 }
 
@@ -600,9 +634,9 @@ RUNTIME_FUNC_DEF(addResidual, void, PTR(void), RESIDUAL(double))
 /// Add the function pointer that computes the index-th jacobian row to the user
 /// data.
 template<typename T>
-inline void addJacobian_void(void* userData, T jacobianFunction)
+static void addJacobian_void(void* userData, T jacobianFunction)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 	data->jacobians[data->vectorEquationsNumber - 1] = jacobianFunction;
 }
 
@@ -623,13 +657,13 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(double))
 /// @param array     allocation operation containing the rank and dimensions.
 /// @param isState   indicates if the variable is differential or algebraic.
 template<typename T, typename U>
-inline void addVariable_void(
+static void addVariable_void(
 		void* userData,
 		T offset,
 		UnsizedArrayDescriptor<U> array,
 		bool isState)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	assert(offset >= 0);
 	assert(offset + array.getNumElements() <= (size_t) data->scalarEquationsNumber);
@@ -661,12 +695,12 @@ RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
 /// Add a variable access to the var-th variable, where ind is the induction
 /// variable and off is the access offset.
 template<typename T>
-inline void addVarAccess_void(
+static void addVarAccess_void(
 		void* userData,
 		T variableIndex,
 		UnsizedArrayDescriptor<T> access)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	assert(variableIndex >= 0);
 	assert((size_t) variableIndex < data->vectorVariablesNumber);
@@ -695,9 +729,9 @@ RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
 /// Returns the pointer to the start of the memory of the requested variable
 /// given its offset and if it is a derivative or not.
 template<typename T>
-inline void* getVariableAlloc_pvoid(void* userData, T offset, bool isDerivative)
+static void* getVariableAlloc_pvoid(void* userData, T offset, bool isDerivative)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	assert(offset >= 0);
 	assert(offset < data->scalarEquationsNumber);
@@ -714,9 +748,9 @@ RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
 
 /// Returns the time reached by the solver after the last step.
 template<typename T>
-inline T getIdaTime(void* userData)
+static T getIdaTime(void* userData)
 {
-  IdaUserData* data = static_cast<IdaUserData*>(userData);
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   // Return the stop time if the whole system is trivial.
   if (data->scalarEquationsNumber == 0) {
@@ -726,12 +760,12 @@ inline T getIdaTime(void* userData)
   return data->time;
 }
 
-inline float getIdaTime_f32(void* userData)
+static float getIdaTime_f32(void* userData)
 {
 	return getIdaTime<float>(userData);
 }
 
-inline double getIdaTime_f64(void* userData)
+static double getIdaTime_f64(void* userData)
 {
   return getIdaTime<double>(userData);
 }
@@ -746,7 +780,7 @@ RUNTIME_FUNC_DEF(getIdaTime, double, PTR(void))
 /// Prints the Jacobian incidence matrix of the system.
 static void printIncidenceMatrix(void* userData)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	std::cerr << std::endl;
 
@@ -784,16 +818,16 @@ static void printIncidenceMatrix(void* userData)
 }
 
 /// Prints statistics about the computation of the system.
-inline void printStatistics_void(void* userData)
+static void printStatistics_void(void* userData)
 {
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	IDAUserData* data = static_cast<IDAUserData*>(userData);
 
 	if (data->scalarEquationsNumber == 0) {
     return;
   }
 
 	if (printJacobian) {
-    printIncidenceMatrix(userData);
+    printIncidenceMatrix(data);
   }
 
 	long nst, nre, nje, nni, nli, netf, nncf;

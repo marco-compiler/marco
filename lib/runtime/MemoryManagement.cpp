@@ -28,18 +28,18 @@ class MemoryProfiler : public Profiler
 
   void print() const override
   {
-    std::cout << "Number of 'malloc' invocations: " << mallocCalls << "\n";
-    std::cout << "Number of 'free' invocations: " << freeCalls << "\n";
+    std::cerr << "Number of 'malloc' invocations: " << mallocCalls << "\n";
+    std::cerr << "Number of 'free' invocations: " << freeCalls << "\n";
 
     if (mallocCalls > freeCalls) {
-      std::cout << "[Warning] Possible memory leak detected\n";
+      std::cerr << "[Warning] Possible memory leak detected\n";
     } else if (mallocCalls < freeCalls) {
-      std::cout << "[Warning] Possible double 'free' detected\n";
+      std::cerr << "[Warning] Possible double 'free' detected\n";
     }
 
-    std::cout << "Total amount of heap allocated memory: " << totalHeapMemory << " bytes\n";
-    std::cout << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
-    std::cout << "Time spent in heap memory management: " << time() << " ms\n";
+    std::cerr << "Total amount of heap allocated memory: " << totalHeapMemory << " bytes\n";
+    std::cerr << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
+    std::cerr << "Time spent in heap memory management: " << time() << " ms\n";
   }
 
   void malloc(void* address, int64_t bytes)

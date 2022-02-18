@@ -29,7 +29,10 @@ set(SOURCES
     Options.cpp
     Reference.cpp)
 
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+
 set(MLIR_LIBS
+    ${dialect_libs}
     MLIRIR
     MLIRMathToLLVM
     MLIROpenMPToLLVM

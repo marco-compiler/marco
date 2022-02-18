@@ -56,10 +56,4 @@ RUNTIME_FUNC_DECL(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
 RUNTIME_FUNC_DECL(getIdaTime, float, PTR(void))
 RUNTIME_FUNC_DECL(getIdaTime, double, PTR(void))
 
-//===----------------------------------------------------------------------===//
-// Statistics
-//===----------------------------------------------------------------------===//
-
-RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
-
 #endif // MARCO_RUNTIME_IDA_H

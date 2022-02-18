@@ -1,5 +1,6 @@
 #include "marco/dialects/ida/IDADialect.h"
 #include "marco/dialects/ida/Ops.h"
+#include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
@@ -51,22 +52,30 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
-  // AddTimeOp
+  // SetTimesOp
   //===----------------------------------------------------------------------===//
 
-  void AddTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetTimesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
-  // AddToleranceOp
+  // SetToleranceOp
   //===----------------------------------------------------------------------===//
 
-  void AddToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
   }
 
+  //===----------------------------------------------------------------------===//
+  // GetCurrentTimeOp
+  //===----------------------------------------------------------------------===//
+
+  void GetCurrentTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
 
 }
