@@ -1,3 +1,4 @@
+#ifdef WINDOWS_NOSTDLIB
 #include <Windows.h>
 
 BOOL WINAPI DllMain(
@@ -86,3 +87,4 @@ void* memset(void* s, int c,  size_t len)
     }
     return s;
 }
+#endif
