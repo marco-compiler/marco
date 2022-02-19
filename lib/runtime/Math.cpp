@@ -53,12 +53,6 @@ namespace
     return 1;
   }
 
-  template<>
-  bool pow_boolExp(bool base, bool exp)
-  {
-    return ::pow_boolBase(base, exp);
-  }
-
   template<typename Base, typename Exp>
   bool pow_i1(Base base, Exp exp)
   {

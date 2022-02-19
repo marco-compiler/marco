@@ -537,22 +537,40 @@ def IDA_ReturnOp : IDA_Op<"return",
      ParentOneOf<["ResidualFunctionOp", "JacobianFunctionOp"]>,
      ReturnLike, Terminator]>
 {
-  let summary = "Return operation";
+    let summary = "Return operation";
 
-  let description = [{
-    The operation represents a return operation within a function.
-    The operation takes variable number of operands and produces no results.
-    The operand number and types must match the signature of the function
-    that contains the operation.
-  }];
+    let description = [{
+        The operation represents a return operation within a function.
+        The operation takes variable number of operands and produces no results.
+        The operand number and types must match the signature of the function
+        that contains the operation.
+    }];
 
-  let arguments = (ins Variadic<AnyType>:$operands);
+    let arguments = (ins Variadic<AnyType>:$operands);
 
-  let builders = [
-    OpBuilder<(ins),
-    [{ build($_builder, $_state, llvm::None); }]>];
+    let builders = [
+        OpBuilder<(ins), [{
+            build($_builder, $_state, llvm::None);
+        }]>];
 
-  let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
+    let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
+}
+
+def IDA_PrintStatisticsOp : IDA_Op<"print_statistics",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins IDAInstance:$instance);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $instance attr-dict `:` type($instance)
+    }];
 }
 
 #endif // MARCO_DIALECTS_IDA_IDA_TD

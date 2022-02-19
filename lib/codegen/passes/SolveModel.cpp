@@ -481,9 +481,12 @@ class ModelConverter
 
       for (const auto& var : terminator.values()) {
         auto memberCreateOp = var.getDefiningOp<MemberCreateOp>();
-        mlir::Value array = convertMember(builder, memberCreateOp);
-        builder.setInsertionPointAfterValue(array);
-        values.push_back(removeAllocationScopeFn(array));
+
+        if (memberCreateOp != nullptr) {
+          mlir::Value array = convertMember(builder, memberCreateOp);
+          builder.setInsertionPointAfterValue(array);
+          values.push_back(removeAllocationScopeFn(array));
+        }
       }
 
       builder.setInsertionPointAfter(terminator);

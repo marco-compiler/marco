@@ -34,9 +34,9 @@ TEST(MatchingGraph, multidimensionalVariableInsertion)
 
   auto var = graph.getVariable("x");
   EXPECT_EQ(var.getRank(), 3);
-  EXPECT_EQ(var.getDimension(0), 2);
-  EXPECT_EQ(var.getDimension(1), 3);
-  EXPECT_EQ(var.getDimension(2), 4);
+  EXPECT_EQ(var.getDimensionSize(0), 2);
+  EXPECT_EQ(var.getDimensionSize(1), 3);
+  EXPECT_EQ(var.getDimensionSize(2), 4);
 }
 
 TEST(MatchingGraph, addEquation)

@@ -2,7 +2,6 @@
 #include "marco/ast/AST.h"
 #include "marco/codegen/CodeGen.h"
 #include "marco/codegen/dialects/modelica/ModelicaDialect.h"
-#include "marco/codegen/dialects/ida/IdaDialect.h"
 #include "mlir/IR/Verifier.h"
 
 using namespace marco;
@@ -16,7 +15,6 @@ MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, CodegenOptions options)
 			options(options)
 {
 	context.loadDialect<ModelicaDialect>();
-	context.loadDialect<ida::IdaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
 }
 
@@ -253,8 +251,9 @@ mlir::Operation* MLIRLowerer::lower(const ast::Model& model)
 			builder.getRealAttribute(options.startTime),
 			builder.getRealAttribute(options.endTime),
 			builder.getRealAttribute(options.timeStep),
-			builder.getRealAttribute(options.relativeTolerance),
-			builder.getRealAttribute(options.absoluteTolerance),
+      // TODO
+			//builder.getRealAttribute(options.relativeTolerance),
+			//builder.getRealAttribute(options.absoluteTolerance),
 			args);
 
 	{

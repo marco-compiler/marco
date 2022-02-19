@@ -17,7 +17,9 @@ namespace marco::codegen
 	{
 		mlir::registerPass("convert-ida", "Ida: conversion to std + scf + llvm dialects",
 											 []() -> std::unique_ptr<::mlir::Pass> {
-												 return createIdaConversionPass();
+                          // TODO
+                          return nullptr;
+												 //return createIdaConversionPass();
 											 });
 	}
 }

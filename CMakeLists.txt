@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
+set(CMAKE_VERBOSE_MAKEFILE on)
 
 if (POLICY CMP0068)
 	cmake_policy(SET CMP0068 NEW)
@@ -41,6 +42,42 @@ include(GNUInstallDirs)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
+
+
+#-------------------------------------------------------------------------------
+# Sundials
+#-------------------------------------------------------------------------------
+
+set(SUNDIALS_DIR "${SUNDIALS_PATH}/lib/cmake/sundials")
+find_package(SUNDIALS REQUIRED)
+
+set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_PATH}/include)
+set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_PATH}/lib)
+
+link_directories("${SUNDIALS_LIBRARY_DIR}")
+
+# IDA DAE solver
+#find_library(SUNDIALS_SOLVER_LIB sundials_ida ${SUNDIALS_LIBRARY_DIR})
+#message("lib IDA: ${SUNDIALS_SOLVER_LIB}")
+
+# NVector
+#find_library(SUNDIALS_NVEC_LIB sundials_nvecserial ${SUNDIALS_LIBRARY_DIR})
+#message("lib NVECSERIAL: ${SUNDIALS_NVEC_LIB}")
+
+# KLU sparse solver
+#find_library(SUNDIALS_SUNLINSOLKLU_LIB sundials_sunlinsolklu ${SUNDIALS_LIBRARY_DIR})
+#message("lib KLU: ${SUNDIALS_SUNLINSOLKLU_LIB}")
+
+#include_directories(sundials ${SUNDIALS_INCLUDE_DIR})
+
+#add_library(sundials INTERFACE)
+
+#target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIR})
+
+#target_link_libraries(sundials INTERFACE
+#		${SUNDIALS_SOLVER_LIB}
+#		${SUNDIALS_NVEC_LIB}
+#		${SUNDIALS_SUNLINSOLKLU_LIB})
 
 #-------------------------------------------------------------------------------
 # Clang / MLIR / LLVM configuration
@@ -105,6 +142,20 @@ add_definitions(${LLVM_DEFINITIONS})
 find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
+# Boost (will be removed soon)
+#-------------------------------------------------------------------------------
+
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.45.0 COMPONENTS graph exception REQUIRED)
+
+add_library(boost INTERFACE)
+target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIRS})
+target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
+target_compile_features(boost INTERFACE cxx_std_17)
+
+#-------------------------------------------------------------------------------
 # MARCO configuration
 #-------------------------------------------------------------------------------
 
@@ -142,6 +193,9 @@ include_directories(${MLIR_INCLUDE_DIRS})
 
 # Add MARCO files to the include path
 include_directories(${MARCO_INCLUDE_DIRS})
+
+# Set the RPATH to include the path to external libraries
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #-------------------------------------------------------------------------------
 # Simulation runtime profiling
@@ -220,57 +274,3 @@ set(LLVM_LIT_ARGS "${LIT_ARGS_DEFAULT}" CACHE STRING "Default options for lit")
 
 add_subdirectory(test)
 add_subdirectory(unittest)
-
-#-------------------------------------------------------------------------------
-# Boost (will be removed soon)
-#-------------------------------------------------------------------------------
-
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.45.0 COMPONENTS graph exception REQUIRED)
-
-add_library(boost INTERFACE)
-target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIRS})
-target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
-target_compile_features(boost INTERFACE cxx_std_17)
-
-#-------------------------------------------------------------------------------
-# Sundials
-#-------------------------------------------------------------------------------
-
-set(SUNDIALS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sundials_libraries/install"
-		CACHE PATH "Path to Sundials installation folder")
-
-set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_DIR}/include)
-set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_DIR}/lib)
-
-# IDA DAE solver
-find_library(SUNDIALS_SOLVER_LIB sundials_ida ${SUNDIALS_LIBRARY_DIR})
-
-# NVector
-find_library(SUNDIALS_NVEC_LIB sundials_nvecserial ${SUNDIALS_LIBRARY_DIR})
-
-# KLU sparse solver
-find_library(SUNDIALS_SUNLINSOLKLU_LIB sundials_sunlinsolklu ${SUNDIALS_LIBRARY_DIR})
-
-add_library(sundials INTERFACE)
-
-target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIR})
-target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIRS})
-
-target_link_libraries(sundials INTERFACE
-		${SUNDIALS_SOLVER_LIB}
-		${SUNDIALS_NVEC_LIB}
-		${SUNDIALS_SUNLINSOLKLU_LIB})
-
-# TODO: check installation
-install(TARGETS sundials EXPORT sundialsTargets
-		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		RUNTIME DESTINATION bin
-		INCLUDES DESTINATION include)
-
-install(EXPORT sundialsTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
-		FILE sundialsTargets.cmake
-		NAMESPACE marco::)

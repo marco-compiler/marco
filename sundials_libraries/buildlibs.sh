@@ -76,7 +76,7 @@ cd $SUNDIALS
 # ENABLE_XBRAID                    OFF
 mkdir build
 cd build
-cmake .. -DENABLE_KLU=ON -DKLU_INCLUDE_DIR="$INSTDIR/include" -DKLU_LIBRARY_DIR="$INSTDIR/lib" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTDIR"
+cmake .. -DENABLE_KLU=ON -DKLU_INCLUDE_DIR="$INSTDIR/include" -DKLU_LIBRARY_DIR="$INSTDIR/lib" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$INSTDIR" -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON
 make -j `nproc` || fail "Sundials build failed"
 make install || fail "Sundials install failed"
 cd ..

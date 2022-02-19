@@ -1,3 +1,5 @@
+set(CMAKE_VERBOSE_MAKEFILE on)
+
 set(SHARED_SOURCES
 		BuiltInFunctions.cpp
     IDA.cpp
@@ -25,7 +27,11 @@ add_custom_target(marco-runtime)
 
 # Libraries to be linked
 set(LIBS
-		PRIVATE sundials)
+		PUBLIC SUNDIALS::KLU
+		PUBLIC SUNDIALS::ida
+		PUBLIC SUNDIALS::nvecserial
+		PUBLIC SUNDIALS::sunlinsolklu
+		)
 
 # Declare the shared library
 marco_add_library(runtimeShared

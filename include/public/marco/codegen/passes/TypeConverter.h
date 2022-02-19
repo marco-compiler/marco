@@ -1,7 +1,6 @@
 #pragma once
 
 #include "marco/codegen/dialects/modelica/Type.h"
-#include "marco/codegen/dialects/ida/Type.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -22,10 +21,6 @@ namespace marco::codegen {
 		mlir::Type convertArrayType(modelica::ArrayType type);
 		mlir::Type convertUnsizedArrayType(modelica::UnsizedArrayType type);
 		mlir::Type convertStructType(modelica::StructType type);
-
-		mlir::Type convertOpaquePointerType(ida::OpaquePointerType type);
-		mlir::Type convertIntegerPointerType(ida::IntegerPointerType type);
-		mlir::Type convertRealPointerType(ida::RealPointerType type);
 
 		llvm::SmallVector<mlir::Type, 3> getArrayDescriptorFields(modelica::ArrayType type);
 		llvm::SmallVector<mlir::Type, 3> getUnsizedArrayDescriptorFields(modelica::UnsizedArrayType type);

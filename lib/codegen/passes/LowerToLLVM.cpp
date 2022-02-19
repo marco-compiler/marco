@@ -1,7 +1,6 @@
 #include "marco/codegen/passes/LowerToLLVM.h"
 #include "marco/codegen/passes/TypeConverter.h"
 #include "marco/codegen/dialects/modelica/ModelicaDialect.h"
-#include "marco/codegen/dialects/ida/IdaDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Conversion/OpenMPToLLVM/ConvertOpenMPToLLVM.h"
@@ -501,7 +500,7 @@ class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
 		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
 	}
 };
-
+/*
 struct GetVariableAllocOpLowering : public AllocLikeOpLowering<ida::GetVariableAllocOp>
 {
 	using AllocLikeOpLowering<ida::GetVariableAllocOp>::AllocLikeOpLowering;
@@ -538,6 +537,7 @@ struct GetVariableAllocOpLowering : public AllocLikeOpLowering<ida::GetVariableA
 		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
 	}
 };
+ */
 
 class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 {
@@ -931,40 +931,6 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 	}
 };
 
-struct FuncAddressOfOpLowering : public mlir::ConvertOpToLLVMPattern<ida::FuncAddressOfOp>
-{
-	using mlir::ConvertOpToLLVMPattern<ida::FuncAddressOfOp>::ConvertOpToLLVMPattern;
-
-	mlir::LogicalResult matchAndRewrite(ida::FuncAddressOfOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
-
-		if (mlir::LLVM::LLVMFuncOp function = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.callee()))
-		{
-			assert(function.getNumResults() == 1);
-			rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, function);
-			return mlir::success();
-		}
-
-		return mlir::failure();
-	}
-};
-
-struct LoadPointerOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LoadPointerOp>
-{
-	using mlir::ConvertOpToLLVMPattern<ida::LoadPointerOp>::ConvertOpToLLVMPattern;
-
-	mlir::LogicalResult matchAndRewrite(ida::LoadPointerOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Type pointerType = getTypeConverter()->convertType(op.pointer().getType());
-
-		mlir::Value indArray = rewriter.create<mlir::LLVM::GEPOp>(op.getLoc(), pointerType, op.pointer(), op.offset());
-		rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(op, indArray);
-
-		return mlir::success();
-	}
-};
-
 static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& typeConverter, mlir::OwningRewritePatternList& patterns)
 {
 	patterns.insert<
@@ -972,7 +938,6 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			ExtractOpLowering,
 			AllocaOpLowering,
 			AllocOpLowering,
-			GetVariableAllocOpLowering,
 			FreeOpLowering,
 			DimOpLowering,
 			SubscriptOpLowering,
@@ -982,9 +947,7 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			CastOpBooleanLowering,
 			CastOpIntegerLowering,
 			CastOpRealLowering,
-			ArrayCastOpLowering,
-			FuncAddressOfOpLowering,
-			LoadPointerOpLowering>(typeConverter);
+			ArrayCastOpLowering>(typeConverter);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -1038,7 +1001,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		mlir::ConversionTarget target(getContext());
-		target.addIllegalDialect<ModelicaDialect, ida::IdaDialect, mlir::StandardOpsDialect>();
+		target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
 		target.addIllegalOp<mlir::FuncOp>();
 
 		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
