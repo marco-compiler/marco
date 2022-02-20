@@ -412,30 +412,12 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
-  // AddVarAccessOp
+  // AddVariableAccessOp
   //===----------------------------------------------------------------------===//
 
-  void AddVarAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddVariableAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // GetVariablesListOp
-  //===----------------------------------------------------------------------===//
-
-  void GetVariablesListOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // GetDerivativesListOp
-  //===----------------------------------------------------------------------===//
-
-  void GetDerivativesListOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -443,6 +425,16 @@ namespace mlir::ida
   //===----------------------------------------------------------------------===//
 
   void GetVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    // TODO allocation trait on result
+  }
+
+  //===----------------------------------------------------------------------===//
+  // GetDerivativeOp
+  //===----------------------------------------------------------------------===//
+
+  void GetDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
     // TODO allocation trait on result

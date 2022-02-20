@@ -13,11 +13,12 @@ class IDA_Type<string name, string typeMnemonic>
     let mnemonic = typeMnemonic;
 }
 
-def InstanceType : IDA_Type<"Instance", "instance"> {
-    let summary = "TODO";
+def InstanceType : IDA_Type<"Instance", "instance">
+{
+    let summary = "IDA instance.";
 
     let description = [{
-        TODO
+        The type represents an instance of IDA.
     }];
 
     let printer = [{
@@ -29,27 +30,12 @@ def InstanceType : IDA_Type<"Instance", "instance"> {
     }];
 }
 
-def VariablesType : IDA_Type<"Variables", "variables"> {
-    let summary = "TODO";
+def EquationType : IDA_Type<"Equation", "equation">
+{
+    let summary = "IDA equation.";
 
     let description = [{
-        TODO
-    }];
-
-    let printer = [{
-        $_printer << "vars_list";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
-}
-
-def EquationType : IDA_Type<"Equation", "equation"> {
-    let summary = "TODO";
-
-    let description = [{
-        TODO
+        The type represents an equation that is managed by IDA.
     }];
 
     let printer = [{
@@ -61,47 +47,16 @@ def EquationType : IDA_Type<"Equation", "equation"> {
     }];
 }
 
-def VariableType : IDA_Type<"Variable", "variable"> {
-    let summary = "TODO";
+def VariableType : IDA_Type<"Variable", "variable">
+{
+    let summary = "IDA variable.";
 
     let description = [{
-        TODO
+        The type represents a variable that is managed by IDA.
     }];
 
     let printer = [{
         $_printer << "variable";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
-}
-
-def ResidualFunctionType : IDA_Type<"ResidualFunction", "residual_function"> {
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let printer = [{
-        $_printer << "residual_function";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
-}
-
-def JacobianFunctionType : IDA_Type<"JacobianFunction", "jacobian_function"> {
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let printer = [{
-        $_printer << "jacobian_function";
     }];
 
     let parser = [{

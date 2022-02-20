@@ -16,10 +16,6 @@ include "mlir/IR/SymbolInterfaces.td"
 def IDAInstance : Type<CPred<"$_self.isa<::mlir::ida::InstanceType>()">,
                        "instance", "::mlir::ida::InstanceType">;
 
-// IDA variables list type
-def IDAVariables : Type<CPred<"$_self.isa<::mlir::ida::VariablesType>()">,
-                               "variables", "::mlir::ida::VariablesType">;
-
 // IDA equation type
 def IDAEquation : Type<CPred<"$_self.isa<::mlir::ida::EquationType>()">,
                              "equation", "::mlir::ida::EquationType">;
@@ -27,14 +23,6 @@ def IDAEquation : Type<CPred<"$_self.isa<::mlir::ida::EquationType>()">,
 // IDA variable type
 def IDAVariable : Type<CPred<"$_self.isa<::mlir::ida::VariableType>()">,
                              "variable", "::mlir::ida::VariableType">;
-
-// IDA residual function type
-def IDAResidualFunction : Type<CPred<"$_self.isa<::mlir::ida::ResidualFunctionType>()">,
-                               "residual_function", "::mlir::ida::ResidualFunctionType">;
-
-// IDA Jacobian function type
-def IDAJacobianFunction : Type<CPred<"$_self.isa<::mlir::ida::JacobianFunctionType>()">,
-                               "jacobian_function", "::mlir::ida::JacobianFunctionType">;
 
 //===----------------------------------------------------------------------===//
 // IDA operation definitions
@@ -336,8 +324,7 @@ def IDA_AddVariableAccessOp : IDA_Op<"add_variable_access",
         %0 = ... : !ida.instance
         %1 = ... : !ida.equation
         %2 = ... : !ida.variable
-        // TODO
-        ida.add_variable_access %0, %1, %2 { access = affine_map<(d0, d1)[s0] -> (d0, d0 + d1 + s0 floordiv 2)> } : !ida.instance, !ida.equation, !ida.variable
+        ida.add_variable_access %0, %1, %2 { access = affine_map<(d0, d1)[s0] -> (d1, d0 + s0)> } : !ida.instance, !ida.equation, !ida.variable
         ```
     }];
 
@@ -350,17 +337,38 @@ def IDA_AddVariableAccessOp : IDA_Op<"add_variable_access",
     let results = (outs);
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `,` type($equation) `,` type($variable)
+        $instance `,` $equation `,` $variable attr-dict `:` type($instance) `,` type($equation) `,` type($variable)
     }];
 }
 
 def IDA_GetVariableOp : IDA_Op<"get_variable",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Get the reference to a variable.";
 
     let description = [{
-        TODO
+        The operation is used to convert an IDA variable descriptor into
+        a reference to a variable.
+        The operation takes one operand and returns one result.
+
+        The operand consist in the descriptor of a variable belonging
+        to IDA, which is obtained when using the `ida.add_variable`
+        operation.
+
+        The result type is free to belong to any dialect, making this
+        operation a bridge between the IDA dialect and  the one the
+        result type belongs to. A requirement to accomplish this design
+        is that the IDA conversion passes need to know how to populate
+        the external dialect's result type when converted to its LLVM
+        equivalent.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !ida.instance
+        %1 = ... : !ida.variable
+        %2 = ida.get_variable %0, %1 : (!ida.instance, !ida.variable) -> !mydialect.variable
+        ```
     }];
 
     let arguments = (ins
@@ -374,63 +382,35 @@ def IDA_GetVariableOp : IDA_Op<"get_variable",
     }];
 }
 
-def IDA_GetVariablesOp : IDA_Op<"get_variables",
+def IDA_GetDerivativeOp : IDA_Op<"get_derivative",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "Get the list of scalar variables belonging to IDA.";
+    let summary = "Get the reference to the derivative of a variable.";
 
     let description = [{
-        Get the full list of the variables that have been added
-        to the IDA instance through the `ida.add_variable` operation.
-        The list is composed of array variables whose elements are
-        placed contiguously.
+        The operation is used to convert an IDA variable descriptor into
+        a reference to the derivative of a variable.
+        The operation takes one operand, returns one result and the
+        semantics are equal to the ones of the `ida.get_variable`
+        operation.
 
-        The `ida.get_variable` operation can be used to
-        obtain a reference to a specific array variable living
-        inside this list.
+        Example:
 
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ida.get_variables %0 : !ida.instance -> !ida.variables
+        %1 = ... : !ida.variable
+        %2 = ida.get_derivative %0, %1 : (!ida.instance, !ida.variable) -> !mydialect.variable
         ```
     }];
 
-    let arguments = (ins IDAInstance:$instance);
-    let results = (outs IDAVariables:$variables);
+    let arguments = (ins
+        IDAInstance:$instance,
+        IDAVariable:$variable);
+
+    let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($variables)
-    }];
-}
-
-def IDA_GetDerivativesOp : IDA_Op<"get_derivatives",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Get the list of scalar derivatives belonging to IDA.";
-
-    let description = [{
-        Get the full list of the derivatives that have been added
-        to the IDA instance through the `ida.add_variable` operation.
-        The list is composed of array variables whose elements are
-        placed contiguously.
-
-        The `ida.get_variable` operation can be used to
-        obtain a reference to a specific array derivative living
-        inside this list. Note that the same `ida.get_variable`
-        operation is used for both variables and derivatives,
-        because derivatives are conceptually variables.
-
-        ```mlir
-        %0 = ... : !ida.instance
-        %1 = ida.get_derivatives %0 : !ida.instance -> !ida.variables
-        ```
-    }];
-
-    let arguments = (ins IDAInstance:$instance);
-    let results = (outs IDAVariables:$ders);
-
-    let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($ders)
+        $instance `,` $variable attr-dict `:` `(` type($instance) `,` type($variable) `)` `->` type($result)
     }];
 }
 
@@ -446,17 +426,16 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
         The residual error of an equation consists in the difference
         between its right-hand side and left-hand side values.
 
-        The function takes four parameters:
-          1. the current time of the simulation.
-          2. the indices of the scalar equation to be examined.
-          3. the variables list.
-          4. the derivatives list.
+        The function takes three parameters:
+          1. IDA instance
+          2. current time of the simulation.
+          3. indices of the scalar equation to be examined.
 
         Example:
 
         ```mlir
         ida.residual_function @foo {
-            ^bbo(%time : f64, %indices : memref<?xi64>, %vars : !ida.variables, %ders : !ida.variables) {
+            ^bbo(%instance : !ida.instance, %time : f64, %indices : memref<?xi64>) {
                 ...
                 %diff = ... : f64
                 ida.return %diff : f64
@@ -479,7 +458,8 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
         OpBuilder<(ins "StringRef":$sym_name), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
-            SmallVector<Type, 4> args;
+            SmallVector<Type, 3> args;
+            args.push_back(InstanceType::get($_builder.getContext()));
             args.push_back($_builder.getF64Type());
 
             llvm::SmallVector<int64_t, 1> equationIndicesShape;
@@ -487,9 +467,6 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 
             auto equationIndicesType = MemRefType::get(equationIndicesShape, $_builder.getIndexType());
             args.push_back(equationIndicesType);
-
-            args.push_back(VariablesType::get($_builder.getContext()));
-            args.push_back(VariablesType::get($_builder.getContext()));
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
@@ -565,15 +542,14 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
         The Jacobian function of an equation is a function that computes
         an element of the Jacobian matrix of that equation.
 
-        The function takes seven parameters:
-          1. the current time of the simulation.
-          2. the indices of the scalar equation to be examined.
-          3. the variables list.
-          4. the derivatives list.
-          5. the vector variable belonging to the IDA instance.
-          6. the indices of the scalar variable with respect to which
+        The function takes six parameters:
+          1. IDA instance.
+          2. current time of the simulation.
+          3. indices of the scalar equation to be examined.
+          4. array variable belonging to the IDA instance.
+          5. indices of the scalar variable with respect to which
              the equation has to be derived.
-          7. the IDA alpha parameter.
+          6. the IDA alpha parameter.
 
         Example:
 
@@ -589,7 +565,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
         }
 
         ida.jacobian_function @foo {
-            ^bbo(%time : f64, %equationIndices : memref<?xi64>, %vars : !ida.variables, %ders : !ida.variables, %var : !ida.variable, %variableIndices : memref<?xi64>, %alpha : f64) {
+            ^bbo(%instance : !ida.instance, %time : f64, %equationIndices : memref<?xi64>, %var : !ida.variable, %variableIndices : memref<?xi64>, %alpha : f64) {
                 ida.get_var %instance, %pippo : !modelica.array<4x!modelica.int>
                 ...
                 %diff = ... : f64
@@ -614,6 +590,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 6> args;
+            args.push_back(InstanceType::get($_builder.getContext()));
             args.push_back($_builder.getF64Type());
 
             llvm::SmallVector<int64_t, 1> equationIndicesShape;
@@ -622,8 +599,6 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
             auto equationIndicesType = MemRefType::get(equationIndicesShape, $_builder.getIndexType());
             args.push_back(equationIndicesType);
 
-            args.push_back(VariablesType::get($_builder.getContext()));
-            args.push_back(VariablesType::get($_builder.getContext()));
             args.push_back(VariableType::get($_builder.getContext()));
 
             llvm::SmallVector<int64_t, 1> variableIndicesShape;
@@ -792,10 +767,24 @@ def IDA_AddJacobianOp : IDA_Op<"add_jacobian",
 def IDA_InitOp : IDA_Op<"init",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "Initialize IDA environment.";
+    let summary = "Initialize the IDA environment.";
 
     let description = [{
         The operation initializes the IDA environment.
+        Note that all the equations and variables must have
+        already been added to the IDA instance.
+
+        The operation returns whether the initialization
+        ended successfully. It may fail in case of a malformed
+        model.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !ida.instance
+        ...
+        %1 = ida.init %0 : !ida.instance -> i1
+        ```
     }];
 
     let arguments = (ins IDAInstance:$instance);
@@ -809,10 +798,24 @@ def IDA_InitOp : IDA_Op<"init",
 def IDA_StepOp : IDA_Op<"step",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Perform a step within the simulation.";
 
     let description = [{
-        TODO
+        The operation instructs IDA to perform a simulation step.
+        If a time step parameter is given, then the simulation
+        time will be advanced by that given amount of time.
+        If not, an appropriate time step will be determined by
+        IDA through internal heuristics and may be different at
+        each call.
+
+        The operation returns whether the time step has been
+        executed successfully.
+
+        Example:
+        ```mlir
+        %0 = ... : !ida.instance
+        %1 = ida.step %0 { step = 0.01 } : !ida.instance -> i1
+        ```
     }];
 
     let arguments = (ins
@@ -829,10 +832,20 @@ def IDA_StepOp : IDA_Op<"step",
 def IDA_FreeOp : IDA_Op<"free",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Deallocates the IDA data structures and the array variables.";
 
     let description = [{
-        TODO
+        The operation deallocates the IDA data structures and
+        the memory reserved for the array variables that have
+        been added to IDA.
+
+        It returns whether the deallocations were successful.
+
+        Example:
+        ```mlir
+        %0 = ... : !ida.instance
+        %1 = ida.free %0 : !ida.instance -> i1
+        ```
     }];
 
     let arguments = (ins IDAInstance:$instance);
@@ -846,10 +859,16 @@ def IDA_FreeOp : IDA_Op<"free",
 def IDA_PrintStatisticsOp : IDA_Op<"print_statistics",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "TODO";
+    let summary = "Print statistics regarding IDA.";
 
     let description = [{
-        TODO
+        Print to stderr some statistics regarding IDA.
+
+        Example:
+        ```mlir
+        %0 = ... : !ida.instance
+        ida.print_statistics %0 : !ida.instance
+        ```
     }];
 
     let arguments = (ins IDAInstance:$instance);
