@@ -133,10 +133,10 @@ namespace
       void print() const override
       {
         std::cerr << "Time spent in computing the initial conditions: "
-                  << initialConditionsTimer.totalElapsedTime() << " ms";
+                  << initialConditionsTimer.totalElapsedTime() << " ms\n";
 
-        std::cerr << "Time spent in IDA steps:"
-                  << stepsTimer.totalElapsedTime() << " ms";
+        std::cerr << "Time spent in IDA steps: "
+                  << stepsTimer.totalElapsedTime() << " ms\n";
       }
 
       Timer initialConditionsTimer;
@@ -151,6 +151,11 @@ namespace
 }
 
 #endif
+
+void idaInit() {
+  profiler().stepsTimer.start();
+  profiler().stepsTimer.stop();
+}
 
 /// Given an array of indexes and the dimension of an equation, increase the
 /// indexes within the induction bounds of the equation. Return false if the

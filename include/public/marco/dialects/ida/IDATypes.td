@@ -29,7 +29,7 @@ def InstanceType : IDA_Type<"Instance", "instance"> {
     }];
 }
 
-def VariablesListType : IDA_Type<"VariablesList", "vars_list"> {
+def VariablesType : IDA_Type<"Variables", "variables"> {
     let summary = "TODO";
 
     let description = [{
@@ -45,7 +45,7 @@ def VariablesListType : IDA_Type<"VariablesList", "vars_list"> {
     }];
 }
 
-def IndicesListType : IDA_Type<"IndicesList", "indices_list"> {
+def EquationType : IDA_Type<"Equation", "equation"> {
     let summary = "TODO";
 
     let description = [{
@@ -53,7 +53,23 @@ def IndicesListType : IDA_Type<"IndicesList", "indices_list"> {
     }];
 
     let printer = [{
-        $_printer << "indices_list";
+        $_printer << "equation";
+    }];
+
+    let parser = [{
+        return get($_ctxt);
+    }];
+}
+
+def VariableType : IDA_Type<"Variable", "variable"> {
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let printer = [{
+        $_printer << "variable";
     }];
 
     let parser = [{

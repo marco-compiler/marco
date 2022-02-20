@@ -291,6 +291,60 @@ void JacobianFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& s
 namespace mlir::ida
 {
   //===----------------------------------------------------------------------===//
+  // CreateOp
+  //===----------------------------------------------------------------------===//
+
+  void CreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // SetStartTimeOp
+  //===----------------------------------------------------------------------===//
+
+  void SetStartTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // SetEndTimeOp
+  //===----------------------------------------------------------------------===//
+
+  void SetEndTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // SetRelativeToleranceOp
+  //===----------------------------------------------------------------------===//
+
+  void SetRelativeToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // SetAbsoluteToleranceOp
+  //===----------------------------------------------------------------------===//
+
+  void SetAbsoluteToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // GetCurrentTimeOp
+  //===----------------------------------------------------------------------===//
+
+  void GetCurrentTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
   // InitOp
   //===----------------------------------------------------------------------===//
 
@@ -298,15 +352,6 @@ namespace mlir::ida
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // CreateOp
-  //===----------------------------------------------------------------------===//
-
-  void CreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -326,33 +371,6 @@ namespace mlir::ida
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // SetTimesOp
-  //===----------------------------------------------------------------------===//
-
-  void SetTimesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // SetToleranceOp
-  //===----------------------------------------------------------------------===//
-
-  void SetToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // GetCurrentTimeOp
-  //===----------------------------------------------------------------------===//
-
-  void GetCurrentTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -428,15 +446,6 @@ namespace mlir::ida
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
     // TODO allocation trait on result
-  }
-
-  //===----------------------------------------------------------------------===//
-  // GetTimeOp
-  //===----------------------------------------------------------------------===//
-
-  void GetTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
