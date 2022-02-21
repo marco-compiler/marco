@@ -1519,7 +1519,6 @@ static mlir::LogicalResult replaceAccesses(
   auto sourceClone = source.cloneAndExplicitate(builder);
 
   if (sourceClone == nullptr) {
-    source.getOperation().emitError("Could not explicitate equation");
     return mlir::failure();
   }
 
@@ -1648,6 +1647,8 @@ static mlir::LogicalResult solveAlgebraicLoops(
         *cycle.getEquation(),
         cycle.begin(),
         cycle.end()); mlir::failed(res)) {
+
+      // The current cycle could not be solved, but others may be solvable
       return res;
     }
 

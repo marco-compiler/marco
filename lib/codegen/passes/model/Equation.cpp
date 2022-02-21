@@ -714,8 +714,6 @@ namespace marco::codegen
       if (acc.getVariable() == access.getVariable() && acc.getAccessFunction() == access.getAccessFunction()) {
         lhsHasAccess |= acc.getPath().getEquationSide() == EquationPath::LEFT;
         rhsHasAccess |= acc.getPath().getEquationSide() == EquationPath::RIGHT;
-
-        // TODO check linearity
       }
     }
 
@@ -783,6 +781,11 @@ namespace marco::codegen
           builder.create<ConstantOp>(getOperation()->getLoc(), RealAttribute::get(builder.getContext(), 0)).getResult(),
           [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
             mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+
+            if (factor == nullptr) {
+              return nullptr;
+            }
+
             return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
           });
     };
@@ -809,6 +812,11 @@ namespace marco::codegen
 
       mlir::Value lhsFactor = groupFactorsFn(lhsSummedValues.begin(), leftPos);
       mlir::Value rhsFactor = groupFactorsFn(rhsSummedValues.begin(), rightPos);
+
+      if (lhsFactor == nullptr || rhsFactor == nullptr) {
+        return mlir::failure();
+      }
+
       mlir::Value lhsRemaining = groupRemainingFn(leftPos, lhsSummedValues.end());
       mlir::Value rhsRemaining = groupRemainingFn(rightPos, rhsSummedValues.end());
 
@@ -834,6 +842,11 @@ namespace marco::codegen
       });
 
       mlir::Value lhsFactor = groupFactorsFn(lhsSummedValues.begin(), leftPos);
+
+      if (lhsFactor == nullptr) {
+        return mlir::failure();
+      }
+
       mlir::Value lhsRemaining = groupRemainingFn(leftPos, lhsSummedValues.end());
 
       auto terminator = getTerminator();
@@ -858,6 +871,11 @@ namespace marco::codegen
       });
 
       mlir::Value rhsFactor = groupFactorsFn(rhsSummedValues.begin(), rightPos);
+
+      if (rhsFactor == nullptr) {
+        return mlir::failure();
+      }
+
       mlir::Value rhsRemaining = groupRemainingFn(rightPos, rhsSummedValues.end());
 
       auto terminator = getTerminator();
@@ -921,9 +939,11 @@ namespace marco::codegen
 
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
       mlir::Value dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
+      // TODO check that rhs has no access to variable
       return builder.create<DivOp>(divOp.getLoc(), divOp.resultType(), dividend, divOp.rhs());
     }
 
+    // TODO check that value is not an operation containing an access to the variable of interest
     return value;
   }
 
