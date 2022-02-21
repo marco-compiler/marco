@@ -1,8 +1,6 @@
 #include "gtest/gtest.h"
-
 #include "marco/utils/Shape.h"
-
-#include "marco/utils/IRange.hpp"
+#include "marco/utils/IRange.h"
 #include <vector>
 
 using namespace marco;
