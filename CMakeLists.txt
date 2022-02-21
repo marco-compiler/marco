@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.9)
-set(CMAKE_VERBOSE_MAKEFILE on)
 
 if (POLICY CMP0068)
 	cmake_policy(SET CMP0068 NEW)
@@ -43,7 +42,6 @@ include(GNUInstallDirs)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
-
 #-------------------------------------------------------------------------------
 # Sundials
 #-------------------------------------------------------------------------------
@@ -55,29 +53,7 @@ set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_PATH}/include)
 set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_PATH}/lib)
 
 link_directories("${SUNDIALS_LIBRARY_DIR}")
-
-# IDA DAE solver
-#find_library(SUNDIALS_SOLVER_LIB sundials_ida ${SUNDIALS_LIBRARY_DIR})
-#message("lib IDA: ${SUNDIALS_SOLVER_LIB}")
-
-# NVector
-#find_library(SUNDIALS_NVEC_LIB sundials_nvecserial ${SUNDIALS_LIBRARY_DIR})
-#message("lib NVECSERIAL: ${SUNDIALS_NVEC_LIB}")
-
-# KLU sparse solver
-#find_library(SUNDIALS_SUNLINSOLKLU_LIB sundials_sunlinsolklu ${SUNDIALS_LIBRARY_DIR})
-#message("lib KLU: ${SUNDIALS_SUNLINSOLKLU_LIB}")
-
-#include_directories(sundials ${SUNDIALS_INCLUDE_DIR})
-
-#add_library(sundials INTERFACE)
-
-#target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIR})
-
-#target_link_libraries(sundials INTERFACE
-#		${SUNDIALS_SOLVER_LIB}
-#		${SUNDIALS_NVEC_LIB}
-#		${SUNDIALS_SUNLINSOLKLU_LIB})
+install(DIRECTORY ${SUNDIALS_LIBRARY_DIR} DESTINATION dependencies)
 
 #-------------------------------------------------------------------------------
 # Clang / MLIR / LLVM configuration
@@ -194,7 +170,7 @@ include_directories(${MLIR_INCLUDE_DIRS})
 # Add MARCO files to the include path
 include_directories(${MARCO_INCLUDE_DIRS})
 
-# Set the RPATH to include the path to external libraries
+# Set the RPATH to include the paths to external libraries
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #-------------------------------------------------------------------------------
@@ -251,7 +227,7 @@ endif()
 
 if (MARCO_INCLUDE_DOCS)
 	add_subdirectory(docs)
-	#add_dependencies(marco-docs mlir-doc)
+	add_dependencies(marco-docs mlir-doc)
 endif()
 
 #-------------------------------------------------------------------------------

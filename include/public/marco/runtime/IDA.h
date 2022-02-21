@@ -4,8 +4,6 @@
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
 
-void idaInit();
-
 //===----------------------------------------------------------------------===//
 // Allocation, initialization, usage and deletion
 //===----------------------------------------------------------------------===//

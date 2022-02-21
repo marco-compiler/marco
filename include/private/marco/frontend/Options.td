@@ -62,6 +62,14 @@ def s_Group : OptionGroup<"<s group>">,
     Group<Simulation_Group>,
     DocName<"Simulation options">;
 
+def Link_Group : OptionGroup<"<l group>">,
+    DocName<"Linking">,
+    DocBrief<[{Flags controlling the link process.}]>;
+
+def l_Group : OptionGroup<"<l group>">,
+    Group<Link_Group>,
+    DocName<"Linking">;
+
 class FrontendOpts<string base>
     : KeyPathAndMacro<"FrontendOpts.", base, "FRONTEND_"> {}
 
@@ -369,3 +377,8 @@ def compile_only : Flag<["-"], "c">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Compile only">;
+
+def libs_paths : Joined<["-"], "L">,
+  Flags<[MC1Option]>,
+  HelpText<"Add directory to library search path">,
+  Group<l_Group>;

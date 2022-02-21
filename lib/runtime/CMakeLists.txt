@@ -30,8 +30,7 @@ set(LIBS
 		PUBLIC SUNDIALS::KLU
 		PUBLIC SUNDIALS::ida
 		PUBLIC SUNDIALS::nvecserial
-		PUBLIC SUNDIALS::sunlinsolklu
-		)
+		PUBLIC SUNDIALS::sunlinsolklu)
 
 # Declare the shared library
 marco_add_library(runtimeShared
@@ -53,4 +52,3 @@ marco_add_library(runtime
 		${LIBS})
 
 add_dependencies(marco-runtime marco::runtime)
-

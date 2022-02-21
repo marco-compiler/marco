@@ -152,11 +152,6 @@ namespace
 
 #endif
 
-void idaInit() {
-  profiler().stepsTimer.start();
-  profiler().stepsTimer.stop();
-}
-
 /// Given an array of indexes and the dimension of an equation, increase the
 /// indexes within the induction bounds of the equation. Return false if the
 /// indexes exceed the equation bounds, which means the computation has finished,

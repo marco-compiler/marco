@@ -6,6 +6,12 @@ TEMPORARY_DIR=""
 INPUT_FILES=()
 OPTIONS=()
 OUTPUT_FILE=""
+
+LIBS_PATHS=()
+LIBS_PATHS_DEFAULT="@RUNTIME_LIBS_PATHS@"
+
+SIMULATION_LIBS="@SIMULATION_LIBS@"
+
 PRINT_HELP="False"
 PRINT_VERSION="False"
 COMPILE_ONLY="False"
@@ -16,10 +22,18 @@ parse_args()
   while [ "${1:-}" != "" ]; do
       # CASE 1: Compiler option
       if [[ "${1:0:1}" == "-" ]] ; then
-        # Output file - extract it into a global variable
+        # Output file
         if [[ "$1" == "-o" ]] ; then
           shift
           OUTPUT_FILE="$1"
+          shift
+          continue
+        fi
+
+        # Library search path
+        if [[ "$1" == "-L" ]] ; then
+          shift
+          LIBS_PATHS+=("$1")
           shift
           continue
         fi
@@ -83,6 +97,41 @@ main()
 
   TEMPORARY_DIR=$(mktemp -d)
 
+  # Create the flags to set the library search paths and the rpath
+  LIBS_PATHS_FLAGS=()
+  RPATHS=()
+
+  # First add the user-provided paths
+  for path in "${LIBS_PATHS[@]}"
+  do
+    LIBS_PATHS_FLAGS+=("-L$path")
+    RPATHS+=("$path")
+  done
+
+  # Then add the default ones
+  for path in "${LIBS_PATHS_DEFAULT[@]}"
+  do
+    LIBS_PATHS_FLAGS+=("-L$path")
+    RPATHS+=("$path")
+  done
+
+  RPATH_FLAG="-Wl,-rpath,"
+  RPATH_SEPARATOR=""
+
+  for path in "${RPATHS[@]}"; do
+      RPATH_FLAG="${RPATH_FLAG}${RPATH_SEPARATOR}${path}"
+      RPATH_SEPARATOR=':'
+  done
+
+  SIMULATION_LIBS_FLAGS=()
+
+  # Create the flags to link the libraries
+  for i in $SIMULATION_LIBS
+  do
+    SIMULATION_LIBS_FLAGS+=("-l$i")
+  done
+
+  # Create the object file
   marco-driver "${OPTIONS[@]}" "${INPUT_FILES[@]}" -o "$TEMPORARY_DIR/simulation.o"
   resultCode=$?
 
@@ -99,7 +148,7 @@ main()
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.a -o "$OUTPUT_FILE"
+    g++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" -L $SCRIPT_PATH/../lib -lMARCORuntime "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}"
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then

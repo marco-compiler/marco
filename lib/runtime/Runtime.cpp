@@ -1,5 +1,6 @@
 #include "marco/runtime/Profiling.h"
 #include "marco/runtime/Runtime.h"
+#include "marco/runtime/IDA.h"
 
 namespace
 {
