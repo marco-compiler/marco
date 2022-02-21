@@ -579,7 +579,7 @@ namespace marco::modeling
             os << tree_property << "Mapped flow:\n" << getMappedFlow() << "\n";
 
             os << tree_property << "Previous:\n";
-            getPrevious().dump(os);
+            getPrevious()->dump(os);
           }
         }
 
@@ -588,9 +588,9 @@ namespace marco::modeling
           return previous.get() != nullptr;
         }
 
-        const BFSStep& getPrevious() const
+        const BFSStep *getPrevious() const
         {
-          return *previous;
+          return previous.get();
         }
 
         const VertexDescriptor& getNode() const
@@ -1497,7 +1497,7 @@ namespace marco::modeling
                 }
               }
 
-              flows.emplace(flows.begin(), graph, curStep->getPrevious().getNode(), curStep->getEdge(), map);
+              flows.emplace(flows.begin(), graph, curStep->getPrevious()->getNode(), curStep->getEdge(), map);
             }
 
             auto touchedIndexes = isVariable(curStep->getNode()) ? map.flattenRows() : map.flattenColumns();
@@ -1516,7 +1516,7 @@ namespace marco::modeling
             }
 
             // Move backwards inside the candidate augmenting path
-            curStep = &curStep->getPrevious();
+            curStep = curStep->getPrevious();
           }
 
           if (validPath) {
