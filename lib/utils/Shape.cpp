@@ -251,6 +251,9 @@ std::string toString(const Shape::DimensionSize &dim,int){
         return "{"+s+"}";
     }
     
+    if(dim.isUndefined())
+        return "?";
+
     return std::to_string(dim.getNumericValue());
 }
 
