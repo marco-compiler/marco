@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.9)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 if (POLICY CMP0068)
 	cmake_policy(SET CMP0068 NEW)
@@ -142,6 +143,9 @@ include_directories(${MLIR_INCLUDE_DIRS})
 
 # Add MARCO files to the include path
 include_directories(${MARCO_INCLUDE_DIRS})
+
+# Set the RPATH to include the paths to external libraries
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #-------------------------------------------------------------------------------
 # Simulation runtime profiling

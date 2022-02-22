@@ -45,10 +45,10 @@ endmacro()
 # Declare a MARCO unit test leveraging Google Test
 function(marco_add_unittest test_name)
   set(test_suite MARCOUnitTests)
-  add_executable(${test_name} ${ARGN})
+  add_llvm_executable(${test_name} ${ARGN})
 
-  set(outdir ${CMAKE_CURRENT_BINARY_DIR})
-  set_output_directory(${test_name} BINARY_DIR ${outdir} LIBRARY_DIR ${outdir})
+  #set(outdir ${CMAKE_CURRENT_BINARY_DIR})
+  #set_output_directory(${test_name} BINARY_DIR ${outdir} LIBRARY_DIR ${outdir})
   target_link_directories(${test_name} PRIVATE ${MARCO_LIBS_DIR})
   target_link_libraries(${test_name} PRIVATE gtest_main gmock)
 
