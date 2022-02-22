@@ -800,7 +800,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, Shape shape = {}, mlir::ValueRange dimensions = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -847,7 +847,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, Shape shape = {}, mlir::ValueRange dimensions = llvm::None, bool shouldBeFreed = true);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = llvm::None, mlir::ValueRange dimensions = llvm::None, bool shouldBeFreed = true);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();

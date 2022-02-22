@@ -4,6 +4,8 @@
 #include <vector>
 
 using namespace marco;
+using namespace std;
+
 using Indexes = std::vector<std::vector<long>>;
 
 TEST(ShapeTest, Equality)

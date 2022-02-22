@@ -15,7 +15,7 @@ namespace marco::codegen::modelica
 		BooleanType getBooleanType();
 		IntegerType getIntegerType();
 		RealType getRealType();
-		ArrayType getArrayType(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape = {});
+		ArrayType getArrayType(BufferAllocationScope allocationScope, mlir::Type elementType, const ArrayType::Shape& shape = {});
 		OpaquePointerType getOpaquePointerType();
 		StructType getStructType(llvm::ArrayRef<mlir::Type> types);
 

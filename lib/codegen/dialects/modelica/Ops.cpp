@@ -1776,7 +1776,7 @@ mlir::LogicalResult MemberStoreOp::verify()
 		auto arrayType = valueType.cast<ArrayType>();
 
 		for (const auto& [valueDimension, memberDimension] : llvm::zip(arrayType.getShape(), memberType.getShape()))
-			if (!valueDimension.isUndefined() && !memberDimension.isUndefined() && valueDimension != memberDimension)
+			if (valueDimension != -1 && memberDimension != -1 && valueDimension != memberDimension)
 				return emitOpError("requires the shapes to be compatible");
 	}
 
@@ -1839,7 +1839,7 @@ llvm::ArrayRef<llvm::StringRef> AllocaOp::getAttributeNames()
   return {};
 }
 
-void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, Shape shape, mlir::ValueRange dimensions)
+void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
 	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
 	state.addOperands(dimensions);
@@ -1916,9 +1916,10 @@ mlir::LogicalResult AllocaOp::verify()
 	auto shape = resultType().getShape();
 	unsigned int unknownSizes = 0;
 
-	for (const auto& size : shape)
-		if (size.isUndefined())
-			++unknownSizes;
+	for (const auto& size : shape) {
+    if (size == -1)
+      ++unknownSizes;
+  }
 
 	if (unknownSizes != dynamicDimensions().size())
 		return emitOpError("requires the dynamic dimensions amount (" +
@@ -1973,7 +1974,7 @@ llvm::ArrayRef<llvm::StringRef> AllocOp::getAttributeNames()
   return {};
 }
 
-void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, Shape shape, mlir::ValueRange dimensions, bool shouldBeFreed)
+void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed)
 {
 	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
@@ -2063,14 +2064,14 @@ mlir::LogicalResult AllocOp::verify()
 	unsigned int unknownSizes = 0;
 
 	for (const auto& size : shape)
-		if (size.isUndefined())
+		if (size == -1)
 			++unknownSizes;
 
 	if (unknownSizes != dynamicDimensions().size())
 		return emitOpError("requires the dynamic dimensions amount (" +
 											 std::to_string(dynamicDimensions().size()) +
 											 ") to match the number of provided values (" +
-											 std::to_string(unknownSizes) + ") shape=" + toString(shape));
+											 std::to_string(unknownSizes) + ")");
 
 	return mlir::success();
 }
@@ -2248,7 +2249,7 @@ mlir::LogicalResult ArrayCastOp::verify()
 				return emitOpError("can change the allocation scope only to the unknown one");
 
 			for (auto [source, destination] : llvm::zip(source.getShape(), destination.getShape()))
-				if (!destination.isUndefined() && source != destination)
+				if (destination != -1 && source != destination)
 					return emitOpError("can change the dimensions size only to an unknown one");
 
 			return mlir::success();
@@ -2360,8 +2361,8 @@ mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 
 		size_t index = attribute.getInt();
 
-		if (!shape[index].isUndefined() && !shape[index].isRagged())
-			return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()), shape[index].getNumericValue());
+		if (shape[index] != -1)
+			return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()), shape[index]);
 	}
 
 	return nullptr;
@@ -9058,11 +9059,11 @@ mlir::LogicalResult TransposeOp::verify()
 	auto sourceShape = sourceType.getShape();
 	auto destinationShape = destinationType.getShape();
 
-	if (!sourceShape[0].isUndefined() && !destinationShape[1].isUndefined() &&
+	if (sourceShape[0] != -1 && destinationShape[1] != -1 &&
 			sourceShape[0] != destinationShape[1])
 		return emitOpError("requires compatible shapes");
 
-	if (!sourceShape[1].isUndefined() && !destinationShape[0].isUndefined() &&
+	if (sourceShape[1] != -1 && destinationShape[0] != -1 &&
 			sourceShape[1] != destinationShape[0])
 		return emitOpError("requires compatible shapes");
 
@@ -9153,11 +9154,11 @@ mlir::LogicalResult SymmetricOp::verify()
 	auto sourceShape = sourceType.getShape();
 	auto destinationShape = destinationType.getShape();
 
-	if (!sourceShape[0].isUndefined() && !destinationShape[0].isUndefined() &&
+	if (sourceShape[0] != -1 && destinationShape[0] != -1 &&
 			sourceShape[0] != destinationShape[0])
 		return emitOpError("requires compatible shapes");
 
-	if (!sourceShape[1].isUndefined() && !destinationShape[1].isUndefined() &&
+	if (sourceShape[1] != -1 && destinationShape[1] != -1 &&
 			sourceShape[1] != destinationShape[1])
 		return emitOpError("requires compatible shapes");
 

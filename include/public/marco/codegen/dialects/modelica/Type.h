@@ -1,6 +1,5 @@
 #pragma once
 
-#include "marco/utils/Shape.h"
 #include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/Types.h"
@@ -18,6 +17,7 @@ namespace marco::codegen::modelica
 	class MemberTypeStorage : public mlir::TypeStorage
 	{
 		public:
+		using Shape = llvm::SmallVector<long, 3>;
 		using KeyTy = std::tuple<MemberAllocationScope, mlir::Type, Shape>;
 
 		MemberTypeStorage() = delete;
@@ -48,6 +48,7 @@ namespace marco::codegen::modelica
 	class ArrayTypeStorage : public mlir::TypeStorage
 	{
 		public:
+		using Shape = llvm::SmallVector<long, 3>;
 		using KeyTy = std::tuple<BufferAllocationScope, mlir::Type, Shape>;
 
 		ArrayTypeStorage() = delete;
@@ -136,8 +137,9 @@ namespace marco::codegen::modelica
 	{
 		public:
 		using Base::Base;
+		using Shape = MemberTypeStorage::Shape;
 
-		static MemberType get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, Shape shape = {});
+		static MemberType get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
 		static MemberType get(ArrayType arrayType);
 
 		[[nodiscard]] MemberAllocationScope getAllocationScope() const;
@@ -155,8 +157,9 @@ namespace marco::codegen::modelica
 	{
 		public:
 		using Base::Base;
+		using Shape = ArrayTypeStorage::Shape;
 
-		static ArrayType get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, Shape shape = {});
+		static ArrayType get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
 
 		[[nodiscard]] BufferAllocationScope getAllocationScope() const;
 

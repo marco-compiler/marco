@@ -11,7 +11,6 @@
 #include "marco/modeling/LocalMatchingSolutions.h"
 #include "marco/modeling/MCIM.h"
 #include "marco/modeling/Range.h"
-#include "marco/utils/Shape.h"
 #include "marco/utils/TreeOStream.h"
 #include <iostream>
 #include <map>
@@ -160,7 +159,7 @@ namespace marco::modeling
             return getRank(property);
           }
 
-          Shape::DimensionSize getDimensionSize(size_t index) const
+          long getDimensionSize(size_t index) const
           {
             return getDimensionSize(property, index);
           }
@@ -175,7 +174,7 @@ namespace marco::modeling
             unsigned int result = 1;
 
             for (unsigned int i = 0, rank = getRank() ; i < rank ; ++i) {
-              long size = getDimensionSize(i).getNumericValue();
+              long size = getDimensionSize(i);
               assert(size > 0);
               result *= size;
             }
@@ -199,7 +198,7 @@ namespace marco::modeling
             return Traits::getRank(&p);
           }
 
-          static Shape::DimensionSize getDimensionSize(const VariableProperty& p, size_t index)
+          static long getDimensionSize(const VariableProperty& p, size_t index)
           {
             assert(index < getRank(p));
             return Traits::getDimensionSize(&p, index);
@@ -210,7 +209,7 @@ namespace marco::modeling
             llvm::SmallVector<Range, 3> ranges;
 
             for (size_t i = 0, e = getRank(p); i < e; ++i) {
-              long size = getDimensionSize(p, i).getNumericValue(); //todo: handle ragged case
+              long size = getDimensionSize(p, i);
               assert(size > 0);
               ranges.emplace_back(0, size);
             }

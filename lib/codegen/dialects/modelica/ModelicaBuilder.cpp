@@ -22,7 +22,7 @@ RealType ModelicaBuilder::getRealType()
 	return RealType::get(getContext());
 }
 
-ArrayType ModelicaBuilder::getArrayType(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape)
+ArrayType ModelicaBuilder::getArrayType(BufferAllocationScope allocationScope, mlir::Type elementType, const ArrayType::Shape& shape)
 {
 	return ArrayType::get(getContext(), allocationScope, elementType, shape);
 }

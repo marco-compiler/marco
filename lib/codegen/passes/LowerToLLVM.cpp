@@ -403,12 +403,6 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 
 		// Determine the total size of the array in bytes
 		auto shape = arrayType.getShape();
-
-		if(shape.isRagged()){
-			//todo : handle
-			assert(false);
-		}
-
 		llvm::SmallVector<mlir::Value, 3> sizes;
 
 		// Multi-dimensional arrays must be flattened into a 1-dimensional one.
@@ -419,16 +413,16 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 
 		for (size_t i = 0, dynamicDimensions = 0, end = shape.size(); i < end; ++i)
 		{
-			auto dimension = shape[i];
+			long dimension = shape[i];
 
-			if (dimension.isUndefined())
+			if (dimension == -1)
 			{
 				mlir::Value size = operands[dynamicDimensions++];
 				sizes.push_back(size);
 			}
 			else
 			{
-				mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, sizeType, rewriter.getIntegerAttr(sizeType, dimension.getNumericValue()));
+				mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, sizeType, rewriter.getIntegerAttr(sizeType, dimension));
 				sizes.push_back(size);
 			}
 
@@ -919,7 +913,7 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 				for (auto size : shape)
 				{
-					assert(!size.isUndefined());
+					assert(size != -1);
 					sizes.push_back(rewriter.create<mlir::LLVM::ConstantOp>(
 							loc, indexType, rewriter.getI64IntegerAttr(resultType.getRank())));
 				}

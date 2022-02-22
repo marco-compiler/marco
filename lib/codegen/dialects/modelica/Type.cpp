@@ -3,7 +3,6 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectImplementation.h"
 
-using namespace marco;
 using namespace marco::codegen::modelica;
 
 bool MemberTypeStorage::operator==(const KeyTy& key) const
@@ -13,7 +12,7 @@ bool MemberTypeStorage::operator==(const KeyTy& key) const
 
 unsigned int MemberTypeStorage::hashKey(const KeyTy& key)
 {
-	auto hashValue = [](const Shape& s) -> llvm::hash_code
+	auto hashValue = [](const MemberTypeStorage::Shape& s) -> llvm::hash_code
 	{
 		if (!s.empty()) {
 			return llvm::hash_combine_range(s.begin(), s.end());
@@ -22,14 +21,14 @@ unsigned int MemberTypeStorage::hashKey(const KeyTy& key)
 		return llvm::hash_combine(0);
 	};
 
-	auto shapeHash{hashValue(std::get<Shape>(key))};
+	auto shapeHash{hashValue(std::get<MemberTypeStorage::Shape>(key))};
 	return llvm::hash_combine(std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
 }
 
 MemberTypeStorage* MemberTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
 {
 	auto *storage = allocator.allocate<MemberTypeStorage>();
-	return new (storage) MemberTypeStorage{std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), std::get<Shape>(key)};
+	return new (storage) MemberTypeStorage{std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), std::get<ArrayType::Shape>(key)};
 }
 
 MemberAllocationScope MemberTypeStorage::getAllocationScope() const
@@ -37,7 +36,7 @@ MemberAllocationScope MemberTypeStorage::getAllocationScope() const
 	return allocationScope;
 }
 
-Shape MemberTypeStorage::getShape() const
+MemberTypeStorage::Shape MemberTypeStorage::getShape() const
 {
 	return shape;
 }
@@ -61,7 +60,7 @@ bool ArrayTypeStorage::operator==(const KeyTy& key) const
 
 unsigned int ArrayTypeStorage::hashKey(const KeyTy& key)
 {
-	auto hashValue = [](const Shape& s) -> llvm::hash_code
+	auto hashValue = [](const ArrayTypeStorage::Shape& s) -> llvm::hash_code
 	{
 		if (s.size()) {
 			return llvm::hash_combine_range(s.begin(), s.end());
@@ -69,14 +68,14 @@ unsigned int ArrayTypeStorage::hashKey(const KeyTy& key)
 		return llvm::hash_combine(0);
 	};
 
-	auto shapeHash{hashValue(std::get<Shape>(key))};
+	auto shapeHash{hashValue(std::get<ArrayType::Shape>(key))};
 	return llvm::hash_combine(std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
 }
 
 ArrayTypeStorage* ArrayTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
 {
 	auto *storage = allocator.allocate<ArrayTypeStorage>();
-	return new (storage) ArrayTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<Shape>(key)};
+	return new (storage) ArrayTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<ArrayType::Shape>(key)};
 }
 
 BufferAllocationScope ArrayTypeStorage::getAllocationScope() const
@@ -84,7 +83,7 @@ BufferAllocationScope ArrayTypeStorage::getAllocationScope() const
 	return allocationScope;
 }
 
-Shape ArrayTypeStorage::getShape() const
+ArrayType::Shape ArrayTypeStorage::getShape() const
 {
 	return shape;
 }
@@ -202,9 +201,9 @@ namespace marco::codegen::modelica
 	}
 }
 
-MemberType MemberType::get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, Shape shape)
+MemberType MemberType::get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
-	return Base::get(context, allocationScope, elementType, shape);
+	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
 }
 
 MemberType MemberType::get(ArrayType arrayType)
@@ -214,7 +213,8 @@ MemberType MemberType::get(ArrayType arrayType)
 	return Base::get(
 			arrayType.getContext(),
 			bufferToMemberAllocationScope(arrayType.getAllocationScope()),
-			arrayType.getElementType(),shape);
+			arrayType.getElementType(),
+			Shape(shape.begin(), shape.end()));
 }
 
 MemberAllocationScope MemberType::getAllocationScope() const
@@ -227,7 +227,7 @@ mlir::Type MemberType::getElementType() const
 	return getImpl()->getElementType();
 }
 
-Shape MemberType::getShape() const
+MemberType::Shape MemberType::getShape() const
 {
 	return getImpl()->getShape();
 }
@@ -254,9 +254,9 @@ mlir::Type MemberType::unwrap() const
 	return toArrayType();
 }
 
-ArrayType ArrayType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, Shape shape)
+ArrayType ArrayType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
-	return Base::get(context, allocationScope, elementType, shape);
+	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
 }
 
 BufferAllocationScope ArrayType::getAllocationScope() const
@@ -269,7 +269,7 @@ mlir::Type ArrayType::getElementType() const
 	return getImpl()->getElementType();
 }
 
-Shape ArrayType::getShape() const
+ArrayType::Shape ArrayType::getShape() const
 {
 	return getImpl()->getShape();
 }
@@ -285,7 +285,7 @@ unsigned int ArrayType::getConstantDimensions() const
 	unsigned int count = 0;
 
 	for (auto dimension : dimensions) {
-		if (dimension.isConstant())
+		if (dimension > 0)
 			count++;
 	}
 
@@ -298,7 +298,7 @@ unsigned int ArrayType::getDynamicDimensions() const
 	unsigned int count = 0;
 
 	for (auto dimension : dimensions) {
-		if (dimension.isUndefined())
+		if (dimension  == -1)
 			count++;
 	}
 
@@ -309,12 +309,12 @@ long ArrayType::rawSize() const
 {
 	long result = 1;
 
-	for (auto size : getShape())
+	for (long size : getShape())
 	{
-		if (size.isUndefined())
+		if (size == -1)
 			return -1;
 
-		result *= size.getNumericValue();
+		result *= size;
 	}
 
 	return result;
@@ -322,7 +322,9 @@ long ArrayType::rawSize() const
 
 bool ArrayType::hasConstantShape() const
 {
-	return getShape().isConstant();
+	return llvm::all_of(getShape(), [](long size) {
+		return size != -1;
+	});
 }
 
 bool ArrayType::isScalar() const
@@ -334,7 +336,7 @@ ArrayType ArrayType::slice(unsigned int subscriptsAmount)
 {
 	auto shape = getShape();
 	assert(subscriptsAmount <= shape.size() && "Too many subscriptions");
-	Shape resultShape;
+	llvm::SmallVector<long, 3> resultShape;
 
 	for (size_t i = subscriptsAmount, e = shape.size(); i < e; ++i)
 		resultShape.push_back(shape[i]);
@@ -405,56 +407,6 @@ llvm::ArrayRef<mlir::Type> StructType::getElementTypes()
 
 namespace marco::codegen::modelica
 {
-	mlir::ParseResult parseOptionalModelicaDimension(Shape::DimensionSize &dim, mlir::DialectAsmParser& parser)
-	{
-		if(mlir::succeeded(parser.parseOptionalLBrace())){
-			Shape::DimensionSize::Container<Shape::DimensionSize> arr;
-			Shape::DimensionSize d;
-			mlir::ParseResult result;
-			do{
-				result = parseOptionalModelicaDimension(d,parser);
-				arr.push_back(d);
-			}while(result && mlir::succeeded(parser.parseOptionalComma()));
-			
-			if(mlir::failed(parser.parseRBrace()))
-			{
-				parser.emitError(parser.getCurrentLocation()) << "unknown ragged dimension";
-				return mlir::ParseResult::failure();
-			}
-			dim = Shape::DimensionSize(arr);
-			return mlir::ParseResult::success();
-		}
-		
-		if(mlir::succeeded(parser.parseOptionalQuestion()))
-		{
-			dim = Shape::DimensionSize::makeUndefined();
-			return mlir::ParseResult::success();
-		}
-		
-		long value;
-		auto result = parser.parseOptionalInteger(value);
-		if(result.hasValue())
-		{
-			dim = Shape::DimensionSize(value);
-			return mlir::ParseResult::success();
-		}
-
-		parser.emitError(parser.getCurrentLocation()) << "unknown dimension";
-		return mlir::ParseResult::failure();
-	}
-
-	Shape parseModelicaShape(mlir::DialectAsmParser& parser)
-	{
-		Shape shape;
-		Shape::DimensionSize dim;
-
-		while(mlir::succeeded(parseOptionalModelicaDimension(dim,parser))){
-			shape.push_back(dim);
-			parser.parseXInDimensionList();
-		}
-		return shape;
-	}
-	
 	mlir::Type parseModelicaType(mlir::DialectAsmParser& parser)
 	{
 		auto builder = parser.getBuilder();
@@ -504,8 +456,7 @@ namespace marco::codegen::modelica
 				return mlir::Type();
 
 			llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
-			Shape shape;
-			return MemberType::get(builder.getContext(), scope, baseType, {castedDims});
+			return MemberType::get(builder.getContext(), scope, baseType, castedDims);
 		}
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("array")))
@@ -541,11 +492,10 @@ namespace marco::codegen::modelica
 					return mlir::Type();
 			}
 
-			// llvm::SmallVector<int64_t, 3> dimensions;
+			llvm::SmallVector<int64_t, 3> dimensions;
 
-			// if (parser.parseDimensionList(dimensions))
-			// 	return mlir::Type();
-			Shape shape = parseModelicaShape(parser);
+			if (parser.parseDimensionList(dimensions))
+				return mlir::Type();
 
 			mlir::Type baseType;
 
@@ -553,8 +503,8 @@ namespace marco::codegen::modelica
 					parser.parseGreater())
 				return mlir::Type();
 
-			// llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
-			return ArrayType::get(builder.getContext(), scope, baseType, shape);
+			llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
+			return ArrayType::get(builder.getContext(), scope, baseType, castedDims);
 		}
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
@@ -584,33 +534,6 @@ namespace marco::codegen::modelica
 
 		parser.emitError(parser.getCurrentLocation()) << "unknown type";
 		return mlir::Type();
-	}
-
-	void printModelicaDimension(const Shape::DimensionSize &dim, mlir::DialectAsmPrinter& printer){
-		auto& os = printer.getStream();
-
-		if(dim.isRagged()){
-			std::string padding = "";
-			os<<"{";
-			for (const auto& val : dim.asRagged()) {
-				os << padding;
-				printModelicaDimension(val,printer);
-				padding = ",";
-			}
-			os<< "}";
-			return;
-		}
-		
-		os << std::to_string(dim.getNumericValue());
-	}
-
-	void printModelicaShape(const Shape &shape, mlir::DialectAsmPrinter& printer){
-		auto& os = printer.getStream();
-		
-		for(auto &it:shape){
-			printModelicaDimension(it,printer);
-			os << "x";
-		}
 	}
 
 	void printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
@@ -646,7 +569,7 @@ namespace marco::codegen::modelica
 			auto dimensions = memberType.getShape();
 
 			for (const auto& dimension : dimensions)
-				os << (dimension.isUndefined() ? "?" : std::to_string(dimension.getNumericValue())) << "x";
+				os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
 
 			printer.printType(memberType.getElementType());
 			os << ">";
@@ -663,12 +586,9 @@ namespace marco::codegen::modelica
 				os << "heap, ";
 
 			auto dimensions = arrayType.getShape();
-				
-			// for (const auto& dimension : dimensions)
-			// {
-			// 	os << (dimension.isUndefined() ? "?" : std::to_string(dimension)) << "x";
-			// }
-			printModelicaShape(dimensions, printer);
+
+			for (const auto& dimension : dimensions)
+				os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
 
 			printer.printType(arrayType.getElementType());
 			os << ">";
