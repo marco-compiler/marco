@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.9)
-set(CMAKE_VERBOSE_MAKEFILE ON)
 
 if (POLICY CMP0068)
 	cmake_policy(SET CMP0068 NEW)
