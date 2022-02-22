@@ -4,7 +4,6 @@ set(SOURCES
     LexerTest.cpp
     NumbersLexerTest.cpp
     ScopeGuard.cpp
-    ShapeTest.cpp
     VariableFilterTest.cpp)
 
 marco_add_unittest(UtilsTest ${SOURCES})

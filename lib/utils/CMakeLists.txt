@@ -3,7 +3,6 @@ set(SOURCES
 		Lexer.cpp
 		Interval.cpp
 		Range.cpp
-		Shape.cpp
 		LogMessage.cpp
 		SourcePosition.cpp
 		VariableFilter.cpp)
