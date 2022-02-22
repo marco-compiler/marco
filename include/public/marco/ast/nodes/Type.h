@@ -229,7 +229,6 @@ namespace marco::ast
 
 	std::string toString(UserDefinedType obj);
 
-
 	/**
 	 * Represent the size of an array dimension.
 	 * Can be either static or determined by an expression. Note that
@@ -239,11 +238,8 @@ namespace marco::ast
 	class ArrayDimension
 	{
 		public:
-		template <typename T> using Container = llvm::SmallVector<T, 3>;
-		
 		ArrayDimension(long size);
 		ArrayDimension(std::unique_ptr<Expression> size);
-		ArrayDimension(std::unique_ptr<Container<ArrayDimension>> ragged);
 
 		ArrayDimension(const ArrayDimension& other);
 		ArrayDimension(ArrayDimension&& other);
@@ -273,17 +269,14 @@ namespace marco::ast
 		[[nodiscard]] bool hasExpression() const;
 
 		[[nodiscard]] bool isDynamic() const;
-		
-		[[nodiscard]] bool isRagged() const;
-		[[nodiscard]] llvm::ArrayRef<ArrayDimension> getRaggedSize() const;
-		
+
 		[[nodiscard]] long getNumericSize() const;
 
 		[[nodiscard]] Expression* getExpression();
 		[[nodiscard]] const Expression* getExpression() const;
 
 		private:
-		std::variant<long, std::unique_ptr<Expression>, std::unique_ptr<Container<ArrayDimension>> > size;
+		std::variant<long, std::unique_ptr<Expression>> size;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj);
@@ -383,8 +376,6 @@ namespace marco::ast
 
 		[[nodiscard]] bool isScalar() const;
 
-		[[nodiscard]] bool isRagged() const;
-		
 		[[nodiscard]] dimensions_iterator begin();
 		[[nodiscard]] dimensions_const_iterator begin() const;
 

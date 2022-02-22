@@ -234,17 +234,10 @@ ArrayDimension::ArrayDimension(std::unique_ptr<Expression> size)
 {
 }
 
-ArrayDimension::ArrayDimension(std::unique_ptr<Container<ArrayDimension>> ragged)
-		: size(std::move(ragged))
-{
-}
-
 ArrayDimension::ArrayDimension(const ArrayDimension& other)
 {
 	if (other.hasExpression())
 		size = other.getExpression()->clone();
-	else if (other.isRagged())
-		size = std::make_unique< Container<ArrayDimension> >(*std::get< std::unique_ptr<Container<ArrayDimension>> >(other.size));
 	else
 		size = other.getNumericSize();
 }
@@ -285,21 +278,7 @@ bool ArrayDimension::hasExpression() const
 
 bool ArrayDimension::isDynamic() const
 {
-	//ragged arrays should not be dynamic
-	if(isRagged()) return false; 
-
 	return hasExpression() || getNumericSize() == -1;
-}
-
-bool ArrayDimension::isRagged() const
-{
-	return std::holds_alternative<std::unique_ptr<Container<ArrayDimension>>>(size);
-}
-
-llvm::ArrayRef<ArrayDimension> ArrayDimension::getRaggedSize() const
-{
-	assert(isRagged());
-	return *std::get<std::unique_ptr<Container<ArrayDimension>>>(size);
 }
 
 long ArrayDimension::getNumericSize() const
@@ -331,17 +310,6 @@ namespace marco::ast
 	{
 		if (obj.hasExpression())
 			return toString(*obj.getExpression());
-
-		if (obj.isRagged())
-		{
-			std::string s;
-			std::string padding = "";
-			for (auto val : obj.getRaggedSize()) {
-				s += padding + toString(val);
-				padding = ", ";
-			}
-			return "{"+s+"}";
-		}
 
 		return std::to_string(obj.getNumericSize());
 	}
@@ -431,7 +399,9 @@ void Type::print(llvm::raw_ostream& os, size_t indents) const
 size_t Type::getRank() const
 {
 	// TODO: temporary workaround for x[1] being considered as a scalar.
-	if(isScalar())
+	if (dimensions.size() == 1 &&
+			!dimensions[0].isDynamic() &&
+			dimensions[0].getNumericSize() == 1)
 		return 0;
 
 	return dimensions.size();
@@ -464,8 +434,6 @@ size_t Type::size() const
 		if (dimension.hasExpression())
 			return -1;
 
-		assert(!dimension.isRagged());
-
 		result *= dimension.getNumericSize();
 	}
 
@@ -490,16 +458,7 @@ bool Type::isScalar() const
 
 	return dimensions.size() == 1 &&
 				 !dimensions[0].hasExpression() &&
-				 !dimensions[0].isRagged() &&				 
 				 dimensions[0].getNumericSize() == 1;
-}
-
-bool Type::isRagged() const
-{
-	for (const auto& dimension : dimensions)
-		if (dimension.isRagged())
-			return true;
-	return false;
 }
 
 Type::dimensions_iterator Type::begin()
@@ -568,7 +527,7 @@ namespace marco::ast
 
 		auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
 			return a + (a.length() > 0 ? "," : "") +
-						 (b.isDynamic() ? ":" : toString(b));
+						 (b.isDynamic() ? ":" : std::to_string(b.getNumericSize()));
 		};
 
 		auto dimensions = obj.getDimensions();

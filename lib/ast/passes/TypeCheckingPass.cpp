@@ -12,9 +12,6 @@ using namespace marco::ast;
 
 static bool operator>=(Type x, Type y)
 {
-	if (x.to({1})==y.to({1})) //check if equal, not considering dimensions.
-		return true;
-
 	assert(x.isa<BuiltInType>());
 	assert(y.isa<BuiltInType>());
 
@@ -1485,10 +1482,10 @@ llvm::Error TypeChecker::run<Operation>(Expression& expression)
 
 		case OperationKind::powerOf:
 			return checkOperation(expression, &TypeChecker::checkPowerOfOp);
-		
+
 		case OperationKind::range:
 			return checkOperation(expression, &TypeChecker::checkRangeOp);
-		
+
 		case OperationKind::subscription:
 			return checkOperation(expression, &TypeChecker::checkSubscriptionOp);
 
@@ -1636,42 +1633,6 @@ llvm::Error TypeChecker::run<RecordInstance>(Expression& expression)
 	return llvm::Error::success();
 }
 
-llvm::Error checkRuggedDimensions(const ArrayDimension &pre, const ArrayDimension &it, const SourceRange location)
-{
-	if(it.isRagged()){
-		auto d_it  = it.getRaggedSize();
-
-		if(pre.isDynamic() || it.isDynamic())
-			return llvm::make_error<BadSemantic>(location,"ragged dynamic type not supported.");
-		
-		if(pre.isRagged()){
-			auto d_pre = pre.getRaggedSize();
-
-			if(d_it.size() != d_pre.size())
-				return llvm::make_error<BadSemantic>(location,"inconsistent ragged dimensions.");
-
-			for (const auto& [l, r] : llvm::zip(d_pre, d_it))
-			{
-				if(auto result=checkRuggedDimensions(l,r,location);!result)
-					return result;
-			}
-		}
-		else
-		{
-			//pre is a number
-			size_t num = pre.getNumericSize();
-
-			if(num != d_it.size())
-				return llvm::make_error<BadSemantic>(location,"inconsistent ragged dimensions.");
-			
-			for(auto d : d_it)
-				if(d.isRagged())
-					return llvm::make_error<BadSemantic>(location,"inconsistent ragged dimensions.");
-		}
-	}
-	return llvm::Error::success();	
-};
-
 llvm::Error TypeChecker::run(Member& member)
 {
 	auto &type = member.getType();
@@ -1691,22 +1652,6 @@ llvm::Error TypeChecker::run(Member& member)
 					("invalid type '"+ name + "' used for member declaration").str());
 	}
 
-	if(type.isRagged()){
-		//check if ragged dimensions are well-formed
-		auto dimensions = type.getDimensions();
-		auto pre = dimensions.begin();
-
-		if(pre->isRagged())
-			return llvm::make_error<BadSemantic>(
-					member.getLocation(),"invalid ragged type shape: the first dimension cannot be ragged.");
-
-		for(auto it=std::next(pre); it!=dimensions.end(); it++)
-		{
-			checkRuggedDimensions(*pre,*it,member.getLocation());
-		}
-	}
-
-	
 	for (auto& dimension : type.getDimensions())
 		if (dimension.hasExpression())
 			if (auto error = run<Expression>(*dimension.getExpression()); error)
@@ -1722,7 +1667,7 @@ llvm::Error TypeChecker::run(Member& member)
 
 		bool type_mismatch = true;
 
-		// check if the type of the initializing value can be implicity casted to 
+		// check if the type of the initializing value can be implicity casted to
 		// the type of the member
 		if ( type >= initType )
 		{
@@ -2438,7 +2383,7 @@ llvm::Error TypeChecker::checkRangeOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	auto checkAllArgs = [&](auto predicate){ 
+	auto checkAllArgs = [&](auto predicate){
 			return std::find_if(args.begin(), args.end(), [&](const auto &x){return !predicate(x);}) == args.end();
 		};
 
@@ -2459,8 +2404,8 @@ llvm::Error TypeChecker::checkRangeOp(Expression& expression)
 		end = getArgValue(2);
 	}
 
-	operation->setType( Type( 
-		is_integer ? BuiltInType::Integer : BuiltInType::Float, 
+	operation->setType( Type(
+		is_integer ? BuiltInType::Integer : BuiltInType::Float,
 		{ 1 + std::floor((end-begin)/step)})  // we need to add 1 because 1:1=={1} for the modelica standard
 	);
 
@@ -2497,7 +2442,7 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 
 	for (size_t i = operation->argumentsCount() - 1; i >= 1; --i, ++it){
 		auto* index = operation->getArg(i);
-		
+
 		if(index->getType() == makeType<int>())
 		{
 			// a single index
@@ -2518,7 +2463,7 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 				step=end;
 				end=arg(2);
 			}
-			
+
 			assert(begin>=0);
 			assert(end==-1 || begin<=end);
 			assert(step>=1);
@@ -2530,7 +2475,7 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 
 					// if it is the last subscription, just remove it
 					// e.g. x[:] == x
-					//		x[2,:] == x[2]  
+					//		x[2,:] == x[2]
 					if( i == operation->argumentsCount() - 1 )
 					{
 						if( operation->argumentsCount() == 2 )
@@ -2542,7 +2487,7 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 						operation->removeArg(i);
 					}
 
-					continue; 
+					continue;
 				}
 
 				end = dimensions.front().getNumericSize();
@@ -2554,18 +2499,18 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 			return llvm::make_error<BadSemantic>(
 					index->getLocation(), "index expression must be an integer or a range");
 	}
-	
+
 	// actually remove the deleted values
 	dimensions.erase(std::remove(dimensions.begin(), dimensions.end(), -2), dimensions.end());
 
 	// set the resulting type
 	expression.setType(
-		type.visit([&](const auto& type) 
-		{ 
+		type.visit([&](const auto& type)
+		{
 			if(dimensions.size())
-				return Type(type,dimensions); 
+				return Type(type,dimensions);
 			else
-				return Type(type);	
+				return Type(type);
 		})
 	);
 

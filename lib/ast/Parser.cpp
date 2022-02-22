@@ -1286,25 +1286,6 @@ llvm::Error Parser::arrayDimensions(llvm::SmallVectorImpl<ArrayDimension>& dimen
 			dimensions.push_back(ArrayDimension(-1));
 		else if (accept<Token::Integer>())
 			dimensions.push_back(ArrayDimension(lexer.getLastInt()));
-		else if (accept<Token::LCurly>())
-		{
-			auto recursive = [&](auto &&recursive) -> llvm::Expected<ArrayDimension> {
-				ArrayDimension::Container<ArrayDimension> ragged;
-				do{
-					if (accept<Token::LCurly>()){
-						TRY(result, recursive(recursive));
-						ragged.push_back(*result);
-					}else{
-						EXPECT(Token::Integer);
-						ragged.push_back(ArrayDimension(lexer.getLastInt()));
-					}
-				} while (accept<Token::Comma>());
-				EXPECT(Token::RCurly);
-				return ArrayDimension(std::make_unique<ArrayDimension::Container<ArrayDimension>>(ragged));
-			};
-			TRY(result, recursive(recursive));
-			dimensions.push_back(*result);
-		}
 		else
 		{
 			TRY(exp, expression());
