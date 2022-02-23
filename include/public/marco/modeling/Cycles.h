@@ -342,14 +342,15 @@ namespace marco::modeling
 
       using DFSStep = internal::scc::DFSStep<DependencyGraph, EquationDescriptor, Access>;
       using FilteredEquation = internal::scc::FilteredEquation<DependencyGraph, EquationDescriptor, Equation, Access>;
+      using Cycle = FilteredEquation;
 
       CyclesFinder(llvm::ArrayRef<EquationProperty> equations) : vectorDependencyGraph(equations)
       {
       }
 
-      std::vector<FilteredEquation> getEquationsCycles() const
+      std::vector<Cycle> getEquationsCycles() const
       {
-        std::vector<FilteredEquation> result;
+        std::vector<Cycle> result;
         auto SCCs = vectorDependencyGraph.getSCCs();
 
         for (const auto& scc: SCCs) {
