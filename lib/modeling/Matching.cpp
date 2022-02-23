@@ -23,6 +23,12 @@ namespace marco::modeling::internal::matching
 
   void Matchable::addMatch(const IndexSet& newMatch)
   {
+    [[maybe_unused]] auto containsIndexes = [&]() {
+      IndexSet possibleIndexes(dimensions);
+      return possibleIndexes.contains(newMatch);
+    };
+
+    assert(containsIndexes() && "The matched indexes set is not a subset of the matchable indexes");
     match += newMatch;
   }
 

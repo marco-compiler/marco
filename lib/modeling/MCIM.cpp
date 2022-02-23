@@ -264,16 +264,22 @@ namespace marco::modeling::internal
 
   bool MCIM::get(const Point& equation, const Point& variable) const
   {
+    assert(getEquationRanges().contains(equation) && "Equation indexes don't belong to the equation ranges");
+    assert(getVariableRanges().contains(variable) && "Variable indexes don't belong to the variable ranges");
     return impl->get(equation, variable);
   }
 
   void MCIM::set(const Point& equation, const Point& variable)
   {
+    assert(getEquationRanges().contains(equation) && "Equation indexes don't belong to the equation ranges");
+    assert(getVariableRanges().contains(variable) && "Variable indexes don't belong to the variable ranges");
     impl->set(equation, variable);
   }
 
   void MCIM::unset(const Point& equation, const Point& variable)
   {
+    assert(getEquationRanges().contains(equation) && "Equation indexes don't belong to the equation ranges");
+    assert(getVariableRanges().contains(variable) && "Variable indexes don't belong to the variable ranges");
     impl->unset(equation, variable);
   }
 

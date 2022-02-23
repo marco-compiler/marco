@@ -1173,13 +1173,14 @@ namespace marco::modeling
           // array-aware matching problem.
 
           if (matchOptions.size() == 1) {
-            edge.addMatch(matchOptions[0]);
+            const auto& match = matchOptions[0];
+            edge.addMatch(match);
 
             Variable& variable = isVariable(v1) ? getVariable(v1) : getVariable(v2);
             Equation& equation = isEquation(v1) ? getEquation(v1) : getEquation(v2);
 
-            variable.addMatch(matchOptions[0].flattenRows());
-            equation.addMatch(matchOptions[0].flattenColumns());
+            variable.addMatch(match.flattenRows());
+            equation.addMatch(match.flattenColumns());
 
             auto allComponentsMatchedVisitor = [](const auto& vertex) -> bool {
               return vertex.allComponentsMatched();
@@ -1220,7 +1221,24 @@ namespace marco::modeling
                   continue;
                 }
 
-                if (getVertexVisibilityDegree(v) == 1) {
+                auto visibilityDegree = getVertexVisibilityDegree(v);
+
+                if (visibilityDegree == 0) {
+                  // Chained simplifications may have led the 'v' vertex
+                  // without any edge. In that case, it must have been fully
+                  // matched during the process.
+
+                  if (!std::visit(allComponentsMatchedVisitor, graph[v])) {
+                    return false;
+                  }
+
+                  // 'v' will also be present for sure in the candidates list.
+                  // However, being fully matched and having no outgoing edge,
+                  // we now must remove it.
+                  candidates.remove_if([&](auto vertex) {
+                    return vertex == v;
+                  });
+                } else if (visibilityDegree == 1) {
                   candidates.push_back(v);
                 }
               }
@@ -1228,15 +1246,16 @@ namespace marco::modeling
               // Remove the v2 vertex and remove it from the candidates
               remove(v2);
 
-              candidates.remove_if(
-                  [&](auto v) {
-                    return v == v2;
-                  });
+              candidates.remove_if([&](auto v) {
+                return v == v2;
+              });
             } else {
-              // When an edge is removed but one its vertices survives, we must
+              // When an edge is removed but one of its vertices survives, we must
               // check if the remaining vertex has an obliged match.
 
-              if (getVertexVisibilityDegree(v2) == 1) {
+              auto visibilityDegree = getVertexVisibilityDegree(v2);
+
+              if (visibilityDegree == 1) {
                 candidates.push_back(v2);
               }
             }
