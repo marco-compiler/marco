@@ -1494,7 +1494,7 @@ static mlir::LogicalResult matching(
 
   if (numberOfScalarEquations < numberOfScalarVariables) {
     model.getOperation().emitError(
-        "Underdetermined problem. Found " +
+        "Underdetermined model. Found " +
         std::to_string(numberOfScalarEquations) +
         " scalar equations and " +
         std::to_string(numberOfScalarVariables) +
@@ -1503,7 +1503,7 @@ static mlir::LogicalResult matching(
     return mlir::failure();
   } else if (numberOfScalarEquations < numberOfScalarVariables) {
     model.getOperation().emitError(
-        "Overdetermined problem. Found " +
+        "Overdetermined model. Found " +
             std::to_string(numberOfScalarEquations) +
             " scalar equations and " +
             std::to_string(numberOfScalarVariables) +
