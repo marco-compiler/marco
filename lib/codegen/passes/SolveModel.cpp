@@ -1530,7 +1530,6 @@ class CyclesSolver
     mlir::LogicalResult solve(const Cycle& cycle)
     {
       std::vector<std::unique_ptr<MatchedEquation>> currentCycleSolvedEquations;
-      IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
 
       auto result = processIntervals(
           currentCycleSolvedEquations, *cycle.getEquation(), cycle.begin(), cycle.end());
@@ -1575,6 +1574,7 @@ class CyclesSolver
       return sourceClone->replaceInto(builder, destination, accessFunction, accessPath);
     }
 
+    /// Process all the indexes of an equation for which a cycle has been detected.
     template<typename IntervalIt>
     mlir::LogicalResult processIntervals(
         std::vector<std::unique_ptr<MatchedEquation>>& results,
@@ -1583,24 +1583,20 @@ class CyclesSolver
         IntervalIt intervalEnd)
     {
       for (auto interval = intervalBegin; interval != intervalEnd; ++interval) {
-        auto clonedEquation = Equation::build(equation.cloneIR(), equation.getVariables());
+        // Each interval may have multiple accesses leading to cycles. Process each one of them.
         auto dependencies = interval->getDestinations();
+        auto result = processDependencies(results, equation, dependencies.begin(), dependencies.end());
 
-        if (auto res = processDependencies(
-              results,
-              *clonedEquation,
-              dependencies.begin(),
-              dependencies.end()); mlir::failed(res)) {
-          return res;
+        if (mlir::failed(result)) {
+          return result;
         }
-
-        results.push_back(std::make_unique<MatchedEquation>(
-            std::move(clonedEquation), equation.getIterationRanges(), equation.getWrite().getPath()));
       }
 
       return mlir::success();
     }
 
+    /// Substitute all the read accesses that lead to cycles with the expressions given
+    /// by the respective writing equations.
     template<typename DependencyIt>
     mlir::LogicalResult processDependencies(
         std::vector<std::unique_ptr<MatchedEquation>>& results,
@@ -1609,39 +1605,62 @@ class CyclesSolver
         DependencyIt dependencyEnd)
     {
       for (auto dependency = dependencyBegin; dependency != dependencyEnd; ++dependency) {
+        // The access to be replaced
         const auto& access = dependency->getAccess();
         const auto& accessFunction = access.getAccessFunction();
-        const auto& accessProperty = access.getProperty();
-        const auto& filteredEquation = dependency->getNode();
+        const auto& accessPath = access.getProperty();
 
-        auto intervalBegin = filteredEquation.begin();
-        auto intervalEnd = filteredEquation.end();
+        // The equation that writes into the variable read by the previous access
+        const auto& filteredWritingEquation = dependency->getNode();
+
+        auto intervalBegin = filteredWritingEquation.begin();
+        auto intervalEnd = filteredWritingEquation.end();
 
         if (intervalBegin != intervalEnd) {
           std::vector<std::unique_ptr<MatchedEquation>> children;
 
+          // First process the chained dependencies
           if (auto res = processIntervals(
                 children,
-                *filteredEquation.getEquation(),
+                *filteredWritingEquation.getEquation(),
                 intervalBegin, intervalEnd); mlir::failed(res)) {
             return res;
           }
 
+          // Then put them into the destination equation. Note that it must be cloned
+          // for each different child, as each one of them provides a different
+          // expression to replace the read access.
           for (const auto& child : children) {
+            auto clonedDestination = Equation::build(destination.cloneIR(), destination.getVariables());
+
             if (auto res = replaceAccessWithEquation(
-                  destination, accessFunction, accessProperty, *child); mlir::failed(res)) {
+                  *clonedDestination, accessFunction, accessPath, *child); mlir::failed(res)) {
+              clonedDestination->eraseIR();
               return res;
             }
-          }
 
-          for (auto& child : children) {
+            // Delete the temporary equation that has been cloned, made explicit and
+            // substituted to the read access.
             child->eraseIR();
+
+            // Add the solved equation. In doing so, reuse the original indexes and write access path.
+            results.push_back(std::make_unique<MatchedEquation>(
+                std::move(clonedDestination), destination.getIterationRanges(), accessPath));
           }
         } else {
+          // The replacement equation has no further cycles, so we can just replace the
+          // access with it.
+          auto clonedDestination = Equation::build(destination.cloneIR(), destination.getVariables());
+
           if (auto res = replaceAccessWithEquation(
-                destination, accessFunction, accessProperty, *filteredEquation.getEquation()); mlir::failed(res)) {
+                *clonedDestination, accessFunction, accessPath, *filteredWritingEquation.getEquation()); mlir::failed(res)) {
+            clonedDestination->eraseIR();
             return res;
           }
+
+          // Add the solved equation
+          results.push_back(std::make_unique<MatchedEquation>(
+              std::move(clonedDestination), destination.getIterationRanges(), accessPath));
         }
       }
 
