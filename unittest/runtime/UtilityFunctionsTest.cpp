@@ -454,11 +454,11 @@ TEST(Runtime, print_int64)
 }
 
 // Broken for now due to memset segfault
-// TEST(Runtime, print_array_double)
-// {
-// 	std::array<double, 6> array = { 1, 2, 3, 4, 5, 6 };
-// 	ArrayDescriptor<double, 2> sourceDescriptor(array.data(), { 2, 3 });
-// 	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
-// 	NAME_MANGLED(print, void, ARRAY(double))(unsizedSource);
-// }
+TEST(Runtime, print_array_double)
+{
+	std::array<double, 6> array = { 1, 2, 3, 4, 5, 6 };
+	ArrayDescriptor<double, 2> sourceDescriptor(array.data(), { 2, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+	NAME_MANGLED(print, void, ARRAY(double))(unsizedSource);
+}
 

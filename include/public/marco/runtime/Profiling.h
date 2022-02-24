@@ -3,10 +3,6 @@
 
 #ifdef MARCO_PROFILING
 
-#ifndef WINDOWS_NOSTDLIB
-#include <string>
-#endif
-
 class Profiler
 {
   public:

@@ -354,8 +354,11 @@ template<typename T, unsigned int Rank>
 void printSized(const ArrayDescriptor<T, Rank>& descriptor)
 {
 	using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
-	descriptor.getRank();
-	std::vector<dimension_t> indexes(descriptor.getRank(), 0);
+	using rank_t = typename ArrayDescriptor<T, Rank>::rank_t;
+	std::vector<dimension_t> indexes;
+	for(rank_t i = 0; i < descriptor.getRank(); ++i)
+		indexes.push_back(0);
+	//std::vector<dimension_t> indexes(descriptor.getRank(), 0);
 	impl::printArrayDescriptor(descriptor, indexes, 0);
 }
 #endif

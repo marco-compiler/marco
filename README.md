@@ -65,7 +65,7 @@ cmake -DLLVM_PATH=llvm_install_path -DLLVM_EXTERNAL_LIT=lit_executable_path -DCM
 MSVC example:
 cmake -DLLVM_DIR=c:/llvm/lib/cmake/llvm -DMLIR_DIR=c:/llvm/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=C:\Users\ste\AppData\Local\Programs\Python\Python39\Scripts\lit.exe ..
 MINGW example:
-cmake -DLLVM_DIR=/mingw64/include/llvm -DMLIR_DIR=/mingw64/include/mlir -DLLVM_EXTERNAL_LIT=/usr/bin/lit ..
+cmake -DLLVM_DIR=/mingw64/include/llvm -DMLIR_DIR=/mingw64/include/mlir -DLLVM_EXTERNAL_LIT=/usr/bin/lit -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles" ..
 make all
 ```
 

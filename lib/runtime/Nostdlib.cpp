@@ -1,5 +1,6 @@
 #ifdef WINDOWS_NOSTDLIB
 #include <Windows.h>
+#include "marco/runtime/Printing.h"
 
 BOOL WINAPI DllMain(
     HINSTANCE hinstDLL,
@@ -7,6 +8,14 @@ BOOL WINAPI DllMain(
     LPVOID lpReserved)
 {
     return TRUE;
+}
+
+extern "C" BOOL WINAPI DllMainCRTStartup(
+	HINSTANCE hinstDLL,
+	DWORD fdwReason,
+	LPVOID lpvReserved)
+{
+	return TRUE;
 }
 
 namespace std {
@@ -30,7 +39,8 @@ void* operator new(std::size_t sz)
  
     if (void *ptr = HeapAlloc(GetProcessHeap(), 0x0, sz))
         return ptr;
- 
+	else 
+		return NULL;
     //throw std::bad_alloc{};
 }
 void operator delete(void* ptr) noexcept
@@ -46,13 +56,13 @@ void operator delete(void* ptr, std::size_t sz)
 void* memmove(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
-	char* srcp = (char*)srcpp;
+	const char* srcp = (const char*)srcpp;
 
 	if(dstp < srcp) {
-		for (int i = 0; i < len; i++)
+		for (size_t i = 0; i < len; i++)
 			*(dstp + i) = *(srcp + i);
 	} else {
-		for (int i = 0; i < len; i++)
+		for (size_t i = 0; i < len; i++)
 			*(dstp + len - 1 - i) = *(srcp + len - 1 - i);
 	}
 	return dstpp;
@@ -61,9 +71,9 @@ void* memmove(void* dstpp, const void* srcpp, size_t len)
 void* memcpy(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
-	char* srcp = (char*)srcpp;
+	const char* srcp = (const char*)srcpp;
 
-	for (int i = 0; i < len; i++)
+	for (size_t i = 0; i < len; i++)
 		*(dstp + i) = *(srcp + i);
 
 	return dstpp;
@@ -80,6 +90,7 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 //TODO: understand why memset gives segfault
 void* memset(void* s, int c,  size_t len)
 {
+	ryuPrintf("%d\n", len);
     unsigned char* p= (unsigned char*) s;
     while(len--)
     {

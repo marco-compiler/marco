@@ -15,7 +15,7 @@ inline size_t strlen(const char* s)
 
 inline char* strncpy(char* dest, const char* src, size_t n)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < n; i++)
 	{
@@ -96,14 +96,14 @@ inline char* i2s(int value)
 	return str;
 }
 
-inline char* findPercNull(const char* format)
+inline const char* findPercNull(const char* format)
 {
     const char* char_ptr;
     unsigned char c = '%';
 
     for (char_ptr = (const char*)format; ; ++char_ptr)
         if (*char_ptr == c || *char_ptr == '\0')
-            return (char*)char_ptr;
+            return (const char*)char_ptr;
 }
 
 #define SIZE 1000
@@ -114,7 +114,8 @@ inline char* composeString(const char* format, va_list ap)
 	char* bufptr;
 	const char* oldfmtptr;
 	char* buf = (char*)HeapAlloc(GetProcessHeap(), 0x0, sizeof(char)*SIZE);
-	char* tmp;
+	char dummy = '\0';
+	char* tmp = &dummy;
 	int n;
 
 
