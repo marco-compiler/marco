@@ -48,11 +48,10 @@ double pow(double x, double y)
 {
 	double z,ax,z_h,z_l,p_h,p_l;
 	double y1,t1,t2,r,s,t,u,v,w;
-	int i0,i1,i,j,k,yisint,n;
+	int i,j,k,yisint,n;
 	int hx,hy,ix,iy;
-	unsigned lx,ly;
+	int lx,ly;
 
-	i0 = ((*(int*)&one)>>29)^1; i1=1-i0;
 	hx = __HI(x); lx = __LO(x);
 	hy = __HI(y); ly = __LO(y);
 	ix = hx&0x7fffffff;  iy = hy&0x7fffffff;
@@ -272,7 +271,7 @@ inline Result pow(Base base, Exp exp)
   #ifndef WINDOWS_NOSTDLIB
   return std::pow(base, exp);
   #else
-  return 0; //TODO: implement pow
+  return pow(base, exp);
   #endif
 }
 

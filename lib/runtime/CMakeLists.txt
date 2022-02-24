@@ -33,7 +33,8 @@ if(MSVC)
 target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
-target_link_options(runtimeShared PRIVATE "-nostdlib" PRIVATE "-g")
+target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing") # needed for fdlibm
+target_link_options(runtimeShared PRIVATE "-nostdlib" PRIVATE "-g" PRIVATE "-O0")
 endif()
 
 add_dependencies(marco-runtime marco::runtimeShared)
@@ -48,7 +49,8 @@ target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
 add_compile_definitions(WINDOWS_NOSTDLIB)
-target_link_options(runtime PRIVATE "-nostdlib" PRIVATE "-g")
+target_compile_options(runtime PRIVATE "-fno-strict-aliasing") # needed for fdlibm
+target_link_options(runtime PRIVATE "-nostdlib")
 endif()
 
 add_dependencies(marco-runtime marco::runtime)

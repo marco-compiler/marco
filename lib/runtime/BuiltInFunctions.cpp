@@ -185,6 +185,11 @@ twon24  =  5.96046447753906250000e-08; /* 0x3E700000, 0x00000000 */
 static const double
 twom54  =  5.55111512312578270212e-17; /* 0x3C900000, 0x00000000 */
 
+double copysign(double x, double y);
+double fabs(double x);
+double floor(double x);
+double scalbn (double x, int n);
+
 double fabs(double x)
 {
 	__HI(x) &= 0x7fffffff;
@@ -230,7 +235,7 @@ double floor(double x)
 		    if(j0==20) i0+=1; 
 		    else {
 			j = i1+(1<<(52-j0));
-			if(j<i1) i0 +=1 ; 	/* got a carry */
+			if(i1 > 0 && j<(unsigned)i1) i0 +=1 ; 	/* got a carry */
 			i1=j;
 		    }
 		}
@@ -260,10 +265,12 @@ double scalbn (double x, int n)
         if (k >  0x7fe) return huge*copysign(huge,x); /* overflow  */
         if (k > 0) 				/* normal result */
 	    {__HI(x) = (hx&0x800fffff)|(k<<20); return x;}
-        if (k <= -54)
+        if (k <= -54) {
             if (n > 50000) 	/* in case integer overflow in n+k */
-		return huge*copysign(huge,x);	/*overflow*/
-	    else return tiny*copysign(tiny,x); 	/*underflow*/
+				return huge*copysign(huge,x);	/*overflow*/
+	    	else
+				return tiny*copysign(tiny,x); 	/*underflow*/
+		}
         k += 54;				/* subnormal result */
         __HI(x) = (hx&0x800fffff)|(k<<20);
         return x*twom54;
@@ -289,7 +296,9 @@ int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec, const int 
 
     /* compute q[0],q[1],...q[jk] */
 	for (i=0;i<=jk;i++) {
-	    for(j=0,fw=0.0;j<=jx;j++) fw += x[j]*f[jx+i-j]; q[i] = fw;
+	    for(j=0,fw=0.0;j<=jx;j++)
+			fw += x[j]*f[jx+i-j];
+		q[i] = fw;
 	}
 
 	jz = jk;
@@ -558,9 +567,9 @@ double sqrt(double x)
 	while(r!=0) {
 	    t = s0+r; 
 	    if(t<=ix0) { 
-		s0   = t+r; 
-		ix0 -= t; 
-		q   += r; 
+			s0   = t+r; 
+			ix0 -= t; 
+			q   += r; 
 	    } 
 	    ix0 += ix0 + ((ix1&sign)>>31);
 	    ix1 += ix1;
@@ -572,12 +581,14 @@ double sqrt(double x)
 	    t1 = s1+r; 
 	    t  = s0;
 	    if((t<ix0)||((t==ix0)&&(t1<=ix1))) { 
-		s1  = t1+r;
-		if(((t1&sign)==sign)&&(s1&sign)==0) s0 += 1;
-		ix0 -= t;
-		if (ix1 < t1) ix0 -= 1;
-		ix1 -= t1;
-		q1  += r;
+			s1  = t1+r;
+			if(((t1&sign)==(unsigned)sign)&&(s1&sign)==0)
+				s0 += 1;
+			ix0 -= t;
+			if (ix1 < t1)
+				ix0 -= 1;
+			ix1 -= t1;
+			q1  += r;
 	    }
 	    ix0 += ix0 + ((ix1&sign)>>31);
 	    ix1 += ix1;
@@ -676,13 +687,16 @@ double asin(double x)
 	    return (x-x)/(x-x);		/* asin(|x|>1) is NaN */   
 	} else if (ix<0x3fe00000) {	/* |x|<0.5 */
 	    if(ix<0x3e400000) {		/* if |x| < 2**-27 */
-		if(huge+x>one) return x;/* return x with inexact if x!=0*/
-	    } else 
-		t = x*x;
-		p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
-		q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
-		w = p/q;
-		return x+x*w;
+			if(huge+x>one)
+				return x;/* return x with inexact if x!=0*/
+			return 0; /* wrong path */
+	    } else {
+			t = x*x;
+			p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
+			q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
+			w = p/q;
+			return x+x*w;
+		}
 	}
 	/* 1> |x|>= 0.5 */
 	w = one-fabs(x);
@@ -764,7 +778,7 @@ double atan2(double y, double x)
 	if(((ix|((lx|-lx)>>31))>0x7ff00000)||
 	   ((iy|((ly|-ly)>>31))>0x7ff00000))	/* x or y is NaN */
 	   return x+y;
-	if((hx-0x3ff00000|lx)==0) return atan(y);   /* x=1.0 */
+	if(((hx-0x3ff00000)|lx)==0) return atan(y);   /* x=1.0 */
 	m = ((hy>>31)&1)|((hx>>30)&2);	/* 2*sign(x)+sign(y) */
 
     /* when y = 0 */
@@ -877,9 +891,12 @@ double expm1(double x)
 	    e  = (x*(e-c)-c);
 	    e -= hxs;
 	    if(k== -1) return 0.5*(x-e)-0.5;
-	    if(k==1) 
-	       	if(x < -0.25) return -2.0*(e-(x+0.5));
-	       	else 	      return  one+2.0*(x-e);
+	    if(k==1) {
+	       	if(x < -0.25)
+			   return -2.0*(e-(x+0.5));
+	       	else
+			   return  one+2.0*(x-e);
+		} 
 	    if (k <= -2 || k>56) {   /* suffice to return exp(x)-1 */
 	        y = one-(e-x);
 	        __HI(y) += (k<<20);	/* add k to y's exponent */
@@ -936,6 +953,7 @@ double exp(double x)	/* default IEEE double exp */
 	    x  = hi - lo;
 	} 
 	else if(hx < 0x3e300000)  {	/* when |x|<2**-28 */
+		k = 0; /* avoid compiler complaining about uninitialized k */
 	    if(huge+x>one) return one+x;/* trigger inexact */
 	}
 	else k = 0;
@@ -985,9 +1003,9 @@ double cosh(double x)
 	if (ix < 0x40862E42)  return half*exp(fabs(x));
 
     /* |x| in [log(maxdouble), overflowthresold] */
-	lx = *( (((*(unsigned*)&one)>>29)) + (unsigned*)&x);
+	lx = *( (((*(const unsigned*)&one)>>29)) + (unsigned*)&x);
 	if (ix<0x408633CE || 
-	      (ix==0x408633ce)&&(lx<=(unsigned)0x8fb9f87d)) {
+	      ((ix==0x408633ce)&&(lx<=(unsigned)0x8fb9f87d))) {
 	    w = exp(half*fabs(x));
 	    t = half*w;
 	    return t*w;
@@ -1022,8 +1040,14 @@ double log(double x)
 	k += (i>>20);
 	f = x-1.0;
 	if((0x000fffff&(2+hx))<3) {	/* |f| < 2**-20 */
-	    if(f==zero) if(k==0) return zero;  else {dk=(double)k;
-				 return dk*ln2_hi+dk*ln2_lo;}
+	    if(f==zero) {
+			if(k==0)
+				return zero;	
+			else {
+				dk=(double)k;
+				return dk*ln2_hi+dk*ln2_lo;
+			}
+		}
 	    R = f*f*(0.5-0.33333333333333333*f);
 	    if(k==0) return f-R; else {dk=(double)k;
 	    	     return dk*ln2_hi-((R-dk*ln2_lo)-f);}
@@ -1133,8 +1157,8 @@ double sinh(double x)
 	if (ix < 0x40862E42)  return h*exp(fabs(x));
 
     /* |x| in [log(maxdouble), overflowthresold] */
-	lx = *( (((*(unsigned*)&one)>>29)) + (unsigned*)&x);
-	if (ix<0x408633CE || (ix==0x408633ce)&&(lx<=(unsigned)0x8fb9f87d)) {
+	lx = *( (((*(const unsigned*)&one)>>29)) + (unsigned*)&x);
+	if (ix<0x408633CE || ((ix==0x408633ce)&&(lx<=(unsigned)0x8fb9f87d))) {
 	    w = exp(0.5*fabs(x));
 	    t = h*w;
 	    return t*w;
