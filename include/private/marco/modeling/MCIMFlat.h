@@ -14,7 +14,11 @@ namespace marco::modeling::internal
         public:
           using data_type = std::make_unsigned_t<Point::data_type>;
 
+#ifndef WINDOWS_NOSTDLIB
           Delta(data_type key, data_type value);
+#else
+          Delta(size_t key, size_t value);
+#endif
 
           bool operator==(const Delta& other) const;
 

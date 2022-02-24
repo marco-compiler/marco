@@ -42,6 +42,8 @@ include(GNUInstallDirs)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
+add_compile_definitions(WINDOWS_NOSTDLIB)
+
 #-------------------------------------------------------------------------------
 # Clang / MLIR / LLVM configuration
 #-------------------------------------------------------------------------------

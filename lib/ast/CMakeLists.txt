@@ -31,7 +31,7 @@ set(SOURCES
 		Symbol.cpp
 		SymbolTable.cpp)
 
-marco_add_library(ast SHARED
+marco_add_library(ast STATIC
 		${SOURCES}
 
 		LINK_LIBS

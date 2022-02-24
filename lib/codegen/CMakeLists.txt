@@ -43,7 +43,7 @@ set(MLIR_LIBS
     MLIRExecutionEngine)
 
 marco_add_library(codegen
-    SHARED
+    STATIC
     ${SOURCES}
 
     DEPENDS
