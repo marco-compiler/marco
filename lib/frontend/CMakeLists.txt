@@ -17,7 +17,7 @@ set(MLIR_LIBS
         ${dialect_libs}
         ${conversion_libs})
 
-marco_add_library(frontend SHARED
+marco_add_library(frontend STATIC
     ${SOURCES}
 
     DEPENDS

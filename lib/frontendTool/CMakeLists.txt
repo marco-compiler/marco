@@ -1,7 +1,7 @@
 set(SOURCES
     ExecuteCompilerInvocation.cpp)
 
-marco_add_library(frontendTool SHARED
+marco_add_library(frontendTool STATIC
     ${SOURCES}
 
     DEPENDS

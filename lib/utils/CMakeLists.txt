@@ -7,7 +7,7 @@ set(SOURCES
 		SourcePosition.cpp
 		VariableFilter.cpp)
 
-marco_add_library(utils SHARED
+marco_add_library(utils STATIC
 		${SOURCES}
 
 		LINK_COMPONENTS

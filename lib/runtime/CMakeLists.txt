@@ -49,7 +49,6 @@ if(MSVC)
 target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
-add_compile_definitions(WINDOWS_NOSTDLIB)
 target_compile_options(runtime PRIVATE "-fno-strict-aliasing") # needed for fdlibm
 target_link_options(runtime PRIVATE "-nostdlib")
 endif()

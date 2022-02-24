@@ -1,4 +1,4 @@
-add_mlir_dialect_library(MLIRModelica SHARED
+add_mlir_dialect_library(MLIRModelica STATIC
     Attributes.cpp
     ModelicaDialect.cpp
     Interfaces.cpp

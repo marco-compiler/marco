@@ -3,7 +3,7 @@ set(SOURCES
     Location.cpp
     LogMessage.cpp)
 
-marco_add_library(diagnostic SHARED
+marco_add_library(diagnostic STATIC
     ${SOURCES}
 
     LINK_LIBS
