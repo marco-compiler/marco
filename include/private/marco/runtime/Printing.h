@@ -53,9 +53,9 @@ inline void reverse(char str[], int length)
 	}
 }
 
-inline char* i2s(int value)
+inline int i2s_buffered_n(int value, char * ptr)
 {
-	char* str = (char*) HeapAlloc(GetProcessHeap(), 0x0, 25);
+	char* str = ptr;
 	int i = 0;
 	bool neg = false;
 	int base = 10;
@@ -65,7 +65,7 @@ inline char* i2s(int value)
 	{
 		str[0] = '0';
 		str[1] = '\0';
-		return str;
+		return 1;
 	}
 
 	// In standard itoa(), negative numbers are handled only with
@@ -88,10 +88,22 @@ inline char* i2s(int value)
 	if (neg)
 		str[i++] = '-';
 
-	str[i] = '\0';	// Append string terminator
-
 	// Reverse the string
 	reverse(str, i);
+
+	return i;
+}
+
+inline void i2s_buffered(int value, char* ptr)
+{
+	const int index = i2s_buffered_n(value, ptr);
+	ptr[index] = '\0';
+}
+
+inline char* i2s(int value)
+{
+	char* str = (char*) HeapAlloc(GetProcessHeap(), 0x0, 25);
+	i2s_buffered(value, str);
 
 	return str;
 }
@@ -106,19 +118,19 @@ inline const char* findPercNull(const char* format)
             return (const char*)char_ptr;
 }
 
-#define SIZE 100
+#define BUF_SIZE 100
+#define TMP_SIZE 25
 inline char* composeString(const char* format, va_list ap)
 {
-	int size = SIZE;
+	int size = BUF_SIZE;
 	int num_chars = 0;
 	const char* fmtptr;
 	char* bufptr;
 	const char* oldfmtptr;
 	char* buf = (char*)HeapAlloc(GetProcessHeap(), 0x0, sizeof(char)*size);
-	char dummy = '\0';
-	char* tmp = &dummy;
 	int n;
-
+	char tmp[TMP_SIZE];
+	char * tmp_ptr = tmp;
 
 	fmtptr = findPercNull(format);
 
@@ -137,27 +149,27 @@ inline char* composeString(const char* format, va_list ap)
 		fmtptr++;
 		if (*fmtptr == 'd')
 		{
-			tmp = i2s(va_arg(ap, int));
+			tmp_ptr = tmp;
+			i2s_buffered(va_arg(ap, int), tmp_ptr);
 		}
 		else if (*fmtptr == 'f')
 		{
-			tmp = d2s(va_arg(ap, double));
+			tmp_ptr = tmp;
+			d2s_buffered(va_arg(ap, double), tmp_ptr);
 		}
 		else if (*fmtptr == 's') 
 		{
-			tmp = va_arg(ap, char*);
+			tmp_ptr = va_arg(ap, char*);
 		}
 		
-		n = strlen(tmp);
+		n = strlen(tmp_ptr);
 		if (n > 0) {
 			num_chars = num_chars + n;
 			while(num_chars > size) {
 				size = size * 2;
 				buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 			}
-			strncpy(bufptr, tmp, n);
-			if(*fmtptr != 's')
-				HeapFree(GetProcessHeap(), 0x0, tmp);
+			strncpy(bufptr, tmp_ptr, n);
 			bufptr = bufptr + n;
 		}
 
