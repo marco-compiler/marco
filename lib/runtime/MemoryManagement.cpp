@@ -11,10 +11,10 @@
 #ifndef WINDOWS_NOSTDLIB
 #include <chrono>
 #include <iostream>
+#include <map>
 #else
 #include "marco/runtime/Printing.h"
 #endif
-#include <map>
 
 #ifdef WINDOWS_NOSTDLIB
 // This is needed because static objects are thread safe
@@ -94,7 +94,9 @@ class MemoryProfiler : public Profiler
 
     totalHeapMemory += bytes;
     currentHeapMemory += bytes;
-    //sizes[address] = bytes; //TODO: implement map, as it does not work with -nostdlib
+    #ifndef WINDOWS_NOSTDLIB
+    sizes[address] = bytes;
+    #endif
 
     if (currentHeapMemory > peakHeapMemory) {
       peakHeapMemory = currentHeapMemory;
@@ -105,10 +107,12 @@ class MemoryProfiler : public Profiler
   {
     ++freeCalls;
 
-    // if (auto it = sizes.find(address); it != sizes.end()) {
-    //   currentHeapMemory -= it->second;
-    //   sizes.erase(it);
-    // }
+    #ifndef WINDOWS_NOSTDLIB
+    if (auto it = sizes.find(address); it != sizes.end()) {
+      currentHeapMemory -= it->second;
+      sizes.erase(it);
+    }
+    #endif
   }
 
   void startTimer()
@@ -151,8 +155,8 @@ class MemoryProfiler : public Profiler
   int64_t totalHeapMemory;
   int64_t currentHeapMemory;
   int64_t peakHeapMemory;
-  //std::map<void*, int64_t> sizes;
   #ifndef WINDOWS_NOSTDLIB
+  std::map<void*, int64_t> sizes;
   std::chrono::steady_clock::time_point start;
   std::chrono::nanoseconds accumulatedTime;
   #else

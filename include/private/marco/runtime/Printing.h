@@ -106,14 +106,15 @@ inline const char* findPercNull(const char* format)
             return (const char*)char_ptr;
 }
 
-#define SIZE 1000
+#define SIZE 100
 inline char* composeString(const char* format, va_list ap)
 {
-	//TODO: realloc if len of buf > SIZE with SIZE*2 and so on
+	int size = SIZE;
+	int num_chars = 0;
 	const char* fmtptr;
 	char* bufptr;
 	const char* oldfmtptr;
-	char* buf = (char*)HeapAlloc(GetProcessHeap(), 0x0, sizeof(char)*SIZE);
+	char* buf = (char*)HeapAlloc(GetProcessHeap(), 0x0, sizeof(char)*size);
 	char dummy = '\0';
 	char* tmp = &dummy;
 	int n;
@@ -122,6 +123,11 @@ inline char* composeString(const char* format, va_list ap)
 	fmtptr = findPercNull(format);
 
 	n = fmtptr - format;
+	num_chars = num_chars + n;
+	while(num_chars > size) {
+		size = size * 2;
+		buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
+	}
 	strncpy(buf, format, n);
 
 	bufptr = buf + n;
@@ -144,6 +150,11 @@ inline char* composeString(const char* format, va_list ap)
 		
 		n = strlen(tmp);
 		if (n > 0) {
+			num_chars = num_chars + n;
+			while(num_chars > size) {
+				size = size * 2;
+				buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
+			}
 			strncpy(bufptr, tmp, n);
 			if(*fmtptr != 's')
 				HeapFree(GetProcessHeap(), 0x0, tmp);
@@ -155,6 +166,11 @@ inline char* composeString(const char* format, va_list ap)
 		fmtptr = findPercNull(fmtptr);
 
 		n = fmtptr - oldfmtptr;
+		num_chars = num_chars + n;
+		while(num_chars > size) {
+			size = size * 2;
+			buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
+		}
 		strncpy(bufptr, oldfmtptr, n);
 		bufptr = bufptr + n;
 	}

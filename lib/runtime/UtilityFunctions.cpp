@@ -134,7 +134,7 @@ inline void print_void(UnsizedArrayDescriptor<T> array)
   #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::scientific << array << std::endl;
   #else
-  printUnsized(array); //TODO: put getDescriptor private again
+  printUnsized(array);
   #endif
 }
 

@@ -4,7 +4,8 @@ set(SHARED_SOURCES
 		MemoryManagement.cpp
 		Profiling.cpp
 		UtilityFunctions.cpp
-		Nostdlib.cpp)
+		Nostdlib.cpp
+		Fdlibm.cpp)
 
 set(STATIC_SOURCES
 		${SHARED_SOURCES}
