@@ -97,7 +97,7 @@ class ArrayDescriptor
 		os << "  - values: " << *this << "\n";
 		os << "\n";
 	}
-	#endif // TODO: implement
+	#endif
 
   template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
   T& get(const Index& index)
@@ -526,9 +526,7 @@ class UnsizedArrayDescriptor
 		return (ArrayDescriptor<T, 0>*) descriptor;
 	}
 
-	private: //TODO: understand why it does not work with private decriptor
-			 //      and also why it silently crashes while allocating a 
-			 //      vector with segmentation fault in gdb (in memset, defined by me)
+	private:
 	rank_t rank;
 	void* descriptor;
 };
