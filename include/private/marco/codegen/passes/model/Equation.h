@@ -33,7 +33,7 @@ namespace marco::codegen
       virtual modelica::EquationOp getOperation() const = 0;
 
       /// Get the variables considered by the equation while determining the accesses.
-      virtual const Variables& getVariables() const = 0;
+      virtual Variables getVariables() const = 0;
 
       /// Set the variables considered by the equation while determining the accesses.
       virtual void setVariables(Variables variables) = 0;
@@ -41,7 +41,7 @@ namespace marco::codegen
       /// Get the number of induction variables.
       virtual size_t getNumOfIterationVars() const = 0;
 
-      /// Get the iteration ranges
+      /// Get the iteration ranges.
       virtual modeling::MultidimensionalRange getIterationRanges() const = 0;
 
       /// Get the accesses to variables.

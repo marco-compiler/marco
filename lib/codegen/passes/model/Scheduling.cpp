@@ -14,6 +14,7 @@ namespace marco::codegen
       scheduledIndexes(std::move(scheduledIndexes)),
       schedulingDirection(std::move(schedulingDirection))
   {
+    assert(this->equation->getIterationRanges().contains(this->scheduledIndexes));
   }
 
   ScheduledEquation::ScheduledEquation(const ScheduledEquation& other)
@@ -66,7 +67,7 @@ namespace marco::codegen
     return equation->getOperation();
   }
 
-  const Variables& ScheduledEquation::getVariables() const
+  Variables ScheduledEquation::getVariables() const
   {
     return equation->getVariables();
   }

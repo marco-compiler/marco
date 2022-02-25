@@ -15,6 +15,7 @@ namespace marco::codegen
       matchedIndexes(std::move(matchedIndexes)),
       matchedPath(std::move(matchedPath))
   {
+    assert(this->equation->getIterationRanges().contains(this->matchedIndexes));
   }
 
   MatchedEquation::MatchedEquation(const MatchedEquation& other)
@@ -68,7 +69,7 @@ namespace marco::codegen
     return equation->getOperation();
   }
 
-  const Variables& MatchedEquation::getVariables() const
+  Variables MatchedEquation::getVariables() const
   {
     return equation->getVariables();
   }

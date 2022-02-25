@@ -107,6 +107,11 @@ class ArrayVariable : public Variable::Impl
 
 namespace marco::codegen
 {
+  std::unique_ptr<Variable> Variable::build(mlir::Value value)
+  {
+    return std::make_unique<Variable>(std::move(value));
+  }
+
   Variable::Variable(mlir::Value value)
   {
     if (auto arrayType = value.getType().dyn_cast<ArrayType>(); arrayType.getRank() != 0) {

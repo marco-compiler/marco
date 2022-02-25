@@ -15,6 +15,8 @@ namespace marco::codegen
       class Impl;
       using Id = mlir::Operation*;
 
+      static std::unique_ptr<Variable> build(mlir::Value value);
+
       Variable(mlir::Value value);
 
       Variable(const Variable& other);

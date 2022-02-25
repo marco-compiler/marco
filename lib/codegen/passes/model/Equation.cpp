@@ -242,7 +242,7 @@ namespace marco::codegen
   llvm::Optional<Variable*> Equation::findVariable(mlir::Value value) const
   {
     assert(value.isa<mlir::BlockArgument>());
-    const auto& variables = getVariables();
+    auto variables = getVariables();
 
     auto it = llvm::find_if(variables, [&](const std::unique_ptr<Variable>& variable) {
       return value == variable->getValue();
@@ -442,7 +442,7 @@ namespace marco::codegen
     return mlir::cast<EquationOp>(equationOp);
   }
 
-  const Variables& BaseEquation::getVariables() const
+  Variables BaseEquation::getVariables() const
   {
     return variables;
   }

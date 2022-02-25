@@ -58,4 +58,4 @@ marco_add_library(codegen
     PRIVATE marco::ast
     PRIVATE marco::modeling
     PRIVATE marco::utils
-    PRIVATE ${MLIR_LIBS})
+    PUBLIC ${MLIR_LIBS})

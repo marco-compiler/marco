@@ -38,7 +38,7 @@ namespace marco::codegen
 
       modelica::EquationOp getOperation() const override;
 
-      const Variables& getVariables() const override;
+      Variables getVariables() const override;
 
       void setVariables(Variables variables) override;
 
