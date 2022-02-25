@@ -131,6 +131,9 @@ inline char* composeString(const char* format, va_list ap)
 	int n;
 	char tmp[TMP_SIZE];
 	char * tmp_ptr = tmp;
+	// char precision_str[TMP_SIZE];
+	// int precision_str_length;
+	// int precision = 12;
 
 	fmtptr = findPercNull(format);
 
@@ -147,6 +150,19 @@ inline char* composeString(const char* format, va_list ap)
 	while (*fmtptr == '%')
 	{
 		fmtptr++;
+		// precision_str_length = 0;
+		if(*fmtptr == '.')
+		{
+			fmtptr++;
+			while(*fmtptr >= '0' && *fmtptr <= '9')
+			{
+				// precision_str[precision_str_length] = *fmtptr;
+				// precision_str_length++;
+				fmtptr++;
+			}
+		}
+		// precision_str[precision_str_length] = '\0';
+
 		if (*fmtptr == 'd')
 		{
 			tmp_ptr = tmp;
@@ -156,11 +172,14 @@ inline char* composeString(const char* format, va_list ap)
 		{
 			tmp_ptr = tmp;
 			d2s_buffered(va_arg(ap, double), tmp_ptr);
+			//*(tmp_ptr + precision + 2) = '\0';
 		}
 		else if (*fmtptr == 's') 
 		{
 			tmp_ptr = va_arg(ap, char*);
 		}
+		else
+			printString("Unknown placeholder");
 		
 		n = strlen(tmp_ptr);
 		if (n > 0) {
@@ -251,6 +270,11 @@ inline void printBool(bool value) {
 		printString("True\n");
 	else
 		printString("False\n");
+}
+
+inline void printChar(int c) {
+	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+	WriteConsoleA(out, &c, 1, NULL, NULL);
 }
 
 template<typename T>

@@ -1,4 +1,9 @@
-add_mlir_dialect_library(MLIRModelica STATIC
+if(MINGW)
+    set(LINK_MODE STATIC)
+else()
+    set(LINK_MODE SHARED)
+endif()
+add_mlir_dialect_library(MLIRModelica ${LINK_MODE}
     Attributes.cpp
     ModelicaDialect.cpp
     Interfaces.cpp

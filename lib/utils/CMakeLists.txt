@@ -7,7 +7,12 @@ set(SOURCES
 		SourcePosition.cpp
 		VariableFilter.cpp)
 
-marco_add_library(utils STATIC
+if(MINGW)
+set(LINK_MODE STATIC)
+else()
+set(LINK_MODE SHARED)
+endif()
+marco_add_library(utils ${LINK_MODE}
 		${SOURCES}
 
 		LINK_COMPONENTS

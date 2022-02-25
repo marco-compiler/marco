@@ -42,8 +42,14 @@ set(MLIR_LIBS
     MLIRTranslation
     MLIRExecutionEngine)
 
+if(MINGW)
+    set(LINK_MODE STATIC)
+else()
+    set(LINK_MODE SHARED)
+endif()
+
 marco_add_library(codegen
-    STATIC
+    ${LINK_MODE}
     ${SOURCES}
 
     DEPENDS

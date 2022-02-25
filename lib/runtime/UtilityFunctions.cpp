@@ -153,3 +153,23 @@ RUNTIME_FUNC_DEF(print, void, ARRAY(int32_t))
 RUNTIME_FUNC_DEF(print, void, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(print, void, ARRAY(float))
 RUNTIME_FUNC_DEF(print, void, ARRAY(double))
+
+#ifdef WINDOWS_NOSTDLIB
+extern "C" __declspec(dllexport) int printf(const char* format, ...)
+{
+	va_list arg;
+	int done;
+
+	va_start(arg, format);
+	done = ryuPrintfInternal(format, arg);
+	va_end(arg);
+
+	return done;
+}
+
+extern "C" __declspec(dllexport) int putchar(int c)
+{
+  printChar(c);
+  return 1;
+}
+#endif
