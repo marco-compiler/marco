@@ -16,7 +16,12 @@ set(SOURCES
     Range.cpp
     Scheduling.cpp)
 
-marco_add_library(modeling STATIC
+if(MINGW)
+    set(LINK_MODE STATIC)
+else()
+    set(LINK_MODE SHARED)
+endif()
+marco_add_library(modeling ${LINK_MODE}
     ${SOURCES}
 
     LINK_LIBS
