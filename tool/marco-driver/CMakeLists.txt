@@ -5,8 +5,7 @@ set(SOURCES
 marco_add_tool(marco-driver ${SOURCES})
 
 target_link_libraries(marco-driver
-    PRIVATE marco::frontend
-    PRIVATE marco::frontendTool)
+    PRIVATE marco::frontend)
 
 clang_target_link_libraries(marco-driver
     PRIVATE

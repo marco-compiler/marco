@@ -2,7 +2,7 @@
 #define MARCO_MODELING_MCIMIMPL_H
 
 #include "llvm/Support/Casting.h"
-#include "marco/modeling/MCIM.h"
+#include "marco/Modeling/MCIM.h"
 
 namespace marco::modeling::internal
 {

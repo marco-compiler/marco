@@ -2,7 +2,7 @@
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONSMCIM_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "marco/modeling/LocalMatchingSolutionsImpl.h"
+#include "marco/Modeling/LocalMatchingSolutionsImpl.h"
 
 namespace marco::modeling::internal
 {

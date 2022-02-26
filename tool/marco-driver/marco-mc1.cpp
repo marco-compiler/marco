@@ -1,9 +1,8 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/Support/TargetSelect.h"
-#include "marco/frontend/CompilerInstance.h"
-#include "marco/frontend/TextDiagnosticBuffer.h"
-#include "marco/frontendTool/Utils.h"
+#include "marco/Frontend/CompilerInstance.h"
+#include "marco/Frontend/TextDiagnosticBuffer.h"
 
 using namespace marco::frontend;
 

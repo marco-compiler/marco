@@ -5,15 +5,14 @@
 
 # The runtime library is independent, so its relative position
 # doesn't matter.
-add_subdirectory(runtime)
+add_subdirectory(Runtime)
 
 # Also the modeling library is designed to be independent.
-add_subdirectory(modeling)
+add_subdirectory(Modeling)
 
-add_subdirectory(utils)
-add_subdirectory(diagnostic)
-add_subdirectory(ast)
-add_subdirectory(dialects)
-add_subdirectory(codegen)
-add_subdirectory(frontend)
-add_subdirectory(frontendTool)
+add_subdirectory(Utils)
+add_subdirectory(Diagnostic)
+add_subdirectory(AST)
+add_subdirectory(Dialect)
+add_subdirectory(Codegen)
+add_subdirectory(Frontend)

@@ -1,8 +1,8 @@
 #ifndef MARCO_MODELING_LOCALMATCHINGSOLUTIONSIMPL_H
 #define MARCO_MODELING_LOCALMATCHINGSOLUTIONSIMPL_H
 
-#include "marco/modeling/LocalMatchingSolutions.h"
-#include "marco/modeling/MCIM.h"
+#include "marco/Modeling/LocalMatchingSolutions.h"
+#include "marco/Modeling/MCIM.h"
 
 namespace marco::modeling::internal
 {

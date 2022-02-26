@@ -2,7 +2,7 @@
 #define MARCO_MODELING_MCIMFLAT_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "marco/modeling/MCIMImpl.h"
+#include "marco/Modeling/MCIMImpl.h"
 
 namespace marco::modeling::internal
 {

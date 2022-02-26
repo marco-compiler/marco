@@ -16,7 +16,7 @@ namespace marco::frontend
       #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
       OPT_##ID,
-      #include "marco/frontend/Options.inc"
+      #include "marco/Frontend/Options.inc"
       LastOption
       #undef OPTION
     };

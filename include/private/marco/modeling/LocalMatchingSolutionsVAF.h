@@ -3,9 +3,9 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "marco/modeling/AccessFunction.h"
-#include "marco/modeling/LocalMatchingSolutionsImpl.h"
-#include "marco/modeling/MultidimensionalRange.h"
+#include "marco/Modeling/AccessFunction.h"
+#include "marco/Modeling/LocalMatchingSolutionsImpl.h"
+#include "marco/Modeling/MultidimensionalRange.h"
 #include <memory>
 
 namespace marco::modeling::internal
