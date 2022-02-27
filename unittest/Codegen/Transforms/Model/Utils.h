@@ -47,6 +47,22 @@ namespace marco::codegen::test
 
   /// Map the variables of a model.
   Variables mapVariables(modelica::ModelOp model);
+
+  /// Create an equation with with a certain body and optional iteration ranges.
+  /// The callback function is used to create the body of the equation. When called,
+  /// the insertion point of the nested builder is already set to the beginning of
+  /// the equation body.
+  ///
+  /// @param builder          operation builder
+  /// @param model            model into which the equation has to be created
+  /// @param iterationRanges  optional iteration ranges
+  /// @param bodyFn           callback function used to populate the equation body
+  /// @return the created equation operation
+  modelica::EquationOp createEquation(
+      mlir::OpBuilder& builder,
+      modelica::ModelOp model,
+      llvm::ArrayRef<std::pair<long, long>> iterationRanges,
+      std::function<void(mlir::OpBuilder&)> bodyFn);
 }
 
 #endif // MARCO_UNITTEST_CODEGEN_UTILS_H

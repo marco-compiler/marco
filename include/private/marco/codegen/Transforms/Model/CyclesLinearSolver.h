@@ -11,6 +11,29 @@ namespace marco::codegen
   class CyclesLinearSolver
   {
     private:
+      /// An equation which originally presented cycles but now, for some indices, does not anymore.
+      struct SolvedEquation
+      {
+        SolvedEquation(const Equation* equation, llvm::ArrayRef<modeling::IndexSet> solvedIndices)
+          : equation(std::move(equation))
+        {
+          for (const auto& indices : solvedIndices) {
+            this->solvedIndices += indices;
+          }
+        }
+
+        bool operator<(const SolvedEquation& other) const {
+          return equation < other.equation;
+        }
+
+        // The equation which originally had cycles.
+        // The pointer refers to the original equation, which presented (and still presents) cycles.
+        const Equation* equation;
+
+        // The indices of the equations for which the cycles have been solved
+        modeling::IndexSet solvedIndices;
+      };
+
       struct UnsolvedCycle
       {
         UnsolvedCycle(Cycle cycle, const Equation* blockingEquation)
@@ -19,6 +42,8 @@ namespace marco::codegen
         }
 
         Cycle cycle;
+
+        // The equation which could not be made explicit
         const Equation* blockingEquation;
       };
 
@@ -29,15 +54,15 @@ namespace marco::codegen
 
       Equations<MatchedEquation> getSolvedEquations() const
       {
-        return solvedEquations;
+        return newEquations_;
       }
 
       Equations<MatchedEquation> getUnsolvedEquations() const
       {
         Equations<MatchedEquation> result;
 
-        for (const auto& cycle : unsolvedCycles) {
-          const auto& equation = cycle.getEquation();
+        for (const auto& unsolvedCycle : unsolvedCycles_) {
+          const auto& equation = unsolvedCycle.cycle.getEquation();
 
           result.add(std::make_unique<MatchedEquation>(
               equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
@@ -48,7 +73,7 @@ namespace marco::codegen
 
       void solve(const Cycle& cycle)
       {
-        auto res = solve(cycle, solvedEquations, unsolvedCycles);
+        auto res = solve(cycle, newEquations_, solvedEquations_, unsolvedCycles_);
 
         if (mlir::succeeded(res)) {
           // Try to solve previously unsolved cycles
@@ -59,23 +84,28 @@ namespace marco::codegen
     private:
       mlir::LogicalResult solve(
           const Cycle& cycle,
-          Equations<MatchedEquation>& currentIterationSolvedEquations,
+          Equations<MatchedEquation>& currentIterationNewEquations,
+          std::vector<SolvedEquation>& currentIterationSolvedEquations,
           std::vector<UnsolvedCycle>& currentIterationUnsolvedCycles)
       {
-        std::vector<std::unique_ptr<MatchedEquation>> currentCycleSolvedEquations;
+        std::vector<std::unique_ptr<MatchedEquation>> newEquationsVector;
         const Equation* blockingEquation = nullptr;
 
         auto result = processIntervals(
-            currentCycleSolvedEquations, *cycle.getEquation(), cycle.begin(), cycle.end(), blockingEquation);
+            newEquationsVector,
+            currentIterationSolvedEquations,
+            cycle.getEquation(),
+            cycle.begin(), cycle.end(),
+            blockingEquation);
 
-        if (mlir::succeeded(result)) {
-          for (auto& equation : currentCycleSolvedEquations) {
-            currentIterationSolvedEquations.add(std::move(equation));
-          }
-        } else {
+        for (auto& equation : newEquationsVector) {
+          currentIterationNewEquations.add(std::move(equation));
+        }
+
+        if (mlir::failed(result)) {
           assert(blockingEquation != nullptr);
           currentIterationUnsolvedCycles.emplace_back(cycle, blockingEquation);
-          return mlir::failure();
+          return result;
         }
 
         return mlir::success();
@@ -83,33 +113,41 @@ namespace marco::codegen
 
       void retryUnsolvedCycles(const Equation* solvedEquation)
       {
-        std::vector<const Equation*> solved;
+        std::vector<SolvedEquation> solvedRoots;
         std::vector<UnsolvedCycle> currentIterationUnsolvedCycles;
-        auto it = unsolvedCycles.begin();
+        auto it = unsolvedCycles_.begin();
 
-        while (it != unsolvedCycles.end()) {
+        while (it != unsolvedCycles_.end()) {
           if (it->blockingEquation == solvedEquation) {
-            auto res = solve(it->cycle, solvedEquations, currentIterationUnsolvedCycles);
+            [[maybe_unused]] auto res = solve(it->cycle, newEquations_, solvedRoots, currentIterationUnsolvedCycles);
 
+            for (const auto& solved : solvedRoots) {
+              solvedEquations_.push_back(solved);
+            }
+
+            assert(!mlir::succeeded(res) || currentIterationUnsolvedCycles.empty());
+
+            /*
             if (mlir::succeeded(res)) {
               assert(currentIterationUnsolvedCycles.empty());
               solved.push_back(it->cycle.getEquation());
             }
+             */
 
             // Remove the current cycle. If it was yet not solvable, then it is already
             // added again by the 'solve' method to the list of unsolved cycles.
-            it = unsolvedCycles.erase(it);
+            it = unsolvedCycles_.erase(it);
           } else {
             ++it;
           }
         }
 
         for (auto& unsolvedCycle : currentIterationUnsolvedCycles) {
-          unsolvedCycles.push_back(std::move(unsolvedCycle));
+          unsolvedCycles_.push_back(std::move(unsolvedCycle));
         }
 
-        for (const auto& equation : solved) {
-          retryUnsolvedCycles(equation);
+        for (const auto& solvedEq : solvedRoots) {
+          retryUnsolvedCycles(solvedEq.equation);
         }
       }
 
@@ -144,25 +182,34 @@ namespace marco::codegen
       /// Process all the indexes of an equation for which a cycle has been detected.
       template<typename IntervalIt>
       mlir::LogicalResult processIntervals(
-          std::vector<std::unique_ptr<MatchedEquation>>& results,
-          MatchedEquation& equation,
+          std::vector<std::unique_ptr<MatchedEquation>>& newEquations,
+          std::vector<SolvedEquation>& solvedEquations,
+          MatchedEquation* equation,
           IntervalIt intervalBegin,
           IntervalIt intervalEnd,
           const Equation*& blockingEquation)
       {
+        auto result = mlir::success();
+
         for (auto interval = intervalBegin; interval != intervalEnd; ++interval) {
+          if (hasSolvedEquation(equation, modeling::IndexSet(interval->getRange()))) {
+            continue;
+          }
+
           // Each interval may have multiple accesses leading to cycles. Process each one of them.
           auto dependencies = interval->getDestinations();
 
-          auto result = processDependencies(
-              results, equation, dependencies.begin(), dependencies.end(), blockingEquation);
+          auto res = processDependencies(
+              newEquations, *equation, dependencies.begin(), dependencies.end(), blockingEquation);
 
-          if (mlir::failed(result)) {
-            return result;
+          if (mlir::succeeded(res)) {
+            addSolvedEquation(solvedEquations, equation, modeling::IndexSet(interval->getRange()));
+          } else {
+            result = res;
           }
         }
 
-        return mlir::success();
+        return result;
       }
 
       /// Substitute all the read accesses that lead to cycles with the expressions given
@@ -170,7 +217,7 @@ namespace marco::codegen
       template<typename DependencyIt>
       mlir::LogicalResult processDependencies(
           std::vector<std::unique_ptr<MatchedEquation>>& results,
-          Equation& destination,
+          MatchedEquation& destination,
           DependencyIt dependencyBegin,
           DependencyIt dependencyEnd,
           const Equation*& blockingEquation)
@@ -189,11 +236,12 @@ namespace marco::codegen
 
           if (intervalBegin != intervalEnd) {
             std::vector<std::unique_ptr<MatchedEquation>> children;
+            std::vector<SolvedEquation> solved;
 
             // First process the chained dependencies
             if (auto res = processIntervals(
-                  children,
-                  *filteredWritingEquation.getEquation(),
+                  children, solved,
+                  filteredWritingEquation.getEquation(),
                   intervalBegin, intervalEnd,
                   blockingEquation); mlir::failed(res)) {
               return res;
@@ -207,7 +255,7 @@ namespace marco::codegen
               auto res = replaceAccessWithEquation(*clonedDestination, accessFunction, accessPath, *child);
 
               if (mlir::failed(res)) {
-                blockingEquation = child.get();
+                blockingEquation = filteredWritingEquation.getEquation();
                 clonedDestination->eraseIR();
                 return res;
               }
@@ -218,9 +266,13 @@ namespace marco::codegen
 
               // Add the solved equation. In doing so, reuse the original indexes and write access path.
               results.push_back(std::make_unique<MatchedEquation>(
-                  std::move(clonedDestination), destination.getIterationRanges(), accessPath));
+                  std::move(clonedDestination), destination.getIterationRanges(), destination.getWrite().getPath()));
             }
           } else {
+            if (hasSolvedEquation(filteredWritingEquation.getEquation())) {
+              return mlir::success();
+            }
+
             // The replacement equation has no further cycles, so we can just replace the access
             auto clonedDestination = Equation::build(destination.cloneIR(), destination.getVariables());
 
@@ -235,21 +287,59 @@ namespace marco::codegen
 
             // Add the solved equation
             results.push_back(std::make_unique<MatchedEquation>(
-                std::move(clonedDestination), destination.getIterationRanges(), accessPath));
+                std::move(clonedDestination), destination.getIterationRanges(), destination.getWrite().getPath()));
           }
         }
 
         return mlir::success();
       }
 
+      void addSolvedEquation(
+          std::vector<SolvedEquation>& solvedEquations,
+          Equation* const equation,
+          modeling::IndexSet indices)
+      {
+        auto it = llvm::find_if(solvedEquations, [&](SolvedEquation& solvedEquation) {
+          return solvedEquation.equation == equation;
+        });
+
+        if (it != solvedEquations.end()) {
+          modeling::IndexSet& solvedIndices = it->solvedIndices;
+          solvedIndices += indices;
+        } else {
+          solvedEquations.push_back(SolvedEquation(equation, indices));
+        }
+      }
+
+      bool hasSolvedEquation(Equation* const equation) const
+      {
+        auto it = llvm::find_if(solvedEquations_, [&](const SolvedEquation& solvedEquation) {
+          return solvedEquation.equation == equation;
+        });
+
+        return it != solvedEquations_.end();
+      }
+
+      bool hasSolvedEquation(Equation* const equation, modeling::IndexSet indices) const
+      {
+        auto it = llvm::find_if(solvedEquations_, [&](const SolvedEquation& solvedEquation) {
+          return solvedEquation.equation == equation && solvedEquation.solvedIndices.contains(indices);
+        });
+
+        return it != solvedEquations_.end();
+      }
+
     private:
       mlir::OpBuilder& builder;
 
-      // The equations which had cycles but that have been solved.
-      Equations<MatchedEquation> solvedEquations;
+      // The equations which originally had cycles but have been partially or fully solved.
+      std::vector<SolvedEquation> solvedEquations_;
+
+      // The newly created equations which has no cycles anymore.
+      Equations<MatchedEquation> newEquations_;
 
       // The cycles that can't be solved by substitution.
-      std::vector<UnsolvedCycle> unsolvedCycles;
+      std::vector<UnsolvedCycle> unsolvedCycles_;
   };
 }
 

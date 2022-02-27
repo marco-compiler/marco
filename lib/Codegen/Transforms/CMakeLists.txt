@@ -27,11 +27,14 @@ set(MLIR_LIBS
     MLIRTranslation)
 
 add_mlir_dialect_library(MLIRModelicaTransforms
+    SHARED
     ${SOURCES}
 
     DEPENDS
+    marco::codegen # remove once dialects library is completed
     marco::modeling
 
     LINK_LIBS PUBLIC
+    marco::codegen
     marco::modeling
     ${MLIR_LIBS})

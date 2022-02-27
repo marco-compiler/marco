@@ -1,4 +1,5 @@
 set(SOURCES
+    CyclesTest.cpp
     EquationTest.cpp
     MatchingTest.cpp
     SchedulingTest.cpp

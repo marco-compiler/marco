@@ -1,3 +1,4 @@
+#include "llvm/ADT/STLExtras.h"
 #include "marco/Codegen/Transforms/Model/Equation.h"
 #include "marco/Codegen/Transforms/Model/EquationImpl.h"
 #include "marco/Codegen/Transforms/Model/LoopEquation.h"
@@ -557,6 +558,9 @@ namespace marco::codegen
 
     builder.setInsertionPoint(insertionPoint);
 
+    // Map of the source equation values to the destination ones
+    mlir::BlockAndValueMapping mapping;
+
     // Determine the access transformation to be applied to each induction variable usage.
     // For example, given the following equations:
     //   destination: x[i0, i1] = 1 - y[i1 + 3, i0 - 2]
@@ -571,19 +575,89 @@ namespace marco::codegen
     //   [i0 - 1, i1 - 2] * [i0 + 1, i1 + 2] = [i0, i1]
     // In the same way, z[i1, i0] becomes z[i1 + 1, i0 - 1] and i1 becomes [i1 - 2].
     auto sourceAccess = getAccessFromPath(EquationPath::LEFT);
+    const auto& sourceAccessFunction = sourceAccess.getAccessFunction();
 
-    if (!sourceAccess.getAccessFunction().isInvertible()) {
-      getOperation().emitError("The write access is not invertible");
-      return mlir::failure();
-    }
+    if (sourceAccessFunction.isInvertible()) {
+      auto combinedAccess = destinationAccessFunction.combine(sourceAccess.getAccessFunction().inverse());
 
-    auto combinedAccess = destinationAccessFunction.combine(sourceAccess.getAccessFunction().inverse());
+      if (auto res = mapInductionVariables(builder, mapping, destination, combinedAccess); mlir::failed(res)) {
+        return res;
+      }
+    } else {
+      // If the access function is not invertible, it may still be possible to move the
+      // equation body. In fact, if all the induction variables not appearing in the
+      // write access do iterate on a single value (i.e. [n,n+1)), then those constants
+      // ('n', in the previous example), can be used to replace the induction variables
+      // usages.
+      // For example, given the equation "x[10, i1] = ..." , with i0 belonging to [5,6),
+      // then i0 can be replaced everywhere within the equation with the constant value
+      // 5. Then, if we consider just the [i1] access of 'x', the reduced access
+      // function can be now inverted and combined with the destination access, as
+      // in the previous case.
+      // Note that this always happens in case of scalar variables, as they are accessed
+      // by means of a fake access to their first element, as if they were arrays.
 
-    // Map the induction variables of the source equation to the destination ones
-    mlir::BlockAndValueMapping mapping;
+      llvm::SmallVector<bool, 3> usedInductions(sourceAccessFunction.size(), false);
+      llvm::SmallVector<DimensionAccess, 3> reducedSourceAccesses;
+      llvm::SmallVector<DimensionAccess, 3> reducedDestinationAccesses;
+      auto iterationRanges = getIterationRanges();
 
-    if (auto res = mapInductionVariables(builder, mapping, destination, combinedAccess); mlir::failed(res)) {
-      return res;
+      for (size_t i = 0, e = sourceAccessFunction.size(); i < e; ++i) {
+        if (!sourceAccessFunction[i].isConstantAccess()) {
+          usedInductions[sourceAccessFunction[i].getInductionVariableIndex()] = true;
+          reducedSourceAccesses.push_back(sourceAccessFunction[i]);
+          reducedDestinationAccesses.push_back(destinationAccessFunction[i]);
+        }
+      }
+
+      for (const auto& usage : llvm::enumerate(usedInductions)) {
+        if (!usage.value()) {
+          // If the induction variable is not used, then ensure that it iterates
+          // on just one value and thus can be replaced with a constant value.
+
+          if (iterationRanges[usage.index()].size() != 1) {
+            getOperation().emitError("The write access is not invertible");
+            return mlir::failure();
+          }
+        }
+      }
+
+      AccessFunction reducedSourceAccessFunction(reducedSourceAccesses);
+      AccessFunction reducedDestinationAccessFunction(reducedDestinationAccesses);
+
+      llvm::SmallVector<DimensionAccess, 3> remappedReducedSourceAccesses;
+      std::set<size_t> remappedSourceInductions;
+      llvm::SmallVector<size_t, 3> sourceDimensionMapping(sourceAccessFunction.size(), 0);
+      size_t mappedIndex = 0;
+
+      for (const auto& dimensionAccess : reducedSourceAccesses) {
+        assert(!dimensionAccess.isConstantAccess());
+        auto inductionIndex = dimensionAccess.getInductionVariableIndex();
+        remappedSourceInductions.insert(inductionIndex);
+        sourceDimensionMapping[inductionIndex] = mappedIndex;
+        remappedReducedSourceAccesses.push_back(DimensionAccess::relative(mappedIndex, dimensionAccess.getOffset()));
+      }
+
+      AccessFunction remappedReducedSourceAccessFunction(remappedReducedSourceAccesses);
+      auto combinedReducedAccess = reducedDestinationAccessFunction.combine(remappedReducedSourceAccessFunction.inverse());
+      llvm::SmallVector<DimensionAccess, 3> transformationAccesses;
+
+      for (const auto& usage : llvm::enumerate(usedInductions)) {
+        if (usage.value()) {
+          assert(remappedSourceInductions.find(usage.index()) != remappedSourceInductions.end());
+          transformationAccesses.push_back(combinedReducedAccess[sourceDimensionMapping[usage.index()]]);
+        } else {
+          const auto& range = iterationRanges[usage.index()];
+          assert(range.size() == 1);
+          transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
+        }
+      }
+
+      AccessFunction transformation(transformationAccesses);
+
+      if (auto res = mapInductionVariables(builder, mapping, destination, transformation); mlir::failed(res)) {
+        return res;
+      }
     }
 
     // Obtain the value to be used for the replacement
@@ -679,6 +753,18 @@ namespace marco::codegen
   EquationSidesOp BaseEquation::getTerminator() const
   {
     return mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+  }
+
+  // TODO
+  std::vector<Access> BaseEquation::getUniqueAccesses(std::vector<Access> accesses) const
+  {
+    std::vector<Access> result;
+
+    for (const auto& access : accesses) {
+
+    }
+
+    return result;
   }
 
   mlir::LogicalResult BaseEquation::explicitate(
@@ -937,13 +1023,41 @@ namespace marco::codegen
       return builder.create<MulOp>(mulOp.getLoc(), mulOp.resultType(), lhs, rhs);
     }
 
+    auto hasAccessToVar = [&](mlir::Value value) -> bool {
+      // Dummy path. Not used, but required by the infrastructure.
+      EquationPath path(EquationPath::LEFT);
+
+      std::vector<Access> accesses;
+      searchAccesses(accesses, value, path);
+
+      bool hasAccess = llvm::any_of(accesses, [&](const auto& access) {
+        return access.getVariable()->getValue() == variable && access.getAccessFunction() == accessFunction;
+      });
+
+      if (hasAccess) {
+        return true;
+      }
+
+      return false;
+    };
+
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
       mlir::Value dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
-      // TODO check that rhs has no access to variable
+
+      // Check that the right-hand side value has no access to the variable of interest
+      if (hasAccessToVar(divOp.rhs())) {
+        return nullptr;
+      }
+
       return builder.create<DivOp>(divOp.getLoc(), divOp.resultType(), dividend, divOp.rhs());
     }
 
-    // TODO check that value is not an operation containing an access to the variable of interest
+    // Check that the value is not the result of an operation using the variable of interest.
+    // If it has such access, then we are not able to extract the multiplying factor.
+    if (hasAccessToVar(value)) {
+      return nullptr;
+    }
+
     return value;
   }
 

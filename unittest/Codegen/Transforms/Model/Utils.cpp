@@ -1,3 +1,5 @@
+#include "mlir/IR/Builders.h"
+
 #include "Utils.h"
 
 using namespace ::marco::codegen::modelica;
@@ -56,5 +58,30 @@ namespace marco::codegen::test
     }
 
     return variables;
+  }
+
+  modelica::EquationOp createEquation(
+      mlir::OpBuilder& builder,
+      modelica::ModelOp model,
+      llvm::ArrayRef<std::pair<long, long>> iterationRanges,
+      std::function<void(mlir::OpBuilder&)> bodyFn)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(&model.body().front());
+    auto loc = builder.getUnknownLoc();
+
+    // Create the iteration ranges
+    for (const auto& [begin, end] : iterationRanges) {
+      assert(begin <= end);
+      auto forEquationOp = builder.create<ForEquationOp>(loc, begin, end);
+      builder.setInsertionPointToStart(forEquationOp.body());
+    }
+
+    // Create the equation body
+    auto equationOp = builder.create<EquationOp>(loc);
+    builder.setInsertionPointToStart(equationOp.body());
+    bodyFn(builder);
+
+    return equationOp;
   }
 }
