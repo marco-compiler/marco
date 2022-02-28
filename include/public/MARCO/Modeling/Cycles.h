@@ -246,15 +246,22 @@ namespace marco::modeling
         }
 
       private:
-        // TODO convert to iterative and improve documentation
         template<typename It>
         void addListIt(It step, It end)
         {
           if (step == end) {
+            // The whole cycle has been traversed
             return;
           }
 
-          if (auto next = std::next(step); next != end) {
+          auto next = std::next(step);
+
+          if (next == end) {
+            for (const auto& range : step->getEquationIndexes()) {
+              intervals.push_back(Interval(range, llvm::None));
+            }
+
+          } else {
             Container newIntervals;
             IndexSet range = step->getEquationIndexes();
 
@@ -280,6 +287,10 @@ namespace marco::modeling
                 auto& newDependency = newDependencies.emplace_back(
                     step->getRead(),
                     std::make_unique<FilteredEquation>(*graph, next->getEquation()));
+
+                //for (const auto& nextEquationRange : next->getEquationIndexes()) {
+                //  newDependency.getNode().intervals.push_back(Interval(nextEquationRange, llvm::None));
+                //}
 
                 newDependency.getNode().addListIt(next, end);
 
@@ -316,6 +327,7 @@ namespace marco::modeling
           }
         }
 
+      private:
         const Graph* graph;
         EquationDescriptor equation;
         Container intervals;
