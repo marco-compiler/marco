@@ -41,6 +41,8 @@ namespace marco::codegen
     protected:
       modelica::EquationSidesOp getTerminator() const;
 
+      std::vector<Access> getUniqueAccesses(std::vector<Access> accesses) const;
+
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
           size_t argumentIndex,

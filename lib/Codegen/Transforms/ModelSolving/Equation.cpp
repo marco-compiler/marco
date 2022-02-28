@@ -267,8 +267,9 @@ namespace marco::codegen
 
   bool Equation::isReferenceAccess(mlir::Value value) const
   {
-    if (isVariable(value))
+    if (isVariable(value)) {
       return true;
+    }
 
     mlir::Operation* definingOp = value.getDefiningOp();
 
@@ -349,6 +350,9 @@ namespace marco::codegen
       auto arrayType = type.cast<ArrayType>();
 
       if (arrayType.getRank() == 0) {
+        // Scalar variables are masked as arrays with just one element.
+        // Thus, an access to a scalar variable is masked as an access to that unique element.
+
         assert(dimensionsAccesses.empty());
         reverted.push_back(DimensionAccess::constant(0));
         accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
@@ -780,7 +784,8 @@ namespace marco::codegen
     mlir::Operation* op = toExplicitate.getDefiningOp();
 
     if (!op->hasTrait<InvertibleOpInterface::Trait>()) {
-      return op->emitError("Operation is not invertible");
+      op->emitError("Operation is not invertible");
+      return mlir::failure();
     }
 
     return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
@@ -992,16 +997,13 @@ namespace marco::codegen
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    auto subscription = collectSubscriptionIndexes(value);
+    if (isReferenceAccess(value)) {
+      std::vector<Access> accesses;
+      EquationPath path(EquationPath::LEFT);
+      searchAccesses(accesses, value, path);
+      assert(accesses.size() == 1);
 
-    if (subscription.first == variable) {
-      std::vector<DimensionAccess> dimensionAccesses;
-
-      for (mlir::Value index : subscription.second) {
-        dimensionAccesses.push_back(resolveDimensionAccess(evaluateDimensionAccess(index)));
-      }
-
-      if (accessFunction == AccessFunction(std::move(dimensionAccesses))) {
+      if (accesses[0].getVariable()->getValue() == variable && accesses[0].getAccessFunction() == accessFunction) {
         return builder.create<ConstantOp>(value.getLoc(), getIntegerAttribute(builder, value.getType(), 1));
       }
     }
@@ -1014,12 +1016,22 @@ namespace marco::codegen
 
     if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
       mlir::Value operand = getMultiplyingFactor(builder, negateOp.operand(), variable, accessFunction);
+
+      if (operand == nullptr) {
+        return nullptr;
+      }
+
       return builder.create<NegateOp>(negateOp.getLoc(), negateOp.resultType(), operand);
     }
 
     if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
       mlir::Value lhs = getMultiplyingFactor(builder, mulOp.lhs(), variable, accessFunction);
       mlir::Value rhs = getMultiplyingFactor(builder, mulOp.rhs(), variable, accessFunction);
+
+      if (lhs == nullptr || rhs == nullptr) {
+        return nullptr;
+      }
+
       return builder.create<MulOp>(mulOp.getLoc(), mulOp.resultType(), lhs, rhs);
     }
 
@@ -1043,6 +1055,10 @@ namespace marco::codegen
 
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
       mlir::Value dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
+
+      if (dividend == nullptr) {
+        return nullptr;
+      }
 
       // Check that the right-hand side value has no access to the variable of interest
       if (hasAccessToVar(divOp.rhs())) {
