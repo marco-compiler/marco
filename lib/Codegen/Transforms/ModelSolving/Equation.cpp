@@ -1,4 +1,5 @@
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Debug.h"
 #include "marco/Codegen/Transforms/Model/Equation.h"
 #include "marco/Codegen/Transforms/Model/EquationImpl.h"
 #include "marco/Codegen/Transforms/Model/LoopEquation.h"
@@ -239,6 +240,11 @@ namespace marco::codegen
   }
 
   Equation::~Equation() = default;
+
+  void Equation::dumpIR() const
+  {
+    dumpIR(llvm::dbgs());
+  }
 
   llvm::Optional<Variable*> Equation::findVariable(mlir::Value value) const
   {

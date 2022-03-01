@@ -99,7 +99,7 @@ namespace marco::modeling
             {
               using std::swap;
               swap(first.access, second.access);
-              swap(first.node, second.node);
+              swap(first.equation, second.equation);
             }
 
             Dependency& operator=(const Dependency& other)
@@ -429,10 +429,8 @@ namespace marco::modeling
             EquationDescriptor writingEquation = writeInfo.getEquation();
             IndexSet writingEquationIndexes(vectorDependencyGraph[writingEquation].getIterationRanges());
 
-            auto usedWritingEquationIndexes = inverseAccessIndexes(
-                writingEquationIndexes,
-                vectorDependencyGraph[writingEquation].getWrite().getAccessFunction(),
-                intersection);
+            const AccessFunction& writingEquationAccessFunction = vectorDependencyGraph[writingEquation].getWrite().getAccessFunction();
+            auto usedWritingEquationIndexes = writingEquationAccessFunction.inverseMap(intersection, writingEquationIndexes);
 
             if (detectLoop(cyclicPaths, path, writingEquation, usedWritingEquationIndexes)) {
               // Loop detected. It may either be a loop regarding the first variable or not. In any case, we should
@@ -494,7 +492,7 @@ namespace marco::modeling
 
           for (auto it = path.rbegin(); it != path.rend(); ++it) {
             const auto& readAccessFunction = it->getRead().getAccessFunction();
-            it->setEquationIndexes(inverseAccessIndexes(it->getEquationIndexes(), readAccessFunction, previouslyWrittenIndexes));
+            it->setEquationIndexes(readAccessFunction.inverseMap(previouslyWrittenIndexes, it->getEquationIndexes()));
 
             previousWriteAccessFunction = vectorDependencyGraph[it->getEquation()].getWrite().getAccessFunction();
             previouslyWrittenIndexes = previousWriteAccessFunction.map(it->getEquationIndexes());
@@ -529,44 +527,6 @@ namespace marco::modeling
         }
 
         return false;
-      }
-
-      /// Apply the inverse of an access function to a set of indices.
-      /// If the access function is not invertible, then the inverse indexes are determined
-      /// starting from a parent set.
-      ///
-      /// @param parentIndexes   parent index set
-      /// @param accessFunction  access function to be inverted and applied (if possible)
-      /// @param accessIndexes   indexes to be inverted
-      /// @return indexes mapping to accessIndexes when accessFunction is applied to them
-      IndexSet inverseAccessIndexes(
-          const IndexSet& parentIndexes,
-          const AccessFunction& accessFunction,
-          const IndexSet& accessIndexes) const
-      {
-        if (accessFunction.isInvertible()) {
-          auto mapped = accessFunction.inverseMap(accessIndexes);
-          assert(accessFunction.map(mapped).contains(accessIndexes));
-          return mapped;
-        }
-
-        // If the access function is not invertible, then not all the iteration variables are
-        // used. This loss of information don't allow to reconstruct the equation ranges that
-        // leads to the dependency loop. Thus, we need to iterate on all the original equation
-        // points and determine which of them lead to a loop. This is highly expensive but also
-        // inevitable, and confined only to very few cases within real scenarios.
-
-        IndexSet result;
-
-        for (const auto& range: parentIndexes) {
-          for (const auto& point: range) {
-            if (accessIndexes.contains(accessFunction.map(point))) {
-              result += point;
-            }
-          }
-        }
-
-        return result;
       }
 
     private:

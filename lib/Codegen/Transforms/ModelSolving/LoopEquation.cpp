@@ -55,7 +55,7 @@ namespace marco::codegen
     }
   }
 
-  void LoopEquation::dumpIR() const
+  void LoopEquation::dumpIR(llvm::raw_ostream& os) const
   {
     EquationOp equationOp = getOperation();
     mlir::Operation* op = equationOp.getOperation();
@@ -64,7 +64,7 @@ namespace marco::codegen
       op = parent.getOperation();
     }
 
-    op->dump();
+    op->print(os);
   }
 
   size_t LoopEquation::getNumOfIterationVars() const

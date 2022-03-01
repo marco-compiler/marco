@@ -22,7 +22,7 @@ namespace marco::codegen
 
       void eraseIR() override;
 
-      void dumpIR() const override;
+      void dumpIR(llvm::raw_ostream& os) const override;
 
       size_t getNumOfIterationVars() const override;
 

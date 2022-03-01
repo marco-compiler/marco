@@ -4,6 +4,7 @@
 #include "gmock/gmock.h"
 #include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Model/Model.h"
+#include <algorithm>
 
 // Match access by variable.
 MATCHER_P(AccessMatcher, variable, "") {
@@ -62,7 +63,37 @@ namespace marco::codegen::test
       mlir::OpBuilder& builder,
       modelica::ModelOp model,
       llvm::ArrayRef<std::pair<long, long>> iterationRanges,
-      std::function<void(mlir::OpBuilder&)> bodyFn);
+      std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn);
+
+  template<typename Cycle>
+  class CyclesPermutation
+  {
+    public:
+      CyclesPermutation(std::vector<Cycle>& cycles) : original(cycles), cycles(cycles)
+      {
+        for (size_t i = 0; i < cycles.size(); ++i) {
+          indices.push_back(i);
+        }
+      }
+
+      bool nextPermutation()
+      {
+        bool result = std::next_permutation(indices.begin(), indices.end());
+
+        if (result) {
+          for (size_t i = 0; i < indices.size(); ++i) {
+            cycles[i] = original[indices[i]];
+          }
+        }
+
+        return result;
+      }
+
+    private:
+      std::vector<Cycle> original;
+      std::vector<size_t> indices;
+      std::vector<Cycle>& cycles;
+  };
 }
 
 #endif // MARCO_UNITTEST_CODEGEN_UTILS_H

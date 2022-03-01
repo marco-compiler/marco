@@ -39,9 +39,9 @@ namespace marco::codegen
     getOperation().erase();
   }
 
-  void ScalarEquation::dumpIR() const
+  void ScalarEquation::dumpIR(llvm::raw_ostream& os) const
   {
-    getOperation().dump();
+    getOperation()->print(os);
   }
 
   size_t ScalarEquation::getNumOfIterationVars() const

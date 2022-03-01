@@ -34,7 +34,7 @@ namespace marco::codegen
 
       void eraseIR() override;
 
-      void dumpIR() const override;
+      void dumpIR(llvm::raw_ostream& os) const override;
 
       modelica::EquationOp getOperation() const override;
 

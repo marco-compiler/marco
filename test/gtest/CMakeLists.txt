@@ -1,14 +1,14 @@
 set(SOURCES
-		TestingUtils.cpp
-		matching/LinSolverTest.cpp
-		matching/MatchingTest.cpp
-		matching/SCCCollapsingTest.cpp
-		matching/ScheduleTest.cpp
-		matching/VVarDependencyGraphTest.cpp
-		model/EquationTest.cpp
-		model/ReferenceMatcherTest.cpp
-		model/VectorAccessTest.cpp
-		passes/SolveModelTest.cpp)
+		TestingUtils.cpp.backup
+    matching/LinSolverTest.cpp.backup
+		matching/MatchingTest.cpp.backup
+		matching/SCCCollapsingTest.cpp.backup
+		matching/ScheduleTest.cpp.backup
+		matching/VVarDependencyGraphTest.cpp.backup
+		model/EquationTest.cpp.backup
+		model/ReferenceMatcherTest.cpp.backup
+		model/VectorAccessTest.cpp.backup
+		passes/SolveModelTest..backup)
 
 marco_add_unittest(MARCOTest GtestTest ${SOURCES})
 

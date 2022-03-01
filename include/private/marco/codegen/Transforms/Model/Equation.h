@@ -1,7 +1,8 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATION_H
 #define MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATION_H
 
-#include "marco/codegen/dialects/modelica/ModelicaDialect.h"
+#include "llvm/Support/raw_ostream.h"
+#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Model/Access.h"
 #include "marco/Codegen/Transforms/Model/Path.h"
 #include "marco/Codegen/Transforms/Model/Variable.h"
@@ -27,7 +28,9 @@ namespace marco::codegen
 
       virtual void eraseIR() = 0;
 
-      virtual void dumpIR() const = 0;
+      void dumpIR() const;
+
+      virtual void dumpIR(llvm::raw_ostream& os) const = 0;
 
       /// Get the IR operation.
       virtual modelica::EquationOp getOperation() const = 0;

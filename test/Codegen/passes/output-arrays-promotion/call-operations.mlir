@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --result-buffers-to-args | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --promote-output-arrays | FileCheck %s
 
 // Static output arrays can be moved (if having an allowed size)
 

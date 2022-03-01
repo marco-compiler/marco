@@ -64,23 +64,26 @@ namespace marco::codegen::test
       mlir::OpBuilder& builder,
       modelica::ModelOp model,
       llvm::ArrayRef<std::pair<long, long>> iterationRanges,
-      std::function<void(mlir::OpBuilder&)> bodyFn)
+      std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(&model.body().front());
     auto loc = builder.getUnknownLoc();
 
     // Create the iteration ranges
+    std::vector<mlir::Value> inductionVariables;
+
     for (const auto& [begin, end] : iterationRanges) {
       assert(begin <= end);
       auto forEquationOp = builder.create<ForEquationOp>(loc, begin, end);
+      inductionVariables.push_back(forEquationOp.induction());
       builder.setInsertionPointToStart(forEquationOp.body());
     }
 
     // Create the equation body
     auto equationOp = builder.create<EquationOp>(loc);
     builder.setInsertionPointToStart(equationOp.body());
-    bodyFn(builder);
+    bodyFn(builder, inductionVariables);
 
     return equationOp;
   }

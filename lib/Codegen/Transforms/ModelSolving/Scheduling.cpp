@@ -57,9 +57,9 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
-  void ScheduledEquation::dumpIR() const
+  void ScheduledEquation::dumpIR(llvm::raw_ostream& os) const
   {
-    equation->dumpIR();
+    equation->dumpIR(os);
   }
 
   EquationOp ScheduledEquation::getOperation() const

@@ -10,7 +10,7 @@ namespace marco::codegen
 	inline void registerOutputArraysPromotionPass()
 	{
 		mlir::registerPass(
-        "output-arrays-promotion", "Modelica: output arrays promotion",
+        "promote-output-arrays", "Modelica: output arrays promotion",
         []() -> std::unique_ptr<::mlir::Pass> {
           return createOutputArraysPromotionPass();
         });

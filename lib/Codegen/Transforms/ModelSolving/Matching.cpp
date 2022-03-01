@@ -59,9 +59,9 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
-  void MatchedEquation::dumpIR() const
+  void MatchedEquation::dumpIR(llvm::raw_ostream& os) const
   {
-    equation->dumpIR();
+    equation->dumpIR(os);
   }
 
   EquationOp MatchedEquation::getOperation() const
