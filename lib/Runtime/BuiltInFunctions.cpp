@@ -10,16 +10,6 @@
 
 namespace
 {
-  template<typename T>
-  T abs(T value)
-  {
-    if (value >= 0) {
-      return value;
-    }
-
-    return -1 * value;
-  }
-
   bool abs_i1(bool value)
   {
     return value;
@@ -27,22 +17,22 @@ namespace
 
   int32_t abs_i32(int32_t value)
   {
-    return ::abs(value);
+    return std::abs(value);
   }
 
   int64_t abs_i64(int64_t value)
   {
-    return ::abs(value);
+    return std::abs(value);
   }
 
   float abs_f32(float value)
   {
-    return ::abs(value);
+    return std::abs(value);
   }
 
   double abs_f64(double value)
   {
-    return ::abs(value);
+    return std::abs(value);
   }
 }
 

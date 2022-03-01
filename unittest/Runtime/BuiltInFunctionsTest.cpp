@@ -21,7 +21,7 @@ TEST(Runtime, abs_i1)
 
 TEST(Runtime, abs_i32)
 {
-	std::array<int32_t, 3> data = { -1, 0, 1 };
+	std::array<int32_t, 3> data = { -5, 0, 5 };
 
 	for (const auto& element : data)
 	{
@@ -32,7 +32,7 @@ TEST(Runtime, abs_i32)
 
 TEST(Runtime, abs_i64)
 {
-	std::array<int64_t, 3> data = { -1, 0, 1 };
+	std::array<int64_t, 3> data = { -5, 0, 5 };
 
 	for (const auto& element : data)
 	{
@@ -43,7 +43,7 @@ TEST(Runtime, abs_i64)
 
 TEST(Runtime, abs_f32)
 {
-	std::array<float, 3> data = { -1, 0, 1 };
+	std::array<float, 3> data = { -5, 0, 5 };
 
 	for (const auto& element : data)
 	{
@@ -54,11 +54,13 @@ TEST(Runtime, abs_f32)
 
 TEST(Runtime, abs_f64)
 {
-	std::array<double, 3> data = { -1, 0, 1 };
+	std::array<double, 3> data = { -5, 0, 5 };
 
-	EXPECT_EQ(NAME_MANGLED(abs, double, double)(data[0]), 1);
-	EXPECT_EQ(NAME_MANGLED(abs, double, double)(data[1]), 0);
-	EXPECT_EQ(NAME_MANGLED(abs, double, double)(data[2]), 1);
+  for (const auto& element : data)
+  {
+    auto result = NAME_MANGLED(abs, double, double)(element);
+    EXPECT_EQ(result, std::abs(element));
+  }
 }
 
 TEST(Runtime, acos_f32)
