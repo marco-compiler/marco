@@ -1552,7 +1552,7 @@ static mlir::LogicalResult solveAlgebraicLoops(
   }
 
   // Add the solved equations
-  for (auto& equation : solver.getSolvedEquations()) {
+  for (auto& equation : solver.getSolution()) {
     newEquations.add(std::move(equation));
   }
 

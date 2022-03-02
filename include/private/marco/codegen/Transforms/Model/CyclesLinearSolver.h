@@ -58,7 +58,7 @@ namespace marco::codegen
       {
       }
 
-      Equations<MatchedEquation> getSolvedEquations() const
+      Equations<MatchedEquation> getSolution() const
       {
         return newEquations_;
       }
@@ -158,15 +158,8 @@ namespace marco::codegen
               solvedEquations_.push_back(solved);
             }
 
-            bool success = result == Result::FULLY_SOLVED || result == Result::PARTIALLY_SOLVED || result == Result::ALREADY_SOLVED;
+            [[maybe_unused]] bool success = result == Result::FULLY_SOLVED || result == Result::PARTIALLY_SOLVED || result == Result::ALREADY_SOLVED;
             assert(!success || currentIterationUnsolvedCycles.empty());
-
-            /*
-            if (mlir::succeeded(res)) {
-              assert(currentIterationUnsolvedCycles.empty());
-              solved.push_back(it->cycle.getEquation());
-            }
-             */
 
             // Remove the current cycle. If it was yet not solvable, then it is already
             // added again by the 'solve' method to the list of unsolved cycles.

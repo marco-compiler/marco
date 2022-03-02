@@ -485,7 +485,7 @@ namespace marco::modeling
           const IndexSet& equationIndexes) const
       {
         if (!path.empty()) {
-          // Restrict the flow (starting from the end).
+          // Restrict the flow (starting from the end)
 
           auto previousWriteAccessFunction = vectorDependencyGraph[equation].getWrite().getAccessFunction();
           auto previouslyWrittenIndexes = previousWriteAccessFunction.map(equationIndexes);
@@ -511,17 +511,12 @@ namespace marco::modeling
             return true;
           }
 
-          // Also search in the already identified cycles
-
-          //auto cycle = llvm::find_if(cyclicPaths, [&](const std::list<DFSStep>& cycle) {
-
-          //});
-
           // We have not found a loop for the variable of interest (that is, the one defined by the first equation),
           // but yet we can encounter loops among other equations. Thus, we need to identify them and stop traversing
           // the (infinite) tree.
 
           if (step != path.end()) {
+            cyclicPaths.push_back(std::move(path));
             return true;
           }
         }
