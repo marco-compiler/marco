@@ -35,8 +35,8 @@ void runSimulation() {
   print(data);
 
   while (step(data)) {
-    print(data);
     updateStateVariables(data);
+    print(data);
   }
 
   deinit(data);
