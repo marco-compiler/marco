@@ -57,7 +57,6 @@ namespace marco::codegen
     public:
       CyclesLinearSolver(mlir::OpBuilder& builder) : builder(builder)
       {
-        llvm::DebugFlag = true;
       }
 
       Equations<MatchedEquation> getSolution() const

@@ -3,7 +3,7 @@
 
 #include "marco/Codegen/Transforms/Model/Path.h"
 #include "marco/Codegen/Transforms/Model/Variable.h"
-#include "marco/modeling/AccessFunction.h"
+#include "marco/Modeling/AccessFunction.h"
 
 namespace marco::codegen
 {

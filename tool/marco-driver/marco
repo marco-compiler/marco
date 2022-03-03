@@ -132,7 +132,7 @@ main()
   done
 
   # Create the object file
-  marco-driver "${OPTIONS[@]}" "${INPUT_FILES[@]}" -o "$TEMPORARY_DIR/simulation.o"
+  ${SCRIPT_PATH}/marco-driver "${OPTIONS[@]}" "${INPUT_FILES[@]}" -o "$TEMPORARY_DIR/simulation.o"
   resultCode=$?
 
   if [ $resultCode -ne 0 ]; then

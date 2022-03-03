@@ -72,7 +72,7 @@ void Parser::updateTokenSourceRange()
 	tokenRange.endColumn = lexer.getTokenEndColumn();
 }
 
-#include <marco/utils/ParserUtils.h>
+#include "marco/Utils/ParserUtils.h"
 
 llvm::Expected<Parser::ValueWrapper<bool>> Parser::getBool()
 {

@@ -1,7 +1,7 @@
 #ifndef MARCO_MODELING_TEST_MATCHINGTESTCASES_H
 #define MARCO_MODELING_TEST_MATCHINGTESTCASES_H
 
-#include <marco/modeling/Matching.h>
+#include "marco/Modeling/Matching.h"
 
 #include "MatchingCommon.h"
 
