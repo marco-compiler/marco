@@ -1514,64 +1514,91 @@ static mlir::LogicalResult matching(
 static mlir::LogicalResult solveAlgebraicLoops(
     Model<MatchedEquation>& model, mlir::OpBuilder& builder)
 {
-  std::vector<MatchedEquation*> equations;
+  // The list of equations among which the cycles have to be searched
+  std::vector<MatchedEquation*> toBeProcessed;
 
+  // The first iteration will use all the equations of the model
   for (const auto& equation : model.getEquations()) {
-    equations.push_back(equation.get());
+    toBeProcessed.push_back(equation.get());
   }
 
-  // Get all the cycles within the system of equations
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
-  auto cycles = cyclesFinder.getEquationsCycles();
+  Equations<MatchedEquation> solution;
+  std::vector<std::unique_ptr<MatchedEquation>> newEquations;
+  std::vector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
 
-  // The equations without cycles
-  Equations<MatchedEquation> newEquations;
+  do {
+    // Get all the cycles within the system of equations
+    CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(toBeProcessed, false);
+    auto cycles = cyclesFinder.getEquationsCycles();
 
-  // Solve the cycles one by one
-  CyclesLinearSolver<decltype(cyclesFinder)::Cycle> solver(builder);
+    // Solve the cycles one by one
+    CyclesLinearSolver<decltype(cyclesFinder)::Cycle> solver(builder);
 
-  for (const auto& cycle : cycles) {
-    std::vector<std::unique_ptr<MatchedEquation>> currentCycleSolvedEquations;
-    IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
+    for (const auto& cycle : cycles) {
+      IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
 
-    for (const auto& interval : cycle) {
-      indexesWithoutCycles -= interval.getRange();
+      for (const auto& interval : cycle) {
+        indexesWithoutCycles -= interval.getRange();
+      }
+
+      solver.solve(cycle);
+
+      // Add the indices that do not present any loop
+      for (const auto& range : indexesWithoutCycles) {
+        auto clonedEquation = Equation::build(
+            cycle.getEquation()->getOperation(),
+            cycle.getEquation()->getVariables());
+
+        solution.add(std::make_unique<MatchedEquation>(
+            std::move(clonedEquation), range, cycle.getEquation()->getWrite().getPath()));
+      }
     }
 
-    solver.solve(cycle);
+    // Add the equations which had no cycle for any index.
+    // To do this, map the equations with cycles for a faster lookup.
+    std::set<const MatchedEquation*> equationsWithCycles;
 
-    // Add the indices that do not present any loop
-    for (const auto& range : indexesWithoutCycles) {
-      auto clonedEquation = Equation::build(
-          cycle.getEquation()->getOperation(),
-          cycle.getEquation()->getVariables());
-
-      newEquations.add(std::make_unique<MatchedEquation>(
-          std::move(clonedEquation), range, cycle.getEquation()->getWrite().getPath()));
+    for (const auto& cycle : cycles) {
+      equationsWithCycles.insert(cycle.getEquation());
     }
-  }
 
-  // Add the solved equations
-  for (auto& equation : solver.getSolution()) {
-    newEquations.add(std::move(equation));
-  }
-
-  // Add the equations which had no cycle for any index.
-  // To do this, map the equations with cycles for a faster lookup.
-  std::set<MatchedEquation*> equationsWithCycles;
-
-  for (const auto& cycle : cycles) {
-    equationsWithCycles.insert(cycle.getEquation());
-  }
-
-  for (auto& equation : model.getEquations()) {
-    if (equationsWithCycles.find(equation.get()) == equationsWithCycles.end()) {
-      newEquations.add(std::move(equation));
+    for (auto& equation : toBeProcessed) {
+      if (equationsWithCycles.find(equation) == equationsWithCycles.end()) {
+        solution.add(std::make_unique<MatchedEquation>(
+            equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
+      }
     }
+
+    // Create the list of equations to be processed in the next iteration
+    toBeProcessed.clear();
+    newEquations.clear();
+    unsolvedEquations.clear();
+
+    if (auto currentSolution = solver.getSolution(); currentSolution.size() != 0) {
+      for (auto& equation : currentSolution) {
+        auto& movedEquation = newEquations.emplace_back(std::move(equation));
+        toBeProcessed.push_back(movedEquation.get());
+      }
+    }
+
+    for (auto& equation : solver.getUnsolvedEquations()) {
+      auto& movedEquation = unsolvedEquations.emplace_back(std::move(equation));
+      toBeProcessed.push_back(movedEquation.get());
+    }
+  } while (!newEquations.empty());
+
+  if (!unsolvedEquations.empty()) {
+    return mlir::failure();
   }
+
+  /*
+  for (auto& equation : unsolvedEquations) {
+    // ...
+  }
+   */
 
   // Set the new equations of the model
-  model.setEquations(newEquations);
+  model.setEquations(solution);
 
   return mlir::success();
 }

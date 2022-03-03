@@ -46,10 +46,10 @@ ExpressionPath::Step::Step(const ExpressionPath::Step& other) : impl(other.impl-
 
   ExpressionPath::Guard::~Guard()
   {
-    if (path->size() > size)
-    {
-      size_t erase = path->size() - size;
-      path->path.erase(path->path.begin(), std::next(path->path.begin(), erase));
+    if (path->size() > size) {
+      path->path.erase(std::next(path->path.begin(), size), path->path.end());
+      //size_t erase = path->size() - size;
+      //path->path.erase(path->path.begin(), std::next(path->path.begin(), erase));
     }
   }
 
