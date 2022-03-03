@@ -356,7 +356,8 @@ namespace marco::modeling
       using FilteredEquation = internal::scc::FilteredEquation<DependencyGraph, EquationDescriptor, Equation, Access>;
       using Cycle = FilteredEquation;
 
-      CyclesFinder(llvm::ArrayRef<EquationProperty> equations) : vectorDependencyGraph(equations)
+      CyclesFinder(llvm::ArrayRef<EquationProperty> equations, bool includeSecondaryCycles = true)
+        : vectorDependencyGraph(equations), includeSecondaryCycles(std::move(includeSecondaryCycles))
       {
       }
 
@@ -516,7 +517,10 @@ namespace marco::modeling
           // the (infinite) tree.
 
           if (step != path.end()) {
-            cyclicPaths.push_back(std::move(path));
+            if (includeSecondaryCycles) {
+              cyclicPaths.push_back(std::move(path));
+            }
+
             return true;
           }
         }
@@ -526,6 +530,7 @@ namespace marco::modeling
 
     private:
       DependencyGraph vectorDependencyGraph;
+      bool includeSecondaryCycles;
   };
 }
 

@@ -21,6 +21,7 @@ namespace marco::codegen
           UNSOLVED
       };
 
+    private:
       /// An equation which originally presented cycles but now, for some indices, does not anymore.
       struct SolvedEquation
       {
@@ -56,6 +57,7 @@ namespace marco::codegen
     public:
       CyclesLinearSolver(mlir::OpBuilder& builder) : builder(builder)
       {
+        llvm::DebugFlag = true;
       }
 
       Equations<MatchedEquation> getSolution() const
@@ -70,8 +72,13 @@ namespace marco::codegen
         for (const auto& unsolvedCycle : unsolvedCycles_) {
           const auto& equation = unsolvedCycle.cycle.getEquation();
 
-          result.add(std::make_unique<MatchedEquation>(
-              equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
+          modeling::IndexSet indices(equation->getIterationRanges());
+          indices -= getSolvedEquationIndices(equation);
+
+          for (const auto& range : indices) {
+            result.add(std::make_unique<MatchedEquation>(
+                equation->clone(), range, equation->getWrite().getPath()));
+          }
         }
 
         return result;
@@ -414,6 +421,21 @@ namespace marco::codegen
         });
 
         return it != solvedEquations_.end();
+      }
+
+      modeling::IndexSet getSolvedEquationIndices(Equation* const equation) const
+      {
+        auto it = llvm::find_if(solvedEquations_, [&](const SolvedEquation& solvedEquation) {
+          return solvedEquation.equation == equation;
+        });
+
+        modeling::IndexSet indices;
+
+        if (it != solvedEquations_.end()) {
+          indices += it->solvedIndices;
+        }
+
+        return indices;
       }
 
       llvm::StringLiteral debugSeparator() const
