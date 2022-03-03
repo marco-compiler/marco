@@ -1,6 +1,6 @@
 #include "marco/utils/Shape.h"
+#include "marco/utils/IRange.h"
 #include <vector>
-#include "marco/utils/IRange.hpp"
 
 
 namespace marco
@@ -9,14 +9,16 @@ namespace marco
 
 Shape::DimensionSize::DimensionSize():value(Undefined()){}
 Shape::DimensionSize::DimensionSize(long int v):value(v){}
-Shape::DimensionSize::DimensionSize(std::initializer_list<DimensionSize> ragged):value(std::make_unique<llvm::SmallVector<DimensionSize,3>>(ragged)){}
+Shape::DimensionSize::DimensionSize(std::initializer_list<DimensionSize> ragged)
+    :value(std::make_unique<llvm::SmallVector<DimensionSize,3>>(ragged))
+{
+}
 
 
-Shape::DimensionSize::DimensionSize(const Shape::DimensionSize::Container<Shape::DimensionSize> &ragged)
-    :value(std::make_unique<Shape::DimensionSize::Container<Shape::DimensionSize>>(ragged)){}
-    
-Shape::DimensionSize::DimensionSize(std::unique_ptr<Container<Shape::DimensionSize>> ragged)
-    :value(std::move(ragged)){}
+Shape::DimensionSize::DimensionSize(llvm::ArrayRef<Shape::DimensionSize> ragged)
+    :value(std::make_unique<Shape::DimensionSize::Container<Shape::DimensionSize>>(ragged.begin(),ragged.end()))
+{
+}
 
 Shape::DimensionSize::DimensionSize(const Shape::DimensionSize& other){
     if (other.isUndefined())
@@ -237,7 +239,7 @@ llvm::ArrayRef<Shape::DimensionSize> Shape::dimensions() const
 }
 
 
-std::string toString(const Shape::DimensionSize &dim){
+std::string toString(const Shape::DimensionSize &dim,int){
 
     if(dim.isRagged()){
         std::string s;
@@ -252,17 +254,25 @@ std::string toString(const Shape::DimensionSize &dim){
     return std::to_string(dim.getNumericValue());
 }
 
+std::string toString(const Shape::DimensionSize &dim){
+    return toString(dim,1);
+}
+
+std::ostream& operator<<(std::ostream& stream, const Shape::DimensionSize &size)
+{
+    return stream << toString(size);
+}
+
 std::string toString(const Shape &shape){
     std::string s;
     std::string padding = "";
 
     for(auto &it:shape){
-        s += padding + toString(it);
+        s += padding + toString(it,1);
         padding = ", ";
     }
     return "["+s+"]";
 }
-
 
 
 long getCurrentRaggedDimension(const std::vector<long> &partialIndex, const Shape::DimensionSize &dim, size_t ragged_depth=0)

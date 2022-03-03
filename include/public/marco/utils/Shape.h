@@ -19,9 +19,7 @@ namespace marco
             DimensionSize();
             DimensionSize(long int);
             DimensionSize(std::initializer_list<DimensionSize> ragged);
-            //DimensionSize(llvm::ArrayRef<DimensionSize> ragged);
-			DimensionSize(const Container<DimensionSize> &ragged);
-			DimensionSize(std::unique_ptr<Container<DimensionSize>> ragged);
+            DimensionSize(llvm::ArrayRef<DimensionSize> ragged);
 
 			DimensionSize(const DimensionSize& other);
 			DimensionSize(DimensionSize&& other);
@@ -53,6 +51,8 @@ namespace marco
 			llvm::ArrayRef<DimensionSize> asRagged() const;
 
 			std::variant<Undefined, long, Ragged> value;
+
+			friend std::ostream& operator<<(std::ostream& stream, const DimensionSize &size);
             
 		};
 
