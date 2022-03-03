@@ -1,6 +1,5 @@
 #include "marco/Runtime/Profiling.h"
 #include "marco/Runtime/Runtime.h"
-#include "marco/Runtime/IDA.h"
 
 namespace
 {
@@ -27,17 +26,17 @@ extern "C" void deinit(void* data);
 extern "C" void printHeader(void* data);
 extern "C" void print(void* data);
 
-void runSimulation() {
+void runSimulation()
+{
   runtimeInit();
   void* data = init();
 
   printHeader(data);
-  print(data);
 
-  while (step(data)) {
-    updateStateVariables(data);
+  do {
     print(data);
-  }
+    updateStateVariables(data);
+  } while (step(data));
 
   deinit(data);
   runtimeDeinit();
