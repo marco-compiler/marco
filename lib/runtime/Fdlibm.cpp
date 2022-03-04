@@ -1161,6 +1161,14 @@ double __kernel_cos(double x, double y)
 
 double sin(double x)
 {
+	double cosx;
+	double sinx;
+	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
+	return sinx;
+}
+
+double __sin(double x)
+{
 	double y[2],z=0.0;
 	int n, ix;
 
@@ -1188,6 +1196,14 @@ double sin(double x)
 }
 
 double cos(double x)
+{
+	double cosx;
+	double sinx;
+	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
+	return cosx;
+}
+
+double __cos(double x)
 {
 	double y[2],z=0.0;
 	int n, ix;

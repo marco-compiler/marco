@@ -2,8 +2,7 @@
 #define RYU
 
 #include <Windows.h>
-#include "ryuprintf/d2s.h"
-#include "ryuprintf/f2s.h"
+#include "marco/runtime/ryuprintf/ryu.h"
 
 inline size_t strlen(const char* s)
 {
@@ -108,6 +107,21 @@ inline char* i2s(int value)
 	return str;
 }
 
+inline uint32_t s2i(const char* s)
+{
+	uint32_t tmp = 0;
+	int i = 0;
+	while(1)
+	{
+		if(*(s+i) == '\0')
+			break;
+		tmp = tmp * 10;
+		tmp = tmp + (*(s+i) - '0');
+		i = i + 1;
+	}
+	return tmp;
+}
+
 inline const char* findPercNull(const char* format)
 {
     const char* char_ptr;
@@ -131,9 +145,9 @@ inline char* composeString(const char* format, va_list ap)
 	int n;
 	char tmp[TMP_SIZE];
 	char * tmp_ptr = tmp;
-	// char precision_str[TMP_SIZE];
-	// int precision_str_length;
-	// int precision = 12;
+	char precision_str[TMP_SIZE];
+	int precision_str_length;
+	uint32_t precision = 12;
 
 	fmtptr = findPercNull(format);
 
@@ -150,18 +164,19 @@ inline char* composeString(const char* format, va_list ap)
 	while (*fmtptr == '%')
 	{
 		fmtptr++;
-		// precision_str_length = 0;
+		precision_str_length = 0;
 		if(*fmtptr == '.')
 		{
 			fmtptr++;
 			while(*fmtptr >= '0' && *fmtptr <= '9')
 			{
-				// precision_str[precision_str_length] = *fmtptr;
-				// precision_str_length++;
+				precision_str[precision_str_length] = *fmtptr;
+				precision_str_length++;
 				fmtptr++;
 			}
+			precision_str[precision_str_length] = '\0';
+			precision = s2i(precision_str);
 		}
-		// precision_str[precision_str_length] = '\0';
 
 		if (*fmtptr == 'd')
 		{
@@ -171,8 +186,7 @@ inline char* composeString(const char* format, va_list ap)
 		else if (*fmtptr == 'f')
 		{
 			tmp_ptr = tmp;
-			d2s_buffered(va_arg(ap, double), tmp_ptr);
-			//*(tmp_ptr + precision + 2) = '\0';
+			d2fixed_buffered(va_arg(ap, double), precision, tmp_ptr);
 		}
 		else if (*fmtptr == 's') 
 		{
@@ -206,7 +220,7 @@ inline char* composeString(const char* format, va_list ap)
 		bufptr = bufptr + n;
 	}
 
-	*bufptr = '\0';
+	*(bufptr) = '\0';
 
     return buf;
 }
@@ -235,34 +249,22 @@ inline int ryuPrintf(const char* format, ...)
 	return done;
 }
 
-inline int runtimePrintf(const char* format, ...)
-{
-	va_list arg;
-	int done;
-
-	va_start(arg, format);
-	done = ryuPrintfInternal(format, arg);
-	va_end(arg);
-
-	return done;
-}
-
 inline void printFloat(float value) {
-	char* str = f2s(value);
+	char str[25];
+	d2fixed_buffered(value, 12, str);
 	printString(str);
-	HeapFree(GetProcessHeap(), 0x0, str);
 }
 
 inline void printDouble(double value) {
-	char* str = d2s(value);
+	char str[25];
+	d2fixed_buffered(value, 12, str);
 	printString(str);
-	HeapFree(GetProcessHeap(), 0x0, str);
 }
 
 inline void printInt(int value) {
-	char* str = i2s(value);
+	char str[25];
+	i2s_buffered(value, str);
 	printString(str);
-	HeapFree(GetProcessHeap(), 0x0, str);
 }
 
 inline void printBool(bool value) {
