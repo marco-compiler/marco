@@ -3,18 +3,21 @@
 
 #include "mlir/IR/Types.h"
 
-enum class ArrayAllocationScope
+namespace mlir::modelica
 {
-  unknown,
-  stack,
-  heap
-};
+  enum class ArrayAllocationScope
+  {
+    unknown,
+    stack,
+    heap
+  };
 
-enum class MemberAllocationScope
-{
-  stack,
-  heap
-};
+  enum class MemberAllocationScope
+  {
+    stack,
+    heap
+  };
+}
 
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/Modelica/ModelicaTypes.h.inc"

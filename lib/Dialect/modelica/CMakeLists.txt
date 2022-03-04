@@ -1,5 +1,6 @@
 add_mlir_dialect_library(MLIRModelica SHARED
     Attributes.cpp
+    ModelicaBuilder.cpp
     ModelicaDialect.cpp
     Interfaces.cpp
     Ops.cpp

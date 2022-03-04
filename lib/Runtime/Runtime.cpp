@@ -19,8 +19,9 @@ namespace
 }
 
 extern "C" void* init();
-extern "C" bool step(void* data);
+extern "C" void updateNonStateVariables(void* data);
 extern "C" void updateStateVariables(void* data);
+extern "C" bool incrementTime(void* data);
 extern "C" void deinit(void* data);
 
 extern "C" void printHeader(void* data);
@@ -33,10 +34,15 @@ void runSimulation()
 
   printHeader(data);
 
+  updateNonStateVariables(data);
+  bool continueSimulation;
+
   do {
     print(data);
     updateStateVariables(data);
-  } while (step(data));
+    updateNonStateVariables(data);
+    continueSimulation = incrementTime(data);
+  } while (continueSimulation);
 
   deinit(data);
   runtimeDeinit();

@@ -136,8 +136,9 @@ class ModelConverter
     // Name for the functions of the simulation
     static constexpr llvm::StringLiteral mainFunctionName = "main";
     static constexpr llvm::StringLiteral initFunctionName = "init";
-    static constexpr llvm::StringLiteral stepFunctionName = "step";
+    static constexpr llvm::StringLiteral updateNonStateVariablesFunctionName = "updateNonStateVariables";
     static constexpr llvm::StringLiteral updateStateVariablesFunctionName = "updateStateVariables";
+    static constexpr llvm::StringLiteral incrementTimeFunctionName = "incrementTime";
     static constexpr llvm::StringLiteral printHeaderFunctionName = "printHeader";
     static constexpr llvm::StringLiteral printFunctionName = "print";
     static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
@@ -198,13 +199,18 @@ class ModelConverter
         return res;
       }
 
-      if (auto res = createStepFunction(builder, model, derivatives); mlir::failed(res)) {
-        model.getOperation().emitError("Could not create the '" + stepFunctionName + "' function");
+      if (auto res = createUpdateNonStateVariablesFunction(builder, model, derivatives); mlir::failed(res)) {
+        model.getOperation().emitError("Could not create the '" + updateNonStateVariablesFunctionName + "' function");
         return res;
       }
 
       if (auto res = createUpdateStateVariablesFunction(builder, modelOp, derivativesPositions); mlir::failed(res)) {
         model.getOperation().emitError("Could not create the '" + updateStateVariablesFunctionName + "' function");
+        return res;
+      }
+
+      if (auto res = createIncrementTimeFunction(builder, model); mlir::failed(res)) {
+        model.getOperation().emitError("Could not create the '" + incrementTimeFunctionName + "' function");
         return res;
       }
 
@@ -660,7 +666,7 @@ class ModelConverter
     }
 
     /// Create the function to be called at each time step.
-    mlir::LogicalResult createStepFunction(
+    mlir::LogicalResult createUpdateNonStateVariablesFunction(
         mlir::OpBuilder& builder,
         const Model<ScheduledEquation>& model,
         const mlir::BlockAndValueMapping& derivatives) const
@@ -673,8 +679,8 @@ class ModelConverter
       builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
       auto function = builder.create<mlir::FuncOp>(
-          loc, stepFunctionName,
-          builder.getFunctionType(getVoidPtrType(), builder.getI1Type()));
+          loc, updateNonStateVariablesFunctionName,
+          builder.getFunctionType(getVoidPtrType(), llvm::None));
 
       auto* entryBlock = function.addEntryBlock();
       builder.setInsertionPointToStart(entryBlock);
@@ -689,24 +695,7 @@ class ModelConverter
         vars.push_back(extractValue(builder, structValue, varTypes[varType.index()], varType.index()));
       }
 
-      // Increment the time
-      mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
-      mlir::Value currentTime = builder.create<LoadOp>(loc, vars[0]);
-      mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
-      builder.create<StoreOp>(loc, increasedTime, vars[0]);
-
-      // Check if the current time is less than the end time
-      mlir::Value endTime = builder.create<ConstantOp>(loc, modelOp.endTime());
-
-      mlir::Value condition = builder.create<LteOp>(loc, BooleanType::get(modelOp->getContext()), increasedTime, endTime);
-      condition = typeConverter->materializeTargetConversion(builder, condition.getLoc(), builder.getI1Type(), condition);
-
-      auto ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getI1Type(), condition, true);
-      builder.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
-
       // Convert the equations into algorithmic code
-      builder.setInsertionPointToStart(&ifOp.thenRegion().front());
-
       size_t equationTemplateCounter = 0;
       size_t equationCounter = 0;
 
@@ -770,15 +759,7 @@ class ModelConverter
         equationCalls.emplace(equationFunction, equationCall);
       }
 
-      // If we didn't reach the end time update the variables and return
-      // true to continue the simulation.
-      auto trueValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(true));
-      builder.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
-
-      // Otherwise, return false to stop the simulation
-      builder.setInsertionPointToStart(&ifOp.elseRegion().front());
-      mlir::Value falseValue = builder.create<mlir::ConstantOp>(loc, builder.getBoolAttr(false));
-      builder.create<mlir::scf::YieldOp>(loc, falseValue);
+      builder.create<mlir::ReturnOp>(loc);
 
       // Remove the unused function arguments
       for (const auto& equationTemplateFunction : equationTemplateFunctions) {
@@ -839,6 +820,46 @@ class ModelConverter
       }
 
       builder.create<mlir::ReturnOp>(loc);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult createIncrementTimeFunction(
+        mlir::OpBuilder& builder,
+        const Model<ScheduledEquation>& model) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      ModelOp modelOp = model.getOperation();
+      mlir::Location loc = modelOp.getLoc();
+
+      // Create the function inside the parent module
+      builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
+
+      auto function = builder.create<mlir::FuncOp>(
+          loc, incrementTimeFunctionName,
+          builder.getFunctionType(getVoidPtrType(), builder.getI1Type()));
+
+      auto* entryBlock = function.addEntryBlock();
+      builder.setInsertionPointToStart(entryBlock);
+
+      // Extract the data from the struct
+      mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+      mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
+
+      mlir::Value time = extractValue(builder, structValue, varTypes[0], 0);
+
+      // Increment the time
+      mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+      mlir::Value currentTime = builder.create<LoadOp>(loc, time);
+      mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+      builder.create<StoreOp>(loc, increasedTime, time);
+
+      // Check if the current time is less than the end time
+      mlir::Value endTime = builder.create<ConstantOp>(loc, modelOp.endTime());
+
+      mlir::Value condition = builder.create<LteOp>(loc, BooleanType::get(modelOp->getContext()), increasedTime, endTime);
+      condition = typeConverter->materializeTargetConversion(builder, condition.getLoc(), builder.getI1Type(), condition);
+      builder.create<mlir::ReturnOp>(loc, condition);
+
       return mlir::success();
     }
 
