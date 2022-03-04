@@ -84,10 +84,10 @@ namespace marco::modeling
           const SCC& scc = sccDependencyGraph[sccDescriptor];
           assert(scc.size() == 1 && "Loop among equations to be scheduled");
 
-          auto accessesDirection = getAccessesDirection(vectorDependencyGraph, scc);
+          auto accessesDirection = getAccessesDirection(scc);
 
           if (accessesDirection == scheduling::Direction::Forward) {
-            const auto& equation = scc.getGraph()[scc[0]];
+            const auto& equation = scc[0];
 
             result.emplace_back(
                 equation.getProperty(),
@@ -98,7 +98,7 @@ namespace marco::modeling
           }
 
           if (accessesDirection == scheduling::Direction::Backward) {
-            const auto& equation = scc.getGraph()[scc[0]];
+            const auto& equation = scc[0];
 
             result.emplace_back(
                 equation.getProperty(),
@@ -129,14 +129,24 @@ namespace marco::modeling
         return result;
       }
 
+      /*
+      std::vector<SCCScheduledEquation> schedule(llvm::ArrayRef<SCC> SCCs) const
+      {
+        for each SCC {
+          elementi = ...
+
+
+        }
+      }
+       */
+
     private:
       /// Given a SSC containing only one equation that may depend on itself, determine the access direction
       /// with respect to the variable that is written by the equation.
       ///
-      /// @param vectorGraph  the graph upon which the SCC has been detected
       /// @param scc          SCC to be examined (consisting of only one equation with a loop on itself)
       /// @return access direction
-      scheduling::Direction getAccessesDirection(VectorDependencyGraph& vectorGraph, const SCC& scc) const
+      scheduling::Direction getAccessesDirection(const SCC& scc) const
       {
         if (!scc.hasCycle()) {
           // If there is no cycle, then the iteration variable of the equation is irrelevant.
@@ -148,7 +158,7 @@ namespace marco::modeling
         // If all the dependencies have the same direction, then we can set
         // the induction variable to increase or decrease accordingly.
 
-        const Equation& equation = vectorGraph[scc[0]];
+        const Equation& equation = scc[0];
         auto equationRange = equation.getIterationRanges();
         const auto& write = equation.getWrite();
         const auto& writtenVariable = write.getVariable();

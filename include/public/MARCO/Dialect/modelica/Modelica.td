@@ -2474,7 +2474,8 @@ def Modelica_ForOp : Modelica_Op<"for",
 }
 
 def Modelica_IfOp : Modelica_Op<"if",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    [NoTerminator,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Algorithmic if-else construct.";
 
@@ -2489,6 +2490,15 @@ def Modelica_IfOp : Modelica_Op<"if",
       SizedRegion<1>:$thenRegion,
       AnyRegion:$elseRegion
     );
+
+    let builders = [
+        OpBuilder<(ins "Value":$condition, "bool":$withElseRegion)>
+    ];
+
+    let extraClassDeclaration = [{
+        Block* thenBlock();
+        Block* elseBlock();
+    }];
 }
 
 def Modelica_ReturnOp : Modelica_Op<"return", [Terminator]>
@@ -2522,7 +2532,8 @@ def Modelica_ReturnOp : Modelica_Op<"return", [Terminator]>
 }
 
 def Modelica_WhileOp : Modelica_Op<"while",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    [NoTerminator,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "While algorithmic loop.";
 

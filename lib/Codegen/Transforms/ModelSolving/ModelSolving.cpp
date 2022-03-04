@@ -1608,15 +1608,15 @@ static mlir::LogicalResult solveAlgebraicLoops(
     }
   } while (!newEquations.empty());
 
+  /*
   if (!unsolvedEquations.empty()) {
     return mlir::failure();
   }
-
-  /*
-  for (auto& equation : unsolvedEquations) {
-    // ...
-  }
    */
+
+  for (auto& equation : unsolvedEquations) {
+
+  }
 
   // Set the new equations of the model
   model.setEquations(solution);

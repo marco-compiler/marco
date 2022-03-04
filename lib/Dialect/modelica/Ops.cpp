@@ -1955,6 +1955,33 @@ namespace mlir::modelica
   // IfOp
   //===----------------------------------------------------------------------===//
 
+  void IfOp::build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, Value condition, bool withElseRegion)
+  {
+    state.addOperands(condition);
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    // Create the "then" region
+    mlir::Region* thenRegion = state.addRegion();
+    builder.createBlock(thenRegion);
+
+    // Create the "else" region
+    mlir::Region* elseRegion = state.addRegion();
+
+    if (withElseRegion) {
+      builder.createBlock(elseRegion);
+    }
+  }
+
+  mlir::Block* IfOp::thenBlock()
+  {
+    return &thenRegion().front();
+  }
+
+  mlir::Block* IfOp::elseBlock()
+  {
+    return &elseRegion().front();
+  }
+
   mlir::ValueRange IfOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     return llvm::None;

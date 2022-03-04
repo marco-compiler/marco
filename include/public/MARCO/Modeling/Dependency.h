@@ -12,8 +12,6 @@
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "marco/Utils/TreeOStream.h"
-#include <list>
-#include <stack>
 
 namespace marco::modeling
 {
@@ -61,6 +59,23 @@ namespace marco::modeling
       //    return the read access done by the equation.
 
       using Id = typename EquationType::UnknownEquationTypeError;
+    };
+
+    template<typename SCC>
+    struct SCCTraits
+    {
+      // Elements to provide:
+      //
+      // typedef ElementType : the type of the elements composing the SCC.
+      // typedef ElementDescriptor
+      //
+      // static bool hasCycle(const SCC* scc);
+      //    return whether the SCC contains one or more cycles.
+      //
+      // static std::vector<ElementDescriptor> getElements(const SCC* scc);
+      //    return the addresses of the elements composing the SCC.
+      //
+      // static const ElementType& get(const SCC* scc, ElementDescriptor descriptor);
     };
   }
 
@@ -464,11 +479,10 @@ namespace marco::modeling
 
     /// List of the equations composing an SCC.
     /// All the equations belong to a given graph.
-    template<typename G>
+    template<typename Graph>
     class SCC
     {
       public:
-        using Graph = G;
         using Equation = typename Graph::VertexProperty;
         using EquationDescriptor = typename Graph::VertexDescriptor;
 
@@ -491,21 +505,36 @@ namespace marco::modeling
           return *graph;
         }
 
+        /// Get whether the SCC present a cycle.
+        /// Note that only SCCs with just one element may not have cycles.
         bool hasCycle() const
         {
           return cycle;
         }
 
-        EquationDescriptor operator[](size_t index) const
-        {
-          assert(index < size());
-          return equations[index];
-        }
-
+        /// Get the number of equations composing the SCC.
         size_t size() const
         {
           return equations.size();
         }
+
+        const Equation& operator[](size_t index) const
+        {
+          assert(index < equations.size());
+          return (*this)[equations[index]];
+        }
+
+        /// @name Forwarded methods
+        /// {
+
+        const Equation& operator[](EquationDescriptor descriptor) const
+        {
+          return (*graph)[descriptor];
+        }
+
+        /// }
+        /// @name Iterators
+        /// {
 
         iterator begin()
         {
@@ -527,10 +556,50 @@ namespace marco::modeling
           return equations.end();
         }
 
+        /// }
+
       private:
         const Graph* graph;
         bool cycle;
         Container equations;
+    };
+  }
+
+  namespace dependency
+  {
+    // Traits specialization for the internal SCC class
+    template<typename Graph>
+    class SCCTraits<internal::dependency::SCC<Graph>>
+    {
+      private:
+        using Impl = internal::dependency::SCC<Graph>;
+
+      public:
+        using ElementType = typename Impl::Equation;
+        using ElementDescriptor = typename Impl::EquationDescriptor;
+
+        static bool hasCycle(const Impl* SCC)
+        {
+          return SCC->hasCycle();
+        }
+
+        static std::vector<ElementDescriptor> getElements(const Impl* SCC)
+        {
+          std::vector<ElementDescriptor> result(SCC->begin(), SCC->end());
+          return result;
+        }
+
+        static std::vector<ElementDescriptor> getDependencies(const Impl* SCC, ElementDescriptor element)
+        {
+          std::vector<ElementDescriptor> result;
+          const auto& graph = SCC->getGraph();
+
+          for (const auto& edge : graph.getOutgoingEdges(element)) {
+            result.push_back(edge.to);
+          }
+
+          return result;
+        }
     };
   }
 }
@@ -720,6 +789,7 @@ namespace marco::modeling::internal
         return result;
       }
 
+    private:
       Graph graph;
   };
 
@@ -728,37 +798,37 @@ namespace marco::modeling::internal
   {
     public:
       using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<SCC>;
-
-      using Equation = typename SCC::Equation;
-      using EquationDescriptor = typename SCC::EquationDescriptor;
       using SCCDescriptor = typename Graph::VertexDescriptor;
+      using SCCTraits = typename ::marco::modeling::dependency::SCCTraits<SCC>;
+      using ElementType = typename SCCTraits::ElementType;
+      using ElementDescriptor = typename SCCTraits::ElementDescriptor;
 
       SCCDependencyGraph(llvm::ArrayRef<SCC> SCCs)
       {
         // Keep track of the SCC an equation belongs to
-        llvm::DenseMap<EquationDescriptor, SCCDescriptor> parentSCC;
+        llvm::DenseMap<ElementDescriptor, SCCDescriptor> parentSCC;
 
-        // Add the SCCs to the graph
+        // Internalize the SCCs and for each of them
+        // keep track of the parent-children relationship.
         for (const auto& scc : SCCs) {
           auto sccDescriptor = graph.addVertex(scc);
 
-          for (const auto& equationDescriptor : scc) {
-            parentSCC.try_emplace(equationDescriptor, sccDescriptor);
+          for (const auto& element : SCCTraits::getElements(&graph[sccDescriptor])) {
+            parentSCC.try_emplace(element, sccDescriptor);
           }
         }
 
         // Connect the SCCs
         for (const auto& sccDescriptor : graph.getVertices()) {
           const auto& scc = graph[sccDescriptor];
-          const auto& originalGraph = scc.getGraph();
 
           // The set of SCCs that have already been connected to the current SCC.
           // This allows to avoid duplicate edges.
           llvm::DenseSet<SCCDescriptor> connectedSCCs;
 
           for (const auto& equationDescriptor : scc) {
-            for (const auto& edgeDescriptor : originalGraph.getOutgoingEdges(equationDescriptor)) {
-              auto destinationSCC = parentSCC.find(edgeDescriptor.to)->second;
+            for (const auto& destination : SCCTraits::getDependencies(&scc, equationDescriptor)) {
+              auto destinationSCC = parentSCC.find(destination)->second;
 
               if (!connectedSCCs.contains(destinationSCC)) {
                 graph.addEdge(sccDescriptor, destinationSCC);
@@ -769,7 +839,7 @@ namespace marco::modeling::internal
         }
       }
 
-      /// @name Forwarding methods
+      /// @name Forwarded methods
       /// {
 
       SCC& operator[](SCCDescriptor descriptor)
@@ -784,6 +854,8 @@ namespace marco::modeling::internal
 
       /// }
 
+      /// Perform a post-order visit of the dependency graph
+      /// and get the ordered SCC descriptors.
       std::vector<SCCDescriptor> postOrder() const
       {
         std::vector<SCCDescriptor> result;
@@ -812,7 +884,7 @@ namespace marco::modeling::internal
     /// Differently from the vector equation, this does not have dedicated traits. This is because the class
     /// itself is made for internal usage and all the needed information by applying the vector equation traits
     /// on the equation property. In other words, this class is used just to restrict the indexes upon a vector
-    /// equaion iterates.
+    /// equation iterates.
     template<typename EquationProperty>
     class ScalarEquation
     {
@@ -905,7 +977,7 @@ namespace marco::modeling::internal
         }
       }
 
-      /// @name Forwarding methods
+      /// @name Forwarded methods
       /// {
 
       ScalarEquation& operator[](ScalarEquationDescriptor descriptor)
