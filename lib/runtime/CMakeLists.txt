@@ -35,7 +35,7 @@ if(MSVC)
 target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
-target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing" PRIVATE "-O0") # needed for fdlibm
+target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing") # needed for fdlibm
 target_link_options(runtimeShared PRIVATE "-nostdlib")
 endif()
 
@@ -52,7 +52,7 @@ endif()
 if(MINGW)
 # -fno-strict-aliasing needed for fdlibm
 # -O0 (or -O1) needed otherwise memset loops to infinity then crashes
-target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-O0") 
+target_compile_options(runtime PRIVATE "-fno-strict-aliasing") 
 target_link_options(runtime PRIVATE "-nostdlib")
 endif()
 

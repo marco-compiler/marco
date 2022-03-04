@@ -87,11 +87,9 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 void* memset(void* s, int c,  size_t len)
 {
 	size_t i = 0;
-    unsigned char* p = (unsigned char*) s;
+    volatile unsigned char* p = (unsigned char*) s;
 	while(i < len)
 	{
-		//runtimePrintf("i: %d, l: %d\n", i, len);
-		//runtimePrintf("ciao\n");
 		*p = c;
 		p = p + 1;
 		i = i + 1;
