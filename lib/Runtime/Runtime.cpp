@@ -40,8 +40,8 @@ void runSimulation()
   do {
     print(data);
     updateStateVariables(data);
-    updateNonStateVariables(data);
     continueSimulation = incrementTime(data);
+    updateNonStateVariables(data);
   } while (continueSimulation);
 
   deinit(data);
