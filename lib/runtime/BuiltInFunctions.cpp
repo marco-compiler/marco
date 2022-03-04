@@ -255,15 +255,11 @@ RUNTIME_FUNC_DEF(exp, double, double)
 /// @param array  array to be populated
 /// @param value  value to be set
 template<typename T>
-inline void fill_void(UnsizedArrayDescriptor<T> array, T value) //TODO: understand why segfault
-																//		probably bc uses array?
-																//		test that it segfaults
-																//		also during tests
+inline void fill_void(UnsizedArrayDescriptor<T> array, T value)
 {
-	// temporary fix for segfault
-// 	for (auto& element : array) {
-//     element = value;
-//   }
+  for (auto& element : array) {
+    element = value;
+  }
 }
 
 RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)

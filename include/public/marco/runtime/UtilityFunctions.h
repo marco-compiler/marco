@@ -47,4 +47,10 @@ RUNTIME_FUNC_DECL(print, void, ARRAY(int64_t))
 RUNTIME_FUNC_DECL(print, void, ARRAY(float))
 RUNTIME_FUNC_DECL(print, void, ARRAY(double))
 
+#ifdef WINDOWS_NOSTDLIB
+extern "C" __declspec(dllexport) int runtimePrintf(const char* format, ...);
+extern "C" __declspec(dllexport) int putchar(int c);
+extern "C" __declspec(dllexport) int puts(const char* s);
+#endif // WINDOWS_NOSTDLIB
+
 #endif	// MARCO_RUNTIME_UTILITYFUNCTIONS_H

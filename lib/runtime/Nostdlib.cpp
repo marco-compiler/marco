@@ -1,6 +1,7 @@
 #ifdef WINDOWS_NOSTDLIB
 #include <Windows.h>
-#include "marco/runtime/Printing.h"
+#include "marco/runtime/Nostdlib.h"
+#include "marco/runtime/UtilityFunctions.h"
 
 BOOL WINAPI DllMain(
     HINSTANCE hinstDLL,
@@ -20,15 +21,19 @@ extern "C" BOOL WINAPI DllMainCRTStartup(
 
 namespace std {
 	void __throw_bad_array_new_length() {
+		ExitProcess(1);
 	}
 
 	void __throw_bad_cast() {
+		ExitProcess(1);
 	}
 
 	void __throw_length_error(char const*) {
+		ExitProcess(1);
 	}
 
 	void __throw_bad_alloc() {
+		ExitProcess(1);
 	}
 }
 
@@ -81,12 +86,22 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 
 void* memset(void* s, int c,  size_t len)
 {
-	ryuPrintf("%d\n", len);
-    unsigned char* p= (unsigned char*) s;
-    while(len--)
-    {
-        *p++ = (unsigned char)c;
-    }
+	size_t i = 0;
+    unsigned char* p = (unsigned char*) s;
+	while(i < len)
+	{
+		//runtimePrintf("i: %d, l: %d\n", i, len);
+		//runtimePrintf("ciao\n");
+		*p = c;
+		p = p + 1;
+		i = i + 1;
+	}
     return s;
+}
+
+void runtimeMemset(char *p, char c, int l)
+{
+      for(int i = 0; i < l; i++)
+        *(p + i) = '0';
 }
 #endif

@@ -1,11 +1,12 @@
 set(SHARED_SOURCES
+		d2fixed.cpp
+		Nostdlib.cpp
+		Fdlibm.cpp
 		BuiltInFunctions.cpp
 		Math.cpp
 		MemoryManagement.cpp
 		Profiling.cpp
-		UtilityFunctions.cpp
-		Nostdlib.cpp
-		Fdlibm.cpp)
+		UtilityFunctions.cpp)
 
 set(STATIC_SOURCES
 		${SHARED_SOURCES}
@@ -34,8 +35,8 @@ if(MSVC)
 target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
-target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing") # needed for fdlibm
-target_link_options(runtimeShared PRIVATE "-nostdlib" PRIVATE "-g" PRIVATE "-O0")
+target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing" PRIVATE "-O0") # needed for fdlibm
+target_link_options(runtimeShared PRIVATE "-nostdlib")
 endif()
 
 add_dependencies(marco-runtime marco::runtimeShared)
@@ -49,7 +50,9 @@ if(MSVC)
 target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
-target_compile_options(runtime PRIVATE "-fno-strict-aliasing") # needed for fdlibm
+# -fno-strict-aliasing needed for fdlibm
+# -O0 (or -O1) needed otherwise memset loops to infinity then crashes
+target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-O0") 
 target_link_options(runtime PRIVATE "-nostdlib")
 endif()
 

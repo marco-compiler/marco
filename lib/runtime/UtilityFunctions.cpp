@@ -3,7 +3,8 @@
 #include <cstring>
 #include <iostream>
 #else
-//#include "marco/runtime/Printing.h"
+#include <cstdarg>
+#include "marco/runtime/Printing.h"
 #endif
 #include <cassert>
 
@@ -92,7 +93,7 @@ inline void print_void<bool>(bool value)
   #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::boolalpha << value << std::endl;
   #else
-  printBool(value);
+  ryuPrintf("%d\n", value);
   #endif
 }
 
@@ -100,25 +101,25 @@ inline void print_void<bool>(bool value)
 template<>
 inline void print_void<int32_t>(int32_t value)
 {
-  printInt(value);
+  ryuPrintf("%d\n", value);
 }
 
 template<>
 inline void print_void<int64_t>(int64_t value)
 {
-  printInt(value);
+  ryuPrintf("%d\n", value);
 }
 
 template<>
 inline void print_void<float>(float value)
 {
-  printFloat(value);
+  ryuPrintf("%f\n", value);
 }
 
 template<>
 inline void print_void<double>(double value)
 {
-  printDouble(value);
+  ryuPrintf("%f\n", value);
 }
 #endif
 
@@ -155,7 +156,7 @@ RUNTIME_FUNC_DEF(print, void, ARRAY(float))
 RUNTIME_FUNC_DEF(print, void, ARRAY(double))
 
 #ifdef WINDOWS_NOSTDLIB
-extern "C" __declspec(dllexport) int printf(const char* format, ...)
+inline int runtimePrintf(const char* format, ...)
 {
 	va_list arg;
 	int done;
@@ -167,9 +168,14 @@ extern "C" __declspec(dllexport) int printf(const char* format, ...)
 	return done;
 }
 
-extern "C" __declspec(dllexport) int putchar(int c)
+inline int putchar(int c)
 {
   printChar(c);
   return 1;
+}
+
+inline int puts(const char* s)
+{
+  return printString(s);
 }
 #endif
