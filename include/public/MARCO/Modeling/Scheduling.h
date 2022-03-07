@@ -52,6 +52,100 @@ namespace marco::modeling
         MultidimensionalRange indexes;
         Direction direction;
     };
+
+    template<typename ElementType>
+    class ScheduledSCC
+    {
+      private:
+        using Container = std::vector<ElementType>;
+
+      public:
+        using const_iterator = typename Container::const_iterator;
+
+        ScheduledSCC(llvm::ArrayRef<ElementType> equations)
+          : equations(equations.begin(), equations.end())
+        {
+          assert(!this->equations.empty());
+        }
+
+        const ElementType& operator[](size_t index) const
+        {
+          assert(index < equations.size());
+          return equations[index];
+        }
+
+        bool hasCycle() const
+        {
+          return equations.size() != 1;
+        }
+
+        const_iterator begin() const
+        {
+          return equations.begin();
+        }
+
+        const_iterator end() const
+        {
+          return equations.end();
+        }
+
+      private:
+        Container equations;
+    };
+
+    template<typename ScheduledSCC>
+    class Schedule
+    {
+      private:
+        using Container = std::vector<ScheduledSCC>;
+
+      public:
+        using const_iterator = typename Container::const_iterator;
+
+        Schedule(llvm::ArrayRef<ScheduledSCC> scheduledSCCs)
+          : scheduledSCCs(scheduledSCCs.begin(), scheduledSCCs.end())
+        {
+        }
+
+        /// Get whether any of the scheduled SCCs has a cycle among its equations.
+        bool hasCycles() const
+        {
+          return llvm::none_of(scheduledSCCs, [](const auto& scheduledSCC) {
+            return scheduledSCC.hasCycle();
+          });
+        }
+
+        /// Get the number of SCCs.
+        size_t size() const
+        {
+          return scheduledSCCs.size();
+        }
+
+        const ScheduledSCC& operator[](size_t index) const
+        {
+          assert(index < scheduledSCCs.size());
+          return scheduledSCCs[index];
+        }
+
+        /// }
+        /// @name Iterators
+        /// {
+
+        const_iterator begin() const
+        {
+          return scheduledSCCs.begin();
+        }
+
+        const_iterator end() const
+        {
+          return scheduledSCCs.end();
+        }
+
+        /// }
+
+      private:
+        Container scheduledSCCs;
+    };
   }
 
   /// The scheduler allows to sort the equations in such a way that each scalar variable is determined
@@ -69,11 +163,13 @@ namespace marco::modeling
       using SCCDependencyGraph = internal::SCCDependencyGraph<SCC>;
       using ScalarDependencyGraph = internal::SVarDependencyGraph<VariableProperty, EquationProperty>;
       using ScheduledEquation = internal::scheduling::ScheduledEquation<EquationProperty>;
+      using ScheduledSCC = internal::scheduling::ScheduledSCC<ScheduledEquation>;
+      using Schedule = internal::scheduling::Schedule<ScheduledSCC>;
 
     public:
-      std::vector<ScheduledEquation> schedule(llvm::ArrayRef<EquationProperty> equations) const
+      Schedule schedule(llvm::ArrayRef<EquationProperty> equations) const
       {
-        std::vector<ScheduledEquation> result;
+        std::vector<ScheduledSCC> result;
 
         VectorDependencyGraph vectorDependencyGraph(equations);
         auto SCCs = vectorDependencyGraph.getSCCs();
@@ -82,69 +178,79 @@ namespace marco::modeling
 
         for (const auto& sccDescriptor : scheduledSCCs) {
           const SCC& scc = sccDependencyGraph[sccDescriptor];
-          assert(scc.size() == 1 && "Loop among equations to be scheduled");
 
-          auto accessesDirection = getAccessesDirection(scc);
+          if (scc.size() == 1) {
+            auto accessesDirection = getAccessesDirection(scc);
 
-          if (accessesDirection == scheduling::Direction::Forward) {
-            const auto& equation = scc[0];
+            if (accessesDirection == scheduling::Direction::Forward) {
+              const auto& equation = scc[0];
 
-            result.emplace_back(
-                equation.getProperty(),
-                equation.getIterationRanges(),
-                scheduling::Direction::Backward);
+              ScheduledEquation scheduledEquation(
+                  equation.getProperty(),
+                  equation.getIterationRanges(),
+                  scheduling::Direction::Backward);
 
-            continue;
-          }
+              result.emplace_back(std::move(scheduledEquation));
+              continue;
+            }
 
-          if (accessesDirection == scheduling::Direction::Backward) {
-            const auto& equation = scc[0];
+            if (accessesDirection == scheduling::Direction::Backward) {
+              const auto& equation = scc[0];
 
-            result.emplace_back(
-                equation.getProperty(),
-                equation.getIterationRanges(),
-                scheduling::Direction::Forward);
+              ScheduledEquation scheduledEquation(
+                  equation.getProperty(),
+                  equation.getIterationRanges(),
+                  scheduling::Direction::Forward);
 
-            continue;
-          }
+              result.emplace_back(std::move(scheduledEquation));
+              continue;
+            }
 
-          std::vector<EquationProperty> equationProperties;
+            // Mixed accesses detected. Scheduling is possible only on the scalar equations.
+            std::vector<EquationProperty> equationProperties;
 
-          for (const auto& equationDescriptor : scc) {
-            equationProperties.push_back(scc.getGraph()[equationDescriptor].getProperty());
-          }
+            for (const auto& equationDescriptor : scc) {
+              equationProperties.push_back(scc.getGraph()[equationDescriptor].getProperty());
+            }
 
-          ScalarDependencyGraph scalarDependencyGraph(equationProperties);
+            ScalarDependencyGraph scalarDependencyGraph(equationProperties);
 
-          for (const auto& equationDescriptor : scalarDependencyGraph.postOrder()) {
-            const auto& scalarEquation = scalarDependencyGraph[equationDescriptor];
+            for (const auto& equationDescriptor : scalarDependencyGraph.postOrder()) {
+              const auto& scalarEquation = scalarDependencyGraph[equationDescriptor];
 
-            result.emplace_back(
-                scalarEquation.getProperty(),
-                MultidimensionalRange(scalarEquation.getIndex()),
-                scheduling::Direction::Forward);
+              ScheduledEquation scheduledEquation(
+                  scalarEquation.getProperty(),
+                  MultidimensionalRange(scalarEquation.getIndex()),
+                  scheduling::Direction::Forward);
+
+              result.emplace_back(std::move(scheduledEquation));
+            }
+          } else {
+            // A strong connected component can be scheduled with respect to other SCCs,
+            // but the equations composing it are cyclic and thus can't be scheduled.
+            std::vector<ScheduledEquation> SCC;
+
+            for (const auto& equationDescriptor : scc) {
+              const auto& equation = scc[equationDescriptor];
+
+              SCC.push_back(ScheduledEquation(
+                  equation.getProperty(),
+                  equation.getIterationRanges(),
+                  scheduling::Direction::Unknown));
+            }
+
+            result.emplace_back(std::move(SCC));
           }
         }
 
-        return result;
+        return Schedule(std::move(result));
       }
-
-      /*
-      std::vector<SCCScheduledEquation> schedule(llvm::ArrayRef<SCC> SCCs) const
-      {
-        for each SCC {
-          elementi = ...
-
-
-        }
-      }
-       */
 
     private:
       /// Given a SSC containing only one equation that may depend on itself, determine the access direction
       /// with respect to the variable that is written by the equation.
       ///
-      /// @param scc          SCC to be examined (consisting of only one equation with a loop on itself)
+      /// @param scc  SCC to be examined (consisting of only one equation with a loop on itself)
       /// @return access direction
       scheduling::Direction getAccessesDirection(const SCC& scc) const
       {
@@ -192,7 +298,7 @@ namespace marco::modeling
           auto accessDirection = getAccessFunctionDirection(relativeAccess);
 
           assert(accessDirection != scheduling::Direction::None &&
-                  "Algebraic loop detected. Maybe the matched variable has not been made explicit?");
+                  "Algebraic loop detected. Maybe the equation has not been made explicit with respect to the matched variable?");
 
           if (direction == scheduling::Direction::Unknown) {
             direction = accessDirection;

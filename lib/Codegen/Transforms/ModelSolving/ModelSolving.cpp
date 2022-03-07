@@ -10,6 +10,7 @@
 #include "marco/Codegen/Transforms/Model/Matching.h"
 #include "marco/Codegen/Transforms/Model/Model.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
+#include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Modeling/Cycles.h"
 #include "marco/Utils/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -28,46 +29,6 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
-
-// TODO factor out from here and AD pass (and maybe also from somewhere else)
-template<class T>
-unsigned int numDigits(T number)
-{
-  unsigned int digits = 0;
-
-  while (number != 0)
-  {
-    number /= 10;
-    ++digits;
-  }
-
-  return digits;
-}
-
-// TODO factor out from here and AD pass
-static std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int order)
-{
-  assert(order > 0);
-
-  if (order == 1)
-    return "der_" + baseName.str();
-
-  return "der_" + std::to_string(order) + "_" + baseName.str();
-}
-
-// TODO factor out from here and AD pass
-static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int requestedOrder)
-{
-  if (requestedOrder == 1)
-    return getFullDerVariableName(currentName, requestedOrder);
-
-  assert(currentName.rfind("der_") == 0);
-
-  if (requestedOrder == 2)
-    return getFullDerVariableName(currentName.substr(4), requestedOrder);
-
-  return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
-}
 
 /// Remove the unused arguments of a function and also update the function calls
 /// to reflect the function signature change.
@@ -127,6 +88,12 @@ class EquationTemplateInfo
 class ModelConverter
 {
   private:
+    // The extra data within the simulation data structure that is placed
+    // before the simulation variables.
+
+    static constexpr size_t variablesOffsetInStruct = 1;
+    static constexpr size_t timeVariablePosition = 0;
+
     // The derivatives map keeps track of whether a variable is the derivative
     // of another one. Each variable is identified by its position within the
     // list of the "body" region arguments.
@@ -144,6 +111,17 @@ class ModelConverter
     static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
     static constexpr llvm::StringLiteral runFunctionName = "runSimulation";
 
+    struct ConversionInfo
+    {
+      std::set<std::unique_ptr<Equation>> explicitEquations;
+      std::map<ScheduledEquation*, Equation*> explicitEquationsMap;
+      std::set<ScheduledEquation*> implicitEquations;
+      std::set<ScheduledEquation*> cyclicEquations;
+
+      std::set<unsigned int> IDAVariables;
+      std::set<ScheduledEquation*> IDAEquations;
+    };
+
   public:
     ModelConverter(SolveModelOptions options, TypeConverter& typeConverter)
       : options(std::move(options)),
@@ -158,7 +136,7 @@ class ModelConverter
     /// model being processed.
     mlir::LogicalResult convert(
         mlir::OpBuilder& builder,
-        const Model<ScheduledEquation>& model,
+        const Model<ScheduledEquationsBlock>& model,
         const mlir::BlockAndValueMapping& derivatives) const
     {
       ModelOp modelOp = model.getOperation();
@@ -188,6 +166,66 @@ class ModelConverter
         }
       }
 
+      ConversionInfo conversionInfo;
+
+      // Determine which equations can be potentially processed by MARCO.
+      // Those are the ones that can me bade explicit with respect to the matched variable and
+      // the non-cyclic ones.
+      for (auto& scheduledBlock : model.getScheduledBlocks()) {
+        if (!scheduledBlock->hasCycle()) {
+          for (auto& scheduledEquation : *scheduledBlock) {
+            auto explicitClone = scheduledEquation->cloneAndExplicitate(builder);
+
+            if (explicitClone == nullptr) {
+              conversionInfo.implicitEquations.emplace(scheduledEquation.get());
+            } else {
+              auto& movedClone = *conversionInfo.explicitEquations.emplace(std::move(explicitClone)).first;
+              conversionInfo.explicitEquationsMap[scheduledEquation.get()] = movedClone.get();
+            }
+          }
+        } else {
+          for (const auto& equation : *scheduledBlock) {
+            conversionInfo.cyclicEquations.emplace(equation.get());
+          }
+        }
+      }
+
+      // Add the implicit equations to the set of equations managed by IDA, together with their
+      // written variables.
+      for (const auto& implicitEquation : conversionInfo.implicitEquations) {
+        auto var = implicitEquation->getWrite().getVariable();
+        auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+        conversionInfo.IDAVariables.emplace(position);
+        conversionInfo.IDAEquations.emplace(implicitEquation);
+      }
+
+      // Add the cyclic equations to the set of equations managed by IDA, together with their
+      // written variables.
+      for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
+        auto var = cyclicEquation->getWrite().getVariable();
+        auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+        conversionInfo.IDAVariables.emplace(position);
+        conversionInfo.IDAEquations.emplace(cyclicEquation);
+      }
+
+      // If any of the remaining equations manageable by MARCO does write on a variable managed
+      // by IDA, then the equation must be passed to IDA even if not strictly necessary.
+      // Avoiding this would require either memory duplication or a more severe restructuring
+      // of the solving infrastructure, which would have to be able to split variables and equations
+      // according to which runtime solver manages such variables.
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        if (!scheduledBlock->hasCycle()) {
+          for (auto& scheduledEquation : *scheduledBlock) {
+            auto var = scheduledEquation->getWrite().getVariable();
+            auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+
+            if (conversionInfo.IDAVariables.find(position) != conversionInfo.IDAVariables.end()) {
+              conversionInfo.IDAEquations.emplace(scheduledEquation.get());
+            }
+          }
+        }
+      }
+
       // Create the various functions composing the simulation
       if (auto res = createInitFunction(builder, modelOp); failed(res)) {
         model.getOperation().emitError("Could not create the '" + initFunctionName + "' function");
@@ -199,7 +237,7 @@ class ModelConverter
         return res;
       }
 
-      if (auto res = createUpdateNonStateVariablesFunction(builder, model, derivatives); mlir::failed(res)) {
+      if (auto res = createUpdateNonStateVariablesFunction(builder, model, conversionInfo); mlir::failed(res)) {
         model.getOperation().emitError("Could not create the '" + updateNonStateVariablesFunctionName + "' function");
         return res;
       }
@@ -500,7 +538,7 @@ class ModelConverter
 
       // Set the start time
       mlir::Value startTime = builder.create<ConstantOp>(loc, modelOp.startTime());
-      builder.create<StoreOp>(loc, startTime, values[0]);
+      builder.create<StoreOp>(loc, startTime, values[timeVariablePosition]);
 
       // Pack the values
       mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
@@ -668,8 +706,8 @@ class ModelConverter
     /// Create the function to be called at each time step.
     mlir::LogicalResult createUpdateNonStateVariablesFunction(
         mlir::OpBuilder& builder,
-        const Model<ScheduledEquation>& model,
-        const mlir::BlockAndValueMapping& derivatives) const
+        const Model<ScheduledEquationsBlock>& model,
+        const ConversionInfo& conversionInfo) const
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       ModelOp modelOp = model.getOperation();
@@ -706,8 +744,8 @@ class ModelConverter
       std::multimap<mlir::FuncOp, mlir::CallOp> equationCalls;
 
       // Get or create the template equation function for a scheduled equation
-      auto getEquationTemplateFn = [&](const ScheduledEquation& equation) -> mlir::FuncOp {
-        EquationTemplateInfo requestedTemplate(equation.getOperation(), equation.getSchedulingDirection());
+      auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::FuncOp {
+        EquationTemplateInfo requestedTemplate(equation->getOperation(), equation->getSchedulingDirection());
         auto it = equationTemplatesMap.find(requestedTemplate);
 
         if (it != equationTemplatesMap.end()) {
@@ -717,46 +755,52 @@ class ModelConverter
         std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
         ++equationTemplateCounter;
 
-        auto clonedExplicitEquation = equation.cloneAndExplicitate(builder);
+        auto explicitEquation = llvm::find_if(conversionInfo.explicitEquationsMap, [&](const auto& equationPtr) {
+          return equationPtr.first == equation;
+        });
 
-        if (clonedExplicitEquation == nullptr) {
-          model.getOperation().emitError("Could not explicitate equation");
-          return nullptr;
-        }
-
-        TemporaryEquationGuard equationGuard(*clonedExplicitEquation);
+        assert(explicitEquation != conversionInfo.explicitEquationsMap.end());
 
         // Create the equation template function
-        auto templateFunction = clonedExplicitEquation->createTemplateFunction(
-            builder, templateFunctionName, modelOp.body().getArguments(), equation.getSchedulingDirection());
+        auto templateFunction = explicitEquation->second->createTemplateFunction(
+            builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
 
         return templateFunction;
       };
 
-      for (const auto& equation : model.getEquations()) {
-        auto templateFunction = getEquationTemplateFn(*equation);
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        for (const auto& equation : *scheduledBlock) {
+          if (conversionInfo.IDAEquations.find(equation.get()) != conversionInfo.IDAEquations.end()) {
+            // The equation is handled by IDA
+            return mlir::failure();
 
-        if (templateFunction == nullptr) {
-          return mlir::failure();
+          } else {
+            // The equation is handled by MARCO
+            auto templateFunction = getEquationTemplateFn(equation.get());
+
+            if (templateFunction == nullptr) {
+              return mlir::failure();
+            }
+
+            equationTemplateFunctions.insert(templateFunction);
+
+            // Create the function that calls the template.
+            // This function dictates the indices the template will work with.
+            std::string equationFunctionName = "eq_" + std::to_string(equationCounter);
+            ++equationCounter;
+
+            auto equationFunction = createEquationFunction(
+                builder, *equation, equationFunctionName, templateFunction,
+                equationTemplateCalls,
+                modelOp.body().getArgumentTypes());
+
+            equationFunctions.insert(equationFunction);
+
+            // Create the call to the instantiated template function
+            auto equationCall = builder.create<mlir::CallOp>(loc, equationFunction, vars);
+            equationCalls.emplace(equationFunction, equationCall);
+          }
         }
-
-        equationTemplateFunctions.insert(templateFunction);
-
-        // Create the function that calls the template.
-        // This function dictates the indices the template will work with.
-        std::string equationFunctionName = "eq_" + std::to_string(equationCounter);
-        ++equationCounter;
-
-        auto equationFunction = createEquationFunction(
-            builder, *equation, equationFunctionName, templateFunction,
-            equationTemplateCalls,
-            modelOp.body().getArgumentTypes());
-
-        equationFunctions.insert(equationFunction);
-
-        // Create the call to the instantiated template function
-        auto equationCall = builder.create<mlir::CallOp>(loc, equationFunction, vars);
-        equationCalls.emplace(equationFunction, equationCall);
       }
 
       builder.create<mlir::ReturnOp>(loc);
@@ -825,7 +869,7 @@ class ModelConverter
 
     mlir::LogicalResult createIncrementTimeFunction(
         mlir::OpBuilder& builder,
-        const Model<ScheduledEquation>& model) const
+        const Model<ScheduledEquationsBlock>& model) const
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       ModelOp modelOp = model.getOperation();
@@ -845,7 +889,7 @@ class ModelConverter
       mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
       mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
-      mlir::Value time = extractValue(builder, structValue, varTypes[0], 0);
+      mlir::Value time = extractValue(builder, structValue, varTypes[timeVariablePosition], 0);
 
       // Increment the time
       mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
@@ -1263,7 +1307,7 @@ class ModelConverter
       });
 
       if (auto status = elementCallback(
-          structValueCallback, "time", 0, VariableFilter::Filter::visibleScalar(), separator); mlir::failed(status)) {
+          structValueCallback, "time", timeVariablePosition, VariableFilter::Filter::visibleScalar(), separator); mlir::failed(status)) {
         return status;
       }
 
@@ -1338,9 +1382,8 @@ class ModelConverter
 
 /// Remove the derivative operations by replacing them with appropriate
 /// buffers, and set the derived variables as state variables.
-template<typename EquationType>
 static mlir::LogicalResult removeDerivatives(
-    mlir::OpBuilder& builder, Model<EquationType>& model, mlir::BlockAndValueMapping& derivatives)
+    mlir::OpBuilder& builder, Model<Equation>& model, mlir::BlockAndValueMapping& derivatives)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -1608,16 +1651,6 @@ static mlir::LogicalResult solveAlgebraicLoops(
     }
   } while (!newEquations.empty());
 
-  /*
-  if (!unsolvedEquations.empty()) {
-    return mlir::failure();
-  }
-   */
-
-  for (auto& equation : unsolvedEquations) {
-
-  }
-
   // Set the new equations of the model
   model.setEquations(solution);
 
@@ -1626,7 +1659,7 @@ static mlir::LogicalResult solveAlgebraicLoops(
 
 /// Schedule the equations.
 static mlir::LogicalResult scheduling(
-    Model<ScheduledEquation>& result, const Model<MatchedEquation>& model)
+    Model<ScheduledEquationsBlock>& result, const Model<MatchedEquation>& model)
 {
   result.setVariables(model.getVariables());
   std::vector<MatchedEquation*> equations;
@@ -1636,16 +1669,25 @@ static mlir::LogicalResult scheduling(
   }
 
   Scheduler<Variable*, MatchedEquation*> scheduler;
-  Equations<ScheduledEquation> scheduledEquations;
+  ScheduledEquationsBlocks scheduledBlocks;
 
-  for (const auto& solution : scheduler.schedule(equations)) {
-    auto clone = std::make_unique<MatchedEquation>(*solution.getEquation());
+  for (const auto& scc : scheduler.schedule(equations)) {
+    Equations<ScheduledEquation> scheduledEquations;
 
-    scheduledEquations.push_back(std::make_unique<ScheduledEquation>(
-        std::move(clone), solution.getIndexes(), solution.getIterationDirection()));
+    for (const auto& scheduledEquationInfo : scc) {
+      auto clone = std::make_unique<MatchedEquation>(*scheduledEquationInfo.getEquation());
+
+      auto scheduledEquation = std::make_unique<ScheduledEquation>(
+          std::move(clone), scheduledEquationInfo.getIndexes(), scheduledEquationInfo.getIterationDirection());
+
+      scheduledEquations.push_back(std::move(scheduledEquation));
+    }
+
+    auto scheduledEquationsBlock = std::make_unique<ScheduledEquationsBlock>(scheduledEquations, scc.hasCycle());
+    scheduledBlocks.append(std::move(scheduledEquationsBlock));
   }
 
-  result.setEquations(std::move(scheduledEquations));
+  result.setScheduledBlocks(std::move(scheduledBlocks));
   return mlir::success();
 }
 
@@ -1703,7 +1745,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
       }
 
       // Schedule the equations
-      Model<ScheduledEquation> scheduledModel(matchedModel.getOperation());
+      Model<ScheduledEquationsBlock> scheduledModel(matchedModel.getOperation());
 
       if (mlir::failed(::scheduling(scheduledModel, matchedModel))) {
         return signalPassFailure();

@@ -10,6 +10,51 @@
 using namespace ::marco::codegen;
 using namespace ::marco::codegen::modelica;
 
+namespace
+{
+  template<class T>
+  unsigned int numDigits(T number)
+  {
+    unsigned int digits = 0;
+
+    while (number != 0) {
+      number /= 10;
+      ++digits;
+    }
+
+    return digits;
+  }
+}
+
+namespace marco::codegen
+{
+  std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int order)
+  {
+    assert(order > 0);
+
+    if (order == 1) {
+      return "der_" + baseName.str();
+    }
+
+    return "der_" + std::to_string(order) + "_" + baseName.str();
+  }
+
+  std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int requestedOrder)
+  {
+    if (requestedOrder == 1) {
+      return getFullDerVariableName(currentName, requestedOrder);
+    }
+
+    assert(currentName.rfind("der_") == 0);
+
+    if (requestedOrder == 2) {
+      return getFullDerVariableName(currentName.substr(4), requestedOrder);
+    }
+
+    return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
+  }
+}
+
 static bool hasFloatBase(mlir::Type type) {
 	if (type.isa<RealType>())
 		return true;
@@ -37,20 +82,6 @@ static void getDynamicDimensions(mlir::OpBuilder& builder,
 			}
 		}
 	}
-}
-
-template <class T>
-unsigned int numDigits(T number)
-{
-	unsigned int digits = 0;
-
-	while (number != 0)
-	{
-		number /= 10;
-		++digits;
-	}
-
-	return digits;
 }
 
 static mlir::Value createDerVariable(
@@ -439,45 +470,6 @@ struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 		return mlir::success();
 	}
 };
-
-/**
- * Compose the full derivative member name according to the derivative order.
- * If the order is 1, then it is omitted.
- *
- * @param variableName 	base variable name
- * @param order 				derivative order
- * @return derived variable name
- */
-static std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int order)
-{
-	assert(order > 0);
-
-	if (order == 1)
-		return "der_" + baseName.str();
-
-	return "der_" + std::to_string(order) + "_" + baseName.str();
-}
-
-/**
- * Given a full derivative variable name of order n, compose the name of the
- * n + 1 variable order.
- *
- * @param currentName 	current variable name
- * @param currentOrder  current order
- * @return next order derived variable name
- */
-static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int requestedOrder)
-{
-	if (requestedOrder == 1)
-		return getFullDerVariableName(currentName, requestedOrder);
-
-	assert(currentName.rfind("der_") == 0);
-
-	if (requestedOrder == 2)
-		return getFullDerVariableName(currentName.substr(4), requestedOrder);
-
-	return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
-}
 
 static void mapFullDerivatives(llvm::ArrayRef<llvm::StringRef> names,
 															 mlir::ValueRange values,

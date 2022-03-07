@@ -8,30 +8,46 @@
 
 namespace marco::codegen
 {
+  namespace impl
+  {
+    class BaseModel
+    {
+      public:
+        BaseModel(modelica::ModelOp modelOp)
+          : modelOp(modelOp.getOperation())
+        {
+        }
+
+        modelica::ModelOp getOperation() const
+        {
+          return mlir::cast<modelica::ModelOp>(modelOp);
+        }
+
+        /// Get the variables that are managed by this model.
+        Variables getVariables() const
+        {
+          return variables;
+        }
+
+        /// Set the variables the are managed by this model.
+        void setVariables(Variables value)
+        {
+          this->variables = std::move(value);
+        }
+
+      private:
+        mlir::Operation* modelOp;
+        Variables variables;
+    };
+  }
+
   template<typename EquationType = Equation>
-  class Model
+  class Model : public impl::BaseModel
   {
     public:
       Model(modelica::ModelOp modelOp)
-        : modelOp(modelOp.getOperation())
+        : impl::BaseModel(std::move(modelOp))
       {
-      }
-
-      modelica::ModelOp getOperation() const
-      {
-        return mlir::cast<modelica::ModelOp>(modelOp);
-      }
-
-      /// Get the variables that are managed by this model.
-      Variables getVariables() const
-      {
-        return variables;
-      }
-
-      /// Set the variables the are managed by this model.
-      void setVariables(Variables value)
-      {
-        this->variables = std::move(value);
       }
 
       /// Get the equations that are managed by this model.
@@ -47,8 +63,6 @@ namespace marco::codegen
       }
 
     private:
-      mlir::Operation* modelOp;
-      Variables variables;
       Equations<EquationType> equations;
   };
 }

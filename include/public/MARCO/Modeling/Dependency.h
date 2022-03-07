@@ -66,16 +66,16 @@ namespace marco::modeling
     {
       // Elements to provide:
       //
-      // typedef ElementType : the type of the elements composing the SCC.
-      // typedef ElementDescriptor
+      // typedef ElementRef : the type of the elements composing the SCC, which should be cheap to copy.
       //
       // static bool hasCycle(const SCC* scc);
-      //    return whether the SCC contains one or more cycles.
+      //    return whether the SCC contains any cycle.
       //
-      // static std::vector<ElementDescriptor> getElements(const SCC* scc);
-      //    return the addresses of the elements composing the SCC.
+      // static std::vector<ElementRef> getElements(const SCC* scc);
+      //    return the elements composing the SCC.
       //
-      // static const ElementType& get(const SCC* scc, ElementDescriptor descriptor);
+      // static std::vector<ElementRef> getDependencies(const Impl* SCC, ElementRef element);
+      //    return the dependencies of an element, which may belong to other SCCs.
     };
   }
 
@@ -483,10 +483,10 @@ namespace marco::modeling
     class SCC
     {
       public:
-        using Equation = typename Graph::VertexProperty;
         using EquationDescriptor = typename Graph::VertexDescriptor;
 
       private:
+        using Equation = typename Graph::VertexProperty;
         using Container = std::vector<EquationDescriptor>;
 
       public:
@@ -575,23 +575,22 @@ namespace marco::modeling
         using Impl = internal::dependency::SCC<Graph>;
 
       public:
-        using ElementType = typename Impl::Equation;
-        using ElementDescriptor = typename Impl::EquationDescriptor;
+        using ElementRef = typename Impl::EquationDescriptor;
 
         static bool hasCycle(const Impl* SCC)
         {
           return SCC->hasCycle();
         }
 
-        static std::vector<ElementDescriptor> getElements(const Impl* SCC)
+        static std::vector<ElementRef> getElements(const Impl* SCC)
         {
-          std::vector<ElementDescriptor> result(SCC->begin(), SCC->end());
+          std::vector<ElementRef> result(SCC->begin(), SCC->end());
           return result;
         }
 
-        static std::vector<ElementDescriptor> getDependencies(const Impl* SCC, ElementDescriptor element)
+        static std::vector<ElementRef> getDependencies(const Impl* SCC, ElementRef element)
         {
-          std::vector<ElementDescriptor> result;
+          std::vector<ElementRef> result;
           const auto& graph = SCC->getGraph();
 
           for (const auto& edge : graph.getOutgoingEdges(element)) {
@@ -729,7 +728,7 @@ namespace marco::modeling::internal
         }
       }
 
-      /// @name Forwarding methods
+      /// @name Forwarded methods
       /// {
 
       Equation& operator[](EquationDescriptor descriptor)
@@ -800,16 +799,13 @@ namespace marco::modeling::internal
       using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<SCC>;
       using SCCDescriptor = typename Graph::VertexDescriptor;
       using SCCTraits = typename ::marco::modeling::dependency::SCCTraits<SCC>;
-      using ElementType = typename SCCTraits::ElementType;
-      using ElementDescriptor = typename SCCTraits::ElementDescriptor;
+      using ElementRef = typename SCCTraits::ElementRef;
 
       SCCDependencyGraph(llvm::ArrayRef<SCC> SCCs)
       {
-        // Keep track of the SCC an equation belongs to
-        llvm::DenseMap<ElementDescriptor, SCCDescriptor> parentSCC;
+        // Internalize the SCCs and keep track of the parent-children relationships
+        llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
 
-        // Internalize the SCCs and for each of them
-        // keep track of the parent-children relationship.
         for (const auto& scc : SCCs) {
           auto sccDescriptor = graph.addVertex(scc);
 
@@ -992,6 +988,8 @@ namespace marco::modeling::internal
 
       /// }
 
+      /// Perform a post-order visit of the dependency graph
+      /// and get the ordered scalar equation descriptors.
       std::vector<ScalarEquationDescriptor> postOrder() const
       {
         std::vector<ScalarEquationDescriptor> result;
