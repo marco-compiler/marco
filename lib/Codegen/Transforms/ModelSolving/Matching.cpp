@@ -164,4 +164,70 @@ namespace marco::codegen
   {
     return getAccessFromPath(matchedPath);
   }
+
+  mlir::LogicalResult match(
+      Model<MatchedEquation>& result,
+      Model<Equation>& model,
+      const mlir::BlockAndValueMapping& derivatives)
+  {
+    Variables allVariables = model.getVariables();
+
+    // Filter the variables. State and constant ones must not in fact
+    // take part into the matching process as their values are already
+    // determined (state variables depend on their derivatives, while
+    // constants have a fixed value).
+
+    Variables variables;
+
+    for (const auto& variable : allVariables) {
+      mlir::Value var = variable->getValue();
+
+      if (!derivatives.contains(var)) {
+        auto nonStateVariable = std::make_unique<Variable>(var);
+
+        if (!nonStateVariable->isConstant()) {
+          variables.add(std::move(nonStateVariable));
+        }
+      }
+    }
+
+    model.setVariables(variables);
+    result.setVariables(variables);
+
+    model.getEquations().setVariables(model.getVariables());
+
+    MatchingGraph<Variable*, Equation*> matchingGraph;
+
+    for (const auto& variable : model.getVariables()) {
+      matchingGraph.addVariable(variable.get());
+    }
+
+    for (const auto& equation : model.getEquations()) {
+      matchingGraph.addEquation(equation.get());
+    }
+
+    // Apply the simplification algorithm to solve the obliged matches
+    if (!matchingGraph.simplify()) {
+      model.getOperation().emitError("Inconsistency found during the matching simplification process");
+      return mlir::failure();
+    }
+
+    // Apply the full matching algorithm for the equations and variables that are still unmatched
+    if (!matchingGraph.match()) {
+      model.getOperation().emitError("Matching failed");
+      return mlir::failure();
+    }
+
+    Equations<MatchedEquation> matchedEquations;
+
+    for (auto& solution : matchingGraph.getMatch()) {
+      auto clone = solution.getEquation()->clone();
+
+      matchedEquations.add(std::make_unique<MatchedEquation>(
+          std::move(clone), solution.getIndexes(), solution.getAccess()));
+    }
+
+    result.setEquations(matchedEquations);
+    return mlir::success();
+  }
 }

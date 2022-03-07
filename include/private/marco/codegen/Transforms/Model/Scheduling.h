@@ -441,6 +441,9 @@ namespace marco::codegen
     private:
       ScheduledEquationsBlocks scheduledBlocks;
   };
+
+  /// Schedule the equations.
+  mlir::LogicalResult schedule(Model<ScheduledEquationsBlock>& result, const Model<MatchedEquation>& model);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MODEL_SCHEDULING_H

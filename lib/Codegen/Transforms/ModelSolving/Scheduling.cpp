@@ -158,5 +158,36 @@ namespace marco::codegen
     return schedulingDirection;
   }
 
+  mlir::LogicalResult schedule(
+      Model<ScheduledEquationsBlock>& result, const Model<MatchedEquation>& model)
+  {
+    result.setVariables(model.getVariables());
+    std::vector<MatchedEquation*> equations;
 
+    for (const auto& equation : model.getEquations()) {
+      equations.push_back(equation.get());
+    }
+
+    Scheduler<Variable*, MatchedEquation*> scheduler;
+    ScheduledEquationsBlocks scheduledBlocks;
+
+    for (const auto& scc : scheduler.schedule(equations)) {
+      Equations<ScheduledEquation> scheduledEquations;
+
+      for (const auto& scheduledEquationInfo : scc) {
+        auto clone = std::make_unique<MatchedEquation>(*scheduledEquationInfo.getEquation());
+
+        auto scheduledEquation = std::make_unique<ScheduledEquation>(
+            std::move(clone), scheduledEquationInfo.getIndexes(), scheduledEquationInfo.getIterationDirection());
+
+        scheduledEquations.push_back(std::move(scheduledEquation));
+      }
+
+      auto scheduledEquationsBlock = std::make_unique<ScheduledEquationsBlock>(scheduledEquations, scc.hasCycle());
+      scheduledBlocks.append(std::move(scheduledEquationsBlock));
+    }
+
+    result.setScheduledBlocks(std::move(scheduledBlocks));
+    return mlir::success();
+  }
 }

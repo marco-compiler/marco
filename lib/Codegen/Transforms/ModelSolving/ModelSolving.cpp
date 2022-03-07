@@ -4,14 +4,13 @@
 #include "marco/Codegen/dialects/modelica/ModelicaBuilder.h"
 #include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
-#include "marco/Codegen/Transforms/Model/CyclesLinearSolver.h"
+#include "marco/Codegen/Transforms/Model/Cycles.h"
 #include "marco/Codegen/Transforms/Model/Equation.h"
 #include "marco/Codegen/Transforms/Model/EquationImpl.h"
 #include "marco/Codegen/Transforms/Model/Matching.h"
 #include "marco/Codegen/Transforms/Model/Model.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
-#include "marco/Modeling/Cycles.h"
 #include "marco/Utils/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -91,7 +90,6 @@ class ModelConverter
     // The extra data within the simulation data structure that is placed
     // before the simulation variables.
 
-    static constexpr size_t variablesOffsetInStruct = 1;
     static constexpr size_t timeVariablePosition = 0;
 
     // The derivatives map keeps track of whether a variable is the derivative
@@ -1506,191 +1504,6 @@ static Equations<Equation> discoverEquations(ModelOp model, const Variables& var
   return result;
 }
 
-/// Match each scalar variable to a scalar equation.
-template<typename EquationType>
-static mlir::LogicalResult matching(
-    Model<MatchedEquation>& result,
-    Model<EquationType>& model,
-    const mlir::BlockAndValueMapping& derivatives)
-{
-  Variables allVariables = model.getVariables();
-
-  // Filter the variables. State and constant ones must not in fact
-  // take part into the matching process as their values are already
-  // determined (state variables depend on their derivatives, while
-  // constants have a fixed value).
-
-  Variables variables;
-
-  for (const auto& variable : allVariables) {
-    mlir::Value var = variable->getValue();
-
-    if (!derivatives.contains(var)) {
-      auto nonStateVariable = std::make_unique<Variable>(var);
-
-      if (!nonStateVariable->isConstant()) {
-        variables.add(std::move(nonStateVariable));
-      }
-    }
-  }
-
-  model.setVariables(variables);
-  result.setVariables(variables);
-
-  model.getEquations().setVariables(model.getVariables());
-
-  MatchingGraph<Variable*, Equation*> matchingGraph;
-
-  for (const auto& variable : model.getVariables()) {
-    matchingGraph.addVariable(variable.get());
-  }
-
-  for (const auto& equation : model.getEquations()) {
-    matchingGraph.addEquation(equation.get());
-  }
-
-  // Apply the simplification algorithm to solve the obliged matches
-  if (!matchingGraph.simplify()) {
-    model.getOperation().emitError("Inconsistency found during the matching simplification process");
-    return mlir::failure();
-  }
-
-  // Apply the full matching algorithm for the equations and variables that are still unmatched
-  if (!matchingGraph.match()) {
-    model.getOperation().emitError("Matching failed");
-    return mlir::failure();
-  }
-
-  Equations<MatchedEquation> matchedEquations;
-
-  for (auto& solution : matchingGraph.getMatch()) {
-    auto clone = solution.getEquation()->clone();
-
-    matchedEquations.add(std::make_unique<MatchedEquation>(
-        std::move(clone), solution.getIndexes(), solution.getAccess()));
-  }
-
-  result.setEquations(matchedEquations);
-  return mlir::success();
-}
-
-/// Modify the IR in order to solve the algebraic loops
-static mlir::LogicalResult solveAlgebraicLoops(
-    Model<MatchedEquation>& model, mlir::OpBuilder& builder)
-{
-  // The list of equations among which the cycles have to be searched
-  std::vector<MatchedEquation*> toBeProcessed;
-
-  // The first iteration will use all the equations of the model
-  for (const auto& equation : model.getEquations()) {
-    toBeProcessed.push_back(equation.get());
-  }
-
-  Equations<MatchedEquation> solution;
-  std::vector<std::unique_ptr<MatchedEquation>> newEquations;
-  std::vector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
-
-  do {
-    // Get all the cycles within the system of equations
-    CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(toBeProcessed, false);
-    auto cycles = cyclesFinder.getEquationsCycles();
-
-    // Solve the cycles one by one
-    CyclesLinearSolver<decltype(cyclesFinder)::Cycle> solver(builder);
-
-    for (const auto& cycle : cycles) {
-      IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
-
-      for (const auto& interval : cycle) {
-        indexesWithoutCycles -= interval.getRange();
-      }
-
-      solver.solve(cycle);
-
-      // Add the indices that do not present any loop
-      for (const auto& range : indexesWithoutCycles) {
-        auto clonedEquation = Equation::build(
-            cycle.getEquation()->getOperation(),
-            cycle.getEquation()->getVariables());
-
-        solution.add(std::make_unique<MatchedEquation>(
-            std::move(clonedEquation), range, cycle.getEquation()->getWrite().getPath()));
-      }
-    }
-
-    // Add the equations which had no cycle for any index.
-    // To do this, map the equations with cycles for a faster lookup.
-    std::set<const MatchedEquation*> equationsWithCycles;
-
-    for (const auto& cycle : cycles) {
-      equationsWithCycles.insert(cycle.getEquation());
-    }
-
-    for (auto& equation : toBeProcessed) {
-      if (equationsWithCycles.find(equation) == equationsWithCycles.end()) {
-        solution.add(std::make_unique<MatchedEquation>(
-            equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
-      }
-    }
-
-    // Create the list of equations to be processed in the next iteration
-    toBeProcessed.clear();
-    newEquations.clear();
-    unsolvedEquations.clear();
-
-    if (auto currentSolution = solver.getSolution(); currentSolution.size() != 0) {
-      for (auto& equation : currentSolution) {
-        auto& movedEquation = newEquations.emplace_back(std::move(equation));
-        toBeProcessed.push_back(movedEquation.get());
-      }
-    }
-
-    for (auto& equation : solver.getUnsolvedEquations()) {
-      auto& movedEquation = unsolvedEquations.emplace_back(std::move(equation));
-      toBeProcessed.push_back(movedEquation.get());
-    }
-  } while (!newEquations.empty());
-
-  // Set the new equations of the model
-  model.setEquations(solution);
-
-  return mlir::success();
-}
-
-/// Schedule the equations.
-static mlir::LogicalResult scheduling(
-    Model<ScheduledEquationsBlock>& result, const Model<MatchedEquation>& model)
-{
-  result.setVariables(model.getVariables());
-  std::vector<MatchedEquation*> equations;
-
-  for (const auto& equation : model.getEquations()) {
-    equations.push_back(equation.get());
-  }
-
-  Scheduler<Variable*, MatchedEquation*> scheduler;
-  ScheduledEquationsBlocks scheduledBlocks;
-
-  for (const auto& scc : scheduler.schedule(equations)) {
-    Equations<ScheduledEquation> scheduledEquations;
-
-    for (const auto& scheduledEquationInfo : scc) {
-      auto clone = std::make_unique<MatchedEquation>(*scheduledEquationInfo.getEquation());
-
-      auto scheduledEquation = std::make_unique<ScheduledEquation>(
-          std::move(clone), scheduledEquationInfo.getIndexes(), scheduledEquationInfo.getIterationDirection());
-
-      scheduledEquations.push_back(std::move(scheduledEquation));
-    }
-
-    auto scheduledEquationsBlock = std::make_unique<ScheduledEquationsBlock>(scheduledEquations, scc.hasCycle());
-    scheduledBlocks.append(std::move(scheduledEquationsBlock));
-  }
-
-  result.setScheduledBlocks(std::move(scheduledBlocks));
-  return mlir::success();
-}
-
 /// Model solving pass.
 /// Its objective is to convert a descriptive (and thus not sequential) model into an
 /// algorithmic one and to create the functions to be called during the simulation.
@@ -1717,7 +1530,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
         return signalPassFailure();
       }
 
-      Model model(getOperation());
+      Model<Equation> model(getOperation());
       mlir::OpBuilder builder(model.getOperation());
 
       // Remove the derivative operations and allocate the appropriate memory buffers
@@ -1735,19 +1548,19 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
       // Matching process
       Model<MatchedEquation> matchedModel(model.getOperation());
 
-      if (mlir::failed(::matching(matchedModel, model, derivatives))) {
+      if (mlir::failed(match(matchedModel, model, derivatives))) {
         return signalPassFailure();
       }
 
       // Resolve the algebraic loops
-      if (mlir::failed(::solveAlgebraicLoops(matchedModel, builder))) {
+      if (mlir::failed(solveAlgebraicLoops(matchedModel, builder))) {
         return signalPassFailure();
       }
 
       // Schedule the equations
       Model<ScheduledEquationsBlock> scheduledModel(matchedModel.getOperation());
 
-      if (mlir::failed(::scheduling(scheduledModel, matchedModel))) {
+      if (mlir::failed(schedule(scheduledModel, matchedModel))) {
         return signalPassFailure();
       }
 

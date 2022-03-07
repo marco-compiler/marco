@@ -1,5 +1,6 @@
 set(SOURCES
     ModelSolving/Access.cpp
+    ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
     ModelSolving/Equation.cpp
     ModelSolving/LoopEquation.cpp

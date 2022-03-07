@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_MATCHING_H
 #define MARCO_CODEGEN_TRANSFORMS_MODEL_MATCHING_H
 
-#include "marco/Codegen/Transforms/Model/Equation.h"
+#include "marco/Codegen/Transforms/Model/Model.h"
 #include "marco/Modeling/Dependency.h"
 #include <memory>
 #include <vector>
@@ -138,6 +138,13 @@ namespace marco::modeling::dependency
       return reads;
     }
   };
+}
+
+namespace marco::codegen
+{
+  /// Match each scalar variable to a scalar equation.
+  mlir::LogicalResult match(
+      Model<MatchedEquation>& result, Model<Equation>& model, const mlir::BlockAndValueMapping& derivatives);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MODEL_MATCHING_H
