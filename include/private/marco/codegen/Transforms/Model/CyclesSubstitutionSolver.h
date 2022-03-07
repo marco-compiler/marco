@@ -11,7 +11,7 @@
 namespace marco::codegen
 {
   template<typename Cycle>
-  class CyclesLinearSolver
+  class CyclesSubstitutionSolver
   {
     private:
       enum class Result {
@@ -55,13 +55,18 @@ namespace marco::codegen
       };
 
     public:
-      CyclesLinearSolver(mlir::OpBuilder& builder) : builder(builder)
+      CyclesSubstitutionSolver(mlir::OpBuilder& builder) : builder(builder)
       {
       }
 
       Equations<MatchedEquation> getSolution() const
       {
         return newEquations_;
+      }
+
+      bool hasUnsolvedCycles() const
+      {
+        return !unsolvedCycles_.empty();
       }
 
       Equations<MatchedEquation> getUnsolvedEquations() const

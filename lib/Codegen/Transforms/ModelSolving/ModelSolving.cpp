@@ -72,11 +72,11 @@ static mlir::LogicalResult removeDerivatives(
       if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
         appendIndexesFn(subscriptions, loadOp.indexes());
         operand = loadOp.memory();
+      } else {
+        auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
+        appendIndexesFn(subscriptions, subscriptionOp.indexes());
+        operand = subscriptionOp.source();
       }
-
-      auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
-      appendIndexesFn(subscriptions, subscriptionOp.indexes());
-      operand = subscriptionOp.source();
     }
 
     if (!derivatives.contains(operand)) {
@@ -200,7 +200,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
       }
 
       // Resolve the algebraic loops
-      if (mlir::failed(solveAlgebraicLoops(matchedModel, builder))) {
+      if (mlir::failed(solveCycles(matchedModel, builder))) {
+        // TODO Check if the selected solver can deal with cycles. If not, fail.
         return signalPassFailure();
       }
 

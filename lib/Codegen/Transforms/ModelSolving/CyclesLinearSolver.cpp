@@ -1,1 +1,1 @@
-#include "marco/Codegen/Transforms/Model/CyclesLinearSolver.h"
+#include "marco/Codegen/Transforms/Model/CyclesSubstitutionSolver.h"
