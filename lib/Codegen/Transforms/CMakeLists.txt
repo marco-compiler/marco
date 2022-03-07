@@ -6,6 +6,7 @@ set(SOURCES
     ModelSolving/LoopEquation.cpp
     ModelSolving/Matching.cpp
     ModelSolving/Model.cpp
+    ModelSolving/ModelConverter.cpp
     ModelSolving/ModelSolving.cpp
     ModelSolving/Path.cpp
     ModelSolving/ScalarEquation.cpp
