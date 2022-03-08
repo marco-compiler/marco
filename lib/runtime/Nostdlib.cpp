@@ -2,6 +2,22 @@
 #include <Windows.h>
 #include "marco/runtime/Nostdlib.h"
 #include "marco/runtime/UtilityFunctions.h"
+#include "marco/runtime/Runtime.h"
+
+// extern "C" void runSimulation();
+
+// INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+//     PSTR lpCmdLine, INT nCmdShow)
+// {
+// 	//runSimulation();
+//     return 0;
+// }
+
+extern "C" int __main()
+{
+	//runSimulation();
+	return 0;
+}
 
 BOOL WINAPI DllMain(
     HINSTANCE hinstDLL,
@@ -101,5 +117,17 @@ void runtimeMemset(char *p, char c, int l)
 {
       for(int i = 0; i < l; i++)
         *(p + i) = '0';
+}
+
+inline int printf(const char* format, ...)
+{
+	va_list arg;
+	int done;
+
+	va_start(arg, format);
+	done = ryuPrintfInternal(format, arg);
+	va_end(arg);
+
+	return done;
 }
 #endif

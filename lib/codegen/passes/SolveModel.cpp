@@ -133,11 +133,7 @@ class ModelConverter
     using DerivativesPositionsMap = std::map<size_t, size_t>;
 
     // Name for the functions of the simulation
-    #ifndef WINDOWS_NOSTDLIB
     static constexpr llvm::StringLiteral mainFunctionName = "main";
-    #else
-    static constexpr llvm::StringLiteral mainFunctionName = "__main";
-    #endif
     static constexpr llvm::StringLiteral initFunctionName = "init";
     static constexpr llvm::StringLiteral stepFunctionName = "step";
     static constexpr llvm::StringLiteral updateStateVariablesFunctionName = "updateStateVariables";

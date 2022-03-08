@@ -257,9 +257,9 @@ RUNTIME_FUNC_DEF(exp, double, double)
 template<typename T>
 inline void fill_void(UnsizedArrayDescriptor<T> array, T value)
 {
-  for (auto& element : array) {
-    element = value;
-  }
+//   for (auto& element : array) {
+//     element = value;
+//   }
 }
 
 RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)
