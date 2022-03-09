@@ -83,7 +83,7 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
   CyclesPermutation<Cycle> permutations(cycles);
 
   do {
-    CyclesLinearSolver<Cycle> solver(builder);
+    CyclesSubstitutionSolver<Cycle> solver(builder);
 
     for (const auto& cycle : cycles) {
       solver.solve(cycle);
@@ -206,7 +206,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   CyclesPermutation<Cycle> permutations(cycles);
 
   do {
-    CyclesLinearSolver<Cycle> solver(builder);
+    CyclesSubstitutionSolver<Cycle> solver(builder);
 
     for (const auto& cycle : cycles) {
       solver.solve(cycle);
@@ -287,7 +287,7 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
   CyclesPermutation<Cycle> permutations(cycles);
 
   do {
-    CyclesLinearSolver<Cycle> solver(builder);
+    CyclesSubstitutionSolver<Cycle> solver(builder);
 
     for (const auto& cycle : cycles) {
       solver.solve(cycle);
@@ -378,7 +378,7 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
   CyclesPermutation<Cycle> permutations(cycles);
 
   do {
-    CyclesLinearSolver<Cycle> solver(builder);
+    CyclesSubstitutionSolver<Cycle> solver(builder);
 
     for (const auto& cycle : cycles) {
       solver.solve(cycle);

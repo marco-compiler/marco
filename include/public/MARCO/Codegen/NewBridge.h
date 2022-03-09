@@ -19,7 +19,9 @@ namespace marco::codegen
   class NewLoweringBridge
   {
     private:
-      template<typename T> using Container = llvm::SmallVector<T, 3>;
+      template<typename T> using Container = std::vector<T>;
+      using Results = Container<Reference>;
+      friend class FunctionCallBridge;
 
     public:
       NewLoweringBridge(mlir::MLIRContext& context, CodegenOptions options = CodegenOptions::getDefaultOptions());
@@ -69,10 +71,6 @@ namespace marco::codegen
       /// terminated, the scope is destroyed and the mappings created in this
       /// scope are dropped.
       llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
-
-      // The stack represent the list of the nested scope names in which the
-      // lowerer currently is.
-      //std::deque<llvm::StringRef> scopes;
 
       /// Apply a binary operation to a list of values.
       ///

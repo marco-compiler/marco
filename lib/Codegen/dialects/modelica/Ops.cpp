@@ -379,13 +379,8 @@ void ModelOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 
 void ModelOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.model ("
-					<< "start: " << startTime().getValue()
-					<< ", end: " << endTime().getValue()
-					<< ", step: " << timeStep().getValue()
-					<< ", variables: " << variableNames()
-					<< ", relTol: " << relTol().getValue()
-					<< ", absTol: " << absTol().getValue() << ")";
+  printer << getOperationName() << " ";
+  printer.printOptionalAttrDict(getOperation()->getAttrs());
 
 	printer << " variables";
 	printer.printRegion(init(), false);

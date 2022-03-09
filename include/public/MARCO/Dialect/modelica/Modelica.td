@@ -1514,37 +1514,21 @@ def Modelica_Log10Op : Modelica_Op<"log10",
     let verifier = [{ return ::verify(*this); }];
 }
 
-def Modelica_ArrayMaxOp : Modelica_Op<"array_max", []>
+def Modelica_MaxOp : Modelica_Op<"max", []>
 {
-    let summary = "Get the greatest value inside an array.";
+    let summary = "Get the greatest value among an array or two scalar values.";
 
     let description = [{
-        Get the greatest value among an array or two values.
+        Get the greatest value among an array or two scalar values.
 
-        Example:
+        Example with array value:
 
         ```mlir
         %0 = ... : !modelica.array<5x!modelica.int>
-        %1 = modelica.array_max %0 : !modelica.array<5x!modelica.int> -> !modelica.int
+        %1 = modelica.max %0 : !modelica.array<5x!modelica.int> -> !modelica.int
         ```
-    }];
 
-    let arguments = (ins AnyArray:$array);
-    let results = (outs AnyModelicaScalar:$result);
-
-    let assemblyFormat = [{
-        $array attr-dict `:` type($array) `->` type($result)
-    }];
-}
-
-def Modelica_MaxOp : Modelica_Op<"max", []>
-{
-    let summary = "Get the greatest value among two scalars.";
-
-    let description = [{
-        Get the greatest value among two scalars.
-
-        Example:
+        Example with scalar values:
 
         ```mlir
         %0 = ... : !modelica.int
@@ -1553,45 +1537,36 @@ def Modelica_MaxOp : Modelica_Op<"max", []>
         ```
     }];
 
-    let arguments = (ins AnyModelicaScalar:$first, AnyModelicaScalar:$second);
-    let results = (outs AnyModelicaScalar:$result);
+    let arguments = (ins AnyType:$first, Optional<AnyType>:$second);
+    let results = (outs AnyType:$result);
+
+    let builders = [
+        OpBuilder<(ins "Type":$result, "ValueRange":$values), [{
+            $_state.addTypes(result);
+            $_state.addOperands(values);
+        }]>
+    ];
 
     let assemblyFormat = [{
         $first `,` $second attr-dict `:` `(` type($first) `,` type($second) `->` type($result)
     }];
 }
 
-def Modelica_ArrayMinOp : Modelica_Op<"array_min", []>
+def Modelica_MinOp : Modelica_Op<"min", []>
 {
-    let summary = "Get the smallest value inside an array.";
+    let summary = "Get the smallest value among an array or two scalar values.";
 
     let description = [{
-        Get the smallest value among an array or two values.
+        Get the smallest value among an array or two scalar values.
 
-        Example:
+        Example with array value:
 
         ```mlir
         %0 = ... : !modelica.array<5x!modelica.int>
-        %1 = modelica.array_min %0 : !modelica.array<5x!modelica.int> -> !modelica.int
+        %1 = modelica.min %0 : !modelica.array<5x!modelica.int> -> !modelica.int
         ```
-    }];
 
-    let arguments = (ins AnyArray:$array);
-    let results = (outs AnyModelicaScalar:$result);
-
-    let assemblyFormat = [{
-        $array attr-dict `:` type($array) `->` type($result)
-    }];
-}
-
-def Modelica_MinOp : Modelica_Op<"min", []>
-{
-    let summary = "Get the smallest value among two scalars.";
-
-    let description = [{
-        Get the smallest value among two scalars.
-
-        Example:
+        Example with scalar values:
 
         ```mlir
         %0 = ... : !modelica.int
@@ -1600,8 +1575,15 @@ def Modelica_MinOp : Modelica_Op<"min", []>
         ```
     }];
 
-    let arguments = (ins AnyModelicaScalar:$first, AnyModelicaScalar:$second);
-    let results = (outs AnyModelicaScalar:$result);
+    let arguments = (ins AnyType:$first, Optional<AnyType>:$second);
+    let results = (outs AnyType:$result);
+
+    let builders = [
+        OpBuilder<(ins "Type":$result, "ValueRange":$values), [{
+            $_state.addTypes(result);
+            $_state.addOperands(values);
+        }]>
+    ];
 
     let assemblyFormat = [{
         $first `,` $second attr-dict `:` `(` type($first) `,` type($second) `->` type($result)
@@ -1783,9 +1765,9 @@ def Modelica_SizeOp : Modelica_Op<"size",
         %1 = modelica.size %0 : !modelica.array<?x?x!modelica.int> -> !modelica.array<2x!modelica.int>
         ```
 
-        In the second case the second operand also specifies the dimension
-        of interested, and thus the operation returns just a scalar value
-        corresponding to the size of that dimension.
+        In the second case the second operand also specifies the (zero-based)
+        dimension of interest, and thus the operation returns just a scalar
+        value corresponding to the size of that dimension.
 
         ```mlir
         %0 = ... : !modelica.array<?x?x!modelica.int>
@@ -2125,6 +2107,13 @@ def Modelica_EquationSideOp : Modelica_Op<"equation_side",
 
     let arguments = (ins Variadic<AnyType>:$values);
     let results = (outs AnyTuple);
+
+    let builders = [
+        OpBuilder<(ins "ValueRange":$values), [{
+            auto tupleType = $_builder.getTupleType(values.getTypes());
+            build($_builder, $_state, tupleType, values);
+        }]>
+    ];
 }
 
 def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",

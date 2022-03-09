@@ -5,6 +5,7 @@ set(SOURCES
     dialects/modelica/Ops.cpp
     dialects/modelica/Type.cpp
     Bridge.cpp
+    FunctionCallBridge.cpp
     NewBridge.cpp
     Options.cpp
     Reference.cpp)
