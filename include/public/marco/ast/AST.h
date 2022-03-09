@@ -1,0 +1,27 @@
+#pragma once
+
+// Just a convenience header file to include the AST nodes declarations
+
+#include "marco/ast/nodes/Algorithm.h"
+#include "marco/ast/nodes/Annotation.h"
+#include "marco/ast/nodes/Array.h"
+#include "marco/ast/nodes/Call.h"
+#include "marco/ast/nodes/Class.h"
+#include "marco/ast/nodes/ConditionalBlock.h"
+#include "marco/ast/nodes/Constant.h"
+#include "marco/ast/nodes/Equation.h"
+#include "marco/ast/nodes/Expression.h"
+#include "marco/ast/nodes/ForEquation.h"
+#include "marco/ast/nodes/Function.h"
+#include "marco/ast/nodes/Induction.h"
+#include "marco/ast/nodes/Member.h"
+#include "marco/ast/nodes/Model.h"
+#include "marco/ast/nodes/Modification.h"
+#include "marco/ast/nodes/Operation.h"
+#include "marco/ast/nodes/Package.h"
+#include "marco/ast/nodes/Record.h"
+#include "marco/ast/nodes/ReferenceAccess.h"
+#include "marco/ast/nodes/Statement.h"
+#include "marco/ast/nodes/Tuple.h"
+#include "marco/ast/nodes/Type.h"
+#include "marco/ast/nodes/TypePrefix.h"

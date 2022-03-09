@@ -33,6 +33,14 @@ SECTIONS
         
     } > flash
 
+    /* .ARM.exidx is sorted, so has to go in its own output section.  */
+    __exidx_start = .;
+    .ARM.exidx :
+    {
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+    } > flash
+    __exidx_end = .;
+
     .data :
     {
         _data = .;
@@ -62,6 +70,7 @@ SECTIONS
 
     /*_end = .;*/
 }
+
 
 __bss_start__ = _bss_start;
 __bss_end__ = _bss_end;

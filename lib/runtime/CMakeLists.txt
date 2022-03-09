@@ -1,13 +1,39 @@
-set(SOURCES
-		src/BuiltInFunctions.cpp
-		src/MemoryManagement.cpp
-		src/OldRuntime.cpp
-		src/Profiling.cpp
-		src/Runtime.cpp
-		src/UtilityFunctions.cpp)
+set(SHARED_SOURCES
+		BuiltInFunctions.cpp
+		Math.cpp
+		MemoryManagement.cpp
+		Profiling.cpp
+		UtilityFunctions.cpp)
 
-marco_add_library(runtime SHARED ${SOURCES})
+set(STATIC_SOURCES
+		${SHARED_SOURCES}
+		Runtime.cpp)
 
-marco_link_llvm_libs(runtime USE_SHARED support)
+# We build two versions of the runtime library: one is shared and the other is static.
+# The shared libraries is used only for JIT tests, which needs to rely on a shared library
+# for the runtime functions.
+# The static library is the one that will link to generate the real simulation. Differently
+# from the shared library, it also contains the simulation driver (the 'runSimulation'
+# function) and leverages the simulation functions ('init', 'step', etc.) that are generated
+# from the compiler while converting the model. It is not possible to compile a shared
+# library with such extern functions. Moreover, apart from this technical detail, it makes
+# more sense to just provide one single executable rather than the both the executable and
+# the shared runtime library.
 
-add_subdirectory(test)
+add_custom_target(marco-runtime)
+
+# Declare the shared library
+marco_add_library(runtimeShared
+		SHARED
+		PARTIAL_SOURCES_INTENDED
+		${SHARED_SOURCES})
+
+add_dependencies(marco-runtime marco::runtimeShared)
+
+# Declare the static library
+marco_add_library(runtime
+		STATIC
+		${STATIC_SOURCES})
+
+add_dependencies(marco-runtime marco::runtime)
+

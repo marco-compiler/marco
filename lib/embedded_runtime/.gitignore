@@ -1,3 +1,5 @@
 include/marco/driver/CMSIS/
 main.*
 *.o
+*.ll
+*.bc

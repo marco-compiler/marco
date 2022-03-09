@@ -91,3 +91,5 @@ fabric.properties
 .vscode
 dist
 build*
+
+!/lib/embedded_runtime/Makefile

@@ -1,42 +1,42 @@
 set(SOURCES
-		src/ast/Algorithm.cpp
-		src/ast/Annotation.cpp
-		src/ast/Array.cpp
-		src/ast/ASTNode.cpp
-		src/ast/Call.cpp
-		src/ast/Class.cpp
-		src/ast/Model.cpp
-		src/ast/Constant.cpp
-		src/ast/Equation.cpp
-		src/ast/Expression.cpp
-		src/ast/ForEquation.cpp
-		src/ast/Function.cpp
-		src/ast/Induction.cpp
-		src/ast/Member.cpp
-		src/ast/Modification.cpp
-		src/ast/Operation.cpp
-		src/ast/Package.cpp
-		src/ast/Record.cpp
-		src/ast/ReferenceAccess.cpp
-		src/ast/Statement.cpp
-		src/ast/Tuple.cpp
-		src/ast/Type.cpp
-		src/ast/TypePrefix.cpp
-		src/passes/ConstantFoldingPass.cpp
-		src/passes/PassManager.cpp
-		src/passes/TypeCheckingPass.cpp
-		src/Errors.cpp
-		src/LexerStateMachine.cpp
-		src/Parser.cpp
-		src/Symbol.cpp
-		src/SymbolTable.cpp)
+    CompilerInstance.cpp
+    CompilerInvocation.cpp
+    FrontendAction.cpp
+    FrontendActions.cpp
+    FrontendOptions.cpp
+    Options.cpp
+    SimulationOptions.cpp
+    TextDiagnostic.cpp
+    TextDiagnosticBuffer.cpp
+    TextDiagnosticPrinter.cpp)
 
-marco_add_library(frontend SHARED ${SOURCES})
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
-marco_link_llvm_libs(frontend USE_SHARED core support)
+set(MLIR_LIBS
+    ${dialect_libs}
+    ${conversion_libs}
+    MLIRExecutionEngine
+    MLIROpenMPToLLVMIRTranslation)
 
-target_link_libraries(frontend
-		PUBLIC marco::utils
-		PUBLIC boost)
+marco_add_library(frontend SHARED
+    ${SOURCES}
 
-add_subdirectory(test)
+    DEPENDS
+    marco::ast
+    marco::codegen
+    marco::utils
+    MARCOFrontendOptions
+
+    LINK_LIBS
+    PRIVATE clangDriver
+    PRIVATE marco::ast
+    PRIVATE marco::codegen
+    PRIVATE marco::utils
+    PRIVATE ${MLIR_LIBS}
+
+    LINK_COMPONENTS
+    Option
+    Support)
+
+mlir_check_all_link_libraries(frontend)
