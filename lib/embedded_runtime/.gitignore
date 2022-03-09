@@ -3,3 +3,5 @@ main.*
 *.o
 *.ll
 *.bc
+*.a
+*/staticlib
