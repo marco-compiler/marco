@@ -38,6 +38,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 include(GNUInstallDirs)
+include(FetchContent)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
@@ -235,9 +236,16 @@ endif()
 #-------------------------------------------------------------------------------
 enable_testing()
 
-set(INSTALL_GTEST OFF)
-add_subdirectory(utils/googletest)
-include(GoogleTest)
+#set(INSTALL_GTEST OFF)
+
+FetchContent_Declare(
+	googletest
+	URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+)
+
+# For Windows: prevent overriding the parent project's compiler / linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
 # Define the default arguments to use with 'lit', and an option for the user to override
 set(LIT_ARGS_DEFAULT "-sv")
