@@ -1025,7 +1025,7 @@ def Modelica_LtOp : Modelica_ComparisonOp<"lt", []>
     }];
 }
 
-def Modelica_LteOp : Modelica_Op<"lte", []>
+def Modelica_LteOp : Modelica_ComparisonOp<"lte", []>
 {
     let summary = "Check if a value is less or equal than another one.";
 

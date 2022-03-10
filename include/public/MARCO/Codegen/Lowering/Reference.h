@@ -1,9 +1,9 @@
-#ifndef MARCO_CODEGEN_REFERENCE_H
-#define MARCO_CODEGEN_REFERENCE_H
+#ifndef MARCO_CODEGEN_LOWERING_REFERENCE_H
+#define MARCO_CODEGEN_LOWERING_REFERENCE_H
 
 #include "mlir/IR/Builders.h"
 
-namespace marco::codegen
+namespace marco::codegen::lowering
 {
   class Reference
   {
@@ -32,4 +32,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_REFERENCE_H
+#endif // MARCO_CODEGEN_LOWERING_REFERENCE_H

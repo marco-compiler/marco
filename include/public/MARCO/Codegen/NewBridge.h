@@ -4,8 +4,9 @@
 #include "llvm/ADT/ScopedHashTable.h"
 #include "marco/AST/AST.h"
 #include "marco/AST/SymbolTable.h"
+#include "marco/Codegen/Lowering/Reference.h"
+#include "marco/Codegen/Lowering/Results.h"
 #include "marco/Codegen/Options.h"
-#include "marco/Codegen/Reference.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/Modelica/ModelicaBuilder.h"
 #include "marco/Utils/SourcePosition.h"
@@ -14,14 +15,13 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 
-namespace marco::codegen
+namespace marco::codegen::lowering
 {
   class NewLoweringBridge
   {
     private:
-      template<typename T> using Container = std::vector<T>;
-      using Results = Container<Reference>;
       friend class FunctionCallBridge;
+      friend class OperationBridge;
 
     public:
       NewLoweringBridge(mlir::MLIRContext& context, CodegenOptions options = CodegenOptions::getDefaultOptions());
@@ -58,7 +58,7 @@ namespace marco::codegen
       void lower(const ast::ReturnStatement& statement);
 
       template<typename T>
-      Container<Reference> lower(const ast::Expression& expression);
+      Results lower(const ast::Expression& expression);
 
       /// The builder is a helper class to create IR inside a function. The
       /// builder is stateful, in particular it keeps an "insertion point":
@@ -72,31 +72,10 @@ namespace marco::codegen
       /// scope are dropped.
       llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
 
-      /// Apply a binary operation to a list of values.
-      ///
-      /// @param args      arguments
-      /// @param callback  callback that should process the current args and return a result
-      /// @return folded value
-      mlir::Value foldBinaryOperation(
-          llvm::ArrayRef<mlir::Value> args,
-          std::function<mlir::Value(mlir::Value, mlir::Value)> callback);
-
-      /// Lower the arguments of an operation.
-      ///
-      /// @param operation operation whose arguments have to be lowered
-      /// @return lowered args
-      Container<mlir::Value> lowerOperationArgs(const ast::Operation& operation);
-
       /// Helper to convert an AST location to a MLIR location.
-      ///
-      /// @param location frontend location
-      /// @return MLIR location
       mlir::Location loc(SourcePosition location);
 
-      /// Helper to convert an AST location to a MLIR location.
-      ///
-      /// @param location frontend location
-      /// @return MLIR location
+      /// Helper to convert an AST location range to a MLIR location.
       mlir::Location loc(SourceRange location);
 
     private:
@@ -104,40 +83,31 @@ namespace marco::codegen
   };
 
   template<>
-  void NewLoweringBridge::lower<ast::Model>(
-      const ast::Member& member);
+  void NewLoweringBridge::lower<ast::Model>(const ast::Member& member);
 
   template<>
-  void NewLoweringBridge::lower<ast::Function>(
-      const ast::Member& member);
+  void NewLoweringBridge::lower<ast::Function>(const ast::Member& member);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::Expression>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::Expression>(const ast::Expression& expression);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::Operation>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::Operation>(const ast::Expression& expression);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::Constant>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::Constant>(const ast::Expression& expression);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::ReferenceAccess>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::ReferenceAccess>(const ast::Expression& expression);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::Call>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::Call>(const ast::Expression& expression);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::Tuple>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::Tuple>(const ast::Expression& expression);
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ast::Array>(
-      const ast::Expression& expression);
+  Results NewLoweringBridge::lower<ast::Array>(const ast::Expression& expression);
 }
 
 #endif // MARCO_CODEGEN_LOWERINGBRIDGE_H

@@ -39,12 +39,12 @@ def IDA_CreateOp : IDA_Op<"create",
     let description = [{
         The  operation takes three operands and returns a new
         IDA instance.
-        The operands consist in the number of scalar equations,
-        the number of vector equations and the number of array
-        variables. The number of scalar variables is not needed
-        as it matches by construction the number of scalar equation,
-        because each scalar equation is indeed matched to a scalar
-        variable.
+        // TODO aggiornare
+        The operand consists in the number of total amount of
+        scalar equations of the model. The number of scalar variables
+        is not needed as it matches by construction the number of
+        scalar equation, because each scalar equation is indeed
+        matched to a scalar variable.
         The underlying data structures are allocated but not
         initialized; initialization is delegated to the InitOp
         operation, which has to be called after all the data
@@ -54,16 +54,20 @@ def IDA_CreateOp : IDA_Op<"create",
         Example:
 
         ```mlir
-        %0 = ida.create {scalarEquations = 23; vectorEquations = 7; vectorVariables = 3 } : !ida.instance
+        %0 = ida.create { scalarEquations = 23 } : !ida.instance
         ```
     }];
 
-    let arguments = (ins
-        I64Attr:$scalarEquations,
-        I64Attr:$vectorEquations,
-        I64Attr:$vectorVariables);
+    let arguments = (ins I64Attr:$scalarEquations);
 
     let results = (outs IDAInstance:$instance);
+
+    let builders = [
+        OpBuilder<(ins "IntegerAttr":$scalarEquations), [{
+            auto resultType = ida::InstanceType::get($_builder.getContext());
+            build($_builder, $_state, resultType, scalarEquations);
+        }]>
+    ];
 
     let assemblyFormat = [{
         attr-dict `:` type($instance)
@@ -266,12 +270,19 @@ def IDA_AddEquationOp : IDA_Op<"add_equation",
 
     let arguments = (ins
         IDAInstance:$instance,
-        I64MemRef:$equationRanges);
+        ArrayAttr:$equationRanges);
 
     let results = (outs IDAEquation:$equation);
 
+    let builders = [
+        OpBuilder<(ins "Value":$idaInstance, "ArrayAttr":$equationRanges), [{
+            auto resultType = ida::EquationType::get($_builder.getContext());
+            build($_builder, $_state, resultType, idaInstance, equationRanges);
+        }]>
+    ];
+
     let assemblyFormat = [{
-        $instance `,` $equationRanges attr-dict `:` `(` type($instance) `,` type($equationRanges) `)` `->` type($equation)
+        $instance attr-dict `:` type($instance) `->` type($equation)
     }];
 }
 
@@ -301,13 +312,20 @@ def IDA_AddVariableOp : IDA_Op<"add_variable",
 
     let arguments = (ins
         IDAInstance:$instance,
-        I64MemRef:$arrayDimensions,
+        I64ArrayAttr:$arrayDimensions,
         I1Attr:$state);
 
     let results = (outs IDAVariable:$variable);
 
+    let builders = [
+        OpBuilder<(ins "Value":$idaInstance, "ArrayAttr":$arrayDimensions, "IntegerAttr":$state), [{
+            auto resultType = ida::VariableType::get($_builder.getContext());
+            build($_builder, $_state, resultType, idaInstance, arrayDimensions, state);
+        }]>
+    ];
+
     let assemblyFormat = [{
-        $instance `,` $arrayDimensions attr-dict `:` `(` type($instance) `,` type($arrayDimensions) `)` `->` type($variable)
+        $instance attr-dict `:` type($instance) `->` type($variable)
     }];
 }
 

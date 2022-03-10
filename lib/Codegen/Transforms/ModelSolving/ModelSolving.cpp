@@ -12,6 +12,7 @@
 #include "marco/Codegen/Transforms/Model/ModelConverter.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
+#include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Utils/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -171,6 +172,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
     void getDependentDialects(mlir::DialectRegistry &registry) const override
     {
       registry.insert<ModelicaDialect>();
+      registry.insert<mlir::ida::IDADialect>();
       registry.insert<mlir::scf::SCFDialect>();
       registry.insert<mlir::LLVM::LLVMDialect>();
     }

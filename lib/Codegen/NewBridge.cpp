@@ -1,7 +1,8 @@
 #include "llvm/ADT/SmallVector.h"
 #include "marco/AST/AST.h"
 #include "marco/Codegen/NewBridge.h"
-#include "marco/Codegen/FunctionCallBridge.h"
+#include "marco/Codegen/Lowering/FunctionCallBridge.h"
+#include "marco/Codegen/Lowering/OperationBridge.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/IR/Verifier.h"
 
@@ -10,7 +11,7 @@ using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-namespace marco::codegen
+namespace marco::codegen::lowering
 {
   NewLoweringBridge::NewLoweringBridge(mlir::MLIRContext& context, CodegenOptions options)
       : builder(&context),
@@ -68,11 +69,9 @@ namespace marco::codegen
 
   mlir::Operation* NewLoweringBridge::lower(const ast::Class& cls)
   {
-    /*
     return cls.visit([&](const auto& obj) {
       return lower(obj);
     });
-     */
   }
 
   mlir::Operation* NewLoweringBridge::lower(const ast::PartialDerFunction& function)
@@ -705,7 +704,7 @@ namespace marco::codegen
 
   void NewLoweringBridge::lower(const IfStatement& statement)
   {
-    // Each conditional blocks creates an "If" operation, but we need to keep
+    // Each conditional blocks creates an "if" operation, but we need to keep
     // track of the first one in order to restore the insertion point right
     // after that when we have finished lowering all the blocks.
     mlir::Operation* firstOp = nullptr;
@@ -863,7 +862,7 @@ namespace marco::codegen
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<Expression>(const Expression& expression)
+  Results NewLoweringBridge::lower<Expression>(const Expression& expression)
   {
     return expression.visit([&](const auto& obj) {
       using type = decltype(obj);
@@ -874,231 +873,76 @@ namespace marco::codegen
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<Operation>(const Expression& expression)
+  Results NewLoweringBridge::lower<Operation>(const Expression& expression)
   {
-    /*
     assert(expression.isa<Operation>());
     const auto* operation = expression.get<Operation>();
-    auto kind = operation->getOperationKind();
-    mlir::Location location = loc(expression.getLocation());
+    OperationBridge operationBridge(this);
 
-    if (kind == OperationKind::negate)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto arg = lower<Expression>(*operation->getArg(0))[0].getReference();
-      mlir::Value result = builder.create<NotOp>(location, resultType, arg);
-      return { Reference::ssa(&builder, result) };
-    }
+    auto lowererFn = [](OperationKind kind) -> OperationBridge::Lowerer {
+      switch (kind) {
+        case OperationKind::negate:
+          return &OperationBridge::negate;
 
-    if (kind == OperationKind::add)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
+        case OperationKind::add:
+          return &OperationBridge::add;
 
-      mlir::Value result = foldBinaryOperation(
-          args,
-          [&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
-          {
-            return builder.create<AddOp>(location, resultType, lhs, rhs);
-          });
+        case OperationKind::subtract:
+          return &OperationBridge::subtract;
 
-      return { Reference::ssa(&builder, result) };
-    }
+        case OperationKind::multiply:
+          return &OperationBridge::multiply;
 
-    if (kind == OperationKind::subtract)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
+        case OperationKind::divide:
+          return &OperationBridge::divide;
 
-      if (args.size() == 1)
-      {
-        // Special case for sign change (i.e "-x").
-        // TODO
-        // In future, when all the project will rely on MLIR, a different
-        // operation in the frontend should be created for this purpose.
+        case OperationKind::ifelse:
+          return &OperationBridge::ifElse;
 
-        mlir::Value result = builder.create<NegateOp>(location, resultType, args[0]);
-        return { Reference::ssa(&builder, result) };
+        case OperationKind::greater:
+          return &OperationBridge::greater;
+
+        case OperationKind::greaterEqual:
+          return &OperationBridge::greaterOrEqual;
+
+        case OperationKind::equal:
+          return &OperationBridge::equal;
+
+        case OperationKind::different:
+          return &OperationBridge::notEqual;
+
+        case OperationKind::lessEqual:
+          return &OperationBridge::lessOrEqual;
+
+        case OperationKind::less:
+          return &OperationBridge::less;
+
+        case OperationKind::land:
+          return &OperationBridge::logicalAnd;
+
+        case OperationKind::lor:
+          return &OperationBridge::logicalOr;
+
+        case OperationKind::subscription:
+          return &OperationBridge::subscription;
+
+        case OperationKind::memberLookup:
+          return &OperationBridge::memberLookup;
+
+        case OperationKind::powerOf:
+          return &OperationBridge::powerOf;
       }
 
-      mlir::Value result = foldBinaryOperation(
-          args,
-          [&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
-          {
-            return builder.create<SubOp>(location, resultType, lhs, rhs);
-          });
+      llvm_unreachable("Unknown operation type");
+      return nullptr;
+    };
 
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::multiply)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-
-      mlir::Value result = foldBinaryOperation(
-          args,
-          [&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
-          {
-            return builder.create<MulOp>(location, resultType, lhs, rhs);
-          });
-
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::divide)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-
-      mlir::Value result = foldBinaryOperation(
-          args,
-          [&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
-          {
-            return builder.create<DivOp>(location, resultType, lhs, rhs);
-          });
-
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::powerOf)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      mlir::Value base = *lower<Expression>(*operation->getArg(0))[0];
-      mlir::Value exponent = *lower<Expression>(*operation->getArg(1))[0];
-      */
-
-      /*
-      if (base.getType().isa<ArrayType>())
-      {
-        exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getIntegerType());
-      }
-      else
-      {
-        base = builder.create<CastOp>(base.getLoc(), base, builder.getRealType());
-        exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getRealType());
-      }
-       */
-
-    /*
-      mlir::Value result = builder.create<PowOp>(location, resultType, base, exponent);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::equal)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-      mlir::Value result = builder.create<EqOp>(location, resultType, args[0], args[1]);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::different)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-      mlir::Value result = builder.create<NotEqOp>(location, resultType, args[0], args[1]);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::greater)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-      mlir::Value result = builder.create<GtOp>(location, resultType, args[0], args[1]);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::greaterEqual)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-      mlir::Value result = builder.create<GteOp>(location, resultType, args[0], args[1]);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::less)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-      mlir::Value result = builder.create<LtOp>(location, resultType, args[0], args[1]);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::lessEqual)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      auto args = lowerOperationArgs(*operation);
-      mlir::Value result = builder.create<LteOp>(location, resultType, args[0], args[1]);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::ifelse)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      mlir::Value condition = *lower<Expression>(*operation->getArg(0))[0];
-
-      mlir::Value trueValue = *lower<Expression>(*operation->getArg(1))[0];
-      trueValue = builder.create<CastOp>(trueValue.getLoc(), trueValue, resultType);
-
-      mlir::Value falseValue = *lower<Expression>(*operation->getArg(2))[0];
-      falseValue = builder.create<CastOp>(falseValue.getLoc(), falseValue, resultType);
-
-      mlir::Value result = builder.create<mlir::SelectOp>(location, condition, trueValue, falseValue);
-      result = builder.create<CastOp>(result.getLoc(), result, resultType);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::land)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      mlir::Value lhs = *lower<Expression>(*operation->getArg(0))[0];
-      mlir::Value rhs = *lower<Expression>(*operation->getArg(1))[0];
-
-      mlir::Value result = builder.create<AndOp>(location, resultType, lhs, rhs);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::lor)
-    {
-      mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
-      mlir::Value lhs = *lower<Expression>(*operation->getArg(0))[0];
-      mlir::Value rhs = *lower<Expression>(*operation->getArg(1))[0];
-
-      mlir::Value result = builder.create<OrOp>(location, resultType, lhs, rhs);
-      return { Reference::ssa(&builder, result) };
-    }
-
-    if (kind == OperationKind::subscription)
-    {
-      auto buffer = *lower<Expression>(*operation->getArg(0))[0];
-      assert(buffer.getType().isa<ArrayType>());
-
-      llvm::SmallVector<mlir::Value, 3> indexes;
-
-      for (size_t i = 1; i < operation->argumentsCount(); i++)
-      {
-        mlir::Value index = *lower<Expression>(*operation->getArg(i))[0];
-        indexes.push_back(index);
-      }
-
-      mlir::Value result = builder.create<SubscriptionOp>(location, buffer, indexes);
-      return { Reference::memory(&builder, result) };
-    }
-
-    if (kind == OperationKind::memberLookup)
-    {
-      // TODO
-      return { Reference::ssa(&builder, nullptr) };
-    }
-
-    assert(false && "Unexpected operation");
-    return { Reference::ssa(&builder, mlir::Value()) };
-     */
+    auto lowerer = lowererFn(operation->getOperationKind());
+    return lowerer(operationBridge, *operation);
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<Constant>(const Expression& expression)
+  Results NewLoweringBridge::lower<Constant>(const Expression& expression)
   {
     assert(expression.isa<Constant>());
     const auto* constant = expression.get<Constant>();
@@ -1120,19 +964,19 @@ namespace marco::codegen
     }
 
     auto result = builder.create<ConstantOp>(loc(expression.getLocation()), attribute);
-    return { Reference::ssa(&builder, result) };
+    return Reference::ssa(&builder, result);
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<ReferenceAccess>(const Expression& expression)
+  Results NewLoweringBridge::lower<ReferenceAccess>(const Expression& expression)
   {
     assert(expression.isa<ReferenceAccess>());
     const auto& reference = expression.get<ReferenceAccess>();
-    return { symbolTable.lookup(reference->getName()) };
+    return symbolTable.lookup(reference->getName());
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<Call>(const Expression& expression)
+  Results NewLoweringBridge::lower<Call>(const Expression& expression)
   {
     assert(expression.isa<Call>());
     const auto* call = expression.get<Call>();
@@ -1177,11 +1021,11 @@ namespace marco::codegen
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<Tuple>(const Expression& expression)
+  Results NewLoweringBridge::lower<Tuple>(const Expression& expression)
   {
     assert(expression.isa<Tuple>());
     const auto* tuple = expression.get<Tuple>();
-    Container<Reference> result;
+    Results result;
 
     for (const auto& exp : *tuple) {
       auto values = lower<Expression>(*exp);
@@ -1190,14 +1034,14 @@ namespace marco::codegen
       // this is forbidden in a tuple declaration. In fact, a tuple is just
       // a container of references.
       assert(values.size() == 1);
-      result.emplace_back(values[0]);
+      result.append(values[0]);
     }
 
     return result;
   }
 
   template<>
-  NewLoweringBridge::Container<Reference> NewLoweringBridge::lower<Array>(const Expression& expression)
+  Results NewLoweringBridge::lower<Array>(const Expression& expression)
   {
     assert(expression.isa<Array>());
     const auto& array = expression.get<Array>();
@@ -1217,31 +1061,6 @@ namespace marco::codegen
       builder.create<AssignmentOp>(location, *lower<Expression>(*value.value())[0], slice);
     }
 
-    return { Reference::ssa(&builder, result) };
-  }
-
-  mlir::Value NewLoweringBridge::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback)
-  {
-    /*
-    assert(args.size() >= 2);
-    mlir::Value result = callback(args[0], args[1]);
-
-    for (size_t i = 2, e = args.size(); i < e; ++i)
-      result = callback(result, args[i]);
-
-    return result;
-     */
-  }
-
-  NewLoweringBridge::Container<mlir::Value> NewLoweringBridge::lowerOperationArgs(const Operation& operation)
-  {
-    /*
-    Container<mlir::Value> args;
-
-    for (const auto& arg : operation)
-      args.push_back(*lower<Expression>(*arg)[0]);
-
-    return args;
-     */
+    return Reference::ssa(&builder, result);
   }
 }

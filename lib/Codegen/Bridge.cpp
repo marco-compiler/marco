@@ -7,6 +7,7 @@
 using namespace marco;
 using namespace marco::ast;
 using namespace marco::codegen;
+using namespace marco::codegen::lowering;
 using namespace modelica;
 using namespace std;
 

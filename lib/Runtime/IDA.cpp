@@ -332,6 +332,7 @@ static int jacobianMatrix(
 /// Instantiate and initialize the struct of data needed by IDA, given the total
 /// number of scalar equations.
 template<typename T>
+// CREATE INSTANCE
 static void* idaAllocData_pvoid(T scalarEquationsNumber, T vectorEquationsNumber, T vectorVariablesNumber)
 {
   IDAUserData* data = new IDAUserData;

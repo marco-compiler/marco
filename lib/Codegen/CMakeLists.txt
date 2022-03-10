@@ -4,11 +4,13 @@ set(SOURCES
     dialects/modelica/ModelicaDialect.cpp
     dialects/modelica/Ops.cpp
     dialects/modelica/Type.cpp
+    Lowering/FunctionCallBridge.cpp
+    Lowering/OperationBridge.cpp
+    Lowering/Reference.cpp
+    Lowering/Results.cpp
     Bridge.cpp
-    FunctionCallBridge.cpp
     NewBridge.cpp
-    Options.cpp
-    Reference.cpp)
+    Options.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

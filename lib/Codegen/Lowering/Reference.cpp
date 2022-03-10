@@ -1,9 +1,9 @@
-#include "marco/Codegen/Reference.h"
+#include "marco/Codegen/Lowering/Reference.h"
 #include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 
 using namespace marco::codegen::modelica;
 
-namespace marco::codegen
+namespace marco::codegen::lowering
 {
   Reference::Reference()
       : builder(nullptr),

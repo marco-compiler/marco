@@ -1,6 +1,8 @@
 #include "marco/Codegen/Transforms/Model/ModelConverter.h"
+#include "marco/Dialect/IDA/IDADialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/IR/AffineMap.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -157,29 +159,41 @@ namespace marco::codegen
       conversionInfo.IDAEquations.emplace(cyclicEquation);
     }
 
+    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+      for (auto& scheduledEquation : *scheduledBlock) {
+        auto var = scheduledEquation->getWrite().getVariable();
+
+        if (derivatives.contains(var->getValue())) {
+          auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+          conversionInfo.IDAVariables.emplace(position);
+          conversionInfo.IDAEquations.emplace(scheduledEquation.get());
+        }
+      }
+    }
+
     // If any of the remaining equations manageable by MARCO does write on a variable managed
     // by IDA, then the equation must be passed to IDA even if not strictly necessary.
     // Avoiding this would require either memory duplication or a more severe restructuring
     // of the solving infrastructure, which would have to be able to split variables and equations
     // according to which runtime solver manages such variables.
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      if (!scheduledBlock->hasCycle()) {
-        for (auto& scheduledEquation : *scheduledBlock) {
-          auto var = scheduledEquation->getWrite().getVariable();
-          auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+      for (auto& scheduledEquation : *scheduledBlock) {
+        auto var = scheduledEquation->getWrite().getVariable();
+        auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-          if (conversionInfo.IDAVariables.find(position) != conversionInfo.IDAVariables.end()) {
-            conversionInfo.IDAEquations.emplace(scheduledEquation.get());
-          }
+        if (conversionInfo.IDAVariables.find(position) != conversionInfo.IDAVariables.end()) {
+          conversionInfo.IDAEquations.emplace(scheduledEquation.get());
         }
       }
     }
 
     // Create the various functions composing the simulation
-    if (auto res = createInitFunction(builder, modelOp); failed(res)) {
+    if (auto res = createInitFunction(builder, modelOp, conversionInfo, derivatives); failed(res)) {
       model.getOperation().emitError("Could not create the '" + initFunctionName + "' function");
       return res;
     }
+
+    model.getOperation()->getParentOfType<mlir::ModuleOp>().dump();
 
     if (auto res = createDeinitFunction(builder, modelOp); failed(res)) {
       model.getOperation().emitError("Could not create the '" + deinitFunctionName + "' function");
@@ -416,7 +430,11 @@ namespace marco::codegen
     return reference;
   }
 
-  mlir::LogicalResult ModelConverter::createInitFunction(mlir::OpBuilder& builder, ModelOp modelOp) const
+  mlir::LogicalResult ModelConverter::createInitFunction(
+      mlir::OpBuilder& builder,
+      ModelOp modelOp,
+      const ConversionInfo& conversionInfo,
+      const mlir::BlockAndValueMapping& derivatives) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     mlir::Location loc = modelOp.getLoc();
@@ -432,9 +450,106 @@ namespace marco::codegen
 
     // Move the initialization instructions into the new function
     modelOp.init().cloneInto(&function.getBody(), mapping);
-
-    llvm::SmallVector<mlir::Value, 3> values;
+    builder.setInsertionPointToStart(&function.getBody().front());
     auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
+
+    // The values to be packed into the structure to be passed around the simulation functions
+    llvm::SmallVector<mlir::Value, 3> values;
+
+    // Create the IDA instance
+    size_t numberOfScalarEquations = 0;
+
+    for (const auto& equations : conversionInfo.IDAEquations) {
+      numberOfScalarEquations += equations->getIterationRanges().flatSize();
+    }
+
+    mlir::Value ida = builder.create<mlir::ida::CreateOp>(loc, builder.getI64IntegerAttr(numberOfScalarEquations));
+
+    // Change the ownership of the variables managed to IDA
+    mlir::BlockAndValueMapping idaVariables;
+
+    for (const auto& variablePosition : conversionInfo.IDAVariables) {
+      mlir::Value value = terminator.values()[variablePosition];
+      auto memberCreateOp = value.getDefiningOp<MemberCreateOp>();
+      auto isState = derivatives.contains(modelOp.body().getArgument(variablePosition));
+      builder.setInsertionPoint(memberCreateOp);
+
+      auto memberType = memberCreateOp.resultType().cast<MemberType>();
+      auto dimensions = memberType.toArrayType().getShape();
+
+      auto idaVariable = builder.create<mlir::ida::AddVariableOp>(
+          memberCreateOp.getLoc(), ida,
+          builder.getI64ArrayAttr(dimensions),
+          builder.getBoolAttr(isState));
+
+      idaVariables.map(modelOp.body().getArgument(variablePosition), idaVariable);
+
+      auto variable = builder.create<mlir::ida::GetVariableOp>(
+          memberCreateOp.getLoc(),
+          memberType.toArrayType(),
+          ida, idaVariable);
+
+      memberCreateOp->replaceAllUsesWith(variable);
+      memberCreateOp.erase();
+    }
+
+    // Set inside IDA the information about the equations
+    builder.setInsertionPoint(terminator);
+
+    size_t residualFunctionsCounter = 0;
+    size_t jacobianFunctionsCounter = 0;
+
+    for (const auto& equation : conversionInfo.IDAEquations) {
+      auto ranges = equation->getIterationRanges();
+      std::vector<mlir::Attribute> rangesAttr;
+
+      for (size_t i = 0; i < ranges.rank(); ++i) {
+        rangesAttr.push_back(builder.getI64ArrayAttr({ ranges[i].getBegin(), ranges[i].getEnd() }));
+      }
+
+      auto idaEquation = builder.create<mlir::ida::AddEquationOp>(
+          equation->getOperation().getLoc(),
+          ida,
+          builder.getArrayAttr(rangesAttr));
+
+      // TODO sostituire variabili non IDA
+
+      for (const auto& access : equation->getAccesses()) {
+        mlir::Value idaVariable = idaVariables.lookup(access.getVariable()->getValue());
+        const auto& accessFunction = access.getAccessFunction();
+
+        std::vector<mlir::AffineExpr> expressions;
+
+        for (const auto& dimensionAccess : accessFunction) {
+          if (dimensionAccess.isConstantAccess()) {
+            expressions.push_back(mlir::getAffineConstantExpr(dimensionAccess.getPosition(), builder.getContext()));
+          } else {
+            auto baseAccess = mlir::getAffineDimExpr(dimensionAccess.getInductionVariableIndex(), builder.getContext());
+            auto withOffset = baseAccess + dimensionAccess.getOffset();
+            expressions.push_back(withOffset);
+          }
+        }
+
+        builder.create<mlir::ida::AddVariableAccessOp>(
+            equation->getOperation().getLoc(),
+            ida, idaEquation, idaVariable,
+            mlir::AffineMap::get(accessFunction.size(), 0, expressions, builder.getContext()));
+
+        auto residualFunctionName = "residualFunction" + std::to_string(residualFunctionsCounter++);
+        auto jacobianFunctionName = "jacobianFunction" + std::to_string(jacobianFunctionsCounter++);
+
+        {
+          mlir::OpBuilder::InsertionGuard g(builder);
+          builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
+          builder.create<mlir::ida::ResidualFunctionOp>(equation->getOperation().getLoc(), residualFunctionName);
+          builder.create<mlir::ida::JacobianFunctionOp>(equation->getOperation().getLoc(), jacobianFunctionName);
+        }
+
+        builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), ida, idaEquation, residualFunctionName);
+        builder.create<mlir::ida::AddJacobianOp>(equation->getOperation().getLoc(), ida, idaEquation, jacobianFunctionName);
+      }
+    }
+
     builder.setInsertionPointAfter(terminator);
 
     auto removeAllocationScopeFn = [&](mlir::Value value) -> mlir::Value {
@@ -453,6 +568,9 @@ namespace marco::codegen
         mlir::Value array = convertMember(builder, memberCreateOp);
         builder.setInsertionPointAfterValue(array);
         values.push_back(removeAllocationScopeFn(array));
+      } else {
+        builder.setInsertionPointAfterValue(var);
+        values.push_back(removeAllocationScopeFn(var));
       }
     }
 

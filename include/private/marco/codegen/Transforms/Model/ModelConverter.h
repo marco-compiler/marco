@@ -107,7 +107,11 @@ namespace marco::codegen
       /// Create the initialization function that allocates the variables and
       /// stores them into an appropriate data structure to be passed to the other
       /// simulation functions.
-      mlir::LogicalResult createInitFunction(mlir::OpBuilder& builder, modelica::ModelOp modelOp) const;
+      mlir::LogicalResult createInitFunction(
+          mlir::OpBuilder& builder,
+          modelica::ModelOp modelOp,
+          const ConversionInfo& conversionInfo,
+          const mlir::BlockAndValueMapping& derivatives) const;
 
       /// Create a function to be called when the simulation has finished and the
       /// variables together with its data structure are not required anymore and
