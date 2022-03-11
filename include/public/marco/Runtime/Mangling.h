@@ -3,11 +3,11 @@
 
 #include <cstdint>
 
-typedef float (*float_residual)(float, float*, float*, int32_t*);
-typedef double (*double_residual)(double, double*, double*, int64_t*);
+typedef float (*float_residual)(void*, float, int32_t*);
+typedef double (*double_residual)(void*, double, int64_t*);
 
-typedef float (*float_jacobian)(float, float*, float*, int32_t*, float, int32_t);
-typedef double (*double_jacobian)(double, double*, double*, int64_t*, double, int64_t);
+typedef float (*float_jacobian)(void*, float, int32_t*, int32_t, int32_t*, float);
+typedef double (*double_jacobian)(void*, double, int64_t*, int64_t, int64_t*, double);
 
 #define NUM_ARGS_H1(dummy, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
 #define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)

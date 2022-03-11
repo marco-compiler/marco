@@ -13,25 +13,25 @@
 
 using Access = std::vector<std::pair<sunindextype, sunindextype>>;
 using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
+using DerivativeVariable = std::pair<sunindextype, std::vector<sunindextype>>;
 
 using VarDimension = std::vector<size_t>;
 using EqDimension = std::vector<std::pair<size_t, size_t>>;
 
 using ResidualFunction = std::function<
     realtype(
-        realtype tt,
-        realtype* yy,
-        realtype* yp,
+        void* userData,
+        realtype time,
         sunindextype* ind)>;
 
 using JacobianFunction = std::function<
     realtype(
-        realtype tt,
-        realtype* yy,
-        realtype* yp,
-        sunindextype* ind,
-        realtype cj,
-        sunindextype var)>;
+        void* userData,
+        realtype time,
+        sunindextype* eqIndices,
+        sunindextype var,
+        sunindextype* varIndices,
+        realtype alpha)>;
 
 // Debugging options
 const bool printJacobian = false;
@@ -64,8 +64,6 @@ namespace
   struct IDAUserData
   {
     // Model size
-    size_t vectorVariablesNumber;
-    size_t vectorEquationsNumber;
     sunindextype scalarEquationsNumber;
     sunindextype nonZeroValuesNumber;
 
@@ -82,12 +80,7 @@ namespace
     // Simulation times
     realtype startTime;
     realtype endTime;
-    realtype timeStep;
     realtype time;
-    realtype nextStop;
-
-    // Simulation options
-    bool equidistantTimeGrid;
 
     // Error tolerances
     realtype relativeTolerance;
@@ -192,6 +185,7 @@ static sunindextype computeOffset(
   return offset;
 }
 
+/*
 /// Compute the column indexes of the current row of the Jacobian Matrix given
 /// the current vector equation and an array of indexes.
 static std::set<size_t> computeIndexSet(IDAUserData* data, size_t eq, sunindextype* indexes)
@@ -202,6 +196,32 @@ static std::set<size_t> computeIndexSet(IDAUserData* data, size_t eq, sunindexty
     VarDimension& dimensions = data->variableDimensions[access.first];
     sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
     columnIndexesSet.insert(data->variableOffsets[access.first] + varOffset);
+  }
+
+  return columnIndexesSet;
+}
+*/
+
+/// Compute the column indexes of the current row of the Jacobian Matrix given
+/// the current vector equation and an array of indexes.
+static std::set<DerivativeVariable> computeIndexSet(IDAUserData* data, size_t eq, sunindextype* eqIndexes)
+{
+  std::set<DerivativeVariable> columnIndexesSet;
+
+  for (auto& access : data->variableAccesses[eq]) {
+    sunindextype variableIndex = access.first;
+    Access variableAccess = access.second;
+    assert(variableAccess.size() == data->variableDimensions[variableIndex].size());
+
+    DerivativeVariable newEntry = {variableIndex, {}};
+
+    for (size_t i = 0; i < variableAccess.size(); ++i) {
+      sunindextype induction = variableAccess[i].second;
+      sunindextype index = induction != -1 ? eqIndexes[induction] : 0;
+      newEntry.second.push_back(index);
+    }
+
+    columnIndexesSet.insert(newEntry);
   }
 
   return columnIndexesSet;
@@ -243,7 +263,7 @@ static int residualFunction(realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, 
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   // For every vector equation
-  for (size_t eq = 0; eq < data->vectorEquationsNumber; ++eq) {
+  for (size_t eq = 0; eq < data->equationDimensions.size(); ++eq) {
     // Initialize the multidimensional interval of the vector equation
     sunindextype indexes[data->equationDimensions[eq].size()];
 
@@ -254,7 +274,7 @@ static int residualFunction(realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, 
     // For every scalar equation in the vector equation
     do {
       // Compute the i-th residual function
-      *rval++ = data->residuals[eq](tt, yval, ypval, indexes);
+      *rval++ = data->residuals[eq](userData, tt, indexes);
     } while (updateIndexes(indexes, data->equationDimensions[eq]));
   }
 
@@ -291,31 +311,32 @@ static int jacobianMatrix(
   *rowptrs++ = nnzElements;
 
   // For every vector equation
-  for (size_t eq = 0; eq < data->vectorEquationsNumber; ++eq) {
+  for (size_t eq = 0; eq < data->equationDimensions.size(); ++eq) {
     // Initialize the multidimensional interval of the vector equation
-    sunindextype indexes[data->equationDimensions[eq].size()];
+    sunindextype eqIndexes[data->equationDimensions[eq].size()];
 
     for (size_t i = 0; i < data->equationDimensions[eq].size(); ++i) {
-      indexes[i] = data->equationDimensions[eq][i].first;
+      eqIndexes[i] = data->equationDimensions[eq][i].first;
     }
 
     // For every scalar equation in the vector equation
     do {
       // Compute the column indexes that may be non-zeros
-      std::set<size_t> columnIndexesSet = computeIndexSet(data, eq, indexes);
+      std::set<DerivativeVariable> columnIndexesSet = computeIndexSet(data, eq, eqIndexes);
 
       nnzElements += columnIndexesSet.size();
       *rowptrs++ = nnzElements;
 
       // For every variable with respect to which every equation must be
       // partially differentiated
-      for (sunindextype var: columnIndexesSet) {
+      for (DerivativeVariable var: columnIndexesSet) {
         // Compute the i-th Jacobian value
-        *jacobian++ = data->jacobians[eq](tt, yval, ypval, indexes, cj, var);
-        *colvals++ = var;
+        sunindextype* varIndexes = &var.second[0];
+        *jacobian++ = data->jacobians[eq](userData, tt, eqIndexes, var.first, varIndexes, cj);
+        *colvals++ = var.first;
       }
 
-    } while (updateIndexes(indexes, data->equationDimensions[eq]));
+    } while (updateIndexes(eqIndexes, data->equationDimensions[eq]));
   }
 
   assert(rowptrs == SUNSparseMatrix_IndexPointers(JJ) + data->scalarEquationsNumber + 1);
@@ -333,14 +354,12 @@ static int jacobianMatrix(
 /// number of scalar equations.
 template<typename T>
 // CREATE INSTANCE
-static void* idaAllocData_pvoid(T scalarEquationsNumber, T vectorEquationsNumber, T vectorVariablesNumber)
+static void* idaCreate_pvoid(T scalarEquationsNumber)
 {
   IDAUserData* data = new IDAUserData;
 
   data->scalarEquationsNumber = scalarEquationsNumber;
-  data->vectorEquationsNumber = 0;
-  data->vectorVariablesNumber = 0;
-  data->nonZeroValuesNumber = 0;
+  data->variableOffsets.push_back(0);
 
   // Create and initialize the required N-vectors for the variables.
   data->variablesVector = N_VNew_Serial(data->scalarEquationsNumber);
@@ -360,27 +379,21 @@ static void* idaAllocData_pvoid(T scalarEquationsNumber, T vectorEquationsNumber
   data->idValues = N_VGetArrayPointer(data->idVector);
   data->toleranceValues = N_VGetArrayPointer(data->tolerancesVector);
 
-  data->equationDimensions.resize(vectorEquationsNumber);
-  data->residuals.resize(vectorEquationsNumber);
-  data->jacobians.resize(vectorEquationsNumber);
-  data->variableAccesses.resize(vectorEquationsNumber);
-
-  data->variableOffsets.resize(vectorVariablesNumber);
-  data->variableDimensions.resize(vectorVariablesNumber);
-
   return static_cast<void*>(data);
 }
 
-RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(idaCreate, PTR(void), int32_t)
 
-RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(idaCreate, PTR(void), int64_t)
 
 /// Compute the number of non-zero values in the Jacobian Matrix. Also compute
 /// the column indexes of all non-zero values in the Jacobian Matrix. This avoids
 /// the recomputation of such indexes during the Jacobian evaluation.
 static void computeNNZ(IDAUserData* data)
 {
-  for (size_t eq = 0; eq < data->vectorEquationsNumber; ++eq) {
+  data->nonZeroValuesNumber = 0;
+
+  for (size_t eq = 0; eq < data->equationDimensions.size(); ++eq) {
     // Initialize the multidimensional interval of the vector equation
     sunindextype indexes[data->equationDimensions[eq].size()];
 
@@ -521,11 +534,16 @@ static bool idaInit_i1(void* userData)
 
 RUNTIME_FUNC_DEF(idaInit, bool, PTR(void))
 
-/// Invoke IDA to perform one step of the computation. Returns false if the
-/// computation failed, true otherwise.
-static bool idaStep_i1(void* userData)
+/// Invoke IDA to perform one step of the computation. If a time step is given,
+/// the output will show the variables in an equidistant time grid based on the
+/// step time parameter. Otherwise, the output will show the variables at every
+/// step of the computation. Returns true if the computation was successful,
+/// false otherwise.
+template<typename T = double>
+static bool idaStep_i1(void* userData, T timeStep = -1)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
+  bool equidistantTimeGrid = timeStep > 0;
 
   if (data->scalarEquationsNumber == 0) {
     return true;
@@ -538,19 +556,15 @@ static bool idaStep_i1(void* userData)
 
   int retval = IDASolve(
       data->idaMemory,
-      data->nextStop,
+      equidistantTimeGrid ? (data->time + timeStep) : data->endTime,
       &data->time,
       data->variablesVector,
       data->derivativesVector,
-      data->equidistantTimeGrid ? IDA_NORMAL : IDA_ONE_STEP);
+      equidistantTimeGrid ? IDA_NORMAL : IDA_ONE_STEP);
 
   #ifdef MARCO_PROFILING
   profiler().stepsTimer.stop();
   #endif
-
-  if (data->equidistantTimeGrid) {
-    data->nextStop += data->timeStep;
-  }
 
   // Check if the solver failed
   exitOnError(checkRetval(retval, "IDASolve"))
@@ -560,8 +574,12 @@ static bool idaStep_i1(void* userData)
 
 RUNTIME_FUNC_DEF(idaStep, bool, PTR(void))
 
+RUNTIME_FUNC_DEF(idaStep, bool, PTR(void), float)
+
+RUNTIME_FUNC_DEF(idaStep, bool, PTR(void), double)
+
 /// Free all the data allocated by IDA.
-static bool idaFreeData_i1(void* userData)
+static bool idaFree_i1(void* userData)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -584,42 +602,60 @@ static bool idaFreeData_i1(void* userData)
   return true;
 }
 
-RUNTIME_FUNC_DEF(idaFreeData, bool, PTR(void))
+RUNTIME_FUNC_DEF(idaFree, bool, PTR(void))
 
-/// Add the start time, the end time and the step time to the IDA user data. If a
-/// positive time step is given, the output will show the variables in an
-/// equidistant time grid based on the step time parameter. Otherwise, the output
-/// will show the variables at every step of the computation.
+/// Add the start time to the IDA user data.
 template<typename T>
-static void addTime_void(void* userData, T startTime, T endTime, T timeStep)
+static void setStartTime_void(void* userData, T startTime)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   data->startTime = startTime;
-  data->endTime = endTime;
-  data->timeStep = timeStep;
   data->time = startTime;
-  data->equidistantTimeGrid = timeStep != -1;
-  data->nextStop = data->equidistantTimeGrid ? timeStep : endTime;
 }
 
-RUNTIME_FUNC_DEF(addTime, void, PTR(void), float, float, float)
+RUNTIME_FUNC_DEF(setStartTime, void, PTR(void), float)
 
-RUNTIME_FUNC_DEF(addTime, void, PTR(void), double, double, double)
+RUNTIME_FUNC_DEF(setStartTime, void, PTR(void), double)
 
-/// Add the relative tolerance and the absolute tolerance to the IDA user data.
+/// Add the end time to the IDA user data.
 template<typename T>
-static void addTolerance_void(void* userData, T relTol, T absTol)
+static void setEndTime_void(void* userData, T endTime)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
-  data->relativeTolerance = relTol;
-  data->absoluteTolerance = absTol;
+  data->endTime = endTime;
 }
 
-RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), float, float)
+RUNTIME_FUNC_DEF(setEndTime, void, PTR(void), float)
 
-RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
+RUNTIME_FUNC_DEF(setEndTime, void, PTR(void), double)
+
+/// Add the relative tolerance to the IDA user data.
+template<typename T>
+static void setRelativeTolerance_void(void* userData, T relativeTolerance)
+{
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
+
+  data->relativeTolerance = relativeTolerance;
+}
+
+RUNTIME_FUNC_DEF(setRelativeTolerance, void, PTR(void), float)
+
+RUNTIME_FUNC_DEF(setRelativeTolerance, void, PTR(void), double)
+
+/// Add the absolute tolerance to the IDA user data.
+template<typename T>
+static void setAbsoluteTolerance_void(void* userData, T absoluteTolerance)
+{
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
+
+  data->absoluteTolerance = absoluteTolerance;
+}
+
+RUNTIME_FUNC_DEF(setAbsoluteTolerance, void, PTR(void), float)
+
+RUNTIME_FUNC_DEF(setAbsoluteTolerance, void, PTR(void), double)
 
 //===----------------------------------------------------------------------===//
 // Equation setters
@@ -627,7 +663,7 @@ RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
 
 /// Add the dimension of an equation to the IDA user data.
 template<typename T>
-static void addEquation_void(void* userData, UnsizedArrayDescriptor<T> dimension)
+static T addEquation(void* userData, UnsizedArrayDescriptor<T> dimension)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -635,7 +671,7 @@ static void addEquation_void(void* userData, UnsizedArrayDescriptor<T> dimension
   assert(dimension.getDimension(0) == 2);
 
   // Add the start and end dimensions of the current equation.
-  EqDimension& eqDimension = data->equationDimensions[data->vectorEquationsNumber];
+  EqDimension eqDimension = {};
 
   using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
   dimension_t size = dimension.getDimension(1);
@@ -644,44 +680,69 @@ static void addEquation_void(void* userData, UnsizedArrayDescriptor<T> dimension
     eqDimension.push_back({dimension[i], dimension[i + size]});
   }
 
-  data->vectorEquationsNumber++;
+  data->equationDimensions.push_back(eqDimension);
+
+  // Return the index of the equation.
+  return data->equationDimensions.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(addEquation, void, PTR(void), ARRAY(int32_t))
+static int32_t addEquation_i32(void* userData, UnsizedArrayDescriptor<int32_t> dimension)
+{
+  return addEquation<int32_t>(userData, dimension);
+}
 
-RUNTIME_FUNC_DEF(addEquation, void, PTR(void), ARRAY(int64_t))
+static int64_t addEquation_i64(void* userData, UnsizedArrayDescriptor<int64_t> dimension)
+{
+  return addEquation<int64_t>(userData, dimension);
+}
+
+RUNTIME_FUNC_DEF(addEquation, int32_t, PTR(void), ARRAY(int32_t))
+
+RUNTIME_FUNC_DEF(addEquation, int64_t, PTR(void), ARRAY(int64_t))
 
 /// Add the function pointer that computes the index-th residual function to the
 /// IDA user data.
-template<typename T>
-static void addResidual_void(void* userData, T residualFunction)
+template<typename T, typename U>
+static void addResidual_void(void* userData, T equationIndex, U residualFunction)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
-  data->residuals[data->vectorEquationsNumber - 1] = residualFunction;
+
+  assert(equationIndex >= 0);
+
+  if (data->residuals.size() <= (size_t) equationIndex)
+    data->residuals.resize(equationIndex + 1);
+
+  data->residuals[equationIndex] = residualFunction;
 }
 
 #if defined(SUNDIALS_SINGLE_PRECISION)
-RUNTIME_FUNC_DEF(addResidual, void, PTR(void), RESIDUAL(float))
+RUNTIME_FUNC_DEF(addResidual, void, PTR(void), int32_t, RESIDUAL(float))
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
 
-RUNTIME_FUNC_DEF(addResidual, void, PTR(void), RESIDUAL(double))
+RUNTIME_FUNC_DEF(addResidual, void, PTR(void), int64_t, RESIDUAL(double))
 
 #endif
 
 /// Add the function pointer that computes the index-th jacobian row to the user
 /// data.
-template<typename T>
-static void addJacobian_void(void* userData, T jacobianFunction)
+template<typename T, typename U>
+static void addJacobian_void(void* userData, T equationIndex, U jacobianFunction)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
-  data->jacobians[data->vectorEquationsNumber - 1] = jacobianFunction;
+
+  assert(equationIndex >= 0);
+
+  if (data->jacobians.size() <= (size_t) equationIndex)
+    data->jacobians.resize(equationIndex + 1);
+
+  data->jacobians[equationIndex] = jacobianFunction;
 }
 
 #if defined(SUNDIALS_SINGLE_PRECISION)
-RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(float))
+RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int32_t, JACOBIAN(float))
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
 
-RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(double))
+RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int64_t, JACOBIAN(double))
 
 #endif
 
@@ -692,25 +753,22 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), JACOBIAN(double))
 /// Add and initialize a new variable given its array.
 ///
 /// @param userData  opaque pointer to the IDA user data.
-/// @param offset    offset of the current variable from the beginning of the array.
 /// @param array     allocation operation containing the rank and dimensions.
 /// @param isState   indicates if the variable is differential or algebraic.
 template<typename T, typename U>
-static void addVariable_void(
+static T addVariable(
     void* userData,
-    T offset,
     UnsizedArrayDescriptor<U> array,
     bool isState)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
-  assert(offset >= 0);
-  assert(offset + array.getNumElements() <= (size_t) data->scalarEquationsNumber);
+  assert(data->variableOffsets.size() == data->variableDimensions.size() + 1);
 
   // Add variable offset and dimension.
-  data->variableOffsets[data->vectorVariablesNumber] = offset;
-  data->variableDimensions[data->vectorVariablesNumber] = array.getDimensions();
-  data->vectorVariablesNumber++;
+  size_t offset = data->variableOffsets.back();
+  data->variableOffsets.push_back(array.getNumElements());
+  data->variableDimensions.push_back(array.getDimensions());
 
   // Compute idValue and absoluteTolerance.
   realtype idValue = isState ? 1.0 : 0.0;
@@ -726,29 +784,48 @@ static void addVariable_void(
     data->idValues[offset + i] = idValue;
     data->toleranceValues[offset + i] = absTol;
   }
+
+  // Return the index of the variable.
+  return data->variableDimensions.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int32_t, ARRAY(float), bool)
+static int32_t addVariable_i32(void* userData, UnsizedArrayDescriptor<float> array, bool isState)
+{
+  return addVariable<int32_t, float>(userData, array, isState);
+}
 
-RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
+static int64_t addVariable_i64(void* userData, UnsizedArrayDescriptor<double> array, bool isState)
+{
+  return addVariable<int64_t, double>(userData, array, isState);
+}
+
+RUNTIME_FUNC_DEF(addVariable, int32_t, PTR(void), ARRAY(float), bool)
+
+RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), ARRAY(double), bool)
 
 /// Add a variable access to the var-th variable, where ind is the induction
 /// variable and off is the access offset.
 template<typename T>
 static void addVarAccess_void(
     void* userData,
+    T equationIndex,
     T variableIndex,
     UnsizedArrayDescriptor<T> access)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
+  assert(equationIndex >= 0);
+  assert((size_t) equationIndex < data->equationDimensions.size());
   assert(variableIndex >= 0);
-  assert((size_t) variableIndex < data->vectorVariablesNumber);
+  assert((size_t) variableIndex < data->variableDimensions.size());
   assert(access.getRank() == 2);
   assert(access.getDimension(0) == 2);
   assert(access.getDimension(1) == data->variableDimensions[variableIndex].size());
 
-  VarAccessList& varAccessList = data->variableAccesses[data->vectorEquationsNumber - 1];
+  if (data->variableAccesses.size() <= (size_t) equationIndex)
+    data->variableAccesses.resize(equationIndex + 1);
+
+  VarAccessList& varAccessList = data->variableAccesses[equationIndex];
   varAccessList.push_back({variableIndex, {}});
 
   using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
@@ -759,38 +836,49 @@ static void addVarAccess_void(
   }
 }
 
-RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int32_t, int32_t, ARRAY(int32_t))
 
-RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, ARRAY(int64_t))
+RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, int64_t, ARRAY(int64_t))
 
 //===----------------------------------------------------------------------===//
 // Getters
 //===----------------------------------------------------------------------===//
 
-/// Returns the pointer to the start of the memory of the requested variable
-/// given its offset and if it is a derivative or not.
+/// Returns the pointer to the start of the memory of the requested variable.
 template<typename T>
-static void* getVariableAlloc_pvoid(void* userData, T offset, bool isDerivative)
+static void* getVariable_pvoid(void* userData, T variableIndex)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
-  assert(offset >= 0);
-  assert(offset < data->scalarEquationsNumber);
+  assert(variableIndex >= 0);
+  assert((size_t) variableIndex < data->variableDimensions.size());
 
-  if (isDerivative) {
-    return static_cast<void*>(&data->derivativeValues[offset]);
-  }
-
-  return static_cast<void*>(&data->variableValues[offset]);
+  return static_cast<void*>(&data->variableValues[data->variableOffsets[variableIndex]]);
 }
 
-RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int32_t, bool)
+RUNTIME_FUNC_DEF(getVariable, PTR(void), PTR(void), int32_t)
 
-RUNTIME_FUNC_DEF(getVariableAlloc, PTR(void), PTR(void), int64_t, bool)
+RUNTIME_FUNC_DEF(getVariable, PTR(void), PTR(void), int64_t)
+
+/// Returns the pointer to the start of the memory of the requested derivative.
+template<typename T>
+static void* getDerivative_pvoid(void* userData, T derivativeIndex)
+{
+  IDAUserData* data = static_cast<IDAUserData*>(userData);
+
+  assert(derivativeIndex >= 0);
+  assert((size_t) derivativeIndex < data->variableDimensions.size());
+
+  return static_cast<void*>(&data->derivativeValues[data->variableOffsets[derivativeIndex]]);
+}
+
+RUNTIME_FUNC_DEF(getDerivative, PTR(void), PTR(void), int32_t)
+
+RUNTIME_FUNC_DEF(getDerivative, PTR(void), PTR(void), int64_t)
 
 /// Returns the time reached by the solver after the last step.
 template<typename T>
-static T getIdaTime(void* userData)
+static T getCurrentTime(void* userData)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -802,19 +890,19 @@ static T getIdaTime(void* userData)
   return data->time;
 }
 
-static float getIdaTime_f32(void* userData)
+static float getCurrentTime_f32(void* userData)
 {
-  return getIdaTime<float>(userData);
+  return getCurrentTime<float>(userData);
 }
 
-static double getIdaTime_f64(void* userData)
+static double getCurrentTime_f64(void* userData)
 {
-  return getIdaTime<double>(userData);
+  return getCurrentTime<double>(userData);
 }
 
-RUNTIME_FUNC_DEF(getIdaTime, float, PTR(void))
+RUNTIME_FUNC_DEF(getCurrentTime, float, PTR(void))
 
-RUNTIME_FUNC_DEF(getIdaTime, double, PTR(void))
+RUNTIME_FUNC_DEF(getCurrentTime, double, PTR(void))
 
 //===----------------------------------------------------------------------===//
 // Statistics
@@ -828,7 +916,7 @@ static void printIncidenceMatrix(void* userData)
   std::cerr << std::endl;
 
   // For every vector equation
-  for (size_t eq = 0; eq < data->vectorEquationsNumber; ++eq) {
+  for (size_t eq = 0; eq < data->equationDimensions.size(); ++eq) {
     // Initialize the multidimensional interval of the vector equation
     sunindextype indexes[data->equationDimensions[eq].size()];
 
@@ -841,7 +929,13 @@ static void printIncidenceMatrix(void* userData)
       std::cerr << "│";
 
       // Get the column indexes that may be non-zeros.
-      std::set<size_t> columnIndexesSet = computeIndexSet(data, eq, indexes);
+      std::set<size_t> columnIndexesSet;
+
+      for (auto& access : data->variableAccesses[eq]) {
+        VarDimension& dimensions = data->variableDimensions[access.first];
+        sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
+        columnIndexesSet.insert(data->variableOffsets[access.first] + varOffset);
+      }
 
       for (sunindextype i = 0; i < data->scalarEquationsNumber; ++i) {
         if (columnIndexesSet.find(i) != columnIndexesSet.end()) {
@@ -889,7 +983,7 @@ static void printStatistics_void(void* userData)
   std::cerr << std::endl << "Final Run Statistics:" << std::endl;
 
   std::cerr << "Number of vector equations       = ";
-  std::cerr << data->vectorEquationsNumber << std::endl;
+  std::cerr << data->equationDimensions.size() << std::endl;
   std::cerr << "Number of scalar equations       = ";
   std::cerr << data->scalarEquationsNumber << std::endl;
   std::cerr << "Number of non-zero values        = ";
