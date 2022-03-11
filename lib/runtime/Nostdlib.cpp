@@ -4,15 +4,6 @@
 #include "marco/runtime/UtilityFunctions.h"
 #include "marco/runtime/Runtime.h"
 
-// extern "C" void runSimulation();
-
-// INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
-//     PSTR lpCmdLine, INT nCmdShow)
-// {
-// 	//runSimulation();
-//     return 0;
-// }
-
 extern "C" int __main()
 {
 	//runSimulation();
