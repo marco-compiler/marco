@@ -4,6 +4,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
 #include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Codegen/Transforms/Model/ExternalSolver.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
 #include <map>
@@ -42,9 +43,6 @@ namespace marco::codegen
         std::map<ScheduledEquation*, Equation*> explicitEquationsMap;
         std::set<ScheduledEquation*> implicitEquations;
         std::set<ScheduledEquation*> cyclicEquations;
-
-        std::set<unsigned int> IDAVariables;
-        std::set<ScheduledEquation*> IDAEquations;
       };
 
     public:
@@ -109,8 +107,8 @@ namespace marco::codegen
       /// simulation functions.
       mlir::LogicalResult createInitFunction(
           mlir::OpBuilder& builder,
-          modelica::ModelOp modelOp,
-          const ConversionInfo& conversionInfo,
+          const Model<ScheduledEquationsBlock>& model,
+          ExternalSolvers& externalSolvers,
           const mlir::BlockAndValueMapping& derivatives) const;
 
       /// Create a function to be called when the simulation has finished and the
@@ -129,7 +127,8 @@ namespace marco::codegen
       mlir::LogicalResult createUpdateNonStateVariablesFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
-          const ConversionInfo& conversionInfo) const;
+          const ConversionInfo& conversionInfo,
+          ExternalSolvers& externalSolvers) const;
 
       /// Create the functions that calculates the values that the state variables will have
       /// in the next iteration.

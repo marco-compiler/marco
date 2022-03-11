@@ -1,4 +1,5 @@
 #include "marco/Codegen/Transforms/Model/ModelConverter.h"
+#include "marco/Codegen/Transforms/Model/IDA.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/SCF/SCF.h"
@@ -19,7 +20,7 @@ namespace
   {
     public:
       EquationTemplateInfo(EquationOp equation, modeling::scheduling::Direction schedulingDirection)
-          : equation(equation.getOperation()), schedulingDirection(std::move(schedulingDirection))
+          : equation(equation.getOperation()), schedulingDirection(schedulingDirection)
       {
       }
 
@@ -117,6 +118,9 @@ namespace marco::codegen
       }
     }
 
+    // Create the external solvers
+    ExternalSolvers solvers;
+
     ConversionInfo conversionInfo;
 
     // Determine which equations can be potentially processed by MARCO.
@@ -145,18 +149,16 @@ namespace marco::codegen
     // written variables.
     for (const auto& implicitEquation : conversionInfo.implicitEquations) {
       auto var = implicitEquation->getWrite().getVariable();
-      auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
-      conversionInfo.IDAVariables.emplace(position);
-      conversionInfo.IDAEquations.emplace(implicitEquation);
+      solvers.ida.addVariable(var->getValue());
+      solvers.ida.addEquation(implicitEquation);
     }
 
     // Add the cyclic equations to the set of equations managed by IDA, together with their
     // written variables.
     for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
       auto var = cyclicEquation->getWrite().getVariable();
-      auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
-      conversionInfo.IDAVariables.emplace(position);
-      conversionInfo.IDAEquations.emplace(cyclicEquation);
+      solvers.ida.addVariable(var->getValue());
+      solvers.ida.addEquation(cyclicEquation);
     }
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
@@ -164,9 +166,8 @@ namespace marco::codegen
         auto var = scheduledEquation->getWrite().getVariable();
 
         if (derivatives.contains(var->getValue())) {
-          auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
-          conversionInfo.IDAVariables.emplace(position);
-          conversionInfo.IDAEquations.emplace(scheduledEquation.get());
+          solvers.ida.addVariable(var->getValue());
+          solvers.ida.addEquation(scheduledEquation.get());
         }
       }
     }
@@ -179,28 +180,25 @@ namespace marco::codegen
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (auto& scheduledEquation : *scheduledBlock) {
         auto var = scheduledEquation->getWrite().getVariable();
-        auto position = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-        if (conversionInfo.IDAVariables.find(position) != conversionInfo.IDAVariables.end()) {
-          conversionInfo.IDAEquations.emplace(scheduledEquation.get());
+        if (solvers.ida.hasVariable(var->getValue())) {
+          solvers.ida.addEquation(scheduledEquation.get());
         }
       }
     }
 
     // Create the various functions composing the simulation
-    if (auto res = createInitFunction(builder, modelOp, conversionInfo, derivatives); failed(res)) {
+    if (auto res = createInitFunction(builder, model, solvers, derivatives); failed(res)) {
       model.getOperation().emitError("Could not create the '" + initFunctionName + "' function");
       return res;
     }
-
-    model.getOperation()->getParentOfType<mlir::ModuleOp>().dump();
 
     if (auto res = createDeinitFunction(builder, modelOp); failed(res)) {
       model.getOperation().emitError("Could not create the '" + deinitFunctionName + "' function");
       return res;
     }
 
-    if (auto res = createUpdateNonStateVariablesFunction(builder, model, conversionInfo); mlir::failed(res)) {
+    if (auto res = createUpdateNonStateVariablesFunction(builder, model, conversionInfo, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + updateNonStateVariablesFunctionName + "' function");
       return res;
     }
@@ -432,11 +430,12 @@ namespace marco::codegen
 
   mlir::LogicalResult ModelConverter::createInitFunction(
       mlir::OpBuilder& builder,
-      ModelOp modelOp,
-      const ConversionInfo& conversionInfo,
+      const Model<ScheduledEquationsBlock>& model,
+      ExternalSolvers& externalSolvers,
       const mlir::BlockAndValueMapping& derivatives) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
+    auto modelOp = model.getOperation();
     mlir::Location loc = modelOp.getLoc();
     auto module = modelOp->getParentOfType<mlir::ModuleOp>();
 
@@ -451,104 +450,13 @@ namespace marco::codegen
     // Move the initialization instructions into the new function
     modelOp.init().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
+
+    externalSolvers.ida.processInitFunction(builder, model, function, derivatives);
+
     auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
 
     // The values to be packed into the structure to be passed around the simulation functions
     llvm::SmallVector<mlir::Value, 3> values;
-
-    // Create the IDA instance
-    size_t numberOfScalarEquations = 0;
-
-    for (const auto& equations : conversionInfo.IDAEquations) {
-      numberOfScalarEquations += equations->getIterationRanges().flatSize();
-    }
-
-    mlir::Value ida = builder.create<mlir::ida::CreateOp>(loc, builder.getI64IntegerAttr(numberOfScalarEquations));
-
-    // Change the ownership of the variables managed to IDA
-    mlir::BlockAndValueMapping idaVariables;
-
-    for (const auto& variablePosition : conversionInfo.IDAVariables) {
-      mlir::Value value = terminator.values()[variablePosition];
-      auto memberCreateOp = value.getDefiningOp<MemberCreateOp>();
-      auto isState = derivatives.contains(modelOp.body().getArgument(variablePosition));
-      builder.setInsertionPoint(memberCreateOp);
-
-      auto memberType = memberCreateOp.resultType().cast<MemberType>();
-      auto dimensions = memberType.toArrayType().getShape();
-
-      auto idaVariable = builder.create<mlir::ida::AddVariableOp>(
-          memberCreateOp.getLoc(), ida,
-          builder.getI64ArrayAttr(dimensions),
-          builder.getBoolAttr(isState));
-
-      idaVariables.map(modelOp.body().getArgument(variablePosition), idaVariable);
-
-      auto variable = builder.create<mlir::ida::GetVariableOp>(
-          memberCreateOp.getLoc(),
-          memberType.toArrayType(),
-          ida, idaVariable);
-
-      memberCreateOp->replaceAllUsesWith(variable);
-      memberCreateOp.erase();
-    }
-
-    // Set inside IDA the information about the equations
-    builder.setInsertionPoint(terminator);
-
-    size_t residualFunctionsCounter = 0;
-    size_t jacobianFunctionsCounter = 0;
-
-    for (const auto& equation : conversionInfo.IDAEquations) {
-      auto ranges = equation->getIterationRanges();
-      std::vector<mlir::Attribute> rangesAttr;
-
-      for (size_t i = 0; i < ranges.rank(); ++i) {
-        rangesAttr.push_back(builder.getI64ArrayAttr({ ranges[i].getBegin(), ranges[i].getEnd() }));
-      }
-
-      auto idaEquation = builder.create<mlir::ida::AddEquationOp>(
-          equation->getOperation().getLoc(),
-          ida,
-          builder.getArrayAttr(rangesAttr));
-
-      // TODO sostituire variabili non IDA
-
-      for (const auto& access : equation->getAccesses()) {
-        mlir::Value idaVariable = idaVariables.lookup(access.getVariable()->getValue());
-        const auto& accessFunction = access.getAccessFunction();
-
-        std::vector<mlir::AffineExpr> expressions;
-
-        for (const auto& dimensionAccess : accessFunction) {
-          if (dimensionAccess.isConstantAccess()) {
-            expressions.push_back(mlir::getAffineConstantExpr(dimensionAccess.getPosition(), builder.getContext()));
-          } else {
-            auto baseAccess = mlir::getAffineDimExpr(dimensionAccess.getInductionVariableIndex(), builder.getContext());
-            auto withOffset = baseAccess + dimensionAccess.getOffset();
-            expressions.push_back(withOffset);
-          }
-        }
-
-        builder.create<mlir::ida::AddVariableAccessOp>(
-            equation->getOperation().getLoc(),
-            ida, idaEquation, idaVariable,
-            mlir::AffineMap::get(accessFunction.size(), 0, expressions, builder.getContext()));
-
-        auto residualFunctionName = "residualFunction" + std::to_string(residualFunctionsCounter++);
-        auto jacobianFunctionName = "jacobianFunction" + std::to_string(jacobianFunctionsCounter++);
-
-        {
-          mlir::OpBuilder::InsertionGuard g(builder);
-          builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
-          builder.create<mlir::ida::ResidualFunctionOp>(equation->getOperation().getLoc(), residualFunctionName);
-          builder.create<mlir::ida::JacobianFunctionOp>(equation->getOperation().getLoc(), jacobianFunctionName);
-        }
-
-        builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), ida, idaEquation, residualFunctionName);
-        builder.create<mlir::ida::AddJacobianOp>(equation->getOperation().getLoc(), ida, idaEquation, jacobianFunctionName);
-      }
-    }
 
     builder.setInsertionPointAfter(terminator);
 
@@ -728,7 +636,8 @@ namespace marco::codegen
   mlir::LogicalResult ModelConverter::createUpdateNonStateVariablesFunction(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
-      const ConversionInfo& conversionInfo) const
+      const ConversionInfo& conversionInfo,
+      ExternalSolvers& externalSolvers) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     ModelOp modelOp = model.getOperation();
@@ -791,8 +700,9 @@ namespace marco::codegen
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
-        if (conversionInfo.IDAEquations.find(equation.get()) != conversionInfo.IDAEquations.end()) {
-          // The equation is handled by IDA
+        if (externalSolvers.containEquation(equation.get())) {
+          // Let the external solvers process the equation
+          // TODO
           return mlir::failure();
 
         } else {

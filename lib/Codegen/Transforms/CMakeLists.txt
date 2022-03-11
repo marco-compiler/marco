@@ -3,6 +3,8 @@ set(SOURCES
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
     ModelSolving/Equation.cpp
+    ModelSolving/ExternalSolver.cpp
+    ModelSolving/IDA.cpp
     ModelSolving/LoopEquation.cpp
     ModelSolving/Matching.cpp
     ModelSolving/Model.cpp

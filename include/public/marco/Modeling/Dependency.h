@@ -870,10 +870,7 @@ namespace marco::modeling::internal
     private:
       Graph graph;
   };
-}
 
-namespace marco::modeling::internal
-{
   namespace dependency
   {
     /// An equation defined on a single (multidimensional) index.
@@ -1009,6 +1006,5 @@ namespace marco::modeling::internal
       Graph graph;
   };
 }
-
 
 #endif // MARCO_MODELING_DEPENDENCY_H
