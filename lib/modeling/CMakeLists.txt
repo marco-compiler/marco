@@ -12,8 +12,10 @@ set(SOURCES
     MCIMFlat.cpp
     MCIMRegular.cpp
     MultidimensionalRange.cpp
+    MultidimensionalRangeRagged.cpp
     Point.cpp
     Range.cpp
+    RangeRagged.cpp
     Scheduling.cpp)
 
 marco_add_library(modeling SHARED

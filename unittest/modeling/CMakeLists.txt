@@ -10,6 +10,7 @@ set(SOURCES
     MCIMRegularTest.cpp
     MCISTest.cpp
     MultidimensionalRangeTest.cpp
+    MultidimensionalRangeRaggedTest.cpp
     PointTest.cpp
     RangeTest.cpp
     SchedulingTest.cpp
