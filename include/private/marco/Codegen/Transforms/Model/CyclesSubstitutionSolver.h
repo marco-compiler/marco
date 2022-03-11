@@ -207,7 +207,7 @@ namespace marco::codegen
         // Clone the equation IR, in order to leave the original equation untouched.
         // Its matched path may in fact be needed elsewhere, and making the original
         // equation explicit would invalidate it.
-        auto sourceClone = source.cloneAndExplicitate(builder);
+        auto sourceClone = source.cloneIRAndExplicitate(builder);
 
         if (sourceClone == nullptr) {
           return mlir::failure();

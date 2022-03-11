@@ -130,8 +130,9 @@ namespace marco::frontend
           clang::DiagnosticsEngine::Fatal,
           "AST generation failed");
 
-      ci.getDiagnostics().Report(diagID);
-      llvm::consumeError(cls.takeError());
+      auto error = cls.takeError();
+      llvm::errs() << error;
+      llvm::consumeError(std::move(error));
       return false;
     }
 

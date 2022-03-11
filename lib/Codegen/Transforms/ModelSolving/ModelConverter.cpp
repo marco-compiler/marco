@@ -129,7 +129,7 @@ namespace marco::codegen
     for (auto& scheduledBlock : model.getScheduledBlocks()) {
       if (!scheduledBlock->hasCycle()) {
         for (auto& scheduledEquation : *scheduledBlock) {
-          auto explicitClone = scheduledEquation->cloneAndExplicitate(builder);
+          auto explicitClone = scheduledEquation->cloneIRAndExplicitate(builder);
 
           if (explicitClone == nullptr) {
             conversionInfo.implicitEquations.emplace(scheduledEquation.get());
@@ -149,16 +149,16 @@ namespace marco::codegen
     // written variables.
     for (const auto& implicitEquation : conversionInfo.implicitEquations) {
       auto var = implicitEquation->getWrite().getVariable();
-      solvers.ida.addVariable(var->getValue());
-      solvers.ida.addEquation(implicitEquation);
+      solvers.ida->addVariable(var->getValue());
+      solvers.ida->addEquation(implicitEquation);
     }
 
     // Add the cyclic equations to the set of equations managed by IDA, together with their
     // written variables.
     for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
       auto var = cyclicEquation->getWrite().getVariable();
-      solvers.ida.addVariable(var->getValue());
-      solvers.ida.addEquation(cyclicEquation);
+      solvers.ida->addVariable(var->getValue());
+      solvers.ida->addEquation(cyclicEquation);
     }
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
@@ -166,8 +166,8 @@ namespace marco::codegen
         auto var = scheduledEquation->getWrite().getVariable();
 
         if (derivatives.contains(var->getValue())) {
-          solvers.ida.addVariable(var->getValue());
-          solvers.ida.addEquation(scheduledEquation.get());
+          solvers.ida->addVariable(var->getValue());
+          solvers.ida->addEquation(scheduledEquation.get());
         }
       }
     }
@@ -181,8 +181,8 @@ namespace marco::codegen
       for (auto& scheduledEquation : *scheduledBlock) {
         auto var = scheduledEquation->getWrite().getVariable();
 
-        if (solvers.ida.hasVariable(var->getValue())) {
-          solvers.ida.addEquation(scheduledEquation.get());
+        if (solvers.ida->hasVariable(var->getValue())) {
+          solvers.ida->addEquation(scheduledEquation.get());
         }
       }
     }
@@ -451,7 +451,7 @@ namespace marco::codegen
     modelOp.init().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
 
-    externalSolvers.ida.processInitFunction(builder, model, function, derivatives);
+    externalSolvers.ida->processInitFunction(builder, model, function, derivatives);
 
     auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
 
@@ -528,6 +528,8 @@ namespace marco::codegen
 
     builder.create<mlir::ReturnOp>(loc, resultOpaquePtr);
     terminator->erase();
+
+    function.dump();
 
     return mlir::success();
   }
@@ -700,8 +702,8 @@ namespace marco::codegen
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
-        if (externalSolvers.containEquation(equation.get())) {
-          // Let the external solvers process the equation
+        if (externalSolvers.ida->hasEquation(equation.get())) {
+          // Let IDA process the equation
           // TODO
           return mlir::failure();
 

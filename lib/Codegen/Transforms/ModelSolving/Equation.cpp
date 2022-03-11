@@ -527,7 +527,7 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  std::unique_ptr<Equation> BaseEquation::cloneAndExplicitate(
+  std::unique_ptr<Equation> BaseEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder, const EquationPath& path) const
   {
     EquationOp clonedOp = cloneIR();

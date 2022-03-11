@@ -1,6 +1,7 @@
 #include "marco/Codegen/Transforms/Model/IDA.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "mlir/IR/AffineMap.h"
+#include <queue>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -12,6 +13,7 @@ namespace marco::codegen
 
   bool IDASolver::isEnabled() const
   {
+    // TODO should depend on the compiler's flags
     return true;
   }
 
@@ -29,12 +31,17 @@ namespace marco::codegen
     }
   }
 
+  bool IDASolver::hasEquation(ScheduledEquation* equation) const
+  {
+    return llvm::find(equations, equation) != equations.end();
+  }
+
   void IDASolver::addEquation(ScheduledEquation* equation)
   {
     equations.emplace(equation);
   }
 
-  void IDASolver::processInitFunction(mlir::OpBuilder& builder, Model<ScheduledEquationsBlock> model, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives)
+  void IDASolver::processInitFunction(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives)
   {
     auto modelOp = model.getOperation();
     auto loc = initFunction.getLoc();
@@ -79,13 +86,97 @@ namespace marco::codegen
       memberCreateOp.erase();
     }
 
+    // Substitute the accesses to non-IDA variables with the equations writing in such variables
+    std::vector<std::unique_ptr<ScheduledEquation>> independentEquations;
+    std::multimap<unsigned int, std::pair<modeling::MultidimensionalRange, ScheduledEquation*>> writesMap;
+
+    for (const auto& equationsBlock : model.getScheduledBlocks()) {
+      for (const auto& equation : *equationsBlock) {
+        if (equations.find(equation.get()) == equations.end()) {
+          const auto& write = equation->getWrite();
+          auto varPosition = write.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+          auto writtenIndices = write.getAccessFunction().map(equation->getIterationRanges());
+          writesMap.emplace(varPosition, std::make_pair(writtenIndices, equation.get()));
+        }
+      }
+    }
+
+    std::queue<std::unique_ptr<ScheduledEquation>> processedEquations;
+
+    for (const auto& equation : equations) {
+      auto clone = Equation::build(equation->cloneIR(), equation->getVariables());
+
+      auto matchedClone = std::make_unique<MatchedEquation>(
+          std::move(clone), equation->getIterationRanges(), equation->getWrite().getPath());
+
+      auto scheduledClone = std::make_unique<ScheduledEquation>(
+          std::move(matchedClone), equation->getIterationRanges(), equation->getSchedulingDirection());
+
+      processedEquations.push(std::move(scheduledClone));
+    }
+
+    while (!processedEquations.empty()) {
+      auto& equation = processedEquations.front();
+      bool atLeastOneAccessReplaced = false;
+
+      for (const auto& access : equation->getReads()) {
+        auto readIndices = access.getAccessFunction().map(equation->getIterationRanges());
+        auto varPosition = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+        auto writingEquations = llvm::make_range(writesMap.equal_range(varPosition));
+
+        for (const auto& entry : writingEquations) {
+          ScheduledEquation* writingEquation = entry.second.second;
+          auto writtenVariableIndices = entry.second.first;
+
+          if (!writtenVariableIndices.overlaps(readIndices)) {
+            continue;
+          }
+
+          atLeastOneAccessReplaced = true;
+
+          auto clone = Equation::build(equation->cloneIR(), equation->getVariables());
+
+          auto explicitWritingEquation = writingEquation->cloneIRAndExplicitate(builder);
+          TemporaryEquationGuard guard(*explicitWritingEquation);
+          auto res = explicitWritingEquation->replaceInto(builder, *clone, access.getAccessFunction(), access.getPath());
+          assert(mlir::succeeded(res));
+
+          // Add the equation with the replaced access
+          auto readAccessIndices = access.getAccessFunction().inverseMap(
+              modeling::IndexSet(writtenVariableIndices),
+              modeling::IndexSet(equation->getIterationRanges()));
+
+          auto newEquationIndices = readAccessIndices.intersect(equation->getIterationRanges());
+
+          for (const auto& range : newEquationIndices) {
+            auto matchedEquation = std::make_unique<MatchedEquation>(
+                clone->clone(), range, equation->getWrite().getPath());
+
+            auto scheduledEquation = std::make_unique<ScheduledEquation>(
+                std::move(matchedEquation), range, equation->getSchedulingDirection());
+
+            processedEquations.push(std::move(scheduledEquation));
+          }
+        }
+      }
+
+      if (atLeastOneAccessReplaced) {
+        equation->eraseIR();
+      } else {
+        independentEquations.push_back(std::move(equation));
+      }
+
+      processedEquations.pop();
+    }
+
     // Set inside IDA the information about the equations
     builder.setInsertionPoint(terminator);
 
     size_t residualFunctionsCounter = 0;
     size_t jacobianFunctionsCounter = 0;
 
-    for (const auto& equation : equations) {
+    for (const auto& equation : independentEquations) {
+      equation->dumpIR();
       auto ranges = equation->getIterationRanges();
       std::vector<mlir::Attribute> rangesAttr;
 
@@ -97,8 +188,6 @@ namespace marco::codegen
           equation->getOperation().getLoc(),
           ida,
           builder.getArrayAttr(rangesAttr));
-
-      // TODO sostituire variabili non IDA
 
       for (const auto& access : equation->getAccesses()) {
         mlir::Value idaVariable = idaVariables.lookup(access.getVariable()->getValue());

@@ -1,5 +1,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "marco/Codegen/Transforms/Model/ExternalSolver.h"
+#include "marco/Codegen/Transforms/Model/IDA.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -7,6 +8,11 @@ using namespace ::marco::codegen;
 
 namespace marco::codegen
 {
+  ExternalSolvers::ExternalSolvers() : ida(std::make_unique<IDASolver>())
+  {
+  }
+
+  /*
   bool ExternalSolvers::containEquation(ScheduledEquation* equation) const
   {
     return llvm::any_of(solvers, [equation](const auto& solver) {
@@ -22,4 +28,5 @@ namespace marco::codegen
       }
     }
   }
+   */
 }

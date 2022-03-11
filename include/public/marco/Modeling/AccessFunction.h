@@ -127,32 +127,7 @@ namespace marco::modeling
       /// @param indices         indexes to be inverted
       /// @param parentIndices   parent index set
       /// @return indexes mapping to accessIndexes when accessFunction is applied to them
-      IndexSet inverseMap(const IndexSet& indices, const IndexSet& parentIndexes) const
-      {
-        if (isInvertible()) {
-          auto mapped = inverseMap(indices);
-          assert(map(mapped).contains(indices));
-          return mapped;
-        }
-
-        // If the access function is not invertible, then not all the iteration variables are
-        // used. This loss of information don't allow to reconstruct the equation ranges that
-        // leads to the dependency loop. Thus, we need to iterate on all the original equation
-        // points and determine which of them lead to a loop. This is highly expensive but also
-        // inevitable, and confined only to very few cases within real scenarios.
-
-        IndexSet result;
-
-        for (const auto& range: parentIndexes) {
-          for (const auto& point: range) {
-            if (indices.contains(map(point))) {
-              result += point;
-            }
-          }
-        }
-
-        return result;
-      }
+      IndexSet inverseMap(const IndexSet& indices, const IndexSet& parentIndexes) const;
 
     private:
       Container functions;

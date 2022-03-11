@@ -34,6 +34,8 @@ namespace marco::codegen
 
       void eraseIR() override;
 
+      void dumpIR() const override;
+
       void dumpIR(llvm::raw_ostream& os) const override;
 
       modelica::EquationOp getOperation() const override;
@@ -52,8 +54,7 @@ namespace marco::codegen
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder, const EquationPath& path) override;
 
-      // TODO rename to cloneIRAndExplicitate
-      std::unique_ptr<Equation> cloneAndExplicitate(
+      std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder, const EquationPath& path) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
@@ -84,7 +85,7 @@ namespace marco::codegen
 
       Access getWrite() const;
 
-      std::unique_ptr<Equation> cloneAndExplicitate(mlir::OpBuilder& builder) const;
+      std::unique_ptr<Equation> cloneIRAndExplicitate(mlir::OpBuilder& builder) const;
 
     private:
       std::unique_ptr<Equation> equation;

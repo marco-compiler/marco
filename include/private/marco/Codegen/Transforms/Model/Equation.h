@@ -28,7 +28,7 @@ namespace marco::codegen
 
       virtual void eraseIR() = 0;
 
-      void dumpIR() const;
+      virtual void dumpIR() const;
 
       virtual void dumpIR(llvm::raw_ostream& os) const = 0;
 
@@ -62,7 +62,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder, const EquationPath& path) = 0;
 
       /// Clone the equation IR and make it explicit with respect to the given equation path.
-      virtual std::unique_ptr<Equation> cloneAndExplicitate(
+      virtual std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder, const EquationPath& path) const = 0;
 
       virtual std::vector<mlir::Value> getInductionVariables() const = 0;

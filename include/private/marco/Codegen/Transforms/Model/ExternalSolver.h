@@ -2,12 +2,13 @@
 #define MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVER_H
 
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
-#include "marco/Codegen/Transforms/Model/IDA.h"
 #include <memory>
 #include <vector>
 
 namespace marco::codegen
 {
+  class IDASolver;
+
   class ExternalSolver
   {
     public:
@@ -17,12 +18,14 @@ namespace marco::codegen
   class ExternalSolvers
   {
     public:
-      bool containEquation(ScheduledEquation* equation) const;
+      ExternalSolvers();
 
-      void processEquation(ScheduledEquation* equation);
+      //bool containEquation(ScheduledEquation* equation) const;
+
+      //void processEquation(ScheduledEquation* equation);
 
     public:
-      IDASolver ida;
+      std::unique_ptr<IDASolver> ida;
   };
 }
 

@@ -23,7 +23,7 @@ namespace marco::codegen
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder, const EquationPath& path) override;
 
-      std::unique_ptr<Equation> cloneAndExplicitate(
+      std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder, const EquationPath& path) const override;
 
       mlir::LogicalResult replaceInto(

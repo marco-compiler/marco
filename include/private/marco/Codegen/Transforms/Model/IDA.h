@@ -18,8 +18,11 @@ namespace marco::codegen
 
       void addVariable(mlir::Value variable);
 
+      bool hasEquation(ScheduledEquation* equation) const;
+
       void addEquation(ScheduledEquation* equation);
-      void processInitFunction(mlir::OpBuilder& builder, Model<ScheduledEquationsBlock> model, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives);
+
+      void processInitFunction(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives);
 
     private:
       std::vector<mlir::Value> variables;

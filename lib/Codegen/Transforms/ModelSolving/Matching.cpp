@@ -59,6 +59,11 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
+  void MatchedEquation::dumpIR() const
+  {
+    equation->dumpIR();
+  }
+
   void MatchedEquation::dumpIR(llvm::raw_ostream& os) const
   {
     equation->dumpIR(os);
@@ -110,15 +115,15 @@ namespace marco::codegen
     return equation->explicitate(builder, path);
   }
 
-  std::unique_ptr<Equation> MatchedEquation::cloneAndExplicitate(
+  std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder, const EquationPath& path) const
   {
-    return equation->cloneAndExplicitate(builder, path);
+    return equation->cloneIRAndExplicitate(builder, path);
   }
 
-  std::unique_ptr<Equation> MatchedEquation::cloneAndExplicitate(mlir::OpBuilder& builder) const
+  std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(mlir::OpBuilder& builder) const
   {
-    return cloneAndExplicitate(builder, getWrite().getPath());
+    return cloneIRAndExplicitate(builder, getWrite().getPath());
   }
 
   std::vector<mlir::Value> MatchedEquation::getInductionVariables() const

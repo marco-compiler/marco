@@ -57,6 +57,11 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
+  void ScheduledEquation::dumpIR() const
+  {
+    equation->dumpIR();
+  }
+
   void ScheduledEquation::dumpIR(llvm::raw_ostream& os) const
   {
     equation->dumpIR(os);
@@ -109,15 +114,15 @@ namespace marco::codegen
     return equation->explicitate(builder, path);
   }
 
-  std::unique_ptr<Equation> ScheduledEquation::cloneAndExplicitate(
+  std::unique_ptr<Equation> ScheduledEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder, const EquationPath& path) const
   {
-    return equation->cloneAndExplicitate(builder, path);
+    return equation->cloneIRAndExplicitate(builder, path);
   }
 
-  std::unique_ptr<Equation> ScheduledEquation::cloneAndExplicitate(mlir::OpBuilder& builder) const
+  std::unique_ptr<Equation> ScheduledEquation::cloneIRAndExplicitate(mlir::OpBuilder& builder) const
   {
-    return equation->cloneAndExplicitate(builder);
+    return equation->cloneIRAndExplicitate(builder);
   }
 
   std::vector<mlir::Value> ScheduledEquation::getInductionVariables() const
