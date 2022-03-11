@@ -183,6 +183,16 @@ inline char* composeString(const char* format, va_list ap)
 			tmp_ptr = tmp;
 			i2s_buffered(va_arg(ap, int), tmp_ptr);
 		}
+		else if (*fmtptr == 'l')
+		{
+			fmtptr++;
+			if(*fmtptr == 'd')
+			{
+				tmp_ptr = tmp;
+				i2s_buffered(va_arg(ap, int), tmp_ptr);
+			}
+
+		}
 		else if (*fmtptr == 'f')
 		{
 			tmp_ptr = tmp;
