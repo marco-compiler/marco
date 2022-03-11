@@ -530,8 +530,12 @@ void MLIRLowerer::lower<ast::Model>(const Member& member)
 		auto values = lower<Expression>(*member.getStartOverload());
 		assert(values.size() == 1);
 
-		if (auto arrayType = type.dyn_cast<ArrayType>())
-      builder.create<FillOp>(location, *values[0], *ref);
+		if (auto arrayType = type.dyn_cast<ArrayType>());
+			#ifndef WINDOWS_NOSTDLIB
+      		builder.create<FillOp>(location, *values[0], *ref);
+	  		#else
+			;
+			#endif
 		else
       ref.set(*values[0]);
 	}
@@ -545,7 +549,9 @@ void MLIRLowerer::lower<ast::Model>(const Member& member)
     if (auto arrayType = type.dyn_cast<ArrayType>())
     {
       mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(arrayType.getElementType()));
+	  #ifndef WINDOWS_NOSTDLIB
       builder.create<FillOp>(location, zero, *ref);
+	  #endif
     }
     else
     {

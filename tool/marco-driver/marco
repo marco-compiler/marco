@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    MINGW*)     machine=MinGw;;
+    *)          machine=Linux;;
+esac
+
 SCRIPT_PATH=$(dirname "${BASH_SOURCE[0]}")
 TEMPORARY_DIR=""
 
@@ -99,7 +105,11 @@ main()
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.a -o "$OUTPUT_FILE"
+    if [[ $machine == "Linux" ]]; then
+      g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.a -o "$OUTPUT_FILE"
+    else
+      g++ "$TEMPORARY_DIR/simulation.o" $SCRIPT_PATH/../lib/libMARCORuntime.a -o "$OUTPUT_FILE" -lkernel32 -nostdlib -emain -g -O0
+    fi
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then

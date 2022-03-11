@@ -51,8 +51,7 @@ target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 endif()
 if(MINGW)
 # -fno-strict-aliasing needed for fdlibm
-# -O0 (or -O1) needed otherwise memset loops to infinity then crashes
-target_compile_options(runtime PRIVATE "-fno-strict-aliasing") 
+target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-g" PRIVATE "-O0") 
 target_link_options(runtime PRIVATE "-nostdlib")
 endif()
 
