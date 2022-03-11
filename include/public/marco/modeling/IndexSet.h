@@ -15,12 +15,44 @@ namespace marco::modeling
       using Container = std::list<MultidimensionalRange>;
 
     public:
-      using const_iterator = Container::const_iterator;
+      class Iterator
+      {
+        using RangeIterator = MultidimensionalRange::const_iterator;
+      public:
+        using iterator_category = std::input_iterator_tag;
+        using value_type = Point;
+        using difference_type = std::ptrdiff_t;
+        using pointer = Point*;
+        using reference = Point&;
+
+        Iterator(const IndexSet &container);
+        Iterator(const IndexSet &container, bool end);
+
+        bool operator==(const Iterator& it) const;
+        bool operator!=(const Iterator& it) const;
+        
+        Iterator& operator++();
+        Iterator operator++(int);
+        value_type operator*() const;
+
+      private:
+        void fetchNext();
+
+        const IndexSet* container;
+        llvm::ArrayRef<MultidimensionalRange>::const_iterator rangeIt;
+        MultidimensionalRange::const_iterator it;
+        bool end;
+      };
+      friend class Iterator;
+      using const_iterator = Iterator;
+      using const_range_iterator = Container::const_iterator;
 
       IndexSet();
 
+      // IndexSet(const Point &point);
       IndexSet(llvm::ArrayRef<Point> points);
 
+      //IndexSet(const MultidimensionalRange &range);
       IndexSet(llvm::ArrayRef<MultidimensionalRange> ranges);
 
       friend std::ostream& operator<<(std::ostream& stream, const IndexSet& obj);
@@ -63,6 +95,10 @@ namespace marco::modeling
 
       size_t size() const;
 
+      size_t rank() const;
+
+      llvm::ArrayRef<MultidimensionalRange> getRanges()	const;
+
       const_iterator begin() const;
 
       const_iterator end() const;
@@ -83,12 +119,16 @@ namespace marco::modeling
 
       IndexSet complement(const MultidimensionalRange& other) const;
 
+      IndexSet complement(const IndexSet& other) const;
+
+      MultidimensionalRange minContainingRange() const;
+
     private:
       void sort();
 
       void merge();
 
-      std::list<MultidimensionalRange> ranges;
+      llvm::SmallVector<MultidimensionalRange,3> ranges;
   };
 }
 

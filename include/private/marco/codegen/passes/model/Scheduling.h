@@ -13,7 +13,7 @@ namespace marco::codegen
     public:
       ScheduledEquation(
           std::unique_ptr<MatchedEquation> equation,
-          modeling::MultidimensionalRange scheduledIndexes,
+          modeling::IndexSet scheduledIndexes,
           modeling::scheduling::Direction schedulingDirection);
 
       ScheduledEquation(const ScheduledEquation& other);
@@ -81,7 +81,7 @@ namespace marco::codegen
 
       size_t getNumOfIterationVars() const override;
 
-      modeling::MultidimensionalRange getIterationRanges() const override;
+      modeling::IndexSet getIterationRanges() const override;
 
       /// }
 
@@ -90,7 +90,7 @@ namespace marco::codegen
 
     private:
       std::unique_ptr<MatchedEquation> equation;
-      modeling::MultidimensionalRange scheduledIndexes;
+      modeling::IndexSet scheduledIndexes;
       modeling::scheduling::Direction schedulingDirection;
   };
 

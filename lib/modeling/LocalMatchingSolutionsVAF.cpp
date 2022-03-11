@@ -4,8 +4,8 @@ namespace marco::modeling::internal
 {
   VAFSolutions::VAFSolutions(
       llvm::ArrayRef<AccessFunction> accessFunctions,
-      MultidimensionalRange equationRanges,
-      MultidimensionalRange variableRanges)
+      IndexSet equationRanges,
+      IndexSet variableRanges)
       : accessFunctions(accessFunctions.begin(), accessFunctions.end()),
         equationRanges(std::move(equationRanges)),
         variableRanges(std::move(variableRanges))
@@ -41,13 +41,19 @@ namespace marco::modeling::internal
     llvm::SmallVector<size_t, 3> inductionsUsage;
 
     for (const auto& accessFunction: this->accessFunctions) {
-      size_t count = 1;
+      size_t count = 0;
+
       getInductionVariablesUsage(inductionsUsage, accessFunction);
 
-      for (const auto& usage: llvm::enumerate(inductionsUsage)) {
-        if (usage.value() == 0) {
-          count *= this->equationRanges[usage.index()].size();
+      for(const auto& range: this->equationRanges.getRanges())
+      {
+        size_t tmp = 1;
+        for (const auto& usage: llvm::enumerate(inductionsUsage)) {
+          if (usage.value() == 0) {
+            tmp *= range[usage.index()].size();
+          }
         }
+        count += tmp;
       }
 
       solutionsAmount += count;
@@ -81,30 +87,43 @@ namespace marco::modeling::internal
 
       groupSize = 1;
 
-      reorderedRanges.clear();
+
+      auto ranges = equationRanges.getRanges();
+      llvm::SmallVector<llvm::SmallVector<Range,3>, 3> reorderedRanges(ranges.size());
 
       ordering.clear();
       ordering.insert(ordering.begin(), equationRanges.rank(), 0);
+
+      size_t dim_index = 0;
 
       // We need to reorder iteration of the variables so that the unused ones
       // are the last ones changing. In fact, the unused variables are the one
       // leading to repetitions among variable usages, and thus lead to a new
       // group for each time they change value.
-
       for (const auto& usage: llvm::enumerate(inductionsUsage)) {
         if (usage.value() == 0) {
-          ordering[usage.index()] = reorderedRanges.size();
-          reorderedRanges.push_back(equationRanges[usage.index()]);
+          ordering[usage.index()] = dim_index++;
+          for(auto range: llvm::enumerate(ranges))
+            reorderedRanges[range.index()].push_back(range.value()[usage.index()]);
         }
       }
 
       for (const auto& usage: llvm::enumerate(inductionsUsage)) {
         if (usage.value() != 0) {
-          ordering[usage.index()] = reorderedRanges.size();
-          reorderedRanges.push_back(equationRanges[usage.index()]);
-          groupSize *= equationRanges[usage.index()].size();
+          ordering[usage.index()] = dim_index++;
+          for(auto range: llvm::enumerate(ranges))
+          {
+            reorderedRanges[range.index()].push_back(range.value()[usage.index()]);
+            groupSize *= range.value()[usage.index()].size();
+          }
         }
       }
+
+      llvm::SmallVector<MultidimensionalRange, 3> reorderedMultiRanges;
+
+      for(auto r:reorderedRanges)
+        reorderedMultiRanges.emplace_back(r);
+    
 
       // Theoretically, it would be sufficient to store just the iterators of
       // the reordered multidimensional range. However, their implementation may
@@ -112,9 +131,9 @@ namespace marco::modeling::internal
       // lead to dangling pointers. Thus, we also store the range inside the
       // class.
 
-      range = std::make_unique<MultidimensionalRange>(reorderedRanges);
-      rangeIt = std::make_unique<MultidimensionalRange::const_iterator>(range->begin());
-      rangeEnd = std::make_unique<MultidimensionalRange::const_iterator>(range->end());
+      range = std::make_unique<IndexSet>(reorderedMultiRanges);
+      rangeIt = std::make_unique<IndexSet::const_iterator>(range->begin());
+      rangeEnd = std::make_unique<IndexSet::const_iterator>(range->end());
     }
 
     MCIM matrix(equationRanges, variableRanges);

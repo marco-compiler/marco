@@ -47,7 +47,7 @@ namespace marco::modeling
       // static size_t getNumOfIterationVars(const EquationType*)
       //    return the number of induction variables.
       //
-      // static MultidimensionalRange getIterationRanges(const EquationType*)
+      // static IndexSet getIterationRanges(const EquationType*)
       //    return the iteration ranges.
       //
       // typedef VariableType : the type of the accessed variable
@@ -186,7 +186,7 @@ namespace marco::modeling
           return Traits::getNumOfIterationVars(equation);
         }
 
-        static MultidimensionalRange getIterationRanges(const EquationProperty* equation)
+        static IndexSet getIterationRanges(const EquationProperty* equation)
         {
           return Traits::getIterationRanges(equation);
         }
@@ -254,7 +254,7 @@ namespace marco::modeling
           return Traits::getIterationRange(&property, index);
         }
 
-        MultidimensionalRange getIterationRanges() const
+        IndexSet getIterationRanges() const
         {
           return Traits::getIterationRanges(&property);
         }

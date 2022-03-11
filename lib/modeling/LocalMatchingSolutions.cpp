@@ -7,8 +7,8 @@ namespace marco::modeling::internal
 
   LocalMatchingSolutions::LocalMatchingSolutions(
       llvm::ArrayRef<AccessFunction> accessFunctions,
-      MultidimensionalRange equationRanges,
-      MultidimensionalRange variableRanges)
+      IndexSet equationRanges,
+      IndexSet variableRanges)
       : impl(std::make_unique<VAFSolutions>(
       std::move(accessFunctions),
       std::move(equationRanges),
@@ -44,8 +44,8 @@ namespace marco::modeling::internal
   }
 
   LocalMatchingSolutions solveLocalMatchingProblem(
-      const MultidimensionalRange& equationRanges,
-      const MultidimensionalRange& variableRanges,
+      const IndexSet& equationRanges,
+      const IndexSet& variableRanges,
       llvm::ArrayRef<AccessFunction> accessFunctions)
   {
     return LocalMatchingSolutions(

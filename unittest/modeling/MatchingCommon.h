@@ -92,7 +92,7 @@ namespace marco::modeling::matching
       return equation->getNumOfIterationVars();
     }
 
-    static MultidimensionalRange getIterationRanges(const test::Equation* equation)
+    static IndexSet getIterationRanges(const test::Equation* equation)
     {
       std::vector<Range> ranges;
 
@@ -100,7 +100,7 @@ namespace marco::modeling::matching
         ranges.emplace_back(equation->getRangeBegin(i), equation->getRangeEnd(i));
       }
 
-      return MultidimensionalRange(std::move(ranges));
+      return IndexSet(MultidimensionalRange(std::move(ranges)));
     }
 
     using VariableType = test::Variable;

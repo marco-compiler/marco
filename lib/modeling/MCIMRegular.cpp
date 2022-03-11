@@ -64,7 +64,7 @@ namespace marco::modeling::internal
   {
     IndexSet result;
 
-    for (const auto& keyRange: keys) {
+    for (const auto& keyRange: keys.getRanges()) {
       llvm::SmallVector<Range, 3> valueRanges;
 
       for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
@@ -82,7 +82,7 @@ namespace marco::modeling::internal
     return RegularMCIM::MCIMElement(getValues(), delta.inverse());
   }
 
-  RegularMCIM::RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+  RegularMCIM::RegularMCIM(IndexSet equationRanges, IndexSet variableRanges)
       : MCIM::Impl(Regular, std::move(equationRanges), std::move(variableRanges))
   {
     assert(getEquationRanges().rank() == getVariableRanges().rank());

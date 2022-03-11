@@ -42,7 +42,7 @@ namespace marco::codegen
       virtual size_t getNumOfIterationVars() const = 0;
 
       /// Get the iteration ranges
-      virtual modeling::MultidimensionalRange getIterationRanges() const = 0;
+      virtual modeling::IndexSet getIterationRanges() const = 0;
 
       /// Get the accesses to variables.
       virtual std::vector<Access> getAccesses() const = 0;
@@ -358,7 +358,7 @@ namespace marco::modeling::matching
       return (*equation)->getNumOfIterationVars();
     }
 
-    static MultidimensionalRange getIterationRanges(const Equation* equation)
+    static IndexSet getIterationRanges(const Equation* equation)
     {
       return (*equation)->getIterationRanges();
     }

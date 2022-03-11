@@ -5,7 +5,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "marco/modeling/AccessFunction.h"
 #include "marco/modeling/LocalMatchingSolutionsImpl.h"
-#include "marco/modeling/MultidimensionalRange.h"
+#include "marco/modeling/IndexSet.h"
 #include <memory>
 
 namespace marco::modeling::internal
@@ -17,8 +17,8 @@ namespace marco::modeling::internal
     public:
       VAFSolutions(
           llvm::ArrayRef<AccessFunction> accessFunctions,
-          MultidimensionalRange equationRanges,
-          MultidimensionalRange variableRanges);
+          IndexSet equationRanges,
+          IndexSet variableRanges);
 
       MCIM& operator[](size_t index) override;
 
@@ -32,8 +32,8 @@ namespace marco::modeling::internal
           const AccessFunction& accessFunction) const;
 
       llvm::SmallVector<AccessFunction, 3> accessFunctions;
-      MultidimensionalRange equationRanges;
-      MultidimensionalRange variableRanges;
+      IndexSet equationRanges;
+      IndexSet variableRanges;
 
       // Total number of possible match matrices
       size_t solutionsAmount;
@@ -43,11 +43,10 @@ namespace marco::modeling::internal
 
       size_t currentAccessFunction = 0;
       size_t groupSize;
-      llvm::SmallVector<Range, 3> reorderedRanges;
-      std::unique_ptr<MultidimensionalRange> range;
+      std::unique_ptr<IndexSet> range;
       llvm::SmallVector<size_t, 3> ordering;
-      std::unique_ptr<MultidimensionalRange::const_iterator> rangeIt;
-      std::unique_ptr<MultidimensionalRange::const_iterator> rangeEnd;
+      std::unique_ptr<IndexSet::const_iterator> rangeIt;
+      std::unique_ptr<IndexSet::const_iterator> rangeEnd;
   };
 }
 

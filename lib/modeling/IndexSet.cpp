@@ -4,13 +4,21 @@
 namespace marco::modeling
 {
   IndexSet::IndexSet() = default;
-
+  // IndexSet::IndexSet(const Point &point)
+  // {
+  //   this->operator+=(point);
+  // }
   IndexSet::IndexSet(llvm::ArrayRef<Point> points)
   {
     for (const auto& point: points) {
       this->operator+=(point);
     }
   }
+
+  // IndexSet::IndexSet(const MultidimensionalRange& range)
+  // {
+  //   this->operator+=(range);
+  // }
 
   IndexSet::IndexSet(llvm::ArrayRef<MultidimensionalRange> ranges)
   {
@@ -238,14 +246,28 @@ namespace marco::modeling
     return result;
   }
 
+  size_t IndexSet::rank() const
+  {
+    for(const auto& range: ranges)
+      return range.rank();
+    
+    assert(false && "requested rank of empty IndexSet");
+    return 0;
+  }
+
+  llvm::ArrayRef<MultidimensionalRange> IndexSet::getRanges() const
+  {
+    return ranges;
+  }
+
   IndexSet::const_iterator IndexSet::begin() const
   {
-    return ranges.begin();
+    return Iterator(*this);
   }
 
   IndexSet::const_iterator IndexSet::end() const
   {
-    return ranges.end();
+    return Iterator(*this,true);
   }
 
   bool IndexSet::contains(const Point& other) const
@@ -371,9 +393,40 @@ namespace marco::modeling
     return IndexSet(result);
   }
 
+  IndexSet IndexSet::complement(const IndexSet& other) const
+  {
+    if (ranges.empty()) {
+      return other;
+    }
+
+    llvm::SmallVector<MultidimensionalRange, 3> result;
+
+    llvm::SmallVector<MultidimensionalRange, 3> current;
+    for(auto r: other)
+      current.push_back(r);
+
+    for (const auto& range: ranges) {
+      llvm::SmallVector<MultidimensionalRange, 3> next;
+
+      for (const auto& curr: current) {
+        for (const auto& diff: curr.subtract(range)) {
+          if (overlaps(diff)) {
+            next.push_back(std::move(diff));
+          } else {
+            result.push_back(std::move(diff));
+          }
+        }
+      }
+
+      current = next;
+    }
+
+    return IndexSet(result);
+  }
+
   void IndexSet::sort()
   {
-    ranges.sort([](const MultidimensionalRange& first, const MultidimensionalRange& second) {
+    llvm::sort(ranges,[](const MultidimensionalRange& first, const MultidimensionalRange& second) {
       return first < second;
     });
   }
@@ -407,6 +460,33 @@ namespace marco::modeling
     }
   }
 
+  MultidimensionalRange IndexSet::minContainingRange() const
+  {
+    assert(!ranges.empty());
+
+    if(ranges.size()==1)
+      return ranges.front();
+
+    llvm::SmallVector<Range,2> containingRanges;
+
+    auto getMinContaining = [](const Range& a, const Range& b){
+      return Range(std::min(a.getBegin(),b.getBegin()),std::max(a.getEnd(),b.getEnd()));
+    };
+
+    for(size_t i=0UL; i<rank(); i++)
+    {
+      containingRanges.push_back(ranges.front()[i]);
+
+      for(auto it=std::next(ranges.begin()); it!=ranges.end(); ++it)
+      {
+        containingRanges[i] = getMinContaining(containingRanges[i],(*it)[i]);
+      }
+    }
+
+    return MultidimensionalRange(containingRanges);
+  }
+
+
   std::ostream& operator<<(std::ostream& stream, const IndexSet& obj)
   {
     stream << "{";
@@ -427,4 +507,65 @@ namespace marco::modeling
     stream << "}";
     return stream;
   }
+
+
+
+  // Iterator
+
+  IndexSet::Iterator::Iterator(const IndexSet &p_container)
+    : container(&p_container),rangeIt(container->ranges.begin()),it(rangeIt->begin()),end(false)
+  {}
+
+  IndexSet::Iterator::Iterator(const IndexSet &container, bool end)
+    : container(&container),rangeIt(container.ranges.begin()),it(rangeIt->begin()),end(end)
+  {}
+
+  bool IndexSet::Iterator::operator==(const IndexSet::Iterator& other) const
+  {
+    assert(container==other.container);
+    return end==other.end && (end || (it==other.it && rangeIt==other.rangeIt));
+  }
+
+  bool IndexSet::Iterator::operator!=(const IndexSet::Iterator& it) const
+  {
+    return !(*this==it);
+  }
+
+  IndexSet::Iterator& IndexSet::Iterator::operator++()
+  {
+    fetchNext();
+    return *this;
+  }
+
+  IndexSet::Iterator IndexSet::Iterator::operator++(int)
+  {
+    auto temp = *this;
+    fetchNext();
+    return temp;
+  }
+
+  IndexSet::Iterator::value_type IndexSet::Iterator::operator*() const
+  {
+    return *it;
+  }
+
+  void IndexSet::Iterator::fetchNext()
+  {
+    if(end)
+      return;
+
+    if(++it==rangeIt->end())
+    {
+      if(++rangeIt == container->ranges.end())
+      {
+        
+        end=true;
+      }
+      else
+      {
+        it=rangeIt->begin();
+      }
+    }
+  }
+  
 }

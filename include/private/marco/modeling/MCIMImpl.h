@@ -15,7 +15,7 @@ namespace marco::modeling::internal
         Flat
       };
 
-      Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+      Impl(MCIMKind kind, IndexSet equationRanges, IndexSet variableRanges);
 
       Impl(const Impl& other);
 
@@ -57,9 +57,9 @@ namespace marco::modeling::internal
 
       virtual std::unique_ptr<MCIM::Impl> clone() = 0;
 
-      const MultidimensionalRange& getEquationRanges() const;
+      const IndexSet& getEquationRanges() const;
 
-      const MultidimensionalRange& getVariableRanges() const;
+      const IndexSet& getVariableRanges() const;
 
       llvm::iterator_range<IndexesIterator> getIndexes() const;
 
@@ -93,8 +93,8 @@ namespace marco::modeling::internal
 
     private:
       const MCIMKind kind;
-      MultidimensionalRange equationRanges;
-      MultidimensionalRange variableRanges;
+      IndexSet equationRanges;
+      IndexSet variableRanges;
   };
 }
 

@@ -61,7 +61,7 @@ TEST(SolveLocalMathingProblem, 2D_underdimensionedVariable_firstInductionVariabl
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -134,7 +134,7 @@ TEST(SolveLocalMathingProblem, 2D_underdimensionedVariable_secondInductionVariab
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -193,7 +193,7 @@ TEST(SolveLocalMathingProblem, 2D_allInductionVariablesUsed)
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -252,7 +252,7 @@ TEST(SolveLocalMathingProblem, 2D_invertedInductionVariables)
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -321,7 +321,7 @@ TEST(SolveLocalMathingProblem, 2D_oneConstantIndex)
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -430,7 +430,7 @@ TEST(SolveLocalMathingProblem, 2D_allConstantIndexes)
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -509,7 +509,7 @@ TEST(SolveLocalMathingProblem, 2D_repeatedInductionVariable)
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 
@@ -571,7 +571,7 @@ TEST(SolveLocalMathingProblem, 3D_repeatedInductionVariable)
 
   std::vector<MCIM> solutions;
 
-  for (auto solution: solveLocalMatchingProblem(eq, var, access)) {
+  for (auto solution: solveLocalMatchingProblem(IndexSet(eq), IndexSet(var), access)) {
     solutions.push_back(solution);
   }
 

@@ -7,9 +7,9 @@
 namespace marco::modeling::internal
 {
   MCIM::IndexesIterator::IndexesIterator(
-      const MultidimensionalRange& equationRange,
-      const MultidimensionalRange& variableRange,
-      std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
+      const IndexSet& equationRange,
+      const IndexSet& variableRange,
+      std::function<IndexSet::const_iterator(const IndexSet&)> initFunction)
       : eqCurrentIt(initFunction(equationRange)),
         eqEndIt(equationRange.end()),
         varBeginIt(variableRange.begin()),
@@ -70,7 +70,7 @@ namespace marco::modeling::internal
     }
   }
 
-  MCIM::Impl::Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+  MCIM::Impl::Impl(MCIMKind kind, IndexSet equationRanges, IndexSet variableRanges)
       : kind(kind), equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
   {
   }
@@ -79,12 +79,12 @@ namespace marco::modeling::internal
 
   MCIM::Impl::~Impl() = default;
 
-  const MultidimensionalRange& MCIM::Impl::getEquationRanges() const
+  const IndexSet& MCIM::Impl::getEquationRanges() const
   {
     return equationRanges;
   }
 
-  const MultidimensionalRange& MCIM::Impl::getVariableRanges() const
+  const IndexSet& MCIM::Impl::getVariableRanges() const
   {
     return variableRanges;
   }
@@ -113,11 +113,11 @@ namespace marco::modeling::internal
 
   llvm::iterator_range<MCIM::IndexesIterator> MCIM::Impl::getIndexes() const
   {
-    IndexesIterator begin(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
+    IndexesIterator begin(getEquationRanges(), getVariableRanges(), [](const IndexSet& range) {
       return range.begin();
     });
 
-    IndexesIterator end(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
+    IndexesIterator end(getEquationRanges(), getVariableRanges(), [](const IndexSet& range) {
       return range.end();
     });
 
@@ -151,6 +151,16 @@ namespace marco::modeling::internal
   }
 
   MCIM::MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+    :MCIM(IndexSet(equationRanges),IndexSet(variableRanges))
+  {
+    // if (equationRanges.rank() == variableRanges.rank()) {
+    //   impl = std::make_unique<RegularMCIM>(std::move(equationRanges), std::move(variableRanges));
+    // } else {
+    //   impl = std::make_unique<FlatMCIM>(std::move(equationRanges), std::move(variableRanges));
+    // }
+  }
+
+  MCIM::MCIM(const IndexSet &equationRanges, const IndexSet &variableRanges)
   {
     if (equationRanges.rank() == variableRanges.rank()) {
       impl = std::make_unique<RegularMCIM>(std::move(equationRanges), std::move(variableRanges));
@@ -210,12 +220,12 @@ namespace marco::modeling::internal
     return (*impl) != *other.impl;
   }
 
-  const MultidimensionalRange& MCIM::getEquationRanges() const
+  const IndexSet& MCIM::getEquationRanges() const
   {
     return impl->getEquationRanges();
   }
 
-  const MultidimensionalRange& MCIM::getVariableRanges() const
+  const IndexSet& MCIM::getVariableRanges() const
   {
     return impl->getVariableRanges();
   }
@@ -394,7 +404,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<size_t, 3> equationIndexesCols;
 
     for (size_t i = 0, e = equationRanges.rank(); i < e; ++i) {
-      equationIndexesCols.push_back(getRangeMaxColumns(equationRanges[i]));
+      equationIndexesCols.push_back(getRangeMaxColumns(equationRanges.minContainingRange()[i]));
     }
 
     size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), 0);
@@ -405,7 +415,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<size_t, 3> variableIndexesCols;
 
     for (size_t i = 0, e = variableRanges.rank(); i < e; ++i) {
-      variableIndexesCols.push_back(getRangeMaxColumns(variableRanges[i]));
+      variableIndexesCols.push_back(getRangeMaxColumns(variableRanges.minContainingRange()[i]));
     }
 
     size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), 0);

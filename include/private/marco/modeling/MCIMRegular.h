@@ -46,7 +46,7 @@ namespace marco::modeling::internal
           Delta delta;
       };
 
-      RegularMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+      RegularMCIM(IndexSet equationRanges, IndexSet variableRanges);
 
       static bool classof(const MCIM::Impl* obj)
       {

@@ -9,7 +9,7 @@ namespace marco::codegen
 {
   MatchedEquation::MatchedEquation(
       std::unique_ptr<Equation> equation,
-      modeling::MultidimensionalRange matchedIndexes,
+      modeling::IndexSet matchedIndexes,
       EquationPath matchedPath)
     : equation(std::move(equation)),
       matchedIndexes(std::move(matchedIndexes)),
@@ -139,7 +139,7 @@ namespace marco::codegen
     return matchedIndexes.rank();
   }
 
-  modeling::MultidimensionalRange MatchedEquation::getIterationRanges() const
+  modeling::IndexSet MatchedEquation::getIterationRanges() const
   {
     return matchedIndexes;
   }

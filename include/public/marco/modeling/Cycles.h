@@ -149,12 +149,12 @@ namespace marco::modeling
             using Container = std::vector<Dependency>;
 
           public:
-            Interval(MultidimensionalRange range, llvm::ArrayRef<Dependency> destinations = llvm::None)
+            Interval(IndexSet range, llvm::ArrayRef<Dependency> destinations = llvm::None)
                 : range(std::move(range)), destinations(destinations.begin(), destinations.end())
             {
             }
 
-            Interval(MultidimensionalRange range, Access access, std::unique_ptr<FilteredEquation> destination)
+            Interval(IndexSet range, Access access, std::unique_ptr<FilteredEquation> destination)
                 : range(std::move(range))
             {
               destinations.emplace_back(std::move(access), std::move(destination));
@@ -176,7 +176,7 @@ namespace marco::modeling
               }
             }
 
-            const MultidimensionalRange& getRange() const
+            const IndexSet& getRange() const
             {
               return range;
             }
@@ -192,7 +192,7 @@ namespace marco::modeling
             }
 
           private:
-            MultidimensionalRange range;
+            IndexSet range;
             Container destinations;
         };
 
@@ -267,11 +267,11 @@ namespace marco::modeling
               IndexSet restrictedRanges(interval.getRange());
               restrictedRanges -= range;
 
-              for (const auto& restrictedRange: restrictedRanges) {
-                newIntervals.emplace_back(restrictedRange, interval.getDestinations());
+              for (const auto& restrictedRange: restrictedRanges.getRanges()) {
+                newIntervals.emplace_back(IndexSet(restrictedRange), interval.getDestinations());
               }
 
-              for (const MultidimensionalRange& intersectingRange : range.intersect(interval.getRange())) {
+              for (const MultidimensionalRange& intersectingRange : range.intersect(interval.getRange()).getRanges()) {
                 range -= intersectingRange;
 
                 llvm::ArrayRef<Dependency> dependencies = interval.getDestinations();
@@ -296,12 +296,12 @@ namespace marco::modeling
                 }
                  */
 
-                Interval newInterval(intersectingRange, newDependencies);
+                Interval newInterval(IndexSet(intersectingRange), newDependencies);
                 newIntervals.push_back(std::move(newInterval));
               }
             }
 
-            for (const auto& subRange: range) {
+            for (const auto& subRange: range.getRanges()) {
               std::vector<Dependency> dependencies;
 
               auto& dependency = dependencies.emplace_back(
@@ -309,7 +309,7 @@ namespace marco::modeling
                   std::make_unique<FilteredEquation>(*graph, next->getEquation()));
 
               dependency.getNode().addListIt(next, end);
-              newIntervals.emplace_back(subRange, dependencies);
+              newIntervals.emplace_back(IndexSet(subRange), dependencies);
             }
 
             intervals = std::move(newIntervals);

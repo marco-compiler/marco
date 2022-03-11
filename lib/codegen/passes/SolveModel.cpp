@@ -634,7 +634,7 @@ class ModelConverter
       };
 
       std::vector<mlir::Value> args;
-      auto iterationRanges = equation.getIterationRanges();
+      auto iterationRanges = equation.getIterationRanges()[0]; // todo handle ragged case
 
       for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
         auto values = valuesFn(equation.getSchedulingDirection(), iterationRanges[i]);
@@ -1684,13 +1684,13 @@ static mlir::LogicalResult solveAlgebraicLoops(
     }
 
     // Add the indices that do not present any loop
-    for (const auto& range : indexesWithoutCycles) {
+    for (const auto& range : indexesWithoutCycles.getRanges()) {
       auto clonedEquation = Equation::build(
           cycle.getEquation()->getOperation(),
           cycle.getEquation()->getVariables());
 
       newEquations.add(std::make_unique<MatchedEquation>(
-          std::move(clonedEquation), range, cycle.getEquation()->getWrite().getPath()));
+          std::move(clonedEquation), IndexSet(range), cycle.getEquation()->getWrite().getPath()));
     }
   }
 

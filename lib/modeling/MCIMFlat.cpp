@@ -103,7 +103,7 @@ namespace marco::modeling::internal
   {
     IndexSet result;
 
-    for (const auto& multiDimRange: value) {
+    for (const auto& multiDimRange: value.getRanges()) {
       llvm::SmallVector<Point::data_type, 3> firstItemIndexes;
       llvm::SmallVector<Point::data_type, 3> lastItemIndexes;
 
@@ -132,7 +132,7 @@ namespace marco::modeling::internal
   {
     IndexSet result;
 
-    for (const auto& multiDimRange: value) {
+    for (const auto& multiDimRange: value.getRanges()) {
       assert(multiDimRange.rank() == 1);
       auto& monoDimRange = multiDimRange[0];
 
@@ -204,7 +204,7 @@ namespace marco::modeling::internal
   {
     IndexSet result;
 
-    for (const auto& keyRange: keys) {
+    for (const auto& keyRange: keys.getRanges()) {
       llvm::SmallVector<Range, 3> valueRanges;
 
       for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
@@ -222,17 +222,17 @@ namespace marco::modeling::internal
     return FlatMCIM::MCIMElement(getValues(), delta.inverse());
   }
 
-  FlatMCIM::FlatMCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+  FlatMCIM::FlatMCIM(IndexSet equationRanges, IndexSet variableRanges)
       : MCIM::Impl(Flat, std::move(equationRanges), std::move(variableRanges))
   {
     assert(getEquationRanges().rank() != getVariableRanges().rank());
 
     for (size_t i = 0, e = getEquationRanges().rank(); i < e; ++i) {
-      equationDimensions.push_back(getEquationRanges()[i].size());
+      equationDimensions.push_back(getEquationRanges().minContainingRange()[i].size());
     }
 
     for (size_t i = 0, e = getVariableRanges().rank(); i < e; ++i) {
-      variableDimensions.push_back(getVariableRanges()[i].size());
+      variableDimensions.push_back(getVariableRanges().minContainingRange()[i].size());
     }
   }
 
@@ -343,11 +343,12 @@ namespace marco::modeling::internal
 
   void FlatMCIM::apply(const AccessFunction& access)
   {
-    for (const auto& equation: getEquationRanges()) {
-      assert(access.size() == getVariableRanges().rank());
-      auto variable = access.map(equation);
-      set(equation, variable);
-    }
+    for(const auto &range : getEquationRanges().getRanges())
+      for (const auto& equation: range) { 
+        assert(access.size() == getVariableRanges().rank());
+        auto variable = access.map(equation);
+        set(equation, variable);
+      }
   }
 
   bool FlatMCIM::get(const Point& equation, const Point& variable) const
@@ -408,7 +409,7 @@ namespace marco::modeling::internal
       result += group.getValues();
     }
 
-    return unflattenMCIS(result, getVariableRanges(), variableDimensions);
+    return unflattenMCIS(result, getVariableRanges().minContainingRange(), variableDimensions); 
   }
 
   IndexSet FlatMCIM::flattenColumns() const
@@ -419,12 +420,12 @@ namespace marco::modeling::internal
       result += group.getKeys();
     }
 
-    return unflattenMCIS(result, getEquationRanges(), equationDimensions);
+    return unflattenMCIS(result, getEquationRanges().minContainingRange(), equationDimensions);
   }
 
   std::unique_ptr<MCIM::Impl> FlatMCIM::filterRows(const IndexSet& filter) const
   {
-    IndexSet flattenedFilter = flattenMCIS(filter, getEquationRanges(), equationDimensions);
+    IndexSet flattenedFilter = flattenMCIS(filter, getEquationRanges().minContainingRange(), equationDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
     for (const MCIMElement& group: groups) {
@@ -438,7 +439,7 @@ namespace marco::modeling::internal
 
   std::unique_ptr<MCIM::Impl> FlatMCIM::filterColumns(const IndexSet& filter) const
   {
-    IndexSet flattenedFilter = flattenMCIS(filter, getVariableRanges(), variableDimensions);
+    IndexSet flattenedFilter = flattenMCIS(filter, getVariableRanges().minContainingRange(), variableDimensions);
     auto result = std::make_unique<FlatMCIM>(getEquationRanges(), getVariableRanges());
 
     for (const auto& group: groups) {
@@ -475,7 +476,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<Point::data_type, 3> indexes(equation.begin(), equation.end());
 
     llvm::SmallVector<std::make_unsigned_t<Point::data_type>, 3> rescaled;
-    convertIndexesToZeroBased<Point::data_type>(indexes, getEquationRanges(), rescaled);
+    convertIndexesToZeroBased<Point::data_type>(indexes, getEquationRanges().minContainingRange(), rescaled);
 
     auto flattened = flattenIndexes(rescaled, equationDimensions);
     return Point(flattened);
@@ -488,7 +489,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<Point::data_type, 3> indexes(variable.begin(), variable.end());
 
     llvm::SmallVector<std::make_unsigned_t<Point::data_type>, 3> rescaled;
-    convertIndexesToZeroBased<Point::data_type>(indexes, getVariableRanges(), rescaled);
+    convertIndexesToZeroBased<Point::data_type>(indexes, getVariableRanges().minContainingRange(), rescaled);
 
     auto flattened = flattenIndexes(rescaled, variableDimensions);
     return Point(flattened);

@@ -25,7 +25,7 @@ namespace marco::codegen
 
       size_t getNumOfIterationVars() const override;
 
-      modeling::MultidimensionalRange getIterationRanges() const override;
+      modeling::IndexSet getIterationRanges() const override;
 
       std::vector<Access> getAccesses() const override;
 

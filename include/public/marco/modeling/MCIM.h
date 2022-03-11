@@ -24,12 +24,12 @@ namespace marco::modeling::internal
           using pointer = std::pair<Point, Point>*;
           using reference = std::pair<Point, Point>&;
 
-          using Iterator = MultidimensionalRange::const_iterator;
+          using Iterator = IndexSet::const_iterator;
 
           IndexesIterator(
-              const MultidimensionalRange& equationRanges,
-              const MultidimensionalRange& variableRanges,
-              std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction);
+              const IndexSet& equationRanges,
+              const IndexSet& variableRanges,
+              std::function<IndexSet::const_iterator(const IndexSet&)> initFunction);
 
           bool operator==(const IndexesIterator& it) const;
 
@@ -52,6 +52,7 @@ namespace marco::modeling::internal
       };
 
       MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+      MCIM(const IndexSet &equationRanges, const IndexSet &variableRanges);
 
       MCIM(const MCIM& other);
 
@@ -67,9 +68,9 @@ namespace marco::modeling::internal
 
       bool operator!=(const MCIM& other) const;
 
-      const MultidimensionalRange& getEquationRanges() const;
+      const IndexSet& getEquationRanges() const;
 
-      const MultidimensionalRange& getVariableRanges() const;
+      const IndexSet& getVariableRanges() const;
 
       llvm::iterator_range<IndexesIterator> getIndexes() const;
 

@@ -2,7 +2,7 @@
 
 namespace marco::modeling::internal::matching
 {
-  Matchable::Matchable(MultidimensionalRange dimensions) : dimensions(std::move(dimensions))
+  Matchable::Matchable(IndexSet dimensions) : dimensions(std::move(dimensions))
   {
   }
 

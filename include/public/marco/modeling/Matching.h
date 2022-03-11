@@ -58,7 +58,7 @@ namespace marco::modeling
       // static size_t getNumOfIterationVars(const EquationType*)
       //    return the number of induction variables.
       //
-      // static MultidimensionalRange getIterationRanges(const EquationType*)
+      // static IndexSet getIterationRanges(const EquationType*)
       //    return the iteration ranges.
       //
       // typedef VariableType : the type of the accessed variable
@@ -82,7 +82,7 @@ namespace marco::modeling
       class Matchable
       {
         public:
-          Matchable(MultidimensionalRange dimensions);
+          Matchable(IndexSet dimensions);
 
           const IndexSet& getMatched() const;
 
@@ -96,7 +96,7 @@ namespace marco::modeling
           void removeMatch(const IndexSet& removedMatch);
 
         private:
-          MultidimensionalRange dimensions;
+          IndexSet dimensions;
           IndexSet match;
       };
 
@@ -165,7 +165,7 @@ namespace marco::modeling
             return getDimensionSize(property, index);
           }
 
-          MultidimensionalRange getRanges() const
+          IndexSet getRanges() const
           {
             return getRanges(property);
           }
@@ -205,7 +205,7 @@ namespace marco::modeling
             return Traits::getDimensionSize(&p, index);
           }
 
-          static MultidimensionalRange getRanges(const VariableProperty& p)
+          static IndexSet getRanges(const VariableProperty& p)
           {
             llvm::SmallVector<Range, 3> ranges;
 
@@ -215,7 +215,7 @@ namespace marco::modeling
               ranges.emplace_back(0, size);
             }
 
-            return MultidimensionalRange(ranges);
+            return IndexSet(MultidimensionalRange(ranges));
           }
 
           // Custom equation property
@@ -360,14 +360,14 @@ namespace marco::modeling
           return getNumOfIterationVars(property);
         }
 
-        MultidimensionalRange getIterationRanges() const
+        IndexSet getIterationRanges() const
         {
           return getIterationRanges(property);
         }
 
         unsigned int flatSize() const
         {
-          return getIterationRanges().flatSize();
+          return getIterationRanges().size();
         }
 
         std::vector<Access> getVariableAccesses() const
@@ -391,7 +391,7 @@ namespace marco::modeling
           return Traits::getNumOfIterationVars(&p);
         }
 
-        static MultidimensionalRange getIterationRanges(const EquationProperty& p)
+        static IndexSet getIterationRanges(const EquationProperty& p)
         {
           return Traits::getIterationRanges(&p);
         }
@@ -412,8 +412,8 @@ namespace marco::modeling
 
         Edge(typename Equation::Id equation,
              typename Variable::Id variable,
-             MultidimensionalRange equationRanges,
-             MultidimensionalRange variableRanges,
+             IndexSet equationRanges,
+             IndexSet variableRanges,
              typename Equation::Access access)
             : equation(std::move(equation)),
               variable(std::move(variable)),
@@ -839,7 +839,7 @@ namespace marco::modeling
         MatchingSolution(
             EquationProperty equation,
             VariableProperty variable,
-            MultidimensionalRange indexes,
+            IndexSet indexes,
             AccessProperty access)
             : equation(std::move(equation)),
               variable(std::move(variable)),
@@ -868,7 +868,7 @@ namespace marco::modeling
           return access;
         }
 
-        const MultidimensionalRange& getIndexes() const
+        const IndexSet& getIndexes() const
         {
           return indexes;
         }
@@ -876,7 +876,7 @@ namespace marco::modeling
       private:
         EquationProperty equation;
         VariableProperty variable;
-        MultidimensionalRange indexes;
+        IndexSet indexes;
         AccessProperty access;
     };
   }
@@ -1302,11 +1302,11 @@ namespace marco::modeling
 
               IndexSet allIndexes = matched.flattenColumns();
 
-              for (const auto& groupedIndexes : allIndexes) {
+              for (const auto& groupedIndexes : allIndexes.getRanges()) {
                 result.emplace_back(
                     getEquation(equationDescriptor).getProperty(),
                     getVariable(variableDescriptor).getProperty(),
-                    groupedIndexes,
+                    IndexSet(groupedIndexes),
                     edge.getAccessProperty());
               }
             }
