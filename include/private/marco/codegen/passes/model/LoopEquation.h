@@ -57,7 +57,7 @@ namespace marco::codegen
 
       size_t getNumberOfImplicitLoops() const;
 
-      std::vector<modeling::Range> getImplicitLoops() const;
+      std::vector<std::vector<modeling::Range>> getImplicitLoops() const;
   };
 }
 

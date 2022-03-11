@@ -1,4 +1,5 @@
 #include "marco/codegen/passes/model/LoopEquation.h"
+#include "marco/modeling/MultidimensionalRangeRagged.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include <memory>
@@ -81,9 +82,16 @@ namespace marco::codegen
     }
 
     auto implicitLoops = getImplicitLoops();
-    ranges.insert(ranges.end(), implicitLoops.begin(), implicitLoops.end());
+    
+    IndexSet result;
+    for(auto loops : implicitLoops)
+    {
+      auto tmp = ranges;
+      tmp.insert(tmp.end(), loops.begin(), loops.end());
+      result += MultidimensionalRange(tmp);
+    }
 
-    return IndexSet(MultidimensionalRange(std::move(ranges)));
+    return result;
   }
 
   std::vector<Access> LoopEquation::getAccesses() const
@@ -327,17 +335,44 @@ namespace marco::codegen
     return result;
   }
 
-  std::vector<Range> LoopEquation::getImplicitLoops() const
+
+  RangeRagged getRangeFromDimensionSize(const Shape::DimensionSize &dimension)
   {
-    std::vector<Range> result;
+    if(dimension.isRagged())
+    {
+      llvm::SmallVector<RangeRagged,3> arr;
+
+      for(const auto r : dimension.asRagged()){
+        arr.push_back(getRangeFromDimensionSize(r));
+      }
+      return RangeRagged(arr);
+    }
+    
+    return RangeRagged(0,dimension.getNumericValue());
+  }
+
+  std::vector<std::vector<Range>> LoopEquation::getImplicitLoops() const
+  {
+    std::vector<RangeRagged> tmp;
 
     size_t counter = 0;
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
 
     if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>()) {
       for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
-        result.emplace_back(0, arrayType.getShape()[i].getNumericValue()); //todo: handle ragged case
+        tmp.push_back(getRangeFromDimensionSize(arrayType.getShape()[i]));
       }
+    }
+
+    MultidimensionalRangeRagged multi_ragged(tmp);
+    auto multi_ranges = multi_ragged.toMultidimensionalRanges();
+
+    std::vector<std::vector<Range>> result;
+
+    for(auto multi: multi_ranges)
+    {
+      auto ranges = multi.getRanges();
+      result.push_back({ranges.begin(),ranges.end()});
     }
 
     return result;
