@@ -530,7 +530,7 @@ void MLIRLowerer::lower<ast::Model>(const Member& member)
 		auto values = lower<Expression>(*member.getStartOverload());
 		assert(values.size() == 1);
 
-		if (auto arrayType = type.dyn_cast<ArrayType>());
+		if (auto arrayType = type.dyn_cast<ArrayType>())
 			#ifndef WINDOWS_NOSTDLIB
       		builder.create<FillOp>(location, *values[0], *ref);
 	  		#else
