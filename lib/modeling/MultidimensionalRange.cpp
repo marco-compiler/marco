@@ -118,6 +118,11 @@ namespace marco::modeling
     return ranges[index];
   }
 
+  llvm::ArrayRef<Range> MultidimensionalRange::getRanges() const 
+  {
+    return ranges;
+  }
+
   unsigned int MultidimensionalRange::rank() const
   {
     return ranges.size();

@@ -133,6 +133,8 @@ namespace marco::modeling
       Range& operator[](size_t index);
 
       const Range& operator[](size_t index) const;
+    
+      llvm::ArrayRef<Range> getRanges() const;
 
       unsigned int rank() const;
 
