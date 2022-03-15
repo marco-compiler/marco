@@ -9,6 +9,7 @@
 
 using namespace marco::codegen;
 using namespace modelica;
+using namespace ::mlir::modelica;
 
 class CFGLowerer
 {

@@ -5,7 +5,7 @@
 #include "marco/AST/AST.h"
 #include "marco/AST/SymbolTable.h"
 #include "marco/Codegen/Options.h"
-#include "marco/Codegen/Lowering/Reference.h"
+#include "marco/Codegen/Reference.h"
 #include "marco/Codegen/dialects/modelica/ModelicaBuilder.h"
 #include "marco/Utils/SourcePosition.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -55,7 +55,7 @@ namespace marco::codegen
       void lower(const ast::ReturnStatement& statement);
 
       template<typename T>
-      Container<lowering::Reference> lower(const ast::Expression& expression);
+      Container<Reference> lower(const ast::Expression& expression);
 
       /// The builder is a helper class to create IR inside a function. The
       /// builder is stateful, in particular it keeps an "insertion point":
@@ -67,7 +67,7 @@ namespace marco::codegen
       /// are added to the mapping. When the processing of a function is
       /// terminated, the scope is destroyed and the mappings created in this
       /// scope are dropped.
-      llvm::ScopedHashTable<llvm::StringRef, lowering::Reference> symbolTable;
+      llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
 
       /// The stack represent the list of the nested scope names in which the
       /// lowerer currently is.
@@ -111,31 +111,31 @@ namespace marco::codegen
 			const ast::Member& member);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::Expression>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::Expression>(
 			const ast::Expression& expression);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::Operation>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::Operation>(
 			const ast::Expression& expression);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::Constant>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::Constant>(
 			const ast::Expression& expression);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::ReferenceAccess>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::ReferenceAccess>(
 			const ast::Expression& expression);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::Call>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::Call>(
 			const ast::Expression& expression);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::Tuple>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::Tuple>(
 			const ast::Expression& expression);
 
 	template<>
-  LoweringBridge::Container<lowering::Reference> LoweringBridge::lower<ast::Array>(
+  LoweringBridge::Container<Reference> LoweringBridge::lower<ast::Array>(
 			const ast::Expression& expression);
 }
 

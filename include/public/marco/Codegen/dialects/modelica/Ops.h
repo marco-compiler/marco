@@ -77,7 +77,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.pack";
+			return "modelicaOld.pack";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -115,7 +115,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.extract";
+			return "modelicaOld.extract";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -154,7 +154,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.model";
+			return "modelicaOld.model";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -209,7 +209,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.for_equation";
+			return "modelicaOld.for_equation";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -249,7 +249,7 @@ namespace marco::codegen::modelica
 
     static constexpr llvm::StringLiteral getOperationName()
     {
-      return "modelica.equation";
+      return "modelicaOld.equation";
     }
 
     static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -288,7 +288,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.equation_sides";
+			return "modelicaOld.equation_sides";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -334,7 +334,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.function";
+			return "modelicaOld.function";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -389,7 +389,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.function_terminator";
+			return "modelicaOld.function_terminator";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -426,7 +426,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.der_function";
+			return "modelicaOld.der_function";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -469,7 +469,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.constant";
+			return "modelicaOld.constant";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -512,7 +512,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.cast";
+			return "modelicaOld.cast";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -558,7 +558,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.assignment";
+			return "modelicaOld.assignment";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -606,7 +606,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.call";
+			return "modelicaOld.call";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -662,7 +662,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.member_create";
+			return "modelicaOld.member_create";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -706,7 +706,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.member_load";
+			return "modelicaOld.member_load";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -753,7 +753,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.member_store";
+			return "modelicaOld.member_store";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -799,7 +799,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.alloca";
+			return "modelicaOld.alloca";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -846,7 +846,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.alloc";
+			return "modelicaOld.alloc";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -892,7 +892,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.free";
+			return "modelicaOld.free";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -947,7 +947,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.array_cast";
+			return "modelicaOld.array_cast";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -988,7 +988,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.dim";
+			return "modelicaOld.dim";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1031,7 +1031,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.subscription";
+			return "modelicaOld.subscription";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1078,7 +1078,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.load";
+			return "modelicaOld.load";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1127,7 +1127,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.store";
+			return "modelicaOld.store";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1176,7 +1176,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.array_clone";
+			return "modelicaOld.array_clone";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1222,7 +1222,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.if";
+			return "modelicaOld.if";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1269,7 +1269,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.for";
+			return "modelicaOld.for";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1316,7 +1316,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.while";
+			return "modelicaOld.while";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1368,7 +1368,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.condition";
+			return "modelicaOld.condition";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1408,7 +1408,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.yield";
+			return "modelicaOld.yield";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1443,7 +1443,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.break";
+			return "modelicaOld.break";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1476,7 +1476,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.return";
+			return "modelicaOld.return";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1510,7 +1510,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.not";
+			return "modelicaOld.not";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1552,7 +1552,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.and";
+			return "modelicaOld.and";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1596,7 +1596,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.or";
+			return "modelicaOld.or";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1639,7 +1639,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.eq";
+			return "modelicaOld.eq";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1679,7 +1679,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.neq";
+			return "modelicaOld.neq";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1718,7 +1718,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.gt";
+			return "modelicaOld.gt";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1757,7 +1757,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.gte";
+			return "modelicaOld.gte";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1796,7 +1796,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.lt";
+			return "modelicaOld.lt";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1835,7 +1835,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.lte";
+			return "modelicaOld.lte";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1881,7 +1881,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.neg";
+			return "modelicaOld.neg";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -1941,7 +1941,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.add";
+			return "modelicaOld.add";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2000,7 +2000,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.add_ew";
+			return "modelicaOld.add_ew";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2059,7 +2059,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sub";
+			return "modelicaOld.sub";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2117,7 +2117,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sub_ew";
+			return "modelicaOld.sub_ew";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2177,7 +2177,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.mul";
+			return "modelicaOld.mul";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2237,7 +2237,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.mul_ew";
+			return "modelicaOld.mul_ew";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2298,7 +2298,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.div";
+			return "modelicaOld.div";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2358,7 +2358,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.div_ew";
+			return "modelicaOld.div_ew";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2412,7 +2412,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.pow";
+			return "modelicaOld.pow";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2461,7 +2461,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.pow_ew";
+			return "modelicaOld.pow_ew";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2507,7 +2507,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.abs";
+			return "modelicaOld.abs";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2556,7 +2556,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sign";
+			return "modelicaOld.sign";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2605,7 +2605,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sqrt";
+			return "modelicaOld.sqrt";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2654,7 +2654,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sin";
+			return "modelicaOld.sin";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2703,7 +2703,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.cos";
+			return "modelicaOld.cos";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2752,7 +2752,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.tan";
+			return "modelicaOld.tan";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2801,7 +2801,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.asin";
+			return "modelicaOld.asin";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2850,7 +2850,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.acos";
+			return "modelicaOld.acos";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2899,7 +2899,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.atan";
+			return "modelicaOld.atan";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2949,7 +2949,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.atan2";
+			return "modelicaOld.atan2";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -2999,7 +2999,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sinh";
+			return "modelicaOld.sinh";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3048,7 +3048,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.cosh";
+			return "modelicaOld.cosh";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3097,7 +3097,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.tanh";
+			return "modelicaOld.tanh";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3146,7 +3146,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.exp";
+			return "modelicaOld.exp";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3195,7 +3195,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.log";
+			return "modelicaOld.log";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3244,7 +3244,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.log10";
+			return "modelicaOld.log10";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3290,7 +3290,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.ndims";
+			return "modelicaOld.ndims";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3328,7 +3328,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.size";
+			return "modelicaOld.size";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3371,7 +3371,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.identity";
+			return "modelicaOld.identity";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3411,7 +3411,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.diagonal";
+			return "modelicaOld.diagonal";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3451,7 +3451,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.zeros";
+			return "modelicaOld.zeros";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3491,7 +3491,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.ones";
+			return "modelicaOld.ones";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3533,7 +3533,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.linspace";
+			return "modelicaOld.linspace";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3575,7 +3575,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.fill";
+			return "modelicaOld.fill";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3611,7 +3611,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.min";
+			return "modelicaOld.min";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3648,7 +3648,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.max";
+			return "modelicaOld.max";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3685,7 +3685,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.sum";
+			return "modelicaOld.sum";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3722,7 +3722,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.product";
+			return "modelicaOld.product";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3760,7 +3760,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.transpose";
+			return "modelicaOld.transpose";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3800,7 +3800,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.symmetric";
+			return "modelicaOld.symmetric";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3839,7 +3839,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.der";
+			return "modelicaOld.der";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3876,7 +3876,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.der_seed";
+			return "modelicaOld.der_seed";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
@@ -3912,7 +3912,7 @@ namespace marco::codegen::modelica
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.print";
+			return "modelicaOld.print";
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();

@@ -14,6 +14,7 @@
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Frontend/FrontendOptions.h"
 #include "marco/Codegen/Bridge.h"
+#include "marco/Codegen/NewBridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Passes.h"
@@ -184,6 +185,15 @@ namespace marco::frontend
     }
 
     instance().setMLIRModule(std::make_unique<mlir::ModuleOp>(std::move(*module)));
+
+    /*
+    llvm::errs() << "NEW BRIDGE OUTPUT\n";
+    marco::codegen::lowering::Bridge newBridge(ci.getMLIRContext(), options);
+    newBridge.lower(*ci.getAST());
+    newBridge.getMLIRModule()->dump();
+    instance().setMLIRModule(std::move(newBridge.getMLIRModule()));
+     */
+
     return true;
   }
 

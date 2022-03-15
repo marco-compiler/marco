@@ -20,6 +20,8 @@ namespace marco::codegen::lowering
     public:
       Bridge(mlir::MLIRContext& context, CodegenOptions options = CodegenOptions::getDefaultOptions());
 
+      ~Bridge();
+
       void lower(const ast::Class& cls);
 
       std::unique_ptr<mlir::ModuleOp>& getMLIRModule();

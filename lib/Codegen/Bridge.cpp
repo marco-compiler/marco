@@ -7,7 +7,6 @@
 using namespace marco;
 using namespace marco::ast;
 using namespace marco::codegen;
-using namespace marco::codegen::lowering;
 using namespace modelica;
 using namespace std;
 
@@ -222,7 +221,7 @@ mlir::Operation* LoweringBridge::lower(const ast::Model& model)
 	llvm::SmallVector<mlir::Type, 3> args;
 
 	// Time variable
-	args.push_back(builder.getArrayType(BufferAllocationScope::unknown, builder.getRealType()));
+	args.push_back(builder.getRealType());
 
 	// Other variables
 	llvm::SmallVector<mlir::Attribute, 3> variableNames;
@@ -280,7 +279,7 @@ mlir::Operation* LoweringBridge::lower(const ast::Model& model)
 		builder.setInsertionPointToStart(&modelOp.body().front());
 
 		mlir::Value time = modelOp.time();
-		symbolTable.insert("time", Reference::memory(&builder, time));
+		symbolTable.insert("time", Reference::ssa(&builder, time));
 
 		for (const auto& member : llvm::enumerate(model.getMembers()))
 			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, modelOp.body().getArgument(member.index() + 1)));

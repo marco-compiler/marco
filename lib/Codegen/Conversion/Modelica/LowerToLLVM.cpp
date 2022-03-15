@@ -9,8 +9,9 @@
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "mlir/Support/MathExtras.h"
 
-using namespace marco::codegen;
-using namespace modelica;
+using namespace ::marco::codegen;
+using namespace ::marco::codegen::modelica;
+using namespace ::mlir::modelica;
 
 /// Helper class to produce LLVM dialect operations extracting or inserting
 /// values to a struct representing an array descriptor.
@@ -962,7 +963,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	{
 		mlir::LowerToLLVMOptions llvmOptions(&getContext());
 		llvmOptions.emitCWrappers = options.emitCWrappers;
-		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
+		TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		mlir::ConversionTarget target(getContext());
 		target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();

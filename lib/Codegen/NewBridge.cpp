@@ -97,6 +97,8 @@ namespace marco::codegen::lowering
   {
   }
 
+  Bridge::~Bridge() = default;
+
   void Bridge::lower(const ast::Class& cls)
   {
     for (auto* op : impl->lower(cls)) {

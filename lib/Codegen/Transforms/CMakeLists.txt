@@ -13,6 +13,7 @@ set(SOURCES
     ModelSolving/Path.cpp
     ModelSolving/ScalarEquation.cpp
     ModelSolving/Scheduling.cpp
+    ModelSolving/TypeConverter.cpp
     ModelSolving/Variable.cpp
     AutomaticDifferentiation.cpp
     BufferDeallocation.cpp
@@ -35,10 +36,14 @@ add_mlir_dialect_library(MLIRModelicaTransforms
     ${SOURCES}
 
     DEPENDS
+    MLIRIDAConversion
+    MLIRModelicaConversion
     marco::codegen # remove once dialects library is completed
     marco::modeling
 
     LINK_LIBS PUBLIC
     marco::codegen
     marco::modeling
+    MLIRIDAConversion
+    MLIRModelicaConversion
     ${MLIR_LIBS})

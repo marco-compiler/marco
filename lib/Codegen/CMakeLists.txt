@@ -18,6 +18,7 @@ set(SOURCES
     Lowering/StatementLowerer.cpp
     Bridge.cpp
     NewBridge.cpp
+    Reference.cpp
     Options.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

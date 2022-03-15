@@ -74,6 +74,8 @@ namespace marco::codegen::lowering
       auto forEquationOp = builder().create<ForEquationOp>(
           location, builder().getI64IntegerAttr(start), builder().getI64IntegerAttr(end));
 
+      assert(forEquationOp.bodyRegion().getBlocks().empty());
+      builder().createBlock(&forEquationOp.bodyRegion(), {}, builder().getIndexType());
       builder().setInsertionPointToStart(forEquationOp.bodyBlock());
 
       symbolTable().insert(

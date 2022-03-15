@@ -35,7 +35,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
           mlir::FuncOp initFunction,
-          mlir::TypeRange variableTypesWithoutTime,
+          mlir::TypeRange variableTypes,
           const mlir::BlockAndValueMapping& derivatives);
 
     private:

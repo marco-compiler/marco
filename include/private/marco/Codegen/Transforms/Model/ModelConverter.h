@@ -7,6 +7,7 @@
 #include "marco/Codegen/Transforms/Model/ExternalSolver.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include <map>
 #include <set>
 
@@ -43,11 +44,7 @@ namespace marco::codegen
       };
 
     public:
-      ModelConverter(SolveModelOptions options, TypeConverter& typeConverter)
-          : options(std::move(options)),
-            typeConverter(&typeConverter)
-      {
-      }
+      ModelConverter(SolveModelOptions options, mlir::LLVMTypeConverter& typeConverter);
 
       /// Convert a scheduled model into the algorithmic functions that compose the simulation.
       /// The usage of such functions is delegated to the runtime library, which is statically
@@ -221,7 +218,7 @@ namespace marco::codegen
 
     private:
       SolveModelOptions options;
-      TypeConverter* typeConverter;
+      mlir::LLVMTypeConverter* typeConverter;
   };
 }
 

@@ -473,11 +473,10 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "mlir::Type":$timeType, "mlir::TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount), [{
+        OpBuilder<(ins "StringRef":$sym_name, "mlir::TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
-            args.push_back(timeType);
 
             for (const auto& variableType : variablesTypes) {
                 args.push_back(variableType);

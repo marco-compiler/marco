@@ -9,8 +9,9 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include <numeric>
 
-using namespace marco::codegen;
-using namespace modelica;
+using namespace ::marco::codegen;
+using namespace ::marco::codegen::modelica;
+using namespace ::mlir::modelica;
 
 static bool isNumericType(mlir::Type type)
 {
@@ -182,9 +183,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp>
 	{
 	}
 
-	[[nodiscard]] marco::codegen::TypeConverter& typeConverter() const
+	[[nodiscard]] mlir::modelica::TypeConverter& typeConverter() const
 	{
-		return *static_cast<marco::codegen::TypeConverter *>(this->getTypeConverter());
+		return *static_cast<mlir::modelica::TypeConverter *>(this->getTypeConverter());
 	}
 
 	[[nodiscard]] mlir::Type convertType(mlir::Type type) const
@@ -3576,7 +3577,7 @@ std::unique_ptr<mlir::Pass> marco::codegen::createFunctionConversionPass()
 static void populateModelicaConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
-		marco::codegen::TypeConverter& typeConverter,
+		mlir::modelica::TypeConverter& typeConverter,
 		ModelicaConversionOptions options)
 {
 	patterns.insert<

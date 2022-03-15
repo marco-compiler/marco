@@ -91,7 +91,7 @@ namespace marco::codegen::lowering
 
     {
       // Body
-      mlir::Block* bodyBlock = builder().createBlock(&modelOp.bodyRegion());
+      mlir::Block* bodyBlock = builder().createBlock(&modelOp.bodyRegion(), {}, args);
       builder().setInsertionPointToStart(bodyBlock);
 
       mlir::Value time = modelOp.bodyRegion().getArgument(0);

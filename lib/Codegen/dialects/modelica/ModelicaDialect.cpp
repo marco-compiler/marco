@@ -62,7 +62,7 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 };
 
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
-		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
+		: Dialect("modelicaOld", context, mlir::TypeID::get<ModelicaDialect>())
 {
 	addTypes<BooleanType, IntegerType, RealType, MemberType, ArrayType, UnsizedArrayType, StructType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, DerivativeAttribute, InverseFunctionsAttribute>();
@@ -127,7 +127,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 
 mlir::StringRef ModelicaDialect::getDialectNamespace()
 {
-	return "modelica";
+	return "modelicaOld";
 }
 
 mlir::Type ModelicaDialect::parseType(mlir::DialectAsmParser& parser) const

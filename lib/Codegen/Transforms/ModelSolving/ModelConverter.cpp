@@ -86,6 +86,12 @@ static std::vector<unsigned int> removeUnusedArguments(
 
 namespace marco::codegen
 {
+  ModelConverter::ModelConverter(SolveModelOptions options, mlir::LLVMTypeConverter& typeConverter)
+      : options(std::move(options)),
+        typeConverter(&typeConverter)
+  {
+  }
+
   mlir::LogicalResult ModelConverter::convert(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
@@ -451,6 +457,13 @@ namespace marco::codegen
     modelOp.init().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
 
+    // Convert the 'time' from a member type to a scalar value and set the start time
+    auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
+    auto timeMember = terminator.values()[0].getDefiningOp<MemberCreateOp>();
+    auto startTime = builder.create<ConstantOp>(loc, modelOp.startTime());
+    timeMember->replaceAllUsesWith(startTime);
+    timeMember.erase();
+
     // Initialize the IDA solver
     if (auto res = externalSolvers.ida->init(builder, function); mlir::failed(res)) {
       return res;
@@ -462,14 +475,9 @@ namespace marco::codegen
     }
 
     // Process the equations that are handled by IDA
-    mlir::TypeRange bodyTypes = modelOp.body().getArgumentTypes();
-    std::vector<mlir::Type> variableTypesWithoutTime(++bodyTypes.begin(), bodyTypes.end());
-
-    if (auto res = externalSolvers.ida->processEquations(builder, model, function, variableTypesWithoutTime, derivatives); mlir::failed(res)) {
+    if (auto res = externalSolvers.ida->processEquations(builder, model, function, modelOp.body().getArgumentTypes(), derivatives); mlir::failed(res)) {
       return res;
     }
-
-    auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
 
     // The values to be packed into the structure to be passed around the simulation functions
     llvm::SmallVector<mlir::Value, 3> values;
@@ -477,9 +485,15 @@ namespace marco::codegen
     builder.setInsertionPointAfter(terminator);
 
     auto removeAllocationScopeFn = [&](mlir::Value value) -> mlir::Value {
-      return builder.create<ArrayCastOp>(
-          loc, value,
-          value.getType().cast<ArrayType>().toUnknownAllocationScope());
+      mlir::Type type = value.getType();
+
+      if (auto arrayType = type.dyn_cast<ArrayType>()) {
+        return builder.create<ArrayCastOp>(
+            loc, value,
+            value.getType().cast<ArrayType>().toUnknownAllocationScope());
+      } else {
+        return value;
+      }
     };
 
     // Add variables to the struct to be passed around (i.e. to the step and
@@ -500,15 +514,12 @@ namespace marco::codegen
 
     builder.setInsertionPointAfter(terminator);
 
-    // Set the start time
-    mlir::Value startTime = builder.create<ConstantOp>(loc, modelOp.startTime());
-    builder.create<StoreOp>(loc, startTime, values[timeVariablePosition]);
-
     // Determine the types composing the runtime data structure.
     std::vector<mlir::Type> runtimeDataStructTypes;
 
     // Determine the types of the external solvers structure.
     std::vector<mlir::Type> externalSolversStructTypes;
+
     externalSolversStructTypes.push_back(typeConverter->convertType(externalSolvers.ida->getSolverInstanceType(builder.getContext())));
     mlir::Type externalSolversStructType = mlir::LLVM::LLVMStructType::getLiteral(builder.getContext(), externalSolversStructTypes);
     mlir::Type externalSolversStructPtrType = mlir::LLVM::LLVMPointerType::get(externalSolversStructType);
@@ -520,7 +531,8 @@ namespace marco::codegen
     // Notice that the 'time' variable is already present among the model
     // body, so its type is automatically added to the struct.
     for (const auto& type : modelOp.body().getArgumentTypes()) {
-      runtimeDataStructTypes.push_back(typeConverter->convertType(type));
+      auto convertedType = typeConverter->convertType(type);
+      runtimeDataStructTypes.push_back(convertedType);
     }
 
     auto runtimeDataStructType = mlir::LLVM::LLVMStructType::getLiteral(modelOp.getContext(), runtimeDataStructTypes);
@@ -556,8 +568,6 @@ namespace marco::codegen
 
     builder.create<mlir::ReturnOp>(loc, resultOpaquePtr);
     terminator->erase();
-
-    function.dump();
 
     return mlir::success();
   }

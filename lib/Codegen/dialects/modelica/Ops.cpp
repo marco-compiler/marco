@@ -245,7 +245,7 @@ mlir::ParseResult PackOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 
 void PackOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.pack " << values() << " : ";
+	printer << "modelicaOld.pack " << values() << " : ";
 
 	if (values().size() > 1)
 		printer << "(";
@@ -300,7 +300,7 @@ void ExtractOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mli
 
 void ExtractOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.extract "
+	printer << "modelicaOld.extract "
 					<< packedValue() << getOperation()->getAttrDictionary()
 					<< " : (" << packedValue().getType();
 }
@@ -3168,7 +3168,7 @@ mlir::ParseResult ForOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
 	auto values = args();
-	printer << "modelica.for";
+	printer << "modelicaOld.for";
 
 	if (!values.empty())
 	{

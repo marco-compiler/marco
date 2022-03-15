@@ -136,7 +136,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
       mlir::FuncOp initFunction,
-      mlir::TypeRange variableTypesWithoutTime,
+      mlir::TypeRange variableTypes,
       const mlir::BlockAndValueMapping& derivatives)
   {
     // Substitute the accesses to non-IDA variables with the equations writing in such variables
@@ -230,7 +230,6 @@ namespace marco::codegen
     size_t jacobianFunctionsCounter = 0;
 
     for (const auto& equation : independentEquations) {
-      equation->dumpIR();
       auto ranges = equation->getIterationRanges();
       std::vector<mlir::Attribute> rangesAttr;
 
@@ -273,7 +272,7 @@ namespace marco::codegen
           builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
 
           auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
-              equation->getOperation().getLoc(), residualFunctionName, RealType::get(builder.getContext()), variableTypesWithoutTime, equation->getNumOfIterationVars());
+              equation->getOperation().getLoc(), residualFunctionName, variableTypes, equation->getNumOfIterationVars());
 
           /*
           mlir::BlockAndValueMapping mapping;
@@ -294,5 +293,7 @@ namespace marco::codegen
         builder.create<mlir::ida::AddJacobianOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, jacobianFunctionName);
       }
     }
+
+    return mlir::success();
   }
 }
