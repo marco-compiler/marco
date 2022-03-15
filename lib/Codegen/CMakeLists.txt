@@ -4,10 +4,18 @@ set(SOURCES
     dialects/modelica/ModelicaDialect.cpp
     dialects/modelica/Ops.cpp
     dialects/modelica/Type.cpp
-    Lowering/FunctionCallBridge.cpp
-    Lowering/OperationBridge.cpp
+    Lowering/CallLowerer.cpp
+    Lowering/ClassLowerer.cpp
+    Lowering/ExpressionLowerer.cpp
+    Lowering/EquationLowerer.cpp
+    Lowering/Lowerer.cpp
+    Lowering/LoweringContext.cpp
+    Lowering/ModelLowerer.cpp
+    Lowering/OperationLowerer.cpp
     Lowering/Reference.cpp
     Lowering/Results.cpp
+    Lowering/StandardFunctionLowerer.cpp
+    Lowering/StatementLowerer.cpp
     Bridge.cpp
     NewBridge.cpp
     Options.cpp)

@@ -13,6 +13,8 @@ namespace marco::codegen
   {
     public:
       virtual bool isEnabled() const = 0;
+
+      virtual mlir::Type getSolverInstanceType(mlir::MLIRContext* context) const = 0;
   };
 
   class ExternalSolvers

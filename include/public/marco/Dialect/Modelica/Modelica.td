@@ -525,8 +525,10 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create",
     }];
 
     let builders = [
-        OpBuilder<(ins "::mlir::modelica::MemberType":$memberType, "::mlir::ValueRange":$dynamicSizes, "BoolAttr":$isConstant), [{
-            build($_builder, $_state, memberType, dynamicSizes, isConstant);
+        OpBuilder<(ins "llvm::StringRef":$name, "::mlir::modelica::MemberType":$memberType, "::mlir::ValueRange":$dynamicSizes, "bool":$isConstant), [{
+            auto nameAttr = $_builder.getStringAttr(name);
+            auto isConstantAttr = $_builder.getBoolAttr(isConstant);
+            build($_builder, $_state, memberType, nameAttr, dynamicSizes, isConstantAttr);
     }]>];
 
     let extraClassDeclaration = [{
@@ -2072,6 +2074,16 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
     let assemblyFormat = [{
         attr-dict regions
     }];
+
+    let builders = [
+        OpBuilder<(ins "long":$from, "long":$to)>
+    ];
+
+    let extraClassDeclaration = [{
+        public:
+            Block* bodyBlock();
+            Value induction();
+    }];
 }
 
 def Modelica_EquationOp : Modelica_Op<"equation",
@@ -2092,6 +2104,11 @@ def Modelica_EquationOp : Modelica_Op<"equation",
 
     let assemblyFormat = [{
         attr-dict regions
+    }];
+
+    let extraClassDeclaration = [{
+        public:
+            Block* bodyBlock();
     }];
 }
 
@@ -2435,12 +2452,18 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
         TODO
     }];
 
-    let arguments = (ins ModelicaBoolean:$condition);
+    let arguments = (ins ModelicaBoolean:$condition, Variadic<AnyType>:$values);
     let results = (outs);
 
     let assemblyFormat = [{
-        $condition attr-dict `:` type($condition)
+        $condition `,` `(` $values attr-dict `)` `:` type($condition) `,` type($values)
     }];
+
+    let builders = [
+        OpBuilder<(ins "::mlir::Value":$condition), [{
+            build($_builder, $_state, condition, llvm::None);
+        }]>
+    ];
 }
 
 def Modelica_ForOp : Modelica_Op<"for",

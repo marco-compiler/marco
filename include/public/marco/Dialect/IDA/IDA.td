@@ -446,7 +446,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 
         The function takes three parameters:
           1. IDA instance
-          2. current time of the simulation.
+          2. current time of the simulation (which will be provided by IDA when calling the residual function).
           3. indices of the scalar equation to be examined.
 
         Example:
@@ -473,18 +473,19 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name), [{
+        OpBuilder<(ins "StringRef":$sym_name, "mlir::Type":$timeType, "mlir::TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
-            args.push_back(InstanceType::get($_builder.getContext()));
-            args.push_back($_builder.getF64Type());
+            args.push_back(timeType);
 
-            llvm::SmallVector<int64_t, 1> equationIndicesShape;
-            equationIndicesShape.push_back(-1);
+            for (const auto& variableType : variablesTypes) {
+                args.push_back(variableType);
+            }
 
-            auto equationIndicesType = MemRefType::get(equationIndicesShape, $_builder.getIndexType());
-            args.push_back(equationIndicesType);
+            for (size_t i = 0; i < inductionVariablesAmount; ++i) {
+                args.push_back($_builder.getIndexType());
+            }
 
             auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
             auto typeAttr = TypeAttr::get(functionType);
@@ -562,7 +563,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 
         The function takes six parameters:
           1. IDA instance.
-          2. current time of the simulation.
+          2. current time of the simulation (which will be provided by IDA when calling the residual function).
           3. indices of the scalar equation to be examined.
           4. array variable belonging to the IDA instance.
           5. indices of the scalar variable with respect to which

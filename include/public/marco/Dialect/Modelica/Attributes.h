@@ -63,13 +63,18 @@ namespace mlir::modelica
   class InverseFunctionsMap
   {
     private:
-      using Map = std::map<unsigned int, std::pair<llvm::StringRef, llvm::ArrayRef<unsigned int>>>;
+      using InverseFunction =  std::pair<llvm::StringRef, llvm::ArrayRef<unsigned int>>;
+      using Map = std::map<unsigned int, InverseFunction>;
 
     public:
       using iterator = detail::InvertibleArgumentsIterator<unsigned int, Map::iterator>;
       using const_iterator = detail::InvertibleArgumentsIterator<unsigned int, Map::const_iterator>;
 
       bool operator==(const InverseFunctionsMap& other) const;
+
+      InverseFunction& operator[](unsigned int arg);
+
+      bool empty() const;
 
       iterator begin();
       const_iterator begin() const;

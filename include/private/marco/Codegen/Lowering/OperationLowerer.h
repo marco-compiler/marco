@@ -2,17 +2,18 @@
 #define MARCO_CODEGEN_LOWERING_OPERATIONBRIDGE_H
 
 #include "marco/AST/AST.h"
-#include "marco/Codegen/NewBridge.h"
+#include "marco/Codegen/Lowering/Lowerer.h"
+#include "marco/Codegen/BridgeInterface.h"
 #include <functional>
 
 namespace marco::codegen::lowering
 {
-  class OperationBridge
+  class OperationLowerer : public Lowerer
   {
     public:
-      using Lowerer = std::function<Results(OperationBridge&, const ast::Operation&)>;
+      using LoweringFunction = std::function<Results(OperationLowerer&, const ast::Operation&)>;
 
-      OperationBridge(NewLoweringBridge* bridge);
+      OperationLowerer(LoweringContext* context, BridgeInterface* bridge);
 
       Results negate(const ast::Operation& operation);
       Results add(const ast::Operation& operation);
@@ -32,9 +33,10 @@ namespace marco::codegen::lowering
       Results memberLookup(const ast::Operation& operation);
       Results powerOf(const ast::Operation& operation);
 
-    private:
-      mlir::OpBuilder& builder();
+    protected:
+      using Lowerer::lower;
 
+    private:
       std::vector<mlir::Value> lowerArgs(const ast::Operation& operation);
 
       template<ast::OperationKind Kind, int Arity = -1>
@@ -43,13 +45,12 @@ namespace marco::codegen::lowering
         assert(operation.getOperationKind() == Kind);
 
         auto args = lowerArgs(operation);
+        // TODO fix warning: comparison of integer expressions of different signedness: ‘std::vector<mlir::Value, std::allocator<mlir::Value> >::size_type’ {aka ‘long unsigned int’} and ‘int’
         assert(Arity == -1 || args.size() == Arity);
 
-        mlir::Location loc = bridge->loc(operation.getLocation());
-        return callback(std::move(loc), args);
+        auto location = loc(operation.getLocation());
+        return callback(std::move(location), args);
       }
-
-      NewLoweringBridge* bridge;
   };
 }
 

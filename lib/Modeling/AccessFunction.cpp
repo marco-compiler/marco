@@ -132,8 +132,9 @@ namespace marco::modeling
   {
     llvm::SmallVector<DimensionAccess, 3> accesses;
 
-    for (size_t i = 0; i < dimensionality; ++i)
+    for (size_t i = 0; i < dimensionality; ++i) {
       accesses.push_back(DimensionAccess::relative(i, 0));
+    }
 
     return AccessFunction(std::move(accesses));
   }

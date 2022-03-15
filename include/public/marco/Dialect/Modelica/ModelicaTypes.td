@@ -123,6 +123,8 @@ def MemberType : Modelica_Type<"Member", "member"> {
     let extraClassDeclaration = [{
 		unsigned int getRank() const;
 
+		static MemberType wrap(mlir::Type type, MemberAllocationScope allocationScope);
+
 		ArrayType toArrayType() const;
 		mlir::Type unwrap() const;
      }];

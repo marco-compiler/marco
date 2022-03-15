@@ -15,9 +15,6 @@ namespace marco::codegen
   class ModelConverter
   {
     private:
-      // The extra data within the simulation data structure that is placed
-      // before the simulation variables.
-
       static constexpr size_t timeVariablePosition = 0;
 
       // The derivatives map keeps track of whether a variable is the derivative
@@ -219,6 +216,8 @@ namespace marco::codegen
           DerivativesPositionsMap& derivativesPositions,
           llvm::StringRef functionName,
           std::function<mlir::LogicalResult(std::function<mlir::Value()>, llvm::StringRef, unsigned int, VariableFilter::Filter, mlir::Value)> elementCallback) const;
+
+      //static convertModelTypesToRuntimeDataPtr(mlir::TypeRange types);
 
     private:
       SolveModelOptions options;

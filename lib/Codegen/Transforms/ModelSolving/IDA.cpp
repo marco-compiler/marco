@@ -17,6 +17,11 @@ namespace marco::codegen
     return true;
   }
 
+  mlir::Type IDASolver::getSolverInstanceType(mlir::MLIRContext* context) const
+  {
+    return mlir::ida::InstanceType::get(context);
+  }
+
   bool IDASolver::hasVariable(mlir::Value variable) const
   {
     return llvm::find(variables, variable) != variables.end();
@@ -41,11 +46,10 @@ namespace marco::codegen
     equations.emplace(equation);
   }
 
-  void IDASolver::processInitFunction(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives)
+  mlir::LogicalResult IDASolver::init(mlir::OpBuilder& builder, mlir::FuncOp initFunction)
   {
-    auto modelOp = model.getOperation();
-    auto loc = initFunction.getLoc();
-    auto terminator = mlir::cast<YieldOp>(initFunction.getBody().back().getTerminator());
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(&initFunction.getBody().front());
 
     // Create the IDA instance.
     // To do so, we need to first compute the total number of scalar variables that IDA
@@ -56,36 +60,85 @@ namespace marco::codegen
       numberOfScalarEquations += equation->getIterationRanges().flatSize();
     }
 
-    mlir::Value ida = builder.create<mlir::ida::CreateOp>(loc, builder.getI64IntegerAttr(numberOfScalarEquations));
+    idaInstance = builder.create<mlir::ida::CreateOp>(
+        initFunction.getLoc(), builder.getI64IntegerAttr(numberOfScalarEquations));
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult IDASolver::processVariables(mlir::OpBuilder& builder, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives)
+  {
+    mlir::BlockAndValueMapping inverseDerivatives = derivatives.getInverse();
+    auto terminator = mlir::cast<YieldOp>(initFunction.getBody().back().getTerminator());
 
     // Change the ownership of the variables managed to IDA
-    mlir::BlockAndValueMapping idaVariables;
 
     for (const auto& variable : variables) {
       mlir::Value value = terminator.values()[variable.cast<mlir::BlockArgument>().getArgNumber()];
       auto memberCreateOp = value.getDefiningOp<MemberCreateOp>();
-      auto isState = derivatives.contains(variable);
       builder.setInsertionPoint(memberCreateOp);
 
       auto memberType = memberCreateOp.resultType().cast<MemberType>();
       auto dimensions = memberType.toArrayType().getShape();
 
-      auto idaVariable = builder.create<mlir::ida::AddVariableOp>(
-          memberCreateOp.getLoc(), ida,
-          builder.getI64ArrayAttr(dimensions),
-          builder.getBoolAttr(isState));
+      if (derivatives.contains(variable)) {
+        // State variable
+        auto idaVariable = builder.create<mlir::ida::AddVariableOp>(
+            memberCreateOp.getLoc(), idaInstance,
+            builder.getI64ArrayAttr(dimensions),
+            builder.getBoolAttr(true));
 
-      idaVariables.map(variable, idaVariable);
+        mappedVariables.map(variable, idaVariable);
+        mlir::Value derivative = derivatives.lookup(variable);
+        mappedVariables.map(derivative, idaVariable);
 
-      auto castedVariable = builder.create<mlir::ida::GetVariableOp>(
-          memberCreateOp.getLoc(),
-          memberType.toArrayType(),
-          ida, idaVariable);
+      } else if (!inverseDerivatives.contains(variable)) {
+        // Algebraic variable
+        auto idaVariable = builder.create<mlir::ida::AddVariableOp>(
+            memberCreateOp.getLoc(), idaInstance,
+            builder.getI64ArrayAttr(dimensions),
+            builder.getBoolAttr(false));
 
-      memberCreateOp->replaceAllUsesWith(castedVariable);
+        mappedVariables.map(variable, idaVariable);
+      }
+    }
+
+    for (const auto& variable : variables) {
+      mlir::Value value = terminator.values()[variable.cast<mlir::BlockArgument>().getArgNumber()];
+      auto memberCreateOp = value.getDefiningOp<MemberCreateOp>();
+      builder.setInsertionPoint(memberCreateOp);
+      auto memberType = memberCreateOp.resultType().cast<MemberType>();
+      mlir::Value idaVariable = mappedVariables.lookup(variable);
+
+      if (inverseDerivatives.contains(variable)) {
+        auto castedVariable = builder.create<mlir::ida::GetDerivativeOp>(
+            memberCreateOp.getLoc(),
+            memberType.toArrayType(),
+            idaInstance, idaVariable);
+
+        memberCreateOp->replaceAllUsesWith(castedVariable);
+      } else {
+        auto castedVariable = builder.create<mlir::ida::GetVariableOp>(
+            memberCreateOp.getLoc(),
+            memberType.toArrayType(),
+            idaInstance, idaVariable);
+
+        memberCreateOp->replaceAllUsesWith(castedVariable);
+      }
+
       memberCreateOp.erase();
     }
 
+    return mlir::success();
+  }
+
+  mlir::LogicalResult IDASolver::processEquations(
+      mlir::OpBuilder& builder,
+      const Model<ScheduledEquationsBlock>& model,
+      mlir::FuncOp initFunction,
+      mlir::TypeRange variableTypesWithoutTime,
+      const mlir::BlockAndValueMapping& derivatives)
+  {
     // Substitute the accesses to non-IDA variables with the equations writing in such variables
     std::vector<std::unique_ptr<ScheduledEquation>> independentEquations;
     std::multimap<unsigned int, std::pair<modeling::MultidimensionalRange, ScheduledEquation*>> writesMap;
@@ -170,6 +223,7 @@ namespace marco::codegen
     }
 
     // Set inside IDA the information about the equations
+    auto terminator = mlir::cast<YieldOp>(initFunction.getBody().back().getTerminator());
     builder.setInsertionPoint(terminator);
 
     size_t residualFunctionsCounter = 0;
@@ -186,11 +240,11 @@ namespace marco::codegen
 
       auto idaEquation = builder.create<mlir::ida::AddEquationOp>(
           equation->getOperation().getLoc(),
-          ida,
+          idaInstance,
           builder.getArrayAttr(rangesAttr));
 
       for (const auto& access : equation->getAccesses()) {
-        mlir::Value idaVariable = idaVariables.lookup(access.getVariable()->getValue());
+        mlir::Value idaVariable = mappedVariables.lookup(access.getVariable()->getValue());
         const auto& accessFunction = access.getAccessFunction();
 
         std::vector<mlir::AffineExpr> expressions;
@@ -207,21 +261,37 @@ namespace marco::codegen
 
         builder.create<mlir::ida::AddVariableAccessOp>(
             equation->getOperation().getLoc(),
-            ida, idaEquation, idaVariable,
+            idaInstance, idaEquation, idaVariable,
             mlir::AffineMap::get(accessFunction.size(), 0, expressions, builder.getContext()));
 
         auto residualFunctionName = "residualFunction" + std::to_string(residualFunctionsCounter++);
         auto jacobianFunctionName = "jacobianFunction" + std::to_string(jacobianFunctionsCounter++);
 
         {
+          // Create and populate the residual function
           mlir::OpBuilder::InsertionGuard g(builder);
           builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
-          builder.create<mlir::ida::ResidualFunctionOp>(equation->getOperation().getLoc(), residualFunctionName);
-          builder.create<mlir::ida::JacobianFunctionOp>(equation->getOperation().getLoc(), jacobianFunctionName);
+
+          auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
+              equation->getOperation().getLoc(), residualFunctionName, RealType::get(builder.getContext()), variableTypesWithoutTime, equation->getNumOfIterationVars());
+
+          /*
+          mlir::BlockAndValueMapping mapping;
+
+          for (const auto& originalAccess : equation->getAccesses()) {
+            auto access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+          }
+           */
         }
 
-        builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), ida, idaEquation, residualFunctionName);
-        builder.create<mlir::ida::AddJacobianOp>(equation->getOperation().getLoc(), ida, idaEquation, jacobianFunctionName);
+        {
+          mlir::OpBuilder::InsertionGuard g(builder);
+          builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
+          auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(equation->getOperation().getLoc(), jacobianFunctionName);
+        }
+
+        builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, residualFunctionName);
+        builder.create<mlir::ida::AddJacobianOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, jacobianFunctionName);
       }
     }
   }

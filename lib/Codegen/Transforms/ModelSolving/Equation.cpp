@@ -365,6 +365,28 @@ namespace marco::codegen
       } else {
         if (arrayType.getShape().size() == dimensionsAccesses.size()) {
           accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
+        } else {
+          // If the variable is not subscribed enough times, then the remaining indices must be
+          // added in their full ranges.
+
+          std::vector<Range> additionalRanges;
+          auto shape = arrayType.getShape();
+
+          for (size_t i = shape.size() - dimensionsAccesses.size(); i < shape.size(); ++i) {
+            additionalRanges.push_back(modeling::Range(0, shape[i]));
+          }
+
+          MultidimensionalRange additionalMultidimensionalRange(additionalRanges);
+
+          for (const auto& indices : additionalMultidimensionalRange) {
+            std::vector<DimensionAccess> completeDimensionsAccesses(reverted.begin(), reverted.end());
+
+            for (const auto& index : indices) {
+              completeDimensionsAccesses.push_back(DimensionAccess::constant(index));
+            }
+
+            accesses.emplace_back(*variable, AccessFunction(completeDimensionsAccesses), std::move(path));
+          }
         }
       }
     }
@@ -708,7 +730,7 @@ namespace marco::codegen
     mlir::Value mappedReplacement = mapping.lookup(replacement);
 
     // Add the missing subscriptions, if any.
-    // This is required when the source equations has implicit loops.
+    // This is required when the source equation has implicit loops.
     if (auto mappedReplacementArrayType = mappedReplacement.getType().dyn_cast<ArrayType>()) {
       size_t expectedRank = 0;
 

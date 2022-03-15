@@ -13,6 +13,16 @@ namespace mlir::modelica
     return map == other.map;
   }
 
+  InverseFunctionsMap::InverseFunction& InverseFunctionsMap::operator[](unsigned int arg)
+  {
+    return map[arg];
+  }
+
+  bool InverseFunctionsMap::empty() const
+  {
+    return map.empty();
+  }
+
   InverseFunctionsMap::iterator InverseFunctionsMap::begin()
   {
     return map.begin();

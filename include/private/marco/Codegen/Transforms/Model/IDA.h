@@ -14,6 +14,8 @@ namespace marco::codegen
 
       bool isEnabled() const override;
 
+      mlir::Type getSolverInstanceType(mlir::MLIRContext* context) const override;
+
       bool hasVariable(mlir::Value variable) const;
 
       void addVariable(mlir::Value variable);
@@ -22,11 +24,26 @@ namespace marco::codegen
 
       void addEquation(ScheduledEquation* equation);
 
-      void processInitFunction(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model, mlir::FuncOp initFunction, const mlir::BlockAndValueMapping& derivatives);
+      mlir::LogicalResult init(mlir::OpBuilder& builder, mlir::FuncOp initFunction);
+
+      mlir::LogicalResult processVariables(
+          mlir::OpBuilder& builder,
+          mlir::FuncOp initFunction,
+          const mlir::BlockAndValueMapping& derivatives);
+
+      mlir::LogicalResult processEquations(
+          mlir::OpBuilder& builder,
+          const Model<ScheduledEquationsBlock>& model,
+          mlir::FuncOp initFunction,
+          mlir::TypeRange variableTypesWithoutTime,
+          const mlir::BlockAndValueMapping& derivatives);
 
     private:
       std::vector<mlir::Value> variables;
       std::set<ScheduledEquation*> equations;
+
+      mlir::Value idaInstance;
+      mlir::BlockAndValueMapping mappedVariables;
   };
 }
 

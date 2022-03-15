@@ -375,6 +375,41 @@ static mlir::LogicalResult verify(ZerosOp op)
 namespace mlir::modelica
 {
   //===----------------------------------------------------------------------===//
+  // EquationOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::Block* EquationOp::bodyBlock()
+  {
+    assert(bodyRegion().getBlocks().size() == 1);
+    return &bodyRegion().front();
+  }
+
+  //===----------------------------------------------------------------------===//
+  // ForEquationOp
+  //===----------------------------------------------------------------------===//
+
+  void ForEquationOp::build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, long from, long to)
+  {
+    state.addAttribute(fromAttrName(state.name), builder.getI64IntegerAttr(from));
+    state.addAttribute(toAttrName(state.name), builder.getI64IntegerAttr(to));
+
+    mlir::Region* bodyRegion = state.addRegion();
+    builder.createBlock(bodyRegion, {}, builder.getIndexType());
+  }
+
+  mlir::Block* ForEquationOp::bodyBlock()
+  {
+    assert(bodyRegion().getBlocks().size() == 1);
+    return &bodyRegion().front();
+  }
+
+  mlir::Value ForEquationOp::induction()
+  {
+    assert(bodyRegion().getNumArguments() != 0);
+    return bodyRegion().getArgument(0);
+  }
+
+  //===----------------------------------------------------------------------===//
   // ModelOp
   //===----------------------------------------------------------------------===//
 
@@ -1916,6 +1951,8 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // ForOp
   //===----------------------------------------------------------------------===//
+
+
 
   mlir::ValueRange ForOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {

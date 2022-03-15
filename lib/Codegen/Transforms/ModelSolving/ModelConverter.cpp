@@ -451,7 +451,23 @@ namespace marco::codegen
     modelOp.init().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
 
-    externalSolvers.ida->processInitFunction(builder, model, function, derivatives);
+    // Initialize the IDA solver
+    if (auto res = externalSolvers.ida->init(builder, function); mlir::failed(res)) {
+      return res;
+    }
+
+    // Process the variables that are handled by IDA
+    if (auto res = externalSolvers.ida->processVariables(builder, function, derivatives); mlir::failed(res)) {
+      return res;
+    }
+
+    // Process the equations that are handled by IDA
+    mlir::TypeRange bodyTypes = modelOp.body().getArgumentTypes();
+    std::vector<mlir::Type> variableTypesWithoutTime(++bodyTypes.begin(), bodyTypes.end());
+
+    if (auto res = externalSolvers.ida->processEquations(builder, model, function, variableTypesWithoutTime, derivatives); mlir::failed(res)) {
+      return res;
+    }
 
     auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
 
@@ -488,16 +504,28 @@ namespace marco::codegen
     mlir::Value startTime = builder.create<ConstantOp>(loc, modelOp.startTime());
     builder.create<StoreOp>(loc, startTime, values[timeVariablePosition]);
 
-    // Pack the values
-    mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
-    std::vector<mlir::Type> structTypes;
+    // Determine the types composing the runtime data structure.
+    std::vector<mlir::Type> runtimeDataStructTypes;
 
-    for (const auto& type : varTypes) {
-      structTypes.push_back(typeConverter->convertType(type));
+    // Determine the types of the external solvers structure.
+    std::vector<mlir::Type> externalSolversStructTypes;
+    externalSolversStructTypes.push_back(typeConverter->convertType(externalSolvers.ida->getSolverInstanceType(builder.getContext())));
+    mlir::Type externalSolversStructType = mlir::LLVM::LLVMStructType::getLiteral(builder.getContext(), externalSolversStructTypes);
+    mlir::Type externalSolversStructPtrType = mlir::LLVM::LLVMPointerType::get(externalSolversStructType);
+
+    // Add the pointer to the external solvers structure
+    runtimeDataStructTypes.push_back(externalSolversStructPtrType);
+
+    // Add the types of the variables.
+    // Notice that the 'time' variable is already present among the model
+    // body, so its type is automatically added to the struct.
+    for (const auto& type : modelOp.body().getArgumentTypes()) {
+      runtimeDataStructTypes.push_back(typeConverter->convertType(type));
     }
 
-    auto structType = mlir::LLVM::LLVMStructType::getLiteral(modelOp.getContext(), structTypes);
-    mlir::Value structValue = builder.create<mlir::LLVM::UndefOp>(loc, structType);
+    auto runtimeDataStructType = mlir::LLVM::LLVMStructType::getLiteral(modelOp.getContext(), runtimeDataStructTypes);
+
+    mlir::Value structValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
 
     for (const auto& var : llvm::enumerate(values)) {
       mlir::Type convertedType = typeConverter->convertType(var.value().getType());
@@ -512,7 +540,7 @@ namespace marco::codegen
     auto heapAllocFunc = lookupOrCreateHeapAllocFn(builder, module);
 
     // Determine the size (in bytes) of the memory to be allocated
-    mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
+    mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(runtimeDataStructType);
     mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, structPtrType);
 
     mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));

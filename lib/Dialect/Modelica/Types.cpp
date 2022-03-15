@@ -182,6 +182,15 @@ namespace mlir::modelica
     return getShape().size();
   }
 
+  MemberType MemberType::wrap(mlir::Type type, MemberAllocationScope allocationScope)
+  {
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      return MemberType::get(type.getContext(), allocationScope, arrayType.getElementType(), arrayType.getShape());
+    }
+
+    return MemberType::get(type.getContext(), allocationScope, type, llvm::None);
+  }
+
   ArrayType MemberType::toArrayType() const
   {
     return ArrayType::get(

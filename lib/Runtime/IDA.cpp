@@ -63,6 +63,9 @@ namespace
   /// functions and the Jacobian matrix.
   struct IDAUserData
   {
+    // The whole simulation data
+    void* simulationData;
+
     // Model size
     sunindextype scalarEquationsNumber;
     sunindextype nonZeroValuesNumber;

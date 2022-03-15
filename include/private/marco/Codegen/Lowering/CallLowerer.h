@@ -1,18 +1,20 @@
-#ifndef MARCO_CODEGEN_LOWERING_FUNCTIONCALLBRIDGE_H
-#define MARCO_CODEGEN_LOWERING_FUNCTIONCALLBRIDGE_H
+#ifndef MARCO_CODEGEN_LOWERING_CALLBRIDGE_H
+#define MARCO_CODEGEN_LOWERING_CALLBRIDGE_H
 
 #include "marco/AST/AST.h"
-#include "marco/Codegen/NewBridge.h"
+#include "marco/Codegen/Lowering/Lowerer.h"
+#include "marco/Codegen/Lowering/Results.h"
+#include "marco/Codegen/BridgeInterface.h"
 #include <functional>
 
 namespace marco::codegen::lowering
 {
-  class FunctionCallBridge
+  class CallLowerer : public Lowerer
   {
     public:
-      using Lowerer = std::function<Results(FunctionCallBridge&, const ast::Call&)>;
+      using LoweringFunction = std::function<Results(CallLowerer&, const ast::Call&)>;
 
-      FunctionCallBridge(NewLoweringBridge* bridge);
+      CallLowerer(LoweringContext* context, BridgeInterface* bridge);
 
       Results userDefinedFunction(const ast::Call& call);
 
@@ -46,12 +48,7 @@ namespace marco::codegen::lowering
       Results tanh(const ast::Call& call);
       Results transpose(const ast::Call& call);
       Results zeros(const ast::Call& call);
-
-    private:
-      mlir::OpBuilder& builder();
-
-      NewLoweringBridge* bridge;
   };
 }
 
-#endif // MARCO_CODEGEN_LOWERING_FUNCTIONCALLBRIDGE_H
+#endif // MARCO_CODEGEN_LOWERING_CALLBRIDGE_H

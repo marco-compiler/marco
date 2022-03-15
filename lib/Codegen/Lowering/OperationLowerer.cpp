@@ -1,4 +1,5 @@
-#include "marco/Codegen/Lowering/OperationBridge.h"
+#include "marco/Codegen/Lowering/OperationLowerer.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -7,30 +8,25 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
-  OperationBridge::OperationBridge(NewLoweringBridge* bridge)
-      : bridge(bridge)
+  OperationLowerer::OperationLowerer(LoweringContext* context, BridgeInterface* bridge)
+      : Lowerer(context, bridge)
   {
   }
 
-  mlir::OpBuilder& OperationBridge::builder()
-  {
-    return bridge->builder;
-  }
-
-  std::vector<mlir::Value> OperationBridge::lowerArgs(const Operation& operation)
+  std::vector<mlir::Value> OperationLowerer::lowerArgs(const Operation& operation)
   {
     std::vector<mlir::Value> args;
 
     for (const auto& arg : operation) {
-      args.push_back(*bridge->lower<Expression>(*arg)[0]);
+      args.push_back(*lower(*arg)[0]);
     }
 
     return args;
   }
 
-  Results OperationBridge::negate(const ast::Operation& operation)
+  Results OperationLowerer::negate(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::negate, 1>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<NotOp>(loc, resultType, args[0]);
@@ -38,9 +34,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::add(const ast::Operation& operation)
+  Results OperationLowerer::add(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::add, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<AddOp>(loc, resultType, args[0], args[1]);
@@ -48,11 +44,11 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::subtract(const ast::Operation& operation)
+  Results OperationLowerer::subtract(const ast::Operation& operation)
   {
     assert(operation.getOperationKind() == OperationKind::subtract);
 
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     if (operation.getArguments().size() == 1) {
       // TODO
@@ -77,9 +73,9 @@ namespace marco::codegen::lowering
     return Results();
   }
 
-  Results OperationBridge::multiply(const ast::Operation& operation)
+  Results OperationLowerer::multiply(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::multiply, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<MulOp>(loc, resultType, args[0], args[1]);
@@ -87,9 +83,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::divide(const ast::Operation& operation)
+  Results OperationLowerer::divide(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::divide, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<DivOp>(loc, resultType, args[0], args[1]);
@@ -97,9 +93,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::ifElse(const ast::Operation& operation)
+  Results OperationLowerer::ifElse(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::ifelse, 3>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value trueValue = builder().create<CastOp>(args[1].getLoc(), resultType, args[1]);
@@ -111,9 +107,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::greater(const ast::Operation& operation)
+  Results OperationLowerer::greater(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::greater, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<GtOp>(loc, resultType, args[0], args[1]);
@@ -121,9 +117,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::greaterOrEqual(const ast::Operation& operation)
+  Results OperationLowerer::greaterOrEqual(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::greaterEqual, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<GteOp>(loc, resultType, args[0], args[1]);
@@ -131,9 +127,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::equal(const ast::Operation& operation)
+  Results OperationLowerer::equal(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::equal, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<EqOp>(loc, resultType, args[0], args[1]);
@@ -141,9 +137,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::notEqual(const ast::Operation& operation)
+  Results OperationLowerer::notEqual(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::different, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<NotEqOp>(loc, resultType, args[0], args[1]);
@@ -151,9 +147,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::lessOrEqual(const ast::Operation& operation)
+  Results OperationLowerer::lessOrEqual(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::lessEqual, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<LteOp>(loc, resultType, args[0], args[1]);
@@ -161,9 +157,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::less(const ast::Operation& operation)
+  Results OperationLowerer::less(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::less, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<LtOp>(loc, resultType, args[0], args[1]);
@@ -171,9 +167,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::logicalAnd(const ast::Operation& operation)
+  Results OperationLowerer::logicalAnd(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::land, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<AndOp>(loc, resultType, args[0], args[1]);
@@ -181,9 +177,9 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::logicalOr(const ast::Operation& operation)
+  Results OperationLowerer::logicalOr(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), mlir::modelica::ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::lor, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value result = builder().create<OrOp>(loc, resultType, args[0], args[1]);
@@ -191,7 +187,7 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::subscription(const ast::Operation& operation)
+  Results OperationLowerer::subscription(const ast::Operation& operation)
   {
     return lowerOperation<OperationKind::subscription>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       assert(args[0].getType().isa<ArrayType>());
@@ -200,15 +196,15 @@ namespace marco::codegen::lowering
     });
   }
 
-  Results OperationBridge::memberLookup(const ast::Operation& operation)
+  Results OperationLowerer::memberLookup(const ast::Operation& operation)
   {
     llvm_unreachable("Member lookup is not implemented yet.");
     return Results();
   }
 
-  Results OperationBridge::powerOf(const ast::Operation& operation)
+  Results OperationLowerer::powerOf(const ast::Operation& operation)
   {
-    mlir::Type resultType = bridge->lower(operation.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(operation.getType(), ArrayAllocationScope::stack);
 
     return lowerOperation<OperationKind::powerOf, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       mlir::Value base = args[0];
