@@ -80,7 +80,7 @@ namespace marco::ast
 		llvm::Expected<ValueWrapper<std::string>> getString();
 		llvm::Expected<ValueWrapper<std::string>> identifier();
 
-		llvm::Expected<std::unique_ptr<Class>> classDefinition();
+		llvm::Expected<std::unique_ptr<Class>> classDefinition(bool nested=false);
 
 		llvm::Expected<std::unique_ptr<Expression>> primary();
 		llvm::Expected<std::unique_ptr<Expression>> factor();

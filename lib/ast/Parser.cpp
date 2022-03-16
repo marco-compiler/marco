@@ -126,7 +126,7 @@ llvm::Expected<Parser::ValueWrapper<std::string>> Parser::identifier()
 	return ValueWrapper<std::string>(position, std::move(identifier));
 }
 
-llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
+llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition(bool nested)
 {
 	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
 
@@ -247,8 +247,9 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 					current == Token::ModelKeyword ||
 					current == Token::RecordKeyword)
 			{
-				TRY(func, classDefinition());
-				innerClasses.emplace_back(std::move(*func));
+				TRY(func, classDefinition(true));
+				// innerClasses.emplace_back(std::move(*func));
+				classes.emplace_back(std::move(*func));
 				continue;
 			}
 
@@ -315,6 +316,10 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 		{
 			classes.push_back(Class::record(loc, name->getValue(), members));
 		}
+		
+		//handle nested classes separately from the calling function
+		if(nested)
+			break;
 	}
 
 	if (classes.size() != 1)
