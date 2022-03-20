@@ -20,16 +20,18 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
         Type representing Modelica's Boolean.
     }];
 
-    let parameters = (ins "::mlir::Type":$type, "bool":$value);
+    let parameters = (ins "Type":$type, "bool":$value);
 
     let builders = [
-        AttrBuilderWithInferredContext<(ins "::mlir::Type":$type, "bool":$value), [{
+        AttrBuilderWithInferredContext<(ins "Type":$type, "bool":$value), [{
             return $_get(type.getContext(), type, value);
         }]>,
-        AttrBuilderWithInferredContext<(ins "mlir::MLIRContext*":$context, "bool":$value), [{
+        AttrBuilderWithInferredContext<(ins "MLIRContext*":$context, "bool":$value), [{
             return $_get(context, BooleanType::get(context), value);
         }]>
     ];
+
+    let typeBuilder = "$_type";
 
     let printer = [{
         $_printer << "bool<" << getImpl()->value << ">";
@@ -38,11 +40,11 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
     let parser = [{
         bool value = false;
 
-        if (mlir::succeeded(parser.parseOptionalKeyword("true"))) {
+        if (succeeded(parser.parseOptionalKeyword("true"))) {
             value = true;
         } else {
         	if (parser.parseKeyword("false")) {
-        		return mlir::Attribute();
+        		return Attribute();
             }
 
             value = false;
@@ -59,16 +61,18 @@ def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
         Type representing Modelica's Integer.
     }];
 
-    let parameters = (ins "::mlir::Type":$type, "::llvm::APInt":$value);
+    let parameters = (ins "Type":$type, "::llvm::APInt":$value);
 
     let builders = [
-        AttrBuilderWithInferredContext<(ins "::mlir::Type":$type, "long":$value), [{
+        AttrBuilderWithInferredContext<(ins "Type":$type, "long":$value), [{
             return $_get(type.getContext(), type, llvm::APInt(sizeof(long) * 8, value, true));
         }]>,
-        AttrBuilderWithInferredContext<(ins "mlir::MLIRContext*":$context, "long":$value), [{
+        AttrBuilderWithInferredContext<(ins "MLIRContext*":$context, "long":$value), [{
             return $_get(context, IntegerType::get(context), llvm::APInt(sizeof(long) * 8, value, true));
         }]>
     ];
+
+    let typeBuilder = "$_type";
 
     let printer = [{
         $_printer << "int<" << getImpl()->value << ">";
@@ -92,16 +96,18 @@ def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
         Type representing Modelica's Real.
     }];
 
-    let parameters = (ins "::mlir::Type":$type, "::llvm::APFloat":$value);
+    let parameters = (ins "Type":$type, "::llvm::APFloat":$value);
 
     let builders = [
-        AttrBuilderWithInferredContext<(ins "::mlir::Type":$type, "double":$value), [{
+        AttrBuilderWithInferredContext<(ins "Type":$type, "double":$value), [{
             return $_get(type.getContext(), type, ::llvm::APFloat(value));
         }]>,
-        AttrBuilderWithInferredContext<(ins "mlir::MLIRContext*":$context, "double":$value), [{
+        AttrBuilderWithInferredContext<(ins "MLIRContext*":$context, "double":$value), [{
             return $_get(context, RealType::get(context), ::llvm::APFloat(value));
         }]>
     ];
+
+    let typeBuilder = "$_type";
 
     let printer = [{
         $_printer << "int<" << getImpl()->value << ">";

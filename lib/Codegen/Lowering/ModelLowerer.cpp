@@ -108,8 +108,6 @@ namespace marco::codegen::lowering
       for (const auto& forEquation : model.getForEquations()) {
         lower(*forEquation);
       }
-
-      builder().create<YieldOp>(location, llvm::None);
     }
 
     result.push_back(modelOp);

@@ -369,6 +369,150 @@ static mlir::LogicalResult verify(ZerosOp op)
   return mlir::success();
 }
 
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseConstantOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::Attribute value;
+
+  if (parser.parseAttribute(value)) {
+    return mlir::failure();
+  }
+
+  result.attributes.append("value", value);
+  result.addTypes(value.getType());
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, ConstantOp op)
+{
+  printer << op.getOperationName();
+  printer.printOptionalAttrDict(op->getAttrs(), {"value"});
+  printer << " " << op.value();
+
+  // If the value is a symbol reference, print a trailing type.
+  if (op.value().isa<SymbolRefAttr>()) {
+    printer << " : " << op.getType();
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// ModelOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseModelOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  // TODO
+}
+
+static void print(mlir::OpAsmPrinter& printer, ModelOp op)
+{
+  printer << op.getOperationName();
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer.printRegion(op.initRegion());
+  printer << " equations";
+  printer.printRegion(op.bodyRegion());
+}
+
+//===----------------------------------------------------------------------===//
+// ForEquationOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  auto& builder = parser.getBuilder();
+
+  mlir::OpAsmParser::OperandType induction;
+  long from;
+  long to;
+
+  if (parser.parseOperand(induction) ||
+      parser.resolveOperand(induction, builder.getIndexType(), result.operands) ||
+      parser.parseEqual() ||
+      parser.parseInteger(from) ||
+      parser.parseKeyword("to") ||
+      parser.parseInteger(to)) {
+    return mlir::failure();
+  }
+
+  result.attributes.append("from", builder.getIndexAttr(from));
+  result.attributes.append("to", builder.getIndexAttr(to));
+
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  mlir::Region* bodyRegion = result.addRegion();
+
+  if (parser.parseRegion(*bodyRegion, induction, builder.getIndexType())) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, ForEquationOp op)
+{
+  printer << op.getOperationName() << " " << op.induction() << " = " << op.from() << " to " << op.to();
+  printer.printOptionalAttrDict(op->getAttrs(), {"from", "to"});
+  printer.printRegion(op.bodyRegion(), false);
+}
+
+//===----------------------------------------------------------------------===//
+// EquationOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseEquationOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  auto loc = parser.getCurrentLocation();
+
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  if (!result.attributes.getNamed("from").hasValue()) {
+    return parser.emitError(loc, "expected 'from' attribute");
+  }
+
+  if (!result.attributes.getNamed("to").hasValue()) {
+    return parser.emitError(loc, "expected 'to' attribute");
+  }
+
+  mlir::Region* bodyRegion = result.addRegion();
+
+  if (parser.parseRegion(*bodyRegion)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, EquationOp op)
+{
+  printer << op.getOperationName();
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer.printRegion(op.bodyRegion());
+}
+
+//===----------------------------------------------------------------------===//
+// EquationSideOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseEquationSideOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  // TODO
+}
+
+static void print(mlir::OpAsmPrinter& printer, EquationSideOp op)
+{
+  printer << op.getOperationName() << " ";
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << op.values() << " : " << op.getResult().getType();
+}
+
 #define GET_OP_CLASSES
 #include "marco/Dialect/Modelica/Modelica.cpp.inc"
 

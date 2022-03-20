@@ -1,25 +1,23 @@
 #pragma once
 
 #include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 namespace marco::codegen
 {
-	/**
-	 * Create a pass to convert Ida operations to a mix of Std,
-	 * SCF and LLVM ones.
-	 *
-	 * @param options conversion options
-	 * @param bitWidth bit width
- 	 */
-	std::unique_ptr<mlir::Pass> createIdaConversionPass(unsigned int bitWidth = 64);
+	/// Create a pass to convert Ida operations to a mix of Std,
+	/// SCF and LLVM ones.
+	std::unique_ptr<mlir::Pass> createIDAConversionPass();
 
-	inline void registerIdaConversionPass()
+	inline void registerIDAConversionPass()
 	{
-		mlir::registerPass("convert-ida", "Ida: conversion to std + scf + llvm dialects",
-											 []() -> std::unique_ptr<::mlir::Pass> {
-                          // TODO
-                          return nullptr;
-												 //return createIdaConversionPass();
-											 });
+		mlir::registerPass(
+        "convert-ida", "IDA: conversion to Std + LLVM dialect",
+        []() -> std::unique_ptr<::mlir::Pass> {
+          return createIDAConversionPass();
+        });
 	}
+
+  void populateIDAStructuralTypeConversionsAndLegality(
+      mlir::TypeConverter& typeConverter, mlir::RewritePatternSet& patterns, mlir::ConversionTarget& target);
 }

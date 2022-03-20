@@ -184,9 +184,11 @@ namespace marco::frontend
       return false;
     }
 
+    /*
+    module->dump();
+
     instance().setMLIRModule(std::make_unique<mlir::ModuleOp>(std::move(*module)));
 
-    /*
     llvm::errs() << "NEW BRIDGE OUTPUT\n";
     marco::codegen::lowering::Bridge newBridge(ci.getMLIRContext(), options);
     newBridge.lower(*ci.getAST());

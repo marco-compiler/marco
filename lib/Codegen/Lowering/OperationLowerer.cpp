@@ -192,7 +192,7 @@ namespace marco::codegen::lowering
     return lowerOperation<OperationKind::subscription>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       assert(args[0].getType().isa<ArrayType>());
       mlir::Value result = builder().create<SubscriptionOp>(loc, args[0], args.drop_front());
-      return Reference::ssa(&builder(), result);
+      return Reference::memory(&builder(), result);
     });
   }
 

@@ -465,11 +465,11 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
         ```
     }];
 
-    let arguments = (ins AnyType:$source, Variadic<Index>:$indices);
+    let arguments = (ins AnyType:$source, Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $source `[` $indices `]` attr-dict `:` type($source) `->` type($result)
+        $source `[` $indices `]` attr-dict `:` `(` type($source) `,` type($indices) `)` `->` type($result)
     }];
 
     let builders = [
@@ -605,11 +605,13 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     }];
 
     let arguments = (ins AnyAttr:$value);
-
     let results = (outs AnyType);
 
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
+
     let builders = [
-        OpBuilder<(ins "::mlir::Attribute":$value), [{
+        OpBuilder<(ins "Attribute":$value), [{
             build($_builder, $_state, value.getType(), value);
         }]>
     ];
@@ -2009,7 +2011,8 @@ def Modelica_DerOp : Modelica_Op<"der", []>
 
 def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
-    DeclareOpInterfaceMethods<RegionKindInterface>]>
+    DeclareOpInterfaceMethods<RegionKindInterface>,
+    NoTerminator]>
 {
     let summary = "Modelica model.";
 
@@ -2029,9 +2032,8 @@ def Modelica_ModelOp : Modelica_Op<"model",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = [{
-        attr-dict regions
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 }
 
 def Modelica_ForEquationOp : Modelica_Op<"for_equation",
@@ -2071,9 +2073,8 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = [{
-        attr-dict regions
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let builders = [
         OpBuilder<(ins "long":$from, "long":$to)>
@@ -2102,9 +2103,8 @@ def Modelica_EquationOp : Modelica_Op<"equation",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = [{
-        attr-dict regions
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let extraClassDeclaration = [{
         public:
@@ -2113,7 +2113,7 @@ def Modelica_EquationOp : Modelica_Op<"equation",
 }
 
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",
-    [HasParent<"EquationOp">, Terminator]>
+    [HasParent<"EquationOp">]>
 {
     let summary = "Equation side.";
 
@@ -2124,6 +2124,9 @@ def Modelica_EquationSideOp : Modelica_Op<"equation_side",
 
     let arguments = (ins Variadic<AnyType>:$values);
     let results = (outs AnyTuple);
+
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let builders = [
         OpBuilder<(ins "ValueRange":$values), [{
@@ -2580,7 +2583,7 @@ def Modelica_YieldOp : Modelica_Op<"yield",
     let results = (outs);
 
     let assemblyFormat = [{
-        $values attr-dict `:` type($values)
+        attr-dict ($values^ `:` type($values))?
     }];
 }
 

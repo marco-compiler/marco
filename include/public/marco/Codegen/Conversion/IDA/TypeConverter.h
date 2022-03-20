@@ -19,6 +19,8 @@ namespace mlir::ida
       TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options);
 
       mlir::Type convertInstanceType(InstanceType type);
+      mlir::Type convertEquationType(EquationType type);
+      mlir::Type convertVariableType(VariableType type);
 
       llvm::Optional<mlir::Value> opaquePointerTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;

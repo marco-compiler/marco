@@ -231,7 +231,7 @@ def IDA_GetCurrentTimeOp : IDA_Op<"get_current_time",
     }];
 
     let arguments = (ins IDAInstance:$instance);
-    let results = (outs F64:$time);
+    let results = (outs AnyType:$time);
 
     let assemblyFormat = [{
         $instance attr-dict `:` type($instance) `->` type($time)
@@ -473,7 +473,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "mlir::TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount), [{
+        OpBuilder<(ins "StringRef":$sym_name, "TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount, "Type":$differenceType), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
@@ -486,7 +486,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
                 args.push_back($_builder.getIndexType());
             }
 
-            auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
+            auto functionType = $_builder.getFunctionType(args, differenceType);
             auto typeAttr = TypeAttr::get(functionType);
             build($_builder, $_state, nameAttr, typeAttr);
         }]>
@@ -604,30 +604,27 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name), [{
+        OpBuilder<(ins "StringRef":$sym_name, "TypeRange":$variablesTypes, "size_t":$equationRank, "size_t":$variableRank, "Type":$differenceType), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
-            SmallVector<Type, 6> args;
-            args.push_back(InstanceType::get($_builder.getContext()));
-            args.push_back($_builder.getF64Type());
+            SmallVector<Type, 3> args;
 
-            llvm::SmallVector<int64_t, 1> equationIndicesShape;
-            equationIndicesShape.push_back(-1);
+            for (const auto& variableType : variablesTypes) {
+                args.push_back(variableType);
+            }
 
-            auto equationIndicesType = MemRefType::get(equationIndicesShape, $_builder.getIndexType());
-            args.push_back(equationIndicesType);
+            for (size_t i = 0; i < equationRank; ++i) {
+                args.push_back($_builder.getIndexType());
+            }
 
-            args.push_back(VariableType::get($_builder.getContext()));
+            for (size_t i = 0; i < variableRank; ++i) {
+                args.push_back($_builder.getIndexType());
+            }
 
-            llvm::SmallVector<int64_t, 1> variableIndicesShape;
-            variableIndicesShape.push_back(-1);
+            // TODO replace with ida.real
+            args.push_back(differenceType);
 
-            auto variableIndicesType = MemRefType::get(variableIndicesShape, $_builder.getIndexType());
-            args.push_back(variableIndicesType);
-
-            args.push_back($_builder.getF64Type());
-
-            auto functionType = $_builder.getFunctionType(args, $_builder.getF64Type());
+            auto functionType = $_builder.getFunctionType(args, differenceType);
             auto typeAttr = TypeAttr::get(functionType);
             build($_builder, $_state, nameAttr, typeAttr);
         }]>
@@ -766,6 +763,7 @@ def IDA_AddJacobianOp : IDA_Op<"add_jacobian",
 
         %0 = ... : !ida.instance
         %1 = ... : !ida.equation
+        // TODO add variable
         ida.add_jacobian %0, %1 { function : "foo" } : !ida.instance, !ida.equation
         ```
     }];

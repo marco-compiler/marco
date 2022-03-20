@@ -25,7 +25,7 @@ add_mlir_dialect_library(MLIRModelicaConversion
     ${SOURCES}
 
     DEPENDS
-    marco::codegen # remove once dialects library is completed
+    marco::codegen
     marco::modeling
 
     LINK_LIBS PUBLIC

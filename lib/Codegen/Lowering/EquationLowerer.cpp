@@ -72,7 +72,7 @@ namespace marco::codegen::lowering
       long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
 
       auto forEquationOp = builder().create<ForEquationOp>(
-          location, builder().getI64IntegerAttr(start), builder().getI64IntegerAttr(end));
+          location, builder().getIndexAttr(start), builder().getIndexAttr(end));
 
       assert(forEquationOp.bodyRegion().getBlocks().empty());
       builder().createBlock(&forEquationOp.bodyRegion(), {}, builder().getIndexType());

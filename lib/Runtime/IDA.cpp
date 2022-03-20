@@ -355,9 +355,8 @@ static int jacobianMatrix(
 
 /// Instantiate and initialize the struct of data needed by IDA, given the total
 /// number of scalar equations.
-template<typename T>
 // CREATE INSTANCE
-static void* idaCreate_pvoid(T scalarEquationsNumber)
+static void* idaCreate_pvoid(int64_t scalarEquationsNumber, int64_t bitWidth)
 {
   IDAUserData* data = new IDAUserData;
 
@@ -385,9 +384,7 @@ static void* idaCreate_pvoid(T scalarEquationsNumber)
   return static_cast<void*>(data);
 }
 
-RUNTIME_FUNC_DEF(idaCreate, PTR(void), int32_t)
-
-RUNTIME_FUNC_DEF(idaCreate, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(idaCreate, PTR(void), int64_t, int64_t)
 
 /// Compute the number of non-zero values in the Jacobian Matrix. Also compute
 /// the column indexes of all non-zero values in the Jacobian Matrix. This avoids
@@ -609,7 +606,7 @@ RUNTIME_FUNC_DEF(idaFree, bool, PTR(void))
 
 /// Add the start time to the IDA user data.
 template<typename T>
-static void setStartTime_void(void* userData, T startTime)
+static void idaSetStartTime_void(void* userData, T startTime)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -617,48 +614,40 @@ static void setStartTime_void(void* userData, T startTime)
   data->time = startTime;
 }
 
-RUNTIME_FUNC_DEF(setStartTime, void, PTR(void), float)
-
-RUNTIME_FUNC_DEF(setStartTime, void, PTR(void), double)
+RUNTIME_FUNC_DEF(idaSetStartTime, void, PTR(void), double)
 
 /// Add the end time to the IDA user data.
 template<typename T>
-static void setEndTime_void(void* userData, T endTime)
+static void idaSetEndTime_void(void* userData, T endTime)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   data->endTime = endTime;
 }
 
-RUNTIME_FUNC_DEF(setEndTime, void, PTR(void), float)
-
-RUNTIME_FUNC_DEF(setEndTime, void, PTR(void), double)
+RUNTIME_FUNC_DEF(idaSetEndTime, void, PTR(void), double)
 
 /// Add the relative tolerance to the IDA user data.
 template<typename T>
-static void setRelativeTolerance_void(void* userData, T relativeTolerance)
+static void idaSetRelativeTolerance_void(void* userData, T relativeTolerance)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   data->relativeTolerance = relativeTolerance;
 }
 
-RUNTIME_FUNC_DEF(setRelativeTolerance, void, PTR(void), float)
-
-RUNTIME_FUNC_DEF(setRelativeTolerance, void, PTR(void), double)
+RUNTIME_FUNC_DEF(idaSetRelativeTolerance, void, PTR(void), double)
 
 /// Add the absolute tolerance to the IDA user data.
 template<typename T>
-static void setAbsoluteTolerance_void(void* userData, T absoluteTolerance)
+static void idaSetAbsoluteTolerance_void(void* userData, T absoluteTolerance)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   data->absoluteTolerance = absoluteTolerance;
 }
 
-RUNTIME_FUNC_DEF(setAbsoluteTolerance, void, PTR(void), float)
-
-RUNTIME_FUNC_DEF(setAbsoluteTolerance, void, PTR(void), double)
+RUNTIME_FUNC_DEF(idaSetAbsoluteTolerance, void, PTR(void), double)
 
 //===----------------------------------------------------------------------===//
 // Equation setters
@@ -666,7 +655,7 @@ RUNTIME_FUNC_DEF(setAbsoluteTolerance, void, PTR(void), double)
 
 /// Add the dimension of an equation to the IDA user data.
 template<typename T>
-static T addEquation(void* userData, UnsizedArrayDescriptor<T> dimension)
+static T idaAddEquation(void* userData, UnsizedArrayDescriptor<T> dimension)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -689,19 +678,12 @@ static T addEquation(void* userData, UnsizedArrayDescriptor<T> dimension)
   return data->equationDimensions.size() - 1;
 }
 
-static int32_t addEquation_i32(void* userData, UnsizedArrayDescriptor<int32_t> dimension)
+static int64_t idaAddEquation_i64(void* userData, UnsizedArrayDescriptor<int64_t> dimension)
 {
-  return addEquation<int32_t>(userData, dimension);
+  return idaAddEquation<int64_t>(userData, dimension);
 }
 
-static int64_t addEquation_i64(void* userData, UnsizedArrayDescriptor<int64_t> dimension)
-{
-  return addEquation<int64_t>(userData, dimension);
-}
-
-RUNTIME_FUNC_DEF(addEquation, int32_t, PTR(void), ARRAY(int32_t))
-
-RUNTIME_FUNC_DEF(addEquation, int64_t, PTR(void), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(idaAddEquation, int64_t, PTR(void), ARRAY(int64_t))
 
 /// Add the function pointer that computes the index-th residual function to the
 /// IDA user data.
@@ -792,17 +774,10 @@ static T addVariable(
   return data->variableDimensions.size() - 1;
 }
 
-static int32_t addVariable_i32(void* userData, UnsizedArrayDescriptor<float> array, bool isState)
-{
-  return addVariable<int32_t, float>(userData, array, isState);
-}
-
 static int64_t addVariable_i64(void* userData, UnsizedArrayDescriptor<double> array, bool isState)
 {
   return addVariable<int64_t, double>(userData, array, isState);
 }
-
-RUNTIME_FUNC_DEF(addVariable, int32_t, PTR(void), ARRAY(float), bool)
 
 RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), ARRAY(double), bool)
 
@@ -838,8 +813,6 @@ static void addVarAccess_void(
     varAccessList.back().second.push_back({access[i], access[i + size]});
   }
 }
-
-RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int32_t, int32_t, ARRAY(int32_t))
 
 RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, int64_t, ARRAY(int64_t))
 
@@ -881,7 +854,7 @@ RUNTIME_FUNC_DEF(getDerivative, PTR(void), PTR(void), int64_t)
 
 /// Returns the time reached by the solver after the last step.
 template<typename T>
-static T getCurrentTime(void* userData)
+static T idaGetCurrentTime(void* userData)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -893,19 +866,19 @@ static T getCurrentTime(void* userData)
   return data->time;
 }
 
-static float getCurrentTime_f32(void* userData)
+static float idaGetCurrentTime_f32(void* userData)
 {
-  return getCurrentTime<float>(userData);
+  return idaGetCurrentTime<float>(userData);
 }
 
-static double getCurrentTime_f64(void* userData)
+static double idaGetCurrentTime_f64(void* userData)
 {
-  return getCurrentTime<double>(userData);
+  return idaGetCurrentTime<double>(userData);
 }
 
-RUNTIME_FUNC_DEF(getCurrentTime, float, PTR(void))
+RUNTIME_FUNC_DEF(idaGetCurrentTime, float, PTR(void))
 
-RUNTIME_FUNC_DEF(getCurrentTime, double, PTR(void))
+RUNTIME_FUNC_DEF(idaGetCurrentTime, double, PTR(void))
 
 //===----------------------------------------------------------------------===//
 // Statistics

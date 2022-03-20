@@ -1,12 +1,12 @@
 #ifndef MARCO_CODEGEN_CONVERSION_PASSES_H
 #define MARCO_CODEGEN_CONVERSION_PASSES_H
 
-// Just a convenience header file to include the Modelica transformation passes
+// Just a convenience header file to include the conversion passes
 
 #include "marco/Codegen/Conversion/IDA/IDAToLLVM.h"
+#include "marco/Codegen/Conversion/Modelica/LowerToCFG.h"
 #include "marco/Codegen/Conversion/Modelica/LowerToLLVM.h"
 #include "marco/Codegen/Conversion/Modelica/ModelicaConversion.h"
-#include "marco/Codegen/Conversion/Modelica/LowerToCFG.h"
 
 namespace marco::codegen
 {
@@ -15,7 +15,7 @@ namespace marco::codegen
 		registerLowerToCFGPass();
 		registerLLVMLoweringPass();
 		registerFunctionConversionPass();
-		//registerIdaConversionPass();
+		registerIDAConversionPass();
 		registerModelicaConversionPass();
 		registerLowerToCFGPass();
 	}

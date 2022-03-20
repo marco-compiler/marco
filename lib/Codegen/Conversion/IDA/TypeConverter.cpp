@@ -27,6 +27,11 @@ namespace mlir::ida
     return mlir::LLVM::LLVMPointerType::get(integerType);
   }
 
+  mlir::Type TypeConverter::convertEquationType(EquationType type)
+  {
+    return getIndexType();
+  }
+
   llvm::Optional<mlir::Value> TypeConverter::opaquePointerTypeTargetMaterialization(
       mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {

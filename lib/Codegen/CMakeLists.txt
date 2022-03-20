@@ -16,9 +16,11 @@ set(SOURCES
     Lowering/Results.cpp
     Lowering/StandardFunctionLowerer.cpp
     Lowering/StatementLowerer.cpp
+    ArrayDescriptor.cpp
     Bridge.cpp
     NewBridge.cpp
     Reference.cpp
+    Runtime.cpp
     Options.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
