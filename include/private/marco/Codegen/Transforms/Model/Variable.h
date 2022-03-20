@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_VARIABLE_H
 #define MARCO_CODEGEN_TRANSFORMS_VARIABLE_H
 
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Modeling/Dependency.h"
 #include "marco/Modeling/Matching.h"
 #include <memory>
@@ -33,7 +33,7 @@ namespace marco::codegen
       long getDimensionSize(size_t index) const;
 
       mlir::Value getValue() const;
-      modelica::MemberCreateOp getDefiningOp() const;
+      mlir::modelica::MemberCreateOp getDefiningOp() const;
       bool isConstant() const;
 
     private:

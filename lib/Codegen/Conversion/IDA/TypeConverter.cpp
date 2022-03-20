@@ -1,8 +1,5 @@
 #include "marco/Codegen/Conversion/IDA/TypeConverter.h"
 
-using namespace marco::codegen;
-using namespace modelica;
-
 namespace mlir::ida
 {
   TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options)

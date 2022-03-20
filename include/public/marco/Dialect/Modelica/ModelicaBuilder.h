@@ -18,7 +18,6 @@ namespace mlir::modelica
       RealType getRealType();
 
       ArrayType getArrayType(
-          ArrayAllocationScope allocationScope,
           mlir::Type elementType,
           llvm::ArrayRef<long> shape = llvm::None);
 

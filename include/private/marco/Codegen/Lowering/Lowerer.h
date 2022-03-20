@@ -50,13 +50,13 @@ namespace marco::codegen::lowering
 
       /// }
 
-      virtual mlir::Type lower(const ast::Type& type, mlir::modelica::ArrayAllocationScope scope);
+      virtual mlir::Type lower(const ast::Type& type);
 
-      virtual mlir::Type lower(const ast::BuiltInType& type, mlir::modelica::ArrayAllocationScope scope);
+      virtual mlir::Type lower(const ast::BuiltInType& type);
 
-      virtual mlir::Type lower(const ast::PackedType& type, mlir::modelica::ArrayAllocationScope scope);
+      virtual mlir::Type lower(const ast::PackedType& type);
 
-      virtual mlir::Type lower(const ast::UserDefinedType& type, mlir::modelica::ArrayAllocationScope scope);
+      virtual mlir::Type lower(const ast::UserDefinedType& type);
 
     private:
       LoweringContext* context_;

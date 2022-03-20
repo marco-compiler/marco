@@ -1,8 +1,8 @@
 #ifndef MARCO_CODEGEN_CONVERSION_MODELICA_TYPECONVERTER_H
 #define MARCO_CODEGEN_CONVERSION_MODELICA_TYPECONVERTER_H
 
-#include "marco/Codegen/dialects/modelica/Type.h"
 #include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -18,11 +18,11 @@ namespace mlir::modelica
 		public:
       TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth);
 
-      mlir::Type convertBooleanType(marco::codegen::modelica::BooleanType type);
-      mlir::Type convertIntegerType(marco::codegen::modelica::IntegerType type);
-      mlir::Type convertRealType(marco::codegen::modelica::RealType type);
-      mlir::Type convertArrayType(marco::codegen::modelica::ArrayType type);
-      mlir::Type convertUnsizedArrayType(marco::codegen::modelica::UnsizedArrayType type);
+      mlir::Type convertBooleanType(mlir::modelica::BooleanType type);
+      mlir::Type convertIntegerType(mlir::modelica::IntegerType type);
+      mlir::Type convertRealType(mlir::modelica::RealType type);
+      mlir::Type convertArrayType(mlir::modelica::ArrayType type);
+      mlir::Type convertUnsizedArrayType(mlir::modelica::UnsizedArrayType type);
 
       llvm::Optional<mlir::Value> integerTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
@@ -34,23 +34,23 @@ namespace mlir::modelica
           mlir::OpBuilder& builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
       llvm::Optional<mlir::Value> booleanTypeSourceMaterialization(
-          mlir::OpBuilder& builder, marco::codegen::modelica::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
+          mlir::OpBuilder& builder, mlir::modelica::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
       llvm::Optional<mlir::Value> integerTypeSourceMaterialization(
-          mlir::OpBuilder& builder, marco::codegen::modelica::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
+          mlir::OpBuilder& builder, mlir::modelica::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
       llvm::Optional<mlir::Value> realTypeSourceMaterialization(
-          mlir::OpBuilder& builder, marco::codegen::modelica::RealType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
+          mlir::OpBuilder& builder, mlir::modelica::RealType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
       llvm::Optional<mlir::Value> arrayTypeSourceMaterialization(
-          mlir::OpBuilder& builder, marco::codegen::modelica::ArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
+          mlir::OpBuilder& builder, mlir::modelica::ArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
       llvm::Optional<mlir::Value> unsizedArrayTypeSourceMaterialization(
-          mlir::OpBuilder& builder, marco::codegen::modelica::UnsizedArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
+          mlir::OpBuilder& builder, mlir::modelica::UnsizedArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
     private:
-      llvm::SmallVector<mlir::Type, 3> getArrayDescriptorFields(marco::codegen::modelica::ArrayType type);
-      llvm::SmallVector<mlir::Type, 3> getUnsizedArrayDescriptorFields(marco::codegen::modelica::UnsizedArrayType type);
+      llvm::SmallVector<mlir::Type, 3> getArrayDescriptorFields(mlir::modelica::ArrayType type);
+      llvm::SmallVector<mlir::Type, 3> getUnsizedArrayDescriptorFields(mlir::modelica::UnsizedArrayType type);
 
     private:
 		  unsigned int bitWidth;

@@ -13,44 +13,49 @@ static void populateAllocationEffects(
     bool isManuallyDeallocated = false)
 {
   if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
-    auto allocationScope = arrayType.getAllocationScope();
-    assert(allocationScope == ArrayAllocationScope::stack || allocationScope == ArrayAllocationScope::heap);
 
-    if (allocationScope == ArrayAllocationScope::stack) {
-      // Stack-allocated arrays are automatically deallocated when the
-      // surrounding function ends.
-
-      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::AutomaticAllocationScopeResource::get());
-    } else if (allocationScope == ArrayAllocationScope::heap) {
-      // We need to check if there exists a clone operation with forwarding
-      // enabled and whose result is manually deallocated. If that is the
-      // case, then also the original buffer must not be deallocated, or a
-      // double free would happen.
-
-      bool isForwardedAsManuallyDeallocated = llvm::any_of(value.getUsers(), [](const auto& op) -> bool {
-        if (auto cloneOp = mlir::dyn_cast<ArrayCloneOp>(op)) {
-          return cloneOp.canSourceBeForwarded() &&
-            !mlir::cast<HeapAllocator>(cloneOp.getOperation()).shouldBeDeallocated();
-        }
-
-        return false;
-      });
-
-      if (!isManuallyDeallocated && !isForwardedAsManuallyDeallocated) {
-        // Mark the value as heap-allocated so that the deallocation pass can
-        // place the deallocation instruction.
-
-        effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
-      } else {
-        // If the buffer is marked as manually deallocated, then we need to
-        // set the operation to have a generic side effect, or the CSE pass
-        // would otherwise consider all the allocations with the same
-        // structure as equal, and thus would replace all the subsequent
-        // buffers with the first allocated one.
-
-        effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+    bool isStored = llvm::any_of(value.getUsers(), [&](const auto& op) {
+      if (auto memberStoreOp = mlir::dyn_cast<MemberStoreOp>(op)) {
+        return memberStoreOp.value() == value;
       }
+
+      return false;
+    });
+
+    if (!isStored) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
     }
+
+    /*
+    // We need to check if there exists a clone operation with forwarding
+    // enabled and whose result is manually deallocated. If that is the
+    // case, then also the original buffer must not be deallocated, or a
+    // double free would happen.
+
+    bool isForwardedAsManuallyDeallocated = llvm::any_of(value.getUsers(), [](const auto& op) -> bool {
+      if (auto cloneOp = mlir::dyn_cast<ArrayCloneOp>(op)) {
+        return cloneOp.canSourceBeForwarded() &&
+          !mlir::cast<HeapAllocator>(cloneOp.getOperation()).shouldBeDeallocated();
+      }
+
+      return false;
+    });
+
+    if (!isManuallyDeallocated && !isForwardedAsManuallyDeallocated) {
+      // Mark the value as heap-allocated so that the deallocation pass can
+      // place the deallocation instruction.
+
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
+    } else {
+      // If the buffer is marked as manually deallocated, then we need to
+      // set the operation to have a generic side effect, or the CSE pass
+      // would otherwise consider all the allocations with the same
+      // structure as equal, and thus would replace all the subsequent
+      // buffers with the first allocated one.
+
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+    }
+     */
   }
 }
 
@@ -418,6 +423,23 @@ static void print(mlir::OpAsmPrinter& printer, ModelOp op)
 }
 
 //===----------------------------------------------------------------------===//
+// FunctionOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseFunctionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  // TODO
+}
+
+static void print(mlir::OpAsmPrinter& printer, FunctionOp op)
+{
+  printer << op.getOperationName() << " ";
+  printer.printSymbolName(op.name());
+  printer.printOptionalAttrDict(op->getAttrs(), { "sym_name", "type" });
+  printer.printRegion(op.body());
+}
+
+//===----------------------------------------------------------------------===//
 // ForEquationOp
 //===----------------------------------------------------------------------===//
 
@@ -456,6 +478,7 @@ static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::Ope
 
 static void print(mlir::OpAsmPrinter& printer, ForEquationOp op)
 {
+  //printer << op.getOperationName() << " " << " = " << op.from() << " to " << op.to();
   printer << op.getOperationName() << " " << op.induction() << " = " << op.from() << " to " << op.to();
   printer.printOptionalAttrDict(op->getAttrs(), {"from", "to"});
   printer.printRegion(op.bodyRegion(), false);
@@ -519,6 +542,80 @@ static void print(mlir::OpAsmPrinter& printer, EquationSideOp op)
 namespace mlir::modelica
 {
   //===----------------------------------------------------------------------===//
+  // ModelOp
+  //===----------------------------------------------------------------------===//
+
+  SmallVector<StringRef> ModelOp::variableNames()
+  {
+    SmallVector<StringRef> result;
+
+    walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
+      result.push_back(op.name());
+    });
+
+    return result;
+  }
+
+  mlir::Block* ModelOp::bodyBlock()
+  {
+    assert(!bodyRegion().empty());
+    return &bodyRegion().front();
+  }
+
+  //===----------------------------------------------------------------------===//
+  // FunctionOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::Block* FunctionOp::bodyBlock()
+  {
+    assert(body().getBlocks().size() == 1);
+    return &body().front();
+  }
+
+  SmallVector<StringRef> FunctionOp::inputMemberNames()
+  {
+    SmallVector<StringRef> result;
+
+    walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
+      if (op.isInput()) {
+        result.push_back(op.name());
+      }
+    });
+
+    return result;
+  }
+
+  SmallVector<StringRef> FunctionOp::outputMemberNames()
+  {
+    SmallVector<StringRef> result;
+
+    walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
+      if (op.isOutput()) {
+        result.push_back(op.name());
+      }
+    });
+
+    return result;
+  }
+
+  SmallVector<StringRef> FunctionOp::protectedMemberNames()
+  {
+    SmallVector<StringRef> result;
+
+    walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
+      if (!op.isInput() && !op.isOutput()) {
+        result.push_back(op.name());
+      }
+    });
+
+    return result;
+  }
+
+  FunctionType FunctionOp::getType() {
+    return getOperation()->getAttrOfType<mlir::TypeAttr>(typeAttrName()).getValue().cast<mlir::FunctionType>();
+  }
+
+  //===----------------------------------------------------------------------===//
   // EquationOp
   //===----------------------------------------------------------------------===//
 
@@ -534,8 +631,9 @@ namespace mlir::modelica
 
   void ForEquationOp::build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, long from, long to)
   {
-    state.addAttribute(fromAttrName(state.name), builder.getI64IntegerAttr(from));
-    state.addAttribute(toAttrName(state.name), builder.getI64IntegerAttr(to));
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    state.addAttribute(fromAttrName(state.name), builder.getIndexAttr(from));
+    state.addAttribute(toAttrName(state.name), builder.getIndexAttr(to));
 
     mlir::Region* bodyRegion = state.addRegion();
     builder.createBlock(bodyRegion, {}, builder.getIndexType());
@@ -662,13 +760,14 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
 
   mlir::LogicalResult CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+    /*
     // Check that the callee attribute was specified.
     auto fnAttr = (*this)->getAttrOfType<FlatSymbolRefAttr>("callee");
 
     if (!fnAttr)
       return emitOpError("requires a 'callee' symbol reference attribute");
 
-    FuncOp fn = symbolTable.lookupNearestSymbolFrom<FuncOp>(*this, fnAttr);
+    auto fn = symbolTable.lookupNearestSymbolFrom<FunctionOp>(*this, fnAttr);
     if (!fn)
       return emitOpError() << "'" << fnAttr.getValue()
                            << "' does not reference a valid function";
@@ -690,6 +789,7 @@ namespace mlir::modelica
     for (unsigned i = 0, e = fnType.getNumResults(); i != e; ++i)
       if (getResult(i).getType() != fnType.getResult(i))
         return emitOpError("result type mismatch");
+        */
 
     return success();
   }
@@ -704,12 +804,12 @@ namespace mlir::modelica
     effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 
     // TODO
-    llvm_unreachable("Not implemented");
+    //llvm_unreachable("Not implemented");
   }
 
   mlir::ValueRange CallOp::getArgs()
   {
-    return operands();
+    return args();
   }
 
   unsigned int CallOp::getArgExpectedRank(unsigned int argIndex)
@@ -729,7 +829,7 @@ namespace mlir::modelica
       return 0;
     }
 
-    mlir::Type argType = function.getArgument(argIndex).getType();
+    mlir::Type argType = function.getArgumentTypes()[argIndex];
 
     if (auto arrayType = argType.dyn_cast<ArrayType>())
       return arrayType.getRank();
@@ -753,7 +853,7 @@ namespace mlir::modelica
 
     llvm::SmallVector<mlir::Value, 3> newArgs;
 
-    for (mlir::Value arg : operands())
+    for (mlir::Value arg : args())
     {
       assert(arg.getType().isa<ArrayType>());
       mlir::Value newArg = builder.create<SubscriptionOp>(getLoc(), arg, indexes);
@@ -864,7 +964,7 @@ namespace mlir::modelica
 
   void CallOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    for (mlir::Value arg : operands()) {
+    for (mlir::Value arg : args()) {
       toBeDerived.push_back(arg);
     }
   }
@@ -958,8 +1058,9 @@ namespace mlir::modelica
 
   void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    bool shouldBeDeallocated = mlir::cast<HeapAllocator>(getOperation()).shouldBeDeallocated();
-    populateAllocationEffects(effects, getResult(), !shouldBeDeallocated);
+    //bool shouldBeDeallocated = mlir::cast<HeapAllocator>(getOperation()).shouldBeDeallocated();
+    //populateAllocationEffects(effects, getResult(), !shouldBeDeallocated);
+    populateAllocationEffects(effects, getResult(), true);
   }
 
   mlir::ValueRange AllocOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -2096,7 +2197,23 @@ namespace mlir::modelica
   // ForOp
   //===----------------------------------------------------------------------===//
 
+  mlir::Block* ForOp::conditionBlock()
+  {
+    assert(!conditionRegion().empty());
+    return &conditionRegion().front();
+  }
 
+  mlir::Block* ForOp::bodyBlock()
+  {
+    assert(!bodyRegion().empty());
+    return &bodyRegion().front();
+  }
+
+  mlir::Block* ForOp::stepBlock()
+  {
+    assert(!stepRegion().empty());
+    return &stepRegion().front();
+  }
 
   mlir::ValueRange ForOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
@@ -2138,8 +2255,8 @@ namespace mlir::modelica
 
   void IfOp::build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, Value condition, bool withElseRegion)
   {
-    state.addOperands(condition);
     mlir::OpBuilder::InsertionGuard guard(builder);
+    state.addOperands(condition);
 
     // Create the "then" region
     mlir::Region* thenRegion = state.addRegion();

@@ -27,10 +27,10 @@ namespace marco::codegen::lowering
 
     if (resultType.isa<PackedType>()) {
       for (const auto& type : resultType.get<PackedType>()) {
-        resultsTypes.push_back(lower(type, ArrayAllocationScope::heap));
+        resultsTypes.push_back(lower(type));
       }
     } else {
-      resultsTypes.push_back(lower(resultType, ArrayAllocationScope::heap));
+      resultsTypes.push_back(lower(resultType));
     }
 
     auto op = builder().create<CallOp>(
@@ -53,7 +53,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AbsOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -66,7 +66,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AcosOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -79,7 +79,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AsinOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -92,7 +92,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AtanOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -106,7 +106,7 @@ namespace marco::codegen::lowering
 
     mlir::Value y = *lower(*call.getArg(0))[0];
     mlir::Value x = *lower(*call.getArg(1))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<Atan2Op>(location, resultType, y, x);
     return Reference::ssa(&builder(), result);
   }
@@ -119,7 +119,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<CosOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -132,7 +132,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<CoshOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -144,9 +144,9 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Value operand = lower(*call.getArg(0))[0].getReference();
     assert(operand.getType().isa<ArrayType>());
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<DerOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -159,7 +159,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<DiagonalOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -172,7 +172,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<ExpOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -185,7 +185,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<IdentityOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -200,7 +200,7 @@ namespace marco::codegen::lowering
     mlir::Value start = *lower(*call.getArg(0))[0];
     mlir::Value end = *lower(*call.getArg(1))[0];
     mlir::Value steps = *lower(*call.getArg(2))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<LinspaceOp>(location, resultType, start, end, steps);
     return Reference::ssa(&builder(), result);
   }
@@ -213,7 +213,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<LogOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -226,7 +226,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<Log10Op>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -244,7 +244,7 @@ namespace marco::codegen::lowering
       args.push_back(*lower(*arg)[0]);
     }
 
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<MaxOp>(location, resultType, args);
     return Reference::ssa(&builder(), result);
   }
@@ -262,7 +262,7 @@ namespace marco::codegen::lowering
       args.push_back(*lower(*arg)[0]);
     }
 
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<MinOp>(location, resultType, args);
     return Reference::ssa(&builder(), result);
   }
@@ -275,7 +275,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value array = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<NDimsOp>(location, resultType, array);
     return Reference::ssa(&builder(), result);
   }
@@ -285,7 +285,7 @@ namespace marco::codegen::lowering
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ones");
 
     auto location = loc(call.getLocation());
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
 
     // The number of operands is equal to the rank of the resulting array
     assert(call.argumentsCount() == resultType.cast<ArrayType>().getRank());
@@ -308,7 +308,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value array = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<ProductOp>(location, resultType, array);
     return Reference::ssa(&builder(), result);
   }
@@ -321,7 +321,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value array = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SignOp>(location, resultType, array);
     return Reference::ssa(&builder(), result);
   }
@@ -334,7 +334,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SinOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -347,7 +347,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SinOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -366,7 +366,7 @@ namespace marco::codegen::lowering
       args.push_back(*lower(*arg)[0]);
     }
 
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
 
     if (args.size() == 1) {
       mlir::Value result = builder().create<SizeOp>(location, resultType, args);
@@ -392,7 +392,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SqrtOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -405,7 +405,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value array = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SumOp>(location, resultType, array);
     return Reference::ssa(&builder(), result);
   }
@@ -418,7 +418,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value array = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SymmetricOp>(location, resultType, array);
     return Reference::ssa(&builder(), result);
   }
@@ -431,7 +431,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<TanOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -444,7 +444,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<TanhOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
@@ -457,7 +457,7 @@ namespace marco::codegen::lowering
     auto location = loc(call.getLocation());
 
     mlir::Value array = *lower(*call.getArg(0))[0];
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<TransposeOp>(location, resultType, array);
     return Reference::ssa(&builder(), result);
   }
@@ -467,7 +467,7 @@ namespace marco::codegen::lowering
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ones");
 
     auto location = loc(call.getLocation());
-    mlir::Type resultType = lower(call.getType(), ArrayAllocationScope::stack);
+    mlir::Type resultType = lower(call.getType());
 
     // The number of operands is equal to the rank of the resulting array
     assert(call.argumentsCount() == resultType.cast<ArrayType>().getRank());

@@ -31,7 +31,7 @@ namespace marco::codegen
       /// @name Forwarded methods
       /// {
 
-      modelica::EquationOp cloneIR() const override;
+      mlir::modelica::EquationOp cloneIR() const override;
 
       void eraseIR() override;
 
@@ -39,7 +39,7 @@ namespace marco::codegen
 
       void dumpIR(llvm::raw_ostream& os) const override;
 
-      modelica::EquationOp getOperation() const override;
+      mlir::modelica::EquationOp getOperation() const override;
 
       Variables getVariables() const override;
 
@@ -426,7 +426,7 @@ namespace marco::codegen
   class Model<ScheduledEquationsBlock> : public impl::BaseModel
   {
     public:
-      Model(modelica::ModelOp modelOp)
+      Model(mlir::modelica::ModelOp modelOp)
           : impl::BaseModel(std::move(modelOp))
       {
       }

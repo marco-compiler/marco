@@ -1,9 +1,4 @@
 set(SOURCES
-    dialects/modelica/Attribute.cpp
-    dialects/modelica/ModelicaBuilder.cpp
-    dialects/modelica/ModelicaDialect.cpp
-    dialects/modelica/Ops.cpp
-    dialects/modelica/Type.cpp
     Lowering/CallLowerer.cpp
     Lowering/ClassLowerer.cpp
     Lowering/ExpressionLowerer.cpp
@@ -18,7 +13,6 @@ set(SOURCES
     Lowering/StatementLowerer.cpp
     ArrayDescriptor.cpp
     Bridge.cpp
-    NewBridge.cpp
     Reference.cpp
     Runtime.cpp
     Options.cpp)

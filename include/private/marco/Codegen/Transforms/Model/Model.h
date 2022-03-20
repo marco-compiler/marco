@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_MODEL_H
 #define MARCO_CODEGEN_TRANSFORMS_MODEL_MODEL_H
 
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Model/Equation.h"
 #include "marco/Codegen/Transforms/Model/Path.h"
 #include "marco/Codegen/Transforms/Model/Variable.h"
@@ -13,14 +13,14 @@ namespace marco::codegen
     class BaseModel
     {
       public:
-        BaseModel(modelica::ModelOp modelOp)
+        BaseModel(mlir::modelica::ModelOp modelOp)
           : modelOp(modelOp.getOperation())
         {
         }
 
-        modelica::ModelOp getOperation() const
+        mlir::modelica::ModelOp getOperation() const
         {
-          return mlir::cast<modelica::ModelOp>(modelOp);
+          return mlir::cast<mlir::modelica::ModelOp>(modelOp);
         }
 
         /// Get the variables that are managed by this model.
@@ -45,7 +45,7 @@ namespace marco::codegen
   class Model : public impl::BaseModel
   {
     public:
-      Model(modelica::ModelOp modelOp)
+      Model(mlir::modelica::ModelOp modelOp)
         : impl::BaseModel(std::move(modelOp))
       {
       }

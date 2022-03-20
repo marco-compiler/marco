@@ -3,10 +3,10 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Model/ExternalSolver.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include <map>
 #include <set>
@@ -94,7 +94,7 @@ namespace marco::codegen
 
       /// Bufferize the variables and convert the subsequent load/store operations to operate on the
       /// allocated memory buffer.
-      mlir::Value convertMember(mlir::OpBuilder& builder, modelica::MemberCreateOp op) const;
+      mlir::Value convertMember(mlir::OpBuilder& builder, mlir::modelica::MemberCreateOp op) const;
 
       /// Create the initialization function that allocates the variables and
       /// stores them into an appropriate data structure to be passed to the other
@@ -108,7 +108,7 @@ namespace marco::codegen
       /// Create a function to be called when the simulation has finished and the
       /// variables together with its data structure are not required anymore and
       /// thus can be deallocated.
-      mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, modelica::ModelOp modelOp) const;
+      mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
 
       mlir::FuncOp createEquationFunction(
           mlir::OpBuilder& builder,
@@ -127,7 +127,7 @@ namespace marco::codegen
       /// Create the functions that calculates the values that the state variables will have
       /// in the next iteration.
       mlir::LogicalResult createUpdateStateVariablesFunction(
-          mlir::OpBuilder& builder, modelica::ModelOp modelOp, const DerivativesPositionsMap& derivatives) const;
+          mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesPositionsMap& derivatives) const;
 
       mlir::LogicalResult createIncrementTimeFunction(
           mlir::OpBuilder& builder,
@@ -179,7 +179,7 @@ namespace marco::codegen
 
       mlir::LogicalResult createPrintHeaderFunction(
           mlir::OpBuilder& builder,
-          modelica::ModelOp op,
+          mlir::modelica::ModelOp op,
           DerivativesPositionsMap& derivativesPositions) const;
 
       void printVariable(
@@ -203,18 +203,16 @@ namespace marco::codegen
 
       mlir::LogicalResult createPrintFunction(
           mlir::OpBuilder& builder,
-          modelica::ModelOp op,
+          mlir::modelica::ModelOp op,
           DerivativesPositionsMap& derivativesPositions) const;
 
       mlir::LogicalResult createPrintFunctionBody(
           mlir::OpBuilder& builder,
-          modelica::ModelOp op,
+          mlir::modelica::ModelOp op,
           mlir::TypeRange varTypes,
           DerivativesPositionsMap& derivativesPositions,
           llvm::StringRef functionName,
           std::function<mlir::LogicalResult(std::function<mlir::Value()>, llvm::StringRef, unsigned int, VariableFilter::Filter, mlir::Value)> elementCallback) const;
-
-      //static convertModelTypesToRuntimeDataPtr(mlir::TypeRange types);
 
     private:
       SolveModelOptions options;

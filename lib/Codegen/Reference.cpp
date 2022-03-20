@@ -1,7 +1,7 @@
 #include "marco/Codegen/Reference.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 
-using namespace marco::codegen::modelica;
+using namespace mlir::modelica;
 
 namespace marco::codegen
 {

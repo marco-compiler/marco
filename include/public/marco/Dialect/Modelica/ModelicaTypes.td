@@ -69,7 +69,6 @@ def ArrayType : Modelica_Type<"Array", "array"> {
     }];
 
     let parameters = (ins
-        "ArrayAllocationScope":$allocationScope,
         "mlir::Type":$elementType,
         ArrayRefParameter<"long", "Dimensions">:$shape
     );
@@ -87,9 +86,6 @@ def ArrayType : Modelica_Type<"Array", "array"> {
         bool isScalar() const;
 
         ArrayType slice(unsigned int subscriptsAmount) const;
-        ArrayType toAllocationScope(ArrayAllocationScope scope) const;
-        ArrayType toUnknownAllocationScope() const;
-        ArrayType toMinAllowedAllocationScope() const;
         ArrayType toElementType(mlir::Type elementType) const;
         UnsizedArrayType toUnsized() const;
 
@@ -115,18 +111,32 @@ def MemberType : Modelica_Type<"Member", "member"> {
     }];
 
     let parameters = (ins
-        "MemberAllocationScope":$allocationScope,
         "mlir::Type":$elementType,
-        ArrayRefParameter<"long", "Dimensions">:$shape
+        ArrayRefParameter<"long", "Dimensions">:$shape,
+        "bool":$constantProperty,
+        "IOProperty":$visibilityProperty
     );
 
     let extraClassDeclaration = [{
-		unsigned int getRank() const;
+		public:
+            unsigned int getRank() const;
 
-		static MemberType wrap(mlir::Type type, MemberAllocationScope allocationScope);
+            bool isConstant() const {
+                return getConstantProperty();
+            }
 
-		ArrayType toArrayType() const;
-		mlir::Type unwrap() const;
+            bool isInput() const {
+                return getVisibilityProperty() == IOProperty::input;
+            }
+
+            bool isOutput() const {
+                return getVisibilityProperty() == IOProperty::output;
+            }
+
+            static MemberType wrap(mlir::Type type, bool isConstant = false, IOProperty ioProperty = IOProperty::none);
+
+            ArrayType toArrayType() const;
+            mlir::Type unwrap() const;
      }];
 }
 

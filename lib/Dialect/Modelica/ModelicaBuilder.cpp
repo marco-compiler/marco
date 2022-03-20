@@ -23,9 +23,9 @@ namespace mlir::modelica
   }
 
   ArrayType ModelicaBuilder::getArrayType(
-      ArrayAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
+      mlir::Type elementType, llvm::ArrayRef<long> shape)
   {
-    return ArrayType::get(getContext(), allocationScope, elementType, shape);
+    return ArrayType::get(getContext(), elementType, shape);
   }
 
   BooleanAttr ModelicaBuilder::getBooleanAttribute(bool value)

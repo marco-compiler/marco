@@ -10,9 +10,9 @@ namespace marco::codegen
   class BaseEquation : public Equation
   {
     public:
-      BaseEquation(modelica::EquationOp equation, Variables variables);
+      BaseEquation(mlir::modelica::EquationOp equation, Variables variables);
 
-      modelica::EquationOp getOperation() const override;
+      mlir::modelica::EquationOp getOperation() const override;
 
       Variables getVariables() const override;
 
@@ -39,7 +39,7 @@ namespace marco::codegen
           ::marco::modeling::scheduling::Direction iterationDirection) const override;
 
     protected:
-      modelica::EquationSidesOp getTerminator() const;
+      mlir::modelica::EquationSidesOp getTerminator() const;
 
       std::vector<Access> getUniqueAccesses(std::vector<Access> accesses) const;
 

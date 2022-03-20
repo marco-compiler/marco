@@ -5,7 +5,7 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
+using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
@@ -78,8 +78,7 @@ namespace marco::codegen
       auto memberCreateOp = value.getDefiningOp<MemberCreateOp>();
       builder.setInsertionPoint(memberCreateOp);
 
-      auto memberType = memberCreateOp.resultType().cast<MemberType>();
-      auto dimensions = memberType.toArrayType().getShape();
+      auto dimensions = memberCreateOp.getMemberType().toArrayType().getShape();
 
       if (derivatives.contains(variable)) {
         // State variable
@@ -107,20 +106,20 @@ namespace marco::codegen
       mlir::Value value = terminator.values()[variable.cast<mlir::BlockArgument>().getArgNumber()];
       auto memberCreateOp = value.getDefiningOp<MemberCreateOp>();
       builder.setInsertionPoint(memberCreateOp);
-      auto memberType = memberCreateOp.resultType().cast<MemberType>();
+      auto arrayType = memberCreateOp.getMemberType().toArrayType();
       mlir::Value idaVariable = mappedVariables.lookup(variable);
 
       if (inverseDerivatives.contains(variable)) {
         auto castedVariable = builder.create<mlir::ida::GetDerivativeOp>(
             memberCreateOp.getLoc(),
-            memberType.toArrayType(),
+            arrayType,
             idaInstance, idaVariable);
 
         memberCreateOp->replaceAllUsesWith(castedVariable);
       } else {
         auto castedVariable = builder.create<mlir::ida::GetVariableOp>(
             memberCreateOp.getLoc(),
-            memberType.toArrayType(),
+            arrayType,
             idaInstance, idaVariable);
 
         memberCreateOp->replaceAllUsesWith(castedVariable);
@@ -280,7 +279,7 @@ namespace marco::codegen
           mlir::BlockAndValueMapping mapping;
 
           // Map the model variables
-          auto originalVars = model.getOperation().body().getArguments();
+          auto originalVars = model.getOperation().bodyRegion().getArguments();
           auto mappedVars = residualFunction.getArguments().take_front(originalVars.size());
 
           for (const auto& [original, mapped] : llvm::zip(originalVars, mappedVars)) {
@@ -295,17 +294,17 @@ namespace marco::codegen
             mapping.map(original, mapped);
           }
 
-          for (auto& op : equation->getOperation().body()->getOperations()) {
+          for (auto& op : equation->getOperation().bodyBlock()->getOperations()) {
             builder.clone(op, mapping);
           }
 
           auto clonedTerminator = mlir::cast<EquationSidesOp>(residualFunction.bodyRegion().back().getTerminator());
 
-          assert(clonedTerminator.lhs().size() == 1);
-          assert(clonedTerminator.rhs().size() == 1);
+          assert(clonedTerminator.lhsValues().size() == 1);
+          assert(clonedTerminator.rhsValues().size() == 1);
 
-          mlir::Value lhs = clonedTerminator.lhs()[0];
-          mlir::Value rhs = clonedTerminator.rhs()[0];
+          mlir::Value lhs = clonedTerminator.lhsValues()[0];
+          mlir::Value rhs = clonedTerminator.rhsValues()[0];
 
           if (lhs.getType().isa<ArrayType>()) {
             std::vector<mlir::Value> indices(

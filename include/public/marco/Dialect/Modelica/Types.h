@@ -5,17 +5,11 @@
 
 namespace mlir::modelica
 {
-  enum class ArrayAllocationScope
+  enum class IOProperty
   {
-    unknown,
-    stack,
-    heap
-  };
-
-  enum class MemberAllocationScope
-  {
-    stack,
-    heap
+    input,
+    output,
+    none
   };
 }
 

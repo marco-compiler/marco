@@ -7,8 +7,8 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
+using namespace ::mlir::modelica;
 
 namespace
 {
@@ -102,8 +102,8 @@ namespace marco::codegen
     // Convert the original derivatives map between values into a map between positions
     DerivativesPositionsMap derivativesPositions;
 
-    for (size_t i = 0, e = modelOp.body().getNumArguments(); i < e; ++i) {
-      mlir::Value var = modelOp.body().getArgument(i);
+    for (size_t i = 0, e = modelOp.bodyRegion().getNumArguments(); i < e; ++i) {
+      mlir::Value var = modelOp.bodyRegion().getArgument(i);
 
       if (derivatives.contains(var)) {
         mlir::Value derivative = derivatives.lookup(var);
@@ -111,7 +111,7 @@ namespace marco::codegen
         unsigned int position = 0;
 
         for (size_t j = 0; j < e && !derivativeFound; ++j) {
-          mlir::Value arg = modelOp.body().getArgument(j);
+          mlir::Value arg = modelOp.bodyRegion().getArgument(j);
 
           if (arg == derivative) {
             derivativeFound = true;
@@ -364,22 +364,20 @@ namespace marco::codegen
 
     mlir::Location loc = op->getLoc();
 
-    auto memberType = op.resultType().cast<MemberType>();
-    auto arrayType = memberType.toArrayType();
-    assert(arrayType.getAllocationScope() == BufferAllocationScope::heap);
+    auto arrayType = op.getMemberType().toArrayType();
 
     // Create the memory buffer for the variable
     builder.setInsertionPoint(op);
 
-    mlir::Value reference = builder.create<AllocOp>(
-        loc, arrayType.getElementType(), arrayType.getShape(), op.dynamicDimensions(), false);
+    // TODO last parameter false
+    mlir::Value reference = builder.create<AllocOp>(loc, arrayType, op.dynamicSizes());
 
     // Replace loads and stores with appropriate instructions operating on the new memory buffer.
     // The way such replacements are executed depend on the nature of the variable.
 
     auto replacers = [&]() {
       if (arrayType.isScalar()) {
-        assert(op.dynamicDimensions().empty());
+        assert(op.dynamicSizes().empty());
 
         auto loadReplacer = [&builder, reference](MemberLoadOp loadOp) -> void {
           mlir::OpBuilder::InsertionGuard guard(builder);
@@ -454,13 +452,13 @@ namespace marco::codegen
     mlir::BlockAndValueMapping mapping;
 
     // Move the initialization instructions into the new function
-    modelOp.init().cloneInto(&function.getBody(), mapping);
+    modelOp.initRegion().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
 
     // Convert the 'time' from a member type to a scalar value and set the start time
     auto terminator = mlir::cast<YieldOp>(function.getBody().back().getTerminator());
     auto timeMember = terminator.values()[0].getDefiningOp<MemberCreateOp>();
-    auto startTime = builder.create<ConstantOp>(loc, modelOp.startTime());
+    auto startTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.startTime().convertToDouble()));
     timeMember->replaceAllUsesWith(startTime);
     timeMember.erase();
 
@@ -475,7 +473,7 @@ namespace marco::codegen
     }
 
     // Process the equations that are handled by IDA
-    if (auto res = externalSolvers.ida->processEquations(builder, model, function, modelOp.body().getArgumentTypes(), derivatives); mlir::failed(res)) {
+    if (auto res = externalSolvers.ida->processEquations(builder, model, function, modelOp.bodyRegion().getArgumentTypes(), derivatives); mlir::failed(res)) {
       return res;
     }
 
@@ -489,8 +487,7 @@ namespace marco::codegen
 
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         return builder.create<ArrayCastOp>(
-            loc, value,
-            value.getType().cast<ArrayType>().toUnknownAllocationScope());
+            loc, value.getType().cast<ArrayType>(), value);
       } else {
         return value;
       }
@@ -530,7 +527,7 @@ namespace marco::codegen
     // Add the types of the variables.
     // Notice that the 'time' variable is already present among the model
     // body, so its type is automatically added to the struct.
-    for (const auto& type : modelOp.body().getArgumentTypes()) {
+    for (const auto& type : modelOp.bodyRegion().getArgumentTypes()) {
       auto convertedType = typeConverter->convertType(type);
       runtimeDataStructTypes.push_back(convertedType);
     }
@@ -589,14 +586,14 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     // Extract the data from the struct
-    mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+    mlir::TypeRange varTypes = modelOp.bodyRegion().getArgumentTypes();
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
     // Deallocate the arrays
     for (const auto& type : llvm::enumerate(varTypes)) {
       if (auto arrayType = type.value().dyn_cast<ArrayType>()) {
         mlir::Value var = extractValue(builder, structValue, varTypes[type.index()], type.index());
-        var = builder.create<ArrayCastOp>(loc, var, arrayType.toAllocationScope(BufferAllocationScope::heap));
+        var = builder.create<ArrayCastOp>(loc, arrayType, var);
         builder.create<FreeOp>(loc, var);
       }
     }
@@ -694,7 +691,7 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     // Extract the data from the struct
-    mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+    mlir::TypeRange varTypes = modelOp.bodyRegion().getArgumentTypes();
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
     llvm::SmallVector<mlir::Value, 3> vars;
@@ -733,7 +730,7 @@ namespace marco::codegen
 
       // Create the equation template function
       auto templateFunction = explicitEquation->second->createTemplateFunction(
-          builder, templateFunctionName, modelOp.body().getArguments(), equation->getSchedulingDirection());
+          builder, templateFunctionName, modelOp.bodyRegion().getArguments(), equation->getSchedulingDirection());
 
       return templateFunction;
     };
@@ -763,7 +760,7 @@ namespace marco::codegen
           auto equationFunction = createEquationFunction(
               builder, *equation, equationFunctionName, templateFunction,
               equationTemplateCalls,
-              modelOp.body().getArgumentTypes());
+              modelOp.bodyRegion().getArgumentTypes());
 
           equationFunctions.insert(equationFunction);
 
@@ -807,15 +804,15 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     // Extract the state variables from the opaque pointer
-    mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+    mlir::TypeRange varTypes = modelOp.bodyRegion().getArgumentTypes();
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
     // Update the state variables by applying the forward Euler method
-    mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.timeStep().convertToDouble()));
 
     std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
 
-    for (const auto& variable : modelOp.body().getArguments()) {
+    for (const auto& variable : modelOp.bodyRegion().getArguments()) {
       size_t index = variable.getArgNumber();
       auto it = derivatives.find(variable.getArgNumber());
 
@@ -855,19 +852,19 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     // Extract the data from the struct
-    mlir::TypeRange varTypes = modelOp.body().getArgumentTypes();
+    mlir::TypeRange varTypes = modelOp.bodyRegion().getArgumentTypes();
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
     mlir::Value time = extractValue(builder, structValue, varTypes[timeVariablePosition], 0);
 
     // Increment the time
-    mlir::Value timeStep = builder.create<ConstantOp>(loc, modelOp.timeStep());
+    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.timeStep().convertToDouble()));
     mlir::Value currentTime = builder.create<LoadOp>(loc, time);
     mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
-    builder.create<StoreOp>(loc, increasedTime, time);
+    builder.create<StoreOp>(loc, increasedTime, time, llvm::None);
 
     // Check if the current time is less than the end time
-    mlir::Value endTime = builder.create<ConstantOp>(loc, modelOp.endTime());
+    mlir::Value endTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.endTime().convertToDouble()));
 
     mlir::Value condition = builder.create<LteOp>(loc, BooleanType::get(modelOp->getContext()), increasedTime, endTime);
     condition = typeConverter->materializeTargetConversion(builder, condition.getLoc(), builder.getI1Type(), condition);
@@ -1090,7 +1087,7 @@ namespace marco::codegen
       ModelOp op,
       DerivativesPositionsMap& derivativesPositions) const
   {
-    mlir::TypeRange varTypes = op.body().getArgumentTypes();
+    mlir::TypeRange varTypes = op.bodyRegion().getArgumentTypes();
 
     auto callback = [&](std::function<mlir::Value()> structValue, llvm::StringRef name, unsigned int position, VariableFilter::Filter filter, mlir::Value separator) -> mlir::LogicalResult {
       mlir::Location loc = op.getLoc();
@@ -1219,7 +1216,7 @@ namespace marco::codegen
       ModelOp op,
       DerivativesPositionsMap& derivativesPositions) const
   {
-    mlir::TypeRange varTypes = op.body().getArgumentTypes();
+    mlir::TypeRange varTypes = op.bodyRegion().getArgumentTypes();
 
     auto callback = [&](std::function<mlir::Value()> structValue, llvm::StringRef name, unsigned int position, VariableFilter::Filter filter, mlir::Value separator) -> mlir::LogicalResult {
       mlir::Value var = extractValue(builder, structValue(), varTypes[position], position);
@@ -1273,14 +1270,13 @@ namespace marco::codegen
     };
 
     // Get the names of the variables
-    llvm::SmallVector<llvm::StringRef, 8> variableNames =
-        llvm::to_vector<8>(op.variableNames().getAsValueRange<mlir::StringAttr>());
+    auto variableNames = op.variableNames();
 
     // Map each variable to its position inside the data structure.
     // It must be noted that the data structure also contains derivative (if
     // existent), so its size can be greater than the number of names.
 
-    assert(op.variableNames().size() <= varTypes.size());
+    assert(variableNames.size() <= varTypes.size());
     llvm::StringMap<size_t> variablePositionByName;
 
     for (const auto& var : llvm::enumerate(variableNames))

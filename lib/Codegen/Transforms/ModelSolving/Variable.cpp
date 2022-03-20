@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/Model/Variable.h"
 
-using namespace marco::codegen;
-using namespace marco::codegen::modelica;
+using namespace ::marco::codegen;
+using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
@@ -13,7 +13,7 @@ namespace marco::codegen
       assert(value.isa<mlir::BlockArgument>());
       size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
       auto model = value.getParentRegion()->getParentOfType<ModelOp>();
-      auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
+      auto terminator = mlir::cast<YieldOp>(model.initRegion().back().getTerminator());
       assert(index < terminator.values().size());
       definingOp = terminator.values()[index].getDefiningOp();
       assert(mlir::isa<MemberCreateOp>(definingOp));

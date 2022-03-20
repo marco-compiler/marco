@@ -17,7 +17,7 @@ namespace marco::codegen::lowering
     std::vector<mlir::Operation*> result;
 
     mlir::OpBuilder::InsertionGuard guard(builder());
-    Lowerer::SymbolScope varScope(symbolTable());
+    Lowerer::SymbolScope scope(symbolTable());
 
     auto location = loc(function.getLocation());
 
@@ -28,27 +28,17 @@ namespace marco::codegen::lowering
     for (const auto& member : function.getArgs()) {
       argNames.emplace_back(member->getName());
 
-      mlir::Type type = lower(member->getType(), ArrayAllocationScope::unknown);
-
-      if (auto arrayType = type.dyn_cast<ArrayType>()) {
-        type = arrayType.toUnknownAllocationScope();
-      }
-
+      mlir::Type type = lower(member->getType());
       argTypes.emplace_back(type);
     }
 
     // Output variables
-    llvm::SmallVector<llvm::StringRef, 3> returnNames;
-    llvm::SmallVector<mlir::Type, 3> returnTypes;
+    llvm::SmallVector<llvm::StringRef, 1> returnNames;
+    llvm::SmallVector<mlir::Type, 1> returnTypes;
     auto outputMembers = function.getResults();
 
     for (const auto& member : outputMembers) {
-      mlir::Type type = lower(member->getType(), ArrayAllocationScope::heap);
-
-      if (auto arrayType = type.dyn_cast<ArrayType>()) {
-        type = arrayType.toAllocationScope(ArrayAllocationScope::heap);
-      }
-
+      mlir::Type type = lower(member->getType());
       returnNames.emplace_back(member->getName());
       returnTypes.emplace_back(type);
     }
@@ -114,13 +104,8 @@ namespace marco::codegen::lowering
     }
 
     // Start the body of the function
-    mlir::Block* entryBlock = functionOp.addEntryBlock();
+    mlir::Block* entryBlock = builder().createBlock(&functionOp.body());
     builder().setInsertionPointToStart(entryBlock);
-
-    // Declare all the function arguments in the symbol table
-    for (const auto& [name, value] : llvm::zip(argNames, entryBlock->getArguments())) {
-      symbolTable().insert(name, Reference::ssa(&builder(), value));
-    }
 
     // Initialize members
     for (const auto& member : function.getMembers()) {
@@ -134,7 +119,7 @@ namespace marco::codegen::lowering
       lower(*statement);
     }
 
-    builder().create<FunctionTerminatorOp>(location);
+    //builder().create<FunctionTerminatorOp>(location);
 
     result.push_back(functionOp);
     return result;
@@ -143,23 +128,15 @@ namespace marco::codegen::lowering
   void StandardFunctionLowerer::lower(const Member& member)
   {
     auto location = loc(member.getLocation());
-
-    // Input values are supposed to be read-only by the Modelica standard,
-    // thus they don't need to be copied for local modifications.
-
-    if (member.isInput()) {
-      return;
-    }
-
-    const auto& frontendType = member.getType();
-    mlir::Type type = lower(frontendType, member.isOutput() ? ArrayAllocationScope::heap : ArrayAllocationScope::stack);
+    mlir::Type type = lowerMemberType(member);
 
     llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
     llvm::SmallVector<long, 3> shape;
 
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
-      for (auto dimension : arrayType.getShape())
+      for (auto dimension : arrayType.getShape()) {
         shape.push_back(dimension);
+      }
 
       auto expressionsCount = llvm::count_if(
           member.getType().getDimensions(),
@@ -183,18 +160,46 @@ namespace marco::codegen::lowering
       }
     }
 
-    auto memberType = MemberType::wrap(type, MemberAllocationScope::stack);
+    bool isConstant = false;
+    IOProperty ioProperty = IOProperty::none;
 
-    mlir::Value var = builder().create<MemberCreateOp>(location, member.getName(), memberType, dynamicDimensions, false);
+    if (member.isInput()) {
+      ioProperty = IOProperty::input;
+    } else if (member.isOutput()) {
+      ioProperty = IOProperty::output;
+    }
+
+    auto memberType = MemberType::wrap(type, isConstant, ioProperty);
+
+    mlir::Value var = builder().create<MemberCreateOp>(
+        location, member.getName(), memberType, dynamicDimensions);
+
+    // Add the member to the symbol table
     symbolTable().insert(member.getName(), Reference::member(&builder(), var));
 
     if (member.hasInitializer()) {
       // If the member has an initializer expression, lower and assign it as
       // if it was a regular assignment statement.
 
-      Reference memory = symbolTable().lookup(member.getName());
       mlir::Value value = *lower(*member.getInitializer())[0];
-      memory.set(value);
+      symbolTable().lookup(member.getName()).set(value);
     }
+  }
+
+  mlir::Type StandardFunctionLowerer::lowerMemberType(const ast::Member& member)
+  {
+    const auto& frontendType = member.getType();
+
+    if (member.isInput()) {
+      return lower(frontendType);
+    }
+
+    if (member.isOutput()) {
+      return lower(frontendType);
+    }
+
+    // Protected member
+    mlir::Type result = lower(frontendType);
+    return result;
   }
 }

@@ -1,6 +1,8 @@
 #ifndef MARCO_FRONTEND_SIMULATIONOPTIONS_H
 #define MARCO_FRONTEND_SIMULATIONOPTIONS_H
 
+#include <string>
+
 namespace marco::frontend
 {
   struct SimulationOptions

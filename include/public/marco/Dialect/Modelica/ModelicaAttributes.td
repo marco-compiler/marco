@@ -17,7 +17,7 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
     let summary = "Modelica's Boolean attribute";
 
     let description = [{
-        Type representing Modelica's Boolean.
+        Attribute representing a Boolean-typed value.
     }];
 
     let parameters = (ins "Type":$type, "bool":$value);
@@ -58,7 +58,7 @@ def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
     let summary = "Modelica's Integer attribute";
 
     let description = [{
-        Type representing Modelica's Integer.
+        Attribute representing an Integer-typed value.
     }];
 
     let parameters = (ins "Type":$type, "::llvm::APInt":$value);
@@ -93,7 +93,7 @@ def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
     let summary = "Modelica's Real attribute";
 
     let description = [{
-        Type representing Modelica's Real.
+        Attribute representing a Real-typed value.
     }];
 
     let parameters = (ins "Type":$type, "::llvm::APFloat":$value);

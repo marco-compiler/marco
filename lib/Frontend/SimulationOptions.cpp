@@ -1,5 +1,5 @@
-#include "marco/Codegen/Bridge.h"
 #include "marco/Frontend/SimulationOptions.h"
+#include "marco/Codegen/Bridge.h"
 
 namespace marco::frontend
 {

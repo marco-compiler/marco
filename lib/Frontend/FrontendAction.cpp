@@ -1,31 +1,30 @@
-#include "llvm/Support/Error.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Transforms/Utils.h"
-#include "clang/Basic/DiagnosticFrontend.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/Support/Errc.h"
-#include "llvm/Support/InitLLVM.h"
-#include "llvm/Support/VirtualFileSystem.h"
+#include "marco/Frontend/FrontendAction.h"
 #include "marco/AST/Parser.h"
 #include "marco/AST/Passes.h"
+#include "marco/Codegen/Bridge.h"
+#include "marco/Codegen/Conversion/Passes.h"
+#include "marco/Codegen/Transforms/Passes.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Frontend/CompilerInstance.h"
-#include "marco/Frontend/FrontendAction.h"
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Frontend/FrontendOptions.h"
-#include "marco/Codegen/Bridge.h"
-#include "marco/Codegen/NewBridge.h"
-#include "marco/Codegen/Conversion/Passes.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/Passes.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/Pass/PassManager.h"
-#include "llvm/Support/Path.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
+#include "clang/Basic/DiagnosticFrontend.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Errc.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/VirtualFileSystem.h"
+#include "llvm/Transforms/Utils.h"
 
 bool exec(const char* cmd, std::string& result)
 {
@@ -172,29 +171,9 @@ namespace marco::frontend
     options.endTime = ci.getSimulationOptions().endTime;
     options.timeStep = ci.getSimulationOptions().timeStep;
 
-    marco::codegen::LoweringBridge bridge(ci.getMLIRContext(), options);
-    auto module = bridge.run(ci.getAST());
-
-    if (!module) {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Fatal,
-          "MLIR conversion failed");
-
-      ci.getDiagnostics().Report(diagID);
-      return false;
-    }
-
-    /*
-    module->dump();
-
-    instance().setMLIRModule(std::make_unique<mlir::ModuleOp>(std::move(*module)));
-
-    llvm::errs() << "NEW BRIDGE OUTPUT\n";
     marco::codegen::lowering::Bridge newBridge(ci.getMLIRContext(), options);
     newBridge.lower(*ci.getAST());
-    newBridge.getMLIRModule()->dump();
     instance().setMLIRModule(std::move(newBridge.getMLIRModule()));
-     */
 
     return true;
   }
@@ -206,51 +185,47 @@ namespace marco::frontend
     auto& codegenOptions = ci.getCodegenOptions();
     mlir::PassManager passManager(&ci.getMLIRContext());
 
-    passManager.addPass(codegen::createAutomaticDifferentiationPass());
+    //passManager.addPass(codegen::createAutomaticDifferentiationPass());
 
-    // Solve model pass
-    codegen::SolveModelOptions solveModelOptions;
-    solveModelOptions.emitMain = ci.getCodegenOptions().generateMain;
-    solveModelOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
-    passManager.addNestedPass<codegen::modelica::ModelOp>(codegen::createSolveModelPass(solveModelOptions));
+    // Model solving
+    codegen::SolveModelOptions modelSolvingOptions;
+    modelSolvingOptions.emitMain = ci.getCodegenOptions().generateMain;
+    modelSolvingOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
+    passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createSolveModelPass(modelSolvingOptions));
 
     // Functions vectorization pass
     codegen::FunctionsVectorizationOptions functionsVectorizationOptions;
     functionsVectorizationOptions.assertions = ci.getCodegenOptions().assertions;
     passManager.addPass(codegen::createFunctionsVectorizationPass(functionsVectorizationOptions));
 
+    // Insert explicit casts where needed
     passManager.addPass(codegen::createExplicitCastInsertionPass());
 
-    if (codegenOptions.outputArraysPromotion) {
-      passManager.addPass(codegen::createOutputArraysPromotionPass());
-    }
-
     if (codegenOptions.inlining) {
+      // Inline the functions with the 'inline' annotation
       passManager.addPass(mlir::createInlinerPass());
     }
 
     passManager.addPass(mlir::createCanonicalizerPass());
 
     if (codegenOptions.cse) {
-      passManager.addNestedPass<codegen::modelica::FunctionOp>(mlir::createCSEPass());
+      // TODO run also on ModelOp
+      passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
+      passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
     }
 
-    passManager.addPass(codegen::createFunctionConversionPass());
-
-    // The buffer deallocation pass must be placed after the Modelica's
-    // functions and members conversion, so that we can operate on an IR
-    // without hidden allocs and frees.
-    // However the pass must also be placed before the conversion of the
-    // more common Modelica operations (i.e. add, sub, call, etc.), in
-    // order to take into consideration their memory effects.
-    passManager.addPass(codegen::createBufferDeallocationPass());
+    // Place the deallocation instructions for the arrays
+    passManager.addPass(codegen::createArrayDeallocationPass());
 
     // Modelica conversion pass
     codegen::ModelicaConversionOptions modelicaConversionOptions;
     modelicaConversionOptions.assertions = ci.getCodegenOptions().assertions;
+    modelicaConversionOptions.outputArraysPromotion = modelicaConversionOptions.outputArraysPromotion;
+
     passManager.addPass(codegen::createModelicaConversionPass(modelicaConversionOptions));
 
     if (codegenOptions.omp) {
+      // Use OpenMP for parallel loops
       passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
     }
 
@@ -264,6 +239,7 @@ namespace marco::frontend
     passManager.addPass(codegen::createLLVMLoweringPass(llvmLoweringOptions));
 
     if (!codegenOptions.debug) {
+      // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
 

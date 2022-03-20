@@ -13,11 +13,11 @@ namespace marco::codegen
       using DimensionAccess = ::marco::modeling::DimensionAccess;
 
     public:
-      LoopEquation(modelica::EquationOp equation, Variables variables);
+      LoopEquation(mlir::modelica::EquationOp equation, Variables variables);
 
       std::unique_ptr<Equation> clone() const override;
 
-      modelica::EquationOp cloneIR() const override;
+      mlir::modelica::EquationOp cloneIR() const override;
 
       void eraseIR() override;
 
@@ -51,9 +51,9 @@ namespace marco::codegen
     private:
       size_t getNumberOfExplicitLoops() const;
 
-      std::vector<modelica::ForEquationOp> getExplicitLoops() const;
+      std::vector<mlir::modelica::ForEquationOp> getExplicitLoops() const;
 
-      modelica::ForEquationOp getExplicitLoop(size_t index) const;
+      mlir::modelica::ForEquationOp getExplicitLoop(size_t index) const;
 
       size_t getNumberOfImplicitLoops() const;
 

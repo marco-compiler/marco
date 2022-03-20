@@ -75,14 +75,14 @@ namespace mlir::modelica
     return llvm::hash_combine_range(map.begin(), map.end());
   }
 
-  mlir::Attribute mlir::modelica::InverseFunctionsAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser&, mlir::Type)
+  mlir::Attribute InverseFunctionsAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser&, mlir::Type)
   {
     // TODO parse InverseFunctionsAttr
     llvm_unreachable("InverseFunctionsAttr parsing is not implemented");
     return mlir::Attribute();
   }
 
-  void mlir::modelica::InverseFunctionsAttr::print(mlir::DialectAsmPrinter& os) const
+  void InverseFunctionsAttr::print(mlir::DialectAsmPrinter& os) const
   {
     os << "inverse<";
     auto inverseFunctionsMap = getInverseFunctionsMap();
@@ -117,7 +117,7 @@ namespace mlir::modelica
   // DerivativeAttr
   //===----------------------------------------------------------------------===//
 
-  mlir::Attribute mlir::modelica::DerivativeAttr::parse(
+  mlir::Attribute DerivativeAttr::parse(
       mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
   {
     mlir::StringAttr name;
@@ -134,7 +134,7 @@ namespace mlir::modelica
     return DerivativeAttr::get(context, name.getValue(), order);
   }
 
-  void mlir::modelica::DerivativeAttr::print(mlir::DialectAsmPrinter& os) const
+  void DerivativeAttr::print(mlir::DialectAsmPrinter& os) const
   {
     os << "derivative" << "<\"" << getName() << "\", " << getOrder() << ">";
   }

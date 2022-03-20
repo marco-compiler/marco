@@ -26,6 +26,8 @@ namespace marco::codegen::lowering
       /// input arguments by the dedicated pass. Protected arrays, instead, are
       /// allocated according to the ArrayType allocation logic.
       void lower(const ast::Member& member);
+
+      mlir::Type lowerMemberType(const ast::Member& member);
   };
 }
 

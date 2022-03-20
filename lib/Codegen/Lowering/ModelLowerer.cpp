@@ -22,6 +22,18 @@ static mlir::Attribute getZeroAttr(mlir::OpBuilder& builder, mlir::Type type)
   return builder.getZeroAttr(type);
 }
 
+static IOProperty getIOProperty(const Member& member) {
+  if (member.isInput()) {
+    return IOProperty::input;
+  }
+
+  if (member.isOutput()) {
+    return IOProperty::output;
+  }
+
+  return IOProperty::none;
+}
+
 namespace marco::codegen::lowering
 {
   ModelLowerer::ModelLowerer(LoweringContext* context, BridgeInterface* bridge)
@@ -41,19 +53,17 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 3> args;
 
     // Time variable
-    auto timeType = ArrayType::get(builder().getContext(), ArrayAllocationScope::unknown, RealType::get(builder().getContext()), llvm::None);
+    auto timeType = ArrayType::get(builder().getContext(), RealType::get(builder().getContext()), llvm::None);
     args.push_back(timeType);
 
     // Other variables
     llvm::SmallVector<mlir::Attribute, 3> variableNames;
 
     for (const auto& member : model.getMembers()) {
-      mlir::Type type = lower(member->getType(), ArrayAllocationScope::unknown);
+      mlir::Type type = lower(member->getType());
 
-      if (auto arrayType = type.dyn_cast<ArrayType>()) {
-        type = arrayType.toUnknownAllocationScope();
-      } else {
-        type = ArrayType::get(builder().getContext(), ArrayAllocationScope::unknown, type, llvm::None);
+      if (!type.isa<ArrayType>()) {
+        type = ArrayType::get(builder().getContext(), type, llvm::None);
       }
 
       args.push_back(type);
@@ -77,8 +87,8 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(initBlock);
       llvm::SmallVector<mlir::Value, 3> vars;
 
-      auto memberType = MemberType::get(builder().getContext(), MemberAllocationScope::heap, RealType::get(builder().getContext()), llvm::None);
-      mlir::Value time = builder().create<MemberCreateOp>(location, "time", memberType, llvm::None, false);
+      auto memberType = MemberType::get(builder().getContext(), RealType::get(builder().getContext()), llvm::None, false, IOProperty::none);
+      mlir::Value time = builder().create<MemberCreateOp>(location, "time", memberType, llvm::None);
       vars.push_back(time);
 
       for (const auto& member : model.getMembers()) {
@@ -119,33 +129,35 @@ namespace marco::codegen::lowering
     auto location = loc(member.getLocation());
 
     const auto& frontendType = member.getType();
-    mlir::Type type = lower(frontendType, ArrayAllocationScope::heap);
-    auto memberType = MemberType::wrap(type, MemberAllocationScope::heap);
-    bool isConstant = member.isParameter();
-    mlir::Value memberOp = builder().create<MemberCreateOp>(location, member.getName(), memberType, llvm::None, isConstant);
+    mlir::Type type = lower(frontendType);
+    auto memberType = MemberType::wrap(type);
+
+    mlir::Value memberOp = builder().create<MemberCreateOp>(
+        location, member.getName(), memberType, llvm::None);
+
     symbolTable().insert(member.getName(), Reference::member(&builder(), memberOp));
 
-    Reference ref = symbolTable().lookup(member.getName());
+    Reference reference = symbolTable().lookup(member.getName());
 
     if (member.hasStartOverload()) {
       auto values = lower(*member.getStartOverload());
       assert(values.size() == 1);
 
       if (type.isa<ArrayType>()) {
-        builder().create<ArrayFillOp>(location, *ref, *values[0]);
+        builder().create<ArrayFillOp>(location, *reference, *values[0]);
       } else {
-        ref.set(*values[0]);
+        reference.set(*values[0]);
       }
     } else if (member.hasInitializer()) {
       mlir::Value value = *lower(*member.getInitializer())[0];
-      ref.set(value);
+      reference.set(value);
     } else {
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(builder(), arrayType.getElementType()));
-        builder().create<ArrayFillOp>(location, *ref, zero);
+        builder().create<ArrayFillOp>(location, *reference, zero);
       } else {
         mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(builder(), type));
-        ref.set(zero);
+        reference.set(zero);
       }
     }
   }

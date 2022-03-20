@@ -5,35 +5,6 @@
 
 using namespace ::mlir::modelica;
 
-static ArrayAllocationScope memberToArrayAllocationScope(MemberAllocationScope scope)
-{
-  switch (scope) {
-    case MemberAllocationScope::stack:
-      return ArrayAllocationScope::stack;
-
-    case MemberAllocationScope::heap:
-      return ArrayAllocationScope::heap;
-  }
-
-  llvm_unreachable("Unknown member allocation scope");
-  return ArrayAllocationScope::heap;
-}
-
-static MemberAllocationScope arrayToMemberAllocationScope(ArrayAllocationScope scope)
-{
-  switch (scope) {
-    case ArrayAllocationScope::stack:
-      return MemberAllocationScope::stack;
-
-    case ArrayAllocationScope::heap:
-    case ArrayAllocationScope::unknown:
-      return MemberAllocationScope::heap;
-  }
-
-  llvm_unreachable("Unknown array allocation scope");
-  return MemberAllocationScope::heap;
-}
-
 namespace mlir::modelica
 {
   //===----------------------------------------------------------------------===//
@@ -44,23 +15,6 @@ namespace mlir::modelica
   {
     if (parser.parseLess()) {
       return mlir::Type();
-    }
-
-    auto allocationScope = ArrayAllocationScope::unknown;
-
-    if (mlir::succeeded(parser.parseKeyword("heap"))) {
-      allocationScope = ArrayAllocationScope::heap;
-
-      if (parser.parseComma()) {
-        return mlir::Type();
-      }
-
-    } else if (mlir::succeeded(parser.parseKeyword("stack"))) {
-      allocationScope = ArrayAllocationScope::stack;
-
-      if (parser.parseComma()) {
-        return mlir::Type();
-      }
     }
 
     llvm::SmallVector<int64_t, 3> dimensions;
@@ -77,19 +31,12 @@ namespace mlir::modelica
     }
 
     llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
-    return ArrayType::get(context, allocationScope, elementType, castedDims);
+    return ArrayType::get(context, elementType, castedDims);
   }
 
   void ArrayType::print(DialectAsmPrinter& os) const
   {
     os << "array<";
-    auto allocationScope = getAllocationScope();
-
-    if (allocationScope == ArrayAllocationScope::heap) {
-      os << "heap, ";
-    } else if (allocationScope == ArrayAllocationScope::stack) {
-      os << "stack, ";
-    }
 
     for (const auto& dimension : getShape()) {
       os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
@@ -154,35 +101,12 @@ namespace mlir::modelica
       resultShape.push_back(shape[i]);
     }
 
-    return ArrayType::get(getContext(), getAllocationScope(), getElementType(), resultShape);
-  }
-
-  ArrayType ArrayType::toAllocationScope(ArrayAllocationScope scope) const
-  {
-    return ArrayType::get(getContext(), scope, getElementType(), getShape());
-  }
-
-  ArrayType ArrayType::toUnknownAllocationScope() const
-  {
-    return toAllocationScope(ArrayAllocationScope::unknown);
-  }
-
-  ArrayType ArrayType::toMinAllowedAllocationScope() const
-  {
-    if (getAllocationScope() == ArrayAllocationScope::heap) {
-      return *this;
-    }
-
-    if (canBeOnStack()) {
-      return toAllocationScope(ArrayAllocationScope::stack);
-    }
-
-    return toAllocationScope(ArrayAllocationScope::heap);
+    return ArrayType::get(getContext(), getElementType(), resultShape);
   }
 
   ArrayType ArrayType::toElementType(mlir::Type elementType) const
   {
-    return ArrayType::get(getContext(), getAllocationScope(), elementType, getShape());
+    return ArrayType::get(getContext(), elementType, getShape());
   }
 
   UnsizedArrayType ArrayType::toUnsized() const
@@ -229,23 +153,6 @@ namespace mlir::modelica
       return mlir::Type();
     }
 
-    auto allocationScope = MemberAllocationScope::heap;
-
-    if (mlir::succeeded(parser.parseKeyword("heap"))) {
-      allocationScope = MemberAllocationScope::heap;
-
-      if (parser.parseComma()) {
-        return mlir::Type();
-      }
-    } else {
-      allocationScope = MemberAllocationScope::stack;
-
-      if (parser.parseKeyword("stack") ||
-          parser.parseComma()) {
-        return mlir::Type();
-      }
-    }
-
     llvm::SmallVector<int64_t, 3> dimensions;
 
     if (parser.parseDimensionList(dimensions)) {
@@ -254,31 +161,52 @@ namespace mlir::modelica
 
     Type elementType;
 
-    if (parser.parseType(elementType) ||
-        parser.parseGreater()) {
+    if (parser.parseType(elementType)) {
       return mlir::Type();
     }
 
-    llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
-    return MemberType::get(context, allocationScope, elementType, castedDims);
+    bool isConstant = false;
+    IOProperty ioProperty = IOProperty::none;
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
+        isConstant = true;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
+        ioProperty = IOProperty::input;
+      } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
+        ioProperty = IOProperty::output;
+      }
+    }
+
+    if (parser.parseGreater()) {
+      return mlir::Type();
+    }
+
+    llvm::SmallVector<long, 3> castedDimensions(dimensions.begin(), dimensions.end());
+    return MemberType::get(context, elementType, castedDimensions, isConstant, ioProperty);
   }
 
   void MemberType::print(DialectAsmPrinter& os) const
   {
     os << "member<";
-    auto allocationScope = getAllocationScope();
-
-    if (allocationScope == MemberAllocationScope::stack) {
-      os << "stack, ";
-    } else if (allocationScope == MemberAllocationScope::heap) {
-      os << "heap, ";
-    }
 
     for (const auto& dimension : getShape()) {
       os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
     }
 
-    os << getElementType() << ">";
+    os << getElementType();
+
+    if (isConstant()) {
+      os << ", constant";
+    }
+
+    if (isInput()) {
+      os << ", input";
+    } else if (isOutput()) {
+      os << ", output";
+    }
+
+    os << ">";
   }
 
   unsigned int MemberType::getRank() const
@@ -286,20 +214,19 @@ namespace mlir::modelica
     return getShape().size();
   }
 
-  MemberType MemberType::wrap(mlir::Type type, MemberAllocationScope allocationScope)
+  MemberType MemberType::wrap(mlir::Type type, bool isConstant, IOProperty ioProperty)
   {
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
-      return MemberType::get(type.getContext(), allocationScope, arrayType.getElementType(), arrayType.getShape());
+      return MemberType::get(type.getContext(), arrayType.getElementType(), arrayType.getShape(), isConstant, ioProperty);
     }
 
-    return MemberType::get(type.getContext(), allocationScope, type, llvm::None);
+    return MemberType::get(type.getContext(), type, llvm::None, isConstant, ioProperty);
   }
 
   ArrayType MemberType::toArrayType() const
   {
     return ArrayType::get(
         getContext(),
-        memberToArrayAllocationScope(getAllocationScope()),
         getElementType(),
         getShape());
   }

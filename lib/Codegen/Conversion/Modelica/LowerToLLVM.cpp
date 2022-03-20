@@ -1,6 +1,6 @@
 #include "marco/Codegen/Conversion/Modelica/LowerToLLVM.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/ArrayDescriptor.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
@@ -11,7 +11,6 @@
 #include "mlir/Support/MathExtras.h"
 
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
 using namespace ::mlir::modelica;
 
 /// Generic conversion pattern that provides some utility functions.
@@ -32,46 +31,6 @@ class ModelicaOpConversion : public mlir::ConvertOpToLLVMPattern<FromOp>
 	{
 		mlir::Type type = this->getTypeConverter()->convertType(value.getType());
 		return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
-	}
-};
-
-struct PackOpLowering : public ModelicaOpConversion<PackOp>
-{
-	using ModelicaOpConversion<PackOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(PackOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op->getLoc();
-		Adaptor transformed(operands);
-
-		StructType structType = op.resultType();
-		mlir::Type descriptorType = convertType(structType);
-
-		mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, descriptorType);
-
-		for (auto& element : llvm::enumerate(transformed.values()))
-			result = rewriter.create<mlir::LLVM::InsertValueOp>(
-					loc, descriptorType, result, element.value(), rewriter.getIndexArrayAttr(element.index()));
-
-		rewriter.replaceOp(op, result);
-		return mlir::success();
-	}
-};
-
-struct ExtractOpLowering : public ModelicaOpConversion<ExtractOp>
-{
-	using ModelicaOpConversion<ExtractOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(ExtractOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op.getLoc();
-		Adaptor transformed(operands);
-
-		mlir::Type descriptorType = convertType(op.packedValue().getType());
-		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[op.index()];
-		mlir::Value result = rewriter.create<mlir::LLVM::ExtractValueOp>(loc, type, transformed.packedValue(), rewriter.getIndexArrayAttr(op.index()));
-		rewriter.replaceOp(op, result);
-		return mlir::success();
 	}
 };
 
@@ -153,15 +112,14 @@ class AllocaOpLowering : public AllocLikeOpLowering<AllocaOp>
 {
 	using AllocLikeOpLowering<AllocaOp>::AllocLikeOpLowering;
 
-	ArrayType getResultType(AllocaOp op) const override
-	{
-		return op.resultType();
-	}
+  ArrayType getResultType(AllocaOp op) const override
+  {
+    return op.getArrayType();
+  }
 
 	mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, AllocaOp op, mlir::Value sizeBytes) const override
 	{
-		auto typeConverter = this->getTypeConverter();
-		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
+		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.getArrayType().getElementType()));
 		return rewriter.create<mlir::LLVM::AllocaOp>(loc, bufferPtrType, sizeBytes, op->getAttrs());
 	}
 };
@@ -170,21 +128,18 @@ class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
 {
 	using AllocLikeOpLowering<AllocOp>::AllocLikeOpLowering;
 
-	ArrayType getResultType(AllocOp op) const override
-	{
-		return op.resultType();
-	}
+  ArrayType getResultType(AllocOp op) const override
+  {
+    return op.getArrayType();
+  }
 
 	mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, AllocOp op, mlir::Value sizeBytes) const override
 	{
-		auto typeConverter = getTypeConverter();
-		mlir::Type indexType = convertType(rewriter.getIndexType());
-
 		// Insert the "malloc" declaration if it is not already present in the module
 		auto heapAllocFunc = lookupOrCreateHeapAllocFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
 
 		// Allocate the buffer
-		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
+		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.getArrayType().getElementType()));
 		auto results = createLLVMCall(rewriter, loc, heapAllocFunc, sizeBytes, getVoidPtrType());
 		return rewriter.create<mlir::LLVM::BitcastOp>(loc, bufferPtrType, results[0]);
 	}
@@ -255,7 +210,7 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 		auto freeFunc = lookupOrCreateHeapFreeFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
 
 		// Extract the buffer address and call the "free" function
-		ArrayDescriptor descriptor(typeConverter, adaptor.memory());
+		ArrayDescriptor descriptor(typeConverter, adaptor.array());
 		mlir::Value address = descriptor.getPtr(rewriter, loc);
 		mlir::Value casted = rewriter.create<mlir::LLVM::BitcastOp>(loc, getVoidPtrType(), address);
 		rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, llvm::None, rewriter.getSymbolRefAttr(freeFunc), casted);
@@ -285,11 +240,10 @@ class DimOpLowering: public ModelicaOpConversion<DimOp>
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
-		mlir::Type indexType = convertType(rewriter.getIndexType());
 
 		// The actual size of each dimensions is stored in the memory description
 		// structure.
-		ArrayDescriptor descriptor(this->getTypeConverter(), adaptor.memory());
+		ArrayDescriptor descriptor(this->getTypeConverter(), adaptor.array());
 		mlir::Value size = descriptor.getSize(rewriter, location, adaptor.dimension());
 
 		rewriter.replaceOp(op, size);
@@ -308,22 +262,22 @@ class SubscriptOpLowering : public ModelicaOpConversion<SubscriptionOp>
 		auto typeConverter = this->getTypeConverter();
 		mlir::Type indexType = convertType(rewriter.getIndexType());
 
-		auto sourceArrayType = op.source().getType().cast<ArrayType>();
-		auto resultArrayType = op.resultType();
+		auto sourceArrayType = op.getSourceArrayType();
+    auto resultArrayType = op.getResultArrayType();
 
 		ArrayDescriptor sourceDescriptor(typeConverter, adaptor.source());
 		ArrayDescriptor result = ArrayDescriptor::undef(rewriter, typeConverter, loc, convertType(resultArrayType));
 
-		mlir::Value index = adaptor.indexes()[0];
+		mlir::Value index = adaptor.indices()[0];
 
 		for (size_t i = 1, e = sourceArrayType.getRank(); i < e; ++i)
 		{
 			mlir::Value size = sourceDescriptor.getSize(rewriter, loc, i);
 			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
 
-			if (i < adaptor.indexes().size())
+			if (i < adaptor.indices().size())
 			{
-				mlir::Value offset = adaptor.indexes()[i];
+				mlir::Value offset = adaptor.indices()[i];
 				index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, offset);
 			}
 		}
@@ -333,7 +287,7 @@ class SubscriptOpLowering : public ModelicaOpConversion<SubscriptionOp>
 		result.setPtr(rewriter, loc, ptr);
 
 		mlir::Type rankType = result.getRankType();
-		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, rankType, rewriter.getIntegerAttr(rankType, op.resultType().getRank()));
+		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, rankType, rewriter.getIntegerAttr(rankType, resultArrayType.getRank()));
 		result.setRank(rewriter, loc, rank);
 
 		for (size_t i = sourceArrayType.getRank() - resultArrayType.getRank(), e = sourceArrayType.getRank(), j = 0; i < e; ++i, ++j)
@@ -358,7 +312,7 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 			assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
-		ArrayDescriptor descriptor(typeConverter, adaptor.memory());
+		ArrayDescriptor descriptor(typeConverter, adaptor.array());
 		auto indexType = convertType(rewriter.getIndexType());
 
 		auto indexFn = [&]() -> mlir::Value {
@@ -400,7 +354,7 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
-		ArrayDescriptor memoryDescriptor(this->getTypeConverter(), adaptor.memory());
+		ArrayDescriptor memoryDescriptor(this->getTypeConverter(), adaptor.array());
 
 		auto indexType = convertType(rewriter.getIndexType());
 		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0)) : indexes[0];
@@ -434,7 +388,7 @@ class CastOpIndexLowering: public ModelicaOpConversion<CastOp>
 		mlir::Location location = op.getLoc();
 
 		auto source = op.value().getType().cast<mlir::IndexType>();
-		mlir::Type destination = op.resultType();
+		mlir::Type destination = op.getResult().getType();
 
 		if (source == destination)
 		{
@@ -473,7 +427,7 @@ class CastOpBooleanLowering: public ModelicaOpConversion<CastOp>
 		Adaptor adaptor(operands);
 
 		auto source = op.value().getType().cast<BooleanType>();
-		mlir::Type destination = op.resultType();
+		mlir::Type destination = op.getResult().getType();
 
 		if (source == destination)
 		{
@@ -511,7 +465,7 @@ class CastOpIntegerLowering: public ModelicaOpConversion<CastOp>
 		Adaptor adaptor(operands);
 
 		auto source = op.value().getType().cast<IntegerType>();
-		mlir::Type destination = op.resultType();
+		mlir::Type destination = op.getResult().getType();
 
 		if (source == destination)
 		{
@@ -549,7 +503,7 @@ class CastOpRealLowering: public ModelicaOpConversion<CastOp>
 		Adaptor adaptor(operands);
 
 		auto source = op.value().getType().cast<RealType>();
-		mlir::Type destination = op.resultType();
+		mlir::Type destination = op.getResult().getType();
 
 		if (source == destination)
 		{
@@ -583,20 +537,20 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 	{
 		mlir::Location loc = op->getLoc();
 		Adaptor transformed(operands);
-		mlir::Type source = op.memory().getType();
-		mlir::Type destination = op.resultType();
+		mlir::Type source = op.source().getType();
+		auto destination = op.getResultArrayType();
 
 		if (source.isa<ArrayType>())
 		{
 			if (auto resultType = destination.dyn_cast<ArrayType>())
 			{
-				rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, resultType, op.memory());
+				rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, resultType, op.source());
 				return mlir::success();
 			}
 
 			if (auto resultType = destination.dyn_cast<UnsizedArrayType>())
 			{
-				ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.memory());
+				ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.source());
 
 				// Create the unsized array descriptor that holds the ranked one.
 				// The inner descriptor is allocated on stack.
@@ -605,7 +559,7 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 				mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
 				resultDescriptor.setPtr(rewriter, loc, underlyingDescPtr);
-				mlir::Type sourceDescriptorArrayType = mlir::LLVM::LLVMPointerType::get(transformed.memory().getType());
+				mlir::Type sourceDescriptorArrayType = mlir::LLVM::LLVMPointerType::get(transformed.source().getType());
 				underlyingDescPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, sourceDescriptorArrayType, underlyingDescPtr);
 
 				mlir::Type indexType = convertType(rewriter.getIndexType());
@@ -636,8 +590,6 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& typeConverter, mlir::OwningRewritePatternList& patterns)
 {
 	patterns.insert<
-	    PackOpLowering,
-			ExtractOpLowering,
 			AllocaOpLowering,
 			AllocOpLowering,
 			FreeOpLowering,

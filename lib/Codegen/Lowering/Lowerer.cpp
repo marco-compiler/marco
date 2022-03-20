@@ -66,10 +66,10 @@ namespace marco::codegen::lowering
     bridge_->lower(forEquation);
   }
 
-  mlir::Type Lowerer::lower(const ast::Type& type, mlir::modelica::ArrayAllocationScope scope)
+  mlir::Type Lowerer::lower(const ast::Type& type)
   {
     return type.visit([&](const auto& obj) -> mlir::Type {
-      auto baseType = lower(obj, scope);
+      auto baseType = lower(obj);
 
       if (!type.isScalar()) {
         const auto& dimensions = type.getDimensions();
@@ -83,14 +83,14 @@ namespace marco::codegen::lowering
           }
         }
 
-        return ArrayType::get(builder().getContext(), scope, baseType, shape).toMinAllowedAllocationScope();
+        return ArrayType::get(builder().getContext(), baseType, shape);
       }
 
       return baseType;
     });
   }
 
-  mlir::Type Lowerer::lower(const ast::BuiltInType& type, mlir::modelica::ArrayAllocationScope scope)
+  mlir::Type Lowerer::lower(const ast::BuiltInType& type)
   {
     switch (type) {
       case BuiltInType::None:
@@ -111,23 +111,23 @@ namespace marco::codegen::lowering
     }
   }
 
-  mlir::Type Lowerer::lower(const ast::PackedType& type, mlir::modelica::ArrayAllocationScope scope)
+  mlir::Type Lowerer::lower(const ast::PackedType& type)
   {
     llvm::SmallVector<mlir::Type, 3> types;
 
     for (const auto& subType : type) {
-      types.push_back(lower(subType, scope));
+      types.push_back(lower(subType));
     }
 
     return builder().getTupleType(types);
   }
 
-  mlir::Type Lowerer::lower(const ast::UserDefinedType& type, mlir::modelica::ArrayAllocationScope scope)
+  mlir::Type Lowerer::lower(const ast::UserDefinedType& type)
   {
     llvm::SmallVector<mlir::Type, 3> types;
 
     for (const auto& subType : type) {
-      types.push_back(lower(subType, scope));
+      types.push_back(lower(subType));
     }
 
     return builder().getTupleType(types);

@@ -1,8 +1,8 @@
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/Model/EquationImpl.h"
 
-using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
+using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {

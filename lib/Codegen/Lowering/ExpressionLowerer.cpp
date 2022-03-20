@@ -19,14 +19,9 @@ namespace marco::codegen::lowering
   Results ExpressionLowerer::operator()(const Array& array)
   {
     mlir::Location location = loc(array.getLocation());
-    auto arrayType = lower(array.getType(), ArrayAllocationScope::stack).cast<ArrayType>();
-    auto allocationScope = arrayType.getAllocationScope();
+    auto arrayType = lower(array.getType()).cast<ArrayType>();
 
-    assert(allocationScope == ArrayAllocationScope::stack || allocationScope == ArrayAllocationScope::heap);
-
-    mlir::Value result = allocationScope == ArrayAllocationScope::stack ?
-      builder().create<AllocaOp>(location, arrayType, llvm::None).getResult() :
-      builder().create<AllocOp>(location, arrayType, llvm::None).getResult();
+    mlir::Value result = builder().create<AllocOp>(location, arrayType, llvm::None);
 
     for (const auto& value : llvm::enumerate(array)) {
       mlir::Value index = builder().create<ConstantOp>(location, builder().getIndexAttr(value.index()));

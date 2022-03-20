@@ -15,11 +15,10 @@ set(SOURCES
     ModelSolving/Scheduling.cpp
     ModelSolving/TypeConverter.cpp
     ModelSolving/Variable.cpp
+    ArrayDeallocation.cpp
     AutomaticDifferentiation.cpp
-    BufferDeallocation.cpp
     ExplicitCastInsertion.cpp
-    FunctionsVectorization.cpp
-    OutputArraysPromotion.cpp)
+    FunctionsVectorization.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

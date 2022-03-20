@@ -1,7 +1,5 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Codegen/dialects/modelica/ModelicaBuilder.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
 #include "marco/Codegen/Transforms/Model/Cycles.h"
 #include "marco/Codegen/Transforms/Model/Equation.h"
@@ -13,6 +11,7 @@
 #include "marco/Codegen/Transforms/Model/TypeConverter.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Utils/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -28,8 +27,8 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
+using namespace ::mlir::modelica;
 
 /// Remove the derivative operations by replacing them with appropriate
 /// buffers, and set the derived variables as state variables.
@@ -72,17 +71,17 @@ static mlir::LogicalResult removeDerivatives(
 
       if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
         appendIndexesFn(subscriptions, loadOp.indexes());
-        operand = loadOp.memory();
+        operand = loadOp.array();
       } else {
         auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
-        appendIndexesFn(subscriptions, subscriptionOp.indexes());
+        appendIndexesFn(subscriptions, subscriptionOp.indices());
         operand = subscriptionOp.source();
       }
     }
 
     if (!derivatives.contains(operand)) {
       auto model = op->getParentOfType<ModelOp>();
-      auto terminator = mlir::cast<YieldOp>(model.init().back().getTerminator());
+      auto terminator = mlir::cast<YieldOp>(model.initRegion().back().getTerminator());
       builder.setInsertionPoint(terminator);
 
       size_t index = operand.cast<mlir::BlockArgument>().getArgNumber();
@@ -93,11 +92,11 @@ static mlir::LogicalResult removeDerivatives(
       auto arrayType = operand.getType().cast<ArrayType>().toElementType(RealType::get(builder.getContext()));
 
       // Create the member and initialize it
-      auto memberType = MemberType::get(arrayType.toAllocationScope(BufferAllocationScope::heap));
-      mlir::Value memberDer = builder.create<MemberCreateOp>(loc, nextDerName, memberType, memberCreateOp.dynamicDimensions(), memberCreateOp.isConstant());
-      mlir::Value zero = builder.create<ConstantOp>(loc, RealAttribute::get(builder.getContext(), 0));
+      auto memberType = MemberType::wrap(arrayType);
+      mlir::Value memberDer = builder.create<MemberCreateOp>(loc, nextDerName, memberType, memberCreateOp.dynamicSizes());
+      mlir::Value zero = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
       mlir::Value array = builder.create<MemberLoadOp>(loc, memberType.unwrap(), memberDer);
-      builder.create<FillOp>(loc, zero, array);
+      builder.create<ArrayFillOp>(loc, array, zero);
 
       // Update the terminator values
       llvm::SmallVector<mlir::Value, 3> args(terminator.values().begin(), terminator.values().end());
@@ -106,7 +105,7 @@ static mlir::LogicalResult removeDerivatives(
       terminator.erase();
 
       // Add the new argument to the body of the model
-      auto bodyArgument = model.body().addArgument(arrayType);
+      auto bodyArgument = model.bodyRegion().addArgument(arrayType);
       derivatives.map(operand, bodyArgument);
     }
 
@@ -136,7 +135,7 @@ static Variables discoverVariables(ModelOp model)
 {
   Variables result;
 
-  mlir::ValueRange vars = model.body().getArguments();
+  mlir::ValueRange vars = model.bodyRegion().getArguments();
 
   for (size_t i = 1; i < vars.size(); ++i) {
     result.add(std::make_unique<Variable>(vars[i]));
@@ -157,79 +156,85 @@ static Equations<Equation> discoverEquations(ModelOp model, const Variables& var
   return result;
 }
 
-/// Model solving pass.
-/// Its objective is to convert a descriptive (and thus not sequential) model into an
-/// algorithmic one and to create the functions to be called during the simulation.
-class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<ModelOp>>
+namespace
 {
-	public:
-    explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
-        : options(std::move(options)),
-          bitWidth(std::move(bitWidth))
-    {
-    }
-
-    void getDependentDialects(mlir::DialectRegistry &registry) const override
-    {
-      registry.insert<ModelicaDialect>();
-      registry.insert<mlir::ida::IDADialect>();
-      registry.insert<mlir::scf::SCFDialect>();
-      registry.insert<mlir::LLVM::LLVMDialect>();
-    }
-
-    void runOnOperation() override
-    {
-      Model<Equation> model(getOperation());
-      mlir::OpBuilder builder(model.getOperation());
-
-      // Remove the derivative operations and allocate the appropriate memory buffers
-      mlir::BlockAndValueMapping derivatives;
-
-      if (mlir::failed(removeDerivatives(builder, model, derivatives))) {
-        model.getOperation().emitError("Derivatives could not be converted to variables");
-        return signalPassFailure();
+  /// Model solving pass.
+  /// Its objective is to convert a descriptive (and thus not sequential) model into an
+  /// algorithmic one and to create the functions to be called during the simulation.
+  class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<ModelOp>>
+  {
+    public:
+      explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+          : options(std::move(options)),
+            bitWidth(std::move(bitWidth))
+      {
       }
 
-      // Now that the additional variables have been created, we can start a discovery process
-      model.setVariables(discoverVariables(model.getOperation()));
-      model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
-
-      // Matching process
-      Model<MatchedEquation> matchedModel(model.getOperation());
-
-      if (mlir::failed(match(matchedModel, model, derivatives))) {
-        return signalPassFailure();
+      void getDependentDialects(mlir::DialectRegistry& registry) const override
+      {
+        registry.insert<ModelicaDialect>();
+        registry.insert<mlir::ida::IDADialect>();
+        registry.insert<mlir::scf::SCFDialect>();
+        registry.insert<mlir::LLVM::LLVMDialect>();
       }
 
-      // Resolve the algebraic loops
-      if (mlir::failed(solveCycles(matchedModel, builder))) {
-        // TODO Check if the selected solver can deal with cycles. If not, fail.
-        return signalPassFailure();
+      void runOnOperation() override
+      {
+        Model<Equation> model(getOperation());
+        mlir::OpBuilder builder(model.getOperation());
+
+        // Remove the derivative operations and allocate the appropriate memory buffers
+        mlir::BlockAndValueMapping derivatives;
+
+        if (mlir::failed(removeDerivatives(builder, model, derivatives))) {
+          model.getOperation().emitError("Derivatives could not be converted to variables");
+          return signalPassFailure();
+        }
+
+        // Now that the additional variables have been created, we can start a discovery process
+        model.setVariables(discoverVariables(model.getOperation()));
+        model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
+
+        // Matching process
+        Model<MatchedEquation> matchedModel(model.getOperation());
+
+        if (mlir::failed(match(matchedModel, model, derivatives))) {
+          return signalPassFailure();
+        }
+
+        // Resolve the algebraic loops
+        if (mlir::failed(solveCycles(matchedModel, builder))) {
+          // TODO Check if the selected solver can deal with cycles. If not, fail.
+          return signalPassFailure();
+        }
+
+        // Schedule the equations
+        Model<ScheduledEquationsBlock> scheduledModel(matchedModel.getOperation());
+
+        if (mlir::failed(schedule(scheduledModel, matchedModel))) {
+          return signalPassFailure();
+        }
+
+        // Create the simulation functions
+        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        marco::codegen::TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+        ModelConverter modelConverter(options, typeConverter);
+
+        if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
+          return signalPassFailure();
+        }
       }
 
-      // Schedule the equations
-      Model<ScheduledEquationsBlock> scheduledModel(matchedModel.getOperation());
+    private:
+      SolveModelOptions options;
+      unsigned int bitWidth;
+  };
+}
 
-      if (mlir::failed(schedule(scheduledModel, matchedModel))) {
-        return signalPassFailure();
-      }
-
-      // Create the simulation functions
-      mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-      TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-      ModelConverter modelConverter(options, typeConverter);
-
-      if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
-        return signalPassFailure();
-      }
-    }
-
-	private:
-	  SolveModelOptions options;
-	  unsigned int bitWidth;
-};
-
-std::unique_ptr<mlir::Pass> marco::codegen::createSolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+namespace marco::codegen
 {
-	return std::make_unique<SolveModelPass>(options, bitWidth);
+  std::unique_ptr<mlir::Pass> createSolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+  {
+    return std::make_unique<SolveModelPass>(options, bitWidth);
+  }
 }

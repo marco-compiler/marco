@@ -1,6 +1,6 @@
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -8,7 +8,7 @@
 #include <set>
 
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
+using namespace ::mlir::modelica;
 
 namespace
 {
@@ -55,6 +55,7 @@ namespace marco::codegen
   }
 }
 
+/*
 static bool hasFloatBase(mlir::Type type) {
 	if (type.isa<RealType>())
 		return true;
@@ -94,23 +95,20 @@ static mlir::Value createDerVariable(
 		mlir::Value der = builder.create<MemberCreateOp>(
 				var.getLoc(),
 				derivativeName(),
-				var.getType(),
-				memberCreateOp.dynamicDimensions());
+        memberCreateOp.getMemberType(),
+				memberCreateOp.dynamicSizes(),
+        false);
 
 		return der;
 	}
 
 	mlir::Type type = var.getType();
 
-	auto memberType = type.isa<ArrayType>() ?
-										MemberType::get(type.cast<ArrayType>()) :
-										MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
-
 	llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 	getDynamicDimensions(builder, var, dynamicDimensions);
 
 	mlir::Value der = builder.create<MemberCreateOp>(
-			var.getLoc(), derivativeName(), memberType, dynamicDimensions);
+			var.getLoc(), derivativeName(), MemberType::wrap(type, MemberAllocationScope::stack), dynamicDimensions);
 
 	return der;
 }
@@ -135,7 +133,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	llvm::SmallVector<llvm::StringRef, 3> independentVariables;
 
-	for (const auto& independentVariable : derFunction.independentVariables())
+	for (const auto& independentVariable : derFunction.independentVars())
 		independentVariables.push_back(independentVariable.cast<mlir::StringAttr>().getValue());
 
 	llvm::StringRef independentVar = independentVariables[0];
@@ -223,7 +221,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			else
 			{
 				resultsTypes.push_back(ArrayType::get(
-						type.getContext(), BufferAllocationScope::heap, type, dimensions));
+						type.getContext(), ArrayAllocationScope::heap, type, dimensions));
 			}
 		}
 		else
@@ -273,7 +271,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	// List of the operations to be derived
 	std::set<mlir::Operation*> derivedOperations;
-	std::queue<DerivativeInterface> derivableOps;
+	std::queue<DerivableOpInterface> derivableOps;
 	std::set<mlir::Operation*> notToBeDerivedOps;
 
 	// Create the members derivatives
@@ -383,7 +381,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	// into account, such as if it has already been derived
 
 	auto shouldOperationBeDerived = [&](mlir::Operation* op, llvm::StringRef independentVariable) {
-		if (auto derivativeInterface = mlir::dyn_cast<DerivativeInterface>(op))
+		if (auto derivativeInterface = mlir::dyn_cast<DerivableOpInterface>(op))
 		{
 			if (derivedOperations.count(derivativeInterface.getOperation()) != 0 ||
 					notToBeDerivedOps.count(derivativeInterface.getOperation()) != 0)
@@ -428,7 +426,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			op.getDerivableRegions(regions);
 
 			for (auto& region : regions)
-				for (auto nestedOp : region->getOps<DerivativeInterface>())
+				for (auto nestedOp : region->getOps<DerivableOpInterface>())
 					if (shouldOperationBeDerived(nestedOp, independentVariable))
 						derivableOps.push(nestedOp);
 
@@ -452,7 +450,7 @@ struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 
 		// TODO To be reconsidered when the derivation with respect to arrays will be supported
 
-		mlir::Value seed = rewriter.create<ConstantOp>(loc, RealAttribute::get(op.getContext(), op.value()));
+		mlir::Value seed = rewriter.create<ConstantOp>(loc, RealAttr::get(op.getContext(), op.value()));
 
 		if (arrayType.isScalar())
 		{
@@ -461,8 +459,8 @@ struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 		else
 		{
 			auto memberCreateOp = op.member().getDefiningOp<MemberCreateOp>();
-			auto buffer = rewriter.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), memberCreateOp.dynamicDimensions());
-			rewriter.create<FillOp>(loc, seed, buffer);
+			auto buffer = rewriter.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), memberCreateOp.dynamicSizes());
+			rewriter.create<ArrayFillOp>(loc, seed, buffer);
 			rewriter.create<MemberStoreOp>(loc, op.member(), buffer);
 		}
 
@@ -521,7 +519,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPointAfter(base);
 
-	auto derivativeAttribute = base->getAttrOfType<DerivativeAttribute>("derivative");
+	auto derivativeAttribute = base->getAttrOfType<DerivableOpAttribute>("derivative");
 	unsigned int order = derivativeAttribute.getOrder();
 
 	// If the source already provides the derivative function, then stop
@@ -707,9 +705,9 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 
 	// Determine the list of the derivable operations. We can't just derive as
 	// we find them, as we would invalidate the operation walk's iterator.
-	std::queue<DerivativeInterface> derivableOps;
+	std::queue<DerivableOpInterface> derivableOps;
 
-	for (auto derivableOp : derivedFunction.getBody().getOps<DerivativeInterface>())
+	for (auto derivableOp : derivedFunction.getBody().getOps<DerivableOpInterface>())
 		derivableOps.push(derivableOp);
 
 	// Derive each derivable operation
@@ -723,7 +721,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 		op.getDerivableRegions(regions);
 
 		for (auto& region : regions)
-			for (auto derivableOp : region->getOps<DerivativeInterface>())
+			for (auto derivableOp : region->getOps<DerivableOpInterface>())
 				derivableOps.push(derivableOp);
 
 		derivableOps.pop();
@@ -731,6 +729,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 
 	return mlir::success();
 }
+ */
 
 class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
 {
@@ -742,6 +741,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
     void runOnOperation() override
     {
+      /*
       if (mlir::failed(createFullDerFunctions()))
       {
         mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
@@ -759,8 +759,10 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
         mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
         return signalPassFailure();
       }
+       */
     }
 
+        /*
     mlir::LogicalResult addPartialDerFunctions()
     {
       // If using the SUNDIALS IDA library as a solver, we also need the partial
@@ -903,7 +905,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
         if (definingOp == nullptr)
           return;
 
-        if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(definingOp))
+        if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp))
         {
           auto classOp = op->getParentOfType<ClassInterface>();
 
@@ -929,6 +931,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
       return mlir::success();
     }
+         */
 };
 
 std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass()

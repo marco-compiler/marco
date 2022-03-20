@@ -2,7 +2,7 @@
 #define MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATION_H
 
 #include "llvm/Support/raw_ostream.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Model/Access.h"
 #include "marco/Codegen/Transforms/Model/Path.h"
 #include "marco/Codegen/Transforms/Model/Variable.h"
@@ -18,13 +18,13 @@ namespace marco::codegen
   {
     public:
       static std::unique_ptr<Equation> build(
-          modelica::EquationOp equation, Variables variables);
+          mlir::modelica::EquationOp equation, Variables variables);
 
       virtual ~Equation();
 
       virtual std::unique_ptr<Equation> clone() const = 0;
 
-      virtual modelica::EquationOp cloneIR() const = 0;
+      virtual mlir::modelica::EquationOp cloneIR() const = 0;
 
       virtual void eraseIR() = 0;
 
@@ -33,7 +33,7 @@ namespace marco::codegen
       virtual void dumpIR(llvm::raw_ostream& os) const = 0;
 
       /// Get the IR operation.
-      virtual modelica::EquationOp getOperation() const = 0;
+      virtual mlir::modelica::EquationOp getOperation() const = 0;
 
       /// Get the variables considered by the equation while determining the accesses.
       virtual Variables getVariables() const = 0;

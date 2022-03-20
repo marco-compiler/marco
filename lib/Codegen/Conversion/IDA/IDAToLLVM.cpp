@@ -699,7 +699,7 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(Op op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto arrayType = op.getResult().getType().template cast<modelica::ArrayType>();
+      auto arrayType = op.getResult().getType().template cast<mlir::modelica::ArrayType>();
       auto arrayDescriptorType = this->getTypeConverter()->convertType(arrayType).template cast<mlir::LLVM::LLVMStructType>();
       auto dataPtrType = arrayDescriptorType.getBody()[0];
 

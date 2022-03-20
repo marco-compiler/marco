@@ -1,8 +1,8 @@
 #include "marco/Codegen/Transforms/Model/ScalarEquation.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 
-using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
+using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
@@ -18,8 +18,8 @@ namespace marco::codegen
       return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
     };
 
-    assert(llvm::all_of(getTerminator().lhs(), isScalarFn));
-    assert(llvm::all_of(getTerminator().rhs(), isScalarFn));
+    assert(llvm::all_of(getTerminator().lhsValues(), isScalarFn));
+    assert(llvm::all_of(getTerminator().rhsValues(), isScalarFn));
   }
 
   std::unique_ptr<Equation> ScalarEquation::clone() const
@@ -57,14 +57,14 @@ namespace marco::codegen
   std::vector<Access> ScalarEquation::getAccesses() const
   {
     std::vector<Access> accesses;
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
 
     auto processFn = [&](mlir::Value value, EquationPath path) {
       searchAccesses(accesses, value, std::move(path));
     };
 
-    processFn(terminator.lhs()[0], EquationPath(EquationPath::LEFT));
-    processFn(terminator.rhs()[0], EquationPath(EquationPath::RIGHT));
+    processFn(terminator.lhsValues()[0], EquationPath(EquationPath::LEFT));
+    processFn(terminator.rhsValues()[0], EquationPath(EquationPath::RIGHT));
 
     return accesses;
   }
@@ -101,16 +101,16 @@ namespace marco::codegen
     auto equation = getOperation();
     auto loc = equation.getLoc();
 
-    for (auto& op : equation.body()->getOperations()) {
-      if (auto terminator = mlir::dyn_cast<modelica::EquationSidesOp>(op)) {
+    for (auto& op : equation.bodyBlock()->getOperations()) {
+      if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
         // Convert the equality into an assignment
-        for (auto [lhs, rhs] : llvm::zip(terminator.lhs(), terminator.rhs())) {
+        for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
           auto mappedLhs = mapping.lookup(lhs);
           auto mappedRhs = mapping.lookup(rhs);
 
           if (auto loadOp = mlir::dyn_cast<LoadOp>(mappedLhs.getDefiningOp())) {
             assert(loadOp.indexes().empty());
-            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.memory());
+            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.array());
           } else {
             builder.create<AssignmentOp>(loc, mappedRhs, mappedLhs);
           }
