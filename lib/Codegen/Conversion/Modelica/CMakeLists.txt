@@ -27,8 +27,10 @@ add_mlir_dialect_library(MLIRModelicaConversion
     DEPENDS
     marco::codegen
     marco::modeling
+    MLIRIDAConversion
 
     LINK_LIBS PUBLIC
     marco::codegen
     marco::modeling
+    MLIRIDAConversion
     ${MLIR_LIBS})

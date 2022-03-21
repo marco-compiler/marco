@@ -13,7 +13,6 @@ RUNTIME_FUNC_DECL(idaCreate, PTR(void), int64_t, int64_t)
 RUNTIME_FUNC_DECL(idaInit, bool, PTR(void))
 
 RUNTIME_FUNC_DECL(idaStep, bool, PTR(void))
-RUNTIME_FUNC_DECL(idaStep, bool, PTR(void), float)
 RUNTIME_FUNC_DECL(idaStep, bool, PTR(void), double)
 
 RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
@@ -30,7 +29,7 @@ RUNTIME_FUNC_DECL(idaSetAbsoluteTolerance, void, PTR(void), double)
 // Equation setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), ARRAY(int64_t))
+RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
 
 RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int32_t, RESIDUAL(float))
 RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int64_t, RESIDUAL(double))
@@ -42,15 +41,15 @@ RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, JACOBIAN(double))
 // Variable setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(addVariable, int64_t, PTR(void), ARRAY(double), bool)
-RUNTIME_FUNC_DECL(addVariableAccess, void, PTR(void), int64_t, int64_t, ARRAY(int64_t))
+RUNTIME_FUNC_DECL(idaAddVariable, int64_t, PTR(void), PTR(int64_t), int64_t, bool)
+RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
 
 //===----------------------------------------------------------------------===//
 // Getters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(getVariable, PTR(void), PTR(void), int64_t)
-RUNTIME_FUNC_DECL(getDerivative, PTR(void), PTR(void), int64_t)
+RUNTIME_FUNC_DECL(idaGetVariable, PTR(void), PTR(void), int64_t)
+RUNTIME_FUNC_DECL(idaGetDerivative, PTR(void), PTR(void), int64_t)
 
 RUNTIME_FUNC_DECL(idaGetCurrentTime, float, PTR(void))
 RUNTIME_FUNC_DECL(idaGetCurrentTime, double, PTR(void))
