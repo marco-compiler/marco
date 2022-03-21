@@ -5,3 +5,4 @@ main.*
 *.bc
 *.a
 */staticlib
+*.elf

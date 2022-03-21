@@ -1,4 +1,4 @@
-#include "marco/runtime/Profiling.h"
+#include "marco/runtime/ProfilingEmbedded.h"
 #include "marco/runtime/Runtime.h"
 
 static void runtimeInit()
