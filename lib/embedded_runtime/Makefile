@@ -2,7 +2,6 @@ CC  := arm-miosix-eabi-gcc
 CXX := arm-miosix-eabi-g++
 AS  := arm-miosix-eabi-as
 CP  := arm-miosix-eabi-objcopy
-
 CPU := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 AFLAGS   := $(CPU) 
@@ -10,6 +9,7 @@ CFLAGS   := $(CPU) -O0 -g -c -I./include/marco/driver/CMSIS/Include -I./include/
 CXXFLAGS := $(CPU) -O0 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public
 LFLAGS   := $(CPU) -Wl,-T./src/linker.ld,-Map,./test/main.map #-nostdlib
 
+CLANG := clang --target=arm-none-eabi -march=armv7e-m $(CPU)
 
 SRC := ./src/startup.s ./test/main.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp
 
