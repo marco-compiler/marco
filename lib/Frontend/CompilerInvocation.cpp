@@ -59,6 +59,10 @@ namespace marco::frontend
           options.programAction = EmitAST;
           break;
 
+        case options::OPT_emit_final_ast:
+          options.programAction = EmitFinalAST;
+          break;
+
         case options::OPT_emit_modelica_dialect:
           options.programAction = EmitModelicaDialect;
           break;

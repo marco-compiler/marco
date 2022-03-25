@@ -230,6 +230,9 @@ llvm::Error ConstantFolder::run<Operation>(Expression& expression)
 		case OperationKind::powerOf:
 			return foldOperation(expression, &ConstantFolder::foldPowerOfOp);
 
+		case OperationKind::range:
+			return foldOperation(expression, &ConstantFolder::foldRangeOp);
+
 		case OperationKind::subscription:
 			return foldOperation(expression, &ConstantFolder::foldSubscriptionOp);
 
@@ -278,6 +281,13 @@ llvm::Error ConstantFolder::run<Tuple>(Expression& expression)
 		if (auto error = run<Expression>(*element); error)
 			return error;
 
+	return llvm::Error::success();
+}
+
+template<>
+llvm::Error ConstantFolder::run<RecordInstance>(Expression& expression)
+{
+	assert(false && "RecordInstances not handled in the constant folding phase.");
 	return llvm::Error::success();
 }
 
@@ -865,7 +875,13 @@ llvm::Error ConstantFolder::foldLogicalOrOp(Expression& expression)
 
 llvm::Error ConstantFolder::foldMemberLookupOp(Expression& expression)
 {
-	assert(expression.get<Operation>()->getOperationKind() == OperationKind::memberLookup);
+	auto* operation = expression.get<Operation>();
+	assert(operation->getOperationKind() == OperationKind::memberLookup);
+
+	for (auto& arg : operation->getArguments())
+		if(auto error = run<Expression>(*arg))
+			return error;
+
 	return llvm::Error::success();
 }
 
@@ -976,6 +992,18 @@ llvm::Error ConstantFolder::foldPowerOfOp(Expression& expression)
 	return llvm::Error::success();
 }
 
+llvm::Error ConstantFolder::foldRangeOp(Expression& expression)
+{
+	auto* operation = expression.get<Operation>();
+	assert(operation->getOperationKind() == OperationKind::range);
+
+	for (auto& arg : operation->getArguments())
+		if (auto error = run<Expression>(*arg); error)
+			return error;
+
+	return llvm::Error::success();
+}
+
 template<BuiltInType Type>
 static llvm::Error foldSubOp(Expression& expression)
 {
@@ -1032,9 +1060,84 @@ llvm::Error ConstantFolder::foldSubscriptionOp(Expression& expression)
 	assert(operation->getOperationKind() == OperationKind::subscription);
 	auto args = operation->getArguments();
 
-	for (auto it = std::next(args.begin()), end = args.end(); it != end; ++it)
-		if (auto error = run<Expression>(**it); error)
+	for (auto &	it:args)
+		if (auto error = run<Expression>(*it); error)
 			return error;
+
+	if (args[0]->isa<Constant>())
+	{
+		//todo handle implicit casting
+		expression = *args[0];
+		return llvm::Error::success();
+	}
+
+	if(auto *lhs = args[0]->dyn_get<Operation>(); lhs && lhs->getOperationKind() == OperationKind::subscription)
+	{
+		// collapse multiple subscriptions together. e.g.  (a[1])[2] -> a[1][2] or a[1,2]
+		auto nested_args = lhs->getArguments();
+
+		llvm::SmallVector<std::unique_ptr<Expression>,3> new_args;
+
+		for(auto &a : nested_args)
+			new_args.emplace_back(std::move(a));
+		bool first=true;
+		for(auto &a : args)
+			if(first)
+				first=false;
+			else
+				new_args.emplace_back(std::move(a));
+
+		expression = *Expression::operation(expression.getLocation(),expression.getType(),OperationKind::subscription, new_args);
+
+		operation = expression.get<Operation>();
+		args = operation->getArguments();
+	}
+
+	//substitutes the subscription with the constant value, if possible
+	if(args.size() == 2 && args[0]->isa<ReferenceAccess>() && args[1]->isa<Constant>()){
+		auto* reference = args[0]->get<ReferenceAccess>();
+		auto* index = args[1]->get<Constant>();
+
+		if(index->isa<BuiltInType::Integer>()){
+			int int_index = index->as<BuiltInType::Integer>();
+
+			if(int_index < 0){
+				// negative index : probably an error
+				return llvm::Error::success();
+			}
+
+			if (symbolTable.count(reference->getName()) == 0)
+			{
+				// Built-in variables (such as time) or functions are not in the symbol
+				// table.
+				return llvm::Error::success();
+			}
+
+			const auto& symbol = symbolTable.lookup(reference->getName());
+
+			if (!symbol.isa<Member>())
+				return llvm::Error::success();
+
+			// Try to fold references of known variables that have a initializer
+			const auto* member = symbol.get<Member>();
+
+			if (!member->hasInitializer())
+				return llvm::Error::success();
+
+			auto* initializer = member->getInitializer();
+
+			if (initializer->isa<Array>() && member->isParameter()){
+				auto* array = initializer->get<Array>();
+
+				if(int_index < array->size()){
+					//if all conditions are met, substitute the subscription with the constant value
+					expression = *(*array)[int_index];
+				}
+				return llvm::Error::success();
+			}
+		}
+
+	}
 
 	return llvm::Error::success();
 }

@@ -43,6 +43,8 @@ namespace marco::ast
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 
+		void setType(Type new_type);
+
 		[[nodiscard]] bool hasInitializer() const;
 		[[nodiscard]] Expression* getInitializer();
 		[[nodiscard]] const Expression* getInitializer() const;
@@ -55,6 +57,8 @@ namespace marco::ast
 		[[nodiscard]] bool isParameter() const;
 		[[nodiscard]] bool isInput() const;
 		[[nodiscard]] bool isOutput() const;
+		
+		[[nodiscard]] TypePrefix getTypePrefix() const;
 
 		private:
 		Member(

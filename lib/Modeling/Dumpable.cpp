@@ -6,6 +6,6 @@ namespace marco::modeling::internal
 
   void Dumpable::dump() const
   {
-    dump(std::clog);
+    dump(std::cerr);
   }
 }

@@ -5,6 +5,7 @@
 #include <numeric>
 #include <queue>
 #include <stack>
+#include <sstream>
 
 using namespace marco;
 using namespace marco::ast;
@@ -879,6 +880,11 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 		if (auto error = run(*member); error)
 			return error;
 
+		//remove the inline-ability of a record if a function using it is not inline-able
+		auto type = member->getType();
+		if (type.isa<Record*>() && !function->shouldBeInlined())
+			type.get<Record*>()->setAsNotInlineable();
+
 		// From Function reference:
 		// "Each input formal parameter of the function must be prefixed by the
 		// keyword input, and each result formal parameter by the keyword output.
@@ -894,7 +900,8 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 		// arguments or default values, i.e., they may not be assigned values in
 		// the body of the function."
 
-		if (member->isInput() && member->hasInitializer())
+		//with the exception of constructors
+		if (member->isInput() && member->hasInitializer() && !function->isCustomRecordConstructor())
 			return llvm::make_error<AssignmentToInputMember>(
 					member->getInitializer()->getLocation(),
 					function->getName());
@@ -1375,6 +1382,11 @@ llvm::Error TypeChecker::run<Call>(Expression& expression)
 
 				if (const auto* partialDerFunction = cls->dyn_get<PartialDerFunction>())
 					return partialDerFunction->getType();
+
+				// calling the default record constructor
+				if (auto* record = cls->dyn_get<Record>())
+					return record->getDefaultConstructor().getType();
+
 			}
 
 			return llvm::None;
@@ -1471,6 +1483,9 @@ llvm::Error TypeChecker::run<Operation>(Expression& expression)
 		case OperationKind::powerOf:
 			return checkOperation(expression, &TypeChecker::checkPowerOfOp);
 
+		case OperationKind::range:
+			return checkOperation(expression, &TypeChecker::checkRangeOp);
+
 		case OperationKind::subscription:
 			return checkOperation(expression, &TypeChecker::checkSubscriptionOp);
 
@@ -1514,16 +1529,60 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 			return llvm::Error::success();
 		}
 
+		//handle records member lookup chain:  record.member.members_member
+		//we need to split the identifer in the single parts and check/iterate them
+
+		if (name.find('.') != std::string::npos)
+		{
+			std::stringstream ss (name.str());
+			std::string item;
+
+			getline (ss, item, '.');
+			if(symbolTable.count(item)) {
+				auto symbol = symbolTable.lookup(item);
+				const auto *member = symbol.dyn_get<Member>();
+
+				auto loc = expression.getLocation();
+				auto new_expression = Expression::reference(loc, member->getType(), item);
+				auto t = member->getType();
+
+				while(member && getline (ss, item, '.')){
+
+					auto memberName = Expression::reference(loc, makeType<std::string>(), item);
+
+					new_expression = Expression::operation(
+						loc, t, OperationKind::memberLookup,
+						llvm::ArrayRef({ std::move(new_expression), std::move(memberName) })
+					);
+
+					if(t.isa<Record*>()){
+						member = (*t.get<Record*>())[item];
+						t = getFlattenedMemberType(t,member->getType());
+					}
+				}
+
+				if(member && !ss) {
+					new_expression->setType(t);
+					expression = *new_expression;
+
+					//the type of the reference is the type of the last accessed member
+					return llvm::Error::success();
+				}
+			}
+		}
+
 		return llvm::make_error<NotFound>(reference->getLocation(), name);
 	}
 
 	auto symbol = symbolTable.lookup(name);
 
 	auto symbolType = [](Symbol& symbol) -> Type {
-		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<StandardFunction>())
+		auto* cls = symbol.dyn_get<Class>();
+
+		if ( cls && cls->isa<StandardFunction>())
 			return cls->get<StandardFunction>()->getType().packResults();
 
-		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<PartialDerFunction>())
+		if ( cls && cls->isa<PartialDerFunction>())
 		{
 			auto types = cls->get<PartialDerFunction>()->getResultsTypes();
 
@@ -1532,6 +1591,9 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 
 			return Type(PackedType(types));
 		}
+
+		if ( cls && cls->isa<Record>())
+			return Type(cls->get<Record>());
 
 		if (symbol.isa<Member>())
 			return symbol.get<Member>()->getType();
@@ -1565,17 +1627,69 @@ llvm::Error TypeChecker::run<Tuple>(Expression& expression)
 	return llvm::Error::success();
 }
 
+template<>
+llvm::Error TypeChecker::run<RecordInstance>(Expression& expression)
+{
+	return llvm::Error::success();
+}
+
 llvm::Error TypeChecker::run(Member& member)
 {
-	for (auto& dimension : member.getType().getDimensions())
+	auto &type = member.getType();
+
+	//trasform the UserDefinedTypes to a reference to the record definition
+	if(type.isa<UserDefinedType>()){
+		auto t = type.get<UserDefinedType>();
+		auto name = t.getName();
+
+		auto symbol = symbolTable.lookup(name);
+
+		if (symbol.isa<Class>() && symbol.get<Class>()->isa<Record>())
+			member.setType(Type{symbol.get<Class>()->get<Record>(),type.getDimensions()});
+		else
+			return llvm::make_error<BadSemantic>(
+					member.getLocation(),
+					("invalid type '"+ name + "' used for member declaration").str());
+	}
+
+	for (auto& dimension : type.getDimensions())
 		if (dimension.hasExpression())
 			if (auto error = run<Expression>(*dimension.getExpression()); error)
 				return error;
 
 	if (member.hasInitializer())
-		if (auto error = run<Expression>(*member.getInitializer()); error)
+	{
+		auto& initializer = *member.getInitializer();
+		if (auto error = run<Expression>(initializer); error)
 			return error;
 
+		auto initType = initializer.getType();
+
+		bool type_mismatch = true;
+
+		// check if the type of the initializing value can be implicity casted to
+		// the type of the member
+		if ( type >= initType )
+		{
+			if (type.getDimensions() == initType.getDimensions())
+				type_mismatch = false;
+			else if (initType.isScalar())
+			{
+				// corresponding to the case:  Real[2,3] x = 2;
+				// it is equivalent to : Real[2,3] x = fill(2.0,2,3);
+				// it will be handled in the constant folding pass,
+				// where all subscriptions of the array will be substituted
+				// with the scalar constant value.
+				type_mismatch = false;
+			}
+		}
+
+		if(type_mismatch)
+			return llvm::make_error<BadSemantic>(
+					member.getLocation(),
+					"A member of type '"+toString(type)+
+					"' can not be initialized with a value of type '"+toString(initType)+"'");
+	}
 	if (member.hasStartOverload())
 		if (auto error = run<Expression>(*member.getStartOverload()); error)
 			return error;
@@ -2078,8 +2192,30 @@ llvm::Error TypeChecker::checkLogicalOrOp(Expression& expression)
 
 llvm::Error TypeChecker::checkMemberLookupOp(Expression& expression)
 {
-	assert(expression.get<Operation>()->getOperationKind() == OperationKind::memberLookup);
-	return llvm::make_error<NotImplemented>("member lookup is not implemented yet");
+	auto* operation = expression.get<Operation>();
+	assert(operation->getOperationKind() == OperationKind::memberLookup);
+	assert(operation->size() == 2);
+
+	Expression *lhs = operation->getArg(0);
+	Expression *rhs = operation->getArg(1);
+
+	if (auto error = run<Expression>(*lhs); error)
+			return error;
+
+	if(!lhs->getType().isa<Record*>())
+		return llvm::make_error<NotImplemented>("member lookup is implemented only for records.");
+
+	assert(rhs->isa<ReferenceAccess>());
+
+	const Record* record = lhs->getType().get<Record*>();
+	const auto memberName = rhs->get<ReferenceAccess>()->getName();
+	const auto *member = (*record)[memberName];
+
+	assert(member && "member not found");
+
+	expression.setType(getFlattenedMemberType(lhs->getType(),member->getType()));
+
+	return llvm::Error::success();
 }
 
 /**
@@ -2235,6 +2371,47 @@ llvm::Error TypeChecker::checkPowerOfOp(Expression& expression)
 	return llvm::Error::success();
 }
 
+llvm::Error TypeChecker::checkRangeOp(Expression& expression)
+{
+	auto* operation = expression.get<Operation>();
+	auto args = operation->getArguments();
+
+	assert(operation->getOperationKind() == OperationKind::range);
+	assert(operation->argumentsCount()==2 || operation->argumentsCount()==3);
+
+	for (auto& arg : args)
+		if (auto error = run<Expression>(*arg); error)
+			return error;
+
+	auto checkAllArgs = [&](auto predicate){
+			return std::find_if(args.begin(), args.end(), [&](const auto &x){return !predicate(x);}) == args.end();
+		};
+
+	assert( checkAllArgs([&](const std::unique_ptr<Expression> &arg){ return arg->isa<Constant>(); }) );
+
+	// set the operation type as NumberType[range size]
+	bool is_integer = checkAllArgs([&](const std::unique_ptr<Expression> &arg){
+		 	return arg->get<Constant>()->isa<BuiltInType::Integer>();
+		 });
+
+	auto getArgValue= [&](size_t index){ return args[index]->get<Constant>()->as<BuiltInType::Float>(); };
+
+	float begin = getArgValue(0), end = getArgValue(1), step=1.0f;
+
+	if(args.size()==3)
+	{
+		step = end;
+		end = getArgValue(2);
+	}
+
+	operation->setType( Type(
+		is_integer ? BuiltInType::Integer : BuiltInType::Float,
+		{ 1 + std::floor((end-begin)/step)})  // we need to add 1 because 1:1=={1} for the modelica standard
+	);
+
+	return llvm::Error::success();
+}
+
 llvm::Error TypeChecker::checkSubOp(Expression& expression)
 {
 	return checkGenericOperation(expression);
@@ -2254,14 +2431,89 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 
 	if (subscriptionIndexesCount > source->getType().dimensionsCount())
 		return llvm::make_error<BadSemantic>(
-				operation->getLocation(), "too many subscriptions");
+				operation->getLocation(),
+				"too many subscriptions (should be "+std::to_string(source->getType().dimensionsCount())+" but got "+std::to_string(subscriptionIndexesCount)+")");
 
-	for (size_t i = 1; i < operation->argumentsCount(); ++i)
-		if (auto* index = operation->getArg(i); index->getType() != makeType<int>())
+	// the following code calculates the resulting type shape, simplifying the subscription part of the AST if possible
+	Type type=source->getType();
+	auto original_dimensions = type.getDimensions();
+	std::vector<ArrayDimension> dimensions( original_dimensions.begin(), original_dimensions.end() );
+	auto it = dimensions.rbegin();
+
+	for (size_t i = operation->argumentsCount() - 1; i >= 1; --i, ++it){
+		auto* index = operation->getArg(i);
+
+		if(index->getType() == makeType<int>())
+		{
+			// a single index
+			*it = -2;	// just a hard-coded value to soft-delete it, it will be actually removed after this loop
+		}
+		else if(index->isa<Operation>())
+		{
+			// or a range
+			auto op = index->get<Operation>();
+			assert(op->getOperationKind()==OperationKind::range);
+
+			auto arg=[&](size_t index){ return op->getArg(index)->get<Constant>()->as<BuiltInType::Integer>();};
+
+			long begin=arg(0), end=arg(1), step=1;
+
+			if(op->argumentsCount()==3)
+			{
+				step=end;
+				end=arg(2);
+			}
+
+			assert(begin>=0);
+			assert(end==-1 || begin<=end);
+			assert(step>=1);
+
+			if(end==-1){
+				if(begin==0 && step==1)
+				{
+					// keep the whole dimensions, like in x[:,2]
+
+					// if it is the last subscription, just remove it
+					// e.g. x[:] == x
+					//		x[2,:] == x[2]
+					if( i == operation->argumentsCount() - 1 )
+					{
+						if( operation->argumentsCount() == 2 )
+						{
+							expression = *source;
+							return llvm::Error::success();
+						}
+
+						operation->removeArg(i);
+					}
+
+					continue;
+				}
+
+				end = dimensions.front().getNumericSize();
+			}
+
+			*it = (end-begin) / step;
+		}
+		else
 			return llvm::make_error<BadSemantic>(
-					index->getLocation(), "index expression must be an integer");
+					index->getLocation(), "index expression must be an integer or a range");
+	}
 
-	expression.setType(source->getType().subscript(subscriptionIndexesCount));
+	// actually remove the deleted values
+	dimensions.erase(std::remove(dimensions.begin(), dimensions.end(), -2), dimensions.end());
+
+	// set the resulting type
+	expression.setType(
+		type.visit([&](const auto& type)
+		{
+			if(dimensions.size())
+				return Type(type,dimensions);
+			else
+				return Type(type);
+		})
+	);
+
 	return llvm::Error::success();
 }
 

@@ -50,6 +50,8 @@ namespace marco::ast
 				return "memberLookup";
 			case OperationKind::powerOf:
 				return "powerOf";
+			case OperationKind::range:
+				return "range";
 		}
 
 		return "unexpected";
@@ -111,7 +113,7 @@ void Operation::print(llvm::raw_ostream& os, size_t indents) const
 
 	os.indent(indents);
 	os << "type: ";
-	//getType().print(os);
+	getType().print(os);
 	os << "\n";
 
 	os.indent(indents);
@@ -239,6 +241,13 @@ Operation::const_iterator Operation::end() const
 	return args.end();
 }
 
+
+
+void Operation::removeArg(size_t index)
+{
+	args.pop_back();
+}
+
 namespace marco::ast
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj)
@@ -331,10 +340,14 @@ namespace marco::ast
 							 ")";
 
 			case OperationKind::memberLookup:
-				return "unknown";
+				return "(" + toString(*obj[0]) + " . " + toString(*obj[1]) + ")";
 
 			case OperationKind::powerOf:
 				return "(" + toString(*obj[0]) + " ^ " + toString(*obj[1]) + ")";
+			case OperationKind::range:
+				if(obj.argumentsCount()==3)
+					return toString(*obj[0]) + " : " + toString(*obj[1]) + " : " + toString(*obj[2]);
+				return toString(*obj[0]) + " : " + toString(*obj[1]);
 		}
 
 		return "unknown";

@@ -101,9 +101,29 @@ llvm::StringRef Model::getName() const
 	return name;
 }
 
+llvm::SmallVectorImpl<std::unique_ptr<Member>>& Model::getMembers_mut()
+{
+	return members;
+}
+llvm::SmallVectorImpl<std::unique_ptr<Equation>>& Model::getEquations_mut()
+{
+	return equations;
+}
+
 llvm::MutableArrayRef<std::unique_ptr<Member>> Model::getMembers()
 {
 	return members;
+}
+
+
+Member* Model::getMember(llvm::StringRef name) const
+{
+	for(auto &m : members){
+		if(m->getName() == name){
+			return m.get();
+		}
+	}
+	return nullptr;
 }
 
 llvm::ArrayRef<std::unique_ptr<Member>> Model::getMembers() const
@@ -126,6 +146,11 @@ llvm::ArrayRef<std::unique_ptr<Equation>> Model::getEquations() const
 	return equations;
 }
 
+void Model::addEquation(std::unique_ptr<Equation> equation)
+{
+	equations.push_back(std::move(equation));
+}
+
 llvm::MutableArrayRef<std::unique_ptr<ForEquation>> Model::getForEquations()
 {
 	return forEquations;
@@ -134,6 +159,11 @@ llvm::MutableArrayRef<std::unique_ptr<ForEquation>> Model::getForEquations()
 llvm::ArrayRef<std::unique_ptr<ForEquation>> Model::getForEquations() const
 {
 	return forEquations;
+}
+
+void Model::addForEquation(std::unique_ptr<ForEquation> forEquation)
+{
+	forEquations.push_back(std::move(forEquation));
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Algorithm>> Model::getAlgorithms()
