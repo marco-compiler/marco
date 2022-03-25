@@ -183,4 +183,10 @@ namespace marco::codegen::lowering
 
     return result;
   }
+
+  Results ExpressionLowerer::operator()(const RecordInstance& record)
+  {
+    llvm_unreachable("Not implemented");
+    return Results();
+  }
 }

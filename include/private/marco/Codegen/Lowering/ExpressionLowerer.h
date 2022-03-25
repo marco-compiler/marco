@@ -22,6 +22,7 @@ namespace marco::codegen::lowering
       Results operator()(const ast::Operation& operation);
       Results operator()(const ast::ReferenceAccess& reference);
       Results operator()(const ast::Tuple& tuple);
+      Results operator()(const ast::RecordInstance& record);
 
     private:
       std::unique_ptr<CallLowerer> callLowerer;
