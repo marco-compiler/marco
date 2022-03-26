@@ -29,7 +29,7 @@ inline bool abs_i1(bool value)
 
 inline int32_t abs_i32(int32_t value)
 {
-  return abs(value);
+  return fabs(value);
 }
 
 inline int64_t abs_i64(int64_t value)
