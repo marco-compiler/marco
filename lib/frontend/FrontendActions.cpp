@@ -91,7 +91,10 @@ namespace marco::frontend
     CompilerInstance& ci = instance();
 
     auto targetTriple = llvm::sys::getDefaultTargetTriple();
+
     ci.getLLVMModule().setTargetTriple(targetTriple);
+
+    llvm::outs() << targetTriple;
 
     std::string error;
     auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
@@ -101,10 +104,12 @@ namespace marco::frontend
     // TargetRegistry or we have a bogus target triple.
 
     if (!target) {
+      llvm::outs() << error;
       unsigned int diagId = ci.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%s");
       ci.getDiagnostics().Report(diagId) << error;
       return;
     }
+
 
     std::string cpu = std::string(llvm::sys::getHostCPUName());
     auto features = "";
