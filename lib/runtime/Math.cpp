@@ -1,8 +1,10 @@
 #include "marco/runtime/Math.h"
 #include <cassert>
 #ifndef WINDOWS_NOSTDLIB
+#define MATHNS std
 #include <cmath>
 #else
+#define MATHNS fdlibm
 #include "marco/runtime/fdlibm.h"
 #endif // WINDOWS_NOSTDLIB
 
@@ -148,7 +150,7 @@ RUNTIME_FUNC_DEF(pow, bool, double, double)
 template<typename Base, typename Exp>
 inline int32_t pow_i32(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return MATHNS::pow(base, exp);
 }
 
 template<>
@@ -196,7 +198,7 @@ RUNTIME_FUNC_DEF(pow, int32_t, float, float)
 template<typename Base, typename Exp>
 inline int64_t pow_i64(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return MATHNS::pow(base, exp);
 }
 
 template<>
@@ -244,7 +246,7 @@ RUNTIME_FUNC_DEF(pow, int64_t, double, double)
 template<typename Base, typename Exp>
 inline float pow_f32(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return MATHNS::pow(base, exp);
 }
 
 template<>
@@ -292,7 +294,7 @@ RUNTIME_FUNC_DEF(pow, float, float, float)
 template<typename Base, typename Exp>
 inline double pow_f64(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return MATHNS::pow(base, exp);
 }
 
 template<>

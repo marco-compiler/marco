@@ -112,8 +112,10 @@ void* memset(void* s, int c,  size_t len)
 
 void runtimeMemset(char *p, char c, int l)
 {
-      for(int i = 0; i < l; i++)
-        *(p + i) = '0';
+	#ifndef MSVC_BUILD
+	for(int i = 0; i < l; i++)
+		*(p + i) = '0';
+	#endif
 }
 
 #ifndef MSVC_BUILD

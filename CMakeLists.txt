@@ -27,7 +27,7 @@ project(marco LANGUAGES C CXX)
 
 # Disable exceptions and RTTI
 if(MSVC)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor /GS-")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 endif()
