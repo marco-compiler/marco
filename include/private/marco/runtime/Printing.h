@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include "marco/runtime/ryuprintf/ryu.h"
 
+#ifndef MSVC_BUILD
 inline size_t strlen(const char* s)
 {
 	size_t i = 0;
@@ -11,6 +12,7 @@ inline size_t strlen(const char* s)
 		i++;
 	return i;
 }
+#endif
 
 inline char* strncpy(char* dest, const char* src, size_t n)
 {
