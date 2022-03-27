@@ -1,8 +1,10 @@
 #include "marco/runtime/BuiltInFunctions.h"
 #include <algorithm>
 #ifndef WINDOWS_NOSTDLIB
+#define MATHNS std
 #include <cmath>
 #else
+#define MATHNS fdlibm
 #include "marco/runtime/fdlibm.h"
 #endif
 #include <numeric>
@@ -34,7 +36,7 @@ inline bool abs_i1(bool value)
 
 inline int32_t abs_i32(int32_t value)
 {
-  return fabs(value);
+  return MATHNS::fabs(value);
 }
 
 inline int64_t abs_i64(int64_t value)
@@ -64,12 +66,12 @@ RUNTIME_FUNC_DEF(abs, double, double)
 
 inline float acos_f32(float value)
 {
-  return acos(value);
+  return MATHNS::acos(value);
 }
 
 inline double acos_f64(double value)
 {
-  return acos(value);
+  return MATHNS::acos(value);
 }
 
 RUNTIME_FUNC_DEF(acos, float, float)
@@ -81,12 +83,12 @@ RUNTIME_FUNC_DEF(acos, double, double)
 
 inline float asin_f32(float value)
 {
-  return asin(value);
+  return MATHNS::asin(value);
 }
 
 inline double asin_f64(double value)
 {
-  return asin(value);
+  return MATHNS::asin(value);
 }
 
 RUNTIME_FUNC_DEF(asin, float, float)
@@ -98,12 +100,12 @@ RUNTIME_FUNC_DEF(asin, double, double)
 
 inline float atan_f32(float value)
 {
-  return atan(value);
+  return MATHNS::atan(value);
 }
 
 inline double atan_f64(double value)
 {
-  return atan(value);
+  return MATHNS::atan(value);
 }
 
 RUNTIME_FUNC_DEF(atan, float, float)
@@ -115,12 +117,12 @@ RUNTIME_FUNC_DEF(atan, double, double)
 
 inline float atan2_f32(float y, float x)
 {
-  return atan2(y, x);
+  return MATHNS::atan2(y, x);
 }
 
 inline double atan2_f64(double y, double x)
 {
-  return atan2(y, x);
+  return MATHNS::atan2(y, x);
 }
 
 RUNTIME_FUNC_DEF(atan2, float, float, float)
@@ -132,12 +134,12 @@ RUNTIME_FUNC_DEF(atan2, double, double, double)
 
 inline float cos_f32(float value)
 {
-  return cos(value);
+  return MATHNS::cos(value);
 }
 
 inline double cos_f64(double value)
 {
-  return cos(value);
+  return MATHNS::cos(value);
 }
 
 RUNTIME_FUNC_DEF(cos, float, float)
@@ -149,12 +151,12 @@ RUNTIME_FUNC_DEF(cos, double, double)
 
 inline float cosh_f32(float value)
 {
-  return cosh(value);
+  return MATHNS::cosh(value);
 }
 
 inline double cosh_f64(double value)
 {
-  return cosh(value);
+  return MATHNS::cosh(value);
 }
 
 RUNTIME_FUNC_DEF(cosh, float, float)
@@ -239,12 +241,12 @@ RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
 
 inline float exp_f32(float value)
 {
-  return exp(value);
+  return MATHNS::exp(value);
 }
 
 inline double exp_f64(double value)
 {
-	return exp(value);
+  return MATHNS::exp(value);
 }
 
 RUNTIME_FUNC_DEF(exp, float, float)
@@ -353,14 +355,14 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
 
 inline float log_f32(float value)
 {
-	assert(value > 0);
-	return log(value);
+  assert(value > 0);
+  return MATHNS::log(value);
 }
 
 inline double log_f64(double value)
 {
   assert(value > 0);
-  return log(value);
+  return MATHNS::log(value);
 }
 
 RUNTIME_FUNC_DEF(log, float, float)
@@ -373,13 +375,13 @@ RUNTIME_FUNC_DEF(log, double, double)
 inline float log10_f32(float value)
 {
   assert(value > 0);
-  return log10(value);
+  return MATHNS::log10(value);
 }
 
 inline double log10_f64(double value)
 {
-	assert(value > 0);
-	return log10(value);
+  assert(value > 0);
+  return MATHNS::log10(value);
 }
 
 RUNTIME_FUNC_DEF(log10, float, float)
@@ -688,12 +690,12 @@ RUNTIME_FUNC_DEF(sign, int64_t, double)
 
 inline float sin_f32(float value)
 {
-	return sin(value);
+  return MATHNS::sin(value);
 }
 
 inline double sin_f64(double value)
 {
-  return sin(value);
+  return MATHNS::sin(value);
 }
 
 RUNTIME_FUNC_DEF(sin, float, float)
@@ -705,12 +707,12 @@ RUNTIME_FUNC_DEF(sin, double, double)
 
 inline float sinh_f32(float value)
 {
-  return sinh(value);
+  return MATHNS::sinh(value);
 }
 
 inline double sinh_f64(double value)
 {
-  return sinh(value);
+  return MATHNS::sinh(value);
 }
 
 RUNTIME_FUNC_DEF(sinh, float, float)
@@ -723,13 +725,13 @@ RUNTIME_FUNC_DEF(sinh, double, double)
 inline float sqrt_f32(float value)
 {
   assert(value >= 0);
-  return sqrt(value);
+  return MATHNS::sqrt(value);
 }
 
 inline double sqrt_f64(double value)
 {
-	assert(value >= 0);
-	return sqrt(value);
+  assert(value >= 0);
+  return MATHNS::sqrt(value);
 }
 
 RUNTIME_FUNC_DEF(sqrt, float, float)
@@ -859,12 +861,12 @@ RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(double))
 
 inline float tan_f32(float value)
 {
-  return tan(value);
+  return MATHNS::tan(value);
 }
 
 inline double tan_f64(double value)
 {
-	return tan(value);
+  return MATHNS::tan(value);
 }
 
 RUNTIME_FUNC_DEF(tan, float, float)
@@ -876,12 +878,12 @@ RUNTIME_FUNC_DEF(tan, double, double)
 
 inline float tanh_f32(float value)
 {
-  return tanh(value);
+  return MATHNS::tanh(value);
 }
 
 inline double tanh_f64(double value)
 {
-	return tanh(value);
+  return MATHNS::tanh(value);
 }
 
 RUNTIME_FUNC_DEF(tanh, float, float)

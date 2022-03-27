@@ -1,5 +1,8 @@
 #ifdef WINDOWS_NOSTDLIB
+#include "marco/runtime/fdlibm.h"
+
 #include <cstdint>
+
 #define __HI(x) *(1+(int*)&x)
 #define __LO(x) *(int*)&x
 
@@ -214,19 +217,19 @@ twon24  =  5.96046447753906250000e-08; /* 0x3E700000, 0x00000000 */
 static const double
 twom54  =  5.55111512312578270212e-17; /* 0x3C900000, 0x00000000 */
 
-double fabs(double x)
+double fdlibm::fabs(double x)
 {
 	__HI(x) &= 0x7fffffff;
         return x;
 }
 
-double copysign(double x, double y)
+double fdlibm::copysign(double x, double y)
 {
 	__HI(x) = (__HI(x)&0x7fffffff)|(__HI(y)&0x80000000);
         return x;
 }
 
-double floor(double x)
+double fdlibm::floor(double x)
 {
 	int i0,i1,j0;
 	unsigned i,j;
@@ -271,7 +274,7 @@ double floor(double x)
 	return x;
 }
 
-double scalbn(double x, int n)
+double fdlibm::scalbn(double x, int n)
 {
 	int  k,hx,lx;
 	hx = __HI(x);
@@ -300,7 +303,7 @@ double scalbn(double x, int n)
         return x*twom54;
 }
 
-int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec, const int *ipio2)
+int fdlibm::__kernel_rem_pio2(double* x, double* y, int e0, int nx, int prec, const int* ipio2)
 {
 	int jz,jx,jv,jp,jk,carry,n,iq[20],i,j,k,m,q0,ih;
 	double z,fw,f[20],fq[20],q[20];
@@ -452,7 +455,7 @@ recompute:
 	return n&7;
 }
 
-int __ieee754_rem_pio2(double x, double *y)
+int fdlibm::__ieee754_rem_pio2(double x, double* y)
 {
 	double z,w,t,r,fn;
 	double tx[3];
@@ -541,7 +544,7 @@ int __ieee754_rem_pio2(double x, double *y)
 	return n;
 }
 
-double sqrt(double x)
+double fdlibm::sqrt(double x)
 {
 	double z;
 	int 	sign = (int)0x80000000; 
@@ -641,7 +644,7 @@ double sqrt(double x)
 	return z;
 }
 
-double acos(double x)
+double fdlibm::acos(double x)
 {
   static const double 
   one=  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
@@ -698,7 +701,12 @@ double acos(double x)
 	}
 }
 
-double asin(double x)
+float fdlibm::acosf(float x)
+{
+  return fdlibm::acos(x);
+}
+
+double fdlibm::asin(double x)
 {
 	double t,w,p,q,c,r,s;
 	int hx,ix;
@@ -743,7 +751,7 @@ double asin(double x)
 	if(hx>0) return t; else return -t;    
 }
 
-double atan(double x)
+double fdlibm::atan(double x)
 {
 	double w,s1,s2,z;
 	int ix,hx,id;
@@ -789,7 +797,7 @@ double atan(double x)
 	}
 }
 
-double atan2(double y, double x)
+double fdlibm::atan2(double y, double x)
 {  
 	double z;
 	int k,m,hx,hy,ix,iy;
@@ -855,7 +863,7 @@ double atan2(double y, double x)
 
 
 
-double expm1(double x)
+double fdlibm::expm1(double x)
 {
 	double y,hi,lo,c,t,e,hxs,hfx,r1;
 	int k,xsb;
@@ -943,7 +951,7 @@ double expm1(double x)
 
 
 
-double exp(double x)	/* default IEEE double exp */
+double fdlibm::exp(double x) /* default IEEE double exp */
 {
 	double y,hi,lo,c,t;
 	int k,xsb;
@@ -996,7 +1004,7 @@ double exp(double x)	/* default IEEE double exp */
 	}
 }
 
-double cosh(double x)
+double fdlibm::cosh(double x)
 {	
 	double t,w;
 	int ix;
@@ -1039,7 +1047,7 @@ double cosh(double x)
 	return huge*huge;
 }
 
-double log(double x)
+double fdlibm::log(double x)
 {
 	double hfsq,f,s,z,R,w,t1,t2,dk;
 	int k,hx,i,j;
@@ -1096,7 +1104,7 @@ double log(double x)
 	}
 }
 
-double log10(double x)
+double fdlibm::log10(double x)
 {
 	double y,z;
 	int i,k,hx;
@@ -1123,7 +1131,7 @@ double log10(double x)
 	return  z+y*log10_2hi;
 }
 
-double __kernel_sin(double x, double y, int iy)
+double fdlibm::__kernel_sin(double x, double y, int iy)
 {
 	double z,r,v;
 	int ix;
@@ -1137,7 +1145,7 @@ double __kernel_sin(double x, double y, int iy)
 	else      return x-((z*(half*y-v*r)-y)-v*S1);
 }
 
-double __kernel_cos(double x, double y)
+double fdlibm::__kernel_cos(double x, double y)
 {
 	double a,hz,z,r,qx;
 	int ix;
@@ -1170,7 +1178,7 @@ double __kernel_cos(double x, double y)
 //	return sinx;
 //}
 
-double sin(double x)
+double fdlibm::sin(double x)
 {
 	double y[2],z=0.0;
 	int n, ix;
@@ -1206,7 +1214,7 @@ double sin(double x)
 //	return cosx;
 //}
 
-double cos(double x)
+double fdlibm::cos(double x)
 {
 	double y[2],z=0.0;
 	int n, ix;
@@ -1234,7 +1242,7 @@ double cos(double x)
 	}
 }
 
-double sinh(double x)
+double fdlibm::sinh(double x)
 {	
 	double t,w,h;
 	int ix,jx;
@@ -1273,7 +1281,7 @@ double sinh(double x)
 	return x*shuge;
 }
 
-double __kernel_tan(double x, double y, int iy)
+double fdlibm::__kernel_tan(double x, double y, int iy)
 {
 	double z, r, v, w, s;
 	int ix, hx;
@@ -1350,7 +1358,7 @@ double __kernel_tan(double x, double y, int iy)
 	}
 }
 
-double tan(double x)
+double fdlibm::tan(double x)
 {
 	double y[2],z=0.0;
 	int n, ix;
@@ -1373,7 +1381,7 @@ double tan(double x)
 	}
 }
 
-double tanh(double x)
+double fdlibm::tanh(double x)
 {
 	double t,z;
 	int jx,ix;
@@ -1406,7 +1414,7 @@ double tanh(double x)
 	return (jx>=0)? z: -z;
 }
 
-double pow(double x, double y)
+double fdlibm::pow(double x, double y)
 {
 	double z,ax,z_h,z_l,p_h,p_l;
 	double y1,t1,t2,r,s,t,u,v,w;
