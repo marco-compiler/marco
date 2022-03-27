@@ -4,6 +4,9 @@
 #define __LO(x) *(int*)&x
 
 static const double 
+#ifdef MSVC_BUILD
+volatile
+#endif
 zero  = 0.0,
 one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
 two=2.0,
@@ -1159,15 +1162,15 @@ double __kernel_cos(double x, double y)
 	}
 }
 
-double sin(double x)
-{
-	double cosx;
-	double sinx;
-	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
-	return sinx;
-}
+//double sin(double x)
+//{
+//	double cosx;
+//	double sinx;
+//	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
+//	return sinx;
+//}
 
-double __sin(double x)
+double sin(double x)
 {
 	double y[2],z=0.0;
 	int n, ix;
@@ -1195,15 +1198,15 @@ double __sin(double x)
 	}
 }
 
-double cos(double x)
-{
-	double cosx;
-	double sinx;
-	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
-	return cosx;
-}
+//double cos(double x)
+//{
+//	double cosx;
+//	double sinx;
+//	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
+//	return cosx;
+//}
 
-double __cos(double x)
+double cos(double x)
 {
 	double y[2],z=0.0;
 	int n, ix;

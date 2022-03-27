@@ -26,7 +26,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 project(marco LANGUAGES C CXX)
 
 # Disable exceptions and RTTI
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+if(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor")
+else()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+endif()
 
 # Set the default build type if none was specified
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -48,6 +52,7 @@ endif()
 
 if(MSVC)
 	message("-- Detected MSVC")
+	add_compile_definitions(MSVC_BUILD)
 endif()
 
 #-------------------------------------------------------------------------------

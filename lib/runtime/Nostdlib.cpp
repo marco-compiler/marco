@@ -65,6 +65,7 @@ void operator delete(void* ptr, std::size_t sz)
 	::operator delete(ptr);
 }
 
+#ifndef MSVC_BUILD
 void* memmove(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
@@ -79,7 +80,9 @@ void* memmove(void* dstpp, const void* srcpp, size_t len)
 	}
 	return dstpp;
 }
+#endif
 
+#ifndef MSVC_BUILD
 void* memcpy(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
@@ -90,7 +93,9 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 
 	return dstpp;
 }
+#endif
 
+#ifndef MSVC_BUILD
 void* memset(void* s, int c,  size_t len)
 {
 	size_t i = 0;
@@ -103,6 +108,7 @@ void* memset(void* s, int c,  size_t len)
 	}
     return s;
 }
+#endif
 
 void runtimeMemset(char *p, char c, int l)
 {
@@ -110,6 +116,7 @@ void runtimeMemset(char *p, char c, int l)
         *(p + i) = '0';
 }
 
+#ifndef MSVC_BUILD
 inline int printf(const char* format, ...)
 {
 	va_list arg;
@@ -121,4 +128,5 @@ inline int printf(const char* format, ...)
 
 	return done;
 }
+#endif
 #endif
