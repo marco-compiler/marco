@@ -8,6 +8,8 @@
 #include "marco/utils/IRange.h"
 #include "marco/utils/MultiDimensionalIterator.h"
 
+#include <ciso646>
+
 namespace marco
 {
 	class Interval

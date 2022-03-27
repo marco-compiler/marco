@@ -129,4 +129,9 @@ inline int printf(const char* format, ...)
 	return done;
 }
 #endif
+
+extern "C" {
+	int _fltused = 0;
+}
+
 #endif
