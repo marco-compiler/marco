@@ -8,10 +8,16 @@ target_link_libraries(marco-driver
     PRIVATE marco::frontend
     PRIVATE marco::frontendTool)
 
+if(MSVC)
 clang_target_link_libraries(marco-driver
     PRIVATE
     clangDriver
     LLVM-C) # needed to avoid undefined references
+else()
+clang_target_link_libraries(marco-driver
+    PRIVATE
+    clangDriver)
+endif()
 
 install(TARGETS marco-driver RUNTIME DESTINATION bin)
 
