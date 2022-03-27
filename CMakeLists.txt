@@ -46,6 +46,10 @@ if(WIN32)
 	add_compile_definitions(WINDOWS_NOSTDLIB)
 endif()
 
+if(MSVC)
+	message("-- Detected MSVC")
+endif()
+
 #-------------------------------------------------------------------------------
 # Clang / MLIR / LLVM configuration
 #-------------------------------------------------------------------------------
@@ -229,7 +233,11 @@ add_subdirectory(unittest)
 # Boost (will be removed soon)
 #-------------------------------------------------------------------------------
 
-set(Boost_USE_STATIC_LIBS OFF)
+if(!MSVC)
+	set(Boost_USE_STATIC_LIBS OFF)
+else()
+	set(Boost_USE_STATIC_LIBS ON)
+endif()
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.45.0 COMPONENTS graph exception REQUIRED)
