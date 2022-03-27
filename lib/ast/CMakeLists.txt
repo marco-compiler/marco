@@ -32,7 +32,7 @@ set(SOURCES
 		Symbol.cpp
 		SymbolTable.cpp)
 
-if(MINGW)
+if(MINGW OR MSVC)
     set(LINK_MODE STATIC)
 else()
     set(LINK_MODE SHARED)

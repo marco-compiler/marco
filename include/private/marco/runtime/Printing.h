@@ -4,7 +4,6 @@
 #include <Windows.h>
 #include "marco/runtime/ryuprintf/ryu.h"
 
-#ifndef MSVC_BUILD
 inline size_t strlen(const char* s)
 {
 	size_t i = 0;
@@ -12,9 +11,8 @@ inline size_t strlen(const char* s)
 		i++;
 	return i;
 }
-#endif
 
-inline char* strncpy(char* dest, const char* src, size_t n)
+inline char* strncpyRuntime(char* dest, const char* src, size_t n)
 {
 	size_t i;
 
@@ -159,7 +157,7 @@ inline char* composeString(const char* format, va_list ap)
 		size = size * 2;
 		buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 	}
-	strncpy(buf, format, n);
+	strncpyRuntime(buf, format, n);
 
 	bufptr = buf + n;
 
@@ -214,7 +212,7 @@ inline char* composeString(const char* format, va_list ap)
 				size = size * 2;
 				buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 			}
-			strncpy(bufptr, tmp_ptr, n);
+			strncpyRuntime(bufptr, tmp_ptr, n);
 			bufptr = bufptr + n;
 		}
 
@@ -228,7 +226,7 @@ inline char* composeString(const char* format, va_list ap)
 			size = size * 2;
 			buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 		}
-		strncpy(bufptr, oldfmtptr, n);
+		strncpyRuntime(bufptr, oldfmtptr, n);
 		bufptr = bufptr + n;
 	}
 

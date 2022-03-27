@@ -26,6 +26,33 @@ extern "C" BOOL WINAPI DllMainCRTStartup(
 	return TRUE;
 }
 
+extern "C" BOOL WINAPI _DllMainCRTStartup(
+    HINSTANCE hinstDLL,
+    DWORD fdwReason,
+    LPVOID lpvReserved)
+{
+  return TRUE;
+}
+
+#ifdef MSVC_BUILD
+extern "C" __declspec(noreturn) void __cdecl 
+__imp__invalid_parameter_noinfo_noreturn(void)
+{
+
+}
+
+extern "C" __declspec(noreturn) void __cdecl
+__imp__invoke_watson(
+    wchar_t const* const expression,
+    wchar_t const* const function_name,
+    wchar_t const* const file_name,
+    unsigned int const line_number,
+    uintptr_t const reserved)
+{
+	
+}
+#endif
+
 namespace std {
 	void __throw_bad_array_new_length() {
 		ExitProcess(1);
@@ -65,7 +92,6 @@ void operator delete(void* ptr, std::size_t sz)
 	::operator delete(ptr);
 }
 
-#ifndef MSVC_BUILD
 void* memmove(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
@@ -80,9 +106,7 @@ void* memmove(void* dstpp, const void* srcpp, size_t len)
 	}
 	return dstpp;
 }
-#endif
 
-#ifndef MSVC_BUILD
 void* memcpy(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
@@ -93,7 +117,6 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 
 	return dstpp;
 }
-#endif
 
 #ifndef MSVC_BUILD
 void* memset(void* s, int c,  size_t len)

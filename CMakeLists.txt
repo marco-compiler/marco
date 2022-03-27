@@ -24,6 +24,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # Project setup
 #-------------------------------------------------------------------------------
 project(marco LANGUAGES C CXX)
+if(MSVC)
+	include_directories("C:\\boost")
+endif()
+
 
 # Disable exceptions and RTTI
 if(MSVC)
@@ -241,10 +245,10 @@ add_subdirectory(unittest)
 # Boost (will be removed soon)
 #-------------------------------------------------------------------------------
 
-if(!MSVC)
-	set(Boost_USE_STATIC_LIBS OFF)
-else()
+if(MSVC)
 	set(Boost_USE_STATIC_LIBS ON)
+else()
+	set(Boost_USE_STATIC_LIBS OFF)
 endif()
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
