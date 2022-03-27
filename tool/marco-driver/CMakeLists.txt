@@ -10,7 +10,8 @@ target_link_libraries(marco-driver
 
 clang_target_link_libraries(marco-driver
     PRIVATE
-    clangDriver)
+    clangDriver
+    LLVM-C) # needed to avoid undefined references
 
 install(TARGETS marco-driver RUNTIME DESTINATION bin)
 
