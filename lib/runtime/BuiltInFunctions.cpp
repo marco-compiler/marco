@@ -41,17 +41,17 @@ inline int32_t abs_i32(int32_t value)
 
 inline int64_t abs_i64(int64_t value)
 {
-  return abs(value);
+  return MATHNS::fabs(value);
 }
 
 inline float abs_f32(float value)
 {
-  return abs(value);
+  return MATHNS::fabs(value);
 }
 
 inline double abs_f64(double value)
 {
-  return abs(value);
+  return MATHNS::fabs(value);
 }
 
 RUNTIME_FUNC_DEF(abs, bool, bool)

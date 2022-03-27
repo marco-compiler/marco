@@ -23,10 +23,18 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
 
+#ifndef MSVC_BUILD
+#define PCLOSE pclose
+#define POPEN popen
+#else
+#define PCLOSE _pclose
+#define POPEN _popen
+#endif
+
 bool exec(const char* cmd, std::string& result)
 {
   std::array<char, 128> buffer;
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+  std::unique_ptr<FILE, decltype(&PCLOSE)> pipe(POPEN(cmd, "r"), PCLOSE);
 
   if (!pipe) {
     return false;

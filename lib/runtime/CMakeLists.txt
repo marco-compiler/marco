@@ -32,7 +32,7 @@ marco_add_library(runtimeShared
 		${SHARED_SOURCES})
 
 if(MSVC)
-target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
+target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB" PRIVATE "/Oi-")
 elseif(MINGW)
 # -fno-strict-aliasing needed for fdlibm
 target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing")
@@ -47,7 +47,7 @@ marco_add_library(runtime
 		${STATIC_SOURCES})
 
 if(MSVC)
-target_link_options(runtime PRIVATE "/NODEFAULTLIB")
+target_link_options(runtime PRIVATE "/NODEFAULTLIB" PRIVATE "/Oi-")
 elseif(MINGW)
 # -fno-strict-aliasing needed for fdlibm
 target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-g" PRIVATE "-O0") 

@@ -1,3 +1,8 @@
+#ifdef MSVC_BUILD
+// Allows to compile functions that do not return.
+#pragma warning(disable : 4716)
+#endif
+
 #include "marco/dialects/modelica/ModelicaDialect.h"
 #include "marco/dialects/modelica/Ops.h"
 #include "mlir/IR/OpImplementation.h"

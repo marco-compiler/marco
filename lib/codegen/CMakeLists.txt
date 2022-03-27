@@ -42,7 +42,7 @@ set(MLIR_LIBS
     MLIRTranslation
     MLIRExecutionEngine)
 
-if(MINGW)
+if(MINGW OR MSVC)
     set(LINK_MODE STATIC)
 else()
     set(LINK_MODE SHARED)
