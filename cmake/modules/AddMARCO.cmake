@@ -9,7 +9,11 @@ function(marco_canonize_library_name canonical_name name)
 
   # Get the rest of the name.
   string(LENGTH ${name} length)
-  execute_process(COMMAND expr ${length} - 1 OUTPUT_VARIABLE length)
+  if(!MSVC)
+    execute_process(COMMAND expr ${length} - 1 OUTPUT_VARIABLE length)
+  else()
+    math(EXPR length ${length}-1)
+  endif()
   string(SUBSTRING ${name} 1 ${length} rest)
 
   # Compose macro-name with first letter uppercase.
