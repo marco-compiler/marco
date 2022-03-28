@@ -225,7 +225,7 @@ namespace
         // Copy the (not necessarily) scalar results into the result arrays
         for (auto result : llvm::enumerate(scalarizedResults)) {
           mlir::Value subscript = builder.create<SubscriptionOp>(loc, results[result.index()], indexes);
-          builder.create<AssignmentOp>(loc, result.value(), subscript);
+          builder.create<AssignmentOp>(loc, subscript, result.value());
         }
 
         // Replace the original operation with the newly allocated arrays

@@ -98,23 +98,35 @@ namespace marco::codegen
       mlir::ValueRange steps,
       ::marco::modeling::scheduling::Direction iterationDirection) const
   {
-    auto equation = getOperation();
-    auto loc = equation.getLoc();
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto equationOp = getOperation();
+    auto loc = equationOp.getLoc();
 
-    for (auto& op : equation.bodyBlock()->getOperations()) {
+    for (auto& op : equationOp.bodyBlock()->getOperations()) {
       if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
         // Convert the equality into an assignment
         for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
           auto mappedLhs = mapping.lookup(lhs);
           auto mappedRhs = mapping.lookup(rhs);
 
-          if (auto loadOp = mlir::dyn_cast<LoadOp>(mappedLhs.getDefiningOp())) {
-            assert(loadOp.indexes().empty());
-            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.array());
+          if (auto mappedLhsArrayType = mappedLhs.getType().dyn_cast<ArrayType>()) {
+            assert(mappedLhsArrayType.getRank() != 0);
+
+            createIterationLoops(
+                builder, loc, beginIndexes, endIndexes, steps, iterationDirection,
+                [&mappedLhs, &mappedRhs, loc](mlir::OpBuilder& builder, mlir::ValueRange indices) {
+                  assert(mappedLhs.getType().cast<ArrayType>().getRank() == indices.size());
+                  mlir::Value rhsValue = builder.create<LoadOp>(loc, mappedRhs, indices);
+                  builder.create<StoreOp>(loc, rhsValue, mappedLhs, indices);
+                });
           } else {
-            builder.create<AssignmentOp>(loc, mappedRhs, mappedLhs);
+            auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
+            builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indexes());
           }
         }
+      } else if (mlir::isa<EquationSideOp>(op)) {
+        // Ignore equation sides
+        continue;
       } else {
         // Clone all the other operations
         builder.clone(op, mapping);

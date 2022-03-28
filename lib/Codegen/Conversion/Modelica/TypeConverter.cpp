@@ -253,8 +253,9 @@ namespace mlir::modelica
 
     auto rank = type.getRank();
 
-    if (rank == 0)
+    if (rank == 0) {
       return results;
+    }
 
     results.insert(results.end(), 1, mlir::LLVM::LLVMArrayType::get(indexType, rank));
     return results;

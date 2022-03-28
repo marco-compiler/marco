@@ -18,6 +18,7 @@ namespace marco::codegen::lowering
       static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
       static Reference memory(mlir::OpBuilder* builder, mlir::Value value);
       static Reference member(mlir::OpBuilder* builder, mlir::Value value);
+      static Reference time(mlir::OpBuilder* builder);
 
     private:
       Reference(mlir::OpBuilder* builder,

@@ -3,7 +3,7 @@
 #include "Utils.h"
 
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
+using namespace ::mlir::modelica;
 
 using namespace ::marco::codegen::test;
 
@@ -34,7 +34,7 @@ TEST(ArrayVariable, dimensions)
   shape.push_back(5);
 
   auto baseType = RealType::get(builder.getContext());
-  auto arrayType = ArrayType::get(builder.getContext(), BufferAllocationScope::heap, baseType, shape);
+  auto arrayType = ArrayType::get(builder.getContext(), baseType, shape);
   auto model = createModel(builder, arrayType);
   auto variables = mapVariables(model);
 

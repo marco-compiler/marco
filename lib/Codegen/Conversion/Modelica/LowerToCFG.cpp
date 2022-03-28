@@ -142,7 +142,9 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
       assert(op.dynamicSizes().empty());
 
       builder.setInsertionPoint(op);
-      mlir::Value reference = builder.create<AllocOp>(loc, ArrayType::get(builder.getContext(), unwrappedType, llvm::None), llvm::None);
+
+      mlir::Value reference = builder.create<AllocaOp>(
+          loc, ArrayType::get(builder.getContext(), unwrappedType, llvm::None), llvm::None);
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
           [&builder, reference](MemberLoadOp loadOp) -> mlir::LogicalResult {
@@ -183,6 +185,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           [&builder, reference](MemberStoreOp storeOp) -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
             copyArray(builder, storeOp.getLoc(), storeOp.value(), reference);
+            builder.create<FreeOp>(storeOp.getLoc(), storeOp.value());
             storeOp->erase();
             return mlir::success();
           });
@@ -409,8 +412,7 @@ static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, Functi
   }
 
   // Deallocate the protected members
-  auto returnOp = mlir::cast<mlir::ReturnOp>(funcOp.getBody().back().getTerminator());
-  builder.setInsertionPoint(returnOp);
+  builder.setInsertionPoint(funcOp.getBody().back().getTerminator());
 
   for (auto& member : protectedMembers) {
     mlir::Type unwrappedType = member.getMemberType().unwrap();

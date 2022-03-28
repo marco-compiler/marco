@@ -52,11 +52,7 @@ namespace marco::codegen::lowering
 
     llvm::SmallVector<mlir::Type, 3> args;
 
-    // Time variable
-    auto timeType = ArrayType::get(builder().getContext(), RealType::get(builder().getContext()), llvm::None);
-    args.push_back(timeType);
-
-    // Other variables
+    // Variables
     llvm::SmallVector<mlir::Attribute, 3> variableNames;
 
     for (const auto& member : model.getMembers()) {
@@ -72,8 +68,6 @@ namespace marco::codegen::lowering
       variableNames.push_back(nameAttribute);
     }
 
-    llvm::ArrayRef<mlir::Attribute> attributeArray(variableNames);
-
     // Create the operation
     auto modelOp = builder().create<ModelOp>(
         location,
@@ -86,10 +80,6 @@ namespace marco::codegen::lowering
       mlir::Block* initBlock = builder().createBlock(&modelOp.initRegion());
       builder().setInsertionPointToStart(initBlock);
       llvm::SmallVector<mlir::Value, 3> vars;
-
-      auto memberType = MemberType::get(builder().getContext(), RealType::get(builder().getContext()), llvm::None, false, IOProperty::none);
-      mlir::Value time = builder().create<MemberCreateOp>(location, "time", memberType, llvm::None);
-      vars.push_back(time);
 
       for (const auto& member : model.getMembers()) {
         lower(*member);
@@ -104,11 +94,10 @@ namespace marco::codegen::lowering
       mlir::Block* bodyBlock = builder().createBlock(&modelOp.bodyRegion(), {}, args);
       builder().setInsertionPointToStart(bodyBlock);
 
-      mlir::Value time = modelOp.bodyRegion().getArgument(0);
-      symbolTable().insert("time", Reference::memory(&builder(), time));
+      symbolTable().insert("time", Reference::time(&builder()));
 
       for (const auto& member : llvm::enumerate(model.getMembers())) {
-        symbolTable().insert(member.value()->getName(), Reference::memory(&builder(), modelOp.bodyRegion().getArgument(member.index() + 1)));
+        symbolTable().insert(member.value()->getName(), Reference::memory(&builder(), modelOp.bodyRegion().getArgument(member.index())));
       }
 
       for (const auto& equation : model.getEquations()) {
@@ -130,7 +119,7 @@ namespace marco::codegen::lowering
 
     const auto& frontendType = member.getType();
     mlir::Type type = lower(frontendType);
-    auto memberType = MemberType::wrap(type);
+    auto memberType = MemberType::wrap(type, member.isParameter(), getIOProperty(member));
 
     mlir::Value memberOp = builder().create<MemberCreateOp>(
         location, member.getName(), memberType, llvm::None);

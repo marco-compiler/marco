@@ -538,18 +538,15 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 		mlir::Location loc = op->getLoc();
 		Adaptor transformed(operands);
 		mlir::Type source = op.source().getType();
-		auto destination = op.getResultArrayType();
+		auto destination = op.getResult().getType();
 
-		if (source.isa<ArrayType>())
-		{
-			if (auto resultType = destination.dyn_cast<ArrayType>())
-			{
+		if (source.isa<ArrayType>()) {
+			if (auto resultType = destination.dyn_cast<ArrayType>()) {
 				rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, resultType, op.source());
 				return mlir::success();
 			}
 
-			if (auto resultType = destination.dyn_cast<UnsizedArrayType>())
-			{
+			if (auto resultType = destination.dyn_cast<UnsizedArrayType>()) {
 				ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.source());
 
 				// Create the unsized array descriptor that holds the ranked one.
@@ -622,24 +619,20 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	{
 		auto module = getOperation();
 
-		if (failed(stdToLLVMConversionPass(module)))
-		{
+		if (mlir::failed(stdToLLVMConversionPass(module))) {
 			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
 			signalPassFailure();
 			return;
 		}
 
-		if (failed(castsFolderPass(module)))
-		{
+		if (mlir::failed(castsFolderPass(module))) {
 			mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
 			signalPassFailure();
 			return;
 		}
 
-		if (options.emitCWrappers)
-		{
-			if (failed(emitCWrappers(module)))
-			{
+		if (options.emitCWrappers) {
+			if (mlir::failed(emitCWrappers(module))) {
 				mlir::emitError(module.getLoc(), "Error in emitting the C wrappers\n");
 				signalPassFailure();
 				return;

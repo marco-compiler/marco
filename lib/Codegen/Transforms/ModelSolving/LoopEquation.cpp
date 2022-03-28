@@ -1,7 +1,5 @@
 #include "marco/Codegen/Transforms/Model/LoopEquation.h"
-#include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
-#include <memory>
 
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
@@ -34,7 +32,9 @@ namespace marco::codegen
     builder.setInsertionPoint(explicitLoops.back());
 
     for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it) {
-      auto loop = builder.create<ForEquationOp>(it->getLoc(), it->from(), it->to());
+      long from = it->from().getSExtValue();
+      long to = it->to().getSExtValue();
+      auto loop = builder.create<ForEquationOp>(it->getLoc(), from, to);
       builder.setInsertionPointToStart(loop.bodyBlock());
       mapping.map(it->induction(), loop.induction());
     }
@@ -206,77 +206,74 @@ namespace marco::codegen
     auto equation = getOperation();
     auto loc = equation.getLoc();
 
-    auto conditionFn = [&](mlir::Value index, mlir::Value end) -> mlir::Value {
-      assert(iterationDirection == modeling::scheduling::Direction::Forward ||
-              iterationDirection == modeling::scheduling::Direction::Backward);
+    auto numberOfExplicitLoops = getNumberOfExplicitLoops();
 
-      if (iterationDirection == modeling::scheduling::Direction::Backward) {
-        return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::sgt, index, end).getResult();
-      }
+    assert(beginIndexes.size() == numberOfExplicitLoops + getNumberOfImplicitLoops());
+    assert(endIndexes.size() == numberOfExplicitLoops + getNumberOfImplicitLoops());
+    assert(steps.size() == numberOfExplicitLoops + getNumberOfImplicitLoops());
 
-      return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::slt, index, end).getResult();
-    };
+    std::vector<mlir::Value> explicitBeginIndices;
+    std::vector<mlir::Value> explicitEndIndices;
+    std::vector<mlir::Value> explicitSteps;
 
-    auto updateFn = [&](mlir::Value index, mlir::Value step) -> mlir::Value {
-      assert(iterationDirection == modeling::scheduling::Direction::Forward ||
-          iterationDirection == modeling::scheduling::Direction::Backward);
+    std::vector<mlir::Value> implicitBeginIndices;
+    std::vector<mlir::Value> implicitEndIndices;
+    std::vector<mlir::Value> implicitSteps;
 
-      if (iterationDirection == modeling::scheduling::Direction::Backward) {
-        return builder.create<mlir::SubIOp>(loc, index, step).getResult();
-      }
-
-      return builder.create<mlir::AddIOp>(loc, index, step).getResult();
-    };
-
-    // Create the explicit loops
-    auto explicitLoops = getExplicitLoops();
-
-    std::vector<mlir::Value> inductionVars;
-
-    for (size_t i = 0; i < explicitLoops.size(); ++i) {
-      auto whileOp = builder.create<mlir::scf::WhileOp>(loc, builder.getIndexType(), beginIndexes[i]);
-
-      // Check the condition.
-      // A naive check can consist in the equality comparison. However, in order to be future-proof with
-      // respect to steps greater than one, we need to check if the current value is beyond the end boundary.
-      // This in turn requires to know the iteration direction.
-      mlir::Block* beforeBlock = builder.createBlock(&whileOp.before(), {}, builder.getIndexType());
-      builder.setInsertionPointToStart(beforeBlock);
-      mlir::Value condition = conditionFn(whileOp.before().getArgument(0), endIndexes[i]);
-      builder.create<mlir::scf::ConditionOp>(loc, condition, whileOp.before().getArgument(0));
-
-      // Execute the loop body
-      mlir::Block* afterBlock = builder.createBlock(&whileOp.after(), {}, builder.getIndexType());
-      mlir::Value inductionVariable = afterBlock->getArgument(0);
-      mapping.map(explicitLoops[i].induction(), inductionVariable);
-      builder.setInsertionPointToStart(afterBlock);
-
-      // Update the induction variable
-      mlir::Value nextValue = updateFn(inductionVariable, steps[i]);
-      builder.create<mlir::scf::YieldOp>(loc, nextValue);
-      builder.setInsertionPoint(nextValue.getDefiningOp());
-    }
-
-    // Clone the equation body
-    for (auto& op : equation.bodyBlock()->getOperations()) {
-      if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
-        // Convert the equality into an assignment
-        for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
-          auto mappedLhs = mapping.lookup(lhs);
-          auto mappedRhs = mapping.lookup(rhs);
-
-          if (auto loadOp = mlir::dyn_cast<LoadOp>(mappedLhs.getDefiningOp())) {
-            assert(loadOp.indexes().empty());
-            builder.create<AssignmentOp>(loc, mappedRhs, loadOp.array());
-          } else {
-            builder.create<AssignmentOp>(loc, mappedRhs, mappedLhs);
-          }
-        }
+    for (size_t i = 0; i < steps.size(); ++i) {
+      if (i < numberOfExplicitLoops) {
+        explicitBeginIndices.push_back(beginIndexes[i]);
+        explicitEndIndices.push_back(endIndexes[i]);
+        explicitSteps.push_back(steps[i]);
       } else {
-        // Clone all the other operations
-        builder.clone(op, mapping);
+        implicitBeginIndices.push_back(beginIndexes[i + numberOfExplicitLoops]);
+        implicitEndIndices.push_back(endIndexes[i + numberOfExplicitLoops]);
+        implicitSteps.push_back(steps[i + numberOfExplicitLoops]);
       }
     }
+
+    createIterationLoops(
+        builder, loc, explicitBeginIndices, explicitEndIndices, explicitSteps, iterationDirection,
+        [&](mlir::OpBuilder& nestedExplicitBuilder, mlir::ValueRange explicitIndices) {
+          auto explicitLoops = getExplicitLoops();
+          assert(explicitLoops.size() == explicitIndices.size());
+
+          for (size_t i = 0; i < explicitLoops.size(); ++i) {
+            mapping.map(explicitLoops[i].induction(), explicitIndices[i]);
+          }
+
+          // Clone the equation body
+          for (auto& op : equation.bodyBlock()->getOperations()) {
+            if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
+              // Convert the equality into an assignment
+              for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
+                auto mappedLhs = mapping.lookup(lhs);
+                auto mappedRhs = mapping.lookup(rhs);
+
+                if (auto mappedLhsArrayType = mappedLhs.getType().dyn_cast<ArrayType>()) {
+                  assert(mappedLhsArrayType.getRank() != 0);
+
+                  createIterationLoops(
+                      nestedExplicitBuilder, loc, beginIndexes, endIndexes, steps, iterationDirection,
+                      [&](mlir::OpBuilder& nestedImplicitBuilder, mlir::ValueRange implicitIndices) {
+                        assert(mappedLhs.getType().cast<ArrayType>().getRank() == implicitIndices.size());
+                        mlir::Value rhsValue = nestedImplicitBuilder.create<LoadOp>(loc, mappedRhs, implicitIndices);
+                        nestedImplicitBuilder.create<StoreOp>(loc, rhsValue, mappedLhs, implicitIndices);
+                      });
+                } else {
+                  auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
+                  builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indexes());
+                }
+              }
+            } else if (mlir::isa<EquationSideOp>(op)) {
+              // Ignore equation sides
+              continue;
+            } else {
+              // Clone all the other operations
+              nestedExplicitBuilder.clone(op, mapping);
+            }
+          }
+        });
 
     return mlir::success();
   }

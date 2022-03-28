@@ -4,6 +4,7 @@
 #include "marco/Codegen/Transforms/Model/EquationImpl.h"
 #include "marco/Codegen/Transforms/Model/LoopEquation.h"
 #include "marco/Codegen/Transforms/Model/ScalarEquation.h"
+#include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include <numeric>
 
@@ -528,7 +529,15 @@ namespace marco::codegen
 
     if (accesses.size() == 1) {
       auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
-      builder.setInsertionPoint(terminator);
+
+      auto lhsOp = terminator.lhs().getDefiningOp();
+      auto rhsOp = terminator.rhs().getDefiningOp();
+
+      builder.setInsertionPoint(lhsOp);
+
+      if (rhsOp->isBeforeInBlock(lhsOp)) {
+        builder.setInsertionPoint(rhsOp);
+      }
 
       for (auto index : path) {
         if (auto res = explicitate(builder, index, path.getEquationSide()); mlir::failed(res)) {
@@ -1109,6 +1118,76 @@ namespace marco::codegen
     return value;
   }
 
+  void BaseEquation::createIterationLoops(
+      mlir::OpBuilder& builder,
+      mlir::Location loc,
+      mlir::ValueRange beginIndices,
+      mlir::ValueRange endIndices,
+      mlir::ValueRange steps,
+      marco::modeling::scheduling::Direction iterationDirection,
+      std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyBuilder) const
+  {
+    std::vector<mlir::Value> inductionVariables;
+
+    assert(beginIndices.size() == endIndices.size());
+    assert(beginIndices.size() == steps.size());
+
+    assert(iterationDirection == modeling::scheduling::Direction::Forward ||
+           iterationDirection == modeling::scheduling::Direction::Backward);
+
+    auto conditionFn = [&](mlir::Value index, mlir::Value end) -> mlir::Value {
+      if (iterationDirection == modeling::scheduling::Direction::Backward) {
+        return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::sgt, index, end).getResult();
+      }
+
+      return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::slt, index, end).getResult();
+    };
+
+    auto updateFn = [&](mlir::Value index, mlir::Value step) -> mlir::Value {
+      if (iterationDirection == modeling::scheduling::Direction::Backward) {
+        return builder.create<mlir::SubIOp>(loc, index, step).getResult();
+      }
+
+      return builder.create<mlir::AddIOp>(loc, index, step).getResult();
+    };
+
+    mlir::Operation* firstLoop = nullptr;
+
+    for (size_t i = 0; i < steps.size(); ++i) {
+      auto whileOp = builder.create<mlir::scf::WhileOp>(loc, builder.getIndexType(), beginIndices[i]);
+
+      if (i == 0) {
+        firstLoop = whileOp.getOperation();
+      }
+
+      // Check the condition.
+      // A naive check can consist in the equality comparison. However, in order to be future-proof with
+      // respect to steps greater than one, we need to check if the current value is beyond the end boundary.
+      // This in turn requires to know the iteration direction.
+      mlir::Block* beforeBlock = builder.createBlock(&whileOp.before(), {}, builder.getIndexType());
+      builder.setInsertionPointToStart(beforeBlock);
+      mlir::Value condition = conditionFn(whileOp.before().getArgument(0), endIndices[i]);
+      builder.create<mlir::scf::ConditionOp>(loc, condition, whileOp.before().getArgument(0));
+
+      // Execute the loop body
+      mlir::Block* afterBlock = builder.createBlock(&whileOp.after(), {}, builder.getIndexType());
+      mlir::Value inductionVariable = afterBlock->getArgument(0);
+      inductionVariables.push_back(inductionVariable);
+      builder.setInsertionPointToStart(afterBlock);
+
+      // Update the induction variable
+      mlir::Value nextValue = updateFn(inductionVariable, steps[i]);
+      builder.create<mlir::scf::YieldOp>(loc, nextValue);
+      builder.setInsertionPoint(nextValue.getDefiningOp());
+    }
+
+    bodyBuilder(builder, inductionVariables);
+
+    if (firstLoop != nullptr) {
+      builder.setInsertionPointAfter(firstLoop);
+    }
+  }
+
   mlir::FuncOp BaseEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
@@ -1165,6 +1244,7 @@ namespace marco::codegen
       return nullptr;
     }
 
+    builder.setInsertionPointToEnd(&function.body().back());
     builder.create<mlir::ReturnOp>(loc);
     return function;
   }

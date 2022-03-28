@@ -137,8 +137,8 @@ static Variables discoverVariables(ModelOp model)
 
   mlir::ValueRange vars = model.bodyRegion().getArguments();
 
-  for (size_t i = 1; i < vars.size(); ++i) {
-    result.add(std::make_unique<Variable>(vars[i]));
+  for (const auto& var : model.bodyRegion().getArguments()) {
+    result.add(std::make_unique<Variable>(var));
   }
 
   return result;

@@ -30,6 +30,7 @@ namespace marco::codegen::lowering
 
   mlir::Value Reference::getReference() const
   {
+    assert(value != nullptr);
     return value;
   }
 
@@ -68,7 +69,7 @@ namespace marco::codegen::lowering
         },
         [&](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
           assert(destination.value.getType().isa<ArrayType>());
-          builder->create<AssignmentOp>(value.getLoc(), value, destination.getReference());
+          builder->create<AssignmentOp>(value.getLoc(), destination.getReference(), value);
         });
   }
 
@@ -82,6 +83,18 @@ namespace marco::codegen::lowering
         },
         [](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
           builder->create<MemberStoreOp>(value.getLoc(), destination.value, value);
+        });
+  }
+
+  Reference Reference::time(mlir::OpBuilder* builder)
+  {
+    return Reference(
+        builder, nullptr,
+        [](mlir::OpBuilder* builder, mlir::Value v) -> mlir::Value {
+          return builder->create<TimeOp>(builder->getUnknownLoc());
+        },
+        [](mlir::OpBuilder* builder, Reference& destination, mlir::Value v) {
+          llvm_unreachable("Can't write into the 'time' variable");
         });
   }
 }

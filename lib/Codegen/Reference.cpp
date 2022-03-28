@@ -68,7 +68,7 @@ namespace marco::codegen
         },
         [&](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
           assert(destination.value.getType().isa<ArrayType>());
-          builder->create<AssignmentOp>(value.getLoc(), value, destination.getReference());
+          builder->create<AssignmentOp>(value.getLoc(), destination.getReference(), value);
         });
   }
 

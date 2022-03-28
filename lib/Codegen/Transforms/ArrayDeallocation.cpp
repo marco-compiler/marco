@@ -1,5 +1,6 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Codegen/Transforms/Model/ModelConverter.h"
 #include "mlir/Transforms/BufferUtils.h"
 #include "mlir/Transforms/Passes.h"
 
@@ -90,8 +91,10 @@ namespace
       void runOnOperation() override
       {
         getOperation().walk([](mlir::FuncOp op) {
-          ArrayDeallocation deallocation(op);
-          deallocation.deallocate();
+          if (op.getName() != ModelConverter::initFunctionName) {
+            ArrayDeallocation deallocation(op);
+            deallocation.deallocate();
+          }
         });
 
         getOperation().walk([](FunctionOp op) {

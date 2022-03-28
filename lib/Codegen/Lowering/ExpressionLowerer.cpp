@@ -26,7 +26,7 @@ namespace marco::codegen::lowering
     for (const auto& value : llvm::enumerate(array)) {
       mlir::Value index = builder().create<ConstantOp>(location, builder().getIndexAttr(value.index()));
       mlir::Value slice = builder().create<SubscriptionOp>(location, result, index);
-      builder().create<AssignmentOp>(location, *lower(*value.value())[0], slice);
+      builder().create<AssignmentOp>(location, slice, *lower(*value.value())[0]);
     }
 
     return Reference::ssa(&builder(), result);

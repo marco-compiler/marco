@@ -2,7 +2,7 @@
 #define MARCO_UNITTEST_CODEGEN_UTILS_H
 
 #include "gmock/gmock.h"
-#include "marco/Codegen/dialects/modelica/ModelicaDialect.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/Model/Model.h"
 #include <algorithm>
 
@@ -44,10 +44,10 @@ MATCHER_P3(AccessMatcher, variable, accessFunction, path, "") {
 namespace marco::codegen::test
 {
   /// Create a model with variables of given types.
-  modelica::ModelOp createModel(mlir::OpBuilder& builder, mlir::TypeRange varTypes);
+  mlir::modelica::ModelOp createModel(mlir::OpBuilder& builder, mlir::TypeRange varTypes);
 
   /// Map the variables of a model.
-  Variables mapVariables(modelica::ModelOp model);
+  Variables mapVariables(mlir::modelica::ModelOp model);
 
   /// Create an equation with with a certain body and optional iteration ranges.
   /// The callback function is used to create the body of the equation. When called,
@@ -59,9 +59,9 @@ namespace marco::codegen::test
   /// @param iterationRanges  optional iteration ranges
   /// @param bodyFn           callback function used to populate the equation body
   /// @return the created equation operation
-  modelica::EquationOp createEquation(
+  mlir::modelica::EquationOp createEquation(
       mlir::OpBuilder& builder,
-      modelica::ModelOp model,
+      mlir::modelica::ModelOp model,
       llvm::ArrayRef<std::pair<long, long>> iterationRanges,
       std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn);
 

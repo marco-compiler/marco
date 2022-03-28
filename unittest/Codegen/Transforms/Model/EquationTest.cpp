@@ -4,8 +4,8 @@
 #include "Utils.h"
 
 using namespace ::marco::codegen;
-using namespace ::marco::codegen::modelica;
 using namespace ::marco::modeling;
+using namespace ::mlir::modelica;
 
 using namespace ::marco::codegen::test;
 
@@ -26,12 +26,12 @@ TEST(ScalarEquation, iterationRanges)
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  builder.setInsertionPointToStart(&model.body().front());
+  builder.setInsertionPointToStart(model.bodyBlock());
   auto equationOp = builder.create<EquationOp>(builder.getUnknownLoc());
-  builder.setInsertionPointToStart(equationOp.body());
+  builder.setInsertionPointToStart(equationOp.bodyBlock());
 
-  mlir::Value loadX = builder.create<LoadOp>(builder.getUnknownLoc(), model.body().getArgument(0));
-  mlir::Value loadY = builder.create<LoadOp>(builder.getUnknownLoc(), model.body().getArgument(0));
+  mlir::Value loadX = builder.create<LoadOp>(builder.getUnknownLoc(), model.bodyRegion().getArgument(0));
+  mlir::Value loadY = builder.create<LoadOp>(builder.getUnknownLoc(), model.bodyRegion().getArgument(0));
   builder.create<EquationSidesOp>(builder.getUnknownLoc(), loadX, loadY);
 
   auto equation = Equation::build(equationOp, variables);
@@ -60,24 +60,24 @@ TEST(ScalarEquation, accesses)
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  builder.setInsertionPointToStart(&model.body().front());
+  builder.setInsertionPointToStart(model.bodyBlock());
   auto equationOp = builder.create<EquationOp>(builder.getUnknownLoc());
-  builder.setInsertionPointToStart(equationOp.body());
+  builder.setInsertionPointToStart(equationOp.bodyBlock());
 
-  mlir::Value loadX = builder.create<LoadOp>(builder.getUnknownLoc(), model.body().getArgument(0));
-  mlir::Value loadY = builder.create<LoadOp>(builder.getUnknownLoc(), model.body().getArgument(1));
+  mlir::Value loadX = builder.create<LoadOp>(builder.getUnknownLoc(), model.bodyRegion().getArgument(0));
+  mlir::Value loadY = builder.create<LoadOp>(builder.getUnknownLoc(), model.bodyRegion().getArgument(1));
   builder.create<EquationSidesOp>(builder.getUnknownLoc(), loadX, loadY);
 
   auto equation = Equation::build(equationOp, variables);
   auto accesses = equation->getAccesses();
 
   auto access1 = AccessMatcher(
-      model.body().getArgument(0),
+      model.bodyRegion().getArgument(0),
       AccessFunction(DimensionAccess::constant(0)),
       EquationPath(EquationPath::LEFT));
 
   auto access2 = AccessMatcher(
-      model.body().getArgument(1),
+      model.bodyRegion().getArgument(1),
       AccessFunction(DimensionAccess::constant(0)),
       EquationPath(EquationPath::RIGHT));
 
@@ -100,22 +100,22 @@ TEST(LoopEquation, explicitLoops_iterationRanges)
   mlir::Location loc = builder.getUnknownLoc();
 
   llvm::SmallVector<mlir::Type, 2> types;
-  types.push_back(ArrayType::get(builder.getContext(), BufferAllocationScope::heap, RealType::get(builder.getContext()), { 3, 6 }));
-  types.push_back(ArrayType::get(builder.getContext(), BufferAllocationScope::heap, RealType::get(builder.getContext()), { 3, 6 }));
+  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 6 }));
+  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 6 }));
 
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  builder.setInsertionPointToStart(&model.body().front());
+  builder.setInsertionPointToStart(model.bodyBlock());
 
   auto outerLoop = builder.create<ForEquationOp>(loc, 1, 2);
-  builder.setInsertionPointToStart(outerLoop.body());
+  builder.setInsertionPointToStart(outerLoop.bodyBlock());
 
   auto innerLoop = builder.create<ForEquationOp>(loc, 1, 5);
-  builder.setInsertionPointToStart(innerLoop.body());
+  builder.setInsertionPointToStart(innerLoop.bodyBlock());
 
   auto equationOp = builder.create<EquationOp>(loc);
-  builder.setInsertionPointToStart(equationOp.body());
+  builder.setInsertionPointToStart(equationOp.bodyBlock());
 
   llvm::SmallVector<mlir::Value, 3> xIndexes;
   xIndexes.push_back(outerLoop.induction());
@@ -125,8 +125,8 @@ TEST(LoopEquation, explicitLoops_iterationRanges)
   yIndexes.push_back(outerLoop.induction());
   yIndexes.push_back(innerLoop.induction());
 
-  mlir::Value lhs = builder.create<LoadOp>(loc, model.body().getArgument(0), xIndexes);
-  mlir::Value rhs = builder.create<LoadOp>(loc, model.body().getArgument(1), yIndexes);
+  mlir::Value lhs = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(0), xIndexes);
+  mlir::Value rhs = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(1), yIndexes);
 
   builder.create<EquationSidesOp>(loc, lhs, rhs);
 
@@ -160,33 +160,33 @@ TEST(LoopEquation, explicitLoops_accesses)
   mlir::Location loc = builder.getUnknownLoc();
 
   llvm::SmallVector<mlir::Type, 2> types;
-  types.push_back(ArrayType::get(builder.getContext(), BufferAllocationScope::heap, RealType::get(builder.getContext()), { 4, 5 }));
-  types.push_back(ArrayType::get(builder.getContext(), BufferAllocationScope::heap, RealType::get(builder.getContext()), { 6 }));
+  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 4, 5 }));
+  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 6 }));
 
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  builder.setInsertionPointToStart(&model.body().front());
+  builder.setInsertionPointToStart(model.bodyBlock());
   auto outerLoop = builder.create<ForEquationOp>(loc, 2, 5);
-  builder.setInsertionPointToStart(outerLoop.body());
+  builder.setInsertionPointToStart(outerLoop.bodyBlock());
   auto innerLoop = builder.create<ForEquationOp>(loc, 2, 4);
-  builder.setInsertionPointToStart(innerLoop.body());
+  builder.setInsertionPointToStart(innerLoop.bodyBlock());
 
   auto equationOp = builder.create<EquationOp>(loc);
-  builder.setInsertionPointToStart(equationOp.body());
+  builder.setInsertionPointToStart(equationOp.bodyBlock());
 
-  mlir::Value one = builder.create<ConstantOp>(loc, IntegerAttribute::get(builder.getContext(), 1));
+  mlir::Value one = builder.create<ConstantOp>(loc, IntegerAttr::get(builder.getContext(), 1));
   mlir::Value xFirstIndex = builder.create<SubOp>(loc, builder.getIndexType(), outerLoop.induction(), one);
 
-  mlir::Value two = builder.create<ConstantOp>(loc, IntegerAttribute::get(builder.getContext(), 2));
+  mlir::Value two = builder.create<ConstantOp>(loc, IntegerAttr::get(builder.getContext(), 2));
   mlir::Value xSecondIndex = builder.create<AddOp>(loc, builder.getIndexType(), innerLoop.induction(), two);
 
   llvm::SmallVector<mlir::Value, 3> xIndexes;
   xIndexes.push_back(xFirstIndex);
   xIndexes.push_back(xSecondIndex);
 
-  mlir::Value lhs = builder.create<LoadOp>(loc, model.body().getArgument(0), xIndexes);
-  mlir::Value rhs = builder.create<LoadOp>(loc, model.body().getArgument(1), outerLoop.induction());
+  mlir::Value lhs = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(0), xIndexes);
+  mlir::Value rhs = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(1), outerLoop.induction());
 
   builder.create<EquationSidesOp>(loc, lhs, rhs);
 
@@ -194,7 +194,7 @@ TEST(LoopEquation, explicitLoops_accesses)
   auto accesses = equation->getAccesses();
 
   auto access1 = AccessMatcher(
-      model.body().getArgument(0),
+      model.bodyRegion().getArgument(0),
       AccessFunction({
         DimensionAccess::relative(0, -1),
         DimensionAccess::relative(1, 2)
@@ -202,7 +202,7 @@ TEST(LoopEquation, explicitLoops_accesses)
       EquationPath(EquationPath::LEFT));
 
   auto access2 = AccessMatcher(
-      model.body().getArgument(1),
+      model.bodyRegion().getArgument(1),
       AccessFunction(DimensionAccess::relative(0, 0)),
       EquationPath(EquationPath::RIGHT));
 
@@ -221,18 +221,18 @@ TEST(LoopEquation, implicitLoops_iterationRanges)
   mlir::Location loc = builder.getUnknownLoc();
 
   llvm::SmallVector<mlir::Type, 2> types;
-  auto arrayType = ArrayType::get(builder.getContext(), BufferAllocationScope::heap, RealType::get(builder.getContext()), { 3, 5 });
+  auto arrayType = ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 5 });
   types.push_back(arrayType);
   types.push_back(arrayType);
 
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  builder.setInsertionPointToStart(&model.body().front());
+  builder.setInsertionPointToStart(model.bodyBlock());
   auto equationOp = builder.create<EquationOp>(builder.getUnknownLoc());
-  builder.setInsertionPointToStart(equationOp.body());
+  builder.setInsertionPointToStart(equationOp.bodyBlock());
 
-  builder.create<EquationSidesOp>(loc, model.body().getArgument(0), model.body().getArgument(1));
+  builder.create<EquationSidesOp>(loc, model.bodyRegion().getArgument(0), model.bodyRegion().getArgument(1));
 
   auto equation = Equation::build(equationOp, variables);
 
@@ -257,24 +257,24 @@ TEST(LoopEquation, implicitLoops_accesses)
   mlir::Location loc = builder.getUnknownLoc();
 
   llvm::SmallVector<mlir::Type, 2> types;
-  auto arrayType = ArrayType::get(builder.getContext(), BufferAllocationScope::heap, RealType::get(builder.getContext()), { 3, 4 });
+  auto arrayType = ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 4 });
   types.push_back(arrayType);
   types.push_back(arrayType);
 
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  builder.setInsertionPointToStart(&model.body().front());
+  builder.setInsertionPointToStart(model.bodyBlock());
   auto equationOp = builder.create<EquationOp>(builder.getUnknownLoc());
-  builder.setInsertionPointToStart(equationOp.body());
+  builder.setInsertionPointToStart(equationOp.bodyBlock());
 
-  builder.create<EquationSidesOp>(loc, model.body().getArgument(0), model.body().getArgument(1));
+  builder.create<EquationSidesOp>(loc, model.bodyRegion().getArgument(0), model.bodyRegion().getArgument(1));
 
   auto equation = Equation::build(equationOp, variables);
   auto accesses = equation->getAccesses();
 
   auto access1 = AccessMatcher(
-      model.body().getArgument(0),
+      model.bodyRegion().getArgument(0),
       AccessFunction({
           DimensionAccess::relative(0, 0),
           DimensionAccess::relative(1, 0)
@@ -282,7 +282,7 @@ TEST(LoopEquation, implicitLoops_accesses)
       EquationPath(EquationPath::LEFT));
 
   auto access2 = AccessMatcher(
-      model.body().getArgument(1),
+      model.bodyRegion().getArgument(1),
       AccessFunction({
           DimensionAccess::relative(0, 0),
           DimensionAccess::relative(1, 0)

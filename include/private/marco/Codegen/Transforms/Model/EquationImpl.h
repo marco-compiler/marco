@@ -64,6 +64,15 @@ namespace marco::codegen
           Equation& destination,
           const ::marco::modeling::AccessFunction& transformation) const = 0;
 
+      void createIterationLoops(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::ValueRange beginIndices,
+          mlir::ValueRange endIndices,
+          mlir::ValueRange steps,
+          marco::modeling::scheduling::Direction iterationDirection,
+          std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyBuilder) const;
+
       virtual mlir::LogicalResult createTemplateFunctionBody(
           mlir::OpBuilder& builder,
           mlir::BlockAndValueMapping& mapping,

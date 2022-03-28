@@ -215,14 +215,6 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
     let verifier = [{ return ::verify(*this); }];
 
     let extraClassDeclaration = [{
-        ArrayType getSourceArrayType() {
-            return source().getType().cast<ArrayType>();
-        }
-
-        ArrayType getResultArrayType() {
-            return result().getType().cast<ArrayType>();
-        }
-
         Value getViewSource() {
             return source();
         }
@@ -2070,8 +2062,8 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let results = (outs);
 
     let regions = (region
-        SizedRegion<1>:$initRegion,
-        SizedRegion<1>:$bodyRegion
+        AnyRegion:$initRegion,
+        AnyRegion:$bodyRegion
     );
 
     let printer = [{ return ::print(p, *this); }];
@@ -2156,6 +2148,30 @@ def Modelica_EquationOp : Modelica_Op<"equation",
         public:
             Block* bodyBlock();
     }];
+}
+
+def Modelica_TimeOp : Modelica_Op<"time",
+    [HasParent<"EquationOp">]>
+{
+    let summary = "Time.";
+
+    let description = [{
+        The operation represents the time of the simulation.
+    }];
+
+    let arguments = (ins);
+    let results = (outs ModelicaReal);
+
+    let assemblyFormat = [{
+        attr-dict `:` type(results)
+    }];
+
+    let builders = [
+        OpBuilder<(ins), [{
+            auto realType = RealType::get($_builder.getContext());
+            build($_builder, $_state, realType);
+        }]>
+    ];
 }
 
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",

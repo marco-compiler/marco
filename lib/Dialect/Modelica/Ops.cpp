@@ -4,16 +4,13 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
 
-using namespace ::mlir;
 using namespace ::mlir::modelica;
 
 static void populateAllocationEffects(
     mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
-    mlir::Value value,
-    bool isManuallyDeallocated = false)
+    mlir::Value value)
 {
   if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
-
     bool isStored = llvm::any_of(value.getUsers(), [&](const auto& op) {
       if (auto memberStoreOp = mlir::dyn_cast<MemberStoreOp>(op)) {
         return memberStoreOp.value() == value;
@@ -26,36 +23,7 @@ static void populateAllocationEffects(
       effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
     }
 
-    /*
-    // We need to check if there exists a clone operation with forwarding
-    // enabled and whose result is manually deallocated. If that is the
-    // case, then also the original buffer must not be deallocated, or a
-    // double free would happen.
-
-    bool isForwardedAsManuallyDeallocated = llvm::any_of(value.getUsers(), [](const auto& op) -> bool {
-      if (auto cloneOp = mlir::dyn_cast<ArrayCloneOp>(op)) {
-        return cloneOp.canSourceBeForwarded() &&
-          !mlir::cast<HeapAllocator>(cloneOp.getOperation()).shouldBeDeallocated();
-      }
-
-      return false;
-    });
-
-    if (!isManuallyDeallocated && !isForwardedAsManuallyDeallocated) {
-      // Mark the value as heap-allocated so that the deallocation pass can
-      // place the deallocation instruction.
-
-      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
-    } else {
-      // If the buffer is marked as manually deallocated, then we need to
-      // set the operation to have a generic side effect, or the CSE pass
-      // would otherwise consider all the allocations with the same
-      // structure as equal, and thus would replace all the subsequent
-      // buffers with the first allocated one.
-
-      effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
-    }
-     */
+    //effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
   }
 }
 
@@ -399,7 +367,7 @@ static void print(mlir::OpAsmPrinter& printer, ConstantOp op)
   printer << " " << op.value();
 
   // If the value is a symbol reference, print a trailing type.
-  if (op.value().isa<SymbolRefAttr>()) {
+  if (op.value().isa<mlir::SymbolRefAttr>()) {
     printer << " : " << op.getType();
   }
 }
@@ -1014,7 +982,7 @@ namespace mlir::modelica
     mlir::Value derivedSource = derivatives.lookup(value());
     mlir::Value derivedDestination = derivatives.lookup(destination());
 
-    auto derivedOp = builder.create<AssignmentOp>(loc, derivedSource, derivedDestination);
+    auto derivedOp = builder.create<AssignmentOp>(loc, derivedDestination, derivedSource);
     return llvm::None;
   }
 
@@ -1058,9 +1026,7 @@ namespace mlir::modelica
 
   void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    //bool shouldBeDeallocated = mlir::cast<HeapAllocator>(getOperation()).shouldBeDeallocated();
-    //populateAllocationEffects(effects, getResult(), !shouldBeDeallocated);
-    populateAllocationEffects(effects, getResult(), true);
+    populateAllocationEffects(effects, getResult());
   }
 
   mlir::ValueRange AllocOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)

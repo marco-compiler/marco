@@ -285,7 +285,7 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 						[&rewriter, reference](MemberStoreOp storeOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
 							rewriter.setInsertionPoint(storeOp);
-							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), reference);
+							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, reference, storeOp.value());
 						});
 			}
 
@@ -310,7 +310,7 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 						[&rewriter, reference](MemberStoreOp storeOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
 							rewriter.setInsertionPoint(storeOp);
-							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), reference);
+							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, reference, storeOp.value());
 						});
 			}
 
@@ -2452,10 +2452,10 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(forLoop.getBody());
 			mlir::Value next = rewriter.create<MulOp>(loc, intermediateResultType, current, op.base());
-			rewriter.create<AssignmentOp>(loc, next, current);
+			rewriter.create<AssignmentOp>(loc, current, next);
 		}
 
-		rewriter.create<AssignmentOp>(loc, current, result);
+		rewriter.create<AssignmentOp>(loc, result, current);
 		return mlir::success();
 	}
 };

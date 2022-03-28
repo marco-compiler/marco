@@ -86,7 +86,7 @@ namespace marco::codegen::lowering
       mlir::Value result = builder().create<MulOp>(loc, resultType, args[0], args[1]);
 
       for (size_t i = 2; i < args.size(); ++i) {
-        result = builder().create<AddOp>(loc, resultType, result, args[i]);
+        result = builder().create<MulOp>(loc, resultType, result, args[i]);
       }
 
       return Reference::ssa(&builder(), result);

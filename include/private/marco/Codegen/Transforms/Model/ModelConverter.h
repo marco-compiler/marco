@@ -15,15 +15,7 @@ namespace marco::codegen
 {
   class ModelConverter
   {
-    private:
-      static constexpr size_t timeVariablePosition = 0;
-
-      // The derivatives map keeps track of whether a variable is the derivative
-      // of another one. Each variable is identified by its position within the
-      // list of the "body" region arguments.
-
-      using DerivativesPositionsMap = std::map<size_t, size_t>;
-
+    public:
       // Name for the functions of the simulation
       static constexpr llvm::StringLiteral mainFunctionName = "main";
       static constexpr llvm::StringLiteral initFunctionName = "init";
@@ -34,6 +26,17 @@ namespace marco::codegen
       static constexpr llvm::StringLiteral printFunctionName = "print";
       static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
       static constexpr llvm::StringLiteral runFunctionName = "runSimulation";
+
+    private:
+      static constexpr size_t externalSolversPosition = 0;
+      static constexpr size_t timeVariablePosition = 1;
+      static constexpr size_t variablesOffset = 2;
+
+      // The derivatives map keeps track of whether a variable is the derivative
+      // of another one. Each variable is identified by its position within the
+      // list of the "body" region arguments.
+
+      using DerivativesPositionsMap = std::map<size_t, size_t>;
 
       struct ConversionInfo
       {
@@ -71,14 +74,18 @@ namespace marco::codegen
       mlir::LogicalResult createMainFunction(
           mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const;
 
+      mlir::LLVM::LLVMStructType getRuntimeDataStructType(
+          mlir::MLIRContext* context, const ExternalSolvers& externalSolvers, mlir::TypeRange varTypes) const;
+
       /// Load the data structure from the opaque pointer that is passed around the
       /// simulation functions.
       ///
-      /// @param builder	 operation builder
-      /// @param ptr 	     opaque pointer
-      /// @param varTypes  types of the variables
+      /// @param builder	    operation builder
+      /// @param ptr 	        opaque pointer
+      /// @param runtimeData  type of the runtime data structure
       /// @return data structure containing the variables
-      mlir::Value loadDataFromOpaquePtr(mlir::OpBuilder& builder, mlir::Value ptr, mlir::TypeRange varTypes) const;
+      mlir::Value loadDataFromOpaquePtr(
+          mlir::OpBuilder& builder, mlir::Value ptr, mlir::LLVM::LLVMStructType runtimeData) const;
 
       /// Extract a value from the data structure shared between the various
       /// simulation main functions.
@@ -108,7 +115,8 @@ namespace marco::codegen
       /// Create a function to be called when the simulation has finished and the
       /// variables together with its data structure are not required anymore and
       /// thus can be deallocated.
-      mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+      mlir::LogicalResult createDeinitFunction(
+          mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, ExternalSolvers& externalSolvers) const;
 
       mlir::FuncOp createEquationFunction(
           mlir::OpBuilder& builder,
@@ -127,11 +135,15 @@ namespace marco::codegen
       /// Create the functions that calculates the values that the state variables will have
       /// in the next iteration.
       mlir::LogicalResult createUpdateStateVariablesFunction(
-          mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesPositionsMap& derivatives) const;
+          mlir::OpBuilder& builder,
+          mlir::modelica::ModelOp modelOp,
+          const DerivativesPositionsMap& derivatives,
+          ExternalSolvers& externalSolvers) const;
 
       mlir::LogicalResult createIncrementTimeFunction(
           mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model) const;
+          const Model<ScheduledEquationsBlock>& model,
+          ExternalSolvers& externalSolvers) const;
 
       void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const;
 
@@ -151,10 +163,8 @@ namespace marco::codegen
       void printVariableName(
           mlir::OpBuilder& builder,
           mlir::Value name,
-          mlir::Type type,
+          mlir::Value value,
           VariableFilter::Filter filter,
-          std::function<mlir::Value()> structValue,
-          unsigned int position,
           mlir::ModuleOp module,
           mlir::Value separator,
           bool shouldPreprendSeparator = true) const;
@@ -169,10 +179,8 @@ namespace marco::codegen
       void printArrayVariableName(
           mlir::OpBuilder& builder,
           mlir::Value name,
-          mlir::Type type,
+          mlir::Value value,
           VariableFilter::Filter filter,
-          std::function<mlir::Value()> structValue,
-          unsigned int position,
           mlir::ModuleOp module,
           mlir::Value separator,
           bool shouldPrependSeparator) const;
@@ -180,7 +188,8 @@ namespace marco::codegen
       mlir::LogicalResult createPrintHeaderFunction(
           mlir::OpBuilder& builder,
           mlir::modelica::ModelOp op,
-          DerivativesPositionsMap& derivativesPositions) const;
+          DerivativesPositionsMap& derivativesPositions,
+          ExternalSolvers& externalSolvers) const;
 
       void printVariable(
           mlir::OpBuilder& builder,
@@ -204,15 +213,17 @@ namespace marco::codegen
       mlir::LogicalResult createPrintFunction(
           mlir::OpBuilder& builder,
           mlir::modelica::ModelOp op,
-          DerivativesPositionsMap& derivativesPositions) const;
+          DerivativesPositionsMap& derivativesPositions,
+          ExternalSolvers& externalSolvers) const;
 
       mlir::LogicalResult createPrintFunctionBody(
           mlir::OpBuilder& builder,
           mlir::modelica::ModelOp op,
           mlir::TypeRange varTypes,
           DerivativesPositionsMap& derivativesPositions,
+          ExternalSolvers& externalSolvers,
           llvm::StringRef functionName,
-          std::function<mlir::LogicalResult(std::function<mlir::Value()>, llvm::StringRef, unsigned int, VariableFilter::Filter, mlir::Value)> elementCallback) const;
+          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, VariableFilter::Filter, mlir::Value, size_t)> elementCallback) const;
 
     private:
       SolveModelOptions options;
