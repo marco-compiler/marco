@@ -8,6 +8,20 @@
 #endif
 #include <cassert>
 
+#ifdef MSVC_BUILD
+void __stdcall raise_handler(const std::exception&)
+{
+  return;
+}
+
+void(__stdcall* std::_Raise_handler)(const std::exception&) = raise_handler;
+
+void __cdecl std::_Xlength_error(char const*)
+{
+  return;
+}
+#endif
+
 //===----------------------------------------------------------------------===//
 // clone
 //===----------------------------------------------------------------------===//

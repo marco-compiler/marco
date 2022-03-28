@@ -10,6 +10,14 @@ extern "C" int __main()
 	return 0;
 }
 
+extern "C" void main();
+
+extern "C" void mainCRTStartup()
+{
+  main();
+  return;
+}
+
 BOOL WINAPI DllMain(
     HINSTANCE hinstDLL,
     DWORD fdwReason,
@@ -118,7 +126,6 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 	return dstpp;
 }
 
-#ifndef MSVC_BUILD
 void* memset(void* s, int c,  size_t len)
 {
 	size_t i = 0;
@@ -131,14 +138,11 @@ void* memset(void* s, int c,  size_t len)
 	}
     return s;
 }
-#endif
 
 void runtimeMemset(char *p, char c, int l)
 {
-	#ifndef MSVC_BUILD
 	for(int i = 0; i < l; i++)
 		*(p + i) = '0';
-	#endif
 }
 
 #ifndef MSVC_BUILD
