@@ -892,7 +892,7 @@ class ModelConverter
       auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
 
       // Insert the printf function into the body of the parent module
-      return getOrInsertFunction(builder, module, "printf", llvmFnType);
+      return getOrInsertFunction(builder, module, "runtimePrintf", llvmFnType);
     }
 
     void printVariableName(
