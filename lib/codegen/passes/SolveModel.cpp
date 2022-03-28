@@ -892,7 +892,11 @@ class ModelConverter
       auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
 
       // Insert the printf function into the body of the parent module
+      #ifdef WINDOWS_NOSTDLIB
       return getOrInsertFunction(builder, module, "runtimePrintf", llvmFnType);
+      #else
+      return getOrInsertFunction(builder, module, "printf", llvmFnType);
+      #endif
     }
 
     void printVariableName(
