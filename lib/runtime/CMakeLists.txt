@@ -52,7 +52,7 @@ target_compile_options(runtime PRIVATE "/Oi-")
 target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 elseif(MINGW)
 # -fno-strict-aliasing needed for fdlibm
-target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-g" PRIVATE "-O0" PRIVATE "/Oi-")
+target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-g" PRIVATE "-O0")
 target_link_options(runtime PRIVATE "-nostdlib")
 endif()
 

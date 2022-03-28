@@ -6,11 +6,10 @@
 
 extern "C" int __main()
 {
-	//runSimulation();
 	return 0;
 }
 
-extern "C" void main();
+extern "C" int main();
 
 extern "C" void mainCRTStartup()
 {
