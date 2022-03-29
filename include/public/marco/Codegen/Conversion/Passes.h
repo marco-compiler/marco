@@ -14,7 +14,6 @@ namespace marco::codegen
 	{
 		registerLowerToCFGPass();
 		registerLLVMLoweringPass();
-		registerFunctionConversionPass();
 		registerIDAConversionPass();
 		registerModelicaConversionPass();
 		registerLowerToCFGPass();

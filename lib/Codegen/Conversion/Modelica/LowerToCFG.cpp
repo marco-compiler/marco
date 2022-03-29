@@ -185,7 +185,6 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           [&builder, reference](MemberStoreOp storeOp) -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
             copyArray(builder, storeOp.getLoc(), storeOp.value(), reference);
-            builder.create<FreeOp>(storeOp.getLoc(), storeOp.value());
             storeOp->erase();
             return mlir::success();
           });

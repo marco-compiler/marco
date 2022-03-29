@@ -6,7 +6,7 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
-#include "marco/Codegen/Transforms/FunctionsVectorization.h"
+#include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
 
 namespace marco::codegen
@@ -16,7 +16,7 @@ namespace marco::codegen
     registerArrayDeallocationPass();
 		registerAutomaticDifferentiationPass();
 		registerExplicitCastInsertionPass();
-		registerFunctionsVectorizationPass();
+		registerFunctionScalarizationPass();
 		registerSolveModelPass();
 	}
 }

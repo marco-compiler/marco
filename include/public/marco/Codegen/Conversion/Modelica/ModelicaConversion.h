@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MARCO_CODEN_CONVERSION_MODELICA_MODELICACONVERSION_H
+#define MARCO_CODEN_CONVERSION_MODELICA_MODELICACONVERSION_H
 
 #include "mlir/Pass/Pass.h"
 
@@ -14,19 +15,6 @@ namespace marco::codegen
 			return options;
 		}
 	};
-
-	/**
-	 * Convert the Modelica functions into functions of the built-in dialect.
-	 */
-	std::unique_ptr<mlir::Pass> createFunctionConversionPass();
-
-	inline void registerFunctionConversionPass()
-	{
-		mlir::registerPass("convert-modelica-functions", "Modelica: functions lowering",
-											 []() -> std::unique_ptr<::mlir::Pass> {
-												 return createFunctionConversionPass();
-											 });
-	}
 
 	/**
 	 * Create a pass to convert Modelica operations to a mix of Std,
@@ -47,3 +35,5 @@ namespace marco::codegen
 											 });
 	}
 }
+
+#endif // MARCO_CODEN_CONVERSION_MODELICA_MODELICACONVERSION_H

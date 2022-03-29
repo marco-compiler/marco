@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MARCO_CODEN_CONVERSION_MODELICA_LOWERTOLLVM_H
+#define MARCO_CODEN_CONVERSION_MODELICA_LOWERTOLLVM_H
 
 #include "mlir/Pass/Pass.h"
 
@@ -27,3 +28,5 @@ namespace marco::codegen
 											 });
 	}
 }
+
+#endif // MARCO_CODEN_CONVERSION_MODELICA_LOWERTOLLVM_H

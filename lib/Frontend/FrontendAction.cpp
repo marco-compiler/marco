@@ -208,10 +208,10 @@ namespace marco::frontend
     modelSolvingOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
     passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createSolveModelPass(modelSolvingOptions));
 
-    // Functions vectorization pass
-    codegen::FunctionsVectorizationOptions functionsVectorizationOptions;
-    functionsVectorizationOptions.assertions = ci.getCodegenOptions().assertions;
-    passManager.addPass(codegen::createFunctionsVectorizationPass(functionsVectorizationOptions));
+    // Functions scalarization pass
+    codegen::FunctionScalarizationOptions functionScalarizationOptions;
+    functionScalarizationOptions.assertions = ci.getCodegenOptions().assertions;
+    passManager.addPass(codegen::createFunctionScalarizationPass(functionScalarizationOptions));
 
     // Insert explicit casts where needed
     passManager.addPass(codegen::createExplicitCastInsertionPass());

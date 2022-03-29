@@ -221,43 +221,11 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
     }];
 }
 
-def Modelica_ArrayCloneOp : Modelica_Op<"array_clone",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<HeapAllocator>]>
-{
-    let summary = "Create a clone of an array.";
-
-    let description = [{
-        Create an array with the same dimensions of the source one
-        and copy its values. The allocation scope may be different
-        between them.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x!modelica.real>
-        %1 = modelica.array_clone %0 : !modelica.array<stack, 3x!modelica.real> -> !modelica.array<heap, 3x!modelica.real>
-        ```
-    }];
-
-    let arguments = (ins AnyArray:$source);
-    let results = (outs AnyArray:$result);
-
-    let assemblyFormat = [{
-        $source attr-dict `:` type($source) `->` type($result)
-    }];
-
-    let verifier = [{ return ::verify(*this); }];
-
-    let extraClassDeclaration = [{
-        bool canSourceBeForwarded() const;
-    }];
-}
-
 def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
     [TypesMatchWith<"type of 'value' matches element type of 'array'",
                     "array", "value",
-                    "$_self.cast<ArrayType>().getElementType()">]>
+                    "$_self.cast<ArrayType>().getElementType()">,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Fill an array with a value";
 
@@ -500,7 +468,7 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 //===----------------------------------------------------------------------===//
 
 def Modelica_MemberCreateOp : Modelica_Op<"member_create",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> // TODO ?
 {
     let summary = "Declare a member of a class.";
 
@@ -554,7 +522,7 @@ def Modelica_MemberLoadOp : Modelica_Op<"member_load",
     [TypesMatchWith<"result type matches the type wrapped by 'member'",
                           "member", "result",
                           "$_self.cast<MemberType>().unwrap()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>, // TODO ?
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Load the data held by a class member.";
@@ -588,7 +556,7 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
     [TypesMatchWith<"value type matches the type wrapped by 'member'",
                                "member", "value",
                                "$_self.cast<MemberType>().unwrap()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>, // TODO ?
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Store data into a class member.";
@@ -1198,7 +1166,8 @@ def Modelica_OrOp : Modelica_Op<"or",
 //===----------------------------------------------------------------------===//
 
 def Modelica_AbsOp : Modelica_Op<"abs",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
     let summary = "Compute the absolute value.";
 
@@ -1224,7 +1193,8 @@ def Modelica_AbsOp : Modelica_Op<"abs",
 }
 
 def Modelica_AcosOp : Modelica_Op<"acos",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Trigonometric inverse cosine function.";
@@ -1251,7 +1221,8 @@ def Modelica_AcosOp : Modelica_Op<"acos",
 }
 
 def Modelica_AsinOp : Modelica_Op<"asin",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Trigonometric inverse sine function";
@@ -1278,7 +1249,8 @@ def Modelica_AsinOp : Modelica_Op<"asin",
 }
 
 def Modelica_AtanOp : Modelica_Op<"atan",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Trigonometric inverse tangent function.";
@@ -1305,7 +1277,8 @@ def Modelica_AtanOp : Modelica_Op<"atan",
 }
 
 def Modelica_Atan2Op : Modelica_Op<"atan2",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Four quadrant inverse tangent function.";
@@ -1334,7 +1307,8 @@ def Modelica_Atan2Op : Modelica_Op<"atan2",
 }
 
 def Modelica_CosOp : Modelica_Op<"cos",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Trigonometric cosine function.";
@@ -1361,7 +1335,8 @@ def Modelica_CosOp : Modelica_Op<"cos",
 }
 
 def Modelica_CoshOp : Modelica_Op<"cosh",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Hyperbolic cosine function.";
@@ -1415,7 +1390,8 @@ def Modelica_DiagonalOp : Modelica_Op<"diagonal",
 }
 
 def Modelica_ExpOp : Modelica_Op<"exp",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Base 'e' exponential function.";
@@ -1492,7 +1468,8 @@ def Modelica_LinspaceOp : Modelica_Op<"linspace",
 }
 
 def Modelica_LogOp : Modelica_Op<"log",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Natural (base e) logarithm function.";
@@ -1519,7 +1496,8 @@ def Modelica_LogOp : Modelica_Op<"log",
 }
 
 def Modelica_Log10Op : Modelica_Op<"log10",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Base 10 logarithm function.";
@@ -1702,7 +1680,8 @@ def Modelica_ProductOp : Modelica_Op<"product", []>
 }
 
 def Modelica_SignOp : Modelica_Op<"sign",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>]>
 {
     let summary = "Get an integer representing the sign of a value.";
 
@@ -1729,7 +1708,8 @@ def Modelica_SignOp : Modelica_Op<"sign",
 }
 
 def Modelica_SinOp : Modelica_Op<"sin",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Trigonometric sine function.";
@@ -1752,7 +1732,8 @@ def Modelica_SinOp : Modelica_Op<"sin",
 }
 
 def Modelica_SinhOp : Modelica_Op<"sinh",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Hyperbolic sine function.";
@@ -1825,7 +1806,8 @@ def Modelica_SizeOp : Modelica_Op<"size",
 }
 
 def Modelica_SqrtOp : Modelica_Op<"sqrt",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Square root.";
@@ -1909,7 +1891,8 @@ def Modelica_SymmetricOp : Modelica_Op<"symmetric",
 }
 
 def Modelica_TanOp : Modelica_Op<"tan",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Trigonometric tangent function.";
@@ -1936,7 +1919,8 @@ def Modelica_TanOp : Modelica_Op<"tan",
 }
 
 def Modelica_TanhOp : Modelica_Op<"tanh",
-    [DeclareOpInterfaceMethods<VectorizableOpInterface>,
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<VectorizableOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Hyperbolic tangent function.";
@@ -1962,7 +1946,8 @@ def Modelica_TanhOp : Modelica_Op<"tanh",
     let verifier = [{ return ::verify(*this); }];
 }
 
-def Modelica_TransposeOp : Modelica_Op<"transpose", []>
+def Modelica_TransposeOp : Modelica_Op<"transpose",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Matrix transposition.";
 
@@ -2682,7 +2667,8 @@ def Modelica_CastOp : Modelica_Op<"cast", []>
     }];
 }
 
-def Modelica_PrintOp : Modelica_Op<"print", []>
+def Modelica_PrintOp : Modelica_Op<"print",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Print a value to the standard output.";
 

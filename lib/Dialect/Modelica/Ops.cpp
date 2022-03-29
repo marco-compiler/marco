@@ -6,27 +6,6 @@
 
 using namespace ::mlir::modelica;
 
-static void populateAllocationEffects(
-    mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
-    mlir::Value value)
-{
-  if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
-    bool isStored = llvm::any_of(value.getUsers(), [&](const auto& op) {
-      if (auto memberStoreOp = mlir::dyn_cast<MemberStoreOp>(op)) {
-        return memberStoreOp.value() == value;
-      }
-
-      return false;
-    });
-
-    if (!isStored) {
-      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
-    }
-
-    //effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
-  }
-}
-
 static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 {
   if (auto arrayType = operand.getType().dyn_cast<ArrayType>(); arrayType && arrayType.getRank() == 0) {
@@ -38,8 +17,9 @@ static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 
 static mlir::Type convertToRealType(mlir::Type type)
 {
-  if (auto arrayType = type.dyn_cast<ArrayType>())
+  if (auto arrayType = type.dyn_cast<ArrayType>()) {
     return arrayType.toElementType(RealType::get(type.getContext()));
+  }
 
   return RealType::get(type.getContext());
 }
@@ -100,11 +80,6 @@ static mlir::LogicalResult verify(AndOp op)
 }
 
 static mlir::LogicalResult verify(ArrayCastOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ArrayCloneOp op)
 {
   return mlir::success();
 }
@@ -636,6 +611,18 @@ namespace mlir::modelica
   // SqrtOp
   //===----------------------------------------------------------------------===//
 
+  void SqrtOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
   mlir::ValueRange SqrtOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     // TODO
@@ -1002,7 +989,9 @@ namespace mlir::modelica
 
   void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    populateAllocationEffects(effects, getResult());
+    if (auto arrayType = getResult().getType().dyn_cast<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+    }
   }
 
   mlir::ValueRange AllocaOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -1026,7 +1015,9 @@ namespace mlir::modelica
 
   void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    populateAllocationEffects(effects, getResult());
+    if (auto arrayType = getResult().getType().dyn_cast<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
   }
 
   mlir::ValueRange AllocOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -1057,6 +1048,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // AbsOp
   //===----------------------------------------------------------------------===//
+
+  void AbsOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange AbsOp::getArgs()
   {
@@ -1089,6 +1092,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // AcosOp
   //===----------------------------------------------------------------------===//
+
+  void AcosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange AcosOp::getArgs()
   {
@@ -1161,9 +1176,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -1305,9 +1319,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -1447,41 +1460,27 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
   //===----------------------------------------------------------------------===//
-  // ArrayCastOp
-  //===----------------------------------------------------------------------===//
-
-  //===----------------------------------------------------------------------===//
-  // ArrayCloneOp
-  //===----------------------------------------------------------------------===//
-
-  bool ArrayCloneOp::canSourceBeForwarded() const
-  {
-    return false;
-  }
-
-  void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-
-  }
-
-  /*
-  bool ArrayCloneOp::canSourceBeForwarded()
-  {
-    return Adaptor(*this).canSourceBeForwarded();
-  }
-   */
-
-  //===----------------------------------------------------------------------===//
   // AsinOp
   //===----------------------------------------------------------------------===//
+
+  void AsinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange AsinOp::getArgs()
   {
@@ -1543,6 +1542,18 @@ namespace mlir::modelica
   // AtanOp
   //===----------------------------------------------------------------------===//
 
+  void AtanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
   mlir::ValueRange AtanOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -1602,6 +1613,22 @@ namespace mlir::modelica
   // Atan2Op
   //===----------------------------------------------------------------------===//
 
+  void Atan2Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (y().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), y(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (x().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), x(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
   mlir::ValueRange Atan2Op::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -1639,6 +1666,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // CosOp
   //===----------------------------------------------------------------------===//
+
+  void CosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange CosOp::getArgs()
   {
@@ -1697,6 +1736,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // CoshOp
   //===----------------------------------------------------------------------===//
+
+  void CoshOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange CoshOp::getArgs()
   {
@@ -1757,8 +1808,8 @@ namespace mlir::modelica
   void DiagonalOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), values(), mlir::SideEffects::DefaultResource::get());
-    populateAllocationEffects(effects, getResult());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), result(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -1775,9 +1826,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -1946,9 +1996,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -2107,6 +2156,18 @@ namespace mlir::modelica
   // ExpOp
   //===----------------------------------------------------------------------===//
 
+  void ExpOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (exponent().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
   mlir::ValueRange ExpOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -2211,8 +2272,8 @@ namespace mlir::modelica
 
   void IdentityOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    populateAllocationEffects(effects, result());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), result(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -2268,7 +2329,7 @@ namespace mlir::modelica
 
   void LinspaceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    populateAllocationEffects(effects, getResult());
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
 
@@ -2300,6 +2361,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // LogOp
   //===----------------------------------------------------------------------===//
+
+  void LogOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange LogOp::getArgs()
   {
@@ -2354,6 +2427,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // Log10Op
   //===----------------------------------------------------------------------===//
+
+  void Log10Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange Log10Op::getArgs()
   {
@@ -2423,10 +2508,9 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Write::get(), result(), mlir::SideEffects::DefaultResource::get());
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
@@ -2589,9 +2673,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -2753,9 +2836,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -2881,10 +2963,9 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Write::get(), result(), mlir::SideEffects::DefaultResource::get());
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
@@ -2894,7 +2975,7 @@ namespace mlir::modelica
 
   void OnesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    populateAllocationEffects(effects, getResult());
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
 
@@ -2912,9 +2993,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -2933,9 +3013,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -2987,9 +3066,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -3031,6 +3109,18 @@ namespace mlir::modelica
   // SignOp
   //===----------------------------------------------------------------------===//
 
+  void SignOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
   mlir::ValueRange SignOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -3060,6 +3150,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // SinOp
   //===----------------------------------------------------------------------===//
+
+  void SinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange SinOp::getArgs()
   {
@@ -3114,6 +3216,18 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // SinhOp
   //===----------------------------------------------------------------------===//
+
+  void SinhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange SinhOp::getArgs()
   {
@@ -3174,10 +3288,10 @@ namespace mlir::modelica
   void SizeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), array(), mlir::SideEffects::DefaultResource::get());
-    populateAllocationEffects(effects, result());
 
-    if (result().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Write::get(), result(), mlir::SideEffects::DefaultResource::get());
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
@@ -3255,9 +3369,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -3399,9 +3512,8 @@ namespace mlir::modelica
       effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    populateAllocationEffects(effects, getResult());
-
-    if (result().getType().isa<ArrayType>()) {
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
       effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     }
   }
@@ -3555,14 +3667,25 @@ namespace mlir::modelica
   void SymmetricOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Read::get(), matrix(), mlir::SideEffects::DefaultResource::get());
-    populateAllocationEffects(effects, getResult());
-    assert(getResult().getType().isa<ArrayType>());
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
   // TanOp
   //===----------------------------------------------------------------------===//
+
+  void TanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
 
   mlir::ValueRange TanOp::getArgs()
   {
@@ -3623,6 +3746,18 @@ namespace mlir::modelica
   // TanhOp
   //===----------------------------------------------------------------------===//
 
+  void TanhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (operand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
   mlir::ValueRange TanhOp::getArgs()
   {
     return mlir::ValueRange(getOperation()->getOperands());
@@ -3678,6 +3813,22 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // TransposeOp
+  //===----------------------------------------------------------------------===//
+
+  void TransposeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (matrix().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), matrix(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
+  //===----------------------------------------------------------------------===//
   // WhileOp
   //===----------------------------------------------------------------------===//
 
@@ -3702,7 +3853,29 @@ namespace mlir::modelica
 
   void ZerosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    populateAllocationEffects(effects, getResult());
+    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // ArrayFillOp
+  //===----------------------------------------------------------------------===//
+
+  void ArrayFillOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (array().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), array(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
+  //===----------------------------------------------------------------------===//
+  // PrintOp
+  //===----------------------------------------------------------------------===//
+
+  void PrintOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (value().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
+    }
   }
 }

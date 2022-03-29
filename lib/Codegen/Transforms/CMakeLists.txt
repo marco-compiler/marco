@@ -18,7 +18,7 @@ set(SOURCES
     ArrayDeallocation.cpp
     AutomaticDifferentiation.cpp
     ExplicitCastInsertion.cpp
-    FunctionsVectorization.cpp)
+    FunctionScalarization.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
