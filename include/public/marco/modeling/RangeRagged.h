@@ -15,8 +15,8 @@ namespace marco::modeling
         using RaggedPtr = std::unique_ptr<Ragged>;
         
         RaggedValue(data_type value = 0): value(value){}
-        RaggedValue(const Container<RaggedValue> &ragged)
-            : value(std::make_unique<Ragged>(ragged)){}
+        RaggedValue(llvm::ArrayRef<RaggedValue> ragged)
+            : value(std::make_unique<Ragged>(ragged.begin(),ragged.end())){}
 
         RaggedValue(std::initializer_list<RaggedValue> list)
             : value(std::make_unique<Ragged>(list.begin(),list.end())){}
@@ -76,9 +76,12 @@ namespace marco::modeling
         {
             return std::get<data_type>(value);
         }
+
     private:
         std::variant<data_type, RaggedPtr> value;
     };
+    
+    extern std::string toString(const RaggedValue &value);
 
 
     struct RangeRagged{
@@ -246,4 +249,5 @@ namespace marco::modeling
         std::variant<Range, RaggedPtr> value;
     };
 
+    extern std::string toString(const RangeRagged& value);
 }	 // namespace marco

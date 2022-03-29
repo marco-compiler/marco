@@ -465,4 +465,41 @@ namespace marco::modeling
     // return std::vector<RangeRagged>();
   }
 
+  std::string toString(const RaggedValue &value)
+  {
+    if(value.isRagged())
+    {
+      std::string separator;
+      std::string s = "{";
+      for(auto r: value.asRagged())
+      {
+        s += separator + toString(r);
+        separator=", ";
+      }
+      return s + "}";
+    }
+    return std::to_string(value.asValue());
+  }
+
+  std::string toString(const RangeRagged& value)
+  {
+    if (value.isRagged()) {
+      std::string out = "{";
+      std::string pre = "";
+      for (auto r : value.asRagged()) {
+        out += pre + toString(r);
+        pre = ", ";
+      }
+      out += "}";
+      return out;
+    }
+
+    auto min = value.asValue().getBegin();
+    auto max = value.asValue().getEnd();
+
+    return "[" + std::to_string(min) + "," + std::to_string(max) + "]";
+  }
+
+
+
 }// namespace marco::modeling

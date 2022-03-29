@@ -336,7 +336,7 @@ namespace marco::modeling
       llvm::SmallVector<llvm::SmallVector<RangeRagged, 2>>& results,
       llvm::ArrayRef<RangeRagged> a)
   {
-    for (auto index : irange((size_t) 1, a.size())) {
+    for (auto index : irange((size_t) 1, std::max((size_t)1,a.size()))) {
 
       if (a[index].isRagged()) {
         auto pre = a[index - 1].asValue();
@@ -554,25 +554,6 @@ namespace marco::modeling
     return false;
   }
 
-  std::string toString(const RangeRagged& value)
-  {
-    if (value.isRagged()) {
-      std::string out = "{";
-      std::string pre = "";
-      for (auto r : value.asRagged()) {
-        out += pre + toString(r);
-        pre = ", ";
-      }
-      out += "}";
-      return out;
-    }
-
-    auto min = value.asValue().getBegin();
-    auto max = value.asValue().getEnd();
-
-    return "[" + std::to_string(min) + "," + std::to_string(max) + "]";
-  }
-
   std::string toString(const MultidimensionalRangeRagged& value)
   {
     std::string out;
@@ -699,6 +680,45 @@ namespace marco::modeling
       index = 0;
     }
     end = true;
+  }
+
+  RangeRagged getRangeFromDimensionSize(const Shape::DimensionSize &dimension)
+  {
+    if(dimension.isRagged())
+    {
+      llvm::SmallVector<RangeRagged,3> arr;
+
+      for(const auto r : dimension.asRagged()){
+        arr.push_back(getRangeFromDimensionSize(r));
+      }
+      return RangeRagged(arr);
+    }
+    
+    return RangeRagged(0,dimension.getNumericValue());
+  }
+
+  IndexSet getIndexSetFromRaggedRange(const MultidimensionalRangeRagged& range)
+  {
+    IndexSet set;
+    auto ranges = range.toMultidimensionalRanges();
+
+    for(auto r:ranges)
+      set += r;
+
+    return set;
+  }
+
+  IndexSet getIndexSetFromShape(const Shape& shape)
+  {
+    llvm::SmallVector<RangeRagged,3> ranges;
+    for(auto dim: shape.dimensions())
+    {
+      ranges.push_back(getRangeFromDimensionSize(dim));
+    }
+
+    MultidimensionalRangeRagged multi(std::move(ranges));
+
+    return getIndexSetFromRaggedRange(multi);
   }
 
 }// namespace marco::modeling

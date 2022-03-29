@@ -1,6 +1,8 @@
 #pragma once
 #include "marco/modeling/MultidimensionalRange.h"
 #include "marco/modeling/RangeRagged.h"
+#include "marco/modeling/IndexSet.h"
+#include "marco/utils/Shape.h"
 
 #include <vector>
 
@@ -36,12 +38,12 @@ namespace marco::modeling
         void updatePoint();
         void calculateRaggedStart();
 
+        const MultidimensionalRangeRagged *container;
+
         llvm::SmallVector<size_t, 3> indexes;
         llvm::SmallVector<Point::data_type, 3> point;
         size_t raggedStart;
         bool end = false;
-
-        const MultidimensionalRangeRagged *container;
     };
   
     using const_iterator = MultidimensionalRangeRaggedIterator;
@@ -110,7 +112,9 @@ namespace marco::modeling
 
   [[nodiscard]] bool areDisjoint(const RangeRagged& left, const RangeRagged& right);
 
-  extern std::string toString(const RangeRagged& value);
   extern std::string toString(const MultidimensionalRangeRagged& value);
+
+  extern IndexSet getIndexSetFromRaggedRange(const MultidimensionalRangeRagged& range);
+  extern IndexSet getIndexSetFromShape(const Shape& shape);
 
 }// namespace marco::modeling
