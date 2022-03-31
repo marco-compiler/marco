@@ -8,6 +8,7 @@
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"
+#include "marco/Codegen/Transforms/OpDistribution.h"
 
 namespace marco::codegen
 {
@@ -18,6 +19,11 @@ namespace marco::codegen
 		registerExplicitCastInsertionPass();
 		registerFunctionScalarizationPass();
 		registerSolveModelPass();
+
+    // Debug transformations
+    registerNegateOpDistributionPass();
+    registerMulOpDistributionPass();
+    registerDivOpDistributionPass();
 	}
 }
 
