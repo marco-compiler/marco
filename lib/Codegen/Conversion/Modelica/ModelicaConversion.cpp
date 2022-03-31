@@ -1184,7 +1184,7 @@ namespace
       mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
       mlir::Value upperBound = rewriter.create<DimOp>(loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
       mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
-      mlir::Value init = rewriter.create<mlir::ConstantOp>(loc, getZeroAttr(resultArrayType.getElementType()));
+      mlir::Value init = rewriter.create<ConstantOp>(loc, getZeroAttr(resultArrayType.getElementType()));
 
       auto innerLoop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step, init);
       rewriter.setInsertionPointToStart(innerLoop.getBody());
@@ -1649,12 +1649,17 @@ namespace
       // Allocate the result array
       auto resultArrayType = op.getResult().getType().cast<ArrayType>();
       auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.base());
-      mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
+      mlir::Value one = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
       mlir::Value size = rewriter.create<DimOp>(loc, op.base(), one);
       mlir::Value result = rewriter.replaceOpWithNewOp<IdentityOp>(op, resultArrayType, size);
 
       // Compute the result
       mlir::Value exponent = rewriter.create<CastOp>(loc, rewriter.getIndexType(), op.exponent());
+
+      exponent = rewriter.create<mlir::AddIOp>(
+          loc, rewriter.getIndexType(), exponent,
+          rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1)));
+
       mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
       mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 

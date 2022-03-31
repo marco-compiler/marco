@@ -371,14 +371,62 @@ static void print(mlir::OpAsmPrinter& printer, ModelOp op)
 
 static mlir::ParseResult parseFunctionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-  // TODO
+  auto& builder = parser.getBuilder();
+  mlir::StringAttr nameAttr;
+
+  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
+    return mlir::failure();
+  }
+
+  llvm::SmallVector<mlir::Type, 3> argsTypes;
+  llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+  if (parser.parseColon() ||
+      parser.parseLParen()) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(parser.parseOptionalRParen())) {
+    if (parser.parseTypeList(argsTypes) ||
+        parser.parseRParen()) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseArrow() ||
+      parser.parseLParen()) {
+    return mlir::failure();
+  }
+
+  if (mlir::failed(parser.parseOptionalRParen())) {
+    if (parser.parseTypeList(resultsTypes) ||
+        parser.parseRParen()) {
+      return mlir::failure();
+    }
+  }
+
+  auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
+  result.attributes.append("type", mlir::TypeAttr::get(functionType));
+
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+    return mlir::failure();
+  }
+
+  mlir::Region* bodyRegion = result.addRegion();
+
+  if (parser.parseRegion(*bodyRegion, llvm::None, llvm::None)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
 }
 
 static void print(mlir::OpAsmPrinter& printer, FunctionOp op)
 {
   printer << op.getOperationName() << " ";
   printer.printSymbolName(op.name());
-  printer.printOptionalAttrDict(op->getAttrs(), { "sym_name", "type" });
+  printer << " : " << op.getType();
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs(), { "sym_name", "type" });
   printer.printRegion(op.body());
 }
 
@@ -477,6 +525,430 @@ static void print(mlir::OpAsmPrinter& printer, EquationSideOp op)
   printer << op.getOperationName() << " ";
   printer.printOptionalAttrDict(op->getAttrs());
   printer << op.values() << " : " << op.getResult().getType();
+}
+
+//===----------------------------------------------------------------------===//
+// IfOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseIfOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType condition;
+  mlir::Type conditionType;
+
+  if (parser.parseLParen() ||
+      parser.parseOperand(condition) ||
+      parser.parseColonType(conditionType) ||
+      parser.parseRParen() ||
+      parser.resolveOperand(condition, conditionType, result.operands)) {
+    return mlir::failure();
+  }
+
+  mlir::Region* thenRegion = result.addRegion();
+
+  if (parser.parseRegion(*thenRegion)) {
+    return mlir::failure();
+  }
+
+  mlir::Region* elseRegion = result.addRegion();
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("else"))) {
+    if (parser.parseRegion(*elseRegion)) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, IfOp op)
+{
+  printer << op.getOperationName();
+  printer << " (" << op.condition() << " : " << op.condition().getType() << ")";
+
+  printer.printRegion(op.thenRegion());
+
+  if (!op.elseRegion().empty()) {
+    printer << " else";
+    printer.printRegion(op.elseRegion());
+  }
+
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
+}
+
+//===----------------------------------------------------------------------===//
+// ForOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseForOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::Region* conditionRegion = result.addRegion();
+
+  if (mlir::succeeded(parser.parseOptionalLParen())) {
+    if (mlir::failed(parser.parseOptionalRParen())) {
+      do {
+        mlir::OpAsmParser::OperandType arg;
+        mlir::Type argType;
+
+        if (parser.parseOperand(arg) ||
+            parser.parseColonType(argType) ||
+            parser.resolveOperand(arg, argType, result.operands))
+          return mlir::failure();
+      } while (mlir::succeeded(parser.parseOptionalComma()));
+    }
+
+    if (parser.parseRParen()) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseKeyword("condition")) {
+    return mlir::failure();
+  }
+
+  if (parser.parseRegion(*conditionRegion)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseKeyword("body")) {
+    return mlir::failure();
+  }
+
+  mlir::Region* bodyRegion = result.addRegion();
+
+  if (parser.parseRegion(*bodyRegion)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseKeyword("step")) {
+    return mlir::failure();
+  }
+
+  mlir::Region* stepRegion = result.addRegion();
+
+  if (parser.parseRegion(*stepRegion)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, ForOp op)
+{
+  printer << op.getOperationName();
+
+  if (auto values = op.args(); !values.empty()) {
+    printer << " (";
+
+    for (auto arg : llvm::enumerate(values)) {
+      if (arg.index() != 0) {
+        printer << ", ";
+      }
+
+      printer << arg.value() << " : " << arg.value().getType();
+    }
+
+    printer << ")";
+  }
+
+  printer << " condition";
+  printer.printRegion(op.conditionRegion(), true);
+  printer << " body";
+  printer.printRegion(op.bodyRegion(), true);
+  printer << " step";
+  printer.printRegion(op.stepRegion(), true);
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
+}
+
+//===----------------------------------------------------------------------===//
+// WhileOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseWhileOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::Region* conditionRegion = result.addRegion();
+  mlir::Region* bodyRegion = result.addRegion();
+
+  if (parser.parseRegion(*conditionRegion) ||
+      parser.parseKeyword("do") ||
+      parser.parseRegion(*bodyRegion)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, WhileOp op)
+{
+  printer << op.getOperationName();
+  printer.printRegion(op.conditionRegion(), false);
+  printer << " do";
+  printer.printRegion(op.bodyRegion(), false);
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
+}
+
+//===----------------------------------------------------------------------===//
+// MaxOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseMaxOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType first;
+  mlir::Type firstType;
+
+  mlir::OpAsmParser::OperandType second;
+  mlir::Type secondType;
+
+  size_t numOperands = 1;
+
+  if (parser.parseOperand(first)) {
+    return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalComma())) {
+    numOperands = 2;
+
+    if (parser.parseOperand(second)) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseColon()) {
+    return mlir::failure();
+  }
+
+  if (numOperands == 1) {
+    if (parser.parseType(firstType) ||
+        parser.resolveOperand(first, firstType, result.operands)) {
+      return mlir::failure();
+    }
+  } else {
+    if (parser.parseLParen() ||
+        parser.parseType(firstType) ||
+        parser.resolveOperand(first, firstType, result.operands) ||
+        parser.parseComma() ||
+        parser.parseType(secondType) ||
+        parser.resolveOperand(second, secondType, result.operands) ||
+        parser.parseRParen()) {
+      return mlir::failure();
+    }
+  }
+
+  mlir::Type resultType;
+
+  if (parser.parseArrow() ||
+      parser.parseType(resultType)) {
+    return mlir::failure();
+  }
+
+  result.addTypes(resultType);
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, MaxOp op)
+{
+  printer << op.getOperationName();
+  printer << " " << op.first();
+
+  if (op->getNumOperands() == 2) {
+    printer << ", " << op.second();
+  }
+
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : ";
+
+  if (op->getNumOperands() == 1) {
+    printer << op.first().getType();
+  } else {
+    printer << "(" << op.first().getType() << ", " << op.second().getType() << ")";
+  }
+
+  printer << " -> " << op.getResult().getType();
+}
+
+//===----------------------------------------------------------------------===//
+// MinOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseMinOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType first;
+  mlir::Type firstType;
+
+  mlir::OpAsmParser::OperandType second;
+  mlir::Type secondType;
+
+  size_t numOperands = 1;
+
+  if (parser.parseOperand(first)) {
+    return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalComma())) {
+    numOperands = 2;
+
+    if (parser.parseOperand(second)) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseColon()) {
+    return mlir::failure();
+  }
+
+  if (numOperands == 1) {
+    if (parser.parseType(firstType) ||
+        parser.resolveOperand(first, firstType, result.operands)) {
+      return mlir::failure();
+    }
+  } else {
+    if (parser.parseLParen() ||
+        parser.parseType(firstType) ||
+        parser.resolveOperand(first, firstType, result.operands) ||
+        parser.parseComma() ||
+        parser.parseType(secondType) ||
+        parser.resolveOperand(second, secondType, result.operands) ||
+        parser.parseRParen()) {
+      return mlir::failure();
+    }
+  }
+
+  mlir::Type resultType;
+
+  if (parser.parseArrow() ||
+      parser.parseType(resultType)) {
+    return mlir::failure();
+  }
+
+  result.addTypes(resultType);
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, MinOp op)
+{
+  printer << op.getOperationName();
+  printer << " " << op.first();
+
+  if (op->getNumOperands() == 2) {
+    printer << ", " << op.second();
+  }
+
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : ";
+
+  if (op->getNumOperands() == 1) {
+    printer << op.first().getType();
+  } else {
+    printer << "(" << op.first().getType() << ", " << op.second().getType() << ")";
+  }
+
+  printer << " -> " << op.getResult().getType();
+}
+
+//===----------------------------------------------------------------------===//
+// SizeOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseSizeOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType array;
+  mlir::Type arrayType;
+
+  mlir::OpAsmParser::OperandType dimension;
+  mlir::Type dimensionType;
+
+  size_t numOperands = 1;
+
+  if (parser.parseOperand(array)) {
+    return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalComma())) {
+    numOperands = 2;
+
+    if (parser.parseOperand(dimension)) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  if (parser.parseColon()) {
+    return mlir::failure();
+  }
+
+  if (numOperands == 1) {
+    if (parser.parseType(arrayType) ||
+        parser.resolveOperand(array, arrayType, result.operands)) {
+      return mlir::failure();
+    }
+  } else {
+    if (parser.parseLParen() ||
+        parser.parseType(arrayType) ||
+        parser.resolveOperand(array, arrayType, result.operands) ||
+        parser.parseComma() ||
+        parser.parseType(dimensionType) ||
+        parser.resolveOperand(dimension, dimensionType, result.operands) ||
+        parser.parseRParen()) {
+      return mlir::failure();
+    }
+  }
+
+  mlir::Type resultType;
+
+  if (parser.parseArrow() ||
+      parser.parseType(resultType)) {
+    return mlir::failure();
+  }
+
+  result.addTypes(resultType);
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, SizeOp op)
+{
+  printer << op.getOperationName();
+  printer << " " << op.array();
+
+  if (op->getNumOperands() == 2) {
+    printer << ", " << op.dimension();
+  }
+
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : ";
+
+  if (op->getNumOperands() == 1) {
+    printer << op.array().getType();
+  } else {
+    printer << "(" << op.array().getType() << ", " << op.dimension().getType() << ")";
+  }
+
+  printer << " -> " << op.getResult().getType();
 }
 
 #define GET_OP_CLASSES
@@ -1268,8 +1740,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -1409,8 +1881,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -1913,7 +2385,7 @@ namespace mlir::modelica
     mlir::Value lhs = distributeFn(this->lhs());
     mlir::Value rhs = this->rhs();
 
-    return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+    return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
   }
 
   mlir::Value DivOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -1939,8 +2411,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -2083,7 +2555,7 @@ namespace mlir::modelica
     mlir::Value lhs = distributeFn(this->lhs());
     mlir::Value rhs = this->rhs();
 
-    return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
+    return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
   }
 
   mlir::Value DivEWOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -2109,8 +2581,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -2619,8 +3091,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -2786,8 +3258,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -2924,8 +3396,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -3435,7 +3907,7 @@ namespace mlir::modelica
     mlir::Value lhs = distributeFn(this->lhs());
     mlir::Value rhs = distributeFn(this->rhs());
 
-    return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+    return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
   }
 
   mlir::Value SubOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -3461,8 +3933,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -3578,7 +4050,7 @@ namespace mlir::modelica
     mlir::Value lhs = distributeFn(this->lhs());
     mlir::Value rhs = distributeFn(this->rhs());
 
-    return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
+    return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
   }
 
   mlir::Value SubEWOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -3604,8 +4076,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
+        return casted.distributeDivOp(builder, resultType, value);
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);

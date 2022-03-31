@@ -201,7 +201,7 @@ TEST(Cycles, selfDependency) {
 
   EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
 
-  CyclesFinder<Variable*, Equation*> graph(&eq1, true);
+  CyclesFinder<Variable*, Equation*> graph(&eq1, false);
   auto cycles = graph.getEquationsCycles();
 
   // TODO
@@ -263,7 +263,7 @@ TEST(Cycles, oneStepCycle) {
 
   EXPECT_CALL(eq2, reads()).WillRepeatedly(Return(eq2r));
 
-  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2 }, true);
+  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2 }, false);
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(2));
@@ -345,7 +345,7 @@ TEST(SCC, twoStepsCycle) {
 
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
-  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 }, true);
+  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 }, false);
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(3));
@@ -436,7 +436,7 @@ TEST(SCC, oneStepCycleWithMultipleReads) {
 
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
-  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 }, true);
+  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 }, false);
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(3));

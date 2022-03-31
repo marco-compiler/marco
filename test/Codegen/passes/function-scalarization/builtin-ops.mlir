@@ -1,5 +1,5 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --vectorize-functions                   \
+// RUN:     --scalarize                             \
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \

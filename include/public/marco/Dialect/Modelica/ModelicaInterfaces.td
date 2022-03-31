@@ -144,33 +144,4 @@ def DerivableOpInterface : Modelica_Interface<"DerivableOpInterface"> {
     ];
 }
 
-def HeapAllocator : Modelica_Interface<"HeapAllocator"> {
-    let description = [{
-        Interface to describe an operation that can allocate memory on the heap.
-    }];
-
-    let methods = [
-        InterfaceMethod<
-            "Get whether the result of the operation should be deallocated.",
-            "bool", "shouldBeDeallocated", (ins), [{
-                return $_op->template getAttrOfType<::mlir::BoolAttr>("auto_dealloc").getValue();
-            }]
-        >,
-        InterfaceMethod<
-            "Set the value as automatically deallocated.",
-            "void", "setAsAutomaticallyDeallocated", (ins), [{
-                auto attr = ::mlir::BoolAttr::get($_op->getContext(), true);
-                $_op->setAttr("auto_dealloc", attr);
-            }]
-        >,
-        InterfaceMethod<
-            "Set the value as manually deallocated.",
-            "void", "setAsManuallyDeallocated", (ins), [{
-                auto attr = ::mlir::BoolAttr::get($_op->getContext(), false);
-                $_op->setAttr("auto_dealloc", attr);
-            }]
-        >
-    ];
-}
-
 #endif // MARCO_DIALECTS_MODELICA_MODELICAINTERFACES_TD

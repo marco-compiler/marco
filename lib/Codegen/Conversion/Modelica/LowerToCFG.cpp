@@ -323,7 +323,7 @@ static mlir::LogicalResult convertCall(mlir::OpBuilder& builder, CallOp callOp, 
 static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, FunctionOp modelicaFunctionOp)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToStart(modelicaFunctionOp->getParentOfType<mlir::ModuleOp>().getBody());
+  builder.setInsertionPoint(modelicaFunctionOp);
 
   // Determine which results can be promoted to input arguments
   std::set<size_t> promotedResults;
@@ -422,6 +422,22 @@ static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, Functi
       builder.create<FreeOp>(array.getLoc(), array);
     }
   }
+
+  // Create the return operation
+  builder.setInsertionPointToEnd(&funcOp.body().back());
+
+  llvm::SmallVector<mlir::Value, 1> results;
+
+  for (const auto& name : llvm::enumerate(modelicaFunctionOp.outputMemberNames())) {
+    if (promotedResults.find(name.index()) == promotedResults.end()) {
+      auto mappedMember = mapping.lookup(membersMap[name.value()].getResult()).getDefiningOp<MemberCreateOp>();
+      auto memberType = mappedMember.getType().cast<MemberType>();
+      mlir::Value value = builder.create<MemberLoadOp>(funcOp.getLoc(), memberType.unwrap(), mappedMember);
+      results.push_back(value);
+    }
+  }
+
+  builder.create<mlir::ReturnOp>(funcOp.getLoc(), results);
 
   // Convert the member operations
   for (auto& member : llvm::enumerate(inputMembers)) {
@@ -554,18 +570,6 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
   function->walk([&members](MemberCreateOp member) {
     members[member.name()] = member;
   });
-
-  builder.setInsertionPointToEnd(functionReturnBlock);
-  llvm::SmallVector<mlir::Value, 1> results;
-
-  for (const auto& name : function.outputMemberNames()) {
-    auto member = members.lookup(name).getResult();
-    auto memberType = member.getType().cast<MemberType>();
-    mlir::Value value = builder.create<MemberLoadOp>(loc, memberType.unwrap(), member);
-    results.push_back(value);
-  }
-
-  builder.create<mlir::ReturnOp>(loc, results);
 
   for (auto& bodyOp : bodyOps) {
     if (auto status = run(builder, bodyOp, nullptr, functionReturnBlock); failed(status)) {

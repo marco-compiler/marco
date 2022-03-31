@@ -17,36 +17,36 @@
 func @test_scalars() -> () {
     %size = constant 4 : index
 
-    %x = modelica.alloca %size : index -> !modelica.array<stack, ?x!modelica.bool>
-    %y = modelica.alloca %size : index -> !modelica.array<stack, ?x!modelica.bool>
+    %x = modelica.alloca %size : !modelica.array<?x!modelica.bool>
+    %y = modelica.alloca %size : !modelica.array<?x!modelica.bool>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.bool<false> : !modelica.bool
-    %y0 = modelica.constant #modelica.bool<false> : !modelica.bool
-    modelica.store %x[%c0], %x0 : !modelica.array<stack, ?x!modelica.bool>
-    modelica.store %y[%c0], %y0 : !modelica.array<stack, ?x!modelica.bool>
+    %x0 = modelica.constant #modelica.bool<false>
+    %y0 = modelica.constant #modelica.bool<false>
+    modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.bool>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.bool<false> : !modelica.bool
-    %y1 = modelica.constant #modelica.bool<true> : !modelica.bool
-    modelica.store %x[%c1], %x1 : !modelica.array<stack, ?x!modelica.bool>
-    modelica.store %y[%c1], %y1 : !modelica.array<stack, ?x!modelica.bool>
+    %x1 = modelica.constant #modelica.bool<false>
+    %y1 = modelica.constant #modelica.bool<true>
+    modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.bool>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.bool<true> : !modelica.bool
-    %y2 = modelica.constant #modelica.bool<false> : !modelica.bool
-    modelica.store %x[%c2], %x2 : !modelica.array<stack, ?x!modelica.bool>
-    modelica.store %y[%c2], %y2 : !modelica.array<stack, ?x!modelica.bool>
+    %x2 = modelica.constant #modelica.bool<true>
+    %y2 = modelica.constant #modelica.bool<false>
+    modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.bool>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.bool<true> : !modelica.bool
-    %y3 = modelica.constant #modelica.bool<true> : !modelica.bool
-    modelica.store %x[%c3], %x3 : !modelica.array<stack, ?x!modelica.bool>
-    modelica.store %y[%c3], %y3 : !modelica.array<stack, ?x!modelica.bool>
+    %x3 = modelica.constant #modelica.bool<true>
+    %y3 = modelica.constant #modelica.bool<true>
+    modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.bool>
 
     scf.for %i = %c0 to %size step %c1 {
-      %xi = modelica.load %x[%i] : !modelica.array<stack, ?x!modelica.bool>
-      %yi = modelica.load %y[%i] : !modelica.array<stack, ?x!modelica.bool>
+      %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.bool>
+      %yi = modelica.load %y[%i] : !modelica.array<?x!modelica.bool>
       %result = modelica.and %xi, %yi : (!modelica.bool, !modelica.bool) -> !modelica.bool
       modelica.print %result : !modelica.bool
     }
@@ -57,35 +57,35 @@ func @test_scalars() -> () {
 // CHECK-NEXT{LITERAL}: [false, false, false, true]
 
 func @test_staticArrays() -> () {
-    %x = modelica.alloca : !modelica.array<stack, 4x!modelica.bool>
-    %y = modelica.alloca : !modelica.array<stack, 4x!modelica.bool>
+    %x = modelica.alloca : !modelica.array<4x!modelica.bool>
+    %y = modelica.alloca : !modelica.array<4x!modelica.bool>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.bool<false> : !modelica.bool
-    %y0 = modelica.constant #modelica.bool<false> : !modelica.bool
-    modelica.store %x[%c0], %x0 : !modelica.array<stack, 4x!modelica.bool>
-    modelica.store %y[%c0], %y0 : !modelica.array<stack, 4x!modelica.bool>
+    %x0 = modelica.constant #modelica.bool<false>
+    %y0 = modelica.constant #modelica.bool<false>
+    modelica.store %x[%c0], %x0 : !modelica.array<4x!modelica.bool>
+    modelica.store %y[%c0], %y0 : !modelica.array<4x!modelica.bool>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.bool<false> : !modelica.bool
-    %y1 = modelica.constant #modelica.bool<true> : !modelica.bool
-    modelica.store %x[%c1], %x1 : !modelica.array<stack, 4x!modelica.bool>
-    modelica.store %y[%c1], %y1 : !modelica.array<stack, 4x!modelica.bool>
+    %x1 = modelica.constant #modelica.bool<false>
+    %y1 = modelica.constant #modelica.bool<true>
+    modelica.store %x[%c1], %x1 : !modelica.array<4x!modelica.bool>
+    modelica.store %y[%c1], %y1 : !modelica.array<4x!modelica.bool>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.bool<true> : !modelica.bool
-    %y2 = modelica.constant #modelica.bool<false> : !modelica.bool
-    modelica.store %x[%c2], %x2 : !modelica.array<stack, 4x!modelica.bool>
-    modelica.store %y[%c2], %y2 : !modelica.array<stack, 4x!modelica.bool>
+    %x2 = modelica.constant #modelica.bool<true>
+    %y2 = modelica.constant #modelica.bool<false>
+    modelica.store %x[%c2], %x2 : !modelica.array<4x!modelica.bool>
+    modelica.store %y[%c2], %y2 : !modelica.array<4x!modelica.bool>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.bool<true> : !modelica.bool
-    %y3 = modelica.constant #modelica.bool<true> : !modelica.bool
-    modelica.store %x[%c3], %x3 : !modelica.array<stack, 4x!modelica.bool>
-    modelica.store %y[%c3], %y3 : !modelica.array<stack, 4x!modelica.bool>
+    %x3 = modelica.constant #modelica.bool<true>
+    %y3 = modelica.constant #modelica.bool<true>
+    modelica.store %x[%c3], %x3 : !modelica.array<4x!modelica.bool>
+    modelica.store %y[%c3], %y3 : !modelica.array<4x!modelica.bool>
 
-    %result = modelica.and %x, %y : (!modelica.array<stack, 4x!modelica.bool>, !modelica.array<stack, 4x!modelica.bool>) -> !modelica.array<stack, 4x!modelica.bool>
-    modelica.print %result : !modelica.array<stack, 4x!modelica.bool>
+    %result = modelica.and %x, %y : (!modelica.array<4x!modelica.bool>, !modelica.array<4x!modelica.bool>) -> !modelica.array<4x!modelica.bool>
+    modelica.print %result : !modelica.array<4x!modelica.bool>
 
     return
 }
@@ -95,38 +95,38 @@ func @test_staticArrays() -> () {
 func @test_dynamicArrays() -> () {
     %size = constant 4 : index
 
-    %x = modelica.alloc %size : index -> !modelica.array<heap, ?x!modelica.bool>
-    %y = modelica.alloc %size : index -> !modelica.array<heap, ?x!modelica.bool>
+    %x = modelica.alloc %size : !modelica.array<?x!modelica.bool>
+    %y = modelica.alloc %size : !modelica.array<?x!modelica.bool>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.bool<false> : !modelica.bool
-    %y0 = modelica.constant #modelica.bool<false> : !modelica.bool
-    modelica.store %x[%c0], %x0 : !modelica.array<heap, ?x!modelica.bool>
-    modelica.store %y[%c0], %y0 : !modelica.array<heap, ?x!modelica.bool>
+    %x0 = modelica.constant #modelica.bool<false>
+    %y0 = modelica.constant #modelica.bool<false>
+    modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.bool>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.bool<false> : !modelica.bool
-    %y1 = modelica.constant #modelica.bool<true> : !modelica.bool
-    modelica.store %x[%c1], %x1 : !modelica.array<heap, ?x!modelica.bool>
-    modelica.store %y[%c1], %y1 : !modelica.array<heap, ?x!modelica.bool>
+    %x1 = modelica.constant #modelica.bool<false>
+    %y1 = modelica.constant #modelica.bool<true>
+    modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.bool>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.bool<true> : !modelica.bool
-    %y2 = modelica.constant #modelica.bool<false> : !modelica.bool
-    modelica.store %x[%c2], %x2 : !modelica.array<heap, ?x!modelica.bool>
-    modelica.store %y[%c2], %y2 : !modelica.array<heap, ?x!modelica.bool>
+    %x2 = modelica.constant #modelica.bool<true>
+    %y2 = modelica.constant #modelica.bool<false>
+    modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.bool>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.bool<true> : !modelica.bool
-    %y3 = modelica.constant #modelica.bool<true> : !modelica.bool
-    modelica.store %x[%c3], %x3 : !modelica.array<heap, ?x!modelica.bool>
-    modelica.store %y[%c3], %y3 : !modelica.array<heap, ?x!modelica.bool>
+    %x3 = modelica.constant #modelica.bool<true>
+    %y3 = modelica.constant #modelica.bool<true>
+    modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.bool>
+    modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.bool>
 
-    %result = modelica.and %x, %y : (!modelica.array<heap, ?x!modelica.bool>, !modelica.array<heap, ?x!modelica.bool>) -> !modelica.array<heap, ?x!modelica.bool>
-    modelica.free %x : !modelica.array<heap, ?x!modelica.bool>
-    modelica.free %y : !modelica.array<heap, ?x!modelica.bool>
-    modelica.print %result : !modelica.array<heap, ?x!modelica.bool>
-    modelica.free %result : !modelica.array<heap, ?x!modelica.bool>
+    %result = modelica.and %x, %y : (!modelica.array<?x!modelica.bool>, !modelica.array<?x!modelica.bool>) -> !modelica.array<?x!modelica.bool>
+    modelica.free %x : !modelica.array<?x!modelica.bool>
+    modelica.free %y : !modelica.array<?x!modelica.bool>
+    modelica.print %result : !modelica.array<?x!modelica.bool>
+    modelica.free %result : !modelica.array<?x!modelica.bool>
 
     return
 }

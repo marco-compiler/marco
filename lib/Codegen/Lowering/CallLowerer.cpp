@@ -348,7 +348,7 @@ namespace marco::codegen::lowering
 
     mlir::Value operand = *lower(*call.getArg(0))[0];
     mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SinOp>(location, resultType, operand);
+    mlir::Value result = builder().create<SinhOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);
   }
 

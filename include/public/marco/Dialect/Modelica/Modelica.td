@@ -1556,9 +1556,8 @@ def Modelica_MaxOp : Modelica_Op<"max", []>
         }]>
     ];
 
-    let assemblyFormat = [{
-        $first `,` $second attr-dict `:` `(` type($first) `,` type($second) `->` type($result)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 }
 
 def Modelica_MinOp : Modelica_Op<"min", []>
@@ -1594,9 +1593,8 @@ def Modelica_MinOp : Modelica_Op<"min", []>
         }]>
     ];
 
-    let assemblyFormat = [{
-        $first `,` $second attr-dict `:` `(` type($first) `,` type($second) `->` type($result)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 }
 
 def Modelica_NDimsOp : Modelica_Op<"ndims", []>
@@ -1648,7 +1646,7 @@ def Modelica_OnesOp : Modelica_Op<"ones",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $sizes attr-dict `:` type($sizes) `->` type($result)
+        $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -1791,9 +1789,8 @@ def Modelica_SizeOp : Modelica_Op<"size",
     let arguments = (ins AnyType:$array, Optional<AnyType>:$dimension);
     let results = (outs AnyType:$result);
 
-    let assemblyFormat = [{
-        $array `,` $dimension attr-dict `:` type($array) `,` type($dimension) `->` type($result)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let verifier = [{ return ::verify(*this); }];
 
@@ -2000,7 +1997,7 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $sizes attr-dict `:` type($sizes) `->` type($result)
+        $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -2202,11 +2199,15 @@ def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
 let extraClassDeclaration = [{
         public:
             mlir::ValueRange lhsValues() {
-                return lhs().getDefiningOp<EquationSideOp>().values();
+                auto sideOp = lhs().getDefiningOp();
+                assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
+                return mlir::cast<EquationSideOp>(sideOp).values();
             }
 
             mlir::ValueRange rhsValues() {
-                return rhs().getDefiningOp<EquationSideOp>().values();
+                auto sideOp = rhs().getDefiningOp();
+                assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
+                return mlir::cast<EquationSideOp>(sideOp).values();
             }
     }];
 }
@@ -2281,23 +2282,6 @@ def Modelica_FunctionOp : Modelica_Op<"function",
             bool isDeclaration() {
                 return false;
             }
-    }];
-}
-
-def Modelica_FunctionTerminatorOp : Modelica_Op<"function_terminator",
-    [HasParent<"FunctionOp">, Terminator]>
-{
-    let summary = "Function terminator.";
-
-    let description = [{
-        The operation marks the end of the function body.
-    }];
-
-    let arguments = (ins);
-    let results = (outs);
-
-    let assemblyFormat = [{
-        attr-dict
     }];
 }
 
@@ -2504,7 +2488,7 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
     let results = (outs);
 
     let assemblyFormat = [{
-        $condition `,` `(` $values attr-dict `)` `:` type($condition) `,` type($values)
+        `(` $condition `:` type($condition) `)` attr-dict ($values^ `:` type($values))?
     }];
 
     let builders = [
@@ -2532,6 +2516,9 @@ def Modelica_ForOp : Modelica_Op<"for",
         SizedRegion<1>:$stepRegion
     );
 
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
+
     let extraClassDeclaration = [{
         Block* conditionBlock();
         Block* bodyBlock();
@@ -2556,6 +2543,9 @@ def Modelica_IfOp : Modelica_Op<"if",
       SizedRegion<1>:$thenRegion,
       AnyRegion:$elseRegion
     );
+
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let builders = [
         OpBuilder<(ins "Value":$condition, "bool":$withElseRegion)>
@@ -2615,9 +2605,8 @@ def Modelica_WhileOp : Modelica_Op<"while",
         SizedRegion<1>:$bodyRegion
     );
 
-    let assemblyFormat = [{
-        attr-dict regions
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 }
 
 def Modelica_YieldOp : Modelica_Op<"yield",

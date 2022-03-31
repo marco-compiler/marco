@@ -1,8 +1,8 @@
 // RUN: marco %s --omc-bypass --emit-modelica-dialect | FileCheck %s
 
 // CHECK-LABEL: @minArray
-// CHECK-SAME: %arg0 : !modelica.array<?x?x!modelica.real>
-// CHECK: modelica.min %arg0 : !modelica.array<?x?x!modelica.real> -> !modelica.real
+// CHECK: modelica.min
+// CHECK-SAME: !modelica.array<?x?x!modelica.real> -> !modelica.real
 
 function minArray
     input Real[:,:] x;
@@ -13,9 +13,8 @@ algorithm
 end minArray;
 
 // CHECK-LABEL: @minScalars
-// CHECK-SAME: %arg0 : !modelica.real
-// CHECK-SAME: %arg1 : !modelica.real
-// CHECK: modelica.min %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
+// CHECK: modelica.min
+// CHECK-SAME: (!modelica.real, !modelica.real) -> !modelica.real
 
 function minScalars
     input Real x;

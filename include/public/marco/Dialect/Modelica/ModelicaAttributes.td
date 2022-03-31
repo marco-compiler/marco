@@ -32,26 +32,6 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
     ];
 
     let typeBuilder = "$_type";
-
-    let printer = [{
-        $_printer << "bool<" << getImpl()->value << ">";
-    }];
-
-    let parser = [{
-        bool value = false;
-
-        if (succeeded(parser.parseOptionalKeyword("true"))) {
-            value = true;
-        } else {
-        	if (parser.parseKeyword("false")) {
-        		return Attribute();
-            }
-
-            value = false;
-        }
-
-        return get($_ctxt, BooleanType::get($_ctxt), value);
-    }];
 }
 
 def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
@@ -73,20 +53,6 @@ def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
     ];
 
     let typeBuilder = "$_type";
-
-    let printer = [{
-        $_printer << "int<" << getImpl()->value << ">";
-    }];
-
-    let parser = [{
-        long value;
-
-        if ($_parser.parseInteger(value)) {
-            return Attribute();
-        }
-
-        return get($_ctxt, IntegerType::get($_ctxt), llvm::APInt(sizeof(long) * 8, value, true));
-    }];
 }
 
 def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
@@ -108,20 +74,6 @@ def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
     ];
 
     let typeBuilder = "$_type";
-
-    let printer = [{
-        $_printer << "int<" << getImpl()->value << ">";
-    }];
-
-    let parser = [{
-        double value;
-
-        if ($_parser.parseFloat(value)) {
-            return Attribute();
-        }
-
-        return get($_ctxt, RealType::get($_ctxt), ::llvm::APFloat(value));
-    }];
 }
 
 def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {

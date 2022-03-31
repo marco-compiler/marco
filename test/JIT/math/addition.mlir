@@ -10,8 +10,8 @@
 // CHECK{LITERAL}: 5
 
 func @test_integerScalars() -> () {
-    %x = modelica.constant #modelica.int<2> : !modelica.int
-    %y = modelica.constant #modelica.int<3> : !modelica.int
+    %x = modelica.constant #modelica.int<2>
+    %y = modelica.constant #modelica.int<3>
     %result = modelica.add %x, %y : (!modelica.int, !modelica.int) -> !modelica.int
     modelica.print %result : !modelica.int
     return
@@ -20,8 +20,8 @@ func @test_integerScalars() -> () {
 // CHECK-NEXT{LITERAL}: 5.500000e+00
 
 func @test_realScalars() -> () {
-    %x = modelica.constant #modelica.real<2.0> : !modelica.real
-    %y = modelica.constant #modelica.real<3.5> : !modelica.real
+    %x = modelica.constant #modelica.real<2.0>
+    %y = modelica.constant #modelica.real<3.5>
     %result = modelica.add %x, %y : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.print %result : !modelica.real
     return
@@ -30,8 +30,8 @@ func @test_realScalars() -> () {
 // CHECK-NEXT{LITERAL}: 5.500000e+00
 
 func @test_mixedScalars() -> () {
-    %x = modelica.constant #modelica.int<2> : !modelica.int
-    %y = modelica.constant #modelica.real<3.5> : !modelica.real
+    %x = modelica.constant #modelica.int<2>
+    %y = modelica.constant #modelica.real<3.5>
     %result = modelica.add %x, %y : (!modelica.int, !modelica.real) -> !modelica.real
     modelica.print %result : !modelica.real
     return
@@ -40,70 +40,70 @@ func @test_mixedScalars() -> () {
 // CHECK-NEXT{LITERAL}: [3, -3, -1, 1]
 
 func @test_staticIntegerArrays() -> () {
-    %x = modelica.alloca : !modelica.array<stack, 4x!modelica.int>
-    %y = modelica.alloca : !modelica.array<stack, 4x!modelica.int>
+    %x = modelica.alloca : !modelica.array<4x!modelica.int>
+    %y = modelica.alloca : !modelica.array<4x!modelica.int>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.int<1> : !modelica.int
-    %y0 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %x[%c0], %x0 : !modelica.array<stack, 4x!modelica.int>
-    modelica.store %y[%c0], %y0 : !modelica.array<stack, 4x!modelica.int>
+    %x0 = modelica.constant #modelica.int<1>
+    %y0 = modelica.constant #modelica.int<2>
+    modelica.store %x[%c0], %x0 : !modelica.array<4x!modelica.int>
+    modelica.store %y[%c0], %y0 : !modelica.array<4x!modelica.int>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.int<-1> : !modelica.int
-    %y1 = modelica.constant #modelica.int<-2> : !modelica.int
-    modelica.store %x[%c1], %x1 : !modelica.array<stack, 4x!modelica.int>
-    modelica.store %y[%c1], %y1 : !modelica.array<stack, 4x!modelica.int>
+    %x1 = modelica.constant #modelica.int<-1>
+    %y1 = modelica.constant #modelica.int<-2>
+    modelica.store %x[%c1], %x1 : !modelica.array<4x!modelica.int>
+    modelica.store %y[%c1], %y1 : !modelica.array<4x!modelica.int>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.int<1> : !modelica.int
-    %y2 = modelica.constant #modelica.int<-2> : !modelica.int
-    modelica.store %x[%c2], %x2 : !modelica.array<stack, 4x!modelica.int>
-    modelica.store %y[%c2], %y2 : !modelica.array<stack, 4x!modelica.int>
+    %x2 = modelica.constant #modelica.int<1>
+    %y2 = modelica.constant #modelica.int<-2>
+    modelica.store %x[%c2], %x2 : !modelica.array<4x!modelica.int>
+    modelica.store %y[%c2], %y2 : !modelica.array<4x!modelica.int>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.int<-1> : !modelica.int
-    %y3 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %x[%c3], %x3 : !modelica.array<stack, 4x!modelica.int>
-    modelica.store %y[%c3], %y3 : !modelica.array<stack, 4x!modelica.int>
+    %x3 = modelica.constant #modelica.int<-1>
+    %y3 = modelica.constant #modelica.int<2>
+    modelica.store %x[%c3], %x3 : !modelica.array<4x!modelica.int>
+    modelica.store %y[%c3], %y3 : !modelica.array<4x!modelica.int>
 
-    %result = modelica.add %x, %y : (!modelica.array<stack, 4x!modelica.int>, !modelica.array<stack, 4x!modelica.int>) -> !modelica.array<stack, 4x!modelica.int>
-    modelica.print %result : !modelica.array<stack, 4x!modelica.int>
+    %result = modelica.add %x, %y : (!modelica.array<4x!modelica.int>, !modelica.array<4x!modelica.int>) -> !modelica.array<4x!modelica.int>
+    modelica.print %result : !modelica.array<4x!modelica.int>
     return
 }
 
 // CHECK-NEXT{LITERAL}: [3.500000e+00, -3.500000e+00, -5.000000e-01, 5.000000e-01]
 
 func @test_staticRealArrays() -> () {
-    %x = modelica.alloca : !modelica.array<stack, 4x!modelica.real>
-    %y = modelica.alloca : !modelica.array<stack, 4x!modelica.real>
+    %x = modelica.alloca : !modelica.array<4x!modelica.real>
+    %y = modelica.alloca : !modelica.array<4x!modelica.real>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.real<1.5> : !modelica.real
-    %y0 = modelica.constant #modelica.real<2.0> : !modelica.real
-    modelica.store %x[%c0], %x0 : !modelica.array<stack, 4x!modelica.real>
-    modelica.store %y[%c0], %y0 : !modelica.array<stack, 4x!modelica.real>
+    %x0 = modelica.constant #modelica.real<1.5>
+    %y0 = modelica.constant #modelica.real<2.0>
+    modelica.store %x[%c0], %x0 : !modelica.array<4x!modelica.real>
+    modelica.store %y[%c0], %y0 : !modelica.array<4x!modelica.real>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.real<-1.5> : !modelica.real
-    %y1 = modelica.constant #modelica.real<-2.0> : !modelica.real
-    modelica.store %x[%c1], %x1 : !modelica.array<stack, 4x!modelica.real>
-    modelica.store %y[%c1], %y1 : !modelica.array<stack, 4x!modelica.real>
+    %x1 = modelica.constant #modelica.real<-1.5>
+    %y1 = modelica.constant #modelica.real<-2.0>
+    modelica.store %x[%c1], %x1 : !modelica.array<4x!modelica.real>
+    modelica.store %y[%c1], %y1 : !modelica.array<4x!modelica.real>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.real<1.5> : !modelica.real
-    %y2 = modelica.constant #modelica.real<-2.0> : !modelica.real
-    modelica.store %x[%c2], %x2 : !modelica.array<stack, 4x!modelica.real>
-    modelica.store %y[%c2], %y2 : !modelica.array<stack, 4x!modelica.real>
+    %x2 = modelica.constant #modelica.real<1.5>
+    %y2 = modelica.constant #modelica.real<-2.0>
+    modelica.store %x[%c2], %x2 : !modelica.array<4x!modelica.real>
+    modelica.store %y[%c2], %y2 : !modelica.array<4x!modelica.real>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.real<-1.5> : !modelica.real
-    %y3 = modelica.constant #modelica.real<2.0> : !modelica.real
-    modelica.store %x[%c3], %x3 : !modelica.array<stack, 4x!modelica.real>
-    modelica.store %y[%c3], %y3 : !modelica.array<stack, 4x!modelica.real>
+    %x3 = modelica.constant #modelica.real<-1.5>
+    %y3 = modelica.constant #modelica.real<2.0>
+    modelica.store %x[%c3], %x3 : !modelica.array<4x!modelica.real>
+    modelica.store %y[%c3], %y3 : !modelica.array<4x!modelica.real>
 
-    %result = modelica.add %x, %y : (!modelica.array<stack, 4x!modelica.real>, !modelica.array<stack, 4x!modelica.real>) -> !modelica.array<stack, 4x!modelica.real>
-    modelica.print %result : !modelica.array<stack, 4x!modelica.real>
+    %result = modelica.add %x, %y : (!modelica.array<4x!modelica.real>, !modelica.array<4x!modelica.real>) -> !modelica.array<4x!modelica.real>
+    modelica.print %result : !modelica.array<4x!modelica.real>
     return
 }
 
@@ -112,38 +112,38 @@ func @test_staticRealArrays() -> () {
 func @test_dynamicIntegerArrays() -> () {
     %s = modelica.constant 4 : index
 
-    %x = modelica.alloc %s : index -> !modelica.array<heap, ?x!modelica.int>
-    %y = modelica.alloc %s : index -> !modelica.array<heap, ?x!modelica.int>
+    %x = modelica.alloc %s : !modelica.array<?x!modelica.int>
+    %y = modelica.alloc %s : !modelica.array<?x!modelica.int>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.int<1> : !modelica.int
-    %y0 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %x[%c0], %x0 : !modelica.array<heap, ?x!modelica.int>
-    modelica.store %y[%c0], %y0 : !modelica.array<heap, ?x!modelica.int>
+    %x0 = modelica.constant #modelica.int<1>
+    %y0 = modelica.constant #modelica.int<2>
+    modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.int>
+    modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.int>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.int<-1> : !modelica.int
-    %y1 = modelica.constant #modelica.int<-2> : !modelica.int
-    modelica.store %x[%c1], %x1 : !modelica.array<heap, ?x!modelica.int>
-    modelica.store %y[%c1], %y1 : !modelica.array<heap, ?x!modelica.int>
+    %x1 = modelica.constant #modelica.int<-1>
+    %y1 = modelica.constant #modelica.int<-2>
+    modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.int>
+    modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.int>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.int<1> : !modelica.int
-    %y2 = modelica.constant #modelica.int<-2> : !modelica.int
-    modelica.store %x[%c2], %x2 : !modelica.array<heap, ?x!modelica.int>
-    modelica.store %y[%c2], %y2 : !modelica.array<heap, ?x!modelica.int>
+    %x2 = modelica.constant #modelica.int<1>
+    %y2 = modelica.constant #modelica.int<-2>
+    modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.int>
+    modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.int>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.int<-1> : !modelica.int
-    %y3 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %x[%c3], %x3 : !modelica.array<heap, ?x!modelica.int>
-    modelica.store %y[%c3], %y3 : !modelica.array<heap, ?x!modelica.int>
+    %x3 = modelica.constant #modelica.int<-1>
+    %y3 = modelica.constant #modelica.int<2>
+    modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.int>
+    modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.int>
 
-    %result = modelica.add %x, %y : (!modelica.array<heap, ?x!modelica.int>, !modelica.array<heap, ?x!modelica.int>) -> !modelica.array<heap, ?x!modelica.int>
-    modelica.free %x : !modelica.array<heap, ?x!modelica.int>
-    modelica.free %y : !modelica.array<heap, ?x!modelica.int>
-    modelica.print %result : !modelica.array<heap, ?x!modelica.int>
-    modelica.free %result : !modelica.array<heap, ?x!modelica.int>
+    %result = modelica.add %x, %y : (!modelica.array<?x!modelica.int>, !modelica.array<?x!modelica.int>) -> !modelica.array<?x!modelica.int>
+    modelica.free %x : !modelica.array<?x!modelica.int>
+    modelica.free %y : !modelica.array<?x!modelica.int>
+    modelica.print %result : !modelica.array<?x!modelica.int>
+    modelica.free %result : !modelica.array<?x!modelica.int>
     return
 }
 
@@ -152,38 +152,38 @@ func @test_dynamicIntegerArrays() -> () {
 func @test_dynamicRealArrays() -> () {
     %s = modelica.constant 4 : index
 
-    %x = modelica.alloc %s : index -> !modelica.array<heap, ?x!modelica.real>
-    %y = modelica.alloc %s : index -> !modelica.array<heap, ?x!modelica.real>
+    %x = modelica.alloc %s : !modelica.array<?x!modelica.real>
+    %y = modelica.alloc %s : !modelica.array<?x!modelica.real>
 
     %c0 = constant 0 : index
-    %x0 = modelica.constant #modelica.real<1.5> : !modelica.real
-    %y0 = modelica.constant #modelica.real<2.0> : !modelica.real
-    modelica.store %x[%c0], %x0 : !modelica.array<heap, ?x!modelica.real>
-    modelica.store %y[%c0], %y0 : !modelica.array<heap, ?x!modelica.real>
+    %x0 = modelica.constant #modelica.real<1.5>
+    %y0 = modelica.constant #modelica.real<2.0>
+    modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.real>
+    modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.real>
 
     %c1 = constant 1 : index
-    %x1 = modelica.constant #modelica.real<-1.5> : !modelica.real
-    %y1 = modelica.constant #modelica.real<-2.0> : !modelica.real
-    modelica.store %x[%c1], %x1 : !modelica.array<heap, ?x!modelica.real>
-    modelica.store %y[%c1], %y1 : !modelica.array<heap, ?x!modelica.real>
+    %x1 = modelica.constant #modelica.real<-1.5>
+    %y1 = modelica.constant #modelica.real<-2.0>
+    modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.real>
+    modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.real>
 
     %c2 = constant 2 : index
-    %x2 = modelica.constant #modelica.real<1.5> : !modelica.real
-    %y2 = modelica.constant #modelica.real<-2.0> : !modelica.real
-    modelica.store %x[%c2], %x2 : !modelica.array<heap, ?x!modelica.real>
-    modelica.store %y[%c2], %y2 : !modelica.array<heap, ?x!modelica.real>
+    %x2 = modelica.constant #modelica.real<1.5>
+    %y2 = modelica.constant #modelica.real<-2.0>
+    modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.real>
+    modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.real>
 
     %c3 = constant 3 : index
-    %x3 = modelica.constant #modelica.real<-1.5> : !modelica.real
-    %y3 = modelica.constant #modelica.real<2.0> : !modelica.real
-    modelica.store %x[%c3], %x3 : !modelica.array<heap, ?x!modelica.real>
-    modelica.store %y[%c3], %y3 : !modelica.array<heap, ?x!modelica.real>
+    %x3 = modelica.constant #modelica.real<-1.5>
+    %y3 = modelica.constant #modelica.real<2.0>
+    modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.real>
+    modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.real>
 
-    %result = modelica.add %x, %y : (!modelica.array<heap, ?x!modelica.real>, !modelica.array<heap, ?x!modelica.real>) -> !modelica.array<heap, ?x!modelica.real>
-    modelica.free %x : !modelica.array<heap, ?x!modelica.real>
-    modelica.free %y : !modelica.array<heap, ?x!modelica.real>
-    modelica.print %result : !modelica.array<heap, ?x!modelica.real>
-    modelica.free %result : !modelica.array<heap, ?x!modelica.real>
+    %result = modelica.add %x, %y : (!modelica.array<?x!modelica.real>, !modelica.array<?x!modelica.real>) -> !modelica.array<?x!modelica.real>
+    modelica.free %x : !modelica.array<?x!modelica.real>
+    modelica.free %y : !modelica.array<?x!modelica.real>
+    modelica.print %result : !modelica.array<?x!modelica.real>
+    modelica.free %result : !modelica.array<?x!modelica.real>
     return
 }
 

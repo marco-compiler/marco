@@ -25,20 +25,15 @@ TEST(ScheduledEquation, inductionVariables)
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
 
-  // Create the loops
-  auto loop1 = builder.create<ForEquationOp>(loc, 2, 7);
-  builder.setInsertionPointToStart(loop1.bodyBlock());
+  std::vector<std::pair<long, long>> equationRanges;
+  equationRanges.emplace_back(2, 7);
+  equationRanges.emplace_back(13, 23);
 
-  auto loop2 = builder.create<ForEquationOp>(loc, 13, 23);
-  builder.setInsertionPointToStart(loop2.bodyBlock());
-
-  // Create the equation body
-  auto equationOp = builder.create<EquationOp>(loc);
-  builder.setInsertionPointToStart(equationOp.bodyBlock());
-
-  mlir::Value loadX = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(0), mlir::ValueRange({ loop1.induction(), loop2.induction() }));
-  mlir::Value loadY = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(1), mlir::ValueRange({ loop1.induction(), loop2.induction() }));
-  builder.create<EquationSidesOp>(builder.getUnknownLoc(), loadX, loadY);
+  auto equationOp = createEquation(builder, model, equationRanges, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
+    mlir::Value loadX = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(0), mlir::ValueRange({ indices[0], indices[1] }));
+    mlir::Value loadY = builder.create<LoadOp>(loc, model.bodyRegion().getArgument(1), mlir::ValueRange({ indices[0], indices[1] }));
+    createEquationSides(builder, loadX, loadY);
+  });
 
   auto equation = Equation::build(equationOp, variables);
 

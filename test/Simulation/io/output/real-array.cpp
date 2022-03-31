@@ -7,9 +7,9 @@
 // CHECK-NEXT: 10.5
 // CHECK-NEXT: 20.5
 
+#include "marco/Runtime/ArrayDescriptor.h"
 #include <array>
 #include <iostream>
-#include <marco/runtime/ArrayDescriptor.h>
 
 extern "C" void __modelica_ciface_foo(ArrayDescriptor<double, 1>* x);
 

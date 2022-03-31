@@ -318,8 +318,10 @@ namespace marco::codegen
           const modeling::AccessFunction& accessFunction = access.getAccessFunction();
           const EquationPath& accessPath = access.getProperty();
 
+          [[maybe_unused]] auto dependencyId = nextDependencyId++;
+
           LLVM_DEBUG({
-            llvm::dbgs() << "Processing dependency:\n";
+            llvm::dbgs() << "Processing dependency with ID " << dependencyId << ":\n";
             destination.getValueAtPath(accessPath).print(llvm::dbgs());
             llvm::dbgs() << "\n\n";
           });
@@ -392,6 +394,15 @@ namespace marco::codegen
               processed.push_back(std::move(equation));
             }
           }
+
+          LLVM_DEBUG({
+             llvm::dbgs() << "Dependency " << dependencyId << " has been processed. Results:\n\n";
+
+             for (const auto& equation : processed) {
+               equation->dumpIR(llvm::dbgs());
+               llvm::dbgs() << "\n\n";
+             }
+          });
         }
 
         for (auto& equation : processed) {
@@ -466,6 +477,9 @@ namespace marco::codegen
 
       // The cycles that can't be solved by substitution.
       std::vector<UnsolvedCycle> unsolvedCycles_;
+
+      // Internal counter for debugging purpose
+      size_t nextDependencyId = 0;
   };
 }
 

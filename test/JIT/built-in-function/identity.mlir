@@ -15,24 +15,24 @@
 
 func @test() -> () {
     %size = constant 3 : index
-    %dimensions = modelica.alloca %size : index -> !modelica.array<stack, ?x!modelica.int>
+    %dimensions = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
     %c0 = constant 0 : index
-    %0 = modelica.constant #modelica.int<1> : !modelica.int
-    modelica.store %dimensions[%c0], %0 : !modelica.array<stack, ?x!modelica.int>
+    %0 = modelica.constant #modelica.int<1>
+    modelica.store %dimensions[%c0], %0 : !modelica.array<?x!modelica.int>
 
     %c1 = constant 1 : index
-    %1 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %dimensions[%c1], %1 : !modelica.array<stack, ?x!modelica.int>
+    %1 = modelica.constant #modelica.int<2>
+    modelica.store %dimensions[%c1], %1 : !modelica.array<?x!modelica.int>
 
     %c2 = constant 2 : index
-    %2 = modelica.constant #modelica.int<3> : !modelica.int
-    modelica.store %dimensions[%c2], %2 : !modelica.array<stack, ?x!modelica.int>
+    %2 = modelica.constant #modelica.int<3>
+    modelica.store %dimensions[%c2], %2 : !modelica.array<?x!modelica.int>
 
     scf.for %i = %c0 to %size step %c1 {
-      %dimension = modelica.load %dimensions[%i] : !modelica.array<stack, ?x!modelica.int>
-      %result = modelica.identity %dimension : !modelica.int -> !modelica.array<stack, ?x?x!modelica.int>
-      modelica.print %result : !modelica.array<stack, ?x?x!modelica.int>
+      %dimension = modelica.load %dimensions[%i] : !modelica.array<?x!modelica.int>
+      %result = modelica.identity %dimension : !modelica.int -> !modelica.array<?x?x!modelica.int>
+      modelica.print %result : !modelica.array<?x?x!modelica.int>
     }
 
     return

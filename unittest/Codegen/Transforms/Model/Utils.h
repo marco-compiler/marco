@@ -65,6 +65,8 @@ namespace marco::codegen::test
       llvm::ArrayRef<std::pair<long, long>> iterationRanges,
       std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn);
 
+  void createEquationSides(mlir::OpBuilder& builder, mlir::ValueRange lhs, mlir::ValueRange rhs);
+
   template<typename Cycle>
   class CyclesPermutation
   {

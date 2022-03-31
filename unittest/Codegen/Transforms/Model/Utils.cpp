@@ -83,9 +83,20 @@ namespace marco::codegen::test
 
     // Create the equation body
     auto equationOp = builder.create<EquationOp>(loc);
-    builder.setInsertionPointToStart(equationOp.bodyBlock());
+
+    mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.bodyRegion());
+    builder.setInsertionPointToStart(equationBodyBlock);
+
     bodyFn(builder, inductionVariables);
 
     return equationOp;
+  }
+
+  void createEquationSides(mlir::OpBuilder& builder, mlir::ValueRange lhs, mlir::ValueRange rhs)
+  {
+    auto loc = builder.getUnknownLoc();
+    auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
+    auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+    builder.create<EquationSidesOp>(loc, lhsOp, rhsOp);
   }
 }

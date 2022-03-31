@@ -1,6 +1,5 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --vectorize-functions                   \
-// RUN:     --convert-modelica-functions            \
+// RUN:     --scalarize                             \
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
@@ -11,10 +10,12 @@
 
 // CHECK{LITERAL}: [0.000000e+00, 1.000000e+00, 2.000000e+00]
 
-modelica.function @callee(%arg0 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x"], results_names = ["y"]} {
-    %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
-    modelica.member_store %0, %arg0 : !modelica.member<stack, !modelica.real>, !modelica.real
-    modelica.function_terminator
+modelica.function @callee : (!modelica.real) -> (!modelica.real) {
+    %cst = constant 3 : index
+    %3 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
+    %2 = modelica.member_load %3 : !modelica.member<!modelica.real, input> -> !modelica.real
+    modelica.member_store %1, %2 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
 func @caller() -> () {

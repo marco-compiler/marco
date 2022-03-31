@@ -6,9 +6,9 @@
 // CHECK-LABEL: results
 // CHECK-NEXT{LITERAL}: [1, 2, 3]
 
+#include "marco/Runtime/ArrayDescriptor.h"
 #include <array>
 #include <iostream>
-#include <marco/runtime/ArrayDescriptor.h>
 
 extern "C" void __modelica_ciface_foo(ArrayDescriptor<long, 1>* y);
 

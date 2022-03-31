@@ -1,5 +1,4 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --convert-modelica-functions            \
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
@@ -13,38 +12,38 @@
 // CHECK: true
 // CHECK-NEXT: false
 
-modelica.function @foo(%arg0 : !modelica.int) -> () attributes {args_names = ["x"], results_names = []} {
-    %c0 = modelica.constant #modelica.int<0> : !modelica.int
-    %condition = modelica.lt %arg0, %c0 : (!modelica.int, !modelica.int) -> !modelica.bool
+modelica.function @foo : (!modelica.int) -> () {
+    %x = modelica.member_create {name = "x"} : !modelica.member<!modelica.int, input>
+    %0 = modelica.member_load %x : !modelica.member<!modelica.int, input> -> !modelica.int
+    %c0 = modelica.constant #modelica.int<0>
+    %condition = modelica.lt %0, %c0 : (!modelica.int, !modelica.int) -> !modelica.bool
 
     modelica.if (%condition : !modelica.bool) {
-        %0 = modelica.constant #modelica.bool<true> : !modelica.bool
-        modelica.print %0 : !modelica.bool
+        %1 = modelica.constant #modelica.bool<true>
+        modelica.print %1 : !modelica.bool
     } else {
-        %0 = modelica.constant #modelica.bool<false> : !modelica.bool
-        modelica.print %0 : !modelica.bool
+        %1 = modelica.constant #modelica.bool<false>
+        modelica.print %1 : !modelica.bool
     }
-
-    modelica.function_terminator
 }
 
 func @test() -> () {
     %size = constant 2 : index
-    %values = modelica.alloca %size : index -> !modelica.array<stack, ?x!modelica.int>
+    %values = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
     %c0 = constant 0 : index
-    %0 = modelica.constant #modelica.int<-10> : !modelica.int
-    modelica.store %values[%c0], %0 : !modelica.array<stack, ?x!modelica.int>
+    %0 = modelica.constant #modelica.int<-10>
+    modelica.store %values[%c0], %0 : !modelica.array<?x!modelica.int>
 
     %c1 = constant 1 : index
-    %1 = modelica.constant #modelica.int<10> : !modelica.int
-    modelica.store %values[%c1], %1 : !modelica.array<stack, ?x!modelica.int>
+    %1 = modelica.constant #modelica.int<10>
+    modelica.store %values[%c1], %1 : !modelica.array<?x!modelica.int>
 
     %lb = constant 0 : index
     %step = constant 1 : index
 
     scf.for %i = %lb to %size step %step {
-      %value = modelica.load %values[%i] : !modelica.array<stack, ?x!modelica.int>
+      %value = modelica.load %values[%i] : !modelica.array<?x!modelica.int>
       modelica.call @foo(%value) : (!modelica.int) -> ()
     }
 

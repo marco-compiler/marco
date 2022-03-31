@@ -180,6 +180,7 @@ namespace
 
       void runOnOperation() override
       {
+        auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
         Model<Equation> model(getOperation());
         mlir::OpBuilder builder(model.getOperation());
 

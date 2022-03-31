@@ -962,8 +962,15 @@ namespace marco::codegen
           builder.create<SubOp>(loc, getMostGenericType(rhsRemaining.getType(), lhsRemaining.getType()), rhsRemaining, lhsRemaining),
           builder.create<SubOp>(loc, getMostGenericType(lhsFactor.getType(), rhsFactor.getType()), lhsFactor, rhsFactor));
 
-      builder.create<EquationSidesOp>(loc, lhs, rhs);
-      terminator->erase();
+      auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
+      auto oldLhsOp = terminator.lhs().getDefiningOp();
+      oldLhsOp->replaceAllUsesWith(lhsOp);
+      oldLhsOp->erase();
+
+      auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+      auto oldRhsOp = terminator.rhs().getDefiningOp();
+      oldRhsOp->replaceAllUsesWith(rhsOp);
+      oldRhsOp->erase();
 
       return mlir::success();
     }
@@ -991,8 +998,15 @@ namespace marco::codegen
           builder.create<SubOp>(loc, getMostGenericType(terminator.rhsValues()[0].getType(), lhsRemaining.getType()), terminator.rhsValues()[0], lhsRemaining),
           lhsFactor);
 
-      builder.create<EquationSidesOp>(loc, lhs, rhs);
-      terminator->erase();
+      auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
+      auto oldLhsOp = terminator.lhs().getDefiningOp();
+      oldLhsOp->replaceAllUsesWith(lhsOp);
+      oldLhsOp->erase();
+
+      auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+      auto oldRhsOp = terminator.rhs().getDefiningOp();
+      oldRhsOp->replaceAllUsesWith(rhsOp);
+      oldRhsOp->erase();
 
       return mlir::success();
     }
@@ -1020,8 +1034,15 @@ namespace marco::codegen
           builder.create<SubOp>(loc, getMostGenericType(terminator.lhsValues()[0].getType(), rhsRemaining.getType()), terminator.lhsValues()[0], rhsRemaining),
           rhsFactor);
 
-      builder.create<EquationSidesOp>(loc, lhs, rhs);
-      terminator->erase();
+      auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
+      auto oldLhsOp = terminator.lhs().getDefiningOp();
+      oldLhsOp->replaceAllUsesWith(lhsOp);
+      oldLhsOp->erase();
+
+      auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+      auto oldRhsOp = terminator.rhs().getDefiningOp();
+      oldRhsOp->replaceAllUsesWith(rhsOp);
+      oldRhsOp->erase();
 
       return mlir::success();
     }

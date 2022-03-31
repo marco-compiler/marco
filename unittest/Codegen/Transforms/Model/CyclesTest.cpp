@@ -39,7 +39,7 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
         nested.create<LoadOp>(loc, model.bodyRegion().getArgument(1)),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 4)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -52,7 +52,7 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)),
         nested.create<LoadOp>(loc, model.bodyRegion().getArgument(2)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -65,7 +65,7 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 3)),
         nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -137,7 +137,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
         nested.create<LoadOp>(loc, model.bodyRegion().getArgument(1), inductions[0]),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -149,7 +149,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
     mlir::Value lhs = nested.create<LoadOp>(loc, model.bodyRegion().getArgument(1), inductions[0]);
     mlir::Value rhs = nested.create<LoadOp>(loc, model.bodyRegion().getArgument(2), inductions[0]);
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -168,7 +168,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
             nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0), inductions[0])),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 4)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -187,7 +187,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
             nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0), inductions[0])),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 6)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq4_matched = std::make_unique<MatchedEquation>(std::move(eq4), eq4->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -243,7 +243,7 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
         nested.create<SinOp>(loc, realType, nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0))));
 
     mlir::Value rhs = nested.create<LoadOp>(loc, model.bodyRegion().getArgument(1));
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT, { 0 }));
@@ -256,7 +256,7 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)),
         nested.create<LoadOp>(loc, model.bodyRegion().getArgument(2)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -269,7 +269,7 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 3)),
         nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -328,7 +328,7 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
             nested.create<LoadOp>(loc, model.bodyRegion().getArgument(2))),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 12)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -344,7 +344,7 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
             nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0))),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -360,7 +360,7 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
             nested.create<LoadOp>(loc, model.bodyRegion().getArgument(0))),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 4)));
 
-    nested.create<EquationSidesOp>(loc, lhs, rhs);
+    createEquationSides(nested, lhs, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));

@@ -12,29 +12,29 @@
 // CHECK: 120
 
 func @test() -> () {
-    %array = modelica.alloca : !modelica.array<stack, 5x!modelica.int>
+    %array = modelica.alloca : !modelica.array<5x!modelica.int>
 
     %c0 = constant 0 : index
-    %0 = modelica.constant #modelica.int<1> : !modelica.int
-    modelica.store %array[%c0], %0 : !modelica.array<stack, 5x!modelica.int>
+    %0 = modelica.constant #modelica.int<1>
+    modelica.store %array[%c0], %0 : !modelica.array<5x!modelica.int>
 
     %c1 = constant 1 : index
-    %1 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %array[%c1], %1 : !modelica.array<stack, 5x!modelica.int>
+    %1 = modelica.constant #modelica.int<2>
+    modelica.store %array[%c1], %1 : !modelica.array<5x!modelica.int>
 
     %c2 = constant 2 : index
-    %2 = modelica.constant #modelica.int<3> : !modelica.int
-    modelica.store %array[%c2], %2 : !modelica.array<stack, 5x!modelica.int>
+    %2 = modelica.constant #modelica.int<3>
+    modelica.store %array[%c2], %2 : !modelica.array<5x!modelica.int>
 
     %c3 = constant 3 : index
-    %3 = modelica.constant #modelica.int<4> : !modelica.int
-    modelica.store %array[%c3], %3 : !modelica.array<stack, 5x!modelica.int>
+    %3 = modelica.constant #modelica.int<4>
+    modelica.store %array[%c3], %3 : !modelica.array<5x!modelica.int>
 
     %c4 = constant 4 : index
-    %4 = modelica.constant #modelica.int<5> : !modelica.int
-    modelica.store %array[%c4], %4 : !modelica.array<stack, 5x!modelica.int>
+    %4 = modelica.constant #modelica.int<5>
+    modelica.store %array[%c4], %4 : !modelica.array<5x!modelica.int>
 
-    %result = modelica.product %array : !modelica.array<stack, 5x!modelica.int> -> !modelica.int
+    %result = modelica.product %array : !modelica.array<5x!modelica.int> -> !modelica.int
     modelica.print %result : !modelica.int
 
     return

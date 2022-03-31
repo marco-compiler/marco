@@ -1,5 +1,4 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --convert-modelica-functions            \
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
@@ -19,61 +18,61 @@
 // CHECK-NEXT: 0
 // CHECK-NEXT: 2
 
-modelica.function @foo(%arg0 : !modelica.int) -> () attributes {args_names = ["x"], results_names = []} {
-    %i = modelica.alloca : !modelica.array<stack, !modelica.int>
-    %c0 = modelica.constant #modelica.int<0> : !modelica.int
-    modelica.store %i[], %c0 : !modelica.array<stack, !modelica.int>
+modelica.function @foo : (!modelica.int) -> () {
+    %x = modelica.member_create {name = "x"} : !modelica.member<!modelica.int, input>
+    %i = modelica.alloca : !modelica.array<!modelica.int>
+    %c0 = modelica.constant #modelica.int<0>
+    modelica.store %i[], %c0 : !modelica.array<!modelica.int>
 
     modelica.for condition {
-        %0 = modelica.load %i[] : !modelica.array<stack, !modelica.int>
-        %condition = modelica.lt %0, %arg0 : (!modelica.int, !modelica.int) -> !modelica.bool
+        %0 = modelica.load %i[] : !modelica.array<!modelica.int>
+        %1 = modelica.member_load %x : !modelica.member<!modelica.int, input> -> !modelica.int
+        %condition = modelica.lt %0, %1 : (!modelica.int, !modelica.int) -> !modelica.bool
         modelica.condition (%condition : !modelica.bool)
     } body {
-        %0 = modelica.constant #modelica.int<0> : !modelica.int
+        %0 = modelica.constant #modelica.int<0>
         modelica.print %0 : !modelica.int
 
-        %1 = modelica.load %i[] : !modelica.array<stack, !modelica.int>
-        %c3 = modelica.constant #modelica.int<3> : !modelica.int
+        %1 = modelica.load %i[] : !modelica.array<!modelica.int>
+        %c3 = modelica.constant #modelica.int<3>
         %condition = modelica.gte %1, %c3 : (!modelica.int, !modelica.int) -> !modelica.bool
 
         modelica.if (%condition : !modelica.bool) {
-            %2 = modelica.constant #modelica.int<2> : !modelica.int
+            %2 = modelica.constant #modelica.int<2>
             modelica.print %2 : !modelica.int
             modelica.return
         }
 
         modelica.yield
     } step {
-        %0 = modelica.load %i[] : !modelica.array<stack, !modelica.int>
-        %c1 = modelica.constant #modelica.int<1> : !modelica.int
+        %0 = modelica.load %i[] : !modelica.array<!modelica.int>
+        %c1 = modelica.constant #modelica.int<1>
         %1 = modelica.add %0, %c1 : (!modelica.int, !modelica.int) -> !modelica.int
-        modelica.store %i[], %1 : !modelica.array<stack, !modelica.int>
+        modelica.store %i[], %1 : !modelica.array<!modelica.int>
         modelica.yield
     }
 
-    %0 = modelica.constant #modelica.int<1> : !modelica.int
+    %0 = modelica.constant #modelica.int<1>
     modelica.print %0 : !modelica.int
-
-    modelica.function_terminator
 }
 
 func @test() -> () {
     %size = constant 2 : index
-    %values = modelica.alloca %size : index -> !modelica.array<stack, ?x!modelica.int>
+    %values = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
     %c0 = constant 0 : index
-    %0 = modelica.constant #modelica.int<2> : !modelica.int
-    modelica.store %values[%c0], %0 : !modelica.array<stack, ?x!modelica.int>
+    %0 = modelica.constant #modelica.int<2>
+    modelica.store %values[%c0], %0 : !modelica.array<?x!modelica.int>
 
     %c1 = constant 1 : index
-    %1 = modelica.constant #modelica.int<4> : !modelica.int
-    modelica.store %values[%c1], %1 : !modelica.array<stack, ?x!modelica.int>
+    %1 = modelica.constant #modelica.int<4>
+    modelica.store %values[%c1], %1 : !modelica.array<?x!modelica.int>
 
     %lb = constant 0 : index
     %step = constant 1 : index
 
     scf.for %i = %lb to %size step %step {
-      %value = modelica.load %values[%i] : !modelica.array<stack, ?x!modelica.int>
+      %value = modelica.load %values[%i] : !modelica.array<?x!modelica.int>
       modelica.call @foo(%value) : (!modelica.int) -> ()
     }
 

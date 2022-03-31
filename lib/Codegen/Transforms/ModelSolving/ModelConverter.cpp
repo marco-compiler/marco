@@ -136,7 +136,19 @@ namespace marco::codegen
     for (auto& scheduledBlock : model.getScheduledBlocks()) {
       if (!scheduledBlock->hasCycle()) {
         for (auto& scheduledEquation : *scheduledBlock) {
+          /*
+          llvm::errs() << "ORIGINAL\n";
+          scheduledEquation->dumpIR();
+          llvm::errs() << "\n";
+           */
+
           auto explicitClone = scheduledEquation->cloneIRAndExplicitate(builder);
+
+          /*
+          llvm::errs() << "EXPLICIT\n";
+          explicitClone->dumpIR();
+          llvm::errs() << "\n";
+           */
 
           if (explicitClone == nullptr) {
             conversionInfo.implicitEquations.emplace(scheduledEquation.get());

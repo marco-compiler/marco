@@ -5,6 +5,87 @@
 namespace mlir::modelica
 {
   //===----------------------------------------------------------------------===//
+  // BooleanAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute BooleanAttr::parse(
+      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  {
+    bool value = false;
+
+    if (parser.parseLess()) {
+      return mlir::Attribute();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalKeyword("true"))) {
+      value = true;
+    } else {
+      if (parser.parseKeyword("false")) {
+        return mlir::Attribute();
+      }
+
+      value = false;
+    }
+
+    if (parser.parseGreater()) {
+      return mlir::Attribute();
+    }
+
+    return BooleanAttr::get(context, BooleanType::get(context), value);
+  }
+
+  void BooleanAttr::print(mlir::DialectAsmPrinter& os) const
+  {
+    os << "bool<" << getValue() << ">";
+  }
+
+  //===----------------------------------------------------------------------===//
+  // IntegerAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute IntegerAttr::parse(
+      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  {
+    long value;
+
+    if (parser.parseLess() ||
+        parser.parseInteger(value) ||
+        parser.parseGreater()) {
+      return mlir::Attribute();
+    }
+
+    return IntegerAttr::get(context, IntegerType::get(context), llvm::APInt(sizeof(long) * 8, value, true));
+  }
+
+  void IntegerAttr::print(mlir::DialectAsmPrinter& os) const
+  {
+    os << "int<" << getValue() << ">";
+  }
+
+  //===----------------------------------------------------------------------===//
+  // RealAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute RealAttr::parse(
+      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  {
+    double value;
+
+    if (parser.parseLess() ||
+        parser.parseFloat(value) ||
+        parser.parseGreater()) {
+      return mlir::Attribute();
+    }
+
+    return RealAttr::get(context, RealType::get(context), llvm::APFloat(value));
+  }
+
+  void RealAttr::print(mlir::DialectAsmPrinter& os) const
+  {
+    os << "real<" << getValue() << ">";
+  }
+
+  //===----------------------------------------------------------------------===//
   // InverseFunctionsAttr
   //===----------------------------------------------------------------------===//
 

@@ -1,9 +1,9 @@
-#include "llvm/ADT/STLExtras.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/STLExtras.h"
 #include <queue>
 #include <set>
 
@@ -55,14 +55,14 @@ namespace marco::codegen
   }
 }
 
-/*
 static bool hasFloatBase(mlir::Type type) {
-	if (type.isa<RealType>())
-		return true;
+	if (type.isa<RealType>()) {
+    return true;
+  }
 
-	if (auto arrayType = type.dyn_cast<ArrayType>();
-			arrayType && arrayType.getElementType().isa<RealType>())
-		return true;
+	if (auto arrayType = type.dyn_cast<ArrayType>(); arrayType && arrayType.getElementType().isa<RealType>()) {
+    return true;
+  }
 
 	return false;
 }
@@ -85,34 +85,6 @@ static void getDynamicDimensions(mlir::OpBuilder& builder,
 	}
 }
 
-static mlir::Value createDerVariable(
-		mlir::OpBuilder& builder,
-		mlir::Value var,
-		std::function<std::string()> derivativeName)
-{
-	if (auto memberCreateOp = var.getDefiningOp<MemberCreateOp>())
-	{
-		mlir::Value der = builder.create<MemberCreateOp>(
-				var.getLoc(),
-				derivativeName(),
-        memberCreateOp.getMemberType(),
-				memberCreateOp.dynamicSizes(),
-        false);
-
-		return der;
-	}
-
-	mlir::Type type = var.getType();
-
-	llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
-	getDynamicDimensions(builder, var, dynamicDimensions);
-
-	mlir::Value der = builder.create<MemberCreateOp>(
-			var.getLoc(), derivativeName(), MemberType::wrap(type, MemberAllocationScope::stack), dynamicDimensions);
-
-	return der;
-}
-
 static std::string getPartialDerVariableName(llvm::StringRef currentName, llvm::StringRef independentVar)
 {
 	return "pder_" + independentVar.str() + "_" + currentName.str();
@@ -123,6 +95,7 @@ static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 	return "pder_" + baseName.str();
 }
 
+/*
 static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, DerFunctionOp derFunction)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -436,7 +409,9 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	return mlir::success();
 }
+ */
 
+/*
 struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 {
 	using mlir::OpRewritePattern<DerSeedOp>::OpRewritePattern;
@@ -468,187 +443,180 @@ struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 		return mlir::success();
 	}
 };
+ */
 
-static void mapFullDerivatives(llvm::ArrayRef<llvm::StringRef> names,
-															 mlir::ValueRange values,
-															 mlir::BlockAndValueMapping& derivatives)
+static void mapFullDerivatives(mlir::BlockAndValueMapping& mapping, llvm::ArrayRef<MemberCreateOp> members)
 {
-	// Map the values for a faster by-name lookup
-	llvm::StringMap<mlir::Value> map;
+  llvm::StringMap<MemberCreateOp> membersByName;
 
-	for (const auto& [name, value] : llvm::zip(names, values))
-		map[name] = value;
+  for (MemberCreateOp member : members) {
+    membersByName[member.name()] = member;
+  }
 
-	for (const auto& name : names)
-	{
+	for (MemberCreateOp member : members) {
+    auto name = member.name();
+
 		// Given a variable "x", first search for "der_x". If it doesn't exist,
 		// then also "der_2_x", "der_3_x", etc. will not exist and thus we can
-		// say that "x" has no derivatives. If it exist, add the first order
+		// say that "x" has no derivatives. If it exists, add the first order
 		// derivative and then search for the other orders ones.
 
 		auto candidateFirstOrderDer = getFullDerVariableName(name, 1);
+    auto derIt = membersByName.find(candidateFirstOrderDer);
 
-		if (map.count(candidateFirstOrderDer) == 0)
-			continue;
+    if (derIt == membersByName.end()) {
+      continue;
+    }
 
-		mlir::Value der = map[candidateFirstOrderDer];
-		derivatives.map(map[name], der);
+    mlir::Value der = derIt->second;
+    mapping.map(member.getResult(), der);
 
 		unsigned int order = 2;
-		bool found = true;
+		bool found;
 
-		while (found)
-		{
+		do {
 			auto nextName = getFullDerVariableName(name, order);
-			found = map.count(nextName) != 0;
+      auto nextDerIt = membersByName.find(nextName);
+			found = nextDerIt != membersByName.end();
 
-			if (found)
-			{
-				mlir::Value nextDer = map[nextName];
-				derivatives.map(der, nextDer);
+			if (found) {
+				mlir::Value nextDer = nextDerIt->second;
+				mapping.map(der, nextDer);
 				der = nextDer;
 			}
 
 			++order;
-		}
+		} while (found);
 	}
 }
 
-static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, FunctionOp base)
+static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, FunctionOp functionOp)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-	builder.setInsertionPointAfter(base);
 
-	auto derivativeAttribute = base->getAttrOfType<DerivableOpAttribute>("derivative");
+  auto module = functionOp->getParentOfType<mlir::ModuleOp>();
+	builder.setInsertionPointToStart(module.getBody());
+
+	auto derivativeAttribute = functionOp->getAttrOfType<DerivativeAttr>("derivative");
 	unsigned int order = derivativeAttribute.getOrder();
 
-	// If the source already provides the derivative function, then stop
-	if (auto module = base->getParentOfType<mlir::ModuleOp>();
-			module.lookupSymbol<FunctionOp>(derivativeAttribute.getName()))
-		return mlir::success();
+	if (auto derSymbol = module.lookupSymbol(derivativeAttribute.getName())) {
+    // If the source already provides a symbol with the derived function name, then
+    // check that it is a function. If it is, then it means the user already manually
+    // provided the derivative.
+    return mlir::LogicalResult::success(mlir::isa<FunctionOp>(derSymbol));
+  }
 
-	// Create a map of the source arguments for a faster lookup
-	llvm::StringMap<mlir::Value> sourceArgsMap;
+  std::map<std::string, std::string> derivativesByName;
 
-	for (const auto& [name, value] : llvm::zip(base.argsNames(), base.getArguments()))
-		sourceArgsMap[name.cast<mlir::StringAttr>().getValue()] = value;
+  // Map the members for a faster lookup
+  llvm::StringMap<MemberCreateOp> originalMembers;
 
-	// The new arguments names are stored here because they will be appended
-	// only when all the original arguments will have been processed. Note that
-	// the name container stores std::strings instead of llvm::StringRefs, as the
-	// latter would refer to a std::string allocated within the following loop
-	// (and thus the references would then become invalid).
-	llvm::SmallVector<std::string, 3> newArgsNamesBuffers;
+  functionOp->walk([&](MemberCreateOp op) {
+    originalMembers[op.name()] = op;
+  });
 
+  // Determine the new arguments names and types
+	llvm::SmallVector<std::string, 3> newArgsNames;
 	llvm::SmallVector<mlir::Type, 3> newArgsTypes;
 
-	for (const auto& [name, type] : llvm::zip(base.argsNames(), base.getType().getInputs()))
-	{
-		llvm::StringRef argName = name.cast<mlir::StringAttr>().getValue();
+	for (const auto& name : functionOp.inputMemberNames()) {
+    auto member = originalMembers[name];
+    auto type = member.getMemberType().unwrap();
 
-		if (hasFloatBase(type))
-		{
+		if (hasFloatBase(type)) {
 			// If the current argument name starts with der, we need to check if
 			// the original function to be derived has a member whose derivative
 			// may be the current one. If this is the case, then we don't need to
 			// add the n-th derivative as it is already done when encountering that
 			// member. If it is not, then it means the original function had a
 			// "strange" member named "der_something" and the derivative function
-			// will contain both "der_something" and "der_der_something"; that
+			// will contain both "der_something" and "der_der_something"; the
 			// original "der_something" could effectively be a derivative, but
-			// this is an assumption we can't do.
+			// this is an assumption we can't make.
 
-			if (argName.rfind("der_") == 0)
-			{
+      auto originalInputNames = functionOp.inputMemberNames();
+
+			if (name.rfind("der_") == 0) {
 				auto isDerivative = [&](llvm::StringRef name) {
-					for (const auto& arg : sourceArgsMap)
-					{
-						for (unsigned int i = 1; i < order; ++i)
-							if (name == getFullDerVariableName(arg.first(), i))
-								return true;
+					for (const auto& originalInputName : originalInputNames) {
+						for (unsigned int i = 1; i < order; ++i) {
+              if (name == getFullDerVariableName(originalInputName, i)) {
+                return true;
+              }
+            }
 					}
 
 					return false;
 				};
 
-				if (isDerivative(argName))
-					continue;
+				if (isDerivative(name)) {
+          continue;
+        }
 			}
 
-			newArgsNamesBuffers.push_back(getFullDerVariableName(argName, order));
+      auto derName = getFullDerVariableName(name, order);
+			newArgsNames.push_back(derName);
 			newArgsTypes.push_back(type);
+      //derivativesByName[name] = derName;
 		}
 	}
 
 	llvm::SmallVector<llvm::StringRef, 3> argsNames;
 	llvm::SmallVector<mlir::Type, 3> argsTypes;
 
-	for (const auto& [name, type] : llvm::zip(base.argsNames(), base.getType().getInputs()))
-	{
-		argsNames.push_back(name.cast<mlir::StringAttr>().getValue());
-		argsTypes.push_back(type);
+	for (const auto& name : functionOp.inputMemberNames()) {
+		argsNames.push_back(name);
+		argsTypes.push_back(originalMembers[name].getMemberType().unwrap());
 	}
 
-	for (const auto& [name, type] : llvm::zip(newArgsNamesBuffers, newArgsTypes))
-	{
+	for (const auto& [name, type] : llvm::zip(newArgsNames, newArgsTypes)) {
 		argsNames.push_back(name);
 		argsTypes.push_back(type);
 	}
 
-	// Determine the result members
-	llvm::SmallVector<std::string, 3> resultsNamesBuffers;
-	llvm::SmallVector<llvm::StringRef, 3> resultsNames;
-	llvm::SmallVector<mlir::Type, 3> resultsTypes;
+	// Determine the results names and types
+	llvm::SmallVector<std::string, 3> resultsNames;
+  llvm::SmallVector<mlir::Type, 3> resultsTypes;
 
-	for (const auto& [name, type] : llvm::zip(base.resultsNames(), base.getType().getResults()))
-	{
-		if (!hasFloatBase(type))
-			continue;
+	for (const auto& name : functionOp.outputMemberNames()) {
+    auto type = originalMembers[name].getMemberType().unwrap();
 
-		resultsTypes.push_back(type);
+		if (!hasFloatBase(type)) {
+      continue;
+    }
 
-		llvm::StringRef resultName = name.cast<mlir::StringAttr>().getValue();
-		resultsNamesBuffers.push_back(getNextFullDerVariableName(resultName, order));
+    resultsNames.push_back(getNextFullDerVariableName(name, order));
+    resultsTypes.push_back(type);
 	}
 
-	for (const auto& name : resultsNamesBuffers)
-		resultsNames.push_back(name);
-
 	// Create the derived function
-	auto derivedFunction = builder.create<FunctionOp>(
-			base->getLoc(),
+	auto derivedFunctionOp = builder.create<FunctionOp>(
+			functionOp.getLoc(),
 			derivativeAttribute.getName(),
-			builder.getFunctionType(argsTypes, resultsTypes),
-			argsNames,
-			resultsNames);
-
-	mlir::Block* body = derivedFunction.addEntryBlock();
-	builder.setInsertionPointToStart(body);
+			builder.getFunctionType(argsTypes, resultsTypes));
 
 	mlir::BlockAndValueMapping mapping;
 
 	// Clone the blocks structure of the function to be derived. The
-	// operations contained in the blocks are not copied.
+	// operations contained in the blocks will be copied later, as we
+  // first need to map the blocks used by the branch operations.
 
-	for (auto& block : llvm::enumerate(base.getRegion().getBlocks()))
-	{
-		if (block.index() == 0)
-		{
-			// The first source block is ignored, as it has only a subset of the
-			// derived function arguments.
-			continue;
-		}
-
+	for (auto& block : functionOp.body().getBlocks()) {
 		mlir::Block* clonedBlock = builder.createBlock(
-				&derivedFunction.getRegion(),
-				derivedFunction.getRegion().end(),
-				block.value().getArgumentTypes());
+				&derivedFunctionOp.body(),
+        derivedFunctionOp.body().end(),
+				block.getArgumentTypes());
 
-		mapping.map(&block.value(), clonedBlock);
+		mapping.map(&block, clonedBlock);
 	}
 
-	for (const auto& sourceArg : llvm::enumerate(base.getRegion().front().getArguments()))
-		mapping.map(sourceArg.value(), body->getArgument(sourceArg.index()));
+  // Create the members
+  builder.setInsertionPointToStart(&derivedFunctionOp.body().front());
+
+  llvm::SmallVector<MemberCreateOp, 3> members;
+
+  /*
 
 	mlir::BlockAndValueMapping derivatives;
 
@@ -707,12 +675,12 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	// we find them, as we would invalidate the operation walk's iterator.
 	std::queue<DerivableOpInterface> derivableOps;
 
-	for (auto derivableOp : derivedFunction.getBody().getOps<DerivableOpInterface>())
-		derivableOps.push(derivableOp);
+	for (auto derivableOp : derivedFunctionOp.body().getOps<DerivableOpInterface>()) {
+    derivableOps.push(derivableOp);
+  }
 
 	// Derive each derivable operation
-	while (!derivableOps.empty())
-	{
+	while (!derivableOps.empty()) {
 		auto& op = derivableOps.front();
 
 		op.derive(builder, derivatives);
@@ -720,20 +688,24 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 		llvm::SmallVector<mlir::Region*, 3> regions;
 		op.getDerivableRegions(regions);
 
-		for (auto& region : regions)
-			for (auto derivableOp : region->getOps<DerivableOpInterface>())
-				derivableOps.push(derivableOp);
+		for (auto& region : regions) {
+      for (auto derivableOp : region->getOps<DerivableOpInterface>()) {
+        derivableOps.push(derivableOp);
+      }
+    }
 
 		derivableOps.pop();
 	}
+   */
 
 	return mlir::success();
 }
- */
 
-class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
+namespace
 {
-	public:
+  class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
+  {
+    public:
     void getDependentDialects(mlir::DialectRegistry &registry) const override
     {
       registry.insert<ModelicaDialect>();
@@ -741,30 +713,27 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
     void runOnOperation() override
     {
-      /*
-      if (mlir::failed(createFullDerFunctions()))
-      {
+      if (mlir::failed(createFullDerFunctions())) {
         mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
         return signalPassFailure();
       }
 
-      if (mlir::failed(createPartialDerFunctions()))
-      {
+      /*
+      if (mlir::failed(createPartialDerFunctions())) {
         mlir::emitError(getOperation().getLoc(), "Error in creating the functions partial derivatives");
         return signalPassFailure();
       }
 
-      if (mlir::failed(resolveTrivialDerCalls()))
-      {
+      if (mlir::failed(resolveTrivialDerCalls())) {
         mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
         return signalPassFailure();
       }
        */
     }
 
-        /*
     mlir::LogicalResult addPartialDerFunctions()
     {
+      /*
       // If using the SUNDIALS IDA library as a solver, we also need the partial
       // function derivatives of all call operations in order to compute the
       // symbolic jacobian.
@@ -812,6 +781,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
           builder.create<DerFunctionOp>(op.getLoc(), pderName, op.getName(), op.independentVariables());
         }
       }
+       */
 
       return mlir::success();
     }
@@ -824,27 +794,31 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
       llvm::SmallVector<FunctionOp, 3> toBeDerived;
 
       module->walk([&](FunctionOp op) {
-        if (op.hasDerivative())
+        if (op->hasAttrOfType<DerivativeAttr>("derivative")) {
           toBeDerived.push_back(op);
+        }
       });
 
       // Sort the functions so that a function derivative is computed only
       // when the base function already has its body determined.
 
       llvm::sort(toBeDerived, [](FunctionOp first, FunctionOp second) {
-        auto annotation = first->getAttrOfType<DerivativeAttribute>("derivative");
+        auto annotation = first->getAttrOfType<DerivativeAttr>("derivative");
         return annotation.getName() == second.name();
       });
 
-      for (auto& function : toBeDerived)
-        if (auto status = createFullDerFunction(builder, function); mlir::failed(status))
-          return status;
+      for (auto& function : toBeDerived) {
+        if (auto res = createFullDerFunction(builder, function); mlir::failed(res)) {
+          return res;
+        }
+      }
 
       return mlir::success();
     }
 
     mlir::LogicalResult createPartialDerFunctions()
     {
+      /*
       auto module = getOperation();
       mlir::OpBuilder builder(module);
 
@@ -891,10 +865,14 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
       patterns.insert<DerSeedOpPattern>(&getContext());
 
       return applyFullConversion(module, target, std::move(patterns));
+       */
+
+      return mlir::success();
     }
 
     mlir::LogicalResult resolveTrivialDerCalls()
     {
+      /*
       auto module = getOperation();
       mlir::OpBuilder builder(module);
 
@@ -928,13 +906,17 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
           op.erase();
         }
       });
+       */
 
       return mlir::success();
     }
-         */
-};
+  };
+}
 
-std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass()
+namespace marco::codegen
 {
-	return std::make_unique<AutomaticDifferentiationPass>();
+  std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass()
+  {
+    return std::make_unique<AutomaticDifferentiationPass>();
+  }
 }

@@ -1,8 +1,8 @@
 // RUN: marco %s --omc-bypass --emit-modelica-dialect | FileCheck %s
 
 // CHECK-LABEL: @foo
-// CHECK-SAME: %arg0 : !modelica.array<?x!modelica.int>
-// CHECK: modelica.sum %arg0 : !modelica.array<?x!modelica.int> -> !modelica.int
+// CHECK: modelica.sum
+// CHECK-SAME: !modelica.array<?x!modelica.int> -> !modelica.int
 
 function foo
     input Integer[:] x;
