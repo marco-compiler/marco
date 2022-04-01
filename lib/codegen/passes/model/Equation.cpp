@@ -395,10 +395,18 @@ namespace marco::codegen
     }
 
     mlir::Operation* op = value.getDefiningOp();
-    assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) || mlir::isa<SubOp>(op)) && "Invalid access pattern");
+    assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) 
+              || mlir::isa<SubOp>(op) || mlir::isa<LoadOp>(op)
+     ) && "Invalid access pattern");
 
     if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
       return std::make_pair(nullptr, getIntFromAttribute(constantOp.value()));
+    }
+
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(op))
+    {
+      assert(loadOp.indexes().empty());
+      return std::make_pair(value, 0);
     }
 
     if (auto addOp = mlir::dyn_cast<AddOp>(op)) {

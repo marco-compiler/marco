@@ -633,23 +633,25 @@ class ModelConverter
         return std::make_tuple(begin, end, step);
       };
 
-      std::vector<mlir::Value> args;
-      auto iterationRanges = equation.getIterationRanges()[0]; // todo handle ragged case
+      for(auto iterationRanges : equation.getIterationRanges().getRanges()) // todo check ragged case
+      {
+        std::vector<mlir::Value> args;
 
-      for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
-        auto values = valuesFn(equation.getSchedulingDirection(), iterationRanges[i]);
+        for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
+          auto values = valuesFn(equation.getSchedulingDirection(), iterationRanges[i]);
 
-        args.push_back(std::get<0>(values));
-        args.push_back(std::get<1>(values));
-        args.push_back(std::get<2>(values));
+          args.push_back(std::get<0>(values));
+          args.push_back(std::get<1>(values));
+          args.push_back(std::get<2>(values));
+        }
+
+        mlir::ValueRange vars = function.getArguments();
+        args.insert(args.end(), vars.begin(), vars.end());
+
+        // Call the equation template function
+        auto templateFunctionCall = builder.create<mlir::CallOp>(loc, templateFunction, args);
+        equationTemplateCalls.emplace(templateFunction, templateFunctionCall);
       }
-
-      mlir::ValueRange vars = function.getArguments();
-      args.insert(args.end(), vars.begin(), vars.end());
-
-      // Call the equation template function
-      auto templateFunctionCall = builder.create<mlir::CallOp>(loc, templateFunction, args);
-      equationTemplateCalls.emplace(templateFunction, templateFunctionCall);
 
       builder.create<mlir::ReturnOp>(loc);
       return function;

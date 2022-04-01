@@ -367,28 +367,27 @@ mlir::ArrayAttr ModelOp::variableNames()
 // Modelica::ForEquationOp
 //===----------------------------------------------------------------------===//
 
-long ForEquationOpAdaptor::start()
+mlir::Value ForEquationOpAdaptor::start()
 {
-  return getAttrs().getAs<mlir::IntegerAttr>("start").getInt();
+  return getValues()[0];
 }
 
-long ForEquationOpAdaptor::end()
+mlir::Value ForEquationOpAdaptor::end()
 {
-  return getAttrs().getAs<mlir::IntegerAttr>("end").getInt();
+  return getValues()[1];
 }
 
 llvm::ArrayRef<llvm::StringRef> ForEquationOp::getAttributeNames()
 {
-  static llvm::StringRef attrNames[] = {llvm::StringRef("start"), llvm::StringRef("end")};
-  return llvm::makeArrayRef(attrNames);
+  return {};
 }
 
-void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end)
+void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value start, mlir::Value end)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.createBlock(state.addRegion(), {}, builder.getIndexType());
-  state.addAttribute("start", builder.getI64IntegerAttr(start));
-  state.addAttribute("end", builder.getI64IntegerAttr(end));
+  state.addOperands(start);
+  state.addOperands(end);
 }
 
 void ForEquationOp::print(mlir::OpAsmPrinter& printer)
@@ -401,6 +400,11 @@ void ForEquationOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult ForEquationOp::verify()
 {
+	if (getNumOperands() != 2)
+		return emitOpError("requires two operands, start and end values");
+	if (!isNumeric(start()) || !isNumeric(end()))	//todo change to handle subscriptions(?)
+		return emitOpError("requires the operands to be scalars of simple types");
+	
   return mlir::success();
 }
 
@@ -414,12 +418,12 @@ mlir::Value ForEquationOp::induction()
   return getRegion().getArgument(0);
 }
 
-long ForEquationOp::start()
+mlir::Value ForEquationOp::start()
 {
   return Adaptor(*this).start();
 }
 
-long ForEquationOp::end()
+mlir::Value ForEquationOp::end()
 {
   return Adaptor(*this).end();
 }
@@ -1836,13 +1840,20 @@ mlir::ValueRange AllocaOpAdaptor::dynamicDimensions()
 
 llvm::ArrayRef<llvm::StringRef> AllocaOp::getAttributeNames()
 {
-  return {};
+  static llvm::StringRef attrNames[] = {llvm::StringRef("constantValues")};
+	return llvm::makeArrayRef(attrNames);
 }
 
 void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, Shape shape, mlir::ValueRange dimensions)
 {
 	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
 	state.addOperands(dimensions);
+}
+
+void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, mlir::ArrayAttr constantValues, Shape shape, mlir::ValueRange dimensions)
+{
+	build(builder, state, elementType, shape, dimensions);
+	state.addAttribute("constantValues", constantValues);
 }
 
 mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -1909,6 +1920,8 @@ void AllocaOp::print(mlir::OpAsmPrinter& printer)
 		printer << " -> ";
 
 	printer << resultType();
+
+	printer << " " << getOperation()->getAttrDictionary();
 }
 
 mlir::LogicalResult AllocaOp::verify()
@@ -1957,6 +1970,16 @@ void AllocaOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDe
 void AllocaOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+mlir::ArrayAttr AllocaOp::getConstantValues()
+{
+	return getOperation()->getAttrOfType<mlir::ArrayAttr>("constantValues");
+}
+
+bool AllocaOp::hasConstantValues()
+{
+	return getOperation()->hasAttrOfType<mlir::ArrayAttr>("constantValues");
 }
 
 //===----------------------------------------------------------------------===//

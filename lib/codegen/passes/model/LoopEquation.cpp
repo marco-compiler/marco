@@ -73,25 +73,136 @@ namespace marco::codegen
     return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
   }
 
+  RangeRagged getRangeFromDimensionSize(const Shape::DimensionSize &dimension)
+  {
+    if(dimension.isRagged())
+    {
+      llvm::SmallVector<RangeRagged,3> arr;
+
+      for(const auto r : dimension.asRagged()){
+        arr.push_back(getRangeFromDimensionSize(r));
+      }
+      return RangeRagged(arr);
+    }
+    
+    return RangeRagged(0,dimension.getNumericValue());
+  }
+
+  static long getIntFromAttribute(mlir::Attribute attribute)
+  {
+    if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>())
+      return indexAttr.getInt();
+
+    if (auto booleanAttr = attribute.dyn_cast<BooleanAttribute>())
+      return booleanAttr.getValue() ? 1 : 0;
+
+    if (auto integerAttr = attribute.dyn_cast<IntegerAttribute>())
+      return integerAttr.getValue();
+
+    if (auto realAttr = attribute.dyn_cast<RealAttribute>())
+      return realAttr.getValue();
+
+    llvm_unreachable("Unknown attribute type");
+    return 0;
+  }
+
+  RaggedValue getValue(mlir::Value value)
+  {
+    if(value.isa<mlir::BlockArgument>())
+    {
+      auto parent = value.getParentBlock()->getParentOp();
+      if (auto forBlock = mlir::dyn_cast<ForEquationOp>(parent)) {
+        auto start = getValue(forBlock.start());
+        auto end = getValue(forBlock.end()) + 1;
+
+        llvm::SmallVector<RaggedValue,3> values;
+        for(auto it = start.asValue(); it<end.asValue(); ++it)
+          values.push_back(it);
+
+        return RaggedValue(values);
+      }
+    }
+    
+    mlir::Operation* op = value.getDefiningOp();
+
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
+      return getIntFromAttribute(constantOp.value());
+    }
+    if (auto addOp = mlir::dyn_cast<AddOp>(op))
+    {
+      return getValue(addOp.lhs()) + getValue(addOp.rhs());  
+    }
+    if (auto subOp = mlir::dyn_cast<SubOp>(op))
+    {
+      return getValue(subOp.lhs()) - getValue(subOp.rhs());  
+    }
+    
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(op))
+    {
+      assert(loadOp.indexes().empty());
+      return getValue(loadOp.memory());
+    }
+    if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
+    {      
+      auto array = subscriptionOp.source().getDefiningOp();
+      auto index = getValue(subscriptionOp.indexes()[0]);;
+      if (auto allocaOp = mlir::dyn_cast<AllocaOp>(array))
+      {
+        if(allocaOp.hasConstantValues())
+        {
+          auto foo=[](const mlir::ArrayAttr &array, const RaggedValue &index, auto self){
+            if(index.isRagged())
+            {
+              llvm::SmallVector<RaggedValue,3> values;
+              for(auto i: index.asRagged())
+              {
+                if(i.isRagged())
+                  assert(false);
+                else
+                  values.push_back(getIntFromAttribute(array[i.asValue()]));
+              }
+              return RaggedValue(values);
+            }
+            else
+            {
+              return RaggedValue(getIntFromAttribute(array[index.asValue()]));
+            }
+          };
+          auto rag = foo(allocaOp.getConstantValues(),index,foo);
+          return rag;
+        }
+      }
+    }
+
+    assert(false && "unreachable");
+  }
+
   IndexSet LoopEquation::getIterationRanges() const
   {
-    std::vector<Range> ranges;
+    std::vector<RangeRagged> ranges;
 
     for (auto& explicitLoop : getExplicitLoops()) {
-      ranges.emplace_back(explicitLoop.start(), explicitLoop.end() + 1);
+      ranges.emplace_back(getValue(explicitLoop.start()), getValue(explicitLoop.end()) + 1);
     }
 
-    auto implicitLoops = getImplicitLoops();
+    std::vector<RangeRagged> implicitLoops;
     
-    IndexSet result;
-    for(auto loops : implicitLoops)
     {
-      auto tmp = ranges;
-      tmp.insert(tmp.end(), loops.begin(), loops.end());
-      result += MultidimensionalRange(tmp);
+      //get implicit loops
+      size_t counter = 0;
+      auto terminator = mlir::cast<EquationSidesOp>(getOperation().body()->getTerminator());
+
+      if (auto arrayType = terminator.lhs()[0].getType().dyn_cast<ArrayType>()) {
+        for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
+          implicitLoops.push_back(getRangeFromDimensionSize(arrayType.getShape()[i]));
+        }
+      }
     }
 
-    return result;
+    ranges.insert(ranges.end(), implicitLoops.begin(), implicitLoops.end());  
+    
+    auto multi = MultidimensionalRangeRagged(std::move(ranges));
+    return getIndexSetFromRaggedRange(multi);
   }
 
   std::vector<Access> LoopEquation::getAccesses() const
@@ -336,22 +447,8 @@ namespace marco::codegen
   }
 
 
-  RangeRagged getRangeFromDimensionSize(const Shape::DimensionSize &dimension)
-  {
-    if(dimension.isRagged())
-    {
-      llvm::SmallVector<RangeRagged,3> arr;
 
-      for(const auto r : dimension.asRagged()){
-        arr.push_back(getRangeFromDimensionSize(r));
-      }
-      return RangeRagged(arr);
-    }
-    
-    return RangeRagged(0,dimension.getNumericValue());
-  }
-
-  std::vector<std::vector<Range>> LoopEquation::getImplicitLoops() const
+  IndexSet LoopEquation::getImplicitLoops() const
   {
     std::vector<RangeRagged> tmp;
 
@@ -365,16 +462,6 @@ namespace marco::codegen
     }
 
     MultidimensionalRangeRagged multi_ragged(tmp);
-    auto multi_ranges = multi_ragged.toMultidimensionalRanges();
-
-    std::vector<std::vector<Range>> result;
-
-    for(auto multi: multi_ranges)
-    {
-      auto ranges = multi.getRanges();
-      result.push_back({ranges.begin(),ranges.end()});
-    }
-
-    return result;
+    return getIndexSetFromRaggedRange(multi_ragged);
   }
 }

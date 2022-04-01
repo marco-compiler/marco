@@ -691,15 +691,12 @@ void MLIRLowerer::lower(const ForEquation& forEquation)
 
   for (auto& induction : forEquation.getInductions())
   {
-    const auto& startExpression = induction->getBegin();
-    assert(startExpression->isa<Constant>());
-    long start = startExpression->get<Constant>()->as<BuiltInType::Integer>();
+    auto startExpression = lower<Expression>(*induction->getBegin());
+    auto endExpression   = lower<Expression>(*induction->getEnd());
 
-    const auto& endExpression = induction->getEnd();
-    assert(endExpression->isa<Constant>());
-    long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
+		assert(startExpression.size()==1 && endExpression.size()==1);
 
-    auto forEquationOp = builder.create<ForEquationOp>(location, start, end);
+    auto forEquationOp = builder.create<ForEquationOp>(location, *startExpression[0], *endExpression[0]);
     builder.setInsertionPointToStart(forEquationOp.body());
 
     symbolTable.insert(
@@ -1544,6 +1541,68 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<RecordInstance>(const Expre
 	return result;
 }
 
+bool isConstant(const Expression& expression);
+bool isConstant(const Constant&)
+{
+	return true;
+}
+bool isConstant(const Array& array)
+{
+	for(const auto &el: array)
+		if(!isConstant(*el))
+			return false;
+	return true;
+}
+bool isConstant(const Expression& expression)
+{
+	if(auto constant = expression.dyn_get<Constant>())
+		return isConstant(*constant);
+	else if(auto array = expression.dyn_get<Array>())
+		return isConstant(*array);
+	else
+		return false;
+}
+
+mlir::Attribute toAttribute(const Constant& constant, modelica::ModelicaBuilder &builder)
+{
+	const auto& type = constant.getType();
+
+	assert(type.isa<BuiltInType>() && "Constants can be made only of built-in typed values");
+
+	auto builtInType = type.get<BuiltInType>();
+
+	mlir::Attribute attribute;
+
+	if (builtInType == BuiltInType::Boolean)
+		attribute = builder.getBooleanAttribute(constant.as<BuiltInType::Boolean>());
+	else if (builtInType == BuiltInType::Integer)
+		attribute = builder.getIntegerAttribute(constant.as<BuiltInType::Integer>());
+	else if (builtInType == BuiltInType::Float)
+		attribute = builder.getRealAttribute(constant.as<BuiltInType::Float>());
+	else
+		assert(false && "Unsupported constant type");
+	
+	return attribute;
+}
+
+mlir::ArrayAttr toAttribute(const Array& value, modelica::ModelicaBuilder &builder)
+{
+	llvm::SmallVector<mlir::Attribute, 3> values;
+
+	for(const auto &el: value)
+	{
+		if(auto constant = el->dyn_get<Constant>())
+			values.push_back(toAttribute(*constant, builder));
+		else if(auto array = el->dyn_get<Array>())
+			values.push_back(toAttribute(*array, builder));
+		else
+			assert(false && "constant value non convertible to attribute");
+	}
+	
+	llvm::ArrayRef<mlir::Attribute> attributeArray(values);
+	return builder.getArrayAttr(attributeArray);
+}
+
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression)
 {
@@ -1552,7 +1611,18 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& ex
 	mlir::Location location = loc(expression.getLocation());
 	auto type = lower(array->getType(), BufferAllocationScope::stack).cast<ArrayType>();
 
-	mlir::Value result = builder.create<AllocaOp>(location, type.getElementType(), type.getShape());
+	bool constant = isConstant(*array);
+	mlir::Value result;
+
+	if(constant)
+	{
+		auto constantValues = toAttribute(*array,builder);
+		result = builder.create<AllocaOp>(location, type.getElementType(), constantValues, type.getShape());
+	}
+	else
+	{
+		result = builder.create<AllocaOp>(location, type.getElementType(), type.getShape());
+	}
 
 	for (const auto& value : llvm::enumerate(*array))
 	{

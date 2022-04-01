@@ -646,7 +646,7 @@ namespace marco::codegen::modelica
 			auto dimensions = memberType.getShape();
 
 			for (const auto& dimension : dimensions)
-				os << (dimension.isUndefined() ? "?" : std::to_string(dimension.getNumericValue())) << "x";
+				os << toString(dimension) << "x";
 
 			printer.printType(memberType.getElementType());
 			os << ">";

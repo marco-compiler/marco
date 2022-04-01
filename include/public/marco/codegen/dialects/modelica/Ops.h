@@ -189,13 +189,13 @@ namespace marco::codegen::modelica
 		public:
 		using OpAdaptor::OpAdaptor;
 
-    long start();
-    long end();
+    	mlir::Value start();
+    	mlir::Value end();
 	};
 
 	class ForEquationOp : public mlir::Op<ForEquationOp,
 																			 mlir::OpTrait::OneRegion,
-																			 mlir::OpTrait::ZeroOperands,
+																			 mlir::OpTrait::VariadicOperands,
 																			 mlir::OpTrait::ZeroResult,
                                        mlir::OpTrait::HasParent<ModelOp, ForEquationOp>::Impl,
                                        mlir::OpTrait::NoTerminator>
@@ -210,7 +210,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value start, mlir::Value end);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -218,8 +218,8 @@ namespace marco::codegen::modelica
 		mlir::Block* body();
     mlir::Value induction();
 
-    long start();
-    long end();
+    mlir::Value start();
+    mlir::Value end();
 	};
 
   //===----------------------------------------------------------------------===//
@@ -801,6 +801,7 @@ namespace marco::codegen::modelica
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, Shape shape = {}, mlir::ValueRange dimensions = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, mlir::ArrayAttr constantValues, Shape shape = {}, mlir::ValueRange dimensions = {});
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -813,6 +814,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+		mlir::ArrayAttr getConstantValues();
+		bool hasConstantValues();
 	};
 
 	//===----------------------------------------------------------------------===//

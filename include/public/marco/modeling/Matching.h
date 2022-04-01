@@ -11,6 +11,7 @@
 #include "marco/modeling/LocalMatchingSolutions.h"
 #include "marco/modeling/MCIM.h"
 #include "marco/modeling/Range.h"
+#include "marco/modeling/MultidimensionalRangeRagged.h"
 #include "marco/utils/Shape.h"
 #include "marco/utils/TreeOStream.h"
 #include <iostream>
@@ -205,17 +206,16 @@ namespace marco::modeling
             return Traits::getDimensionSize(&p, index);
           }
 
+
           static IndexSet getRanges(const VariableProperty& p)
           {
-            llvm::SmallVector<Range, 3> ranges;
+            Shape shape;
 
             for (size_t i = 0, e = getRank(p); i < e; ++i) {
-              long size = getDimensionSize(p, i).getNumericValue(); //todo: handle ragged case
-              assert(size > 0);
-              ranges.emplace_back(0, size);
+              shape.push_back(getDimensionSize(p, i));
             }
 
-            return IndexSet(MultidimensionalRange(ranges));
+            return getIndexSetFromShape(shape);
           }
 
           // Custom equation property
