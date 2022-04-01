@@ -137,6 +137,8 @@ def MemberType : Modelica_Type<"Member", "member"> {
 
             ArrayType toArrayType() const;
             mlir::Type unwrap() const;
+
+            MemberType withIOProperty(IOProperty ioProperty) const;
      }];
 }
 

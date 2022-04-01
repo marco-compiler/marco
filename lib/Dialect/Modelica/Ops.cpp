@@ -353,7 +353,20 @@ static void print(mlir::OpAsmPrinter& printer, ConstantOp op)
 
 static mlir::ParseResult parseModelOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-  // TODO
+  if (parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  mlir::Region* initRegion = result.addRegion();
+  mlir::Region* bodyRegion = result.addRegion();
+
+  if (parser.parseRegion(*initRegion) ||
+      parser.parseKeyword("equations") ||
+      parser.parseRegion(*bodyRegion)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
 }
 
 static void print(mlir::OpAsmPrinter& printer, ModelOp op)
@@ -431,6 +444,29 @@ static void print(mlir::OpAsmPrinter& printer, FunctionOp op)
 }
 
 //===----------------------------------------------------------------------===//
+// DerFunctionOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseDerFunctionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::StringAttr nameAttr;
+
+  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes) ||
+      parser.parseOptionalAttrDict(result.attributes)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, DerFunctionOp op)
+{
+  printer << op.getOperationName() << " ";
+  printer.printSymbolName(op.name());
+  printer.printOptionalAttrDict(op->getAttrs(), { "sym_name" });
+}
+
+//===----------------------------------------------------------------------===//
 // ForEquationOp
 //===----------------------------------------------------------------------===//
 
@@ -469,7 +505,6 @@ static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::Ope
 
 static void print(mlir::OpAsmPrinter& printer, ForEquationOp op)
 {
-  //printer << op.getOperationName() << " " << " = " << op.from() << " to " << op.to();
   printer << op.getOperationName() << " " << op.induction() << " = " << op.from() << " to " << op.to();
   printer.printOptionalAttrDict(op->getAttrs(), {"from", "to"});
   printer.printRegion(op.bodyRegion(), false);
@@ -517,7 +552,28 @@ static void print(mlir::OpAsmPrinter& printer, EquationOp op)
 
 static mlir::ParseResult parseEquationSideOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-  // TODO
+  llvm::SmallVector<mlir::OpAsmParser::OperandType, 1> values;
+  mlir::Type resultType;
+  auto loc = parser.getCurrentLocation();
+
+  if (parser.parseOperandList(values) ||
+      parser.parseColon() ||
+      parser.parseType(resultType)) {
+    return mlir::failure();
+  }
+
+  assert(resultType.isa<mlir::TupleType>());
+  auto tupleType = resultType.cast<mlir::TupleType>();
+
+  llvm::SmallVector<mlir::Type, 1> types(tupleType.begin(), tupleType.end());
+  assert(types.size() == values.size());
+
+  if (parser.resolveOperands(values, types, loc, result.operands)) {
+    return mlir::failure();
+  }
+
+  result.addTypes(resultType);
+  return mlir::success();
 }
 
 static void print(mlir::OpAsmPrinter& printer, EquationSideOp op)
@@ -1164,9 +1220,7 @@ namespace mlir::modelica
 
     assert(derivatives.contains(member()) && "Derived member not found");
     mlir::Value derivedMember = derivatives.lookup(member());
-
-    if (!derivatives.contains(derivedMember))
-      builder.create<MemberStoreOp>(getLoc(), derivedMember, derivatives.lookup(value()));
+    builder.create<MemberStoreOp>(getLoc(), derivedMember, derivatives.lookup(value()));
 
     return llvm::None;
   }
@@ -1230,8 +1284,12 @@ namespace mlir::modelica
     // CSE pass to erase it.
     effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 
-    // TODO
-    //llvm_unreachable("Not implemented");
+    for (mlir::Value result : getResults()) {
+      if (auto arrayType = result.getType().dyn_cast<ArrayType>()) {
+        effects.emplace_back(mlir::MemoryEffects::Allocate::get(), result, mlir::SideEffects::DefaultResource::get());
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), result, mlir::SideEffects::DefaultResource::get());
+      }
+    }
   }
 
   mlir::ValueRange CallOp::getArgs()
@@ -1514,7 +1572,7 @@ namespace mlir::modelica
   mlir::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults()
   {
     auto module = getOperation()->getParentOfType<::mlir::ModuleOp>();
-    return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(derivedFunction())).getCallableResults();
+    return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(derived_function())).getCallableResults();
   }
 
   //===----------------------------------------------------------------------===//

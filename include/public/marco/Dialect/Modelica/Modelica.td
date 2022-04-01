@@ -2392,32 +2392,40 @@ def Modelica_DerFunctionOp : Modelica_Op<"der_function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        SymbolNameAttr:$derivedFunction,
-        StrArrayAttr:$independentVars);
+        SymbolNameAttr:$derived_function,
+        StrArrayAttr:$independent_vars);
+
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let extraClassDeclaration = [{
-        //===------------------------------------------------------------------===//
-        // CallableOpInterface
-        //===------------------------------------------------------------------===//
+        public:
+            llvm::StringRef name() {
+                return sym_name();
+            }
 
-        Region *getCallableRegion() {
-            // The function body will be created by an appropriate pass, and at the same
-            // type the der function will be converted to a standard function. Thus,
-            // this operation is like an external function.
+            //===------------------------------------------------------------------===//
+            // CallableOpInterface
+            //===------------------------------------------------------------------===//
 
-            return nullptr;
-        }
+            Region *getCallableRegion() {
+                // The function body will be created by an appropriate pass, and at the same
+                // type the der function will be converted to a standard function. Thus,
+                // this operation is like an external function.
 
-        /// Returns the results types that the callable region produces when executed.
-        ArrayRef<Type> getCallableResults();
+                return nullptr;
+            }
 
-        //===------------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===------------------------------------------------------------------===//
+            /// Returns the results types that the callable region produces when executed.
+            ArrayRef<Type> getCallableResults();
 
-        bool isDeclaration() {
-            return true;
-        }
+            //===------------------------------------------------------------------===//
+            // SymbolOpInterface Methods
+            //===------------------------------------------------------------------===//
+
+            bool isDeclaration() {
+                return false;
+            }
     }];
 }
 

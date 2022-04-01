@@ -239,4 +239,9 @@ namespace mlir::modelica
 
     return toArrayType();
   }
+
+  MemberType MemberType::withIOProperty(IOProperty ioProperty) const
+  {
+    return MemberType::get(getContext(), getElementType(), getShape(), isConstant(), ioProperty);
+  }
 }
