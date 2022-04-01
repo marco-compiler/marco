@@ -2213,7 +2213,12 @@ let extraClassDeclaration = [{
 }
 
 def Modelica_FunctionOp : Modelica_Op<"function",
-    [IsolatedFromAbove, AutomaticAllocationScope, Symbol, CallableOpInterface, NoTerminator]>
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    CallableOpInterface,
+    NoTerminator,
+    DeclareOpInterfaceMethods<ClassInterface>]>
 {
     let summary = "Modelica function.";
 
@@ -2426,22 +2431,6 @@ def Modelica_DerFunctionOp : Modelica_Op<"der_function",
             bool isDeclaration() {
                 return false;
             }
-    }];
-}
-
-def Modelica_DerSeedOp : Modelica_Op<"der_seed", []>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$member, I64Attr:$value);
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $member `,` $value attr-dict `:` type($member)
     }];
 }
 

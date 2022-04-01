@@ -21,7 +21,7 @@ modelica.function @simpleVar : (!modelica.real) -> (!modelica.real) {
 modelica.der_function @simpleVar_x {derived_function = "simpleVar", independent_vars = ["x"]}
 
 func @test_simpleVarDer() -> () {
-    %x = modelica.constant #modelica.real<57.0> : !modelica.real
+    %x = modelica.constant #modelica.real<57.0>
     %result = modelica.call @simpleVar_x(%x) : (!modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -33,7 +33,7 @@ func @test_simpleVarDer() -> () {
 modelica.function @mulByScalar : (!modelica.real) -> (!modelica.real) {
     %0 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
     %1 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
-    %2 = modelica.constant #modelica.real<23.0> : !modelica.real
+    %2 = modelica.constant #modelica.real<23.0>
     %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
     %4 = modelica.mul %3, %2 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %1, %4: !modelica.member<!modelica.real, output>, !modelica.real
@@ -42,7 +42,7 @@ modelica.function @mulByScalar : (!modelica.real) -> (!modelica.real) {
 modelica.der_function @mulByScalar_x {derived_function = "mulByScalar", independent_vars = ["x"]}
 
 func @test_mulByScalar() -> () {
-    %x = modelica.constant #modelica.real<57.0> : !modelica.real
+    %x = modelica.constant #modelica.real<57.0>
     %result = modelica.call @mulByScalar_x(%x) : (!modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -64,8 +64,8 @@ modelica.function @sumOfVars : (!modelica.real, !modelica.real) -> (!modelica.re
 modelica.der_function @sumOfVars_x {derived_function = "sumOfVars", independent_vars = ["x"]}
 
 func @test_sumOfVars() -> () {
-    %x = modelica.constant #modelica.real<57.0> : !modelica.real
-    %y = modelica.constant #modelica.real<23.0> : !modelica.real
+    %x = modelica.constant #modelica.real<57.0>
+    %y = modelica.constant #modelica.real<23.0>
     %result = modelica.call @sumOfVars_x(%x, %y) : (!modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -87,8 +87,8 @@ modelica.function @mulOfVars : (!modelica.real, !modelica.real) -> (!modelica.re
 modelica.der_function @mulOfVars_x {derived_function = "mulOfVars", independent_vars = ["x"]}
 
 func @test_mulOfVars() -> () {
-    %x = modelica.constant #modelica.real<57.0> : !modelica.real
-    %y = modelica.constant #modelica.real<23.0> : !modelica.real
+    %x = modelica.constant #modelica.real<57.0>
+    %y = modelica.constant #modelica.real<23.0>
     %result = modelica.call @mulOfVars_x(%x, %y) : (!modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -102,7 +102,7 @@ modelica.function @scalarMul : (!modelica.real) -> (!modelica.real) {
     %0 = modelica.member_create {name = "x1"} : !modelica.member<!modelica.real, input>
     %1 = modelica.member_create {name = "y1"} : !modelica.member<!modelica.real, output>
     %2 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %3 = modelica.constant #modelica.real<23.0> : !modelica.real
+    %3 = modelica.constant #modelica.real<23.0>
     %4 = modelica.mul %2, %3 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %1, %4: !modelica.member<!modelica.real, output>, !modelica.real
 }
@@ -110,7 +110,7 @@ modelica.function @scalarMul : (!modelica.real) -> (!modelica.real) {
 modelica.function @callOpDer : (!modelica.real) -> (!modelica.real) {
     %0 = modelica.member_create {name = "x2"} : !modelica.member<!modelica.real, input>
     %1 = modelica.member_create {name = "y2"} : !modelica.member<!modelica.real, output>
-    %2 = modelica.constant #modelica.int<57> : !modelica.int
+    %2 = modelica.constant #modelica.int<57>
     %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
     %4 = modelica.mul %2, %3 : (!modelica.int, !modelica.real) -> !modelica.real
     %5 = modelica.call @scalarMul(%4) : (!modelica.real) -> (!modelica.real)
@@ -120,7 +120,7 @@ modelica.function @callOpDer : (!modelica.real) -> (!modelica.real) {
 modelica.der_function @callOpDer_x2 {derived_function = "callOpDer", independent_vars = ["x2"]}
 
 func @test_callOpDer() -> () {
-    %x = modelica.constant #modelica.real<2000.0> : !modelica.real
+    %x = modelica.constant #modelica.real<2000.0>
     %result = modelica.call @callOpDer_x2(%x) : (!modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return

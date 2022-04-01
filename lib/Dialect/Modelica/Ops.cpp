@@ -1082,8 +1082,20 @@ namespace mlir::modelica
     return result;
   }
 
-  FunctionType FunctionOp::getType() {
+  FunctionType FunctionOp::getType()
+  {
     return getOperation()->getAttrOfType<mlir::TypeAttr>(typeAttrName()).getValue().cast<mlir::FunctionType>();
+  }
+
+  std::vector<mlir::Value> FunctionOp::getMembers()
+  {
+    std::vector<mlir::Value> result;
+
+    walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
+      result.push_back(op.getResult());
+    });
+
+    return result;
   }
 
   //===----------------------------------------------------------------------===//

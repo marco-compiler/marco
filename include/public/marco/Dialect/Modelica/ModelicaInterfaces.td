@@ -20,8 +20,8 @@ def ClassInterface : Modelica_Interface<"ClassInterface"> {
     let methods = [
         InterfaceMethod<
             "Get the members of the class together with their names.",
-            "unsigned int", "getArgExpectedRank",
-            (ins "llvm::SmallVectorImpl<mlir::Value>&":$members, "llvm::SmallVectorImpl<llvm::StringRef>&":$names)
+            "std::vector<mlir::Value>", "getMembers",
+            (ins)
         >
     ];
 }

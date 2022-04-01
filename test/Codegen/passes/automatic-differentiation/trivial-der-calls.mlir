@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --auto-diff                             \
-// RUN:     --convert-modelica-functions            \
 // RUN:     --convert-modelica                      \
+// RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
@@ -10,17 +10,19 @@
 
 // CHECK: -1.979985e+00
 
-modelica.function @sin_der(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "der_x"], results_names = ["y"]} {
-    %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
-    %1 = modelica.sin %arg0 : !modelica.real -> !modelica.real
-    %2 = modelica.der %1 : !modelica.real -> !modelica.real
-    modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>, !modelica.real
-    modelica.function_terminator
+modelica.function @sin_der : (!modelica.real, !modelica.real) -> (!modelica.real) {
+    %0 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create {name = "der_x"} : !modelica.member<!modelica.real, input>
+    %2 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
+    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
+    %4 = modelica.sin %3 : !modelica.real -> !modelica.real
+    %5 = modelica.der %4 : !modelica.real -> !modelica.real
+    modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
 func @test_sin() -> () {
-    %x = modelica.constant #modelica.real<3.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<3.0>
+    %der_x = modelica.constant #modelica.real<2.0>
     %result = modelica.call @sin_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -28,17 +30,19 @@ func @test_sin() -> () {
 
 // CHECK: 2.822400e-01
 
-modelica.function @cos_der(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "der_x"], results_names = ["y"]} {
-    %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
-    %1 = modelica.cos %arg0 : !modelica.real -> !modelica.real
-    %2 = modelica.der %1 : !modelica.real -> !modelica.real
-    modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>, !modelica.real
-    modelica.function_terminator
+modelica.function @cos_der : (!modelica.real, !modelica.real) -> (!modelica.real) {
+    %0 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create {name = "der_x"} : !modelica.member<!modelica.real, input>
+    %2 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
+    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
+    %4 = modelica.cos %3 : !modelica.real -> !modelica.real
+    %5 = modelica.der %4 : !modelica.real -> !modelica.real
+    modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
 func @test_cos() -> () {
-    %x = modelica.constant #modelica.real<3.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<3.0>
+    %der_x = modelica.constant #modelica.real<2.0>
     %result = modelica.call @cos_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return

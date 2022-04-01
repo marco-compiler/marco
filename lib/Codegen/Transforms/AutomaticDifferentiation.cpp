@@ -95,27 +95,28 @@ static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 	return "pder_" + baseName.str();
 }
 
-/*
 static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, DerFunctionOp derFunction)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPointAfter(derFunction);
 
-	mlir::Location loc = derFunction->getLoc();
+	auto loc = derFunction->getLoc();
 	auto module = derFunction->getParentOfType<mlir::ModuleOp>();
 
 	llvm::SmallVector<llvm::StringRef, 3> independentVariables;
 
-	for (const auto& independentVariable : derFunction.independentVars())
-		independentVariables.push_back(independentVariable.cast<mlir::StringAttr>().getValue());
+	for (const auto& independentVariable : derFunction.independent_vars()) {
+    independentVariables.push_back(independentVariable.cast<mlir::StringAttr>().getValue());
+  }
 
 	llvm::StringRef independentVar = independentVariables[0];
 
 	llvm::SmallVector<mlir::Attribute, 3> argsNames;
 	llvm::SmallVector<mlir::Attribute, 3> resultsNames;
 
-	auto base = module.lookupSymbol<FunctionOp>(derFunction.derivedFunction());
+	auto base = module.lookupSymbol<FunctionOp>(derFunction.derived_function());
 
+  /*
 	// The arguments remain the same, and so their names
 	for (const auto& argName : base.argsNames())
 		argsNames.push_back(argName);
@@ -406,91 +407,10 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			derivableOps.pop();
 		}
 	}
+   */
 
 	return mlir::success();
 }
- */
-
-/*
-struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
-{
-	using mlir::OpRewritePattern<DerSeedOp>::OpRewritePattern;
-
-	mlir::LogicalResult matchAndRewrite(DerSeedOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op->getLoc();
-
-		auto memberType = op.member().getType().cast<MemberType>();
-		auto arrayType = memberType.toArrayType();
-
-		// TODO To be reconsidered when the derivation with respect to arrays will be supported
-
-		mlir::Value seed = rewriter.create<ConstantOp>(loc, RealAttr::get(op.getContext(), op.value()));
-
-		if (arrayType.isScalar())
-		{
-			rewriter.create<MemberStoreOp>(loc, op.member(), seed);
-		}
-		else
-		{
-			auto memberCreateOp = op.member().getDefiningOp<MemberCreateOp>();
-			auto buffer = rewriter.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), memberCreateOp.dynamicSizes());
-			rewriter.create<ArrayFillOp>(loc, seed, buffer);
-			rewriter.create<MemberStoreOp>(loc, op.member(), buffer);
-		}
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
- */
-
-/*
-static void mapFullDerivatives(mlir::BlockAndValueMapping& mapping, llvm::ArrayRef<MemberCreateOp> members)
-{
-  llvm::StringMap<MemberCreateOp> membersByName;
-
-  for (MemberCreateOp member : members) {
-    membersByName[member.name()] = member;
-  }
-
-	for (MemberCreateOp member : members) {
-    auto name = member.name();
-
-		// Given a variable "x", first search for "der_x". If it doesn't exist,
-		// then also "der_2_x", "der_3_x", etc. will not exist and thus we can
-		// say that "x" has no derivatives. If it exists, add the first order
-		// derivative and then search for the other orders ones.
-
-		auto candidateFirstOrderDer = getFullDerVariableName(name, 1);
-    auto derIt = membersByName.find(candidateFirstOrderDer);
-
-    if (derIt == membersByName.end()) {
-      continue;
-    }
-
-    mlir::Value der = derIt->second;
-    mapping.map(member.getResult(), der);
-
-		unsigned int order = 2;
-		bool found;
-
-		do {
-			auto nextName = getFullDerVariableName(name, order);
-      auto nextDerIt = membersByName.find(nextName);
-			found = nextDerIt != membersByName.end();
-
-			if (found) {
-				mlir::Value nextDer = nextDerIt->second;
-				mapping.map(der, nextDer);
-				der = nextDer;
-			}
-
-			++order;
-		} while (found);
-	}
-}
- */
 
 static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, FunctionOp functionOp)
 {
@@ -722,6 +642,100 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	return mlir::success();
 }
 
+static void mapFullDerivatives(mlir::BlockAndValueMapping& mapping, llvm::ArrayRef<mlir::Value> members)
+{
+  llvm::StringMap<mlir::Value> membersByName;
+
+  for (const auto& member : members) {
+    auto memberOp = member.getDefiningOp<MemberCreateOp>();
+    membersByName[memberOp.name()] = member;
+  }
+
+  for (const auto& member : members) {
+    auto name = member.getDefiningOp<MemberCreateOp>().name();
+
+    // Given a variable "x", first search for "der_x". If it doesn't exist,
+    // then also "der_2_x", "der_3_x", etc. will not exist and thus we can
+    // say that "x" has no derivatives. If it exists, add the first order
+    // derivative and then search for the higher order ones.
+
+    auto candidateFirstOrderDer = getFullDerVariableName(name, 1);
+    auto derIt = membersByName.find(candidateFirstOrderDer);
+
+    if (derIt == membersByName.end()) {
+      continue;
+    }
+
+    mlir::Value der = derIt->second;
+    mapping.map(member, der);
+
+    unsigned int order = 2;
+    bool found;
+
+    do {
+      auto nextName = getFullDerVariableName(name, order);
+      auto nextDerIt = membersByName.find(nextName);
+      found = nextDerIt != membersByName.end();
+
+      if (found) {
+        mlir::Value nextDer = nextDerIt->second;
+        mapping.map(der, nextDer);
+        der = nextDer;
+      }
+
+      ++order;
+    } while (found);
+  }
+}
+
+static mlir::ValueRange deriveTree(mlir::OpBuilder& builder, DerivableOpInterface op, mlir::BlockAndValueMapping& derivatives)
+{
+  std::vector<mlir::Value> result;
+  op.dump();
+
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPoint(op.getOperation());
+
+  llvm::SmallVector<mlir::Value, 3> toBeDerived;
+  op.getOperandsToBeDerived(toBeDerived);
+
+  for (mlir::Value operand : toBeDerived) {
+    if (!derivatives.contains(operand)) {
+      mlir::Operation* definingOp = operand.getDefiningOp();
+
+      if (definingOp == nullptr) {
+        return llvm::None;
+      }
+
+      if (!mlir::isa<DerivableOpInterface>(definingOp)) {
+        return llvm::None;
+      }
+    }
+  }
+
+  for (mlir::Value operand : toBeDerived) {
+    mlir::Operation* definingOp = operand.getDefiningOp();
+
+    if (definingOp == nullptr) {
+      continue;
+    }
+
+    if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp)) {
+      auto derivedValues = deriveTree(builder, derivableOp, derivatives);
+
+      if (derivedValues.size() != derivableOp->getNumResults()) {
+        return llvm::None;
+      }
+
+      for (const auto& [base, derived] : llvm::zip(derivableOp->getResults(), derivedValues)) {
+        derivatives.map(base, derived);
+      }
+    }
+  }
+
+  return op.derive(builder, derivatives);
+}
+
 namespace
 {
   class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -739,7 +753,6 @@ namespace
         return signalPassFailure();
       }
 
-      /*
       if (mlir::failed(createPartialDerFunctions())) {
         mlir::emitError(getOperation().getLoc(), "Error in creating the functions partial derivatives");
         return signalPassFailure();
@@ -749,15 +762,15 @@ namespace
         mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
         return signalPassFailure();
       }
-       */
     }
 
+    /*
     mlir::LogicalResult addPartialDerFunctions()
     {
-      /*
       // If using the SUNDIALS IDA library as a solver, we also need the partial
       // function derivatives of all call operations in order to compute the
       // symbolic jacobian.
+
       // TODO: Fix partial derivatives of arrays and matrixes.
       mlir::ModuleOp module = getOperation();
       mlir::OpBuilder builder(module);
@@ -802,10 +815,10 @@ namespace
           builder.create<DerFunctionOp>(op.getLoc(), pderName, op.getName(), op.independentVariables());
         }
       }
-       */
 
       return mlir::success();
     }
+     */
 
     mlir::LogicalResult createFullDerFunctions()
     {
@@ -839,7 +852,6 @@ namespace
 
     mlir::LogicalResult createPartialDerFunctions()
     {
-      /*
       auto module = getOperation();
       mlir::OpBuilder builder(module);
 
@@ -857,19 +869,18 @@ namespace
         return !toBeProcessed.empty();
       };
 
-      while (findDerFunctions())
-      {
+      while (findDerFunctions()) {
         // Sort the functions so that a function derivative is computed only
         // when the base function already has its body determined.
 
         llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
-          return first.name() == second.derivedFunction();
+          return first.name() == second.derived_function();
         });
 
-        for (auto& function : toBeProcessed)
-        {
-          if (auto status = createPartialDerFunction(builder, function); mlir::failed(status))
-            return status;
+        for (auto& function : toBeProcessed) {
+          if (auto res = createPartialDerFunction(builder, function); mlir::failed(res)) {
+            return res;
+          }
 
           function->erase();
         }
@@ -877,23 +888,11 @@ namespace
         toBeProcessed.clear();
       }
 
-      // Convert the seed operations
-      mlir::ConversionTarget target(getContext());
-      target.addIllegalOp<DerSeedOp>();
-      target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-
-      mlir::OwningRewritePatternList patterns(&getContext());
-      patterns.insert<DerSeedOpPattern>(&getContext());
-
-      return applyFullConversion(module, target, std::move(patterns));
-       */
-
       return mlir::success();
     }
 
     mlir::LogicalResult resolveTrivialDerCalls()
     {
-      /*
       auto module = getOperation();
       mlir::OpBuilder builder(module);
 
@@ -901,33 +900,30 @@ namespace
         mlir::Value operand = op.operand();
         mlir::Operation* definingOp = operand.getDefiningOp();
 
-        if (definingOp == nullptr)
+        if (definingOp == nullptr) {
           return;
+        }
 
-        if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp))
-        {
+        if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp)) {
           auto classOp = op->getParentOfType<ClassInterface>();
 
-          if (classOp == nullptr)
+          if (classOp == nullptr) {
             return;
-
-          llvm::SmallVector<mlir::Value, 3> members;
-          llvm::SmallVector<llvm::StringRef, 3> names;
-          classOp.getMembers(members, names);
+          }
 
           mlir::BlockAndValueMapping derivatives;
-          mapFullDerivatives(names, members, derivatives);
+          mapFullDerivatives(derivatives, classOp.getMembers());
 
-          mlir::ValueRange ders = derivableOp.deriveTree(builder, derivatives);
+          mlir::ValueRange ders = deriveTree(builder, derivableOp, derivatives);
 
-          if (ders.size() != op->getNumResults())
+          if (ders.size() != op->getNumResults()) {
             return;
+          }
 
           op->replaceAllUsesWith(ders);
           op.erase();
         }
       });
-       */
 
       return mlir::success();
     }

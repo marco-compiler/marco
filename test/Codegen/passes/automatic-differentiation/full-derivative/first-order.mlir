@@ -38,8 +38,8 @@ modelica.function @neg : (!modelica.real) -> (!modelica.real) attributes {deriva
 }
 
 func @test_neg() -> () {
-    %x = modelica.constant #modelica.real<57.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<57.0>
+    %der_x = modelica.constant #modelica.real<2.0>
     %result = modelica.call @neg_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -59,10 +59,10 @@ modelica.function @add : (!modelica.real, !modelica.real) -> (!modelica.real) at
 }
 
 func @test_add() -> () {
-    %x = modelica.constant #modelica.real<23.0> : !modelica.real
-    %y = modelica.constant #modelica.real<57.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<3.0> : !modelica.real
-    %der_y = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<23.0>
+    %y = modelica.constant #modelica.real<57.0>
+    %der_x = modelica.constant #modelica.real<3.0>
+    %der_y = modelica.constant #modelica.real<2.0>
     %result = modelica.call @add_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -82,10 +82,10 @@ modelica.function @sub : (!modelica.real, !modelica.real) -> (!modelica.real) at
 }
 
 func @test_sub() -> () {
-    %x = modelica.constant #modelica.real<23.0> : !modelica.real
-    %y = modelica.constant #modelica.real<57.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<3.0> : !modelica.real
-    %der_y = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<23.0>
+    %y = modelica.constant #modelica.real<57.0>
+    %der_x = modelica.constant #modelica.real<3.0>
+    %der_y = modelica.constant #modelica.real<2.0>
     %result = modelica.call @sub_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -105,10 +105,10 @@ modelica.function @mul : (!modelica.real, !modelica.real) -> (!modelica.real) at
 }
 
 func @test_mul() -> () {
-    %x = modelica.constant #modelica.real<23.0> : !modelica.real
-    %y = modelica.constant #modelica.real<57.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<3.0> : !modelica.real
-    %der_y = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<23.0>
+    %y = modelica.constant #modelica.real<57.0>
+    %der_x = modelica.constant #modelica.real<3.0>
+    %der_y = modelica.constant #modelica.real<2.0>
     %result = modelica.call @mul_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
@@ -128,10 +128,10 @@ modelica.function @div : (!modelica.real, !modelica.real) -> (!modelica.real) at
 }
 
 func @test_div() -> () {
-    %x = modelica.constant #modelica.real<23.0> : !modelica.real
-    %y = modelica.constant #modelica.real<57.0> : !modelica.real
-    %der_x = modelica.constant #modelica.real<3.0> : !modelica.real
-    %der_y = modelica.constant #modelica.real<2.0> : !modelica.real
+    %x = modelica.constant #modelica.real<23.0>
+    %y = modelica.constant #modelica.real<57.0>
+    %der_x = modelica.constant #modelica.real<3.0>
+    %der_y = modelica.constant #modelica.real<2.0>
     %result = modelica.call @div_der(%x, %y, %der_x, %der_y) : (!modelica.real, !modelica.real, !modelica.real, !modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
