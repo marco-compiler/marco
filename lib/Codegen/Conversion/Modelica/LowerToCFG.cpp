@@ -195,7 +195,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
 
     assert(op.dynamicSizes().empty());
     builder.setInsertionPoint(op);
-    mlir::Value stackValue = builder.create<AllocaOp>(loc, unwrappedType, llvm::None, llvm::None);
+    // TODO use LLVM dialect
+    mlir::Value stackValue = builder.create<AllocaOp>(loc, op.getMemberType().toArrayType(), llvm::None, llvm::None);
 
     // We need to allocate a fake buffer in order to allow the first
     // free operation to operate on a valid memory area.

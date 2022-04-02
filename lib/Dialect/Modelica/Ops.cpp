@@ -1148,6 +1148,28 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // ConstantOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::ValueRange ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    // D[const] = 0
+    // TODO check type
+    auto derivedOp = builder.create<ConstantOp>(getLoc(), RealAttr::get(getContext(), 0));
+    return derivedOp->getResults();
+  }
+
+  void ConstantOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+
+  }
+
+  void ConstantOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
   // SqrtOp
   //===----------------------------------------------------------------------===//
 

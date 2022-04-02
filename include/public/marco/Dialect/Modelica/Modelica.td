@@ -584,7 +584,8 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
 //===----------------------------------------------------------------------===//
 
 def Modelica_ConstantOp : Modelica_Op<"constant",
-    [ConstantLike, NoSideEffect]>
+    [ConstantLike, NoSideEffect,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Constant.";
 

@@ -240,6 +240,11 @@ namespace mlir::modelica
     return toArrayType();
   }
 
+  MemberType MemberType::withType(mlir::Type type) const
+  {
+    return MemberType::wrap(type, isConstant(), getVisibilityProperty());
+  }
+
   MemberType MemberType::withIOProperty(IOProperty ioProperty) const
   {
     return MemberType::get(getContext(), getElementType(), getShape(), isConstant(), ioProperty);
