@@ -55,11 +55,6 @@ namespace marco::codegen
   }
 }
 
-static std::string getPartialDerVariableName(llvm::StringRef currentName, llvm::StringRef independentVar)
-{
-  return "pder_" + independentVar.str() + "_" + currentName.str();
-}
-
 static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 {
   return "pder_" + baseName.str();
@@ -68,11 +63,6 @@ static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 static std::string getPartialDerMemberName(llvm::StringRef baseName, unsigned int order)
 {
   return "pder_" + std::to_string(order) + "_" + baseName.str();
-}
-
-static std::string getPartialDerTemplateFunctionName(llvm::StringRef baseName)
-{
-  return "pder_" + baseName.str();
 }
 
 static llvm::StringMap<mlir::Value> mapMembersByName(FunctionOp functionOp)
@@ -96,429 +86,6 @@ static bool hasFloatBase(mlir::Type type) {
   }
 
 	return false;
-}
-
-/// Map each partial derivative function to its base function
-using PartialDerTemplateFunctionsMap = llvm::StringMap<FunctionOp>;
-
-static std::pair<FunctionOp, unsigned int> getPartialDerBaseFunction(
-    const PartialDerTemplateFunctionsMap& derFunctionsMap, FunctionOp functionOp)
-{
-  unsigned int order = 0;
-  FunctionOp baseFunction = functionOp;
-
-  while (derFunctionsMap.find(baseFunction.name()) != derFunctionsMap.end()) {
-    ++order;
-    baseFunction = derFunctionsMap.lookup(baseFunction.name());
-  }
-
-  return std::make_pair(baseFunction, order);
-}
-
-static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, DerFunctionOp derFunctionOp)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointAfter(derFunctionOp);
-
-  auto loc = derFunctionOp.getLoc();
-  auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
-  auto baseFunctionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.derived_function());
-
-  // Map the members for a faster lookup
-  auto originalMembersMap = mapMembersByName(baseFunctionOp);
-
-  // Determine the function signature
-  llvm::SmallVector<mlir::Type, 6> argsTypes;
-  llvm::SmallVector<mlir::Type, 6> resultsTypes;
-
-  // The original arguments
-  for (const auto& type : baseFunctionOp.getType().getInputs()) {
-    argsTypes.push_back(type);
-  }
-
-  // The original results
-  for (const auto& type : baseFunctionOp.getType().getResults()) {
-    resultsTypes.push_back(type);
-  }
-
-  // Create the derived function
-  auto derivedFunctionOp = builder.create<FunctionOp>(
-      derFunctionOp.getLoc(),
-      derFunctionOp.name(),
-      builder.getFunctionType(argsTypes, resultsTypes));
-
-  // Start the body of the function
-  mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.body());
-  builder.setInsertionPointToStart(entryBlock);
-
-  // Create the input members
-  llvm::SmallVector<mlir::Value, 3> inputMembers;
-
-  for (const auto& name : baseFunctionOp.inputMemberNames()) {
-    auto originalMemberOp = originalMembersMap[name].getDefiningOp<MemberCreateOp>();
-
-    auto memberOp = builder.create<MemberCreateOp>(
-        originalMemberOp.getLoc(), name, originalMemberOp.getMemberType(), llvm::None);
-
-    inputMembers.push_back(memberOp.getResult());
-  }
-
-  // Create the output members
-  llvm::SmallVector<mlir::Value, 3> outputMembers;
-
-  for (const auto& name : baseFunctionOp.outputMemberNames()) {
-    auto originalMemberOp = originalMembersMap[name].getDefiningOp<MemberCreateOp>();
-
-    auto memberOp = builder.create<MemberCreateOp>(
-        originalMemberOp.getLoc(), name, originalMemberOp.getMemberType(), llvm::None);
-
-    outputMembers.push_back(memberOp.getResult());
-  }
-
-  // Call the template function
-  llvm::SmallVector<mlir::Value, 6> args;
-
-  for (auto inputMember : inputMembers) {
-    args.push_back(builder.create<MemberLoadOp>(loc, inputMember));
-  }
-
-  for (const auto& name : baseFunctionOp.inputMemberNames()) {
-    auto originalMemberOp = originalMembersMap[name].getDefiningOp<MemberCreateOp>();
-    assert(!originalMemberOp.getMemberType().unwrap().isa<ArrayType>());
-
-    float seed = name == derFunctionOp.independent_vars()[0].cast<mlir::StringAttr>().getValue() ? 1 : 0;
-    args.push_back(builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), seed)));
-  }
-
-  auto callOp = builder.create<CallOp>(
-      loc,
-      getPartialDerTemplateFunctionName(derFunctionOp.name()),
-      resultsTypes, args);
-
-  assert(callOp->getNumResults() == outputMembers.size());
-
-  for (auto [outputMember, result] : llvm::zip(outputMembers, callOp->getResults())) {
-    builder.create<MemberStoreOp>(loc, outputMember, result);
-  }
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult createPartialDerFunctionOld(mlir::OpBuilder& builder, DerFunctionOp derFunction)
-{
-	mlir::OpBuilder::InsertionGuard guard(builder);
-	builder.setInsertionPointAfter(derFunction);
-
-	auto loc = derFunction->getLoc();
-	auto module = derFunction->getParentOfType<mlir::ModuleOp>();
-
-	llvm::SmallVector<llvm::StringRef, 3> independentVariables;
-
-	for (const auto& independentVariable : derFunction.independent_vars()) {
-    independentVariables.push_back(independentVariable.cast<mlir::StringAttr>().getValue());
-  }
-
-	llvm::StringRef independentVar = independentVariables[0];
-
-	llvm::SmallVector<mlir::Attribute, 3> argsNames;
-	llvm::SmallVector<mlir::Attribute, 3> resultsNames;
-
-	auto base = module.lookupSymbol<FunctionOp>(derFunction.derived_function());
-
-  /*
-	// The arguments remain the same, and so their names
-	for (const auto& argName : base.argsNames())
-		argsNames.push_back(argName);
-
-	// The results are not the same anymore, as they are replaced by the
-	// partial derivatives.
-
-	for (const auto& argName : base.resultsNames())
-	{
-		std::string derivativeName = argName.cast<mlir::StringAttr>().getValue().str();
-
-		for (const auto& independentVariable : independentVariables)
-			derivativeName = getPartialDerVariableName(derivativeName, independentVariable);
-
-		resultsNames.push_back(builder.getStringAttr(derivativeName));
-	}
-
-	// Determine how many dimensions should be added to the results.
-	// In fact, if the derivation is done with respect to an array argument,
-	// then the result should become an array in which every index stores
-	// the partial derivative with respect to that argument array index.
-
-	llvm::SmallVector<long, 3> resultDimensions;
-
-	{
-		auto argIndex = [&](llvm::StringRef name) -> llvm::Optional<size_t> {
-			for (const auto& argName : llvm::enumerate(base.argsNames()))
-				if (argName.value().cast<mlir::StringAttr>().getValue() == name)
-					return argName.index();
-
-			return llvm::None;
-		};
-
-		auto argType = [&](llvm::StringRef name) -> llvm::Optional<mlir::Type> {
-			return argIndex(name).map([&](size_t index) {
-				return base.getType().getInput(index);
-			});
-		};
-
-		auto independentArgType = argType(independentVar);
-
-		if (!independentArgType.hasValue())
-			return mlir::failure();
-
-		if (auto arrayType = independentArgType->dyn_cast<ArrayType>())
-			for (const auto& dimension : arrayType.getShape())
-				resultDimensions.push_back(dimension);
-	}
-
-	bool isVectorized = !resultDimensions.empty();
-
-	// Determine the results types. If the derivation is done with respect to
-	// a scalar variable, then the results types will be the same as the original
-	// function.
-
-	llvm::SmallVector<mlir::Type, 3> resultsTypes;
-
-	for (const auto& type : base.getType().getResults())
-	{
-		if (isVectorized)
-		{
-			llvm::SmallVector<long, 3> dimensions(
-					resultDimensions.begin(), resultDimensions.end());
-
-			if (auto arrayType = type.dyn_cast<ArrayType>())
-			{
-				for (auto dimension : arrayType.getShape())
-					dimensions.push_back(dimension);
-
-				resultsTypes.push_back(ArrayType::get(
-						type.getContext(),
-						arrayType.getAllocationScope(),
-						arrayType.getElementType(),
-						dimensions));
-			}
-			else
-			{
-				resultsTypes.push_back(ArrayType::get(
-						type.getContext(), ArrayAllocationScope::heap, type, dimensions));
-			}
-		}
-		else
-		{
-			resultsTypes.push_back(type);
-		}
-	}
-
-	auto derivedFunction = builder.create<FunctionOp>(
-			loc, derFunction.name(),
-			builder.getFunctionType(base.getType().getInputs(), resultsTypes),
-			builder.getArrayAttr(argsNames),
-			builder.getArrayAttr(resultsNames));
-
-	mlir::BlockAndValueMapping mapping;
-
-	// Clone the blocks structure of the function to be derived. The
-	// operations contained in the blocks are not copied.
-
-	for (auto& block : base.getRegion().getBlocks())
-	{
-		mlir::Block* clonedBlock = builder.createBlock(
-				&derivedFunction.getBody(),
-				derivedFunction.getBody().end(),
-				block.getArgumentTypes());
-
-		mapping.map(&block, clonedBlock);
-	}
-
-	builder.setInsertionPointToStart(&derivedFunction.getBody().front());
-
-	// Clone the original operations, which will be interleaved in the
-	// resulting derivative function.
-
-	for (auto& sourceBlock : llvm::enumerate(base.getBody().getBlocks()))
-	{
-		auto& block = *std::next(derivedFunction.getBlocks().begin(), sourceBlock.index());
-		builder.setInsertionPointToStart(&block);
-
-		// Map the original block arguments to the new block ones
-		for (const auto& arg : llvm::enumerate(sourceBlock.value().getArguments()))
-			mapping.map(arg.value(), block.getArgument(arg.index()));
-
-		for (auto& baseOp : sourceBlock.value().getOperations())
-			builder.clone(baseOp, mapping);
-	}
-
-	// List of the operations to be derived
-	std::set<mlir::Operation*> derivedOperations;
-	std::queue<DerivableOpInterface> derivableOps;
-	std::set<mlir::Operation*> notToBeDerivedOps;
-
-	// Create the members derivatives
-	builder.setInsertionPointToStart(&derivedFunction.getBody().front());
-	llvm::StringMap<mlir::BlockAndValueMapping> derivatives;
-
-	// The members are mapped before creating the derivatives of the arguments,
-	// as they would introduce new member operations that would be considered
-	// twice.
-	llvm::StringMap<mlir::Value> membersMap;
-
-	derivedFunction.walk([&](MemberCreateOp op) {
-		membersMap[op.name()] = op.getResult();
-	});
-
-	// Utility function to create the derivative of a member.
-	// The callback function will receive the original variable, the new one
-	// representing the derivative, and the independent variable name with
-	// respect to which the derivative has been created.
-
-	using varDerFnType = std::function<void(mlir::Value, mlir::Value, llvm::StringRef)>;
-
-	auto createMemberDerivativeFn = [&](mlir::Value value,
-																			llvm::StringRef name,
-																			varDerFnType onDerivativeCreatedCallback = nullptr)
-	{
-		llvm::SmallVector<mlir::Value, 8> variables;
-		llvm::SmallVector<std::string, 8> names;
-
-		variables.push_back(value);
-		names.push_back(name.str());
-
-		// Each independent variable will lead to a new derivative for each
-		// existing member up to that point.
-
-		for (const auto& independentVariable : independentVariables)
-		{
-			llvm::SmallVector<mlir::Value, 3> newVariables;
-			llvm::SmallVector<std::string, 3> newNames;
-
-			assert(variables.size() == names.size());
-
-			for (const auto& [var, name] : llvm::zip(variables, names))
-			{
-				// Create the new derivative variable
-				auto derivativeName = getPartialDerVariableName(name, independentVariable);
-
-				mlir::Value derVar = createDerVariable(builder, value, [&derivativeName]() {
-					return derivativeName;
-				});
-
-				newVariables.push_back(derVar);
-				newNames.push_back(derivativeName);
-
-				// Create the seed
-				builder.create<DerSeedOp>(loc, derVar, name == independentVariable ? 1 : 0);
-
-				// Invoke the callback so that additional operations can be done on
-				// the just created derivative.
-
-				if (onDerivativeCreatedCallback != nullptr)
-					onDerivativeCreatedCallback(var, derVar, independentVariable);
-			}
-
-			variables.append(newVariables);
-			names.append(newNames);
-		}
-	};
-
-	// Create the derivatives of the arguments of the function.
-	for (const auto& [name, value, type] : llvm::zip(argsNames, derivedFunction.getArguments(), derivedFunction.getType().getInputs()))
-	{
-		createMemberDerivativeFn(
-				value,
-				name.cast<mlir::StringAttr>().getValue(),
-				[&](mlir::Value var, mlir::Value derVar, llvm::StringRef independentVariable) {
-					// Input arguments should not be mapped to the member itself, but rather
-					// to the value (seed) they contain. This way, existing operations that
-					// refer to the input arguments don't have to check whether to load
-					// or not the value from the member. This is possible also because
-					// input arguments get never written as per the Modelica standard.
-
-					assert(derVar.getType().isa<MemberType>());
-					mlir::Type type = derVar.getType().cast<MemberType>().unwrap();
-					auto seed = builder.create<MemberLoadOp>(base->getLoc(), type, derVar);
-					derivatives[independentVariable].map(var, seed.getResult());
-
-					// The load operation is created just to provide access to the seed,
-					// and thus should not be derived.
-					notToBeDerivedOps.insert(seed.getOperation());
-				});
-	}
-
-	// Create the derivatives of the other members.
-	for (const auto& member : membersMap)
-	{
-		createMemberDerivativeFn(
-				member.getValue(),
-				member.getKey(),
-				[&](mlir::Value var, mlir::Value derVar, llvm::StringRef independentVariable) {
-					derivatives[independentVariable].map(var, derVar);
-				});
-	}
-
-	// Utility function that determines whether an operation should be derived
-	// with respect to a given independent variable. Multiple factors are taken
-	// into account, such as if it has already been derived
-
-	auto shouldOperationBeDerived = [&](mlir::Operation* op, llvm::StringRef independentVariable) {
-		if (auto derivativeInterface = mlir::dyn_cast<DerivableOpInterface>(op))
-		{
-			if (derivedOperations.count(derivativeInterface.getOperation()) != 0 ||
-					notToBeDerivedOps.count(derivativeInterface.getOperation()) != 0)
-				return false;
-
-			// If an operation needs the derivative of a block argument, then
-			// the argument is either an input to the function (which has
-			// already been derived) or a loop argument. In this last case,
-			// the argument is not derived and thus also the operation is not.
-
-			llvm::SmallVector<mlir::Value, 3> operandsToBeDerived;
-			derivativeInterface.getOperandsToBeDerived(operandsToBeDerived);
-
-			for (const auto& arg : operandsToBeDerived)
-				if (arg.isa<mlir::BlockArgument>() &&
-						!derivatives[independentVariable].contains(arg))
-					return false;
-
-			return true;
-		}
-
-		return false;
-	};
-
-	for (const auto& independentVariable : independentVariables)
-	{
-		for (auto &region : derivedFunction->getRegions())
-			for (auto& block : region)
-				for (auto& nestedOp : llvm::make_early_inc_range(block))
-					if (shouldOperationBeDerived(&nestedOp, independentVariable))
-						derivableOps.push(&nestedOp);
-
-		while (!derivableOps.empty())
-		{
-			auto& op = derivableOps.front();
-
-			builder.setInsertionPoint(op);
-			op.derive(builder, derivatives[independentVariable]);
-			derivedOperations.insert(op.getOperation());
-
-			llvm::SmallVector<mlir::Region*, 3> regions;
-			op.getDerivableRegions(regions);
-
-			for (auto& region : regions)
-				for (auto nestedOp : region->getOps<DerivableOpInterface>())
-					if (shouldOperationBeDerived(nestedOp, independentVariable))
-						derivableOps.push(nestedOp);
-
-			derivableOps.pop();
-		}
-	}
-   */
-
-	return mlir::success();
 }
 
 static void mapFullDerivatives(mlir::BlockAndValueMapping& mapping, llvm::ArrayRef<mlir::Value> members)
@@ -647,26 +214,29 @@ namespace
   class ForwardAD
   {
     public:
+      mlir::LogicalResult createFullDerFunction(
+          mlir::OpBuilder& builder, FunctionOp functionOp);
+
+      mlir::LogicalResult createPartialDerFunction(
+          mlir::OpBuilder& builder, DerFunctionOp derFunctionOp);
+
+    private:
       /// Check if an operation has already been already derived.
       bool isDerived(mlir::Operation* op) const;
 
       /// Set an operation as already derived.
       void setAsDerived(mlir::Operation* op);
 
-      mlir::LogicalResult createFullDerFunction(
-          mlir::OpBuilder& builder, FunctionOp functionOp);
-
-      mlir::LogicalResult createPartialDerTemplateFunction(
-          mlir::OpBuilder& builder,
-          PartialDerTemplateFunctionsMap& derFunctionsMap,
-          DerFunctionOp derFunctionOp);
+      FunctionOp createPartialDerTemplateFunction(
+          mlir::OpBuilder& builder, DerFunctionOp derFunctionOp);
 
       FunctionOp createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
-          const PartialDerTemplateFunctionsMap& derFunctionsMap,
           mlir::Location loc,
           FunctionOp functionOp,
           llvm::StringRef derivedFunctionName);
+
+      std::pair<FunctionOp, unsigned int> getPartialDerBaseFunction(FunctionOp functionOp);
 
       mlir::LogicalResult deriveFunctionBody(
           mlir::OpBuilder& builder,
@@ -676,6 +246,13 @@ namespace
     private:
       // Keeps track of the operations that have already been derived
       std::set<mlir::Operation*> derivedOps;
+
+      // Map each partial derivative template function to its base function
+      llvm::StringMap<FunctionOp> partialDerTemplates;
+
+      llvm::StringMap<FunctionOp> partialDersTemplateCallers;
+
+      llvm::StringMap<mlir::ArrayAttr> partialDerTemplatesIndependentVars;
   };
 }
 
@@ -855,7 +432,7 @@ mlir::LogicalResult ForwardAD::createFullDerFunction(
       auto baseMemberName = inverseDerivativesNamesMap[name];
       auto baseMember = mapping.lookup(originalMembersMap[baseMemberName].getDefiningOp<MemberCreateOp>().getResult());
 
-      auto derivedMember = builder.create<MemberCreateOp>(
+      builder.create<MemberCreateOp>(
           baseMember.getLoc(), name, type,
           baseMember.getDefiningOp<MemberCreateOp>().dynamicSizes());
     }
@@ -872,30 +449,22 @@ mlir::LogicalResult ForwardAD::createFullDerFunction(
   return deriveFunctionBody(builder, derivedFunctionOp, derivatives);
 }
 
-mlir::LogicalResult ForwardAD::createPartialDerTemplateFunction(
-    mlir::OpBuilder& builder, PartialDerTemplateFunctionsMap& derFunctionsMap, DerFunctionOp derFunctionOp)
+mlir::LogicalResult ForwardAD::createPartialDerFunction(
+    mlir::OpBuilder& builder, DerFunctionOp derFunctionOp)
 {
-  auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
-  FunctionOp baseFunctionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.derived_function());
-  std::string derivedFunctionName = getPartialDerFunctionName(derFunctionOp.name());
-
-  for (const auto& independentVariable : derFunctionOp.independent_vars()) {
-    auto derTemplate = createPartialDerTemplateFunction(builder, derFunctionsMap, derFunctionOp.getLoc(), baseFunctionOp, derivedFunctionName);
-
-    if (derTemplate == nullptr) {
-      return mlir::failure();
-    }
-
-    derFunctionsMap[derTemplate.name()] = baseFunctionOp;
-    baseFunctionOp = derTemplate;
-    derivedFunctionName = getPartialDerFunctionName(baseFunctionOp.name());
-  }
-
-  return mlir::success();
-
-  /*
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointAfter(derFunctionOp);
+
+  auto templateFunction = createPartialDerTemplateFunction(builder, derFunctionOp);
+
+  if (templateFunction == nullptr) {
+    return mlir::failure();
+  }
+
+  FunctionOp zeroOrderFunctionOp;
+  unsigned int templateOrder;
+
+  std::tie(zeroOrderFunctionOp, templateOrder) = getPartialDerBaseFunction(templateFunction);
 
   auto loc = derFunctionOp.getLoc();
   auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
@@ -903,45 +472,6 @@ mlir::LogicalResult ForwardAD::createPartialDerTemplateFunction(
 
   // Map the members for a faster lookup
   auto originalMembersMap = mapMembersByName(baseFunctionOp);
-
-  // New members of the derived function
-  llvm::SmallVector<std::string, 3> newInputMembersNames;
-  llvm::SmallVector<MemberType, 3> newInputMembersTypes;
-
-  llvm::SmallVector<std::string, 3> newOutputMembersNames;
-  llvm::SmallVector<MemberType, 3> newOutputMembersTypes;
-
-  llvm::SmallVector<std::string, 3> newProtectedMembersNames;
-  llvm::SmallVector<MemberType, 3> newProtectedMembersTypes;
-
-  llvm::StringMap<std::string> inverseDerivativesNamesMap;
-
-  // Analyze the original input members
-  for (const auto& name : baseFunctionOp.inputMemberNames()) {
-    auto member = originalMembersMap[name].getDefiningOp<MemberCreateOp>();
-    auto memberType = member.getMemberType();
-    auto derName = "pder_" + name.str();
-    newInputMembersNames.push_back(derName);
-    newInputMembersTypes.push_back(memberType.withType(RealType::get(builder.getContext())));
-    inverseDerivativesNamesMap[derName] = name;
-  }
-
-  // Analyze the original output members
-  for (const auto& name : baseFunctionOp.outputMemberNames()) {
-    auto memberType = originalMembersMap[name].getDefiningOp<MemberCreateOp>().getMemberType();
-    auto derName = "pder_" + name.str();
-    newOutputMembersNames.push_back(derName);
-    newOutputMembersTypes.push_back(memberType);
-    inverseDerivativesNamesMap[derName] = name;
-  }
-
-  // Analyze the original protected members
-  for (const auto& name : baseFunctionOp.protectedMemberNames()) {
-    auto memberType = originalMembersMap[name].getDefiningOp<MemberCreateOp>().getMemberType();
-    auto derName = "pder_" + name.str();
-    newProtectedMembersNames.push_back(derName);
-    newProtectedMembersTypes.push_back(memberType);
-  }
 
   // Determine the function signature
   llvm::SmallVector<mlir::Type, 6> argsTypes;
@@ -952,12 +482,6 @@ mlir::LogicalResult ForwardAD::createPartialDerTemplateFunction(
     argsTypes.push_back(type);
   }
 
-  // The seed values
-  for (const auto& type : baseFunctionOp.getType().getInputs()) {
-    // TODO may be array
-    argsTypes.push_back(RealType::get(builder.getContext()));
-  }
-
   // The original results
   for (const auto& type : baseFunctionOp.getType().getResults()) {
     resultsTypes.push_back(type);
@@ -966,82 +490,136 @@ mlir::LogicalResult ForwardAD::createPartialDerTemplateFunction(
   // Create the derived function
   auto derivedFunctionOp = builder.create<FunctionOp>(
       derFunctionOp.getLoc(),
-      getPartialDerTemplateFunctionName(derFunctionOp.name()),
+      derFunctionOp.name(),
       builder.getFunctionType(argsTypes, resultsTypes));
+
+  partialDersTemplateCallers[derivedFunctionOp.name()] = templateFunction;
 
   // Start the body of the function
   mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.body());
   builder.setInsertionPointToStart(entryBlock);
 
-  // Clone the original operations, which will be interleaved in the
-  // resulting derivative function.
-  mlir::BlockAndValueMapping mapping;
-  mlir::Operation* latestMemberCreateOp = nullptr;
+  // Create the input members
+  llvm::SmallVector<mlir::Value, 3> inputMembers;
 
-  for (auto& baseOp : baseFunctionOp.bodyBlock()->getOperations()) {
-    if (auto memberCreateOp = mlir::dyn_cast<MemberCreateOp>(baseOp)) {
-      auto name = memberCreateOp.name();
+  for (const auto& name : baseFunctionOp.inputMemberNames()) {
+    auto originalMemberOp = originalMembersMap[name].getDefiningOp<MemberCreateOp>();
 
-      if (memberCreateOp.isInput()) {
-        latestMemberCreateOp = builder.clone(baseOp, mapping);
+    auto memberOp = builder.create<MemberCreateOp>(
+        originalMemberOp.getLoc(), name, originalMemberOp.getMemberType(), llvm::None);
 
-      } else if (memberCreateOp.isOutput()) {
-        // Convert the output members to protected members
-        std::vector<mlir::Value> mappedDynamicDimensions;
+    inputMembers.push_back(memberOp.getResult());
+  }
 
-        for (const auto& dynamicDimension : memberCreateOp.dynamicSizes()) {
-          mappedDynamicDimensions.push_back(mapping.lookup(dynamicDimension));
-        }
+  // Create the output members
+  llvm::SmallVector<mlir::Value, 3> outputMembers;
 
-        auto mappedMemberType = memberCreateOp.getMemberType().withIOProperty(IOProperty::none);
+  for (const auto& name : baseFunctionOp.outputMemberNames()) {
+    auto originalMemberOp = originalMembersMap[name].getDefiningOp<MemberCreateOp>();
 
-        auto mappedMember = builder.create<MemberCreateOp>(
-            memberCreateOp.getLoc(), name, mappedMemberType, mappedDynamicDimensions);
+    auto memberOp = builder.create<MemberCreateOp>(
+        originalMemberOp.getLoc(), name, originalMemberOp.getMemberType(), llvm::None);
 
-        mapping.map(memberCreateOp, mappedMember);
-        latestMemberCreateOp = mappedMember.getOperation();
-      } else {
-        latestMemberCreateOp = builder.clone(baseOp, mapping);
+    outputMembers.push_back(memberOp.getResult());
+  }
+
+  // Call the template function
+  llvm::SmallVector<mlir::Value, 6> args;
+
+  for (auto inputMember : inputMembers) {
+    args.push_back(builder.create<MemberLoadOp>(loc, inputMember));
+  }
+
+  auto zeroOrderArgsNumber = zeroOrderFunctionOp.getType().getNumInputs();
+  auto inputMemberNames = zeroOrderFunctionOp.inputMemberNames();
+
+  std::vector<mlir::Attribute> allIndependentVars;
+
+  if (auto previousTemplateIt = partialDerTemplates.find(templateFunction.name()); previousTemplateIt != partialDerTemplates.end()) {
+    auto previousTemplateVarsIt = partialDerTemplatesIndependentVars.find(previousTemplateIt->second.name());
+
+    if (previousTemplateVarsIt != partialDerTemplatesIndependentVars.end()) {
+      for (const auto& independentVar : previousTemplateVarsIt->second) {
+        allIndependentVars.push_back(independentVar.cast<mlir::StringAttr>());
       }
-    } else {
-      builder.clone(baseOp, mapping);
     }
   }
 
-  mlir::BlockAndValueMapping derivatives;
-
-  // Insert the new derivative members
-  if (latestMemberCreateOp == nullptr) {
-    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
-  } else {
-    builder.setInsertionPointAfter(latestMemberCreateOp);
+  for (const auto& independentVariable : derFunctionOp.independent_vars()) {
+    allIndependentVars.push_back(independentVariable.cast<mlir::StringAttr>());
   }
 
-  auto createDerMemberFn = [&](llvm::ArrayRef<std::string> derNames, llvm::ArrayRef<MemberType> derTypes) {
-    for (const auto& [name, type] : llvm::zip(derNames, derTypes)) {
-      auto baseMemberName = inverseDerivativesNamesMap[name];
-      auto baseMember = mapping.lookup(originalMembersMap[baseMemberName].getDefiningOp<MemberCreateOp>().getResult());
+  partialDerTemplatesIndependentVars[templateFunction.name()] = builder.getArrayAttr(allIndependentVars);
 
-      auto derivedMember = builder.create<MemberCreateOp>(
-          baseMember.getLoc(), name, type,
-          baseMember.getDefiningOp<MemberCreateOp>().dynamicSizes());
+  assert(templateOrder == allIndependentVars.size());
+  unsigned int numberOfSeeds = zeroOrderArgsNumber;
 
-      derivatives.map(baseMember, derivedMember.getResult());
+  for (const auto& independentVariable : llvm::enumerate(allIndependentVars)) {
+    auto independentVarName = independentVariable.value().cast<mlir::StringAttr>().getValue();
+    unsigned int memberIndex = zeroOrderArgsNumber;
+
+    for (unsigned int i = 0; i < zeroOrderArgsNumber; ++i) {
+      if (inputMemberNames[i] == independentVarName) {
+        memberIndex = i;
+        break;
+      }
     }
-  };
 
-  createDerMemberFn(newInputMembersNames, newInputMembersTypes);
-  createDerMemberFn(newOutputMembersNames, newOutputMembersTypes);
-  createDerMemberFn(newProtectedMembersNames, newProtectedMembersTypes);
+    assert(memberIndex < zeroOrderArgsNumber);
 
-  // Derive the operations
-  return deriveFunctionBody(builder, derivedFunctionOp, derivatives);
-   */
+    for (unsigned int i = 0; i < numberOfSeeds; ++i) {
+      float seed = i == memberIndex ? 1 : 0;
+      // TODO handle arrays
+      args.push_back(builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), seed)));
+    }
+
+    numberOfSeeds *= 2;
+  }
+
+  auto callOp = builder.create<CallOp>(
+      loc,
+      templateFunction.name(),
+      resultsTypes, args);
+
+  assert(callOp->getNumResults() == outputMembers.size());
+
+  for (auto [outputMember, result] : llvm::zip(outputMembers, callOp->getResults())) {
+    builder.create<MemberStoreOp>(loc, outputMember, result);
+  }
+
+  return mlir::success();
+}
+
+FunctionOp ForwardAD::createPartialDerTemplateFunction(
+    mlir::OpBuilder& builder, DerFunctionOp derFunctionOp)
+{
+  auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
+  FunctionOp functionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.derived_function());
+
+  if (auto it = partialDersTemplateCallers.find(functionOp.name()); it != partialDersTemplateCallers.end()) {
+    functionOp = it->second;
+  }
+
+  std::string derivedFunctionName = getPartialDerFunctionName(derFunctionOp.name());
+
+  for (size_t i = 0; i < derFunctionOp.independent_vars().size(); ++i) {
+    auto derTemplate = createPartialDerTemplateFunction(
+        builder, derFunctionOp.getLoc(), functionOp, derivedFunctionName);
+
+    if (derTemplate == nullptr) {
+      return nullptr;
+    }
+
+    partialDerTemplates[derTemplate.name()] = functionOp;
+    functionOp = derTemplate;
+    derivedFunctionName = getPartialDerFunctionName(functionOp.name());
+  }
+
+  return functionOp;
 }
 
 FunctionOp ForwardAD::createPartialDerTemplateFunction(
     mlir::OpBuilder& builder,
-    const PartialDerTemplateFunctionsMap& derFunctionsMap,
     mlir::Location loc,
     FunctionOp functionOp,
     llvm::StringRef derivedFunctionName)
@@ -1053,8 +631,7 @@ FunctionOp ForwardAD::createPartialDerTemplateFunction(
   FunctionOp baseFunctionOp;
   unsigned int currentOrder;
 
-  std::tie(baseFunctionOp, currentOrder) = getPartialDerBaseFunction(derFunctionsMap, functionOp);
-  unsigned int baseArgs = baseFunctionOp.getType().getNumInputs();
+  std::tie(baseFunctionOp, currentOrder) = getPartialDerBaseFunction(functionOp);
 
   mlir::BlockAndValueMapping derivatives;
 
@@ -1201,6 +778,19 @@ FunctionOp ForwardAD::createPartialDerTemplateFunction(
   }
 
   return derivedFunctionOp;
+}
+
+std::pair<FunctionOp, unsigned int> ForwardAD::getPartialDerBaseFunction(FunctionOp functionOp)
+{
+  unsigned int order = 0;
+  FunctionOp baseFunction = functionOp;
+
+  while (partialDerTemplates.find(baseFunction.name()) != partialDerTemplates.end()) {
+    ++order;
+    baseFunction = partialDerTemplates.lookup(baseFunction.name());
+  }
+
+  return std::make_pair(baseFunction, order);
 }
 
 mlir::LogicalResult ForwardAD::deriveFunctionBody(
@@ -1384,7 +974,6 @@ namespace
       };
 
       ForwardAD forwardAD;
-      PartialDerTemplateFunctionsMap derFunctionsMap;
 
       while (findDerFunctions()) {
         // Sort the functions so that a function derivative is computed only
@@ -1395,15 +984,9 @@ namespace
         });
 
         for (auto& function : toBeProcessed) {
-          if (auto res = forwardAD.createPartialDerTemplateFunction(builder, derFunctionsMap, function); mlir::failed(res)) {
+          if (auto res = forwardAD.createPartialDerFunction(builder, function); mlir::failed(res)) {
             return res;
           }
-
-          /*
-          if (auto res = createPartialDerFunction(builder, function); mlir::failed(res)) {
-            return res;
-          }
-           */
 
           function->erase();
         }
@@ -1419,19 +1002,25 @@ namespace
       auto module = getOperation();
       mlir::OpBuilder builder(module);
 
+      std::vector<DerOp> ops;
+
       module.walk([&](DerOp op) {
-        mlir::Value operand = op.operand();
+        ops.push_back(op);
+      });
+
+      for (auto derOp : ops) {
+        mlir::Value operand = derOp.operand();
         mlir::Operation* definingOp = operand.getDefiningOp();
 
         if (definingOp == nullptr) {
-          return;
+          continue;
         }
 
         if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp)) {
-          auto classOp = op->getParentOfType<ClassInterface>();
+          auto classOp = derOp->getParentOfType<ClassInterface>();
 
           if (classOp == nullptr) {
-            return;
+            continue;
           }
 
           mlir::BlockAndValueMapping derivatives;
@@ -1439,14 +1028,14 @@ namespace
 
           mlir::ValueRange ders = deriveTree(builder, derivableOp, derivatives);
 
-          if (ders.size() != op->getNumResults()) {
-            return;
+          if (ders.size() != derOp->getNumResults()) {
+            continue;
           }
 
-          op->replaceAllUsesWith(ders);
-          op.erase();
+          derOp->replaceAllUsesWith(ders);
+          derOp.erase();
         }
-      });
+      }
 
       return mlir::success();
     }
