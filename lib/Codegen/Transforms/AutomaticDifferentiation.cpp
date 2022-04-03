@@ -649,8 +649,13 @@ FunctionOp ForwardAD::createPartialDerTemplateFunction(
 
   // The seed values
   for (const auto& type : functionOp.getType().getInputs()) {
-    // TODO may be array
-    argsTypes.push_back(RealType::get(builder.getContext()));
+    auto realType = RealType::get(builder.getContext());
+
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      argsTypes.push_back(arrayType.toElementType(realType));
+    } else {
+      argsTypes.push_back(RealType::get(builder.getContext()));
+    }
   }
 
   // The original results

@@ -412,7 +412,7 @@ static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, Functi
   }
 
   // Deallocate the protected members
-  builder.setInsertionPoint(funcOp.getBody().back().getTerminator());
+  builder.setInsertionPointToEnd(&funcOp.body().back());
 
   for (auto& member : protectedMembers) {
     mlir::Type unwrappedType = member.getMemberType().unwrap();

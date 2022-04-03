@@ -200,7 +200,7 @@ namespace marco::frontend
     auto& codegenOptions = ci.getCodegenOptions();
     mlir::PassManager passManager(&ci.getMLIRContext());
 
-    //passManager.addPass(codegen::createAutomaticDifferentiationPass());
+    passManager.addPass(codegen::createAutomaticDifferentiationPass());
 
     // Model solving
     codegen::SolveModelOptions modelSolvingOptions;
@@ -245,6 +245,7 @@ namespace marco::frontend
     }
 
     passManager.addPass(codegen::createLowerToCFGPass());
+
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
 
     // Conversion to LLVM dialect
