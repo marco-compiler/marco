@@ -245,6 +245,8 @@ namespace marco::codegen
       mlir::TypeRange variableTypes,
       const mlir::BlockAndValueMapping& derivatives)
   {
+    mlir::BlockAndValueMapping inverseDerivatives = derivatives.getInverse();
+
     // Substitute the accesses to non-IDA variables with the equations writing in such variables
     std::vector<std::unique_ptr<ScheduledEquation>> independentEquations;
     std::multimap<unsigned int, std::pair<modeling::MultidimensionalRange, ScheduledEquation*>> writesMap;
@@ -339,8 +341,10 @@ namespace marco::codegen
 
     size_t residualFunctionsCounter = 0;
     size_t jacobianFunctionsCounter = 0;
+    size_t partialDerTemplatesCounter = 0;
 
     for (const auto& equation : independentEquations) {
+      equation->dumpIR();
       auto ranges = equation->getIterationRanges();
       std::vector<mlir::Attribute> rangesAttr;
 
@@ -373,122 +377,197 @@ namespace marco::codegen
             equation->getOperation().getLoc(),
             idaInstance, idaEquation, idaVariable,
             mlir::AffineMap::get(accessFunction.size(), 0, expressions, builder.getContext()));
+      }
 
-        {
-          // Create and populate the residual function
-          auto residualFunctionName = "residualFunction" + std::to_string(residualFunctionsCounter++);
+      {
+        // Create and populate the residual function
+        auto residualFunctionName = "residualFunction" + std::to_string(residualFunctionsCounter++);
+
+        auto insertionPoint = builder.saveInsertionPoint();
+        builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
+
+        auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
+            equation->getOperation().getLoc(),
+            residualFunctionName,
+            RealType::get(builder.getContext()),
+            variableTypes,
+            equation->getNumOfIterationVars(),
+            RealType::get(builder.getContext()));
+
+        assert(residualFunction.bodyRegion().empty());
+        mlir::Block* bodyBlock = residualFunction.addEntryBlock();
+        builder.setInsertionPointToStart(bodyBlock);
+
+        mlir::BlockAndValueMapping mapping;
+
+        // Map the model variables
+        auto originalVars = model.getOperation().bodyRegion().getArguments();
+        auto mappedVars = residualFunction.getArguments().slice(1, originalVars.size());
+        assert(originalVars.size() == mappedVars.size());
+
+        for (const auto& [original, mapped] : llvm::zip(originalVars, mappedVars)) {
+          mapping.map(original, mapped);
+        }
+
+        // Map the iteration variables
+        auto originalInductions = equation->getInductionVariables();
+        auto mappedInductions = residualFunction.getArguments().slice(1 + originalVars.size());
+        assert(originalInductions.size() == mappedInductions.size());
+
+        for (const auto& [original, mapped] : llvm::zip(originalInductions, mappedInductions)) {
+          mapping.map(original, mapped);
+        }
+
+        for (auto& op : equation->getOperation().bodyBlock()->getOperations()) {
+          if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
+            mapping.map(timeOp.getResult(), residualFunction.getArguments()[0]);
+          } else {
+            builder.clone(op, mapping);
+          }
+        }
+
+        auto clonedTerminator = mlir::cast<EquationSidesOp>(residualFunction.bodyRegion().back().getTerminator());
+
+        assert(clonedTerminator.lhsValues().size() == 1);
+        assert(clonedTerminator.rhsValues().size() == 1);
+
+        mlir::Value lhs = clonedTerminator.lhsValues()[0];
+        mlir::Value rhs = clonedTerminator.rhsValues()[0];
+
+        if (lhs.getType().isa<ArrayType>()) {
+          std::vector<mlir::Value> indices(
+              std::next(mappedInductions.begin(), originalInductions.size()),
+              mappedInductions.end());
+
+          lhs = builder.create<LoadOp>(lhs.getLoc(), lhs, indices);
+          assert((lhs.getType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>()));
+        }
+
+        if (rhs.getType().isa<ArrayType>()) {
+          std::vector<mlir::Value> indices(
+              std::next(mappedInductions.begin(), originalInductions.size()),
+              mappedInductions.end());
+
+          rhs = builder.create<LoadOp>(rhs.getLoc(), rhs, indices);
+          assert((rhs.getType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>()));
+        }
+
+        mlir::Value difference = builder.create<SubOp>(residualFunction.getLoc(), RealType::get(builder.getContext()), rhs, lhs);
+        builder.create<mlir::ida::ReturnOp>(difference.getLoc(), difference);
+        clonedTerminator.erase();
+
+        builder.restoreInsertionPoint(insertionPoint);
+        builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, residualFunctionName);
+      }
+
+      std::string templateName = "ida_pder_" + std::to_string(partialDerTemplatesCounter++);
+
+      {
+        // Create the derivative template
+        auto originalVars = model.getOperation().bodyRegion().getArguments();
+
+        auto partialDerTemplate = createPartialDerTemplateFromEquation(
+            builder, *equation, originalVars, templateName);
+
+        // TODO add time in front to the partialDerTemplate signature
+      }
+
+      {
+        for (const auto& variable : variables) {
+          if (inverseDerivatives.contains(variable)) {
+            continue;
+          }
 
           auto insertionPoint = builder.saveInsertionPoint();
+
+          // Create the Jacobian function
+          auto jacobianFunctionName = "jacobianFunction" + std::to_string(jacobianFunctionsCounter++);
           builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
 
-          auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
+          auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
               equation->getOperation().getLoc(),
-              residualFunctionName,
+              jacobianFunctionName,
               RealType::get(builder.getContext()),
               variableTypes,
               equation->getNumOfIterationVars(),
+              variable.getType().cast<ArrayType>().getRank(),
+              RealType::get(builder.getContext()),
               RealType::get(builder.getContext()));
 
-          assert(residualFunction.bodyRegion().empty());
-          mlir::Block* bodyBlock = residualFunction.addEntryBlock();
+          assert(jacobianFunction.bodyRegion().empty());
+          mlir::Block* bodyBlock = jacobianFunction.addEntryBlock();
+
+          // Create the call to the derivative template
           builder.setInsertionPointToStart(bodyBlock);
 
-          mlir::BlockAndValueMapping mapping;
+          std::vector<mlir::Value> args;
 
-          // Map the model variables
-          auto originalVars = model.getOperation().bodyRegion().getArguments();
-          auto mappedVars = residualFunction.getArguments().slice(1, originalVars.size());
-          assert(originalVars.size() == mappedVars.size());
-
-          for (const auto& [original, mapped] : llvm::zip(originalVars, mappedVars)) {
-            mapping.map(original, mapped);
+          for (auto var : jacobianFunction.getVariables()) {
+            args.push_back(var);
           }
 
-          // Map the iteration variables
-          auto originalInductions = equation->getInductionVariables();
-          auto mappedInductions = residualFunction.getArguments().slice(1 + originalVars.size());
-          assert(originalInductions.size() == mappedInductions.size());
-
-          for (const auto& [original, mapped] : llvm::zip(originalInductions, mappedInductions)) {
-            mapping.map(original, mapped);
+          for (auto equationIndex : jacobianFunction.getEquationIndices()) {
+            args.push_back(equationIndex);
           }
 
-          for (auto& op : equation->getOperation().bodyBlock()->getOperations()) {
-            if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
-              mapping.map(timeOp.getResult(), residualFunction.getArguments()[0]);
+          unsigned int oneSeedPosition = variable.cast<mlir::BlockArgument>().getArgNumber();
+          unsigned int alphaSeedPosition = jacobianFunction.getVariables().size();
+
+          if (derivatives.contains(variable)) {
+            alphaSeedPosition = derivatives.lookup(variable).cast<mlir::BlockArgument>().getArgNumber();
+          }
+
+          mlir::Value zero = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 0));
+          mlir::Value one = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 1));
+
+          for (auto var : llvm::enumerate(jacobianFunction.getVariables())) {
+            if (auto arrayType = var.value().getType().dyn_cast<ArrayType>()) {
+              assert(arrayType.hasConstantShape());
+
+              auto array = builder.create<AllocOp>(
+                  jacobianFunction.getLoc(),
+                  arrayType.toElementType(RealType::get(builder.getContext())),
+                  llvm::None);
+
+              args.push_back(array);
+
+              builder.create<ArrayFillOp>(jacobianFunction.getLoc(), array, zero);
+
+              if (var.index() == oneSeedPosition) {
+                builder.create<StoreOp>(jacobianFunction.getLoc(), one, array, jacobianFunction.getVariableIndices());
+              } else if (var.index() == alphaSeedPosition) {
+                builder.create<StoreOp>(jacobianFunction.getLoc(), jacobianFunction.getAlpha(), array, jacobianFunction.getVariableIndices());
+              }
+
             } else {
-              builder.clone(op, mapping);
+              if (var.index() == oneSeedPosition) {
+                args.push_back(one);
+              } else if (var.index() == alphaSeedPosition) {
+                args.push_back(jacobianFunction.getAlpha());
+              } else {
+                args.push_back(zero);
+              }
             }
           }
 
-          auto clonedTerminator = mlir::cast<EquationSidesOp>(residualFunction.bodyRegion().back().getTerminator());
-
-          assert(clonedTerminator.lhsValues().size() == 1);
-          assert(clonedTerminator.rhsValues().size() == 1);
-
-          mlir::Value lhs = clonedTerminator.lhsValues()[0];
-          mlir::Value rhs = clonedTerminator.rhsValues()[0];
-
-          if (lhs.getType().isa<ArrayType>()) {
-            std::vector<mlir::Value> indices(
-                std::next(mappedInductions.begin(), originalInductions.size()),
-                mappedInductions.end());
-
-            lhs = builder.create<LoadOp>(lhs.getLoc(), lhs, indices);
-            assert((lhs.getType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>()));
+          for (size_t i = 0; i < jacobianFunction.getEquationIndices().size(); ++i) {
+            args.push_back(zero);
           }
 
-          if (rhs.getType().isa<ArrayType>()) {
-            std::vector<mlir::Value> indices(
-                std::next(mappedInductions.begin(), originalInductions.size()),
-                mappedInductions.end());
+          auto templateCall = builder.create<CallOp>(
+              jacobianFunction.getLoc(), templateName, RealType::get(builder.getContext()), args);
 
-            rhs = builder.create<LoadOp>(rhs.getLoc(), rhs, indices);
-            assert((rhs.getType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>()));
-          }
+          builder.create<mlir::ida::ReturnOp>(jacobianFunction.getLoc(), templateCall.getResult(0));
 
-          mlir::Value difference = builder.create<SubOp>(residualFunction.getLoc(), RealType::get(builder.getContext()), rhs, lhs);
-          builder.create<mlir::ida::ReturnOp>(difference.getLoc(), difference);
-          clonedTerminator.erase();
-
+          // Add the Jacobian function to the IDA instance
           builder.restoreInsertionPoint(insertionPoint);
-          builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, residualFunctionName);
-        }
 
-        {
-          for (const auto& variable : variables) {
-            auto insertionPoint = builder.saveInsertionPoint();
-            auto jacobianFunctionName = "jacobianFunction" + std::to_string(jacobianFunctionsCounter++);
-            builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
-
-            auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
-                equation->getOperation().getLoc(),
-                jacobianFunctionName,
-                RealType::get(builder.getContext()),
-                variableTypes,
-                equation->getNumOfIterationVars(),
-                variable.getType().cast<ArrayType>().getRank(),
-                RealType::get(builder.getContext()));
-
-            assert(jacobianFunction.bodyRegion().empty());
-            mlir::Block* bodyBlock = jacobianFunction.addEntryBlock();
-            builder.setInsertionPointToStart(bodyBlock);
-
-            builder.restoreInsertionPoint(insertionPoint);
-
-            builder.create<mlir::ida::AddJacobianOp>(
-                equation->getOperation().getLoc(),
-                idaInstance,
-                idaEquation,
-                mappedVariables.lookup(variable),
-                jacobianFunctionName);
-
-            auto originalVars = model.getOperation().bodyRegion().getArguments();
-            std::string templateName = jacobianFunctionName + "_template";
-
-            auto partialDerTemplate = createPartialDerTemplateFromEquation(
-                builder, *equation, originalVars, templateName);
-          }
+          builder.create<mlir::ida::AddJacobianOp>(
+              equation->getOperation().getLoc(),
+              idaInstance,
+              idaEquation,
+              mappedVariables.lookup(variable),
+              jacobianFunctionName);
         }
       }
 

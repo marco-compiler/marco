@@ -552,11 +552,11 @@ def Modelica_MemberLoadOp : Modelica_Op<"member_load",
       }];
 }
 
+// TypesMatchWith<"value type matches the type wrapped by 'member'",
+//                                  "member", "value",
+//                                  "$_self.cast<MemberType>().unwrap()">,
 def Modelica_MemberStoreOp : Modelica_Op<"member_store",
-    [TypesMatchWith<"value type matches the type wrapped by 'member'",
-                               "member", "value",
-                               "$_self.cast<MemberType>().unwrap()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>, // TODO ?
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>, // TODO ?
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Store data into a class member.";
@@ -2133,6 +2133,7 @@ def Modelica_EquationOp : Modelica_Op<"equation",
     }];
 }
 
+// TODO derivative
 def Modelica_TimeOp : Modelica_Op<"time",
     [HasParent<"EquationOp">]>
 {

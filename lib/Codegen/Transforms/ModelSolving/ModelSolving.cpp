@@ -221,8 +221,6 @@ namespace
         if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
           return signalPassFailure();
         }
-
-        return signalPassFailure();
       }
 
     private:

@@ -39,10 +39,15 @@ namespace marco::codegen
           const mlir::BlockAndValueMapping& derivatives);
 
     private:
+      /// The variables of the model that are managed by IDA.
+      /// The SSA values are the ones defined by the body of the ModelOp.
       std::vector<mlir::Value> variables;
+
       std::set<ScheduledEquation*> equations;
 
       mlir::Value idaInstance;
+
+      /// Map from a ModelOp variable to its IDA variable
       mlir::BlockAndValueMapping mappedVariables;
   };
 }

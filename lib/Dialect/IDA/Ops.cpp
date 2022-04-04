@@ -441,6 +441,38 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
+  // JacobianFunctionOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::BlockArgument JacobianFunctionOp::getTime()
+  {
+    return bodyRegion().getArgument(0);
+  }
+
+  llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariables()
+  {
+    size_t numVariables = bodyRegion().getNumArguments() - 1 - equationRank().getSExtValue() - variableRank().getSExtValue() - 1;
+    return bodyRegion().getArguments().slice(1, numVariables);
+  }
+
+  llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getEquationIndices()
+  {
+    size_t offset = bodyRegion().getNumArguments() - equationRank().getSExtValue() - variableRank().getSExtValue() - 1;
+    return bodyRegion().getArguments().slice(offset, equationRank().getSExtValue());
+  }
+
+  llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariableIndices()
+  {
+    size_t offset = bodyRegion().getNumArguments() - variableRank().getSExtValue() - 1;
+    return bodyRegion().getArguments().slice(offset, variableRank().getSExtValue());
+  }
+
+  BlockArgument JacobianFunctionOp::getAlpha()
+  {
+    return bodyRegion().getArguments().back();
+  }
+
+  //===----------------------------------------------------------------------===//
   // PrintStatisticsOp
   //===----------------------------------------------------------------------===//
 
