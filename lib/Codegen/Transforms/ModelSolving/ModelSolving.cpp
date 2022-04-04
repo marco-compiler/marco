@@ -9,7 +9,7 @@
 #include "marco/Codegen/Transforms/Model/ModelConverter.h"
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/Model/TypeConverter.h"
-#include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
+#include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Utils/VariableFilter.h"
@@ -135,8 +135,6 @@ static Variables discoverVariables(ModelOp model)
 {
   Variables result;
 
-  mlir::ValueRange vars = model.bodyRegion().getArguments();
-
   for (const auto& var : model.bodyRegion().getArguments()) {
     result.add(std::make_unique<Variable>(var));
   }
@@ -180,7 +178,6 @@ namespace
 
       void runOnOperation() override
       {
-        auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
         Model<Equation> model(getOperation());
         mlir::OpBuilder builder(model.getOperation());
 
@@ -224,6 +221,8 @@ namespace
         if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
           return signalPassFailure();
         }
+
+        return signalPassFailure();
       }
 
     private:

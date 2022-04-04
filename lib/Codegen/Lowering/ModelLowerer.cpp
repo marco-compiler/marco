@@ -5,23 +5,6 @@ using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static mlir::Attribute getZeroAttr(mlir::OpBuilder& builder, mlir::Type type)
-{
-  if (type.isa<BooleanType>()) {
-    return BooleanAttr::get(builder.getContext(), false);
-  }
-
-  if (type.isa<IntegerType>()) {
-    return IntegerAttr::get(builder.getContext(), 0);
-  }
-
-  if (type.isa<RealType>()) {
-    return RealAttr::get(builder.getContext(), 0);
-  }
-
-  return builder.getZeroAttr(type);
-}
-
 static IOProperty getIOProperty(const Member& member) {
   if (member.isInput()) {
     return IOProperty::input;
@@ -142,10 +125,10 @@ namespace marco::codegen::lowering
       reference.set(value);
     } else {
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
-        mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(builder(), arrayType.getElementType()));
+        mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(arrayType.getElementType()));
         builder().create<ArrayFillOp>(location, *reference, zero);
       } else {
-        mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(builder(), type));
+        mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(type));
         reference.set(zero);
       }
     }

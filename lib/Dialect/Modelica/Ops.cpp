@@ -1154,8 +1154,8 @@ namespace mlir::modelica
   mlir::ValueRange ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     // D[const] = 0
-    // TODO check type
-    auto derivedOp = builder.create<ConstantOp>(getLoc(), RealAttr::get(getContext(), 0));
+
+    auto derivedOp = builder.create<ConstantOp>(getLoc(), getZeroAttr(getResult().getType()));
     return derivedOp->getResults();
   }
 
@@ -1187,9 +1187,19 @@ namespace mlir::modelica
 
   mlir::ValueRange SqrtOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    // TODO
-    llvm_unreachable("Not implemented");
-    return llvm::None;
+    // D[sqrt(x)] = x' / sqrt(x) / 2
+
+    auto loc = getLoc();
+
+    mlir::Value derivedOperand = derivatives.lookup(operand());
+    mlir::Type type = convertToRealType(getResult().getType());
+
+    mlir::Value sqrt = builder.create<SqrtOp>(loc, type, operand());
+    mlir::Value numerator = builder.create<DivEWOp>(loc, type, derivedOperand, sqrt);
+    mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
+    auto derivedOp = builder.create<DivEWOp>(loc, type, numerator, two);
+
+    return derivedOp->getResults();
   }
 
   void SqrtOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
@@ -1222,7 +1232,7 @@ namespace mlir::modelica
 
   mlir::ValueRange MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivedOp = builder.create<MemberLoadOp>(getLoc(), convertToRealType(result().getType()), derivatives.lookup(member()));
+    auto derivedOp = builder.create<MemberLoadOp>(getLoc(), getResult().getType(), derivatives.lookup(member()));
     return derivedOp->getResults();
   }
 
@@ -1447,60 +1457,30 @@ namespace mlir::modelica
     return mlir::failure();
   }
 
-  mlir::ValueRange CallOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
-  {
-    /*
-    assert(operands().size() == 1 && resultTypes().size() == 1 &&
-        "CallOp differentiation with multiple arguments or multiple return values is not supported yet");
-
-    llvm::StringRef pderName(getPartialDerFunctionName(callee()));
-    mlir::ModuleOp moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
-
-    // Create the partial derivative function if it does not exist already.
-    if (moduleOp.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
-    {
-      FunctionOp base = moduleOp.lookupSymbol<FunctionOp>(callee());
-      assert(base != nullptr);
-      assert(base.argsNames().size() == 1 && base.resultsNames().size() == 1 &&
-          "CallOp differentiation with multiple arguments or multiple return values is not supported yet");
-
-      mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.setInsertionPointAfter(base);
-      mlir::Attribute independentVariable = base.argsNames()[0];
-      builder.create<DerFunctionOp>(base.getLoc(), pderName, base.getName(), independentVariable);
-    }
-
-    CallOp pderCall = builder.create<CallOp>(getLoc(), pderName, resultTypes(), args(), movedResults());
-
-    MulOp mulOp = builder.create<MulOp>(getLoc(), resultTypes()[0], derivatives.lookup(args()[0]), pderCall.getResult(0));
-    return mulOp->getResults();
-     */
-
-    // TODO
-    llvm_unreachable("Not implemented");
-    return llvm::None;
-  }
-
-  void CallOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
-  {
-    for (mlir::Value arg : args()) {
-      toBeDerived.push_back(arg);
-    }
-  }
-
-  void CallOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
-  {
-
-  }
-
   //===----------------------------------------------------------------------===//
   // Atan2Op
   //===----------------------------------------------------------------------===//
 
   mlir::ValueRange Atan2Op::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    // TODO
-    llvm_unreachable("Not implemented");
+    // D[atan2(y, x)] = (y' * x - y * x') / (y^2 + x^2)
+
+    auto loc = getLoc();
+
+    mlir::Value derivedY = derivatives.lookup(y());
+    mlir::Value derivedX = derivatives.lookup(x());
+    mlir::Type type = convertToRealType(getResult().getType());
+
+    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedY, x());
+    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, y(), derivedX);
+    mlir::Value numerator = builder.create<SubEWOp>(loc, type, firstMul, secondMul);
+
+    mlir::Value firstSquared = builder.create<MulEWOp>(loc, type, y(), y());
+    mlir::Value secondSquared = builder.create<MulEWOp>(loc, type, x(), x());
+    mlir::Value denominator = builder.create<AddEWOp>(loc, type, firstSquared, secondSquared);
+    auto derivedOp = builder.create<DivEWOp>(loc, type, numerator, denominator);
+
+    return derivedOp->getResults();
   }
 
   void Atan2Op::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
@@ -1528,15 +1508,14 @@ namespace mlir::modelica
 
   mlir::ValueRange AssignmentOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedSource = derivatives.lookup(value());
     mlir::Value derivedDestination = derivatives.lookup(destination());
 
-    auto derivedOp = builder.create<AssignmentOp>(loc, derivedDestination, derivedSource);
+    builder.create<AssignmentOp>(loc, derivedDestination, derivedSource);
     return llvm::None;
   }
-
   void AssignmentOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
 
@@ -1701,7 +1680,7 @@ namespace mlir::modelica
   {
     // D[acos(x)] = -x' / sqrt(1 - x^2)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -1847,7 +1826,7 @@ namespace mlir::modelica
 
   mlir::ValueRange AddOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -1988,7 +1967,7 @@ namespace mlir::modelica
 
   mlir::ValueRange AddEWOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -2078,7 +2057,7 @@ namespace mlir::modelica
   {
     // D[arcsin(x)] = x' / sqrt(1 - x^2)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -2150,7 +2129,7 @@ namespace mlir::modelica
   {
     // D[atan(x)] = x' / (1 + x^2)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -2275,10 +2254,9 @@ namespace mlir::modelica
   {
     // D[cos(x)] = -x' * sin(x)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
-    bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
     mlir::Value sin = builder.create<SinOp>(loc, type, operand());
     mlir::Value negatedSin = builder.create<NegateOp>(loc, type, sin);
@@ -2345,7 +2323,7 @@ namespace mlir::modelica
   {
     // D[cosh(x)] = x' * sinh(x)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -2518,7 +2496,7 @@ namespace mlir::modelica
 
   mlir::ValueRange DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -2688,7 +2666,7 @@ namespace mlir::modelica
 
   mlir::ValueRange DivEWOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -2764,7 +2742,7 @@ namespace mlir::modelica
   {
     // D[e^x] = x' * e^x
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedExponent = derivatives.lookup(exponent());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -3036,7 +3014,7 @@ namespace mlir::modelica
   {
     // D[log10(x)] = x' / (x * ln(10))
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -3198,7 +3176,7 @@ namespace mlir::modelica
 
   mlir::ValueRange MulOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -3365,7 +3343,7 @@ namespace mlir::modelica
 
   mlir::ValueRange MulEWOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -3587,7 +3565,7 @@ namespace mlir::modelica
   {
     // D[x ^ y] = (x ^ y) * (y' * ln(x) + (y * x') / x)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedBase = derivatives.lookup(base());
     mlir::Value derivedExponent = derivatives.lookup(exponent());
@@ -3640,7 +3618,7 @@ namespace mlir::modelica
   {
     // D[x ^ y] = (x ^ y) * (y' * ln(x) + (y * x') / x)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedBase = derivatives.lookup(base());
     mlir::Value derivedExponent = derivatives.lookup(exponent());
@@ -3757,7 +3735,7 @@ namespace mlir::modelica
   {
     // D[sin(x)] = x' * cos(x)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -3825,7 +3803,7 @@ namespace mlir::modelica
   {
     // D[sinh(x)] = x' * cosh(x)
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 
@@ -4040,7 +4018,7 @@ namespace mlir::modelica
 
   mlir::ValueRange SubOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -4183,7 +4161,7 @@ namespace mlir::modelica
 
   mlir::ValueRange SubEWOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
 
     mlir::Value derivedLhs = derivatives.lookup(lhs());
     mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -4211,7 +4189,8 @@ namespace mlir::modelica
 
   mlir::ValueRange SubscriptionOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-
+    auto derivedOp = builder.create<SubscriptionOp>(getLoc(), derivatives.lookup(source()), indices());
+    return derivedOp->getResults();
   }
 
   void SubscriptionOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
@@ -4283,10 +4262,9 @@ namespace mlir::modelica
   {
     // D[tan(x)] = x' / (cos(x))^2
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
-    bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
     mlir::Value cos = builder.create<CosOp>(loc, type, operand());
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
@@ -4354,7 +4332,7 @@ namespace mlir::modelica
   {
     // D[tanh(x)] = x' / (cosh(x))^2
 
-    mlir::Location loc = getLoc();
+    auto loc = getLoc();
     mlir::Value derivedOperand = derivatives.lookup(operand());
     mlir::Type type = convertToRealType(result().getType());
 

@@ -4,6 +4,24 @@
 
 namespace mlir::modelica
 {
+  mlir::Attribute getZeroAttr(mlir::Type type)
+  {
+    if (type.isa<BooleanType>()) {
+      return BooleanAttr::get(type.getContext(), false);
+    }
+
+    if (type.isa<IntegerType>()) {
+      return IntegerAttr::get(type.getContext(), 0);
+    }
+
+    if (type.isa<RealType>()) {
+      return RealAttr::get(type.getContext(), 0);
+    }
+
+    llvm_unreachable("Unknown Modelica type");
+    return mlir::Attribute();
+  }
+
   //===----------------------------------------------------------------------===//
   // BooleanAttr
   //===----------------------------------------------------------------------===//

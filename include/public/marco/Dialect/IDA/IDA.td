@@ -473,10 +473,12 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount, "Type":$differenceType), [{
+        OpBuilder<(ins "StringRef":$sym_name, "Type":$timeType, "TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount, "Type":$differenceType), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
+
+            args.push_back(timeType);
 
             for (const auto& variableType : variablesTypes) {
                 args.push_back(variableType);
@@ -604,10 +606,12 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "TypeRange":$variablesTypes, "size_t":$equationRank, "size_t":$variableRank, "Type":$differenceType), [{
+        OpBuilder<(ins "StringRef":$sym_name, "Type":$timeType, "TypeRange":$variablesTypes, "size_t":$equationRank, "size_t":$variableRank, "Type":$differenceType), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
+
+            args.push_back(timeType);
 
             for (const auto& variableType : variablesTypes) {
                 args.push_back(variableType);
@@ -763,20 +767,21 @@ def IDA_AddJacobianOp : IDA_Op<"add_jacobian",
 
         %0 = ... : !ida.instance
         %1 = ... : !ida.equation
-        // TODO add variable
-        ida.add_jacobian %0, %1 { function : "foo" } : !ida.instance, !ida.equation
+        %2 = ... : !ida.variable
+        ida.add_jacobian %0, %1, %2 { function : "foo" } : !ida.instance, !ida.equation, !ida.variable
         ```
     }];
 
     let arguments = (ins
         IDAInstance:$instance,
         IDAEquation:$equation,
+        IDAVariable:$variable,
         SymbolNameAttr:$function);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $instance `,` $equation attr-dict `:` type($instance) `,` type($equation)
+        $instance `,` $equation `,` $variable attr-dict `:` type($instance) `,` type($equation) `,` type($variable)
     }];
 }
 

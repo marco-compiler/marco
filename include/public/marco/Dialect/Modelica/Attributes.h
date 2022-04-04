@@ -9,6 +9,8 @@
 
 namespace mlir::modelica
 {
+  mlir::Attribute getZeroAttr(mlir::Type type);
+
   namespace detail
   {
     template<typename ValueType, typename BaseIterator>

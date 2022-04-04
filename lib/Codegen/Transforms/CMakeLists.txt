@@ -1,4 +1,6 @@
 set(SOURCES
+    AutomaticDifferentiation/AutomaticDifferentiation.cpp
+    AutomaticDifferentiation/ForwardAD.cpp
     ModelSolving/Access.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
@@ -16,7 +18,6 @@ set(SOURCES
     ModelSolving/TypeConverter.cpp
     ModelSolving/Variable.cpp
     ArrayDeallocation.cpp
-    AutomaticDifferentiation.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     OpDistribution.cpp)

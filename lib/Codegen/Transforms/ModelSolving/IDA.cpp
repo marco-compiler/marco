@@ -1,11 +1,118 @@
 #include "marco/Codegen/Transforms/Model/IDA.h"
 #include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "mlir/IR/AffineMap.h"
 #include <queue>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
+
+static FunctionOp createPartialDerTemplateFromEquation(
+    mlir::OpBuilder& builder,
+    Equation& equation,
+    mlir::ValueRange originalVariables,
+    llvm::StringRef templateName)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+  builder.setInsertionPointToEnd(equation.getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
+  auto loc = equation.getOperation().getLoc();
+
+  std::string functionOpName = templateName.str() + "_base";
+
+  // The arguments of the base function contain both the variables and the inductions
+  llvm::SmallVector<mlir::Type, 6> argsTypes;
+
+  for (auto type : originalVariables.getTypes()) {
+    argsTypes.push_back(type);
+  }
+
+  for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
+    argsTypes.push_back(builder.getIndexType());
+  }
+
+  // Create the function to be derived
+  auto functionOp = builder.create<FunctionOp>(
+      loc,
+      functionOpName,
+      builder.getFunctionType(argsTypes, RealType::get(builder.getContext())));
+
+  // Start the body of the function
+  mlir::Block* entryBlock = builder.createBlock(&functionOp.body());
+  builder.setInsertionPointToStart(entryBlock);
+
+  // Create the input members and map them to the original variables (and inductions)
+  mlir::BlockAndValueMapping mapping;
+
+  for (auto originalVar : llvm::enumerate(originalVariables)) {
+    auto memberType = MemberType::wrap(originalVar.value().getType(), false, IOProperty::input);
+    auto memberOp = builder.create<MemberCreateOp>(loc, "var" + std::to_string(originalVar.index()), memberType, llvm::None);
+    auto mappedVar = builder.create<MemberLoadOp>(loc, memberOp);
+    mapping.map(originalVar.value(), mappedVar);
+  }
+
+  llvm::SmallVector<mlir::Value, 3> inductions;
+
+  for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
+    auto memberType = MemberType::wrap(builder.getIndexType(), false, IOProperty::input);
+    auto memberOp = builder.create<MemberCreateOp>(loc, "ind" + std::to_string(i), memberType, llvm::None);
+    inductions.push_back(builder.create<MemberLoadOp>(loc, memberOp));
+  }
+
+  auto explicitEquationInductions = equation.getInductionVariables();
+
+  for (const auto& originalInduction : llvm::enumerate(explicitEquationInductions)) {
+    assert(originalInduction.index() < inductions.size());
+    mapping.map(originalInduction.value(), inductions[originalInduction.index()]);
+  }
+
+  // Create the output member, that is the difference between its equation right-hand side value and its
+  // left-hand side value.
+  auto originalTerminator = mlir::cast<EquationSidesOp>(equation.getOperation().bodyBlock()->getTerminator());
+  assert(originalTerminator.lhsValues().size() == 1);
+  assert(originalTerminator.rhsValues().size() == 1);
+
+  auto outputMember = builder.create<MemberCreateOp>(
+      loc, "out",
+      MemberType::wrap(RealType::get(builder.getContext()), false, IOProperty::output),
+      llvm::None);
+
+  // Clone the original operations
+  for (auto& op : equation.getOperation().bodyBlock()->getOperations()) {
+    builder.clone(op, mapping);
+  }
+
+  auto terminator = mlir::cast<EquationSidesOp>(functionOp.bodyBlock()->getTerminator());
+  assert(terminator.lhsValues().size() == 1);
+  assert(terminator.rhsValues().size() == 1);
+
+  mlir::Value lhs = terminator.lhsValues()[0];
+  mlir::Value rhs = terminator.rhsValues()[0];
+
+  if (auto arrayType = lhs.getType().dyn_cast<ArrayType>()) {
+    assert(rhs.getType().isa<ArrayType>());
+    assert(arrayType.getRank() + explicitEquationInductions.size() == inductions.size());
+    auto implicitInductions = llvm::makeArrayRef(inductions).take_back(arrayType.getRank());
+
+    lhs = builder.create<LoadOp>(loc, lhs, implicitInductions);
+    rhs = builder.create<LoadOp>(loc, rhs, implicitInductions);
+  }
+
+  auto result = builder.create<SubOp>(loc, RealType::get(builder.getContext()), rhs, lhs);
+  builder.create<MemberStoreOp>(loc, outputMember, result);
+
+  auto lhsOp = terminator.lhs().getDefiningOp<EquationSideOp>();
+  auto rhsOp = terminator.rhs().getDefiningOp<EquationSideOp>();
+  terminator.erase();
+  lhsOp.erase();
+  rhsOp.erase();
+
+  // Create the derivative template
+  ForwardAD forwardAD;
+  auto derTemplate = forwardAD.createPartialDerTemplateFunction(builder, loc, functionOp, templateName);
+  functionOp.erase();
+  return derTemplate;
+}
 
 namespace marco::codegen
 {
@@ -172,6 +279,11 @@ namespace marco::codegen
       bool atLeastOneAccessReplaced = false;
 
       for (const auto& access : equation->getReads()) {
+        if (atLeastOneAccessReplaced) {
+          // Avoid unnecessary duplicates
+          break;
+        }
+
         auto readIndices = access.getAccessFunction().map(equation->getIterationRanges());
         auto varPosition = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
         auto writingEquations = llvm::make_range(writesMap.equal_range(varPosition));
@@ -270,7 +382,12 @@ namespace marco::codegen
           builder.setInsertionPointToStart(equation->getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
 
           auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
-              equation->getOperation().getLoc(), residualFunctionName, variableTypes, equation->getNumOfIterationVars(), RealType::get(builder.getContext()));
+              equation->getOperation().getLoc(),
+              residualFunctionName,
+              RealType::get(builder.getContext()),
+              variableTypes,
+              equation->getNumOfIterationVars(),
+              RealType::get(builder.getContext()));
 
           assert(residualFunction.bodyRegion().empty());
           mlir::Block* bodyBlock = residualFunction.addEntryBlock();
@@ -280,7 +397,8 @@ namespace marco::codegen
 
           // Map the model variables
           auto originalVars = model.getOperation().bodyRegion().getArguments();
-          auto mappedVars = residualFunction.getArguments().take_front(originalVars.size());
+          auto mappedVars = residualFunction.getArguments().slice(1, originalVars.size());
+          assert(originalVars.size() == mappedVars.size());
 
           for (const auto& [original, mapped] : llvm::zip(originalVars, mappedVars)) {
             mapping.map(original, mapped);
@@ -288,14 +406,19 @@ namespace marco::codegen
 
           // Map the iteration variables
           auto originalInductions = equation->getInductionVariables();
-          auto mappedInductions = residualFunction.getArguments().slice(originalVars.size());
+          auto mappedInductions = residualFunction.getArguments().slice(1 + originalVars.size());
+          assert(originalInductions.size() == mappedInductions.size());
 
           for (const auto& [original, mapped] : llvm::zip(originalInductions, mappedInductions)) {
             mapping.map(original, mapped);
           }
 
           for (auto& op : equation->getOperation().bodyBlock()->getOperations()) {
-            builder.clone(op, mapping);
+            if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
+              mapping.map(timeOp.getResult(), residualFunction.getArguments()[0]);
+            } else {
+              builder.clone(op, mapping);
+            }
           }
 
           auto clonedTerminator = mlir::cast<EquationSidesOp>(residualFunction.bodyRegion().back().getTerminator());
@@ -341,6 +464,7 @@ namespace marco::codegen
             auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
                 equation->getOperation().getLoc(),
                 jacobianFunctionName,
+                RealType::get(builder.getContext()),
                 variableTypes,
                 equation->getNumOfIterationVars(),
                 variable.getType().cast<ArrayType>().getRank(),
@@ -351,7 +475,19 @@ namespace marco::codegen
             builder.setInsertionPointToStart(bodyBlock);
 
             builder.restoreInsertionPoint(insertionPoint);
-            builder.create<mlir::ida::AddJacobianOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, jacobianFunctionName);
+
+            builder.create<mlir::ida::AddJacobianOp>(
+                equation->getOperation().getLoc(),
+                idaInstance,
+                idaEquation,
+                mappedVariables.lookup(variable),
+                jacobianFunctionName);
+
+            auto originalVars = model.getOperation().bodyRegion().getArguments();
+            std::string templateName = jacobianFunctionName + "_template";
+
+            auto partialDerTemplate = createPartialDerTemplateFromEquation(
+                builder, *equation, originalVars, templateName);
           }
         }
       }

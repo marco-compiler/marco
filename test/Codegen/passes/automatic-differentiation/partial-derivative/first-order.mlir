@@ -107,10 +107,30 @@ modelica.function @scalarMul : (!modelica.real) -> (!modelica.real) {
     modelica.member_store %1, %4: !modelica.member<!modelica.real, output>, !modelica.real
 }
 
+modelica.function @callOpDer : (!modelica.real) -> (!modelica.real) {
+    %0 = modelica.member_create {name = "x2"} : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create {name = "y2"} : !modelica.member<!modelica.real, output>
+    %2 = modelica.constant #modelica.int<57>
+    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
+    %4 = modelica.mul %2, %3 : (!modelica.int, !modelica.real) -> !modelica.real
+    %5 = modelica.call @scalarMul(%4) : (!modelica.real) -> (!modelica.real)
+    modelica.member_store %1, %5: !modelica.member<!modelica.real, output>, !modelica.real
+}
+
+modelica.der_function @callOpDer_x2 {derived_function = "callOpDer", independent_vars = ["x2"]}
+
+func @test_callOpDer() -> () {
+    %x = modelica.constant #modelica.real<2000.0>
+    %result = modelica.call @callOpDer_x2(%x) : (!modelica.real) -> (!modelica.real)
+    modelica.print %result : !modelica.real
+    return
+}
+
 func @main() -> () {
     call @test_simpleVarDer() : () -> ()
     call @test_mulByScalar() : () -> ()
     call @test_sumOfVars() : () -> ()
     call @test_mulOfVars() : () -> ()
+    call @test_callOpDer() : () -> ()
     return
 }

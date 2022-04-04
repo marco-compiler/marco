@@ -18,24 +18,6 @@ static bool isNumeric(mlir::Value value)
   return isNumeric(value.getType());
 }
 
-static mlir::Attribute getZeroAttr(mlir::Type type)
-{
-  if (type.isa<BooleanType>()) {
-    return BooleanAttr::get(type.getContext(), 0);
-  }
-
-  if (type.isa<IntegerType>()) {
-    return IntegerAttr::get(type.getContext(), 0);
-  }
-
-  if (type.isa<RealType>()) {
-    return RealAttr::get(type.getContext(), 0);
-  }
-
-  llvm_unreachable("Unknown type");
-  return mlir::Attribute();
-}
-
 static std::vector<mlir::Value> getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value array)
 {
   std::vector<mlir::Value> result;

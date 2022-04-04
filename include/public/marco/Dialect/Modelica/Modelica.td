@@ -2296,8 +2296,7 @@ def Modelica_CallOp : Modelica_Op<"call",
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
-    DeclareOpInterfaceMethods<InvertibleOpInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    DeclareOpInterfaceMethods<InvertibleOpInterface>]>
 {
     let summary = "Call operation.";
 
