@@ -696,6 +696,17 @@ namespace marco::modeling
     
     return RangeRagged(0,dimension.getNumericValue());
   }
+  
+  MultidimensionalRangeRagged getMultidimensionalRangeRaggedFromShape(const Shape& shape)
+  {
+    llvm::SmallVector<RangeRagged,3> ranges;
+    for(auto dim: shape.dimensions())
+    {
+      ranges.push_back(getRangeFromDimensionSize(dim));
+    }
+
+    return MultidimensionalRangeRagged(std::move(ranges));
+  }
 
   IndexSet getIndexSetFromRaggedRange(const MultidimensionalRangeRagged& range)
   {
@@ -710,15 +721,7 @@ namespace marco::modeling
 
   IndexSet getIndexSetFromShape(const Shape& shape)
   {
-    llvm::SmallVector<RangeRagged,3> ranges;
-    for(auto dim: shape.dimensions())
-    {
-      ranges.push_back(getRangeFromDimensionSize(dim));
-    }
-
-    MultidimensionalRangeRagged multi(std::move(ranges));
-
-    return getIndexSetFromRaggedRange(multi);
+    return getIndexSetFromRaggedRange(getMultidimensionalRangeRaggedFromShape(shape));
   }
 
 }// namespace marco::modeling

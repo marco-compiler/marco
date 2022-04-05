@@ -173,15 +173,14 @@ namespace marco::modeling
 
           unsigned int flatSize() const
           {
-            unsigned int result = 1;
-
+            Shape shape;
             for (unsigned int i = 0, rank = getRank() ; i < rank ; ++i) {
-              long size = getDimensionSize(i).getNumericValue();
-              assert(size > 0);
-              result *= size;
+              auto dim = getDimensionSize(i);
+              assert(!dim.isUndefined());
+              shape.push_back(dim);
             }
 
-            return result;
+            return getMultidimensionalRangeRaggedFromShape(shape).flatSize();
           }
 
           bool isVisible() const

@@ -114,6 +114,7 @@ namespace marco::modeling
 
   extern std::string toString(const MultidimensionalRangeRagged& value);
 
+  extern MultidimensionalRangeRagged getMultidimensionalRangeRaggedFromShape(const Shape& shape);
   extern IndexSet getIndexSetFromRaggedRange(const MultidimensionalRangeRagged& range);
   extern IndexSet getIndexSetFromShape(const Shape& shape);
 
