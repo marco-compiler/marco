@@ -291,6 +291,15 @@ namespace marco::modeling
       if (range > other) {
         return false;
       }
+      
+      if (range.overlaps(other)) {
+        for(auto remainder: other.subtract(range))
+        {
+          if(!contains(remainder))
+            return false;
+        }
+        return true;
+      }
     }
 
     return false;
@@ -491,9 +500,12 @@ namespace marco::modeling
   {
     stream << "{";
 
+    bool positionSeparator = false;
     for (const auto& range: obj.ranges) {
-      bool positionSeparator = false;
-
+      if (positionSeparator) {
+        stream << "; ";
+      }
+      positionSeparator = false;
       for (auto indexes: range) {
         if (positionSeparator) {
           stream << ", ";

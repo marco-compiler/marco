@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include "marco/modeling/IndexSet.h"
+#include "marco/modeling/MultidimensionalRangeRagged.h"
 
 using namespace ::marco::modeling;
 
@@ -267,4 +268,35 @@ TEST(IndexSet, complementEmptyBase)
 
   for (auto indexes: range)
     EXPECT_TRUE(result.contains(indexes));
+}
+
+TEST(IndexSet, containsWithOverlappingRanges)
+{
+    //big: {(0,0), (0,1), (0,2); (1,0), (1,1), (1,2), (1,3); (2,0), (2,1), (2,2), (2,3), (2,4)}
+    //small: {(0,0), (0,1), (1,0), (1,1), (2,0), (2,1); (1,2), (2,2); (2,3)}
+
+    IndexSet big = getIndexSetFromRaggedRange(
+        MultidimensionalRangeRagged({ {0,3}, {0,{3,4,5}} })
+    );
+
+    IndexSet small;
+    small += MultidimensionalRange({
+        Range(0, 3),
+        Range(0, 2)
+    });
+    small += MultidimensionalRange({
+        Range(1, 3),
+        Range(2, 3)
+    });
+    small += MultidimensionalRange({
+        Range(2, 3),
+        Range(3, 4)
+    });
+
+    EXPECT_TRUE(big.contains(big));
+    EXPECT_TRUE(small.contains(small));
+
+    EXPECT_TRUE(big.contains(small));
+
+    EXPECT_FALSE(small.contains(big));
 }
