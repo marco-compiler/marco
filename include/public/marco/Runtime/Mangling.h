@@ -3,12 +3,6 @@
 
 #include <cstdint>
 
-typedef float (*float_residual)(void*, float, int32_t*);
-typedef double (*double_residual)(void*, double, int64_t*);
-
-typedef float (*float_jacobian)(void*, float, int32_t*, int32_t, int32_t*, float);
-typedef double (*double_jacobian)(void*, double, int64_t*, int64_t, int64_t*, double);
-
 #define NUM_ARGS_H1(dummy, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
 #define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
@@ -86,19 +80,6 @@ typedef double (*double_jacobian)(void*, double, int64_t*, int64_t, int64_t*, do
 #define PTR_int64_t_MANGLED _pi64
 #define PTR_float_MANGLED _pf32
 #define PTR_double_MANGLED _pf64
-
-#define RESIDUAL(type) RESIDUAL_ ##type
-#define JACOBIAN(type) JACOBIAN_ ##type
-
-#define RESIDUAL_float_CPP float_residual
-#define RESIDUAL_double_CPP double_residual
-#define JACOBIAN_float_CPP float_jacobian
-#define JACOBIAN_double_CPP double_jacobian
-
-#define RESIDUAL_float_MANGLED _f32ptr
-#define RESIDUAL_double_MANGLED _f64ptr
-#define JACOBIAN_float_MANGLED _f32ptr
-#define JACOBIAN_double_MANGLED _f64ptr
 
 #define TYPE_MANGLED(n, type) type ##_MANGLED
 #define TYPES_MANGLED(...) APPLY_ALL(TYPE_MANGLED, __VA_ARGS__)
