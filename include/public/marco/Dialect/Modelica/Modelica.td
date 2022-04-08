@@ -78,7 +78,7 @@ class MemberOf<list<Type> allowedTypes> :
                   "$_self.cast<::mlir::modelica::MemberType>().getElementType()",
                   "member", "::mlir::modelica::MemberType">;
 
-def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal]>;
+def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
 //===----------------------------------------------------------------------===//
 // Modelica operation definitions
@@ -468,7 +468,7 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 //===----------------------------------------------------------------------===//
 
 def Modelica_MemberCreateOp : Modelica_Op<"member_create",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> // TODO ?
+    [Symbol]>
 {
     let summary = "Declare a member of a class.";
 
@@ -486,12 +486,11 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create",
         ```
     }];
 
-    let arguments = (ins StrAttr:$name, Variadic<Index>:$dynamicSizes);
+    let arguments = (ins StrAttr:$sym_name, Variadic<Index>:$dynamicSizes);
     let results = (outs AnyMember:$member);
 
-    let assemblyFormat = [{
-        $dynamicSizes attr-dict `:` type($member)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let builders = [
         OpBuilder<(ins "llvm::StringRef":$name, "::mlir::modelica::MemberType":$memberType, "ValueRange":$dynamicSizes), [{
@@ -500,21 +499,26 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create",
     }]>];
 
     let extraClassDeclaration = [{
-        MemberType getMemberType() {
-            return member().getType().cast<MemberType>();
-        }
+        public:
+            llvm::StringRef name() {
+                return sym_name();
+            }
 
-        bool isInput() {
-            return getMemberType().isInput();
-        }
+            MemberType getMemberType() {
+                return member().getType().cast<MemberType>();
+            }
 
-        bool isOutput() {
-            return getMemberType().isOutput();
-        }
+            bool isInput() {
+                return getMemberType().isInput();
+            }
 
-        bool isConstant() {
-            return getMemberType().isConstant();
-        }
+            bool isOutput() {
+                return getMemberType().isOutput();
+            }
+
+            bool isConstant() {
+                return getMemberType().isConstant();
+            }
     }];
 }
 
@@ -522,7 +526,6 @@ def Modelica_MemberLoadOp : Modelica_Op<"member_load",
     [TypesMatchWith<"result type matches the type wrapped by 'member'",
                           "member", "result",
                           "$_self.cast<MemberType>().unwrap()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>, // TODO ?
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Load the data held by a class member.";
@@ -556,8 +559,7 @@ def Modelica_MemberLoadOp : Modelica_Op<"member_load",
 //                                  "member", "value",
 //                                  "$_self.cast<MemberType>().unwrap()">,
 def Modelica_MemberStoreOp : Modelica_Op<"member_store",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>, // TODO ?
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Store data into a class member.";
 
@@ -613,6 +615,7 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     ];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_NegateOp : Modelica_Op<"neg",
@@ -674,6 +677,7 @@ def Modelica_AddOp : Modelica_Op<"add",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_AddEWOp : Modelica_Op<"add_ew",
@@ -2133,7 +2137,6 @@ def Modelica_EquationOp : Modelica_Op<"equation",
     }];
 }
 
-// TODO derivative
 def Modelica_TimeOp : Modelica_Op<"time",
     [HasParent<"EquationOp">]>
 {
@@ -2198,7 +2201,7 @@ def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
         $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)
     }];
 
-let extraClassDeclaration = [{
+    let extraClassDeclaration = [{
         public:
             mlir::ValueRange lhsValues() {
                 auto sideOp = lhs().getDefiningOp();
@@ -2250,6 +2253,8 @@ def Modelica_FunctionOp : Modelica_Op<"function",
             SmallVector<StringRef> protectedMemberNames();
 
             FunctionType getType();
+
+            bool shouldBeInlined();
 
             //===------------------------------------------------------------------===//
             // CallableOpInterface

@@ -18,6 +18,9 @@ int main(int argc, char* argv[])
   registerModelicaTransformationPasses();
 	registerModelicaConversionPasses();
 
+  mlir::registerCanonicalizerPass();
+  mlir::registerCSEPass();
+
 	mlir::DialectRegistry registry;
   mlir::registerAllDialects(registry);
 

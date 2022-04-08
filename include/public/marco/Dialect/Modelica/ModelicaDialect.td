@@ -16,6 +16,7 @@ def Modelica_Dialect : Dialect {
     }];
 
     let cppNamespace = "::mlir::modelica";
+    let hasConstantMaterializer = 1;
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD

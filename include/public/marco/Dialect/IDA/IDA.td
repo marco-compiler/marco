@@ -802,24 +802,20 @@ def IDA_InitOp : IDA_Op<"init",
         Note that all the equations and variables must have
         already been added to the IDA instance.
 
-        The operation returns whether the initialization
-        ended successfully. It may fail in case of a malformed
-        model.
-
         Example:
 
         ```mlir
         %0 = ... : !ida.instance
         ...
-        %1 = ida.init %0 : !ida.instance -> i1
+        %1 = ida.init %0 : !ida.instance
         ```
     }];
 
     let arguments = (ins IDAInstance:$instance);
-    let results = (outs I1:$result);
+    let results = (outs);
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($result)
+        $instance attr-dict `:` type($instance)
     }];
 }
 
@@ -836,13 +832,10 @@ def IDA_StepOp : IDA_Op<"step",
         IDA through internal heuristics and may be different at
         each call.
 
-        The operation returns whether the time step has been
-        executed successfully.
-
         Example:
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ida.step %0 { step = 0.01 } : !ida.instance -> i1
+        %1 = ida.step %0 { step = 0.01 } : !ida.instance
         ```
     }];
 
@@ -850,10 +843,10 @@ def IDA_StepOp : IDA_Op<"step",
         IDAInstance:$instance,
         OptionalAttr<F64Attr>:$timeStep);
 
-    let results = (outs I1:$result);
+    let results = (outs);
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($result)
+        $instance attr-dict `:` type($instance)
     }];
 }
 
@@ -867,20 +860,18 @@ def IDA_FreeOp : IDA_Op<"free",
         the memory reserved for the array variables that have
         been added to IDA.
 
-        It returns whether the deallocations were successful.
-
         Example:
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ida.free %0 : !ida.instance -> i1
+        %1 = ida.free %0 : !ida.instance
         ```
     }];
 
     let arguments = (ins IDAInstance:$instance);
-    let results = (outs I1:$result);
+    let results = (outs);
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($result)
+        $instance attr-dict `:` type($instance)
     }];
 }
 

@@ -127,6 +127,8 @@ namespace marco::codegen
 
     // Create the external solvers
     ExternalSolvers solvers;
+    auto ida = std::make_unique<IDASolver>(typeConverter);
+    //ida->setEnabled(false);
 
     ConversionInfo conversionInfo;
 
@@ -156,16 +158,16 @@ namespace marco::codegen
     // written variables.
     for (const auto& implicitEquation : conversionInfo.implicitEquations) {
       auto var = implicitEquation->getWrite().getVariable();
-      solvers.ida->addVariable(var->getValue());
-      solvers.ida->addEquation(implicitEquation);
+      ida->addVariable(var->getValue());
+      ida->addEquation(implicitEquation);
     }
 
     // Add the cyclic equations to the set of equations managed by IDA, together with their
     // written variables.
     for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
       auto var = cyclicEquation->getWrite().getVariable();
-      solvers.ida->addVariable(var->getValue());
-      solvers.ida->addEquation(cyclicEquation);
+      ida->addVariable(var->getValue());
+      ida->addEquation(cyclicEquation);
     }
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
@@ -173,8 +175,8 @@ namespace marco::codegen
         auto var = scheduledEquation->getWrite().getVariable();
 
         if (derivatives.contains(var->getValue())) {
-          solvers.ida->addVariable(var->getValue());
-          solvers.ida->addEquation(scheduledEquation.get());
+          ida->addVariable(var->getValue());
+          ida->addEquation(scheduledEquation.get());
         }
       }
     }
@@ -188,11 +190,13 @@ namespace marco::codegen
       for (auto& scheduledEquation : *scheduledBlock) {
         auto var = scheduledEquation->getWrite().getVariable();
 
-        if (solvers.ida->hasVariable(var->getValue())) {
-          solvers.ida->addEquation(scheduledEquation.get());
+        if (ida->hasVariable(var->getValue())) {
+          ida->addEquation(scheduledEquation.get());
         }
       }
     }
+
+    solvers.addSolver(std::move(ida));
 
     // Create the various functions composing the simulation
     if (auto res = createInitFunction(builder, model, solvers, derivatives); failed(res)) {
@@ -210,7 +214,7 @@ namespace marco::codegen
       return res;
     }
 
-    if (auto res = createUpdateStateVariablesFunction(builder, modelOp, derivativesPositions, solvers); mlir::failed(res)) {
+    if (auto res = createUpdateStateVariablesFunction(builder, modelOp, derivatives, derivativesPositions, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + updateStateVariablesFunctionName + "' function");
       return res;
     }
@@ -220,6 +224,7 @@ namespace marco::codegen
       return res;
     }
 
+    /*
     if (auto res = createPrintHeaderFunction(builder, modelOp, derivativesPositions, solvers); failed(res)) {
       model.getOperation().emitError("Could not create the '" + printHeaderFunctionName + "' function");
       return res;
@@ -229,6 +234,7 @@ namespace marco::codegen
       model.getOperation().emitError("Could not create the '" + printFunctionName + "' function");
       return res;
     }
+     */
 
     if (options.emitMain) {
       if (auto res = createMainFunction(builder, model); mlir::failed(res)) {
@@ -279,6 +285,27 @@ namespace marco::codegen
     return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
   }
 
+  mlir::Value ModelConverter::alloc(
+      mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Location loc, mlir::Type type) const
+  {
+    // Add the heap-allocating function to the module
+    auto heapAllocFunc = lookupOrCreateHeapAllocFn(builder, module);
+
+    // Determine the size (in bytes) of the memory to be allocated
+    mlir::Type ptrType = mlir::LLVM::LLVMPointerType::get(type);
+    mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, ptrType);
+
+    mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+    one = typeConverter->materializeTargetConversion(builder, loc, typeConverter->getIndexType(), one);
+
+    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, ptrType, llvm::makeArrayRef({ nullPtr, one }));
+    mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, typeConverter->getIndexType(), gepPtr);
+    mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, heapAllocFunc, sizeBytes, getVoidPtrType())[0];
+
+    // Cast the allocated memory pointer to a pointer of the original type
+    return builder.create<mlir::LLVM::BitcastOp>(loc, ptrType, resultOpaquePtr);
+  }
+
   mlir::LogicalResult ModelConverter::createMainFunction(
       mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const
   {
@@ -327,7 +354,10 @@ namespace marco::codegen
     // External solvers
     std::vector<mlir::Type> externalSolversTypes;
 
-    externalSolversTypes.push_back(typeConverter->convertType(externalSolvers.ida->getSolverInstanceType(context)));
+    for (auto& solver : externalSolvers) {
+      externalSolversTypes.push_back(mlir::LLVM::LLVMPointerType::get(solver->getRuntimeDataType(context)));
+    }
+
     mlir::Type externalSolversStructType = mlir::LLVM::LLVMStructType::getLiteral(context, externalSolversTypes);
     mlir::Type externalSolversStructPtrType = mlir::LLVM::LLVMPointerType::get(externalSolversStructType);
     types.push_back(externalSolversStructPtrType);
@@ -390,7 +420,6 @@ namespace marco::codegen
     // Create the memory buffer for the variable
     builder.setInsertionPoint(op);
 
-    // TODO last parameter false
     mlir::Value reference = builder.create<AllocOp>(loc, arrayType, op.dynamicSizes());
 
     // Replace loads and stores with appropriate instructions operating on the new memory buffer.
@@ -476,21 +505,6 @@ namespace marco::codegen
     modelOp.initRegion().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
 
-    // Initialize the IDA solver
-    if (auto res = externalSolvers.ida->init(builder, function); mlir::failed(res)) {
-      return res;
-    }
-
-    // Process the variables that are handled by IDA
-    if (auto res = externalSolvers.ida->processVariables(builder, function, derivatives); mlir::failed(res)) {
-      return res;
-    }
-
-    // Process the equations that are handled by IDA
-    if (auto res = externalSolvers.ida->processEquations(builder, model, function, modelOp.bodyRegion().getArgumentTypes(), derivatives); mlir::failed(res)) {
-      return res;
-    }
-
     // The values to be packed into the structure to be passed around the simulation functions
     llvm::SmallVector<mlir::Value, 3> values;
 
@@ -502,15 +516,9 @@ namespace marco::codegen
 
     for (const auto& var : terminator.values()) {
       auto memberCreateOp = var.getDefiningOp<MemberCreateOp>();
-
-      if (memberCreateOp != nullptr) {
-        mlir::Value array = convertMember(builder, memberCreateOp);
-        builder.setInsertionPointAfterValue(array);
-        values.push_back(array);
-      } else {
-        builder.setInsertionPointAfterValue(var);
-        values.push_back(var);
-      }
+      mlir::Value array = convertMember(builder, memberCreateOp);
+      builder.setInsertionPointAfterValue(array);
+      values.push_back(array);
     }
 
     builder.setInsertionPointAfter(terminator);
@@ -518,43 +526,64 @@ namespace marco::codegen
     auto runtimeDataStructType = getRuntimeDataStructType(
         builder.getContext(), externalSolvers, model.getOperation().bodyRegion().getArgumentTypes());
 
-    mlir::Value structValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
+    mlir::Value runtimeDataStructValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
 
+    // Allocate the structure containing all the external solvers data and store its pointer into
+    // the main runtime data structure.
+    mlir::Value externalSolversDataPtr = alloc(builder, module, loc, runtimeDataStructType.getBody()[externalSolversPosition].cast<mlir::LLVM::LLVMPointerType>().getElementType());
+    runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, externalSolversDataPtr, builder.getIndexArrayAttr(externalSolversPosition));
+
+    // Allocate the data structures of each external solver and store each pointer into the
+    // previous solvers structure.
+    mlir::Value externalSolversData = builder.create<mlir::LLVM::UndefOp>(loc, externalSolversDataPtr.getType().cast<mlir::LLVM::LLVMPointerType>().getElementType());
+    std::vector<mlir::Value> externalSolverDataPtrs;
+
+    for (auto& solver : llvm::enumerate(externalSolvers)) {
+      if (!solver.value()->isEnabled()) {
+        continue;
+      }
+
+      mlir::Value externalSolverDataPtr = alloc(builder, module, loc, solver.value()->getRuntimeDataType(builder.getContext()));
+      externalSolverDataPtrs.push_back(externalSolverDataPtr);
+      externalSolversData = builder.create<mlir::LLVM::InsertValueOp>(loc, externalSolversData, externalSolverDataPtr, builder.getIndexArrayAttr(solver.index()));
+    }
+
+    builder.create<mlir::LLVM::StoreOp>(loc, externalSolversData, externalSolversDataPtr);
+
+    // Set the start time
     mlir::Value startTime = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), modelOp.startTime().convertToDouble()));
 
     startTime = typeConverter->materializeTargetConversion(builder, loc, runtimeDataStructType.getBody()[timeVariablePosition], startTime);
-    structValue = builder.create<mlir::LLVM::InsertValueOp>(loc, structValue, startTime, builder.getIndexArrayAttr(1));
+    runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, startTime, builder.getIndexArrayAttr(1));
 
+    // Add the model variables
     for (const auto& var : llvm::enumerate(values)) {
       mlir::Type convertedType = typeConverter->convertType(var.value().getType());
       mlir::Value convertedVar = typeConverter->materializeTargetConversion(builder, loc, convertedType, var.value());
-      structValue = builder.create<mlir::LLVM::InsertValueOp>(loc, structValue, convertedVar, builder.getIndexArrayAttr(var.index() + 2));
+      runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, convertedVar, builder.getIndexArrayAttr(var.index() + 2));
     }
 
-    // The data structure must be stored on the heap in order to escape
-    // from the function.
+    // Allocate the main runtime data structure
+    mlir::Value runtimeDataStructPtr = alloc(builder, module, loc, runtimeDataStructType);
+    builder.create<mlir::LLVM::StoreOp>(loc, runtimeDataStructValue, runtimeDataStructPtr);
 
-    // Add the "malloc" function to the module
-    auto heapAllocFunc = lookupOrCreateHeapAllocFn(builder, module);
-
-    // Determine the size (in bytes) of the memory to be allocated
-    mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(runtimeDataStructType);
-    mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, structPtrType);
-
-    mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-    one = typeConverter->materializeTargetConversion(builder, loc, typeConverter->getIndexType(), one);
-
-    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, structPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, one});
-    mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, typeConverter->getIndexType(), gepPtr);
-    mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, heapAllocFunc, sizeBytes, getVoidPtrType())[0];
-
-    // Store the struct into the heap memory
-    mlir::Value resultCastedPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, resultOpaquePtr);
-    builder.create<mlir::LLVM::StoreOp>(loc, structValue, resultCastedPtr);
-
-    builder.create<mlir::ReturnOp>(loc, resultOpaquePtr);
+    mlir::Value runtimeDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(loc, getVoidPtrType(), runtimeDataStructPtr);
+    builder.create<mlir::ReturnOp>(loc, runtimeDataOpaquePtr);
     terminator->erase();
+
+    // External solvers
+    for (auto& solver : llvm::enumerate(externalSolvers)) {
+      if (!solver.value()->isEnabled()) {
+        continue;
+      }
+
+      mlir::Value solverDataPtr = externalSolverDataPtrs[solver.index()];
+
+      if (auto res = solver.value()->processInitFunction(builder, solverDataPtr, function, values, model, derivatives); mlir::failed(res)) {
+        return res;
+      }
+    }
 
     return mlir::success();
   }
@@ -563,7 +592,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder, ModelOp modelOp, ExternalSolvers& externalSolvers) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    mlir::Location loc = modelOp.getLoc();
+    auto loc = modelOp.getLoc();
     auto module = modelOp->getParentOfType<mlir::ModuleOp>();
 
     // Create the function inside the parent module
@@ -580,12 +609,12 @@ namespace marco::codegen
     auto runtimeDataStructType = getRuntimeDataStructType(
         builder.getContext(), externalSolvers, modelOp.bodyRegion().getArgumentTypes());
 
-    mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
+    mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
     // Deallocate the arrays
     for (const auto& varType : llvm::enumerate(modelOp.bodyRegion().getArgumentTypes())) {
       if (auto arrayType = varType.value().dyn_cast<ArrayType>()) {
-        mlir::Value var = extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset);
+        mlir::Value var = extractValue(builder, runtimeDataStruct, varType.value(), varType.index() + variablesOffset);
         builder.create<FreeOp>(loc, var);
       }
     }
@@ -597,7 +626,44 @@ namespace marco::codegen
     builder.create<mlir::LLVM::CallOp>(
         loc, llvm::None, builder.getSymbolRefAttr(freeFunc), function.getArgument(0));
 
-    builder.create<mlir::ReturnOp>(loc);
+    auto returnOp = builder.create<mlir::ReturnOp>(loc);
+
+    // External solvers
+    builder.setInsertionPoint(returnOp);
+
+    mlir::Value externalSolversPtr = extractValue(
+        builder, runtimeDataStruct,
+        runtimeDataStructType.getBody()[externalSolversPosition],
+        externalSolversPosition);
+
+    assert(externalSolversPtr.getType().isa<mlir::LLVM::LLVMPointerType>());
+    mlir::Value externalSolversStruct = builder.create<mlir::LLVM::LoadOp>(externalSolversPtr.getLoc(), externalSolversPtr);
+
+    // Deallocate each solver data structure
+    for (auto& solver : llvm::enumerate(externalSolvers)) {
+      if (!solver.value()->isEnabled()) {
+        continue;
+      }
+
+      mlir::Type externalSolverRuntimeDataType = solver.value()->getRuntimeDataType(builder.getContext());
+
+      mlir::Value solverDataPtr = extractValue(
+          builder, externalSolversStruct,
+          typeConverter->convertType(mlir::LLVM::LLVMPointerType::get(externalSolverRuntimeDataType)),
+          solver.index());
+
+      if (auto res = solver.value()->processDeinitFunction(builder, solverDataPtr, function); mlir::failed(res)) {
+        return res;
+      }
+
+      solverDataPtr = builder.create<mlir::LLVM::BitcastOp>(solverDataPtr.getLoc(), getVoidPtrType(), solverDataPtr);
+      mlir::LLVM::createLLVMCall(builder, solverDataPtr.getLoc(), freeFunc, solverDataPtr);
+    }
+
+    // Deallocate the structure containing all the solvers
+    externalSolversPtr = builder.create<mlir::LLVM::BitcastOp>(externalSolversPtr.getLoc(), getVoidPtrType(), externalSolversPtr);
+    mlir::LLVM::createLLVMCall(builder, externalSolversPtr.getLoc(), freeFunc, externalSolversPtr);
+
     return mlir::success();
   }
 
@@ -754,10 +820,9 @@ namespace marco::codegen
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
-        if (externalSolvers.ida->hasEquation(equation.get())) {
-          // Let IDA process the equation
-          // TODO
-          return mlir::failure();
+        if (externalSolvers.containsEquation(equation.get())) {
+          // Let the external solver process the equation
+          continue;
 
         } else {
           // The equation is handled by MARCO
@@ -805,12 +870,16 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult ModelConverter::createUpdateStateVariablesFunction(
-      mlir::OpBuilder& builder, ModelOp modelOp,
-      const DerivativesPositionsMap& derivatives,
+      mlir::OpBuilder& builder,
+      ModelOp modelOp,
+      const mlir::BlockAndValueMapping& derivatives,
+      const DerivativesPositionsMap& derivativesPositionMap,
       ExternalSolvers& externalSolvers) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    mlir::Location loc = modelOp.getLoc();
+    auto loc = modelOp.getLoc();
+
+    auto varTypes = modelOp.bodyRegion().getArgumentTypes();
 
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
@@ -828,17 +897,54 @@ namespace marco::codegen
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
-    // Update the state variables by applying the forward Euler method
-    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.timeStep().convertToDouble()));
+    auto returnOp = builder.create<mlir::ReturnOp>(loc);
+    builder.setInsertionPoint(returnOp);
 
-    std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
-    auto varTypes = modelOp.bodyRegion().getArgumentTypes();
+    // External solvers
+    mlir::Value externalSolversPtr = extractValue(
+        builder, structValue, runtimeDataStructType.getBody()[externalSolversPosition], externalSolversPosition);
+
+    assert(externalSolversPtr.getType().isa<mlir::LLVM::LLVMPointerType>());
+    mlir::Value externalSolversStruct = builder.create<mlir::LLVM::LoadOp>(externalSolversPtr.getLoc(), externalSolversPtr);
+
+    std::vector<mlir::Value> variables;
 
     for (const auto& variable : modelOp.bodyRegion().getArguments()) {
       size_t index = variable.getArgNumber();
-      auto it = derivatives.find(variable.getArgNumber());
+      mlir::Value var = extractValue(builder, structValue, varTypes[index], index + variablesOffset);
+      variables.push_back(var);
+    }
 
-      if (it != derivatives.end()) {
+    for (auto& solver : llvm::enumerate(externalSolvers)) {
+      if (!solver.value()->isEnabled()) {
+        continue;
+      }
+
+      mlir::Type externalSolverRuntimeDataType = solver.value()->getRuntimeDataType(builder.getContext());
+
+      mlir::Value solverDataPtr = extractValue(
+          builder, externalSolversStruct,
+          typeConverter->convertType(mlir::LLVM::LLVMPointerType::get(externalSolverRuntimeDataType)),
+          solver.index());
+
+      auto requestedTimeStep = modelOp.timeStep().convertToDouble();
+
+      if (auto res = solver.value()->processUpdateStatesFunction(builder, solverDataPtr, function, variables, derivatives, requestedTimeStep); mlir::failed(res)) {
+        return res;
+      }
+    }
+
+    // Update the state variables by applying the forward Euler method
+    builder.setInsertionPoint(returnOp);
+    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.timeStep().convertToDouble()));
+
+    std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
+
+    for (const auto& variable : modelOp.bodyRegion().getArguments()) {
+      size_t index = variable.getArgNumber();
+      auto it = derivativesPositionMap.find(variable.getArgNumber());
+
+      if (it != derivativesPositionMap.end()) {
         mlir::Value var = extractValue(builder, structValue, varTypes[index], index + variablesOffset);
         mlir::Value der = extractValue(builder, structValue, varTypes[it->second], it->second + variablesOffset);
         varsAndDers.emplace_back(var, der);
@@ -851,7 +957,6 @@ namespace marco::codegen
       builder.create<AssignmentOp>(loc, var, nextValue);
     }
 
-    builder.create<mlir::ReturnOp>(loc);
     return mlir::success();
   }
 

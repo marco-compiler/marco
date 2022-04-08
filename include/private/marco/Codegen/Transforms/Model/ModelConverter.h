@@ -67,6 +67,13 @@ namespace marco::codegen
 
       mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
 
+      /// Allocate some data on the heap.
+      mlir::Value alloc(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type type) const;
+
       /// Create the main function, which is called when the executable of the simulation is run.
       /// In order to keep the code generation simpler, the real implementation of the function
       /// managing the simulation lives within the runtime library and the main just consists in
@@ -137,7 +144,8 @@ namespace marco::codegen
       mlir::LogicalResult createUpdateStateVariablesFunction(
           mlir::OpBuilder& builder,
           mlir::modelica::ModelOp modelOp,
-          const DerivativesPositionsMap& derivatives,
+          const mlir::BlockAndValueMapping& derivatives,
+          const DerivativesPositionsMap& derivativesPositionMap,
           ExternalSolvers& externalSolvers) const;
 
       mlir::LogicalResult createIncrementTimeFunction(

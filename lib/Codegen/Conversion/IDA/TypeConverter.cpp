@@ -9,12 +9,32 @@ namespace mlir::ida
       return convertInstanceType(type);
     });
 
+    addConversion([&](VariableType type) {
+      return convertVariableType(type);
+    });
+
+    addConversion([&](EquationType type) {
+      return convertEquationType(type);
+    });
+
     addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
       return opaquePointerTypeTargetMaterialization(builder, resultType, inputs, loc);
     });
 
+    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+      return integerTypeTargetMaterialization(builder, resultType, inputs, loc);
+    });
+
     addSourceMaterialization([&](mlir::OpBuilder& builder, InstanceType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
       return instanceTypeSourceMaterialization(builder, resultType, inputs, loc);
+    });
+
+    addSourceMaterialization([&](mlir::OpBuilder& builder, VariableType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+      return variableTypeSourceMaterialization(builder, resultType, inputs, loc);
+    });
+
+    addSourceMaterialization([&](mlir::OpBuilder& builder, EquationType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+      return equationTypeSourceMaterialization(builder, resultType, inputs, loc);
     });
   }
 
@@ -24,7 +44,12 @@ namespace mlir::ida
     return mlir::LLVM::LLVMPointerType::get(integerType);
   }
 
-  mlir::Type TypeConverter::convertEquationType(EquationType type)
+  mlir::Type TypeConverter::convertVariableType(VariableType)
+  {
+    return getIndexType();
+  }
+
+  mlir::Type TypeConverter::convertEquationType(EquationType)
   {
     return getIndexType();
   }
@@ -49,6 +74,20 @@ namespace mlir::ida
     return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
   }
 
+  llvm::Optional<mlir::Value> TypeConverter::integerTypeTargetMaterialization(
+      mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
+  {
+    if (inputs.size() != 1) {
+      return llvm::None;
+    }
+
+    if (!inputs[0].getType().isa<VariableType, EquationType>()) {
+      return llvm::None;
+    }
+
+    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+  }
+
   llvm::Optional<mlir::Value> TypeConverter::instanceTypeSourceMaterialization(
       mlir::OpBuilder& builder, InstanceType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {
@@ -65,6 +104,34 @@ namespace mlir::ida
     auto elementType = pointerType.getElementType().dyn_cast<mlir::IntegerType>();
 
     if (!elementType || elementType.getIntOrFloatBitWidth() != 8) {
+      return llvm::None;
+    }
+
+    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+  }
+
+  llvm::Optional<mlir::Value> TypeConverter::variableTypeSourceMaterialization(
+      mlir::OpBuilder& builder, VariableType resultType, mlir::ValueRange inputs, mlir::Location loc) const
+  {
+    if (inputs.size() != 1) {
+      return llvm::None;
+    }
+
+    if (!inputs[0].getType().isa<mlir::IntegerType>()) {
+      return llvm::None;
+    }
+
+    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+  }
+
+  llvm::Optional<mlir::Value> TypeConverter::equationTypeSourceMaterialization(
+      mlir::OpBuilder& builder, EquationType resultType, mlir::ValueRange inputs, mlir::Location loc) const
+  {
+    if (inputs.size() != 1) {
+      return llvm::None;
+    }
+
+    if (!inputs[0].getType().isa<mlir::IntegerType>()) {
       return llvm::None;
     }
 

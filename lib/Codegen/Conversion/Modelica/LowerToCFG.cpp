@@ -1,6 +1,7 @@
 #include "marco/Codegen/Conversion/Modelica/LowerToCFG.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
+#include "marco/Codegen/Utils.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
@@ -36,36 +37,6 @@ static void removeUnreachableBlocks(mlir::Region& region)
 
 using LoadReplacer = std::function<mlir::LogicalResult(MemberLoadOp)>;
 using StoreReplacer = std::function<mlir::LogicalResult(MemberStoreOp)>;
-
-static void copyArray(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value source, mlir::Value destination)
-{
-  assert(source.getType().isa<ArrayType>());
-  assert(destination.getType().isa<ArrayType>());
-
-  auto sourceArrayType = source.getType().cast<ArrayType>();
-  auto rank = sourceArrayType.getRank();
-  assert(rank == destination.getType().cast<ArrayType>().getRank());
-
-  mlir::Value zero = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(0));
-  mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-
-  llvm::SmallVector<mlir::Value, 3> lowerBounds(rank, zero);
-  llvm::SmallVector<mlir::Value, 3> upperBounds;
-  llvm::SmallVector<mlir::Value, 3> steps(rank, one);
-
-  for (unsigned int i = 0, e = sourceArrayType.getRank(); i < e; ++i) {
-    mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(i));
-    upperBounds.push_back(builder.create<DimOp>(loc, source, dim));
-  }
-
-  // Create nested loops in order to iterate on each dimension of the array
-  mlir::scf::buildLoopNest(
-      builder, loc, lowerBounds, upperBounds, steps,
-      [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
-        mlir::Value value = nestedBuilder.create<LoadOp>(loc, source, indices);
-        nestedBuilder.create<StoreOp>(loc, value, destination, indices);
-      });
-}
 
 /// Convert a member that is provided as input to the function.
 static mlir::LogicalResult convertArgument(mlir::OpBuilder& builder, MemberCreateOp op, mlir::Value replacement)
@@ -130,7 +101,7 @@ static mlir::LogicalResult convertArgument(mlir::OpBuilder& builder, MemberCreat
   return mlir::success();
 }
 
-static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder, MemberCreateOp op)
+static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder, MemberCreateOp op, mlir::TypeConverter* typeConverter)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   mlir::Location loc = op.getLoc();
@@ -195,8 +166,15 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
 
     assert(op.dynamicSizes().empty());
     builder.setInsertionPoint(op);
-    // TODO use LLVM dialect
-    mlir::Value stackValue = builder.create<AllocaOp>(loc, op.getMemberType().toArrayType(), llvm::None, llvm::None);
+
+    // Create the pointer to the array
+    mlir::Type arrayPtrType = mlir::LLVM::LLVMPointerType::get(typeConverter->convertType(op.getMemberType().toArrayType()));
+    mlir::Type indexType = typeConverter->convertType(builder.getIndexType());
+    mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, arrayPtrType);
+    mlir::Value one = builder.create<mlir::LLVM::ConstantOp>(loc, indexType, builder.getIntegerAttr(indexType, 1));
+    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, arrayPtrType, llvm::ArrayRef<mlir::Value>{ nullPtr, one });
+    mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, indexType, gepPtr);
+    mlir::Value stackValue = builder.create<mlir::LLVM::AllocaOp>(loc, arrayPtrType, sizeBytes, llvm::None);
 
     // We need to allocate a fake buffer in order to allow the first
     // free operation to operate on a valid memory area.
@@ -208,17 +186,19 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
         ArrayType::get(builder.getContext(), arrayType.getElementType(), shape),
         llvm::None);
 
-    builder.create<StoreOp>(loc, fakeArray, stackValue, llvm::None);
+    fakeArray = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(fakeArray.getType()), fakeArray);
+    builder.create<mlir::LLVM::StoreOp>(loc, fakeArray, stackValue);
 
     return std::make_pair<LoadReplacer, StoreReplacer>(
-        [&builder, stackValue](MemberLoadOp loadOp) -> mlir::LogicalResult {
+        [&builder, stackValue, typeConverter](MemberLoadOp loadOp) -> mlir::LogicalResult {
           builder.setInsertionPoint(loadOp);
-          mlir::Value array = builder.create<LoadOp>(loadOp.getLoc(), stackValue);
+          mlir::Value array = builder.create<mlir::LLVM::LoadOp>(loadOp.getLoc(), stackValue);
+          array = typeConverter->materializeSourceConversion(builder, loadOp.getLoc(), loadOp.getMemberType().toArrayType(), array);
           loadOp.replaceAllUsesWith(array);
           loadOp->erase();
           return mlir::success();
         },
-        [&builder, &op, arrayType, stackValue](MemberStoreOp storeOp) -> mlir::LogicalResult {
+        [&builder, &op, arrayType, stackValue, typeConverter, indexType](MemberStoreOp storeOp) -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
 
           // The destination array has dynamic and unknown sizes. Thus, the
@@ -230,7 +210,17 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           // The function input arguments must be cloned, in order to avoid
           // inputs modifications.
           if (value.isa<mlir::BlockArgument>()) {
-            value = builder.create<AllocOp>(storeOp.getLoc(), arrayType, op.dynamicSizes());
+            std::vector<mlir::Value> dynamicDimensions;
+
+            for (const auto& dimension : llvm::enumerate(arrayType.getShape())) {
+              if (dimension.value() == -1) {
+                mlir::Value dimensionIndex = builder.create<mlir::LLVM::ConstantOp>(storeOp.getLoc(), indexType, builder.getIntegerAttr(indexType, dimension.index()));
+                dimensionIndex = typeConverter->materializeSourceConversion(builder, storeOp.getLoc(), builder.getIndexType(), dimensionIndex);
+                dynamicDimensions.push_back(builder.create<DimOp>(storeOp.getLoc(), storeOp.value(), dimensionIndex));
+              }
+            }
+
+            value = builder.create<AllocOp>(storeOp.getLoc(), arrayType, dynamicDimensions);
             copyArray(builder, storeOp.getLoc(), storeOp.value(), value);
           }
 
@@ -239,11 +229,14 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           // are initialized with a pointer to a 1-element sized array, so that
           // the initial free always operates on valid memory.
 
-          mlir::Value previousArray = builder.create<LoadOp>(storeOp.getLoc(), stackValue);
+          mlir::Value previousArray = builder.create<mlir::LLVM::LoadOp>(storeOp.getLoc(), stackValue);
+          previousArray = typeConverter->materializeSourceConversion(builder, storeOp.getLoc(), storeOp.getMemberType().toArrayType(), previousArray);
+
           builder.create<FreeOp>(storeOp.getLoc(), previousArray);
 
           // Save the descriptor of the new copy into the destination using StoreOp
-          builder.create<StoreOp>(storeOp.getLoc(), value, stackValue, llvm::None);
+          value = typeConverter->materializeTargetConversion(builder, storeOp.getLoc(), typeConverter->convertType(value.getType()), value);
+          builder.create<mlir::LLVM::StoreOp>(storeOp.getLoc(), value, stackValue);
 
           storeOp->erase();
           return mlir::success();
@@ -321,7 +314,11 @@ static mlir::LogicalResult convertCall(mlir::OpBuilder& builder, CallOp callOp, 
   return mlir::success();
 }
 
-static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, FunctionOp modelicaFunctionOp)
+static mlir::LogicalResult convertToStdFunction(
+    mlir::OpBuilder& builder,
+    FunctionOp modelicaFunctionOp,
+    mlir::TypeConverter* typeConverter,
+    bool outputArraysPromotion)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPoint(modelicaFunctionOp);
@@ -329,9 +326,11 @@ static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, Functi
   // Determine which results can be promoted to input arguments
   std::set<size_t> promotedResults;
 
-  for (const auto& type : llvm::enumerate(modelicaFunctionOp.getResultTypes())) {
-    if (auto arrayType = type.value().dyn_cast<ArrayType>(); arrayType && arrayType.canBeOnStack()) {
-      promotedResults.insert(type.index());
+  if (outputArraysPromotion) {
+    for (const auto& type : llvm::enumerate(modelicaFunctionOp.getResultTypes())) {
+      if (auto arrayType = type.value().dyn_cast<ArrayType>(); arrayType && arrayType.canBeOnStack()) {
+        promotedResults.insert(type.index());
+      }
     }
   }
 
@@ -459,7 +458,7 @@ static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, Functi
         return res;
       }
     } else {
-      if (auto res = convertResultOrProtectedVar(builder, mappedMember); mlir::failed(res)) {
+      if (auto res = convertResultOrProtectedVar(builder, mappedMember, typeConverter); mlir::failed(res)) {
         return res;
       }
     }
@@ -468,7 +467,7 @@ static mlir::LogicalResult convertToStdFunction(mlir::OpBuilder& builder, Functi
   for (auto& member : protectedMembers) {
     auto mappedMember = mapping.lookup(member.getResult()).getDefiningOp<MemberCreateOp>();
 
-    if (auto res = convertResultOrProtectedVar(builder, mappedMember); mlir::failed(res)) {
+    if (auto res = convertResultOrProtectedVar(builder, mappedMember, typeConverter); mlir::failed(res)) {
       return res;
     }
   }
@@ -499,7 +498,7 @@ namespace
   class CFGLowerer
   {
     public:
-      CFGLowerer(mlir::TypeConverter& typeConverter);
+      CFGLowerer(mlir::TypeConverter& typeConverter, bool outputArraysPromotion);
 
       mlir::LogicalResult run(mlir::OpBuilder& builder, FunctionOp function);
 
@@ -533,11 +532,12 @@ namespace
 
     private:
       mlir::TypeConverter* typeConverter;
+      bool outputArraysPromotion;
   };
 }
 
-CFGLowerer::CFGLowerer(mlir::TypeConverter& typeConverter)
-  : typeConverter(&typeConverter)
+CFGLowerer::CFGLowerer(mlir::TypeConverter& typeConverter, bool outputArraysPromotion)
+  : typeConverter(&typeConverter), outputArraysPromotion(outputArraysPromotion)
 {
 }
 
@@ -578,9 +578,11 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
     }
   }
 
+  // Remove the unreachable blocks that may have arised from break or return operations
   removeUnreachableBlocks(function.body());
 
-  if (auto res = convertToStdFunction(builder, function); mlir::failed(res)) {
+  // Convert the Modelica function to the standard dialect
+  if (auto res = convertToStdFunction(builder, function, typeConverter, outputArraysPromotion); mlir::failed(res)) {
     return res;
   }
 
@@ -879,8 +881,8 @@ namespace
   class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
   {
     public:
-      explicit LowerToCFGPass(unsigned int bitWidth)
-          : bitWidth(bitWidth)
+      explicit LowerToCFGPass(LowerToCFGOptions options)
+          : options(std::move(options))
       {
       }
 
@@ -888,6 +890,7 @@ namespace
       {
         registry.insert<mlir::BuiltinDialect>();
         registry.insert<mlir::StandardOpsDialect>();
+        registry.insert<mlir::scf::SCFDialect>();
         registry.insert<mlir::LLVM::LLVMDialect>();
       }
 
@@ -895,12 +898,22 @@ namespace
       {
         auto module = getOperation();
 
-        if (failed(convertModelicaToCFG())) {
+        // When converting to CFG, the original Modelica functions are erased. Thus we need to
+        // keep track of the names of the functions that should be inlined.
+        llvm::SmallVector<std::string, 3> inlinableFunctionNames;
+
+        for (auto function : module.getBody()->getOps<FunctionOp>()) {
+          if (function.shouldBeInlined()) {
+            inlinableFunctionNames.push_back(function.name().str());
+          }
+        }
+
+        if (mlir::failed(convertModelicaToCFG())) {
           mlir::emitError(module.getLoc(), "Error in converting the Modelica operations to CFG");
           return signalPassFailure();
         }
 
-        if (failed(convertSCF())) {
+        if (mlir::failed(convertSCF())) {
           mlir::emitError(module.getLoc(), "Error in converting the SCF ops to CFG");
           return signalPassFailure();
         }
@@ -912,10 +925,8 @@ namespace
         mlir::OpBuilder builder(module);
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-        CFGLowerer lowerer(typeConverter);
-
-        llvm::SmallVector<mlir::Operation*, 3> functions;
+        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
+        CFGLowerer lowerer(typeConverter, options.outputArraysPromotion);
 
         for (auto function : llvm::make_early_inc_range(module.getBody()->getOps<FunctionOp>())) {
           if (auto status = lowerer.run(builder, function); mlir::failed(status)) {
@@ -936,7 +947,7 @@ namespace
         target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
 
         mlir::OwningRewritePatternList patterns(&getContext());
         mlir::populateLoopToStdConversionPatterns(patterns);
@@ -945,14 +956,14 @@ namespace
       }
 
     private:
-      unsigned int bitWidth;
+      LowerToCFGOptions options;
   };
 }
 
 namespace marco::codegen
 {
-  std::unique_ptr<mlir::Pass> createLowerToCFGPass(unsigned int bitWidth)
+  std::unique_ptr<mlir::Pass> createLowerToCFGPass(LowerToCFGOptions options)
   {
-    return std::make_unique<LowerToCFGPass>(bitWidth);
+    return std::make_unique<LowerToCFGPass>(std::move(options));
   }
 }

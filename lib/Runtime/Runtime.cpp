@@ -32,6 +32,9 @@ void runSimulation()
   runtimeInit();
   void* data = init();
 
+  // TODO check IDA initialization through static checker
+  // Same for IDA step
+
   printHeader(data);
 
   updateNonStateVariables(data);

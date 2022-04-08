@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mlir/Pass/Pass.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace marco::codegen
@@ -19,5 +20,5 @@ namespace marco::codegen
 	}
 
   void populateIDAStructuralTypeConversionsAndLegality(
-      mlir::TypeConverter& typeConverter, mlir::RewritePatternSet& patterns, mlir::ConversionTarget& target);
+      mlir::LLVMTypeConverter& typeConverter, mlir::RewritePatternSet& patterns, mlir::ConversionTarget& target);
 }

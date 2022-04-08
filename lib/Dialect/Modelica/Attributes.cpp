@@ -4,6 +4,25 @@
 
 namespace mlir::modelica
 {
+  mlir::Attribute getAttr(mlir::Type type, llvm::APInt value)
+  {
+
+  }
+
+  mlir::Attribute getAttr(mlir::Type type, llvm::APFloat value)
+  {
+    if (type.isa<BooleanType>()) {
+      return BooleanAttr::get(type.getContext(), value.convertToDouble() > 0);
+    }
+
+    if (type.isa<IntegerType>()) {
+      return IntegerAttr::get(type.getContext(), value.convertToDouble());
+    }
+
+    llvm_unreachable("Unknown Modelica type");
+    return mlir::Attribute();
+  }
+
   mlir::Attribute getZeroAttr(mlir::Type type)
   {
     if (type.isa<BooleanType>()) {
@@ -210,6 +229,21 @@ namespace mlir::modelica
     }
 
     os << ">";
+  }
+
+  bool InverseFunctionsAttr::isInvertible(unsigned int argumentIndex) const
+  {
+    return getInverseFunctionsMap().isInvertible(argumentIndex);
+  }
+
+  llvm::StringRef InverseFunctionsAttr::getFunction(unsigned int argumentIndex) const
+  {
+    return getInverseFunctionsMap().getFunction(argumentIndex);
+  }
+
+  llvm::ArrayRef<unsigned int> InverseFunctionsAttr::getArgumentsIndexes(unsigned int argumentIndex) const
+  {
+    return getInverseFunctionsMap().getArgumentsIndexes(argumentIndex);
   }
 
   //===----------------------------------------------------------------------===//

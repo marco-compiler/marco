@@ -41,7 +41,19 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::modelica::FunctionOp functionOp,
           mlir::BlockAndValueMapping& derivatives,
-          std::function<mlir::ValueRange(mlir::OpBuilder&, mlir::modelica::CallOp, mlir::BlockAndValueMapping&)> deriveFn);
+          std::function<mlir::ValueRange(mlir::OpBuilder&, mlir::Operation*, mlir::BlockAndValueMapping&)> deriveFn);
+
+      bool isDerivable(mlir::Operation* op) const;
+
+      mlir::ValueRange createOpFullDerivative(
+          mlir::OpBuilder& builder,
+          mlir::Operation* op,
+          mlir::BlockAndValueMapping& derivatives);
+
+      mlir::ValueRange createOpPartialDerivative(
+          mlir::OpBuilder& builder,
+          mlir::Operation* op,
+          mlir::BlockAndValueMapping& derivatives);
 
       mlir::ValueRange createCallOpFullDerivative(
           mlir::OpBuilder& builder,
@@ -51,6 +63,16 @@ namespace marco::codegen
       mlir::ValueRange createCallOpPartialDerivative(
           mlir::OpBuilder& builder,
           mlir::modelica::CallOp callOp,
+          mlir::BlockAndValueMapping& derivatives);
+
+      mlir::ValueRange createTimeOpFullDerivative(
+          mlir::OpBuilder& builder,
+          mlir::modelica::TimeOp timeOp,
+          mlir::BlockAndValueMapping& derivatives);
+
+      mlir::ValueRange createTimeOpPartialDerivative(
+          mlir::OpBuilder& builder,
+          mlir::modelica::TimeOp timeOp,
           mlir::BlockAndValueMapping& derivatives);
 
     private:

@@ -74,6 +74,8 @@ def ArrayType : Modelica_Type<"Array", "array"> {
     );
 
     let extraClassDeclaration = [{
+        static constexpr int64_t kDynamicSize = -1;
+
         unsigned int getRank() const;
 
         unsigned int getConstantDimensionsCount() const;

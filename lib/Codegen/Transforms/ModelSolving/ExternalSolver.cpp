@@ -4,29 +4,50 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
-//using namespace ::marco::codegen::modelica;
 
 namespace marco::codegen
 {
-  ExternalSolvers::ExternalSolvers() : ida(std::make_unique<IDASolver>())
+  ExternalSolver::ExternalSolver(mlir::TypeConverter* typeConverter)
+    : typeConverter(typeConverter)
   {
   }
 
-  /*
-  bool ExternalSolvers::containEquation(ScheduledEquation* equation) const
+  ExternalSolver::~ExternalSolver() = default;
+
+  mlir::TypeConverter* ExternalSolver::getTypeConverter()
+  {
+    return typeConverter;
+  }
+
+  void ExternalSolvers::addSolver(std::unique_ptr<ExternalSolver> solver)
+  {
+    solvers.push_back(std::move(solver));
+  }
+
+  ExternalSolvers::iterator ExternalSolvers::begin()
+  {
+    return solvers.begin();
+  }
+
+  ExternalSolvers::const_iterator ExternalSolvers::begin() const
+  {
+    return solvers.begin();
+  }
+
+  ExternalSolvers::iterator ExternalSolvers::end()
+  {
+    return solvers.end();
+  }
+
+  ExternalSolvers::const_iterator ExternalSolvers::end() const
+  {
+    return solvers.end();
+  }
+
+  bool ExternalSolvers::containsEquation(ScheduledEquation* equation) const
   {
     return llvm::any_of(solvers, [equation](const auto& solver) {
-      return solver.containsEquation(equation);
+      return solver->containsEquation(equation);
     });
   }
-
-  void ExternalSolvers::processEquation(ScheduledEquation* equation)
-  {
-    for (auto& solver : solvers) {
-      if (solver->containsEquation(equation)) {
-        solver->processEquation(equation);
-      }
-    }
-  }
-   */
 }

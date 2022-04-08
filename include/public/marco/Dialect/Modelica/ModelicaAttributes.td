@@ -84,6 +84,13 @@ def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivativ
     }];
 
     let parameters = (ins SelfAllocationParameter<"InverseFunctionsMap", "Inverse functions map">:$inverseFunctionsMap);
+
+    let extraClassDeclaration = [{
+        public:
+            bool isInvertible(unsigned int argumentIndex) const;
+            StringRef getFunction(unsigned int argumentIndex) const;
+            ArrayRef<unsigned int> getArgumentsIndexes(unsigned int argumentIndex) const;
+    }];
 }
 
 def Modelica_DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {

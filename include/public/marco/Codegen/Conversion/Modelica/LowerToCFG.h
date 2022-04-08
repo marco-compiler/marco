@@ -5,19 +5,28 @@
 
 namespace marco::codegen
 {
-	/**
-	 * Convert the control flow operations of the Modelica and the SCF
-	 * dialects.
-	 *
-	 * @param bitWidth bit width
-	 */
-	std::unique_ptr<mlir::Pass> createLowerToCFGPass(unsigned int bitWidth = 64);
+  struct LowerToCFGOptions
+  {
+    bool bitWidth = 64;
+    bool outputArraysPromotion = true;
+    bool inlining = true;
+
+    static const LowerToCFGOptions& getDefaultOptions() {
+      static LowerToCFGOptions options;
+      return options;
+    }
+  };
+
+	/// Convert the control flow operations of the Modelica and the SCF
+	/// dialects.
+	std::unique_ptr<mlir::Pass> createLowerToCFGPass(
+      LowerToCFGOptions options = LowerToCFGOptions::getDefaultOptions());
 
 	inline void registerLowerToCFGPass()
 	{
 		mlir::registerPass("convert-modelica-to-cfg", "Modelica: convert to CFG",
 											 []() -> std::unique_ptr<::mlir::Pass> {
-												 return createLowerToCFGPass();
+												 return createLowerToCFGPass(LowerToCFGOptions::getDefaultOptions());
 											 });
 	}
 }

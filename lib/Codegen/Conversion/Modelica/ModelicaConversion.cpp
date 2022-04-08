@@ -1,6 +1,7 @@
 #include "marco/Codegen/Conversion/Modelica/ModelicaConversion.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
+#include "marco/Codegen/Conversion/IDA/IDAToLLVM.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -3491,12 +3492,12 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
     }
 
     void runOnOperation() override
-	{
-		if (mlir::failed(convertOperations())) {
-			mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations");
-			return signalPassFailure();
-		}
-	}
+    {
+      if (mlir::failed(convertOperations())) {
+        mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations");
+        return signalPassFailure();
+      }
+    }
 
 	private:
     mlir::LogicalResult convertOperations()
@@ -3570,6 +3571,8 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 
       mlir::OwningRewritePatternList patterns(&getContext());
       populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options);
+
+      populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
 
       return applyPartialConversion(module, target, std::move(patterns));
     }

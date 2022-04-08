@@ -348,6 +348,43 @@ static void print(mlir::OpAsmPrinter& printer, ConstantOp op)
 }
 
 //===----------------------------------------------------------------------===//
+// MemberCreateOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseMemberCreateOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  auto& builder = parser.getBuilder();
+  mlir::StringAttr nameAttr;
+
+  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
+    return mlir::failure();
+  }
+
+  llvm::SmallVector<mlir::OpAsmParser::OperandType, 1> dynamicSizes;
+  mlir::Type resultType;
+
+  if (parser.parseOperandList(dynamicSizes) ||
+      parser.resolveOperands(dynamicSizes, builder.getIndexType(), result.operands) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColon() ||
+      parser.parseType(resultType)) {
+    return mlir::failure();
+  }
+
+  result.addTypes(resultType);
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, MemberCreateOp op)
+{
+  printer << op.getOperationName() << " ";
+  printer.printSymbolName(op.name());
+  printer.printOptionalAttrDict(op->getAttrs(), { "sym_name" });
+  printer << op.dynamicSizes();
+  printer << " : " << op.getResult().getType();
+}
+
+//===----------------------------------------------------------------------===//
 // ModelOp
 //===----------------------------------------------------------------------===//
 
@@ -1087,6 +1124,16 @@ namespace mlir::modelica
     return getOperation()->getAttrOfType<mlir::TypeAttr>(typeAttrName()).getValue().cast<mlir::FunctionType>();
   }
 
+  bool FunctionOp::shouldBeInlined()
+  {
+    if (!getOperation()->hasAttrOfType<mlir::BoolAttr>("inline")) {
+      return false;
+    }
+
+    auto inlineAttribute = getOperation()->getAttrOfType<mlir::BoolAttr>("inline");
+    return inlineAttribute.getValue();
+  }
+
   std::vector<mlir::Value> FunctionOp::getMembers()
   {
     std::vector<mlir::Value> result;
@@ -1151,6 +1198,11 @@ namespace mlir::modelica
   // ConstantOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    return value();
+  }
+
   mlir::ValueRange ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     // D[const] = 0
@@ -1213,22 +1265,8 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
-  // MemberCreateOp
-  //===----------------------------------------------------------------------===//
-
-  void MemberCreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
   // MemberLoadOp
   //===----------------------------------------------------------------------===//
-
-  void MemberLoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), member(), mlir::SideEffects::DefaultResource::get());
-  }
 
   mlir::ValueRange MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
@@ -1249,12 +1287,6 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // MemberStoreOp
   //===----------------------------------------------------------------------===//
-
-  void MemberStoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), member(), mlir::SideEffects::DefaultResource::get());
-  }
 
   mlir::ValueRange MemberStoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
@@ -1399,42 +1431,42 @@ namespace mlir::modelica
 
   mlir::LogicalResult CallOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
   {
-    /*
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (getNumResults() != 1)
+    if (getNumResults() != 1) {
       return emitError("The callee must have one and only one result");
+    }
 
-    if (argumentIndex >= operands().size())
+    if (argumentIndex >= args().size()) {
       return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+    }
 
-    if (auto size = currentResult.size(); size != 1)
+    if (auto size = currentResult.size(); size != 1) {
       return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+    }
 
     mlir::Value toNest = currentResult[0];
 
     auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
     auto callee = module.lookupSymbol<FunctionOp>(this->callee());
 
-    if (!callee->hasAttr("inverse"))
+    if (!callee->hasAttr("inverse")) {
       return emitError("Function " + callee->getName().getStringRef() + " is not invertible");
+    }
 
     auto inverseAnnotation = callee->getAttrOfType<InverseFunctionsAttr>("inverse");
 
-    if (!inverseAnnotation.isInvertible(argumentIndex))
+    if (!inverseAnnotation.isInvertible(argumentIndex)) {
       return emitError("Function " + callee->getName().getStringRef() + " is not invertible for argument " + std::to_string(argumentIndex));
+    }
 
-    size_t argsSize = operands().size();
+    size_t argsSize = args().size();
     llvm::SmallVector<mlir::Value, 3> args;
 
-    for (auto arg : inverseAnnotation.getArgumentsIndexes(argumentIndex))
-    {
-      if (arg < argsSize)
-      {
-        args.push_back(this->operands()[arg]);
-      }
-      else
-      {
+    for (auto arg : inverseAnnotation.getArgumentsIndexes(argumentIndex)) {
+      if (arg < argsSize) {
+        args.push_back(this->args()[arg]);
+      } else {
         assert(arg == argsSize);
         args.push_back(toNest);
       }
@@ -1442,19 +1474,16 @@ namespace mlir::modelica
 
     auto invertedCall = builder.create<CallOp>(getLoc(), inverseAnnotation.getFunction(argumentIndex), this->args()[argumentIndex].getType(), args);
 
-    getResult(0).replaceAllUsesWith(this->operands()[argumentIndex]);
+    getResult(0).replaceAllUsesWith(this->args()[argumentIndex]);
     erase();
 
-    for (auto& use : toNest.getUses())
-      if (use.getOwner() != invertedCall)
+    for (auto& use : toNest.getUses()) {
+      if (use.getOwner() != invertedCall) {
         use.set(invertedCall.getResult(0));
+      }
+    }
 
     return mlir::success();
-     */
-
-    // TODO
-    llvm_unreachable("Not implemented");
-    return mlir::failure();
   }
 
   //===----------------------------------------------------------------------===//
@@ -1708,6 +1737,23 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // AddOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult AddOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    if (!operands[0] || !operands[1]) {
+      return {};
+    }
+
+    if (operands[0].isa<IntegerAttr>() && operands[1].isa<RealAttr>()) {
+      auto lhs = operands[0].cast<IntegerAttr>();
+      auto rhs = operands[0].cast<RealAttr>();
+      llvm::APFloat result(lhs.getValue().getSExtValue() + rhs.getValue().convertToDouble());
+
+      return getAttr(getResult().getType(), result);
+    }
+
+    return {};
+  }
 
   void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {

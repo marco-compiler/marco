@@ -15,7 +15,8 @@ set(SOURCES
     Bridge.cpp
     Reference.cpp
     Runtime.cpp
-    Options.cpp)
+    Options.cpp
+    Utils.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

@@ -186,9 +186,9 @@ namespace marco::frontend
     options.endTime = ci.getSimulationOptions().endTime;
     options.timeStep = ci.getSimulationOptions().timeStep;
 
-    marco::codegen::lowering::Bridge newBridge(ci.getMLIRContext(), options);
-    newBridge.lower(*ci.getAST());
-    instance().setMLIRModule(std::move(newBridge.getMLIRModule()));
+    marco::codegen::lowering::Bridge bridge(ci.getMLIRContext(), options);
+    bridge.lower(*ci.getAST());
+    instance().setMLIRModule(std::move(bridge.getMLIRModule()));
 
     return true;
   }
@@ -196,8 +196,8 @@ namespace marco::frontend
   bool FrontendAction::runDialectConversion()
   {
     CompilerInstance& ci = instance();
-
     auto& codegenOptions = ci.getCodegenOptions();
+
     mlir::PassManager passManager(&ci.getMLIRContext());
 
     passManager.addPass(codegen::createAutomaticDifferentiationPass());
@@ -218,13 +218,19 @@ namespace marco::frontend
 
     if (codegenOptions.inlining) {
       // Inline the functions with the 'inline' annotation
-      passManager.addPass(mlir::createInlinerPass());
+
+      // The inlining pass is incompatible with the new Modelica dialect, as functions
+      // input members are now declared within the body and not in the entry region
+      // signature. Moreover, input members have now "member" type, thus not matching
+      // arguments of the function call. A new intermediate (internal) dialect between
+      // Modelica and std is needed, in order to define a std-like function with
+      // additional attributes (such as the inlining one).
+      //passManager.addPass(mlir::createInlinerPass());
     }
 
     passManager.addPass(mlir::createCanonicalizerPass());
 
     if (codegenOptions.cse) {
-      // TODO run also on ModelOp
       passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
       passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
     }
@@ -245,7 +251,6 @@ namespace marco::frontend
     }
 
     passManager.addPass(codegen::createLowerToCFGPass());
-
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
 
     // Conversion to LLVM dialect
@@ -254,10 +259,16 @@ namespace marco::frontend
     llvmLoweringOptions.emitCWrappers = ci.getCodegenOptions().cWrappers;
     passManager.addPass(codegen::createLLVMLoweringPass(llvmLoweringOptions));
 
+    passManager.addPass(codegen::createIDAConversionPass());
+
+    /*
+    passManager.addPass(codegen::createUnrealizedCastReconciliationPass());
+
     if (!codegenOptions.debug) {
       // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
+     */
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(

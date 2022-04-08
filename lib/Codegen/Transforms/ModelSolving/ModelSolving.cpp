@@ -178,6 +178,7 @@ namespace
 
       void runOnOperation() override
       {
+        auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
         Model<Equation> model(getOperation());
         mlir::OpBuilder builder(model.getOperation());
 
@@ -221,6 +222,8 @@ namespace
         if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
           return signalPassFailure();
         }
+
+        //module.dump();
       }
 
     private:

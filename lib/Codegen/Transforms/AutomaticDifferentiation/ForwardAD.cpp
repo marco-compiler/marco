@@ -267,8 +267,8 @@ namespace marco::codegen
     // Derive the operations
     return deriveFunctionBody(
         builder, derivedFunctionOp, derivatives,
-        [this](mlir::OpBuilder& builder, CallOp callOp, mlir::BlockAndValueMapping& derivatives) -> mlir::ValueRange {
-          return createCallOpFullDerivative(builder, callOp, derivatives);
+        [this](mlir::OpBuilder& builder, mlir::Operation* op, mlir::BlockAndValueMapping& derivatives) -> mlir::ValueRange {
+          return createOpFullDerivative(builder, op, derivatives);
         });
   }
 
@@ -613,8 +613,8 @@ namespace marco::codegen
     // Derive the operations
     auto res = deriveFunctionBody(
         builder, derivedFunctionOp, derivatives,
-        [this](mlir::OpBuilder& builder, CallOp callOp, mlir::BlockAndValueMapping& derivatives) -> mlir::ValueRange {
-          return createCallOpPartialDerivative(builder, callOp, derivatives);
+        [this](mlir::OpBuilder& builder, mlir::Operation* op, mlir::BlockAndValueMapping& derivatives) -> mlir::ValueRange {
+          return createOpPartialDerivative(builder, op, derivatives);
         });
 
     if (mlir::failed(res)) {
@@ -641,7 +641,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       FunctionOp functionOp,
       mlir::BlockAndValueMapping& derivatives,
-      std::function<mlir::ValueRange(mlir::OpBuilder&, CallOp, mlir::BlockAndValueMapping&)> deriveFn)
+      std::function<mlir::ValueRange(mlir::OpBuilder&, mlir::Operation*, mlir::BlockAndValueMapping&)> deriveFn)
   {
     // Determine the list of the derivable operations. We can't just derive as
     // we find them, as we would invalidate the operation walk's iterator.
@@ -657,18 +657,14 @@ namespace marco::codegen
 
       builder.setInsertionPointAfter(op);
 
-      if (!isDerived(op)) {
-        if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
+      if (isDerivable(op) && !isDerived(op)) {
+        mlir::ValueRange derivedValues = deriveFn(builder, op, derivatives);
+        assert(op->getNumResults() == derivedValues.size());
+        setAsDerived(op);
 
-        } else if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(op)) {
-          mlir::ValueRange derivedValues = derivableOp.derive(builder, derivatives);
-          assert(op->getNumResults() == derivedValues.size());
-          setAsDerived(op);
-
-          if (!derivedValues.empty()) {
-            for (const auto& [base, derived] : llvm::zip(op->getResults(), derivedValues)) {
-              derivatives.map(base, derived);
-            }
+        if (!derivedValues.empty()) {
+          for (const auto& [base, derived] : llvm::zip(op->getResults(), derivedValues)) {
+            derivatives.map(base, derived);
           }
         }
       }
@@ -688,6 +684,54 @@ namespace marco::codegen
     return mlir::success();
   }
 
+  bool ForwardAD::isDerivable(mlir::Operation* op) const
+  {
+    return mlir::isa<CallOp, TimeOp, DerivableOpInterface>(op);
+  }
+
+  mlir::ValueRange ForwardAD::createOpFullDerivative(
+      mlir::OpBuilder& builder,
+      mlir::Operation* op,
+      mlir::BlockAndValueMapping& derivatives)
+  {
+    if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
+      return createCallOpFullDerivative(builder, callOp, derivatives);
+    }
+
+    if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
+      return createTimeOpFullDerivative(builder, timeOp, derivatives);
+    }
+
+    if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(op)) {
+      return derivableOp.derive(builder, derivatives);
+    }
+
+    llvm_unreachable("Can't derive a non-derivable operation");
+    return llvm::None;
+  }
+
+  mlir::ValueRange ForwardAD::createOpPartialDerivative(
+      mlir::OpBuilder& builder,
+      mlir::Operation* op,
+      mlir::BlockAndValueMapping& derivatives)
+  {
+    if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
+      return createCallOpPartialDerivative(builder, callOp, derivatives);
+    }
+
+    if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
+      return createTimeOpPartialDerivative(builder, timeOp, derivatives);
+    }
+
+    if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(op)) {
+      return derivableOp.derive(builder, derivatives);
+    }
+
+    llvm_unreachable("Can't derive a non-derivable operation");
+    return llvm::None;
+  }
+
+
   mlir::ValueRange ForwardAD::createCallOpFullDerivative(
       mlir::OpBuilder& builder,
       CallOp callOp,
@@ -706,6 +750,22 @@ namespace marco::codegen
     // TODO
     llvm_unreachable("Not implemented");
     return llvm::None;
+  }
+
+  mlir::ValueRange ForwardAD::createTimeOpFullDerivative(
+      mlir::OpBuilder& builder,
+      mlir::modelica::TimeOp timeOp,
+      mlir::BlockAndValueMapping& derivatives)
+  {
+    return builder.create<ConstantOp>(timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 1))->getResults();
+  }
+
+  mlir::ValueRange ForwardAD::createTimeOpPartialDerivative(
+      mlir::OpBuilder& builder,
+      mlir::modelica::TimeOp timeOp,
+      mlir::BlockAndValueMapping& derivatives)
+  {
+    return builder.create<ConstantOp>(timeOp.getLoc(), RealAttr::get(timeOp.getContext(), 0))->getResults();
   }
 
   mlir::ValueRange ForwardAD::deriveTree(

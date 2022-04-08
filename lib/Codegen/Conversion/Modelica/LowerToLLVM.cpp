@@ -10,6 +10,8 @@
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "mlir/Support/MathExtras.h"
 
+#include "llvm/Support/Debug.h"
+
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
@@ -574,16 +576,6 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 	}
 };
 
-struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>
-{
-	using mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>::OpRewritePattern;
-
-	mlir::LogicalResult matchAndRewrite(mlir::UnrealizedConversionCastOp op, mlir::PatternRewriter& rewriter) const override {
-		rewriter.replaceOp(op, op->getOperands());
-		return mlir::success();
-	}
-};
-
 static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& typeConverter, mlir::OwningRewritePatternList& patterns)
 {
 	patterns.insert<
@@ -619,14 +611,8 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	{
 		auto module = getOperation();
 
-		if (mlir::failed(stdToLLVMConversionPass(module))) {
+    if (mlir::failed(stdToLLVMConversionPass(module))) {
 			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
-			signalPassFailure();
-			return;
-		}
-
-		if (mlir::failed(castsFolderPass(module))) {
-			mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
 			signalPassFailure();
 			return;
 		}
@@ -675,19 +661,6 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
 
 		return applyPartialConversion(module, target, std::move(patterns));
-	}
-
-	mlir::LogicalResult castsFolderPass(mlir::ModuleOp module)
-	{
-		mlir::ConversionTarget target(getContext());
-
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-		target.addIllegalOp<mlir::UnrealizedConversionCastOp>();
-
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<UnrealizedCastOpLowering>(&getContext());
-
-		return applyFullConversion(module, target, std::move(patterns));
 	}
 
 	mlir::LogicalResult emitCWrappers(mlir::ModuleOp module)
