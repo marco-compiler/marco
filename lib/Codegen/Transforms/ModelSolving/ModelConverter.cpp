@@ -127,7 +127,8 @@ namespace marco::codegen
 
     // Create the external solvers
     ExternalSolvers solvers;
-    auto ida = std::make_unique<IDASolver>(typeConverter);
+
+    auto ida = std::make_unique<IDASolver>(typeConverter, 0, 10, 10e-6, 10e-6);
     //ida->setEnabled(false);
 
     ConversionInfo conversionInfo;

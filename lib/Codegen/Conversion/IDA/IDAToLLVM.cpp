@@ -10,8 +10,6 @@
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "llvm/ADT/Optional.h"
 
-#include "llvm/Support/Debug.h"
-
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::ida;
@@ -45,12 +43,17 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
 namespace
 {
   /// Generic conversion pattern that provides some utility functions.
-  template<typename FromOp>
-  class IDAOpConversion : public mlir::ConvertOpToLLVMPattern<FromOp>
+  template<typename Op>
+  class IDAOpConversion : public mlir::ConvertOpToLLVMPattern<Op>
   {
     public:
-      using Adaptor = typename FromOp::Adaptor;
-      using mlir::ConvertOpToLLVMPattern<FromOp>::ConvertOpToLLVMPattern;
+      using Adaptor = typename Op::Adaptor;
+
+      IDAOpConversion(mlir::LLVMTypeConverter& typeConverter, unsigned int bitWidth)
+          : mlir::ConvertOpToLLVMPattern<Op>(typeConverter),
+            bitWidth(bitWidth)
+      {
+      }
 
       mlir::ida::TypeConverter& typeConverter() const
       {
@@ -74,6 +77,9 @@ namespace
           value = materializeTargetConversion(builder, value);
         }
       }
+
+    protected:
+      unsigned int bitWidth;
   };
 
   struct CreateOpLowering : public IDAOpConversion<CreateOp>
@@ -85,9 +91,7 @@ namespace
       auto loc = op.getLoc();
       RuntimeFunctionsMangling mangling;
 
-      mlir::Type voidPtrType = mlir::LLVM::LLVMPointerType::get(
-          getTypeConverter()->convertType(rewriter.getIntegerType(8)));
-
+      mlir::Type voidPtrType = getVoidPtrType();
       auto mangledResultType = mangling.getVoidPointerType();
 
       llvm::SmallVector<mlir::Value, 2> newOperands;
@@ -97,9 +101,8 @@ namespace
           loc, rewriter.getI64IntegerAttr(op.scalarEquations())));
 
       // Data bitwidth
-      // TODO fetch from options
       newOperands.push_back(rewriter.create<mlir::ConstantOp>(
-          loc, rewriter.getI64IntegerAttr(64)));
+          loc, rewriter.getI64IntegerAttr(bitWidth)));
 
       llvm::SmallVector<std::string, 2> mangledArgsTypes;
       mangledArgsTypes.push_back(mangling.getIntegerType(newOperands[0].getType().getIntOrFloatBitWidth()));
@@ -208,7 +211,7 @@ namespace
 
       llvm::SmallVector<std::string, 2> mangledArgsTypes;
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
-      mangledArgsTypes.push_back(mangling.getFloatingPointType(operands[1].getType().getIntOrFloatBitWidth()));
+      mangledArgsTypes.push_back(mangling.getFloatingPointType(newOperands[1].getType().getIntOrFloatBitWidth()));
 
       auto functionName = mangling.getMangledFunction("idaSetRelativeTolerance", mangledResultType, mangledArgsTypes);
 
@@ -243,7 +246,7 @@ namespace
 
       llvm::SmallVector<std::string, 2> mangledArgsTypes;
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
-      mangledArgsTypes.push_back(mangling.getFloatingPointType(operands[1].getType().getIntOrFloatBitWidth()));
+      mangledArgsTypes.push_back(mangling.getFloatingPointType(newOperands[1].getType().getIntOrFloatBitWidth()));
 
       auto functionName = mangling.getMangledFunction("idaSetAbsoluteTolerance", mangledResultType, mangledArgsTypes);
 
@@ -301,10 +304,10 @@ namespace
 
       // Create the array with the equation ranges
       mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
-      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(op.equationRanges().size() * 2));
+      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.equationRanges().size() * 2));
       mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
       mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
-      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::ArrayRef<mlir::Value>{ nullPtr, numOfElements });
+      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
@@ -319,7 +322,7 @@ namespace
 
         for (const auto& index : llvm::enumerate(rangeAttr)) {
           auto indexAttr = index.value().cast<mlir::IntegerAttr>();
-          mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(range.index() * 2 + index.index()));
+          mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), range.index() * 2 + index.index()));
           mlir::Value indexValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(indexAttr.getInt()));
           mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, equationRangesPtr.getType(), equationRangesPtr, offset);
           rewriter.create<mlir::LLVM::StoreOp>(loc, indexValue, ptr);
@@ -368,12 +371,12 @@ namespace
       llvm::SmallVector<mlir::Value, 4> newOperands;
       newOperands.push_back(operands[0]);
 
-      // Create the array with the equation ranges
+      // Create the array with the variable dimensions
       mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
-      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(op.arrayDimensions().size()));
+      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.arrayDimensions().size()));
       mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
       mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
-      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::ArrayRef<mlir::Value>{ nullPtr, numOfElements });
+      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
@@ -381,9 +384,9 @@ namespace
       arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsPtr);
       newOperands.push_back(arrayDimensionsPtr);
 
-      // Populate the equation ranges
+      // Populate the dimensions list
       for (const auto& sizeAttr : llvm::enumerate(op.arrayDimensions())) {
-        mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(sizeAttr.index()));
+        mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), sizeAttr.index()));
         mlir::Value size = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(sizeAttr.value().cast<mlir::IntegerAttr>().getInt()));
         mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, arrayDimensionsPtr.getType(), arrayDimensionsPtr, offset);
         rewriter.create<mlir::LLVM::StoreOp>(loc, size, ptr);
@@ -455,10 +458,10 @@ namespace
       }
 
       mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
-      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(accessValues.size()));
+      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), accessValues.size()));
       mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
       mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
-      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::ArrayRef<mlir::Value>{ nullPtr, numOfElements });
+      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
@@ -468,7 +471,7 @@ namespace
 
       // Populate the equation ranges
       for (const auto& accessValue : llvm::enumerate(accessValues)) {
-        mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(accessValue.index()));
+        mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), accessValue.index()));
         mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, accessesPtr.getType(), accessesPtr, offset);
         rewriter.create<mlir::LLVM::StoreOp>(loc, accessValue.value(), ptr);
       }
@@ -556,7 +559,7 @@ namespace
   {
     using GetVariableLikeOpLowering<GetVariableOp>::GetVariableLikeOpLowering;
 
-    std::string getRuntimeFunctionName() const
+    std::string getRuntimeFunctionName() const override
     {
       return "idaGetVariable";
     }
@@ -566,7 +569,7 @@ namespace
   {
     using GetVariableLikeOpLowering<GetDerivativeOp>::GetVariableLikeOpLowering;
 
-    std::string getRuntimeFunctionName() const
+    std::string getRuntimeFunctionName() const override
     {
       return "idaGetDerivative";
     }
@@ -650,7 +653,6 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(FreeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
       RuntimeFunctionsMangling mangling;
 
       auto mangledResultType = mangling.getVoidType();
@@ -677,7 +679,6 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(PrintStatisticsOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
       RuntimeFunctionsMangling mangling;
 
       auto mangledResultType = mangling.getVoidType();
@@ -701,7 +702,8 @@ namespace
 
 static void populateIDAConversionPatterns(
     mlir::OwningRewritePatternList& patterns,
-    mlir::ida::TypeConverter& typeConverter)
+    mlir::ida::TypeConverter& typeConverter,
+    unsigned int bitWidth)
 {
   patterns.insert<
       CreateOpLowering,
@@ -710,6 +712,7 @@ static void populateIDAConversionPatterns(
       SetRelativeToleranceOpLowering,
       SetAbsoluteToleranceOpLowering,
       GetCurrentTimeOpLowering,
+      AddEquationOpLowering,
       AddVariableOpLowering,
       AddVariableAccessOpLowering,
       GetVariableOpLowering,
@@ -718,7 +721,7 @@ static void populateIDAConversionPatterns(
       InitOpLowering,
       StepOpLowering,
       FreeOpLowering,
-      PrintStatisticsOpLowering>(typeConverter);
+      PrintStatisticsOpLowering>(typeConverter, bitWidth);
 }
 
 namespace marco::codegen
@@ -761,7 +764,7 @@ namespace marco::codegen
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
         mlir::OwningRewritePatternList patterns(&getContext());
-        populateIDAConversionPatterns(patterns, typeConverter);
+        populateIDAConversionPatterns(patterns, typeConverter, 64);
         mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
         if (auto status = applyPartialConversion(module, target, std::move(patterns)); mlir::failed(status)) {

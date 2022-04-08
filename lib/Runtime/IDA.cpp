@@ -11,7 +11,7 @@
 #include <iostream>
 #include <set>
 
-#define exitOnError(success) if (!success) exit(EXIT_FAILURE);
+#define exitOnError(success) if (!success) exit(EXIT_FAILURE)
 
 using Access = std::vector<std::pair<sunindextype, sunindextype>>;
 using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
@@ -19,7 +19,7 @@ using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
 template<typename Integer>
 using DerivativeVariable = std::pair<Integer, std::vector<Integer>>;
 
-using VarDimension = std::vector<size_t>;
+using VarDimension = std::vector<int64_t>;
 using EqDimension = std::vector<std::pair<size_t, size_t>>;
 
 template<typename Real, typename Integer>
@@ -60,6 +60,7 @@ namespace
   {
     // The whole simulation data
     void* simulationData;
+
     size_t marcoBitWidth;
     size_t idaBitWidth;
 
@@ -73,8 +74,10 @@ namespace
     std::vector<std::vector<void*>> jacobians;
     std::vector<VarAccessList> variableAccesses;
 
-    // Variables data
+    // The offset of each array variable inside the flattened variables vector
     std::vector<sunindextype> variableOffsets;
+
+    // The dimensions list of each array variable
     std::vector<VarDimension> variableDimensions;
 
     // Simulation times
@@ -89,13 +92,23 @@ namespace
     // Variables vectors and values
     N_Vector variablesVector;
     N_Vector derivativesVector;
+
+    // The vector stores whether each scalar variable is an algebraic or a state one.
+    // 0 = algebraic
+    // 1 = state
     N_Vector idVector;
+
+    // The tolerance for each scalar variable.
     N_Vector tolerancesVector;
+
+    // The pointers to the respective N_Vectors
     realtype* variableValues;
     realtype* derivativeValues;
     realtype* idValues;
     realtype* toleranceValues;
 
+    // The variables upon which MARCO operates (in other words, the ones retrieved
+    // through idaGetVariable and idaGetDerivative).
     void* marcoVariableValues;
     void* marcoDerivativeValues;
 
@@ -262,7 +275,7 @@ static int residualFunction(realtype tt, N_Vector yy, N_Vector yp, N_Vector rr, 
     do {
       // Compute the i-th residual function
       ResidualFunction<Real, Integer> residualFunction = (ResidualFunction<Real, Integer>) data->residuals[eq];
-      *rval++ = residualFunction(tt, userData, indexes);
+      *rval++ = residualFunction(tt, userData, indexes); // TODO replace userData with data->simulationData
     } while (updateIndexes(indexes, data->equationDimensions[eq]));
   }
 
@@ -340,10 +353,8 @@ static int jacobianMatrix(
 
 /// Instantiate and initialize the struct of data needed by IDA, given the total
 /// number of scalar equations.
-// CREATE INSTANCE
 
-template<typename T>
-static void* idaCreate_pvoid(T scalarEquationsNumber, T bitWidth)
+static void* idaCreate_pvoid(int64_t scalarEquationsNumber, int64_t bitWidth)
 {
   IDAUserData* data = new IDAUserData;
 
@@ -352,6 +363,11 @@ static void* idaCreate_pvoid(T scalarEquationsNumber, T bitWidth)
 
   data->scalarEquationsNumber = scalarEquationsNumber;
   data->variableOffsets.push_back(0);
+
+  if (scalarEquationsNumber == 0) {
+    // IDA has nothing to solve
+    return static_cast<void*>(data);
+  }
 
   // Create and initialize the required N-vectors for the variables.
   data->variablesVector = N_VNew_Serial(data->scalarEquationsNumber);
@@ -375,8 +391,8 @@ static void* idaCreate_pvoid(T scalarEquationsNumber, T bitWidth)
     data->marcoVariableValues = static_cast<void*>(data->variableValues);
     data->marcoDerivativeValues = static_cast<void*>(data->derivativeValues);
   } else {
-    data->marcoVariableValues = malloc(data->scalarEquationsNumber * data->marcoBitWidth);
-    data->marcoVariableValues = malloc(data->scalarEquationsNumber * data->marcoBitWidth);
+    data->marcoVariableValues = std::malloc(data->scalarEquationsNumber * data->marcoBitWidth);
+    data->marcoVariableValues = std::malloc(data->scalarEquationsNumber * data->marcoBitWidth);
   }
 
   return static_cast<void*>(data);
@@ -416,6 +432,7 @@ static void idaInit_void(void* userData)
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   if (data->scalarEquationsNumber == 0) {
+    // IDA has nothing to solve
     return;
   }
 
@@ -424,7 +441,7 @@ static void idaInit_void(void* userData)
 
   // Create and initialize IDA memory.
   data->idaMemory = IDACreate();
-  exitOnError(checkAllocation(static_cast<void*>(data->idaMemory), "IDACreate"))
+  exitOnError(checkAllocation(static_cast<void*>(data->idaMemory), "IDACreate"));
 
   int retval = IDAInit(
       data->idaMemory,
@@ -435,15 +452,17 @@ static void idaInit_void(void* userData)
       data->variablesVector,
       data->derivativesVector);
 
-  exitOnError(checkRetval(retval, "IDAInit"))
+  exitOnError(checkRetval(retval, "IDAInit"));
 
   // Set tolerance and id of every scalar value.
+  // The vectors are then deallocated as no longer needed inside the runtime library.
+  // The IDA library, in fact, creates an internal copy of them.
   retval = IDASVtolerances(data->idaMemory, data->relativeTolerance, data->tolerancesVector);
-  exitOnError(checkRetval(retval, "IDASVtolerances"))
+  exitOnError(checkRetval(retval, "IDASVtolerances"));
   N_VDestroy(data->tolerancesVector);
 
   retval = IDASetId(data->idaMemory, data->idVector);
-  exitOnError(checkRetval(retval, "IDASetId"))
+  exitOnError(checkRetval(retval, "IDASetId"));
   N_VDestroy(data->idVector);
 
   // Create sparse SUNMatrix for use in linear solver.
@@ -453,14 +472,14 @@ static void idaInit_void(void* userData)
       data->nonZeroValuesNumber,
       CSR_MAT);
 
-  exitOnError(checkAllocation(static_cast<void*>(data->sparseMatrix), "SUNSparseMatrix"))
+  exitOnError(checkAllocation(static_cast<void*>(data->sparseMatrix), "SUNSparseMatrix"));
 
   // Create and attach a KLU SUNLinearSolver object.
   data->linearSolver = SUNLinSol_KLU(data->variablesVector, data->sparseMatrix);
-  exitOnError(checkAllocation(static_cast<void*>(data->linearSolver), "SUNLinSol_KLU"))
+  exitOnError(checkAllocation(static_cast<void*>(data->linearSolver), "SUNLinSol_KLU"));
 
   retval = IDASetLinearSolver(data->idaMemory, data->linearSolver, data->sparseMatrix);
-  exitOnError(checkRetval(retval, "IDASetLinearSolver"))
+  exitOnError(checkRetval(retval, "IDASetLinearSolver"));
 
   // Set the user-supplied Jacobian routine.
   retval = IDASetJacFn(
@@ -469,56 +488,56 @@ static void idaInit_void(void* userData)
           ? jacobianMatrix<float, int32_t>
           : jacobianMatrix<double, int64_t>);
 
-  exitOnError(checkRetval(retval, "IDASetJacFn"))
+  exitOnError(checkRetval(retval, "IDASetJacFn"));
 
   // Add the remaining mandatory parameters.
   retval = IDASetUserData(data->idaMemory, static_cast<void*>(data));
-  exitOnError(checkRetval(retval, "IDASetUserData"))
+  exitOnError(checkRetval(retval, "IDASetUserData"));
 
   retval = IDASetStopTime(data->idaMemory, data->endTime);
-  exitOnError(checkRetval(retval, "IDASetStopTime"))
+  exitOnError(checkRetval(retval, "IDASetStopTime"));
 
   // Add the remaining optional parameters.
   retval = IDASetInitStep(data->idaMemory, initTimeStep);
-  exitOnError(checkRetval(retval, "IDASetInitStep"))
+  exitOnError(checkRetval(retval, "IDASetInitStep"));
 
   retval = IDASetMaxStep(data->idaMemory, data->endTime);
-  exitOnError(checkRetval(retval, "IDASetMaxStep"))
+  exitOnError(checkRetval(retval, "IDASetMaxStep"));
 
   retval = IDASetSuppressAlg(data->idaMemory, suppressAlg);
-  exitOnError(checkRetval(retval, "IDASetSuppressAlg"))
+  exitOnError(checkRetval(retval, "IDASetSuppressAlg"));
 
   // Increase the maximum number of iterations taken by IDA before failing.
   retval = IDASetMaxNumSteps(data->idaMemory, maxNumSteps);
-  exitOnError(checkRetval(retval, "IDASetMaxNumSteps"))
+  exitOnError(checkRetval(retval, "IDASetMaxNumSteps"));
 
   retval = IDASetMaxErrTestFails(data->idaMemory, maxErrTestFail);
-  exitOnError(checkRetval(retval, "IDASetMaxErrTestFails"))
+  exitOnError(checkRetval(retval, "IDASetMaxErrTestFails"));
 
   retval = IDASetMaxNonlinIters(data->idaMemory, maxNonlinIters);
-  exitOnError(checkRetval(retval, "IDASetMaxNonlinIters"))
+  exitOnError(checkRetval(retval, "IDASetMaxNonlinIters"));
 
   retval = IDASetMaxConvFails(data->idaMemory, maxConvFails);
-  exitOnError(checkRetval(retval, "IDASetMaxConvFails"))
+  exitOnError(checkRetval(retval, "IDASetMaxConvFails"));
 
   retval = IDASetNonlinConvCoef(data->idaMemory, nonlinConvCoef);
-  exitOnError(checkRetval(retval, "IDASetNonlinConvCoef"))
+  exitOnError(checkRetval(retval, "IDASetNonlinConvCoef"));
 
   // Increase the maximum number of iterations taken by IDA IC before failing.
   retval = IDASetMaxNumStepsIC(data->idaMemory, maxNumStepsIC);
-  exitOnError(checkRetval(retval, "IDASetMaxNumStepsIC"))
+  exitOnError(checkRetval(retval, "IDASetMaxNumStepsIC"));
 
   retval = IDASetMaxNumJacsIC(data->idaMemory, maxNumJacsIC);
-  exitOnError(checkRetval(retval, "IDASetMaxNumJacsIC"))
+  exitOnError(checkRetval(retval, "IDASetMaxNumJacsIC"));
 
   retval = IDASetMaxNumItersIC(data->idaMemory, maxNumItersIC);
-  exitOnError(checkRetval(retval, "IDASetMaxNumItersIC"))
+  exitOnError(checkRetval(retval, "IDASetMaxNumItersIC"));
 
   retval = IDASetNonlinConvCoefIC(data->idaMemory, nonlinConvCoefIC);
-  exitOnError(checkRetval(retval, "IDASetNonlinConvCoefIC"))
+  exitOnError(checkRetval(retval, "IDASetNonlinConvCoefIC"));
 
   retval = IDASetLineSearchOffIC(data->idaMemory, lineSearchOff);
-  exitOnError(checkRetval(retval, "IDASetLineSearchOffIC"))
+  exitOnError(checkRetval(retval, "IDASetLineSearchOffIC"));
 
   // Call IDACalcIC to correct the initial values.
   realtype firstOutTime = (data->endTime - data->startTime) / timeScalingFactorInit;
@@ -533,7 +552,7 @@ static void idaInit_void(void* userData)
   profiler().initialConditionsTimer.stop();
   #endif
 
-  exitOnError(checkRetval(retval, "IDACalcIC"))
+  exitOnError(checkRetval(retval, "IDACalcIC"));
 }
 
 RUNTIME_FUNC_DEF(idaInit, void, PTR(void))
@@ -543,13 +562,13 @@ RUNTIME_FUNC_DEF(idaInit, void, PTR(void))
 /// step time parameter. Otherwise, the output will show the variables at every
 /// step of the computation. Returns true if the computation was successful,
 /// false otherwise.
-template<typename T = double>
-static void idaStep_void(void* userData, T timeStep = -1)
+static void idaStep_void(void* userData, double timeStep = -1)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
   bool equidistantTimeGrid = timeStep > 0;
 
   if (data->scalarEquationsNumber == 0) {
+    // IDA has nothing to solve
     return;
   }
 
@@ -569,11 +588,11 @@ static void idaStep_void(void* userData, T timeStep = -1)
   if (data->marcoBitWidth != data->idaBitWidth) {
     for (size_t i = 0; i < data->scalarEquationsNumber; ++i) {
       if (data->marcoBitWidth == 32) {
-        static_cast<float*>(data->marcoVariableValues)[i] = data->variableValues[i];
-        static_cast<float*>(data->marcoDerivativeValues)[i] = data->derivativeValues[i];
+        static_cast<float*>(data->marcoVariableValues)[i] = static_cast<float>(data->variableValues[i]);
+        static_cast<float*>(data->marcoDerivativeValues)[i] = static_cast<float>(data->derivativeValues[i]);
       } else {
-        static_cast<double*>(data->marcoVariableValues)[i] = data->variableValues[i];
-        static_cast<double*>(data->marcoDerivativeValues)[i] = data->derivativeValues[i];
+        static_cast<double*>(data->marcoVariableValues)[i] = static_cast<double>(data->variableValues[i]);
+        static_cast<double*>(data->marcoDerivativeValues)[i] = static_cast<double>(data->derivativeValues[i]);
       }
     }
   }
@@ -583,7 +602,7 @@ static void idaStep_void(void* userData, T timeStep = -1)
   #endif
 
   // Check if the solver failed
-  exitOnError(checkRetval(retval, "IDASolve"))
+  exitOnError(checkRetval(retval, "IDASolve"));
 }
 
 RUNTIME_FUNC_DEF(idaStep, void, PTR(void))
@@ -595,19 +614,17 @@ static void idaFree_void(void* userData)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
-  if (data->scalarEquationsNumber == 0) {
-    return;
+  if (data->scalarEquationsNumber != 0) {
+    // Deallocate the IDA memory
+    IDAFree(&data->idaMemory);
+
+    int retval = SUNLinSolFree(data->linearSolver);
+    exitOnError(checkRetval(retval, "SUNLinSolFree"));
+
+    SUNMatDestroy(data->sparseMatrix);
+    N_VDestroy(data->variablesVector);
+    N_VDestroy(data->derivativesVector);
   }
-
-  // Deallocate the IDA memory
-  IDAFree(&data->idaMemory);
-
-  int retval = SUNLinSolFree(data->linearSolver);
-  exitOnError(checkRetval(retval, "SUNLinSolFree"))
-
-  SUNMatDestroy(data->sparseMatrix);
-  N_VDestroy(data->variablesVector);
-  N_VDestroy(data->derivativesVector);
 
   delete data;
 }
@@ -730,27 +747,29 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
 /// @param dimensions  dimensions array of the variable.
 /// @param numElements  number of dimensions of the variable.
 /// @param isState     indicates if the variable is differential or algebraic.
-template<typename T>
-static T addVariable_i64(
+static int64_t idaAddVariable_i64(
     void* userData,
-    T* dimensions,
-    T numElements,
+    int64_t* dimensions,
+    int64_t rank,
     bool isState)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   assert(data->variableOffsets.size() == data->variableDimensions.size() + 1);
 
-  // Add variable offset and dimension.
-  size_t offset = data->variableOffsets.back();
-  data->variableOffsets.push_back(numElements);
-
+  // Add variable offset and dimensions.
   VarDimension varDimension;
-  for (size_t i = 0; i < (size_t) numElements; ++i) {
+  int64_t flatSize = 1;
+
+  for (int64_t i = 0; i < rank; ++i) {
+    flatSize *= dimensions[i];
     varDimension.push_back(dimensions[i]);
   }
 
-  data->variableDimensions.push_back(varDimension);
+  data->variableDimensions.push_back(std::move(varDimension));
+
+  size_t offset = data->variableOffsets.back();
+  data->variableOffsets.push_back(offset + flatSize);
 
   // Compute idValue and absoluteTolerance.
   realtype idValue = isState ? 1.0 : 0.0;
@@ -759,8 +778,7 @@ static T addVariable_i64(
                     : std::min(algebraicTolerance, data->absoluteTolerance);
 
   // Initialize derivativeValues, idValues and absoluteTolerances.
-
-  for (size_t i = 0, e = numElements; i < e; ++i) {
+  for (int64_t i = 0; i < flatSize; ++i) {
     data->derivativeValues[offset + i] = 0.0;
     data->idValues[offset + i] = idValue;
     data->toleranceValues[offset + i] = absTol;
@@ -770,12 +788,12 @@ static T addVariable_i64(
   return data->variableDimensions.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), PTR(int64_t), int64_t, bool)
+RUNTIME_FUNC_DEF(idaAddVariable, int64_t, PTR(void), PTR(int64_t), int64_t, bool)
 
 /// Add a variable access to the var-th variable, where ind is the induction
 /// variable and off is the access offset.
 template<typename T>
-static void addVarAccess_void(
+static void idaAddVariableAccess_void(
     void* userData,
     T equationIndex,
     T variableIndex,
@@ -801,39 +819,49 @@ static void addVarAccess_void(
   }
 }
 
-RUNTIME_FUNC_DEF(addVarAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
+RUNTIME_FUNC_DEF(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
 
 //===----------------------------------------------------------------------===//
 // Getters
 //===----------------------------------------------------------------------===//
 
 /// Returns the pointer to the start of the memory of the requested variable.
-template<typename T>
-static void* getVariable_pvoid(void* userData, T variableIndex)
+static void* idaGetVariable_pvoid(void* userData, int64_t variableIndex)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   assert(variableIndex >= 0);
-  assert((size_t) variableIndex < data->variableDimensions.size());
+  assert(static_cast<size_t>(variableIndex) < data->variableDimensions.size());
 
-  return data->marcoVariableValues;
+  size_t offset = data->variableOffsets[variableIndex];
+
+    if (data->marcoBitWidth == 32) {
+      return static_cast<void*>(&static_cast<float*>(data->marcoVariableValues)[offset]);
+    }
+
+    return static_cast<void*>(&static_cast<double*>(data->marcoVariableValues)[offset]);
 }
 
-RUNTIME_FUNC_DEF(getVariable, PTR(void), PTR(void), int64_t)
+RUNTIME_FUNC_DEF(idaGetVariable, PTR(void), PTR(void), int64_t)
 
 /// Returns the pointer to the start of the memory of the requested derivative.
-template<typename T>
-static void* getDerivative_pvoid(void* userData, T derivativeIndex)
+static void* idaGetDerivative_pvoid(void* userData, int64_t derivativeIndex)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
   assert(derivativeIndex >= 0);
-  assert((size_t) derivativeIndex < data->variableDimensions.size());
+  assert(static_cast<size_t>(derivativeIndex) < data->variableDimensions.size());
 
-  return data->marcoDerivativeValues;
+  size_t offset = data->variableOffsets[derivativeIndex];
+
+  if (data->marcoBitWidth == 32) {
+    return static_cast<void*>(&static_cast<float*>(data->marcoDerivativeValues)[offset]);
+  }
+
+  return static_cast<void*>(&static_cast<double*>(data->marcoDerivativeValues)[offset]);
 }
 
-RUNTIME_FUNC_DEF(getDerivative, PTR(void), PTR(void), int64_t)
+RUNTIME_FUNC_DEF(idaGetDerivative, PTR(void), PTR(void), int64_t)
 
 /// Returns the time reached by the solver after the last step.
 template<typename T>

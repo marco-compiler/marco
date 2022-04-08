@@ -128,9 +128,22 @@ static FunctionOp createPartialDerTemplateFromEquation(
 
 namespace marco::codegen
 {
-  IDASolver::IDASolver(mlir::TypeConverter* typeConverter)
-    : ExternalSolver(typeConverter), enabled(true)
+  IDASolver::IDASolver(
+      mlir::TypeConverter* typeConverter,
+      double startTime,
+      double endTime,
+      double relativeTolerance,
+      double absoluteTolerance)
+    : ExternalSolver(typeConverter),
+      enabled(true),
+      startTime(startTime),
+      endTime(endTime),
+      relativeTolerance(relativeTolerance),
+      absoluteTolerance(absoluteTolerance)
   {
+    assert(startTime < endTime);
+    assert(relativeTolerance > 0);
+    assert(absoluteTolerance > 0);
   }
 
   bool IDASolver::isEnabled() const
@@ -288,6 +301,11 @@ namespace marco::codegen
 
     mlir::Value idaInstance = builder.create<mlir::ida::CreateOp>(
         initFunction.getLoc(), builder.getI64IntegerAttr(numberOfScalarEquations));
+
+    builder.create<mlir::ida::SetStartTimeOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(startTime));
+    builder.create<mlir::ida::SetEndTimeOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(endTime));
+    builder.create<mlir::ida::SetRelativeToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(relativeTolerance));
+    builder.create<mlir::ida::SetAbsoluteToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(absoluteTolerance));
 
     // Store the IDA instance into the runtime data structure
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);

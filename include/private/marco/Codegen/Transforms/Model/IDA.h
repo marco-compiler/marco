@@ -14,7 +14,12 @@ namespace marco::codegen
       static constexpr size_t variablesOffset = 1;
 
     public:
-      IDASolver(mlir::TypeConverter* typeConverter);
+      IDASolver(
+        mlir::TypeConverter* typeConverter,
+        double startTime,
+        double doubleEndTime,
+        double relativeTolerance,
+        double absoluteTolerance);
 
       bool isEnabled() const override;
 
@@ -125,6 +130,11 @@ namespace marco::codegen
 
     private:
       bool enabled;
+
+      const double startTime;
+      const double endTime;
+      const double relativeTolerance;
+      const double absoluteTolerance;
 
       /// The variables of the model that are managed by IDA.
       /// The SSA values are the ones defined by the body of the ModelOp.
