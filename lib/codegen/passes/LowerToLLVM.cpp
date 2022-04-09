@@ -227,9 +227,8 @@ class ArrayDescriptor
 class UnsizedArrayDescriptor
 {
 	public:
-	explicit UnsizedArrayDescriptor(mlir::LLVMTypeConverter* typeConverter, mlir::Value value)
-			: 	typeConverter(typeConverter),
-				value(value),
+	explicit UnsizedArrayDescriptor(mlir::Value value)
+			: 	value(value),
 				descriptorType(mlir::LLVM::LLVMPointerType::get(value.getType()))
 	{
 		assert(value != nullptr && "Value cannot be null");
@@ -244,11 +243,11 @@ class UnsizedArrayDescriptor
 	 * @param descriptorType	descriptor type
 	 * @return descriptor
 	 */
-	static UnsizedArrayDescriptor undef(mlir::OpBuilder& builder, mlir::LLVMTypeConverter* typeConverter, mlir::Location location, mlir::Type descriptorType)
+	static UnsizedArrayDescriptor undef(mlir::OpBuilder& builder, mlir::Location location, mlir::Type descriptorType)
 	{
 		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
 		mlir::Value descriptor = builder.create<mlir::LLVM::UndefOp>(location, elementType);
-		return UnsizedArrayDescriptor(typeConverter, descriptor);
+		return UnsizedArrayDescriptor(descriptor);
 	}
 
 	[[nodiscard]] mlir::Value operator*()
@@ -310,44 +309,7 @@ class UnsizedArrayDescriptor
 		value = builder.create<mlir::LLVM::InsertValueOp>(location, elementType, value, ptr, builder.getIndexArrayAttr(1));
 	}
 
-
-	/**
-	 * Emit IR computing the memory necessary to store the descriptor.
-	 *
-	 * This assumes the descriptor to be
-	 *   { i32, type* }
-	 * so the total size is
-	 *   sizeof(i32) + sizeof(pointer).
-	 *
-	 * @param builder operation builder
-	 * @param loc 	  source location
-	 */
-	mlir::Value computeSize(mlir::OpBuilder& builder, mlir::Location loc)
-	{
-		mlir::Type rankType = getRankType();
-		mlir::Type indexType = typeConverter->convertType(builder.getIndexType());
-
-		mlir::Value pointerSize = builder.create<mlir::LLVM::ConstantOp>(loc, indexType, builder.getIntegerAttr(indexType, typeConverter->getPointerBitwidth()));
-
-		mlir::Value integerSize = builder.create<mlir::LLVM::ConstantOp>(loc, indexType, builder.getIntegerAttr(rankType, rankType.getIntOrFloatBitWidth()));
-
-		// Total allocation size
-		mlir::Value allocationSize = builder.create<mlir::LLVM::AddOp>(loc, indexType, pointerSize, integerSize);
-
-		return allocationSize;
-	}
-
-	mlir::Type getRankType() const
-	{
-		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
-		auto body = elementType.cast<mlir::LLVM::LLVMStructType>().getBody();
-		mlir::Type rankType = body[0];
-		assert(rankType.isa<mlir::IntegerType>() && "The rank must have integer type");
-		return rankType;
-	}
-
 	private:
-	mlir::LLVMTypeConverter* typeConverter;
 	mlir::Value value;
 	mlir::Type descriptorType;
 };
@@ -906,7 +868,7 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 				// Create the unsized array descriptor that holds the ranked one.
 				// The inner descriptor is allocated on stack.
-				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, this->getTypeConverter(), loc, convertType(resultType));
+				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, convertType(resultType));
 				resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
 
 				mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
@@ -921,14 +883,12 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 				// Store the unsized array descriptor on the stack to pass it via
 				// pointer.
-				//TODO: fix in UnzizedArrayDescriptor::computeSize
-				//mlir::Value size = resultDescriptor.computeSize(rewriter, loc);
-				mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(16));
-				mlir::Value descPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), size, llvm::None);
-				ptr = rewriter.create<mlir::LLVM::BitcastOp>(loc, convertType(resultType), descPtr);
-				rewriter.create<mlir::LLVM::StoreOp>(loc, *resultDescriptor, ptr);
+				mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(1));
+				mlir::Value descPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, convertType(resultType), size, llvm::None);
+				descPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, convertType(resultType), descPtr);
+				rewriter.create<mlir::LLVM::StoreOp>(loc, *resultDescriptor, descPtr);
 
-				mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, ptr);
+				mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, descPtr);
 				rewriter.replaceOp(op, result);
 				return mlir::success();
 			}
