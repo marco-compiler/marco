@@ -3,6 +3,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
+#include <cmath>
 
 using namespace ::mlir::modelica;
 
@@ -1696,6 +1697,29 @@ namespace mlir::modelica
   // AbsOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult AbsOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::abs(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::abs(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void AbsOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -1739,6 +1763,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // AcosOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult AcosOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::acos(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::acos(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   void AcosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
@@ -2181,6 +2228,29 @@ namespace mlir::modelica
   // AsinOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult AsinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::asin(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::asin(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void AsinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -2252,6 +2322,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // AtanOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult AtanOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::atan(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::atan(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   void AtanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
@@ -2378,6 +2471,29 @@ namespace mlir::modelica
   // CosOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult CosOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::cos(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::cos(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void CosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -2446,6 +2562,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // CoshOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult CoshOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::cosh(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::cosh(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   void CoshOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
@@ -2930,6 +3069,29 @@ namespace mlir::modelica
   // ExpOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult ExpOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::exp(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::exp(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void ExpOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (exponent().getType().isa<ArrayType>()) {
@@ -3136,6 +3298,29 @@ namespace mlir::modelica
   // LogOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult LogOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::log(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::log(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void LogOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -3202,6 +3387,29 @@ namespace mlir::modelica
   // Log10Op
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult Log10Op::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::log10(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::log10(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void Log10Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -3266,6 +3474,120 @@ namespace mlir::modelica
   void Log10Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
 
+  }
+
+  //===----------------------------------------------------------------------===//
+  // MaxOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult MaxOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto first = operands[0];
+    auto second = operands[1];
+
+    if (!first || !second) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(first) && isScalar(second)) {
+      if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
+        return getAttr(resultType, std::max(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
+      }
+
+      if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
+        return getAttr(resultType, std::max(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
+      }
+
+      if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
+        auto firstValue = getScalarIntegerLikeValue(first);
+        auto secondValue = getScalarFloatLikeValue(second);
+
+        if (firstValue >= secondValue) {
+          return getAttr(resultType, firstValue);
+        } else {
+          return getAttr(resultType, secondValue);
+        }
+      }
+
+      if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
+        auto firstValue = getScalarFloatLikeValue(first);
+        auto secondValue = getScalarIntegerLikeValue(second);
+
+        if (firstValue >= secondValue) {
+          return getAttr(resultType, firstValue);
+        } else {
+          return getAttr(resultType, secondValue);
+        }
+      }
+    }
+
+    return {};
+  }
+
+  void MaxOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (first().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), first(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
+  //===----------------------------------------------------------------------===//
+  // MinOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult MinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto first = operands[0];
+    auto second = operands[1];
+
+    if (!first || !second) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(first) && isScalar(second)) {
+      if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
+        return getAttr(resultType, std::min(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
+      }
+
+      if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
+        return getAttr(resultType, std::min(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
+      }
+
+      if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
+        auto firstValue = getScalarIntegerLikeValue(first);
+        auto secondValue = getScalarFloatLikeValue(second);
+
+        if (firstValue <= secondValue) {
+          return getAttr(resultType, firstValue);
+        } else {
+          return getAttr(resultType, secondValue);
+        }
+      }
+
+      if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
+        auto firstValue = getScalarFloatLikeValue(first);
+        auto secondValue = getScalarIntegerLikeValue(second);
+
+        if (firstValue <= secondValue) {
+          return getAttr(resultType, firstValue);
+        } else {
+          return getAttr(resultType, secondValue);
+        }
+      }
+    }
+
+    return {};
+  }
+
+  void MinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (first().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), first(), mlir::SideEffects::DefaultResource::get());
+    }
   }
 
   //===----------------------------------------------------------------------===//
@@ -4034,6 +4356,45 @@ namespace mlir::modelica
   // SignOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult SignOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        auto value = getScalarIntegerLikeValue(operand);
+
+        if (value == 0) {
+          return getAttr(resultType, 0l);
+        } else if (value > 0) {
+          return getAttr(resultType, 1l);
+        } else {
+          return getAttr(resultType, -1l);
+        }
+      }
+
+      if (isScalarFloatLike(operand)) {
+        auto value = getScalarFloatLikeValue(operand);
+
+        if (value == 0) {
+          return getAttr(resultType, 0l);
+        } else if (value > 0) {
+          return getAttr(resultType, 1l);
+        } else {
+          return getAttr(resultType, -1l);
+        }
+      }
+    }
+
+    return {};
+  }
+
   void SignOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -4075,6 +4436,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // SinOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult SinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::sin(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::sin(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   void SinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
@@ -4141,6 +4525,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // SinhOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult SinhOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::sinh(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::sinh(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   void SinhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
@@ -4223,6 +4630,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // SqrtOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult SqrtOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::sqrt(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::sqrt(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   mlir::ValueRange SqrtOp::getArgs()
   {
@@ -4665,6 +5095,29 @@ namespace mlir::modelica
   // TanOp
   //===----------------------------------------------------------------------===//
 
+  mlir::OpFoldResult TanOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::tan(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::tan(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
   void TanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (operand().getType().isa<ArrayType>()) {
@@ -4734,6 +5187,29 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // TanhOp
   //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult TanhOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, std::tanh(getScalarIntegerLikeValue(operand)));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::tanh(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
 
   void TanhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {

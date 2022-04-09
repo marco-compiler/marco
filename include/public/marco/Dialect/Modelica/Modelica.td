@@ -1204,6 +1204,7 @@ def Modelica_AbsOp : Modelica_Op<"abs",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_AcosOp : Modelica_Op<"acos",
@@ -1232,6 +1233,7 @@ def Modelica_AcosOp : Modelica_Op<"acos",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_AsinOp : Modelica_Op<"asin",
@@ -1260,6 +1262,7 @@ def Modelica_AsinOp : Modelica_Op<"asin",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_AtanOp : Modelica_Op<"atan",
@@ -1288,6 +1291,7 @@ def Modelica_AtanOp : Modelica_Op<"atan",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_Atan2Op : Modelica_Op<"atan2",
@@ -1346,6 +1350,7 @@ def Modelica_CosOp : Modelica_Op<"cos",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_CoshOp : Modelica_Op<"cosh",
@@ -1374,6 +1379,7 @@ def Modelica_CoshOp : Modelica_Op<"cosh",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_DiagonalOp : Modelica_Op<"diagonal",
@@ -1429,6 +1435,7 @@ def Modelica_ExpOp : Modelica_Op<"exp",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_IdentityOp : Modelica_Op<"identity",
@@ -1507,6 +1514,7 @@ def Modelica_LogOp : Modelica_Op<"log",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_Log10Op : Modelica_Op<"log10",
@@ -1535,9 +1543,11 @@ def Modelica_Log10Op : Modelica_Op<"log10",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
-def Modelica_MaxOp : Modelica_Op<"max", []>
+def Modelica_MaxOp : Modelica_Op<"max",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Get the greatest value among an array or two scalar values.";
 
@@ -1572,9 +1582,11 @@ def Modelica_MaxOp : Modelica_Op<"max", []>
 
     let printer = [{ return ::print(p, *this); }];
     let parser = [{ return ::parse$cppClass(parser, result); }];
+    let hasFolder = 1;
 }
 
-def Modelica_MinOp : Modelica_Op<"min", []>
+def Modelica_MinOp : Modelica_Op<"min",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Get the smallest value among an array or two scalar values.";
 
@@ -1609,6 +1621,7 @@ def Modelica_MinOp : Modelica_Op<"min", []>
 
     let printer = [{ return ::print(p, *this); }];
     let parser = [{ return ::parse$cppClass(parser, result); }];
+    let hasFolder = 1;
 }
 
 def Modelica_NDimsOp : Modelica_Op<"ndims", []>
@@ -1717,6 +1730,7 @@ def Modelica_SignOp : Modelica_Op<"sign",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_SinOp : Modelica_Op<"sin",
@@ -1741,6 +1755,7 @@ def Modelica_SinOp : Modelica_Op<"sin",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_SinhOp : Modelica_Op<"sinh",
@@ -1769,6 +1784,7 @@ def Modelica_SinhOp : Modelica_Op<"sinh",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_SizeOp : Modelica_Op<"size",
@@ -1842,6 +1858,7 @@ def Modelica_SqrtOp : Modelica_Op<"sqrt",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_SumOp : Modelica_Op<"sum", []>
@@ -1927,6 +1944,7 @@ def Modelica_TanOp : Modelica_Op<"tan",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_TanhOp : Modelica_Op<"tanh",
@@ -1955,6 +1973,7 @@ def Modelica_TanhOp : Modelica_Op<"tanh",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_TransposeOp : Modelica_Op<"transpose",

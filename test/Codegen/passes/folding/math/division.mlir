@@ -7,7 +7,7 @@
 func @test_integerScalars() -> (!modelica.int) {
     %x = modelica.constant #modelica.int<6>
     %y = modelica.constant #modelica.int<2>
-    %result = modelica.mul %x, %y : (!modelica.int, !modelica.int) -> !modelica.int
+    %result = modelica.div %x, %y : (!modelica.int, !modelica.int) -> !modelica.int
     return %result : !modelica.int
 }
 
@@ -18,7 +18,7 @@ func @test_integerScalars() -> (!modelica.int) {
 func @test_realScalars() -> (!modelica.real) {
     %x = modelica.constant #modelica.real<6.0>
     %y = modelica.constant #modelica.real<2.0>
-    %result = modelica.mul %x, %y : (!modelica.real, !modelica.real) -> !modelica.real
+    %result = modelica.div %x, %y : (!modelica.real, !modelica.real) -> !modelica.real
     return %result : !modelica.real
 }
 
@@ -29,7 +29,7 @@ func @test_realScalars() -> (!modelica.real) {
 func @test_mixedScalars1() -> (!modelica.real) {
     %x = modelica.constant #modelica.real<6.0>
     %y = modelica.constant #modelica.int<2>
-    %result = modelica.mul %x, %y : (!modelica.real, !modelica.int) -> !modelica.real
+    %result = modelica.div %x, %y : (!modelica.real, !modelica.int) -> !modelica.real
     return %result : !modelica.real
 }
 
@@ -40,6 +40,6 @@ func @test_mixedScalars1() -> (!modelica.real) {
 func @test_mixedScalars2() -> (!modelica.real) {
     %x = modelica.constant #modelica.real<6.0>
     %y = modelica.constant #modelica.int<2>
-    %result = modelica.mul %x, %y : (!modelica.real, !modelica.int) -> !modelica.real
+    %result = modelica.div %x, %y : (!modelica.real, !modelica.int) -> !modelica.real
     return %result : !modelica.real
 }
