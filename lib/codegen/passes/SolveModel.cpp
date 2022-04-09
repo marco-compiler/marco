@@ -1382,9 +1382,7 @@ static mlir::LogicalResult removeDerivatives(
       mlir::Value memberDer = builder.create<MemberCreateOp>(loc, nextDerName, memberType, memberCreateOp.dynamicDimensions(), memberCreateOp.isConstant());
       mlir::Value zero = builder.create<ConstantOp>(loc, RealAttribute::get(builder.getContext(), 0));
       mlir::Value array = builder.create<MemberLoadOp>(loc, memberType.unwrap(), memberDer);
-      #ifndef WINDOWS_NOSTDLIB
       builder.create<FillOp>(loc, zero, array);
-      #endif
 
       // Update the terminator values
       llvm::SmallVector<mlir::Value, 3> args(terminator.values().begin(), terminator.values().end());

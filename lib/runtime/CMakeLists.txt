@@ -48,7 +48,7 @@ marco_add_library(runtime
 		${STATIC_SOURCES})
 
 if(MSVC)
-target_compile_options(runtime PRIVATE "/Oi-")
+target_compile_options(runtime PRIVATE "/Oi-" "/Zi")
 target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 elseif(MINGW)
 # -fno-strict-aliasing needed for fdlibm
