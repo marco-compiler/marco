@@ -4,23 +4,40 @@
 
 namespace mlir::modelica
 {
-  mlir::Attribute getAttr(mlir::Type type, llvm::APInt value)
-  {
-
-  }
-
-  mlir::Attribute getAttr(mlir::Type type, llvm::APFloat value)
+  mlir::Attribute getAttr(mlir::Type type, long value)
   {
     if (type.isa<BooleanType>()) {
-      return BooleanAttr::get(type.getContext(), value.convertToDouble() > 0);
+      return BooleanAttr::get(type.getContext(), value > 0);
     }
 
     if (type.isa<IntegerType>()) {
-      return IntegerAttr::get(type.getContext(), value.convertToDouble());
+      return IntegerAttr::get(type.getContext(), value);
+    }
+
+    if (type.isa<RealType>()) {
+      return RealAttr::get(type.getContext(), value);
     }
 
     llvm_unreachable("Unknown Modelica type");
-    return mlir::Attribute();
+    return {};
+  }
+
+  mlir::Attribute getAttr(mlir::Type type, double value)
+  {
+    if (type.isa<BooleanType>()) {
+      return BooleanAttr::get(type.getContext(), value > 0);
+    }
+
+    if (type.isa<IntegerType>()) {
+      return IntegerAttr::get(type.getContext(), value);
+    }
+
+    if (type.isa<RealType>()) {
+      return RealAttr::get(type.getContext(), value);
+    }
+
+    llvm_unreachable("Unknown Modelica type");
+    return {};
   }
 
   mlir::Attribute getZeroAttr(mlir::Type type)
@@ -48,27 +65,31 @@ namespace mlir::modelica
   mlir::Attribute BooleanAttr::parse(
       mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
   {
-    bool value = false;
+    bool value;
 
     if (parser.parseLess()) {
-      return mlir::Attribute();
+      return {};
     }
 
     if (mlir::succeeded(parser.parseOptionalKeyword("true"))) {
       value = true;
     } else {
       if (parser.parseKeyword("false")) {
-        return mlir::Attribute();
+        return {};
       }
 
       value = false;
     }
 
     if (parser.parseGreater()) {
-      return mlir::Attribute();
+      return {};
     }
 
-    return BooleanAttr::get(context, BooleanType::get(context), value);
+    if (!type) {
+      type = BooleanType::get(context);
+    }
+
+    return BooleanAttr::get(context, type, value);
   }
 
   void BooleanAttr::print(mlir::DialectAsmPrinter& os) const
@@ -88,10 +109,14 @@ namespace mlir::modelica
     if (parser.parseLess() ||
         parser.parseInteger(value) ||
         parser.parseGreater()) {
-      return mlir::Attribute();
+      return {};
     }
 
-    return IntegerAttr::get(context, IntegerType::get(context), llvm::APInt(sizeof(long) * 8, value, true));
+    if (!type) {
+      type = IntegerType::get(context);
+    }
+
+    return IntegerAttr::get(context, type, llvm::APInt(sizeof(long) * 8, value, true));
   }
 
   void IntegerAttr::print(mlir::DialectAsmPrinter& os) const
@@ -111,10 +136,14 @@ namespace mlir::modelica
     if (parser.parseLess() ||
         parser.parseFloat(value) ||
         parser.parseGreater()) {
-      return mlir::Attribute();
+      return {};
     }
 
-    return RealAttr::get(context, RealType::get(context), llvm::APFloat(value));
+    if (!type) {
+      type = RealType::get(context);
+    }
+
+    return RealAttr::get(context, type, llvm::APFloat(value));
   }
 
   void RealAttr::print(mlir::DialectAsmPrinter& os) const

@@ -3,6 +3,7 @@
 
 #include "marco/Codegen/Transforms/Model/Scheduling.h"
 #include "marco/Codegen/Transforms/Model/ExternalSolver.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include <set>
 
 namespace marco::codegen
@@ -19,7 +20,9 @@ namespace marco::codegen
         double startTime,
         double doubleEndTime,
         double relativeTolerance,
-        double absoluteTolerance);
+        double absoluteTolerance,
+        std::function<mlir::LLVM::LLVMPointerType()> runtimeDataStructPtrFn,
+        std::function<mlir::Value(mlir::OpBuilder&, mlir::Value, unsigned int)> runtimeDataVariableExtractFn);
 
       bool isEnabled() const override;
 
@@ -135,6 +138,9 @@ namespace marco::codegen
       const double endTime;
       const double relativeTolerance;
       const double absoluteTolerance;
+
+      std::function<mlir::LLVM::LLVMPointerType()> runtimeDataStructPtrFn;
+      std::function<mlir::Value(mlir::OpBuilder&, mlir::Value, unsigned int)> runtimeDataVariableExtractFn;
 
       /// The variables of the model that are managed by IDA.
       /// The SSA values are the ones defined by the body of the ModelOp.

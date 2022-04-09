@@ -642,6 +642,7 @@ def Modelica_NegateOp : Modelica_Op<"neg",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_AddOp : Modelica_Op<"add",
@@ -712,6 +713,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_SubOp : Modelica_Op<"sub",
@@ -746,6 +748,7 @@ def Modelica_SubOp : Modelica_Op<"sub",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_SubEWOp : Modelica_Op<"sub_ew",
@@ -770,6 +773,7 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_MulOp : Modelica_Op<"mul",
@@ -797,6 +801,7 @@ def Modelica_MulOp : Modelica_Op<"mul",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_MulEWOp : Modelica_Op<"mul_ew",
@@ -823,8 +828,8 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
-
 
 def Modelica_DivOp : Modelica_Op<"div",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
@@ -859,6 +864,7 @@ def Modelica_DivOp : Modelica_Op<"div",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_DivEWOp : Modelica_Op<"div_ew",
@@ -884,6 +890,7 @@ def Modelica_DivEWOp : Modelica_Op<"div_ew",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_PowOp : Modelica_Op<"pow",
@@ -904,6 +911,7 @@ def Modelica_PowOp : Modelica_Op<"pow",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_PowEWOp : Modelica_Op<"pow_ew",
@@ -924,6 +932,7 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//

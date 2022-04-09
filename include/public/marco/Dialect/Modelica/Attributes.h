@@ -9,8 +9,8 @@
 
 namespace mlir::modelica
 {
-  mlir::Attribute getAttr(mlir::Type type, llvm::APInt value);
-  mlir::Attribute getAttr(mlir::Type type, llvm::APFloat value);
+  mlir::Attribute getAttr(mlir::Type type, long value);
+  mlir::Attribute getAttr(mlir::Type type, double value);
 
   mlir::Attribute getZeroAttr(mlir::Type type);
 
