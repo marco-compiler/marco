@@ -94,8 +94,6 @@ namespace marco::frontend
 
     ci.getLLVMModule().setTargetTriple(targetTriple);
 
-    llvm::outs() << targetTriple;
-
     std::string error;
     auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
 
