@@ -1,4 +1,7 @@
 set(SHARED_SOURCES
+		d2fixed.cpp
+		Nostdlib.cpp
+		Fdlibm.cpp
 		BuiltInFunctions.cpp
 		Math.cpp
 		MemoryManagement.cpp
@@ -28,12 +31,30 @@ marco_add_library(runtimeShared
 		PARTIAL_SOURCES_INTENDED
 		${SHARED_SOURCES})
 
+if(MSVC)
+target_compile_options(runtimeShared PRIVATE "/Oi-")
+target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
+elseif(MINGW)
+# -fno-strict-aliasing needed for fdlibm
+target_compile_options(runtimeShared PRIVATE "-fno-strict-aliasing")
+target_link_options(runtimeShared PRIVATE "-nostdlib")
+endif()
+
 add_dependencies(marco-runtime marco::runtimeShared)
 
 # Declare the static library
 marco_add_library(runtime
 		STATIC
 		${STATIC_SOURCES})
+
+if(MSVC)
+target_compile_options(runtime PRIVATE "/Oi-" "/Zi")
+target_link_options(runtime PRIVATE "/NODEFAULTLIB")
+elseif(MINGW)
+# -fno-strict-aliasing needed for fdlibm
+target_compile_options(runtime PRIVATE "-fno-strict-aliasing" PRIVATE "-g" PRIVATE "-O0")
+target_link_options(runtime PRIVATE "-nostdlib")
+endif()
 
 add_dependencies(marco-runtime marco::runtime)
 

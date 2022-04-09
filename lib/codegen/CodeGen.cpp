@@ -10,6 +10,91 @@ using namespace marco::codegen;
 using namespace modelica;
 using namespace std;
 
+Reference::Reference()
+		: builder(nullptr),
+			value(nullptr),
+			reader(nullptr)
+{
+}
+
+Reference::Reference(mlir::OpBuilder* builder,
+										 mlir::Value value,
+										 std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
+										 std::function<void(mlir::OpBuilder*, Reference&, mlir::Value)> writer)
+		: builder(builder),
+			value(std::move(value)),
+			reader(std::move(reader)),
+			writer(std::move(writer))
+{
+}
+
+mlir::Value Reference::operator*()
+{
+	return reader(builder, value);
+}
+
+mlir::Value Reference::getReference() const
+{
+	return value;
+}
+
+void Reference::set(mlir::Value v)
+{
+	writer(builder, *this, v);
+}
+
+Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
+{
+	return Reference(
+			builder, value,
+			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
+				return value;
+			},
+			[](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
+				assert(false && "Can't assign value to SSA operand");
+			});
+}
+
+Reference Reference::memory(mlir::OpBuilder* builder, mlir::Value value)
+{
+	return Reference(
+			builder, value,
+			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
+				auto arrayType = value.getType().cast<ArrayType>();
+
+				// We can load the value only if it's a pointer to a scalar.
+				// Otherwise, return the array.
+
+				if (arrayType.getShape().empty())
+					return builder->create<LoadOp>(value.getLoc(), value);
+
+				return value;
+			},
+			[&](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
+				assert(destination.value.getType().isa<ArrayType>());
+				builder->create<AssignmentOp>(value.getLoc(), value, destination.getReference());
+			});
+}
+
+Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
+{
+	return Reference(
+			builder, value,
+			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
+			{
+				auto memberType = value.getType().cast<MemberType>();
+
+        // TODO: replace with unwrap
+				if (memberType.getShape().empty())
+					return builder->create<MemberLoadOp>(value.getLoc(), memberType.getElementType(), value);
+
+				return builder->create<MemberLoadOp>(value.getLoc(), memberType.toArrayType(), value);
+			},
+			[](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
+				builder->create<MemberStoreOp>(value.getLoc(), destination.value, value);
+			});
+}
+
 MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, CodegenOptions options)
 		: builder(&context),
 			options(options)
@@ -446,7 +531,7 @@ void MLIRLowerer::lower<ast::Model>(const Member& member)
 		assert(values.size() == 1);
 
 		if (auto arrayType = type.dyn_cast<ArrayType>())
-      builder.create<FillOp>(location, *values[0], *ref);
+      		builder.create<FillOp>(location, *values[0], *ref);
 		else
       ref.set(*values[0]);
 	}
@@ -1429,6 +1514,16 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& ex
 		result.emplace_back(values[0]);
 	}
 
+	return result;
+}
+
+template<>
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<RecordInstance>(const Expression& expression)
+{
+	assert(expression.isa<RecordInstance>());
+	assert(false && "RecordInstances not handled in the code generation phase.");
+
+	Container<Reference> result;
 	return result;
 }
 
