@@ -11,7 +11,8 @@ func @test_integerScalar() -> (!modelica.int) {
 }
 
 // CHECK-LABEL: @test_realScalar
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<-3.000000e+00>
+// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-SAME: -3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
 func @test_realScalar() -> (!modelica.real) {

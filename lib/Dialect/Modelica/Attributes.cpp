@@ -94,7 +94,7 @@ namespace mlir::modelica
 
   void BooleanAttr::print(mlir::DialectAsmPrinter& os) const
   {
-    os << "bool<" << getValue() << ">";
+    os << "bool<" << (getValue() == 0 ? "false" : "true") << ">";
   }
 
   //===----------------------------------------------------------------------===//

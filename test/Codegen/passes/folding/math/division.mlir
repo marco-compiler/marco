@@ -12,7 +12,8 @@ func @test_integerScalars() -> (!modelica.int) {
 }
 
 // CHECK-LABEL: @test_realScalars
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<3.000000e+00>
+// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-SAME: 3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
 func @test_realScalars() -> (!modelica.real) {
@@ -23,7 +24,8 @@ func @test_realScalars() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars1
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<3.000000e+00>
+// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-SAME: 3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
 func @test_mixedScalars1() -> (!modelica.real) {
@@ -34,7 +36,8 @@ func @test_mixedScalars1() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars2
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<3.000000e+00>
+// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-SAME: 3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
 func @test_mixedScalars2() -> (!modelica.real) {
