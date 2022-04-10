@@ -17,11 +17,8 @@
 #ifndef RYU_D2S_INTRINSICS_H
 #define RYU_D2S_INTRINSICS_H
 
-#ifdef NOSTDLIB
-#else
 #include <assert.h>
 #include <stdint.h>
-#endif
 
 // Defines RYU_32_BIT_PLATFORM if applicable.
 #include "common.h"

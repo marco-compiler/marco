@@ -17,13 +17,8 @@
 #ifndef RYU_COMMON_H
 #define RYU_COMMON_H
 
-#ifdef NOSTDLIB
-#define assert(expression) ((void) 0)
-#else
 #include <assert.h>
 #include <stdint.h>
-#include <string.h>
-#endif
 
 #if defined(_M_IX86) || defined(_M_ARM)
 #define RYU_32_BIT_PLATFORM

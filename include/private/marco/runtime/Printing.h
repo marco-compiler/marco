@@ -1,9 +1,10 @@
-#ifndef RYU
-#define RYU
+#ifndef RUNTIME_PRINTING
+#define RUNTIME_PRINTING
 
 #include <Windows.h>
 #include "marco/runtime/ryuprintf/ryu.h"
 
+#ifdef WINDOWS_NOSTDLIB
 inline size_t strlen(const char* s)
 {
 	size_t i = 0;
@@ -12,7 +13,7 @@ inline size_t strlen(const char* s)
 	return i;
 }
 
-inline char* strncpyRuntime(char* dest, const char* src, size_t n)
+inline char* strncpy(char* dest, const char* src, size_t n)
 {
 	size_t i;
 
@@ -24,6 +25,7 @@ inline char* strncpyRuntime(char* dest, const char* src, size_t n)
 
 	return dest;
 }
+#endif // WINDOWS_NOSTDLIB
 
 inline int printString(const char* str)
 {
@@ -59,7 +61,6 @@ inline int i2s_buffered_n(int value, char * ptr)
 	bool neg = false;
 	int base = 10;
 
-	/* Handle 0 explicitly, otherwise empty string is printed for 0 */
 	if (value == 0)
 	{
 		str[0] = '0';
@@ -67,15 +68,12 @@ inline int i2s_buffered_n(int value, char * ptr)
 		return 1;
 	}
 
-	// In standard itoa(), negative numbers are handled only with
-	// base 10. Otherwise numbers are considered unsigned.
 	if (value < 0)
 	{
 		neg = true;
 		value = -value;
 	}
 
-	// Process individual digits
 	while (value != 0)
 	{
 		int rem = value % base;
@@ -83,11 +81,9 @@ inline int i2s_buffered_n(int value, char * ptr)
 		value = value / base;
 	}
 
-	// If number is negative, append '-'
 	if (neg)
 		str[i++] = '-';
 
-	// Reverse the string
 	reverse(str, i);
 
 	return i;
@@ -157,7 +153,7 @@ inline char* composeString(const char* format, va_list ap)
 		size = size * 2;
 		buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 	}
-	strncpyRuntime(buf, format, n);
+	strncpy(buf, format, n);
 
 	bufptr = buf + n;
 
@@ -212,7 +208,7 @@ inline char* composeString(const char* format, va_list ap)
 				size = size * 2;
 				buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 			}
-			strncpyRuntime(bufptr, tmp_ptr, n);
+			strncpy(bufptr, tmp_ptr, n);
 			bufptr = bufptr + n;
 		}
 
@@ -226,7 +222,7 @@ inline char* composeString(const char* format, va_list ap)
 			size = size * 2;
 			buf = (char*)HeapReAlloc(GetProcessHeap(), 0x0, buf, sizeof(char)*size);
 		}
-		strncpyRuntime(bufptr, oldfmtptr, n);
+		strncpy(bufptr, oldfmtptr, n);
 		bufptr = bufptr + n;
 	}
 
@@ -235,7 +231,7 @@ inline char* composeString(const char* format, va_list ap)
     return buf;
 }
 
-inline int ryuPrintfInternal(const char* format, va_list ap) {
+inline int runtimePrintfInternal(const char* format, va_list ap) {
 	char* buf;
 	int len;
 
@@ -247,13 +243,13 @@ inline int ryuPrintfInternal(const char* format, va_list ap) {
     return len;
 }
 
-inline int ryuPrintf(const char* format, ...)
+inline int runtimePrintf(const char* format, ...)
 {
 	va_list arg;
 	int done;
 
 	va_start(arg, format);
-	done = ryuPrintfInternal(format, arg);
+	done = runtimePrintfInternal(format, arg);
 	va_end(arg);
 
 	return done;
@@ -324,4 +320,4 @@ inline void print<double>(double value)
 {
   printDouble(value);
 }
-#endif // RYU
+#endif // RUNTIME_PRINTING

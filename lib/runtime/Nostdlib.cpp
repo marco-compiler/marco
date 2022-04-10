@@ -1,51 +1,54 @@
 #ifdef WINDOWS_NOSTDLIB
-#include <Windows.h>
-#include "marco/runtime/Nostdlib.h"
-#include "marco/runtime/UtilityFunctions.h"
-#include "marco/runtime/Runtime.h"
+#include "marco/runtime/Printing.h"
 
+#include <cstddef> // to define std::size_t
+#include <Windows.h>
+
+///////////////////////////////////////////////////////////////////////////////////
+// The following code is needed to substitute the c library outside the runtime
+// library, by the executable compiled by marco.
+///////////////////////////////////////////////////////////////////////////////////
+
+extern "C" int printf(const char* format, ...)
+{
+	va_list arg;
+	int done;
+
+	va_start(arg, format);
+	done = runtimePrintfInternal(format, arg);
+	va_end(arg);
+
+	return done;
+}
+
+extern "C" int putchar(int c)
+{
+	printChar(c);
+	return 1;
+}
+
+// This function is called before the main function in a nostdlib executable
+// compiled with gcc.
 extern "C" int __main()
 {
 	return 0;
 }
 
+// The following code is needed when building with MSVC.
+#ifdef MSVC_BUILD
 extern "C" int main();
 
+// This is the first function called in the Windows executable.
 extern "C" void mainCRTStartup()
 {
-  main();
-  return;
+	main();
+	return;
 }
 
-BOOL WINAPI DllMain(
-    HINSTANCE hinstDLL,
-    DWORD fdwReason,
-    LPVOID lpReserved)
-{
-    return TRUE;
-}
-
-extern "C" BOOL WINAPI DllMainCRTStartup(
-	HINSTANCE hinstDLL,
-	DWORD fdwReason,
-	LPVOID lpvReserved)
-{
-	return TRUE;
-}
-
-extern "C" BOOL WINAPI _DllMainCRTStartup(
-    HINSTANCE hinstDLL,
-    DWORD fdwReason,
-    LPVOID lpvReserved)
-{
-  return TRUE;
-}
-
-#ifdef MSVC_BUILD
 extern "C" __declspec(noreturn) void __cdecl 
 __imp__invalid_parameter_noinfo_noreturn(void)
 {
-
+	ExitProcess(1);
 }
 
 extern "C" __declspec(noreturn) void __cdecl
@@ -56,16 +59,20 @@ __imp__invoke_watson(
     unsigned int const line_number,
     uintptr_t const reserved)
 {
-	
+	ExitProcess(1);
 }
-#endif
 
+extern "C" int _fltused = 0;
+#endif // MSVC_BUILD
+
+///////////////////////////////////////////////////////////////////////////////////
+// The following code is needed to substitute the c runtime inside the runtime
+// library.
+///////////////////////////////////////////////////////////////////////////////////
+
+// Error throwing functions needed for vectors.
 namespace std {
 	void __throw_bad_array_new_length() {
-		ExitProcess(1);
-	}
-
-	void __throw_bad_cast() {
 		ExitProcess(1);
 	}
 
@@ -78,6 +85,7 @@ namespace std {
 	}
 }
 
+// Memory allocation functions needed for vectors.
 void* operator new(std::size_t sz)
 {
     if (sz == 0)
@@ -87,8 +95,8 @@ void* operator new(std::size_t sz)
         return ptr;
 	else 
 		return NULL;
-    //throw std::bad_alloc{};
 }
+
 void operator delete(void* ptr) noexcept
 {
     HeapFree(GetProcessHeap(), 0x0, ptr);
@@ -99,11 +107,14 @@ void operator delete(void* ptr, std::size_t sz)
 	::operator delete(ptr);
 }
 
+// Needed by the built in functions.
 void* memmove(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
 	const char* srcp = (const char*)srcpp;
 
+	// The two cases are needed to allow for the dst and src to be overlapping:
+	// copy left to right if dstp < srcp, otherwise right to left.
 	if(dstp < srcp) {
 		for (size_t i = 0; i < len; i++)
 			*(dstp + i) = *(srcp + i);
@@ -114,6 +125,7 @@ void* memmove(void* dstpp, const void* srcpp, size_t len)
 	return dstpp;
 }
 
+// Needed by the fixed to double conversion.
 void* memcpy(void* dstpp, const void* srcpp, size_t len)
 {
 	char* dstp = (char*)dstpp;
@@ -125,9 +137,12 @@ void* memcpy(void* dstpp, const void* srcpp, size_t len)
 	return dstpp;
 }
 
+// Needed by the fixed to double conversion.
 void* memset(void* s, int c,  size_t len)
 {
 	size_t i = 0;
+	// The volatile keyword is needed because optimizations here make the
+	// application crash.
     volatile unsigned char* p = (unsigned char*) s;
 	while(i < len)
 	{
@@ -138,28 +153,4 @@ void* memset(void* s, int c,  size_t len)
     return s;
 }
 
-void runtimeMemset(char *p, char c, int l)
-{
-	for(int i = 0; i < l; i++)
-		*(p + i) = '0';
-}
-
-#ifndef MSVC_BUILD
-inline int printf(const char* format, ...)
-{
-	va_list arg;
-	int done;
-
-	va_start(arg, format);
-	done = ryuPrintfInternal(format, arg);
-	va_end(arg);
-
-	return done;
-}
-#endif
-
-extern "C" {
-	int _fltused = 0;
-}
-
-#endif
+#endif // WINDOWS_NOSTDLIB

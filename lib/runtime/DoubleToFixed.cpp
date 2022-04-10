@@ -25,9 +25,6 @@
 //
 // -DRYU_AVOID_UINT128 Avoid using uint128_t. Slower, depending on your compiler.
 
-#include "marco/runtime/ryuprintf/ryu.h"
-#include "marco/runtime/Nostdlib.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -294,7 +291,7 @@ static inline void append_nine_digits(uint32_t digits, char* const result) {
   printf("DIGITS=%u\n", digits);
 #endif
   if (digits == 0) {
-    runtimeMemset(result, '0', 9);
+    memset(result, '0', 9);
     return;
   }
 
@@ -353,7 +350,7 @@ static inline int copy_special_str_printf(char* const result, const bool sign, c
   return sign + 8;
 }
 
-int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
+extern "C" int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
   const uint64_t bits = double_to_bits(d);
 #ifdef RYU_DEBUG
   printf("IN=");
@@ -380,7 +377,7 @@ int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
     result[index++] = '0';
     if (precision > 0) {
       result[index++] = '.';
-      runtimeMemset(result + index, '0', precision);
+      memset(result + index, '0', precision);
       index += precision;
     }
     return index;
@@ -449,21 +446,21 @@ int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
     uint32_t i = 0;
     if (blocks <= MIN_BLOCK_2[idx]) {
       i = blocks;
-      runtimeMemset(result + index, '0', precision);
+      memset(result + index, '0', precision);
       index += precision;
     } else if (i < MIN_BLOCK_2[idx]) {
       i = MIN_BLOCK_2[idx];
-      runtimeMemset(result + index, '0', 9 * i);
+      memset(result + index, '0', 9 * i);
       index += 9 * i;
     }
     for (; i < blocks; ++i) {
       const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
       const uint32_t p = POW10_OFFSET_2[idx] + i - MIN_BLOCK_2[idx];
       if (p >= POW10_OFFSET_2[idx + 1]) {
-        // If the remaining digits are all 0, then we might as well use runtimeMemset.
+        // If the remaining digits are all 0, then we might as well use memset.
         // No rounding required in this case.
         const uint32_t fill = precision - 9 * i;
-        runtimeMemset(result + index, '0', fill);
+        memset(result + index, '0', fill);
         index += fill;
         break;
       }
@@ -541,13 +538,13 @@ int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
       }
     }
   } else {
-    runtimeMemset(result + index, '0', precision);
+    memset(result + index, '0', precision);
     index += precision;
   }
   return index;
 }
 
-void d2fixed_buffered(double d, uint32_t precision, char* result) {
+extern "C" void d2fixed_buffered(double d, uint32_t precision, char* result) {
   const int len = d2fixed_buffered_n(d, precision, result);
   result[len] = '\0';
 }
@@ -579,7 +576,7 @@ int d2exp_buffered_n(double d, uint32_t precision, char* result) {
     result[index++] = '0';
     if (precision > 0) {
       result[index++] = '.';
-      runtimeMemset(result + index, '0', precision);
+      memset(result + index, '0', precision);
       index += precision;
     }
     memcpy(result + index, "e+00", 4);
@@ -733,7 +730,7 @@ int d2exp_buffered_n(double d, uint32_t precision, char* result) {
   }
   if (printedDigits != 0) {
     if (digits == 0) {
-      runtimeMemset(result + index, '0', maximum);
+      memset(result + index, '0', maximum);
     } else {
       append_c_digits(maximum, digits, result + index);
     }

@@ -107,7 +107,7 @@ inline void print_void<bool>(bool value)
   #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::boolalpha << value << std::endl;
   #else
-  ryuPrintf("%d\n", value);
+  runtimePrintf("%d\n", value);
   #endif
 }
 
@@ -115,25 +115,25 @@ inline void print_void<bool>(bool value)
 template<>
 inline void print_void<int32_t>(int32_t value)
 {
-  ryuPrintf("%d\n", value);
+  runtimePrintf("%d\n", value);
 }
 
 template<>
 inline void print_void<int64_t>(int64_t value)
 {
-  ryuPrintf("%d\n", value);
+  runtimePrintf("%d\n", (int) value);
 }
 
 template<>
 inline void print_void<float>(float value)
 {
-  ryuPrintf("%f\n", value);
+  runtimePrintf("%f\n", value);
 }
 
 template<>
 inline void print_void<double>(double value)
 {
-  ryuPrintf("%f\n", value);
+  runtimePrintf("%f\n", value);
 }
 #endif
 
@@ -168,28 +168,3 @@ RUNTIME_FUNC_DEF(print, void, ARRAY(int32_t))
 RUNTIME_FUNC_DEF(print, void, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(print, void, ARRAY(float))
 RUNTIME_FUNC_DEF(print, void, ARRAY(double))
-
-#ifdef WINDOWS_NOSTDLIB
-inline int runtimePrintf(const char* format, ...)
-{
-	va_list arg;
-	int done;
-
-	va_start(arg, format);
-	done = ryuPrintfInternal(format, arg);
-	va_end(arg);
-
-	return done;
-}
-
-inline int putchar(int c)
-{
-  printChar(c);
-  return 1;
-}
-
-inline int puts(const char* s)
-{
-  return printString(s);
-}
-#endif

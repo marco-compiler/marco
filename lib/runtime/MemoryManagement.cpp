@@ -73,18 +73,18 @@ class MemoryProfiler : public Profiler
     std::cout << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
     std::cout << "Time spent in heap memory management: " << time() << " ms\n";
     #else
-    ryuPrintf("Number of 'malloc' invocations: %d\n", mallocCalls);
-    ryuPrintf("Number of 'free' invocations: %d\n", freeCalls);
+    runtimePrintf("Number of 'malloc' invocations: %d\n", mallocCalls);
+    runtimePrintf("Number of 'free' invocations: %d\n", freeCalls);
 
     if (mallocCalls > freeCalls) {
-      ryuPrintf("[Warning] Possible memory leak detected\n");
+      runtimePrintf("[Warning] Possible memory leak detected\n");
     } else if (mallocCalls < freeCalls) {
-      ryuPrintf("[Warning] Possible double 'free' detected\n");
+      runtimePrintf("[Warning] Possible double 'free' detected\n");
     }
 
-    ryuPrintf("Total amount of heap allocated memory: %d bytes\n", totalHeapMemory);
-    ryuPrintf("Peak of heap memory usage: %d bytes\n", peakHeapMemory);
-    ryuPrintf("Time spent in heap memory management: %d ms\n", time());
+    runtimePrintf("Total amount of heap allocated memory: %d bytes\n", totalHeapMemory);
+    runtimePrintf("Peak of heap memory usage: %d bytes\n", peakHeapMemory);
+    runtimePrintf("Time spent in heap memory management: %d ms\n", time());
     #endif
   }
 
@@ -122,7 +122,7 @@ class MemoryProfiler : public Profiler
     #else
     LARGE_INTEGER li;
     if(!QueryPerformanceFrequency(&li))
-      ryuPrintf("QueryPerformanceFrequency failed!\n");
+      runtimePrintf("QueryPerformanceFrequency failed!\n");
     freq = double(li.QuadPart)/1000000; // nanoseconds
     QueryPerformanceCounter(&li);
     start = li.QuadPart;
