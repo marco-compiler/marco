@@ -229,7 +229,7 @@ class UnsizedArrayDescriptor
 	public:
 	explicit UnsizedArrayDescriptor(mlir::Value value)
 			: 	value(value),
-				descriptorType(mlir::LLVM::LLVMPointerType::get(value.getType()))
+				descriptorType(value.getType())
 	{
 		assert(value != nullptr && "Value cannot be null");
 		assert(descriptorType.isa<mlir::LLVM::LLVMStructType>() && "Expected LLVM struct type");
@@ -245,8 +245,7 @@ class UnsizedArrayDescriptor
 	 */
 	static UnsizedArrayDescriptor undef(mlir::OpBuilder& builder, mlir::Location location, mlir::Type descriptorType)
 	{
-		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
-		mlir::Value descriptor = builder.create<mlir::LLVM::UndefOp>(location, elementType);
+		mlir::Value descriptor = builder.create<mlir::LLVM::UndefOp>(location, descriptorType);
 		return UnsizedArrayDescriptor(descriptor);
 	}
 
@@ -264,8 +263,7 @@ class UnsizedArrayDescriptor
 	 */
 	[[nodiscard]] mlir::Value getRank(mlir::OpBuilder& builder, mlir::Location location)
 	{
-		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
-		mlir::Type type = elementType.cast<mlir::LLVM::LLVMStructType>().getBody()[0];
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[0];
 		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(0));
 	}
 
@@ -278,8 +276,7 @@ class UnsizedArrayDescriptor
 	 */
 	void setRank(mlir::OpBuilder& builder, mlir::Location location, mlir::Value rank)
 	{
-		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
-		value = builder.create<mlir::LLVM::InsertValueOp>(location, elementType, value, rank, builder.getIndexArrayAttr(0));
+		value = builder.create<mlir::LLVM::InsertValueOp>(location, descriptorType, value, rank, builder.getIndexArrayAttr(0));
 	}
 
 	/**
@@ -291,8 +288,7 @@ class UnsizedArrayDescriptor
 	 */
 	[[nodiscard]] mlir::Value getPtr(mlir::OpBuilder& builder, mlir::Location location)
 	{
-		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
-		mlir::Type type = elementType.cast<mlir::LLVM::LLVMStructType>().getBody()[1];
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[1];
 		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(1));
 	}
 
@@ -305,8 +301,7 @@ class UnsizedArrayDescriptor
 	 */
 	void setPtr(mlir::OpBuilder& builder, mlir::Location location, mlir::Value ptr)
 	{
-		mlir::Type elementType = descriptorType.cast<mlir::LLVM::LLVMPointerType>().getElementType();
-		value = builder.create<mlir::LLVM::InsertValueOp>(location, elementType, value, ptr, builder.getIndexArrayAttr(1));
+		value = builder.create<mlir::LLVM::InsertValueOp>(location, descriptorType, value, ptr, builder.getIndexArrayAttr(1));
 	}
 
 	private:
@@ -868,7 +863,8 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 				// Create the unsized array descriptor that holds the ranked one.
 				// The inner descriptor is allocated on stack.
-				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, convertType(resultType));
+				mlir::Type dereferencedUnsizedType = convertType(resultType).cast<mlir::LLVM::LLVMPointerType>().getElementType();
+				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, dereferencedUnsizedType);
 				resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
 
 				mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
