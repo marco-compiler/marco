@@ -44,7 +44,7 @@ bool exec(const char* cmd, std::string& result)
     result += buffer.data();
   }
 
-  return pclose(pipe)==0;
+  return PCLOSE(pipe)==0;
 }
 
 namespace marco::frontend
