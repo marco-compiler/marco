@@ -34,7 +34,11 @@
 bool exec(const char* cmd, std::string& result)
 {
   std::array<char, 128> buffer;
+<<<<<<< HEAD
   FILE* pipe = POPEN(cmd, "r");
+=======
+  std::unique_ptr<FILE, decltype(&PCLOSE)> pipe(POPEN(cmd, "r"), PCLOSE);
+>>>>>>> c511b42508ef236590db59e37b351c26361e82c8
 
   if (!pipe) {
     return false;
