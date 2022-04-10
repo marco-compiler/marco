@@ -4184,11 +4184,11 @@ namespace mlir::modelica
 
     if (isScalar(operand)) {
       if (isScalarIntegerLike(operand)) {
-        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(operand) != 0));
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(operand) == 0));
       }
 
       if (isScalarFloatLike(operand)) {
-        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(operand) != 0));
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(operand) == 0));
       }
     }
 
@@ -5429,5 +5429,221 @@ namespace mlir::modelica
     if (value().getType().isa<ArrayType>()) {
       effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
     }
+  }
+
+  //===----------------------------------------------------------------------===//
+  // EqOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult EqOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto lhs = operands[0];
+    auto rhs = operands[1];
+
+    if (!lhs || !rhs) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(lhs) && isScalar(rhs)) {
+      if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) == getScalarIntegerLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) == getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) == getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) == getScalarIntegerLikeValue(rhs)));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
+  // NotEqOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult NotEqOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto lhs = operands[0];
+    auto rhs = operands[1];
+
+    if (!lhs || !rhs) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(lhs) && isScalar(rhs)) {
+      if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != getScalarIntegerLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) != getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) != getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) != getScalarIntegerLikeValue(rhs)));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
+  // GtOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult GtOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto lhs = operands[0];
+    auto rhs = operands[1];
+
+    if (!lhs || !rhs) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(lhs) && isScalar(rhs)) {
+      if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) > getScalarIntegerLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) > getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) > getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) > getScalarIntegerLikeValue(rhs)));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
+  // GteOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult GteOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto lhs = operands[0];
+    auto rhs = operands[1];
+
+    if (!lhs || !rhs) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(lhs) && isScalar(rhs)) {
+      if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) >= getScalarIntegerLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) >= getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) >= getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) >= getScalarIntegerLikeValue(rhs)));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
+  // LtOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult LtOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto lhs = operands[0];
+    auto rhs = operands[1];
+
+    if (!lhs || !rhs) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(lhs) && isScalar(rhs)) {
+      if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) < getScalarIntegerLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) < getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) < getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) < getScalarIntegerLikeValue(rhs)));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
+  // LteOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult LteOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto lhs = operands[0];
+    auto rhs = operands[1];
+
+    if (!lhs || !rhs) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(lhs) && isScalar(rhs)) {
+      if (isScalarIntegerLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) <= getScalarIntegerLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) <= getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarIntegerLike(lhs) && isScalarFloatLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarIntegerLikeValue(lhs) <= getScalarFloatLikeValue(rhs)));
+      }
+
+      if (isScalarFloatLike(lhs) && isScalarIntegerLike(rhs)) {
+        return getAttr(resultType, static_cast<int64_t>(getScalarFloatLikeValue(lhs) <= getScalarIntegerLikeValue(rhs)));
+      }
+    }
+
+    return {};
   }
 }
