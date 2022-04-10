@@ -1,5 +1,5 @@
 set(SHARED_SOURCES
-		d2fixed.cpp
+		DoubleToFixed.cpp
 		Nostdlib.cpp
 		Fdlibm.cpp
 		BuiltInFunctions.cpp
