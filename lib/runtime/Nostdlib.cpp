@@ -1,4 +1,3 @@
-#ifdef WINDOWS_NOSTDLIB
 #include "marco/runtime/Printing.h"
 
 #include <cstddef> // to define std::size_t
@@ -8,6 +7,33 @@
 // The following code is needed to substitute the c library outside the runtime
 // library, by the executable compiled by marco.
 ///////////////////////////////////////////////////////////////////////////////////
+
+// The following three functions are needed for a dll without stdlib to be
+// compiled against on Windows.
+
+BOOL WINAPI DllMain(
+    HINSTANCE hinstDLL,
+    DWORD fdwReason,
+    LPVOID lpReserved)
+{
+    return TRUE;
+}
+
+extern "C" BOOL WINAPI DllMainCRTStartup(
+	HINSTANCE hinstDLL,
+	DWORD fdwReason,
+	LPVOID lpvReserved)
+{
+	return TRUE;
+}
+
+extern "C" BOOL WINAPI _DllMainCRTStartup(
+    HINSTANCE hinstDLL,
+    DWORD fdwReason,
+    LPVOID lpvReserved)
+{
+  return TRUE;
+}
 
 extern "C" int printf(const char* format, ...)
 {
@@ -152,5 +178,3 @@ void* memset(void* s, int c,  size_t len)
 	}
     return s;
 }
-
-#endif // WINDOWS_NOSTDLIB

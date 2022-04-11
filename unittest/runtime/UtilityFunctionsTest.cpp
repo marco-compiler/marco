@@ -453,7 +453,6 @@ TEST(Runtime, print_int64)
 	NAME_MANGLED(print, void, int64_t)(1.0);
 }
 
-// Broken for now due to memset segfault
 TEST(Runtime, print_array_double)
 {
 	std::array<double, 6> array = { 1, 2, 3, 4, 5, 6 };
