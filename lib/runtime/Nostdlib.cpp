@@ -1,3 +1,5 @@
+#ifdef WINDOWS_NOSTDLIB
+
 #include "marco/runtime/Printing.h"
 
 #include <cstddef> // to define std::size_t
@@ -178,3 +180,5 @@ void* memset(void* s, int c,  size_t len)
 	}
     return s;
 }
+
+#endif // WINDOWS_NOSTDLIB
