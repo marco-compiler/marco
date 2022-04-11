@@ -441,6 +441,26 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
+  // ResidualFunctionOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::BlockArgument ResidualFunctionOp::getTime()
+  {
+    return bodyRegion().getArgument(0);
+  }
+
+  llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getVariables()
+  {
+    size_t numVariables = bodyRegion().getNumArguments() - 1 - equationRank().getSExtValue();
+    return bodyRegion().getArguments().slice(1, numVariables);
+  }
+
+  llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getEquationIndices()
+  {
+    return bodyRegion().getArguments().take_back(equationRank().getSExtValue());
+  }
+
+  //===----------------------------------------------------------------------===//
   // JacobianFunctionOp
   //===----------------------------------------------------------------------===//
 

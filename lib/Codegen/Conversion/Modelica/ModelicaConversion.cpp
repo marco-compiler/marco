@@ -6,6 +6,8 @@
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Transforms/DialectConversion.h"
 
+#include "llvm/Support/Debug.h"
+
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
@@ -3493,10 +3495,14 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 
     void runOnOperation() override
     {
+      //llvm::DebugFlag = true;
+
       if (mlir::failed(convertOperations())) {
         mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations");
         return signalPassFailure();
       }
+
+      getOperation().dump();
     }
 
 	private:

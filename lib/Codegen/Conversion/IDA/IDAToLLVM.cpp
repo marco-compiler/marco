@@ -10,6 +10,8 @@
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "llvm/ADT/Optional.h"
 
+#include "llvm/Support/Debug.h"
+
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::ida;
@@ -311,8 +313,8 @@ namespace
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
-      mlir::Value equationRangesPtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
-      equationRangesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, equationRangesPtr);
+      mlir::Value equationRangesOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value equationRangesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, equationRangesOpaquePtr);
       newOperands.push_back(equationRangesPtr);
 
       // Populate the equation ranges
@@ -352,6 +354,10 @@ namespace
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
+      // Deallocate the ranges array
+      auto heapFreeFn = lookupOrCreateHeapFreeFn(op->getParentOfType<mlir::ModuleOp>());
+      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, equationRangesOpaquePtr, getVoidType())[0];
+
       return mlir::success();
     }
   };
@@ -380,8 +386,8 @@ namespace
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
-      mlir::Value arrayDimensionsPtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
-      arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsPtr);
+      mlir::Value arrayDimensionsOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsOpaquePtr);
       newOperands.push_back(arrayDimensionsPtr);
 
       // Populate the dimensions list
@@ -419,6 +425,10 @@ namespace
           functionName, resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+
+      // Deallocate the dimensions array
+      auto heapFreeFn = lookupOrCreateHeapFreeFn(op->getParentOfType<mlir::ModuleOp>());
+      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, arrayDimensionsOpaquePtr, getVoidType())[0];
 
       return mlir::success();
     }
@@ -465,8 +475,8 @@ namespace
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
-      mlir::Value accessesPtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
-      accessesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, accessesPtr);
+      mlir::Value accessesOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value accessesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, accessesOpaquePtr);
       newOperands.push_back(accessesPtr);
 
       // Populate the equation ranges
@@ -500,6 +510,10 @@ namespace
           functionName, getVoidType(), newOperands);
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+
+      // Deallocate the accesses array
+      auto heapFreeFn = lookupOrCreateHeapFreeFn(op->getParentOfType<mlir::ModuleOp>());
+      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, accessesOpaquePtr, getVoidType())[0];
 
       return mlir::success();
     }
@@ -575,6 +589,159 @@ namespace
     }
   };
 
+  struct ResidualFunctionOpLowering : public IDAOpConversion<ResidualFunctionOp>
+  {
+    using IDAOpConversion<ResidualFunctionOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(ResidualFunctionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      mlir::SmallVector<mlir::Type, 3> argsTypes;
+      mlir::SmallVector<mlir::Type, 1> resultsTypes;
+
+      argsTypes.push_back(op.getTime().getType());
+      argsTypes.push_back(getVoidPtrType());
+      argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(getTypeConverter()->getIndexType()));
+
+      resultsTypes.push_back(op.getType().getResult(0));
+
+      auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
+
+      auto newOp = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.name(), functionType);
+      mlir::Block* entryBlock = newOp.addEntryBlock();
+      rewriter.setInsertionPointToStart(entryBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      // Map the time variable
+      mapping.map(op.getTime(), newOp.getArgument(0));
+
+      // The lowered function will receive a pointer to the array of variables.
+      assert(!op.getVariables().empty());
+
+      assert(llvm::all_of(op.getVariables(), [&](const auto& var) {
+        // Check that all the variables have the same type, in order to avoid
+        // weird runtime errors.
+        return var.getType() == op.getVariables()[0].getType();
+      }));
+
+      mlir::Type variableType = op.getVariables()[0].getType();
+      auto variablesPtrType = mlir::LLVM::LLVMPointerType::get(variableType);
+
+      mlir::Value variablesPtr = newOp.getArgument(1);
+      variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), variablesPtrType, variablesPtr);
+
+      for (auto variable : llvm::enumerate(op.getVariables())) {
+        mlir::Value index = rewriter.create<mlir::ConstantOp>(variablesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), variable.index()));
+        mlir::Value variablePtr = rewriter.create<mlir::LLVM::GEPOp>(variablesPtr.getLoc(), variablesPtr.getType(), variablesPtr, index);
+        mlir::Value mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(variablePtr.getLoc(), variablePtr);
+        mapping.map(variable.value(), mappedVariable);
+      }
+
+      // The equation indices are also passed through an array
+      mlir::Value equationIndicesPtr = newOp.getArgument(2);
+
+      for (auto equationIndex : llvm::enumerate(op.getEquationIndices())) {
+        mlir::Value index = rewriter.create<mlir::ConstantOp>(equationIndicesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), equationIndex.index()));
+        mlir::Value equationIndexPtr = rewriter.create<mlir::LLVM::GEPOp>(equationIndicesPtr.getLoc(), equationIndicesPtr.getType(), equationIndicesPtr, index);
+        mlir::Value mappedEquationIndex = rewriter.create<mlir::LLVM::LoadOp>(equationIndexPtr.getLoc(), equationIndexPtr);
+        mapping.map(equationIndex.value(), mappedEquationIndex);
+      }
+
+      // Clone the original operations
+      assert(op.bodyRegion().getBlocks().size() == 1);
+
+      for (auto& bodyOp : op.bodyRegion().getOps()) {
+        rewriter.clone(bodyOp, mapping);
+      }
+
+      return mlir::success();
+    }
+  };
+
+  struct JacobianFunctionOpLowering : public IDAOpConversion<JacobianFunctionOp>
+  {
+    using IDAOpConversion<JacobianFunctionOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(JacobianFunctionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      mlir::SmallVector<mlir::Type, 5> argsTypes;
+      mlir::SmallVector<mlir::Type, 1> resultsTypes;
+
+      argsTypes.push_back(op.getTime().getType());
+      argsTypes.push_back(getVoidPtrType());
+      argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(getTypeConverter()->getIndexType()));
+      argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(getTypeConverter()->getIndexType()));
+      argsTypes.push_back(op.getAlpha().getType());
+
+      resultsTypes.push_back(op.getType().getResult(0));
+
+      auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
+
+      auto newOp = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.name(), functionType);
+      mlir::Block* entryBlock = newOp.addEntryBlock();
+      rewriter.setInsertionPointToStart(entryBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      // Map the "time" variable
+      mapping.map(op.getTime(), newOp.getArgument(0));
+
+      // The lowered function will receive a pointer to the array of variables.
+      assert(!op.getVariables().empty());
+
+      assert(llvm::all_of(op.getVariables(), [&](const auto& var) {
+        // Check that all the variables have the same type, in order to avoid
+        // weird runtime errors.
+        return var.getType() == op.getVariables()[0].getType();
+      }));
+
+      mlir::Type variableType = op.getVariables()[0].getType();
+      auto variablesPtrType = mlir::LLVM::LLVMPointerType::get(variableType);
+
+      mlir::Value variablesPtr = newOp.getArgument(1);
+      variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), variablesPtrType, variablesPtr);
+
+      for (auto variable : llvm::enumerate(op.getVariables())) {
+        mlir::Value index = rewriter.create<mlir::ConstantOp>(variablesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), variable.index()));
+        mlir::Value variablePtr = rewriter.create<mlir::LLVM::GEPOp>(variablesPtr.getLoc(), variablesPtr.getType(), variablesPtr, index);
+        mlir::Value mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(variablePtr.getLoc(), variablePtr);
+        mapping.map(variable.value(), mappedVariable);
+      }
+
+      // The equation indices are also passed through an array
+      mlir::Value equationIndicesPtr = newOp.getArgument(2);
+
+      for (auto equationIndex : llvm::enumerate(op.getEquationIndices())) {
+        mlir::Value index = rewriter.create<mlir::ConstantOp>(equationIndicesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), equationIndex.index()));
+        mlir::Value equationIndexPtr = rewriter.create<mlir::LLVM::GEPOp>(equationIndicesPtr.getLoc(), equationIndicesPtr.getType(), equationIndicesPtr, index);
+        mlir::Value mappedEquationIndex = rewriter.create<mlir::LLVM::LoadOp>(equationIndexPtr.getLoc(), equationIndexPtr);
+        mapping.map(equationIndex.value(), mappedEquationIndex);
+      }
+
+      // The variable indices are also passed through an array
+      mlir::Value variableIndicesPtr = newOp.getArgument(3);
+
+      for (auto variableIndex : llvm::enumerate(op.getVariableIndices())) {
+        mlir::Value index = rewriter.create<mlir::ConstantOp>(equationIndicesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), variableIndex.index()));
+        mlir::Value variableIndexPtr = rewriter.create<mlir::LLVM::GEPOp>(variableIndicesPtr.getLoc(), variableIndicesPtr.getType(), variableIndicesPtr, index);
+        mlir::Value mappedVariableIndex = rewriter.create<mlir::LLVM::LoadOp>(variableIndexPtr.getLoc(), variableIndexPtr);
+        mapping.map(variableIndex.value(), mappedVariableIndex);
+      }
+
+      // Add the "alpha" variable
+      mapping.map(op.getAlpha(), newOp.getArgument(4));
+
+      // Clone the original operations
+      assert(op.bodyRegion().getBlocks().size() == 1);
+
+      for (auto& bodyOp : op.bodyRegion().getOps()) {
+        rewriter.clone(bodyOp, mapping);
+      }
+
+      return mlir::success();
+    }
+  };
+
   struct ReturnOpLowering : public IDAOpConversion<ReturnOp>
   {
     using IDAOpConversion<ReturnOp>::IDAOpConversion;
@@ -582,6 +749,110 @@ namespace
     mlir::LogicalResult matchAndRewrite(ReturnOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
       rewriter.replaceOpWithNewOp<mlir::ReturnOp>(op, operands);
+      return mlir::success();
+    }
+  };
+
+  struct AddResidualOpLowering : public IDAOpConversion<AddResidualOp>
+  {
+    using IDAOpConversion<AddResidualOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(AddResidualOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      RuntimeFunctionsMangling mangling;
+
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+      auto function = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.function());
+
+      if (!function) {
+        return rewriter.notifyMatchFailure(op, "Residual function " + op.function().str() + " not found");
+      }
+
+      mlir::Value functionAddress = rewriter.create<mlir::LLVM::AddressOfOp>(loc, function);
+      functionAddress = rewriter.create<mlir::LLVM::BitcastOp>(loc, getVoidPtrType(), functionAddress);
+
+      // Call the runtime library
+      auto mangledResultType = mangling.getVoidType();
+
+      assert(operands.size() == 2);
+      llvm::SmallVector<mlir::Value, 2> newOperands;
+      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+
+      // IDA instance
+      newOperands.push_back(operands[0]);
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Equation indices
+      newOperands.push_back(operands[1]);
+      mangledArgsTypes.push_back(mangling.getIntegerType(newOperands[1].getType().getIntOrFloatBitWidth()));
+
+      // Residual function address
+      newOperands.push_back(functionAddress);
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      auto functionName = mangling.getMangledFunction("idaAddResidual", mangledResultType, mangledArgsTypes);
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          functionName, getVoidType(), newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+      return mlir::success();
+    }
+  };
+
+  struct AddJacobianOpLowering : public IDAOpConversion<AddJacobianOp>
+  {
+    using IDAOpConversion<AddJacobianOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(AddJacobianOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      RuntimeFunctionsMangling mangling;
+
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+      auto function = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.function());
+
+      if (!function) {
+        return rewriter.notifyMatchFailure(op, "Jacobian function " + op.function().str() + " not found");
+      }
+
+      mlir::Value functionAddress = rewriter.create<mlir::LLVM::AddressOfOp>(loc, function);
+      functionAddress = rewriter.create<mlir::LLVM::BitcastOp>(loc, getVoidPtrType(), functionAddress);
+
+      // Call the runtime library
+      auto mangledResultType = mangling.getVoidType();
+
+      assert(operands.size() == 3);
+      llvm::SmallVector<mlir::Value, 3> newOperands;
+      llvm::SmallVector<std::string, 3> mangledArgsTypes;
+
+      // IDA instance
+      newOperands.push_back(operands[0]);
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Equation indices
+      newOperands.push_back(operands[1]);
+      mangledArgsTypes.push_back(mangling.getIntegerType(newOperands[1].getType().getIntOrFloatBitWidth()));
+
+      // Variable indices
+      newOperands.push_back(operands[2]);
+      mangledArgsTypes.push_back(mangling.getIntegerType(newOperands[2].getType().getIntOrFloatBitWidth()));
+
+      // Jacobian function address
+      newOperands.push_back(functionAddress);
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      auto functionName = mangling.getMangledFunction("idaAddJacobian", mangledResultType, mangledArgsTypes);
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          functionName, getVoidType(), newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
       return mlir::success();
     }
   };
@@ -625,9 +896,9 @@ namespace
 
       assert(operands.size() == 1);
       llvm::SmallVector<mlir::Value, 2> newOperands;
-      newOperands.push_back(operands[0]);
-
       llvm::SmallVector<std::string, 2> mangledArgsTypes;
+
+      newOperands.push_back(operands[0]);
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       if (auto timeStep = op.timeStep(); timeStep.hasValue()) {
@@ -700,6 +971,16 @@ namespace
   };
 }
 
+static void populateIDAResidualAndJacobianConversionPatterns(
+    mlir::OwningRewritePatternList& patterns,
+    mlir::ida::TypeConverter& typeConverter,
+    unsigned int bitWidth)
+{
+  patterns.insert<
+      ResidualFunctionOpLowering,
+      JacobianFunctionOpLowering>(typeConverter, bitWidth);
+}
+
 static void populateIDAConversionPatterns(
     mlir::OwningRewritePatternList& patterns,
     mlir::ida::TypeConverter& typeConverter,
@@ -718,6 +999,8 @@ static void populateIDAConversionPatterns(
       GetVariableOpLowering,
       GetDerivativeOpLowering,
       ReturnOpLowering,
+      AddResidualOpLowering,
+      AddJacobianOpLowering,
       InitOpLowering,
       StepOpLowering,
       FreeOpLowering,
@@ -737,8 +1020,19 @@ namespace marco::codegen
 
       void runOnOperation() override
       {
+        // Convert the Residual and Jacobian functions.
+        // This must be done first and as an independent step, as other operations within
+        // the IDA dialect will need the addresses of such functions when being converted.
+
+        if (mlir::failed(convertResidualAndJacobianFunctions())) {
+          mlir::emitError(getOperation().getLoc(), "Error in converting the Residual and Jacobian functions");
+          return signalPassFailure();
+        }
+
+        // Convert the rest of the IDA dialect.
+
         if (mlir::failed(convertOperations())) {
-          mlir::emitError(getOperation().getLoc(), "Error in converting the IDA operations\n");
+          mlir::emitError(getOperation().getLoc(), "Error in converting the IDA operations");
           return signalPassFailure();
         }
 
@@ -746,6 +1040,34 @@ namespace marco::codegen
       }
 
     private:
+      mlir::LogicalResult convertResidualAndJacobianFunctions()
+      {
+        auto module = getOperation();
+        mlir::ConversionTarget target(getContext());
+
+        target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+        target.addIllegalOp<mlir::FuncOp>();
+
+        target.addIllegalOp<ResidualFunctionOp, JacobianFunctionOp>();
+
+        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+          return true;
+        });
+
+        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+
+        mlir::OwningRewritePatternList patterns(&getContext());
+        populateIDAResidualAndJacobianConversionPatterns(patterns, typeConverter, 64);
+        mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
+
+        if (auto status = applyPartialConversion(module, target, std::move(patterns)); mlir::failed(status)) {
+          return status;
+        }
+
+        return mlir::success();
+      }
+
       mlir::LogicalResult convertOperations()
       {
         auto module = getOperation();
@@ -754,7 +1076,6 @@ namespace marco::codegen
         target.addIllegalDialect<mlir::ida::IDADialect>();
         target.addIllegalDialect<mlir::StandardOpsDialect>();
         target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-        target.addIllegalOp<mlir::FuncOp>();
 
         target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
           return true;
@@ -836,7 +1157,7 @@ namespace
 
   struct ConvertGetCurrentTimeOpTypes : public mlir::OpConversionPattern<GetCurrentTimeOp>
   {
-    using OpConversionPattern::OpConversionPattern;
+    using mlir::OpConversionPattern<GetCurrentTimeOp>::OpConversionPattern;
 
     mlir::LogicalResult matchAndRewrite(GetCurrentTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
@@ -848,6 +1169,136 @@ namespace
       }
 
       rewriter.replaceOp(op, newOp->getResults());
+      return mlir::success();
+    }
+  };
+
+  struct ResidualFunctionOpTypes : public mlir::OpConversionPattern<ResidualFunctionOp>
+  {
+    using mlir::OpConversionPattern<ResidualFunctionOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(ResidualFunctionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      mlir::Type timeType = getTypeConverter()->convertType(op.getTime().getType());
+
+      llvm::SmallVector<mlir::Type> variablesTypes;
+
+      for (auto variable : op.getVariables()) {
+        variablesTypes.push_back(getTypeConverter()->convertType(variable.getType()));
+      }
+
+      mlir::Type differenceType = getTypeConverter()->convertType(op.getType().getResult(0));
+
+      auto newOp = rewriter.replaceOpWithNewOp<ResidualFunctionOp>(
+          op, op.name(), timeType, variablesTypes, op.equationRank().getSExtValue(), differenceType);
+
+      mlir::Block* entryBlock = newOp.addEntryBlock();
+      rewriter.setInsertionPointToStart(entryBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      for (const auto& [original, cloned] : llvm::zip(op.getBody().getArguments(), newOp.getBody().getArguments())) {
+        mapping.map(original, cloned);
+      }
+
+      auto castArgFn = [&](mlir::Value originalArg) {
+        auto castedClonedArg = getTypeConverter()->materializeSourceConversion(
+            rewriter, originalArg.getLoc(), originalArg.getType(), mapping.lookup(originalArg));
+
+        mapping.map(originalArg, castedClonedArg);
+      };
+
+      castArgFn(op.getTime());
+
+      for (auto variable : op.getVariables()) {
+        castArgFn(variable);
+      }
+
+      assert(op.getBody().getBlocks().size() == 1);
+
+      for (auto& bodyOp : op.getBody().getOps()) {
+        if (auto returnOp = mlir::dyn_cast<ReturnOp>(bodyOp)) {
+          std::vector<mlir::Value> returnValues;
+
+          for (auto returnValue : returnOp.operands()) {
+            returnValues.push_back(getTypeConverter()->materializeTargetConversion(
+                rewriter, returnOp.getLoc(), differenceType, mapping.lookup(returnValue)));
+          }
+
+          rewriter.create<ReturnOp>(returnOp.getLoc(), returnValues);
+        } else {
+          rewriter.clone(bodyOp, mapping);
+        }
+      }
+
+      return mlir::success();
+    }
+  };
+
+  struct JacobianFunctionOpTypes : public mlir::OpConversionPattern<JacobianFunctionOp>
+  {
+    using mlir::OpConversionPattern<JacobianFunctionOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(JacobianFunctionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      mlir::Type timeType = getTypeConverter()->convertType(op.getTime().getType());
+
+      llvm::SmallVector<mlir::Type> variablesTypes;
+
+      for (auto variable : op.getVariables()) {
+        variablesTypes.push_back(getTypeConverter()->convertType(variable.getType()));
+      }
+
+      mlir::Type alphaType = getTypeConverter()->convertType(op.getAlpha().getType());
+      mlir::Type resultType = getTypeConverter()->convertType(op.getType().getResult(0));
+
+      auto newOp = rewriter.replaceOpWithNewOp<JacobianFunctionOp>(
+          op, op.name(), timeType, variablesTypes,
+          op.equationRank().getSExtValue(),
+          op.variableRank().getSExtValue(),
+          alphaType, resultType);
+
+      mlir::Block* entryBlock = newOp.addEntryBlock();
+      rewriter.setInsertionPointToStart(entryBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      for (const auto& [original, cloned] : llvm::zip(op.getBody().getArguments(), newOp.getBody().getArguments())) {
+        mapping.map(original, cloned);
+      }
+
+      auto castArgFn = [&](mlir::Value originalArg) {
+        auto castedClonedArg = getTypeConverter()->materializeSourceConversion(
+            rewriter, originalArg.getLoc(), originalArg.getType(), mapping.lookup(originalArg));
+
+        mapping.map(originalArg, castedClonedArg);
+      };
+
+      castArgFn(op.getTime());
+
+      for (auto variable : op.getVariables()) {
+        castArgFn(variable);
+      }
+
+      castArgFn(op.getAlpha());
+
+      assert(op.getBody().getBlocks().size() == 1);
+
+      for (auto& bodyOp : op.getBody().getOps()) {
+        if (auto returnOp = mlir::dyn_cast<ReturnOp>(bodyOp)) {
+          std::vector<mlir::Value> returnValues;
+
+          for (auto returnValue : returnOp.operands()) {
+            returnValues.push_back(getTypeConverter()->materializeTargetConversion(
+                rewriter, returnOp.getLoc(), resultType, mapping.lookup(returnValue)));
+          }
+
+          rewriter.create<ReturnOp>(returnOp.getLoc(), returnValues);
+        } else {
+          rewriter.clone(bodyOp, mapping);
+        }
+      }
+
       return mlir::success();
     }
   };
@@ -883,6 +1334,10 @@ namespace marco::codegen
 
     patterns.add<ConvertGetCurrentTimeOpTypes>(typeConverter, patterns.getContext());
 
+    patterns.add<
+        ResidualFunctionOpTypes,
+        JacobianFunctionOpTypes>(typeConverter, patterns.getContext());
+
     target.addDynamicallyLegalOp<GetVariableOp>([&](mlir::Operation *op) {
       return typeConverter.isLegal(op);
     });
@@ -893,6 +1348,46 @@ namespace marco::codegen
 
     target.addDynamicallyLegalOp<GetCurrentTimeOp>([&](mlir::Operation *op) {
       return typeConverter.isLegal(op);
+    });
+
+    target.addDynamicallyLegalOp<ResidualFunctionOp>([&](ResidualFunctionOp op) {
+      if (!typeConverter.isLegal(op.getTime().getType())) {
+        return false;
+      }
+
+      for (auto variable : op.getVariables()) {
+        if (!typeConverter.isLegal(variable.getType())) {
+          return false;
+        }
+      }
+
+      if (!typeConverter.isLegal(op.getType().getResult(0))) {
+        return false;
+      }
+
+      return true;
+    });
+
+    target.addDynamicallyLegalOp<JacobianFunctionOp>([&](JacobianFunctionOp op) {
+      if (!typeConverter.isLegal(op.getTime().getType())) {
+        return false;
+      }
+
+      for (auto variable : op.getVariables()) {
+        if (!typeConverter.isLegal(variable.getType())) {
+          return false;
+        }
+      }
+
+      if (!typeConverter.isLegal(op.getAlpha().getType())) {
+        return false;
+      }
+
+      if (!typeConverter.isLegal(op.getType().getResult(0))) {
+        return false;
+      }
+
+      return true;
     });
   }
 }

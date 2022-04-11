@@ -464,7 +464,8 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttr:$type);
+        TypeAttr:$type,
+        IndexAttr:$equationRank);
 
     let results = (outs);
 
@@ -473,7 +474,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     );
 
     let builders = [
-        OpBuilder<(ins "StringRef":$sym_name, "Type":$timeType, "TypeRange":$variablesTypes, "size_t":$inductionVariablesAmount, "Type":$differenceType), [{
+        OpBuilder<(ins "StringRef":$sym_name, "Type":$timeType, "TypeRange":$variablesTypes, "size_t":$equationRank, "Type":$differenceType), [{
             auto nameAttr = $_builder.getStringAttr(sym_name);
 
             SmallVector<Type, 3> args;
@@ -484,21 +485,29 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
                 args.push_back(variableType);
             }
 
-            for (size_t i = 0; i < inductionVariablesAmount; ++i) {
+            for (size_t i = 0; i < equationRank; ++i) {
                 args.push_back($_builder.getIndexType());
             }
 
             auto functionType = $_builder.getFunctionType(args, differenceType);
             auto typeAttr = TypeAttr::get(functionType);
-            build($_builder, $_state, nameAttr, typeAttr);
+            build($_builder, $_state, nameAttr, typeAttr, $_builder.getIndexAttr(equationRank));
         }]>
     ];
 
     let extraClassDeclaration = [{
         public:
+            llvm::StringRef name() {
+                return sym_name();
+            }
+
             FunctionType getType() {
                 return getTypeAttr().getValue().cast<FunctionType>();
             }
+
+            BlockArgument getTime();
+            ArrayRef<BlockArgument> getVariables();
+            ArrayRef<BlockArgument> getEquationIndices();
 
             //===------------------------------------------------------------------===//
             // FunctionOpInterface Methods
@@ -637,6 +646,10 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 
     let extraClassDeclaration = [{
         public:
+            llvm::StringRef name() {
+                return sym_name();
+            }
+
             BlockArgument getTime();
             ArrayRef<BlockArgument> getVariables();
             ArrayRef<BlockArgument> getEquationIndices();

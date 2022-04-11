@@ -20,9 +20,7 @@ namespace marco::codegen
         double startTime,
         double doubleEndTime,
         double relativeTolerance,
-        double absoluteTolerance,
-        std::function<mlir::LLVM::LLVMPointerType()> runtimeDataStructPtrFn,
-        std::function<mlir::Value(mlir::OpBuilder&, mlir::Value, unsigned int)> runtimeDataVariableExtractFn);
+        double absoluteTolerance);
 
       bool isEnabled() const override;
 
@@ -122,6 +120,12 @@ namespace marco::codegen
           mlir::ValueRange equationVariables,
           llvm::StringRef templateName);
 
+      mlir::modelica::FunctionOp createPartialDerTemplateFromEquation(
+          mlir::OpBuilder& builder,
+          const marco::codegen::Equation& equation,
+          mlir::ValueRange originalVariables,
+          llvm::StringRef templateName);
+
       mlir::LogicalResult createJacobianFunction(
           mlir::OpBuilder& builder,
           const Equation& equation,
@@ -131,6 +135,8 @@ namespace marco::codegen
           mlir::Value independentVariable,
           llvm::StringRef partialDerTemplateName);
 
+      std::vector<mlir::Value> filterByManagedVariables(mlir::ValueRange variables) const;
+
     private:
       bool enabled;
 
@@ -138,9 +144,6 @@ namespace marco::codegen
       const double endTime;
       const double relativeTolerance;
       const double absoluteTolerance;
-
-      std::function<mlir::LLVM::LLVMPointerType()> runtimeDataStructPtrFn;
-      std::function<mlir::Value(mlir::OpBuilder&, mlir::Value, unsigned int)> runtimeDataVariableExtractFn;
 
       /// The variables of the model that are managed by IDA.
       /// The SSA values are the ones defined by the body of the ModelOp.

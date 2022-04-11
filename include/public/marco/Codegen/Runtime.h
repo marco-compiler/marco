@@ -28,6 +28,8 @@ namespace marco::codegen
   };
 
   mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::ModuleOp moduleOp, mlir::Type indexType);
+
+  mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::ModuleOp moduleOp);
 }
 
 #endif // MARCO_CODEGEN_RUNTIME_H

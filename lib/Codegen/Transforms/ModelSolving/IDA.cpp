@@ -11,121 +11,6 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static FunctionOp createPartialDerTemplateFromEquation(
-    mlir::OpBuilder& builder,
-    const Equation& equation,
-    mlir::ValueRange originalVariables,
-    llvm::StringRef templateName)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToEnd(equation.getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
-  auto loc = equation.getOperation().getLoc();
-
-  std::string functionOpName = templateName.str() + "_base";
-
-  // The arguments of the base function contain both the variables and the inductions
-  llvm::SmallVector<mlir::Type, 6> argsTypes;
-
-  for (auto type : originalVariables.getTypes()) {
-    argsTypes.push_back(type);
-  }
-
-  for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
-    argsTypes.push_back(builder.getIndexType());
-  }
-
-  // Create the function to be derived
-  auto functionOp = builder.create<FunctionOp>(
-      loc,
-      functionOpName,
-      builder.getFunctionType(argsTypes, RealType::get(builder.getContext())));
-
-  // Start the body of the function
-  mlir::Block* entryBlock = builder.createBlock(&functionOp.body());
-  builder.setInsertionPointToStart(entryBlock);
-
-  // Create the input members and map them to the original variables (and inductions)
-  mlir::BlockAndValueMapping mapping;
-
-  for (auto originalVar : llvm::enumerate(originalVariables)) {
-    auto memberType = MemberType::wrap(originalVar.value().getType(), false, IOProperty::input);
-    auto memberOp = builder.create<MemberCreateOp>(loc, "var" + std::to_string(originalVar.index()), memberType, llvm::None);
-    mapping.map(originalVar.value(), memberOp);
-  }
-
-  llvm::SmallVector<mlir::Value, 3> inductions;
-
-  for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
-    auto memberType = MemberType::wrap(builder.getIndexType(), false, IOProperty::input);
-    auto memberOp = builder.create<MemberCreateOp>(loc, "ind" + std::to_string(i), memberType, llvm::None);
-    inductions.push_back(memberOp);
-  }
-
-  // Create the output member, that is the difference between its equation right-hand side value and its
-  // left-hand side value.
-  auto originalTerminator = mlir::cast<EquationSidesOp>(equation.getOperation().bodyBlock()->getTerminator());
-  assert(originalTerminator.lhsValues().size() == 1);
-  assert(originalTerminator.rhsValues().size() == 1);
-
-  auto outputMember = builder.create<MemberCreateOp>(
-      loc, "out",
-      MemberType::wrap(RealType::get(builder.getContext()), false, IOProperty::output),
-      llvm::None);
-
-  // Now that all the members have been created, we can load the input members and the inductions
-  for (auto originalVar : originalVariables) {
-    auto mappedVar = builder.create<MemberLoadOp>(loc, mapping.lookup(originalVar));
-    mapping.map(originalVar, mappedVar);
-  }
-
-  for (auto& induction : inductions) {
-    induction = builder.create<MemberLoadOp>(loc, induction);
-  }
-
-  auto explicitEquationInductions = equation.getInductionVariables();
-
-  for (const auto& originalInduction : llvm::enumerate(explicitEquationInductions)) {
-    assert(originalInduction.index() < inductions.size());
-    mapping.map(originalInduction.value(), inductions[originalInduction.index()]);
-  }
-
-  // Clone the original operations
-  for (auto& op : equation.getOperation().bodyBlock()->getOperations()) {
-    builder.clone(op, mapping);
-  }
-
-  auto terminator = mlir::cast<EquationSidesOp>(functionOp.bodyBlock()->getTerminator());
-  assert(terminator.lhsValues().size() == 1);
-  assert(terminator.rhsValues().size() == 1);
-
-  mlir::Value lhs = terminator.lhsValues()[0];
-  mlir::Value rhs = terminator.rhsValues()[0];
-
-  if (auto arrayType = lhs.getType().dyn_cast<ArrayType>()) {
-    assert(rhs.getType().isa<ArrayType>());
-    assert(arrayType.getRank() + explicitEquationInductions.size() == inductions.size());
-    auto implicitInductions = llvm::makeArrayRef(inductions).take_back(arrayType.getRank());
-
-    lhs = builder.create<LoadOp>(loc, lhs, implicitInductions);
-    rhs = builder.create<LoadOp>(loc, rhs, implicitInductions);
-  }
-
-  auto result = builder.create<SubOp>(loc, RealType::get(builder.getContext()), rhs, lhs);
-  builder.create<MemberStoreOp>(loc, outputMember, result);
-
-  auto lhsOp = terminator.lhs().getDefiningOp<EquationSideOp>();
-  auto rhsOp = terminator.rhs().getDefiningOp<EquationSideOp>();
-  terminator.erase();
-  lhsOp.erase();
-  rhsOp.erase();
-
-  // Create the derivative template
-  ForwardAD forwardAD;
-  auto derTemplate = forwardAD.createPartialDerTemplateFunction(builder, loc, functionOp, templateName);
-  functionOp.erase();
-  return derTemplate;
-}
-
 namespace marco::codegen
 {
   IDASolver::IDASolver(
@@ -317,12 +202,10 @@ namespace marco::codegen
       return res;
     }
 
-    /*
     // Add the equations to IDA
     if (auto res = addEquationsToIDA(builder, runtimeDataPtr, model, derivatives); mlir::failed(res)) {
       return res;
     }
-     */
 
     // Initialize the IDA instance
     builder.create<mlir::ida::InitOp>(initFunction.getLoc(), idaInstance);
@@ -624,11 +507,21 @@ namespace marco::codegen
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(equation.getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
 
+    // Pass only the variables that are managed by IDA
+    auto filteredOriginalVariables = filterByManagedVariables(variables);
+
+    std::vector<mlir::Type> unsizedFilteredVariables;
+
+    for (auto variable : filteredOriginalVariables) {
+      unsizedFilteredVariables.push_back(variable.getType().cast<ArrayType>().toUnsized());
+    }
+
+    // Create the residual function
     auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
         equation.getOperation().getLoc(),
         residualFunctionName,
         RealType::get(builder.getContext()),
-        variables.getTypes(),
+        unsizedFilteredVariables,
         equation.getNumOfIterationVars(),
         RealType::get(builder.getContext()));
 
@@ -639,16 +532,17 @@ namespace marco::codegen
     mlir::BlockAndValueMapping mapping;
 
     // Map the model variables
-    auto mappedVars = residualFunction.getArguments().slice(1, variables.size());
-    assert(variables.size() == mappedVars.size());
+    auto mappedVars = residualFunction.getVariables();
+    assert(filteredOriginalVariables.size() == mappedVars.size());
 
-    for (const auto& [original, mapped] : llvm::zip(variables, mappedVars)) {
-      mapping.map(original, mapped);
+    for (const auto& [original, mapped] : llvm::zip(filteredOriginalVariables, mappedVars)) {
+      auto sizedMappedVar = builder.create<ArrayCastOp>(mapped.getLoc(), original.getType(), mapped);
+      mapping.map(original, sizedMappedVar);
     }
 
     // Map the iteration variables
     auto originalInductions = equation.getInductionVariables();
-    auto mappedInductions = residualFunction.getArguments().slice(1 + variables.size());
+    auto mappedInductions = residualFunction.getEquationIndices();
     assert(originalInductions.size() == mappedInductions.size());
 
     for (const auto& [original, mapped] : llvm::zip(originalInductions, mappedInductions)) {
@@ -742,6 +636,124 @@ namespace marco::codegen
     return mlir::success();
   }
 
+  FunctionOp IDASolver::createPartialDerTemplateFromEquation(
+      mlir::OpBuilder& builder,
+      const Equation& equation,
+      mlir::ValueRange originalVariables,
+      llvm::StringRef templateName)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToEnd(equation.getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
+    auto loc = equation.getOperation().getLoc();
+
+    std::string functionOpName = templateName.str() + "_base";
+
+    // Pass only the variables that are managed by IDA
+    auto filteredOriginalVariables = filterByManagedVariables(originalVariables);
+
+    // The arguments of the base function contain both the variables and the inductions
+    llvm::SmallVector<mlir::Type, 6> argsTypes;
+
+    for (auto type : mlir::ValueRange(filteredOriginalVariables).getTypes()) {
+      argsTypes.push_back(type);
+    }
+
+    for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
+      argsTypes.push_back(builder.getIndexType());
+    }
+
+    // Create the function to be derived
+    auto functionOp = builder.create<FunctionOp>(
+        loc,
+        functionOpName,
+        builder.getFunctionType(argsTypes, RealType::get(builder.getContext())));
+
+    // Start the body of the function
+    mlir::Block* entryBlock = builder.createBlock(&functionOp.body());
+    builder.setInsertionPointToStart(entryBlock);
+
+    // Create the input members and map them to the original variables (and inductions)
+    mlir::BlockAndValueMapping mapping;
+
+    for (auto originalVar : llvm::enumerate(filteredOriginalVariables)) {
+      auto memberType = MemberType::wrap(originalVar.value().getType(), false, IOProperty::input);
+      auto memberOp = builder.create<MemberCreateOp>(loc, "var" + std::to_string(originalVar.index()), memberType, llvm::None);
+      mapping.map(originalVar.value(), memberOp);
+    }
+
+    llvm::SmallVector<mlir::Value, 3> inductions;
+
+    for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
+      auto memberType = MemberType::wrap(builder.getIndexType(), false, IOProperty::input);
+      auto memberOp = builder.create<MemberCreateOp>(loc, "ind" + std::to_string(i), memberType, llvm::None);
+      inductions.push_back(memberOp);
+    }
+
+    // Create the output member, that is the difference between its equation right-hand side value and its
+    // left-hand side value.
+    auto originalTerminator = mlir::cast<EquationSidesOp>(equation.getOperation().bodyBlock()->getTerminator());
+    assert(originalTerminator.lhsValues().size() == 1);
+    assert(originalTerminator.rhsValues().size() == 1);
+
+    auto outputMember = builder.create<MemberCreateOp>(
+        loc, "out",
+        MemberType::wrap(RealType::get(builder.getContext()), false, IOProperty::output),
+        llvm::None);
+
+    // Now that all the members have been created, we can load the input members and the inductions
+    for (auto originalVar : filteredOriginalVariables) {
+      auto mappedVar = builder.create<MemberLoadOp>(loc, mapping.lookup(originalVar));
+      mapping.map(originalVar, mappedVar);
+    }
+
+    for (auto& induction : inductions) {
+      induction = builder.create<MemberLoadOp>(loc, induction);
+    }
+
+    auto explicitEquationInductions = equation.getInductionVariables();
+
+    for (const auto& originalInduction : llvm::enumerate(explicitEquationInductions)) {
+      assert(originalInduction.index() < inductions.size());
+      mapping.map(originalInduction.value(), inductions[originalInduction.index()]);
+    }
+
+    // Clone the original operations
+    for (auto& op : equation.getOperation().bodyBlock()->getOperations()) {
+      builder.clone(op, mapping);
+    }
+
+    auto terminator = mlir::cast<EquationSidesOp>(functionOp.bodyBlock()->getTerminator());
+    assert(terminator.lhsValues().size() == 1);
+    assert(terminator.rhsValues().size() == 1);
+
+    mlir::Value lhs = terminator.lhsValues()[0];
+    mlir::Value rhs = terminator.rhsValues()[0];
+
+    if (auto arrayType = lhs.getType().dyn_cast<ArrayType>()) {
+      assert(rhs.getType().isa<ArrayType>());
+      assert(arrayType.getRank() + explicitEquationInductions.size() == inductions.size());
+      auto implicitInductions = llvm::makeArrayRef(inductions).take_back(arrayType.getRank());
+
+      lhs = builder.create<LoadOp>(loc, lhs, implicitInductions);
+      rhs = builder.create<LoadOp>(loc, rhs, implicitInductions);
+    }
+
+    auto result = builder.create<SubOp>(loc, RealType::get(builder.getContext()), rhs, lhs);
+    builder.create<MemberStoreOp>(loc, outputMember, result);
+
+    auto lhsOp = terminator.lhs().getDefiningOp<EquationSideOp>();
+    auto rhsOp = terminator.rhs().getDefiningOp<EquationSideOp>();
+    terminator.erase();
+    lhsOp.erase();
+    rhsOp.erase();
+
+    // Create the derivative template
+    ForwardAD forwardAD;
+    auto derTemplate = forwardAD.createPartialDerTemplateFunction(builder, loc, functionOp, templateName);
+    functionOp.erase();
+    return derTemplate;
+  }
+
   mlir::LogicalResult IDASolver::createJacobianFunction(
       mlir::OpBuilder& builder,
       const Equation& equation,
@@ -754,11 +766,20 @@ namespace marco::codegen
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToEnd(equation.getOperation()->getParentOfType<mlir::ModuleOp>().getBody());
 
+    // Pass only the variables that are managed by IDA
+    auto filteredOriginalVariables = filterByManagedVariables(equationVariables);
+
+    std::vector<mlir::Type> unsizedFilteredVariables;
+
+    for (auto variable : filteredOriginalVariables) {
+      unsizedFilteredVariables.push_back(variable.getType().cast<ArrayType>().toUnsized());
+    }
+
     auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
         equation.getOperation().getLoc(),
         jacobianFunctionName,
         RealType::get(builder.getContext()),
-        equationVariables.getTypes(),
+        unsizedFilteredVariables,
         equation.getNumOfIterationVars(),
         independentVariable.getType().cast<ArrayType>().getRank(),
         RealType::get(builder.getContext()),
@@ -774,8 +795,8 @@ namespace marco::codegen
 
     args.push_back(jacobianFunction.getTime());
 
-    for (auto var : jacobianFunction.getVariables()) {
-      args.push_back(var);
+    for (const auto& [var, sizedType] : llvm::zip(jacobianFunction.getVariables(), mlir::ValueRange(filteredOriginalVariables).getTypes())) {
+      args.push_back(builder.create<ArrayCastOp>(var.getLoc(), sizedType, var));
     }
 
     for (auto equationIndex : jacobianFunction.getEquationIndices()) {
@@ -792,8 +813,8 @@ namespace marco::codegen
     mlir::Value zero = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 0));
     mlir::Value one = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 1));
 
-    for (auto var : llvm::enumerate(jacobianFunction.getVariables())) {
-      if (auto arrayType = var.value().getType().dyn_cast<ArrayType>()) {
+    for (auto varType : llvm::enumerate(mlir::ValueRange(filteredOriginalVariables).getTypes())) {
+      if (auto arrayType = varType.value().dyn_cast<ArrayType>()) {
         assert(arrayType.hasConstantShape());
 
         auto array = builder.create<AllocOp>(
@@ -805,16 +826,16 @@ namespace marco::codegen
 
         builder.create<ArrayFillOp>(jacobianFunction.getLoc(), array, zero);
 
-        if (var.index() == oneSeedPosition) {
+        if (varType.index() == oneSeedPosition) {
           builder.create<StoreOp>(jacobianFunction.getLoc(), one, array, jacobianFunction.getVariableIndices());
-        } else if (var.index() == alphaSeedPosition) {
+        } else if (varType.index() == alphaSeedPosition) {
           builder.create<StoreOp>(jacobianFunction.getLoc(), jacobianFunction.getAlpha(), array, jacobianFunction.getVariableIndices());
         }
 
       } else {
-        if (var.index() == oneSeedPosition) {
+        if (varType.index() == oneSeedPosition) {
           args.push_back(one);
-        } else if (var.index() == alphaSeedPosition) {
+        } else if (varType.index() == alphaSeedPosition) {
           args.push_back(jacobianFunction.getAlpha());
         } else {
           args.push_back(zero);
@@ -901,5 +922,22 @@ namespace marco::codegen
     }
 
     return mlir::success();
+  }
+
+  std::vector<mlir::Value> IDASolver::filterByManagedVariables(mlir::ValueRange variables) const
+  {
+    std::vector<mlir::Value> result;
+    result.resize(managedVariables.size());
+
+    for (auto variable : managedVariables) {
+      auto variableIndex = variable.cast<mlir::BlockArgument>().getArgNumber();
+      auto mappedPositionIt = mappedVariables.find(variableIndex);
+      assert(mappedPositionIt != mappedVariables.end());
+      auto mappedPosition = mappedPositionIt->second;
+      assert(mappedPosition < result.size());
+      result[mappedPosition] = variable;
+    }
+
+    return result;
   }
 }

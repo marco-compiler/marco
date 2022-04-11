@@ -792,13 +792,12 @@ RUNTIME_FUNC_DEF(idaAddVariable, int64_t, PTR(void), PTR(int64_t), int64_t, bool
 
 /// Add a variable access to the var-th variable, where ind is the induction
 /// variable and off is the access offset.
-template<typename T>
 static void idaAddVariableAccess_void(
     void* userData,
-    T equationIndex,
-    T variableIndex,
-    T* access,
-    T rank)
+    int64_t equationIndex,
+    int64_t variableIndex,
+    int64_t* access,
+    int64_t rank)
 {
   IDAUserData* data = static_cast<IDAUserData*>(userData);
 
@@ -807,14 +806,16 @@ static void idaAddVariableAccess_void(
   assert(variableIndex >= 0);
   assert((size_t) variableIndex < data->variableDimensions.size());
 
-  if (data->variableAccesses.size() <= (size_t) equationIndex)
+  if (data->variableAccesses.size() <= (size_t) equationIndex) {
     data->variableAccesses.resize(equationIndex + 1);
+  }
 
-  VarAccessList& varAccessList = data->variableAccesses[equationIndex];
+  auto& varAccessList = data->variableAccesses[equationIndex];
   varAccessList.push_back({variableIndex, {}});
 
   size_t numElements = rank * 2;
-  for (size_t i = 0; i < numElements; ++i) {
+
+  for (size_t i = 0; i < numElements; i += 2) {
     varAccessList.back().second.push_back({access[i], access[i + 1]});
   }
 }

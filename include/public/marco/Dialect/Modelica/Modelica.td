@@ -205,7 +205,7 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
         ```
     }];
 
-    let arguments = (ins AnyArray:$source);
+    let arguments = (ins AnyType:$source);
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
@@ -968,6 +968,8 @@ def Modelica_EqOp : Modelica_ComparisonOp<"eq", [Commutative]>
         %2 = modelica.eq %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
         ```
     }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative]>
@@ -985,6 +987,8 @@ def Modelica_NotEqOp : Modelica_ComparisonOp<"neq", [Commutative]>
         %2 = modelica.neq %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
         ```
     }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_GtOp : Modelica_ComparisonOp<"gt", []>
@@ -1002,6 +1006,8 @@ def Modelica_GtOp : Modelica_ComparisonOp<"gt", []>
         %2 = modelica.gt %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
         ```
     }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_GteOp : Modelica_ComparisonOp<"gte", []>
@@ -1019,6 +1025,8 @@ def Modelica_GteOp : Modelica_ComparisonOp<"gte", []>
         %2 = modelica.gte %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
         ```
     }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_LtOp : Modelica_ComparisonOp<"lt", []>
@@ -1036,6 +1044,8 @@ def Modelica_LtOp : Modelica_ComparisonOp<"lt", []>
         %2 = modelica.lt %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
         ```
     }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_LteOp : Modelica_ComparisonOp<"lte", []>
@@ -1052,6 +1062,8 @@ def Modelica_LteOp : Modelica_ComparisonOp<"lte", []>
         %2 = modelica.lte %0, %1 : (!modelica.int, !modelica.real) -> !modelica.bool
         ```
     }];
+
+    let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1093,6 +1105,7 @@ def Modelica_NotOp : Modelica_Op<"not",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_AndOp : Modelica_Op<"and",
@@ -1133,6 +1146,7 @@ def Modelica_AndOp : Modelica_Op<"and",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 def Modelica_OrOp : Modelica_Op<"or",
@@ -1173,6 +1187,7 @@ def Modelica_OrOp : Modelica_Op<"or",
     }];
 
     let verifier = [{ return ::verify(*this); }];
+    let hasFolder = 1;
 }
 
 //===----------------------------------------------------------------------===//

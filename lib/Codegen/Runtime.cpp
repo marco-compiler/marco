@@ -63,4 +63,21 @@ namespace marco::codegen
         moduleOp, functionName, indexType,
         mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(moduleOp->getContext(), 8)));
   }
+
+  mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::ModuleOp moduleOp)
+  {
+    RuntimeFunctionsMangling mangling;
+
+    auto mangledReturnType = mangling.getVoidType();
+
+    llvm::SmallVector<std::string, 1> mangledArgsTypes;
+    mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+    auto functionName = mangling.getMangledFunction("heapFree", mangledReturnType, mangledArgsTypes);
+
+    return mlir::LLVM::lookupOrCreateFn(
+        moduleOp, functionName,
+        mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(moduleOp->getContext(), 8)),
+        mlir::LLVM::LLVMVoidType::get(moduleOp->getContext()));
+  }
 }

@@ -261,14 +261,12 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createIDAConversionPass());
 
-    /*
     passManager.addPass(codegen::createUnrealizedCastReconciliationPass());
 
     if (!codegenOptions.debug) {
       // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
-     */
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(

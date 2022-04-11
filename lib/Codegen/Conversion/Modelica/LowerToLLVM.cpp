@@ -10,8 +10,6 @@
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "mlir/Support/MathExtras.h"
 
-#include "llvm/Support/Debug.h"
-
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
@@ -159,44 +157,6 @@ class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
 		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
 	}
 };
-/*
-struct GetVariableAllocOpLowering : public AllocLikeOpLowering<ida::GetVariableAllocOp>
-{
-	using AllocLikeOpLowering<ida::GetVariableAllocOp>::AllocLikeOpLowering;
-
-	ArrayType getResultType(ida::GetVariableAllocOp op) const override
-	{
-		return op.resultType();
-	}
-
-	mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, ida::GetVariableAllocOp op, mlir::Value sizeBytes) const override
-	{
-		// Insert the "getVariableAlloc" declaration if it is not already present in the module.
-		auto getVarAllocFunc = lookupOrCreategetVariableAllocFn(rewriter, op);
-
-		// Return the pointer to the buffer already allocated by IDA.
-		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
-		auto results = createLLVMCall(rewriter, loc, getVarAllocFunc, op.args(), getVoidPtrType());
-		return rewriter.create<mlir::LLVM::BitcastOp>(loc, bufferPtrType, results[0]);
-	}
-
-	mlir::LLVM::LLVMFuncOp lookupOrCreategetVariableAllocFn(mlir::OpBuilder& builder, ida::GetVariableAllocOp op) const
-	{
-		mlir::IntegerType intType = convertType(op.offset().getType()).cast<mlir::IntegerType>();
-		std::string name = "_MgetVariableAlloc_pvoid_pvoid_i" + std::to_string(intType.getWidth()) + "_i1";
-
-		mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
-		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name))
-			return foo;
-
-		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
-		builder.setInsertionPointToStart(module.getBody());
-		llvm::SmallVector<mlir::Type, 3> fnArgs = { getVoidPtrType(), intType, builder.getI1Type() };
-		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidPtrType(), fnArgs);
-		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
-	}
-};
- */
 
 class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 {
@@ -537,17 +497,12 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 	mlir::LogicalResult matchAndRewrite(ArrayCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location loc = op->getLoc();
+		auto loc = op->getLoc();
 		Adaptor transformed(operands);
 		mlir::Type source = op.source().getType();
 		auto destination = op.getResult().getType();
 
 		if (source.isa<ArrayType>()) {
-			if (auto resultType = destination.dyn_cast<ArrayType>()) {
-				rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, resultType, op.source());
-				return mlir::success();
-			}
-
 			if (auto resultType = destination.dyn_cast<UnsizedArrayType>()) {
 				ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.source());
 
@@ -571,6 +526,25 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 				return mlir::success();
 			}
 		}
+
+    if (source.isa<UnsizedArrayType>()) {
+      if (auto resultType = destination.dyn_cast<ArrayType>()) {
+        UnsizedArrayDescriptor sourceDescriptor(transformed.source());
+
+        mlir::Value arrayDescriptorPtr = sourceDescriptor.getPtr(rewriter, loc);
+
+        arrayDescriptorPtr = rewriter.create<mlir::LLVM::BitcastOp>(
+            loc,
+            mlir::LLVM::LLVMPointerType::get(getTypeConverter()->convertType(resultType)),
+            arrayDescriptorPtr);
+
+        mlir::Value arrayDescriptor = rewriter.create<mlir::LLVM::LoadOp>(loc, arrayDescriptorPtr);
+        arrayDescriptor = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, arrayDescriptor);
+        rewriter.replaceOp(op, arrayDescriptor);
+
+        return mlir::success();
+      }
+    }
 
 		return rewriter.notifyMatchFailure(op, "Unknown conversion");
 	}
