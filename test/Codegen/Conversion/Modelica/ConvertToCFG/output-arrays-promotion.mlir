@@ -9,9 +9,9 @@
 // CHECK: return %[[Y]] : !modelica.array<?x!modelica.int>
 
 modelica.function @callee : () -> (!modelica.array<3x!modelica.int>, !modelica.array<?x!modelica.int>) {
-    %0 = modelica.member_create {name = "x"} : !modelica.member<3x!modelica.int, output>
+    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int, output>
     %1 = constant 2 : index
-    %2 = modelica.member_create %1 {name = "y"} : !modelica.member<?x!modelica.int, output>
+    %2 = modelica.member_create @y %1 : !modelica.member<?x!modelica.int, output>
 }
 
 // CHECK-LABEL: @caller
