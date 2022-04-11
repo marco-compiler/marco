@@ -128,7 +128,7 @@ namespace marco::codegen
     // Create the external solvers
     ExternalSolvers solvers;
 
-    auto ida = std::make_unique<IDASolver>(typeConverter, 0, 10, 10e-6, 10e-6);
+    auto ida = std::make_unique<IDASolver>(typeConverter, derivatives, 0, 10, 10e-6, 10e-6);
     //ida->setEnabled(false);
 
     ConversionInfo conversionInfo;
@@ -171,12 +171,21 @@ namespace marco::codegen
       ida->addEquation(cyclicEquation);
     }
 
+    // Add the differential equations (i.e. the ones matched with a derivative) to the set
+    // of equations managed by IDA, together with their written variables.
+    auto inverseDerivatives = derivatives.getInverse();
+
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (auto& scheduledEquation : *scheduledBlock) {
         auto var = scheduledEquation->getWrite().getVariable();
 
-        if (derivatives.contains(var->getValue())) {
+        if (auto stateVariable = inverseDerivatives.lookupOrNull(var->getValue())) {
+          // State variable
+          ida->addVariable(stateVariable);
+
+          // Derivative
           ida->addVariable(var->getValue());
+
           ida->addEquation(scheduledEquation.get());
         }
       }
@@ -581,7 +590,7 @@ namespace marco::codegen
 
       mlir::Value solverDataPtr = externalSolverDataPtrs[solver.index()];
 
-      if (auto res = solver.value()->processInitFunction(builder, solverDataPtr, function, values, model, derivatives); mlir::failed(res)) {
+      if (auto res = solver.value()->processInitFunction(builder, solverDataPtr, function, values, model); mlir::failed(res)) {
         return res;
       }
     }
@@ -930,7 +939,7 @@ namespace marco::codegen
 
       auto requestedTimeStep = modelOp.timeStep().convertToDouble();
 
-      if (auto res = solver.value()->processUpdateStatesFunction(builder, solverDataPtr, function, variables, derivatives, requestedTimeStep); mlir::failed(res)) {
+      if (auto res = solver.value()->processUpdateStatesFunction(builder, solverDataPtr, function, variables, requestedTimeStep); mlir::failed(res)) {
         return res;
       }
     }

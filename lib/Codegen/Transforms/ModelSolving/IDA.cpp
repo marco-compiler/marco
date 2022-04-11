@@ -15,11 +15,13 @@ namespace marco::codegen
 {
   IDASolver::IDASolver(
       mlir::TypeConverter* typeConverter,
+      const mlir::BlockAndValueMapping& derivatives,
       double startTime,
       double endTime,
       double relativeTolerance,
       double absoluteTolerance)
     : ExternalSolver(typeConverter),
+      derivatives(&derivatives),
       enabled(true),
       startTime(startTime),
       endTime(endTime),
@@ -168,8 +170,7 @@ namespace marco::codegen
       mlir::Value runtimeDataPtr,
       mlir::FuncOp initFunction,
       mlir::ValueRange variables,
-      const Model<ScheduledEquationsBlock>& model,
-      const mlir::BlockAndValueMapping& derivatives)
+      const Model<ScheduledEquationsBlock>& model)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto terminator = mlir::cast<mlir::ReturnOp>(initFunction.getBody().back().getTerminator());
@@ -198,12 +199,12 @@ namespace marco::codegen
     storeRuntimeData(builder, runtimeDataPtr, runtimeData);
 
     // Add the variables to IDA
-    if (auto res = addVariablesToIDA(builder, runtimeDataPtr, variables, derivatives); mlir::failed(res)) {
+    if (auto res = addVariablesToIDA(builder, runtimeDataPtr, variables); mlir::failed(res)) {
       return res;
     }
 
     // Add the equations to IDA
-    if (auto res = addEquationsToIDA(builder, runtimeDataPtr, model, derivatives); mlir::failed(res)) {
+    if (auto res = addEquationsToIDA(builder, runtimeDataPtr, model); mlir::failed(res)) {
       return res;
     }
 
@@ -216,13 +217,12 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::addVariablesToIDA(
       mlir::OpBuilder& builder,
       mlir::Value runtimeDataPtr,
-      mlir::ValueRange variables,
-      const mlir::BlockAndValueMapping& derivatives)
+      mlir::ValueRange variables)
   {
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
     mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
 
-    mlir::BlockAndValueMapping inverseDerivatives = derivatives.getInverse();
+    mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();
 
     // Declare the variables and their derivatives inside IDA
     unsigned int idaVariableIndex = 0;
@@ -233,7 +233,7 @@ namespace marco::codegen
       auto arrayType = variable.getType().cast<ArrayType>();
       assert(arrayType.hasConstantShape());
 
-      if (derivatives.contains(variable)) {
+      if (derivatives->contains(variable)) {
         // State variable
         mlir::Value idaVariable = builder.create<mlir::ida::AddVariableOp>(
             variable.getLoc(),
@@ -244,7 +244,7 @@ namespace marco::codegen
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
 
         mappedVariables[variableIndex] = idaVariableIndex;
-        mlir::Value derivative = derivatives.lookup(variable);
+        mlir::Value derivative = derivatives->lookup(variable);
         auto derivativeIndex = derivative.cast<mlir::BlockArgument>().getArgNumber();
         mappedVariables[derivativeIndex] = idaVariableIndex;
 
@@ -281,6 +281,7 @@ namespace marco::codegen
       mlir::Value idaVariable = getIDAVariable(builder, runtimeData, mappedVariables[variableIndex]);
 
       if (inverseDerivatives.contains(variable)) {
+        // If the variable is a derivative
         auto castedVariable = builder.create<mlir::ida::GetDerivativeOp>(
             idaVariable.getLoc(), arrayType, idaInstance, idaVariable);
 
@@ -301,8 +302,7 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::addEquationsToIDA(
       mlir::OpBuilder& builder,
       mlir::Value runtimeDataPtr,
-      const Model<ScheduledEquationsBlock>& model,
-      const mlir::BlockAndValueMapping& derivatives)
+      const Model<ScheduledEquationsBlock>& model)
   {
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
     mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
@@ -395,7 +395,7 @@ namespace marco::codegen
       processedEquations.pop();
     }
 
-    mlir::BlockAndValueMapping inverseDerivatives = derivatives.getInverse();
+    mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();
     auto equationVariables = model.getOperation().bodyRegion().getArguments();
 
     size_t residualFunctionsCounter = 0;
@@ -441,12 +441,14 @@ namespace marco::codegen
         auto variableIndex = variable.cast<mlir::BlockArgument>().getArgNumber();
 
         if (inverseDerivatives.contains(variable)) {
+          // If the variable is a derivative, then skip the creation of the Jacobian functions
+          // because it is already done when encountering the state variable.
           continue;
         }
 
         auto jacobianFunctionName = "jacobianFunction" + std::to_string(jacobianFunctionsCounter++);
 
-        if (auto res = createJacobianFunction(builder, *equation, equationVariables, derivatives, jacobianFunctionName, variable, partialDerTemplateName); mlir::failed(res)) {
+        if (auto res = createJacobianFunction(builder, *equation, equationVariables, jacobianFunctionName, variable, partialDerTemplateName); mlir::failed(res)) {
           return res;
         }
 
@@ -758,7 +760,6 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       const Equation& equation,
       mlir::ValueRange equationVariables,
-      const mlir::BlockAndValueMapping& derivatives,
       llvm::StringRef jacobianFunctionName,
       mlir::Value independentVariable,
       llvm::StringRef partialDerTemplateName)
@@ -806,8 +807,8 @@ namespace marco::codegen
     unsigned int oneSeedPosition = independentVariable.cast<mlir::BlockArgument>().getArgNumber();
     unsigned int alphaSeedPosition = jacobianFunction.getVariables().size();
 
-    if (derivatives.contains(independentVariable)) {
-      alphaSeedPosition = derivatives.lookup(independentVariable).cast<mlir::BlockArgument>().getArgNumber();
+    if (derivatives->contains(independentVariable)) {
+      alphaSeedPosition = derivatives->lookup(independentVariable).cast<mlir::BlockArgument>().getArgNumber();
     }
 
     mlir::Value zero = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 0));
@@ -878,7 +879,6 @@ namespace marco::codegen
       mlir::Value runtimeDataPtr,
       mlir::FuncOp updateStatesFunction,
       mlir::ValueRange variables,
-      const mlir::BlockAndValueMapping& derivatives,
       double requestedTimeStep)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -895,7 +895,7 @@ namespace marco::codegen
         builder.getF64FloatAttr(requestedTimeStep));
 
     // Copy back the values from IDA to MARCO
-    mlir::BlockAndValueMapping inverseDerivatives = derivatives.getInverse();
+    mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();
 
     for (const auto& variable : managedVariables) {
       auto variableIndex = variable.cast<mlir::BlockArgument>().getArgNumber();
@@ -927,16 +927,28 @@ namespace marco::codegen
   std::vector<mlir::Value> IDASolver::filterByManagedVariables(mlir::ValueRange variables) const
   {
     std::vector<mlir::Value> result;
-    result.resize(managedVariables.size());
+
+    std::vector<mlir::Value> filteredVariables;
+    std::vector<mlir::Value> filteredDerivatives;
+
+    mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();
 
     for (auto variable : managedVariables) {
+      if (inverseDerivatives.contains(variable)) {
+        continue;
+      }
+
       auto variableIndex = variable.cast<mlir::BlockArgument>().getArgNumber();
-      auto mappedPositionIt = mappedVariables.find(variableIndex);
-      assert(mappedPositionIt != mappedVariables.end());
-      auto mappedPosition = mappedPositionIt->second;
-      assert(mappedPosition < result.size());
-      result[mappedPosition] = variable;
+      filteredVariables.push_back(variables[variableIndex]);
+
+      if (auto derivative = derivatives->lookupOrNull(variable)) {
+        auto derivativeIndex = derivative.cast<mlir::BlockArgument>().getArgNumber();
+        filteredDerivatives.push_back(variables[derivativeIndex]);
+      }
     }
+
+    result.insert(result.end(), filteredVariables.begin(), filteredVariables.end());
+    result.insert(result.end(), filteredDerivatives.begin(), filteredDerivatives.end());
 
     return result;
   }

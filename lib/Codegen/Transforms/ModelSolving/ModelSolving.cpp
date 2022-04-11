@@ -190,6 +190,8 @@ namespace
           return signalPassFailure();
         }
 
+        module.dump();
+
         // Now that the additional variables have been created, we can start a discovery process
         model.setVariables(discoverVariables(model.getOperation()));
         model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));

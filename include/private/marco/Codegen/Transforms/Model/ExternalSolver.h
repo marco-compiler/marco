@@ -30,8 +30,7 @@ namespace marco::codegen
           mlir::Value runtimeDataPtr,
           mlir::FuncOp initFunction,
           mlir::ValueRange variables,
-          const Model<ScheduledEquationsBlock>& model,
-          const mlir::BlockAndValueMapping& derivatives) = 0;
+          const Model<ScheduledEquationsBlock>& model) = 0;
 
       virtual mlir::LogicalResult processDeinitFunction(
           mlir::OpBuilder& builder,
@@ -43,7 +42,6 @@ namespace marco::codegen
           mlir::Value runtimeDataPtr,
           mlir::FuncOp updateStatesFunction,
           mlir::ValueRange variables,
-          const mlir::BlockAndValueMapping& derivatives,
           double requestedTimeStep) = 0;
 
     protected:

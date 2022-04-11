@@ -17,6 +17,7 @@ namespace marco::codegen
     public:
       IDASolver(
         mlir::TypeConverter* typeConverter,
+        const mlir::BlockAndValueMapping& derivatives,
         double startTime,
         double doubleEndTime,
         double relativeTolerance,
@@ -43,8 +44,7 @@ namespace marco::codegen
           mlir::Value runtimeDataPtr,
           mlir::FuncOp initFunction,
           mlir::ValueRange variables,
-          const Model<ScheduledEquationsBlock>& model,
-          const mlir::BlockAndValueMapping& derivatives) override;
+          const Model<ScheduledEquationsBlock>& model) override;
 
       mlir::LogicalResult processDeinitFunction(
           mlir::OpBuilder& builder,
@@ -56,7 +56,6 @@ namespace marco::codegen
           mlir::Value runtimeDataPtr,
           mlir::FuncOp updateStatesFunction,
           mlir::ValueRange variables,
-          const mlir::BlockAndValueMapping& derivatives,
           double requestedTimeStep) override;
 
     private:
@@ -92,14 +91,12 @@ namespace marco::codegen
       mlir::LogicalResult addVariablesToIDA(
         mlir::OpBuilder& builder,
         mlir::Value runtimeDataPtr,
-        mlir::ValueRange variables,
-        const mlir::BlockAndValueMapping& derivatives);
+        mlir::ValueRange variables);
 
       mlir::LogicalResult addEquationsToIDA(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          const Model<ScheduledEquationsBlock>& model,
-          const mlir::BlockAndValueMapping& derivatives);
+          const Model<ScheduledEquationsBlock>& model);
 
       mlir::LogicalResult addVariableAccessesInfoToIDA(
           mlir::OpBuilder& builder,
@@ -130,7 +127,6 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           const Equation& equation,
           mlir::ValueRange equationVariables,
-          const mlir::BlockAndValueMapping& derivatives,
           llvm::StringRef jacobianFunctionName,
           mlir::Value independentVariable,
           llvm::StringRef partialDerTemplateName);
@@ -138,6 +134,8 @@ namespace marco::codegen
       std::vector<mlir::Value> filterByManagedVariables(mlir::ValueRange variables) const;
 
     private:
+      const mlir::BlockAndValueMapping* derivatives;
+
       bool enabled;
 
       const double startTime;
