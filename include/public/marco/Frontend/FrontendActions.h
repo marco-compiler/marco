@@ -9,6 +9,16 @@ namespace marco::frontend
   {
     public:
       void execute() override;
+
+    private:
+      llvm::raw_ostream& getOutputStream() const;
+
+      void printCategory(llvm::raw_ostream& os, llvm::StringRef category) const;
+
+      void printOption(llvm::raw_ostream& os, llvm::StringRef name, llvm::StringRef value);
+      void printOption(llvm::raw_ostream& os, llvm::StringRef name, bool value);
+      void printOption(llvm::raw_ostream& os, llvm::StringRef name, long value);
+      void printOption(llvm::raw_ostream& os, llvm::StringRef name, double value);
   };
 
   class EmitFlattenedAction : public FrontendAction
@@ -58,7 +68,19 @@ namespace marco::frontend
       void execute() override;
   };
 
-  class EmitObjectAction : public CodegenAction
+  class CompileAction : public CodegenAction
+  {
+    protected:
+      void compileAndEmitFile(llvm::CodeGenFileType fileType);
+  };
+
+  class EmitAssemblyAction : public CompileAction
+  {
+    public:
+      void execute() override;
+  };
+
+  class EmitObjectAction : public CompileAction
   {
     public:
       void execute() override;

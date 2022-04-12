@@ -3,25 +3,28 @@
 
 namespace marco::frontend
 {
+  /// Optimization level
   struct OptLevel
   {
-    unsigned int time = 2;
+    unsigned int time = 0;
     unsigned int size = 0;
   };
 
+  /// Code generation operations.
+  /// The default values are for compiling without optimizations.
   struct CodegenOptions
   {
-    bool debug = false;
+    OptLevel optLevel;
+
+    bool debug = true;
     bool assertions = true;
+    bool inlining = false;
+    bool outputArraysPromotion = false;
+    bool cse = false;
+    bool omp = false;
 
     bool generateMain = true;
-    bool inlining = true;
-    bool outputArraysPromotion = true;
-    bool cse = true;
-    bool omp = false;
     bool cWrappers = false;
-
-    OptLevel optLevel;
   };
 }
 

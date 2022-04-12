@@ -20,6 +20,7 @@ namespace marco::frontend
     EmitModelicaDialect,
     EmitLLVMDialect,
     EmitLLVMIR,
+    EmitAssembly,
     EmitObject
   };
 

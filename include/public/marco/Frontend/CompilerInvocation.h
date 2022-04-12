@@ -5,7 +5,6 @@
 #include "clang/Basic/DiagnosticOptions.h"
 #include "llvm/Option/ArgList.h"
 #include "marco/Frontend/CodegenOptions.h"
-#include "marco/Frontend/DialectOptions.h"
 #include "marco/Frontend/FrontendOptions.h"
 #include "marco/Frontend/SimulationOptions.h"
 #include <memory>
@@ -45,10 +44,6 @@ namespace marco::frontend
 
       const FrontendOptions& frontendOptions() const { return frontendOptions_; }
 
-      DialectOptions& dialectOptions() { return dialectOptions_; }
-
-      const DialectOptions& dialectOptions() const { return dialectOptions_; }
-
       CodegenOptions& codegenOptions() { return codegenOptions_; }
 
       const CodegenOptions& codegenOptions() const { return codegenOptions_; }
@@ -68,7 +63,6 @@ namespace marco::frontend
 
     private:
       FrontendOptions frontendOptions_;
-      DialectOptions dialectOptions_;
       CodegenOptions codegenOptions_;
       SimulationOptions simulationOptions_;
   };
