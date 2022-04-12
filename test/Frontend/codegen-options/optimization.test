@@ -1,0 +1,79 @@
+// RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
+
+// CHECK-DEFAULT-LABEL: [Code generation]
+// CHECK-DEFAULT-DAG: Time optimization level: 0
+// CHECK-DEFAULT-DAG: Size optimization level: 0
+// CHECK-DEFAULT-DAG: Debug information: true
+// CHECK-DEFAULT-DAG: Assertions: true
+// CHECK-DEFAULT-DAG: Output arrays promotion: false
+// CHECK-DEFAULT-DAG: CSE: false
+
+// RUN: marco-driver --init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
+
+// CHECK-O0-LABEL: [Code generation]
+// CHECK-O0-DAG: Time optimization level: 0
+// CHECK-O0-DAG: Size optimization level: 0
+// CHECK-O0-DAG: Debug information: true
+// CHECK-O0-DAG: Assertions: true
+// CHECK-O0-DAG: Output arrays promotion: false
+// CHECK-O0-DAG: CSE: false
+
+// RUN: marco-driver --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
+
+// CHECK-O1-LABEL: [Code generation]
+// CHECK-O1-DAG: Time optimization level: 1
+// CHECK-O1-DAG: Size optimization level: 0
+// CHECK-O1-DAG: Debug information: false
+// CHECK-O1-DAG: Assertions: true
+// CHECK-O1-DAG: Output arrays promotion: true
+// CHECK-O1-DAG: CSE: true
+
+// RUN: marco-driver --init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
+
+// CHECK-O2-LABEL: [Code generation]
+// CHECK-O2-DAG: Time optimization level: 2
+// CHECK-O2-DAG: Size optimization level: 0
+// CHECK-O2-DAG: Debug information: false
+// CHECK-O2-DAG: Assertions: false
+// CHECK-O2-DAG: Output arrays promotion: true
+// CHECK-O2-DAG: CSE: true
+
+// RUN: marco-driver --init-only -O3 | FileCheck %s --check-prefix="CHECK-O3"
+
+// CHECK-O3-LABEL: [Code generation]
+// CHECK-O3-DAG: Time optimization level: 3
+// CHECK-O3-DAG: Size optimization level: 0
+// CHECK-O3-DAG: Debug information: false
+// CHECK-O3-DAG: Assertions: false
+// CHECK-O3-DAG: Output arrays promotion: true
+// CHECK-O3-DAG: CSE: true
+
+// RUN: marco-driver --init-only -Ofast | FileCheck %s --check-prefix="CHECK-Ofast"
+
+// CHECK-Ofast-LABEL: [Code generation]
+// CHECK-Ofast-DAG: Time optimization level: 3
+// CHECK-Ofast-DAG: Size optimization level: 0
+// CHECK-Ofast-DAG: Debug information: false
+// CHECK-Ofast-DAG: Assertions: false
+// CHECK-Ofast-DAG: Output arrays promotion: true
+// CHECK-Ofast-DAG: CSE: true
+
+// RUN: marco-driver --init-only -Os | FileCheck %s --check-prefix="CHECK-Os"
+
+// CHECK-Os-LABEL: [Code generation]
+// CHECK-Os-DAG: Time optimization level: 0
+// CHECK-Os-DAG: Size optimization level: 1
+// CHECK-Os-DAG: Debug information: false
+// CHECK-Os-DAG: Assertions: true
+// CHECK-Os-DAG: Output arrays promotion: false
+// CHECK-Os-DAG: CSE: true
+
+// RUN: marco-driver --init-only -Oz | FileCheck %s --check-prefix="CHECK-Oz"
+
+// CHECK-Oz-LABEL: [Code generation]
+// CHECK-Oz-DAG: Time optimization level: 0
+// CHECK-Oz-DAG: Size optimization level: 2
+// CHECK-Oz-DAG: Debug information: false
+// CHECK-Oz-DAG: Assertions: false
+// CHECK-Oz-DAG: Output arrays promotion: false
+// CHECK-Oz-DAG: CSE: true

@@ -52,6 +52,10 @@ parse_args()
             COMPILE_ONLY="True"
             SHOULD_LINK="False"
             ;;
+          -S)
+            COMPILE_ONLY="True"
+            SHOULD_LINK="False"
+            ;;
           --init-only | --emit-flattened | --emit-ast | --emit-modelica-dialect | --emit-llvm-dialect | --emit-llvm-ir)
             SHOULD_LINK="False"
             ;;
@@ -142,7 +146,7 @@ main()
   fi
 
   if [[ $COMPILE_ONLY == "True" ]]; then
-    mv "$TEMPORARY_DIR/simulation.o" "$OUTPUT_FILE.o"
+    mv "$TEMPORARY_DIR/simulation.o" "$OUTPUT_FILE"
     cleanup
     exit 0
   fi

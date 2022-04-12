@@ -19,6 +19,54 @@ namespace marco::frontend
         "Use '-init-only' for testing purposes only");
 
     ci.getDiagnostics().Report(DiagID);
+
+    auto& os = llvm::outs();
+
+    const auto& codegenOptions = ci.getCodegenOptions();
+    printCategory(os, "Code generation");
+    printOption(os, "Time optimization level", static_cast<long>(codegenOptions.optLevel.time));
+    printOption(os, "Size optimization level", static_cast<long>(codegenOptions.optLevel.size));
+    printOption(os, "Debug information", codegenOptions.debug);
+    printOption(os, "Assertions", codegenOptions.assertions);
+    printOption(os, "Inlining", codegenOptions.inlining);
+    printOption(os, "Output arrays promotion", codegenOptions.outputArraysPromotion);
+    printOption(os, "CSE", codegenOptions.cse);
+    printOption(os, "OpenMP", codegenOptions.omp);
+    printOption(os, "Main function generation", codegenOptions.generateMain);
+    os << "\n";
+
+    const auto& simulationOptions = ci.getSimulationOptions();
+    printCategory(os, "Simulation");
+    printOption(os, "Model", simulationOptions.modelName);
+    printOption(os, "Start time", simulationOptions.startTime);
+    printOption(os, "End time", simulationOptions.endTime);
+    printOption(os, "Time step", simulationOptions.timeStep);
+    os << "\n";
+  }
+
+  void InitOnlyAction::printCategory(llvm::raw_ostream& os, llvm::StringRef category) const
+  {
+    os << "[" << category << "]\n";
+  }
+
+  void InitOnlyAction::printOption(llvm::raw_ostream& os, llvm::StringRef name, llvm::StringRef value)
+  {
+    os << " - " << name << ": " << value << "\n";
+  }
+
+  void InitOnlyAction::printOption(llvm::raw_ostream& os, llvm::StringRef name, bool value)
+  {
+    os << " - " << name << ": " << (value ? "true" : "false") << "\n";
+  }
+
+  void InitOnlyAction::printOption(llvm::raw_ostream& os, llvm::StringRef name, long value)
+  {
+    os << " - " << name << ": " << value << "\n";
+  }
+
+  void InitOnlyAction::printOption(llvm::raw_ostream& os, llvm::StringRef name, double value)
+  {
+    os << " - " << name << ": " << value << "\n";
   }
 
   bool EmitFlattenedAction::beginAction()
@@ -86,7 +134,7 @@ namespace marco::frontend
     llvm::outs() << instance().getLLVMModule();
   }
 
-  void EmitObjectAction::execute()
+  void CompileAction::compileAndEmitFile(llvm::CodeGenFileType fileType)
   {
     CompilerInstance& ci = instance();
 
@@ -119,7 +167,6 @@ namespace marco::frontend
     llvm::legacy::PassManager passManager;
 
     auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
-    auto fileType = llvm::CGFT_ObjectFile;
 
     if (targetMachine->addPassesToEmitFile(passManager, *os, nullptr, fileType)) {
       unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
@@ -131,5 +178,15 @@ namespace marco::frontend
     }
 
     passManager.run(ci.getLLVMModule());
+  }
+
+  void EmitAssemblyAction::execute()
+  {
+    compileAndEmitFile(llvm::CGFT_AssemblyFile);
+  }
+
+  void EmitObjectAction::execute()
+  {
+    compileAndEmitFile(llvm::CGFT_ObjectFile);
   }
 }

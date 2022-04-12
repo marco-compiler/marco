@@ -7,12 +7,6 @@
 // Include the common option parsing interfaces.
 include "llvm/Option/OptParser.td"
 
-/////////
-// Flags
-
-// MC1Option - This option should be accepted by clang -cc1.
-def MC1Option : OptionFlag;
-
 // A short name to show in documentation.
 class DocName<string name> { string DocName = name; }
 
@@ -23,52 +17,40 @@ class DocBrief<code descr> { code DocBrief = descr; }
 // documentation.
 class DocFlatten { bit DocFlatten = 1; }
 
-/////////
-// Groups
+//===----------------------------------------------------------------------===//
+// Flags
+//===----------------------------------------------------------------------===//
 
-def Action_Group : OptionGroup<"<action group>">,
+// MC1Option - This option should be accepted by clang -mc1.
+def MC1Option : OptionFlag;
+
+//===----------------------------------------------------------------------===//
+// Groups
+//===----------------------------------------------------------------------===//
+
+def Action_Group : OptionGroup<"Actions">,
     DocName<"Actions">,
     DocBrief<[{The action to perform on the input.}]>;
 
-def DebugInfo_Group : OptionGroup<"<g group>">,
+def DebugInfo_Group : OptionGroup<"Debug info">,
     DocName<"Debug information generation">,
     DocBrief<[{Flags controlling how much and what kind of debug information should be generated.}]>;
 
-def g_Group : OptionGroup<"<g group>">,
-    Group<DebugInfo_Group>,
-    DocName<"Kind and level of debug information">;
-
-def OpenModelica_Group : OptionGroup<"<omc group>">,
+def OpenModelica_Group : OptionGroup<"OMC">,
     DocName<"OpenModelica compiler">,
     DocBrief<[{Flags controlling the OpenModelica compiler.}]>;
 
-def omc_Group : OptionGroup<"<omc group>">,
-    Group<OpenModelica_Group>,
-    DocName<"OpenModelica compiler">;
-
-def Codegen_Group : OptionGroup<"<c group>">,
+def Codegen_Group : OptionGroup<"Code generation">,
     DocName<"Code generation">,
     DocBrief<[{Flags controlling the code generation and lowering processes.}]>;
 
-def c_Group : OptionGroup<"<c group>">,
-    Group<Codegen_Group>,
-    DocName<"Code generation and lowering">;
-
-def Simulation_Group : OptionGroup<"<s group>">,
+def Simulation_Group : OptionGroup<"Simulation">,
     DocName<"Simulation">,
     DocBrief<[{Flags controlling the simulation options.}]>;
 
-def s_Group : OptionGroup<"<s group>">,
-    Group<Simulation_Group>,
-    DocName<"Simulation options">;
-
-def Link_Group : OptionGroup<"<l group>">,
+def Link_Group : OptionGroup<"Linking">,
     DocName<"Linking">,
-    DocBrief<[{Flags controlling the link process.}]>;
-
-def l_Group : OptionGroup<"<l group>">,
-    Group<Link_Group>,
-    DocName<"Linking">;
+    DocBrief<[{Flags controlling the linking process.}]>;
 
 class FrontendOpts<string base>
     : KeyPathAndMacro<"FrontendOpts.", base, "FRONTEND_"> {}
@@ -158,7 +140,7 @@ class FlagDefExpanded<FlagDef flag, string prefix, string name, string spelling>
 class MarshalledFlagRec<FlagDefExpanded flag, FlagDefExpanded other,
                         FlagDefExpanded implied, KeyPathAndMacro kpm,
                         Default default>
-  : Flag<["-"], flag.Spelling>, Flags<flag.OptionFlags>, HelpText<flag.Help>,
+  : Flag<["--"], flag.Spelling>, Flags<flag.OptionFlags>, HelpText<flag.Help>,
     MarshallingInfoBooleanFlag<kpm, default.Value, flag.ValueAsCode,
                                flag.RecordName, other.ValueAsCode,
                                other.RecordName>,
@@ -168,8 +150,6 @@ class MarshalledFlagRec<FlagDefExpanded flag, FlagDefExpanded other,
 // key path via the marshalling infrastructure.
 // Names of the records consist of the specified prefix, "no_" for the negative
 // flag, and NAME.
-// Used for -cc1 frontend options. Driver-only options do not map to
-// CompilerInvocation.
 multiclass BoolOption<string prefix = "", string spelling_base,
                       KeyPathAndMacro kpm, Default default,
                       FlagDef flag1_base, FlagDef flag2_base,
@@ -198,8 +178,9 @@ multiclass BoolOption<string prefix = "", string spelling_base,
   def flag2.RecordName : MarshalledFlagRec<flag2, flag1, implied, kpm, default>;
 }
 
-/////////
+//===----------------------------------------------------------------------===//
 // Options
+//===----------------------------------------------------------------------===//
 
 def help : Flag<["--"], "help">,
     Flags<[MC1Option]>,
@@ -219,7 +200,7 @@ def o : JoinedOrSeparate<["-"], "o">,
 
 def debug : Flag<["-"], "g">,
     Flags<[MC1Option]>,
-    Group<g_Group>,
+    Group<DebugInfo_Group>,
     HelpText<"Generate source-level debug information">;
 
 def omc_path : Joined<["--"], "omc-path=">,
@@ -236,43 +217,43 @@ def omc_bypass : Flag<["--"], "omc-bypass">,
 
 defm assertions : BoolOption<"", "assertions",
     CodegenOpts<"Assertions">,
-    DefaultFalse,
+    DefaultTrue,
     PosFlag<SetTrue, [], "Generate">,
     NegFlag<SetFalse, [], "Don't generate">,
     BothFlags<[MC1Option], " assertions">>,
-    Group<c_Group>;
+    Group<Codegen_Group>;
 
 defm generate_main : BoolOption<"", "generate-main",
     CodegenOpts<"GenerateMain">,
     DefaultTrue,
     PosFlag<SetTrue, [], "Generate">,
     NegFlag<SetFalse, [], "Don't generate">,
-    BothFlags<[MC1Option], " the main function that starts and manages the simulation">>,
-    Group<c_Group>;
+    BothFlags<[MC1Option], " the main function that starts the simulation">>,
+    Group<Codegen_Group>;
 
-defm function_inlining : BoolOption<"", "function-inlining",
-    CodegenOpts<"FunctionInlining">,
-    DefaultTrue,
+defm function_inlining : BoolOption<"", "inlining",
+    CodegenOpts<"Inlining">,
+    DefaultFalse,
     PosFlag<SetTrue, [], "Inline functions when suggested by the annotations">,
     NegFlag<SetFalse, [], "Never inline functions">,
     BothFlags<[MC1Option], "">>,
-    Group<c_Group>;
+    Group<Codegen_Group>;
 
 defm output_arrays_promotion : BoolOption<"", "output-arrays-promotion",
     CodegenOpts<"OutputArraysPromotion">,
-    DefaultTrue,
+    DefaultFalse,
     PosFlag<SetTrue, [], "Convert">,
     NegFlag<SetFalse, [], "Don't convert">,
     BothFlags<[MC1Option], " output arrays into arguments to delegate the allocation to the caller">>,
-    Group<c_Group>;
+    Group<Codegen_Group>;
 
 defm cse : BoolOption<"", "cse",
     CodegenOpts<"CSE">,
-    DefaultTrue,
+    DefaultFalse,
     PosFlag<SetTrue, [], "Enable">,
     NegFlag<SetFalse, [], "Disable">,
     BothFlags<[MC1Option], " common subexpression elimination">>,
-    Group<c_Group>;
+    Group<Codegen_Group>;
 
 defm omp : BoolOption<"", "omp",
     CodegenOpts<"OpenMP">,
@@ -280,7 +261,7 @@ defm omp : BoolOption<"", "omp",
     PosFlag<SetTrue, [], "Enable OpenMP usage (experimental)">,
     NegFlag<SetFalse, [], "Disable OpenMP usage">,
     BothFlags<[MC1Option], "">>,
-    Group<c_Group>;
+    Group<Codegen_Group>;
 
 defm c_wrappers : BoolOption<"", "c-wrappers",
     CodegenOpts<"CWrappers">,
@@ -288,15 +269,15 @@ defm c_wrappers : BoolOption<"", "c-wrappers",
     PosFlag<SetTrue, [], "Generate">,
     NegFlag<SetFalse, [], "Don't generate">,
     BothFlags<[MC1Option], " the C wrappers">>,
-    Group<c_Group>;
+    Group<Codegen_Group>;
 
 def opt : Joined<["-"], "O">,
   Flags<[MC1Option]>,
   HelpText<"Set optimization level">,
-  Group<c_Group>;
+  Group<Codegen_Group>;
 
 def : Alias<opt>, AliasArgs<["0"]>,
-  HelpText<"Disable optimization">;
+  HelpText<"Disable optimizations">;
 
 def : Alias<opt>, AliasArgs<["1"]>,
   HelpText<"Optimize for speed">;
@@ -314,27 +295,27 @@ def : Alias<opt>, AliasArgs<["z"]>,
   HelpText<"Optimize for size">;
 
 def model : Joined<["--"], "model=">,
-    Group<s_Group>,
+    Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"Model name">;
 
 def start_time : Joined<["--"], "start-time=">,
-    Group<s_Group>,
+    Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"Start time of the simulation (in seconds)">;
 
 def end_time : Joined<["--"], "end-time=">,
-    Group<s_Group>,
+    Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"End time of the simulation (in seconds)">;
 
 def time_step : Joined<["--"], "time-step=">,
-    Group<s_Group>,
+    Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"Time step of the simulation (in seconds)">;
 
-def filter : Joined<["--"], "filter=">,
-    Group<s_Group>,
+def filter : Joined<["--"], "variable-filter=">,
+    Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"Filter for the variables to be printed">;
 
@@ -360,7 +341,7 @@ def emit_ast : Flag<["--"], "emit-ast">,
 def emit_final_ast : Flag<["--"], "emit-final-ast">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
-    HelpText<"Emit the final AST, after the frontend passes.">;
+    HelpText<"Emit the final AST, after the frontend passes">;
 
 def emit_modelica_dialect : Flag<["--"], "emit-modelica-dialect">,
     Flags<[MC1Option]>,
@@ -377,13 +358,17 @@ def emit_llvm_ir : Flag<["--"], "emit-llvm-ir">,
     Group<Action_Group>,
     HelpText<"Emit LLVM-IR">;
 
-// Used by the driver script to determine whether the link phase should take place.
-def compile_only : Flag<["-"], "c">,
+def compile_only : Flag<["-"], "S">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
-    HelpText<"Compile only">;
+    HelpText<"Compile only; do not assemble or link">;
+
+def compile_and_assemble_only : Flag<["-"], "c">,
+    Flags<[MC1Option]>,
+    Group<Action_Group>,
+    HelpText<"Compile and assemble, but do not link">;
 
 def libs_paths : Joined<["-"], "L">,
   Flags<[MC1Option]>,
-  HelpText<"Add directory to library search path">,
-  Group<l_Group>;
+  HelpText<"Add a directory to the library search paths list">,
+  Group<Link_Group>;

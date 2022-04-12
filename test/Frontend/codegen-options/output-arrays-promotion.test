@@ -1,0 +1,19 @@
+// RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
+
+// CHECK-DEFAULT-LABEL: [Code generation]
+// CHECK-DEFAULT-DAG: Output arrays promotion: false
+
+// RUN: marco-driver --init-only --output-arrays-promotion | FileCheck %s --check-prefix="CHECK-ENABLED"
+
+// CHECK-ENABLED-LABEL: [Code generation]
+// CHECK-ENABLED-DAG: Output arrays promotion: true
+
+// RUN: marco-driver --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
+
+// CHECK-O1-LABEL: [Code generation]
+// CHECK-O1-DAG: Output arrays promotion: true
+
+// RUN: marco-driver --init-only --no-output-arrays-promotion | FileCheck %s --check-prefix="CHECK-DISABLED-O1"
+
+// CHECK-DISABLED-O1-LABEL: [Code generation]
+// CHECK-DISABLED-O1-DAG: Output arrays promotion: false

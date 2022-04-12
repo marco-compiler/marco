@@ -31,6 +31,9 @@ static std::unique_ptr<FrontendAction> createFrontendBaseAction(CompilerInstance
     case EmitLLVMIR:
       return std::make_unique<EmitLLVMIRAction>();
 
+    case EmitAssembly:
+      return std::make_unique<EmitAssemblyAction>();
+
     case EmitObject:
       return std::make_unique<EmitObjectAction>();
 
@@ -62,7 +65,7 @@ namespace marco::frontend
     if (ci->getFrontendOptions().showHelp) {
       getDriverOptTable().printHelp(
           llvm::outs(),
-          "marco-driver -mc1 [options] input-files", "MLIR Modelica compiler",
+          "marco-driver [options] input-files", "MLIR Modelica compiler",
           marco::frontend::options::MC1Option,
           llvm::opt::DriverFlag::HelpHidden,
           false);
@@ -72,7 +75,8 @@ namespace marco::frontend
 
     // Honor --version
     if (ci->getFrontendOptions().showVersion) {
-      llvm::cl::PrintVersionMessage();
+      llvm::outs() << "MARCO - Modelica Advanced Research COmpiler\n";
+      llvm::outs() << "Website: https://github.com/modelica-polimi/marco\n";
       return true;
     }
 

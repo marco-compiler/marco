@@ -11,7 +11,7 @@ from lit.llvm import llvm_config
 config.name = 'MARCO'
 
 # suffixes: A list of file extensions to treat as test files.
-config.suffixes = ['.cpp', '.mo', '.mlir']
+config.suffixes = ['.cpp', '.mo', '.mlir', '.test']
 
 # test_format: The test format to use to interpret tests.
 config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)

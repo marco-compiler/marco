@@ -76,6 +76,10 @@ namespace marco::frontend
           break;
 
         case options::OPT_compile_only:
+          options.programAction = EmitAssembly;
+          break;
+
+        case options::OPT_compile_and_assemble_only:
           options.programAction = EmitObject;
           break;
 
@@ -135,45 +139,12 @@ namespace marco::frontend
     return diags.getNumErrors() == numErrorsBefore;
   }
 
-  static bool parseDialectArgs(
-      DialectOptions& opts, llvm::opt::ArgList& args,
-      clang::DiagnosticsEngine& diags)
-  {
-    unsigned numErrorsBefore = diags.getNumErrors();
-
-    return diags.getNumErrors() == numErrorsBefore;
-  }
-
   static bool parseCodegenArgs(
       CodegenOptions& options, llvm::opt::ArgList& args, clang::DiagnosticsEngine& diags)
   {
     unsigned numErrorsBefore = diags.getNumErrors();
 
-    options.debug = args.hasArg(marco::frontend::options::OPT_debug);
-
-    options.assertions = args.hasFlag(
-        marco::frontend::options::OPT_assertions, options::OPT_no_assertions, false);
-
-    options.generateMain = args.hasFlag(
-        marco::frontend::options::OPT_generate_main, options::OPT_no_generate_main, true);
-
-    options.inlining = args.hasFlag(
-        marco::frontend::options::OPT_function_inlining, options::OPT_no_function_inlining, true);
-
-    options.outputArraysPromotion = args.hasFlag(
-        options::OPT_output_arrays_promotion,
-        options::OPT_no_output_arrays_promotion,
-        true);
-
-    options.cse = args.hasFlag(
-        marco::frontend::options::OPT_cse, options::OPT_no_cse, true);
-
-    options.omp = args.hasFlag(
-        marco::frontend::options::OPT_omp, options::OPT_no_omp, false);
-
-    options.cWrappers = args.hasFlag(
-        marco::frontend::options::OPT_c_wrappers, options::OPT_no_c_wrappers, false);
-
+    // Determine the optimization level
     for (const auto& arg : args.getAllArgValues(options::OPT_opt)) {
       if (arg == "0") {
         options.optLevel.time = 0;
@@ -197,6 +168,69 @@ namespace marco::frontend
         diags.Report(diagID) << arg;
       }
     }
+
+    // Set the default options based on the optimization level
+    if (options.optLevel.time > 0) {
+      options.debug = false;
+      options.inlining = true;
+      options.outputArraysPromotion = true;
+      options.cse = true;
+    }
+
+    if (options.optLevel.time > 1) {
+      options.assertions = false;
+    }
+
+    if (options.optLevel.size > 0) {
+      options.debug = false;
+      options.cse = true;
+    }
+
+    if (options.optLevel.size > 1) {
+      options.assertions = false;
+    }
+
+    // Continue in processing the user-provided options, which may override the default
+    // options given by the optimization level.
+
+    if (!options.debug) {
+      options.debug = args.hasArg(marco::frontend::options::OPT_debug);
+    }
+
+    options.assertions = args.hasFlag(
+        marco::frontend::options::OPT_assertions,
+        options::OPT_no_assertions,
+        options.assertions);
+
+    options.generateMain = args.hasFlag(
+        marco::frontend::options::OPT_generate_main,
+        options::OPT_no_generate_main,
+        options.generateMain);
+
+    options.inlining = args.hasFlag(
+        marco::frontend::options::OPT_function_inlining,
+        options::OPT_no_function_inlining,
+        options.inlining);
+
+    options.outputArraysPromotion = args.hasFlag(
+        options::OPT_output_arrays_promotion,
+        options::OPT_no_output_arrays_promotion,
+        options.outputArraysPromotion);
+
+    options.cse = args.hasFlag(
+        marco::frontend::options::OPT_cse,
+        options::OPT_no_cse,
+        options.cse);
+
+    options.omp = args.hasFlag(
+        marco::frontend::options::OPT_omp,
+        options::OPT_no_omp,
+        options.omp);
+
+    options.cWrappers = args.hasFlag(
+        marco::frontend::options::OPT_c_wrappers,
+        options::OPT_no_c_wrappers,
+        options.cWrappers);
 
     return diags.getNumErrors() == numErrorsBefore;
   }
@@ -256,8 +290,10 @@ namespace marco::frontend
 
     // Check for missing argument error
     if (missingArgCount) {
-      diagnosticEngine.Report(clang::diag::err_drv_missing_argument) << args.getArgString(missingArgIndex)
-                                                                     << missingArgCount;
+      diagnosticEngine.Report(clang::diag::err_drv_missing_argument)
+          << args.getArgString(missingArgIndex)
+          << missingArgCount;
+
       success = false;
     }
 
@@ -269,7 +305,6 @@ namespace marco::frontend
     }
 
     success &= parseFrontendArgs(res.frontendOptions(), args, diagnosticEngine);
-    success &= parseDialectArgs(res.dialectOptions(), args, diagnosticEngine);
     success &= parseCodegenArgs(res.codegenOptions(), args, diagnosticEngine);
     success &= parseSimulationArgs(res.simulationOptions(), args, diagnosticEngine);
 

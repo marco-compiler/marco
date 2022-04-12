@@ -1,0 +1,29 @@
+// RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
+
+// CHECK-DEFAULT-LABEL: [Code generation]
+// CHECK-DEFAULT-DAG: Assertions: true
+
+// RUN: marco-driver --init-only --no-assertions | FileCheck %s --check-prefix="CHECK-DISABLED"
+
+// CHECK-DISABLED-LABEL: [Code generation]
+// CHECK-DISABLED-DAG: Assertions: false
+
+// RUN: marco-driver --init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
+
+// CHECK-O2-LABEL: [Code generation]
+// CHECK-O2-DAG: Assertions: false
+
+// RUN: marco-driver --init-only -O2 --assertions | FileCheck %s --check-prefix="CHECK-ENABLED-O2"
+
+// CHECK-ENABLED-O2-LABEL: [Code generation]
+// CHECK-ENABLED-O2-DAG: Assertions: true
+
+// RUN: marco-driver --init-only -Oz | FileCheck %s --check-prefix="CHECK-Oz"
+
+// CHECK-Oz-LABEL: [Code generation]
+// CHECK-Oz-DAG: Assertions: false
+
+// RUN: marco-driver --init-only -Oz --assertions | FileCheck %s --check-prefix="CHECK-ENABLED-Oz"
+
+// CHECK-ENABLED-Oz-LABEL: [Code generation]
+// CHECK-ENABLED-Oz-DAG: Assertions: true
