@@ -30,15 +30,17 @@ RUNTIME_FUNC_DECL(idaSetAbsoluteTolerance, void, PTR(void), double)
 
 RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
 
-RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int64_t, PTR(void))
+RUNTIME_FUNC_DECL(idaAddResidual, void, PTR(void), int64_t, PTR(void))
 
-RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
+RUNTIME_FUNC_DECL(idaAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
 
 //===----------------------------------------------------------------------===//
 // Variable setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(idaAddVariable, int64_t, PTR(void), PTR(int64_t), int64_t, bool)
+RUNTIME_FUNC_DECL(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t)
+RUNTIME_FUNC_DECL(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(void), PTR(int64_t), int64_t)
+
 RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
 
 //===----------------------------------------------------------------------===//
