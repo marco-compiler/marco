@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/Model/Matching.h"
+#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 
 using namespace ::marco::codegen;

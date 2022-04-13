@@ -1,7 +1,7 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_MATCHING_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_MATCHING_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MATCHING_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MATCHING_H
 
-#include "marco/Codegen/Transforms/Model/Model.h"
+#include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include "marco/Modeling/Dependency.h"
 #include <memory>
 #include <vector>
@@ -148,4 +148,4 @@ namespace marco::codegen
       Model<MatchedEquation>& result, Model<Equation>& model, const mlir::BlockAndValueMapping& derivatives);
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_MATCHING_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MATCHING_H

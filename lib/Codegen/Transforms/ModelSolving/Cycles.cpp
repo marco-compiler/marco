@@ -1,5 +1,5 @@
-#include "marco/Codegen/Transforms/Model/Cycles.h"
-#include "marco/Codegen/Transforms/Model/CyclesSubstitutionSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/Cycles.h"
+#include "marco/Codegen/Transforms/ModelSolving/CyclesSubstitutionSolver.h"
 #include "marco/Modeling/Cycles.h"
 
 using namespace ::marco::codegen;

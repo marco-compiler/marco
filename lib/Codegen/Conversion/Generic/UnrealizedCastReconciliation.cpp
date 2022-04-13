@@ -33,8 +33,6 @@ namespace
           signalPassFailure();
           return;
         }
-
-        module.dump();
       }
 
     private:

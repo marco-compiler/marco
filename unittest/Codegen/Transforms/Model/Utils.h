@@ -3,7 +3,7 @@
 
 #include "gmock/gmock.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/Model/Model.h"
+#include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include <algorithm>
 
 // Match access by variable.

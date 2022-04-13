@@ -1,14 +1,12 @@
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/STLExtras.h"
-#include "marco/Codegen/Transforms/ModelSolving.h"
-#include "marco/Codegen/Transforms/Model/Cycles.h"
-#include "marco/Codegen/Transforms/Model/Equation.h"
-#include "marco/Codegen/Transforms/Model/EquationImpl.h"
-#include "marco/Codegen/Transforms/Model/Matching.h"
-#include "marco/Codegen/Transforms/Model/Model.h"
-#include "marco/Codegen/Transforms/Model/ModelConverter.h"
-#include "marco/Codegen/Transforms/Model/Scheduling.h"
-#include "marco/Codegen/Transforms/Model/TypeConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving/Cycles.h"
+#include "marco/Codegen/Transforms/ModelSolving/Equation.h"
+#include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
+#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
+#include "marco/Codegen/Transforms/ModelSolving/Model.h"
+#include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
+#include "marco/Codegen/Transforms/ModelSolving/TypeConverter.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
@@ -20,6 +18,8 @@
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
 #include <cassert>
 #include <map>
 #include <memory>
@@ -159,10 +159,10 @@ namespace
   /// Model solving pass.
   /// Its objective is to convert a descriptive (and thus not sequential) model into an
   /// algorithmic one and to create the functions to be called during the simulation.
-  class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<ModelOp>>
+  class ModelSolvingPass: public mlir::PassWrapper<ModelSolvingPass, mlir::OperationPass<ModelOp>>
   {
     public:
-      explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+      explicit ModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
           : options(std::move(options)),
             bitWidth(std::move(bitWidth))
       {
@@ -178,7 +178,6 @@ namespace
 
       void runOnOperation() override
       {
-        auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
         Model<Equation> model(getOperation());
         mlir::OpBuilder builder(model.getOperation());
 
@@ -189,8 +188,6 @@ namespace
           model.getOperation().emitError("Derivatives could not be converted to variables");
           return signalPassFailure();
         }
-
-        module.dump();
 
         // Now that the additional variables have been created, we can start a discovery process
         model.setVariables(discoverVariables(model.getOperation()));
@@ -205,8 +202,10 @@ namespace
 
         // Resolve the algebraic loops
         if (mlir::failed(solveCycles(matchedModel, builder))) {
-          // TODO Check if the selected solver can deal with cycles. If not, fail.
-          return signalPassFailure();
+          if (options.solver != Solver::ida) {
+            // Check if the selected solver can deal with cycles. If not, fail.
+            return signalPassFailure();
+          }
         }
 
         // Schedule the equations
@@ -224,20 +223,18 @@ namespace
         if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
           return signalPassFailure();
         }
-
-        //module.dump();
       }
 
     private:
-      SolveModelOptions options;
+      ModelSolvingOptions options;
       unsigned int bitWidth;
   };
 }
 
 namespace marco::codegen
 {
-  std::unique_ptr<mlir::Pass> createSolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+  std::unique_ptr<mlir::Pass> createModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
   {
-    return std::make_unique<SolveModelPass>(options, bitWidth);
+    return std::make_unique<ModelSolvingPass>(options, bitWidth);
   }
 }

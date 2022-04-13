@@ -286,7 +286,7 @@ def IDA_AddEquationOp : IDA_Op<"add_equation",
     }];
 }
 
-def IDA_AddVariableOp : IDA_Op<"add_variable",
+def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Add the information regarding the dimensions of a variable.";
@@ -312,20 +312,64 @@ def IDA_AddVariableOp : IDA_Op<"add_variable",
 
     let arguments = (ins
         IDAInstance:$instance,
-        I64ArrayAttr:$arrayDimensions,
-        I1Attr:$state);
+        AnyType:$variable,
+        I64ArrayAttr:$arrayDimensions);
 
-    let results = (outs IDAVariable:$variable);
+    let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "ArrayAttr":$arrayDimensions, "IntegerAttr":$state), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, arrayDimensions, state);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions);
         }]>
     ];
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($variable)
+        $instance `,` $variable attr-dict `:` `(` type($instance) `,` type($variable) `)` `->` type($idaVariable)
+    }];
+}
+
+def IDA_AddStateVariableOp : IDA_Op<"add_state_variable",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Add the information regarding the dimensions of a variable.";
+
+    let description = [{
+        The operation is intended to inform IDA about the dimensions of
+        a variable.
+
+        The operation returns a reference to the variable added to the
+        IDA instance.
+
+        The `state` attribute is used to tell IDA whether the variables
+        is a state one.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !ida.instance
+        %1 = ... : memref<?xi64>
+        ida.add_variable %0, %1 { state = true } : (ida.instance, memref<?xi64>) -> ida.variable
+        ```
+    }];
+
+    let arguments = (ins
+        IDAInstance:$instance,
+        AnyType:$variable,
+        AnyType:$derivative,
+        I64ArrayAttr:$arrayDimensions);
+
+    let results = (outs IDAVariable:$idaVariable);
+
+    let builders = [
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "Value":$derivative, "ArrayAttr":$arrayDimensions), [{
+            auto resultType = ida::VariableType::get($_builder.getContext());
+            build($_builder, $_state, resultType, idaInstance, variable, derivative, arrayDimensions);
+        }]>
+    ];
+
+    let assemblyFormat = [{
+        $instance `,` $variable `,` $derivative attr-dict `:` `(` type($instance) `,` type($variable) `,` type($derivative) `)` `->` type($idaVariable)
     }];
 }
 
@@ -861,6 +905,12 @@ def IDA_StepOp : IDA_Op<"step",
     let assemblyFormat = [{
         $instance attr-dict `:` type($instance)
     }];
+
+    let builders = [
+        OpBuilder<(ins "Value":$instance), [{
+            $_state.addOperands(instance);
+        }]>
+    ];
 }
 
 def IDA_FreeOp : IDA_Op<"free",

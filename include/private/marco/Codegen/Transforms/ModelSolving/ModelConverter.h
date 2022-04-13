@@ -1,13 +1,13 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_MODELCONVERTER_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_MODELCONVERTER_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODELCONVERTER_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODELCONVERTER_H
 
-#include "llvm/ADT/StringRef.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
-#include "marco/Codegen/Transforms/Model/ExternalSolver.h"
-#include "marco/Codegen/Transforms/Model/Scheduling.h"
-#include "marco/Codegen/Transforms/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/ExternalSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
+#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "llvm/ADT/StringRef.h"
 #include <map>
 #include <set>
 
@@ -47,7 +47,7 @@ namespace marco::codegen
       };
 
     public:
-      ModelConverter(SolveModelOptions options, mlir::LLVMTypeConverter& typeConverter);
+      ModelConverter(ModelSolvingOptions options, mlir::LLVMTypeConverter& typeConverter);
 
       /// Convert a scheduled model into the algorithmic functions that compose the simulation.
       /// The usage of such functions is delegated to the runtime library, which is statically
@@ -234,9 +234,9 @@ namespace marco::codegen
           std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, VariableFilter::Filter, mlir::Value, size_t)> elementCallback) const;
 
     private:
-      SolveModelOptions options;
+      ModelSolvingOptions options;
       mlir::LLVMTypeConverter* typeConverter;
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_MODELCONVERTER_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODELCONVERTER_H

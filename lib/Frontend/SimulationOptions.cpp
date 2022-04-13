@@ -5,10 +5,16 @@ namespace marco::frontend
 {
   SimulationOptions::SimulationOptions()
   {
-    auto defaultCodegen = codegen::CodegenOptions::getDefaultOptions();
+    auto defaultModelSolvingOptions = codegen::ModelSolvingOptions::getDefaultOptions();
 
-    this->startTime = defaultCodegen.startTime;
-    this->endTime = defaultCodegen.endTime;
-    this->timeStep = defaultCodegen.timeStep;
+    this->startTime = defaultModelSolvingOptions.startTime;
+    this->endTime = defaultModelSolvingOptions.endTime;
+    this->timeStep = defaultModelSolvingOptions.timeStep;
+
+    this->solver = defaultModelSolvingOptions.solver;
+
+    this->ida.relativeTolerance = defaultModelSolvingOptions.ida.relativeTolerance;
+    this->ida.absoluteTolerance = defaultModelSolvingOptions.ida.absoluteTolerance;
+    this->ida.equidistantTimeGrid = defaultModelSolvingOptions.ida.equidistantTimeGrid;
   }
 }

@@ -2084,10 +2084,7 @@ def Modelica_ModelOp : Modelica_Op<"model",
         The operation represents a Modelica model.
     }];
 
-    let arguments = (ins
-        F64Attr:$startTime,
-        F64Attr:$endTime,
-        F64Attr:$timeStep);
+    let arguments = (ins);
 
     let results = (outs);
 

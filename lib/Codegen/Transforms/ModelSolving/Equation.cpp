@@ -1,11 +1,10 @@
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Debug.h"
-#include "marco/Codegen/Transforms/Model/Equation.h"
-#include "marco/Codegen/Transforms/Model/EquationImpl.h"
-#include "marco/Codegen/Transforms/Model/LoopEquation.h"
-#include "marco/Codegen/Transforms/Model/ScalarEquation.h"
+#include "marco/Codegen/Transforms/ModelSolving/Equation.h"
+#include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
+#include "marco/Codegen/Transforms/ModelSolving/LoopEquation.h"
+#include "marco/Codegen/Transforms/ModelSolving/ScalarEquation.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "llvm/ADT/STLExtras.h"
 #include <numeric>
 
 using namespace ::marco;

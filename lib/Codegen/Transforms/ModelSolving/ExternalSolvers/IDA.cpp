@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/Model/IDA.h"
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDASolver.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Codegen/Utils.h"
@@ -16,21 +16,22 @@ namespace marco::codegen
   IDASolver::IDASolver(
       mlir::TypeConverter* typeConverter,
       const mlir::BlockAndValueMapping& derivatives,
+      IDAOptions options,
       double startTime,
       double endTime,
-      double relativeTolerance,
-      double absoluteTolerance)
+      double timeStep)
     : ExternalSolver(typeConverter),
       derivatives(&derivatives),
       enabled(true),
+      options(std::move(options)),
       startTime(startTime),
       endTime(endTime),
-      relativeTolerance(relativeTolerance),
-      absoluteTolerance(absoluteTolerance)
+      timeStep(timeStep)
   {
     assert(startTime < endTime);
-    assert(relativeTolerance > 0);
-    assert(absoluteTolerance > 0);
+    assert(timeStep > 0);
+    assert(options.relativeTolerance > 0);
+    assert(options.absoluteTolerance > 0);
   }
 
   bool IDASolver::isEnabled() const
@@ -190,8 +191,8 @@ namespace marco::codegen
 
     builder.create<mlir::ida::SetStartTimeOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(startTime));
     builder.create<mlir::ida::SetEndTimeOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(endTime));
-    builder.create<mlir::ida::SetRelativeToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(relativeTolerance));
-    builder.create<mlir::ida::SetAbsoluteToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(absoluteTolerance));
+    builder.create<mlir::ida::SetRelativeToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(options.relativeTolerance));
+    builder.create<mlir::ida::SetAbsoluteToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(options.absoluteTolerance));
 
     // Store the IDA instance into the runtime data structure
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
@@ -235,17 +236,22 @@ namespace marco::codegen
 
       if (derivatives->contains(variable)) {
         // State variable
-        mlir::Value idaVariable = builder.create<mlir::ida::AddVariableOp>(
+        mlir::Value stateVariable = variables[variableIndex];
+
+        mlir::Value derivative = derivatives->lookup(variable);
+        auto derivativeIndex = derivative.cast<mlir::BlockArgument>().getArgNumber();
+        derivative = variables[derivativeIndex];
+
+        mlir::Value idaVariable = builder.create<mlir::ida::AddStateVariableOp>(
             variable.getLoc(),
             idaInstance,
-            builder.getI64ArrayAttr(arrayType.getShape()),
-            builder.getBoolAttr(true));
+            stateVariable,
+            derivative,
+            builder.getI64ArrayAttr(arrayType.getShape()));
 
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
 
         mappedVariables[variableIndex] = idaVariableIndex;
-        mlir::Value derivative = derivatives->lookup(variable);
-        auto derivativeIndex = derivative.cast<mlir::BlockArgument>().getArgNumber();
         mappedVariables[derivativeIndex] = idaVariableIndex;
 
         ++idaVariableIndex;
@@ -253,11 +259,13 @@ namespace marco::codegen
       } else if (!inverseDerivatives.contains(variable)) {
         // Algebraic variable (that is, the variable is neither a state
         // nor a derivative).
-        auto idaVariable = builder.create<mlir::ida::AddVariableOp>(
+        mlir::Value algebraicVariable = variables[variableIndex];
+
+        auto idaVariable = builder.create<mlir::ida::AddAlgebraicVariableOp>(
             variable.getLoc(),
             idaInstance,
-            builder.getI64ArrayAttr(arrayType.getShape()),
-            builder.getBoolAttr(false));
+            algebraicVariable,
+            builder.getI64ArrayAttr(arrayType.getShape()));
 
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
         mappedVariables[variableIndex] = idaVariableIndex;
@@ -512,18 +520,12 @@ namespace marco::codegen
     // Pass only the variables that are managed by IDA
     auto filteredOriginalVariables = filterByManagedVariables(variables);
 
-    std::vector<mlir::Type> unsizedFilteredVariables;
-
-    for (auto variable : filteredOriginalVariables) {
-      unsizedFilteredVariables.push_back(variable.getType().cast<ArrayType>().toUnsized());
-    }
-
     // Create the residual function
     auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
         equation.getOperation().getLoc(),
         residualFunctionName,
         RealType::get(builder.getContext()),
-        unsizedFilteredVariables,
+        mlir::ValueRange(filteredOriginalVariables).getTypes(),
         equation.getNumOfIterationVars(),
         RealType::get(builder.getContext()));
 
@@ -538,8 +540,7 @@ namespace marco::codegen
     assert(filteredOriginalVariables.size() == mappedVars.size());
 
     for (const auto& [original, mapped] : llvm::zip(filteredOriginalVariables, mappedVars)) {
-      auto sizedMappedVar = builder.create<ArrayCastOp>(mapped.getLoc(), original.getType(), mapped);
-      mapping.map(original, sizedMappedVar);
+      mapping.map(original, mapped);
     }
 
     // Map the iteration variables
@@ -770,17 +771,11 @@ namespace marco::codegen
     // Pass only the variables that are managed by IDA
     auto filteredOriginalVariables = filterByManagedVariables(equationVariables);
 
-    std::vector<mlir::Type> unsizedFilteredVariables;
-
-    for (auto variable : filteredOriginalVariables) {
-      unsizedFilteredVariables.push_back(variable.getType().cast<ArrayType>().toUnsized());
-    }
-
     auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
         equation.getOperation().getLoc(),
         jacobianFunctionName,
         RealType::get(builder.getContext()),
-        unsizedFilteredVariables,
+        mlir::ValueRange(filteredOriginalVariables).getTypes(),
         equation.getNumOfIterationVars(),
         independentVariable.getType().cast<ArrayType>().getRank(),
         RealType::get(builder.getContext()),
@@ -796,8 +791,8 @@ namespace marco::codegen
 
     args.push_back(jacobianFunction.getTime());
 
-    for (const auto& [var, sizedType] : llvm::zip(jacobianFunction.getVariables(), mlir::ValueRange(filteredOriginalVariables).getTypes())) {
-      args.push_back(builder.create<ArrayCastOp>(var.getLoc(), sizedType, var));
+    for (const auto& var : jacobianFunction.getVariables()) {
+      args.push_back(var);
     }
 
     for (auto equationIndex : jacobianFunction.getEquationIndices()) {
@@ -878,8 +873,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       mlir::Value runtimeDataPtr,
       mlir::FuncOp updateStatesFunction,
-      mlir::ValueRange variables,
-      double requestedTimeStep)
+      mlir::ValueRange variables)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -889,10 +883,14 @@ namespace marco::codegen
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
     mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
 
-    builder.create<mlir::ida::StepOp>(
-        updateStatesFunction.getLoc(),
-        idaInstance,
-        builder.getF64FloatAttr(requestedTimeStep));
+    if (options.equidistantTimeGrid) {
+      builder.create<mlir::ida::StepOp>(
+          updateStatesFunction.getLoc(),
+          idaInstance,
+          builder.getF64FloatAttr(timeStep));
+    } else {
+      builder.create<mlir::ida::StepOp>(updateStatesFunction.getLoc(), idaInstance);
+    }
 
     // Copy back the values from IDA to MARCO
     mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();
@@ -922,6 +920,24 @@ namespace marco::codegen
     }
 
     return mlir::success();
+  }
+
+  bool IDASolver::hasTimeOwnership() const
+  {
+    return isEnabled();
+  }
+
+  mlir::Value IDASolver::getCurrentTime(
+      mlir::OpBuilder& builder,
+      mlir::Value runtimeDataPtr)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
+    mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
+
+    return builder.create<mlir::ida::GetCurrentTimeOp>(
+        idaInstance.getLoc(), RealType::get(builder.getContext()), idaInstance);
   }
 
   std::vector<mlir::Value> IDASolver::filterByManagedVariables(mlir::ValueRange variables) const

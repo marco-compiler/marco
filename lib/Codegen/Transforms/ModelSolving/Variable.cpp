@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/Model/Variable.h"
+#include "marco/Codegen/Transforms/ModelSolving/Variable.h"
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;

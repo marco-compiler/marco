@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/Model/LoopEquation.h"
+#include "marco/Codegen/Transforms/ModelSolving/LoopEquation.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 using namespace ::marco::modeling;
@@ -247,8 +247,8 @@ namespace marco::codegen
             if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
               // Convert the equality into an assignment
               for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
-                auto mappedLhs = mapping.lookup(lhs);
-                auto mappedRhs = mapping.lookup(rhs);
+                mlir::Value mappedLhs = mapping.lookup(lhs);
+                mlir::Value mappedRhs = mapping.lookup(rhs);
 
                 if (auto mappedLhsArrayType = mappedLhs.getType().dyn_cast<ArrayType>()) {
                   assert(mappedLhsArrayType.getRank() != 0);
@@ -258,10 +258,12 @@ namespace marco::codegen
                       [&](mlir::OpBuilder& nestedImplicitBuilder, mlir::ValueRange implicitIndices) {
                         assert(mappedLhs.getType().cast<ArrayType>().getRank() == implicitIndices.size());
                         mlir::Value rhsValue = nestedImplicitBuilder.create<LoadOp>(loc, mappedRhs, implicitIndices);
+                        rhsValue = nestedImplicitBuilder.create<CastOp>(loc, mappedLhsArrayType.getElementType(), rhsValue);
                         nestedImplicitBuilder.create<StoreOp>(loc, rhsValue, mappedLhs, implicitIndices);
                       });
                 } else {
                   auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
+                  mappedRhs = builder.create<CastOp>(loc, mappedLhs.getType(), mappedRhs);
                   builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indexes());
                 }
               }

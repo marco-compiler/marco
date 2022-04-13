@@ -1,6 +1,5 @@
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/ExternalSolver.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Codegen/Transforms/Model/ExternalSolver.h"
-#include "marco/Codegen/Transforms/Model/IDA.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -22,6 +21,11 @@ namespace marco::codegen
   void ExternalSolvers::addSolver(std::unique_ptr<ExternalSolver> solver)
   {
     solvers.push_back(std::move(solver));
+  }
+
+  size_t ExternalSolvers::size() const
+  {
+    return solvers.size();
   }
 
   ExternalSolvers::iterator ExternalSolvers::begin()
@@ -49,5 +53,24 @@ namespace marco::codegen
     return llvm::any_of(solvers, [equation](const auto& solver) {
       return solver->containsEquation(equation);
     });
+  }
+
+  mlir::Value ExternalSolvers::getCurrentTime(mlir::OpBuilder& builder, mlir::ValueRange runtimeDataPtrs) const
+  {
+    assert(llvm::count_if(solvers, [](const auto& solver) {
+      return solver->isEnabled() && solver->hasTimeOwnership();
+    }) <= 1);
+
+    for (const auto& solver : llvm::enumerate(solvers)) {
+      if (!solver.value()->isEnabled()) {
+        continue;
+      }
+
+      if (solver.value()->hasTimeOwnership()) {
+        return solver.value()->getCurrentTime(builder, runtimeDataPtrs[solver.index()]);
+      }
+    }
+
+    return nullptr;
   }
 }

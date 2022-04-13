@@ -269,6 +269,37 @@ namespace marco::frontend
       options.timeStep = numericValue.convertToDouble();
     }
 
+    // Determine the solver to be used
+    for (const auto& arg : args.getAllArgValues(options::OPT_solver)) {
+      if (arg == "forward-euler") {
+        options.solver = marco::codegen::Solver::forwardEuler;
+      } else if (arg == "ida") {
+        options.solver = marco::codegen::Solver::ida;
+      } else {
+        unsigned int diagID = diags.getCustomDiagID(
+            clang::DiagnosticsEngine::Warning,
+            "Unknown solver option: %s");
+
+        diags.Report(diagID) << arg;
+      }
+    }
+
+    // IDA options
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_ida_relative_tolerance)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
+      options.ida.relativeTolerance = numericValue.convertToDouble();
+    }
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_ida_absolute_tolerance)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
+      options.ida.absoluteTolerance = numericValue.convertToDouble();
+    }
+
+    options.ida.equidistantTimeGrid = args.hasArg(options::OPT_ida_equidistant_time_grid);
+
     return diags.getNumErrors() == numErrorsBefore;
   }
 

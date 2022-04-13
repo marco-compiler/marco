@@ -38,13 +38,15 @@ void runSimulation()
   printHeader(data);
 
   updateNonStateVariables(data);
+  print(data);
+
   bool continueSimulation;
 
   do {
-    print(data);
     updateStateVariables(data);
     continueSimulation = incrementTime(data);
     updateNonStateVariables(data);
+    print(data);
   } while (continueSimulation);
 
   deinit(data);

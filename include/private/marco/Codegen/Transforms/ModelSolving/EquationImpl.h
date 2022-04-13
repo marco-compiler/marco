@@ -1,8 +1,8 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATIONIMPL_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATIONIMPL_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_EQUATIONIMPL_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_EQUATIONIMPL_H
 
-#include "marco/Codegen/Transforms/Model/Equation.h"
-#include "marco/Codegen/Transforms/Model/Path.h"
+#include "marco/Codegen/Transforms/ModelSolving/Equation.h"
+#include "marco/Codegen/Transforms/ModelSolving/Path.h"
 #include "marco/Modeling/AccessFunction.h"
 
 namespace marco::codegen
@@ -87,4 +87,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATIONIMPL_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_EQUATIONIMPL_H

@@ -7,4 +7,7 @@
 RUNTIME_FUNC_DECL(heapAlloc, PTR(void), int64_t)
 RUNTIME_FUNC_DECL(heapFree, void, PTR(void))
 
+void* heapAlloc(int64_t size);
+void heapFree(void* ptr);
+
 #endif	// MARCO_RUNTIME_MEMORYMANAGEMENT_H

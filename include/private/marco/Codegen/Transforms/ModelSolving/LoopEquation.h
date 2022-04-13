@@ -1,7 +1,7 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_LOOPEQUATION_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_LOOPEQUATION_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_LOOPEQUATION_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_LOOPEQUATION_H
 
-#include "marco/Codegen/Transforms/Model/EquationImpl.h"
+#include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
 
 namespace marco::codegen
 {
@@ -61,4 +61,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_LOOPEQUATION_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_LOOPEQUATION_H

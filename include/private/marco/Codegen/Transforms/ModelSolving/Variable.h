@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_VARIABLE_H
-#define MARCO_CODEGEN_TRANSFORMS_VARIABLE_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_VARIABLE_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_VARIABLE_H
 
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Modeling/Dependency.h"
@@ -120,4 +120,4 @@ namespace marco::modeling
   }
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_VARIABLE_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_VARIABLE_H

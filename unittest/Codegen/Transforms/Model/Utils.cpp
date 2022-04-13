@@ -26,11 +26,7 @@ namespace marco::codegen::test
       }
     }
 
-    auto modelOp = builder.create<ModelOp>(
-        builder.getUnknownLoc(),
-        builder.getF64FloatAttr(0),
-        builder.getF64FloatAttr(10),
-        builder.getF64FloatAttr(0.1));
+    auto modelOp = builder.create<ModelOp>(builder.getUnknownLoc());
 
     mlir::Block* initBlock = builder.createBlock(&modelOp.initRegion());
     builder.setInsertionPointToStart(initBlock);

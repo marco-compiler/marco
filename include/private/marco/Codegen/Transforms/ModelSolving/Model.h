@@ -1,10 +1,10 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_MODEL_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_MODEL_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODEL_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODEL_H
 
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/Model/Equation.h"
-#include "marco/Codegen/Transforms/Model/Path.h"
-#include "marco/Codegen/Transforms/Model/Variable.h"
+#include "marco/Codegen/Transforms/ModelSolving/Equation.h"
+#include "marco/Codegen/Transforms/ModelSolving/Path.h"
+#include "marco/Codegen/Transforms/ModelSolving/Variable.h"
 
 namespace marco::codegen
 {
@@ -67,4 +67,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_MODEL_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODEL_H

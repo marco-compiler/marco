@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "marco/Codegen/Transforms/Model/Scheduling.h"
+#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
 
 #include "Utils.h"
 

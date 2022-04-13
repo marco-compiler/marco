@@ -1,5 +1,5 @@
-#include "marco/Codegen/Transforms/Model/Scheduling.h"
-#include "marco/Codegen/Transforms/Model/EquationImpl.h"
+#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
+#include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
 
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;

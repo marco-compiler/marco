@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/Model/ModelConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
 #include "mlir/Transforms/BufferUtils.h"
 #include "mlir/Transforms/Passes.h"
 

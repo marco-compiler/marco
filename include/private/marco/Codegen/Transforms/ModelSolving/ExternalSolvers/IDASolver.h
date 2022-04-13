@@ -1,8 +1,9 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_IDA_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_IDA_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_IDASOLVER_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_IDASOLVER_H
 
-#include "marco/Codegen/Transforms/Model/Scheduling.h"
-#include "marco/Codegen/Transforms/Model/ExternalSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/ExternalSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDAOptions.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include <set>
 
@@ -18,10 +19,8 @@ namespace marco::codegen
       IDASolver(
         mlir::TypeConverter* typeConverter,
         const mlir::BlockAndValueMapping& derivatives,
-        double startTime,
-        double doubleEndTime,
-        double relativeTolerance,
-        double absoluteTolerance);
+        IDAOptions options,
+        double startTime, double endTime, double timeStep);
 
       bool isEnabled() const override;
 
@@ -55,8 +54,13 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
           mlir::FuncOp updateStatesFunction,
-          mlir::ValueRange variables,
-          double requestedTimeStep) override;
+          mlir::ValueRange variables) override;
+
+      bool hasTimeOwnership() const override;
+
+      mlir::Value getCurrentTime(
+          mlir::OpBuilder& builder,
+          mlir::Value runtimeDataPtr) override;
 
     private:
       mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Value value);
@@ -137,11 +141,11 @@ namespace marco::codegen
       const mlir::BlockAndValueMapping* derivatives;
 
       bool enabled;
+      IDAOptions options;
 
       const double startTime;
       const double endTime;
-      const double relativeTolerance;
-      const double absoluteTolerance;
+      const double timeStep;
 
       /// The variables of the model that are managed by IDA.
       /// The SSA values are the ones defined by the body of the ModelOp.
@@ -154,4 +158,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_IDA_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_IDASOLVER_H

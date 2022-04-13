@@ -1,7 +1,7 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVER_H
-#define MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVER_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVERS_EXTERNALSOLVER_H
+#define MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVERS_EXTERNALSOLVER_H
 
-#include "marco/Codegen/Transforms/Model/Scheduling.h"
+#include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include <memory>
 #include <vector>
@@ -41,8 +41,13 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
           mlir::FuncOp updateStatesFunction,
-          mlir::ValueRange variables,
-          double requestedTimeStep) = 0;
+          mlir::ValueRange variables) = 0;
+
+      virtual bool hasTimeOwnership() const = 0;
+
+      virtual mlir::Value getCurrentTime(
+          mlir::OpBuilder& builder,
+          mlir::Value runtimeDataPtr) = 0;
 
     protected:
       mlir::TypeConverter* getTypeConverter();
@@ -64,6 +69,10 @@ namespace marco::codegen
 
       bool containsEquation(ScheduledEquation* equation) const;
 
+      mlir::Value getCurrentTime(mlir::OpBuilder& builder, mlir::ValueRange runtimeDataPtrs) const;
+
+      size_t size() const;
+
       iterator begin();
       const_iterator begin() const;
 
@@ -75,4 +84,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVER_H
+#endif // MARCO_CODEGEN_TRANSFORMS_EXTERNALSOLVERS_EXTERNALSOLVER_H

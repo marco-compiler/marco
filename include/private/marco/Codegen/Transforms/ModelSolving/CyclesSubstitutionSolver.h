@@ -1,10 +1,10 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_CYCLESLINEARSOLVER_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_CYCLESLINEARSOLVER_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_CYCLESLINEARSOLVER_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_CYCLESLINEARSOLVER_H
 
-#include "llvm/Support/Debug.h"
-#include "marco/Codegen/Transforms/Model/Matching.h"
+#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "mlir/IR/Builders.h"
+#include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "CyclesLinearSolver"
 
@@ -485,4 +485,4 @@ namespace marco::codegen
 
 #undef DEBUG_TYPE
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_CYCLESLINEARSOLVER_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_CYCLESLINEARSOLVER_H

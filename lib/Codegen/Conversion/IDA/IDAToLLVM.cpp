@@ -336,7 +336,7 @@ namespace
       newOperands.push_back(rank);
 
       // Mangled types
-      auto mangledResultType = mangling.getIntegerType(resultType.getIntOrFloatBitWidth());
+      auto mangledResultType = mangling.getIntegerType(64);
 
       llvm::SmallVector<std::string, 3> mangledArgsTypes;
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
@@ -362,20 +362,38 @@ namespace
     }
   };
 
-  struct AddVariableOpLowering : public IDAOpConversion<AddVariableOp>
+  struct AddAlgebraicVariableOpLowering : public IDAOpConversion<AddAlgebraicVariableOp>
   {
-    using IDAOpConversion<AddVariableOp>::IDAOpConversion;
+    using IDAOpConversion<AddAlgebraicVariableOp>::IDAOpConversion;
 
-    mlir::LogicalResult matchAndRewrite(AddVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(AddAlgebraicVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
       auto loc = op.getLoc();
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+      auto heapAllocFn = lookupOrCreateHeapAllocFn(module, getIndexType());
+
       RuntimeFunctionsMangling mangling;
 
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
 
-      assert(operands.size() == 1);
+      assert(operands.size() == 2);
       llvm::SmallVector<mlir::Value, 4> newOperands;
+
+      // IDA instance
       newOperands.push_back(operands[0]);
+
+      // Variable
+      mlir::Type variableType = operands[1].getType();
+      mlir::Type variablePtrType = mlir::LLVM::LLVMPointerType::get(variableType);
+      mlir::Value variableNullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, variablePtrType);
+      mlir::Value one = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), 1));
+      mlir::Value variableGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, variablePtrType, llvm::makeArrayRef({ variableNullPtr, one }));
+      mlir::Value variableSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), variableGepPtr);
+
+      mlir::Value variableOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, variableSizeBytes, getVoidPtrType())[0];
+      mlir::Value variablePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, variablePtrType, variableOpaquePtr);
+      rewriter.create<mlir::LLVM::StoreOp>(loc, operands[1], variablePtr);
+      newOperands.push_back(variableOpaquePtr);
 
       // Create the array with the variable dimensions
       mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
@@ -385,7 +403,6 @@ namespace
       mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
-      auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
       mlir::Value arrayDimensionsOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
       mlir::Value arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsOpaquePtr);
       newOperands.push_back(arrayDimensionsPtr);
@@ -402,22 +419,117 @@ namespace
       mlir::Value rank = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(op.arrayDimensions().size()));
       newOperands.push_back(rank);
 
-      // State variable property
-      mlir::Value isState = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(op.state()));
-      newOperands.push_back(isState);
-
       // Mangled types
-      auto mangledResultType = mangling.getIntegerType(resultType.getIntOrFloatBitWidth());
+      auto mangledResultType = mangling.getIntegerType(64);
 
       llvm::SmallVector<std::string, 3> mangledArgsTypes;
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
       mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(64)));
       mangledArgsTypes.push_back(mangling.getIntegerType(64));
-      mangledArgsTypes.push_back(mangling.getIntegerType(1));
 
       // Create the call to the runtime library
       auto functionName = mangling.getMangledFunction(
-          "idaAddVariable", mangledResultType, mangledArgsTypes);
+          "idaAddAlgebraicVariable", mangledResultType, mangledArgsTypes);
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          functionName, resultType, newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+
+      // Deallocate the dimensions array
+      auto heapFreeFn = lookupOrCreateHeapFreeFn(op->getParentOfType<mlir::ModuleOp>());
+      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, arrayDimensionsOpaquePtr, getVoidType())[0];
+
+      return mlir::success();
+    }
+  };
+
+  struct AddStateVariableOpLowering : public IDAOpConversion<AddStateVariableOp>
+  {
+    using IDAOpConversion<AddStateVariableOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(AddStateVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+      auto heapAllocFn = lookupOrCreateHeapAllocFn(module, getIndexType());
+
+      RuntimeFunctionsMangling mangling;
+
+      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      assert(operands.size() == 3);
+      llvm::SmallVector<mlir::Value, 4> newOperands;
+
+      // IDA instance
+      newOperands.push_back(operands[0]);
+
+      // Variable
+      mlir::Type variableType = operands[1].getType();
+      mlir::Type variablePtrType = mlir::LLVM::LLVMPointerType::get(variableType);
+      mlir::Value variableNullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, variablePtrType);
+      mlir::Value variableOneOffset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), 1));
+      mlir::Value variableGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, variablePtrType, llvm::makeArrayRef({ variableNullPtr, variableOneOffset }));
+      mlir::Value variableSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), variableGepPtr);
+
+      mlir::Value variableOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, variableSizeBytes, getVoidPtrType())[0];
+      mlir::Value variablePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, variablePtrType, variableOpaquePtr);
+      rewriter.create<mlir::LLVM::StoreOp>(loc, operands[1], variablePtr);
+      newOperands.push_back(variableOpaquePtr);
+
+      // Derivative
+      mlir::Type derivativeType = operands[2].getType();
+      mlir::Type derivativePtrType = mlir::LLVM::LLVMPointerType::get(derivativeType);
+      mlir::Value derivativeNullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, derivativePtrType);
+      mlir::Value derivativeOneOffset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), 1));
+      mlir::Value derivativeGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, derivativePtrType, llvm::makeArrayRef({ derivativeNullPtr, derivativeOneOffset }));
+      mlir::Value derivativeSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), derivativeGepPtr);
+
+      mlir::Value derivativeOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, derivativeSizeBytes, getVoidPtrType())[0];
+      mlir::Value derivativePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, derivativePtrType, derivativeOpaquePtr);
+      rewriter.create<mlir::LLVM::StoreOp>(loc, operands[2], derivativePtr);
+      newOperands.push_back(derivativeOpaquePtr);
+
+      // Create the array with the variable dimensions
+      mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
+      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.arrayDimensions().size()));
+      mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
+      mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
+      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
+      mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
+
+      mlir::Value arrayDimensionsOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsOpaquePtr);
+      newOperands.push_back(arrayDimensionsPtr);
+
+      // Populate the dimensions list
+      for (const auto& sizeAttr : llvm::enumerate(op.arrayDimensions())) {
+        mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), sizeAttr.index()));
+        mlir::Value size = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(sizeAttr.value().cast<mlir::IntegerAttr>().getInt()));
+        mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, arrayDimensionsPtr.getType(), arrayDimensionsPtr, offset);
+        rewriter.create<mlir::LLVM::StoreOp>(loc, size, ptr);
+      }
+
+      // Rank
+      mlir::Value rank = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(op.arrayDimensions().size()));
+      newOperands.push_back(rank);
+
+      // Mangled types
+      auto mangledResultType = mangling.getIntegerType(64);
+
+      llvm::SmallVector<std::string, 3> mangledArgsTypes;
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+      mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(64)));
+      mangledArgsTypes.push_back(mangling.getIntegerType(64));
+
+      // Create the call to the runtime library
+      auto functionName = mangling.getMangledFunction(
+          "idaAddStateVariable", mangledResultType, mangledArgsTypes);
 
       auto callee = getOrDeclareFunction(
           rewriter,
@@ -624,16 +736,16 @@ namespace
         return var.getType() == op.getVariables()[0].getType();
       }));
 
-      mlir::Type variableType = op.getVariables()[0].getType();
-      auto variablesPtrType = mlir::LLVM::LLVMPointerType::get(variableType);
-
       mlir::Value variablesPtr = newOp.getArgument(1);
-      variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), variablesPtrType, variablesPtr);
+      variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), mlir::LLVM::LLVMPointerType::get(getVoidPtrType()), variablesPtr);
 
       for (auto variable : llvm::enumerate(op.getVariables())) {
         mlir::Value index = rewriter.create<mlir::ConstantOp>(variablesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), variable.index()));
         mlir::Value variablePtr = rewriter.create<mlir::LLVM::GEPOp>(variablesPtr.getLoc(), variablesPtr.getType(), variablesPtr, index);
         mlir::Value mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(variablePtr.getLoc(), variablePtr);
+        mappedVariable = rewriter.create<mlir::LLVM::BitcastOp>(mappedVariable.getLoc(), mlir::LLVM::LLVMPointerType::get(op.getVariables()[variable.index()].getType()), mappedVariable);
+        mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(mappedVariable.getLoc(), mappedVariable);
+
         mapping.map(variable.value(), mappedVariable);
       }
 
@@ -695,16 +807,16 @@ namespace
         return var.getType() == op.getVariables()[0].getType();
       }));
 
-      mlir::Type variableType = op.getVariables()[0].getType();
-      auto variablesPtrType = mlir::LLVM::LLVMPointerType::get(variableType);
-
       mlir::Value variablesPtr = newOp.getArgument(1);
-      variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), variablesPtrType, variablesPtr);
+      variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), mlir::LLVM::LLVMPointerType::get(getVoidPtrType()), variablesPtr);
 
       for (auto variable : llvm::enumerate(op.getVariables())) {
         mlir::Value index = rewriter.create<mlir::ConstantOp>(variablesPtr.getLoc(), rewriter.getIntegerAttr(getIndexType(), variable.index()));
         mlir::Value variablePtr = rewriter.create<mlir::LLVM::GEPOp>(variablesPtr.getLoc(), variablesPtr.getType(), variablesPtr, index);
         mlir::Value mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(variablePtr.getLoc(), variablePtr);
+        mappedVariable = rewriter.create<mlir::LLVM::BitcastOp>(mappedVariable.getLoc(), mlir::LLVM::LLVMPointerType::get(op.getVariables()[variable.index()].getType()), mappedVariable);
+        mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(mappedVariable.getLoc(), mappedVariable);
+
         mapping.map(variable.value(), mappedVariable);
       }
 
@@ -994,7 +1106,8 @@ static void populateIDAConversionPatterns(
       SetAbsoluteToleranceOpLowering,
       GetCurrentTimeOpLowering,
       AddEquationOpLowering,
-      AddVariableOpLowering,
+      AddAlgebraicVariableOpLowering,
+      AddStateVariableOpLowering,
       AddVariableAccessOpLowering,
       GetVariableOpLowering,
       GetDerivativeOpLowering,
@@ -1035,8 +1148,6 @@ namespace marco::codegen
           mlir::emitError(getOperation().getLoc(), "Error in converting the IDA operations");
           return signalPassFailure();
         }
-
-        getOperation().dump();
       }
 
     private:
@@ -1099,6 +1210,42 @@ namespace marco::codegen
 
 namespace
 {
+  struct AddAlgebraicVariableOpTypes : public mlir::OpConversionPattern<AddAlgebraicVariableOp>
+  {
+    using mlir::OpConversionPattern<AddAlgebraicVariableOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(AddAlgebraicVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto newOp = mlir::cast<AddAlgebraicVariableOp>(rewriter.cloneWithoutRegions(*op.getOperation()));
+      newOp->setOperands(operands);
+
+      for (auto result : newOp->getResults()) {
+        result.setType(getTypeConverter()->convertType(result.getType()));
+      }
+
+      rewriter.replaceOp(op, newOp->getResults());
+      return mlir::success();
+    }
+  };
+
+  struct AddStateVariableOpTypes : public mlir::OpConversionPattern<AddStateVariableOp>
+  {
+    using mlir::OpConversionPattern<AddStateVariableOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(AddStateVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto newOp = mlir::cast<AddStateVariableOp>(rewriter.cloneWithoutRegions(*op.getOperation()));
+      newOp->setOperands(operands);
+
+      for (auto result : newOp->getResults()) {
+        result.setType(getTypeConverter()->convertType(result.getType()));
+      }
+
+      rewriter.replaceOp(op, newOp->getResults());
+      return mlir::success();
+    }
+  };
+
   template<typename Op>
   struct GetVariableLikeOpTypes : public mlir::ConvertOpToLLVMPattern<Op>
   {
@@ -1329,6 +1476,10 @@ namespace marco::codegen
     });
 
     patterns.add<
+        AddAlgebraicVariableOpTypes,
+        AddStateVariableOpTypes>(typeConverter, patterns.getContext());
+
+    patterns.add<
         GetVariableOpTypes,
         GetDerivativeOpTypes>(typeConverter);
 
@@ -1338,15 +1489,23 @@ namespace marco::codegen
         ResidualFunctionOpTypes,
         JacobianFunctionOpTypes>(typeConverter, patterns.getContext());
 
-    target.addDynamicallyLegalOp<GetVariableOp>([&](mlir::Operation *op) {
+    target.addDynamicallyLegalOp<AddAlgebraicVariableOp>([&](mlir::Operation* op) {
       return typeConverter.isLegal(op);
     });
 
-    target.addDynamicallyLegalOp<GetDerivativeOp>([&](mlir::Operation *op) {
+    target.addDynamicallyLegalOp<AddStateVariableOp>([&](mlir::Operation* op) {
       return typeConverter.isLegal(op);
     });
 
-    target.addDynamicallyLegalOp<GetCurrentTimeOp>([&](mlir::Operation *op) {
+    target.addDynamicallyLegalOp<GetVariableOp>([&](mlir::Operation* op) {
+      return typeConverter.isLegal(op);
+    });
+
+    target.addDynamicallyLegalOp<GetDerivativeOp>([&](mlir::Operation* op) {
+      return typeConverter.isLegal(op);
+    });
+
+    target.addDynamicallyLegalOp<GetCurrentTimeOp>([&](mlir::Operation* op) {
       return typeConverter.isLegal(op);
     });
 

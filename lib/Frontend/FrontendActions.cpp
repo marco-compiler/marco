@@ -8,6 +8,8 @@
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
 
+#include "llvm/Support/FileSystem.h"
+
 namespace marco::frontend
 {
   void InitOnlyAction::execute()
@@ -41,6 +43,23 @@ namespace marco::frontend
     printOption(os, "Start time", simulationOptions.startTime);
     printOption(os, "End time", simulationOptions.endTime);
     printOption(os, "Time step", simulationOptions.timeStep);
+
+    std::string solver;
+
+    if (simulationOptions.solver == codegen::Solver::forwardEuler) {
+      solver = "Forward Euler";
+    } else if (simulationOptions.solver == codegen::Solver::ida) {
+      solver = "IDA";
+    }
+
+    printOption(os, "Solver", solver);
+    os << "\n";
+
+    // IDA
+    printCategory(os, "IDA");
+    printOption(os, "Relative tolerance", simulationOptions.ida.relativeTolerance);
+    printOption(os, "Absolute tolerance", simulationOptions.ida.absoluteTolerance);
+    printOption(os, "Equidistant time grid", simulationOptions.ida.equidistantTimeGrid);
     os << "\n";
   }
 
@@ -178,6 +197,7 @@ namespace marco::frontend
     }
 
     passManager.run(ci.getLLVMModule());
+    //dest.flush();
   }
 
   void EmitAssemblyAction::execute()

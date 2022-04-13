@@ -402,10 +402,20 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
-  // AddVariableOp
+  // AddAlgebraicVariableOp
   //===----------------------------------------------------------------------===//
 
-  void AddVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddAlgebraicVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), arrayDimensions(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
+  // AddStateVariableOp
+  //===----------------------------------------------------------------------===//
+
+  void AddStateVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Read::get(), arrayDimensions(), mlir::SideEffects::DefaultResource::get());

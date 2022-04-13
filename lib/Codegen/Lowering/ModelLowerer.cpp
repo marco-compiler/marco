@@ -52,11 +52,7 @@ namespace marco::codegen::lowering
     }
 
     // Create the operation
-    auto modelOp = builder().create<ModelOp>(
-        location,
-        builder().getF64FloatAttr(context()->options.startTime),
-        builder().getF64FloatAttr(context()->options.endTime),
-        builder().getF64FloatAttr(context()->options.timeStep));
+    auto modelOp = builder().create<ModelOp>(location);
 
     {
       // Simulation variables

@@ -182,9 +182,6 @@ namespace marco::frontend
     CompilerInstance& ci = instance();
 
     codegen::CodegenOptions options;
-    options.startTime = ci.getSimulationOptions().startTime;
-    options.endTime = ci.getSimulationOptions().endTime;
-    options.timeStep = ci.getSimulationOptions().timeStep;
 
     marco::codegen::lowering::Bridge bridge(ci.getMLIRContext(), options);
     bridge.lower(*ci.getAST());
@@ -196,21 +193,36 @@ namespace marco::frontend
   bool FrontendAction::runDialectConversion()
   {
     CompilerInstance& ci = instance();
+
     auto& codegenOptions = ci.getCodegenOptions();
+    auto& simulationOptions = ci.getSimulationOptions();
 
     mlir::PassManager passManager(&ci.getMLIRContext());
 
     passManager.addPass(codegen::createAutomaticDifferentiationPass());
 
     // Model solving
-    codegen::SolveModelOptions modelSolvingOptions;
-    modelSolvingOptions.emitMain = ci.getCodegenOptions().generateMain;
-    modelSolvingOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
-    passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createSolveModelPass(modelSolvingOptions));
+    codegen::ModelSolvingOptions modelSolvingOptions;
 
+    modelSolvingOptions.startTime = simulationOptions.startTime;
+    modelSolvingOptions.endTime = simulationOptions.endTime;
+    modelSolvingOptions.timeStep = simulationOptions.timeStep;
+
+    modelSolvingOptions.emitMain = codegenOptions.generateMain;
+    modelSolvingOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
+
+    modelSolvingOptions.solver = simulationOptions.solver;
+
+    modelSolvingOptions.ida.relativeTolerance = simulationOptions.ida.relativeTolerance;
+    modelSolvingOptions.ida.absoluteTolerance = simulationOptions.ida.absoluteTolerance;
+    modelSolvingOptions.ida.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
+
+    passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createModelSolvingPass(modelSolvingOptions));
+
+    /*
     // Functions scalarization pass
     codegen::FunctionScalarizationOptions functionScalarizationOptions;
-    functionScalarizationOptions.assertions = ci.getCodegenOptions().assertions;
+    functionScalarizationOptions.assertions = codegenOptions.assertions;
     passManager.addPass(codegen::createFunctionScalarizationPass(functionScalarizationOptions));
 
     // Insert explicit casts where needed
@@ -240,8 +252,8 @@ namespace marco::frontend
 
     // Modelica conversion pass
     codegen::ModelicaConversionOptions modelicaConversionOptions;
-    modelicaConversionOptions.assertions = ci.getCodegenOptions().assertions;
-    modelicaConversionOptions.outputArraysPromotion = modelicaConversionOptions.outputArraysPromotion;
+    modelicaConversionOptions.assertions = codegenOptions.assertions;
+    modelicaConversionOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
 
     passManager.addPass(codegen::createModelicaConversionPass(modelicaConversionOptions));
 
@@ -267,6 +279,7 @@ namespace marco::frontend
       // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
+     */
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(

@@ -1,7 +1,7 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_SCALAREQUATION_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_SCALAREQUATION_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_SCALAREQUATION_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_SCALAREQUATION_H
 
-#include "marco/Codegen/Transforms/Model/EquationImpl.h"
+#include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
 
 namespace marco::codegen
 {
@@ -51,4 +51,4 @@ namespace marco::codegen
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_SCALAREQUATION_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_SCALAREQUATION_H

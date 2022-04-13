@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/Model/ScalarEquation.h"
+#include "marco/Codegen/Transforms/ModelSolving/ScalarEquation.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 using namespace ::marco::modeling;
@@ -106,21 +106,23 @@ namespace marco::codegen
       if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
         // Convert the equality into an assignment
         for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
-          auto mappedLhs = mapping.lookup(lhs);
-          auto mappedRhs = mapping.lookup(rhs);
+          mlir::Value mappedLhs = mapping.lookup(lhs);
+          mlir::Value mappedRhs = mapping.lookup(rhs);
 
           if (auto mappedLhsArrayType = mappedLhs.getType().dyn_cast<ArrayType>()) {
             assert(mappedLhsArrayType.getRank() != 0);
 
             createIterationLoops(
                 builder, loc, beginIndexes, endIndexes, steps, iterationDirection,
-                [&mappedLhs, &mappedRhs, loc](mlir::OpBuilder& builder, mlir::ValueRange indices) {
+                [&](mlir::OpBuilder& nestedBuilder, mlir::ValueRange indices) {
                   assert(mappedLhs.getType().cast<ArrayType>().getRank() == indices.size());
-                  mlir::Value rhsValue = builder.create<LoadOp>(loc, mappedRhs, indices);
-                  builder.create<StoreOp>(loc, rhsValue, mappedLhs, indices);
+                  mlir::Value rhsValue = nestedBuilder.create<LoadOp>(loc, mappedRhs, indices);
+                  rhsValue = nestedBuilder.create<CastOp>(loc, mappedLhsArrayType.getElementType(), rhsValue);
+                  nestedBuilder.create<StoreOp>(loc, rhsValue, mappedLhs, indices);
                 });
           } else {
             auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
+            mappedRhs = builder.create<CastOp>(loc, mappedLhs.getType(), mappedRhs);
             builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indexes());
           }
         }

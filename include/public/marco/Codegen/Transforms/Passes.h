@@ -3,11 +3,11 @@
 
 // Just a convenience header file to include the Modelica transformation passes
 
+#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
-#include "marco/Codegen/Transforms/ModelSolving.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
 
 namespace marco::codegen

@@ -44,14 +44,14 @@ namespace mlir::ida
     return mlir::LLVM::LLVMPointerType::get(integerType);
   }
 
-  mlir::Type TypeConverter::convertVariableType(VariableType)
+  mlir::Type TypeConverter::convertVariableType(VariableType type)
   {
-    return getIndexType();
+    return mlir::IntegerType::get(type.getContext(), 64);
   }
 
-  mlir::Type TypeConverter::convertEquationType(EquationType)
+  mlir::Type TypeConverter::convertEquationType(EquationType type)
   {
-    return getIndexType();
+    return mlir::IntegerType::get(type.getContext(), 64);
   }
 
   llvm::Optional<mlir::Value> TypeConverter::opaquePointerTypeTargetMaterialization(

@@ -1,9 +1,9 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_SCHEDULING_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_SCHEDULING_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_SCHEDULING_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_SCHEDULING_H
 
-#include "marco/Codegen/Transforms/Model/Equation.h"
-#include "marco/Codegen/Transforms/Model/Matching.h"
-#include "marco/Codegen/Transforms/Model/Model.h"
+#include "marco/Codegen/Transforms/ModelSolving/Equation.h"
+#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
+#include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include "marco/Modeling/Scheduling.h"
 #include <memory>
 
@@ -448,4 +448,4 @@ namespace marco::codegen
   mlir::LogicalResult schedule(Model<ScheduledEquationsBlock>& result, const Model<MatchedEquation>& model);
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_SCHEDULING_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_SCHEDULING_H

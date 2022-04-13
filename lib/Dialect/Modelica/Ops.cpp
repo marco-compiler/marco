@@ -856,6 +856,14 @@ static mlir::ParseResult parseWhileOp(mlir::OpAsmParser& parser, mlir::Operation
     return mlir::failure();
   }
 
+  if (conditionRegion->empty()) {
+    conditionRegion->emplaceBlock();
+  }
+
+  if (bodyRegion->empty()) {
+    bodyRegion->emplaceBlock();
+  }
+
   return mlir::success();
 }
 

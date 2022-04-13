@@ -1,44 +1,8 @@
-#include "marco/Codegen/Transforms/Model/Path.h"
+#include "marco/Codegen/Transforms/ModelSolving/Path.h"
 #include <memory>
 
 namespace marco::codegen
 {
-  /*
-namespace marco::codegen
-{
-  class ExpressionPath::Step::Impl
-  {
-    public:
-    virtual std::unique_ptr<ExpressionPath::Step::Impl> clone() const = 0;
-  };
-}
-class RealStep : public ExpressionPath::Step::Impl
-{
-  public:
-  std::unique_ptr<ExpressionPath::Step::Impl> clone() const override;
-};
-std::unique_ptr<ExpressionPath::Step::Impl> RealStep::clone() const
-{
-  return std::make_unique<RealStep>(*this);
-}
-class FakeStep : public ExpressionPath::Step::Impl
-{
-  public:
-  std::unique_ptr<ExpressionPath::Step::Impl> clone() const override;
-};
-std::unique_ptr<ExpressionPath::Step::Impl> FakeStep::clone() const
-{
-  return std::make_unique<FakeStep>(*this);
-}
-ExpressionPath::Step::Step(std::unique_ptr<Impl> impl) : impl(std::move(impl))
-{
-}
-ExpressionPath::Step::~Step() = default;
-ExpressionPath::Step::Step(const ExpressionPath::Step& other) : impl(other.impl->clone())
-{
-}
- */
-
   ExpressionPath::Guard::Guard(ExpressionPath& path)
       : path(&path), size(path.size())
   {
@@ -48,8 +12,6 @@ ExpressionPath::Step::Step(const ExpressionPath::Step& other) : impl(other.impl-
   {
     if (path->size() > size) {
       path->path.erase(std::next(path->path.begin(), size), path->path.end());
-      //size_t erase = path->size() - size;
-      //path->path.erase(path->path.begin(), std::next(path->path.begin(), erase));
     }
   }
 

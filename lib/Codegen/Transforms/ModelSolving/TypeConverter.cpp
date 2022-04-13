@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/Model/TypeConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/TypeConverter.h"
 #include "marco/Codegen/Conversion/IDA/TypeConverter.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
 

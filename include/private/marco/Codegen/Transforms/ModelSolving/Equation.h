@@ -1,14 +1,14 @@
-#ifndef MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATION_H
-#define MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATION_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_EQUATION_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_EQUATION_H
 
-#include "llvm/Support/raw_ostream.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/Model/Access.h"
-#include "marco/Codegen/Transforms/Model/Path.h"
-#include "marco/Codegen/Transforms/Model/Variable.h"
+#include "marco/Codegen/Transforms/ModelSolving/Access.h"
+#include "marco/Codegen/Transforms/ModelSolving/Path.h"
+#include "marco/Codegen/Transforms/ModelSolving/Variable.h"
 #include "marco/Modeling/Matching.h"
 #include "marco/Modeling/Scheduling.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "llvm/Support/raw_ostream.h"
 #include <memory>
 #include <vector>
 
@@ -383,4 +383,4 @@ namespace marco::modeling::matching
   };
 }
 
-#endif // MARCO_CODEGEN_TRANSFORMS_MODEL_EQUATION_H
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_EQUATION_H

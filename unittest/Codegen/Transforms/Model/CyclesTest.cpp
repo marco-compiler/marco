@@ -1,6 +1,6 @@
 #include "gmock/gmock.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Codegen/Transforms/Model/CyclesSubstitutionSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/CyclesSubstitutionSolver.h"
 #include "marco/Modeling/Cycles.h"
 
 #include "Utils.h"

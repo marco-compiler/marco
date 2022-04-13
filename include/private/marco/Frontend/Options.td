@@ -40,6 +40,10 @@ def OpenModelica_Group : OptionGroup<"OMC">,
     DocName<"OpenModelica compiler">,
     DocBrief<[{Flags controlling the OpenModelica compiler.}]>;
 
+def IDA_Group : OptionGroup<"IDA">,
+    DocName<"IDA">,
+    DocBrief<[{Flags controlling the IDA solver.}]>;
+
 def Codegen_Group : OptionGroup<"Code generation">,
     DocName<"Code generation">,
     DocBrief<[{Flags controlling the code generation and lowering processes.}]>;
@@ -318,6 +322,30 @@ def filter : Joined<["--"], "variable-filter=">,
     Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"Filter for the variables to be printed">;
+
+def solver : Joined<["--"], "solver=">,
+    Group<Simulation_Group>,
+    Flags<[MC1Option]>,
+    HelpText<"Solver (possible options: forward-euler, ida">;
+
+//===----------------------------------------------------------------------===//
+// IDA options
+//===----------------------------------------------------------------------===//
+
+def ida_relative_tolerance : Joined<["--"], "ida-relative-tolerance=">,
+    Group<IDA_Group>,
+    Flags<[MC1Option]>,
+    HelpText<"IDA relative tolerance">;
+
+def ida_absolute_tolerance : Joined<["--"], "ida-absolute-tolerance=">,
+    Group<IDA_Group>,
+    Flags<[MC1Option]>,
+    HelpText<"IDA absolute tolerance">;
+
+def ida_equidistant_time_grid : Flag<["--"], "ida-equidistant-time-grid">,
+    Flags<[MC1Option]>,
+    Group<IDA_Group>,
+    HelpText<"Use a fixed time step">;
 
 //===----------------------------------------------------------------------===//
 // Frontend Options - mc1

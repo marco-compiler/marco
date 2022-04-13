@@ -100,43 +100,53 @@ namespace
 
 #endif
 
+void* heapAlloc(int64_t sizeInBytes)
+{
+#ifdef MARCO_PROFILING
+  ::profiler().startTimer();
+#endif
+
+  void* result = sizeInBytes == 0 ? nullptr : std::malloc(sizeInBytes);
+
+#ifdef MARCO_PROFILING
+  ::profiler().stopTimer();
+  ::profiler().malloc(result, sizeInBytes);
+#endif
+
+  return result;
+}
+
 namespace
 {
   void* heapAlloc_pvoid(int64_t sizeInBytes)
   {
-    #ifdef MARCO_PROFILING
-    ::profiler().startTimer();
-    #endif
-
-    void* result = sizeInBytes == 0 ? nullptr : std::malloc(sizeInBytes);
-
-    #ifdef MARCO_PROFILING
-    ::profiler().stopTimer();
-    ::profiler().malloc(result, sizeInBytes);
-    #endif
-
-    return result;
+    return heapAlloc(sizeInBytes);
   }
 }
 
 RUNTIME_FUNC_DEF(heapAlloc, PTR(void), int64_t)
 
+void heapFree(void* ptr)
+{
+#ifdef MARCO_PROFILING
+  ::profiler().free(ptr);
+  ::profiler().startTimer();
+#endif
+
+  if (ptr != nullptr) {
+    std::free(ptr);
+  }
+
+#ifdef MARCO_PROFILING
+  ::profiler().stopTimer();
+#endif
+}
+
 namespace
 {
   void heapFree_void(void* ptr)
   {
-    #ifdef MARCO_PROFILING
-    ::profiler().free(ptr);
-    ::profiler().startTimer();
-    #endif
-
-    if (ptr != nullptr) {
-      std::free(ptr);
-    }
-
-    #ifdef MARCO_PROFILING
-    ::profiler().stopTimer();
-    #endif
+    heapFree(ptr);
   }
 }
 

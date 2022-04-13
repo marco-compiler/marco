@@ -1,5 +1,5 @@
-#include "marco/Codegen/Transforms/Model/ModelConverter.h"
-#include "marco/Codegen/Transforms/Model/IDA.h"
+#include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDASolver.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/SCF/SCF.h"
@@ -87,7 +87,7 @@ static std::vector<unsigned int> removeUnusedArguments(
 
 namespace marco::codegen
 {
-  ModelConverter::ModelConverter(SolveModelOptions options, mlir::LLVMTypeConverter& typeConverter)
+  ModelConverter::ModelConverter(ModelSolvingOptions options, mlir::LLVMTypeConverter& typeConverter)
       : options(std::move(options)),
         typeConverter(&typeConverter)
   {
@@ -128,8 +128,8 @@ namespace marco::codegen
     // Create the external solvers
     ExternalSolvers solvers;
 
-    auto ida = std::make_unique<IDASolver>(typeConverter, derivatives, 0, 10, 10e-6, 10e-6);
-    //ida->setEnabled(false);
+    auto ida = std::make_unique<IDASolver>(typeConverter, derivatives, options.ida, options.startTime, options.endTime, options.timeStep);
+    ida->setEnabled(options.solver == Solver::ida);
 
     ConversionInfo conversionInfo;
 
@@ -155,53 +155,55 @@ namespace marco::codegen
       }
     }
 
-    // Add the implicit equations to the set of equations managed by IDA, together with their
-    // written variables.
-    for (const auto& implicitEquation : conversionInfo.implicitEquations) {
-      auto var = implicitEquation->getWrite().getVariable();
-      ida->addVariable(var->getValue());
-      ida->addEquation(implicitEquation);
-    }
+    if (ida->isEnabled()) {
+      // Add the implicit equations to the set of equations managed by IDA, together with their
+      // written variables.
+      for (const auto& implicitEquation : conversionInfo.implicitEquations) {
+        auto var = implicitEquation->getWrite().getVariable();
+        ida->addVariable(var->getValue());
+        ida->addEquation(implicitEquation);
+      }
 
-    // Add the cyclic equations to the set of equations managed by IDA, together with their
-    // written variables.
-    for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
-      auto var = cyclicEquation->getWrite().getVariable();
-      ida->addVariable(var->getValue());
-      ida->addEquation(cyclicEquation);
-    }
+      // Add the cyclic equations to the set of equations managed by IDA, together with their
+      // written variables.
+      for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
+        auto var = cyclicEquation->getWrite().getVariable();
+        ida->addVariable(var->getValue());
+        ida->addEquation(cyclicEquation);
+      }
 
-    // Add the differential equations (i.e. the ones matched with a derivative) to the set
-    // of equations managed by IDA, together with their written variables.
-    auto inverseDerivatives = derivatives.getInverse();
+      // Add the differential equations (i.e. the ones matched with a derivative) to the set
+      // of equations managed by IDA, together with their written variables.
+      auto inverseDerivatives = derivatives.getInverse();
 
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& scheduledEquation : *scheduledBlock) {
-        auto var = scheduledEquation->getWrite().getVariable();
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        for (auto& scheduledEquation : *scheduledBlock) {
+          auto var = scheduledEquation->getWrite().getVariable();
 
-        if (auto stateVariable = inverseDerivatives.lookupOrNull(var->getValue())) {
-          // State variable
-          ida->addVariable(stateVariable);
+          if (auto stateVariable = inverseDerivatives.lookupOrNull(var->getValue())) {
+            // State variable
+            ida->addVariable(stateVariable);
 
-          // Derivative
-          ida->addVariable(var->getValue());
+            // Derivative
+            ida->addVariable(var->getValue());
 
-          ida->addEquation(scheduledEquation.get());
+            ida->addEquation(scheduledEquation.get());
+          }
         }
       }
-    }
 
-    // If any of the remaining equations manageable by MARCO does write on a variable managed
-    // by IDA, then the equation must be passed to IDA even if not strictly necessary.
-    // Avoiding this would require either memory duplication or a more severe restructuring
-    // of the solving infrastructure, which would have to be able to split variables and equations
-    // according to which runtime solver manages such variables.
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& scheduledEquation : *scheduledBlock) {
-        auto var = scheduledEquation->getWrite().getVariable();
+      // If any of the remaining equations manageable by MARCO does write on a variable managed
+      // by IDA, then the equation must be passed to IDA even if not strictly necessary.
+      // Avoiding this would require either memory duplication or a more severe restructuring
+      // of the solving infrastructure, which would have to be able to split variables and equations
+      // according to which runtime solver manages such variables.
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        for (auto& scheduledEquation : *scheduledBlock) {
+          auto var = scheduledEquation->getWrite().getVariable();
 
-        if (ida->hasVariable(var->getValue())) {
-          ida->addEquation(scheduledEquation.get());
+          if (ida->hasVariable(var->getValue())) {
+            ida->addEquation(scheduledEquation.get());
+          }
         }
       }
     }
@@ -234,7 +236,6 @@ namespace marco::codegen
       return res;
     }
 
-    /*
     if (auto res = createPrintHeaderFunction(builder, modelOp, derivativesPositions, solvers); failed(res)) {
       model.getOperation().emitError("Could not create the '" + printHeaderFunctionName + "' function");
       return res;
@@ -244,7 +245,6 @@ namespace marco::codegen
       model.getOperation().emitError("Could not create the '" + printFunctionName + "' function");
       return res;
     }
-     */
 
     if (options.emitMain) {
       if (auto res = createMainFunction(builder, model); mlir::failed(res)) {
@@ -561,9 +561,7 @@ namespace marco::codegen
     builder.create<mlir::LLVM::StoreOp>(loc, externalSolversData, externalSolversDataPtr);
 
     // Set the start time
-    mlir::Value startTime = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), modelOp.startTime().convertToDouble()));
-
+    mlir::Value startTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.startTime));
     startTime = typeConverter->materializeTargetConversion(builder, loc, runtimeDataStructType.getBody()[timeVariablePosition], startTime);
     runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, startTime, builder.getIndexArrayAttr(1));
 
@@ -805,7 +803,10 @@ namespace marco::codegen
         return equationPtr.first == equation;
       });
 
-      assert(explicitEquation != conversionInfo.explicitEquationsMap.end());
+      if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
+        // The equations can't be made explicit and it is not passed to any external solver
+        return nullptr;
+      }
 
       // Create the equation template function
       auto templateFunction = explicitEquation->second->createTemplateFunction(
@@ -839,6 +840,8 @@ namespace marco::codegen
           auto templateFunction = getEquationTemplateFn(equation.get());
 
           if (templateFunction == nullptr) {
+            equation->getOperation().emitError("The equation can't be made explicit");
+            equation->getOperation().dump();
             return mlir::failure();
           }
 
@@ -937,16 +940,14 @@ namespace marco::codegen
           typeConverter->convertType(mlir::LLVM::LLVMPointerType::get(externalSolverRuntimeDataType)),
           solver.index());
 
-      auto requestedTimeStep = modelOp.timeStep().convertToDouble();
-
-      if (auto res = solver.value()->processUpdateStatesFunction(builder, solverDataPtr, function, variables, requestedTimeStep); mlir::failed(res)) {
+      if (auto res = solver.value()->processUpdateStatesFunction(builder, solverDataPtr, function, variables); mlir::failed(res)) {
         return res;
       }
     }
 
     // Update the state variables by applying the forward Euler method
     builder.setInsertionPoint(returnOp);
-    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.timeStep().convertToDouble()));
+    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.timeStep));
 
     std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
 
@@ -993,25 +994,57 @@ namespace marco::codegen
     auto runtimeDataStructType = getRuntimeDataStructType(
         builder.getContext(), externalSolvers, modelOp.bodyRegion().getArgumentTypes());
 
-    mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
+    // Extract the external solvers data
+    mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
-    // Increment the time
-    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.timeStep().convertToDouble()));
-    mlir::Value currentTime = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
-    mlir::Value increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+    mlir::Value externalSolversPtr = extractValue(
+        builder, runtimeDataStruct,
+        runtimeDataStructType.getBody()[externalSolversPosition],
+        externalSolversPosition);
 
+    assert(externalSolversPtr.getType().isa<mlir::LLVM::LLVMPointerType>());
+    mlir::Value externalSolversStruct = builder.create<mlir::LLVM::LoadOp>(externalSolversPtr.getLoc(), externalSolversPtr);
+
+    std::vector<mlir::Value> externalSolverDataPtrs;
+    externalSolverDataPtrs.resize(externalSolvers.size());
+
+    // Deallocate each solver data structure
+    for (auto& solver : llvm::enumerate(externalSolvers)) {
+      if (!solver.value()->isEnabled()) {
+        continue;
+      }
+
+      mlir::Type externalSolverRuntimeDataType = solver.value()->getRuntimeDataType(builder.getContext());
+
+      mlir::Value solverDataPtr = extractValue(
+          builder, externalSolversStruct,
+          typeConverter->convertType(mlir::LLVM::LLVMPointerType::get(externalSolverRuntimeDataType)),
+          solver.index());
+
+      externalSolverDataPtrs[solver.index()] = solverDataPtr;
+    }
+
+    mlir::Value increasedTime = externalSolvers.getCurrentTime(builder, externalSolverDataPtrs);
+
+    if (!increasedTime) {
+      mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.timeStep));
+      mlir::Value currentTime = extractValue(builder, runtimeDataStruct, RealType::get(builder.getContext()), timeVariablePosition);
+      increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+    }
+
+    // Store the increased time into the runtime data structure
     increasedTime = typeConverter->materializeTargetConversion(builder, loc, runtimeDataStructType.getBody()[timeVariablePosition], increasedTime);
-    structValue = builder.create<mlir::LLVM::InsertValueOp>(loc, structValue, increasedTime, builder.getIndexArrayAttr(timeVariablePosition));
+    runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStruct, increasedTime, builder.getIndexArrayAttr(timeVariablePosition));
 
-    mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structValue.getType());
+    mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(runtimeDataStruct.getType());
     mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, function.getArgument(0));
-    builder.create<mlir::LLVM::StoreOp>(loc, structValue, structPtr);
+    builder.create<mlir::LLVM::StoreOp>(loc, runtimeDataStruct, structPtr);
 
     // Check if the current time is less than the end time
-    mlir::Value endTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), modelOp.endTime().convertToDouble()));
+    mlir::Value endTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.endTime));
     endTime = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(endTime.getType()), endTime);
 
-    mlir::Value condition = builder.create<mlir::CmpFOp>(loc, mlir::CmpFPredicate::OLE, increasedTime, endTime);
+    mlir::Value condition = builder.create<mlir::CmpFOp>(loc, mlir::CmpFPredicate::OLT, increasedTime, endTime);
     builder.create<mlir::ReturnOp>(loc, condition);
 
     return mlir::success();

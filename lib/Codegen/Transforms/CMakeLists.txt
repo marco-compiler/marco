@@ -1,12 +1,12 @@
 set(SOURCES
+    ModelSolving/ExternalSolvers/ExternalSolver.cpp
+    ModelSolving/ExternalSolvers/IDA.cpp
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
     ModelSolving/Access.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
     ModelSolving/Equation.cpp
-    ModelSolving/ExternalSolver.cpp
-    ModelSolving/IDA.cpp
     ModelSolving/LoopEquation.cpp
     ModelSolving/Matching.cpp
     ModelSolving/Model.cpp
