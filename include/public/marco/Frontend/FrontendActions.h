@@ -71,7 +71,7 @@ namespace marco::frontend
   class CompileAction : public CodegenAction
   {
     protected:
-      void compileAndEmitFile(llvm::CodeGenFileType fileType);
+      void compileAndEmitFile(llvm::CodeGenFileType fileType, llvm::raw_pwrite_stream& os);
   };
 
   class EmitAssemblyAction : public CompileAction

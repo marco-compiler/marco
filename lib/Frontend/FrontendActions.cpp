@@ -8,8 +8,6 @@
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
 
-#include "llvm/Support/FileSystem.h"
-
 namespace marco::frontend
 {
   void InitOnlyAction::execute()
@@ -153,7 +151,7 @@ namespace marco::frontend
     llvm::outs() << instance().getLLVMModule();
   }
 
-  void CompileAction::compileAndEmitFile(llvm::CodeGenFileType fileType)
+  void CompileAction::compileAndEmitFile(llvm::CodeGenFileType fileType, llvm::raw_pwrite_stream& os)
   {
     CompilerInstance& ci = instance();
 
@@ -181,13 +179,10 @@ namespace marco::frontend
     auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, relocationModel);
 
     ci.getLLVMModule().setDataLayout(targetMachine->createDataLayout());
-    ci.getLLVMModule().setTargetTriple(targetTriple);
 
     llvm::legacy::PassManager passManager;
 
-    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
-
-    if (targetMachine->addPassesToEmitFile(passManager, *os, nullptr, fileType)) {
+    if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType)) {
       unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Error,
           "TargetMachine can't emit a file of this type");
@@ -197,16 +192,20 @@ namespace marco::frontend
     }
 
     passManager.run(ci.getLLVMModule());
-    //dest.flush();
+    os.flush();
   }
 
   void EmitAssemblyAction::execute()
   {
-    compileAndEmitFile(llvm::CGFT_AssemblyFile);
+    CompilerInstance& ci = instance();
+    auto os = ci.createDefaultOutputFile(false, ci.getFrontendOptions().outputFile, "s");
+    compileAndEmitFile(llvm::CGFT_AssemblyFile, *os);
   }
 
   void EmitObjectAction::execute()
   {
-    compileAndEmitFile(llvm::CGFT_ObjectFile);
+    CompilerInstance& ci = instance();
+    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
+    compileAndEmitFile(llvm::CGFT_ObjectFile, *os);
   }
 }

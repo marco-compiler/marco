@@ -219,7 +219,6 @@ namespace marco::frontend
 
     passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createModelSolvingPass(modelSolvingOptions));
 
-    /*
     // Functions scalarization pass
     codegen::FunctionScalarizationOptions functionScalarizationOptions;
     functionScalarizationOptions.assertions = codegenOptions.assertions;
@@ -279,7 +278,6 @@ namespace marco::frontend
       // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
-     */
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
