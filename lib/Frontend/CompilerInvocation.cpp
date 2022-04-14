@@ -202,11 +202,6 @@ namespace marco::frontend
         options::OPT_no_assertions,
         options.assertions);
 
-    options.generateMain = args.hasFlag(
-        marco::frontend::options::OPT_generate_main,
-        options::OPT_no_generate_main,
-        options.generateMain);
-
     options.inlining = args.hasFlag(
         marco::frontend::options::OPT_function_inlining,
         options::OPT_no_function_inlining,
@@ -226,6 +221,17 @@ namespace marco::frontend
         marco::frontend::options::OPT_omp,
         options::OPT_no_omp,
         options.omp);
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_bit_width)) {
+      llvm::StringRef value = arg->getValue();
+      llvm::APSInt numericValue(value);
+      options.bitWidth = numericValue.getSExtValue();
+    }
+
+    options.generateMain = args.hasFlag(
+        marco::frontend::options::OPT_generate_main,
+        options::OPT_no_generate_main,
+        options.generateMain);
 
     options.cWrappers = args.hasFlag(
         marco::frontend::options::OPT_c_wrappers,

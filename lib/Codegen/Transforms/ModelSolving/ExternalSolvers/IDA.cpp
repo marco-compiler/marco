@@ -546,10 +546,14 @@ namespace marco::codegen
     // Map the iteration variables
     auto originalInductions = equation.getInductionVariables();
     auto mappedInductions = residualFunction.getEquationIndices();
-    assert(originalInductions.size() == mappedInductions.size());
 
-    for (const auto& [original, mapped] : llvm::zip(originalInductions, mappedInductions)) {
-      mapping.map(original, mapped);
+    // Scalar equations have zero concrete values, but yet they show a fake induction variable.
+    // The same happens with equations having implicit iteration variables (which originate
+    // from array assignments).
+    assert(originalInductions.size() <= mappedInductions.size());
+
+    for (size_t i = 0; i < originalInductions.size(); ++i) {
+      mapping.map(originalInductions[i], mappedInductions[i]);
     }
 
     for (auto& op : equation.getOperation().bodyBlock()->getOperations()) {
@@ -658,7 +662,11 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Type, 6> argsTypes;
 
     for (auto type : mlir::ValueRange(filteredOriginalVariables).getTypes()) {
-      argsTypes.push_back(type);
+      if (auto arrayType = type.dyn_cast<ArrayType>()) {
+        argsTypes.push_back(arrayType.getElementType());
+      } else {
+        argsTypes.push_back(type);
+      }
     }
 
     for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
@@ -722,6 +730,18 @@ namespace marco::codegen
 
     // Clone the original operations
     for (auto& op : equation.getOperation().bodyBlock()->getOperations()) {
+      if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
+        // We need to check if the load operation is performed on model variable.
+        // Those variables are in fact created inside the function by means of MemberCreateOps,
+        // and if such variable is a scalar one there would be a load operation wrongly operating
+        // on a scalar value.
+
+        if (auto memberLoadOp = mapping.lookup(loadOp.array()).getDefiningOp<MemberLoadOp>()) {
+          mapping.map(loadOp.getResult(), memberLoadOp.getResult());
+          continue;
+        }
+      }
+
       builder.clone(op, mapping);
     }
 
@@ -792,7 +812,11 @@ namespace marco::codegen
     args.push_back(jacobianFunction.getTime());
 
     for (const auto& var : jacobianFunction.getVariables()) {
-      args.push_back(var);
+      if (auto arrayType = var.getType().dyn_cast<ArrayType>(); arrayType && arrayType.isScalar()) {
+        args.push_back(builder.create<LoadOp>(var.getLoc(), var));
+      } else {
+        args.push_back(var);
+      }
     }
 
     for (auto equationIndex : jacobianFunction.getEquationIndices()) {
@@ -809,8 +833,9 @@ namespace marco::codegen
     mlir::Value zero = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 0));
     mlir::Value one = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 1));
 
+    // Create the seed values for the variables
     for (auto varType : llvm::enumerate(mlir::ValueRange(filteredOriginalVariables).getTypes())) {
-      if (auto arrayType = varType.value().dyn_cast<ArrayType>()) {
+      if (auto arrayType = varType.value().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
         assert(arrayType.hasConstantShape());
 
         auto array = builder.create<AllocOp>(
@@ -829,6 +854,8 @@ namespace marco::codegen
         }
 
       } else {
+        assert(arrayType && arrayType.isScalar());
+
         if (varType.index() == oneSeedPosition) {
           args.push_back(one);
         } else if (varType.index() == alphaSeedPosition) {
@@ -840,6 +867,7 @@ namespace marco::codegen
     }
 
     for (size_t i = 0; i < jacobianFunction.getEquationIndices().size(); ++i) {
+      // The indices of the equation have a seed equal to zero
       args.push_back(zero);
     }
 

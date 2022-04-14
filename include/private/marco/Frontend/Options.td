@@ -235,6 +235,11 @@ defm generate_main : BoolOption<"", "generate-main",
     BothFlags<[MC1Option], " the main function that starts the simulation">>,
     Group<Codegen_Group>;
 
+def bit_width : Joined<["--"], "bit-width=">,
+    Flags<[MC1Option]>,
+    Group<Codegen_Group>,
+    HelpText<"Set the bit-width of the simulation data">;
+
 defm function_inlining : BoolOption<"", "inlining",
     CodegenOpts<"Inlining">,
     DefaultFalse,

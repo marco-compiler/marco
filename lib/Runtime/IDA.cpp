@@ -563,7 +563,9 @@ namespace
     }
 
     // Compute the total amount of non-zero values in the Jacobian Matrix.
+    std::cout << "Before computeNNZ\n";
     computeNNZ();
+    std::cout << "After computeNNZ\n";
 
     // Create and initialize IDA memory.
     idaMemory = IDACreate();
@@ -738,6 +740,8 @@ namespace
     if (!checkRetval(retval, "IDACalcIC")) {
       return false;
     }
+
+    std::cerr << "Initialize successfull\n";
 
     return true;
   }

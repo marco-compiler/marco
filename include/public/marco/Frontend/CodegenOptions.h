@@ -23,6 +23,7 @@ namespace marco::frontend
     bool cse = false;
     bool omp = false;
 
+    unsigned int bitWidth = 64;
     bool generateMain = true;
     bool cWrappers = false;
   };
