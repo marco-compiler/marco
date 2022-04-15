@@ -313,14 +313,20 @@ def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable",
     let arguments = (ins
         IDAInstance:$instance,
         AnyType:$variable,
-        I64ArrayAttr:$arrayDimensions);
+        I64ArrayAttr:$arrayDimensions,
+        SymbolRefAttr:$setter);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, setter);
+        }]>,
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "StringRef":$setter), [{
+            auto resultType = ida::VariableType::get($_builder.getContext());
+            auto setterAttr = $_builder.getSymbolRefAttr(setter);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, setterAttr);
         }]>
     ];
 
@@ -357,19 +363,127 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable",
         IDAInstance:$instance,
         AnyType:$variable,
         AnyType:$derivative,
-        I64ArrayAttr:$arrayDimensions);
+        I64ArrayAttr:$arrayDimensions,
+        SymbolRefAttr:$setter);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "Value":$derivative, "ArrayAttr":$arrayDimensions), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "Value":$derivative, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, variable, derivative, arrayDimensions);
+            build($_builder, $_state, resultType, idaInstance, variable, derivative, arrayDimensions, setter);
+        }]>,
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "Value":$derivative, "ArrayAttr":$arrayDimensions, "StringRef":$setter), [{
+            auto resultType = ida::VariableType::get($_builder.getContext());
+            auto setterAttr = $_builder.getSymbolRefAttr(setter);
+            build($_builder, $_state, resultType, idaInstance, variable, derivative, arrayDimensions, setterAttr);
         }]>
     ];
 
     let assemblyFormat = [{
         $instance `,` $variable `,` $derivative attr-dict `:` `(` type($instance) `,` type($variable) `,` type($derivative) `)` `->` type($idaVariable)
+    }];
+}
+
+def IDA_VariableSetterOp : IDA_Op<"variable_setter",
+    [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
+{
+    let summary = "";
+
+    let description = [{
+
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttr:$type);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let builders = [
+        OpBuilder<(ins "StringRef":$sym_name, "Type":$variableType, "Type":$valueType, "unsigned int":$variableRank), [{
+            auto nameAttr = $_builder.getStringAttr(sym_name);
+
+            SmallVector<Type, 3> args;
+
+            args.push_back(variableType);
+            args.push_back(valueType);
+            args.append(variableRank, $_builder.getIndexType());
+
+            auto functionType = $_builder.getFunctionType(args, llvm::None);
+            auto typeAttr = TypeAttr::get(functionType);
+            build($_builder, $_state, nameAttr, typeAttr);
+        }]>
+    ];
+
+    let extraClassDeclaration = [{
+        public:
+            llvm::StringRef name() {
+                return sym_name();
+            }
+
+            FunctionType getType() {
+                return getTypeAttr().getValue().cast<FunctionType>();
+            }
+
+            BlockArgument getVariable();
+            BlockArgument getValue();
+            ArrayRef<BlockArgument> getVariableIndices();
+
+            //===------------------------------------------------------------------===//
+            // FunctionOpInterface Methods
+            //===------------------------------------------------------------------===//
+
+            /// Returns the argument types of this function.
+            ArrayRef<Type> getArgumentTypes() {
+                return getType().getInputs();
+            }
+
+            /// Returns the result types of this function.
+            ArrayRef<Type> getResultTypes() {
+                return getType().getResults();
+            }
+
+            //===------------------------------------------------------------------===//
+            // SymbolOpInterface Methods
+            //===------------------------------------------------------------------===//
+
+            bool isDeclaration() {
+                return isExternal();
+            }
+
+        private:
+            // This trait needs access to the hooks defined below.
+            friend class OpTrait::FunctionLike<VariableSetterOp>;
+
+            /// Returns the number of arguments. This is a hook for
+            /// OpTrait::FunctionLike.
+            unsigned getNumFuncArguments() {
+                return getType().getInputs().size();
+            }
+
+            /// Returns the number of results. This is a hook for OpTrait::FunctionLike.
+            unsigned getNumFuncResults() {
+                return getType().getResults().size();
+            }
+
+            /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
+            /// attribute is present and checks if it holds a function type. Ensures
+            /// getType, getNumFuncArguments, and getNumFuncResults can be called
+            /// safely.
+            LogicalResult verifyType() {
+                auto type = getTypeAttr().getValue();
+
+                if (!type.isa<FunctionType>()) {
+                    return emitOpError("requires '" + getTypeAttrName() + "' attribute of function type");
+               }
+
+                return success();
+            }
     }];
 }
 
@@ -759,7 +873,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 
 def IDA_ReturnOp : IDA_Op<"return",
     [NoSideEffect,
-     ParentOneOf<["ResidualFunctionOp", "JacobianFunctionOp"]>,
+     ParentOneOf<["VariableSetterOp", "ResidualFunctionOp", "JacobianFunctionOp"]>,
      ReturnLike, Terminator]>
 {
     let summary = "Return operation.";

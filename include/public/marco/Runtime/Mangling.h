@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-#define NUM_ARGS_H1(dummy, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
-#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define NUM_ARGS_H1(dummy, x10, x9, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
+#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 #define APPLY0(t, n, dummy)
 #define APPLY1(t, n, a) t(n, a)
@@ -15,6 +15,8 @@
 #define APPLY6(t, n, a, b, c, d, e, f) APPLY5(t, 5, a, b, c, d, e), t(n, f)
 #define APPLY7(t, n, a, b, c, d, e, f, g) APPLY6(t, 6, a, b, c, d, e, f), t(n, g)
 #define APPLY8(t, n, a, b, c, d, e, f, g, h) APPLY7(t, 7, a, b, c, d, e, f, g), t(n, h)
+#define APPLY9(t, n, a, b, c, d, e, f, g, h, i) APPLY8(t, 8, a, b, c, d, e, f, g, h), t(n, i)
+#define APPLY10(t, n, a, b, c, d, e, f, g, h, i, j) APPLY9(t, 9, a, b, c, d, e, f, g, h, i), t(n, j)
 
 #define APPLY_ALL_H3(t, n, ...) APPLY##n(t, n, __VA_ARGS__)
 #define APPLY_ALL_H2(t, n, ...) APPLY_ALL_H3(t, n, __VA_ARGS__)
@@ -29,6 +31,8 @@
 #define CONCAT6(a, b, c, d, e, f) a ##b ##c ##d ##e ##f
 #define CONCAT7(a, b, c, d, e, f, g) a ##b ##c ##d ##e ##f ##g
 #define CONCAT8(a, b, c, d, e, f, g, h) a ##b ##c ##d ##e ##f ##g ##h
+#define CONCAT9(a, b, c, d, e, f, g, h, i) a ##b ##c ##d ##e ##f ##g ##h ##i
+#define CONCAT10(a, b, c, d, e, f, g, h, i, j) a ##b ##c ##d ##e ##f ##g ##h ##i ##j
 
 #define CONCAT_ALL_H3(n, ...) CONCAT##n(__VA_ARGS__)
 #define CONCAT_ALL_H2(n, ...) CONCAT_ALL_H3(n, __VA_ARGS__)

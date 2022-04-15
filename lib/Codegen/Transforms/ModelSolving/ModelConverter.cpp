@@ -945,27 +945,29 @@ namespace marco::codegen
       }
     }
 
-    // Update the state variables by applying the forward Euler method
-    builder.setInsertionPoint(returnOp);
-    mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.timeStep));
+    if (options.solver == Solver::forwardEuler) {
+      // Update the state variables by applying the forward Euler method
+      builder.setInsertionPoint(returnOp);
+      mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.timeStep));
 
-    std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
+      std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
 
-    for (const auto& variable : modelOp.bodyRegion().getArguments()) {
-      size_t index = variable.getArgNumber();
-      auto it = derivativesPositionMap.find(variable.getArgNumber());
+      for (const auto& variable : modelOp.bodyRegion().getArguments()) {
+        size_t index = variable.getArgNumber();
+        auto it = derivativesPositionMap.find(variable.getArgNumber());
 
-      if (it != derivativesPositionMap.end()) {
-        mlir::Value var = extractValue(builder, structValue, varTypes[index], index + variablesOffset);
-        mlir::Value der = extractValue(builder, structValue, varTypes[it->second], it->second + variablesOffset);
-        varsAndDers.emplace_back(var, der);
+        if (it != derivativesPositionMap.end()) {
+          mlir::Value var = extractValue(builder, structValue, varTypes[index], index + variablesOffset);
+          mlir::Value der = extractValue(builder, structValue, varTypes[it->second], it->second + variablesOffset);
+          varsAndDers.emplace_back(var, der);
+        }
       }
-    }
 
-    for (const auto& [var, der] : varsAndDers) {
-      mlir::Value nextValue = builder.create<MulOp>(loc, der.getType(), der, timeStep);
-      nextValue = builder.create<AddOp>(loc, var.getType(), nextValue, var);
-      builder.create<AssignmentOp>(loc, var, nextValue);
+      for (const auto& [var, der] : varsAndDers) {
+        mlir::Value nextValue = builder.create<MulOp>(loc, der.getType(), der, timeStep);
+        nextValue = builder.create<AddOp>(loc, var.getType(), nextValue, var);
+        builder.create<AssignmentOp>(loc, var, nextValue);
+      }
     }
 
     return mlir::success();

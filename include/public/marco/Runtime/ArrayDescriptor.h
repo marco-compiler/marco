@@ -518,102 +518,102 @@ template<typename T>
 class ArrayIterator
 {
 	public:
-	using iterator_category = std::forward_iterator_tag;
-	using value_type = T;
-	using difference_type = std::ptrdiff_t;
-	using pointer = T*;
-	using reference = T&;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = T;
+    using difference_type = std::ptrdiff_t;
+    using pointer = T*;
+    using reference = T&;
 
 	private:
-	using ArrayType = typename std::remove_const<T>::type;
+    using ArrayType = typename std::remove_const<T>::type;
 
-	using rank_t = typename ArrayDescriptor<T, 0>::rank_t;
-	using dimension_t = typename ArrayDescriptor<T, 0>::dimension_t;
+    using rank_t = typename ArrayDescriptor<T, 0>::rank_t;
+    using dimension_t = typename ArrayDescriptor<T, 0>::dimension_t;
 
 	public:
-	template<unsigned int Rank>
-	ArrayIterator(ArrayDescriptor<ArrayType, Rank>& descriptor, bool finished = false)
-			: finished(finished),
-				offset(0),
-				descriptor((ArrayDescriptor<ArrayType, 0>*) &descriptor)
-	{
-		for (dimension_t i = 0, rank = descriptor.getRank(); i < rank; ++i)
-			indexes.push_back(0);
-	}
+    template<unsigned int Rank>
+    ArrayIterator(ArrayDescriptor<ArrayType, Rank>& descriptor, bool finished = false)
+        : finished(finished),
+          offset(0),
+          descriptor((ArrayDescriptor<ArrayType, 0>*) &descriptor)
+    {
+      for (dimension_t i = 0, rank = descriptor.getRank(); i < rank; ++i)
+        indexes.push_back(0);
+    }
 
-	ArrayIterator<T>& operator++()
-	{
-		rank_t rank = descriptor->getRank();
+    ArrayIterator<T>& operator++()
+    {
+      rank_t rank = descriptor->getRank();
 
-		if (rank == 0) {
-			finished = true;
-			return *this;
-		}
+      if (rank == 0) {
+        finished = true;
+        return *this;
+      }
 
-		rank_t consumedDimensions = 0;
+      rank_t consumedDimensions = 0;
 
-		for (dimension_t i = 0; i < rank && indexes[rank - 1 - i] + 1 == descriptor->getDimension(rank - 1 - i); ++i) {
-			indexes[rank - 1 - i] = 0;
-			++consumedDimensions;
-		}
+      for (dimension_t i = 0; i < rank && indexes[rank - 1 - i] + 1 == descriptor->getDimension(rank - 1 - i); ++i) {
+        indexes[rank - 1 - i] = 0;
+        ++consumedDimensions;
+      }
 
-		if (consumedDimensions == rank) {
-			finished = true;
-			offset = 0;
-			return *this;
-		}
+      if (consumedDimensions == rank) {
+        finished = true;
+        offset = 0;
+        return *this;
+      }
 
-		assert(consumedDimensions < rank);
-		++indexes[rank - 1 - consumedDimensions];
-		offset += 1;
+      assert(consumedDimensions < rank);
+      ++indexes[rank - 1 - consumedDimensions];
+      offset += 1;
 
-		return *this;
-	}
+      return *this;
+    }
 
-	T& operator*()
-	{
-		return (*descriptor)[offset];
-	}
+    T& operator*()
+    {
+      return (*descriptor)[offset];
+    }
 
-	T& operator*() const
-	{
-		return (*descriptor)[offset];
-	}
+    T& operator*() const
+    {
+      return (*descriptor)[offset];
+    }
 
-	T* operator->()
-	{
-		return (*descriptor)[offset];
-	}
+    T* operator->()
+    {
+      return (*descriptor)[offset];
+    }
 
-	T* operator->() const
-	{
-		return (*descriptor)[offset];
-	}
+    T* operator->() const
+    {
+      return (*descriptor)[offset];
+    }
 
-	bool operator==(const ArrayIterator& other) const
-	{
-		return other.finished == finished &&
-					 other.offset == offset &&
-					 other.descriptor == descriptor;
-	}
+    bool operator==(const ArrayIterator& other) const
+    {
+      return other.finished == finished &&
+             other.offset == offset &&
+             other.descriptor == descriptor;
+    }
 
-	bool operator!=(const ArrayIterator& other) const
-	{
-		return other.finished != finished ||
-					 other.offset != offset ||
-					 other.descriptor != descriptor;
-	}
+    bool operator!=(const ArrayIterator& other) const
+    {
+      return other.finished != finished ||
+             other.offset != offset ||
+             other.descriptor != descriptor;
+    }
 
-	const std::vector<dimension_t>& getCurrentIndexes() const
-	{
-		return indexes;
-	}
+    const std::vector<dimension_t>& getCurrentIndexes() const
+    {
+      return indexes;
+    }
 
 	private:
-	bool finished = false;
-	dimension_t offset = 0;
-	std::vector<dimension_t> indexes;
-	ArrayDescriptor<ArrayType, 0>* descriptor;
+    bool finished = false;
+    dimension_t offset = 0;
+    std::vector<dimension_t> indexes;
+    ArrayDescriptor<ArrayType, 0>* descriptor;
 };
 
 #endif // MARCO_RUNTIME_ARRAYDESCRIPTOR_H

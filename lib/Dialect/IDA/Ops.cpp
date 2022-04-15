@@ -422,6 +422,25 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
+  // VariableSetterOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::BlockArgument VariableSetterOp::getVariable()
+  {
+    return bodyRegion().getArgument(0);
+  }
+
+  BlockArgument VariableSetterOp::getValue()
+  {
+    return bodyRegion().getArgument(1);
+  }
+
+  llvm::ArrayRef<BlockArgument> VariableSetterOp::getVariableIndices()
+  {
+    return bodyRegion().getArguments().slice(2);
+  }
+
+  //===----------------------------------------------------------------------===//
   // AddVariableAccessOp
   //===----------------------------------------------------------------------===//
 

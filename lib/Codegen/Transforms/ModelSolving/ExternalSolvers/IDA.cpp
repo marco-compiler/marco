@@ -234,6 +234,19 @@ namespace marco::codegen
       auto arrayType = variable.getType().cast<ArrayType>();
       assert(arrayType.hasConstantShape());
 
+      std::vector<long> dimensions;
+
+      if (arrayType.isScalar()) {
+        // In case of scalar variables, the shape of the array would be empty
+        // but IDA needs to see a single dimension of value 1.
+        dimensions.push_back(1);
+      } else {
+        auto shape = arrayType.getShape();
+        dimensions.insert(dimensions.end(), shape.begin(), shape.end());
+      }
+
+      std::string variableSetterName = "ida_setter_" + std::to_string(idaVariableIndex);
+
       if (derivatives->contains(variable)) {
         // State variable
         mlir::Value stateVariable = variables[variableIndex];
@@ -242,12 +255,17 @@ namespace marco::codegen
         auto derivativeIndex = derivative.cast<mlir::BlockArgument>().getArgNumber();
         derivative = variables[derivativeIndex];
 
+        if (auto res = createVariableSetterFunction(builder, variable, variableSetterName); mlir::failed(res)) {
+          return res;
+        }
+
         mlir::Value idaVariable = builder.create<mlir::ida::AddStateVariableOp>(
             variable.getLoc(),
             idaInstance,
             stateVariable,
             derivative,
-            builder.getI64ArrayAttr(arrayType.getShape()));
+            builder.getI64ArrayAttr(dimensions),
+            variableSetterName);
 
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
 
@@ -261,11 +279,16 @@ namespace marco::codegen
         // nor a derivative).
         mlir::Value algebraicVariable = variables[variableIndex];
 
+        if (auto res = createVariableSetterFunction(builder, variable, variableSetterName); mlir::failed(res)) {
+          return res;
+        }
+
         auto idaVariable = builder.create<mlir::ida::AddAlgebraicVariableOp>(
             variable.getLoc(),
             idaInstance,
             algebraicVariable,
-            builder.getI64ArrayAttr(arrayType.getShape()));
+            builder.getI64ArrayAttr(dimensions),
+            variableSetterName);
 
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
         mappedVariables[variableIndex] = idaVariableIndex;
@@ -304,6 +327,36 @@ namespace marco::codegen
       }
     }
 
+    return mlir::success();
+  }
+
+  mlir::LogicalResult IDASolver::createVariableSetterFunction(
+      mlir::OpBuilder& builder,
+      mlir::Value variable,
+      llvm::StringRef functionName)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto module = variable.getParentRegion()->getParentOfType<mlir::ModuleOp>();
+    builder.setInsertionPointToEnd(module.getBody());
+
+    assert(variable.getType().isa<ArrayType>());
+    auto variableArrayType = variable.getType().cast<ArrayType>();
+
+    auto setterOp = builder.create<mlir::ida::VariableSetterOp>(
+        variable.getLoc(),
+        functionName,
+        variableArrayType,
+        variableArrayType.getElementType(),
+        std::max((unsigned int) 1, variableArrayType.getRank()));
+
+    mlir::Block* entryBlock = setterOp.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    auto indices = setterOp.getVariableIndices().take_front(variableArrayType.getRank());
+    mlir::Value value = builder.create<CastOp>(setterOp.getLoc(), variableArrayType.getElementType(), setterOp.getValue());
+    builder.create<StoreOp>(setterOp.getLoc(), value, setterOp.getVariable(), indices);
+
+    builder.create<mlir::ida::ReturnOp>(setterOp.getLoc());
     return mlir::success();
   }
 
@@ -662,7 +715,7 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Type, 6> argsTypes;
 
     for (auto type : mlir::ValueRange(filteredOriginalVariables).getTypes()) {
-      if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      if (auto arrayType = type.dyn_cast<ArrayType>(); arrayType && arrayType.isScalar()) {
         argsTypes.push_back(arrayType.getElementType());
       } else {
         argsTypes.push_back(type);

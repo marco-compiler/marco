@@ -97,6 +97,11 @@ namespace marco::codegen
         mlir::Value runtimeDataPtr,
         mlir::ValueRange variables);
 
+      mlir::LogicalResult createVariableSetterFunction(
+          mlir::OpBuilder& builder,
+          mlir::Value variable,
+          llvm::StringRef functionName);
+
       mlir::LogicalResult addEquationsToIDA(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
