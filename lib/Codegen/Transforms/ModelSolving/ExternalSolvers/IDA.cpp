@@ -886,6 +886,8 @@ namespace marco::codegen
     mlir::Value zero = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 0));
     mlir::Value one = builder.create<ConstantOp>(jacobianFunction.getLoc(), RealAttr::get(builder.getContext(), 1));
 
+    llvm::SmallVector<mlir::Value> seedArrays;
+
     // Create the seed values for the variables
     for (auto varType : llvm::enumerate(mlir::ValueRange(filteredOriginalVariables).getTypes())) {
       if (auto arrayType = varType.value().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
@@ -895,6 +897,8 @@ namespace marco::codegen
             jacobianFunction.getLoc(),
             arrayType.toElementType(RealType::get(builder.getContext())),
             llvm::None);
+
+        seedArrays.push_back(array);
 
         args.push_back(array);
 
@@ -926,6 +930,11 @@ namespace marco::codegen
 
     auto templateCall = builder.create<CallOp>(
         jacobianFunction.getLoc(), partialDerTemplateName, RealType::get(builder.getContext()), args);
+
+    // Deallocate the seeds
+    for (auto seed : seedArrays) {
+      builder.create<FreeOp>(jacobianFunction.getLoc(), seed);
+    }
 
     builder.create<mlir::ida::ReturnOp>(jacobianFunction.getLoc(), templateCall.getResult(0));
 

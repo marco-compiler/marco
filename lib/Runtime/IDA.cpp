@@ -155,8 +155,8 @@ namespace
         }
 
         if (posFromLast != rank) {
-          for (size_t i = 0; i < posFromLast - 1; ++i) {
-            indices[rank - i] = 0;
+          for (size_t i = 0; i < posFromLast; ++i) {
+            indices[rank - i - 1] = 0;
           }
         }
       }
