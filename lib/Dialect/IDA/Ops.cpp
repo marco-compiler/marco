@@ -318,6 +318,15 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
+  // SetTimeStepOp
+  //===----------------------------------------------------------------------===//
+
+  void SetTimeStepOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
   // SetRelativeToleranceOp
   //===----------------------------------------------------------------------===//
 

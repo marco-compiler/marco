@@ -192,6 +192,41 @@ namespace
     }
   };
 
+  struct SetTimeStepOpLowering : public IDAOpConversion<SetTimeStepOp>
+  {
+    using IDAOpConversion<SetTimeStepOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(SetTimeStepOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      RuntimeFunctionsMangling mangling;
+
+      auto mangledResultType = mangling.getVoidType();
+
+      assert(operands.size() == 1);
+      llvm::SmallVector<mlir::Value, 2> newOperands;
+      newOperands.push_back(operands[0]);
+
+      // Time step
+      newOperands.push_back(rewriter.create<mlir::ConstantOp>(
+          loc, rewriter.getF64FloatAttr(op.timeStep().convertToDouble())));
+
+      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+      mangledArgsTypes.push_back(mangling.getFloatingPointType(newOperands[1].getType().getIntOrFloatBitWidth()));
+
+      auto functionName = mangling.getMangledFunction("idaSetTimeStep", mangledResultType, mangledArgsTypes);
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          functionName, getVoidType(), newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+      return mlir::success();
+    }
+  };
+
   struct SetRelativeToleranceOpLowering : public IDAOpConversion<SetRelativeToleranceOp>
   {
     using IDAOpConversion<SetRelativeToleranceOp>::IDAOpConversion;
@@ -1084,16 +1119,11 @@ namespace
       auto mangledResultType = mangling.getVoidType();
 
       assert(operands.size() == 1);
-      llvm::SmallVector<mlir::Value, 2> newOperands;
-      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+      llvm::SmallVector<mlir::Value, 1> newOperands;
+      llvm::SmallVector<std::string, 1> mangledArgsTypes;
 
       newOperands.push_back(operands[0]);
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
-
-      if (auto timeStep = op.timeStep(); timeStep.hasValue()) {
-        newOperands.push_back(rewriter.create<mlir::ConstantOp>(loc, rewriter.getF64FloatAttr(timeStep->convertToDouble())));
-        mangledArgsTypes.push_back(mangling.getFloatingPointType(64));
-      }
 
       auto functionName = mangling.getMangledFunction("idaStep", mangledResultType, mangledArgsTypes);
 
@@ -1180,6 +1210,7 @@ static void populateIDAConversionPatterns(
       CreateOpLowering,
       SetStartTimeOpLowering,
       SetEndTimeOpLowering,
+      SetTimeStepOpLowering,
       SetRelativeToleranceOpLowering,
       SetAbsoluteToleranceOpLowering,
       GetCurrentTimeOpLowering,

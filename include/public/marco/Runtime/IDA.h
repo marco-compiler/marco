@@ -12,7 +12,6 @@ RUNTIME_FUNC_DECL(idaCreate, PTR(void), int64_t, int64_t)
 RUNTIME_FUNC_DECL(idaInit, void, PTR(void))
 
 RUNTIME_FUNC_DECL(idaStep, void, PTR(void))
-RUNTIME_FUNC_DECL(idaStep, void, PTR(void), double)
 
 RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
 
@@ -20,6 +19,7 @@ RUNTIME_FUNC_DECL(idaFree, void, PTR(void))
 
 RUNTIME_FUNC_DECL(idaSetStartTime, void, PTR(void), double)
 RUNTIME_FUNC_DECL(idaSetEndTime, void, PTR(void), double)
+RUNTIME_FUNC_DECL(idaSetTimeStep, void, PTR(void), double)
 
 RUNTIME_FUNC_DECL(idaSetRelativeTolerance, void, PTR(void), double)
 RUNTIME_FUNC_DECL(idaSetAbsoluteTolerance, void, PTR(void), double)

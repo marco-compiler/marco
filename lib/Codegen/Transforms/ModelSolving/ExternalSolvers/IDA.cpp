@@ -191,6 +191,11 @@ namespace marco::codegen
 
     builder.create<mlir::ida::SetStartTimeOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(startTime));
     builder.create<mlir::ida::SetEndTimeOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(endTime));
+
+    if (options.equidistantTimeGrid) {
+      builder.create<mlir::ida::SetTimeStepOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(timeStep));
+    }
+
     builder.create<mlir::ida::SetRelativeToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(options.relativeTolerance));
     builder.create<mlir::ida::SetAbsoluteToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(options.absoluteTolerance));
 
@@ -889,8 +894,10 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Value> seedArrays;
 
     // Create the seed values for the variables
-    for (auto varType : llvm::enumerate(mlir::ValueRange(filteredOriginalVariables).getTypes())) {
-      if (auto arrayType = varType.value().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
+    for (auto var : llvm::enumerate(mlir::ValueRange(filteredOriginalVariables))) {
+      auto varIndex = var.value().cast<mlir::BlockArgument>().getArgNumber();
+
+      if (auto arrayType = var.value().getType().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
         assert(arrayType.hasConstantShape());
 
         auto array = builder.create<AllocOp>(
@@ -904,18 +911,18 @@ namespace marco::codegen
 
         builder.create<ArrayFillOp>(jacobianFunction.getLoc(), array, zero);
 
-        if (varType.index() == oneSeedPosition) {
+        if (varIndex == oneSeedPosition) {
           builder.create<StoreOp>(jacobianFunction.getLoc(), one, array, jacobianFunction.getVariableIndices());
-        } else if (varType.index() == alphaSeedPosition) {
+        } else if (varIndex == alphaSeedPosition) {
           builder.create<StoreOp>(jacobianFunction.getLoc(), jacobianFunction.getAlpha(), array, jacobianFunction.getVariableIndices());
         }
 
       } else {
         assert(arrayType && arrayType.isScalar());
 
-        if (varType.index() == oneSeedPosition) {
+        if (varIndex == oneSeedPosition) {
           args.push_back(one);
-        } else if (varType.index() == alphaSeedPosition) {
+        } else if (varIndex == alphaSeedPosition) {
           args.push_back(jacobianFunction.getAlpha());
         } else {
           args.push_back(zero);
@@ -973,14 +980,7 @@ namespace marco::codegen
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
     mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
 
-    if (options.equidistantTimeGrid) {
-      builder.create<mlir::ida::StepOp>(
-          updateStatesFunction.getLoc(),
-          idaInstance,
-          builder.getF64FloatAttr(timeStep));
-    } else {
-      builder.create<mlir::ida::StepOp>(updateStatesFunction.getLoc(), idaInstance);
-    }
+    builder.create<mlir::ida::StepOp>(updateStatesFunction.getLoc(), idaInstance);
 
     // Copy back the values from IDA to MARCO
     mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();

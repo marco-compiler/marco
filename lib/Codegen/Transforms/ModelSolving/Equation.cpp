@@ -834,6 +834,7 @@ namespace marco::codegen
   mlir::LogicalResult BaseEquation::groupLeftHandSide(mlir::OpBuilder& builder, const Access& access)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
+    auto lhs = getValueAtPath(access.getPath());
 
     // Determine whether the access to be grouped is inside both the equation's sides or just one of them.
     // When the requested access is found, also check that the path goes through linear operations. If not,
@@ -911,13 +912,19 @@ namespace marco::codegen
           beginIt, endIt,
           builder.create<ConstantOp>(getOperation()->getLoc(), RealAttr::get(builder.getContext(), 0)).getResult(),
           [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            mlir::Value factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
-
-            if (factor == nullptr) {
+            if (!acc) {
               return nullptr;
             }
 
-            return builder.create<AddOp>(value.getLoc(), getMostGenericType(acc.getType(), value.getType()), acc, factor);
+            auto factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+
+            if (!factor.second || factor.first > 1) {
+              return nullptr;
+            }
+
+            return builder.create<AddOp>(
+                value.getLoc(), getMostGenericType(acc.getType(), value.getType()),
+                acc, factor.second);
           });
     };
 
@@ -954,8 +961,6 @@ namespace marco::codegen
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
 
-      auto lhs = getValueAtPath(access.getPath());
-
       mlir::Value rhs = builder.create<DivOp>(
           loc, lhs.getType(),
           builder.create<SubOp>(loc, getMostGenericType(rhsRemaining.getType(), lhsRemaining.getType()), rhsRemaining, lhsRemaining),
@@ -989,8 +994,6 @@ namespace marco::codegen
 
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
-
-      auto lhs = getValueAtPath(access.getPath());
 
       mlir::Value rhs = builder.create<DivOp>(
           loc, lhs.getType(),
@@ -1026,8 +1029,6 @@ namespace marco::codegen
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
 
-      auto lhs = getValueAtPath(access.getPath());
-
       mlir::Value rhs = builder.create<DivOp>(
           loc, lhs.getType(),
           builder.create<SubOp>(loc, getMostGenericType(terminator.lhsValues()[0].getType(), rhsRemaining.getType()), terminator.lhsValues()[0], rhsRemaining),
@@ -1050,7 +1051,7 @@ namespace marco::codegen
     return mlir::failure();
   }
 
-  mlir::Value BaseEquation::getMultiplyingFactor(
+  std::pair<unsigned int, mlir::Value> BaseEquation::getMultiplyingFactor(
       mlir::OpBuilder& builder,
       mlir::Value value,
       mlir::Value variable,
@@ -1065,35 +1066,42 @@ namespace marco::codegen
       assert(accesses.size() == 1);
 
       if (accesses[0].getVariable()->getValue() == variable && accesses[0].getAccessFunction() == accessFunction) {
-        return builder.create<ConstantOp>(value.getLoc(), getIntegerAttribute(builder, value.getType(), 1));
+        mlir::Value one = builder.create<ConstantOp>(value.getLoc(), getIntegerAttribute(builder, value.getType(), 1));
+        return std::make_pair(1, one);
       }
     }
 
     mlir::Operation* op = value.getDefiningOp();
 
     if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
-      return constantOp.getResult();
+      return std::make_pair(0, constantOp.getResult());
     }
 
     if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
-      mlir::Value operand = getMultiplyingFactor(builder, negateOp.operand(), variable, accessFunction);
+      auto operand = getMultiplyingFactor(builder, negateOp.operand(), variable, accessFunction);
 
-      if (operand == nullptr) {
-        return nullptr;
+      if (!operand.second) {
+        return std::make_pair(operand.first, nullptr);
       }
 
-      return builder.create<NegateOp>(negateOp.getLoc(), negateOp.getResult().getType(), operand);
+      mlir::Value result = builder.create<NegateOp>(
+          negateOp.getLoc(), negateOp.getResult().getType(), operand.second);
+
+      return std::make_pair(operand.first, result);
     }
 
     if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
-      mlir::Value lhs = getMultiplyingFactor(builder, mulOp.lhs(), variable, accessFunction);
-      mlir::Value rhs = getMultiplyingFactor(builder, mulOp.rhs(), variable, accessFunction);
+      auto lhs = getMultiplyingFactor(builder, mulOp.lhs(), variable, accessFunction);
+      auto rhs = getMultiplyingFactor(builder, mulOp.rhs(), variable, accessFunction);
 
-      if (lhs == nullptr || rhs == nullptr) {
-        return nullptr;
+      if (!lhs.second || !rhs.second) {
+        return std::make_pair(0, nullptr);
       }
 
-      return builder.create<MulOp>(mulOp.getLoc(), mulOp.getResult().getType(), lhs, rhs);
+      mlir::Value result = builder.create<MulOp>(
+          mulOp.getLoc(), mulOp.getResult().getType(), lhs.second, rhs.second);
+
+      return std::make_pair(lhs.first + rhs.first, result);
     }
 
     auto hasAccessToVar = [&](mlir::Value value) -> bool {
@@ -1115,27 +1123,30 @@ namespace marco::codegen
     };
 
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
-      mlir::Value dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
+      auto dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
 
-      if (dividend == nullptr) {
-        return nullptr;
+      if (!dividend.second) {
+        return dividend;
       }
 
       // Check that the right-hand side value has no access to the variable of interest
       if (hasAccessToVar(divOp.rhs())) {
-        return nullptr;
+        return std::make_pair(dividend.first, nullptr);
       }
 
-      return builder.create<DivOp>(divOp.getLoc(), divOp.getResult().getType(), dividend, divOp.rhs());
+      mlir::Value result = builder.create<DivOp>(
+          divOp.getLoc(), divOp.getResult().getType(), dividend.second, divOp.rhs());
+
+      return std::make_pair(dividend.first, result);
     }
 
     // Check that the value is not the result of an operation using the variable of interest.
     // If it has such access, then we are not able to extract the multiplying factor.
     if (hasAccessToVar(value)) {
-      return nullptr;
+      return std::make_pair(1, nullptr);
     }
 
-    return value;
+    return std::make_pair(0, value);
   }
 
   void BaseEquation::createIterationLoops(

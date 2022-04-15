@@ -52,7 +52,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           const Access& access);
 
-      mlir::Value getMultiplyingFactor(
+      std::pair<unsigned int, mlir::Value> getMultiplyingFactor(
           mlir::OpBuilder& builder,
           mlir::Value value,
           mlir::Value variable,

@@ -38,10 +38,7 @@ namespace
 
       size_t rank() const;
 
-      iterator begin();
       const_iterator begin() const;
-
-      iterator end();
       const_iterator end() const;
 
       VariableIndicesIterator indicesBegin() const;
@@ -186,19 +183,9 @@ namespace
     return dimensions.size();
   }
 
-  VariableDimensions::iterator VariableDimensions::begin()
-  {
-    return dimensions.begin();
-  }
-
   VariableDimensions::const_iterator VariableDimensions::begin() const
   {
     return dimensions.begin();
-  }
-
-  VariableDimensions::iterator VariableDimensions::end()
-  {
-    return dimensions.end();
   }
 
   VariableDimensions::const_iterator VariableDimensions::end() const
@@ -259,12 +246,15 @@ namespace
   class IDAInstance
   {
     public:
+      static constexpr realtype kUndefinedTimeStep = -1;
+
       IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber);
 
       ~IDAInstance();
 
       void setStartTime(double time);
       void setEndTime(double time);
+      void setTimeStep(double time);
 
       void setRelativeTolerance(double tolerance);
       void setAbsoluteTolerance(double tolerance);
@@ -298,7 +288,7 @@ namespace
       /// step time parameter. Otherwise, the output will show the variables at every
       /// step of the computation. Returns true if the computation was successful,
       /// false otherwise.
-      bool step(double timeStep = -1);
+      bool step();
 
       /// Returns the time reached by the solver after the last step.
       realtype getCurrentTime() const;
@@ -367,6 +357,7 @@ namespace
       // Simulation times
       realtype startTime;
       realtype endTime;
+      realtype timeStep;
       realtype currentTime;
 
       // Error tolerances
@@ -531,7 +522,8 @@ namespace
   IDAInstance::IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber)
       : initialized(false),
         marcoBitWidth(marcoBitWidth),
-        scalarEquationsNumber(scalarEquationsNumber)
+        scalarEquationsNumber(scalarEquationsNumber),
+        timeStep(kUndefinedTimeStep)
   {
     variableOffsets.push_back(0);
 
@@ -590,6 +582,12 @@ namespace
   void IDAInstance::setEndTime(double time)
   {
     endTime = time;
+  }
+
+  void IDAInstance::setTimeStep(double step)
+  {
+    assert(step > 0);
+    timeStep = step;
   }
 
   void IDAInstance::setRelativeTolerance(double tolerance)
@@ -963,13 +961,20 @@ namespace
     return true;
   }
 
-  bool IDAInstance::step(double timeStep)
+  bool IDAInstance::step()
   {
     assert(initialized && "The IDA instance has not been initialized yet");
-    bool equidistantTimeGrid = timeStep > 0;
+    bool equidistantTimeGrid = timeStep != kUndefinedTimeStep;
 
     if (scalarEquationsNumber == 0) {
-      // IDA has nothing to solve
+      // IDA has nothing to solve. Just increment the time.
+
+      if (timeStep == kUndefinedTimeStep) {
+        currentTime = endTime;
+      } else {
+        currentTime += timeStep;
+      }
+
       return true;
     }
 
@@ -1015,11 +1020,6 @@ namespace
 
   realtype IDAInstance::getCurrentTime() const
   {
-    // Return the stop time if the whole system is trivial.
-    if (scalarEquationsNumber == 0) {
-      return endTime;
-    }
-
     return currentTime;
   }
 
@@ -1362,20 +1362,20 @@ RUNTIME_FUNC_DEF(idaCreate, PTR(void), int64_t, int64_t)
 static void idaInit_void(void* userData)
 {
   auto* instance = static_cast<IDAInstance*>(userData);
-  assert(instance->initialize() && "Can't initialize the IDA instance");
+  [[maybe_unused]] bool result = instance->initialize();
+  assert(result && "Can't initialize the IDA instance");
 }
 
 RUNTIME_FUNC_DEF(idaInit, void, PTR(void))
 
-static void idaStep_void(void* userData, double timeStep = -1)
+static void idaStep_void(void* userData)
 {
   auto* instance = static_cast<IDAInstance*>(userData);
-  assert(instance->step(timeStep) && "IDA step failed");
+  [[maybe_unused]] bool result = instance->step();
+  assert(result && "IDA step failed");
 }
 
 RUNTIME_FUNC_DEF(idaStep, void, PTR(void))
-
-RUNTIME_FUNC_DEF(idaStep, void, PTR(void), double)
 
 static void idaFree_void(void* userData)
 {
@@ -1400,6 +1400,14 @@ static void idaSetEndTime_void(void* userData, double endTime)
 }
 
 RUNTIME_FUNC_DEF(idaSetEndTime, void, PTR(void), double)
+
+static void idaSetTimeStep_void(void* userData, double timeStep)
+{
+  auto* instance = static_cast<IDAInstance*>(userData);
+  instance->setTimeStep(timeStep);
+}
+
+RUNTIME_FUNC_DEF(idaSetTimeStep, void, PTR(void), double)
 
 static void idaSetRelativeTolerance_void(void* userData, double relativeTolerance)
 {

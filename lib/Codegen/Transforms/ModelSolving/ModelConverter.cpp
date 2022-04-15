@@ -1044,6 +1044,9 @@ namespace marco::codegen
 
     // Check if the current time is less than the end time
     mlir::Value endTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.endTime));
+    mlir::Value epsilon = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 10e-06));
+    endTime = builder.create<SubOp>(loc, endTime.getType(), endTime, epsilon);
+
     endTime = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(endTime.getType()), endTime);
 
     mlir::Value condition = builder.create<mlir::CmpFOp>(loc, mlir::CmpFPredicate::OLT, increasedTime, endTime);

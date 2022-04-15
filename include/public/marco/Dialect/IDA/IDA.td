@@ -130,6 +130,26 @@ def IDA_SetEndTimeOp : IDA_Op<"set_end_time",
     }];
 }
 
+def IDA_SetTimeStepOp : IDA_Op<"set_time_step",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "";
+
+    let description = [{
+
+    }];
+
+    let arguments = (ins
+        IDAInstance:$instance,
+        F64Attr:$timeStep);
+
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $instance attr-dict `:` type($instance)
+    }];
+}
+
 def IDA_SetRelativeToleranceOp : IDA_Op<"set_relative_tolerance",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
@@ -1010,21 +1030,12 @@ def IDA_StepOp : IDA_Op<"step",
         ```
     }];
 
-    let arguments = (ins
-        IDAInstance:$instance,
-        OptionalAttr<F64Attr>:$timeStep);
-
+    let arguments = (ins IDAInstance:$instance);
     let results = (outs);
 
     let assemblyFormat = [{
         $instance attr-dict `:` type($instance)
     }];
-
-    let builders = [
-        OpBuilder<(ins "Value":$instance), [{
-            $_state.addOperands(instance);
-        }]>
-    ];
 }
 
 def IDA_FreeOp : IDA_Op<"free",
