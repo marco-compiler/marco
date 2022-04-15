@@ -330,7 +330,7 @@ namespace
           N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
 
     private:
-      std::set<DerivativeVariable> computeIndexSet(size_t eq, size_t* eqIndexes);
+      std::set<DerivativeVariable> computeIndexSet(size_t eq, size_t* eqIndexes) const;
 
       void computeNNZ();
 
@@ -459,14 +459,30 @@ static size_t computeOffset(
   size_t offset = 0;
 
   for (size_t i = 0; i < accesses.size(); ++i) {
-    size_t accessOffset =
-        accesses[i].first +
-        (accesses[i].second != -1 ? indexes[accesses[i].second] : 0);
+    int64_t induction = accesses[i].first;
+    size_t accessOffset = induction != -1 ? indexes[induction] : 0;
+    accessOffset += accesses[i].second;
 
     offset = offset * dimensions[i] + accessOffset;
   }
 
   return offset;
+}
+
+
+/// Given the dimension of a variable and the already flattened accesses, return
+/// the index of the flattened multidimensional variable.
+static size_t computeOffset(const VariableDimensions& dimensions, const std::vector<size_t>& accesses)
+{
+	assert(accesses.size() == dimensions.rank());
+
+	size_t offset = 0;
+
+	for (size_t i = 0; i < accesses.size(); ++i) {
+		offset = offset * dimensions[i] + accesses[i];
+	}
+
+	return offset;
 }
 
 #ifdef MARCO_PROFILING
@@ -1124,7 +1140,7 @@ namespace
             *jacobian++ = jacobianFunctionResult;
           }
 
-          *colvals++ = var.first;
+          *colvals++ = instance->variableOffsets[var.first] + computeOffset(instance->variablesDimensions[var.first], var.second);
         }
       } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
     }
@@ -1138,7 +1154,7 @@ namespace
 
   /// Compute the column indexes of the current row of the Jacobian Matrix given
   /// the current vector equation and an array of indexes.
-  std::set<DerivativeVariable> IDAInstance::computeIndexSet(size_t eq, size_t* eqIndexes)
+  std::set<DerivativeVariable> IDAInstance::computeIndexSet(size_t eq, size_t* eqIndexes) const
   {
     std::set<DerivativeVariable> columnIndexesSet;
 
@@ -1150,8 +1166,9 @@ namespace
       DerivativeVariable newEntry = {variableIndex, {}};
 
       for (size_t i = 0; i < variableAccess.size(); ++i) {
-        int64_t induction = variableAccess[i].second;
+        int64_t induction = variableAccess[i].first;
         size_t index = induction != -1 ? eqIndexes[induction] : 0;
+        index += variableAccess[i].second;
         newEntry.second.push_back(index);
       }
 
