@@ -2,6 +2,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
 #include "marco/Codegen/Transforms/ModelSolving/LoopEquation.h"
 #include "marco/Codegen/Transforms/ModelSolving/ScalarEquation.h"
+#include "marco/Codegen/Utils.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "llvm/ADT/STLExtras.h"
@@ -205,31 +206,6 @@ static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result,
 
   result.push_back(root);
   return mlir::success();
-}
-
-static mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
-{
-  if (x.isa<BooleanType>()) {
-    return y;
-  }
-
-  if (y.isa<BooleanType>()) {
-    return x;
-  }
-
-  if (x.isa<RealType>()) {
-    return x;
-  }
-
-  if (y.isa<RealType>()) {
-    return y;
-  }
-
-  if (x.isa<IntegerType>()) {
-    return x;
-  }
-
-  return y;
 }
 
 namespace marco::codegen

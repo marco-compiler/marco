@@ -218,6 +218,8 @@ namespace marco::frontend
     modelSolvingOptions.ida.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
 
     passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createModelSolvingPass(modelSolvingOptions));
+    //passManager.addPass(mlir::createCanonicalizerPass());
+    //passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
 
     // Functions scalarization pass
     codegen::FunctionScalarizationOptions functionScalarizationOptions;

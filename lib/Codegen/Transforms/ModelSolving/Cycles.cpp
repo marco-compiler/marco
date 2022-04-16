@@ -86,6 +86,10 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
     allCyclesSolved = !solver.hasUnsolvedCycles();
   } while (!newEquations.empty());
 
+  for (auto& unsolvedEquation : unsolvedEquations) {
+    solution.add(std::move(unsolvedEquation));
+  }
+
   // Set the new equations of the model
   model.setEquations(solution);
 

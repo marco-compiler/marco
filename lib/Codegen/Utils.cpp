@@ -27,6 +27,40 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
+  mlir::Type getMostGenericType(mlir::Value x, mlir::Value y)
+  {
+    assert(x != nullptr && y != nullptr);
+    return getMostGenericType(x.getType(), y.getType());
+  }
+
+  mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
+  {
+    assert((x.isa<BooleanType, IntegerType, RealType, mlir::IndexType>()));
+    assert((y.isa<BooleanType, IntegerType, RealType, mlir::IndexType>()));
+
+    if (x.isa<BooleanType>()) {
+      return y;
+    }
+
+    if (y.isa<BooleanType>()) {
+      return x;
+    }
+
+    if (x.isa<RealType>()) {
+      return x;
+    }
+
+    if (y.isa<RealType>()) {
+      return y;
+    }
+
+    if (x.isa<IntegerType>()) {
+      return y;
+    }
+
+    return x;
+  }
+
   void copyArray(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value source, mlir::Value destination)
   {
     assert(source.getType().isa<ArrayType>());

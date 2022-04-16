@@ -5,6 +5,9 @@
 
 namespace marco::codegen
 {
+  mlir::Type getMostGenericType(mlir::Value x, mlir::Value y);
+  mlir::Type getMostGenericType(mlir::Type x, mlir::Type y);
+
   void copyArray(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value source, mlir::Value destination);
 }
 

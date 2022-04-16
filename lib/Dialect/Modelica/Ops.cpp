@@ -1,5 +1,6 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/Modelica/Ops.h"
+#include "marco/Codegen/Utils.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
@@ -1928,7 +1929,8 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      //mlir::Type resultType = getMostGenericType(nestedOperand, get)
+      auto right = builder.create<SubOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -1944,7 +1946,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+      auto right = builder.create<SubOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2103,7 +2105,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubEWOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<SubEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2119,7 +2121,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubEWOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+      auto right = builder.create<SubEWOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2765,7 +2767,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<MulOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<MulOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2781,7 +2783,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+      auto right = builder.create<DivOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2967,7 +2969,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<MulEWOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<MulEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2983,7 +2985,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivEWOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+      auto right = builder.create<DivEWOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -3694,7 +3696,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<DivOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -3709,7 +3711,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+      auto right = builder.create<DivOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -3891,7 +3893,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivEWOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<DivEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -3907,7 +3909,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivEWOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+      auto right = builder.create<DivEWOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -4080,7 +4082,7 @@ namespace mlir::modelica
     mlir::Value toNest = currentResult[0];
 
     mlir::Value nestedOperand = readValue(builder, toNest);
-    auto right = builder.create<NegateOp>(getLoc(), nestedOperand.getType(), nestedOperand);
+    auto right = builder.create<NegateOp>(getLoc(), operand().getType(), nestedOperand);
 
     for (auto& use : toNest.getUses()) {
       if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -4869,7 +4871,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<AddOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<AddOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -4885,7 +4887,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+      auto right = builder.create<SubOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -5044,7 +5046,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<AddEWOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+      auto right = builder.create<AddEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -5060,7 +5062,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubEWOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+      auto right = builder.create<SubEWOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
