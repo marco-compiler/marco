@@ -1,9 +1,9 @@
 set(SHARED_SOURCES
 	BuiltInFunctions.cpp
     IDA.cpp
+	IO.cpp
 	Math.cpp
 	MemoryManagement.cpp
-	Print.cpp
 	Profiling.cpp
 	UtilityFunctions.cpp)
 
