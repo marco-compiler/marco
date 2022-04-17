@@ -329,29 +329,26 @@ namespace marco::codegen
     builder.setInsertionPointToEnd(module.getBody());
 
     llvm::SmallVector<mlir::Type, 3> argsTypes;
-    llvm::SmallVector<mlir::Type, 3> resultsTypes;
+    mlir::Type resultType = builder.getI32Type();
 
     argsTypes.push_back(builder.getI32Type());
     argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8))));
-    resultsTypes.push_back(builder.getI32Type());
 
-    auto function = builder.create<mlir::FuncOp>(
-        loc, mainFunctionName, builder.getFunctionType(argsTypes, resultsTypes));
+    auto mainFunction = builder.create<mlir::FuncOp>(
+        loc, mainFunctionName, builder.getFunctionType(argsTypes, resultType));
 
-    auto* entryBlock = function.addEntryBlock();
+    auto* entryBlock = mainFunction.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
     // Call the function to start the simulation.
     // Its definition lives within the runtime library.
-    mlir::Type voidType = mlir::LLVM::LLVMVoidType::get(modelOp.getContext());
 
     auto runFunction = getOrInsertFunction(
-        builder, module, runFunctionName, mlir::LLVM::LLVMFunctionType::get(voidType, llvm::None));
+        builder, module, runFunctionName, mlir::LLVM::LLVMFunctionType::get(resultType, argsTypes));
 
-    builder.create<mlir::LLVM::CallOp>(loc, runFunction, llvm::None);
+    mlir::Value returnValue = builder.create<mlir::LLVM::CallOp>(loc, runFunction, mainFunction.getArguments()).getResult(0);
 
     // Create the return statement
-    mlir::Value returnValue = builder.create<mlir::ConstantOp>(loc, builder.getI32IntegerAttr(0));
     builder.create<mlir::ReturnOp>(loc, returnValue);
 
     return mlir::success();

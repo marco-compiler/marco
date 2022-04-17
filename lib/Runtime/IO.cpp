@@ -54,6 +54,12 @@ namespace
 
 #endif
 
+IOConfig& ioConfig()
+{
+  static IOConfig obj;
+  return obj;
+}
+
 //===----------------------------------------------------------------------===//
 // print
 //===----------------------------------------------------------------------===//
@@ -198,7 +204,15 @@ namespace
     ::profiler().startTimer();
     #endif
 
-    std::cout << std::fixed << std::setprecision(9) << value;
+    auto& config = ioConfig();
+
+    if (config.scientificNotation) {
+      std::cout << std::scientific;
+    } else {
+      std::cout << std::fixed << std::setprecision(config.precision);
+    }
+
+    std::cout << value;
 
     #ifdef MARCO_PROFILING
     ::profiler().stopTimer();
@@ -212,7 +226,15 @@ namespace
     ::profiler().startTimer();
     #endif
 
-    std::cout << std::boolalpha << value;
+    auto& config = ioConfig();
+
+    if (config.scientificNotation) {
+      std::cout << std::scientific;
+    } else {
+      std::cout << std::boolalpha;
+    }
+
+    std::cout << value;
 
     #ifdef MARCO_PROFILING
     ::profiler().stopTimer();

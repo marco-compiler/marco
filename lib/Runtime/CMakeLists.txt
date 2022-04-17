@@ -11,6 +11,15 @@ set(STATIC_SOURCES
 	${SHARED_SOURCES}
 	Runtime.cpp)
 
+# Fetch the Argh! project, which is used to handle runtime command-line arguments
+
+FetchContent_Declare(
+	argh
+	URL https://github.com/adishavit/argh/archive/refs/tags/v1.3.2.zip
+)
+
+FetchContent_MakeAvailable(argh)
+
 # We build two versions of the runtime library: one is shared and the other is static.
 # The shared libraries is used only for JIT tests, which needs to rely on a shared library
 # for the runtime functions.
@@ -48,6 +57,7 @@ marco_add_library(runtime
 	${STATIC_SOURCES}
 
 	LINK_LIBS
-	${LIBS})
+	${LIBS}
+	argh)
 
 add_dependencies(marco-runtime marco::runtime)
