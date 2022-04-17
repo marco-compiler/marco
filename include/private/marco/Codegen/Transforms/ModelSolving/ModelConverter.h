@@ -153,7 +153,9 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model,
           ExternalSolvers& externalSolvers) const;
 
-      void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const;
+      void printSeparator(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
+
+      void printNewline(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
 
       mlir::Value getOrCreateGlobalString(
           mlir::Location loc,
@@ -162,35 +164,30 @@ namespace marco::codegen
           mlir::StringRef value,
           mlir::ModuleOp module) const;
 
-      mlir::Value getSeparatorString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const;
-
-      mlir::Value getNewlineString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const;
-
-      mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
+      mlir::LLVM::LLVMFuncOp getOrInsertPrintNameFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module) const;
 
       void printVariableName(
           mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
           VariableFilter::Filter filter,
-          mlir::ModuleOp module,
-          mlir::Value separator,
           bool shouldPreprendSeparator = true) const;
 
       void printScalarVariableName(
           mlir::OpBuilder& builder,
-          mlir::Value name,
           mlir::ModuleOp module,
-          mlir::Value separator,
+          mlir::Value name,
           bool shouldPrependSeparator) const;
 
       void printArrayVariableName(
           mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
           VariableFilter::Filter filter,
-          mlir::ModuleOp module,
-          mlir::Value separator,
           bool shouldPrependSeparator) const;
 
       mlir::LogicalResult createPrintHeaderFunction(
@@ -201,22 +198,25 @@ namespace marco::codegen
 
       void printVariable(
           mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
           mlir::Value var,
           VariableFilter::Filter filter,
-          mlir::Value separator,
-          bool shouldPreprendSeparator = true) const;
+          bool shouldPrependSeparator = true) const;
 
       void printScalarVariable(
-          mlir::OpBuilder& builder, mlir::Value var, mlir::Value separator, bool shouldPreprendSeparator = true) const;
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Value var,
+          bool shouldPrependSeparator = true) const;
 
       void printArrayVariable(
           mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
           mlir::Value var,
           VariableFilter::Filter filter,
-          mlir::Value separator,
-          bool shouldPreprendSeparator = true) const;
+          bool shouldPrependSeparator = true) const;
 
-      void printElement(mlir::OpBuilder& builder, mlir::Value value) const;
+      void printElement(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Value value) const;
 
       mlir::LogicalResult createPrintFunction(
           mlir::OpBuilder& builder,
@@ -226,12 +226,13 @@ namespace marco::codegen
 
       mlir::LogicalResult createPrintFunctionBody(
           mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
           mlir::modelica::ModelOp op,
           mlir::TypeRange varTypes,
           DerivativesPositionsMap& derivativesPositions,
           ExternalSolvers& externalSolvers,
           llvm::StringRef functionName,
-          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, VariableFilter::Filter, mlir::Value, size_t)> elementCallback) const;
+          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const;
 
     private:
       ModelSolvingOptions options;

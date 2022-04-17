@@ -35,16 +35,4 @@ RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(double))
 
-RUNTIME_FUNC_DECL(print, void, bool)
-RUNTIME_FUNC_DECL(print, void, int32_t)
-RUNTIME_FUNC_DECL(print, void, int64_t)
-RUNTIME_FUNC_DECL(print, void, float)
-RUNTIME_FUNC_DECL(print, void, double)
-
-RUNTIME_FUNC_DECL(print, void, ARRAY(bool))
-RUNTIME_FUNC_DECL(print, void, ARRAY(int32_t))
-RUNTIME_FUNC_DECL(print, void, ARRAY(int64_t))
-RUNTIME_FUNC_DECL(print, void, ARRAY(float))
-RUNTIME_FUNC_DECL(print, void, ARRAY(double))
-
 #endif	// MARCO_RUNTIME_UTILITYFUNCTIONS_H

@@ -1,6 +1,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDASolver.h"
 #include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Codegen/Runtime.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
@@ -1055,11 +1056,34 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  void ModelConverter::printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
+  void ModelConverter::printSeparator(mlir::OpBuilder& builder, mlir::ModuleOp module) const
   {
-    auto module = separator.getParentRegion()->getParentOfType<mlir::ModuleOp>();
-    auto printfRef = getOrInsertPrintf(builder, module);
-    builder.create<mlir::LLVM::CallOp>(separator.getLoc(), printfRef, separator);
+    // Get the mangled function name
+    RuntimeFunctionsMangling mangling;
+    auto functionName = mangling.getMangledFunction("print_csv_separator", mangling.getVoidType(), llvm::None);
+
+    // Get or declare the external function
+    auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
+    auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, llvm::None);
+    auto function = getOrInsertFunction(builder, module, functionName, llvmFnType);
+
+    // Call it
+    builder.create<mlir::LLVM::CallOp>(function.getLoc(), function, llvm::None);
+  }
+
+  void ModelConverter::printNewline(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+  {
+    // Get the mangled function name
+    RuntimeFunctionsMangling mangling;
+    auto functionName = mangling.getMangledFunction("print_csv_newline", mangling.getVoidType(), llvm::None);
+
+    // Get or declare the external function
+    auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
+    auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, llvm::None);
+    auto function = getOrInsertFunction(builder, module, functionName, llvmFnType);
+
+    // Call it
+    builder.create<mlir::LLVM::CallOp>(function.getLoc(), function, llvm::None);
   }
 
   mlir::Value ModelConverter::getOrCreateGlobalString(
@@ -1089,104 +1113,107 @@ namespace marco::codegen
 
     return builder.create<mlir::LLVM::GEPOp>(
         loc,
-        mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(builder.getContext(), 8)),
+        getVoidPtrType(),
         globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
   }
 
-  mlir::Value ModelConverter::getSeparatorString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
+  mlir::LLVM::LLVMFuncOp ModelConverter::getOrInsertPrintNameFunction(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp module) const
   {
-    return getOrCreateGlobalString(loc, builder, "semicolon", mlir::StringRef(";\0", 2), module);
-  }
+    // Get the mangled function name
+    RuntimeFunctionsMangling mangling;
 
-  mlir::Value ModelConverter::getNewlineString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
-  {
-    return getOrCreateGlobalString(loc, builder, "newline", mlir::StringRef("\n\0", 2), module);
-  }
+    llvm::SmallVector<std::string, 3> mangledArgTypes;
+    mangledArgTypes.push_back(mangling.getVoidPointerType());
+    mangledArgTypes.push_back(mangling.getIntegerType(64));
+    mangledArgTypes.push_back(mangling.getPointerType(mangling.getIntegerType(64)));
 
-  mlir::LLVM::LLVMFuncOp ModelConverter::getOrInsertPrintf(mlir::OpBuilder& builder, mlir::ModuleOp module) const
-  {
-    auto *context = module.getContext();
+    auto functionName = mangling.getMangledFunction("print_csv_name", mangling.getVoidType(), mangledArgTypes);
 
-    // Create a function declaration for printf, the signature is:
-    //   * `i32 (i8*, ...)`
-    auto llvmI32Ty = mlir::IntegerType::get(context, 32);
-    auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
-    auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
+    // Get or declare the external function
+    llvm::SmallVector<mlir::Type, 3> argTypes;
+    argTypes.push_back(getVoidPtrType());
+    argTypes.push_back(builder.getI64Type());
+    argTypes.push_back(mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
 
-    // Insert the printf function into the body of the parent module
-    return getOrInsertFunction(builder, module, "printf", llvmFnType);
+    auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
+    auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, argTypes);
+    return getOrInsertFunction(builder, module, functionName, llvmFnType);
   }
 
   void ModelConverter::printVariableName(
       mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
       mlir::Value name,
       mlir::Value value,
       VariableFilter::Filter filter,
-      mlir::ModuleOp module,
-      mlir::Value separator,
-      bool shouldPreprendSeparator) const
+      bool shouldPrependSeparator) const
   {
     if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
       if (arrayType.getRank() == 0) {
-        printScalarVariableName(builder, name, module, separator, shouldPreprendSeparator);
+        printScalarVariableName(builder, module, name, shouldPrependSeparator);
       } else {
-        printArrayVariableName(builder, name, value, filter, module, separator, shouldPreprendSeparator);
+        printArrayVariableName(builder, module, name, value, filter, shouldPrependSeparator);
       }
     } else {
-      printScalarVariableName(builder, name, module, separator, shouldPreprendSeparator);
+      printScalarVariableName(builder, module, name, shouldPrependSeparator);
     }
   }
 
   void ModelConverter::printScalarVariableName(
       mlir::OpBuilder& builder,
-      mlir::Value name,
       mlir::ModuleOp module,
-      mlir::Value separator,
+      mlir::Value name,
       bool shouldPrependSeparator) const
   {
     if (shouldPrependSeparator) {
-      printSeparator(builder, separator);
+      printSeparator(builder, module);
     }
 
-    mlir::Location loc = name.getLoc();
-    mlir::Value formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_str", mlir::StringRef("%s\0", 3), module);
-    auto printfRef = getOrInsertPrintf(builder, module);
-    builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ formatSpecifier, name }));
+    auto loc = name.getLoc();
+    mlir::Value rank = builder.create<mlir::ConstantOp>(loc, builder.getI64IntegerAttr(0));
+    mlir::Value indices = builder.create<mlir::LLVM::NullOp>(loc, mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
+
+    auto function = getOrInsertPrintNameFunction(builder, module);
+    builder.create<mlir::LLVM::CallOp>(loc, function, mlir::ValueRange({ name, rank, indices }));
   }
 
   void ModelConverter::printArrayVariableName(
       mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
       mlir::Value name,
       mlir::Value value,
       VariableFilter::Filter filter,
-      mlir::ModuleOp module,
-      mlir::Value separator,
       bool shouldPrependSeparator) const
   {
-    mlir::Location loc = name.getLoc();
+    auto loc = name.getLoc();
     assert(value.getType().isa<ArrayType>());
+    auto arrayType = value.getType().cast<ArrayType>();
 
-    // Get a reference to the printf function
-    auto printfRef = getOrInsertPrintf(builder, module);
+    // Get a reference to the function to print the name
+    auto function = getOrInsertPrintNameFunction(builder, module);
 
-    // Create the brackets and comma strings
-    mlir::Value lSquare = getOrCreateGlobalString(loc, builder, "lsquare", llvm::StringRef("[\0", 2), module);
-    mlir::Value rSquare = getOrCreateGlobalString(loc, builder, "rsquare", llvm::StringRef("]\0", 2), module);
-    mlir::Value comma = getOrCreateGlobalString(loc, builder, "comma", llvm::StringRef(",\0", 2), module);
+    // The arguments to be passed to the function
+    llvm::SmallVector<mlir::Value, 3> args;
+    args.push_back(name);
 
-    // Create the format strings
-    mlir::Value stringFormatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_str", mlir::StringRef("%s\0", 3), module);
-    mlir::Value integerFormatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
+    // Create the rank constant and the array of the indices
+    mlir::Value rank = builder.create<mlir::ConstantOp>(loc, builder.getI64IntegerAttr(arrayType.getRank()));
+    args.push_back(rank);
 
-    // Allow for the variable to lazily extracted if one of its dimension size
-    // must be determined.
-    bool valueLoaded = false;
-    mlir::Value extractedValue = nullptr;
-    auto insertionPoint = builder.saveInsertionPoint();
+    auto heapAllocFn = lookupOrCreateHeapAllocFn(builder, module);
+
+    mlir::Type indexPtrType = mlir::LLVM::LLVMPointerType::get(builder.getI64Type());
+    mlir::Value indexNullPtr = builder.create<mlir::LLVM::NullOp>(loc, indexPtrType);
+    mlir::Value indicesGepPtr = builder.create<mlir::LLVM::GEPOp>(loc, indexPtrType, llvm::makeArrayRef({ indexNullPtr, rank }));
+    mlir::Value indicesSizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, builder.getI64Type(), indicesGepPtr);
+    mlir::Value indicesOpaquePtr = builder.create<mlir::LLVM::CallOp>(loc, heapAllocFn, indicesSizeBytes).getResult(0);
+    mlir::Value indicesPtr = builder.create<mlir::LLVM::BitcastOp>(loc, indexPtrType, indicesOpaquePtr);
+    args.push_back(indicesPtr);
 
     // Create the lower and upper bounds
     auto ranges = filter.getRanges();
-    auto arrayType = value.getType().cast<ArrayType>();
     assert(arrayType.getRank() == ranges.size());
 
     llvm::SmallVector<mlir::Value, 3> lowerBounds;
@@ -1215,37 +1242,43 @@ namespace marco::codegen
       }
     }
 
-    bool shouldPrintSeparator = false;
-
     // Create nested loops in order to iterate on each dimension of the array
     mlir::scf::buildLoopNest(
         builder, loc, lowerBounds, upperBounds, steps,
-        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indexes) {
-          // Print the separator, the variable name and the left square bracket
-          printSeparator(builder, separator);
-          builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ stringFormatSpecifier, name }));
-          builder.create<mlir::LLVM::CallOp>(loc, printfRef, lSquare);
+        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
+          // Print the separator and the variable name
+          printSeparator(builder, module);
 
-          for (mlir::Value index : indexes) {
-            if (shouldPrintSeparator)
-              builder.create<mlir::LLVM::CallOp>(loc, printfRef, comma);
+          for (auto index : llvm::enumerate(indices)) {
+            mlir::Type convertedType = typeConverter->convertType(index.value().getType());
+            mlir::Value indexValue = typeConverter->materializeTargetConversion(builder, loc, convertedType, index.value());
 
-            shouldPrintSeparator = true;
+            if (convertedType.getIntOrFloatBitWidth() < 64) {
+              indexValue = builder.create<mlir::SignExtendIOp>(loc, builder.getI64Type(), indexValue);
+            } else if (convertedType.getIntOrFloatBitWidth() > 64) {
+              indexValue = builder.create<mlir::TruncateIOp>(loc, builder.getI64Type(), indexValue);
+            }
 
-            mlir::Type convertedType = typeConverter->convertType(index.getType());
-            index = typeConverter->materializeTargetConversion(builder, loc, convertedType, index);
+            mlir::Value offset = builder.create<mlir::ConstantOp>(
+                loc, typeConverter->getIndexType(), builder.getIntegerAttr(typeConverter->getIndexType(), index.index()));
 
-            // Arrays are 1-based in Modelica, so we add 1 in order to print
-            // indexes that are coherent with the model source.
-            mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(index.getType(), 1));
-            index = builder.create<mlir::AddIOp>(loc, index.getType(), index, increment);
+            mlir::Value indexPtr = builder.create<mlir::LLVM::GEPOp>(
+                loc, indexPtrType, llvm::makeArrayRef({ indicesPtr, offset }));
 
-            builder.create<mlir::LLVM::CallOp>(loc, printfRef, mlir::ValueRange({ integerFormatSpecifier, index }));
+            // Arrays are 1-based in Modelica, so we add 1 in order to print indexes that are
+            // coherent with the model source.
+            mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(indexValue.getType(), 1));
+            indexValue = builder.create<mlir::AddIOp>(loc, indexValue.getType(), indexValue, increment);
+
+            builder.create<mlir::LLVM::StoreOp>(loc, indexValue, indexPtr);
           }
 
-          // Print the right square bracket
-          builder.create<mlir::LLVM::CallOp>(loc, printfRef, rSquare);
+          builder.create<mlir::LLVM::CallOp>(loc, function, args);
         });
+
+    // Deallocate the indices array
+    auto heapFreeFn = lookupOrCreateHeapFreeFn(builder, module);
+    builder.create<mlir::LLVM::CallOp>(loc, heapFreeFn, indicesOpaquePtr);
   }
 
   mlir::LogicalResult ModelConverter::createPrintHeaderFunction(
@@ -1254,11 +1287,11 @@ namespace marco::codegen
       DerivativesPositionsMap& derivativesPositions,
       ExternalSolvers& externalSolvers) const
   {
+    auto module = op.getOperation()->getParentOfType<mlir::ModuleOp>();
     mlir::TypeRange varTypes = op.bodyRegion().getArgumentTypes();
 
-    auto callback = [&](llvm::StringRef name, mlir::Value value, VariableFilter::Filter filter, mlir::Value separator, size_t processedValues) -> mlir::LogicalResult {
-      mlir::Location loc = op.getLoc();
-      auto module = op->getParentOfType<mlir::ModuleOp>();
+    auto callback = [&](llvm::StringRef name, mlir::Value value, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
+      auto loc = op.getLoc();
 
       std::string symbolName = "var" + std::to_string(processedValues);
       llvm::SmallString<10> terminatedName(name);
@@ -1266,48 +1299,51 @@ namespace marco::codegen
       mlir::Value symbol = getOrCreateGlobalString(loc, builder, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1), module);
 
       bool shouldPrintSeparator = processedValues != 0;
-      printVariableName(builder, symbol, value, filter, module, separator, shouldPrintSeparator);
+      printVariableName(builder, module, symbol, value, filter, shouldPrintSeparator);
       return mlir::success();
     };
 
-    return createPrintFunctionBody(builder, op, varTypes, derivativesPositions, externalSolvers, printHeaderFunctionName, callback);
+    return createPrintFunctionBody(builder, module, op, varTypes, derivativesPositions, externalSolvers, printHeaderFunctionName, callback);
   }
 
   void ModelConverter::printVariable(
       mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
       mlir::Value var,
       VariableFilter::Filter filter,
-      mlir::Value separator,
-      bool shouldPreprendSeparator) const
+      bool shouldPrependSeparator) const
   {
     if (auto arrayType = var.getType().dyn_cast<ArrayType>()) {
       if (arrayType.getRank() == 0) {
         mlir::Value value = builder.create<LoadOp>(var.getLoc(), var);
-        printScalarVariable(builder, value, separator, shouldPreprendSeparator);
+        printScalarVariable(builder, module, value, shouldPrependSeparator);
       } else {
-        printArrayVariable(builder, var, filter, separator, shouldPreprendSeparator);
+        printArrayVariable(builder, module, var, filter, shouldPrependSeparator);
       }
     } else {
-      printScalarVariable(builder, var, separator, shouldPreprendSeparator);
+      printScalarVariable(builder, module, var, shouldPrependSeparator);
     }
   }
 
   void ModelConverter::printScalarVariable(
-      mlir::OpBuilder& builder, mlir::Value var, mlir::Value separator, bool shouldPreprendSeparator) const
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
+      mlir::Value var,
+      bool shouldPrependSeparator) const
   {
-    if (shouldPreprendSeparator) {
-      printSeparator(builder, separator);
+    if (shouldPrependSeparator) {
+      printSeparator(builder, module);
     }
 
-    printElement(builder, var);
+    printElement(builder, module, var);
   }
 
   void ModelConverter::printArrayVariable(
       mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
       mlir::Value var,
       VariableFilter::Filter filter,
-      mlir::Value separator,
-      bool shouldPreprendSeparator) const
+      bool shouldPrependSeparator) const
   {
     mlir::Location loc = var.getLoc();
     assert(var.getType().isa<ArrayType>());
@@ -1348,32 +1384,37 @@ namespace marco::codegen
         [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
           mlir::Value value = nestedBuilder.create<LoadOp>(loc, var, position);
 
-          printSeparator(nestedBuilder, separator);
-          printElement(nestedBuilder, value);
+          printSeparator(nestedBuilder, module);
+          printElement(nestedBuilder, module, value);
         });
   }
 
-  void ModelConverter::printElement(mlir::OpBuilder& builder, mlir::Value value) const
+  void ModelConverter::printElement(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Value value) const
   {
-    mlir::Location loc = value.getLoc();
-    auto module = value.getParentRegion()->getParentOfType<mlir::ModuleOp>();
-    auto printfRef = getOrInsertPrintf(builder, module);
+    auto loc = value.getLoc();
+    RuntimeFunctionsMangling mangling;
+
+    llvm::SmallVector<mlir::Type, 1> argTypes;
+    llvm::SmallVector<std::string, 1> mangledArgTypes;
 
     mlir::Type convertedType = typeConverter->convertType(value.getType());
+    argTypes.push_back(convertedType);
     value = typeConverter->materializeTargetConversion(builder, loc, convertedType, value);
-    mlir::Type type = value.getType();
 
-    mlir::Value formatSpecifier;
-
-    if (type.isa<mlir::IntegerType>()) {
-      formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
-    } else if (type.isa<mlir::FloatType>()) {
-      formatSpecifier = getOrCreateGlobalString(loc, builder, "frmt_spec_float", mlir::StringRef("%.12f\0", 6), module);
+    if (convertedType.isa<mlir::IntegerType>()) {
+      mangledArgTypes.push_back(mangling.getIntegerType(convertedType.getIntOrFloatBitWidth()));
+    } else if (convertedType.isa<mlir::FloatType>()) {
+      mangledArgTypes.push_back(mangling.getFloatingPointType(convertedType.getIntOrFloatBitWidth()));
     } else {
-      assert(false && "Unknown type");
+      llvm_unreachable("The value can't be printed because of its unknown type");
     }
 
-    builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
+    auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
+    auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, argTypes);
+    auto functionName = mangling.getMangledFunction("print_csv", mangling.getVoidType(), mangledArgTypes);
+    auto function = getOrInsertFunction(builder, module, functionName, llvmFnType);
+
+    builder.create<mlir::LLVM::CallOp>(function.getLoc(), function, value);
   }
 
   mlir::LogicalResult ModelConverter::createPrintFunction(
@@ -1382,29 +1423,30 @@ namespace marco::codegen
       DerivativesPositionsMap& derivativesPositions,
       ExternalSolvers& externalSolvers) const
   {
+    auto module = op.getOperation()->getParentOfType<mlir::ModuleOp>();
     mlir::TypeRange varTypes = op.bodyRegion().getArgumentTypes();
 
-    auto callback = [&](llvm::StringRef name, mlir::Value value, VariableFilter::Filter filter, mlir::Value separator, size_t processedValues) -> mlir::LogicalResult {
+    auto callback = [&](llvm::StringRef name, mlir::Value value, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       bool shouldPrintSeparator = processedValues != 0;
-      printVariable(builder, value, filter, separator, shouldPrintSeparator);
+      printVariable(builder, module, value, filter, shouldPrintSeparator);
       return mlir::success();
     };
 
-    return createPrintFunctionBody(builder, op, varTypes, derivativesPositions, externalSolvers, printFunctionName, callback);
+    return createPrintFunctionBody(builder, module, op, varTypes, derivativesPositions, externalSolvers, printFunctionName, callback);
   }
 
   mlir::LogicalResult ModelConverter::createPrintFunctionBody(
       mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
       ModelOp op,
       mlir::TypeRange varTypes,
       DerivativesPositionsMap& derivativesPositions,
       ExternalSolvers& externalSolvers,
       llvm::StringRef functionName,
-      std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, VariableFilter::Filter, mlir::Value, size_t)> elementCallback) const
+      std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const
   {
     mlir::Location loc = op.getLoc();
     mlir::OpBuilder::InsertionGuard guard(builder);
-    auto module = op->getParentOfType<mlir::ModuleOp>();
 
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
@@ -1415,10 +1457,6 @@ namespace marco::codegen
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
-
-    // Create the separator and newline global strings
-    mlir::Value separator = getSeparatorString(loc, builder, module);
-    mlir::Value newline = getNewlineString(loc, builder, module);
 
     // Load the runtime data structure
     auto runtimeDataStructType = getRuntimeDataStructType(
@@ -1449,7 +1487,7 @@ namespace marco::codegen
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
 
-    if (auto res = elementCallback("time", time, VariableFilter::Filter::visibleScalar(), separator, processedValues++); mlir::failed(res)) {
+    if (auto res = elementCallback("time", time, VariableFilter::Filter::visibleScalar(), module, processedValues++); mlir::failed(res)) {
       return res;
     }
 
@@ -1486,7 +1524,7 @@ namespace marco::codegen
 
       mlir::Value value = extractValue(builder, structValue, varTypes[position], position + variablesOffset);
 
-      if (auto status = elementCallback(name, value, filter, separator, processedValues++); mlir::failed(status)) {
+      if (auto status = elementCallback(name, value, filter, module, processedValues++); mlir::failed(status)) {
         return status;
       }
     }
@@ -1521,13 +1559,13 @@ namespace marco::codegen
 
       mlir::Value value = extractValue(builder, structValue, varTypes[derivedVarPosition], derivedVarPosition + variablesOffset);
 
-      if (auto res = elementCallback(derName, value, filter, separator, processedValues++); mlir::failed(res)) {
+      if (auto res = elementCallback(derName, value, filter, module, processedValues++); mlir::failed(res)) {
         return res;
       }
     }
 
     // Print a newline character after all the variables have been processed
-    builder.create<mlir::LLVM::CallOp>(loc, getOrInsertPrintf(builder, module), newline);
+    printNewline(builder, module);
 
     builder.create<mlir::ReturnOp>(loc);
     return mlir::success();

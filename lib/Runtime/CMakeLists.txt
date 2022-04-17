@@ -1,16 +1,15 @@
-set(CMAKE_VERBOSE_MAKEFILE on)
-
 set(SHARED_SOURCES
-		BuiltInFunctions.cpp
+	BuiltInFunctions.cpp
     IDA.cpp
-		Math.cpp
-		MemoryManagement.cpp
-		Profiling.cpp
-		UtilityFunctions.cpp)
+	Math.cpp
+	MemoryManagement.cpp
+	Print.cpp
+	Profiling.cpp
+	UtilityFunctions.cpp)
 
 set(STATIC_SOURCES
-		${SHARED_SOURCES}
-		Runtime.cpp)
+	${SHARED_SOURCES}
+	Runtime.cpp)
 
 # We build two versions of the runtime library: one is shared and the other is static.
 # The shared libraries is used only for JIT tests, which needs to rely on a shared library
@@ -27,28 +26,28 @@ add_custom_target(marco-runtime)
 
 # Libraries to be linked
 set(LIBS
-		PUBLIC SUNDIALS::KLU
-		PUBLIC SUNDIALS::ida
-		PUBLIC SUNDIALS::nvecserial
-		PUBLIC SUNDIALS::sunlinsolklu)
+	PUBLIC SUNDIALS::KLU
+	PUBLIC SUNDIALS::ida
+	PUBLIC SUNDIALS::nvecserial
+	PUBLIC SUNDIALS::sunlinsolklu)
 
 # Declare the shared library
 marco_add_library(runtimeShared
-		SHARED
-		PARTIAL_SOURCES_INTENDED
-		${SHARED_SOURCES}
+	SHARED
+	PARTIAL_SOURCES_INTENDED
+	${SHARED_SOURCES}
 
-		LINK_LIBS
-		${LIBS})
+	LINK_LIBS
+	${LIBS})
 
 add_dependencies(marco-runtime marco::runtimeShared)
 
 # Declare the static library
 marco_add_library(runtime
-		STATIC
-		${STATIC_SOURCES}
+	STATIC
+	${STATIC_SOURCES}
 
-		LINK_LIBS
-		${LIBS})
+	LINK_LIBS
+	${LIBS})
 
 add_dependencies(marco-runtime marco::runtime)

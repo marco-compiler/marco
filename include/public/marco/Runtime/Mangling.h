@@ -45,6 +45,7 @@
 #define float_CPP float
 #define double_CPP double
 
+#define _MANGLED
 #define void_MANGLED _void
 #define bool_MANGLED _i1
 #define int32_t_MANGLED _i32
