@@ -72,17 +72,19 @@ namespace mlir::modelica
 
   mlir::Type TypeConverter::convertRealType(RealType type)
   {
-    if (bitWidth == 16)
+    if (bitWidth == 16) {
       return convertType(mlir::Float16Type::get(&getContext()));
+    }
 
-    if (bitWidth == 32)
+    if (bitWidth == 32) {
       return convertType(mlir::Float32Type::get(&getContext()));
+    }
 
-    if (bitWidth == 64)
+    if (bitWidth == 64) {
       return convertType(mlir::Float64Type::get(&getContext()));
+    }
 
-    mlir::emitError(mlir::UnknownLoc::get(&getContext())) << "Unsupported type: !modelica.real<" << bitWidth << ">";
-    assert(false && "Unreachable");
+    llvm_unreachable("Unsupported bit-width for real type");
     return {};
   }
 
@@ -247,7 +249,7 @@ namespace mlir::modelica
     mlir::Type elementType = type.getElementType();
     elementType = convertType(elementType);
 
-    auto ptrType = mlir::LLVM::LLVMPointerType::get(elementType, 0);
+    auto ptrType = mlir::LLVM::LLVMPointerType::get(elementType);
     auto indexType = getIndexType();
     llvm::SmallVector<mlir::Type, 3> results = { ptrType, indexType };
 

@@ -218,8 +218,6 @@ namespace marco::frontend
     modelSolvingOptions.ida.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
 
     passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createModelSolvingPass(modelSolvingOptions));
-    //passManager.addPass(mlir::createCanonicalizerPass());
-    //passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
 
     // Functions scalarization pass
     codegen::FunctionScalarizationOptions functionScalarizationOptions;
@@ -275,7 +273,7 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createIDAConversionPass());
 
-    passManager.addPass(codegen::createUnrealizedCastReconciliationPass());
+    passManager.addPass(codegen::createUnrealizedCastsEliminationPass());
 
     if (!codegenOptions.debug) {
       // Remove the debug information if a non-debuggable executable has been requested

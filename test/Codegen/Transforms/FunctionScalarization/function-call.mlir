@@ -3,6 +3,7 @@
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
+// RUN:     --remove-unrealized-casts               \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -12,8 +13,8 @@
 
 modelica.function @callee : (!modelica.real) -> (!modelica.real) {
     %cst = constant 3 : index
-    %3 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
+    %3 = modelica.member_create @x : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create @y : !modelica.member<!modelica.real, output>
     %2 = modelica.member_load %3 : !modelica.member<!modelica.real, input> -> !modelica.real
     modelica.member_store %1, %2 : !modelica.member<!modelica.real, output>, !modelica.real
 }

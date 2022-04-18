@@ -109,6 +109,11 @@ namespace marco::codegen
     return equation->getValueAtPath(path);
   }
 
+  Access MatchedEquation::getAccessAtPath(const EquationPath& path) const
+  {
+    return equation->getAccessAtPath(path);
+  }
+
   mlir::LogicalResult MatchedEquation::explicitate(
       mlir::OpBuilder& builder, const EquationPath& path)
   {
@@ -167,7 +172,7 @@ namespace marco::codegen
 
   Access MatchedEquation::getWrite() const
   {
-    return getAccessFromPath(matchedPath);
+    return getAccessAtPath(matchedPath);
   }
 
   mlir::LogicalResult match(

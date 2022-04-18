@@ -7,7 +7,7 @@ namespace marco::codegen
 {
   struct LowerToCFGOptions
   {
-    bool bitWidth = 64;
+    unsigned int bitWidth = 64;
     bool outputArraysPromotion = true;
     bool inlining = true;
 

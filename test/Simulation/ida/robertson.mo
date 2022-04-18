@@ -1,9 +1,9 @@
 // RUN: marco --omc-bypass --model=Robertson --end-time=400 --time-step=1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
-// RUN: ./%basename_t | FileCheck %s
+// RUN: ./%basename_t --precision=6 | FileCheck %s
 
 // CHECK: time;y1;y2;y3
-// CHECK-NEXT: 0.000000000000;1.000000000000;0.000000000000;0.000000000000
-// CHECK: 400.000000000000;0.450515802702;0.000003222869;0.549480974429
+// CHECK-NEXT: 0.000000;1.000000;0.000000;0.000000
+// CHECK: 400.000000;0.450516;0.000003;0.549481
 
 model Robertson
 	Real y1(start = 1.0);

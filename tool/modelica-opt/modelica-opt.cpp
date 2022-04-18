@@ -17,6 +17,7 @@ int main(int argc, char* argv[])
 {
   registerModelicaTransformationPasses();
 	registerModelicaConversionPasses();
+  registerGenericConversionPasses();
 
   mlir::registerCanonicalizerPass();
   mlir::registerCSEPass();

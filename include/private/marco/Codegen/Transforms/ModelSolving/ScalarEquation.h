@@ -32,6 +32,8 @@ namespace marco::codegen
 
       DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
 
+      Access getAccessAtPath(const EquationPath& path) const override;
+
       std::vector<mlir::Value> getInductionVariables() const override;
 
     protected:

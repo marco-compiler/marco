@@ -56,6 +56,9 @@ namespace marco::codegen
       /// Get the IR value at a given path.
       virtual mlir::Value getValueAtPath(const EquationPath& path) const = 0;
 
+      /// Obtain the access to a variable that is reached through a given path inside the equation.
+      virtual Access getAccessAtPath(const EquationPath& path) const = 0;
+
       /// Transform the equation IR such that the access at the given equation path is the
       /// only term on the left hand side of the equation.
       virtual mlir::LogicalResult explicitate(
@@ -110,9 +113,6 @@ namespace marco::codegen
           mlir::Value value,
           std::vector<::marco::modeling::DimensionAccess>& dimensionsAccesses,
           EquationPath path) const;
-
-      /// Obtain the access to a variable that is reached through a given path inside the equation.
-      Access getAccessFromPath(const EquationPath& path) const;
 
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
   };

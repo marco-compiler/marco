@@ -464,7 +464,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::zeros(const Call& call)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ones");
+    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "zeros");
 
     auto location = loc(call.getLocation());
     mlir::Type resultType = lower(call.getType());

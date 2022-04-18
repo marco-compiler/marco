@@ -52,6 +52,8 @@ namespace marco::codegen
 
       mlir::Value getValueAtPath(const EquationPath& path) const override;
 
+      Access getAccessAtPath(const EquationPath& path) const override;
+
       std::vector<Access> getReads() const;
 
       Access getWrite() const;

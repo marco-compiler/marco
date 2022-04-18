@@ -51,6 +51,8 @@ namespace marco::codegen
 
       mlir::Value getValueAtPath(const EquationPath& path) const override;
 
+      Access getAccessAtPath(const EquationPath& path) const override;
+
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder, const EquationPath& path) override;
 

@@ -1,9 +1,9 @@
-#include "marco/Codegen/Conversion/Generic/UnrealizedCastReconciliation.h"
+#include "marco/Codegen/Conversion/Generic/UnrealizedCastsElimination.h"
 #include "marco/Codegen/Conversion/Modelica/LowerToLLVM.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
-#include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Conversion/OpenMPToLLVM/ConvertOpenMPToLLVM.h"
+#include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
@@ -22,7 +22,7 @@ namespace
     }
   };
 
-  class UnrealizedCastBrutalErasingPass : public mlir::PassWrapper<UnrealizedCastBrutalErasingPass, mlir::OperationPass<mlir::ModuleOp>>
+  class nrealizedCastsEliminationPass : public mlir::PassWrapper<nrealizedCastsEliminationPass, mlir::OperationPass<mlir::ModuleOp>>
   {
     public:
       void runOnOperation() override
@@ -56,8 +56,8 @@ namespace
 
 namespace marco::codegen
 {
-  std::unique_ptr<mlir::Pass> createUnrealizedCastReconciliationPass()
+  std::unique_ptr<mlir::Pass> createUnrealizedCastsEliminationPass()
   {
-    return std::make_unique<UnrealizedCastBrutalErasingPass>();
+    return std::make_unique<nrealizedCastsEliminationPass>();
   }
 }

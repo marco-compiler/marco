@@ -2,6 +2,7 @@
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
+// RUN:     --remove-unrealized-casts               \
 // RUN: | mlir-opt                                  \
 // RUN:      --convert-scf-to-std                   \
 // RUN: | mlir-cpu-runner                           \
@@ -13,7 +14,7 @@
 // CHECK-NEXT: false
 
 modelica.function @foo : (!modelica.int) -> () {
-    %x = modelica.member_create {name = "x"} : !modelica.member<!modelica.int, input>
+    %x = modelica.member_create @x : !modelica.member<!modelica.int, input>
     %0 = modelica.member_load %x : !modelica.member<!modelica.int, input> -> !modelica.int
     %c0 = modelica.constant #modelica.int<0>
     %condition = modelica.lt %0, %c0 : (!modelica.int, !modelica.int) -> !modelica.bool

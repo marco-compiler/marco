@@ -372,35 +372,6 @@ namespace marco::codegen
     }
   }
 
-  Access Equation::getAccessFromPath(const EquationPath& path) const
-  {
-    std::vector<Access> accesses;
-    auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
-
-    auto traverseFn = [&](mlir::Value value, const ExpressionPath& path) -> mlir::Value {
-      mlir::Value current = value;
-
-      for (const auto& index : path) {
-        mlir::Operation* op = current.getDefiningOp();
-        assert(index < op->getNumOperands() && "Invalid expression path");
-        current = op->getOperand(index);
-      }
-
-      return current;
-    };
-
-    if (path.getEquationSide() == EquationPath::LEFT) {
-      mlir::Value access = traverseFn(terminator.lhsValues()[0], path);
-      searchAccesses(accesses, access, path);
-    } else {
-      mlir::Value access = traverseFn(terminator.rhsValues()[0], path);
-      searchAccesses(accesses, access, path);
-    }
-
-    assert(accesses.size() == 1);
-    return accesses[0];
-  }
-
   std::pair<mlir::Value, long> Equation::evaluateDimensionAccess(mlir::Value value) const
   {
     if (value.isa<mlir::BlockArgument>()) {
@@ -487,7 +458,7 @@ namespace marco::codegen
 
     // Get all the paths that lead to accesses with the same accessed variable
     // and function.
-    auto requestedAccess = getAccessFromPath(path);
+    auto requestedAccess = getAccessAtPath(path);
     std::vector<Access> accesses;
 
     for (const auto& access : getAccesses()) {
@@ -594,7 +565,7 @@ namespace marco::codegen
     // And finally it is combined with the access to be moved into the destination:
     //   [i0 - 1, i1 - 2] * [i0 + 1, i1 + 2] = [i0, i1]
     // In the same way, z[i1, i0] becomes z[i1 + 1, i0 - 1] and i1 becomes [i1 - 2].
-    auto sourceAccess = getAccessFromPath(EquationPath::LEFT);
+    auto sourceAccess = getAccessAtPath(EquationPath::LEFT);
     const auto& sourceAccessFunction = sourceAccess.getAccessFunction();
 
     if (sourceAccessFunction.isInvertible()) {

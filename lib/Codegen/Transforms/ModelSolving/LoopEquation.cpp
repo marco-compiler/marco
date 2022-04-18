@@ -29,7 +29,12 @@ namespace marco::codegen
     }
 
     mlir::BlockAndValueMapping mapping;
-    builder.setInsertionPoint(explicitLoops.back());
+
+    if (explicitLoops.empty()) {
+      builder.setInsertionPoint(getOperation());
+    } else {
+      builder.setInsertionPoint(explicitLoops.back());
+    }
 
     for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it) {
       long from = it->from().getSExtValue();
@@ -135,6 +140,31 @@ namespace marco::codegen
 
     size_t inductionVarIndex = loops.end() - loopIt - 1;
     return DimensionAccess::relative(inductionVarIndex, access.second);
+  }
+
+  Access LoopEquation::getAccessAtPath(const EquationPath& path) const
+  {
+    mlir::Value access = getValueAtPath(path);
+    std::vector<Access> accesses;
+
+    size_t explicitInductions = getNumberOfExplicitLoops();
+    std::vector<DimensionAccess> implicitDimensionAccesses;
+
+    if (auto arrayType = access.getType().dyn_cast<ArrayType>()) {
+      size_t implicitInductionVar = 0;
+
+      for (size_t i = 0, e = arrayType.getRank(); i < e; ++i) {
+        auto dimensionAccess = DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
+        implicitDimensionAccesses.push_back(dimensionAccess);
+        ++implicitInductionVar;
+      }
+    }
+
+    std::reverse(implicitDimensionAccesses.begin(), implicitDimensionAccesses.end());
+    searchAccesses(accesses, access, implicitDimensionAccesses, std::move(path));
+
+    assert(accesses.size() == 1);
+    return accesses[0];
   }
 
   std::vector<mlir::Value> LoopEquation::getInductionVariables() const

@@ -2,6 +2,7 @@
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
+// RUN:     --remove-unrealized-casts               \
 // RUN: | mlir-opt                                  \
 // RUN:      --convert-scf-to-std                   \
 // RUN: | mlir-cpu-runner                           \

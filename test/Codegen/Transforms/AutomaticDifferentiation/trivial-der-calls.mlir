@@ -3,6 +3,7 @@
 // RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
 // RUN:     --convert-to-llvm                       \
+// RUN:     --remove-unrealized-casts               \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -11,9 +12,9 @@
 // CHECK: -1.979985e+00
 
 modelica.function @sin_der : (!modelica.real, !modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create {name = "der_x"} : !modelica.member<!modelica.real, input>
-    %2 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create @der_x : !modelica.member<!modelica.real, input>
+    %2 = modelica.member_create @y : !modelica.member<!modelica.real, output>
     %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
     %4 = modelica.sin %3 : !modelica.real -> !modelica.real
     %5 = modelica.der %4 : !modelica.real -> !modelica.real
@@ -31,9 +32,9 @@ func @test_sin() -> () {
 // CHECK: 2.822400e-01
 
 modelica.function @cos_der : (!modelica.real, !modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create {name = "x"} : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create {name = "der_x"} : !modelica.member<!modelica.real, input>
-    %2 = modelica.member_create {name = "y"} : !modelica.member<!modelica.real, output>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
+    %1 = modelica.member_create @der_x : !modelica.member<!modelica.real, input>
+    %2 = modelica.member_create @y : !modelica.member<!modelica.real, output>
     %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
     %4 = modelica.cos %3 : !modelica.real -> !modelica.real
     %5 = modelica.der %4 : !modelica.real -> !modelica.real

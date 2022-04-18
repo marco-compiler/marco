@@ -98,6 +98,11 @@ namespace marco::codegen
     return equation->getValueAtPath(path);
   }
 
+  Access ScheduledEquation::getAccessAtPath(const EquationPath& path) const
+  {
+    return equation->getAccessAtPath(path);
+  }
+
   std::vector<Access> ScheduledEquation::getReads() const
   {
     return equation->getReads();

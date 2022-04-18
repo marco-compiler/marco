@@ -3524,43 +3524,45 @@ namespace mlir::modelica
 
   mlir::OpFoldResult MaxOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
   {
-    auto first = operands[0];
-    auto second = operands[1];
+    if (operands.size() == 2) {
+      auto first = operands[0];
+      auto second = operands[1];
 
-    if (!first || !second) {
-      return {};
-    }
-
-    auto resultType = getResult().getType();
-
-    if (isScalar(first) && isScalar(second)) {
-      if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
-        return getAttr(resultType, std::max(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
+      if (!first || !second) {
+        return {};
       }
 
-      if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
-        return getAttr(resultType, std::max(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
-      }
+      auto resultType = getResult().getType();
 
-      if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
-        auto firstValue = getScalarIntegerLikeValue(first);
-        auto secondValue = getScalarFloatLikeValue(second);
-
-        if (firstValue >= secondValue) {
-          return getAttr(resultType, firstValue);
-        } else {
-          return getAttr(resultType, secondValue);
+      if (isScalar(first) && isScalar(second)) {
+        if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
+          return getAttr(resultType, std::max(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
         }
-      }
 
-      if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
-        auto firstValue = getScalarFloatLikeValue(first);
-        auto secondValue = getScalarIntegerLikeValue(second);
+        if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
+          return getAttr(resultType, std::max(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
+        }
 
-        if (firstValue >= secondValue) {
-          return getAttr(resultType, firstValue);
-        } else {
-          return getAttr(resultType, secondValue);
+        if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
+          auto firstValue = getScalarIntegerLikeValue(first);
+          auto secondValue = getScalarFloatLikeValue(second);
+
+          if (firstValue >= secondValue) {
+            return getAttr(resultType, firstValue);
+          } else {
+            return getAttr(resultType, secondValue);
+          }
+        }
+
+        if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
+          auto firstValue = getScalarFloatLikeValue(first);
+          auto secondValue = getScalarIntegerLikeValue(second);
+
+          if (firstValue >= secondValue) {
+            return getAttr(resultType, firstValue);
+          } else {
+            return getAttr(resultType, secondValue);
+          }
         }
       }
     }
@@ -3581,43 +3583,45 @@ namespace mlir::modelica
 
   mlir::OpFoldResult MinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
   {
-    auto first = operands[0];
-    auto second = operands[1];
+    if (operands.size() == 2) {
+      auto first = operands[0];
+      auto second = operands[1];
 
-    if (!first || !second) {
-      return {};
-    }
-
-    auto resultType = getResult().getType();
-
-    if (isScalar(first) && isScalar(second)) {
-      if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
-        return getAttr(resultType, std::min(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
+      if (!first || !second) {
+        return {};
       }
 
-      if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
-        return getAttr(resultType, std::min(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
-      }
+      auto resultType = getResult().getType();
 
-      if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
-        auto firstValue = getScalarIntegerLikeValue(first);
-        auto secondValue = getScalarFloatLikeValue(second);
-
-        if (firstValue <= secondValue) {
-          return getAttr(resultType, firstValue);
-        } else {
-          return getAttr(resultType, secondValue);
+      if (isScalar(first) && isScalar(second)) {
+        if (isScalarIntegerLike(first) && isScalarIntegerLike(second)) {
+          return getAttr(resultType, std::min(getScalarIntegerLikeValue(first), getScalarIntegerLikeValue(second)));
         }
-      }
 
-      if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
-        auto firstValue = getScalarFloatLikeValue(first);
-        auto secondValue = getScalarIntegerLikeValue(second);
+        if (isScalarFloatLike(first) && isScalarFloatLike(second)) {
+          return getAttr(resultType, std::min(getScalarFloatLikeValue(first), getScalarFloatLikeValue(second)));
+        }
 
-        if (firstValue <= secondValue) {
-          return getAttr(resultType, firstValue);
-        } else {
-          return getAttr(resultType, secondValue);
+        if (isScalarIntegerLike(first) && isScalarFloatLike(second)) {
+          auto firstValue = getScalarIntegerLikeValue(first);
+          auto secondValue = getScalarFloatLikeValue(second);
+
+          if (firstValue <= secondValue) {
+            return getAttr(resultType, firstValue);
+          } else {
+            return getAttr(resultType, secondValue);
+          }
+        }
+
+        if (isScalarFloatLike(first) && isScalarIntegerLike(second)) {
+          auto firstValue = getScalarFloatLikeValue(first);
+          auto secondValue = getScalarIntegerLikeValue(second);
+
+          if (firstValue <= secondValue) {
+            return getAttr(resultType, firstValue);
+          } else {
+            return getAttr(resultType, secondValue);
+          }
         }
       }
     }

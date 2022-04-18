@@ -491,63 +491,133 @@ class CastOpRealLowering: public ModelicaOpConversion<CastOp>
 	}
 };
 
-struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
+struct ArrayCastOpArrayToArrayLowering : public ModelicaOpConversion<ArrayCastOp>
 {
-	using ModelicaOpConversion<ArrayCastOp>::ModelicaOpConversion;
+  using ModelicaOpConversion<ArrayCastOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(ArrayCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		auto loc = op->getLoc();
-		Adaptor transformed(operands);
-		mlir::Type source = op.source().getType();
-		auto destination = op.getResult().getType();
+  mlir::LogicalResult matchAndRewrite(ArrayCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+  {
+    auto loc = op->getLoc();
+    Adaptor transformed(operands);
+    mlir::Type sourceType = op.source().getType();
+    auto resultType = op.getResult().getType();
 
-		if (source.isa<ArrayType>()) {
-			if (auto resultType = destination.dyn_cast<UnsizedArrayType>()) {
-				ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.source());
+    if (!sourceType.isa<ArrayType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not an array");
+    }
 
-				// Create the unsized array descriptor that holds the ranked one.
-				// The inner descriptor is allocated on stack.
-				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, convertType(resultType));
-				resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
+    auto sourceArrayType = sourceType.cast<ArrayType>();
+    ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.source());
 
-				mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
-				resultDescriptor.setPtr(rewriter, loc, underlyingDescPtr);
-				mlir::Type sourceDescriptorArrayType = mlir::LLVM::LLVMPointerType::get(transformed.source().getType());
-				underlyingDescPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, sourceDescriptorArrayType, underlyingDescPtr);
+    if (!resultType.isa<ArrayType>()) {
+      return rewriter.notifyMatchFailure(op, "Result is not an array");
+    }
 
-				mlir::Type indexType = convertType(rewriter.getIndexType());
-				mlir::Value zero = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
-				mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, underlyingDescPtr.getType(), underlyingDescPtr, zero);
-				rewriter.create<mlir::LLVM::StoreOp>(loc, *sourceDescriptor, ptr);
+    auto resultArrayType = resultType.cast<ArrayType>();
 
-				mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, *resultDescriptor);
-				rewriter.replaceOp(op, result);
-				return mlir::success();
-			}
-		}
+    if (sourceArrayType.getRank() != resultArrayType.getRank()) {
+      return rewriter.notifyMatchFailure(op, "The destination array type has a different rank");
+    }
 
-    if (source.isa<UnsizedArrayType>()) {
-      if (auto resultType = destination.dyn_cast<ArrayType>()) {
-        UnsizedArrayDescriptor sourceDescriptor(transformed.source());
-
-        mlir::Value arrayDescriptorPtr = sourceDescriptor.getPtr(rewriter, loc);
-
-        arrayDescriptorPtr = rewriter.create<mlir::LLVM::BitcastOp>(
-            loc,
-            mlir::LLVM::LLVMPointerType::get(getTypeConverter()->convertType(resultType)),
-            arrayDescriptorPtr);
-
-        mlir::Value arrayDescriptor = rewriter.create<mlir::LLVM::LoadOp>(loc, arrayDescriptorPtr);
-        arrayDescriptor = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, arrayDescriptor);
-        rewriter.replaceOp(op, arrayDescriptor);
-
-        return mlir::success();
+    for (const auto& dimension : resultArrayType.getShape()) {
+      if (dimension != ArrayType::kDynamicSize) {
+        return rewriter.notifyMatchFailure(op, "The destination array type has some fixed dimensions");
       }
     }
 
-		return rewriter.notifyMatchFailure(op, "Unknown conversion");
-	}
+    ArrayDescriptor resultDescriptor = ArrayDescriptor::undef(rewriter, mlir::ConvertToLLVMPattern::getTypeConverter(), loc, convertType(resultType));
+    resultDescriptor.setPtr(rewriter, loc, sourceDescriptor.getPtr(rewriter, loc));
+    resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
+
+    for (unsigned int i = 0; i < sourceArrayType.getRank(); ++i) {
+      resultDescriptor.setSize(rewriter, loc, i, sourceDescriptor.getSize(rewriter, loc, i));
+    }
+
+    mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, *resultDescriptor);
+    rewriter.replaceOp(op, result);
+    return mlir::success();
+  }
+};
+
+struct ArrayCastOpArrayToUnsizedArrayLowering : public ModelicaOpConversion<ArrayCastOp>
+{
+  using ModelicaOpConversion<ArrayCastOp>::ModelicaOpConversion;
+
+  mlir::LogicalResult matchAndRewrite(ArrayCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+  {
+    auto loc = op->getLoc();
+    Adaptor transformed(operands);
+    mlir::Type sourceType = op.source().getType();
+    auto resultType = op.getResult().getType();
+
+    if (!sourceType.isa<ArrayType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not an array");
+    }
+
+    ArrayDescriptor sourceDescriptor(this->getTypeConverter(), transformed.source());
+
+    if (!resultType.isa<UnsizedArrayType>()) {
+      return rewriter.notifyMatchFailure(op, "Result is not an unsized array");
+    }
+
+    // Create the unsized array descriptor that holds the ranked one.
+    // The inner descriptor (that is, the sized array descriptor) is allocated on the stack.
+    UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, convertType(resultType));
+    resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
+
+    mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
+    resultDescriptor.setPtr(rewriter, loc, underlyingDescPtr);
+    mlir::Type sourceDescriptorArrayType = mlir::LLVM::LLVMPointerType::get(transformed.source().getType());
+    underlyingDescPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, sourceDescriptorArrayType, underlyingDescPtr);
+
+    mlir::Type indexType = convertType(rewriter.getIndexType());
+    mlir::Value zero = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
+    mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, underlyingDescPtr.getType(), underlyingDescPtr, zero);
+    rewriter.create<mlir::LLVM::StoreOp>(loc, *sourceDescriptor, ptr);
+
+    mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, *resultDescriptor);
+    rewriter.replaceOp(op, result);
+    return mlir::success();
+  }
+};
+
+struct ArrayCastOpUnsizedArrayToArrayLowering : public ModelicaOpConversion<ArrayCastOp>
+{
+  using ModelicaOpConversion<ArrayCastOp>::ModelicaOpConversion;
+
+  mlir::LogicalResult matchAndRewrite(ArrayCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+  {
+    auto loc = op->getLoc();
+    Adaptor transformed(operands);
+    mlir::Type sourceType = op.source().getType();
+    auto resultType = op.getResult().getType();
+
+    if (!sourceType.isa<UnsizedArrayType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not an unsized array");
+    }
+
+    auto sourceUnsizedArrayType = sourceType.cast<UnsizedArrayType>();
+    UnsizedArrayDescriptor sourceDescriptor(transformed.source());
+
+    if (!resultType.isa<ArrayType>()) {
+      return rewriter.notifyMatchFailure(op, "Result is not an array");
+    }
+
+    auto resultArrayType = resultType.cast<ArrayType>();
+
+    mlir::Value arrayDescriptorPtr = sourceDescriptor.getPtr(rewriter, loc);
+
+    arrayDescriptorPtr = rewriter.create<mlir::LLVM::BitcastOp>(
+        loc,
+        mlir::LLVM::LLVMPointerType::get(getTypeConverter()->convertType(resultType)),
+        arrayDescriptorPtr);
+
+    mlir::Value arrayDescriptor = rewriter.create<mlir::LLVM::LoadOp>(loc, arrayDescriptorPtr);
+    arrayDescriptor = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, arrayDescriptor);
+    rewriter.replaceOp(op, arrayDescriptor);
+
+    return mlir::success();
+  }
 };
 
 static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& typeConverter, mlir::OwningRewritePatternList& patterns)
@@ -564,157 +634,158 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			CastOpBooleanLowering,
 			CastOpIntegerLowering,
 			CastOpRealLowering,
-			ArrayCastOpLowering>(typeConverter);
+      ArrayCastOpArrayToArrayLowering,
+      ArrayCastOpArrayToUnsizedArrayLowering,
+      ArrayCastOpUnsizedArrayToArrayLowering>(typeConverter);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
-	explicit LLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)
-			: options(std::move(options)), bitWidth(bitWidth)
-	{
-	}
+    explicit LLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)
+        : options(std::move(options)), bitWidth(bitWidth)
+    {
+    }
 
-	void getDependentDialects(mlir::DialectRegistry &registry) const override
-	{
-		registry.insert<ModelicaDialect>();
-		registry.insert<mlir::LLVM::LLVMDialect>();
-	}
+    void getDependentDialects(mlir::DialectRegistry &registry) const override
+    {
+      registry.insert<ModelicaDialect>();
+      registry.insert<mlir::LLVM::LLVMDialect>();
+    }
 
-	void runOnOperation() override
-	{
-		auto module = getOperation();
+    void runOnOperation() override
+    {
+      auto module = getOperation();
 
-    if (mlir::failed(stdToLLVMConversionPass(module))) {
-			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
-			signalPassFailure();
-			return;
-		}
+      if (mlir::failed(stdToLLVMConversionPass(module))) {
+        mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+        return signalPassFailure();
+      }
 
-		if (options.emitCWrappers) {
-			if (mlir::failed(emitCWrappers(module))) {
-				mlir::emitError(module.getLoc(), "Error in emitting the C wrappers\n");
-				signalPassFailure();
-				return;
-			}
-		}
-	}
+      if (options.emitCWrappers) {
+        if (mlir::failed(emitCWrappers(module))) {
+          mlir::emitError(module.getLoc(), "Error in emitting the C wrappers\n");
+          return signalPassFailure();
+        }
+      }
+    }
 
 	private:
-	mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module)
-	{
-		mlir::LowerToLLVMOptions llvmOptions(&getContext());
-		llvmOptions.emitCWrappers = options.emitCWrappers;
-		TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
+    mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module)
+    {
+      mlir::LowerToLLVMOptions llvmOptions(&getContext());
+      llvmOptions.emitCWrappers = options.emitCWrappers;
+      TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
-		mlir::ConversionTarget target(getContext());
-		target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
-		target.addIllegalOp<mlir::FuncOp>();
+      mlir::ConversionTarget target(getContext());
+      target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
+      target.addIllegalOp<mlir::FuncOp>();
 
-		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-		target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-		target.addLegalOp<mlir::ModuleOp>();
+      target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+      target.addLegalOp<mlir::UnrealizedConversionCastOp>();
+      target.addLegalOp<mlir::ModuleOp>();
 
-		target.addDynamicallyLegalOp<
-				mlir::omp::MasterOp,
-				mlir::omp::ParallelOp,
-				mlir::omp::WsLoopOp>([&](mlir::Operation *op) {
-			return typeConverter.isLegal(&op->getRegion(0));
-		});
+      target.addDynamicallyLegalOp<
+          mlir::omp::MasterOp,
+          mlir::omp::ParallelOp,
+          mlir::omp::WsLoopOp>([&](mlir::Operation *op) {
+        return typeConverter.isLegal(&op->getRegion(0));
+      });
 
-		target.addLegalOp<
-		    mlir::omp::TerminatorOp,
-				mlir::omp::TaskyieldOp,
-				mlir::omp::FlushOp,
-				mlir::omp::BarrierOp,
-				mlir::omp::TaskwaitOp>();
+      target.addLegalOp<
+          mlir::omp::TerminatorOp,
+          mlir::omp::TaskyieldOp,
+          mlir::omp::FlushOp,
+          mlir::omp::BarrierOp,
+          mlir::omp::TaskwaitOp>();
 
-		mlir::OwningRewritePatternList patterns(&getContext());
-		populateModelicaToLLVMConversionPatterns(typeConverter, patterns);
-		mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
-		mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
+      mlir::OwningRewritePatternList patterns(&getContext());
+      populateModelicaToLLVMConversionPatterns(typeConverter, patterns);
+      mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
+      mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
 
-		return applyPartialConversion(module, target, std::move(patterns));
-	}
+      return applyPartialConversion(module, target, std::move(patterns));
+    }
 
-	mlir::LogicalResult emitCWrappers(mlir::ModuleOp module)
-	{
-		bool success = true;
-		mlir::OpBuilder builder(module);
+    mlir::LogicalResult emitCWrappers(mlir::ModuleOp module)
+    {
+      bool success = true;
+      mlir::OpBuilder builder(module);
 
-		module.walk([&](mlir::LLVM::LLVMFuncOp function) {
-			if (function.isExternal())
-				return;
+      module.walk([&](mlir::LLVM::LLVMFuncOp function) {
+        if (function.isExternal())
+          return;
 
-			builder.setInsertionPointAfter(function);
+        builder.setInsertionPointAfter(function);
 
-			llvm::SmallVector<mlir::Type, 3> wrapperArgumentsTypes;
+        llvm::SmallVector<mlir::Type, 3> wrapperArgumentsTypes;
 
-			// Keep track for each original argument of its destination position
-			llvm::SmallVector<long, 3> argumentsMapping;
+        // Keep track for each original argument of its destination position
+        llvm::SmallVector<long, 3> argumentsMapping;
 
-			// Keep track for each original result if it has been moved to the
-			// arguments list or not.
-			bool resultMoved = false;
+        // Keep track for each original result if it has been moved to the
+        // arguments list or not.
+        bool resultMoved = false;
 
-			mlir::Type wrapperResultType = function.getType().getReturnType();
+        mlir::Type wrapperResultType = function.getType().getReturnType();
 
-			if (wrapperResultType.isa<mlir::LLVM::LLVMStructType>())
-			{
-				wrapperArgumentsTypes.push_back(mlir::LLVM::LLVMPointerType::get(wrapperResultType));
-				wrapperResultType = mlir::LLVM::LLVMVoidType::get(function->getContext());
-				resultMoved = true;
-			}
+        if (wrapperResultType.isa<mlir::LLVM::LLVMStructType>())
+        {
+          wrapperArgumentsTypes.push_back(mlir::LLVM::LLVMPointerType::get(wrapperResultType));
+          wrapperResultType = mlir::LLVM::LLVMVoidType::get(function->getContext());
+          resultMoved = true;
+        }
 
-			for (mlir::Type type : function.getType().getParams())
-			{
-				argumentsMapping.push_back(wrapperArgumentsTypes.size());
+        for (mlir::Type type : function.getType().getParams())
+        {
+          argumentsMapping.push_back(wrapperArgumentsTypes.size());
 
-				if (type.isa<mlir::LLVM::LLVMStructType>())
-					wrapperArgumentsTypes.push_back(mlir::LLVM::LLVMPointerType::get(type));
-				else
-					wrapperArgumentsTypes.push_back(type);
-			}
+          if (type.isa<mlir::LLVM::LLVMStructType>())
+            wrapperArgumentsTypes.push_back(mlir::LLVM::LLVMPointerType::get(type));
+          else
+            wrapperArgumentsTypes.push_back(type);
+        }
 
-			auto functionType = mlir::LLVM::LLVMFunctionType::get(wrapperResultType, wrapperArgumentsTypes, function.getType().isVarArg());
-			auto wrapper = builder.create<mlir::LLVM::LLVMFuncOp>(function.getLoc(), ("__modelica_ciface_" + function.getName()).str(), functionType);
-			mlir::Block* body = wrapper.addEntryBlock();
-			builder.setInsertionPointToStart(body);
+        auto functionType = mlir::LLVM::LLVMFunctionType::get(wrapperResultType, wrapperArgumentsTypes, function.getType().isVarArg());
+        auto wrapper = builder.create<mlir::LLVM::LLVMFuncOp>(function.getLoc(), ("__modelica_ciface_" + function.getName()).str(), functionType);
+        mlir::Block* body = wrapper.addEntryBlock();
+        builder.setInsertionPointToStart(body);
 
-			llvm::SmallVector<mlir::Value, 3> args;
-			llvm::SmallVector<mlir::Value, 1> results;
+        llvm::SmallVector<mlir::Value, 3> args;
+        llvm::SmallVector<mlir::Value, 1> results;
 
-			for (auto type : llvm::enumerate(function.getArgumentTypes()))
-			{
-				mlir::Value wrapperArg = wrapper.getArgument(argumentsMapping[type.index()]);
+        for (auto type : llvm::enumerate(function.getArgumentTypes()))
+        {
+          mlir::Value wrapperArg = wrapper.getArgument(argumentsMapping[type.index()]);
 
-				if (type.value().isa<mlir::LLVM::LLVMStructType>())
-					args.push_back(builder.create<mlir::LLVM::LoadOp>(wrapper->getLoc(), wrapperArg));
-				else
-					args.push_back(wrapperArg);
-			}
+          if (type.value().isa<mlir::LLVM::LLVMStructType>())
+            args.push_back(builder.create<mlir::LLVM::LoadOp>(wrapper->getLoc(), wrapperArg));
+          else
+            args.push_back(wrapperArg);
+        }
 
-			auto call = builder.create<mlir::LLVM::CallOp>(wrapper->getLoc(), function, args);
-			assert(call.getNumResults() <= 1);
+        auto call = builder.create<mlir::LLVM::CallOp>(wrapper->getLoc(), function, args);
+        assert(call.getNumResults() <= 1);
 
-			if (call->getNumResults() == 1)
-			{
-				mlir::Value result = call.getResult(0);
+        if (call->getNumResults() == 1)
+        {
+          mlir::Value result = call.getResult(0);
 
-				if (resultMoved)
-					builder.create<mlir::LLVM::StoreOp>(wrapper.getLoc(), result, wrapper.getArgument(0));
-				else
-					results.push_back(result);
-			}
+          if (resultMoved)
+            builder.create<mlir::LLVM::StoreOp>(wrapper.getLoc(), result, wrapper.getArgument(0));
+          else
+            results.push_back(result);
+        }
 
-			builder.create<mlir::LLVM::ReturnOp>(wrapper->getLoc(), results);
-		});
+        builder.create<mlir::LLVM::ReturnOp>(wrapper->getLoc(), results);
+      });
 
-		return mlir::success(success);
-	}
+      return mlir::success(success);
+    }
 
-	ModelicaToLLVMConversionOptions options;
-	unsigned int bitWidth;
+  private:
+    ModelicaToLLVMConversionOptions options;
+    unsigned int bitWidth;
 };
 
 std::unique_ptr<mlir::Pass> marco::codegen::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)

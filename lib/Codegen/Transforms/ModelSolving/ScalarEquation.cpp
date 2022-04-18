@@ -75,6 +75,17 @@ namespace marco::codegen
     return DimensionAccess::constant(access.second);
   }
 
+  Access ScalarEquation::getAccessAtPath(const EquationPath& path) const
+  {
+    std::vector<Access> accesses;
+
+    mlir::Value access = getValueAtPath(path);
+    searchAccesses(accesses, access, path);
+
+    assert(accesses.size() == 1);
+    return accesses[0];
+  }
+
   std::vector<mlir::Value> ScalarEquation::getInductionVariables() const
   {
     return {};
