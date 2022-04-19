@@ -325,7 +325,7 @@ namespace marco::modeling
 
   IndexSet AccessFunction::inverseMap(const IndexSet& indices, const IndexSet& parentIndexes) const
   {
-    if (isInvertible()) {
+    if (isInvertible() && indices.size() == parentIndexes.size()) {
       auto mapped = inverseMap(indices);
       assert(map(mapped).contains(indices));
       return mapped;

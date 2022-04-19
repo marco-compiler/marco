@@ -375,6 +375,9 @@ namespace marco::codegen
 
     // Substitute the accesses to non-IDA variables with the equations writing in such variables
     std::vector<std::unique_ptr<ScheduledEquation>> independentEquations;
+
+    // First create the writes map, that is the knowledge of which equation writes into a variable and in which indices.
+    // The variables are mapped by their argument numbers.
     std::multimap<unsigned int, std::pair<modeling::MultidimensionalRange, ScheduledEquation*>> writesMap;
 
     for (const auto& equationsBlock : model.getScheduledBlocks()) {
@@ -388,6 +391,7 @@ namespace marco::codegen
       }
     }
 
+    // The equations we are operating on
     std::queue<std::unique_ptr<ScheduledEquation>> processedEquations;
 
     for (const auto& equation : equations) {
@@ -408,7 +412,20 @@ namespace marco::codegen
 
       for (const auto& access : equation->getReads()) {
         if (atLeastOneAccessReplaced) {
-          // Avoid unnecessary duplicates
+          // Avoid the duplicates.
+          // For example, if we have the following equation
+          //   eq1: z = x + y ...
+          // and both x and y have to be replaced, then the replacement of 'x'
+          // would create the equation
+          //   eq2: z = f(...) + y ...
+          // while the replacement of 'y' would create the equation
+          //   eq3: z = x + g(...) ...
+          // This implies that at the next round both would have respectively 'y'
+          // and 'x' replaced for a second time, thus leading to two identical
+          // equations:
+          //   eq4: z = f(...) + g(...) ...
+          //   eq5: z = f(...) + g(...) ...
+
           break;
         }
 

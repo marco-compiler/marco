@@ -580,15 +580,15 @@ namespace marco::codegen
       // write access do iterate on a single value (i.e. [n,n+1)), then those constants
       // ('n', in the previous example), can be used to replace the induction variables
       // usages.
-      // For example, given the equation "x[10, i1] = ..." , with i0 belonging to [5,6),
-      // then i0 can be replaced everywhere within the equation with the constant value
+      // For example, given the equation "x[10, i1] = ..." , with i1 belonging to [5,6),
+      // then i1 can be replaced everywhere within the equation with the constant value
       // 5. Then, if we consider just the [i1] access of 'x', the reduced access
       // function can be now inverted and combined with the destination access, as
       // in the previous case.
       // Note that this always happens in case of scalar variables, as they are accessed
-      // by means of a fake access to their first element, as if they were arrays.
+      // by means of a dummy access to their first element, as if they were arrays.
 
-      llvm::SmallVector<bool, 3> usedInductions(sourceAccessFunction.size(), false);
+      llvm::SmallVector<bool, 3> usedInductions(getNumOfIterationVars(), false);
       llvm::SmallVector<DimensionAccess, 3> reducedSourceAccesses;
       llvm::SmallVector<DimensionAccess, 3> reducedDestinationAccesses;
       auto iterationRanges = getIterationRanges();
@@ -627,20 +627,28 @@ namespace marco::codegen
         remappedSourceInductions.insert(inductionIndex);
         sourceDimensionMapping[inductionIndex] = mappedIndex;
         remappedReducedSourceAccesses.push_back(DimensionAccess::relative(mappedIndex, dimensionAccess.getOffset()));
+        ++mappedIndex;
       }
 
       AccessFunction remappedReducedSourceAccessFunction(remappedReducedSourceAccesses);
       auto combinedReducedAccess = reducedDestinationAccessFunction.combine(remappedReducedSourceAccessFunction.inverse());
       llvm::SmallVector<DimensionAccess, 3> transformationAccesses;
+      size_t usedInductionIndex = 0;
 
-      for (const auto& usage : llvm::enumerate(usedInductions)) {
-        if (usage.value()) {
-          assert(remappedSourceInductions.find(usage.index()) != remappedSourceInductions.end());
-          transformationAccesses.push_back(combinedReducedAccess[sourceDimensionMapping[usage.index()]]);
+      for (size_t i = 0, e = sourceAccessFunction.size(); i < e; ++i) {
+        if (sourceAccessFunction[i].isConstantAccess()) {
+          transformationAccesses.push_back(sourceAccessFunction[i]);
         } else {
-          const auto& range = iterationRanges[usage.index()];
-          assert(range.size() == 1);
-          transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
+          if (usedInductions[usedInductionIndex]) {
+            assert(remappedSourceInductions.find(usedInductionIndex) != remappedSourceInductions.end());
+            transformationAccesses.push_back(combinedReducedAccess[sourceDimensionMapping[usedInductionIndex]]);
+          } else {
+            const auto& range = iterationRanges[usedInductionIndex];
+            assert(range.size() == 1);
+            transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
+          }
+
+          ++usedInductionIndex;
         }
       }
 
