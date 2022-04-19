@@ -79,7 +79,7 @@ void SerialPort::write(const int n){
 
 
 void SerialPort::write(float f, const int p){
-	char s[64];
+	char s[64] = {};
 	tochar(f,p,s);
 	this->write(s);
 }
@@ -109,13 +109,13 @@ char SerialPort::read()
 
 char* SerialPort::tochar(int i, char* res){
    int len = 0;
-   for(; i > 0; ++len)
-   {
+   for(; i >0; ++len)
+   {	
       res[len] = i%10+'0';
       i/=10; 
    }
-   res[len++] = '\r';
-   res[len++] = '\n';
+   //res[len++] = '\r';
+   //res[len++] = '\n';
    res[len] = 0; //null-terminating
 
    //now we need to reverse res
@@ -129,50 +129,66 @@ char* SerialPort::tochar(int i, char* res){
 char* SerialPort::tochar(const int i, char* res){
   snprintf(res,sizeof(int)+3,"%d\r\n",i);
 };*/
-
-char* SerialPort::tochar(const float f,const int precision,char* res){
-	int i = f;
-	int d;
-	if (i == 2) d =(f - i) * 100;
-	else  d =(f - i) * power(10,precision);
-	int len = 0;
-
-	for(; i > 0; ++len)
-   	{
-     	res[len] = i%10+'0';
-      	i/=10; 
-  	}
+char* SerialPort::tochar(const float x,const int precision,char* p){
+	int a,b,c,k,l=0,m,i=0,j;
+	float f = x;
+	int o = 0;
+	// check for negetive float
+	if(f<0.0)
+	{
+		
+		p[i++]='-';
+		f*=-1;
+		o++;
+	}
 	
-   	//now we need to reverse res
-   	for(int i = 0; i < len/2; ++i) 
-   	{
-       	char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
-   	}
+	a=f;	// extracting whole number
+	f-=a;	// extracting decimal part
+	k = precision;
 	
+	// number of digits in whole number
+	while(k>-1)
+	{
+		l = power(10,k);
+		m = a/l;
+		if(m>0)
+		{
+			break;
+		}
+	k--;
+	}
+
+	// number of digits in whole number are k+1
 	
-	res[len++] = '.';
-	int old_len = len;
+	/*
+	extracting most significant digit i.e. right most digit , and concatenating to string
+	obtained as quotient by dividing number by 10^k where k = (number of digit -1)
+	*/
+	for(; a>0; ++i)
+   {	
+      p[i] = a%10+'0';
+      a/=10; 
+   }
+   
+   //now we need to reverse res
+   for(; o < i/2; ++o)
+   {
+       char c = p[o]; p[o] = p[i-o-1]; p[i-o-1] = c;
+   }
+	p[i++] = '.';
+	
+	/* extracting decimal digits till precision */
 
-	for(; d > 0; ++len)
-   	{
-     	res[len] = d%10+'0';
-      	d/=10; 
-  	}
-   	res[len++] = '\r';
-   	res[len++] = '\n';
-   	res[len] = 0; //null-terminating
+	for(l=0;l<precision;l++)
+	{
+		f*=10.0;
+		b = f;
+		p[i++]=b+48;
+		f-=b;
+	}
 
-   	//now we need to reverse res
-	old_len++;
-   	for(int i = 0; i < (len - old_len)/2; ++i)
-   	{
-       	char c = res[i + old_len]; res[i + old_len] = res[len-i - old_len]; res[len-i - old_len] = c;
-   	}
-
-   	return res;
-
-
-};
+	p[i]='\0';
+}
 
 int SerialPort::power(const int n,const int p){
 	return p == 0 ? 1 : n*power(n,p-1);

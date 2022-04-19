@@ -6,47 +6,63 @@ CPU := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 AFLAGS   := $(CPU) 
 CFLAGS   := $(CPU) -O0 -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver
-CXXFLAGS := $(CPU) -O0 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public
+CXXFLAGS := $(CPU) -O0 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public -I./include/marco/lib
 LFLAGS   := $(CPU) -Wl,-T./src/linker.ld,-Map,./test/main.map #-nostdlib
 
-CLANG := clang --target=arm-none-eabi -march=armv7e-m $(CPU)
+CLANG := clang --target=arm-none-eabi -march=armv7e-m $(CPU) -fshort-enums
 
-SRC := ./src/startup.s ./test/main.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp
+SRC := ./src/startup.s ./test/math_test.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/lib/StdMath.cpp \
 
-SRCS :=  ./src/startup.s ./src/init.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/stub.cpp
+SRCS :=  ./src/startup.s ./src/main.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/stub.cpp ./src/lib/Print.cpp
 MLIB := ../runtime/BuiltInFunctions.cpp ../runtime/Math.cpp ../runtime/MemoryManagement.cpp ../runtime/ProfilingEmbedded.cpp ../runtime/Runtime.cpp ../runtime/UtilityFunctions.cpp
 
 OBJ := $(addsuffix .o, $(basename $(SRC))) 
 
-OBJLIB :=  ./staticlib/BuiltInFunctions.o ./staticlib/Math.o ./staticlib/MemoryManagement.o ./staticlib/ProfilingEmbedded.o ./staticlib/Runtime.o ./staticlib/UtilityFunctions.o
+OBJLIB :=  ./staticlib/BuiltInFunctions.o ./staticlib/Math.o ./staticlib/MemoryManagement.o ./staticlib/ProfilingEmbedded.o ./staticlib/Runtime.o ./staticlib/UtilityFunctions.o ./staticlib/Print.o ./staticlib/heap.o
 OBJS := $(addsuffix .o, $(basename $(SRCS))) ./test/nomain.o
 
 #-L ./ -l:libMARCORuntime.a
 #arm-miosix-eabi-ld -r -o output.o ./libMARCORuntime.a ./test/nomain.o $(OBJS) 
-#$(CP) -O binary init.elf init.bin
+#$(CP) -O binary main.elf main.bin
 all: $(OBJ)
-	$(CXX) $(LFLAGS) -o main.elf $(OBJ)
-	$(CP) -O binary main.elf main.bin
+	$(CXX) $(LFLAGS) -o math_test.elf $(OBJ)
+	$(CP) -O binary math_test.elf math_test.bin
 
 sim: $(OBJS)
-	$(CXX) $(LFLAGS) -o init.elf $(OBJS) -L. -lMARCORuntime 
-	$(CP) -O binary init.elf init.bin
+
+	$(CXX) $(LFLAGS) -o main.elf $(OBJS) -L. -lMARCORuntime 
+	$(CP) -O binary main.elf main.bin
 
 
 lib: $(MLIB)
 	mkdir staticlib
+	$(CXX) $(CXXFLAGS) ./src/heap.cpp -o ./staticlib/heap.o
 	$(CXX) $(CXXFLAGS) ../runtime/BuiltInFunctions.cpp -o ./staticlib/BuiltInFunctions.o
 	$(CXX) $(CXXFLAGS) ../runtime/Math.cpp -o ./staticlib/Math.o
 	$(CXX) $(CXXFLAGS) ../runtime/MemoryManagement.cpp -o ./staticlib/MemoryManagement.o
 	$(CXX) $(CXXFLAGS) ../runtime/ProfilingEmbedded.cpp -o ./staticlib/ProfilingEmbedded.o
-	$(CXX) $(CXXFLAGS) ../runtime/Runtime.cpp -o ./staticlib/Runtime.o
+	$(CXX) $(CXXFLAGS) ../runtime/Runtime.cpp -nostdlib -o ./staticlib/Runtime.o
 	$(CXX) $(CXXFLAGS) ../runtime/UtilityFunctions.cpp -o ./staticlib/UtilityFunctions.o
+	$(CXX) $(CXXFLAGS) ../runtime/Print.cpp -o ./staticlib/Print.o
+	arm-miosix-eabi-ar -rcs libMARCORuntime.a $(OBJLIB)
+
+
+nlib: $(MLIB)
+	mkdir staticlib
+	$(CXX) $(CXXFLAGS) ./src/heap.cpp -nostdlib -o ./staticlib/heap.o
+	$(CXX) $(CXXFLAGS) ../runtime/BuiltInFunctions.cpp -nostdlib -o ./staticlib/BuiltInFunctions.o
+	$(CXX) $(CXXFLAGS) ../runtime/Math.cpp -nostdlib -o ./staticlib/Math.o
+	$(CXX) $(CXXFLAGS) ../runtime/MemoryManagement.cpp -nostdlib -o ./staticlib/MemoryManagement.o
+	$(CXX) $(CXXFLAGS) ../runtime/ProfilingEmbedded.cpp -nostdlib -o ./staticlib/ProfilingEmbedded.o
+	$(CXX) $(CXXFLAGS) ../runtime/Runtime.cpp -nostdlib -o ./staticlib/Runtime.o
+	$(CXX) $(CXXFLAGS) ../runtime/UtilityFunctions.cpp -nostdlib -o ./staticlib/UtilityFunctions.o
+	$(CXX) $(CXXFLAGS) ../runtime/Print.cpp -nostdlib -o ./staticlib/Print.o
 	arm-miosix-eabi-ar -rcs libMARCORuntime.a $(OBJLIB)
 clean:
 	-rm $(OBJ) main.elf main.bin main.map
 
 cleansim:
-	rm $(addsuffix .o, $(basename $(SRCS))) init.bin init.elf init.map
+	rm $(addsuffix .o, $(basename $(SRCS))) main.bin main.elf main.map
 
 cleanlib:
 	rm -r staticlib libMARCORuntime.a

@@ -6,3 +6,4 @@ main.*
 *.a
 */staticlib
 *.elf
+*.bin
