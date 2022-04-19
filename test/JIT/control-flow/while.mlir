@@ -34,7 +34,6 @@ modelica.function @foo : (!modelica.int) -> () {
         %c1 = modelica.constant #modelica.int<1>
         %1 = modelica.add %0, %c1 : (!modelica.int, !modelica.int) -> !modelica.int
         modelica.store %i[], %1 : !modelica.array<!modelica.int>
-        modelica.yield
     }
 }
 

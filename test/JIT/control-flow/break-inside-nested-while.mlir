@@ -76,13 +76,11 @@ modelica.function @foo : (!modelica.int) -> () {
             %1 = modelica.load %j[] : !modelica.array<!modelica.int>
             %2 = modelica.add %1, %c1 : (!modelica.int, !modelica.int) -> !modelica.int
             modelica.store %j[], %2 : !modelica.array<!modelica.int>
-            modelica.yield
         }
 
         %0 = modelica.load %i[] : !modelica.array<!modelica.int>
         %1 = modelica.add %0, %c1 : (!modelica.int, !modelica.int) -> !modelica.int
         modelica.store %i[], %1 : !modelica.array<!modelica.int>
-        modelica.yield
     }
 
     modelica.print %c3 : !modelica.int

@@ -731,7 +731,6 @@ namespace marco::codegen
     return llvm::None;
   }
 
-
   mlir::ValueRange ForwardAD::createCallOpFullDerivative(
       mlir::OpBuilder& builder,
       CallOp callOp,

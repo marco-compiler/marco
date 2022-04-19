@@ -842,12 +842,6 @@ namespace
       // The lowered function will receive a pointer to the array of variables.
       assert(!op.getVariables().empty());
 
-      assert(llvm::all_of(op.getVariables(), [&](const auto& var) {
-        // Check that all the variables have the same type, in order to avoid
-        // weird runtime errors.
-        return var.getType() == op.getVariables()[0].getType();
-      }));
-
       mlir::Value variablesPtr = newOp.getArgument(1);
       variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), mlir::LLVM::LLVMPointerType::get(getVoidPtrType()), variablesPtr);
 
@@ -912,12 +906,6 @@ namespace
 
       // The lowered function will receive a pointer to the array of variables.
       assert(!op.getVariables().empty());
-
-      assert(llvm::all_of(op.getVariables(), [&](const auto& var) {
-        // Check that all the variables have the same type, in order to avoid
-        // weird runtime errors.
-        return var.getType() == op.getVariables()[0].getType();
-      }));
 
       mlir::Value variablesPtr = newOp.getArgument(1);
       variablesPtr = rewriter.create<mlir::LLVM::BitcastOp>(variablesPtr.getLoc(), mlir::LLVM::LLVMPointerType::get(getVoidPtrType()), variablesPtr);
@@ -1113,7 +1101,6 @@ namespace
 
     mlir::LogicalResult matchAndRewrite(StepOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
       RuntimeFunctionsMangling mangling;
 
       auto mangledResultType = mangling.getVoidType();

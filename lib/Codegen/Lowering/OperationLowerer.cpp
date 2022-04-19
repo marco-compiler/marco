@@ -220,13 +220,6 @@ namespace marco::codegen::lowering
       mlir::Value base = args[0];
       mlir::Value exponent = args[1];
 
-      if (base.getType().isa<ArrayType>()) {
-        exponent = builder().create<CastOp>(base.getLoc(), IntegerType::get(builder().getContext()), exponent);
-      } else {
-        base = builder().create<CastOp>(base.getLoc(), RealType::get(builder().getContext()), base);
-        exponent = builder().create<CastOp>(base.getLoc(), RealType::get(builder().getContext()), exponent);
-      }
-
       mlir::Value result = builder().create<PowOp>(loc, resultType, base, exponent);
       return Reference::ssa(&builder(), result);
     });

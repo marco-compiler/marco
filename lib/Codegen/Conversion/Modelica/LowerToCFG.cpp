@@ -821,10 +821,6 @@ mlir::LogicalResult CFGLowerer::run(
 
   // Branch back to the "condition" region
   builder.setInsertionPointToEnd(bodyLast);
-
-  if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->getTerminator()))
-    yieldOp->erase();
-
   builder.create<mlir::BranchOp>(op->getLoc(), conditionFirst);
 
   // Erase the operation
