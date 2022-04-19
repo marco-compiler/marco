@@ -30,6 +30,55 @@ using namespace ::marco::codegen;
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
+struct EquationOpMultipleValuesPattern : public mlir::OpRewritePattern<EquationOp>
+{
+  using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+
+  mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
+  {
+    auto loc = op.getLoc();
+    auto terminator = mlir::cast<EquationSidesOp>(op.bodyBlock()->getTerminator());
+
+    if (terminator.lhsValues().size() != terminator.rhsValues().size()) {
+      return rewriter.notifyMatchFailure(op, "Different amount of values in left-hand and right-hand sides of the equation");
+    }
+
+    auto amountOfValues = terminator.lhsValues().size();
+
+    for (size_t i = 0; i < amountOfValues; ++i) {
+      rewriter.setInsertionPointAfter(op);
+
+      auto clone = rewriter.create<EquationOp>(loc);
+      assert(clone.bodyRegion().empty());
+      mlir::Block* cloneBodyBlock = rewriter.createBlock(&clone.bodyRegion());
+      rewriter.setInsertionPointToStart(cloneBodyBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      for (auto& originalOp : op.bodyBlock()->getOperations()) {
+        if (mlir::isa<EquationSideOp>(originalOp)) {
+          continue;
+        }
+
+        if (mlir::isa<EquationSidesOp>(originalOp)) {
+          auto lhsOp = mlir::cast<EquationSideOp>(terminator.lhs().getDefiningOp());
+          auto rhsOp = mlir::cast<EquationSideOp>(terminator.rhs().getDefiningOp());
+
+          auto newLhsOp = rewriter.create<EquationSideOp>(lhsOp.getLoc(), mapping.lookup(terminator.lhsValues()[i]));
+          auto newRhsOp = rewriter.create<EquationSideOp>(rhsOp.getLoc(), mapping.lookup(terminator.rhsValues()[i]));
+
+          rewriter.create<EquationSidesOp>(terminator.getLoc(), newLhsOp, newRhsOp);
+        } else {
+          rewriter.clone(originalOp, mapping);
+        }
+      }
+    }
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
+};
+
 /// Remove the derivative operations by replacing them with appropriate
 /// buffers, and set the derived variables as state variables.
 static mlir::LogicalResult removeDerivatives(
@@ -181,6 +230,14 @@ namespace
         Model<Equation> model(getOperation());
         mlir::OpBuilder builder(model.getOperation());
 
+        if (mlir::failed(convertEquationsWithMultipleValues())) {
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(convertToSingleEquationBody())) {
+          return signalPassFailure();
+        }
+
         // Remove the derivative operations and allocate the appropriate memory buffers
         mlir::BlockAndValueMapping derivatives;
 
@@ -223,6 +280,72 @@ namespace
         if (auto status = modelConverter.convert(builder, scheduledModel, derivatives); mlir::failed(status)) {
           return signalPassFailure();
         }
+      }
+
+    private:
+      mlir::LogicalResult convertEquationsWithMultipleValues()
+      {
+        mlir::ConversionTarget target(getContext());
+
+        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+          return true;
+        });
+
+        target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
+          auto terminator = mlir::cast<EquationSidesOp>(op.bodyBlock()->getTerminator());
+          return terminator.lhsValues().size() == 1 && terminator.rhsValues().size() == 1;
+        });
+
+        mlir::OwningRewritePatternList patterns(&getContext());
+        patterns.insert<EquationOpMultipleValuesPattern>(&getContext());
+
+        return applyPartialConversion(getOperation(), target, std::move(patterns));
+      }
+
+      mlir::LogicalResult convertToSingleEquationBody()
+      {
+        auto modelOp = getOperation();
+        llvm::SmallVector<EquationOp> equations;
+
+        for (auto op : modelOp.bodyBlock()->getOps<EquationOp>()) {
+          equations.push_back(op);
+        }
+
+        mlir::OpBuilder builder(modelOp);
+
+        mlir::BlockAndValueMapping mapping;
+
+        for (auto& equationOp : equations) {
+          builder.setInsertionPointToEnd(modelOp.bodyBlock());
+          std::vector<ForEquationOp> parents;
+
+          ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+
+          while (parent != nullptr) {
+            parents.push_back(parent);
+            parent = parent->getParentOfType<ForEquationOp>();
+          }
+
+          for (size_t i = 0, e = parents.size(); i < e; ++i) {
+            auto clonedParent = mlir::cast<ForEquationOp>(builder.clone(*parents[e - i - 1].getOperation(), mapping));
+            builder.setInsertionPointToEnd(clonedParent.bodyBlock());
+          }
+
+          builder.clone(*equationOp.getOperation(), mapping);
+        }
+
+        for (auto& equationOp : equations) {
+          ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+          equationOp.erase();
+
+          while (parent != nullptr && parent.bodyBlock()->empty()) {
+            ForEquationOp newParent = parent->getParentOfType<ForEquationOp>();
+            parent.erase();
+            parent = newParent;
+          }
+        }
+
+        return mlir::success();
       }
 
     private:

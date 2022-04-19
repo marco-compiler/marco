@@ -268,7 +268,6 @@ namespace marco::frontend
     // Conversion to LLVM dialect
     codegen::ModelicaToLLVMConversionOptions llvmLoweringOptions;
     llvmLoweringOptions.assertions = ci.getCodegenOptions().assertions;
-    llvmLoweringOptions.emitCWrappers = ci.getCodegenOptions().cWrappers;
     passManager.addPass(codegen::createLLVMLoweringPass(llvmLoweringOptions));
 
     passManager.addPass(codegen::createIDAConversionPass());

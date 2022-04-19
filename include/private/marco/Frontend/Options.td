@@ -272,14 +272,6 @@ defm omp : BoolOption<"", "omp",
     BothFlags<[MC1Option], "">>,
     Group<Codegen_Group>;
 
-defm c_wrappers : BoolOption<"", "c-wrappers",
-    CodegenOpts<"CWrappers">,
-    DefaultFalse,
-    PosFlag<SetTrue, [], "Generate">,
-    NegFlag<SetFalse, [], "Don't generate">,
-    BothFlags<[MC1Option], " the C wrappers">>,
-    Group<Codegen_Group>;
-
 def opt : Joined<["-"], "O">,
   Flags<[MC1Option]>,
   HelpText<"Set optimization level">,

@@ -233,11 +233,6 @@ namespace marco::frontend
         options::OPT_no_generate_main,
         options.generateMain);
 
-    options.cWrappers = args.hasFlag(
-        marco::frontend::options::OPT_c_wrappers,
-        options::OPT_no_c_wrappers,
-        options.cWrappers);
-
     return diags.getNumErrors() == numErrorsBefore;
   }
 

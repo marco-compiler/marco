@@ -25,7 +25,6 @@ namespace marco::frontend
 
     unsigned int bitWidth = 64;
     bool generateMain = true;
-    bool cWrappers = false;
   };
 }
 

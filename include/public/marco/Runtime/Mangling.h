@@ -90,7 +90,6 @@
 #define TYPES_MANGLED(...) APPLY_ALL(TYPE_MANGLED, __VA_ARGS__)
 
 #define MODELICA_PREFIX _M
-#define MLIR_PREFIX _mlir_ciface_
 
 #define NAME_MANGLED(name, ...) CONCAT_ALL(MODELICA_PREFIX, name, TYPES_MANGLED(__VA_ARGS__))
 
@@ -104,15 +103,10 @@
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)))
 
 #define RUNTIME_FUNC_DECL(name, returnType, ...) \
-	extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
-	extern "C" TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
+	extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
 
 #define RUNTIME_FUNC_DEF(name, returnType, ...) \
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
-	{ \
-		return CONCAT_ALL(name, TYPES_MANGLED(returnType))(ARGS_NAMES(__VA_ARGS__)); \
-	} \
-	TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
 	{ \
 		return CONCAT_ALL(name, TYPES_MANGLED(returnType))(ARGS_NAMES(__VA_ARGS__)); \
 	}

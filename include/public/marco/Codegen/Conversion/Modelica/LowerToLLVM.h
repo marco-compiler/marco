@@ -8,7 +8,6 @@ namespace marco::codegen
 	struct ModelicaToLLVMConversionOptions
 	{
 		bool assertions = true;
-		bool emitCWrappers = false;
 
 		static const ModelicaToLLVMConversionOptions& getDefaultOptions() {
 			static ModelicaToLLVMConversionOptions options;
