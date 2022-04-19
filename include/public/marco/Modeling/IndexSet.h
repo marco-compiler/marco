@@ -61,6 +61,8 @@ namespace marco::modeling
 
       bool empty() const;
 
+      size_t rank() const;
+
       size_t size() const;
 
       const_iterator begin() const;

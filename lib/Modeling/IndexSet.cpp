@@ -227,6 +227,12 @@ namespace marco::modeling
     return ranges.empty();
   }
 
+  size_t IndexSet::rank() const
+  {
+    assert(!empty());
+    return ranges.front().rank();
+  }
+
   size_t IndexSet::size() const
   {
     size_t result = 0;

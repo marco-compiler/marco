@@ -246,7 +246,13 @@ namespace marco::modeling
 
     for (const auto& function : functions) {
       if (!function.isConstantAccess()) {
-        usedDimensions[function.getInductionVariableIndex()] = true;
+        auto inductionVar = function.getInductionVariableIndex();
+
+        if (inductionVar >= usedDimensions.size()) {
+          return false;
+        }
+
+        usedDimensions[inductionVar] = true;
       }
     }
 
@@ -325,7 +331,7 @@ namespace marco::modeling
 
   IndexSet AccessFunction::inverseMap(const IndexSet& indices, const IndexSet& parentIndexes) const
   {
-    if (isInvertible() && indices.size() == parentIndexes.size()) {
+    if (isInvertible() && !indices.empty() && !parentIndexes.empty() && indices.rank() == parentIndexes.rank()) {
       auto mapped = inverseMap(indices);
       assert(map(mapped).contains(indices));
       return mapped;

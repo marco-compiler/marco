@@ -616,39 +616,40 @@ namespace marco::codegen
       AccessFunction reducedSourceAccessFunction(reducedSourceAccesses);
       AccessFunction reducedDestinationAccessFunction(reducedDestinationAccesses);
 
+      // Before inverting the reduced access function, we need to remap the induction variable indices.
+      // Access functions like [i3 - 1][i2] are not in fact invertible, as it expects to operate on 4 induction
+      // variables. We first convert it to [i0 - 1][i1], keeping track of the mappings, and then invert it.
+
       llvm::SmallVector<DimensionAccess, 3> remappedReducedSourceAccesses;
       std::set<size_t> remappedSourceInductions;
-      llvm::SmallVector<size_t, 3> sourceDimensionMapping(sourceAccessFunction.size(), 0);
-      size_t mappedIndex = 0;
+      llvm::SmallVector<size_t, 3> sourceDimensionMapping(reducedSourceAccesses.size(), 0);
 
-      for (const auto& dimensionAccess : reducedSourceAccesses) {
-        assert(!dimensionAccess.isConstantAccess());
-        auto inductionIndex = dimensionAccess.getInductionVariableIndex();
+      for (const auto& dimensionAccess : llvm::enumerate(reducedSourceAccesses)) {
+        assert(!dimensionAccess.value().isConstantAccess());
+        auto inductionIndex = dimensionAccess.value().getInductionVariableIndex();
         remappedSourceInductions.insert(inductionIndex);
-        sourceDimensionMapping[inductionIndex] = mappedIndex;
-        remappedReducedSourceAccesses.push_back(DimensionAccess::relative(mappedIndex, dimensionAccess.getOffset()));
-        ++mappedIndex;
+        sourceDimensionMapping[dimensionAccess.index()] = inductionIndex;
+        remappedReducedSourceAccesses.push_back(DimensionAccess::relative(dimensionAccess.index(), dimensionAccess.value().getOffset()));
       }
+
+      // The reduced access function is now invertible.
+      // Invert the function and combine it with the destination access.
 
       AccessFunction remappedReducedSourceAccessFunction(remappedReducedSourceAccesses);
       auto combinedReducedAccess = reducedDestinationAccessFunction.combine(remappedReducedSourceAccessFunction.inverse());
+
+      // Then, revert the mappings done previously.
       llvm::SmallVector<DimensionAccess, 3> transformationAccesses;
       size_t usedInductionIndex = 0;
 
-      for (size_t i = 0, e = sourceAccessFunction.size(); i < e; ++i) {
-        if (sourceAccessFunction[i].isConstantAccess()) {
-          transformationAccesses.push_back(sourceAccessFunction[i]);
-        } else {
-          if (usedInductions[usedInductionIndex]) {
-            assert(remappedSourceInductions.find(usedInductionIndex) != remappedSourceInductions.end());
-            transformationAccesses.push_back(combinedReducedAccess[sourceDimensionMapping[usedInductionIndex]]);
-          } else {
-            const auto& range = iterationRanges[usedInductionIndex];
-            assert(range.size() == 1);
-            transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
-          }
+      for (size_t i = 0, e = getNumOfIterationVars(); i < e; ++i) {
+        if (usedInductions[i]) {
+          transformationAccesses.push_back(combinedReducedAccess[usedInductionIndex]);
 
-          ++usedInductionIndex;
+        } else {
+          const auto& range = iterationRanges[i];
+          assert(range.size() == 1);
+          transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
         }
       }
 
