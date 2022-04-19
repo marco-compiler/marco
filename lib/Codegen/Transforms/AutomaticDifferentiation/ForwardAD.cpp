@@ -397,6 +397,8 @@ namespace marco::codegen
 
         if (auto arrayType = argType.dyn_cast<ArrayType>()) {
           // TODO dynamic sizes
+          assert(arrayType.hasConstantShape());
+
           mlir::Value array = builder.create<AllocOp>(loc, arrayType, llvm::None);
           args.push_back(array);
           mlir::Value seedValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), seed));
@@ -613,8 +615,8 @@ namespace marco::codegen
     // Derive the operations
     auto res = deriveFunctionBody(
         builder, derivedFunctionOp, derivatives,
-        [this](mlir::OpBuilder& builder, mlir::Operation* op, mlir::BlockAndValueMapping& derivatives) -> mlir::ValueRange {
-          return createOpPartialDerivative(builder, op, derivatives);
+        [&](mlir::OpBuilder& nestedBuilder, mlir::Operation* op, mlir::BlockAndValueMapping& derivatives) -> mlir::ValueRange {
+          return createOpPartialDerivative(nestedBuilder, op, derivatives);
         });
 
     if (mlir::failed(res)) {
@@ -746,9 +748,24 @@ namespace marco::codegen
       CallOp callOp,
       mlir::BlockAndValueMapping& derivatives)
   {
-    // TODO
-    llvm_unreachable("Not implemented");
-    return llvm::None;
+    auto loc = callOp.getLoc();
+    auto module = callOp->getParentOfType<mlir::ModuleOp>();
+    auto callee = module.lookupSymbol<FunctionOp>(callOp.callee());
+
+    std::string derivedFunctionName = "call_pder_" + callOp.callee().str();
+    auto derTemplate = createPartialDerTemplateFunction(builder, loc, callee, derivedFunctionName);
+
+    llvm::SmallVector<mlir::Value, 3> args;
+
+    for (auto arg : callOp.args()) {
+      args.push_back(arg);
+    }
+
+    for (auto arg : callOp.args()) {
+      args.push_back(derivatives.lookup(arg));
+    }
+
+    return builder.create<CallOp>(loc, derTemplate, args)->getResults();
   }
 
   mlir::ValueRange ForwardAD::createTimeOpFullDerivative(
