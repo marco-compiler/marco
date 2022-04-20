@@ -17,6 +17,9 @@ namespace marco::modeling
         RaggedValue(data_type value = 0): value(value){}
         RaggedValue(llvm::ArrayRef<RaggedValue> ragged)
             : value(std::make_unique<Ragged>(ragged.begin(),ragged.end())){}
+        
+        RaggedValue(llvm::ArrayRef<long> ragged)
+            : value(std::make_unique<Ragged>(ragged.begin(),ragged.end())){}
 
         RaggedValue(std::initializer_list<RaggedValue> list)
             : value(std::make_unique<Ragged>(list.begin(),list.end())){}
@@ -77,6 +80,7 @@ namespace marco::modeling
             return std::get<data_type>(value);
         }
 
+        friend std::ostream& operator<<(std::ostream& stream, const RaggedValue &value);
     private:
         std::variant<data_type, RaggedPtr> value;
     };

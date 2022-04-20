@@ -481,6 +481,12 @@ namespace marco::modeling
     return std::to_string(value.asValue());
   }
 
+  std::ostream& operator<<(std::ostream& stream, const RaggedValue &value)
+  {
+    return stream<<toString(value);
+  }
+
+
   std::string toString(const RangeRagged& value)
   {
     if (value.isRagged()) {

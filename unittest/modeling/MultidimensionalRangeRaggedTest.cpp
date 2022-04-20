@@ -6,6 +6,37 @@
 using std::vector;
 using namespace marco::modeling;
 
+TEST(RaggedValue, addition)
+{
+  RaggedValue a = {3,4,5};
+  RaggedValue b = 1;
+
+  ASSERT_EQ(a+b, RaggedValue({4,5,6}));
+}
+
+TEST(RaggedValue, subtraction)
+{
+  RaggedValue a = {3,4,5};
+  RaggedValue b = 1;
+
+  ASSERT_EQ(a-b, RaggedValue({2,3,4}));
+}
+
+TEST(RaggedValue, multiplication)
+{
+  RaggedValue a = {3,4,5};
+  RaggedValue b = 2;
+
+  ASSERT_EQ(a*b, RaggedValue({6,8,10}));
+}
+
+TEST(RaggedValue, division)
+{
+  RaggedValue a = {3,4,5};
+  RaggedValue b = 2;
+
+  ASSERT_EQ(a/b, RaggedValue({1,2,2}));
+}
 
 TEST(RangeRagged, borders)
 {
