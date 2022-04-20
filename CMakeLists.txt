@@ -52,7 +52,18 @@ option(MARCO_USE_BUILTIN_SUNDIALS "Use built-in Sundials (to be built separately
 if (MARCO_USE_BUILTIN_SUNDIALS)
 	set(SUNDIALS_DIR "${SUNDIALS_PATH}/lib/cmake/sundials")
 endif()
+
 find_package(SUNDIALS REQUIRED)
+
+if (NOT MARCO_USE_BUILTIN_SUNDIALS)
+  # Compute SUNDIALS's installation prefix
+  get_filename_component(SUNDIALS_PATH "${SUNDIALS_DIR}" PATH)
+  get_filename_component(SUNDIALS_PATH "${SUNDIALS_PATH}" PATH)
+  get_filename_component(SUNDIALS_PATH "${SUNDIALS_PATH}" PATH)
+  if(SUNDIALS_PATH STREQUAL "/")
+    set(SUNDIALS_PATH "")
+  endif()
+endif()
 
 set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_PATH}/include)
 set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_PATH}/lib)
