@@ -15,7 +15,7 @@ namespace marco::codegen
     public:
       ExternalSolver(mlir::TypeConverter* typeConverter);
 
-      ~ExternalSolver();
+      virtual ~ExternalSolver();
 
       virtual bool isEnabled() const = 0;
 
