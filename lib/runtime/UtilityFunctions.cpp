@@ -1,7 +1,26 @@
 #include "marco/runtime/UtilityFunctions.h"
-#include <cassert>
+#ifndef WINDOWS_NOSTDLIB
 #include <cstring>
 #include <iostream>
+#else
+#include <cstdarg>
+#include "marco/runtime/Printing.h"
+#endif
+#include <cassert>
+
+#ifdef MSVC_BUILD
+void __stdcall raise_handler(const std::exception&)
+{
+  return;
+}
+
+void(__stdcall* std::_Raise_handler)(const std::exception&) = raise_handler;
+
+void __cdecl std::_Xlength_error(char const*)
+{
+  ExitProcess(1);
+}
+#endif
 
 //===----------------------------------------------------------------------===//
 // clone
@@ -14,14 +33,14 @@
 /// @param destination  destination array
 /// @param values 			source values
 template<typename T, typename U>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+inline void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* source)
 {
-	assert(source.getNumElements() == destination.getNumElements());
+	assert(source->getNumElements() == destination->getNumElements());
 
-  auto sourceIt = source.begin();
-  auto destinationIt = destination.begin();
+  auto sourceIt = source->begin();
+  auto destinationIt = destination->begin();
 
-  for (size_t i = 0, e = source.getNumElements(); i < e; ++i) {
+  for (size_t i = 0, e = source->getNumElements(); i < e; ++i) {
     *destinationIt = *sourceIt;
 
     ++sourceIt;
@@ -31,11 +50,11 @@ inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescri
 
 // Optimization for arrays with the same type
 template<typename T>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+inline void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<T>* source)
 {
-	auto destinationSize = destination.getNumElements();
-	assert(source.getNumElements() == destinationSize);
-	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
+	auto destinationSize = destination->getNumElements();
+	assert(source->getNumElements() == destinationSize);
+	memcpy(destination->getData(), source->getData(), destinationSize * sizeof(T));
 }
 
 RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(bool))
@@ -75,14 +94,48 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 template<typename T>
 inline void print_void(T value)
 {
+  #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::scientific << value << std::endl;
+  #else
+  printString("Unknown type\n");
+  #endif
 }
 
 template<>
 inline void print_void<bool>(bool value)
 {
+  #ifndef WINDOWS_NOSTDLIB
 	std::cout << std::boolalpha << value << std::endl;
+  #else
+  runtimePrintf("%d\n", value);
+  #endif
 }
+
+#ifdef WINDOWS_NOSTDLIB
+template<>
+inline void print_void<int32_t>(int32_t value)
+{
+  runtimePrintf("%d\n", value);
+}
+
+template<>
+inline void print_void<int64_t>(int64_t value)
+{
+  runtimePrintf("%d\n", (int) value);
+}
+
+template<>
+inline void print_void<float>(float value)
+{
+  runtimePrintf("%f\n", value);
+}
+
+template<>
+inline void print_void<double>(double value)
+{
+  runtimePrintf("%f\n", value);
+}
+#endif
 
 RUNTIME_FUNC_DEF(print, void, bool)
 RUNTIME_FUNC_DEF(print, void, int32_t)
@@ -91,15 +144,23 @@ RUNTIME_FUNC_DEF(print, void, float)
 RUNTIME_FUNC_DEF(print, void, double)
 
 template<typename T>
-inline void print_void(UnsizedArrayDescriptor<T> array)
+inline void print_void(UnsizedArrayDescriptor<T>* array)
 {
-	std::cout << std::scientific << array << std::endl;
+  #ifndef WINDOWS_NOSTDLIB
+	std::cout << std::scientific << *array << std::endl;
+  #else
+  printUnsized(*array);
+  #endif
 }
 
 template<>
-inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
+inline void print_void<bool>(UnsizedArrayDescriptor<bool>* array)
 {
-  std::cout << std::boolalpha << array << std::endl;
+  #ifndef WINDOWS_NOSTDLIB
+  std::cout << std::boolalpha << *array << std::endl;
+  #else
+  printUnsized(*array);
+  #endif
 }
 
 RUNTIME_FUNC_DEF(print, void, ARRAY(bool))
