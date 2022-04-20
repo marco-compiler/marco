@@ -47,6 +47,22 @@ namespace marco::modeling
     return false;
   }
 
+  bool Point::operator<(const Point& other) const
+  {
+    if (values.size() != other.values.size()) {
+      return false;
+    }
+
+    for (size_t i = 0, e = rank(); i < e; ++i) {
+      if (values[i] == other.values[i])
+        continue;
+
+      return values[i] < other.values[i];
+    }
+
+    return false;
+  }
+
   Point::data_type Point::operator[](size_t index) const
   {
     assert(index < values.size());

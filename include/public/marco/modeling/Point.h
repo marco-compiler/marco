@@ -30,6 +30,8 @@ namespace marco::modeling
 
       bool operator!=(const Point& other) const;
 
+      bool operator<(const Point& other) const;
+
       data_type operator[](size_t index) const;
 
       /// Get the number of dimensions.
