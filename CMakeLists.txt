@@ -47,14 +47,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 # Sundials
 #-------------------------------------------------------------------------------
 
-set(SUNDIALS_DIR "${SUNDIALS_PATH}/lib/cmake/sundials")
+option(MARCO_USE_BUILTIN_SUNDIALS "Use built-in Sundials (to be built separately, see Readme)" ON)
+
+if (MARCO_USE_BUILTIN_SUNDIALS)
+	set(SUNDIALS_DIR "${SUNDIALS_PATH}/lib/cmake/sundials")
+endif()
 find_package(SUNDIALS REQUIRED)
 
 set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_PATH}/include)
 set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_PATH}/lib)
 
-link_directories("${SUNDIALS_LIBRARY_DIR}")
-install(DIRECTORY ${SUNDIALS_LIBRARY_DIR} DESTINATION dependencies)
+if (MARCO_USE_BUILTIN_SUNDIALS)
+	link_directories("${SUNDIALS_LIBRARY_DIR}")
+	install(DIRECTORY ${SUNDIALS_LIBRARY_DIR} DESTINATION dependencies)
+endif()
 
 #-------------------------------------------------------------------------------
 # Clang / MLIR / LLVM configuration
