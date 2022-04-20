@@ -239,7 +239,7 @@ namespace marco::codegen
       auto arrayType = variable.getType().cast<ArrayType>();
       assert(arrayType.hasConstantShape());
 
-      std::vector<long> dimensions;
+      std::vector<int64_t> dimensions;
 
       if (arrayType.isScalar()) {
         // In case of scalar variables, the shape of the array would be empty
