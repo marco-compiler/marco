@@ -240,7 +240,7 @@ enable_testing()
 
 FetchContent_Declare(
 	googletest
-	URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+	URL https://github.com/google/googletest/archive/f7902802f1a61140e188223fb6d1c95925cbec4a.zip
 )
 
 # For Windows: prevent overriding the parent project's compiler / linker settings
