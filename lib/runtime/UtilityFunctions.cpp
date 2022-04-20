@@ -33,14 +33,14 @@ void __cdecl std::_Xlength_error(char const*)
 /// @param destination  destination array
 /// @param values 			source values
 template<typename T, typename U>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+inline void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* source)
 {
-	assert(source.getNumElements() == destination.getNumElements());
+	assert(source->getNumElements() == destination->getNumElements());
 
-  auto sourceIt = source.begin();
-  auto destinationIt = destination.begin();
+  auto sourceIt = source->begin();
+  auto destinationIt = destination->begin();
 
-  for (size_t i = 0, e = source.getNumElements(); i < e; ++i) {
+  for (size_t i = 0, e = source->getNumElements(); i < e; ++i) {
     *destinationIt = *sourceIt;
 
     ++sourceIt;
@@ -50,11 +50,11 @@ inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescri
 
 // Optimization for arrays with the same type
 template<typename T>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+inline void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<T>* source)
 {
-	auto destinationSize = destination.getNumElements();
-	assert(source.getNumElements() == destinationSize);
-	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
+	auto destinationSize = destination->getNumElements();
+	assert(source->getNumElements() == destinationSize);
+	memcpy(destination->getData(), source->getData(), destinationSize * sizeof(T));
 }
 
 RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(bool))
@@ -144,22 +144,22 @@ RUNTIME_FUNC_DEF(print, void, float)
 RUNTIME_FUNC_DEF(print, void, double)
 
 template<typename T>
-inline void print_void(UnsizedArrayDescriptor<T> array)
+inline void print_void(UnsizedArrayDescriptor<T>* array)
 {
   #ifndef WINDOWS_NOSTDLIB
-	std::cout << std::scientific << array << std::endl;
+	std::cout << std::scientific << *array << std::endl;
   #else
-  printUnsized(array);
+  printUnsized(*array);
   #endif
 }
 
 template<>
-inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
+inline void print_void<bool>(UnsizedArrayDescriptor<bool>* array)
 {
   #ifndef WINDOWS_NOSTDLIB
-  std::cout << std::boolalpha << array << std::endl;
+  std::cout << std::boolalpha << *array << std::endl;
   #else
-  printUnsized(array);
+  printUnsized(*array);
   #endif
 }
 
