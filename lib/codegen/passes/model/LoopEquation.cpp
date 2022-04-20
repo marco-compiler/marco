@@ -234,10 +234,10 @@ namespace marco::codegen
     return accesses;
   }
 
-  DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::Value, long> access) const
+  DimensionAccess LoopEquation::resolveDimensionAccess(std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const
   {
     if (access.first == nullptr) {
-      return DimensionAccess::constant(access.second);
+      return DimensionAccess::constant(access.second.asValue());
     }
 
     llvm::SmallVector<ForEquationOp, 3> loops;
@@ -253,7 +253,17 @@ namespace marco::codegen
     });
 
     size_t inductionVarIndex = loops.end() - loopIt - 1;
-    return DimensionAccess::relative(inductionVarIndex, access.second);
+    assert(loops.end()!=loopIt);
+    
+    if (access.second.isRagged()) {
+      std::vector<long> array;
+
+      for(auto val: access.second.asRagged())
+        array.push_back(val.asValue());
+      
+      return DimensionAccess::relativeToArray(inductionVarIndex, array);
+    }
+    return DimensionAccess::relative(inductionVarIndex, access.second.asValue());
   }
 
   std::vector<mlir::Value> LoopEquation::getInductionVariables() const

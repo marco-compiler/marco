@@ -45,7 +45,7 @@ namespace marco::codegen
       std::vector<Access> getAccesses() const override;
 
       modeling::DimensionAccess resolveDimensionAccess(
-          std::pair<mlir::Value, long> access) const override;
+          std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const override;
 
       mlir::Value getValueAtPath(const EquationPath& path) const override;
 

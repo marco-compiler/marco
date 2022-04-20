@@ -19,7 +19,7 @@ namespace marco::modeling
       DimensionAccess(
           bool constantAccess,
           Point::data_type position,
-          unsigned int inductionVariableIndex = 0);
+          unsigned int inductionVariableIndex = 0, llvm::ArrayRef<Point::data_type> array = {} );
 
     public:
       static DimensionAccess constant(Point::data_type position);
@@ -27,6 +27,10 @@ namespace marco::modeling
       static DimensionAccess relative(
           unsigned int inductionVariableIndex,
           Point::data_type relativePosition);
+
+      static DimensionAccess relativeToArray(
+          unsigned int inductionVariableIndex,
+          llvm::ArrayRef<Point::data_type> array);
 
       // TODO test
       bool operator==(const DimensionAccess& other) const;
@@ -36,13 +40,16 @@ namespace marco::modeling
 
       Point::data_type operator()(const Point& equationIndexes) const;
 
-      Range operator()(const MultidimensionalRange& range) const;
+      IndexSet operator()(const MultidimensionalRange& range) const;
 
       bool isConstantAccess() const;
 
       Point::data_type getPosition() const;
 
       Point::data_type getOffset() const;
+
+      bool hasArray() const;
+      llvm::ArrayRef<Point::data_type> getArray() const;
 
       unsigned int getInductionVariableIndex() const;
 
@@ -53,13 +60,14 @@ namespace marco::modeling
       /// access may refer to any of the range dimensions.
       ///
       /// @param range  multidimensional range
-      /// @return mapped mono-dimensional range
-      Range map(const MultidimensionalRange& range) const;
+      /// @return mapped range as IndexSet
+      IndexSet map(const MultidimensionalRange& range) const;
 
     private:
       bool constantAccess;
       Point::data_type position;
       unsigned int inductionVariableIndex;
+      llvm::SmallVector<Point::data_type,3> array;
   };
 
   std::ostream& operator<<(std::ostream& stream, const DimensionAccess& obj);
@@ -112,11 +120,11 @@ namespace marco::modeling
 
       /// Apply the access function to a range, in order to obtain
       /// the mapped range.
-      MultidimensionalRange map(const MultidimensionalRange& range) const;
+      IndexSet map(const MultidimensionalRange& range) const;
 
       IndexSet map(const IndexSet& indexes) const;
 
-      MultidimensionalRange inverseMap(const MultidimensionalRange& range) const;
+      IndexSet inverseMap(const MultidimensionalRange& range) const;
 
       IndexSet inverseMap(const IndexSet& indexes) const;
 

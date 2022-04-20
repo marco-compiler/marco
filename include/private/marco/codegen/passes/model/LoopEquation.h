@@ -29,7 +29,7 @@ namespace marco::codegen
 
       std::vector<Access> getAccesses() const override;
 
-      DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
+      DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
 
@@ -59,6 +59,8 @@ namespace marco::codegen
 
       modeling::IndexSet getImplicitLoops() const;
   };
+
+  extern ::marco::modeling::RaggedValue getValue(mlir::Value value);
 }
 
 #endif // MARCO_CODEGEN_PASSES_MODEL_LOOPEQUATION_H

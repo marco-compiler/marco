@@ -82,7 +82,7 @@ namespace marco::codegen
   }
 
   ::marco::modeling::DimensionAccess ScheduledEquation::resolveDimensionAccess(
-      std::pair<mlir::Value, long> access) const
+      std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const
   {
     return equation->resolveDimensionAccess(std::move(access));
   }

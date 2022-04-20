@@ -30,7 +30,7 @@ namespace marco::codegen
 
       std::vector<Access> getAccesses() const override;
 
-      DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, long> access) const override;
+      DimensionAccess resolveDimensionAccess(std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
 

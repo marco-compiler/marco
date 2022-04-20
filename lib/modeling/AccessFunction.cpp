@@ -5,10 +5,12 @@ namespace marco::modeling
   DimensionAccess::DimensionAccess(
       bool constantAccess,
       Point::data_type position,
-      unsigned int inductionVariableIndex)
+      unsigned int inductionVariableIndex,
+      llvm::ArrayRef<Point::data_type> array)
       : constantAccess(constantAccess),
         position(position),
-        inductionVariableIndex(inductionVariableIndex)
+        inductionVariableIndex(inductionVariableIndex),
+        array(array.begin(),array.end())
   {
   }
 
@@ -23,6 +25,12 @@ namespace marco::modeling
     return DimensionAccess(false, relativePosition, inductionVariableIndex);
   }
 
+  DimensionAccess DimensionAccess::relativeToArray(unsigned int inductionVariableIndex, llvm::ArrayRef<Point::data_type> array)
+  {
+    assert(!array.empty());
+    return DimensionAccess(false, 0, inductionVariableIndex, array);
+  }
+
   bool DimensionAccess::operator==(const DimensionAccess& other) const
   {
     if (isConstantAccess() && other.isConstantAccess()) {
@@ -30,7 +38,7 @@ namespace marco::modeling
     }
 
     if (!isConstantAccess() && !other.isConstantAccess()) {
-      return getOffset() == other.getOffset();
+      return getOffset() == other.getOffset() && array==other.array;
     }
 
     return false;
@@ -43,6 +51,8 @@ namespace marco::modeling
     }
 
     if (!isConstantAccess() && !other.isConstantAccess()) {
+      if(!array.empty())
+        return array!=other.array;
       return getOffset() != other.getOffset();
     }
 
@@ -54,7 +64,7 @@ namespace marco::modeling
     return map(equationIndexes);
   }
 
-  Range DimensionAccess::operator()(const MultidimensionalRange& range) const
+  IndexSet DimensionAccess::operator()(const MultidimensionalRange& range) const
   {
     return map(range);
   }
@@ -64,16 +74,29 @@ namespace marco::modeling
     return constantAccess;
   }
 
+  bool DimensionAccess::hasArray() const
+  {
+    return !array.empty();
+  }
+
   Point::data_type DimensionAccess::getPosition() const
   {
     assert(isConstantAccess());
+    assert(array.empty());
     return position;
   }
 
   Point::data_type DimensionAccess::getOffset() const
   {
     assert(!isConstantAccess());
+    assert(!hasArray());
     return position;
+  }
+
+  llvm::ArrayRef<Point::data_type> DimensionAccess::getArray() const
+  {
+    assert(hasArray());
+    return array;
   }
 
   unsigned int DimensionAccess::getInductionVariableIndex() const
@@ -87,20 +110,32 @@ namespace marco::modeling
     if (isConstantAccess()) {
       return getPosition();
     }
+    if (!array.empty()) {
+      auto index = equationIndexes[getInductionVariableIndex()]-1;
+      return array[index];
+    }
 
     return equationIndexes[getInductionVariableIndex()] + getOffset();
   }
 
-  Range DimensionAccess::map(const MultidimensionalRange& range) const
+  IndexSet DimensionAccess::map(const MultidimensionalRange& range) const
   {
     if (isConstantAccess()) {
-      return Range(getPosition(), getPosition() + 1);
+      return IndexSet(MultidimensionalRange(Range(getPosition(), getPosition() + 1)));
     }
-
     auto accessedDimensionIndex = getInductionVariableIndex();
     assert(accessedDimensionIndex < range.rank());
     const auto& sourceRange = range[accessedDimensionIndex];
-    return Range(sourceRange.getBegin() + getOffset(), sourceRange.getEnd() + getOffset());
+
+    if (!array.empty()) {
+      IndexSet result;
+      for (auto index: sourceRange)
+        result += array[index - 1];
+      
+      return result;
+    }
+
+    return IndexSet(MultidimensionalRange(Range(sourceRange.getBegin() + getOffset(), sourceRange.getEnd() + getOffset())));
   }
 
   std::ostream& operator<<(std::ostream& stream, const DimensionAccess& obj)
@@ -109,6 +144,16 @@ namespace marco::modeling
 
     if (obj.isConstantAccess()) {
       stream << obj.getPosition();
+    } else if (obj.hasArray()){
+      stream << "{";
+
+      std::string separator;
+      for (const auto val: obj.getArray()){
+        stream << separator << val;
+        separator = ", ";
+      }
+      stream << "}[ i" << obj.getInductionVariableIndex() << "]";
+
     } else {
       stream << "i" << obj.getInductionVariableIndex();
 
@@ -197,7 +242,36 @@ namespace marco::modeling
     const auto& mapped = functions[inductionVariableIndex];
 
     if (mapped.isConstantAccess()) {
+      if(other.hasArray())
+      {
+        std::vector<long> array;
+
+        for(auto val: mapped.getArray())
+          array.push_back( mapped.getPosition() + val );
+          
+        return DimensionAccess::relativeToArray(other.getInductionVariableIndex(), array);
+      }
+
       return DimensionAccess::constant(mapped.getPosition() + other.getOffset());
+    }
+
+    if(mapped.hasArray())
+    {
+      if(other.hasArray())
+      {
+        std::vector<long> array;
+
+        for(auto [a,b]: llvm::zip(mapped.getArray(),other.getArray()))
+          array.push_back( a + b );
+          
+        return DimensionAccess::relativeToArray(mapped.getInductionVariableIndex(), array);
+      }
+      std::vector<long> array;
+
+      for(auto val: mapped.getArray())
+        array.push_back( other.getOffset() + val );
+        
+      return DimensionAccess::relativeToArray(mapped.getInductionVariableIndex(), array);
     }
 
     return DimensionAccess::relative(mapped.getInductionVariableIndex(), mapped.getOffset() + other.getOffset());
@@ -266,7 +340,18 @@ namespace marco::modeling
 
     for (size_t i = 0; i < functions.size(); ++i) {
       auto inductionVar = functions[i].getInductionVariableIndex();
-      remapped.push_back(DimensionAccess::relative(i, -1 * functions[i].getOffset()));
+      
+      if(functions[i].hasArray())
+      {
+        std::vector<long> array;
+
+        for(auto val: functions[i].getArray())
+          array.push_back( -1 * val );
+          
+        remapped.push_back(DimensionAccess::relativeToArray(i, array));
+      }
+      else
+        remapped.push_back(DimensionAccess::relative(i, -1 * functions[i].getOffset()));
       positionsMap[inductionVar] = i;
     }
 
@@ -290,15 +375,9 @@ namespace marco::modeling
     return Point(std::move(results));
   }
 
-  MultidimensionalRange AccessFunction::map(const MultidimensionalRange& range) const
+  IndexSet AccessFunction::map(const MultidimensionalRange& range) const
   {
-    std::vector<Range> ranges;
-
-    for (const auto& function : functions) {
-      ranges.push_back(function(range));
-    }
-
-    return MultidimensionalRange(std::move(ranges));
+    return map(IndexSet(range));
   }
 
   IndexSet AccessFunction::map(const IndexSet& indexes) const
@@ -312,9 +391,9 @@ namespace marco::modeling
     return result;
   }
 
-  MultidimensionalRange AccessFunction::inverseMap(const MultidimensionalRange& range) const
+  IndexSet AccessFunction::inverseMap(const MultidimensionalRange& range) const
   {
-    return inverse().map(range);
+    return inverse().map(IndexSet(range));
   }
 
   IndexSet AccessFunction::inverseMap(const IndexSet& indexes) const

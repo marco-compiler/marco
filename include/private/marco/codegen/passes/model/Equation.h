@@ -48,7 +48,7 @@ namespace marco::codegen
       virtual std::vector<Access> getAccesses() const = 0;
 
       virtual ::marco::modeling::DimensionAccess resolveDimensionAccess(
-          std::pair<mlir::Value, long> access) const = 0;
+          std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const = 0;
 
       /// Get the IR value at a given path.
       virtual mlir::Value getValueAtPath(const EquationPath& path) const = 0;
@@ -111,7 +111,10 @@ namespace marco::codegen
       /// Obtain the access to a variable that is reached through a given path inside the equation.
       Access getAccessFromPath(const EquationPath& path) const;
 
-      std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
+      // The RaggedValue is used just as convenient wrapper for either long or vector of longs with overloaded operators.
+      // The nested functionality is not used.
+      // The vector of longs is used when there is a nested access to a constant array, e.g. x[ N[i] ]
+      std::pair<mlir::Value, marco::modeling::RaggedValue> evaluateDimensionAccess(mlir::Value value, bool indirect = false) const;
   };
 
   /// Mark an equation as temporary and delete the underlying IR when the guard goes out of scope.

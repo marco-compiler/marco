@@ -266,7 +266,8 @@ llvm::Error ConstantFolder::run<ReferenceAccess>(Expression& expression)
 	if (!member->hasInitializer())
 		return llvm::Error::success();
 
-	if (member->getInitializer()->isa<Constant>() && member->isParameter())
+	if ( member->isParameter() &&
+			(member->getInitializer()->isa<Constant>() || member->getInitializer()->isa<Array>()))
 		expression = *member->getInitializer();
 
 	return llvm::Error::success();

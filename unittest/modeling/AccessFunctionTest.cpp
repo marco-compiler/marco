@@ -41,8 +41,10 @@ TEST(ConstantDimensionAccess, mapRange) {
   });
 
   auto mapped = access(range);
-  EXPECT_EQ(mapped.getBegin(), 5);
-  EXPECT_EQ(mapped.getEnd(), 6);
+
+  IndexSet result(Point(5));
+
+  EXPECT_EQ(mapped, result);
 }
 
 TEST(RelativeDimensionAccess, mapRange) {
@@ -55,8 +57,57 @@ TEST(RelativeDimensionAccess, mapRange) {
   });
 
   auto mapped = access(range);
-  EXPECT_EQ(mapped.getBegin(), 3);
-  EXPECT_EQ(mapped.getEnd(), 5);
+
+  IndexSet result(MultidimensionalRange(Range(3,5)));
+
+  EXPECT_EQ(mapped, result);
+}
+
+TEST(RelativeToArrayDimensionAccess, mapRange) {
+  auto access = DimensionAccess::relativeToArray(1, {4,1,2,5,3});
+
+  MultidimensionalRange range({
+      Range(7, 9),
+      Range(1, 4),
+      Range(2, 4)
+  });
+
+  auto mapped = access(range);
+  // taking the elements with index = range[1] = Range(1,4) = {0,1,2}
+
+  IndexSet result(llvm::ArrayRef<Point>({
+    Point(1),
+    Point(2),
+    Point(4)
+  }));
+
+  EXPECT_EQ(mapped, result);
+}
+
+TEST(RelativeToArrayDimensionAccess, mapRange2) {
+
+  // {3,4,5}[i] == i+2  , iff 0 < i < 4
+  // in this case the range is [2,4) -> so the result is [4,6) 
+
+  auto access = DimensionAccess::relativeToArray(1, {3,4,5});
+	auto access2 = DimensionAccess::relative(1, 2);
+
+  MultidimensionalRange range({
+      Range(7, 9),
+      Range(2, 4),
+      Range(1, 4),
+  });
+
+  auto mapped = access(range);
+  auto mapped2 = access2(range);
+
+  IndexSet result(llvm::ArrayRef<Point>({
+    Point(4),
+    Point(5)
+  }));
+
+  EXPECT_EQ(mapped, mapped2);
+  EXPECT_EQ(mapped, result);
 }
 
 TEST(AccessFunction, creation) {
@@ -92,7 +143,7 @@ TEST(AccessFunction, mapRange) {
     Range(2, 4)
   });
 
-  auto mapped = access.map(range);
+  auto mapped = access.map(range)[0];
 
   EXPECT_EQ(mapped.rank(), 2);
 

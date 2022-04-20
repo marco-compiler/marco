@@ -69,10 +69,10 @@ namespace marco::codegen
     return accesses;
   }
 
-  DimensionAccess ScalarEquation::resolveDimensionAccess(std::pair<mlir::Value, long> access) const
+  DimensionAccess ScalarEquation::resolveDimensionAccess(std::pair<mlir::Value, ::marco::modeling::RaggedValue> access) const
   {
     assert(access.first == nullptr);
-    return DimensionAccess::constant(access.second);
+    return DimensionAccess::constant(access.second.asValue());
   }
 
   std::vector<mlir::Value> ScalarEquation::getInductionVariables() const

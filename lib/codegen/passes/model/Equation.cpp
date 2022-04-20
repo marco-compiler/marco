@@ -2,6 +2,7 @@
 #include "marco/codegen/passes/model/EquationImpl.h"
 #include "marco/codegen/passes/model/LoopEquation.h"
 #include "marco/codegen/passes/model/ScalarEquation.h"
+#include "marco/modeling/AccessFunction.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include <numeric>
 
@@ -388,25 +389,79 @@ namespace marco::codegen
     return accesses[0];
   }
 
-  std::pair<mlir::Value, long> Equation::evaluateDimensionAccess(mlir::Value value) const
+  std::pair<mlir::Value, RaggedValue> Equation::evaluateDimensionAccess(mlir::Value value, bool indirect) const
   {
     if (value.isa<mlir::BlockArgument>()) {
+      auto parent = value.getParentBlock()->getParentOp();
+      if ( indirect )
+      {
+        if (auto forBlock = mlir::dyn_cast<ForEquationOp>(parent)) {
+          auto start = getValue(forBlock.start());
+          auto end = getValue(forBlock.end()) + 1;
+          
+          if(!start.isRagged() && end.isRagged())
+            return std::make_pair(value, 0);
+
+          llvm::SmallVector<RaggedValue,3> values;
+          for(auto it = start.asValue(); it<end.asValue(); ++it)
+            values.push_back(it);
+
+          auto rag = RaggedValue(values);
+          return std::make_pair(value, rag);
+        }
+        // add assert ?
+      }
       return std::make_pair(value, 0);
     }
 
     mlir::Operation* op = value.getDefiningOp();
-    assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) 
-              || mlir::isa<SubOp>(op) || mlir::isa<LoadOp>(op)
+    assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) || mlir::isa<SubOp>(op) 
+    || mlir::isa<LoadOp>(op) || mlir::isa<SubscriptionOp>(op)
      ) && "Invalid access pattern");
 
     if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
       return std::make_pair(nullptr, getIntFromAttribute(constantOp.value()));
     }
 
+    if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
+    {      
+      auto array = subscriptionOp.source().getDefiningOp();
+
+      if (auto allocaOp = mlir::dyn_cast<AllocaOp>(array))
+      {
+        assert(subscriptionOp.indexes().size() == 1);
+        auto index = evaluateDimensionAccess(subscriptionOp.indexes()[0], true);
+        auto indexes = getValue(subscriptionOp.indexes()[0]);
+        
+        if(allocaOp.hasConstantValues())
+        {
+          auto foo=[](const mlir::ArrayAttr &array, const RaggedValue &index, auto self){
+            if(index.isRagged())
+            {
+              llvm::SmallVector<RaggedValue,3> values;
+              for(auto i: index.asRagged())
+                if(i.isRagged())
+                  assert(false);
+                else
+                  values.push_back(getIntFromAttribute(array[i.asValue()]));
+
+              return RaggedValue(values);
+            }
+            else
+            {
+              return RaggedValue(getIntFromAttribute(array[index.asValue()]));
+            }
+          };
+          auto rag = foo(allocaOp.getConstantValues(),indexes,foo);
+          return std::make_pair(index.first, rag);
+        }
+      }
+      assert(false && "invalid subscription");
+    }
     if (auto loadOp = mlir::dyn_cast<LoadOp>(op))
     {
       assert(loadOp.indexes().empty());
-      return std::make_pair(value, 0);
+      return evaluateDimensionAccess(loadOp.memory());
     }
 
     if (auto addOp = mlir::dyn_cast<AddOp>(op)) {
@@ -582,6 +637,16 @@ namespace marco::codegen
 
     if (!sourceAccess.getAccessFunction().isInvertible()) {
       getOperation().emitError("The write access is not invertible");
+
+      //todo remove/improve
+      std::cout<<"accessFunction :\t"<<sourceAccess.getAccessFunction()<<std::endl;
+      std::cout<<"variable :\t"<<sourceAccess.getVariable()<<std::endl;
+      std::cout<<"equation path :\t";
+      sourceAccess.getPath().dump();
+      std::cout<<std::endl<<"destination path :\t";
+      destinationPath.dump();
+      std::cout<<std::endl;
+      
       return mlir::failure();
     }
 
