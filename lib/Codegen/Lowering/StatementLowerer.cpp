@@ -79,41 +79,45 @@ namespace marco::codegen::lowering
 
     const auto& induction = statement.getInduction();
 
+    mlir::Value inductionVar = builder().create<AllocaOp>(
+        location, ArrayType::get(builder().getContext(), builder().getIndexType(), llvm::None), llvm::None);
+
     mlir::Value lowerBound = *lower(*induction->getBegin())[0];
     lowerBound = builder().create<CastOp>(lowerBound.getLoc(), builder().getIndexType(), lowerBound);
 
-    auto forOp = builder().create<ForOp>(location, lowerBound);
+    builder().create<StoreOp>(location, lowerBound, inductionVar, llvm::None);
+
+    auto forOp = builder().create<ForOp>(location, llvm::None);
     mlir::OpBuilder::InsertionGuard guard(builder());
 
     assert(forOp.conditionRegion().getBlocks().empty());
-    mlir::Block* conditionBlock = builder().createBlock(&forOp.conditionRegion(), {}, builder().getIndexType());
+    mlir::Block* conditionBlock = builder().createBlock(&forOp.conditionRegion());
 
     assert(forOp.bodyRegion().getBlocks().empty());
-    mlir::Block* bodyBlock = builder().createBlock(&forOp.bodyRegion(), {}, builder().getIndexType());
+    mlir::Block* bodyBlock = builder().createBlock(&forOp.bodyRegion());
 
     assert(forOp.stepRegion().getBlocks().empty());
-    mlir::Block* stepBlock = builder().createBlock(&forOp.stepRegion(), {}, builder().getIndexType());
+    mlir::Block* stepBlock = builder().createBlock(&forOp.stepRegion());
 
     {
       // Check the loop condition
-      Lowerer::SymbolScope scope(symbolTable());
-      symbolTable().insert(induction->getName(), Reference::ssa(&builder(), forOp.conditionRegion().getArgument(0)));
-
       builder().setInsertionPointToStart(conditionBlock);
+      mlir::Value inductionValue = builder().create<LoadOp>(location, inductionVar);
 
       mlir::Value upperBound = *lower(*induction->getEnd())[0];
       upperBound = builder().create<CastOp>(lowerBound.getLoc(), builder().getIndexType(), upperBound);
 
-      mlir::Value condition = builder().create<LteOp>(location, BooleanType::get(builder().getContext()), forOp.conditionRegion().getArgument(0), upperBound);
-      builder().create<ConditionOp>(location, condition, *symbolTable().lookup(induction->getName()));
+      mlir::Value condition = builder().create<LteOp>(location, BooleanType::get(builder().getContext()), inductionValue, upperBound);
+      builder().create<ConditionOp>(location, condition, llvm::None);
     }
 
     {
       // Body
       Lowerer::SymbolScope scope(symbolTable());
-      symbolTable().insert(induction->getName(), Reference::ssa(&builder(), forOp.bodyRegion().getArgument(0)));
 
       builder().setInsertionPointToStart(bodyBlock);
+      mlir::Value inductionValue = builder().create<LoadOp>(location, inductionVar);
+      symbolTable().insert(induction->getName(), Reference::ssa(&builder(), inductionValue));
 
       for (const auto& stmnt : statement) {
         lower(*stmnt);
@@ -121,20 +125,19 @@ namespace marco::codegen::lowering
 
       if (bodyBlock->empty() || !bodyBlock->back().hasTrait<mlir::OpTrait::IsTerminator>()) {
         builder().setInsertionPointToEnd(bodyBlock);
-        builder().create<YieldOp>(location, *symbolTable().lookup(induction->getName()));
+        builder().create<YieldOp>(location, llvm::None);
       }
     }
 
     {
       // Step
-      Lowerer::SymbolScope scope(symbolTable());
-      symbolTable().insert(induction->getName(), Reference::ssa(&builder(), forOp.stepRegion().getArgument(0)));
-
       builder().setInsertionPointToStart(stepBlock);
+      mlir::Value inductionValue = builder().create<LoadOp>(location, inductionVar);
 
       mlir::Value step = builder().create<ConstantOp>(location, builder().getIndexAttr(1));
-      mlir::Value incremented = builder().create<AddOp>(location, builder().getIndexType(), *symbolTable().lookup(induction->getName()), step);
-      builder().create<YieldOp>(location, incremented);
+      mlir::Value incremented = builder().create<AddOp>(location, builder().getIndexType(), inductionValue, step);
+      builder().create<StoreOp>(location, incremented, inductionVar, llvm::None);
+      builder().create<YieldOp>(location, llvm::None);
     }
   }
 

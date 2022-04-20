@@ -2674,7 +2674,8 @@ def Modelica_YieldOp : Modelica_Op<"yield",
 // Utility operations
 //===----------------------------------------------------------------------===//
 
-def Modelica_CastOp : Modelica_Op<"cast", []>
+def Modelica_CastOp : Modelica_Op<"cast",
+    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Cast a scalar value to another type.";
 

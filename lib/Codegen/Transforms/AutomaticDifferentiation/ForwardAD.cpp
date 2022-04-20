@@ -738,8 +738,7 @@ namespace marco::codegen
       CallOp callOp,
       mlir::BlockAndValueMapping& derivatives)
   {
-    // TODO
-    llvm_unreachable("Not implemented");
+    llvm_unreachable("CallOp full derivative is not implemented");
     return llvm::None;
   }
 
@@ -753,7 +752,6 @@ namespace marco::codegen
     auto callee = module.lookupSymbol<FunctionOp>(callOp.callee());
 
     std::string derivedFunctionName = "call_pder_" + callOp.callee().str();
-    auto derTemplate = createPartialDerTemplateFunction(builder, loc, callee, derivedFunctionName);
 
     llvm::SmallVector<mlir::Value, 3> args;
 
@@ -765,6 +763,11 @@ namespace marco::codegen
       args.push_back(derivatives.lookup(arg));
     }
 
+    if (auto derTemplate = module.lookupSymbol<FunctionOp>(derivedFunctionName)) {
+      return builder.create<CallOp>(loc, derTemplate, args)->getResults();
+    }
+
+    auto derTemplate = createPartialDerTemplateFunction(builder, loc, callee, derivedFunctionName);
     return builder.create<CallOp>(loc, derTemplate, args)->getResults();
   }
 

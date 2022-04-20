@@ -1398,6 +1398,26 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // CastOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::ValueRange CastOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    auto derivedOp = builder.create<CastOp>(getLoc(), getResult().getType(), derivatives.lookup(value()));
+    return derivedOp->getResults();
+  }
+
+  void CastOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    toBeDerived.push_back(value());
+  }
+
+  void CastOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+
+  }
+
+  //===----------------------------------------------------------------------===//
   // CallOp
   //===----------------------------------------------------------------------===//
 
