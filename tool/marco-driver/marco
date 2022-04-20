@@ -152,7 +152,7 @@ main()
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    g++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" -L $SCRIPT_PATH/../lib -lMARCORuntime "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}"
+    c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" -L $SCRIPT_PATH/../lib -lMARCORuntime "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}"
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then
