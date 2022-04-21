@@ -253,12 +253,12 @@ endif()
 #-------------------------------------------------------------------------------
 enable_testing()
 
-#set(INSTALL_GTEST OFF)
-
 FetchContent_Declare(
 	googletest
 	URL https://github.com/google/googletest/archive/f7902802f1a61140e188223fb6d1c95925cbec4a.zip
 )
+
+set(INSTALL_GTEST OFF CACHE INTERNAL "")
 
 # For Windows: prevent overriding the parent project's compiler / linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
