@@ -1,6 +1,5 @@
 #include "marco/Codegen/Transforms/OpDistribution.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include <stack>
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -19,9 +18,13 @@ namespace
       void runOnOperation() override
       {
         auto module = this->getOperation();
-        std::stack<mlir::Operation*> touched;
+        llvm::SmallVector<DistributableOp> distributableOps;
 
         module.walk([&](DistributableOp op) {
+          distributableOps.push_back(op);
+        });
+
+        for (auto op : distributableOps) {
           mlir::OpBuilder builder(op);
 
           auto distributableOp = mlir::cast<DistributableOpInterface>(op.getOperation());
@@ -29,24 +32,6 @@ namespace
 
           if (result != op) {
             op->replaceAllUsesWith(result);
-          }
-
-          touched.push(op.getOperation());
-        });
-
-        // Erase the operation whose results are unused, for easier testing
-        while (!touched.empty()) {
-          auto op = touched.top();
-          touched.pop();
-
-          if (op->getUsers().empty()) {
-            for (const auto& operand : op->getOperands()) {
-              if (auto definingOp = operand.getDefiningOp()) {
-                touched.push(definingOp);
-              }
-            }
-
-            op->erase();
           }
         }
       }

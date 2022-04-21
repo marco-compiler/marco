@@ -54,6 +54,10 @@ namespace marco::frontend
   CompilerInstance::~CompilerInstance()
   {
     assert(outputFiles_.empty() && "Still output files in flight?");
+
+    if (mlirModule_ != nullptr) {
+      mlirModule_->erase();
+    }
   }
 
   CompilerInvocation& CompilerInstance::invocation()

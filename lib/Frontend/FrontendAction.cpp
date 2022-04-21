@@ -217,7 +217,7 @@ namespace marco::frontend
     modelSolvingOptions.ida.absoluteTolerance = simulationOptions.ida.absoluteTolerance;
     modelSolvingOptions.ida.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
 
-    passManager.addNestedPass<mlir::modelica::ModelOp>(codegen::createModelSolvingPass(modelSolvingOptions));
+    passManager.addPass(codegen::createModelSolvingPass(modelSolvingOptions));
 
     // Functions scalarization pass
     codegen::FunctionScalarizationOptions functionScalarizationOptions;

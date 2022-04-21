@@ -21,6 +21,8 @@ namespace marco::codegen::lowering
     public:
       Impl(mlir::MLIRContext& context, CodegenOptions options);
 
+      ~Impl();
+
       std::vector<mlir::Operation*> lower(const ast::Class& cls) override;
 
       Results lower(const ast::Expression& expression) override;
@@ -55,6 +57,13 @@ namespace marco::codegen::lowering
     this->equationLowerer = std::make_unique<EquationLowerer>(this->context.get(), this);
 
     this->module = std::make_unique<mlir::ModuleOp>(mlir::ModuleOp::create(this->context->builder.getUnknownLoc()));
+  }
+
+  Bridge::Impl::~Impl()
+  {
+    if (module != nullptr) {
+      module->erase();
+    }
   }
 
   std::vector<mlir::Operation*> Bridge::Impl::lower(const ast::Class& cls)

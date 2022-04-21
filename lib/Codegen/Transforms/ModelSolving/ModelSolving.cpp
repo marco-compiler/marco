@@ -208,7 +208,7 @@ namespace
   /// Model solving pass.
   /// Its objective is to convert a descriptive (and thus not sequential) model into an
   /// algorithmic one and to create the functions to be called during the simulation.
-  class ModelSolvingPass: public mlir::PassWrapper<ModelSolvingPass, mlir::OperationPass<ModelOp>>
+  class ModelSolvingPass: public mlir::PassWrapper<ModelSolvingPass, mlir::OperationPass<mlir::ModuleOp>>
   {
     public:
       explicit ModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
@@ -227,14 +227,24 @@ namespace
 
       void runOnOperation() override
       {
-        Model<Equation> model(getOperation());
+        llvm::SmallVector<ModelOp, 1> models;
+
+        getOperation().walk([&](ModelOp op) {
+          models.push_back(op);
+        });
+
+        if (models.size() > 1) {
+          return signalPassFailure();
+        }
+
+        Model<Equation> model(models[0]);
         mlir::OpBuilder builder(model.getOperation());
 
         if (mlir::failed(convertEquationsWithMultipleValues())) {
           return signalPassFailure();
         }
 
-        if (mlir::failed(convertToSingleEquationBody())) {
+        if (mlir::failed(convertToSingleEquationBody(models[0]))) {
           return signalPassFailure();
         }
 
@@ -302,9 +312,8 @@ namespace
         return applyPartialConversion(getOperation(), target, std::move(patterns));
       }
 
-      mlir::LogicalResult convertToSingleEquationBody()
+      mlir::LogicalResult convertToSingleEquationBody(ModelOp modelOp)
       {
-        auto modelOp = getOperation();
         llvm::SmallVector<EquationOp> equations;
 
         for (auto op : modelOp.bodyBlock()->getOps<EquationOp>()) {

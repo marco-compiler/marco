@@ -477,7 +477,7 @@ namespace marco::codegen
     StoreReplacer storeReplacer;
     std::tie(loadReplacer, storeReplacer) = replacers();
 
-    for (auto* user : op->getUsers()) {
+    for (auto* user : llvm::make_early_inc_range(op->getUsers())) {
       if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
         loadReplacer(loadOp);
       } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {

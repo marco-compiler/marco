@@ -1988,8 +1988,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -2006,8 +2010,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -2024,8 +2032,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -2163,8 +2175,13 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
+      }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
@@ -2180,8 +2197,13 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
+      }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
@@ -2197,8 +2219,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -2825,18 +2851,20 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    if (!mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) &&
-        !mlir::isa<DivOpDistributionInterface>(rhs().getDefiningOp())) {
-      // The operation can't be propagated because none of the children
-      // know how to distribute the multiplication to their children.
+    auto lhsDefiningOp = lhs().getDefiningOp();
+
+    if (!lhsDefiningOp) {
       return getResult();
     }
 
-    DivOpDistributionInterface childOp = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ?
-                                         mlir::cast<DivOpDistributionInterface>(lhs().getDefiningOp()) :
-                                         mlir::cast<DivOpDistributionInterface>(rhs().getDefiningOp());
+    if (!mlir::isa<DivOpDistributionInterface>(lhsDefiningOp)) {
+      // The operation can't be propagated because the dividend does not
+      // know how to distribute the division to their children.
+      return getResult();
+    }
 
-    mlir::Value toDistribute = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+    DivOpDistributionInterface childOp = mlir::cast<DivOpDistributionInterface>(lhsDefiningOp);
+    mlir::Value toDistribute = rhs();
 
     return childOp.distributeDivOp(builder, result().getType(), toDistribute);
   }
@@ -2846,8 +2874,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -2864,8 +2896,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -2882,8 +2918,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -3027,18 +3067,20 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    if (!mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) &&
-        !mlir::isa<DivOpDistributionInterface>(rhs().getDefiningOp())) {
-      // The operation can't be propagated because none of the children
-      // know how to distribute the multiplication to their children.
+    auto lhsDefiningOp = lhs().getDefiningOp();
+
+    if (!lhsDefiningOp) {
       return getResult();
     }
 
-    DivOpDistributionInterface childOp = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ?
-                                         mlir::cast<DivOpDistributionInterface>(lhs().getDefiningOp()) :
-                                         mlir::cast<DivOpDistributionInterface>(rhs().getDefiningOp());
+    if (!mlir::isa<DivOpDistributionInterface>(lhsDefiningOp)) {
+      // The operation can't be propagated because the dividend does not
+      // know how to distribute the division to their children.
+      return getResult();
+    }
 
-    mlir::Value toDistribute = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+    DivOpDistributionInterface childOp = mlir::cast<DivOpDistributionInterface>(lhsDefiningOp);
+    mlir::Value toDistribute = rhs();
 
     return childOp.distributeDivOp(builder, result().getType(), toDistribute);
   }
@@ -3048,8 +3090,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -3066,8 +3112,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -3084,8 +3134,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -3756,19 +3810,32 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    if (!mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) &&
-        !mlir::isa<MulOpDistributionInterface>(rhs().getDefiningOp())) {
+    auto lhsDefiningOp = lhs().getDefiningOp();
+    auto rhsDefiningOp = rhs().getDefiningOp();
+
+    if (!lhsDefiningOp && !rhsDefiningOp) {
+      return getResult();
+    }
+
+    if (!mlir::isa<MulOpDistributionInterface>(lhsDefiningOp) && !mlir::isa<MulOpDistributionInterface>(rhsDefiningOp)) {
       // The operation can't be propagated because none of the children
       // know how to distribute the multiplication to their children.
       return getResult();
     }
 
-    MulOpDistributionInterface childOp = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ?
-                                         mlir::cast<MulOpDistributionInterface>(lhs().getDefiningOp()) :
-                                         mlir::cast<MulOpDistributionInterface>(rhs().getDefiningOp());
+    MulOpDistributionInterface childOp;
+    mlir::Value toDistribute;
 
-    mlir::Value toDistribute = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+    if (lhsDefiningOp != nullptr && mlir::isa<MulOpDistributionInterface>(lhsDefiningOp)) {
+      childOp = mlir::cast<MulOpDistributionInterface>(lhsDefiningOp);
+      toDistribute = rhs();
+    } else {
+      assert(rhsDefiningOp != nullptr);
+      childOp = mlir::cast<MulOpDistributionInterface>(rhsDefiningOp);
+      toDistribute = lhs();
+    }
 
+    assert(childOp != nullptr && toDistribute != nullptr);
     return childOp.distributeMulOp(builder, result().getType(), toDistribute);
   }
 
@@ -3777,8 +3844,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -3795,8 +3866,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -3813,8 +3888,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -3955,19 +4034,32 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    if (!mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) &&
-        !mlir::isa<MulOpDistributionInterface>(rhs().getDefiningOp())) {
+    auto lhsDefiningOp = lhs().getDefiningOp();
+    auto rhsDefiningOp = rhs().getDefiningOp();
+
+    if (!lhsDefiningOp && !rhsDefiningOp) {
+      return getResult();
+    }
+
+    if (!mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) && !mlir::isa<MulOpDistributionInterface>(rhs().getDefiningOp())) {
       // The operation can't be propagated because none of the children
       // know how to distribute the multiplication to their children.
       return getResult();
     }
 
-    MulOpDistributionInterface childOp = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ?
-                                         mlir::cast<MulOpDistributionInterface>(lhs().getDefiningOp()) :
-                                         mlir::cast<MulOpDistributionInterface>(rhs().getDefiningOp());
+    MulOpDistributionInterface childOp;
+    mlir::Value toDistribute;
 
-    mlir::Value toDistribute = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+    if (lhsDefiningOp != nullptr && mlir::isa<MulOpDistributionInterface>(lhsDefiningOp)) {
+      childOp = mlir::cast<MulOpDistributionInterface>(lhsDefiningOp);
+      toDistribute = rhs();
+    } else {
+      assert(rhsDefiningOp != nullptr);
+      childOp = mlir::cast<MulOpDistributionInterface>(rhsDefiningOp);
+      toDistribute = lhs();
+    }
 
+    assert(childOp != nullptr && toDistribute != nullptr);
     return childOp.distributeMulOp(builder, result().getType(), toDistribute);
   }
 
@@ -3976,8 +4068,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -3994,8 +4090,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -4012,8 +4112,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -4125,6 +4229,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
+    auto operandDefiningOp = operand().getDefiningOp();
+
+    if (!operandDefiningOp) {
+      return getResult();
+    }
+
     if (auto childOp = mlir::dyn_cast<NegateOpDistributionInterface>(operand().getDefiningOp())) {
       return childOp.distributeNegateOp(builder, result().getType());
     }
@@ -4139,8 +4249,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -4156,8 +4270,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -4173,8 +4291,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -4933,8 +5055,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -4951,8 +5077,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -4969,8 +5099,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
@@ -5108,8 +5242,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeNegateOp(builder, resultType);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(definingOp)) {
+          return casted.distributeNegateOp(builder, resultType);
+        }
       }
 
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
@@ -5126,8 +5264,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeMulOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(definingOp)) {
+          return casted.distributeMulOp(builder, resultType, value);
+        }
       }
 
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
@@ -5144,8 +5286,12 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-      if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp())) {
-        return casted.distributeDivOp(builder, resultType, value);
+      auto definingOp = child.getDefiningOp();
+
+      if (definingOp != nullptr) {
+        if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(definingOp)) {
+          return casted.distributeDivOp(builder, resultType, value);
+        }
       }
 
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
