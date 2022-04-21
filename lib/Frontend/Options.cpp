@@ -37,7 +37,7 @@ namespace marco::frontend
       // Options.inc is included in DriverOptions.cpp, and calls OptTable's addValues function.
       // Opt is a variable used in the code fragment in Options.inc.
 
-      llvm::opt::OptTable &Opt = *Result;
+      [[maybe_unused]] llvm::opt::OptTable& Opt = *Result;
 
       #define OPTTABLE_ARG_INIT
       #include "marco/Frontend/Options.inc"

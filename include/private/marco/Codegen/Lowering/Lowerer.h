@@ -18,6 +18,8 @@ namespace marco::codegen::lowering
 
       Lowerer(LoweringContext* context, BridgeInterface* bridge);
 
+      virtual ~Lowerer();
+
     protected:
       /// Helper to convert an AST location to a MLIR location.
       mlir::Location loc(const SourcePosition& location);

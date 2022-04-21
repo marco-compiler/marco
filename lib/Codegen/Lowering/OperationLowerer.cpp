@@ -28,7 +28,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::negate, 1>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::negate>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 1);
       mlir::Value result = builder().create<NotOp>(loc, resultType, args[0]);
       return Reference::ssa(&builder(), result);
     });
@@ -38,7 +39,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::add, -1>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::add>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() >= 2);
       mlir::Value result = builder().create<AddOp>(loc, resultType, args[0], args[1]);
 
       for (size_t i = 2; i < args.size(); ++i) {
@@ -61,14 +63,16 @@ namespace marco::codegen::lowering
       // In future, when all the project will rely on MLIR, a different
       // operation in the frontend should be created for this purpose.
 
-      return lowerOperation<OperationKind::subtract, 1>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      return lowerOperation<OperationKind::subtract>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+        assert(args.size() == 1);
         mlir::Value result = builder().create<NegateOp>(loc, resultType, args[0]);
         return Reference::ssa(&builder(), result);
       });
     }
 
     if (operation.getArguments().size() == 2) {
-      return lowerOperation<OperationKind::subtract, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      return lowerOperation<OperationKind::subtract>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+        assert(args.size() == 2);
         mlir::Value result = builder().create<SubOp>(loc, resultType, args[0], args[1]);
         return Reference::ssa(&builder(), result);
       });
@@ -82,7 +86,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::multiply, -1>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::multiply>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() >= 2);
       mlir::Value result = builder().create<MulOp>(loc, resultType, args[0], args[1]);
 
       for (size_t i = 2; i < args.size(); ++i) {
@@ -97,7 +102,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::divide, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::divide>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<DivOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -107,7 +113,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::ifelse, 3>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::ifelse>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 3);
       mlir::Value trueValue = builder().create<CastOp>(args[1].getLoc(), resultType, args[1]);
       mlir::Value falseValue = builder().create<CastOp>(args[2].getLoc(), resultType, args[2]);
 
@@ -121,7 +128,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::greater, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::greater>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<GtOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -131,7 +139,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::greaterEqual, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::greaterEqual>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<GteOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -141,7 +150,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::equal, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::equal>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<EqOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -151,7 +161,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::different, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::different>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<NotEqOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -161,7 +172,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::lessEqual, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::lessEqual>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<LteOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -171,7 +183,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::less, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::less>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<LtOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -181,7 +194,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::land, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::land>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<AndOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -191,7 +205,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::lor, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::lor>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value result = builder().create<OrOp>(loc, resultType, args[0], args[1]);
       return Reference::ssa(&builder(), result);
     });
@@ -200,6 +215,7 @@ namespace marco::codegen::lowering
   Results OperationLowerer::subscription(const ast::Operation& operation)
   {
     return lowerOperation<OperationKind::subscription>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() >= 1);
       assert(args[0].getType().isa<ArrayType>());
       mlir::Value result = builder().create<SubscriptionOp>(loc, args[0], args.drop_front());
       return Reference::memory(&builder(), result);
@@ -216,7 +232,8 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    return lowerOperation<OperationKind::powerOf, 2>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+    return lowerOperation<OperationKind::powerOf>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
       mlir::Value base = args[0];
       mlir::Value exponent = args[1];
 

@@ -14,6 +14,8 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
+  BridgeInterface::~BridgeInterface() = default;
+
   class Bridge::Impl : public BridgeInterface
   {
     public:

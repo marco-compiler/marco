@@ -596,14 +596,11 @@ struct ArrayCastOpUnsizedArrayToArrayLowering : public ModelicaOpConversion<Arra
       return rewriter.notifyMatchFailure(op, "Source is not an unsized array");
     }
 
-    auto sourceUnsizedArrayType = sourceType.cast<UnsizedArrayType>();
     UnsizedArrayDescriptor sourceDescriptor(transformed.source());
 
     if (!resultType.isa<ArrayType>()) {
       return rewriter.notifyMatchFailure(op, "Result is not an array");
     }
-
-    auto resultArrayType = resultType.cast<ArrayType>();
 
     mlir::Value arrayDescriptorPtr = sourceDescriptor.getPtr(rewriter, loc);
 

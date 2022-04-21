@@ -39,15 +39,11 @@ namespace marco::codegen::lowering
     private:
       std::vector<mlir::Value> lowerArgs(const ast::Operation& operation);
 
-      template<ast::OperationKind Kind, int Arity = -1>
+      template<ast::OperationKind Kind>
       Results lowerOperation(const ast::Operation& operation, std::function<Results(mlir::Location, mlir::ValueRange)> callback)
       {
         assert(operation.getOperationKind() == Kind);
-
         auto args = lowerArgs(operation);
-        // TODO fix warning: comparison of integer expressions of different signedness: ‘std::vector<mlir::Value, std::allocator<mlir::Value> >::size_type’ {aka ‘long unsigned int’} and ‘int’
-        assert(Arity == -1 || args.size() == Arity);
-
         auto location = loc(operation.getLocation());
         return callback(std::move(location), args);
       }

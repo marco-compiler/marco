@@ -13,6 +13,8 @@ namespace marco::codegen::lowering
   {
   }
 
+  Lowerer::~Lowerer() = default;
+
   mlir::Location Lowerer::loc(const SourcePosition& location)
   {
     return mlir::FileLineColLoc::get(

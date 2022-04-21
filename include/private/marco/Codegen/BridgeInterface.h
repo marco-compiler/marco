@@ -9,6 +9,8 @@ namespace marco::codegen::lowering
   class BridgeInterface
   {
     public:
+      virtual ~BridgeInterface();
+
       virtual std::vector<mlir::Operation*> lower(const ast::Class& cls) = 0;
 
       virtual Results lower(const ast::Expression& expression) = 0;
