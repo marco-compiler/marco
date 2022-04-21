@@ -31,9 +31,9 @@ namespace marco::codegen
     mlir::BlockAndValueMapping mapping;
 
     if (explicitLoops.empty()) {
-      builder.setInsertionPoint(getOperation());
+      builder.setInsertionPointAfter(getOperation());
     } else {
-      builder.setInsertionPoint(explicitLoops.back());
+      builder.setInsertionPointAfter(explicitLoops.back());
     }
 
     for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it) {

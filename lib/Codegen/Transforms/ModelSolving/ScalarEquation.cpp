@@ -31,6 +31,7 @@ namespace marco::codegen
   {
     EquationOp equationOp = getOperation();
     mlir::OpBuilder builder(equationOp);
+    builder.setInsertionPointAfter(equationOp);
     return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation()));
   }
 

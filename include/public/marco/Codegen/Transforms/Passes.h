@@ -8,6 +8,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
+#include "marco/Codegen/Transforms/Matching.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
 
 namespace marco::codegen
@@ -24,6 +25,7 @@ namespace marco::codegen
     registerNegateOpDistributionPass();
     registerMulOpDistributionPass();
     registerDivOpDistributionPass();
+    registerMatchingPass();
 	}
 }
 

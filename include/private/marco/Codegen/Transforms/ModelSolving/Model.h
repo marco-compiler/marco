@@ -8,6 +8,14 @@
 
 namespace marco::codegen
 {
+  /// Get all the variables that are declared inside the Model operation, independently
+  /// from their nature (state variables, constants, etc.).
+  Variables discoverVariables(mlir::modelica::ModelOp model);
+
+  /// Get the equations that are declared inside the Model operation.
+  Equations<Equation> discoverEquations(
+      mlir::modelica::ModelOp model, const Variables& variables);
+
   namespace impl
   {
     class BaseModel

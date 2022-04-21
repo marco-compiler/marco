@@ -467,7 +467,7 @@ static void print(mlir::OpAsmPrinter& printer, MemberCreateOp op)
 
 static mlir::ParseResult parseModelOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-  if (parser.parseOptionalAttrDict(result.attributes)) {
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
     return mlir::failure();
   }
 
@@ -486,7 +486,7 @@ static mlir::ParseResult parseModelOp(mlir::OpAsmParser& parser, mlir::Operation
 static void print(mlir::OpAsmPrinter& printer, ModelOp op)
 {
   printer << op.getOperationName();
-  printer.printOptionalAttrDict(op->getAttrs());
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
   printer.printRegion(op.initRegion());
   printer << " equations";
   printer.printRegion(op.bodyRegion());
@@ -630,18 +630,8 @@ static void print(mlir::OpAsmPrinter& printer, ForEquationOp op)
 
 static mlir::ParseResult parseEquationOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-  auto loc = parser.getCurrentLocation();
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
     return mlir::failure();
-  }
-
-  if (!result.attributes.getNamed("from").hasValue()) {
-    return parser.emitError(loc, "expected 'from' attribute");
-  }
-
-  if (!result.attributes.getNamed("to").hasValue()) {
-    return parser.emitError(loc, "expected 'to' attribute");
   }
 
   mlir::Region* bodyRegion = result.addRegion();
@@ -656,7 +646,7 @@ static mlir::ParseResult parseEquationOp(mlir::OpAsmParser& parser, mlir::Operat
 static void print(mlir::OpAsmPrinter& printer, EquationOp op)
 {
   printer << op.getOperationName();
-  printer.printOptionalAttrDict(op->getAttrs());
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
   printer.printRegion(op.bodyRegion());
 }
 

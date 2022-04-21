@@ -20,6 +20,7 @@ set(SOURCES
     ArrayDeallocation.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
+    Matching.cpp
     OpDistribution.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

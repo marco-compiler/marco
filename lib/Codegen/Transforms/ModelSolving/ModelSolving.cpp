@@ -30,54 +30,57 @@ using namespace ::marco::codegen;
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
-struct EquationOpMultipleValuesPattern : public mlir::OpRewritePattern<EquationOp>
+namespace
 {
-  using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
-
-  mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
+  struct EquationOpMultipleValuesPattern : public mlir::OpRewritePattern<EquationOp>
   {
-    auto loc = op.getLoc();
-    auto terminator = mlir::cast<EquationSidesOp>(op.bodyBlock()->getTerminator());
+    using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
 
-    if (terminator.lhsValues().size() != terminator.rhsValues().size()) {
-      return rewriter.notifyMatchFailure(op, "Different amount of values in left-hand and right-hand sides of the equation");
-    }
+    mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      auto terminator = mlir::cast<EquationSidesOp>(op.bodyBlock()->getTerminator());
 
-    auto amountOfValues = terminator.lhsValues().size();
+      if (terminator.lhsValues().size() != terminator.rhsValues().size()) {
+        return rewriter.notifyMatchFailure(op, "Different amount of values in left-hand and right-hand sides of the equation");
+      }
 
-    for (size_t i = 0; i < amountOfValues; ++i) {
-      rewriter.setInsertionPointAfter(op);
+      auto amountOfValues = terminator.lhsValues().size();
 
-      auto clone = rewriter.create<EquationOp>(loc);
-      assert(clone.bodyRegion().empty());
-      mlir::Block* cloneBodyBlock = rewriter.createBlock(&clone.bodyRegion());
-      rewriter.setInsertionPointToStart(cloneBodyBlock);
+      for (size_t i = 0; i < amountOfValues; ++i) {
+        rewriter.setInsertionPointAfter(op);
 
-      mlir::BlockAndValueMapping mapping;
+        auto clone = rewriter.create<EquationOp>(loc);
+        assert(clone.bodyRegion().empty());
+        mlir::Block* cloneBodyBlock = rewriter.createBlock(&clone.bodyRegion());
+        rewriter.setInsertionPointToStart(cloneBodyBlock);
 
-      for (auto& originalOp : op.bodyBlock()->getOperations()) {
-        if (mlir::isa<EquationSideOp>(originalOp)) {
-          continue;
-        }
+        mlir::BlockAndValueMapping mapping;
 
-        if (mlir::isa<EquationSidesOp>(originalOp)) {
-          auto lhsOp = mlir::cast<EquationSideOp>(terminator.lhs().getDefiningOp());
-          auto rhsOp = mlir::cast<EquationSideOp>(terminator.rhs().getDefiningOp());
+        for (auto& originalOp : op.bodyBlock()->getOperations()) {
+          if (mlir::isa<EquationSideOp>(originalOp)) {
+            continue;
+          }
 
-          auto newLhsOp = rewriter.create<EquationSideOp>(lhsOp.getLoc(), mapping.lookup(terminator.lhsValues()[i]));
-          auto newRhsOp = rewriter.create<EquationSideOp>(rhsOp.getLoc(), mapping.lookup(terminator.rhsValues()[i]));
+          if (mlir::isa<EquationSidesOp>(originalOp)) {
+            auto lhsOp = mlir::cast<EquationSideOp>(terminator.lhs().getDefiningOp());
+            auto rhsOp = mlir::cast<EquationSideOp>(terminator.rhs().getDefiningOp());
 
-          rewriter.create<EquationSidesOp>(terminator.getLoc(), newLhsOp, newRhsOp);
-        } else {
-          rewriter.clone(originalOp, mapping);
+            auto newLhsOp = rewriter.create<EquationSideOp>(lhsOp.getLoc(), mapping.lookup(terminator.lhsValues()[i]));
+            auto newRhsOp = rewriter.create<EquationSideOp>(rhsOp.getLoc(), mapping.lookup(terminator.rhsValues()[i]));
+
+            rewriter.create<EquationSidesOp>(terminator.getLoc(), newLhsOp, newRhsOp);
+          } else {
+            rewriter.clone(originalOp, mapping);
+          }
         }
       }
-    }
 
-    rewriter.eraseOp(op);
-    return mlir::success();
-  }
-};
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+  };
+}
 
 /// Remove the derivative operations by replacing them with appropriate
 /// buffers, and set the derived variables as state variables.
@@ -176,31 +179,6 @@ static mlir::LogicalResult removeDerivatives(
   });
 
   return mlir::success();
-}
-
-/// Get all the variables that are declared inside the Model operation, independently
-/// from their nature (state variables, constants, etc.).
-static Variables discoverVariables(ModelOp model)
-{
-  Variables result;
-
-  for (const auto& var : model.bodyRegion().getArguments()) {
-    result.add(std::make_unique<Variable>(var));
-  }
-
-  return result;
-}
-
-/// Get the equations that are declared inside the Model operation.
-static Equations<Equation> discoverEquations(ModelOp model, const Variables& variables)
-{
-  Equations<Equation> result;
-
-  model.walk([&](EquationOp equationOp) {
-    result.add(Equation::build(equationOp, variables));
-  });
-
-  return result;
 }
 
 namespace
