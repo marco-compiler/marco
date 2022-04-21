@@ -447,7 +447,10 @@ namespace marco::codegen
 
           auto explicitWritingEquation = writingEquation->cloneIRAndExplicitate(builder);
           TemporaryEquationGuard guard(*explicitWritingEquation);
-          auto res = explicitWritingEquation->replaceInto(builder, *clone, access.getAccessFunction(), access.getPath());
+
+          auto res = explicitWritingEquation->replaceInto(
+              builder, explicitWritingEquation->getIterationRanges(), *clone, access.getAccessFunction(), access.getPath());
+
           assert(mlir::succeeded(res));
 
           // Add the equation with the replaced access

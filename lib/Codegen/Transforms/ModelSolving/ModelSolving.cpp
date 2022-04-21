@@ -267,6 +267,10 @@ namespace
           return signalPassFailure();
         }
 
+        if (mlir::failed(splitEquations(builder, matchedModel))) {
+          return signalPassFailure();
+        }
+
         // Resolve the algebraic loops
         if (mlir::failed(solveCycles(matchedModel, builder))) {
           if (options.solver != Solver::ida) {
@@ -354,6 +358,60 @@ namespace
           }
         }
 
+        return mlir::success();
+      }
+
+      mlir::LogicalResult splitEquations(mlir::OpBuilder& builder, Model<MatchedEquation>& model)
+      {
+        Equations<MatchedEquation> equations;
+
+        for (const auto& equation : model.getEquations()) {
+          auto write = equation->getWrite();
+          auto iterationRanges = equation->getIterationRanges();
+          auto writtenIndices = write.getAccessFunction().map(iterationRanges);
+
+          IndexSet result;
+
+          for (const auto& access : equation->getAccesses()) {
+            if (access.getPath() == write.getPath()) {
+              continue;
+            }
+
+            if (access.getVariable() != write.getVariable()) {
+              continue;
+            }
+
+            auto accessedIndices = access.getAccessFunction().map(iterationRanges);
+
+            if (!accessedIndices.overlaps(writtenIndices)) {
+              continue;
+            }
+
+            result += write.getAccessFunction().inverseMap(
+                IndexSet(accessedIndices.intersect(writtenIndices)),
+                IndexSet(iterationRanges));
+          }
+
+          for (const auto& range : result) {
+            auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+
+            auto matchedClone = std::make_unique<MatchedEquation>(
+                std::move(clone), range, write.getPath());
+
+            equations.add(std::move(matchedClone));
+          }
+
+          for (const auto& range : IndexSet(iterationRanges) - result) {
+            auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+
+            auto matchedClone = std::make_unique<MatchedEquation>(
+                std::move(clone), range, write.getPath());
+
+            equations.add(std::move(matchedClone));
+          }
+        }
+
+        model.setEquations(equations);
         return mlir::success();
       }
 

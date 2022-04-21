@@ -59,17 +59,20 @@ namespace marco::codegen
       Access getWrite() const;
 
       mlir::LogicalResult explicitate(
-          mlir::OpBuilder& builder, const EquationPath& path) override;
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const EquationPath& path) override;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(
-          mlir::OpBuilder& builder, const EquationPath& path) const override;
-
-      std::unique_ptr<Equation> cloneIRAndExplicitate(mlir::OpBuilder& builder) const;
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const EquationPath& path) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
 
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
+          const modeling::MultidimensionalRange& equationIndices,
           Equation& destination,
           const modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const override;
@@ -92,6 +95,8 @@ namespace marco::codegen
 
       /// Get the direction to be used to update the iteration variables.
       ::marco::modeling::scheduling::Direction getSchedulingDirection() const;
+
+      std::unique_ptr<Equation> cloneIRAndExplicitate(mlir::OpBuilder& builder) const;
 
     private:
       std::unique_ptr<MatchedEquation> equation;

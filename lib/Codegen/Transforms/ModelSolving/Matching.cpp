@@ -115,20 +115,19 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult MatchedEquation::explicitate(
-      mlir::OpBuilder& builder, const EquationPath& path)
+      mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices,
+      const EquationPath& path)
   {
-    return equation->explicitate(builder, path);
+    return equation->explicitate(builder, equationIndices, path);
   }
 
   std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(
-      mlir::OpBuilder& builder, const EquationPath& path) const
+      mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices,
+      const EquationPath& path) const
   {
-    return equation->cloneIRAndExplicitate(builder, path);
-  }
-
-  std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(mlir::OpBuilder& builder) const
-  {
-    return cloneIRAndExplicitate(builder, getWrite().getPath());
+    return equation->cloneIRAndExplicitate(builder, equationIndices, path);
   }
 
   std::vector<mlir::Value> MatchedEquation::getInductionVariables() const
@@ -138,11 +137,12 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::replaceInto(
       mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
       const EquationPath& destinationPath) const
   {
-    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
+    return equation->replaceInto(builder, equationIndices, destination, destinationAccessFunction, destinationPath);
   }
 
   size_t MatchedEquation::getNumOfIterationVars() const
@@ -158,12 +158,25 @@ namespace marco::codegen
   std::vector<Access> MatchedEquation::getReads() const
   {
     std::vector<Access> result;
+
+    auto iterationRanges = getIterationRanges();
+
     auto writeAccess = getWrite();
+    auto writtenVariable = writeAccess.getVariable();
+    auto writtenIndices = writeAccess.getAccessFunction().map(iterationRanges);
 
     for (const auto& access : getAccesses()) {
-      if (access.getVariable() != writeAccess.getVariable() ||
-          access.getAccessFunction() != writeAccess.getAccessFunction()) {
+      auto accessedVariable = access.getVariable();
+
+      if (accessedVariable != writtenVariable) {
         result.push_back(access);
+      } else {
+        auto accessedIndices = access.getAccessFunction().map(iterationRanges);
+
+        if (accessedIndices != writtenIndices) {
+          assert(!accessedIndices.overlaps(writtenIndices));
+          result.push_back(access);
+        }
       }
     }
 
@@ -173,6 +186,18 @@ namespace marco::codegen
   Access MatchedEquation::getWrite() const
   {
     return getAccessAtPath(matchedPath);
+  }
+
+  std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(
+      mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices) const
+  {
+    return equation->cloneIRAndExplicitate(builder, equationIndices, getWrite().getPath());
+  }
+
+  std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(mlir::OpBuilder& builder) const
+  {
+    return equation->cloneIRAndExplicitate(builder, getIterationRanges(), getWrite().getPath());
   }
 
   mlir::LogicalResult match(

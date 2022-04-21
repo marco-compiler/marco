@@ -452,7 +452,7 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult BaseEquation::explicitate(
-      mlir::OpBuilder& builder, const EquationPath& path)
+      mlir::OpBuilder& builder, const MultidimensionalRange& equationIndices, const EquationPath& path)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -462,8 +462,16 @@ namespace marco::codegen
     std::vector<Access> accesses;
 
     for (const auto& access : getAccesses()) {
-      if (access.getVariable() == requestedAccess.getVariable() &&
-          access.getAccessFunction() == requestedAccess.getAccessFunction()) {
+      if (requestedAccess.getVariable() != access.getVariable()) {
+        continue;
+      }
+
+      auto requestedIndices = requestedAccess.getAccessFunction().map(equationIndices);
+      auto currentIndices = access.getAccessFunction().map(equationIndices);
+
+      assert(requestedIndices == currentIndices || !requestedIndices.overlaps(currentIndices));
+
+      if (requestedIndices == currentIndices) {
         accesses.push_back(access);
       }
     }
@@ -500,7 +508,7 @@ namespace marco::codegen
       // If there are multiple accesses, then we must group all of them and
       // extract the common multiplying factor.
 
-      if (auto res = groupLeftHandSide(builder, requestedAccess); mlir::failed(res)) {
+      if (auto res = groupLeftHandSide(builder, equationIndices, requestedAccess); mlir::failed(res)) {
         return res;
       }
     }
@@ -509,12 +517,12 @@ namespace marco::codegen
   }
 
   std::unique_ptr<Equation> BaseEquation::cloneIRAndExplicitate(
-      mlir::OpBuilder& builder, const EquationPath& path) const
+      mlir::OpBuilder& builder, const MultidimensionalRange& equationIndices, const EquationPath& path) const
   {
     EquationOp clonedOp = cloneIR();
     auto result = Equation::build(clonedOp, getVariables());
 
-    if (auto res = result->explicitate(builder, path); mlir::failed(res)) {
+    if (auto res = result->explicitate(builder, equationIndices, path); mlir::failed(res)) {
       result->eraseIR();
       return nullptr;
     }
@@ -524,6 +532,7 @@ namespace marco::codegen
 
   mlir::LogicalResult BaseEquation::replaceInto(
       mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
       const EquationPath& destinationPath) const
@@ -591,7 +600,6 @@ namespace marco::codegen
       llvm::SmallVector<bool, 3> usedInductions(getNumOfIterationVars(), false);
       llvm::SmallVector<DimensionAccess, 3> reducedSourceAccesses;
       llvm::SmallVector<DimensionAccess, 3> reducedDestinationAccesses;
-      auto iterationRanges = getIterationRanges();
 
       for (size_t i = 0, e = sourceAccessFunction.size(); i < e; ++i) {
         if (!sourceAccessFunction[i].isConstantAccess()) {
@@ -606,7 +614,7 @@ namespace marco::codegen
           // If the induction variable is not used, then ensure that it iterates
           // on just one value and thus can be replaced with a constant value.
 
-          if (iterationRanges[usage.index()].size() != 1) {
+          if (equationIndices[usage.index()].size() != 1) {
             getOperation().emitError("The write access is not invertible");
             return mlir::failure();
           }
@@ -647,7 +655,7 @@ namespace marco::codegen
           transformationAccesses.push_back(combinedReducedAccess[usedInductionIndex]);
 
         } else {
-          const auto& range = iterationRanges[i];
+          const auto& range = equationIndices[i];
           assert(range.size() == 1);
           transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
         }
@@ -759,10 +767,20 @@ namespace marco::codegen
   std::vector<Access> BaseEquation::getUniqueAccesses(std::vector<Access> accesses) const
   {
     std::vector<Access> result;
+    std::set<std::pair<const Variable*, const AccessFunction*>> uniqueAccesses;
 
+    /*
     for (const auto& access : accesses) {
+      auto it = llvm::find_if(uniqueAccesses, [&](const auto& uniqueAccess) {
+        return uniqueAccess->first == access.getVariable() && *uniqueAccess->second == access.getAccessFunction();
+      });
 
+      if (it != uniqueAccesses.end()) {
+        result.push_back(access);
+        uniqueAccesses.insert(std::make_pair<const Variable*, const AccessFunction*>(access.getVariable(), &access.getAccessFunction()));
+      }
     }
+     */
 
     return result;
   }
@@ -787,7 +805,10 @@ namespace marco::codegen
     return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
   }
 
-  mlir::LogicalResult BaseEquation::groupLeftHandSide(mlir::OpBuilder& builder, const Access& access)
+  mlir::LogicalResult BaseEquation::groupLeftHandSide(
+      mlir::OpBuilder& builder,
+      const ::marco::modeling::MultidimensionalRange& equationIndices,
+      const Access& access)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto lhs = getValueAtPath(access.getPath());
@@ -799,7 +820,16 @@ namespace marco::codegen
     bool rhsHasAccess = false;
 
     for (const auto& acc : getAccesses()) {
-      if (acc.getVariable() == access.getVariable() && acc.getAccessFunction() == access.getAccessFunction()) {
+      if (acc.getVariable() != access.getVariable()) {
+        continue;
+      }
+
+      auto requestedIndices = access.getAccessFunction().map(equationIndices);
+      auto currentIndices = acc.getAccessFunction().map(equationIndices);
+
+      assert(requestedIndices == currentIndices || !requestedIndices.overlaps(currentIndices));
+
+      if (requestedIndices == currentIndices) {
         lhsHasAccess |= acc.getPath().getEquationSide() == EquationPath::LEFT;
         rhsHasAccess |= acc.getPath().getEquationSide() == EquationPath::RIGHT;
       }
@@ -859,7 +889,15 @@ namespace marco::codegen
       searchAccesses(accesses, value, path);
 
       return llvm::any_of(accesses, [&](const Access& acc) {
-        return acc.getVariable() == access.getVariable() && acc.getAccessFunction() == access.getAccessFunction();
+        if (acc.getVariable() != access.getVariable()) {
+          return false;
+        }
+
+        auto requestedIndices = access.getAccessFunction().map(equationIndices);
+        auto currentIndices = acc.getAccessFunction().map(equationIndices);
+
+        assert(requestedIndices == currentIndices || !requestedIndices.overlaps(currentIndices));
+        return requestedIndices == currentIndices;
       });
     };
 
@@ -872,7 +910,10 @@ namespace marco::codegen
               return nullptr;
             }
 
-            auto factor = getMultiplyingFactor(builder, value, access.getVariable()->getValue(), access.getAccessFunction());
+            auto factor = getMultiplyingFactor(
+                builder, equationIndices, value,
+                access.getVariable()->getValue(),
+                IndexSet(access.getAccessFunction().map(equationIndices)));
 
             if (!factor.second || factor.first > 1) {
               return nullptr;
@@ -1009,9 +1050,10 @@ namespace marco::codegen
 
   std::pair<unsigned int, mlir::Value> BaseEquation::getMultiplyingFactor(
       mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices,
       mlir::Value value,
       mlir::Value variable,
-      const AccessFunction& accessFunction) const
+      const IndexSet& variableIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -1021,7 +1063,8 @@ namespace marco::codegen
       searchAccesses(accesses, value, path);
       assert(accesses.size() == 1);
 
-      if (accesses[0].getVariable()->getValue() == variable && accesses[0].getAccessFunction() == accessFunction) {
+      if (accesses[0].getVariable()->getValue() == variable &&
+          variableIndices == accesses[0].getAccessFunction().map(equationIndices)) {
         mlir::Value one = builder.create<ConstantOp>(value.getLoc(), getIntegerAttribute(builder, value.getType(), 1));
         return std::make_pair(1, one);
       }
@@ -1034,7 +1077,7 @@ namespace marco::codegen
     }
 
     if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
-      auto operand = getMultiplyingFactor(builder, negateOp.operand(), variable, accessFunction);
+      auto operand = getMultiplyingFactor(builder, equationIndices, negateOp.operand(), variable, variableIndices);
 
       if (!operand.second) {
         return std::make_pair(operand.first, nullptr);
@@ -1047,8 +1090,8 @@ namespace marco::codegen
     }
 
     if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
-      auto lhs = getMultiplyingFactor(builder, mulOp.lhs(), variable, accessFunction);
-      auto rhs = getMultiplyingFactor(builder, mulOp.rhs(), variable, accessFunction);
+      auto lhs = getMultiplyingFactor(builder, equationIndices, mulOp.lhs(), variable, variableIndices);
+      auto rhs = getMultiplyingFactor(builder, equationIndices, mulOp.rhs(), variable, variableIndices);
 
       if (!lhs.second || !rhs.second) {
         return std::make_pair(0, nullptr);
@@ -1068,7 +1111,8 @@ namespace marco::codegen
       searchAccesses(accesses, value, path);
 
       bool hasAccess = llvm::any_of(accesses, [&](const auto& access) {
-        return access.getVariable()->getValue() == variable && access.getAccessFunction() == accessFunction;
+        return access.getVariable()->getValue() == variable &&
+            variableIndices == access.getAccessFunction().map(equationIndices);
       });
 
       if (hasAccess) {
@@ -1079,7 +1123,7 @@ namespace marco::codegen
     };
 
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
-      auto dividend = getMultiplyingFactor(builder, divOp.lhs(), variable, accessFunction);
+      auto dividend = getMultiplyingFactor(builder, equationIndices, divOp.lhs(), variable, variableIndices);
 
       if (!dividend.second) {
         return dividend;

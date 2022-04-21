@@ -114,20 +114,19 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult ScheduledEquation::explicitate(
-      mlir::OpBuilder& builder, const EquationPath& path)
+      mlir::OpBuilder& builder,
+      const ::marco::modeling::MultidimensionalRange& equationIndices,
+      const EquationPath& path)
   {
-    return equation->explicitate(builder, path);
+    return equation->explicitate(builder, equationIndices, path);
   }
 
   std::unique_ptr<Equation> ScheduledEquation::cloneIRAndExplicitate(
-      mlir::OpBuilder& builder, const EquationPath& path) const
+      mlir::OpBuilder& builder,
+      const ::marco::modeling::MultidimensionalRange& equationIndices,
+      const EquationPath& path) const
   {
-    return equation->cloneIRAndExplicitate(builder, path);
-  }
-
-  std::unique_ptr<Equation> ScheduledEquation::cloneIRAndExplicitate(mlir::OpBuilder& builder) const
-  {
-    return equation->cloneIRAndExplicitate(builder);
+    return equation->cloneIRAndExplicitate(builder, equationIndices, path);
   }
 
   std::vector<mlir::Value> ScheduledEquation::getInductionVariables() const
@@ -137,11 +136,12 @@ namespace marco::codegen
 
   mlir::LogicalResult ScheduledEquation::replaceInto(
       mlir::OpBuilder& builder,
+      const MultidimensionalRange& equationIndices,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
       const EquationPath& destinationPath) const
   {
-    return equation->replaceInto(builder, destination, destinationAccessFunction, destinationPath);
+    return equation->replaceInto(builder, equationIndices, destination, destinationAccessFunction, destinationPath);
   }
 
   mlir::FuncOp ScheduledEquation::createTemplateFunction(
@@ -166,6 +166,11 @@ namespace marco::codegen
   ::marco::modeling::scheduling::Direction ScheduledEquation::getSchedulingDirection() const
   {
     return schedulingDirection;
+  }
+
+  std::unique_ptr<Equation> ScheduledEquation::cloneIRAndExplicitate(mlir::OpBuilder& builder) const
+  {
+    return equation->cloneIRAndExplicitate(builder, getIterationRanges());
   }
 
   mlir::LogicalResult schedule(

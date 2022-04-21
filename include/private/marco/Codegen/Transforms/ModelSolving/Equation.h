@@ -62,11 +62,15 @@ namespace marco::codegen
       /// Transform the equation IR such that the access at the given equation path is the
       /// only term on the left hand side of the equation.
       virtual mlir::LogicalResult explicitate(
-          mlir::OpBuilder& builder, const EquationPath& path) = 0;
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const EquationPath& path) = 0;
 
       /// Clone the equation IR and make it explicit with respect to the given equation path.
       virtual std::unique_ptr<Equation> cloneIRAndExplicitate(
-          mlir::OpBuilder& builder, const EquationPath& path) const = 0;
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const EquationPath& path) const = 0;
 
       virtual std::vector<mlir::Value> getInductionVariables() const = 0;
 
@@ -74,6 +78,7 @@ namespace marco::codegen
       /// This equation is assumed to already be explicit.
       virtual mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
           Equation& destination,
           const ::marco::modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const = 0;

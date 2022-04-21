@@ -54,15 +54,20 @@ namespace marco::codegen
       Access getAccessAtPath(const EquationPath& path) const override;
 
       mlir::LogicalResult explicitate(
-          mlir::OpBuilder& builder, const EquationPath& path) override;
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const EquationPath& path) override;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(
-          mlir::OpBuilder& builder, const EquationPath& path) const override;
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const EquationPath& path) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
 
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
+          const modeling::MultidimensionalRange& equationIndices,
           Equation& destination,
           const modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const override;
@@ -86,6 +91,10 @@ namespace marco::codegen
       std::vector<Access> getReads() const;
 
       Access getWrite() const;
+
+      std::unique_ptr<Equation> cloneIRAndExplicitate(
+          mlir::OpBuilder& builder,
+          const ::marco::modeling::MultidimensionalRange& equationIndices) const;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(mlir::OpBuilder& builder) const;
 

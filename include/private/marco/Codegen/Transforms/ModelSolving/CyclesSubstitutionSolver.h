@@ -214,7 +214,9 @@ namespace marco::codegen
         }
 
         TemporaryEquationGuard guard(*sourceClone);
-        return sourceClone->replaceInto(builder, destination, accessFunction, accessPath);
+
+        return sourceClone->replaceInto(
+            builder, sourceClone->getIterationRanges(), destination, accessFunction, accessPath);
       }
 
       /// Process all the indexes of an equation for which a cycle has been detected.
