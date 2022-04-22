@@ -48,7 +48,7 @@ namespace
           return res;
         }
 
-        std::set<EquationOp> toBeErased;
+        std::set<mlir::Operation*> toBeErased;
 
         for (auto& equation : matchedModel.getEquations()) {
           auto clone = equation->cloneIR();
@@ -86,7 +86,7 @@ namespace
         }
 
         for (auto op : toBeErased) {
-          Equation::build(op, model.getVariables())->eraseIR();
+          Equation::build(mlir::cast<EquationOp>(op), model.getVariables())->eraseIR();
         }
 
         return mlir::success();

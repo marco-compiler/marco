@@ -21,7 +21,8 @@ set(SOURCES
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp
-    OpDistribution.cpp)
+    OpDistribution.cpp
+    Scheduling.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

@@ -10,6 +10,7 @@
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Codegen/Transforms/Matching.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
+#include "marco/Codegen/Transforms/Scheduling.h"
 
 namespace marco::codegen
 {
@@ -26,6 +27,7 @@ namespace marco::codegen
     registerMulOpDistributionPass();
     registerDivOpDistributionPass();
     registerMatchingPass();
+    registerSchedulingPass();
 	}
 }
 
