@@ -81,7 +81,7 @@ namespace marco::codegen::lowering
 
       // Members with an assigned value are conceptually the same as equations performing that assignment.
       for (const auto& member : model.getMembers()) {
-        if (member->hasInitializer()) {
+        if (!member->isParameter() && member->hasInitializer()) {
           createMemberTrivialEquation(modelOp, *member, *member->getInitializer());
         }
       }
