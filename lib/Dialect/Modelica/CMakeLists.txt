@@ -5,9 +5,6 @@ add_mlir_dialect_library(MLIRModelica SHARED
     Ops.cpp
     Types.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${MARCO_INCLUDE_PUBLIC_DIR}/marco/dialects/modelica
-
     DEPENDS
     MLIRModelicaIncGen
 

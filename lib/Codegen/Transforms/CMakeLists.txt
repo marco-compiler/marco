@@ -27,12 +27,7 @@ set(SOURCES
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 
 set(MLIR_LIBS
-    ${dialect_libs}
-    MLIRIR
-    MLIRSCF
-    MLIRStandard
-    MLIRTransforms
-    MLIRTranslation)
+    ${dialect_libs})
 
 add_mlir_dialect_library(MLIRModelicaTransforms
     SHARED
@@ -41,7 +36,7 @@ add_mlir_dialect_library(MLIRModelicaTransforms
     DEPENDS
     MLIRIDAConversion
     MLIRModelicaConversion
-    marco::codegen # remove once dialects library is completed
+    marco::codegen
     marco::modeling
 
     LINK_LIBS PUBLIC

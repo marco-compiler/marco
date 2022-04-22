@@ -5,9 +5,6 @@ add_mlir_dialect_library(MLIRIDA SHARED
     Ops.cpp
     Types.cpp
 
-    ADDITIONAL_HEADER_DIRS
-    ${MARCO_INCLUDE_PUBLIC_DIR}/marco/dialects/ida
-
     DEPENDS
     MLIRIDAIncGen
 
