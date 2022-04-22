@@ -29,10 +29,12 @@ marco_add_library(codegen
 
     DEPENDS
     marco::ast
+    marco::variableFilter
     marco::utils
 
     LINK_LIBS PUBLIC
     marco::ast
+    marco::variableFilter
     marco::utils
     ${MLIR_LIBS})
 

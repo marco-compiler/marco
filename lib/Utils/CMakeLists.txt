@@ -1,8 +1,7 @@
 set(SOURCES
 	Lexer.cpp
 	LogMessage.cpp
-	SourcePosition.cpp
-	VariableFilter.cpp)
+	SourcePosition.cpp)
 
 marco_add_library(utils SHARED
 	${SOURCES}

@@ -1,14 +1,14 @@
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Regex.h"
+#include "marco/VariableFilter/VariableFilter.h"
 #include "marco/Utils/Lexer.h"
 #include "marco/Utils/LogMessage.h"
 #include "marco/Utils/NumbersLexer.h"
 #include "marco/Utils/SourcePosition.h"
-#include "marco/Utils/VariableFilter.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Regex.h"
 #include <map>
 
-using namespace marco;
-using namespace marco::vf;
+using namespace ::marco;
+using namespace ::marco::vf;
 
 //===----------------------------------------------------------------------===//
 // Lexer

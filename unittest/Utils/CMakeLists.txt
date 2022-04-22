@@ -2,8 +2,7 @@ set(SOURCES
     IRangeTest.cpp
     LexerTest.cpp
     NumbersLexerTest.cpp
-    ScopeGuard.cpp
-    VariableFilterTest.cpp)
+    ScopeGuard.cpp)
 
 marco_add_unittest(UtilsTest ${SOURCES})
 

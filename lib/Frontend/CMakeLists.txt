@@ -24,6 +24,7 @@ marco_add_library(frontend SHARED
     DEPENDS
     marco::ast
     marco::codegen
+    marco::variableFilter
     marco::utils
     MARCOFrontendOptions
 
@@ -31,6 +32,7 @@ marco_add_library(frontend SHARED
     PUBLIC marco::ast
     PRIVATE clangDriver
     PRIVATE marco::codegen
+    PRIVATE marco::variableFilter
     PRIVATE marco::utils
     PRIVATE ${MLIR_LIBS}
 

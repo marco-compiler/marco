@@ -10,7 +10,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Utils/VariableFilter.h"
+#include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
