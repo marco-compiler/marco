@@ -91,3 +91,6 @@ fabric.properties
 .vscode
 dist
 build*
+
+# LLVM
+llvm/build
