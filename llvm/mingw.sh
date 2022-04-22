@@ -11,6 +11,6 @@ rm -rf MINGW-packages
 # Run llvm PKGBUILD patching it to compile mlir beforehand
 cp marco.patch build
 cd build
-patch PKGBUILD < marco.patch
+patch PKGBUILD < llvm-mlir-mingw.patch
 makepkg -Csi --skipinteg --noconfirm --nocheck
 cd ..
