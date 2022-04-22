@@ -269,7 +269,7 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 		auto typeConverter = this->getTypeConverter();
 		mlir::Location loc = op->getLoc();
 		Adaptor adaptor(operands);
-		auto indexes = adaptor.indexes();
+		auto indexes = adaptor.indices();
 
 			assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 
@@ -311,7 +311,7 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 	{
 		mlir::Location loc = op->getLoc();
 		Adaptor adaptor(operands);
-		auto indexes = adaptor.indexes();
+		auto indexes = adaptor.indices();
 
 		assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 

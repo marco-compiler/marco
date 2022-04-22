@@ -243,13 +243,24 @@ static mlir::LogicalResult verify(LinspaceOp op)
 
 static mlir::LogicalResult verify(LoadOp op)
 {
-  auto indicesAmount = op.getIndices().size();
+  auto indicesAmount = op.indices().size();
   auto rank = op.getArrayType().getRank();
 
   if (indicesAmount != rank) {
     return op.emitOpError(
         "incorrect number of indices for load (expected " +
         std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+  }
+
+  return mlir::success();
+}
+
+static mlir::LogicalResult verify(SubscriptionOp op)
+{
+  auto indicesAmount = op.indices().size();
+
+  if (op.getSourceArrayType().slice(indicesAmount) != op.getResultArrayType()) {
+    return op.emitOpError("incompatible source array type and result sliced type");
   }
 
   return mlir::success();
@@ -342,7 +353,7 @@ static mlir::LogicalResult verify(SqrtOp op)
 
 static mlir::LogicalResult verify(StoreOp op)
 {
-  auto indicesAmount = op.getIndices().size();
+  auto indicesAmount = op.indices().size();
   auto rank = op.getArrayType().getRank();
 
   if (indicesAmount != rank) {
@@ -459,6 +470,92 @@ static void print(mlir::OpAsmPrinter& printer, MemberCreateOp op)
   printer.printOptionalAttrDict(op->getAttrs(), { "sym_name" });
   printer << op.dynamicSizes();
   printer << " : " << op.getResult().getType();
+}
+
+//===----------------------------------------------------------------------===//
+// MemberLoadOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseMemberLoadOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType member;
+  mlir::Type memberType;
+  mlir::Type resultType;
+
+  if (parser.parseOperand(member) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(memberType) ||
+      parser.resolveOperand(member, memberType, result.operands)) {
+    return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalArrow())) {
+    if (parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultType);
+  } else {
+    result.addTypes(memberType.cast<MemberType>().unwrap());
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, MemberLoadOp op)
+{
+  printer << op.getOperationName();
+  printer << " " << op.member();
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : " << op.member().getType();
+
+  if (auto resultType = op.getResult().getType(); resultType != op.getMemberType().unwrap()) {
+    printer << " -> " << resultType;
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// MemberStoreOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseMemberStoreOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  mlir::OpAsmParser::OperandType member;
+  mlir::OpAsmParser::OperandType value;
+  mlir::Type memberType;
+  mlir::Type valueType;
+
+  if (parser.parseOperand(member) ||
+      parser.parseComma() ||
+      parser.parseOperand(value) ||
+      parser.parseOptionalAttrDict(result.attributes) ||
+      parser.parseColonType(memberType) ||
+      parser.resolveOperand(member, memberType, result.operands)) {
+    return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalComma())) {
+    if (parser.parseType(valueType) ||
+        parser.resolveOperand(value, valueType, result.operands)) {
+      return mlir::failure();
+    }
+  } else if (parser.resolveOperand(value, memberType.cast<MemberType>().unwrap(), result.operands)) {
+    return mlir::failure();
+  }
+
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, MemberStoreOp op)
+{
+  printer << op.getOperationName();
+  printer << " " << op.member() << ", " << op.value();
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : " << op.member().getType();
+
+  if (auto valueType = op.value().getType(); valueType != op.getMemberType().unwrap()) {
+    printer << ", " << valueType;
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -648,6 +745,50 @@ static void print(mlir::OpAsmPrinter& printer, EquationOp op)
   printer << op.getOperationName();
   printer.printOptionalAttrDictWithKeyword(op->getAttrs());
   printer.printRegion(op.bodyRegion());
+}
+
+//===----------------------------------------------------------------------===//
+// SubscriptionOp
+//===----------------------------------------------------------------------===//
+
+static mlir::ParseResult parseSubscriptionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+  auto loc = parser.getCurrentLocation();
+  mlir::OpAsmParser::OperandType source;
+  mlir::Type sourceType;
+  llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indices;
+  llvm::SmallVector<mlir::Type, 3> indicesTypes;
+
+  if (parser.parseOperand(source) ||
+      parser.parseOperandList(indices, mlir::OpAsmParser::Delimiter::Square) ||
+      parser.parseColonType(sourceType) ||
+      parser.resolveOperand(source, sourceType, result.operands)) {
+    return mlir::failure();
+  }
+
+  indicesTypes.resize(indices.size(),  mlir::IndexType::get(result.getContext()));
+  size_t i = 0;
+
+  while (mlir::succeeded(parser.parseOptionalComma())) {
+    if (parser.parseType(indicesTypes[i++])) {
+      return mlir::failure();
+    }
+  }
+
+  if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
+    return mlir::failure();
+  }
+
+  result.addTypes(sourceType.cast<ArrayType>().slice(indices.size()));
+  return mlir::success();
+}
+
+static void print(mlir::OpAsmPrinter& printer, SubscriptionOp op)
+{
+  printer << op.getOperationName();
+  printer << op.source() << "[" << op.indices() << "]";
+  printer.printOptionalAttrDict(op->getAttrs());
+  printer << " : " << op.getResult().getType();
 }
 
 //===----------------------------------------------------------------------===//
@@ -3386,7 +3527,7 @@ namespace mlir::modelica
 
   mlir::ValueRange LoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivedOp = builder.create<LoadOp>(getLoc(), derivatives.lookup(array()), indexes());
+    auto derivedOp = builder.create<LoadOp>(getLoc(), derivatives.lookup(array()), indices());
     return derivedOp->getResults();
   }
 
@@ -4927,7 +5068,7 @@ namespace mlir::modelica
   mlir::ValueRange StoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     auto derivedOp = builder.create<StoreOp>(
-        getLoc(), derivatives.lookup(value()), derivatives.lookup(array()), indexes());
+        getLoc(), derivatives.lookup(value()), derivatives.lookup(array()), indices());
 
     return derivedOp->getResults();
   }

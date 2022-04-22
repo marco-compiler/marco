@@ -117,6 +117,17 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
 
     let description = [{
         Allocate an array on the stack.
+        The operation takes a variadic number of arguments, each of one representing
+        the size of a dynamic dimension within the desired array type. Note that
+        the amount of operands must match the number of dynamic dimensions and they
+        all must be of `index` type.
+
+        Example:
+
+        ```mlir
+        %0 = constant 5 : index
+        %1 = modelica.alloca %0 : !modelica.array<3x?x!modelica.int>
+        ```
     }];
 
     let arguments = (ins Variadic<Index>:$dynamicSizes);
@@ -134,7 +145,10 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
     ];
 
     let extraClassDeclaration = [{
-        ArrayType getArrayType() { return array().getType().cast<ArrayType>(); }
+        public:
+            ArrayType getArrayType() {
+                return array().getType().cast<ArrayType>();
+            }
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -148,6 +162,17 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
 
     let description = [{
         Allocate an array on the heap.
+        The operation takes a variadic number of arguments, each of one representing
+        the size of a dynamic dimension within the desired array type. Note that
+        the amount of operands must match the number of dynamic dimensions and they
+        all must be of `index` type.
+
+        Example:
+
+        ```mlir
+        %0 = constant 5 : index
+        %1 = modelica.alloca %0 : !modelica.array<3x?x!modelica.int>
+        ```
     }];
 
     let arguments = (ins Variadic<Index>:$dynamicSizes);
@@ -165,43 +190,39 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
     ];
 
     let extraClassDeclaration = [{
-        ArrayType getArrayType() { return array().getType().cast<ArrayType>(); }
+        public:
+            ArrayType getArrayType() {
+                return array().getType().cast<ArrayType>();
+            }
     }];
 
     let verifier = [{ return ::verify(*this); }];
 }
 
-def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
-    [ViewLikeOpInterface]>
+def Modelica_ArrayCastOp : Modelica_Op<"array_cast", [ViewLikeOpInterface]>
 {
     let summary = "Cast operation for array types.";
 
     let description = [{
-        This operation should be used only for two purposes: the first one
-        is for function calls, to remove the allocation scope before passing
-        the array as arguments to the functions, or to generalize the sizes
-        to unknown ones; the second one is to cast from an array with unknown
-        allocation scope to an array with a known one.
-        The operation is NOT intended to be used to change the allocation scope
-        between known ones (i.e. stack -> heap or heap -> stack), to cast the
-        element type to a different one or to to specialize the shape to a
-        fixed one.
+        This operation should be used for only one purpose, that is to generalize the
+        dimensions of an array. This can be done by either converting some dimensions
+        to unknown ones or by converting the whole array to an unsized one.
+        The operation is NOT intended to cast the element type to a different one or
+        to to specialize the shape to a an array with dynamic dimensions.
 
         Correct usage examples:
 
         ```mlir
-        %0 = ... : !modelica.array<heap, 3x2x!modelica.int>
-        %1 = modelica.array_cast %0 : !modelica.array<heap, 3x2x!modelica.int> -> !modelica.array<3x2x!modelica.int>
-        %2 = modelica.array_cast %0 : !modelica.array<heap, 3x2x!modelica.int> -> !modelica.array<heap, ?x?x!modelica.int>
-        %3 = modelica.array_cast %0 : !modelica.array<heap, 3x2x!modelica.int> -> !modelica.array<*x!modelica.int>
+        %0 = ... : !modelica.array<3x2x!modelica.int>
+        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<?x?x!modelica.int>
+        %3 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<*x!modelica.int>
         ```
 
         Wrong usage examples:
 
         ```mlir
-        %0 = ... : !modelica.array<heap, 3x2x!modelica.int>
-        %1 = modelica.array_cast %0 : !modelica.array<heap, 3x2x!modelica.int> -> !modelica.array<heap, 3x2x!modelica.real>
-        %2 = modelica.array_cast %0 : !modelica.array<heap, 3x2x!modelica.int> -> !modelica.array<stack, 3x2x!modelica.int>
+        %0 = ... : !modelica.array<3x2x!modelica.int>
+        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<3x2x!modelica.real>
         ```
     }];
 
@@ -215,9 +236,14 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast",
     let verifier = [{ return ::verify(*this); }];
 
     let extraClassDeclaration = [{
-        Value getViewSource() {
-            return source();
-        }
+        public:
+            //===------------------------------------------------------------------===//
+            // ViewLikeOpInterface methods
+            //===------------------------------------------------------------------===//
+
+            Value getViewSource() {
+                return source();
+            }
     }];
 }
 
@@ -260,6 +286,7 @@ def Modelica_DimOp : Modelica_Op<"dim", []>
         Get the size of an array dimension. The operation is trivial in case of
         statically shaped arrays, while it is more useful in case of dimensions
         that are unknown at compile-time.
+        The result value has `index` type.
 
         Example:
 
@@ -270,11 +297,11 @@ def Modelica_DimOp : Modelica_Op<"dim", []>
         ```
     }];
 
-    let arguments = (ins AnyType:$array, Index:$dimension);
-    let results = (outs AnyType:$result);
+    let arguments = (ins AnyArray:$array, Index:$dimension);
+    let results = (outs Index:$result);
 
     let assemblyFormat = [{
-        $array `,` $dimension attr-dict `:` type($array) `->` type($result)
+        $array `,` $dimension attr-dict `:` type($array)
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -287,19 +314,19 @@ def Modelica_DimOp : Modelica_Op<"dim", []>
     ];
 }
 
-def Modelica_FreeOp : Modelica_Op<"free",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+def Modelica_FreeOp : Modelica_Op<"free", [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Deallocate an heap-allocated array.";
 
     let description = [{
         Deallocate an heap-allocated array.
+        The array must have been created using the `modelica.alloc` operation.
 
         Example:
 
         ```mlir
-        %array = ... : !modelica.array<heap, ?x!modelica.int>
-        modelica.free %array : !modelica.array<heap, ?x!modelica.int>
+        %array = ... : !modelica.array<?x!modelica.int>
+        modelica.free %array : !modelica.array<?x!modelica.int>
         ```
     }];
 
@@ -324,7 +351,7 @@ def Modelica_LoadOp : Modelica_Op<"load",
 
     let description = [{
         Load a value from an array location given by indices. The number of
-        arguments provided within brackets needs to match the rank of the array.
+        arguments provided within brackets must match the rank of the array.
 
         Example:
 
@@ -336,11 +363,11 @@ def Modelica_LoadOp : Modelica_Op<"load",
         ```
     }];
 
-    let arguments = (ins AnyArray:$array, Variadic<Index>:$indexes);
+    let arguments = (ins AnyArray:$array, Variadic<Index>:$indices);
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $array `[` $indexes `]` attr-dict `:` type($array)
+        $array `[` $indices `]` attr-dict `:` type($array)
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -355,14 +382,11 @@ def Modelica_LoadOp : Modelica_Op<"load",
     ];
 
     let extraClassDeclaration = [{
-        ArrayType getArrayType() {
-            return array().getType().cast<ArrayType>();
-        }
-
-        operand_range getIndices() {
-            return { operand_begin() + 1, operand_end() };
-        }
-      }];
+        public:
+            ArrayType getArrayType() {
+                return array().getType().cast<ArrayType>();
+            }
+    }];
 }
 
 def Modelica_StoreOp : Modelica_Op<"store",
@@ -375,9 +399,9 @@ def Modelica_StoreOp : Modelica_Op<"store",
     let summary = "Store a value into an array.";
 
     let description = [{
-        Store a value to an array location given by indices. The value stored should
+        Store a value to an array location given by indices. The value stored must
         have the same type as the elemental type of the array. The number of
-        arguments provided within brackets needs to match the rank of the array.
+        arguments provided within brackets must match the rank of the array.
 
         Example:
 
@@ -393,25 +417,22 @@ def Modelica_StoreOp : Modelica_Op<"store",
     let arguments = (ins
         AnyType:$value,
         AnyArray:$array,
-        Variadic<Index>:$indexes);
+        Variadic<Index>:$indices);
 
     let results = (outs);
 
     let assemblyFormat = [{
-        $array `[` $indexes `]` `,` $value attr-dict `:` type($array)
+        $array `[` $indices `]` `,` $value attr-dict `:` type($array)
     }];
 
     let verifier = [{ return ::verify(*this); }];
 
     let extraClassDeclaration = [{
-        ArrayType getArrayType() {
-            return array().getType().cast<ArrayType>();
-        }
-
-        operand_range getIndices() {
-            return { operand_begin() + 2, operand_end() };
-        }
-      }];
+        public:
+            ArrayType getArrayType() {
+                return array().getType().cast<ArrayType>();
+            }
+    }];
 }
 
 def Modelica_SubscriptionOp : Modelica_Op<"subscription",
@@ -434,12 +455,13 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
         ```
     }];
 
-    let arguments = (ins AnyType:$source, Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
+    let arguments = (ins AnyArray:$source, Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
     let results = (outs AnyType:$result);
 
-    let assemblyFormat = [{
-        $source `[` $indices `]` attr-dict `:` `(` type($source) `,` type($indices) `)` `->` type($result)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
+
+    let verifier = [{ return ::verify(*this); }];
 
     let builders = [
         OpBuilder<(ins "Value":$source, "ValueRange":$indices), [{
@@ -449,17 +471,22 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
     ];
 
     let extraClassDeclaration = [{
-        ArrayType getSourceArrayType() {
-            return source().getType().cast<ArrayType>();
-        }
+        public:
+            ArrayType getSourceArrayType() {
+                return source().getType().cast<ArrayType>();
+            }
 
-        ArrayType getResultArrayType() {
-            return result().getType().cast<ArrayType>();
-        }
+            ArrayType getResultArrayType() {
+                return result().getType().cast<ArrayType>();
+            }
 
-        Value getViewSource() {
-            return source();
-        }
+            //===------------------------------------------------------------------===//
+            // ViewLikeOpInterface methods
+            //===------------------------------------------------------------------===//
+
+            Value getViewSource() {
+                return source();
+            }
     }];
 }
 
@@ -467,22 +494,22 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 // Member operations
 //===----------------------------------------------------------------------===//
 
-def Modelica_MemberCreateOp : Modelica_Op<"member_create",
-    [Symbol]>
+def Modelica_MemberCreateOp : Modelica_Op<"member_create", [Symbol]>
 {
     let summary = "Declare a member of a class.";
 
     let description = [{
-        Create a reduced-rank view of an array.
+        The operation is used to declare a member of a class.
+        It takes the name of the symbol, its type and optional values
+        indicating the sizes of the unknown dimensions, in a way similar
+        to `modelica.alloca` and `modelica.alloc`.
+        The member value can be then read and written by means of the
+        `modelica.member_load` and `modelica.member_store` operations.
 
         Example:
 
         ```mlir
-        %array = ... : !modelica.array<3x5x4x!modelica.int>
-        %c1 : constant 1 : index
-        %c2 : constant 2 : index
-        %view = modelica.subscription $array[%c1, %c2] : !modelica.array<3x5x4x!modelica.int>
-        // %view has type !modelica.array<4x!modelica.int>
+        %0 = modelica.member_create @x : !modelica.member<3x5x4x!modelica.int>
         ```
     }];
 
@@ -493,14 +520,14 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create",
     let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name, "::mlir::modelica::MemberType":$memberType, "ValueRange":$dynamicSizes), [{
+        OpBuilder<(ins "StringRef":$name, "MemberType":$memberType, "ValueRange":$dynamicSizes), [{
             auto nameAttr = $_builder.getStringAttr(name);
             build($_builder, $_state, memberType, nameAttr, dynamicSizes);
     }]>];
 
     let extraClassDeclaration = [{
         public:
-            llvm::StringRef name() {
+            StringRef name() {
                 return sym_name();
             }
 
@@ -523,10 +550,7 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create",
 }
 
 def Modelica_MemberLoadOp : Modelica_Op<"member_load",
-    [TypesMatchWith<"result type matches the type wrapped by 'member'",
-                          "member", "result",
-                          "$_self.cast<MemberType>().unwrap()">,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Load the data held by a class member.";
 
@@ -544,20 +568,17 @@ def Modelica_MemberLoadOp : Modelica_Op<"member_load",
         }]>
     ];
 
-    let assemblyFormat = [{
-        attr-dict $member `:` type($member) `->` type($result)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let extraClassDeclaration = [{
-        MemberType getMemberType() {
-            return member().getType().cast<MemberType>();
-        }
-      }];
+        public:
+            MemberType getMemberType() {
+                return member().getType().cast<MemberType>();
+            }
+    }];
 }
 
-// TypesMatchWith<"value type matches the type wrapped by 'member'",
-//                                  "member", "value",
-//                                  "$_self.cast<MemberType>().unwrap()">,
 def Modelica_MemberStoreOp : Modelica_Op<"member_store",
     [DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
@@ -570,15 +591,14 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
     let arguments = (ins AnyMember:$member, AnyType:$value);
     let results = (outs);
 
-    let assemblyFormat = [{
-        attr-dict $member `,` $value `:` type($member) `,` type($value)
-    }];
+    let printer = [{ return ::print(p, *this); }];
+    let parser = [{ return ::parse$cppClass(parser, result); }];
 
     let extraClassDeclaration = [{
         MemberType getMemberType() {
             return member().getType().cast<MemberType>();
         }
-      }];
+    }];
 }
 
 //===----------------------------------------------------------------------===//
@@ -586,7 +606,8 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
 //===----------------------------------------------------------------------===//
 
 def Modelica_ConstantOp : Modelica_Op<"constant",
-    [ConstantLike, NoSideEffect,
+    [ConstantLike,
+    NoSideEffect,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Constant.";
@@ -598,7 +619,7 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
         Example:
 
         ```mlir
-        %0 = modelica.constant #modelica.int<3> : !modelica.int
+        %0 = modelica.constant #modelica.int<3>
         ```
     }];
 
@@ -638,7 +659,7 @@ def Modelica_NegateOp : Modelica_Op<"neg",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand  attr-dict `:` type($operand) `->` type($result)
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let verifier = [{ return ::verify(*this); }];
@@ -693,7 +714,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
     let summary = "Element-wise addition.";
 
     let description = [{
-        The operation computes the element-wise sum of a scalar and an array value.
+        The operation computes the element-wise sum of two values.
         It takes two operands and returns one result.
 
         Example:
@@ -701,7 +722,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
         ```mlir
         %0 = ... : !modelica.array<?x!modelica.int>
         %1 = ... : !modelica.real
-        %2 = modelica.add %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.real) -> !modelica.array<?x!modelica.real>
+        %2 = modelica.add_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.real) -> !modelica.array<?x!modelica.real>
         ```
     }];
 
@@ -762,7 +783,16 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     let summary = "Element-wise subtraction.";
 
     let description = [{
-        TODO
+        The operation computes the element-wise difference of two values.
+        It takes two operands and returns one result.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.array<?x!modelica.int>
+        %1 = ... : !modelica.real
+        %2 = modelica.sub_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.real) -> !modelica.array<?x!modelica.real>
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -791,6 +821,14 @@ def Modelica_MulOp : Modelica_Op<"mul",
         The operation computes the product of two values.
         It takes two operands and returns one result. Array operands are also allowed,
         but they must respect the Modelica specification.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.array<3x!modelica.int>
+        %1 = ... : !modelica.array<3x!modelica.int>
+        %2 = modelica.mul %0, %1 : (!modelica.array<3x!modelica.int>, !modelica.array<3x!modelica.int>) -> !modelica.int
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -817,7 +855,16 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     let summary = "Element-wise multiplication.";
 
     let description = [{
-        TODO
+        The operation computes the element-wise product of two values.
+        It takes two operands and returns one result.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.array<?x!modelica.int>
+        %1 = ... : !modelica.int
+        %2 = modelica.mul_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.int) -> !modelica.array<?x!modelica.int>
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -879,7 +926,16 @@ def Modelica_DivEWOp : Modelica_Op<"div_ew",
     let summary = "Element-wise division.";
 
     let description = [{
-        TODO
+        The operation computes the element-wise division of two values.
+        It takes two operands and returns one result.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.array<?x!modelica.int>
+        %1 = ... : !modelica.int
+        %2 = modelica.div_ew %0, %1 : (!modelica.array<?x!modelica.int>, !modelica.int) -> !modelica.array<?x!modelica.int>
+        ```
     }];
 
     let arguments = (ins AnyType:$lhs, AnyType:$rhs);
@@ -941,7 +997,8 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
 
 // Base class for comparison operations.
 class Modelica_ComparisonOp<string mnemonic, list<OpTrait> traits = []> :
-    Modelica_Op<mnemonic, traits> {
+    Modelica_Op<mnemonic, traits>
+{
     let arguments = (ins
         AnyModelicaScalar:$lhs,
         AnyModelicaScalar:$rhs);
@@ -2282,7 +2339,7 @@ def Modelica_FunctionOp : Modelica_Op<"function",
 
     let extraClassDeclaration = [{
         public:
-            llvm::StringRef name() {
+            StringRef name() {
                 return sym_name();
             }
 
@@ -2377,7 +2434,7 @@ def Modelica_CallOp : Modelica_Op<"call",
             $_state.addAttribute("callee", callee);
             $_state.addTypes(results);
         }]>,
-        OpBuilder<(ins "::llvm::StringRef":$callee, "TypeRange":$results, CArg<"ValueRange", "{}">:$args), [{
+        OpBuilder<(ins "StringRef":$callee, "TypeRange":$results, CArg<"ValueRange", "{}">:$args), [{
             build($_builder, $_state, $_builder.getSymbolRefAttr(callee), results, args);
         }]>
     ];
@@ -2451,7 +2508,7 @@ def Modelica_DerFunctionOp : Modelica_Op<"der_function",
 
     let extraClassDeclaration = [{
         public:
-            llvm::StringRef name() {
+            StringRef name() {
                 return sym_name();
             }
 

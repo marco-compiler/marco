@@ -97,20 +97,6 @@ namespace
     }
   };
 
-  struct StoreOpPattern : public mlir::OpRewritePattern<StoreOp>
-  {
-    using mlir::OpRewritePattern<StoreOp>::OpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(StoreOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      mlir::Location location = op->getLoc();
-      mlir::Type elementType = op.array().getType().cast<ArrayType>().getElementType();
-      mlir::Value value = rewriter.create<CastOp>(location, elementType, value);
-      rewriter.replaceOpWithNewOp<StoreOp>(op, value, op.array(), op.indexes());
-      return mlir::success();
-    }
-  };
-
   struct ConditionOpPattern : public mlir::OpRewritePattern<ConditionOp>
   {
     using mlir::OpRewritePattern<ConditionOp>::OpRewritePattern;
@@ -131,7 +117,6 @@ static void populateExplicitCastInsertionPatterns(
 	patterns.insert<
 	    CallOpScalarPattern,
 			SubscriptionOpPattern,
-			StoreOpPattern,
 			ConditionOpPattern>(context);
 }
 
@@ -163,11 +148,6 @@ namespace
         return llvm::all_of(indexes, [](mlir::Value index) {
           return index.getType().isa<mlir::IndexType>();
         });
-      });
-
-      addDynamicallyLegalOp<StoreOp>([](StoreOp op) {
-        mlir::Type elementType = op.array().getType().cast<ArrayType>().getElementType();
-        return op.value().getType() == elementType;
       });
 
       addDynamicallyLegalOp<ConditionOp>([](ConditionOp op) {

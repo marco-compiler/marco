@@ -15,7 +15,7 @@ namespace marco::codegen
     // Check that all the values are scalars
     [[maybe_unused]] auto isScalarFn = [](mlir::Value value) {
       auto type = value.getType();
-      return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
+      return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>() || type.isa<mlir::IndexType>();
     };
 
     assert(llvm::all_of(getTerminator().lhsValues(), isScalarFn));
@@ -135,7 +135,7 @@ namespace marco::codegen
           } else {
             auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
             mappedRhs = builder.create<CastOp>(loc, mappedLhs.getType(), mappedRhs);
-            builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indexes());
+            builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indices());
           }
         }
       } else if (mlir::isa<EquationSideOp>(op)) {

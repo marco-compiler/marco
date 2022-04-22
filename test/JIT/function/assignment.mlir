@@ -64,13 +64,13 @@ func @arraySliceAssignment() -> () {
     %5 = modelica.constant #modelica.int<6>
     modelica.store %z[%c1], %5 : !modelica.array<2x!modelica.int>
 
-    %slice0 = modelica.subscription %t[%c0] : (!modelica.array<3x2x!modelica.int>, index) -> !modelica.array<2x!modelica.int>
+    %slice0 = modelica.subscription %t[%c0] : !modelica.array<3x2x!modelica.int>
     modelica.assignment %slice0, %x : !modelica.array<2x!modelica.int>, !modelica.array<2x!modelica.int>
 
-    %slice1 = modelica.subscription %t[%c1] : (!modelica.array<3x2x!modelica.int>, index) -> !modelica.array<2x!modelica.int>
+    %slice1 = modelica.subscription %t[%c1] : !modelica.array<3x2x!modelica.int>
     modelica.assignment %slice1, %y : !modelica.array<2x!modelica.int>, !modelica.array<2x!modelica.int>
 
-    %slice2 = modelica.subscription %t[%c2] : (!modelica.array<3x2x!modelica.int>, index) -> !modelica.array<2x!modelica.int>
+    %slice2 = modelica.subscription %t[%c2] : !modelica.array<3x2x!modelica.int>
     modelica.assignment %slice2, %z : !modelica.array<2x!modelica.int>, !modelica.array<2x!modelica.int>
 
     modelica.print %t : !modelica.array<3x2x!modelica.int>

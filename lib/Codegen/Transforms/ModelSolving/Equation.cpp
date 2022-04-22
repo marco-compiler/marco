@@ -80,7 +80,7 @@ static std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndex
 
   while (op != nullptr && mlir::isa<LoadOp, SubscriptionOp>(op)) {
     if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-      auto loadIndexes = loadOp.indexes();
+      auto loadIndexes = loadOp.indices();
 
       for (size_t i = 0, e = loadIndexes.size(); i < e; ++i) {
         indexes.push_back(loadIndexes[e - i - 1]);
@@ -307,7 +307,7 @@ namespace marco::codegen
     };
 
     if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-      processIndexesFn(loadOp.indexes());
+      processIndexesFn(loadOp.indices());
       searchAccesses(accesses, loadOp.array(), dimensionAccesses, std::move(path));
     } else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
       processIndexesFn(subscriptionOp.indices());

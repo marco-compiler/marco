@@ -122,7 +122,7 @@ static mlir::LogicalResult removeDerivatives(
       assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
 
       if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
-        appendIndexesFn(subscriptions, loadOp.indexes());
+        appendIndexesFn(subscriptions, loadOp.indices());
         operand = loadOp.array();
       } else {
         auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);

@@ -20,16 +20,16 @@ modelica.function @foo : (!modelica.int) -> (!modelica.int) {
     %0 = modelica.member_create @x : !modelica.member<!modelica.int, input>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int, output>
 
-    %2 = modelica.member_load %0 : !modelica.member<!modelica.int, input> -> !modelica.int
+    %2 = modelica.member_load %0 : !modelica.member<!modelica.int, input>
     %3 = modelica.constant #modelica.int<0>
 
     %4 = modelica.eq %2, %3 : (!modelica.int, !modelica.int) -> !modelica.bool
 
     modelica.if (%4 : !modelica.bool) {
         %5 = modelica.constant #modelica.int<1>
-        modelica.member_store %1, %5 : !modelica.member<!modelica.int, output>, !modelica.int
+        modelica.member_store %1, %5 : !modelica.member<!modelica.int, output>
     } else {
         %5 = modelica.constant #modelica.int<2>
-        modelica.member_store %1, %5 : !modelica.member<!modelica.int, output>, !modelica.int
+        modelica.member_store %1, %5 : !modelica.member<!modelica.int, output>
     }
 }

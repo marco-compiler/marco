@@ -294,7 +294,7 @@ namespace marco::codegen
                 } else {
                   auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
                   mappedRhs = builder.create<CastOp>(loc, mappedLhs.getType(), mappedRhs);
-                  builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indexes());
+                  builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indices());
                 }
               }
             } else if (mlir::isa<EquationSideOp>(op)) {
