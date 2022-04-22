@@ -497,11 +497,8 @@ namespace
 
     void print() const override
     {
-      std::cerr << "Time spent in computing the initial conditions: "
-                << initialConditionsTimer.totalElapsedTime() << " ms\n";
-
-      std::cerr << "Time spent in IDA steps: "
-                << stepsTimer.totalElapsedTime() << " ms\n";
+      std::cerr << "Time spent on computing the initial conditions: " << initialConditionsTimer.totalElapsedTime() << " ms\n";
+      std::cerr << "Time spent on IDA steps: " << stepsTimer.totalElapsedTime() << " ms\n";
     }
 
     Timer initialConditionsTimer;

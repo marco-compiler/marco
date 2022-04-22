@@ -5,14 +5,14 @@
 #include "marco/Runtime/Mangling.h"
 #include <cstdint>
 
-class IOConfig
+class PrinterConfig
 {
   public:
     bool scientificNotation = false;
     unsigned int precision = 9;
 };
 
-IOConfig& ioConfig();
+PrinterConfig& printerConfig();
 
 RUNTIME_FUNC_DECL(print, void, bool)
 RUNTIME_FUNC_DECL(print, void, int32_t)

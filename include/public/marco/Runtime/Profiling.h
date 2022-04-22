@@ -1,9 +1,9 @@
 #ifndef MARCO_RUNTIME_PROFILING_H
 #define MARCO_RUNTIME_PROFILING_H
 
-#include <string>
-
 #ifdef MARCO_PROFILING
+
+#include <string>
 #include <chrono>
 
 class Timer

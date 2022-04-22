@@ -40,7 +40,7 @@ namespace
 
         std::cerr << "Total amount of heap allocated memory: " << totalHeapMemory << " bytes\n";
         std::cerr << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
-        std::cerr << "Time spent in heap memory management: " << time() << " ms\n";
+        std::cerr << "Time spent on heap memory management: " << time() << " ms\n";
       }
 
       void malloc(void* address, int64_t bytes)
