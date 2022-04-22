@@ -79,6 +79,14 @@ namespace marco::codegen::lowering
         symbolTable().insert(member.value()->getName(), Reference::memory(&builder(), modelOp.bodyRegion().getArgument(member.index())));
       }
 
+      // Members with an assigned value are conceptually the same as equations performing that assignment.
+      for (const auto& member : model.getMembers()) {
+        if (member->hasInitializer()) {
+          createMemberTrivialEquation(modelOp, *member, *member->getInitializer());
+        }
+      }
+
+      // Create the equations
       for (const auto& equation : model.getEquations()) {
         lower(*equation);
       }
@@ -116,9 +124,6 @@ namespace marco::codegen::lowering
       } else {
         reference.set(*values[0]);
       }
-    } else if (member.hasInitializer()) {
-      mlir::Value value = *lower(*member.getInitializer())[0];
-      reference.set(value);
     } else {
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(arrayType.getElementType()));
@@ -128,5 +133,29 @@ namespace marco::codegen::lowering
         reference.set(zero);
       }
     }
+  }
+
+  void ModelLowerer::createMemberTrivialEquation(
+      ModelOp modelOp, const ast::Member& member, const ast::Expression& expression)
+  {
+    assert(member.hasInitializer());
+    auto location = loc(expression.getLocation());
+
+    mlir::OpBuilder::InsertionGuard guard(builder());
+    builder().setInsertionPointToEnd(modelOp.bodyBlock());
+
+    auto equationOp = builder().create<EquationOp>(location);
+    assert(equationOp.bodyRegion().empty());
+    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.bodyRegion());
+    builder().setInsertionPointToStart(equationBodyBlock);
+
+    // Right-hand side
+    auto rhs = lower(expression);
+    assert(rhs.size() == 1);
+
+    // Create the assignment
+    mlir::Value lhsTuple = builder().create<EquationSideOp>(location, *symbolTable().lookup(member.getName()));
+    mlir::Value rhsTuple = builder().create<EquationSideOp>(location, *rhs[0]);
+    builder().create<EquationSidesOp>(location, lhsTuple, rhsTuple);
   }
 }
