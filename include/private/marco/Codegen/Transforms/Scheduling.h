@@ -5,6 +5,8 @@
 
 namespace marco::codegen
 {
+  /// Create a pass performing the scheduling process on a matched model.
+  /// The pass is intended to be used only for debugging purpose.
   std::unique_ptr<mlir::Pass> createSchedulingPass();
 
   inline void registerSchedulingPass()

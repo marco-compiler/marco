@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --matching | FileCheck %s
 
-// CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 1]], matched_path = ["R"]}
-// CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 1]], matched_path = ["L"]}
+// CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
+// CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 0]], matched_path = ["L"]}
 
 modelica.model {
     %0 = modelica.member_create @x : !modelica.member<!modelica.int>
@@ -28,8 +28,8 @@ modelica.model {
 
 // -----
 
-// CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 1]], matched_path = ["R"]}
-// CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 1]], matched_path = ["L"]}
+// CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
+// CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 0]], matched_path = ["L"]}
 
 modelica.model {
     %0 = modelica.member_create @x : !modelica.member<2x!modelica.int>

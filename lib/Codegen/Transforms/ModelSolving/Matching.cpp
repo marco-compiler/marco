@@ -174,7 +174,6 @@ namespace marco::codegen
         auto accessedIndices = access.getAccessFunction().map(iterationRanges);
 
         if (accessedIndices != writtenIndices) {
-          assert(!accessedIndices.overlaps(writtenIndices));
           result.push_back(access);
         }
       }

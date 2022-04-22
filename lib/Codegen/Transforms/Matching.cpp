@@ -76,7 +76,7 @@ namespace
           for (size_t i = 0; i < iterationRanges.rank(); ++i) {
             ranges.push_back(builder.getArrayAttr({
               builder.getI64IntegerAttr(iterationRanges[i].getBegin()),
-              builder.getI64IntegerAttr(iterationRanges[i].getEnd())
+              builder.getI64IntegerAttr(iterationRanges[i].getEnd() - 1)
             }));
           }
 

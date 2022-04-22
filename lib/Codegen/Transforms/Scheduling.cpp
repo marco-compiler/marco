@@ -60,24 +60,36 @@ namespace
 
         for (auto& equation : discoverEquations(modelOp, matchedModel.getVariables())) {
           // Matched indices
-          auto matchedIndices = equation->getOperation()->getAttr("matched_indices").cast<mlir::ArrayAttr>();
           std::vector<modeling::Range> ranges;
 
-          for (const auto& range : matchedIndices) {
-            auto rangeAttr = range.cast<mlir::ArrayAttr>();
-            assert(rangeAttr.size() == 2);
+          if (equation->getOperation()->hasAttrOfType<mlir::ArrayAttr>("matched_indices")) {
+            auto matchedIndices = equation->getOperation()->getAttr("matched_indices").cast<mlir::ArrayAttr>();
 
-            ranges.emplace_back(rangeAttr[0].cast<mlir::IntegerAttr>().getInt(), rangeAttr[1].cast<mlir::IntegerAttr>().getInt());
+            for (const auto& range : matchedIndices) {
+              auto rangeAttr = range.cast<mlir::ArrayAttr>();
+              assert(rangeAttr.size() == 2);
+
+              ranges.emplace_back(
+                  rangeAttr[0].cast<mlir::IntegerAttr>().getInt(),
+                  rangeAttr[1].cast<mlir::IntegerAttr>().getInt() + 1);
+            }
+          } else {
+            for (size_t i = 0; i < equation->getNumOfIterationVars(); ++i) {
+              ranges.push_back(equation->getIterationRanges()[i]);
+            }
           }
 
           // Matched path
-          auto matchedPath = equation->getOperation()->getAttr("matched_path").cast<mlir::ArrayAttr>();
-          EquationPath::EquationSide side = matchedPath[0].cast<mlir::StringAttr>().getValue() == "L" ? EquationPath::EquationSide::LEFT : EquationPath::EquationSide::RIGHT;
-
+          EquationPath::EquationSide side = marco::codegen::EquationPath::LEFT;
           std::vector<size_t> pathIndices;
 
-          for (size_t i = 1; i < matchedPath.size(); ++i) {
-            pathIndices.push_back(matchedPath[i].cast<mlir::IntegerAttr>().getInt());
+          if (equation->getOperation()->hasAttrOfType<mlir::ArrayAttr>("matched_path")) {
+            auto matchedPath = equation->getOperation()->getAttr("matched_path").cast<mlir::ArrayAttr>();
+            side = matchedPath[0].cast<mlir::StringAttr>().getValue() == "L" ? EquationPath::EquationSide::LEFT : EquationPath::EquationSide::RIGHT;
+
+            for (size_t i = 1; i < matchedPath.size(); ++i) {
+              pathIndices.push_back(matchedPath[i].cast<mlir::IntegerAttr>().getInt());
+            }
           }
 
           // Create the matched equation
@@ -131,7 +143,7 @@ namespace
               for (size_t i = 0; i < iterationRanges.rank(); ++i) {
                 ranges.push_back(builder.getArrayAttr({
                     builder.getI64IntegerAttr(iterationRanges[i].getBegin()),
-                    builder.getI64IntegerAttr(iterationRanges[i].getEnd())
+                    builder.getI64IntegerAttr(iterationRanges[i].getEnd() - 1)
                 }));
               }
 

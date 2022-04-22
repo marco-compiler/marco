@@ -5,6 +5,8 @@
 
 namespace marco::codegen
 {
+  /// Create a pass performing the matching process on a model.
+  /// The pass is intended to be used only for debugging purpose.
   std::unique_ptr<mlir::Pass> createMatchingPass();
 
   inline void registerMatchingPass()

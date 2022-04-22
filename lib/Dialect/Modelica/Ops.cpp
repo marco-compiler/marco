@@ -690,7 +690,6 @@ static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::Ope
   long to;
 
   if (parser.parseOperand(induction) ||
-      parser.resolveOperand(induction, builder.getIndexType(), result.operands) ||
       parser.parseEqual() ||
       parser.parseInteger(from) ||
       parser.parseKeyword("to") ||
@@ -701,7 +700,7 @@ static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::Ope
   result.attributes.append("from", builder.getIndexAttr(from));
   result.attributes.append("to", builder.getIndexAttr(to));
 
-  if (parser.parseOptionalAttrDict(result.attributes)) {
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
     return mlir::failure();
   }
 
@@ -717,7 +716,7 @@ static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::Ope
 static void print(mlir::OpAsmPrinter& printer, ForEquationOp op)
 {
   printer << op.getOperationName() << " " << op.induction() << " = " << op.from() << " to " << op.to();
-  printer.printOptionalAttrDict(op->getAttrs(), {"from", "to"});
+  printer.printOptionalAttrDictWithKeyword(op->getAttrs(), {"from", "to"});
   printer.printRegion(op.bodyRegion(), false);
 }
 
