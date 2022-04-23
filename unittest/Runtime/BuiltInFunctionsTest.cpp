@@ -1,7 +1,6 @@
+#include "marco/Runtime/BuiltInFunctions.h"
 #include "gtest/gtest.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Runtime/BuiltInFunctions.h"
-#include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cmath>
 #include <numeric>
 
@@ -12,8 +11,7 @@ TEST(Runtime, abs_i1)
 {
 	std::array<bool, 2> data = { false, true };
 
-	for (const auto& element : data)
-	{
+	for (const auto& element : data) {
 		auto result = NAME_MANGLED(abs, bool, bool)(element);
 		EXPECT_EQ(result, element);
 	}
@@ -23,8 +21,7 @@ TEST(Runtime, abs_i32)
 {
 	std::array<int32_t, 3> data = { -5, 0, 5 };
 
-	for (const auto& element : data)
-	{
+	for (const auto& element : data) {
 		auto result = NAME_MANGLED(abs, int32_t, int32_t)(element);
 		EXPECT_EQ(result, std::abs(element));
 	}
@@ -34,8 +31,7 @@ TEST(Runtime, abs_i64)
 {
 	std::array<int64_t, 3> data = { -5, 0, 5 };
 
-	for (const auto& element : data)
-	{
+	for (const auto& element : data) {
 		auto result = NAME_MANGLED(abs, int64_t, int64_t)(element);
 		EXPECT_EQ(result, std::abs(element));
 	}
@@ -45,8 +41,7 @@ TEST(Runtime, abs_f32)
 {
 	std::array<float, 3> data = { -5, 0, 5 };
 
-	for (const auto& element : data)
-	{
+	for (const auto& element : data) {
 		auto result = NAME_MANGLED(abs, float, float)(element);
 		EXPECT_EQ(result, std::abs(element));
 	}
@@ -56,8 +51,7 @@ TEST(Runtime, abs_f64)
 {
 	std::array<double, 3> data = { -5, 0, 5 };
 
-  for (const auto& element : data)
-  {
+  for (const auto& element : data) {
     auto result = NAME_MANGLED(abs, double, double)(element);
     EXPECT_EQ(result, std::abs(element));
   }
@@ -187,9 +181,11 @@ TEST(Runtime, diagonalSquareMatrix_i1_i1)
 
 	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : false);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : false);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i1_i32)	 // NOLINT
@@ -206,9 +202,11 @@ TEST(Runtime, diagonalSquareMatrix_i1_i32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int32_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i1_i64)	 // NOLINT
@@ -225,9 +223,11 @@ TEST(Runtime, diagonalSquareMatrix_i1_i64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int64_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i1_f32)	 // NOLINT
@@ -244,9 +244,11 @@ TEST(Runtime, diagonalSquareMatrix_i1_f32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i1_f64)	 // NOLINT
@@ -263,9 +265,11 @@ TEST(Runtime, diagonalSquareMatrix_i1_f64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i32_i1)	 // NOLINT
@@ -282,9 +286,11 @@ TEST(Runtime, diagonalSquareMatrix_i32_i1)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(bool))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i32_i32)	 // NOLINT
@@ -301,9 +307,11 @@ TEST(Runtime, diagonalSquareMatrix_i32_i32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(int32_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i32_i64)	 // NOLINT
@@ -320,9 +328,11 @@ TEST(Runtime, diagonalSquareMatrix_i32_i64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(int64_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i32_f32)	 // NOLINT
@@ -339,9 +349,11 @@ TEST(Runtime, diagonalSquareMatrix_i32_f32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(float))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i32_f64)	 // NOLINT
@@ -358,9 +370,11 @@ TEST(Runtime, diagonalSquareMatrix_i32_f64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(double))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i64_i1)	 // NOLINT
@@ -377,9 +391,11 @@ TEST(Runtime, diagonalSquareMatrix_i64_i1)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(bool))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i64_i32)	 // NOLINT
@@ -396,9 +412,11 @@ TEST(Runtime, diagonalSquareMatrix_i64_i32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(int32_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i64_i64)	 // NOLINT
@@ -415,9 +433,11 @@ TEST(Runtime, diagonalSquareMatrix_i64_i64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(int64_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i64_f32)	 // NOLINT
@@ -434,9 +454,11 @@ TEST(Runtime, diagonalSquareMatrix_i64_f32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(float))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_i64_f64)	 // NOLINT
@@ -453,9 +475,11 @@ TEST(Runtime, diagonalSquareMatrix_i64_f64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(double))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f32_i1)	 // NOLINT
@@ -472,9 +496,11 @@ TEST(Runtime, diagonalSquareMatrix_f32_i1)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f32_i32)	 // NOLINT
@@ -491,9 +517,11 @@ TEST(Runtime, diagonalSquareMatrix_f32_i32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int32_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f32_i64)	 // NOLINT
@@ -510,9 +538,11 @@ TEST(Runtime, diagonalSquareMatrix_f32_i64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int64_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f32_f32)	 // NOLINT
@@ -529,9 +559,11 @@ TEST(Runtime, diagonalSquareMatrix_f32_f32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f32_f64)	 // NOLINT
@@ -548,9 +580,11 @@ TEST(Runtime, diagonalSquareMatrix_f32_f64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f64_i1)	 // NOLINT
@@ -567,9 +601,11 @@ TEST(Runtime, diagonalSquareMatrix_f64_i1)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f64_i32)	 // NOLINT
@@ -586,9 +622,11 @@ TEST(Runtime, diagonalSquareMatrix_f64_i32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int32_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f64_i64)	 // NOLINT
@@ -605,9 +643,11 @@ TEST(Runtime, diagonalSquareMatrix_f64_i64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int64_t))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f64_f32)	 // NOLINT
@@ -624,9 +664,11 @@ TEST(Runtime, diagonalSquareMatrix_f64_f32)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
@@ -643,9 +685,11 @@ TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
 
 	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedValues);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i)
-		for (size_t j = 0; j < destinationSizes[1]; j++)
-			EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+	for (size_t i = 0; i < destinationSizes[0]; ++i) {
+    for (size_t j = 0; j < destinationSizes[1]; j++) {
+      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+    }
+  }
 }
 
 TEST(Runtime, exp_f32)	 // NOLINT
@@ -673,8 +717,9 @@ TEST(Runtime, fill_i1)	 // NOLINT
 	bool value = true;
 	NAME_MANGLED(fill, void, ARRAY(bool), bool)(unsized, value);
 
-	for (const auto& element : data)
-		EXPECT_EQ(value, element);
+	for (const auto& element : data) {
+    EXPECT_EQ(value, element);
+  }
 }
 
 TEST(Runtime, fill_i32)	 // NOLINT
@@ -686,8 +731,9 @@ TEST(Runtime, fill_i32)	 // NOLINT
 	int value = 1;
 	NAME_MANGLED(fill, void, ARRAY(int32_t), int32_t)(unsized, value);
 
-	for (const auto& element : data)
-		EXPECT_EQ(value, element);
+	for (const auto& element : data) {
+    EXPECT_EQ(value, element);
+  }
 }
 
 TEST(Runtime, fill_i64)	 // NOLINT
@@ -699,8 +745,9 @@ TEST(Runtime, fill_i64)	 // NOLINT
 	long value = 1;
 	NAME_MANGLED(fill, void, ARRAY(int64_t), int64_t)(unsized, value);
 
-	for (const auto& element : data)
-		EXPECT_EQ(value, element);
+	for (const auto& element : data) {
+    EXPECT_EQ(value, element);
+  }
 }
 
 TEST(Runtime, fill_f32)	 // NOLINT
@@ -712,8 +759,9 @@ TEST(Runtime, fill_f32)	 // NOLINT
 	float value = 1;
 	NAME_MANGLED(fill, void, ARRAY(float), float)(unsized, value);
 
-	for (const auto& element : data)
-		EXPECT_EQ(value, element);
+	for (const auto& element : data) {
+    EXPECT_EQ(value, element);
+  }
 }
 
 TEST(Runtime, fill_f64)	 // NOLINT
@@ -725,8 +773,9 @@ TEST(Runtime, fill_f64)	 // NOLINT
 	double value = 1;
 	NAME_MANGLED(fill, void, ARRAY(double), double)(unsized, value);
 
-	for (const auto& element : data)
-		EXPECT_EQ(value, element);
+	for (const auto& element : data) {
+    EXPECT_EQ(value, element);
+  }
 }
 
 TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
@@ -739,9 +788,11 @@ TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
 
 	NAME_MANGLED(identity, void, ARRAY(bool))(unsized);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		for (size_t j = 0; j < sizes[1]; j++)
-			EXPECT_EQ(data[3 * i + j], i == j);
+	for (size_t i = 0; i < sizes[0]; ++i) {
+    for (size_t j = 0; j < sizes[1]; j++) {
+      EXPECT_EQ(data[3 * i + j], i == j);
+    }
+  }
 }
 
 TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
@@ -754,9 +805,11 @@ TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
 
 	NAME_MANGLED(identity, void, ARRAY(int32_t))(unsized);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		for (size_t j = 0; j < sizes[1]; j++)
-			EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
+	for (size_t i = 0; i < sizes[0]; ++i) {
+    for (size_t j = 0; j < sizes[1]; j++) {
+      EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
+    }
+  }
 }
 
 TEST(Runtime, identitySquareMatrix_i64)	 // NOLINT
@@ -769,9 +822,11 @@ TEST(Runtime, identitySquareMatrix_i64)	 // NOLINT
 
 	NAME_MANGLED(identity, void, ARRAY(int64_t))(unsized);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		for (size_t j = 0; j < sizes[1]; j++)
-			EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
+	for (size_t i = 0; i < sizes[0]; ++i) {
+    for (size_t j = 0; j < sizes[1]; j++) {
+      EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
+    }
+  }
 }
 
 TEST(Runtime, identitySquareMatrix_f32)	 // NOLINT
@@ -784,9 +839,11 @@ TEST(Runtime, identitySquareMatrix_f32)	 // NOLINT
 
 	NAME_MANGLED(identity, void, ARRAY(float))(unsized);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		for (size_t j = 0; j < sizes[1]; j++)
-			EXPECT_FLOAT_EQ(data[3 * i + j], i == j ? 1 : 0);
+	for (size_t i = 0; i < sizes[0]; ++i) {
+    for (size_t j = 0; j < sizes[1]; j++) {
+      EXPECT_FLOAT_EQ(data[3 * i + j], i == j ? 1 : 0);
+    }
+  }
 }
 
 TEST(Runtime, identitySquareMatrix_f64)	 // NOLINT
@@ -799,9 +856,11 @@ TEST(Runtime, identitySquareMatrix_f64)	 // NOLINT
 
 	NAME_MANGLED(identity, void, ARRAY(double))(unsized);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		for (size_t j = 0; j < sizes[1]; j++)
-			EXPECT_DOUBLE_EQ(data[3 * i + j], i == j ? 1 : 0);
+	for (size_t i = 0; i < sizes[0]; ++i) {
+    for (size_t j = 0; j < sizes[1]; j++) {
+      EXPECT_DOUBLE_EQ(data[3 * i + j], i == j ? 1 : 0);
+    }
+  }
 }
 
 TEST(Runtime, linspace_i1)	 // NOLINT
@@ -815,8 +874,9 @@ TEST(Runtime, linspace_i1)	 // NOLINT
 
 	NAME_MANGLED(linspace, void, ARRAY(bool), double, double)(unsized, start, end);
 
-	for (size_t i = 0; i < data.size(); ++i)
-		EXPECT_EQ(data[i], (start + i * (end - start) / (data.size() - 1)) > 0);
+	for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(data[i], (start + i * (end - start) / (data.size() - 1)) > 0);
+  }
 }
 
 TEST(Runtime, linspace_i32)	 // NOLINT
@@ -830,8 +890,9 @@ TEST(Runtime, linspace_i32)	 // NOLINT
 
 	NAME_MANGLED(linspace, void, ARRAY(int32_t), double, double)(unsized, start, end);
 
-	for (size_t i = 0; i < data.size(); ++i)
-		EXPECT_EQ(data[i], (int32_t) (start + i * (end - start) / (data.size() - 1)));
+	for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(data[i], (int32_t) (start + i * (end - start) / (data.size() - 1)));
+  }
 }
 
 TEST(Runtime, linspace_i64)	 // NOLINT
@@ -845,8 +906,9 @@ TEST(Runtime, linspace_i64)	 // NOLINT
 
 	NAME_MANGLED(linspace, void, ARRAY(int64_t), double, double)(unsized, start, end);
 
-	for (size_t i = 0; i < data.size(); ++i)
-		EXPECT_EQ(data[i], (int64_t) (start + i * (end - start) / (data.size() - 1)));
+	for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(data[i], (int64_t) (start + i * (end - start) / (data.size() - 1)));
+  }
 }
 
 TEST(Runtime, linspace_f32)	 // NOLINT
@@ -860,8 +922,9 @@ TEST(Runtime, linspace_f32)	 // NOLINT
 
 	NAME_MANGLED(linspace, void, ARRAY(float), double, double)(unsized, start, end);
 
-	for (size_t i = 0; i < data.size(); ++i)
-		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (data.size() - 1));
+	for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_FLOAT_EQ(data[i], start + i * (end - start) / (data.size() - 1));
+  }
 }
 
 TEST(Runtime, linspace_f64)	 // NOLINT
@@ -875,8 +938,9 @@ TEST(Runtime, linspace_f64)	 // NOLINT
 
 	NAME_MANGLED(linspace, void, ARRAY(double), double, double)(unsized, start, end);
 
-	for (size_t i = 0; i < data.size(); ++i)
-		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (data.size() - 1));
+	for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_FLOAT_EQ(data[i], start + i * (end - start) / (data.size() - 1));
+  }
 }
 
 TEST(Runtime, log_f32)	 // NOLINT
@@ -976,8 +1040,7 @@ TEST(Runtime, max_i1_i1)	 // NOLINT
 	std::array<bool, 4> x = { false, false, true, true };
 	std::array<bool, 4> y = { false, true, false, true };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(max, bool, bool, bool)(x, y);
 		ASSERT_EQ(result, std::max(x, y));
 	}
@@ -988,8 +1051,7 @@ TEST(Runtime, max_i32_i32)	 // NOLINT
 	std::array<int32_t, 3> x = { 0, 1, 2 };
 	std::array<int32_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(max, int32_t, int32_t, int32_t)(x, y);
 		ASSERT_EQ(result, std::max(x, y));
 	}
@@ -1000,8 +1062,7 @@ TEST(Runtime, max_i64_i64)	 // NOLINT
 	std::array<int64_t, 3> x = { 0, 1, 2 };
 	std::array<int64_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(max, int64_t, int64_t, int64_t)(x, y);
 		ASSERT_EQ(result, std::max(x, y));
 	}
@@ -1012,8 +1073,7 @@ TEST(Runtime, max_f32_f32)	 // NOLINT
 	std::array<float, 3> x = { 0, 1, 2 };
 	std::array<float, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(max, float, float, float)(x, y);
 		ASSERT_EQ(result, std::max(x, y));
 	}
@@ -1024,8 +1084,7 @@ TEST(Runtime, max_f64_f64)	 // NOLINT
 	std::array<double, 3> x = { 0, 1, 2 };
 	std::array<double, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(max, double, double, double)(x, y);
 		ASSERT_EQ(result, std::max(x, y));
 	}
@@ -1096,8 +1155,7 @@ TEST(Runtime, min_i1_i1)	 // NOLINT
 	std::array<bool, 4> x = { false, false, true, true };
 	std::array<bool, 4> y = { false, true, false, true };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(min, bool, bool, bool)(x, y);
 		ASSERT_EQ(result, std::min(x, y));
 	}
@@ -1108,8 +1166,7 @@ TEST(Runtime, min_i32_i32)	 // NOLINT
 	std::array<int32_t, 3> x = { 0, 1, 2 };
 	std::array<int32_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(min, int32_t, int32_t, int32_t)(x, y);
 		ASSERT_EQ(result, std::min(x, y));
 	}
@@ -1120,8 +1177,7 @@ TEST(Runtime, min_i64_i64)	 // NOLINT
 	std::array<int64_t, 3> x = { 0, 1, 2 };
 	std::array<int64_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(min, int64_t, int64_t, int64_t)(x, y);
 		ASSERT_EQ(result, std::min(x, y));
 	}
@@ -1132,8 +1188,7 @@ TEST(Runtime, min_f32_f32)	 // NOLINT
 	std::array<float, 3> x = { 0, 1, 2 };
 	std::array<float, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(min, float, float, float)(x, y);
 		ASSERT_EQ(result, std::min(x, y));
 	}
@@ -1144,8 +1199,7 @@ TEST(Runtime, min_f64_f64)	 // NOLINT
 	std::array<double, 3> x = { 0, 1, 2 };
 	std::array<double, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-	{
+	for (const auto& [x, y] : llvm::zip(x, y)) {
 		auto result = NAME_MANGLED(min, double, double, double)(x, y);
 		ASSERT_EQ(result, std::min(x, y));
 	}
@@ -1161,8 +1215,9 @@ TEST(Runtime, ones_i1)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(bool))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, true);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, true);
+  }
 }
 
 TEST(Runtime, ones_i32)	 // NOLINT
@@ -1175,8 +1230,9 @@ TEST(Runtime, ones_i32)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(int32_t))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, 1);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, 1);
+  }
 }
 
 TEST(Runtime, ones_i64)	 // NOLINT
@@ -1189,8 +1245,9 @@ TEST(Runtime, ones_i64)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(int64_t))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, 1);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, 1);
+  }
 }
 
 TEST(Runtime, ones_f32)	 // NOLINT
@@ -1203,8 +1260,9 @@ TEST(Runtime, ones_f32)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(float))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_FLOAT_EQ(element, 1);
+	for (const auto& element : data) {
+    EXPECT_FLOAT_EQ(element, 1);
+  }
 }
 
 TEST(Runtime, ones_f64)	 // NOLINT
@@ -1217,8 +1275,9 @@ TEST(Runtime, ones_f64)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(double))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_DOUBLE_EQ(element, 1);
+	for (const auto& element : data) {
+    EXPECT_DOUBLE_EQ(element, 1);
+  }
 }
 
 TEST(Runtime, product_ai1)	 // NOLINT
@@ -1429,12 +1488,12 @@ TEST(Runtime, symmetric_ai1_ai1)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai1_ai32)	 // NOLINT
@@ -1450,12 +1509,12 @@ TEST(Runtime, symmetric_ai1_ai32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai1_ai64)	 // NOLINT
@@ -1471,12 +1530,12 @@ TEST(Runtime, symmetric_ai1_ai64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai1_af32)	 // NOLINT
@@ -1492,12 +1551,12 @@ TEST(Runtime, symmetric_ai1_af32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai1_af64)	 // NOLINT
@@ -1513,12 +1572,12 @@ TEST(Runtime, symmetric_ai1_af64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai32_ai1)	 // NOLINT
@@ -1534,12 +1593,12 @@ TEST(Runtime, symmetric_ai32_ai1)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai32_ai32)	 // NOLINT
@@ -1555,12 +1614,12 @@ TEST(Runtime, symmetric_ai32_ai32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai32_ai64)	 // NOLINT
@@ -1576,12 +1635,12 @@ TEST(Runtime, symmetric_ai32_ai64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai32_af32)	 // NOLINT
@@ -1597,12 +1656,12 @@ TEST(Runtime, symmetric_ai32_af32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai32_af64)	 // NOLINT
@@ -1618,12 +1677,12 @@ TEST(Runtime, symmetric_ai32_af64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai64_ai1)	 // NOLINT
@@ -1639,12 +1698,12 @@ TEST(Runtime, symmetric_ai64_ai1)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai64_ai32)	 // NOLINT
@@ -1660,12 +1719,12 @@ TEST(Runtime, symmetric_ai64_ai32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai64_ai64)	 // NOLINT
@@ -1681,12 +1740,12 @@ TEST(Runtime, symmetric_ai64_ai64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai64_af32)	 // NOLINT
@@ -1702,12 +1761,12 @@ TEST(Runtime, symmetric_ai64_af32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_ai64_af64)	 // NOLINT
@@ -1723,12 +1782,12 @@ TEST(Runtime, symmetric_ai64_af64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af32_ai1)	 // NOLINT
@@ -1744,12 +1803,12 @@ TEST(Runtime, symmetric_af32_ai1)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af32_ai32)	 // NOLINT
@@ -1765,12 +1824,12 @@ TEST(Runtime, symmetric_af32_ai32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af32_ai64)	 // NOLINT
@@ -1786,12 +1845,12 @@ TEST(Runtime, symmetric_af32_ai64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af32_af32)	 // NOLINT
@@ -1807,12 +1866,12 @@ TEST(Runtime, symmetric_af32_af32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af32_af64)	 // NOLINT
@@ -1828,12 +1887,12 @@ TEST(Runtime, symmetric_af32_af64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af64_ai1)	 // NOLINT
@@ -1849,12 +1908,12 @@ TEST(Runtime, symmetric_af64_ai1)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af64_ai32)	 // NOLINT
@@ -1870,12 +1929,12 @@ TEST(Runtime, symmetric_af64_ai32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af64_ai64)	 // NOLINT
@@ -1891,12 +1950,12 @@ TEST(Runtime, symmetric_af64_ai64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af64_af32)	 // NOLINT
@@ -1912,12 +1971,12 @@ TEST(Runtime, symmetric_af64_af32)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, symmetric_af64_af64)	 // NOLINT
@@ -1933,12 +1992,12 @@ TEST(Runtime, symmetric_af64_af64)	 // NOLINT
 
 	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
-		{
-			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-		}
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, tan_f32)	 // NOLINT
@@ -1988,9 +2047,11 @@ TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai1_ai32)	 // NOLINT
@@ -2006,9 +2067,11 @@ TEST(Runtime, transpose_ai1_ai32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai1_ai64)	 // NOLINT
@@ -2024,9 +2087,11 @@ TEST(Runtime, transpose_ai1_ai64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai1_af32)	 // NOLINT
@@ -2042,9 +2107,11 @@ TEST(Runtime, transpose_ai1_af32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai1_af64)	 // NOLINT
@@ -2060,9 +2127,11 @@ TEST(Runtime, transpose_ai1_af64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai32_ai1)	 // NOLINT
@@ -2096,9 +2165,11 @@ TEST(Runtime, transpose_ai32_ai32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai32_ai64)	 // NOLINT
@@ -2114,9 +2185,11 @@ TEST(Runtime, transpose_ai32_ai64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai32_af32)	 // NOLINT
@@ -2132,9 +2205,11 @@ TEST(Runtime, transpose_ai32_af32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai32_af64)	 // NOLINT
@@ -2150,9 +2225,11 @@ TEST(Runtime, transpose_ai32_af64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai64_ai1)	 // NOLINT
@@ -2168,9 +2245,11 @@ TEST(Runtime, transpose_ai64_ai1)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai64_ai32)	 // NOLINT
@@ -2186,9 +2265,11 @@ TEST(Runtime, transpose_ai64_ai32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai64_ai64)	 // NOLINT
@@ -2204,9 +2285,11 @@ TEST(Runtime, transpose_ai64_ai64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai64_af32)	 // NOLINT
@@ -2222,9 +2305,11 @@ TEST(Runtime, transpose_ai64_af32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_ai64_af64)	 // NOLINT
@@ -2240,9 +2325,11 @@ TEST(Runtime, transpose_ai64_af64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af32_ai1)	 // NOLINT
@@ -2258,9 +2345,11 @@ TEST(Runtime, transpose_af32_ai1)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af32_ai32)	 // NOLINT
@@ -2276,9 +2365,11 @@ TEST(Runtime, transpose_af32_ai32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af32_ai64)	 // NOLINT
@@ -2294,9 +2385,11 @@ TEST(Runtime, transpose_af32_ai64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af32_af32)	 // NOLINT
@@ -2312,9 +2405,11 @@ TEST(Runtime, transpose_af32_af32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af32_af64)	 // NOLINT
@@ -2330,9 +2425,11 @@ TEST(Runtime, transpose_af32_af64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af64_ai1)	 // NOLINT
@@ -2348,9 +2445,11 @@ TEST(Runtime, transpose_af64_ai1)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af64_ai32)	 // NOLINT
@@ -2366,9 +2465,11 @@ TEST(Runtime, transpose_af64_ai32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af64_ai64)	 // NOLINT
@@ -2384,9 +2485,11 @@ TEST(Runtime, transpose_af64_ai64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af64_af32)	 // NOLINT
@@ -2402,9 +2505,11 @@ TEST(Runtime, transpose_af64_af32)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, transpose_af64_af64)	 // NOLINT
@@ -2420,9 +2525,11 @@ TEST(Runtime, transpose_af64_af64)	 // NOLINT
 
 	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
+    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
+      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+    }
+  }
 }
 
 TEST(Runtime, zeros_i1)	 // NOLINT
@@ -2435,8 +2542,9 @@ TEST(Runtime, zeros_i1)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(bool))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, false);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, false);
+  }
 }
 
 TEST(Runtime, zeros_i32)	 // NOLINT
@@ -2449,8 +2557,9 @@ TEST(Runtime, zeros_i32)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(int32_t))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, 0);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, 0);
+  }
 }
 
 TEST(Runtime, zeros_i64)	 // NOLINT
@@ -2463,8 +2572,9 @@ TEST(Runtime, zeros_i64)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(int64_t))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, 0);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, 0);
+  }
 }
 
 TEST(Runtime, zeros_f32)	 // NOLINT
@@ -2477,8 +2587,9 @@ TEST(Runtime, zeros_f32)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(float))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, 0);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, 0);
+  }
 }
 
 TEST(Runtime, zeros_f64)	 // NOLINT
@@ -2491,6 +2602,7 @@ TEST(Runtime, zeros_f64)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(double))(unsized);
 
-	for (const auto& element : data)
-		EXPECT_EQ(element, 0);
+	for (const auto& element : data) {
+    EXPECT_EQ(element, 0);
+  }
 }

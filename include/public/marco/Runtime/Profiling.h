@@ -50,4 +50,4 @@ void printProfilingStats();
 
 #endif
 
-#endif //MARCO_RUNTIME_PROFILING_H
+#endif // MARCO_RUNTIME_PROFILING_H

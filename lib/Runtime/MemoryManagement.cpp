@@ -102,16 +102,16 @@ namespace
 
 void* heapAlloc(int64_t sizeInBytes)
 {
-#ifdef MARCO_PROFILING
+  #ifdef MARCO_PROFILING
   ::profiler().startTimer();
-#endif
+  #endif
 
   void* result = sizeInBytes == 0 ? nullptr : std::malloc(sizeInBytes);
 
-#ifdef MARCO_PROFILING
+  #ifdef MARCO_PROFILING
   ::profiler().stopTimer();
   ::profiler().malloc(result, sizeInBytes);
-#endif
+  #endif
 
   return result;
 }
@@ -128,18 +128,18 @@ RUNTIME_FUNC_DEF(heapAlloc, PTR(void), int64_t)
 
 void heapFree(void* ptr)
 {
-#ifdef MARCO_PROFILING
+  #ifdef MARCO_PROFILING
   ::profiler().free(ptr);
   ::profiler().startTimer();
-#endif
+  #endif
 
   if (ptr != nullptr) {
     std::free(ptr);
   }
 
-#ifdef MARCO_PROFILING
+  #ifdef MARCO_PROFILING
   ::profiler().stopTimer();
-#endif
+  #endif
 }
 
 namespace

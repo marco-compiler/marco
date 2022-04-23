@@ -71,10 +71,6 @@ RUNTIME_FUNC_DECL(pow, double, bool, bool)
 RUNTIME_FUNC_DECL(pow, double, bool, int64_t)
 RUNTIME_FUNC_DECL(pow, double, bool, double)
 
-RUNTIME_FUNC_DECL(pow, double, int32_t, bool)
-RUNTIME_FUNC_DECL(pow, double, int32_t, int64_t)
-RUNTIME_FUNC_DECL(pow, double, int32_t, double)
-
 RUNTIME_FUNC_DECL(pow, double, int64_t, bool)
 RUNTIME_FUNC_DECL(pow, double, int64_t, int64_t)
 RUNTIME_FUNC_DECL(pow, double, int64_t, double)

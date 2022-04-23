@@ -1,6 +1,6 @@
+#include "marco/Runtime/ArrayDescriptor.h"
 #include "gtest/gtest.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Runtime/ArrayDescriptor.h"
 
 template<typename T, unsigned int N> using ArraySizes =
 		std::array<typename ArrayDescriptor<T, N>::dimension_t, N>;
@@ -13,8 +13,9 @@ TEST(Runtime, arrayDescriptor1D)
 	ArrayDescriptor<int64_t, 1> descriptor(data.data(), sizes);
 	EXPECT_EQ(descriptor.getRank(), 1);
 
-	for (auto [actual, expected] : llvm::zip(descriptor, data))
-		EXPECT_EQ(actual, expected);
+	for (auto [actual, expected] : llvm::zip(descriptor, data)) {
+    EXPECT_EQ(actual, expected);
+  }
 }
 
 TEST(Runtime, arrayDescriptor2D)
@@ -25,6 +26,7 @@ TEST(Runtime, arrayDescriptor2D)
 	ArrayDescriptor<int64_t, 2> descriptor(data.data(), sizes);
 	EXPECT_EQ(descriptor.getRank(), 2);
 
-	for (auto [actual, expected] : llvm::zip(descriptor, data))
-		EXPECT_EQ(actual, expected);
+	for (auto [actual, expected] : llvm::zip(descriptor, data)) {
+    EXPECT_EQ(actual, expected);
+  }
 }

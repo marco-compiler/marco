@@ -1,7 +1,6 @@
+#include "marco/Runtime/UtilityFunctions.h"
 #include "gtest/gtest.h"
 #include "llvm/ADT/STLExtras.h"
-#include "marco/Runtime/UtilityFunctions.h"
-#include "mlir/ExecutionEngine/CRunnerUtils.h"
 
 TEST(Runtime, clone_ai1_ai1)
 {
@@ -16,8 +15,9 @@ TEST(Runtime, clone_ai1_ai1)
 
 	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (bool) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (bool) source);
+  }
 }
 
 TEST(Runtime, clone_ai1_ai32)
@@ -33,8 +33,9 @@ TEST(Runtime, clone_ai1_ai32)
 
 	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (bool) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (bool) source);
+  }
 }
 
 TEST(Runtime, clone_ai1_ai64)
@@ -50,8 +51,9 @@ TEST(Runtime, clone_ai1_ai64)
 
 	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (bool) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (bool) source);
+  }
 }
 
 TEST(Runtime, clone_ai1_af32)
@@ -67,8 +69,9 @@ TEST(Runtime, clone_ai1_af32)
 
 	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (bool) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (bool) source);
+  }
 }
 
 TEST(Runtime, clone_ai1_af64)
@@ -84,8 +87,9 @@ TEST(Runtime, clone_ai1_af64)
 
 	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (bool) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (bool) source);
+  }
 }
 
 TEST(Runtime, clone_ai32_ai1)
@@ -101,8 +105,9 @@ TEST(Runtime, clone_ai32_ai1)
 
 	NAME_MANGLED(clone, void, ARRAY(int32_t), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int32_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int32_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai32_ai32)
@@ -118,8 +123,9 @@ TEST(Runtime, clone_ai32_ai32)
 
 	NAME_MANGLED(clone, void, ARRAY(int32_t), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int32_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int32_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai32_ai64)
@@ -135,8 +141,9 @@ TEST(Runtime, clone_ai32_ai64)
 
 	NAME_MANGLED(clone, void, ARRAY(int32_t), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int32_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int32_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai32_af32)
@@ -152,8 +159,9 @@ TEST(Runtime, clone_ai32_af32)
 
 	NAME_MANGLED(clone, void, ARRAY(int32_t), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int32_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int32_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai32_af64)
@@ -169,8 +177,9 @@ TEST(Runtime, clone_ai32_af64)
 
 	NAME_MANGLED(clone, void, ARRAY(int32_t), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int32_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int32_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai64_ai1)
@@ -186,8 +195,9 @@ TEST(Runtime, clone_ai64_ai1)
 
 	NAME_MANGLED(clone, void, ARRAY(int64_t), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int64_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int64_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai64_ai32)
@@ -203,8 +213,9 @@ TEST(Runtime, clone_ai64_ai32)
 
 	NAME_MANGLED(clone, void, ARRAY(int64_t), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int64_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int64_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai64_ai64)
@@ -220,8 +231,9 @@ TEST(Runtime, clone_ai64_ai64)
 
 	NAME_MANGLED(clone, void, ARRAY(int64_t), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int64_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int64_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai64_af32)
@@ -237,8 +249,9 @@ TEST(Runtime, clone_ai64_af32)
 
 	NAME_MANGLED(clone, void, ARRAY(int64_t), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int64_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int64_t) source);
+  }
 }
 
 TEST(Runtime, clone_ai64_af64)
@@ -254,8 +267,9 @@ TEST(Runtime, clone_ai64_af64)
 
 	NAME_MANGLED(clone, void, ARRAY(int64_t), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_EQ(destination, (int64_t) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_EQ(destination, (int64_t) source);
+  }
 }
 
 TEST(Runtime, clone_af32_ai1)
@@ -271,8 +285,9 @@ TEST(Runtime, clone_af32_ai1)
 
 	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_FLOAT_EQ(destination, (float) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_FLOAT_EQ(destination, (float) source);
+  }
 }
 
 TEST(Runtime, clone_af32_ai32)
@@ -288,8 +303,9 @@ TEST(Runtime, clone_af32_ai32)
 
 	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_FLOAT_EQ(destination, (float) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_FLOAT_EQ(destination, (float) source);
+  }
 }
 
 TEST(Runtime, clone_af32_ai64)
@@ -305,8 +321,9 @@ TEST(Runtime, clone_af32_ai64)
 
 	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_FLOAT_EQ(destination, (float) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_FLOAT_EQ(destination, (float) source);
+  }
 }
 
 TEST(Runtime, clone_af32_af32)
@@ -322,8 +339,9 @@ TEST(Runtime, clone_af32_af32)
 
 	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_FLOAT_EQ(destination, (float) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_FLOAT_EQ(destination, (float) source);
+  }
 }
 
 TEST(Runtime, clone_af32_af64)
@@ -339,8 +357,9 @@ TEST(Runtime, clone_af32_af64)
 
 	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_FLOAT_EQ(destination, (float) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_FLOAT_EQ(destination, (float) source);
+  }
 }
 
 TEST(Runtime, clone_af64_ai1)
@@ -356,8 +375,9 @@ TEST(Runtime, clone_af64_ai1)
 
 	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_DOUBLE_EQ(destination, (double) source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_DOUBLE_EQ(destination, (double) source);
+  }
 }
 
 TEST(Runtime, clone_af64_ai32)
@@ -373,8 +393,9 @@ TEST(Runtime, clone_af64_ai32)
 
 	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(int32_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_DOUBLE_EQ(destination, source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_DOUBLE_EQ(destination, source);
+  }
 }
 
 TEST(Runtime, clone_af64_ai64)
@@ -390,8 +411,9 @@ TEST(Runtime, clone_af64_ai64)
 
 	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(int64_t))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_DOUBLE_EQ(destination, source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_DOUBLE_EQ(destination, source);
+  }
 }
 
 TEST(Runtime, clone_af64_af32)
@@ -407,8 +429,9 @@ TEST(Runtime, clone_af64_af32)
 
 	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_DOUBLE_EQ(destination, source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_DOUBLE_EQ(destination, source);
+  }
 }
 
 TEST(Runtime, clone_af64_af64)
@@ -424,6 +447,7 @@ TEST(Runtime, clone_af64_af64)
 
 	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedSource);
 
-	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
-		EXPECT_DOUBLE_EQ(destination, source);
+	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor)) {
+    EXPECT_DOUBLE_EQ(destination, source);
+  }
 }

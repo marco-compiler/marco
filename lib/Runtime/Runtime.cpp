@@ -159,7 +159,7 @@ namespace
   updateNonStateVariables(data);
   PROFILER_NONSTATEVAR_STOP;
 
-  // Print the data header and the innitial values
+  // Print the data header and the initial values
   PROFILER_PRINTING_START;
   print(data);
   PROFILER_PRINTING_STOP;
@@ -167,15 +167,18 @@ namespace
   bool continueSimulation;
 
   do {
+    // Compute the next state variables
     PROFILER_STATEVAR_START;
     updateStateVariables(data);
     PROFILER_STATEVAR_STOP;
 
+    // Move to the next step
     PROFILER_NONSTATEVAR_START;
     continueSimulation = incrementTime(data);
     updateNonStateVariables(data);
     PROFILER_NONSTATEVAR_STOP;
 
+    // Print the values
     PROFILER_PRINTING_START;
     print(data);
     PROFILER_PRINTING_STOP;
