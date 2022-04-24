@@ -1,194 +1,199 @@
-#include "marco/AST/AST.h"
+#include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/Expression.h"
 #include <numeric>
 
-using namespace marco::ast;
-
-Call::Call(SourceRange location,
-					 Type type,
-					 std::unique_ptr<Expression> function,
-					 llvm::ArrayRef<std::unique_ptr<Expression>> args)
-		: ASTNode(std::move(location)),
-			type(std::move(type)),
-			function(std::move(function))
-{
-	for (const auto& arg : args)
-		this->args.push_back(arg->clone());
-}
-
-Call::Call(const Call& other)
-		: ASTNode(other),
-			type(other.type),
-			function(other.function->clone())
-{
-	for (const auto& arg : other.args)
-		this->args.push_back(arg->clone());
-}
-
-Call::Call(Call&& other) = default;
-
-Call::~Call() = default;
-
-Call& Call::operator=(const Call& other)
-{
-	Call result(other);
-	swap(*this, result);
-	return *this;
-}
-
-Call& Call::operator=(Call&& other) = default;
+using namespace ::marco;
+using namespace ::marco::ast;
 
 namespace marco::ast
 {
-	void swap(Call& first, Call& second)
-	{
-		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+  Call::Call(SourceRange location,
+             Type type,
+             std::unique_ptr<Expression> function,
+             llvm::ArrayRef<std::unique_ptr<Expression>> args)
+      : ASTNode(std::move(location)),
+        type(std::move(type)),
+        function(std::move(function))
+  {
+    for (const auto& arg : args) {
+      this->args.push_back(arg->clone());
+    }
+  }
 
-		using std::swap;
-		swap(first.type, second.type);
-		swap(first.function, second.function);
-		impl::swap(first.args, second.args);
-	}
-}
+  Call::Call(const Call& other)
+      : ASTNode(other),
+        type(other.type),
+        function(other.function->clone())
+  {
+    for (const auto& arg : other.args) {
+      this->args.push_back(arg->clone());
+    }
+  }
 
-void Call::print(llvm::raw_ostream& os, size_t indents) const
-{
-	function->print(os, indents + 1);
+  Call::Call(Call&& other) = default;
 
-	for (const auto& arg : *this)
-		arg->print(os, indents + 1);
-}
+  Call::~Call() = default;
 
-bool Call::isLValue() const
-{
-	return false;
-}
+  Call& Call::operator=(const Call& other)
+  {
+    Call result(other);
+    swap(*this, result);
+    return *this;
+  }
 
-bool Call::operator==(const Call& other) const
-{
-	if (type != other.type)
-		return false;
+  Call& Call::operator=(Call&& other) = default;
 
-	if (argumentsCount() != other.argumentsCount())
-		return false;
+  void swap(Call& first, Call& second)
+  {
+    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
-	if (*function != *other.function)
-		return false;
+    using std::swap;
+    swap(first.type, second.type);
+    swap(first.function, second.function);
+    impl::swap(first.args, second.args);
+  }
 
-	if (args.size() != other.args.size())
-		return false;
+  void Call::print(llvm::raw_ostream& os, size_t indents) const
+  {
+    function->print(os, indents + 1);
 
-	auto pairs = llvm::zip(args, other.args);
-	return std::all_of(pairs.begin(), pairs.end(),
-										 [](const auto& pair)
-										 {
-											 const auto& [x, y] = pair;
-											 return *x == *y;
-										 });
-}
+    for (const auto& arg : *this) {
+      arg->print(os, indents + 1);
+    }
+  }
 
-bool Call::operator!=(const Call& other) const
-{
-	return !(*this == other);
-}
+  bool Call::isLValue() const
+  {
+    return false;
+  }
 
-Expression* Call::operator[](size_t index)
-{
-	return getArg(index);
-}
+  bool Call::operator==(const Call& other) const
+  {
+    if (type != other.type) {
+      return false;
+    }
 
-const Expression* Call::operator[](size_t index) const
-{
-	return getArg(index);
-}
+    if (argumentsCount() != other.argumentsCount()) {
+      return false;
+    }
 
-Type& Call::getType()
-{
-	return type;
-}
+    if (*function != *other.function) {
+      return false;
+    }
 
-const Type& Call::getType() const
-{
-	return type;
-}
+    if (args.size() != other.args.size()) {
+      return false;
+    }
 
-void Call::setType(Type tp)
-{
-	type = std::move(tp);
-}
+    auto pairs = llvm::zip(args, other.args);
 
-Expression* Call::getFunction()
-{
-	return function.get();
-}
+    return std::all_of(pairs.begin(), pairs.end(), [](const auto& pair) {
+      const auto& [x, y] = pair;
+      return *x == *y;
+    });
+  }
 
-const Expression* Call::getFunction() const
-{
-	return function.get();
-}
+  bool Call::operator!=(const Call& other) const
+  {
+    return !(*this == other);
+  }
 
-Expression* Call::getArg(size_t index)
-{
-	assert(index < argumentsCount());
-	return args[index].get();
-}
+  Expression* Call::operator[](size_t index)
+  {
+    return getArg(index);
+  }
 
-const Expression* Call::getArg(size_t index) const
-{
-	assert(index < argumentsCount());
-	return args[index].get();
-}
+  const Expression* Call::operator[](size_t index) const
+  {
+    return getArg(index);
+  }
 
-llvm::MutableArrayRef<std::unique_ptr<Expression>> Call::getArgs()
-{
-	return args;
-}
+  Type& Call::getType()
+  {
+    return type;
+  }
 
-llvm::ArrayRef<std::unique_ptr<Expression>> Call::getArgs() const
-{
-	return args;
-}
+  const Type& Call::getType() const
+  {
+    return type;
+  }
 
-size_t Call::argumentsCount() const
-{
-	return args.size();
-}
+  void Call::setType(Type tp)
+  {
+    type = std::move(tp);
+  }
 
-Call::args_iterator Call::begin()
-{
-	return args.begin();
-}
+  Expression* Call::getFunction()
+  {
+    return function.get();
+  }
 
-Call::args_const_iterator Call::begin() const
-{
-	return args.begin();
-}
+  const Expression* Call::getFunction() const
+  {
+    return function.get();
+  }
 
-Call::args_iterator Call::end()
-{
-	return args.end();
-}
+  Expression* Call::getArg(size_t index)
+  {
+    assert(index < argumentsCount());
+    return args[index].get();
+  }
 
-Call::args_const_iterator Call::end() const
-{
-	return args.end();
-}
+  const Expression* Call::getArg(size_t index) const
+  {
+    assert(index < argumentsCount());
+    return args[index].get();
+  }
 
-namespace marco::ast
-{
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj)
-	{
-		return stream << toString(obj);
-	}
+  llvm::MutableArrayRef<std::unique_ptr<Expression>> Call::getArgs()
+  {
+    return args;
+  }
 
-	std::string toString(const Call& obj)
-	{
-		return toString(*obj.getFunction()) + "(" +
-					 accumulate(
-							 obj.begin(), obj.end(), std::string(),
-							 [](const std::string& result, const std::unique_ptr<Expression>& argument) {
-								 std::string str = toString(*argument);
-								 return result.empty() ? str : result + "," + str;
-							 }) +
-					 ")";
-	}
+  llvm::ArrayRef<std::unique_ptr<Expression>> Call::getArgs() const
+  {
+    return args;
+  }
+
+  size_t Call::argumentsCount() const
+  {
+    return args.size();
+  }
+
+  Call::args_iterator Call::begin()
+  {
+    return args.begin();
+  }
+
+  Call::args_const_iterator Call::begin() const
+  {
+    return args.begin();
+  }
+
+  Call::args_iterator Call::end()
+  {
+    return args.end();
+  }
+
+  Call::args_const_iterator Call::end() const
+  {
+    return args.end();
+  }
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj)
+  {
+    return stream << toString(obj);
+  }
+
+  std::string toString(const Call& obj)
+  {
+    return toString(*obj.getFunction()) + "(" +
+        accumulate(
+               obj.begin(), obj.end(), std::string(),
+               [](const std::string& result, const std::unique_ptr<Expression>& argument) {
+                 std::string str = toString(*argument);
+                 return result.empty() ? str : result + "," + str;
+               }) +
+        ")";
+  }
 }

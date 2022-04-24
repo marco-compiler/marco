@@ -1,86 +1,89 @@
-#include "marco/AST/AST.h"
-#include "marco/Utils/IRange.h"
+#include "marco/AST/Node/ForEquation.h"
+#include "marco/AST/Node/Equation.h"
+#include "marco/AST/Node/Induction.h"
 #include <memory>
 
-using namespace marco::ast;
-
-ForEquation::ForEquation(SourceRange location,
-												 llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
-												 std::unique_ptr<Equation> equation)
-		: ASTNode(std::move(location)),
-			equation(std::move(equation))
-{
-	for (const auto& induction : inductions)
-		this->inductions.push_back(induction->clone());
-}
-
-ForEquation::ForEquation(const ForEquation& other)
-		: ASTNode(other),
-			equation(other.equation->clone())
-{
-	for (const auto& induction : other.inductions)
-		this->inductions.push_back(induction->clone());
-}
-
-ForEquation::ForEquation(ForEquation&& other) = default;
-
-ForEquation::~ForEquation() = default;
-
-ForEquation& ForEquation::operator=(const ForEquation& other)
-{
-	ForEquation result(other);
-	swap(*this, result);
-	return *this;
-}
-
-ForEquation& ForEquation::operator=(ForEquation&& other) = default;
+using namespace ::marco;
+using namespace ::marco::ast;
 
 namespace marco::ast
 {
-	void swap(ForEquation& first, ForEquation& second)
-	{
-		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+  ForEquation::ForEquation(SourceRange location,
+                           llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
+                           std::unique_ptr<Equation> equation)
+      : ASTNode(std::move(location)),
+        equation(std::move(equation))
+  {
+    for (const auto& induction : inductions) {
+      this->inductions.push_back(induction->clone());
+    }
+  }
 
-		using std::swap;
-		impl::swap(first.inductions, second.inductions);
-		swap(first.equation, second.equation);
-	}
-}
+  ForEquation::ForEquation(const ForEquation& other)
+      : ASTNode(other),
+        equation(other.equation->clone())
+  {
+    for (const auto& induction : other.inductions) {
+      this->inductions.push_back(induction->clone());
+    }
+  }
 
-void ForEquation::print(llvm::raw_ostream& os, size_t indents) const
-{
-	os << "for equation\n";
+  ForEquation::ForEquation(ForEquation&& other) = default;
 
-	for (const auto& induction : getInductions())
-	{
-		induction->print(os, indents + 1);
-		os << "\n";
-	}
+  ForEquation::~ForEquation() = default;
 
-	equation->print(os, indents + 1);
-}
+  ForEquation& ForEquation::operator=(const ForEquation& other)
+  {
+    ForEquation result(other);
+    swap(*this, result);
+    return *this;
+  }
 
-llvm::MutableArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions()
-{
-	return inductions;
-}
+  ForEquation& ForEquation::operator=(ForEquation&& other) = default;
 
-llvm::ArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions() const
-{
-	return inductions;
-}
+  void swap(ForEquation& first, ForEquation& second)
+  {
+    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
-size_t ForEquation::inductionsCount() const
-{
-	return inductions.size();
-}
+    using std::swap;
+    impl::swap(first.inductions, second.inductions);
+    swap(first.equation, second.equation);
+  }
 
-void ForEquation::addOuterInduction(std::unique_ptr<Induction> induction)
-{
-	inductions.insert(inductions.begin(), std::move(induction));
-}
+  void ForEquation::print(llvm::raw_ostream& os, size_t indents) const
+  {
+    os << "for equation\n";
 
-Equation* ForEquation::getEquation() const
-{
-	return equation.get();
+    for (const auto& induction : getInductions()) {
+      induction->print(os, indents + 1);
+      os << "\n";
+    }
+
+    equation->print(os, indents + 1);
+  }
+
+  llvm::MutableArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions()
+  {
+    return inductions;
+  }
+
+  llvm::ArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions() const
+  {
+    return inductions;
+  }
+
+  size_t ForEquation::inductionsCount() const
+  {
+    return inductions.size();
+  }
+
+  void ForEquation::addOuterInduction(std::unique_ptr<Induction> induction)
+  {
+    inductions.insert(inductions.begin(), std::move(induction));
+  }
+
+  Equation* ForEquation::getEquation() const
+  {
+    return equation.get();
+  }
 }

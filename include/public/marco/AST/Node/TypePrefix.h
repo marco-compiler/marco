@@ -1,6 +1,7 @@
 #ifndef MARCO_AST_NODE_TYPEPREFIX_H
 #define MARCO_AST_NODE_TYPEPREFIX_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>

@@ -1,161 +1,159 @@
-#include "marco/AST/AST.h"
-#include "marco/Utils/IRange.h"
+#include "marco/AST/Node/Tuple.h"
+#include "marco/AST/Node/Expression.h"
 #include <numeric>
 
-using namespace marco::ast;
-
-Tuple::Tuple(SourceRange location,
-						 Type type,
-						 llvm::ArrayRef<std::unique_ptr<Expression>> expressions)
-		: ASTNode(std::move(location)),
-			type(std::move(type))
-{
-	for (const auto& expression : expressions)
-		this->expressions.push_back(expression->clone());
-}
-
-Tuple::Tuple(const Tuple& other)
-		: ASTNode(other),
-			type(other.type)
-{
-	for (const auto& expression : other.expressions)
-		this->expressions.push_back(expression->clone());
-}
-
-Tuple::Tuple(Tuple&& other) = default;
-
-Tuple::~Tuple() = default;
-
-Tuple& Tuple::operator=(const Tuple& other)
-{
-	Tuple result(other);
-	swap(*this, result);
-	return *this;
-}
-
-Tuple& Tuple::operator=(Tuple&& other) = default;
+using namespace ::marco;
+using namespace ::marco::ast;
 
 namespace marco::ast
 {
-	void swap(Tuple& first, Tuple& second)
-	{
-		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+  Tuple::Tuple(SourceRange location,
+               Type type,
+               llvm::ArrayRef<std::unique_ptr<Expression>> expressions)
+      : ASTNode(std::move(location)),
+        type(std::move(type))
+  {
+    for (const auto& expression : expressions)
+      this->expressions.push_back(expression->clone());
+  }
 
-		using std::swap;
-		swap(first.type, second.type);
-		impl::swap(first.expressions, second.expressions);
-	}
-}
+  Tuple::Tuple(const Tuple& other)
+      : ASTNode(other),
+        type(other.type)
+  {
+    for (const auto& expression : other.expressions)
+      this->expressions.push_back(expression->clone());
+  }
 
-void Tuple::print(llvm::raw_ostream& os, size_t indents) const
-{
-	for (const auto& expression : *this)
-		expression->print(os, indents);
-}
+  Tuple::Tuple(Tuple&& other) = default;
 
-bool Tuple::isLValue() const
-{
-	return false;
-}
+  Tuple::~Tuple() = default;
 
-bool Tuple::operator==(const Tuple& other) const
-{
-	if (expressions.size() != other.expressions.size())
-		return false;
+  Tuple& Tuple::operator=(const Tuple& other)
+  {
+    Tuple result(other);
+    swap(*this, result);
+    return *this;
+  }
 
-	auto pairs = llvm::zip(expressions, other.expressions);
+  Tuple& Tuple::operator=(Tuple&& other) = default;
 
-	return std::all_of(
-			pairs.begin(), pairs.end(),
-			[](const auto& pair) {
-				const auto& [x, y] = pair;
-				return *x == *y;
-			});
-}
+  void swap(Tuple& first, Tuple& second)
+  {
+    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
-bool Tuple::operator!=(const Tuple& other) const
-{
-	return !(*this == other);
-}
+    using std::swap;
+    swap(first.type, second.type);
+    impl::swap(first.expressions, second.expressions);
+  }
 
-Expression* Tuple::operator[](size_t index)
-{
-	return getArg(index);
-}
+  void Tuple::print(llvm::raw_ostream& os, size_t indents) const
+  {
+    for (const auto& expression : *this)
+      expression->print(os, indents);
+  }
 
-const Expression* Tuple::operator[](size_t index) const
-{
-	return getArg(index);
-}
+  bool Tuple::isLValue() const
+  {
+    return false;
+  }
 
-Type& Tuple::getType()
-{
-	return type;
-}
+  bool Tuple::operator==(const Tuple& other) const
+  {
+    if (expressions.size() != other.expressions.size())
+      return false;
 
-const Type& Tuple::getType() const
-{
-	return type;
-}
+    auto pairs = llvm::zip(expressions, other.expressions);
 
-void Tuple::setType(Type tp)
-{
-	type = std::move(tp);
-}
+    return std::all_of(
+        pairs.begin(), pairs.end(),
+        [](const auto& pair) {
+          const auto& [x, y] = pair;
+          return *x == *y;
+        });
+  }
 
-Expression* Tuple::getArg(size_t index)
-{
-	assert(index < expressions.size());
-	return expressions[index].get();
-}
+  bool Tuple::operator!=(const Tuple& other) const
+  {
+    return !(*this == other);
+  }
 
-const Expression* Tuple::getArg(size_t index) const
-{
-	assert(index < expressions.size());
-	return expressions[index].get();
-}
+  Expression* Tuple::operator[](size_t index)
+  {
+    return getArg(index);
+  }
 
-size_t Tuple::size() const
-{
-	return expressions.size();
-}
+  const Expression* Tuple::operator[](size_t index) const
+  {
+    return getArg(index);
+  }
 
-Tuple::iterator Tuple::begin()
-{
-	return expressions.begin();
-}
+  Type& Tuple::getType()
+  {
+    return type;
+  }
 
-Tuple::const_iterator Tuple::begin() const
-{
-	return expressions.begin();
-}
+  const Type& Tuple::getType() const
+  {
+    return type;
+  }
 
-Tuple::iterator Tuple::end()
-{
-	return expressions.end();
-}
+  void Tuple::setType(Type tp)
+  {
+    type = std::move(tp);
+  }
 
-Tuple::const_iterator Tuple::end() const
-{
-	return expressions.end();
-}
+  Expression* Tuple::getArg(size_t index)
+  {
+    assert(index < expressions.size());
+    return expressions[index].get();
+  }
 
-namespace marco::ast
-{
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj)
-	{
-		return stream << toString(obj);
-	}
+  const Expression* Tuple::getArg(size_t index) const
+  {
+    assert(index < expressions.size());
+    return expressions[index].get();
+  }
 
-	std::string toString(const Tuple& obj)
-	{
-		return "(" +
-					 accumulate(std::next(obj.begin()), obj.end(), std::string(),
-											[](const std::string& result, const auto& element)
-											{
-												std::string str = toString(*element);
-												return result.empty() ? str : result + "," + str;
-											}) +
-					 ")";
-	}
+  size_t Tuple::size() const
+  {
+    return expressions.size();
+  }
+
+  Tuple::iterator Tuple::begin()
+  {
+    return expressions.begin();
+  }
+
+  Tuple::const_iterator Tuple::begin() const
+  {
+    return expressions.begin();
+  }
+
+  Tuple::iterator Tuple::end()
+  {
+    return expressions.end();
+  }
+
+  Tuple::const_iterator Tuple::end() const
+  {
+    return expressions.end();
+  }
+
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj)
+  {
+    return stream << toString(obj);
+  }
+
+  std::string toString(const Tuple& obj)
+  {
+    return "(" +
+        accumulate(std::next(obj.begin()), obj.end(), std::string(),
+                   [](const std::string& result, const auto& element)
+                   {
+                     std::string str = toString(*element);
+                     return result.empty() ? str : result + "," + str;
+                   }) +
+        ")";
+  }
 }

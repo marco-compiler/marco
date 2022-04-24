@@ -15,29 +15,29 @@ namespace marco::ast
 				public impl::Dumpable<Annotation>
 	{
 		public:
-		explicit Annotation(SourceRange location);
-		Annotation(SourceRange location, std::unique_ptr<ClassModification> properties);
+      explicit Annotation(SourceRange location);
+      Annotation(SourceRange location, std::unique_ptr<ClassModification> properties);
 
-		Annotation(const Annotation& other);
-		Annotation(Annotation&& other);
-		~Annotation() override;
+      Annotation(const Annotation& other);
+      Annotation(Annotation&& other);
+      ~Annotation() override;
 
-		Annotation& operator=(const Annotation& other);
-		Annotation& operator=(Annotation&& other);
+      Annotation& operator=(const Annotation& other);
+      Annotation& operator=(Annotation&& other);
 
-		friend void swap(Annotation& first, Annotation& second);
+      friend void swap(Annotation& first, Annotation& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] bool getInlineProperty() const;
+      [[nodiscard]] bool getInlineProperty() const;
 
-		[[nodiscard]] bool hasDerivativeAnnotation() const;
-		[[nodiscard]] DerivativeAnnotation getDerivativeAnnotation() const;
+      [[nodiscard]] bool hasDerivativeAnnotation() const;
+      [[nodiscard]] DerivativeAnnotation getDerivativeAnnotation() const;
 
-		[[nodiscard]] InverseFunctionAnnotation getInverseFunctionAnnotation() const;
+      [[nodiscard]] InverseFunctionAnnotation getInverseFunctionAnnotation() const;
 
 		private:
-		std::unique_ptr<ClassModification> properties;
+		  std::unique_ptr<ClassModification> properties;
 	};
 }
 

@@ -1,10 +1,10 @@
 #ifndef MARCO_AST_NODE_MODIFICATION_H
 #define MARCO_AST_NODE_MODIFICATION_H
 
+#include "marco/AST/Node/ASTNode.h"
 #include "boost/iterator/indirect_iterator.hpp"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
-#include "marco/AST/Node/ASTNode.h"
 #include <variant>
 
 namespace marco::ast
@@ -14,6 +14,7 @@ namespace marco::ast
 	class ElementModification;
 	class ElementRedeclaration;
 	class ElementReplaceable;
+  class Expression;
 	class Modification;
 
 	class Modification
@@ -22,44 +23,45 @@ namespace marco::ast
 				public impl::Dumpable<Modification>
 	{
 		public:
-		template<typename... Args>
-		static std::unique_ptr<Modification> build(Args&&... args)
-		{
-			return std::unique_ptr<Modification>(new Modification(std::forward<Args>(args)...));
-		}
+      template<typename... Args>
+      static std::unique_ptr<Modification> build(Args&&... args)
+      {
+        return std::unique_ptr<Modification>(new Modification(std::forward<Args>(args)...));
+      }
 
-		Modification(const Modification& other);
-		Modification(Modification&& other);
-		~Modification() override;
+      Modification(const Modification& other);
+      Modification(Modification&& other);
+      ~Modification() override;
 
-		Modification& operator=(const Modification& other);
-		Modification& operator=(Modification&& other);
+      Modification& operator=(const Modification& other);
+      Modification& operator=(Modification&& other);
 
-		friend void swap(Modification& first, Modification& second);
+      friend void swap(Modification& first, Modification& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] bool hasClassModification() const;
-		[[nodiscard]] ClassModification* getClassModification();
-		[[nodiscard]] const ClassModification* getClassModification() const;
+      [[nodiscard]] bool hasClassModification() const;
+      [[nodiscard]] ClassModification* getClassModification();
+      [[nodiscard]] const ClassModification* getClassModification() const;
 
-		[[nodiscard]] bool hasExpression() const;
-		[[nodiscard]] Expression* getExpression();
-		[[nodiscard]] const Expression* getExpression() const;
+      [[nodiscard]] bool hasExpression() const;
+      [[nodiscard]] Expression* getExpression();
+      [[nodiscard]] const Expression* getExpression() const;
 
 		private:
-		Modification(SourceRange location,
-								 std::unique_ptr<ClassModification> classModification);
+      Modification(SourceRange location,
+                   std::unique_ptr<ClassModification> classModification);
 
-		Modification(SourceRange location,
-								 std::unique_ptr<ClassModification> classModification,
-								 std::unique_ptr<Expression> expression);
+      Modification(SourceRange location,
+                   std::unique_ptr<ClassModification> classModification,
+                   std::unique_ptr<Expression> expression);
 
-		Modification(SourceRange location,
-								 std::unique_ptr<Expression> expression);
+      Modification(SourceRange location,
+                   std::unique_ptr<Expression> expression);
 
-		llvm::Optional<std::unique_ptr<ClassModification>> classModification;
-		llvm::Optional<std::unique_ptr<Expression>> expression;
+    private:
+      llvm::Optional<std::unique_ptr<ClassModification>> classModification;
+      llvm::Optional<std::unique_ptr<Expression>> expression;
 	};
 
 	class ClassModification
@@ -68,40 +70,41 @@ namespace marco::ast
 				public impl::Dumpable<ClassModification>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<T, 3>;
+      template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using iterator = Container<std::unique_ptr<Argument>>::iterator;
-		using const_iterator = Container<std::unique_ptr<Argument>>::const_iterator;
+      using iterator = Container<std::unique_ptr<Argument>>::iterator;
+      using const_iterator = Container<std::unique_ptr<Argument>>::const_iterator;
 
-		template<typename... Args>
-		static std::unique_ptr<ClassModification> build(Args&&... args)
-		{
-			return std::unique_ptr<ClassModification>(new ClassModification(std::forward<Args>(args)...));
-		}
+      template<typename... Args>
+      static std::unique_ptr<ClassModification> build(Args&&... args)
+      {
+        return std::unique_ptr<ClassModification>(new ClassModification(std::forward<Args>(args)...));
+      }
 
-		ClassModification(const ClassModification& other);
-		ClassModification(ClassModification&& other);
-		~ClassModification() override;
+      ClassModification(const ClassModification& other);
+      ClassModification(ClassModification&& other);
+      ~ClassModification() override;
 
-		ClassModification& operator=(const ClassModification& other);
-		ClassModification& operator=(ClassModification&& other);
+      ClassModification& operator=(const ClassModification& other);
+      ClassModification& operator=(ClassModification&& other);
 
-		friend void swap(ClassModification& first, ClassModification& second);
+      friend void swap(ClassModification& first, ClassModification& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] iterator begin();
-		[[nodiscard]] const_iterator begin() const;
+      [[nodiscard]] iterator begin();
+      [[nodiscard]] const_iterator begin() const;
 
-		[[nodiscard]] iterator end();
-		[[nodiscard]] const_iterator end() const;
+      [[nodiscard]] iterator end();
+      [[nodiscard]] const_iterator end() const;
 
 		private:
-		ClassModification(SourceRange location,
-											llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
+      ClassModification(SourceRange location,
+                        llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
 
-		Container<std::unique_ptr<Argument>> arguments;
+    private:
+		  Container<std::unique_ptr<Argument>> arguments;
 	};
 
 	class ElementModification
@@ -201,9 +204,9 @@ namespace marco::ast
 	{
 		public:
 		template<typename... Args>
-		static std::unique_ptr<Algorithm> build(Args&&... args)
+		static std::unique_ptr<Argument> build(Args&&... args)
 		{
-			return std::make_unique<Algorithm>(std::forward<Args>(args)...);
+			return std::make_unique<Argument>(std::forward<Args>(args)...);
 		}
 
 		Argument(const Argument& other);

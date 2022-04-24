@@ -1,8 +1,8 @@
 #ifndef MARCO_AST_NODE_ASTNODE_H
 #define MARCO_AST_NODE_ASTNODE_H
 
-#include "llvm/Support/raw_ostream.h"
 #include "marco/Utils/SourcePosition.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace marco::ast
 {
@@ -56,22 +56,22 @@ namespace marco::ast
 	class ASTNode
 	{
 		public:
-		ASTNode(SourceRange location);
+      ASTNode(SourceRange location);
 
-		ASTNode(const ASTNode& other);
-		ASTNode(ASTNode&& other);
+      ASTNode(const ASTNode& other);
+      ASTNode(ASTNode&& other);
 
-		virtual ~ASTNode() = 0;
+      virtual ~ASTNode() = 0;
 
-		ASTNode& operator=(const ASTNode& other);
-		ASTNode& operator=(ASTNode&& other);
+      ASTNode& operator=(const ASTNode& other);
+      ASTNode& operator=(ASTNode&& other);
 
-		friend void swap(ASTNode& first, ASTNode& second);
+      friend void swap(ASTNode& first, ASTNode& second);
 
-		[[nodiscard]] SourceRange getLocation() const;
+      [[nodiscard]] SourceRange getLocation() const;
 
 		private:
-		SourceRange location;
+		  SourceRange location;
 	};
 }
 

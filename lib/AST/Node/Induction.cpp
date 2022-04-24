@@ -1,101 +1,102 @@
-#include "marco/AST/AST.h"
-#include "marco/Utils/IRange.h"
+#include "marco/AST/Node/Induction.h"
+#include "marco/AST/Node/Expression.h"
 
-using namespace marco::ast;
-
-Induction::Induction(SourceRange location,
-										 llvm::StringRef inductionVariable,
-										 std::unique_ptr<Expression> begin,
-										 std::unique_ptr<Expression> end)
-		: ASTNode(std::move(location)),
-			inductionVariable(inductionVariable.str()),
-			begin(std::move(begin)),
-			end(std::move(end)),
-			inductionIndex(0)
-{
-}
-
-Induction::Induction(const Induction& other)
-		: ASTNode(other),
-			inductionVariable(other.inductionVariable),
-			begin(other.begin->clone()),
-			end(other.end->clone()),
-			inductionIndex(other.inductionIndex)
-{
-}
-
-Induction::Induction(Induction&& other) = default;
-
-Induction::~Induction() = default;
-
-Induction& Induction::operator=(const Induction& other)
-{
-	Induction result(other);
-	swap(*this, result);
-	return *this;
-}
-
-Induction& Induction::operator=(Induction&& other) = default;
+using namespace ::marco;
+using namespace ::marco::ast;
 
 namespace marco::ast
 {
-	void swap(Induction& first, Induction& second)
-	{
-		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+  Induction::Induction(SourceRange location,
+                       llvm::StringRef inductionVariable,
+                       std::unique_ptr<Expression> begin,
+                       std::unique_ptr<Expression> end)
+      : ASTNode(std::move(location)),
+        inductionVariable(inductionVariable.str()),
+        begin(std::move(begin)),
+        end(std::move(end)),
+        inductionIndex(0)
+  {
+  }
 
-		using std::swap;
-		swap(first.inductionVariable, second.inductionVariable);
-		swap(first.begin, second.begin);
-		swap(first.end, second.end);
-		swap(first.inductionIndex, second.inductionIndex);
-	}
-}
+  Induction::Induction(const Induction& other)
+      : ASTNode(other),
+        inductionVariable(other.inductionVariable),
+        begin(other.begin->clone()),
+        end(other.end->clone()),
+        inductionIndex(other.inductionIndex)
+  {
+  }
 
-void Induction::print(llvm::raw_ostream& os, size_t indents) const
-{
-	os.indent(indents);
-	os << "induction var " << getName() << "\n";
+  Induction::Induction(Induction&& other) = default;
 
-	os.indent(indents);
-	os << "from ";
-	begin->print(os, indents + 1);
-	os << "\n";
-	os.indent(indents);
-	os << "to";
-	end->print(os, indents + 1);
-}
+  Induction::~Induction() = default;
 
-llvm::StringRef Induction::getName() const
-{
-	return inductionVariable;
-}
+  Induction& Induction::operator=(const Induction& other)
+  {
+    Induction result(other);
+    swap(*this, result);
+    return *this;
+  }
 
-Expression* Induction::getBegin()
-{
-	return begin.get();
-}
+  Induction& Induction::operator=(Induction&& other) = default;
 
-const Expression* Induction::getBegin() const
-{
-	return begin.get();
-}
+  void swap(Induction& first, Induction& second)
+  {
+    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
-Expression* Induction::getEnd()
-{
-	return end.get();
-}
+    using std::swap;
+    swap(first.inductionVariable, second.inductionVariable);
+    swap(first.begin, second.begin);
+    swap(first.end, second.end);
+    swap(first.inductionIndex, second.inductionIndex);
+  }
 
-const Expression* Induction::getEnd() const
-{
-	return end.get();
-}
+  void Induction::print(llvm::raw_ostream& os, size_t indents) const
+  {
+    os.indent(indents);
+    os << "induction var " << getName() << "\n";
 
-size_t Induction::getInductionIndex() const
-{
-	return inductionIndex;
-}
+    os.indent(indents);
+    os << "from ";
+    begin->print(os, indents + 1);
+    os << "\n";
+    os.indent(indents);
+    os << "to";
+    end->print(os, indents + 1);
+  }
 
-void Induction::setInductionIndex(size_t index)
-{
-	this->inductionIndex = index;
+  llvm::StringRef Induction::getName() const
+  {
+    return inductionVariable;
+  }
+
+  Expression* Induction::getBegin()
+  {
+    return begin.get();
+  }
+
+  const Expression* Induction::getBegin() const
+  {
+    return begin.get();
+  }
+
+  Expression* Induction::getEnd()
+  {
+    return end.get();
+  }
+
+  const Expression* Induction::getEnd() const
+  {
+    return end.get();
+  }
+
+  size_t Induction::getInductionIndex() const
+  {
+    return inductionIndex;
+  }
+
+  void Induction::setInductionIndex(size_t index)
+  {
+    this->inductionIndex = index;
+  }
 }

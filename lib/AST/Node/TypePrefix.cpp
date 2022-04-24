@@ -1,6 +1,7 @@
-#include "marco/AST/AST.h"
+#include "marco/AST/Node/TypePrefix.h"
 
-using namespace marco::ast;
+using namespace ::marco;
+using namespace ::marco::ast;
 
 namespace marco::ast
 {
@@ -46,56 +47,57 @@ namespace marco::ast
 
 		return "unexpected";
 	}
-}
 
-TypePrefix::TypePrefix(
-		ParameterQualifier parameterQualifier, IOQualifier ioQualifier)
-		: parameterQualifier(parameterQualifier), ioQualifier(ioQualifier)
-{
-}
+  TypePrefix::TypePrefix(
+      ParameterQualifier parameterQualifier, IOQualifier ioQualifier)
+      : parameterQualifier(parameterQualifier), ioQualifier(ioQualifier)
+  {
+  }
 
-void TypePrefix::print(llvm::raw_ostream& os, size_t indents) const
-{
-	os << "Prefix: ";
+  void TypePrefix::print(llvm::raw_ostream& os, size_t indents) const
+  {
+    os << "Prefix: ";
 
-	if (parameterQualifier == ParameterQualifier::none &&
-			ioQualifier == IOQualifier::none)
-	{
-		os << "none";
-	}
-	else
-	{
-		bool space = false;
+    if (parameterQualifier == ParameterQualifier::none && ioQualifier == IOQualifier::none) {
+      os << "none";
+    } else {
+      bool space = false;
 
-		if (parameterQualifier != ParameterQualifier::none)
-		{
-			os << parameterQualifier;
-			space = true;
-		}
+      if (parameterQualifier != ParameterQualifier::none) {
+        os << parameterQualifier;
+        space = true;
+      }
 
-		if (ioQualifier != IOQualifier::none)
-		{
-			if (space)
-				os << " ";
+      if (ioQualifier != IOQualifier::none) {
+        if (space) {
+          os << " ";
+        }
 
-			os << ioQualifier;
-		}
-	}
+        os << ioQualifier;
+      }
+    }
 
-	os.indent(indents);
-}
+    os.indent(indents);
+  }
 
-bool TypePrefix::isParameter() const
-{
-	return parameterQualifier == ParameterQualifier::parameter ||
-				 parameterQualifier == ParameterQualifier::constant;
-}
+  bool TypePrefix::isParameter() const
+  {
+    return parameterQualifier == ParameterQualifier::parameter ||
+        parameterQualifier == ParameterQualifier::constant;
+  }
 
-bool TypePrefix::isInput() const { return ioQualifier == IOQualifier::input; }
+  bool TypePrefix::isInput() const
+  {
+    return ioQualifier == IOQualifier::input;
+  }
 
-bool TypePrefix::isOutput() const { return ioQualifier == IOQualifier::output; }
+  bool TypePrefix::isOutput() const
+  {
+    return ioQualifier == IOQualifier::output;
+  }
 
-TypePrefix TypePrefix::none()
-{
-	return TypePrefix(ParameterQualifier::none, IOQualifier::none);
+  TypePrefix TypePrefix::none()
+  {
+    return TypePrefix(ParameterQualifier::none, IOQualifier::none);
+  }
 }

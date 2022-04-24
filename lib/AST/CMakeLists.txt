@@ -5,6 +5,7 @@ set(SOURCES
 	Node/ASTNode.cpp
 	Node/Call.cpp
 	Node/Class.cpp
+	Node/EquationsBlock.cpp
 	Node/Model.cpp
 	Node/Constant.cpp
 	Node/Equation.cpp
@@ -17,6 +18,7 @@ set(SOURCES
 	Node/Operation.cpp
 	Node/Package.cpp
 	Node/Record.cpp
+	Node/RecordInstance.cpp
 	Node/ReferenceAccess.cpp
 	Node/Statement.cpp
 	Node/Tuple.cpp
