@@ -1,4 +1,8 @@
-#include "marco/AST/AST.h"
+#include "marco/AST/Node/Function.h"
+#include "marco/AST/Node/Annotation.h"
+#include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/Algorithm.h"
+#include "marco/AST/Node/Member.h"
 #include <algorithm>
 #include <variant>
 

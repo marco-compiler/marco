@@ -3,6 +3,7 @@
 
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/Annotation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
