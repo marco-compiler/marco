@@ -566,12 +566,6 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
   builder.create<mlir::BranchOp>(loc, functionReturnBlock);
 
   // Create the return instruction
-  llvm::StringMap<MemberCreateOp> members;
-
-  function->walk([&members](MemberCreateOp member) {
-    members[member.name()] = member;
-  });
-
   for (auto& bodyOp : bodyOps) {
     if (auto status = run(builder, bodyOp, nullptr, functionReturnBlock); failed(status)) {
       return status;

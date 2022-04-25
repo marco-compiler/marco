@@ -555,9 +555,11 @@ namespace marco::codegen
 
     llvm::StringMap<std::string> inverseDerivativesNamesMap;
 
+    unsigned int membersCounter = originalMembersMap.size();
+
     // Analyze the original input members
     for (const auto& name : functionOp.inputMemberNames()) {
-      auto derName = getPartialDerMemberName(name, currentOrder + 1);
+      auto derName = getPartialDerMemberName(name, currentOrder + 1) + std::to_string(membersCounter++);
       auto type = originalMembersMap[name].getDefiningOp<MemberCreateOp>().getMemberType();
 
       newInputMembersNames.push_back(derName);
@@ -568,7 +570,7 @@ namespace marco::codegen
 
     // Analyze the original output members
     for (const auto& name : functionOp.outputMemberNames()) {
-      auto derName = getPartialDerMemberName(name, currentOrder + 1);
+      auto derName = getPartialDerMemberName(name, currentOrder + 1) + std::to_string(membersCounter++);
       auto type = originalMembersMap[name].getDefiningOp<MemberCreateOp>().getMemberType();
 
       newInputMembersNames.push_back(derName);
@@ -579,7 +581,7 @@ namespace marco::codegen
 
     // Analyze the original protected members
     for (const auto& name : functionOp.protectedMemberNames()) {
-      auto derName = getPartialDerMemberName(name, currentOrder + 1);
+      auto derName = getPartialDerMemberName(name, currentOrder + 1) + std::to_string(membersCounter++);
       auto type = originalMembersMap[name].getDefiningOp<MemberCreateOp>().getMemberType();
 
       newInputMembersNames.push_back(derName);

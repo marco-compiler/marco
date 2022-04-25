@@ -1173,14 +1173,24 @@ namespace marco::modeling
           // array-aware matching problem.
 
           if (matchOptions.size() == 1) {
-            const auto& match = matchOptions[0];
-            edge.addMatch(match);
+            const MCIM& match = matchOptions[0];
 
             Variable& variable = isVariable(v1) ? getVariable(v1) : getVariable(v2);
             Equation& equation = isEquation(v1) ? getEquation(v1) : getEquation(v2);
 
-            variable.addMatch(match.flattenRows());
-            equation.addMatch(match.flattenColumns());
+            auto proposedVariableMatch = match.flattenRows();
+            auto proposedEquationMatch = match.flattenColumns();
+
+            MCIM reducedMatch = match.filterColumns(proposedVariableMatch - variable.getMatched());
+            reducedMatch = reducedMatch.filterRows(proposedEquationMatch - equation.getMatched());
+
+            edge.addMatch(reducedMatch);
+
+            auto reducedVariableMatch = reducedMatch.flattenRows();
+            auto reducedEquationMatch = reducedMatch.flattenColumns();
+
+            variable.addMatch(reducedVariableMatch);
+            equation.addMatch(reducedEquationMatch);
 
             auto allComponentsMatchedVisitor = [](const auto& vertex) -> bool {
               return vertex.allComponentsMatched();
