@@ -69,14 +69,12 @@ namespace marco::codegen::lowering
     }
 
     {
-      // Body
-      mlir::Block* bodyBlock = builder().createBlock(&modelOp.bodyRegion(), {}, args);
-      builder().setInsertionPointToStart(bodyBlock);
-
+      // Equations
+      builder().setInsertionPointToStart(builder().createBlock(&modelOp.equationsRegion(), {}, args));
       symbolTable().insert("time", Reference::time(&builder()));
 
       for (const auto& member : llvm::enumerate(model.getMembers())) {
-        symbolTable().insert(member.value()->getName(), Reference::memory(&builder(), modelOp.bodyRegion().getArgument(member.index())));
+        symbolTable().insert(member.value()->getName(), Reference::memory(&builder(), modelOp.equationsRegion().getArgument(member.index())));
       }
 
       // Members with an assigned value are conceptually the same as equations performing that assignment.
@@ -144,7 +142,7 @@ namespace marco::codegen::lowering
     auto location = loc(expression.getLocation());
 
     mlir::OpBuilder::InsertionGuard guard(builder());
-    builder().setInsertionPointToEnd(modelOp.bodyBlock());
+    builder().setInsertionPointToEnd(modelOp.equationsBlock());
 
     auto equationOp = builder().create<EquationOp>(location);
     assert(equationOp.bodyRegion().empty());

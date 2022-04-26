@@ -221,6 +221,12 @@ namespace marco::ast
           continue;
         }
 
+        if (accept(Token::InitialKeyword)) {
+          TRY(eqBlock, equationsBlock());
+          initialEquationsBlocks.push_back(std::move(*eqBlock));
+          continue;
+        }
+
         if (current == Token::AlgorithmKeyword) {
           TRY(alg, algorithmSection());
           algorithms.emplace_back(std::move(*alg));

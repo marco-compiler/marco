@@ -569,12 +569,23 @@ static mlir::ParseResult parseModelOp(mlir::OpAsmParser& parser, mlir::Operation
   }
 
   mlir::Region* initRegion = result.addRegion();
-  mlir::Region* bodyRegion = result.addRegion();
+  mlir::Region* equationsRegion = result.addRegion();
+  mlir::Region* initialEquationsRegion = result.addRegion();
 
-  if (parser.parseRegion(*initRegion) ||
-      parser.parseKeyword("equations") ||
-      parser.parseRegion(*bodyRegion)) {
+  if (parser.parseRegion(*initRegion)) {
     return mlir::failure();
+  }
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("equations"))) {
+    if (parser.parseRegion(*equationsRegion)) {
+      return mlir::failure();
+    }
+  }
+
+  if (mlir::succeeded(parser.parseOptionalKeyword("initial equations"))) {
+    if (parser.parseRegion(*initialEquationsRegion)) {
+      return mlir::failure();
+    }
   }
 
   return mlir::success();
@@ -585,8 +596,16 @@ static void print(mlir::OpAsmPrinter& printer, ModelOp op)
   printer << op.getOperationName();
   printer.printOptionalAttrDictWithKeyword(op->getAttrs());
   printer.printRegion(op.initRegion());
-  printer << " equations";
-  printer.printRegion(op.bodyRegion());
+
+  if (auto& region = op.equationsRegion(); !region.empty()) {
+    printer << " equations";
+    printer.printRegion(region);
+  }
+
+  if (auto& region = op.initialEquationsRegion(); !region.empty()) {
+    printer << " initial equations";
+    printer.printRegion(region);
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -1279,10 +1298,26 @@ namespace mlir::modelica
     return result;
   }
 
-  mlir::Block* ModelOp::bodyBlock()
+  bool ModelOp::hasEquationsBlock()
   {
-    assert(!bodyRegion().empty());
-    return &bodyRegion().front();
+    return !equationsRegion().empty();
+  }
+
+  mlir::Block* ModelOp::equationsBlock()
+  {
+    assert(equationsRegion().hasOneBlock());
+    return &equationsRegion().front();
+  }
+
+  bool ModelOp::hasInitialEquationsBlock()
+  {
+    return !initialEquationsRegion().empty();
+  }
+
+  mlir::Block* ModelOp::initialEquationsBlock()
+  {
+    assert(initialEquationsRegion().hasOneBlock());
+    return &initialEquationsRegion().front();
   }
 
   //===----------------------------------------------------------------------===//
@@ -1291,7 +1326,7 @@ namespace mlir::modelica
 
   mlir::Block* FunctionOp::bodyBlock()
   {
-    assert(body().getBlocks().size() == 1);
+    assert(body().hasOneBlock());
     return &body().front();
   }
 

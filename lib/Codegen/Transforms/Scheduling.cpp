@@ -120,7 +120,7 @@ namespace
 
               clone->setAttr("cycle", builder.getI64IntegerAttr(cyclesCounter));
 
-              builder.setInsertionPointToEnd(modelOp.bodyBlock());
+              builder.setInsertionPointToEnd(modelOp.equationsBlock());
               builder.clone(*getEquationRoot(clone));
 
               toBeErased.insert(clone.getOperation());
@@ -168,7 +168,7 @@ namespace
 
               clone->setAttr("scheduled_direction", schedulingDirection);
 
-              builder.setInsertionPointToEnd(modelOp.bodyBlock());
+              builder.setInsertionPointToEnd(modelOp.equationsBlock());
               builder.clone(*getEquationRoot(clone));
 
               toBeErased.insert(clone.getOperation());

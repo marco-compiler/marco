@@ -1,11 +1,9 @@
 #include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDASolver.h"
-#include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Codegen/Runtime.h"
-#include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
-#include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
-#include "mlir/IR/AffineMap.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -104,8 +102,8 @@ namespace marco::codegen
     // Convert the original derivatives map between values into a map between positions
     DerivativesPositionsMap derivativesPositions;
 
-    for (size_t i = 0, e = modelOp.bodyRegion().getNumArguments(); i < e; ++i) {
-      mlir::Value var = modelOp.bodyRegion().getArgument(i);
+    for (size_t i = 0, e = modelOp.equationsRegion().getNumArguments(); i < e; ++i) {
+      mlir::Value var = modelOp.equationsRegion().getArgument(i);
 
       if (derivatives.contains(var)) {
         mlir::Value derivative = derivatives.lookup(var);
@@ -113,7 +111,7 @@ namespace marco::codegen
         unsigned int position = 0;
 
         for (size_t j = 0; j < e && !derivativeFound; ++j) {
-          mlir::Value arg = modelOp.bodyRegion().getArgument(j);
+          mlir::Value arg = modelOp.equationsRegion().getArgument(j);
 
           if (arg == derivative) {
             derivativeFound = true;
@@ -532,7 +530,7 @@ namespace marco::codegen
     builder.setInsertionPointAfter(terminator);
 
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), externalSolvers, model.getOperation().bodyRegion().getArgumentTypes());
+        builder.getContext(), externalSolvers, model.getOperation().equationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStructValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
 
@@ -613,12 +611,12 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), externalSolvers, modelOp.bodyRegion().getArgumentTypes());
+        builder.getContext(), externalSolvers, modelOp.equationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
     // Deallocate the arrays
-    for (const auto& varType : llvm::enumerate(modelOp.bodyRegion().getArgumentTypes())) {
+    for (const auto& varType : llvm::enumerate(modelOp.equationsRegion().getArgumentTypes())) {
       if (auto arrayType = varType.value().dyn_cast<ArrayType>()) {
         mlir::Value var = extractValue(builder, runtimeDataStruct, varType.value(), varType.index() + variablesOffset);
         builder.create<FreeOp>(loc, var);
@@ -762,7 +760,7 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), externalSolvers, modelOp.bodyRegion().getArgumentTypes());
+        builder.getContext(), externalSolvers, modelOp.equationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
@@ -771,7 +769,7 @@ namespace marco::codegen
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
     vars.push_back(time);
 
-    for (const auto& varType : llvm::enumerate(modelOp.bodyRegion().getArgumentTypes())) {
+    for (const auto& varType : llvm::enumerate(modelOp.equationsRegion().getArgumentTypes())) {
       vars.push_back(extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset));
     }
 
@@ -808,7 +806,7 @@ namespace marco::codegen
 
       // Create the equation template function
       auto templateFunction = explicitEquation->second->createTemplateFunction(
-          builder, templateFunctionName, modelOp.bodyRegion().getArguments(), equation->getSchedulingDirection());
+          builder, templateFunctionName, modelOp.equationsRegion().getArguments(), equation->getSchedulingDirection());
 
       auto timeArgumentIndex = equation->getNumOfIterationVars() * 3;
 
@@ -853,7 +851,7 @@ namespace marco::codegen
           auto equationFunction = createEquationFunction(
               builder, *equation, equationFunctionName, templateFunction,
               equationTemplateCalls,
-              modelOp.bodyRegion().getArgumentTypes());
+              modelOp.equationsRegion().getArgumentTypes());
 
           equationFunctions.insert(equationFunction);
 
@@ -890,7 +888,7 @@ namespace marco::codegen
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto loc = modelOp.getLoc();
 
-    auto varTypes = modelOp.bodyRegion().getArgumentTypes();
+    auto varTypes = modelOp.equationsRegion().getArgumentTypes();
 
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
@@ -904,7 +902,7 @@ namespace marco::codegen
 
     // Extract the state variables from the opaque pointer
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), externalSolvers, modelOp.bodyRegion().getArgumentTypes());
+        builder.getContext(), externalSolvers, modelOp.equationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
@@ -920,7 +918,7 @@ namespace marco::codegen
 
     std::vector<mlir::Value> variables;
 
-    for (const auto& variable : modelOp.bodyRegion().getArguments()) {
+    for (const auto& variable : modelOp.equationsRegion().getArguments()) {
       size_t index = variable.getArgNumber();
       mlir::Value var = extractValue(builder, structValue, varTypes[index], index + variablesOffset);
       variables.push_back(var);
@@ -950,7 +948,7 @@ namespace marco::codegen
 
       std::vector<std::pair<mlir::Value, mlir::Value>> varsAndDers;
 
-      for (const auto& variable : modelOp.bodyRegion().getArguments()) {
+      for (const auto& variable : modelOp.equationsRegion().getArguments()) {
         size_t index = variable.getArgNumber();
         auto it = derivativesPositionMap.find(variable.getArgNumber());
 
@@ -992,7 +990,7 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), externalSolvers, modelOp.bodyRegion().getArgumentTypes());
+        builder.getContext(), externalSolvers, modelOp.equationsRegion().getArgumentTypes());
 
     // Extract the external solvers data
     mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
@@ -1285,7 +1283,7 @@ namespace marco::codegen
       ExternalSolvers& externalSolvers) const
   {
     auto module = op.getOperation()->getParentOfType<mlir::ModuleOp>();
-    mlir::TypeRange varTypes = op.bodyRegion().getArgumentTypes();
+    mlir::TypeRange varTypes = op.equationsRegion().getArgumentTypes();
 
     auto callback = [&](llvm::StringRef name, mlir::Value value, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       auto loc = op.getLoc();
@@ -1421,7 +1419,7 @@ namespace marco::codegen
       ExternalSolvers& externalSolvers) const
   {
     auto module = op.getOperation()->getParentOfType<mlir::ModuleOp>();
-    mlir::TypeRange varTypes = op.bodyRegion().getArgumentTypes();
+    mlir::TypeRange varTypes = op.equationsRegion().getArgumentTypes();
 
     auto callback = [&](llvm::StringRef name, mlir::Value value, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       bool shouldPrintSeparator = processedValues != 0;
@@ -1457,7 +1455,7 @@ namespace marco::codegen
 
     // Load the runtime data structure
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), externalSolvers, op.bodyRegion().getArgumentTypes());
+        builder.getContext(), externalSolvers, op.equationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 

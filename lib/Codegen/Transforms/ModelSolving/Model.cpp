@@ -10,7 +10,7 @@ namespace marco::codegen
   {
     Variables result;
 
-    for (const auto& var : model.bodyRegion().getArguments()) {
+    for (const auto& var : model.equationsRegion().getArguments()) {
       result.add(std::make_unique<Variable>(var));
     }
 

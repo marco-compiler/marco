@@ -482,7 +482,7 @@ namespace marco::codegen
     }
 
     mlir::BlockAndValueMapping inverseDerivatives = derivatives->getInverse();
-    auto equationVariables = model.getOperation().bodyRegion().getArguments();
+    auto equationVariables = model.getOperation().equationsRegion().getArguments();
 
     size_t residualFunctionsCounter = 0;
     size_t jacobianFunctionsCounter = 0;

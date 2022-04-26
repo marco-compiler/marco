@@ -2147,7 +2147,8 @@ def Modelica_ModelOp : Modelica_Op<"model",
 
     let regions = (region
         AnyRegion:$initRegion,
-        AnyRegion:$bodyRegion
+        AnyRegion:$equationsRegion,
+        AnyRegion:$initialEquationsRegion
     );
 
     let printer = [{ return ::print(p, *this); }];
@@ -2157,7 +2158,11 @@ def Modelica_ModelOp : Modelica_Op<"model",
         public:
             SmallVector<StringRef> variableNames();
 
-            Block* bodyBlock();
+            bool hasEquationsBlock();
+            Block* equationsBlock();
+
+            bool hasInitialEquationsBlock();
+            Block* initialEquationsBlock();
     }];
 }
 

@@ -157,7 +157,7 @@ static mlir::LogicalResult removeDerivatives(
       terminator.erase();
 
       // Add the new argument to the body of the model
-      auto bodyArgument = model.bodyRegion().addArgument(arrayType);
+      auto bodyArgument = model.equationsRegion().addArgument(arrayType);
       derivatives.map(operand, bodyArgument);
     }
 
@@ -298,7 +298,7 @@ namespace
       {
         llvm::SmallVector<EquationOp> equations;
 
-        for (auto op : modelOp.bodyBlock()->getOps<EquationOp>()) {
+        for (auto op : modelOp.equationsBlock()->getOps<EquationOp>()) {
           equations.push_back(op);
         }
 
@@ -307,7 +307,7 @@ namespace
         mlir::BlockAndValueMapping mapping;
 
         for (auto& equationOp : equations) {
-          builder.setInsertionPointToEnd(modelOp.bodyBlock());
+          builder.setInsertionPointToEnd(modelOp.equationsBlock());
           std::vector<ForEquationOp> parents;
 
           ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
