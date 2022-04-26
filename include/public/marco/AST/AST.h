@@ -11,6 +11,7 @@
 #include "marco/AST/Node/ConditionalBlock.h"
 #include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Equation.h"
+#include "marco/AST/Node/EquationsBlock.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/ForEquation.h"
 #include "marco/AST/Node/Function.h"

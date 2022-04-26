@@ -107,9 +107,7 @@ namespace marco::ast
 
 		llvm::Expected<std::unique_ptr<Induction>> induction();
 
-		llvm::Error equationSection(
-				llvm::SmallVectorImpl<std::unique_ptr<Equation>>& equations,
-				llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& forEquations);
+		llvm::Expected<std::unique_ptr<EquationsBlock>> equationsBlock();
 
 		llvm::Expected<std::unique_ptr<Equation>> equation();
 

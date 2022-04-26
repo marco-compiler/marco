@@ -17,6 +17,11 @@ namespace marco::ast
       template<typename T> using Container = llvm::SmallVector<T, 3>;
 
     public:
+      EquationsBlock(
+        SourceRange location,
+        llvm::ArrayRef<std::unique_ptr<Equation>> equations = llvm::None,
+        llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations = llvm::None);
+
       template<typename... Args>
       static std::unique_ptr<EquationsBlock> build(Args&&... args)
       {
@@ -38,11 +43,8 @@ namespace marco::ast
       llvm::ArrayRef<std::unique_ptr<Equation>> getEquations() const;
       llvm::ArrayRef<std::unique_ptr<ForEquation>> getForEquations() const;
 
-    private:
-      EquationsBlock(
-        SourceRange location,
-        llvm::ArrayRef<std::unique_ptr<Equation>> equations,
-        llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations);
+      void add(std::unique_ptr<Equation> equation);
+      void add(std::unique_ptr<ForEquation> equation);
 
     private:
       Container<std::unique_ptr<Equation>> equations;

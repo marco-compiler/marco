@@ -75,4 +75,14 @@ namespace marco::ast
   {
     return forEquations;
   }
+
+  void EquationsBlock::add(std::unique_ptr<Equation> equation)
+  {
+    equations.push_back(std::move(equation));
+  }
+
+  void EquationsBlock::add(std::unique_ptr<ForEquation> equation)
+  {
+    forEquations.push_back(std::move(equation));
+  }
 }

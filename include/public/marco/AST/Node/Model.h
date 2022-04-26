@@ -11,13 +11,14 @@ namespace marco::ast
 {
   class Algorithm;
   class Class;
+  class EquationsBlock;
   class Equation;
   class ForEquation;
   class Member;
 
   class Model
-          : public ASTNode,
-              public impl::Dumpable<Model>
+    : public ASTNode,
+      public impl::Dumpable<Model>
   {
     private:
       template<typename T> using Container = llvm::SmallVector<T, 3>;
@@ -41,15 +42,11 @@ namespace marco::ast
 
       void addMember(std::unique_ptr<Member> member);
 
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Equation>> getEquations();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Equation>> getEquations() const;
+      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<EquationsBlock>> getEquationsBlocks();
+      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<EquationsBlock>> getEquationsBlocks() const;
 
-      void addEquation(std::unique_ptr<Equation> equation);
-
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<ForEquation>> getForEquations();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<ForEquation>> getForEquations() const;
-
-      void addForEquation(std::unique_ptr<ForEquation> forEquation);
+      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<EquationsBlock>> getInitialEquationsBlocks();
+      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<EquationsBlock>> getInitialEquationsBlocks() const;
 
       [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Algorithm>> getAlgorithms();
       [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Algorithm>> getAlgorithms() const;
@@ -63,16 +60,16 @@ namespace marco::ast
       Model(SourceRange location,
             llvm::StringRef name,
             llvm::ArrayRef<std::unique_ptr<Member>> members,
-            llvm::ArrayRef<std::unique_ptr<Equation>> equations,
-            llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations,
+            llvm::ArrayRef<std::unique_ptr<EquationsBlock>> equationsBlocks,
+            llvm::ArrayRef<std::unique_ptr<EquationsBlock>> initialEquationsBlocks,
             llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
             llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
 
     private:
       std::string name;
       Container<std::unique_ptr<Member>> members;
-      Container<std::unique_ptr<Equation>> equations;
-      Container<std::unique_ptr<ForEquation>> forEquations;
+      Container<std::unique_ptr<EquationsBlock>> equationsBlocks;
+      Container<std::unique_ptr<EquationsBlock>> initialEquationsBlocks;
       Container<std::unique_ptr<Algorithm>> algorithms;
       Container<std::unique_ptr<Class>> innerClasses;
   };

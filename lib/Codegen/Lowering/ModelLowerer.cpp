@@ -87,12 +87,14 @@ namespace marco::codegen::lowering
       }
 
       // Create the equations
-      for (const auto& equation : model.getEquations()) {
-        lower(*equation);
-      }
+      for (const auto& equationsBlock : model.getEquationsBlocks()) {
+        for (const auto& equation : equationsBlock->getEquations()) {
+          lower(*equation);
+        }
 
-      for (const auto& forEquation : model.getForEquations()) {
-        lower(*forEquation);
+        for (const auto& forEquation : equationsBlock->getForEquations()) {
+          lower(*forEquation);
+        }
       }
     }
 

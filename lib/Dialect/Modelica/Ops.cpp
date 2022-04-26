@@ -785,7 +785,7 @@ static mlir::ParseResult parseSubscriptionOp(mlir::OpAsmParser& parser, mlir::Op
 static void print(mlir::OpAsmPrinter& printer, SubscriptionOp op)
 {
   printer << op.getOperationName();
-  printer << op.source() << "[" << op.indices() << "]";
+  printer << " " << op.source() << "[" << op.indices() << "]";
   printer.printOptionalAttrDict(op->getAttrs());
   printer << " : " << op.getResult().getType();
 }
