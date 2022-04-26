@@ -162,6 +162,7 @@ namespace marco::frontend
     frontendPassManager.addPass(ast::createTypeInferencePass(diagnostics));
     frontendPassManager.addPass(ast::createTypeCheckingPass(diagnostics));
     frontendPassManager.addPass(ast::createSemanticAnalysisPass(diagnostics));
+    frontendPassManager.addPass(ast::createInliningPass(diagnostics));
     frontendPassManager.addPass(ast::createConstantFoldingPass(diagnostics));
 
     if (!frontendPassManager.run(instance().getAST())) {

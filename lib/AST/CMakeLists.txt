@@ -59,6 +59,7 @@ set(BUILT_IN_FUNCTIONS
 
 set(PASSES
 	Passes/ConstantFoldingPass.cpp
+	Passes/InliningPass.cpp
 	Passes/PassManager.cpp
 	Passes/SemanticAnalysisPass.cpp
 	Passes/StructuralConstantPropagationPass.cpp
