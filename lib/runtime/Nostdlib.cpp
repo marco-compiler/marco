@@ -64,6 +64,7 @@ extern "C" int __main()
 
 // The following code is needed when building with MSVC.
 #ifdef MSVC_BUILD
+#ifndef MSVC_SHARED
 extern "C" int main();
 
 // This is the first function called in the Windows executable.
@@ -72,6 +73,7 @@ extern "C" void mainCRTStartup()
 	main();
 	return;
 }
+#endif
 
 extern "C" __declspec(noreturn) void __cdecl 
 __imp__invalid_parameter_noinfo_noreturn(void)
@@ -182,3 +184,12 @@ void* memset(void* s, int c,  size_t len)
 }
 
 #endif // WINDOWS_NOSTDLIB
+
+namespace nst {
+	int mux(int a, int b)
+	{
+		if(a > b)
+			return a;
+		return b;
+	}
+}

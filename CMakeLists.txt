@@ -31,7 +31,7 @@ endif()
 
 # Disable exceptions and RTTI
 if(MSVC)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor /GS- /D_HAS_EXCEPTIONS=0 /GR-")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GS- /D_HAS_EXCEPTIONS=0 /GR-")
 else()
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 endif()
@@ -226,6 +226,9 @@ endif()
 enable_testing()
 
 set(INSTALL_GTEST OFF)
+if(MSVC)
+	set(gtest_force_shared_crt ON)
+endif()
 add_subdirectory(utils/googletest)
 include(GoogleTest)
 

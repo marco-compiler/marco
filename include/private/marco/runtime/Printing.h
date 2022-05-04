@@ -1,5 +1,8 @@
 #ifndef RUNTIME_PRINTING
 #define RUNTIME_PRINTING
+#ifdef MSVC_BUILD
+#define NOMINMAX
+#endif
 
 #include <Windows.h>
 #include "marco/runtime/ryuprintf/ryu.h"

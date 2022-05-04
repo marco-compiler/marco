@@ -32,7 +32,8 @@ marco_add_library(runtimeShared
 		${SHARED_SOURCES})
 
 if(MSVC)
-target_compile_options(runtimeShared PRIVATE "/Oi-")
+target_compile_options(runtimeShared PRIVATE "/Oi-" "/Zc:preprocessor")
+target_compile_definitions(runtimeShared PRIVATE "MSVC_SHARED")
 target_link_options(runtimeShared PRIVATE "/NODEFAULTLIB")
 elseif(MINGW)
 # -fno-strict-aliasing needed for fdlibm
@@ -48,7 +49,7 @@ marco_add_library(runtime
 		${STATIC_SOURCES})
 
 if(MSVC)
-target_compile_options(runtime PRIVATE "/Oi-" "/Zi")
+target_compile_options(runtime PRIVATE "/Oi-" "/Zi" "/Zc:preprocessor")
 target_link_options(runtime PRIVATE "/NODEFAULTLIB")
 elseif(MINGW)
 # -fno-strict-aliasing needed for fdlibm

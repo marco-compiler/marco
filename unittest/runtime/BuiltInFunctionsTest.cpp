@@ -4,6 +4,10 @@
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cmath>
 #include <numeric>
+#ifdef MSVC_BUILD
+#include <algorithm>
+#define M_PI 3.14159265358979323846
+#endif
 
 template<typename T, unsigned int N> using ArraySizes =
 		std::array<typename ArrayDescriptor<T, N>::dimension_t, N>;
