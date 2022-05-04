@@ -65,6 +65,8 @@ namespace marco::modeling
 
       size_t size() const;
 
+      void clear();
+
       const_iterator begin() const;
 
       const_iterator end() const;

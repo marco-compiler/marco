@@ -22,7 +22,7 @@ namespace
     }
   };
 
-  class nrealizedCastsEliminationPass : public mlir::PassWrapper<nrealizedCastsEliminationPass, mlir::OperationPass<mlir::ModuleOp>>
+  class UnrealizedCastsEliminationPass : public mlir::PassWrapper<UnrealizedCastsEliminationPass, mlir::OperationPass<mlir::ModuleOp>>
   {
     public:
       void runOnOperation() override
@@ -58,6 +58,6 @@ namespace marco::codegen
 {
   std::unique_ptr<mlir::Pass> createUnrealizedCastsEliminationPass()
   {
-    return std::make_unique<nrealizedCastsEliminationPass>();
+    return std::make_unique<UnrealizedCastsEliminationPass>();
   }
 }

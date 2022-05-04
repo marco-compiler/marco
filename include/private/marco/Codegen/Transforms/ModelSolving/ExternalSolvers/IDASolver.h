@@ -9,6 +9,27 @@
 
 namespace marco::codegen
 {
+  enum class IDAVariableType
+  {
+    /// A variable that is neither a state nor a derivative.
+    ALGEBRAIC,
+
+    /// A variable for which it exists a derivative variable.
+    STATE,
+
+    /// A variable that is the derivative of another one.
+    DERIVATIVE
+  };
+
+  struct IDAVariable
+  {
+    IDAVariable(unsigned int argNumber, modeling::MultidimensionalRange indices, IDAVariableType type);
+
+    unsigned int argNumber;
+    modeling::MultidimensionalRange indices;
+    IDAVariableType type;
+  };
+
   class IDASolver : public ExternalSolver
   {
     private:
@@ -18,7 +39,7 @@ namespace marco::codegen
     public:
       IDASolver(
         mlir::TypeConverter* typeConverter,
-        const mlir::BlockAndValueMapping& derivatives,
+        const DerivativesMap& derivativesMap,
         IDAOptions options,
         double startTime, double endTime, double timeStep);
 
@@ -94,12 +115,54 @@ namespace marco::codegen
 
       mlir::LogicalResult addVariablesToIDA(
         mlir::OpBuilder& builder,
+        mlir::ModuleOp module,
         mlir::Value runtimeDataPtr,
         mlir::ValueRange variables);
 
-      mlir::LogicalResult createVariableSetterFunction(
+      mlir::LogicalResult createAlgebraicVariableGetterFunction(
           mlir::OpBuilder& builder,
-          mlir::Value variable,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type variableType,
+          const modeling::MultidimensionalRange& indices,
+          llvm::StringRef functionName);
+
+      mlir::LogicalResult createStateVariableGetterFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type variableType,
+          const modeling::MultidimensionalRange& indices,
+          llvm::StringRef functionName);
+
+      mlir::LogicalResult createDerivativeGetterFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type variableType,
+          llvm::StringRef functionName);
+
+      mlir::LogicalResult createAlgebraicVariableSetterFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type variableType,
+          const modeling::MultidimensionalRange& indices,
+          llvm::StringRef functionName);
+
+      mlir::LogicalResult createStateVariableSetterFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type variableType,
+          const modeling::MultidimensionalRange& indices,
+          llvm::StringRef functionName);
+
+      mlir::LogicalResult createDerivativeSetterFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          mlir::Type variableType,
           llvm::StringRef functionName);
 
       mlir::LogicalResult addEquationsToIDA(
@@ -143,7 +206,7 @@ namespace marco::codegen
       std::vector<mlir::Value> filterByManagedVariables(mlir::ValueRange variables) const;
 
     private:
-      const mlir::BlockAndValueMapping* derivatives;
+      const DerivativesMap* derivativesMap;
 
       bool enabled;
       IDAOptions options;
@@ -154,12 +217,14 @@ namespace marco::codegen
 
       /// The variables of the model that are managed by IDA.
       /// The SSA values are the ones defined by the body of the ModelOp.
-      std::vector<mlir::Value> managedVariables;
+      std::vector<IDAVariable> managedVariables;
 
+      /// The equations managed by IDA.
       std::set<ScheduledEquation*> equations;
 
-      /// Map from a ModelOp variable index to its IDA variable index
-      std::map<unsigned int, unsigned int> mappedVariables;
+      /// Map from the entries of 'managedVariables' to the IDA variables living within the IDA
+      /// runtime data structure.
+      std::map<size_t, size_t> mappedVariables;
   };
 }
 

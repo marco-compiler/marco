@@ -586,20 +586,25 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
 mlir::LogicalResult CFGLowerer::run(
     mlir::OpBuilder& builder, mlir::Operation* op, mlir::Block* loopExitBlock, mlir::Block* functionReturnBlock)
 {
-  if (auto breakOp = mlir::dyn_cast<BreakOp>(op))
+  if (auto breakOp = mlir::dyn_cast<BreakOp>(op)) {
     return run(builder, breakOp, loopExitBlock);
+  }
 
-  if (auto forOp = mlir::dyn_cast<ForOp>(op))
+  if (auto forOp = mlir::dyn_cast<ForOp>(op)) {
     return run(builder, forOp, functionReturnBlock);
+  }
 
-  if (auto ifOp = mlir::dyn_cast<IfOp>(op))
+  if (auto ifOp = mlir::dyn_cast<IfOp>(op)) {
     return run(builder, ifOp, loopExitBlock, functionReturnBlock);
+  }
 
-  if (auto whileOp = mlir::dyn_cast<WhileOp>(op))
+  if (auto whileOp = mlir::dyn_cast<WhileOp>(op)) {
     return run(builder, whileOp, functionReturnBlock);
+  }
 
-  if (auto returnOp = mlir::dyn_cast<ReturnOp>(op))
+  if (auto returnOp = mlir::dyn_cast<ReturnOp>(op)) {
     return run(builder, returnOp, functionReturnBlock);
+  }
 
   return mlir::success();
 }
@@ -667,10 +672,10 @@ mlir::LogicalResult CFGLowerer::run(
   builder.setInsertionPointToEnd(bodyLast);
   llvm::SmallVector<mlir::Value, 3> bodyYieldValues;
 
-  if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->back()))
-  {
-    for (mlir::Value value : yieldOp.values())
+  if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->back())) {
+    for (mlir::Value value : yieldOp.values()) {
       bodyYieldValues.push_back(value);
+    }
 
     yieldOp->erase();
   }
@@ -681,10 +686,10 @@ mlir::LogicalResult CFGLowerer::run(
   builder.setInsertionPointToEnd(stepLast);
   llvm::SmallVector<mlir::Value, 3> stepYieldValues;
 
-  if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->back()))
-  {
-    for (mlir::Value value : yieldOp.values())
+  if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->back())) {
+    for (mlir::Value value : yieldOp.values()) {
       stepYieldValues.push_back(value);
+    }
 
     yieldOp->erase();
   }
@@ -734,12 +739,10 @@ mlir::LogicalResult CFGLowerer::run(
     op->erase();
 
     // Recurse on the body operations
-    if (auto status = recurse(builder, thenFirst, thenLast, loopExitBlock, functionReturnBlock);
-        failed(status))
-      return status;
-  }
-  else
-  {
+    if (auto res = recurse(builder, thenFirst, thenLast, loopExitBlock, functionReturnBlock); mlir::failed(res)) {
+      return res;
+    }
+  } else {
     // Branch to the "then" region or to the "else" region according
     // to the condition.
     mlir::Block* elseFirst = &op.elseRegion().front();
@@ -760,9 +763,9 @@ mlir::LogicalResult CFGLowerer::run(
     // Erase the operation
     op->erase();
 
-    if (auto status = recurse(builder, elseFirst, elseLast, loopExitBlock, functionReturnBlock);
-        failed(status))
-      return status;
+    if (auto res = recurse(builder, elseFirst, elseLast, loopExitBlock, functionReturnBlock); mlir::failed(res)) {
+      return res;
+    }
   }
 
   return mlir::success();
@@ -819,8 +822,9 @@ mlir::LogicalResult CFGLowerer::run(
 mlir::LogicalResult CFGLowerer::run(
     mlir::OpBuilder& builder, ReturnOp op, mlir::Block* functionReturnBlock)
 {
-  if (functionReturnBlock == nullptr)
+  if (functionReturnBlock == nullptr) {
     return mlir::failure();
+  }
 
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPoint(op);
@@ -847,13 +851,16 @@ mlir::LogicalResult CFGLowerer::recurse(
   auto it = first->getIterator();
 
   do {
-    for (auto& op : it->getOperations())
+    for (auto& op : it->getOperations()) {
       ops.push_back(&op);
+    }
   } while (it++ != last->getIterator());
 
-  for (auto& op : ops)
-    if (auto status = run(builder, op, loopExitBlock, functionReturnBlock); failed(status))
-      return status;
+  for (auto& op : ops) {
+    if (auto res = run(builder, op, loopExitBlock, functionReturnBlock); failed(res)) {
+      return res;
+    }
+  }
 
   return mlir::success();
 }
@@ -880,6 +887,7 @@ namespace
       {
         auto module = getOperation();
 
+        /*
         // When converting to CFG, the original Modelica functions are erased. Thus we need to
         // keep track of the names of the functions that should be inlined.
         llvm::SmallVector<std::string, 3> inlinableFunctionNames;
@@ -889,6 +897,7 @@ namespace
             inlinableFunctionNames.push_back(function.name().str());
           }
         }
+         */
 
         if (mlir::failed(convertModelicaToCFG())) {
           mlir::emitError(module.getLoc(), "Error in converting the Modelica operations to CFG");
@@ -926,7 +935,10 @@ namespace
         mlir::ConversionTarget target(getContext());
 
         target.addIllegalOp<mlir::scf::ForOp, mlir::scf::IfOp, mlir::scf::ParallelOp, mlir::scf::WhileOp>();
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+
+        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+          return true;
+        });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);

@@ -6,32 +6,45 @@ using namespace ::marco::modeling;
 
 TEST(IndexSet, empty)
 {
-  IndexSet emptyMCIS;
-  EXPECT_TRUE(emptyMCIS.empty());
+  IndexSet emptyIndexSet;
+  EXPECT_TRUE(emptyIndexSet.empty());
 
-  IndexSet nonEmptyMCIS(MultidimensionalRange({
+  IndexSet nonEmptyIndexSet(MultidimensionalRange({
       Range(2, 5),
       Range(3, 7)
   }));
 
-  EXPECT_FALSE(nonEmptyMCIS.empty());
+  EXPECT_FALSE(nonEmptyIndexSet.empty());
 }
 
 TEST(IndexSet, size)
 {
-  IndexSet mcis;
+  IndexSet indices;
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(1, 5),
       Range(3, 7)
   });
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(3, 8),
       Range(2, 5)
   });
 
-  EXPECT_EQ(mcis.size(), 27);
+  EXPECT_EQ(indices.size(), 27);
+}
+
+TEST(IndexSet, clear)
+{
+  IndexSet indices;
+
+  indices += MultidimensionalRange({
+      Range(1, 5),
+      Range(3, 7)
+  });
+
+  indices.clear();
+  EXPECT_EQ(indices.size(), 0);
 }
 
 TEST(IndexSet, containsElement)
@@ -46,11 +59,11 @@ TEST(IndexSet, containsElement)
       Range(1, 3)
   });
 
-  IndexSet mcis({range1, range2});
+  IndexSet indices({range1, range2});
 
-  EXPECT_TRUE(mcis.contains({2, 5}));
-  EXPECT_TRUE(mcis.contains({5, 1}));
-  EXPECT_FALSE(mcis.contains({2, 7}));
+  EXPECT_TRUE(indices.contains({2, 5}));
+  EXPECT_TRUE(indices.contains({5, 1}));
+  EXPECT_FALSE(indices.contains({2, 7}));
 }
 
 TEST(IndexSet, containsRange)
@@ -65,19 +78,19 @@ TEST(IndexSet, containsRange)
       Range(1, 3)
   });
 
-  IndexSet mcis({range1, range2});
+  IndexSet indices({range1, range2});
 
-  EXPECT_TRUE(mcis.contains(MultidimensionalRange({
+  EXPECT_TRUE(indices.contains(MultidimensionalRange({
       Range(2, 3),
       Range(5, 6)
   })));
 
-  EXPECT_TRUE(mcis.contains(MultidimensionalRange({
+  EXPECT_TRUE(indices.contains(MultidimensionalRange({
       Range(5, 7),
       Range(1, 3)
   })));
 
-  EXPECT_FALSE(mcis.contains(MultidimensionalRange({
+  EXPECT_FALSE(indices.contains(MultidimensionalRange({
       Range(5, 6),
       Range(5, 7)
   })));
@@ -95,19 +108,19 @@ TEST(IndexSet, overlapsRange)
       Range(1, 3)
   });
 
-  IndexSet mcis({range1, range2});
+  IndexSet indices({range1, range2});
 
-  EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
+  EXPECT_TRUE(indices.overlaps(MultidimensionalRange({
       Range(2, 4),
       Range(1, 5)
   })));
 
-  EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
+  EXPECT_TRUE(indices.overlaps(MultidimensionalRange({
       Range(3, 7),
       Range(2, 4)
   })));
 
-  EXPECT_TRUE(mcis.overlaps(MultidimensionalRange({
+  EXPECT_TRUE(indices.overlaps(MultidimensionalRange({
       Range(1, 6),
       Range(1, 5)
   })));
@@ -120,16 +133,16 @@ TEST(IndexSet, addRange)
       Range(4, 7)
   });
 
-  IndexSet mcis(initialRange);
-  EXPECT_FALSE(mcis.contains({2, 3}));
+  IndexSet indices(initialRange);
+  EXPECT_FALSE(indices.contains({2, 3}));
 
   MultidimensionalRange additionalRange({
       Range(1, 3),
       Range(2, 4)
   });
 
-  mcis += additionalRange;
-  EXPECT_TRUE(mcis.contains({2, 3}));
+  indices += additionalRange;
+  EXPECT_TRUE(indices.contains({2, 3}));
 }
 
 TEST(IndexSet, addOverlappingRange)
@@ -139,24 +152,24 @@ TEST(IndexSet, addOverlappingRange)
       Range(4, 7)
   });
 
-  IndexSet mcis(initialRange);
+  IndexSet indices(initialRange);
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(1, 9),
       Range(7, 10)
   });
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(7, 9),
       Range(4, 8)
   });
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(2, 8),
       Range(4, 9)
   });
 
-  EXPECT_TRUE(mcis.contains(MultidimensionalRange({
+  EXPECT_TRUE(indices.contains(MultidimensionalRange({
       Range(1, 9),
       Range(4, 10)
   })));
@@ -164,24 +177,24 @@ TEST(IndexSet, addOverlappingRange)
 
 TEST(IndexSet, addMultipleRanges)
 {
-  IndexSet mcis;
+  IndexSet indices;
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(3, 5),
       Range(7, 9)
   });
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(3, 5),
       Range(9, 11)
   });
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(5, 8),
       Range(7, 8)
   });
 
-  mcis += MultidimensionalRange({
+  indices += MultidimensionalRange({
       Range(5, 8),
       Range(8, 11)
   });
@@ -191,7 +204,7 @@ TEST(IndexSet, addMultipleRanges)
       Range(7, 11)
   });
 
-  EXPECT_TRUE(mcis.contains(range));
+  EXPECT_TRUE(indices.contains(range));
 }
 
 TEST(IndexSet, removeRange)
@@ -210,8 +223,9 @@ TEST(IndexSet, removeRange)
 
   IndexSet result = original - removed;
 
-  for (auto indexes: range)
+  for (auto indexes: range) {
     EXPECT_EQ(result.contains(indexes), !removed.contains(indexes));
+  }
 }
 
 TEST(IndexSet, complement)

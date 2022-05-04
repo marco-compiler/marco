@@ -61,6 +61,17 @@ namespace marco::codegen
     return x;
   }
 
+  std::string getUniqueSymbolName(mlir::ModuleOp module, std::function<std::string(void)> tryFn)
+  {
+    std::string name = tryFn();
+
+    while (module.lookupSymbol(name) != nullptr) {
+      name = tryFn();
+    }
+
+    return name;
+  }
+
   void copyArray(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value source, mlir::Value destination)
   {
     assert(source.getType().isa<ArrayType>());

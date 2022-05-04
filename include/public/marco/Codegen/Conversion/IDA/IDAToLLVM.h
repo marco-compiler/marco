@@ -6,16 +6,14 @@
 
 namespace marco::codegen
 {
-	/// Create a pass to convert Ida operations to a mix of Std,
-	/// SCF and LLVM ones.
-	std::unique_ptr<mlir::Pass> createIDAConversionPass();
+	std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
 
-	inline void registerIDAConversionPass()
+	inline void registerIDAToLLVMConversionPass()
 	{
 		mlir::registerPass(
-        "convert-ida", "IDA: conversion to Std + LLVM dialect",
+        "ida-to-llvm", "IDA: conversion to Std + LLVM dialect",
         []() -> std::unique_ptr<::mlir::Pass> {
-          return createIDAConversionPass();
+          return createIDAToLLVMConversionPass();
         });
 	}
 

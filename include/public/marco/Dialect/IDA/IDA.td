@@ -334,19 +334,21 @@ def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable",
         IDAInstance:$instance,
         AnyType:$variable,
         I64ArrayAttr:$arrayDimensions,
+        SymbolRefAttr:$getter,
         SymbolRefAttr:$setter);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, setter);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getter, setter);
         }]>,
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "StringRef":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
+            auto getterAttr = $_builder.getSymbolRefAttr(getter);
             auto setterAttr = $_builder.getSymbolRefAttr(setter);
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, setterAttr);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getterAttr, setterAttr);
         }]>
     ];
 
@@ -382,26 +384,173 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable",
     let arguments = (ins
         IDAInstance:$instance,
         AnyType:$variable,
-        AnyType:$derivative,
         I64ArrayAttr:$arrayDimensions,
+        SymbolRefAttr:$getter,
         SymbolRefAttr:$setter);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "Value":$derivative, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, variable, derivative, arrayDimensions, setter);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getter, setter);
         }]>,
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "Value":$derivative, "ArrayAttr":$arrayDimensions, "StringRef":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
+            auto getterAttr = $_builder.getSymbolRefAttr(getter);
             auto setterAttr = $_builder.getSymbolRefAttr(setter);
-            build($_builder, $_state, resultType, idaInstance, variable, derivative, arrayDimensions, setterAttr);
+            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getterAttr, setterAttr);
         }]>
     ];
 
     let assemblyFormat = [{
-        $instance `,` $variable `,` $derivative attr-dict `:` `(` type($instance) `,` type($variable) `,` type($derivative) `)` `->` type($idaVariable)
+        $instance `,` $variable attr-dict `:` `(` type($instance) `,` type($variable) `)` `->` type($idaVariable)
+    }];
+}
+
+def IDA_SetDerivativeOp : IDA_Op<"set_derivative",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Add the information regarding the dimensions of a variable.";
+
+    let description = [{
+        The operation is intended to inform IDA about the dimensions of
+        a variable.
+
+        The operation returns a reference to the variable added to the
+        IDA instance.
+
+        The `state` attribute is used to tell IDA whether the variables
+        is a state one.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !ida.instance
+        %1 = ... : memref<?xi64>
+        ida.add_variable %0, %1 { state = true } : (ida.instance, memref<?xi64>) -> ida.variable
+        ```
+    }];
+
+    let arguments = (ins
+        IDAInstance:$instance,
+        IDAVariable:$stateVariable,
+        AnyType:$derivative,
+        SymbolRefAttr:$getter,
+        SymbolRefAttr:$setter);
+
+    let results = (outs);
+
+    let builders = [
+        OpBuilder<(ins "Value":$idaInstance, "Value":$stateVariable, "Value":$derivative, "StringRef":$getter, "StringRef":$setter), [{
+            auto getterAttr = $_builder.getSymbolRefAttr(getter);
+            auto setterAttr = $_builder.getSymbolRefAttr(setter);
+            build($_builder, $_state, idaInstance, stateVariable, derivative, getterAttr, setterAttr);
+        }]>
+    ];
+
+    let assemblyFormat = [{
+        $instance `,` $stateVariable `,` $derivative attr-dict `:` type($instance) `,` type($stateVariable) `,` type($derivative)
+    }];
+}
+
+def IDA_VariableGetterOp : IDA_Op<"variable_getter",
+    [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
+{
+    let summary = "";
+
+    let description = [{
+
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttr:$type);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let builders = [
+        OpBuilder<(ins "StringRef":$sym_name, "Type":$resultType, "Type":$variableType, "unsigned int":$variableRank), [{
+            auto nameAttr = $_builder.getStringAttr(sym_name);
+
+            SmallVector<Type, 2> args;
+
+            args.push_back(variableType);
+            args.append(variableRank, $_builder.getIndexType());
+
+            auto functionType = $_builder.getFunctionType(args, resultType);
+            auto typeAttr = TypeAttr::get(functionType);
+            build($_builder, $_state, nameAttr, typeAttr);
+        }]>
+    ];
+
+    let extraClassDeclaration = [{
+        public:
+            llvm::StringRef name() {
+                return sym_name();
+            }
+
+            FunctionType getType() {
+                return getTypeAttr().getValue().cast<FunctionType>();
+            }
+
+            BlockArgument getVariable();
+            ArrayRef<BlockArgument> getVariableIndices();
+
+            //===------------------------------------------------------------------===//
+            // FunctionOpInterface Methods
+            //===------------------------------------------------------------------===//
+
+            /// Returns the argument types of this function.
+            ArrayRef<Type> getArgumentTypes() {
+                return getType().getInputs();
+            }
+
+            /// Returns the result types of this function.
+            ArrayRef<Type> getResultTypes() {
+                return getType().getResults();
+            }
+
+            //===------------------------------------------------------------------===//
+            // SymbolOpInterface Methods
+            //===------------------------------------------------------------------===//
+
+            bool isDeclaration() {
+                return isExternal();
+            }
+
+        private:
+            // This trait needs access to the hooks defined below.
+            friend class OpTrait::FunctionLike<VariableGetterOp>;
+
+            /// Returns the number of arguments. This is a hook for
+            /// OpTrait::FunctionLike.
+            unsigned getNumFuncArguments() {
+                return getType().getInputs().size();
+            }
+
+            /// Returns the number of results. This is a hook for OpTrait::FunctionLike.
+            unsigned getNumFuncResults() {
+                return getType().getResults().size();
+            }
+
+            /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
+            /// attribute is present and checks if it holds a function type. Ensures
+            /// getType, getNumFuncArguments, and getNumFuncResults can be called
+            /// safely.
+            LogicalResult verifyType() {
+                auto type = getTypeAttr().getValue();
+
+                if (!type.isa<FunctionType>()) {
+                    return emitOpError("requires '" + getTypeAttrName() + "' attribute of function type");
+               }
+
+                return success();
+            }
     }];
 }
 
@@ -537,79 +686,6 @@ def IDA_AddVariableAccessOp : IDA_Op<"add_variable_access",
     }];
 }
 
-def IDA_GetVariableOp : IDA_Op<"get_variable",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Get the reference to a variable.";
-
-    let description = [{
-        The operation is used to convert an IDA variable descriptor into
-        a reference to a variable.
-        The operation takes one operand and returns one result.
-
-        The operand consist in the descriptor of a variable belonging
-        to IDA, which is obtained when using the `ida.add_variable`
-        operation.
-
-        The result type is free to belong to any dialect, making this
-        operation a bridge between the IDA dialect and  the one the
-        result type belongs to. A requirement to accomplish this design
-        is that the IDA conversion passes need to know how to populate
-        the external dialect's result type when converted to its LLVM
-        equivalent.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !ida.instance
-        %1 = ... : !ida.variable
-        %2 = ida.get_variable %0, %1 : (!ida.instance, !ida.variable) -> !mydialect.variable
-        ```
-    }];
-
-    let arguments = (ins
-        IDAInstance:$instance,
-        IDAVariable:$variable);
-
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $instance `,` $variable attr-dict `:` `(` type($instance) `,` type($variable) `)` `->` type($result)
-    }];
-}
-
-def IDA_GetDerivativeOp : IDA_Op<"get_derivative",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Get the reference to the derivative of a variable.";
-
-    let description = [{
-        The operation is used to convert an IDA variable descriptor into
-        a reference to the derivative of a variable.
-        The operation takes one operand, returns one result and the
-        semantics are equal to the ones of the `ida.get_variable`
-        operation.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !ida.instance
-        %1 = ... : !ida.variable
-        %2 = ida.get_derivative %0, %1 : (!ida.instance, !ida.variable) -> !mydialect.variable
-        ```
-    }];
-
-    let arguments = (ins
-        IDAInstance:$instance,
-        IDAVariable:$variable);
-
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $instance `,` $variable attr-dict `:` `(` type($instance) `,` type($variable) `)` `->` type($result)
-    }];
-}
-
 def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
 {
@@ -648,7 +724,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     let results = (outs);
 
     let regions = (region
-        SizedRegion<1>:$bodyRegion
+        AnyRegion:$bodyRegion // TODO switch to SizedRegion<1
     );
 
     let builders = [
@@ -791,7 +867,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     let results = (outs);
 
     let regions = (region
-        SizedRegion<1>:$bodyRegion
+        AnyRegion:$bodyRegion // TODO switch to SizedRegion<1
     );
 
     let builders = [
@@ -893,7 +969,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 
 def IDA_ReturnOp : IDA_Op<"return",
     [NoSideEffect,
-     ParentOneOf<["VariableSetterOp", "ResidualFunctionOp", "JacobianFunctionOp"]>,
+     ParentOneOf<["VariableGetterOp", "VariableSetterOp", "ResidualFunctionOp", "JacobianFunctionOp"]>,
      ReturnLike, Terminator]>
 {
     let summary = "Return operation.";

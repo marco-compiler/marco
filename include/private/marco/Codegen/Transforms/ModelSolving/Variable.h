@@ -70,6 +70,10 @@ namespace marco::codegen
 
       const_iterator end() const;
 
+      mlir::ValueRange getValues() const;
+
+      mlir::TypeRange getTypes() const;
+
     private:
       class Impl;
       std::shared_ptr<Impl> impl;

@@ -655,7 +655,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
       auto module = getOperation();
 
       if (mlir::failed(stdToLLVMConversionPass(module))) {
-        mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+        module.emitError("Error in converting to LLVM dialect");
         return signalPassFailure();
       }
     }

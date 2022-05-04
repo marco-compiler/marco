@@ -144,8 +144,7 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = lower(*call.getArg(0))[0].getReference();
-    assert(operand.getType().isa<ArrayType>());
+    mlir::Value operand = *lower(*call.getArg(0))[0];
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<DerOp>(location, resultType, operand);
     return Reference::ssa(&builder(), result);

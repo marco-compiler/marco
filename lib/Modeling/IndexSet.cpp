@@ -244,6 +244,11 @@ namespace marco::modeling
     return result;
   }
 
+  void IndexSet::clear()
+  {
+    ranges.clear();
+  }
+
   IndexSet::const_iterator IndexSet::begin() const
   {
     return ranges.begin();

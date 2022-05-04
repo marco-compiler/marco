@@ -15,14 +15,13 @@ namespace marco::codegen
 	{
 		registerLowerToCFGPass();
 		registerLLVMLoweringPass();
-		registerIDAConversionPass();
 		registerModelicaConversionPass();
 		registerLowerToCFGPass();
 	}
 
-  inline void registerIDAConversionPasses()
+  inline void registerIDAToLLVMConversionPasses()
   {
-    registerIDAConversionPass();
+    registerIDAToLLVMConversionPass();
   }
 
   // To be removed

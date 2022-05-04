@@ -2,13 +2,13 @@ set(SOURCES
     AccessFunctionTest.cpp
     CyclesTest.cpp
     DirectedGraphTest.cpp
+    IndexSetTest.cpp
     MatchingCommon.cpp
     MatchingGraphTest.cpp
     MatchingTest.cpp
     MatchingTestCases.cpp
     MCIMFlatTest.cpp
     MCIMRegularTest.cpp
-    MCISTest.cpp
     MultidimensionalRangeTest.cpp
     PointTest.cpp
     RangeTest.cpp

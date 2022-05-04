@@ -6,6 +6,7 @@ set(SOURCES
     ModelSolving/Access.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
+    ModelSolving/DerivativesMap.cpp
     ModelSolving/Equation.cpp
     ModelSolving/LoopEquation.cpp
     ModelSolving/Matching.cpp

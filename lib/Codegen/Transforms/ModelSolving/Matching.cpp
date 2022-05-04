@@ -201,43 +201,78 @@ namespace marco::codegen
 
   mlir::LogicalResult match(
       Model<MatchedEquation>& result,
-      Model<Equation>& model,
-      const mlir::BlockAndValueMapping& derivatives)
+      const Model<Equation>& model,
+      std::function<bool(const Variable&)> isMatchableFn)
   {
     Variables allVariables = model.getVariables();
+
+    // Map the variables by their argument number for a faster lookup
+    std::vector<mlir::BlockArgument> variablesByPosition;
+    variablesByPosition.resize(allVariables.size());
+
+    for (const auto& variable : allVariables) {
+      auto argument = variable->getValue().cast<mlir::BlockArgument>();
+      variablesByPosition[argument.getArgNumber()] = argument;
+    }
 
     // Filter the variables. State and constant ones must not in fact
     // take part into the matching process as their values are already
     // determined (state variables depend on their derivatives, while
     // constants have a fixed value).
 
-    Variables variables;
+    Variables filteredVariables;
 
     for (const auto& variable : allVariables) {
-      mlir::Value var = variable->getValue();
-
-      if (!derivatives.contains(var)) {
-        auto nonStateVariable = std::make_unique<Variable>(var);
-
-        if (!nonStateVariable->isConstant()) {
-          variables.add(std::move(nonStateVariable));
-        }
+      if (isMatchableFn(*variable)) {
+        filteredVariables.add(std::make_unique<Variable>(variable->getValue()));
       }
     }
 
-    model.setVariables(variables);
-    result.setVariables(variables);
+    Equations<Equation> filteredEquations;
 
-    model.getEquations().setVariables(model.getVariables());
+    for (const auto& equation : model.getEquations()) {
+      auto clone = equation->clone();
+      clone->setVariables(filteredVariables);
+      filteredEquations.add(std::move(clone));
+    }
 
+    Model<Equation> filteredModel(model.getOperation());
+    filteredModel.setVariables(filteredVariables);
+    filteredModel.setEquations(filteredEquations);
+
+    // Create the matching graph. We use the pointers to the real nodes in order
+    // to speed up the copies.
     MatchingGraph<Variable*, Equation*> matchingGraph;
 
-    for (const auto& variable : model.getVariables()) {
+    for (const auto& variable : filteredModel.getVariables()) {
       matchingGraph.addVariable(variable.get());
     }
 
-    for (const auto& equation : model.getEquations()) {
+    for (const auto& equation : filteredModel.getEquations()) {
       matchingGraph.addEquation(equation.get());
+    }
+
+    auto numberOfScalarEquations = matchingGraph.getNumberOfScalarEquations();
+    auto numberOfScalarVariables = matchingGraph.getNumberOfScalarVariables();
+
+    if (numberOfScalarEquations < numberOfScalarVariables) {
+      model.getOperation().emitError(
+          "Underdetermined model. Found " +
+          std::to_string(numberOfScalarEquations) +
+          " scalar equations and " +
+          std::to_string(numberOfScalarVariables) +
+          " scalar variables.");
+
+      return mlir::failure();
+    } else if (numberOfScalarEquations > numberOfScalarVariables) {
+      model.getOperation().emitError(
+          "Overdetermined model. Found " +
+          std::to_string(numberOfScalarEquations) +
+          " scalar equations and " +
+          std::to_string(numberOfScalarVariables) +
+          " scalar variables.");
+
+      return mlir::failure();
     }
 
     // Apply the simplification algorithm to solve the obliged matches
@@ -261,7 +296,9 @@ namespace marco::codegen
           std::move(clone), solution.getIndexes(), solution.getAccess()));
     }
 
+    result.setVariables(model.getVariables());
     result.setEquations(matchedEquations);
+
     return mlir::success();
   }
 }

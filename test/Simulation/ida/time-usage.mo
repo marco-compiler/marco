@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=TimeUsage --end-time=1 --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
+// RUN: marco --omc-bypass --model=TimeUsage --end-time=1 --variable-filter="time;x;der(x)" --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
 // RUN: ./%basename_t --precision=6 | FileCheck %s
 
 // CHECK: time;x

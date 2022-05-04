@@ -37,14 +37,16 @@ namespace
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<Equation> model(modelOp);
-        model.setVariables(discoverVariables(model.getOperation()));
-        model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
+        model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
+        model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
 
         Model<MatchedEquation> matchedModel(model.getOperation());
 
-        mlir::BlockAndValueMapping derivatives;
+        auto isMatchableFn = [](const Variable& variable) -> bool {
+          return true;
+        };
 
-        if (auto res = match(matchedModel, model, derivatives); mlir::failed(res)) {
+        if (auto res = match(matchedModel, model, isMatchableFn); mlir::failed(res)) {
           return res;
         }
 

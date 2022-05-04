@@ -182,6 +182,20 @@ namespace marco::codegen
     public:
       void add(std::unique_ptr<Variable> variable)
       {
+        values.push_back(variable->getValue().cast<mlir::BlockArgument>());
+
+        llvm::sort(values, [](const auto& x, const auto& y) {
+          auto xArgNumber = x.template cast<mlir::BlockArgument>().getArgNumber();
+          auto yArgNumber = y.template cast<mlir::BlockArgument>().getArgNumber();
+          return xArgNumber < yArgNumber;
+        });
+
+        types.clear();
+
+        for (const auto& value : values) {
+          types.push_back(value.getType());
+        }
+
         variables.push_back(std::move(variable));
       }
 
@@ -221,8 +235,21 @@ namespace marco::codegen
       {
         return variables.end();
       }
+
+      mlir::ValueRange getValues() const
+      {
+        return values;
+      }
+
+      mlir::TypeRange getTypes() const
+      {
+        return types;
+      }
+
     private:
       Variables::Container variables;
+      std::vector<mlir::Value> values;
+      std::vector<mlir::Type> types;
   };
 
   Variables::Variables() : impl(std::make_shared<Impl>())
@@ -267,5 +294,15 @@ namespace marco::codegen
   Variables::const_iterator Variables::end() const
   {
     return impl->end();
+  }
+
+  mlir::ValueRange Variables::getValues() const
+  {
+    return impl->getValues();
+  }
+
+  mlir::TypeRange Variables::getTypes() const
+  {
+    return impl->getTypes();
   }
 }

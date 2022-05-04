@@ -52,13 +52,11 @@ namespace
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<MatchedEquation> matchedModel(modelOp);
-        matchedModel.setVariables(discoverVariables(modelOp));
-
-        auto equations = discoverEquations(modelOp, matchedModel.getVariables());
+        matchedModel.setVariables(discoverVariables(modelOp.equationsRegion()));
 
         Equations<MatchedEquation> matchedEquations;
 
-        for (auto& equation : discoverEquations(modelOp, matchedModel.getVariables())) {
+        for (auto& equation : discoverEquations(modelOp.equationsRegion(), matchedModel.getVariables())) {
           // Matched indices
           std::vector<modeling::Range> ranges;
 

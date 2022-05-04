@@ -45,7 +45,7 @@ namespace
       VariableIndicesIterator indicesEnd() const;
 
     private:
-    Container dimensions;
+      Container dimensions;
   };
 
   class VariableIndicesIterator
@@ -206,14 +206,17 @@ namespace
 
 using EqDimension = std::vector<std::pair<size_t, size_t>>;
 
-template<typename Real>
-using VariableSetterFunction = void(*)(void*, Real, size_t*);
+template<typename FloatType>
+using VariableGetterFunction = FloatType(*)(void*, size_t*);
 
-template<typename Real>
-using ResidualFunction = Real(*)(Real, void*, size_t*);
+template<typename FloatType>
+using VariableSetterFunction = void(*)(void*, FloatType, size_t*);
 
-template<typename Real>
-using JacobianFunction = Real(*)(Real, void*, size_t*, size_t*, Real);
+template<typename FloatType>
+using ResidualFunction = FloatType(*)(FloatType, void*, size_t*);
+
+template<typename FloatType>
+using JacobianFunction = FloatType(*)(FloatType, void*, size_t*, size_t*, FloatType);
 
 // Debugging options
 const bool printJacobian = false;
@@ -260,9 +263,11 @@ namespace
       void setAbsoluteTolerance(double tolerance);
 
       /// Add and initialize a new variable given its array.
-      int64_t addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* setter);
+      int64_t addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
 
-      int64_t addStateVariable(void* variable, void* derivative, int64_t* dimensions, int64_t rank, void* setter);
+      int64_t addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+
+      void setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter);
 
       /// Add the dimension of an equation to the IDA user data.
       int64_t addEquation(int64_t* ranges, int64_t rank);
@@ -323,6 +328,10 @@ namespace
       std::set<DerivativeVariable> computeIndexSet(size_t eq, size_t* eqIndexes) const;
 
       void computeNNZ();
+
+      void copyVariablesFromMARCO(N_Vector values);
+
+      void copyDerivativesFromMARCO(N_Vector values);
 
       void copyVariablesIntoMARCO(N_Vector values);
 
@@ -388,6 +397,9 @@ namespace
 
       std::vector<void*> variables;
       std::vector<void*> derivatives;
+
+      std::vector<void*> variablesGetters;
+      std::vector<void*> derivativesGetters;
 
       std::vector<void*> variablesSetters;
       std::vector<void*> derivativesSetters;
@@ -597,7 +609,7 @@ namespace
     absoluteTolerance = tolerance;
   }
 
-  int64_t IDAInstance::addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* setter)
+  int64_t IDAInstance::addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
@@ -616,71 +628,83 @@ namespace
     size_t offset = variableOffsets.back();
     variableOffsets.push_back(offset + flatSize);
 
-    // Compute idValue and absoluteTolerance.
-    realtype idValue = 0.0;
-    realtype absTol = std::min(algebraicTolerance, absoluteTolerance);
-
-    // Initialize derivativeValues, idValues and absoluteTolerances.
-    auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
+    // Initialize derivativeValues, idValues and absoluteTolerances
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
+    realtype absTol = std::min(algebraicTolerance, absoluteTolerance);
+
     for (int64_t i = 0; i < flatSize; ++i) {
-      derivativeValues[offset + i] = 0.0;
-      idValues[offset + i] = idValue;
+      idValues[offset + i] = 0;
       toleranceValues[offset + i] = absTol;
     }
 
     variables.push_back(variable);
+    variablesGetters.push_back(getter);
     variablesSetters.push_back(setter);
 
     // Return the index of the variable.
     return variablesDimensions.size() - 1;
   }
 
-  int64_t IDAInstance::addStateVariable(void* variable, void* derivative, int64_t* dimensions, int64_t rank, void* setter)
+  int64_t IDAInstance::addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
 
-    // Add variable offset and dimensions.
-    VariableDimensions varDimension(rank);
+    // Add variable offset and dimensions
+    VariableDimensions variableDimensions(rank);
     int64_t flatSize = 1;
 
     for (int64_t i = 0; i < rank; ++i) {
       flatSize *= dimensions[i];
-      varDimension[i] = dimensions[i];
+      variableDimensions[i] = dimensions[i];
     }
 
-    variablesDimensions.push_back(varDimension);
-    derivativesDimensions.push_back(varDimension);
+    variablesDimensions.push_back(variableDimensions);
 
+    // Each scalar state variable has a scalar derivative
+    derivativesDimensions.push_back(variableDimensions);
+
+    // Store the position to the start of the flattened array
     size_t offset = variableOffsets.back();
     variableOffsets.push_back(offset + flatSize);
 
-    // Compute idValue and absoluteTolerance.
-    realtype idValue = 1.0;
-    realtype absTol = absoluteTolerance;
-
-    // Initialize derivativeValues, idValues and absoluteTolerances.
+    // Initialize the derivatives, the id values and the absolute tolerances
     auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
     for (int64_t i = 0; i < flatSize; ++i) {
-      derivativeValues[offset + i] = 0.0;
-      idValues[offset + i] = idValue;
-      toleranceValues[offset + i] = absTol;
+      derivativeValues[offset + i] = 0;
+      idValues[offset + i] = 1;
+      toleranceValues[offset + i] = absoluteTolerance;
     }
 
     variables.push_back(variable);
-    derivatives.push_back(derivative);
-
+    variablesGetters.push_back(getter);
     variablesSetters.push_back(setter);
-    derivativesSetters.push_back(setter);
 
-    // Return the index of the variable.
+    derivatives.push_back(nullptr);
+    derivativesGetters.push_back(nullptr);
+    derivativesSetters.push_back(nullptr);
+
+    // Return the index of the variable
     return variablesDimensions.size() - 1;
+  }
+
+  void IDAInstance::setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter)
+  {
+    assert(!initialized && "The IDA instance has already been initialized");
+    assert(variableOffsets.size() == variablesDimensions.size() + 1);
+
+    assert((size_t) stateVariable < derivatives.size());
+    assert((size_t) stateVariable < derivativesGetters.size());
+    assert((size_t) stateVariable < derivativesSetters.size());
+
+    derivatives[stateVariable] = derivative;
+    derivativesGetters[stateVariable] = getter;
+    derivativesSetters[stateVariable] = setter;
   }
 
   int64_t IDAInstance::addEquation(int64_t* ranges, int64_t rank)
@@ -777,6 +801,9 @@ namespace
     for (size_t i = 0; i < derivatives.size(); ++i) {
       simulationData[i + variables.size()] = derivatives[i];
     }
+
+    copyVariablesFromMARCO(variablesVector);
+    copyDerivativesFromMARCO(derivativesVector);
 
     // Compute the total amount of non-zero values in the Jacobian Matrix.
     computeNNZ();
@@ -945,7 +972,9 @@ namespace
     profiler().initialConditionsTimer.start();
 #endif
 
+    std::cerr << "Starting IDACalcIC\n";
     retval = IDACalcIC(idaMemory, IDA_YA_YDP_INIT, firstOutTime);
+    std::cerr << "Finished IDACalcIC\n";
 
 #ifdef MARCO_PROFILING
     profiler().initialConditionsTimer.stop();
@@ -960,6 +989,8 @@ namespace
 
   bool IDAInstance::step()
   {
+    std::cerr << "IDA step\n";
+
     assert(initialized && "The IDA instance has not been initialized yet");
     bool equidistantTimeGrid = timeStep != kUndefinedTimeStep;
 
@@ -1071,10 +1102,12 @@ namespace
         if (instance->marcoBitWidth == 32) {
           auto residualFunction = reinterpret_cast<ResidualFunction<float>>(instance->residuals[eq]);
           auto residualFunctionResult = residualFunction(time, instance->simulationData, equationIndices);
+          std::cerr << "Residual function (with time " << time << "): " << residualFunctionResult << "\n";
           *rval++ = residualFunctionResult;
         } else {
           auto residualFunction = reinterpret_cast<ResidualFunction<double>>(instance->residuals[eq]);
           auto residualFunctionResult = residualFunction(time, instance->simulationData, equationIndices);
+          std::cerr << "Residual function (with time " << time << "): " << residualFunctionResult << "\n";
           *rval++ = residualFunctionResult;
         }
       } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
@@ -1130,10 +1163,12 @@ namespace
           if (instance->marcoBitWidth == 32) {
             auto jacobianFunction = reinterpret_cast<JacobianFunction<float>>(instance->jacobians[eq][var.first]);
             auto jacobianFunctionResult = jacobianFunction(time, instance->simulationData, equationIndices, variableIndices, alpha);
+            std::cerr << "Jacobian function (with time " << time << ", alpha " << alpha << "): " << jacobianFunctionResult << "\n";
             *jacobian++ = jacobianFunctionResult;
           } else {
             auto jacobianFunction = reinterpret_cast<JacobianFunction<double>>(instance->jacobians[eq][var.first]);
             auto jacobianFunctionResult = jacobianFunction(time, instance->simulationData, equationIndices, variableIndices, alpha);
+            std::cerr << "Jacobian function (with time " << time << ", alpha " << alpha << "): " << jacobianFunctionResult << "\n";
             *jacobian++ = jacobianFunctionResult;
           }
 
@@ -1198,6 +1233,62 @@ namespace
     }
   }
 
+  void IDAInstance::copyVariablesFromMARCO(N_Vector values)
+  {
+    assert(variables.size() == variablesDimensions.size());
+    assert(variables.size() == variablesGetters.size());
+
+    auto* valuesPtr = N_VGetArrayPointer(values);
+
+    for (size_t i = 0; i < variables.size(); ++i) {
+      auto* descriptor = variables[i];
+      const auto& dimensions = variablesDimensions[i];
+      assert(variablesGetters[i] != nullptr);
+
+      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
+        if (marcoBitWidth == 32) {
+          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(variablesGetters[i]);
+          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
+          *valuesPtr = value;
+        } else {
+          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(variablesGetters[i]);
+          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
+          *valuesPtr = value;
+        }
+
+        ++valuesPtr;
+      }
+    }
+  }
+
+  void IDAInstance::copyDerivativesFromMARCO(N_Vector values)
+  {
+    assert(derivatives.size() == derivativesDimensions.size());
+    assert(derivatives.size() == derivativesGetters.size());
+
+    auto* valuesPtr = N_VGetArrayPointer(values);
+
+    for (size_t i = 0; i < derivatives.size(); ++i) {
+      auto* descriptor = derivatives[i];
+      const auto& dimensions = derivativesDimensions[i];
+      assert(derivativesGetters[i] != nullptr);
+
+      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
+        if (marcoBitWidth == 32) {
+          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(derivativesGetters[i]);
+          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
+          *valuesPtr = value;
+        } else {
+          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(derivativesGetters[i]);
+          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
+          *valuesPtr = value;
+        }
+
+        ++valuesPtr;
+      }
+    }
+  }
+
   void IDAInstance::copyVariablesIntoMARCO(N_Vector values)
   {
     assert(variables.size() == variablesDimensions.size());
@@ -1207,16 +1298,19 @@ namespace
 
     for (size_t i = 0; i < variables.size(); ++i) {
       auto* descriptor = variables[i];
-      const auto& variableDimensions = variablesDimensions[i];
+      const auto& dimensions = variablesDimensions[i];
+      assert(variablesSetters[i] != nullptr);
 
-      for (auto indices = variableDimensions.indicesBegin(), end = variableDimensions.indicesEnd(); indices != end; ++indices) {
+      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
         if (marcoBitWidth == 32) {
-          auto value = static_cast<float>(*valuesPtr);
           auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(variablesSetters[i]);
+          auto value = static_cast<float>(*valuesPtr);
+          std::cerr << "Calling variable setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         } else {
-          auto value = static_cast<double>(*valuesPtr);
           auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(variablesSetters[i]);
+          auto value = static_cast<double>(*valuesPtr);
+          std::cerr << "Calling variable setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         }
 
@@ -1234,16 +1328,19 @@ namespace
 
     for (size_t i = 0; i < derivatives.size(); ++i) {
       auto* descriptor = derivatives[i];
-      const auto& derivativeDimensions = derivativesDimensions[i];
+      const auto& dimensions = derivativesDimensions[i];
+      assert(variablesSetters[i] != nullptr);
 
-      for (auto indices = derivativeDimensions.indicesBegin(), end = derivativeDimensions.indicesEnd(); indices != end; ++indices) {
+      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
         if (marcoBitWidth == 32) {
-          auto value = static_cast<float>(*valuesPtr);
           auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(derivativesSetters[i]);
+          auto value = static_cast<float>(*valuesPtr);
+          std::cerr << "Calling derivative setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         } else {
-          auto value = static_cast<double>(*valuesPtr);
           auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(derivativesSetters[i]);
+          auto value = static_cast<double>(*valuesPtr);
+          std::cerr << "Calling derivative setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         }
 
@@ -1454,21 +1551,29 @@ RUNTIME_FUNC_DEF(idaAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
 // Variable setters
 //===----------------------------------------------------------------------===//
 
-static int64_t idaAddAlgebraicVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* setter)
+static int64_t idaAddAlgebraicVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
 {
   auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->addAlgebraicVariable(variable, dimensions, rank, setter);
+  return instance->addAlgebraicVariable(variable, dimensions, rank, getter, setter);
 }
 
-RUNTIME_FUNC_DEF(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void))
+RUNTIME_FUNC_DEF(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
 
-static int64_t idaAddStateVariable_i64(void* userData, void* variable, void* derivative, int64_t* dimensions, int64_t rank, void* setter)
+static int64_t idaAddStateVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
 {
   auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->addStateVariable(variable, derivative, dimensions, rank, setter);
+  return instance->addStateVariable(variable, dimensions, rank, getter, setter);
 }
 
-RUNTIME_FUNC_DEF(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void))
+RUNTIME_FUNC_DEF(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
+
+static void idaSetDerivative_void(void* userData, int64_t stateVariable, void* derivative, void* getter, void* setter)
+{
+  auto* instance = static_cast<IDAInstance*>(userData);
+  instance->setDerivative(stateVariable, derivative, getter, setter);
+}
+
+RUNTIME_FUNC_DEF(idaSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
 
 /// Add a variable access to the var-th variable, where ind is the induction
 /// variable and off is the access offset.

@@ -2,50 +2,47 @@
 #define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODEL_H
 
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Codegen/Transforms/ModelSolving/Variable.h"
+#include "marco/Codegen/Transforms/ModelSolving/DerivativesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/Equation.h"
 #include "marco/Codegen/Transforms/ModelSolving/Path.h"
-#include "marco/Codegen/Transforms/ModelSolving/Variable.h"
 
 namespace marco::codegen
 {
   /// Get all the variables that are declared inside the Model operation, independently
   /// from their nature (state variables, constants, etc.).
-  Variables discoverVariables(mlir::modelica::ModelOp model);
+  Variables discoverVariables(mlir::Region& equationsRegion);
 
   /// Get the equations that are declared inside the Model operation.
   Equations<Equation> discoverEquations(
-      mlir::modelica::ModelOp model, const Variables& variables);
+      mlir::Region& equationsRegion, const Variables& variables);
 
   namespace impl
   {
     class BaseModel
     {
       public:
-        BaseModel(mlir::modelica::ModelOp modelOp)
-          : modelOp(modelOp.getOperation())
-        {
-        }
+        BaseModel(mlir::modelica::ModelOp modelOp);
 
-        mlir::modelica::ModelOp getOperation() const
-        {
-          return mlir::cast<mlir::modelica::ModelOp>(modelOp);
-        }
+        /// Get the IR model operation
+        mlir::modelica::ModelOp getOperation() const;
 
         /// Get the variables that are managed by this model.
-        Variables getVariables() const
-        {
-          return variables;
-        }
+        Variables getVariables() const;
 
         /// Set the variables the are managed by this model.
-        void setVariables(Variables value)
-        {
-          this->variables = std::move(value);
-        }
+        void setVariables(Variables value);
+
+        DerivativesMap& getDerivativesMap();
+
+        const DerivativesMap& getDerivativesMap() const;
+
+        void setDerivativesMap(DerivativesMap map);
 
       private:
         mlir::Operation* modelOp;
         Variables variables;
+        DerivativesMap derivativesMap;
     };
   }
 

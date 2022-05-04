@@ -219,6 +219,7 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createModelSolvingPass(modelSolvingOptions));
 
+    /*
     // Functions scalarization pass
     codegen::FunctionScalarizationOptions functionScalarizationOptions;
     functionScalarizationOptions.assertions = codegenOptions.assertions;
@@ -264,13 +265,12 @@ namespace marco::frontend
     passManager.addPass(codegen::createLowerToCFGPass());
 
     passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
+    passManager.addPass(codegen::createIDAToLLVMConversionPass());
 
     // Conversion to LLVM dialect
     codegen::ModelicaToLLVMConversionOptions llvmLoweringOptions;
     llvmLoweringOptions.assertions = ci.getCodegenOptions().assertions;
     passManager.addPass(codegen::createLLVMLoweringPass(llvmLoweringOptions));
-
-    passManager.addPass(codegen::createIDAConversionPass());
 
     passManager.addPass(codegen::createUnrealizedCastsEliminationPass());
 
@@ -278,6 +278,7 @@ namespace marco::frontend
       // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
+     */
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(

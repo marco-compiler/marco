@@ -1,86 +1,76 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_DERIVATIVESMAP_H
 #define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_DERIVATIVESMAP_H
 
-#include "llvm/ADT/STLExtras.h"
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/Value.h"
 #include <map>
 
 namespace marco::codegen
 {
-  namespace detail
+  class DerivedVariable
   {
-    class Derivative
+    public:
+      DerivedVariable(unsigned int argNumber, modeling::MultidimensionalRange indices);
+
+      unsigned int getArgNumber() const;
+
+      const modeling::MultidimensionalRange& getIndices() const;
+
+      bool operator<(const DerivedVariable& other) const;
+
+    private:
+      unsigned int argNumber;
+      modeling::MultidimensionalRange indices;
+  };
+
+  class Derivative
+  {
+    public:
+      Derivative(unsigned int argNumber, std::vector<long> offsets);
+
+      unsigned int getArgNumber() const;
+
+      llvm::ArrayRef<long> getOffsets() const;
+
+    private:
+      unsigned int argNumber;
+      std::vector<long> offsets;
+  };
+
+  namespace impl
+  {
+    struct DerivedVariablesComparator : public std::binary_function<DerivedVariable, DerivedVariable, bool>
     {
-      public:
-        Derivative(mlir::Value variable, mlir::Value derivative)
-          : variable(std::move(variable)), derivative(std::move(derivative))
-        {
-        }
-
-        mlir::Value getDerivedVariable() const
-        {
-          return variable;
-        }
-
-        marco::modeling::IndexSet getDerivedIndices() const
-        {
-          return indices;
-        }
-
-        mlir::Value getDerivative() const
-        {
-          return derivative;
-        }
-
-      private:
-        mlir::Value variable;
-        mlir::Value derivative;
-        marco::modeling::IndexSet indices;
-    };
-
-    /// Comparator for mlir::Value.
-    struct ValueComparator
-    {
-      bool operator()(const mlir::Value& first, const mlir::Value& second) const
-      {
-        if (first.isa<mlir::BlockArgument>() && second.isa<mlir::BlockArgument>()) {
-          return first.cast<mlir::BlockArgument>().getArgNumber() < second.cast<mlir::BlockArgument>().getArgNumber();
-        }
-
-        mlir::Operation* op1 = first.getDefiningOp();
-        mlir::Operation* op2 = second.getDefiningOp();
-
-        if (op1 != nullptr && op2 != nullptr) {
-          return op1 < op2;
-        }
-
-        return true;
-      }
+      bool operator()(const DerivedVariable& lhs, const DerivedVariable& rhs) const;
     };
   }
 
   class DerivativesMap
   {
     public:
-      bool hasDerivative(mlir::Value variable) const
-      {
-        return derivatives.find(variable) != derivatives.end();
-      }
+      void addDerivedIndices(unsigned int variable, modeling::MultidimensionalRange indices);
 
-      modeling::IndexSet getDerivedIndices(mlir::Value variable) const
-      {
-        modeling::IndexSet result;
+      modeling::IndexSet getDerivedIndices(unsigned int variable) const;
 
-        for (const auto& derivative : llvm::make_range(derivatives.equal_range(variable))) {
-          result += derivative.second.getDerivedIndices();
-        }
+      void setDerivative(
+          unsigned int variable,
+          modeling::MultidimensionalRange variableIndices,
+          unsigned int derivative,
+          modeling::MultidimensionalRange derivativeIndices);
 
-        return result;
-      }
+      bool hasDerivative(unsigned int variable) const;
+
+      std::vector<std::pair<const modeling::MultidimensionalRange*, const Derivative*>> getDerivative(unsigned int variable) const;
+
+      const Derivative& getDerivative(unsigned int variable, const modeling::MultidimensionalRange& indices) const;
+
+      bool isDerivative(unsigned int variable) const;
+
+      const DerivedVariable* getDerivedVariable(unsigned int derivative) const;
 
     private:
-      std::multimap<mlir::Value, detail::Derivative, detail::ValueComparator> derivatives;
+      std::map<unsigned int, modeling::IndexSet> derivedIndices;
+      std::map<DerivedVariable, Derivative, impl::DerivedVariablesComparator> derivatives;
   };
 }
 

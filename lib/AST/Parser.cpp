@@ -316,11 +316,17 @@ namespace marco::ast
   llvm::Error Parser::elementList(llvm::SmallVectorImpl<std::unique_ptr<Member>>& members, bool publicSection)
   {
     while (
-        current != Token::PublicKeyword && current != Token::ProtectedKeyword &&
-        current != Token::FunctionKeyword && current != Token::EquationKeyword &&
-        current != Token::AlgorithmKeyword && current != Token::EndKeyword &&
-        current != Token::ClassKeyword && current != Token::FunctionKeyword &&
-        current != Token::ModelKeyword && current != Token::PackageKeyword &&
+        current != Token::PublicKeyword &&
+        current != Token::ProtectedKeyword &&
+        current != Token::FunctionKeyword &&
+        current != Token::EquationKeyword &&
+        current != Token::InitialKeyword &&
+        current != Token::AlgorithmKeyword &&
+        current != Token::EndKeyword &&
+        current != Token::ClassKeyword &&
+        current != Token::FunctionKeyword &&
+        current != Token::ModelKeyword &&
+        current != Token::PackageKeyword &&
         current != Token::RecordKeyword)
     {
       TRY(memb, element(publicSection));

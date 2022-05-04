@@ -156,7 +156,9 @@ namespace marco::codegen
 {
   /// Match each scalar variable to a scalar equation.
   mlir::LogicalResult match(
-      Model<MatchedEquation>& result, Model<Equation>& model, const mlir::BlockAndValueMapping& derivatives);
+      Model<MatchedEquation>& result,
+      const Model<Equation>& model,
+      std::function<bool(const Variable&)> isMatchableFn);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MATCHING_H

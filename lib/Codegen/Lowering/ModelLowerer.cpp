@@ -74,7 +74,9 @@ namespace marco::codegen::lowering
       symbolTable().insert("time", Reference::time(&builder()));
 
       for (const auto& member : llvm::enumerate(model.getMembers())) {
-        symbolTable().insert(member.value()->getName(), Reference::memory(&builder(), modelOp.equationsRegion().getArgument(member.index())));
+        symbolTable().insert(
+            member.value()->getName(),
+            Reference::memory(&builder(), modelOp.equationsRegion().getArgument(member.index())));
       }
 
       // Members with an assigned value are conceptually the same as equations performing that assignment.
@@ -86,6 +88,31 @@ namespace marco::codegen::lowering
 
       // Create the equations
       for (const auto& equationsBlock : model.getEquationsBlocks()) {
+        for (const auto& equation : equationsBlock->getEquations()) {
+          lower(*equation);
+        }
+
+        for (const auto& forEquation : equationsBlock->getForEquations()) {
+          lower(*forEquation);
+        }
+      }
+    }
+
+    {
+      // Initial equations
+      builder().setInsertionPointToStart(builder().createBlock(&modelOp.initialEquationsRegion(), {}, args));
+      symbolTable().insert("time", Reference::time(&builder()));
+
+      for (const auto& member : llvm::enumerate(model.getMembers())) {
+        symbolTable().insert(
+            member.value()->getName(),
+            Reference::memory(&builder(), modelOp.initialEquationsRegion().getArgument(member.index())));
+      }
+
+      // TODO: handle fixed = true
+
+      // Create the equations
+      for (const auto& equationsBlock : model.getInitialEquationsBlocks()) {
         for (const auto& equation : equationsBlock->getEquations()) {
           lower(*equation);
         }
@@ -124,6 +151,8 @@ namespace marco::codegen::lowering
       } else {
         reference.set(*values[0]);
       }
+    } else if (member.isParameter() && member.hasInitializer()){
+      reference.set(*lower(*member.getInitializer())[0]);
     } else {
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(arrayType.getElementType()));
