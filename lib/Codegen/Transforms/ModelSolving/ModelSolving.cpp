@@ -170,8 +170,6 @@ static mlir::LogicalResult createDerivativeVariables(mlir::OpBuilder& builder, M
       assert(derArgumentPosition == equationsRegionArg.getArgNumber());
       assert(derArgumentPosition == initialEquationsRegionArg.getArgNumber());
 
-      // TODO store derivative and inverse derivative information inside the derivatives map
-
       derivativesMap.setDerivative(variable.index(), range.value(), derArgumentPosition, MultidimensionalRange(derivativeIndices));
 
       ++derArgumentPosition;
@@ -407,8 +405,6 @@ namespace
         if (mlir::failed(removeDerOps(builder, model))) {
           return signalPassFailure();
         }
-
-        getOperation().dump();
 
         // Erasing the derivative operations may have caused equations splitting.
         // For this reason we need to perform again the discovery process.

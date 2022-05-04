@@ -434,7 +434,7 @@ namespace
 
       // Create the array with the variable dimensions
       mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
-      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.arrayDimensions().size()));
+      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.dimensions().size()));
       mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
       mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
       mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
@@ -447,7 +447,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(dimensionSizeType.getIntOrFloatBitWidth())));
 
       // Populate the dimensions list
-      for (const auto& sizeAttr : llvm::enumerate(op.arrayDimensions())) {
+      for (const auto& sizeAttr : llvm::enumerate(op.dimensions())) {
         mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), sizeAttr.index()));
         mlir::Value size = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(sizeAttr.value().cast<mlir::IntegerAttr>().getInt()));
         mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, arrayDimensionsPtr.getType(), arrayDimensionsPtr, offset);
@@ -455,7 +455,7 @@ namespace
       }
 
       // Rank
-      mlir::Value rank = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(op.arrayDimensions().size()));
+      mlir::Value rank = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(op.dimensions().size()));
       newOperands.push_back(rank);
       mangledArgsTypes.push_back(mangling.getIntegerType(rank.getType().getIntOrFloatBitWidth()));
 
@@ -529,7 +529,7 @@ namespace
 
       // Create the array with the variable dimensions
       mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
-      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.arrayDimensions().size()));
+      mlir::Value numOfElements = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), op.dimensions().size()));
       mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
       mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
       mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::makeArrayRef({ nullPtr, numOfElements }));
@@ -542,7 +542,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(dimensionSizeType.getIntOrFloatBitWidth())));
 
       // Populate the dimensions list
-      for (const auto& sizeAttr : llvm::enumerate(op.arrayDimensions())) {
+      for (const auto& sizeAttr : llvm::enumerate(op.dimensions())) {
         mlir::Value offset = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), sizeAttr.index()));
         mlir::Value size = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(sizeAttr.value().cast<mlir::IntegerAttr>().getInt()));
         mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, arrayDimensionsPtr.getType(), arrayDimensionsPtr, offset);
@@ -550,7 +550,7 @@ namespace
       }
 
       // Rank
-      mlir::Value rank = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(op.arrayDimensions().size()));
+      mlir::Value rank = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(op.dimensions().size()));
       newOperands.push_back(rank);
       mangledArgsTypes.push_back(mangling.getIntegerType(rank.getType().getIntOrFloatBitWidth()));
 

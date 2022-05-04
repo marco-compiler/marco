@@ -49,9 +49,6 @@ RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(i
 // Getters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(idaGetVariable, PTR(void), PTR(void), int64_t)
-RUNTIME_FUNC_DECL(idaGetDerivative, PTR(void), PTR(void), int64_t)
-
 RUNTIME_FUNC_DECL(idaGetCurrentTime, float, PTR(void))
 RUNTIME_FUNC_DECL(idaGetCurrentTime, double, PTR(void))
 

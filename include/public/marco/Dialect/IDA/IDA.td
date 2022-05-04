@@ -37,14 +37,12 @@ def IDA_CreateOp : IDA_Op<"create",
     let summary = "Create an IDA instance.";
 
     let description = [{
-        The  operation takes three operands and returns a new
-        IDA instance.
-        // TODO aggiornare
-        The operand consists in the number of total amount of
-        scalar equations of the model. The number of scalar variables
-        is not needed as it matches by construction the number of
-        scalar equation, because each scalar equation is indeed
-        matched to a scalar variable.
+        The operation create a new IDA instance.
+
+        The operations expects an attribute called 'scalarEquations'
+        indicating the total amount of scalar equations of the model.
+        The number of scalar variables is not needed as it matches
+        by construction the number of scalar equation.
         The underlying data structures are allocated but not
         initialized; initialization is delegated to the InitOp
         operation, which has to be called after all the data
@@ -88,7 +86,7 @@ def IDA_SetStartTimeOp : IDA_Op<"set_start_time",
         ```mlir
         %0 = ... : !ida.instance
         ida.set_start_time %0 { time = 0.0 } : !ida.instance
-        ``
+        ```
     }];
 
     let arguments = (ins
@@ -116,7 +114,7 @@ def IDA_SetEndTimeOp : IDA_Op<"set_end_time",
         ```mlir
         %0 = ... : !ida.instance
         ida.set_end_time %0 { time = 0.0 } : !ida.instance
-        ``
+        ```
     }];
 
     let arguments = (ins
@@ -133,10 +131,19 @@ def IDA_SetEndTimeOp : IDA_Op<"set_end_time",
 def IDA_SetTimeStepOp : IDA_Op<"set_time_step",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "";
+    let summary = "Set a fixed time step for the simulation.";
 
     let description = [{
+        The operation enables the equidistant time grid inside
+        IDA and sets the time step to the one provided through
+        the 'timeStep' attribute.
 
+        Example:
+
+        ```mlir
+        %0 = ... : !ida.instance
+        ida.set_time_step %0 { timeStep = 0.1 } : !ida.instance
+        ```
     }];
 
     let arguments = (ins
@@ -283,8 +290,7 @@ def IDA_AddEquationOp : IDA_Op<"add_equation",
 
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ... : memref<2x?xi64>
-        ida.add_equation %0, %1 : (ida.instance, memref<2x?xi64>) -> ida.equation
+        ida.add_equation %0 { equationRanges : [[4,7], [9,13], [1,3]] } : ida.instance -> ida.equation
         ```
     }];
 
@@ -309,46 +315,51 @@ def IDA_AddEquationOp : IDA_Op<"add_equation",
 def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "Add the information regarding the dimensions of a variable.";
+    let summary = "Add the information regarding the dimensions of an algebraic variable.";
 
     let description = [{
         The operation is intended to inform IDA about the dimensions of
-        a variable.
+        an algebraic variable.
+
+        The operation expects three attributes:
+          1. 'arrayDimensions': contains the dimensions of the array
+             variable; scalar variables must be represented by a 1-D
+             array of size 1.
+          2. 'getter': the name of the function to be used by IDA to
+             get the value of a scalar variable inside the array.
+          3. 'setter': the name of the function to be used by IDA to
+             set the value of a scalar variable inside the array.
 
         The operation returns a reference to the variable added to the
         IDA instance.
-
-        The `state` attribute is used to tell IDA whether the variables
-        is a state one.
 
         Example:
 
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ... : memref<?xi64>
-        ida.add_variable %0, %1 { state = true } : (ida.instance, memref<?xi64>) -> ida.variable
+        ida.add_algebraic_variable %0, %1 { dimensions = [3, 5], getter = @x_getter, setter = @x_setter } : (!ida.instance, !mydialect.type) -> !ida.variable
         ```
     }];
 
     let arguments = (ins
         IDAInstance:$instance,
         AnyType:$variable,
-        I64ArrayAttr:$arrayDimensions,
+        I64ArrayAttr:$dimensions,
         SymbolRefAttr:$getter,
         SymbolRefAttr:$setter);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$dimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getter, setter);
+            build($_builder, $_state, resultType, idaInstance, variable, dimensions, getter, setter);
         }]>,
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "StringRef":$getter, "StringRef":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$dimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
             auto getterAttr = $_builder.getSymbolRefAttr(getter);
             auto setterAttr = $_builder.getSymbolRefAttr(setter);
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getterAttr, setterAttr);
+            build($_builder, $_state, resultType, idaInstance, variable, dimensions, getterAttr, setterAttr);
         }]>
     ];
 
@@ -360,46 +371,51 @@ def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable",
 def IDA_AddStateVariableOp : IDA_Op<"add_state_variable",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "Add the information regarding the dimensions of a variable.";
+    let summary = "Add the information regarding the dimensions of a state variable.";
 
     let description = [{
         The operation is intended to inform IDA about the dimensions of
-        a variable.
+        a state variable.
+
+        The operation expects three attributes:
+          1. 'arrayDimensions': contains the dimensions of the array
+             variable; scalar variables must be represented by a 1-D
+             array of size 1.
+          2. 'getter': the name of the function to be used by IDA to
+             get the value of a scalar variable inside the array.
+          3. 'setter': the name of the function to be used by IDA to
+             set the value of a scalar variable inside the array.
 
         The operation returns a reference to the variable added to the
         IDA instance.
-
-        The `state` attribute is used to tell IDA whether the variables
-        is a state one.
 
         Example:
 
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ... : memref<?xi64>
-        ida.add_variable %0, %1 { state = true } : (ida.instance, memref<?xi64>) -> ida.variable
+        ida.add_state_variable %0, %1 { dimensions = [3, 5], getter = @x_getter, setter = @x_setter } : (!ida.instance, !mydialect.type) -> !ida.variable
         ```
     }];
 
     let arguments = (ins
         IDAInstance:$instance,
         AnyType:$variable,
-        I64ArrayAttr:$arrayDimensions,
+        I64ArrayAttr:$dimensions,
         SymbolRefAttr:$getter,
         SymbolRefAttr:$setter);
 
     let results = (outs IDAVariable:$idaVariable);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$dimensions, "SymbolRefAttr":$getter, "SymbolRefAttr":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getter, setter);
+            build($_builder, $_state, resultType, idaInstance, variable, dimensions, getter, setter);
         }]>,
-        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$arrayDimensions, "StringRef":$getter, "StringRef":$setter), [{
+        OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$dimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
             auto getterAttr = $_builder.getSymbolRefAttr(getter);
             auto setterAttr = $_builder.getSymbolRefAttr(setter);
-            build($_builder, $_state, resultType, idaInstance, variable, arrayDimensions, getterAttr, setterAttr);
+            build($_builder, $_state, resultType, idaInstance, variable, dimensions, getterAttr, setterAttr);
         }]>
     ];
 
@@ -411,24 +427,22 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable",
 def IDA_SetDerivativeOp : IDA_Op<"set_derivative",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
-    let summary = "Add the information regarding the dimensions of a variable.";
+    let summary = "Set the derivative of a state variable.";
 
     let description = [{
-        The operation is intended to inform IDA about the dimensions of
-        a variable.
+        The operation is used to set the derivative of a state variable
+        that has been previously declared inside IDA.
 
-        The operation returns a reference to the variable added to the
-        IDA instance.
-
-        The `state` attribute is used to tell IDA whether the variables
-        is a state one.
+        The operation expects the 'getter' and 'setter' attributes as
+        the `ida.add_state_variable`, to be used by IDA to operate on
+        the derivative array.
 
         Example:
 
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ... : memref<?xi64>
-        ida.add_variable %0, %1 { state = true } : (ida.instance, memref<?xi64>) -> ida.variable
+        %1 = ... : !ida.variable
+        ida.set_derivative %0, %1, %2 { getter = @der_x_getter, setter = @der_x_setter } : (!ida.instance, !ida.variable, !mydialect.type) -> !ida.variable
         ```
     }];
 
@@ -457,10 +471,20 @@ def IDA_SetDerivativeOp : IDA_Op<"set_derivative",
 def IDA_VariableGetterOp : IDA_Op<"variable_getter",
     [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
 {
-    let summary = "";
+    let summary = "Getter interface for an external variable.";
 
     let description = [{
+        The `ida.variable_getter` is a function-like operation that
+        acts as a bridge between IDA and the custom dialect types.
+        It allows to define how an array variable can be accessed
+        and one of its scalar values retrieved.
 
+        The function signature consists in a variadic list of arguments
+        and one result.
+        The first argument is the array variable (with its original
+        type); the remaining ones consist in the indices of the
+        scalar variable to be accessed.
+        The return value is indeed the accessed scalar variable.
     }];
 
     let arguments = (ins
@@ -470,7 +494,7 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
     let results = (outs);
 
     let regions = (region
-        SizedRegion<1>:$bodyRegion
+        AnyRegion:$bodyRegion
     );
 
     let builders = [
@@ -557,10 +581,19 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
 def IDA_VariableSetterOp : IDA_Op<"variable_setter",
     [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
 {
-    let summary = "";
+    let summary = "Setter interface for an external variable.";
 
     let description = [{
+        The `ida.variable_setter` is a function-like operation that
+        acts as a bridge between IDA and the custom dialect types.
+        It allows to define how an array variable can be accessed
+        and one of its scalar values updated.
 
+        The function signature consists in a variadic list of arguments.
+        The first argument is the array variable (with its original
+        type); the second argument is the value to be set; the
+        remaining ones consist in the indices of the scalar variable
+        to be accessed.
     }];
 
     let arguments = (ins
@@ -570,7 +603,7 @@ def IDA_VariableSetterOp : IDA_Op<"variable_setter",
     let results = (outs);
 
     let regions = (region
-        SizedRegion<1>:$bodyRegion
+        AnyRegion:$bodyRegion
     );
 
     let builders = [
@@ -689,7 +722,7 @@ def IDA_AddVariableAccessOp : IDA_Op<"add_variable_access",
 def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
 {
-    let summary = "Residual function of a vector equation.";
+    let summary = "Residual function of a loop equation.";
 
     let description = [{
         The residual function of an equation is a function that computes
@@ -698,16 +731,19 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
         The residual error of an equation consists in the difference
         between its right-hand side and left-hand side values.
 
-        The function takes three parameters:
-          1. IDA instance
-          2. current time of the simulation (which will be provided by IDA when calling the residual function).
-          3. indices of the scalar equation to be examined.
+        The function expects an attribute name `equationRank` indicating
+        the number of iteration variables of the equation.
+
+        The function takes a variadic list of arguments:
+          1. Current time of the simulation (which will be provided by IDA when calling the residual function).
+          2. The list of the original variables.
+          3. The indices of the scalar equation to be examined.
 
         Example:
 
         ```mlir
-        ida.residual_function @foo {
-            ^bbo(%instance : !ida.instance, %time : f64, %indices : memref<?xi64>) {
+        ida.residual_function @foo attributes { equationRank = 3 } {
+            ^bbo(%time : f64, %var0 : !mydialect.type1, %var1 : !mydialect.type2, %i : index, %j : index, %k : index) {
                 ...
                 %diff = ... : f64
                 ida.return %diff : f64
@@ -724,7 +760,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion // TODO switch to SizedRegion<1
+        AnyRegion:$bodyRegion
     );
 
     let builders = [
@@ -819,40 +855,32 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
 {
-    let summary = "Jacobian function of a vector equation.";
+    let summary = "Jacobian function of a loop equation.";
 
     let description = [{
         The Jacobian function of an equation is a function that computes
         an element of the Jacobian matrix of that equation.
 
-        The function takes six parameters:
-          1. IDA instance.
-          2. current time of the simulation (which will be provided by IDA when calling the residual function).
-          3. indices of the scalar equation to be examined.
-          4. array variable belonging to the IDA instance.
-          5. indices of the scalar variable with respect to which
-             the equation has to be derived.
-          6. the IDA alpha parameter.
+        The function expects an attribute named `equationRank` indicating
+        the number of iteration variables of the equation and an attribute
+        named `variableRank` indicating the rank of the variable with
+        respect to the equation is derived.
+
+        The function takes a variadic list of arguments:
+          1. Current time of the simulation (which will be provided by IDA when calling the residual function).
+          2. The list of the original variables.
+          3. The indices of the scalar equation to be examined.
+          4. The indices of the scalar variable with respect to the equation is derived.
+          5. The IDA `alpha` parameter .
 
         Example:
 
         ```mlir
-        init {
-          %pippo = ida.add_variable %x : !ida.variable
-        }
-
-        map.insert(x -> pippo)
-
-        modelica.equation {
-            %x
-        }
-
-        ida.jacobian_function @foo {
-            ^bbo(%instance : !ida.instance, %time : f64, %equationIndices : memref<?xi64>, %var : !ida.variable, %variableIndices : memref<?xi64>, %alpha : f64) {
-                ida.get_var %instance, %pippo : !modelica.array<4x!modelica.int>
+        ida.jacobian_function @foo attributes { equationRank = 3, variableRank = 2 } {
+            ^bbo(%time : f64, %var0 : !mydialect.type1, %var1 : !mydialect.type2, %i : index, %j : index, %k : index, %l : index, %m : index, %alpha: f64) {
                 ...
-                %diff = ... : f64
-                ida.return %diff : f64
+                %der = ... : f64
+                ida.return %der : f64
             }
         }
         ```
@@ -867,7 +895,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$bodyRegion // TODO switch to SizedRegion<1
+        AnyRegion:$bodyRegion
     );
 
     let builders = [
@@ -890,7 +918,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
                 args.push_back($_builder.getIndexType());
             }
 
-           args.push_back(alphaType);
+            args.push_back(alphaType);
 
             auto functionType = $_builder.getFunctionType(args, differenceType);
             auto typeAttr = TypeAttr::get(functionType);
@@ -1008,7 +1036,7 @@ def IDA_AddResidualOp : IDA_Op<"add_residual",
 
         %0 = ... : !ida.instance
         %1 = ... : !ida.equation
-        ida.add_residual %0, %1 { function : "foo" } : !ida.instance, !ida.equation
+        ida.add_residual %0, %1 { function : @foo } : !ida.instance, !ida.equation
         ```
     }];
 
@@ -1042,7 +1070,7 @@ def IDA_AddJacobianOp : IDA_Op<"add_jacobian",
         %0 = ... : !ida.instance
         %1 = ... : !ida.equation
         %2 = ... : !ida.variable
-        ida.add_jacobian %0, %1, %2 { function : "foo" } : !ida.instance, !ida.equation, !ida.variable
+        ida.add_jacobian %0, %1, %2 { function : @foo } : !ida.instance, !ida.equation, !ida.variable
         ```
     }];
 
@@ -1073,7 +1101,6 @@ def IDA_InitOp : IDA_Op<"init",
 
         ```mlir
         %0 = ... : !ida.instance
-        ...
         %1 = ida.init %0 : !ida.instance
         ```
     }];
@@ -1093,16 +1120,11 @@ def IDA_StepOp : IDA_Op<"step",
 
     let description = [{
         The operation instructs IDA to perform a simulation step.
-        If a time step parameter is given, then the simulation
-        time will be advanced by that given amount of time.
-        If not, an appropriate time step will be determined by
-        IDA through internal heuristics and may be different at
-        each call.
 
         Example:
         ```mlir
         %0 = ... : !ida.instance
-        %1 = ida.step %0 { step = 0.01 } : !ida.instance
+        %1 = ida.step %0 : !ida.instance
         ```
     }];
 

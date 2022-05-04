@@ -298,10 +298,6 @@ namespace
       /// Returns the time reached by the solver after the last step.
       realtype getCurrentTime() const;
 
-      void* getVariable(int64_t variableIndex) const;
-
-      void* getDerivative(int64_t derivativeIndex) const;
-
       /// Prints statistics regarding the computation of the system.
       void printStatistics() const;
 
@@ -384,11 +380,6 @@ namespace
 
       // The tolerance for each scalar variable.
       N_Vector tolerancesVector;
-
-      // The variables upon which MARCO operates (in other words, the ones retrieved
-      // through idaGetVariable and idaGetDerivative).
-      void* marcoVariableValues;
-      void* marcoDerivativeValues;
 
       // IDA classes
       void* idaMemory;
@@ -549,14 +540,6 @@ namespace
 
       tolerancesVector = N_VNew_Serial(scalarEquationsNumber);
       assert(checkAllocation(static_cast<void*>(tolerancesVector), "N_VNew_Serial"));
-
-      if (marcoBitWidth == idaBitWidth) {
-        marcoVariableValues = static_cast<void*>(N_VGetArrayPointer(variablesVector));
-        marcoDerivativeValues = static_cast<void*>(N_VGetArrayPointer(derivativesVector));
-      } else {
-        marcoVariableValues = std::malloc(scalarEquationsNumber * (marcoBitWidth / CHAR_BIT));
-        marcoDerivativeValues = std::malloc(scalarEquationsNumber * (marcoBitWidth / CHAR_BIT));
-      }
     }
   }
 
@@ -972,9 +955,7 @@ namespace
     profiler().initialConditionsTimer.start();
 #endif
 
-    std::cerr << "Starting IDACalcIC\n";
     retval = IDACalcIC(idaMemory, IDA_YA_YDP_INIT, firstOutTime);
-    std::cerr << "Finished IDACalcIC\n";
 
 #ifdef MARCO_PROFILING
     profiler().initialConditionsTimer.stop();
@@ -989,8 +970,6 @@ namespace
 
   bool IDAInstance::step()
   {
-    std::cerr << "IDA step\n";
-
     assert(initialized && "The IDA instance has not been initialized yet");
     bool equidistantTimeGrid = timeStep != kUndefinedTimeStep;
 
@@ -1023,25 +1002,13 @@ namespace
     profiler().stepsTimer.stop();
 #endif
 
-    if (marcoBitWidth != idaBitWidth) {
-      auto* variableValues = N_VGetArrayPointer(variablesVector);
-      auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
-
-      for (int64_t i = 0; i < scalarEquationsNumber; ++i) {
-        if (marcoBitWidth == 32) {
-          static_cast<float*>(marcoVariableValues)[i] = static_cast<float>(variableValues[i]);
-          static_cast<float*>(marcoDerivativeValues)[i] = static_cast<float>(derivativeValues[i]);
-        } else {
-          static_cast<double*>(marcoVariableValues)[i] = static_cast<double>(variableValues[i]);
-          static_cast<double*>(marcoDerivativeValues)[i] = static_cast<double>(derivativeValues[i]);
-        }
-      }
-    }
-
     // Check if the solver failed
     if (!checkRetval(retval, "IDASolve")) {
       return false;
     }
+
+    copyVariablesIntoMARCO(variablesVector);
+    copyDerivativesIntoMARCO(derivativesVector);
 
     return true;
   }
@@ -1049,34 +1016,6 @@ namespace
   realtype IDAInstance::getCurrentTime() const
   {
     return currentTime;
-  }
-
-  void* IDAInstance::getVariable(int64_t variableIndex) const
-  {
-    assert(variableIndex >= 0);
-    assert(static_cast<size_t>(variableIndex) < variablesDimensions.size());
-
-    size_t offset = variableOffsets[variableIndex];
-
-    if (marcoBitWidth == 32) {
-      return static_cast<void*>(&static_cast<float*>(marcoVariableValues)[offset]);
-    }
-
-    return static_cast<void*>(&static_cast<double*>(marcoVariableValues)[offset]);
-  }
-
-  void* IDAInstance::getDerivative(int64_t derivativeIndex) const
-  {
-    assert(derivativeIndex >= 0);
-    assert(static_cast<size_t>(derivativeIndex) < variablesDimensions.size());
-
-    size_t offset = variableOffsets[derivativeIndex];
-
-    if (marcoBitWidth == 32) {
-      return static_cast<void*>(&static_cast<float*>(marcoDerivativeValues)[offset]);
-    }
-
-    return static_cast<void*>(&static_cast<double*>(marcoDerivativeValues)[offset]);
   }
 
   int IDAInstance::residualFunction(realtype time, N_Vector variables, N_Vector derivatives, N_Vector residuals, void* userData)
@@ -1102,12 +1041,10 @@ namespace
         if (instance->marcoBitWidth == 32) {
           auto residualFunction = reinterpret_cast<ResidualFunction<float>>(instance->residuals[eq]);
           auto residualFunctionResult = residualFunction(time, instance->simulationData, equationIndices);
-          std::cerr << "Residual function (with time " << time << "): " << residualFunctionResult << "\n";
           *rval++ = residualFunctionResult;
         } else {
           auto residualFunction = reinterpret_cast<ResidualFunction<double>>(instance->residuals[eq]);
           auto residualFunctionResult = residualFunction(time, instance->simulationData, equationIndices);
-          std::cerr << "Residual function (with time " << time << "): " << residualFunctionResult << "\n";
           *rval++ = residualFunctionResult;
         }
       } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
@@ -1163,12 +1100,10 @@ namespace
           if (instance->marcoBitWidth == 32) {
             auto jacobianFunction = reinterpret_cast<JacobianFunction<float>>(instance->jacobians[eq][var.first]);
             auto jacobianFunctionResult = jacobianFunction(time, instance->simulationData, equationIndices, variableIndices, alpha);
-            std::cerr << "Jacobian function (with time " << time << ", alpha " << alpha << "): " << jacobianFunctionResult << "\n";
             *jacobian++ = jacobianFunctionResult;
           } else {
             auto jacobianFunction = reinterpret_cast<JacobianFunction<double>>(instance->jacobians[eq][var.first]);
             auto jacobianFunctionResult = jacobianFunction(time, instance->simulationData, equationIndices, variableIndices, alpha);
-            std::cerr << "Jacobian function (with time " << time << ", alpha " << alpha << "): " << jacobianFunctionResult << "\n";
             *jacobian++ = jacobianFunctionResult;
           }
 
@@ -1305,12 +1240,10 @@ namespace
         if (marcoBitWidth == 32) {
           auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(variablesSetters[i]);
           auto value = static_cast<float>(*valuesPtr);
-          std::cerr << "Calling variable setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         } else {
           auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(variablesSetters[i]);
           auto value = static_cast<double>(*valuesPtr);
-          std::cerr << "Calling variable setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         }
 
@@ -1335,12 +1268,10 @@ namespace
         if (marcoBitWidth == 32) {
           auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(derivativesSetters[i]);
           auto value = static_cast<float>(*valuesPtr);
-          std::cerr << "Calling derivative setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         } else {
           auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(derivativesSetters[i]);
           auto value = static_cast<double>(*valuesPtr);
-          std::cerr << "Calling derivative setter with value " << value << "\n";
           setterFn(descriptor, value, *indices);
         }
 
@@ -1589,24 +1520,6 @@ RUNTIME_FUNC_DEF(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(in
 //===----------------------------------------------------------------------===//
 // Getters
 //===----------------------------------------------------------------------===//
-
-/// Returns the pointer to the start of the memory of the requested variable.
-static void* idaGetVariable_pvoid(void* userData, int64_t variableIndex)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->getVariable(variableIndex);
-}
-
-RUNTIME_FUNC_DEF(idaGetVariable, PTR(void), PTR(void), int64_t)
-
-/// Returns the pointer to the start of the memory of the requested derivative.
-static void* idaGetDerivative_pvoid(void* userData, int64_t derivativeIndex)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->getDerivative(derivativeIndex);
-}
-
-RUNTIME_FUNC_DEF(idaGetDerivative, PTR(void), PTR(void), int64_t)
 
 static float idaGetCurrentTime_f32(void* userData)
 {
