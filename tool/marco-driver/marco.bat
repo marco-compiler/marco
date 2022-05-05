@@ -9,8 +9,14 @@ set COMPILE_ONLY="False"
 set SHOULD_LINK="True"
 set OPTIONS=
 set INPUT_FILES=
+set MODEL=
+set END_TIME=
+set TEMPORARY_DIR=
 
 call :parse_args %*
+
+if defined MODEL set OPTIONS=%OPTIONS% --model=%MODEL%
+if defined END_TIME set OPTIONS=%OPTIONS% --end-time=%END_TIME%
 
 if %PRINT_HELP% == "True" (
     marco-driver --help
@@ -22,7 +28,8 @@ if %PRINT_VERSION% == "True" (
     exit /b 0
 )
 
-set TEMPORARY_DIR=%tmp%\%random%.tmp
+set TEMPORARY_DIR=%tmp%\test~%random%.tmp
+if exist %TEMPORARY_DIR% rmdir /s /q %TEMPORARY_DIR%
 mkdir %TEMPORARY_DIR%
 
 marco-driver %OPTIONS% %INPUT_FILES% -o "%TEMPORARY_DIR%\simulation.obj"
@@ -67,38 +74,35 @@ if not "%TMP_ARG:~0,1%" == "-" goto :end_compiler_option
         shift
         goto :parse_args
     :end_output_file
+    if not "%1" == "--end-time" goto :end_end_time
+        shift
+        set END_TIME=%1
+        shift
+        goto :parse_args
+    :end_end_time
+    if not "%1" == "--model" goto :end_model
+        shift
+        set MODEL=%1
+        shift
+        goto :parse_args
+    :end_model
 
     :: This is a regular option - just add it to the list.
     set OPTIONS=%OPTIONS% %1
 
-    if "%1" == "--help" (
-        set PRINT_HELP="True"
-    )
-    if "%1" == "--version" (
-        set PRINT_VERSION="True"
-    )
+    if "%1" == "--help" set PRINT_HELP="True"
+    if "%1" == "--version" set PRINT_VERSION="True"
     if "%1" == "-c" (
         set COMPILE_ONLY="True"
         set SHOULD_LINK="False"
     )
-    if "%1" == "--init-only" (
-        set SHOULD_LINK="False"
-    )
-    if "%1" == "--emit-flattened" (
-        set SHOULD_LINK="False"
-    )
-    if "%1" == "--emit-ast" (
-        set SHOULD_LINK="False"
-    )
-    if "%1" == "--emit-modelica-dialect" (
-        set SHOULD_LINK="False"
-    )
-    if "%1" == "--emit-llvm-dialect" (
-        set SHOULD_LINK="False"
-    )
-    if "%1" == "--emit-llvm-ir" (
-        set SHOULD_LINK="False"
-    )
+    if "%1" == "--init-only" set SHOULD_LINK="False"
+    if "%1" == "--emit-flattened" set SHOULD_LINK="False"
+    if "%1" == "--emit-ast" set SHOULD_LINK="False"
+    if "%1" == "--emit-modelica-dialect" set SHOULD_LINK="False"
+    if "%1" == "--emit-llvm-dialect" set SHOULD_LINK="False"
+    if "%1" == "--emit-llvm-ir" set SHOULD_LINK="False"
+
 shift
 goto :parse_args
 :end_compiler_option
@@ -110,6 +114,7 @@ if exist "%1" (
     goto :parse_args
 )
 :: CASE 3: Unsupported
+
 echo ERROR: unrecognised option format: %1. Perhaps non-existent file?
 exit /b
 
