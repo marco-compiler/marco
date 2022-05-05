@@ -8,6 +8,16 @@ set(SHARED_SOURCES
 		Profiling.cpp
 		UtilityFunctions.cpp)
 
+set (MSVC_SOURCES
+		msvc_asm_sin.asm
+		msvc_asm_cos.asm)
+
+if(MSVC)
+	set(SHARED_SOURCES
+			${MSVC_SOURCES}
+			${SHARED_SOURCES})
+endif()
+
 set(STATIC_SOURCES
 		${SHARED_SOURCES}
 		Runtime.cpp)

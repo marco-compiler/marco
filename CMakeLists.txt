@@ -25,6 +25,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 #-------------------------------------------------------------------------------
 project(marco LANGUAGES C CXX)
 if(MSVC)
+	enable_language(ASM_MASM)
 	include_directories("C:\\boost")
 endif()
 

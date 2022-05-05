@@ -1170,77 +1170,43 @@ double fdlibm::__kernel_cos(double x, double y)
 	}
 }
 
-//double sin(double x)
-//{
-//	double cosx;
-//	double sinx;
-//	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
-//	return sinx;
-//}
+#ifndef MSVC_BUILD
+double fdlibm::sin(double x)
+{
+	double cosx;
+	double sinx;
+	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
+	return sinx;
+}
+#else
+extern "C" void msvc_asm_sin(double x, double* s, double* c);
 
 double fdlibm::sin(double x)
 {
-	double y[2],z=0.0;
-	int n, ix;
-
-    /* High word of x. */
-	ix = __HI(x);
-
-    /* |x| ~< pi/4 */
-	ix &= 0x7fffffff;
-	if(ix <= 0x3fe921fb) return __kernel_sin(x,z,0);
-
-    /* sin(Inf or NaN) is NaN */
-	else if (ix>=0x7ff00000) return x-x;
-
-    /* argument reduction needed */
-	else {
-	    n = __ieee754_rem_pio2(x,y);
-	    switch(n&3) {
-		case 0: return  __kernel_sin(y[0],y[1],1);
-		case 1: return  __kernel_cos(y[0],y[1]);
-		case 2: return -__kernel_sin(y[0],y[1],1);
-		default:
-			return -__kernel_cos(y[0],y[1]);
-	    }
-	}
+	double s, c;
+	msvc_asm_sin(x, &s, &c);
+	return s;
 }
+#endif
 
-//double cos(double x)
-//{
-//	double cosx;
-//	double sinx;
-//	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
-//	return cosx;
-//}
+#ifndef MSVC_BUILD
+double fdlibm::cos(double x)
+{
+	double cosx;
+	double sinx;
+	asm ( "fsincos" : "=t" (cosx), "=u" (sinx) : "0" (x) );
+	return cosx;
+}
+#else
+extern "C" void msvc_asm_cos(double x, double* s, double* c);
 
 double fdlibm::cos(double x)
 {
-	double y[2],z=0.0;
-	int n, ix;
-
-    /* High word of x. */
-	ix = __HI(x);
-
-    /* |x| ~< pi/4 */
-	ix &= 0x7fffffff;
-	if(ix <= 0x3fe921fb) return __kernel_cos(x,z);
-
-    /* cos(Inf or NaN) is NaN */
-	else if (ix>=0x7ff00000) return x-x;
-
-    /* argument reduction needed */
-	else {
-	    n = __ieee754_rem_pio2(x,y);
-	    switch(n&3) {
-		case 0: return  __kernel_cos(y[0],y[1]);
-		case 1: return -__kernel_sin(y[0],y[1],1);
-		case 2: return -__kernel_cos(y[0],y[1]);
-		default:
-		        return  __kernel_sin(y[0],y[1],1);
-	    }
-	}
+	double s, c;
+	msvc_asm_cos(x, &s, &c);
+	return c;
 }
+#endif
 
 double fdlibm::sinh(double x)
 {	
