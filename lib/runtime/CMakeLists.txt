@@ -10,7 +10,8 @@ set(SHARED_SOURCES
 
 set (MSVC_SOURCES
 		msvc_asm_sin.asm
-		msvc_asm_cos.asm)
+		msvc_asm_cos.asm
+		msvc_asm_sqrt.asm)
 
 if(MSVC)
 	set(SHARED_SOURCES

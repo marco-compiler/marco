@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=SimpleMathFunctions --end-time=1 -o simulation %s
+// RUN: marco --omc-bypass --model=Sin --end-time=1 -o simulation %s
 // RUN: ./simulation | FileCheck %s
 
 // CHECK: time;x
@@ -14,8 +14,8 @@
 // CHECK-NEXT: 0.900000000000;0.575175858865
 // CHECK-NEXT: 1.000000000000;0.620777622697
 
-model SimpleMathFunctions
+model Sin
     Real x;
 equation
     der(x) = 1 - sin(x);
-end SimpleMathFunctions;
+end Sin;
