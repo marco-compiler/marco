@@ -346,7 +346,7 @@ static inline int copy_special_str_printf(char* const result, const bool sign, c
     result[0] = '-';
   }
 #endif
-  memcpy(result + sign, "Infinity", 8);
+  memcpy(result + sign, "inf", 3);
   return sign + 8;
 }
 

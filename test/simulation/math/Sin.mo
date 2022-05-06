@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=Sin --end-time=1 -o simulation %s
-// RUN: ./simulation | FileCheck %s
+// RUN: marco --omc-bypass --model=Sin --end-time=1 -o simulation_sin %s
+// RUN: ./simulation_sin | FileCheck %s
 
 // CHECK: time;x
 // CHECK-NEXT: 0.000000000000;0.000000000000

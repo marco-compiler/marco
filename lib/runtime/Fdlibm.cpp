@@ -544,6 +544,7 @@ int fdlibm::__ieee754_rem_pio2(double x, double* y)
 	return n;
 }
 
+#ifdef MSVC_BUILD
 extern "C" void msvc_asm_sqrt(double x, double* r);
 
 double fdlibm::sqrt(double x)
@@ -551,6 +552,10 @@ double fdlibm::sqrt(double x)
 	double res;
 	msvc_asm_sqrt(x, &res);
 	return res;
+}
+#else
+double fdlibm::sqrt(double x)
+{
 	double z;
 	int 	sign = (int)0x80000000; 
 	unsigned r,t1,s1,ix1,q1;
@@ -648,6 +653,7 @@ double fdlibm::sqrt(double x)
 	__LO(z) = ix1;
 	return z;
 }
+#endif
 
 double fdlibm::acos(double x)
 {

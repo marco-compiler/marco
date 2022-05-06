@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=Sqrt --end-time=1 -o simulation %s
-// RUN: ./simulation | FileCheck %s
+// RUN: marco --omc-bypass --model=Sqrt --end-time=1 -o simulation_sqrt %s
+// RUN: ./simulation_sqrt | FileCheck %s
 
 // CHECK: time;x
 // CHECK-NEXT: 0.000000000000;0.000000000000

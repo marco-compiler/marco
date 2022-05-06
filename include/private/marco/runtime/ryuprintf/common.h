@@ -91,7 +91,7 @@ static inline int copy_special_str(char * const result, const bool sign, const b
     result[0] = '-';
   }
   if (exponent) {
-    memcpy(result + sign, "Infinity", 8);
+    memcpy(result + sign, "inf", 3);
     return sign + 8;
   }
   memcpy(result + sign, "0E0", 3);
