@@ -389,19 +389,32 @@ static mlir::LogicalResult splitVariables(
 
             for (const auto& newRange : newEquationIndices) {
               mlir::BlockAndValueMapping mapping;
+
+              // We need to map the variables to themselves, as they may appear straight into
+              // the EquationSideOp in case of array assignments.
+
+              for (const auto& arg : region->getArguments()) {
+                mapping.map(arg, arg);
+              }
+
               auto cloneOp = cloneEquationWithNewIndices(builder, *equation, newRange, mapping);
               auto clone = Equation::build(cloneOp, equation->getVariables());
               auto newIterationVariables = clone->getInductionVariables();
 
               mlir::Value mappedUsage = mapping.lookup(equation->getValueAtPath(access.getPath()));
-              builder.setInsertionPointAfterValue(mappedUsage);
+
+              if (mappedUsage.isa<mlir::BlockArgument>()) {
+                builder.setInsertionPointToStart(clone->getOperation().bodyBlock());
+              } else {
+                builder.setInsertionPointAfterValue(mappedUsage);
+              }
 
               mlir::Value replacement = region->getArgument(splitVariable.getArgNumber());
               size_t rank = replacement.getType().cast<ArrayType>().getRank();
               assert(rank <= access.getAccessFunction().size());
               std::vector<mlir::Value> indices;
 
-              for (size_t i = 0; i < rank; ++i) {
+              for (size_t i = 0; i < std::min(rank, inductionVariables.size()); ++i) {
                 const auto& dimensionAccess = access.getAccessFunction()[i];
 
                 if (dimensionAccess.isConstantAccess()) {
@@ -422,8 +435,20 @@ static mlir::LogicalResult splitVariables(
                 }
               }
 
-              replacement = builder.create<LoadOp>(replacement.getLoc(), replacement, indices);
-              mappedUsage.replaceAllUsesWith(replacement);
+              if (rank == 0 || rank == inductionVariables.size()) {
+                replacement = builder.create<LoadOp>(replacement.getLoc(), replacement, indices);
+              } else if (!inductionVariables.empty()) {
+                replacement = builder.create<SubscriptionOp>(replacement.getLoc(), replacement, indices);
+              }
+
+              for (auto& use : mappedUsage.getUses()) {
+                auto parentEquation = use.getOwner()->getParentOfType<EquationOp>();
+
+                if (parentEquation == clone->getOperation()) {
+                  use.set(replacement);
+                }
+              }
+
               eraseValueInsideEquation(mappedUsage);
 
               equations.push(std::move(clone));
@@ -483,7 +508,7 @@ static mlir::LogicalResult splitVariables(
   }
 
   // Update the terminator with the new values
-  builder.setInsertionPoint(terminator);
+  builder.setInsertionPointToEnd(&modelOp.initRegion().back());
   builder.create<YieldOp>(terminator.getLoc(), initRegionTerminatorValues);
   terminator.erase();
 
@@ -550,6 +575,7 @@ static mlir::LogicalResult createDerivativeVariables(
     builder.create<ArrayFillOp>(derMemberOp.getLoc(), derivative, zero);
   }
 
+  builder.setInsertionPointToEnd(&modelOp.initRegion().back());
   builder.create<YieldOp>(terminator.getLoc(), variables);
   terminator.erase();
 
@@ -725,6 +751,8 @@ namespace
 
         VariablesMap variablesMap;
 
+        models[0].dump();
+
         if (mlir::failed(splitVariables(builder, models[0], variablesMap, derivedIndices))) {
           return signalPassFailure();
         }
@@ -740,6 +768,8 @@ namespace
 
         model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
         model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
+
+        models[0].dump();
 
         // Create the variables for the derivatives
         std::set<unsigned int> derivedVariables;
