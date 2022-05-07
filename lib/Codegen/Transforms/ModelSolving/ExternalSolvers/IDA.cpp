@@ -15,8 +15,8 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  IDAVariable::IDAVariable(unsigned int argNumber, modeling::MultidimensionalRange indices, IDAVariableType type)
-    : argNumber(argNumber), indices(std::move(indices)), type(type)
+  IDAVariable::IDAVariable(unsigned int argNumber, IDAVariableType type)
+    : argNumber(argNumber), type(type)
   {
   }
 
@@ -91,34 +91,12 @@ namespace marco::codegen
     if (!hasVariable(variable)) {
       auto argNumber = variable.cast<mlir::BlockArgument>().getArgNumber();
 
-      auto arrayType = variable.getType().cast<ArrayType>();
-      assert(arrayType.hasConstantShape());
-      std::vector<Range> dimensions;
-
-      if (arrayType.isScalar()) {
-        dimensions.emplace_back(0, 1);
-      } else {
-        for (const auto& dimension : arrayType.getShape()) {
-          dimensions.emplace_back(0, dimension);
-        }
-      }
-
-      MultidimensionalRange variableRanges(std::move(dimensions));
-
-      IndexSet algebraicIndices(variableRanges);
-
       if (derivativesMap->isDerivative(argNumber)) {
-        managedVariables.emplace_back(argNumber, variableRanges, IDAVariableType::DERIVATIVE);
-        algebraicIndices.clear();
-      }
-
-      for (const auto& derivative : derivativesMap->getDerivative(argNumber)) {
-        managedVariables.emplace_back(argNumber, *derivative.first, IDAVariableType::STATE);
-        algebraicIndices -= *derivative.first;
-      }
-
-      for (const auto& range : algebraicIndices) {
-        managedVariables.emplace_back(argNumber, range, IDAVariableType::ALGEBRAIC);
+        managedVariables.emplace_back(argNumber, IDAVariableType::DERIVATIVE);
+      } else if (derivativesMap->hasDerivative(argNumber)) {
+        managedVariables.emplace_back(argNumber, IDAVariableType::STATE);
+      } else {
+        managedVariables.emplace_back(argNumber, IDAVariableType::ALGEBRAIC);
       }
     }
   }
@@ -279,16 +257,6 @@ namespace marco::codegen
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
     mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
 
-    auto rangesToDimensions = [](const MultidimensionalRange ranges) -> std::vector<int64_t> {
-      std::vector<int64_t> result;
-
-      for (size_t i = 0; i < ranges.rank(); ++i) {
-        result.push_back(ranges[i].size());
-      }
-
-      return result;
-    };
-
     unsigned int getterFunctionCounter = 0;
     unsigned int setterFunctionCounter = 0;
     unsigned int idaVariableIndex = 0;
@@ -296,90 +264,98 @@ namespace marco::codegen
     // Map between the original variable argument numbers and the IDA state variables
     std::map<unsigned int, mlir::Value> idaStateVariables;
 
-    for (const auto& variable : llvm::enumerate(managedVariables)) {
-      if (variable.value().type == IDAVariableType::ALGEBRAIC) {
-        mlir::Value var = variables[variable.value().argNumber];
-        auto dimensions = rangesToDimensions(variable.value().indices);
+    for (const auto& managedVariable : llvm::enumerate(managedVariables)) {
+      if (managedVariable.value().type == IDAVariableType::DERIVATIVE) {
+        continue;
+      }
 
-        std::string getterName = getUniqueSymbolName(module, [&]() {
-          return "ida_getter_" + std::to_string(getterFunctionCounter++);
-        });
+      mlir::Value variable = variables[managedVariable.value().argNumber];
+      auto arrayType = variable.getType().cast<ArrayType>();
+      assert(arrayType.hasConstantShape());
 
-        if (auto res = createAlgebraicVariableGetterFunction(builder, module, var.getLoc(), var.getType(), variable.value().indices, getterName); mlir::failed(res)) {
-          return res;
-        }
+      std::vector<int64_t> dimensions;
 
-        std::string setterName = getUniqueSymbolName(module, [&]() {
-          return "ida_setter_" + std::to_string(setterFunctionCounter++);
-        });
+      if (arrayType.isScalar()) {
+        // In case of scalar variables, the shape of the array would be empty
+        // but IDA needs to see a single dimension of value 1.
+        dimensions.push_back(1);
+      } else {
+        auto shape = arrayType.getShape();
+        dimensions.insert(dimensions.end(), shape.begin(), shape.end());
+      }
 
-        if (auto res = createAlgebraicVariableSetterFunction(builder, module, var.getLoc(), var.getType(), variable.value().indices, setterName); mlir::failed(res)) {
-          return res;
-        }
+      std::string getterName = getUniqueSymbolName(module, [&]() {
+        return "ida_getter_" + std::to_string(getterFunctionCounter++);
+      });
 
+      if (auto res = createGetterFunction(builder, module, variable.getLoc(), arrayType, getterName); mlir::failed(res)) {
+        return res;
+      }
+
+      std::string setterName = getUniqueSymbolName(module, [&]() {
+        return "ida_setter_" + std::to_string(setterFunctionCounter++);
+      });
+
+      if (auto res = createSetterFunction(builder, module, variable.getLoc(), arrayType, setterName); mlir::failed(res)) {
+        return res;
+      }
+
+      if (managedVariable.value().type == IDAVariableType::ALGEBRAIC) {
         mlir::Value idaVariable = builder.create<mlir::ida::AddAlgebraicVariableOp>(
-            var.getLoc(),
+            variable.getLoc(),
             idaInstance,
-            var,
+            variable,
             builder.getI64ArrayAttr(dimensions),
             getterName,
             setterName);
 
-        mappedVariables[variable.index()] = idaVariableIndex;
+        mappedVariables[managedVariable.index()] = idaVariableIndex;
         setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
 
         ++idaVariableIndex;
       }
 
-      if (variable.value().type == IDAVariableType::STATE) {
-        mlir::Value var = variables[variable.value().argNumber];
-        auto dimensions = rangesToDimensions(variable.value().indices);
-
-        std::string stateGetterName = getUniqueSymbolName(module, [&]() {
-          return "ida_getter_" + std::to_string(getterFunctionCounter++);
-        });
-
-        if (auto res = createStateVariableGetterFunction(builder, module, var.getLoc(), var.getType(), variable.value().indices, stateGetterName); mlir::failed(res)) {
-          return res;
-        }
-
-        std::string stateSetterName = getUniqueSymbolName(module, [&]() {
-          return "ida_setter_" + std::to_string(setterFunctionCounter++);
-        });
-
-        if (auto res = createStateVariableSetterFunction(builder, module, var.getLoc(), var.getType(), variable.value().indices, stateSetterName); mlir::failed(res)) {
-          return res;
-        }
-
+      if (managedVariable.value().type == IDAVariableType::STATE) {
         mlir::Value idaStateVariable = builder.create<mlir::ida::AddStateVariableOp>(
-            var.getLoc(),
+            variable.getLoc(),
             idaInstance,
-            var,
+            variable,
             builder.getI64ArrayAttr(dimensions),
-            stateGetterName,
-            stateSetterName);
+            getterName,
+            setterName);
 
-        mappedVariables[variable.index()] = idaVariableIndex;
-        idaStateVariables[variable.value().argNumber] = idaStateVariable;
+        mappedVariables[managedVariable.index()] = idaVariableIndex;
+        idaStateVariables[managedVariable.value().argNumber] = idaStateVariable;
 
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaStateVariable);
 
-        const auto& derivative = derivativesMap->getDerivative(variable.value().argNumber, variable.value().indices);
-        mappedVariables[derivative.getArgNumber()] = idaVariableIndex;
+        const auto& derivative = derivativesMap->getDerivative(managedVariable.value().argNumber);
+        mappedVariables[derivative] = idaVariableIndex;
 
         ++idaVariableIndex;
       }
     }
 
-    for (const auto& variable : llvm::enumerate(managedVariables)) {
-      if (variable.value().type == IDAVariableType::DERIVATIVE) {
-        mlir::Value derVar = variables[variable.value().argNumber];
-        auto dimensions = rangesToDimensions(variable.value().indices);
+    for (const auto& managedVariable : llvm::enumerate(managedVariables)) {
+      if (managedVariable.value().type == IDAVariableType::DERIVATIVE) {
+        mlir::Value derVar = variables[managedVariable.value().argNumber];
+        auto arrayType = derVar.getType().cast<ArrayType>();
+        assert(arrayType.hasConstantShape());
 
-        auto state = derivativesMap->getDerivedVariable(variable.value().argNumber);
-        assert(state != nullptr);
+        std::vector<int64_t> dimensions;
 
-        auto idaStateVariableIt = idaStateVariables.find(state->getArgNumber());
+        if (arrayType.isScalar()) {
+          // In case of scalar variables, the shape of the array would be empty
+          // but IDA needs to see a single dimension of value 1.
+          dimensions.push_back(1);
+        } else {
+          auto shape = arrayType.getShape();
+          dimensions.insert(dimensions.end(), shape.begin(), shape.end());
+        }
+
+        auto state = derivativesMap->getDerivedVariable(managedVariable.value().argNumber);
+
+        auto idaStateVariableIt = idaStateVariables.find(state);
         assert(idaStateVariableIt != idaStateVariables.end());
         auto idaStateVariable = idaStateVariableIt->second;
 
@@ -387,7 +363,7 @@ namespace marco::codegen
           return "ida_getter_" + std::to_string(getterFunctionCounter++);
         });
 
-        if (auto res = createDerivativeGetterFunction(builder, module, derVar.getLoc(), derVar.getType(), getterName); mlir::failed(res)) {
+        if (auto res = createGetterFunction(builder, module, derVar.getLoc(), derVar.getType(), getterName); mlir::failed(res)) {
           return res;
         }
 
@@ -395,7 +371,7 @@ namespace marco::codegen
           return "ida_setter_" + std::to_string(setterFunctionCounter++);
         });
 
-        if (auto res = createDerivativeSetterFunction(builder, module, derVar.getLoc(), derVar.getType(), setterName); mlir::failed(res)) {
+        if (auto res = createSetterFunction(builder, module, derVar.getLoc(), derVar.getType(), setterName); mlir::failed(res)) {
           return res;
         }
 
@@ -414,107 +390,7 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult IDASolver::createAlgebraicVariableGetterFunction(
-      mlir::OpBuilder& builder,
-      mlir::ModuleOp module,
-      mlir::Location loc,
-      mlir::Type variableType,
-      const MultidimensionalRange& indices,
-      llvm::StringRef functionName)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(module.getBody());
-
-    assert(variableType.isa<ArrayType>());
-    auto variableArrayType = variableType.cast<ArrayType>();
-
-    auto getterOp = builder.create<mlir::ida::VariableGetterOp>(
-        loc,
-        functionName,
-        RealType::get(builder.getContext()),
-        variableArrayType,
-        std::max((unsigned int) 1, variableArrayType.getRank()));
-
-    mlir::Block* entryBlock = getterOp.addEntryBlock();
-    builder.setInsertionPointToStart(entryBlock);
-
-    auto receivedIndices = getterOp.getVariableIndices().take_front(variableArrayType.getRank());
-    llvm::SmallVector<mlir::Value, 3> remappedIndices;
-
-    for (size_t i = 0; i < variableArrayType.getRank(); ++i) {
-      mlir::Value offset = builder.create<ConstantOp>(
-          loc,
-          builder.getIndexType(),
-          builder.getIndexAttr(indices[i].getBegin()));
-
-      remappedIndices.push_back(builder.create<AddOp>(
-          loc,
-          builder.getIndexType(),
-          receivedIndices[i],
-          offset));
-    }
-
-    mlir::Value result = builder.create<LoadOp>(loc, getterOp.getVariable(), remappedIndices);
-
-    if (auto requestedResultType = getterOp.getType().getResult(0); result.getType() != requestedResultType) {
-      result = builder.create<CastOp>(loc, requestedResultType, result);
-    }
-
-    builder.create<mlir::ida::ReturnOp>(loc, result);
-    return mlir::success();
-  }
-
-  mlir::LogicalResult IDASolver::createStateVariableGetterFunction(
-      mlir::OpBuilder& builder,
-      mlir::ModuleOp module,
-      mlir::Location loc,
-      mlir::Type variableType,
-      const MultidimensionalRange& derivedIndices,
-      llvm::StringRef functionName)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(module.getBody());
-
-    assert(variableType.isa<ArrayType>());
-    auto variableArrayType = variableType.cast<ArrayType>();
-
-    auto getterOp = builder.create<mlir::ida::VariableGetterOp>(
-        loc,
-        functionName,
-        RealType::get(builder.getContext()),
-        variableArrayType,
-        std::max((unsigned int) 1, variableArrayType.getRank()));
-
-    mlir::Block* entryBlock = getterOp.addEntryBlock();
-    builder.setInsertionPointToStart(entryBlock);
-
-    auto receivedIndices = getterOp.getVariableIndices().take_front(variableArrayType.getRank());
-    llvm::SmallVector<mlir::Value, 3> remappedIndices;
-
-    for (size_t i = 0; i < variableArrayType.getRank(); ++i) {
-      mlir::Value offset = builder.create<ConstantOp>(
-          loc,
-          builder.getIndexType(),
-          builder.getIndexAttr(derivedIndices[i].getBegin()));
-
-      remappedIndices.push_back(builder.create<AddOp>(
-          loc,
-          builder.getIndexType(),
-          receivedIndices[i],
-          offset));
-    }
-
-    mlir::Value result = builder.create<LoadOp>(loc, getterOp.getVariable(), remappedIndices);
-
-    if (auto requestedResultType = getterOp.getType().getResult(0); result.getType() != requestedResultType) {
-      result = builder.create<CastOp>(loc, requestedResultType, result);
-    }
-
-    builder.create<mlir::ida::ReturnOp>(loc, result);
-    return mlir::success();
-  }
-
-  mlir::LogicalResult IDASolver::createDerivativeGetterFunction(
+  mlir::LogicalResult IDASolver::createGetterFunction(
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       mlir::Location loc,
@@ -548,111 +424,7 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult IDASolver::createAlgebraicVariableSetterFunction(
-      mlir::OpBuilder& builder,
-      mlir::ModuleOp module,
-      mlir::Location loc,
-      mlir::Type variableType,
-      const MultidimensionalRange& indices,
-      llvm::StringRef functionName)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(module.getBody());
-
-    assert(variableType.isa<ArrayType>());
-    auto variableArrayType = variableType.cast<ArrayType>();
-
-    auto setterOp = builder.create<mlir::ida::VariableSetterOp>(
-        loc,
-        functionName,
-        variableArrayType,
-        variableArrayType.getElementType(),
-        std::max((unsigned int) 1, variableArrayType.getRank()));
-
-    mlir::Block* entryBlock = setterOp.addEntryBlock();
-    builder.setInsertionPointToStart(entryBlock);
-
-    auto receivedIndices = setterOp.getVariableIndices().take_front(variableArrayType.getRank());
-    mlir::Value value = setterOp.getValue();
-
-    if (auto requestedValueType = variableArrayType.getElementType(); value.getType() != requestedValueType) {
-      value = builder.create<CastOp>(loc, requestedValueType, setterOp.getValue());
-    }
-
-    llvm::SmallVector<mlir::Value, 3> remappedIndices;
-
-    for (size_t i = 0; i < variableArrayType.getRank(); ++i) {
-      mlir::Value offset = builder.create<ConstantOp>(
-          loc,
-          builder.getIndexType(),
-          builder.getIndexAttr(indices[i].getBegin()));
-
-      remappedIndices.push_back(builder.create<AddOp>(
-          loc,
-          builder.getIndexType(),
-          receivedIndices[i],
-          offset));
-    }
-
-    builder.create<StoreOp>(loc, value, setterOp.getVariable(), remappedIndices);
-    builder.create<mlir::ida::ReturnOp>(loc);
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult IDASolver::createStateVariableSetterFunction(
-      mlir::OpBuilder& builder,
-      mlir::ModuleOp module,
-      mlir::Location loc,
-      mlir::Type variableType,
-      const MultidimensionalRange& derivedIndices,
-      llvm::StringRef functionName)
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToEnd(module.getBody());
-
-    assert(variableType.isa<ArrayType>());
-    auto variableArrayType = variableType.cast<ArrayType>();
-
-    auto setterOp = builder.create<mlir::ida::VariableSetterOp>(
-        loc,
-        functionName,
-        variableArrayType,
-        variableArrayType.getElementType(),
-        std::max((unsigned int) 1, variableArrayType.getRank()));
-
-    mlir::Block* entryBlock = setterOp.addEntryBlock();
-    builder.setInsertionPointToStart(entryBlock);
-
-    auto receivedIndices = setterOp.getVariableIndices().take_front(variableArrayType.getRank());
-    mlir::Value value = setterOp.getValue();
-
-    if (auto requestedValueType = variableArrayType.getElementType(); value.getType() != requestedValueType) {
-      value = builder.create<CastOp>(loc, requestedValueType, setterOp.getValue());
-    }
-
-    llvm::SmallVector<mlir::Value, 3> remappedIndices;
-
-    for (size_t i = 0; i < variableArrayType.getRank(); ++i) {
-      mlir::Value offset = builder.create<ConstantOp>(
-          loc,
-          builder.getIndexType(),
-          builder.getIndexAttr(derivedIndices[i].getBegin()));
-
-      remappedIndices.push_back(builder.create<AddOp>(
-          loc,
-          builder.getIndexType(),
-          receivedIndices[i],
-          offset));
-    }
-
-    builder.create<StoreOp>(loc, value, setterOp.getVariable(), remappedIndices);
-    builder.create<mlir::ida::ReturnOp>(loc);
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult IDASolver::createDerivativeSetterFunction(
+  mlir::LogicalResult IDASolver::createSetterFunction(
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       mlir::Location loc,
@@ -1249,10 +1021,10 @@ namespace marco::codegen
     // Seeds for the automatic differentiation
     unsigned int independentVarArgNumber = independentVariable.cast<mlir::BlockArgument>().getArgNumber();
     unsigned int oneSeedPosition = independentVarArgNumber;
-    std::set<unsigned int> alphaSeedPositions;
+    unsigned int alphaSeedPosition = jacobianFunction.getVariables().size();
 
-    for (const auto& derivative : derivativesMap->getDerivative(independentVarArgNumber)) {
-      alphaSeedPositions.insert(derivative.second->getArgNumber());
+    if (derivativesMap->hasDerivative(independentVarArgNumber)) {
+      alphaSeedPosition = derivativesMap->getDerivative(independentVarArgNumber);
     }
 
     mlir::Value zero = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
@@ -1279,54 +1051,15 @@ namespace marco::codegen
 
         if (varIndex == oneSeedPosition) {
           builder.create<StoreOp>(loc, one, array, jacobianFunction.getVariableIndices());
-        } else if (alphaSeedPositions.find(varIndex) != alphaSeedPositions.end()) {
-          mlir::Operation* outerIfOp = nullptr;
-
-          for (const auto& derivative : derivativesMap->getDerivative(independentVarArgNumber)) {
-            const auto& derivedIndices = *derivative.first;
-            assert(derivedIndices.rank() == jacobianFunction.getVariableIndices().size());
-
-            for (size_t i = 0; i < derivedIndices.rank(); ++i) {
-              mlir::Value beginIndex = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(derivedIndices[i].getBegin()));
-              mlir::Value endIndex = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(derivedIndices[i].getEnd()));
-
-              mlir::Value lowerBoundCondition = builder.create<mlir::CmpIOp>(
-                  loc, builder.getI1Type(), mlir::CmpIPredicate::sge, jacobianFunction.getVariableIndices()[i], beginIndex);
-
-              mlir::Value upperBoundCondition = builder.create<mlir::CmpIOp>(
-                  loc, builder.getI1Type(), mlir::CmpIPredicate::slt, jacobianFunction.getVariableIndices()[i], endIndex);
-
-              mlir::Value condition = builder.create<mlir::AndOp>(loc, lowerBoundCondition, upperBoundCondition);
-              auto ifOp = builder.create<mlir::scf::IfOp>(loc, condition);
-              builder.setInsertionPointToStart(ifOp.thenBlock());
-
-              if (outerIfOp == nullptr) {
-                outerIfOp = ifOp.getOperation();
-              }
-            }
-
-            const auto& offsets = derivative.second->getOffsets();
-            assert(offsets.size() == jacobianFunction.getVariableIndices().size());
-            std::vector<mlir::Value> indicesWithOffsets;
-
-            for (const auto& [variableIndex, offset] : llvm::zip(jacobianFunction.getVariableIndices(), offsets)) {
-              mlir::Value offsetValue = builder.create<ConstantOp>(loc, builder.getIndexAttr(offset));
-              mlir::Value indexWithOffset = builder.create<mlir::AddIOp>(loc, builder.getIndexType(), variableIndex, offsetValue);
-              indicesWithOffsets.push_back(indexWithOffset);
-            }
-
-            builder.create<StoreOp>(jacobianFunction.getLoc(), jacobianFunction.getAlpha(), array, indicesWithOffsets);
-          }
-
-          builder.setInsertionPointAfter(outerIfOp);
+        } else if (varIndex == alphaSeedPosition) {
+          builder.create<StoreOp>(jacobianFunction.getLoc(), jacobianFunction.getAlpha(), array, jacobianFunction.getVariableIndices());
         }
-
       } else {
         assert(arrayType && arrayType.isScalar());
 
         if (varIndex == oneSeedPosition) {
           args.push_back(one);
-        } else if (alphaSeedPositions.find(varIndex) != alphaSeedPositions.end()) {
+        } else if (varIndex == alphaSeedPosition) {
           args.push_back(jacobianFunction.getAlpha());
         } else {
           args.push_back(zero);
@@ -1408,20 +1141,25 @@ namespace marco::codegen
 
   std::vector<mlir::Value> IDASolver::filterByManagedVariables(mlir::ValueRange variables) const
   {
-    //std::vector<mlir::Value> result;
-
     std::vector<mlir::Value> result;
-    std::set<size_t> filtered;
 
-    for (const auto& variable : managedVariables) {
-      filtered.insert(variable.argNumber);
-    }
+    std::vector<mlir::Value> filteredVariables;
+    std::vector<mlir::Value> filteredDerivatives;
 
-    for (const auto& variable : llvm::enumerate(variables)) {
-      if (filtered.find(variable.index()) != filtered.end()) {
-        result.push_back(variable.value());
+    for (auto managedVariable : managedVariables) {
+      if (derivativesMap->isDerivative(managedVariable.argNumber)) {
+        continue;
+      }
+
+      filteredVariables.push_back(variables[managedVariable.argNumber]);
+
+      if (derivativesMap->hasDerivative(managedVariable.argNumber)) {
+        filteredDerivatives.push_back(variables[derivativesMap->getDerivative(managedVariable.argNumber)]);
       }
     }
+
+    result.insert(result.end(), filteredVariables.begin(), filteredVariables.end());
+    result.insert(result.end(), filteredDerivatives.begin(), filteredDerivatives.end());
 
     return result;
   }

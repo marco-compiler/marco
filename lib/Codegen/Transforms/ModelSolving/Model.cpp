@@ -45,9 +45,38 @@ namespace marco::codegen
       return variables;
     }
 
+    llvm::ArrayRef<llvm::StringRef> BaseModel::getVariableNames() const
+    {
+      return variableNames;
+    }
+
+    void BaseModel::setVariableNames(llvm::ArrayRef<llvm::StringRef> names)
+    {
+      variableNames.clear();
+
+      for (const auto& name : names) {
+        variableNames.push_back(name);
+      }
+    }
+
     void BaseModel::setVariables(Variables value)
     {
       this->variables = std::move(value);
+    }
+
+    VariablesMap& BaseModel::getVariablesMap()
+    {
+      return variablesMap;
+    }
+
+    const VariablesMap& BaseModel::getVariablesMap() const
+    {
+      return variablesMap;
+    }
+
+    void BaseModel::setVariablesMap(VariablesMap map)
+    {
+      variablesMap = std::move(map);
     }
 
     DerivativesMap& BaseModel::getDerivativesMap()

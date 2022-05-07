@@ -88,7 +88,7 @@ def ArrayType : Modelica_Type<"Array", "array"> {
         bool isScalar() const;
 
         ArrayType slice(unsigned int subscriptsAmount) const;
-        ArrayType toElementType(mlir::Type elementType) const;
+        ArrayType toElementType(Type elementType) const;
         UnsizedArrayType toUnsized() const;
 
 		bool canBeOnStack() const;
@@ -140,7 +140,8 @@ def MemberType : Modelica_Type<"Member", "member"> {
             ArrayType toArrayType() const;
             mlir::Type unwrap() const;
 
-            MemberType withType(mlir::Type type) const;
+            MemberType withShape(ArrayRef<long> shape) const;
+            MemberType withType(Type type) const;
             MemberType withIOProperty(IOProperty ioProperty) const;
      }];
 }

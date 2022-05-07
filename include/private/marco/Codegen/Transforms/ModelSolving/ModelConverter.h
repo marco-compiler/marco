@@ -161,6 +161,7 @@ namespace marco::codegen
           mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
+          const modeling::MultidimensionalRange& mappedIndices,
           VariableFilter::Filter filter,
           bool shouldPreprendSeparator = true) const;
 
@@ -175,6 +176,7 @@ namespace marco::codegen
           mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
+          const modeling::MultidimensionalRange& mappedIndices,
           VariableFilter::Filter filter,
           bool shouldPrependSeparator) const;
 
@@ -187,7 +189,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Value var,
-          llvm::ArrayRef<long> indicesOffsets,
+          const modeling::MultidimensionalRange& mappedIndices,
           VariableFilter::Filter filter,
           bool shouldPrependSeparator = true) const;
 
@@ -201,7 +203,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Value var,
-          llvm::ArrayRef<long> indicesOffsets,
+          const modeling::MultidimensionalRange& mappedIndices,
           VariableFilter::Filter filter,
           bool shouldPrependSeparator = true) const;
 
@@ -216,10 +218,9 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           const Model<ScheduledEquationsBlock>& model,
-          mlir::TypeRange varTypes,
           ExternalSolvers& externalSolvers,
           llvm::StringRef functionName,
-          std::function<mlir::LogicalResult(llvm::StringRef, llvm::ArrayRef<long> indicesOffsets, mlir::Value, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const;
+          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const modeling::MultidimensionalRange&, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const;
 
     private:
       ModelSolvingOptions options;

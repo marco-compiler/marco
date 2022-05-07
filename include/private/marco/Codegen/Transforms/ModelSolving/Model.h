@@ -3,6 +3,7 @@
 
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/Variable.h"
+#include "marco/Codegen/Transforms/ModelSolving/VariablesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/DerivativesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/Equation.h"
 #include "marco/Codegen/Transforms/ModelSolving/Path.h"
@@ -33,6 +34,16 @@ namespace marco::codegen
         /// Set the variables the are managed by this model.
         void setVariables(Variables value);
 
+        llvm::ArrayRef<llvm::StringRef> getVariableNames() const;
+
+        void setVariableNames(llvm::ArrayRef<llvm::StringRef> names);
+
+        VariablesMap& getVariablesMap();
+
+        const VariablesMap& getVariablesMap() const;
+
+        void setVariablesMap(VariablesMap map);
+
         DerivativesMap& getDerivativesMap();
 
         const DerivativesMap& getDerivativesMap() const;
@@ -42,6 +53,8 @@ namespace marco::codegen
       private:
         mlir::Operation* modelOp;
         Variables variables;
+        llvm::SmallVector<llvm::StringRef, 10> variableNames;
+        VariablesMap variablesMap;
         DerivativesMap derivativesMap;
     };
   }

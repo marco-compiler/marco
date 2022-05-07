@@ -207,13 +207,17 @@ namespace marco::codegen
       std::unique_ptr<Variable>& operator[](size_t index)
       {
         assert(index < size());
-        return variables[index];
+        auto& result = variables[index];
+        assert(result->getValue().cast<mlir::BlockArgument>().getArgNumber() == index);
+        return result;
       }
 
       const std::unique_ptr<Variable>& operator[](size_t index) const
       {
         assert(index < size());
-        return variables[index];
+        const auto& result = variables[index];
+        assert(result->getValue().cast<mlir::BlockArgument>().getArgNumber() == index);
+        return result;
       }
 
       Variables::iterator begin()

@@ -1290,10 +1290,12 @@ namespace mlir::modelica
   SmallVector<StringRef> ModelOp::variableNames()
   {
     SmallVector<StringRef> result;
+    auto terminator = mlir::cast<YieldOp>(initRegion().back().getTerminator());
 
-    walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
-      result.push_back(op.name());
-    });
+    for (const auto& variable : terminator.values()) {
+      auto name = variable.getDefiningOp<MemberCreateOp>().name();
+      result.push_back(name);
+    }
 
     return result;
   }

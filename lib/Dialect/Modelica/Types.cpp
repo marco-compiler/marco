@@ -240,6 +240,11 @@ namespace mlir::modelica
     return toArrayType();
   }
 
+  MemberType MemberType::withShape(llvm::ArrayRef<long> shape) const
+  {
+    return MemberType::get(getContext(), getElementType(), shape, isConstant(), getVisibilityProperty());
+  }
+
   MemberType MemberType::withType(mlir::Type type) const
   {
     return MemberType::wrap(type, isConstant(), getVisibilityProperty());

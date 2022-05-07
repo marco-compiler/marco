@@ -151,9 +151,9 @@ namespace marco::codegen
           auto var = scheduledEquation->getWrite().getVariable();
           auto argNumber = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-          if (auto stateVariable = derivativesMap.getDerivedVariable(argNumber)) {
+          if (derivativesMap.isDerivative(argNumber)) {
             // State variable
-            ida->addVariable(model.getVariables().getValues()[stateVariable->getArgNumber()]);
+            ida->addVariable(model.getVariables().getValues()[derivativesMap.getDerivedVariable(argNumber)]);
 
             // Derivative
             ida->addVariable(var->getValue());
@@ -494,6 +494,12 @@ namespace marco::codegen
       builder.setInsertionPointAfterValue(array);
       values.push_back(array);
     }
+
+    function.walk([&](MemberCreateOp memberCreateOp) {
+      mlir::Value array = convertMember(builder, memberCreateOp);
+      builder.setInsertionPoint(terminator);
+      builder.create<FreeOp>(array.getLoc(), array);
+    });
 
     builder.setInsertionPointAfter(terminator);
 
@@ -921,63 +927,42 @@ namespace marco::codegen
 
       const auto& derivativesMap = model.getDerivativesMap();
 
-      for (const auto& variableArg : modelOp.equationsRegion().getArguments()) {
-        auto variableArgNumber = variableArg.getArgNumber();
+      for (const auto& var : model.getVariables()) {
+        auto varArgNumber = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+        mlir::Value variable = variables[varArgNumber];
 
-        auto derivatives = derivativesMap.getDerivative(variableArgNumber);
+        if (derivativesMap.hasDerivative(varArgNumber)) {
+          auto derArgNumber = derivativesMap.getDerivative(varArgNumber);
+          mlir::Value derivative = variables[derArgNumber];
 
-        if (derivatives.empty()) {
-          // There is no scalar variable within the array that has a derivative
-          continue;
-        }
+          assert(variable.getType().cast<ArrayType>().getShape() == derivative.getType().cast<ArrayType>().getShape());
 
-        // Some scalar variables are state ones. In order to update them, we first need to extract
-        // the array from the runtime data structure.
-        mlir::Value variableValue = extractValue(builder, structValue, varTypes[variableArgNumber], variableArgNumber + variablesOffset);
-
-        // The derivative may have been split into multiple variables.
-        // For each of them, remap its indices to the state variable ones and update the scalar values.
-        for (const auto& derivative : derivatives) {
-          // Extract the derivative from the runtime data structure
-          auto derivativeArgNumber = derivative.second->getArgNumber();
-          mlir::Value derivativeValue = extractValue(builder, structValue, varTypes[derivativeArgNumber], derivativeArgNumber + variablesOffset);
-
-          if (variableValue.getType().cast<ArrayType>().isScalar()) {
-            mlir::Value scalarState = builder.create<LoadOp>(derivativeValue.getLoc(), variableValue, llvm::None);
-            mlir::Value scalarDerivative = builder.create<LoadOp>(derivativeValue.getLoc(), derivativeValue, llvm::None);
+          if (auto arrayType = variable.getType().cast<ArrayType>(); arrayType.isScalar()) {
+            mlir::Value scalarState = builder.create<LoadOp>(derivative.getLoc(), variable, llvm::None);
+            mlir::Value scalarDerivative = builder.create<LoadOp>(derivative.getLoc(), derivative, llvm::None);
             mlir::Value updatedValue = apply(builder, scalarState, scalarDerivative);
-            builder.create<StoreOp>(derivativeValue.getLoc(), updatedValue, variableValue, llvm::None);
+            builder.create<StoreOp>(derivative.getLoc(), updatedValue, variable, llvm::None);
 
           } else {
-            const auto& variableIndices = *derivative.first;
-
             // Create the loops to iterate on each scalar variable
             std::vector<mlir::Value> lowerBounds;
             std::vector<mlir::Value> upperBounds;
             std::vector<mlir::Value> steps;
 
-            for (unsigned int i = 0; i < variableIndices.rank(); ++i) {
-              lowerBounds.push_back(builder.create<ConstantOp>(derivativeValue.getLoc(), builder.getIndexAttr(variableIndices[i].getBegin())));
-              upperBounds.push_back(builder.create<ConstantOp>(derivativeValue.getLoc(), builder.getIndexAttr(variableIndices[i].getEnd())));
-              steps.push_back(builder.create<ConstantOp>(derivativeValue.getLoc(), builder.getIndexAttr(1)));
+            for (unsigned int i = 0; i < arrayType.getRank(); ++i) {
+              lowerBounds.push_back(builder.create<ConstantOp>(derivative.getLoc(), builder.getIndexAttr(0)));
+              mlir::Value dimension = builder.create<ConstantOp>(derivative.getLoc(), builder.getIndexAttr(i));
+              upperBounds.push_back(builder.create<DimOp>(variable.getLoc(), variable, dimension));
+              steps.push_back(builder.create<ConstantOp>(variable.getLoc(), builder.getIndexAttr(1)));
             }
 
             mlir::scf::buildLoopNest(
                 builder, loc, lowerBounds, upperBounds, steps,
                 [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
-                  const auto& offsets = derivative.second->getOffsets();
-                  std::vector<mlir::Value> derivativeIndices;
-
-                  for (unsigned int i = 0; i < variableIndices.rank(); ++i) {
-                    mlir::Value offset = nestedBuilder.create<ConstantOp>(derivativeValue.getLoc(), builder.getIndexAttr(offsets[i]));
-                    mlir::Value index = nestedBuilder.create<AddOp>(derivativeValue.getLoc(), builder.getIndexType(), indices[i], offset);
-                    derivativeIndices.push_back(index);
-                  }
-
-                  mlir::Value scalarState = nestedBuilder.create<LoadOp>(derivativeValue.getLoc(), variableValue, indices);
-                  mlir::Value scalarDerivative = nestedBuilder.create<LoadOp>(derivativeValue.getLoc(), derivativeValue, derivativeIndices);
+                  mlir::Value scalarState = nestedBuilder.create<LoadOp>(loc, variable, indices);
+                  mlir::Value scalarDerivative = nestedBuilder.create<LoadOp>(loc, derivative, indices);
                   mlir::Value updatedValue = apply(nestedBuilder, scalarState, scalarDerivative);
-                  builder.create<StoreOp>(derivativeValue.getLoc(), updatedValue, variableValue, indices);
+                  nestedBuilder.create<StoreOp>(loc, updatedValue, variable, indices);
                 });
           }
         }
@@ -1160,6 +1145,7 @@ namespace marco::codegen
       mlir::ModuleOp module,
       mlir::Value name,
       mlir::Value value,
+      const modeling::MultidimensionalRange& mappedIndices,
       VariableFilter::Filter filter,
       bool shouldPrependSeparator) const
   {
@@ -1167,7 +1153,7 @@ namespace marco::codegen
       if (arrayType.getRank() == 0) {
         printScalarVariableName(builder, module, name, shouldPrependSeparator);
       } else {
-        printArrayVariableName(builder, module, name, value, filter, shouldPrependSeparator);
+        printArrayVariableName(builder, module, name, value, mappedIndices, filter, shouldPrependSeparator);
       }
     } else {
       printScalarVariableName(builder, module, name, shouldPrependSeparator);
@@ -1197,6 +1183,7 @@ namespace marco::codegen
       mlir::ModuleOp module,
       mlir::Value name,
       mlir::Value value,
+      const modeling::MultidimensionalRange& mappedIndices,
       VariableFilter::Filter filter,
       bool shouldPrependSeparator) const
   {
@@ -1301,9 +1288,8 @@ namespace marco::codegen
   {
     auto modelOp = model.getOperation();
     auto module = modelOp.getOperation()->getParentOfType<mlir::ModuleOp>();
-    mlir::TypeRange varTypes = modelOp.equationsRegion().getArgumentTypes();
 
-    auto callback = [&](llvm::StringRef name, llvm::ArrayRef<long> indicesOffsets, mlir::Value value, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
+    auto callback = [&](llvm::StringRef name, mlir::Value value, const MultidimensionalRange& mappedIndices, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       auto loc = modelOp.getLoc();
 
       std::string symbolName = "var" + std::to_string(processedValues);
@@ -1312,18 +1298,18 @@ namespace marco::codegen
       mlir::Value symbol = getOrCreateGlobalString(loc, builder, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1), module);
 
       bool shouldPrintSeparator = processedValues != 0;
-      printVariableName(builder, module, symbol, value, filter, shouldPrintSeparator);
+      printVariableName(builder, module, symbol, value, mappedIndices, filter, shouldPrintSeparator);
       return mlir::success();
     };
 
-    return createPrintFunctionBody(builder, module, model, varTypes, externalSolvers, printHeaderFunctionName, callback);
+    return createPrintFunctionBody(builder, module, model, externalSolvers, printHeaderFunctionName, callback);
   }
 
   void ModelConverter::printVariable(
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       mlir::Value var,
-      llvm::ArrayRef<long> indicesOffsets,
+      const modeling::MultidimensionalRange& mappedIndices,
       VariableFilter::Filter filter,
       bool shouldPrependSeparator) const
   {
@@ -1332,7 +1318,7 @@ namespace marco::codegen
         mlir::Value value = builder.create<LoadOp>(var.getLoc(), var);
         printScalarVariable(builder, module, value, shouldPrependSeparator);
       } else {
-        printArrayVariable(builder, module, var, indicesOffsets, filter, shouldPrependSeparator);
+        printArrayVariable(builder, module, var, mappedIndices, filter, shouldPrependSeparator);
       }
     } else {
       printScalarVariable(builder, module, var, shouldPrependSeparator);
@@ -1356,7 +1342,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       mlir::Value var,
-      llvm::ArrayRef<long> indicesOffsets,
+      const modeling::MultidimensionalRange& mappedIndices,
       VariableFilter::Filter filter,
       bool shouldPrependSeparator) const
   {
@@ -1377,7 +1363,7 @@ namespace marco::codegen
       // In Modelica, arrays are 1-based. If present, we need to lower by 1
       // the value given by the variable filter.
 
-      long lowerBound = indicesOffsets.size() > range.index() ? indicesOffsets[range.index()] : 0;
+      long lowerBound = mappedIndices.rank() > range.index() ? -1 * mappedIndices[range.index()].getBegin() : 0;
       lowerBound += range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
       assert(lowerBound >= 0);
       lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
@@ -1386,7 +1372,7 @@ namespace marco::codegen
       // them as excluded.
 
       if (range.value().hasUpperBound()) {
-        long upperBound = indicesOffsets.size() > range.index() ? indicesOffsets[range.index()] : 0;
+        long upperBound = mappedIndices.rank() > range.index() ? -1 * mappedIndices[range.index()].getBegin() : 0;
         upperBound += range.value().getUpperBound();
         assert(upperBound >= 0);
         upperBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(upperBound)));
@@ -1443,30 +1429,29 @@ namespace marco::codegen
   {
     auto modelOp = model.getOperation();
     auto module = modelOp.getOperation()->getParentOfType<mlir::ModuleOp>();
-    mlir::TypeRange varTypes = modelOp.equationsRegion().getArgumentTypes();
 
-    auto callback = [&](llvm::StringRef name, llvm::ArrayRef<long> indicesOffsets, mlir::Value value, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
+    auto callback = [&](llvm::StringRef name, mlir::Value value, const MultidimensionalRange& mappedIndices, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       bool shouldPrintSeparator = processedValues != 0;
-      printVariable(builder, module, value, indicesOffsets, filter, shouldPrintSeparator);
+      printVariable(builder, module, value, mappedIndices, filter, shouldPrintSeparator);
       return mlir::success();
     };
 
-    return createPrintFunctionBody(builder, module, model, varTypes, externalSolvers, printFunctionName, callback);
+    return createPrintFunctionBody(builder, module, model, externalSolvers, printFunctionName, callback);
   }
 
   mlir::LogicalResult ModelConverter::createPrintFunctionBody(
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       const Model<ScheduledEquationsBlock>& model,
-      mlir::TypeRange varTypes,
       ExternalSolvers& externalSolvers,
       llvm::StringRef functionName,
-      std::function<mlir::LogicalResult(llvm::StringRef, llvm::ArrayRef<long>, mlir::Value, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const
+      std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const MultidimensionalRange&, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto modelOp = model.getOperation();
     auto loc = modelOp.getLoc();
-    const auto& derivativesMap = model.getDerivativesMap();
+
+    auto variableTypes = model.getVariables().getTypes();
 
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
@@ -1485,13 +1470,12 @@ namespace marco::codegen
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
     // Get the names of the variables
-    auto variableNames = modelOp.variableNames();
+    auto variableNames = model.getVariableNames();
 
     // Map each variable to its argument number.
     // It must be noted that the arguments list also contains the derivatives,
     // so its size can be greater than the number of names.
 
-    assert(variableNames.size() == varTypes.size());
     llvm::StringMap<size_t> variablePositionByName;
 
     for (const auto& variable : llvm::enumerate(variableNames)) {
@@ -1499,7 +1483,9 @@ namespace marco::codegen
     }
 
     // The positions have been saved, so we can now sort the names
-    llvm::sort(variableNames, [](llvm::StringRef x, llvm::StringRef y) -> bool {
+    std::vector<llvm::StringRef> sortedVariableNames(variableNames.begin(), variableNames.end());
+
+    llvm::sort(sortedVariableNames, [](llvm::StringRef x, llvm::StringRef y) -> bool {
       return x.compare_insensitive(y) < 0;
     });
 
@@ -1507,39 +1493,39 @@ namespace marco::codegen
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
 
-    if (auto res = elementCallback("time", llvm::None, time, VariableFilter::Filter::visibleScalar(), module, processedValues++); mlir::failed(res)) {
+    if (auto res = elementCallback("time", time, MultidimensionalRange(Range(0, 1)), VariableFilter::Filter::visibleScalar(), module, processedValues++); mlir::failed(res)) {
       return res;
     }
 
     // Print the other variables
-    for (const auto& name : variableNames) {
-      size_t position = variablePositionByName[name];
+    const auto& variablesMap = model.getVariablesMap();
+    const auto& derivativesMap = model.getDerivativesMap();
 
-      // Skip if it is a derivative (and thus auto-generated)
-      if (derivativesMap.isDerivative(position)) {
-        continue;
-      }
+    for (const auto& name : sortedVariableNames) {
+      for (const auto& splitVariable : variablesMap[name]) {
+        auto argNumber = splitVariable.getArgNumber();
 
-      // Otherwise, print it
-      unsigned int rank = 0;
+        unsigned int rank = 0;
 
-      if (auto arrayType = varTypes[position].dyn_cast<ArrayType>()) {
-        rank = arrayType.getRank();
-      }
+        if (auto arrayType = variableTypes[argNumber].dyn_cast<ArrayType>()) {
+          rank = arrayType.getRank();
+        }
 
-      auto filter = options.variableFilter->getVariableInfo(name, rank);
+        auto filter = options.variableFilter->getVariableInfo(name, rank);
 
-      if (!filter.isVisible()) {
-        continue;
-      }
+        if (!filter.isVisible()) {
+          continue;
+        }
 
-      mlir::Value value = extractValue(builder, structValue, varTypes[position], position + variablesOffset);
+        mlir::Value value = extractValue(builder, structValue, variableTypes[argNumber], argNumber + variablesOffset);
 
-      if (auto status = elementCallback(name, llvm::None, value, filter, module, processedValues++); mlir::failed(status)) {
-        return status;
+        if (auto res = elementCallback(name, value, splitVariable.getIndices(), filter, module, processedValues++); mlir::failed(res)) {
+          return res;
+        }
       }
     }
 
+    /*
     // Print the derivatives
     for (const auto& name : variableNames) {
       size_t varPosition = variablePositionByName[name];
@@ -1580,6 +1566,7 @@ namespace marco::codegen
         }
       }
     }
+     */
 
     // Print a newline character after all the variables have been processed
     printNewline(builder, module);

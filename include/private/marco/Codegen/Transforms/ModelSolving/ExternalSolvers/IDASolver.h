@@ -23,10 +23,9 @@ namespace marco::codegen
 
   struct IDAVariable
   {
-    IDAVariable(unsigned int argNumber, modeling::MultidimensionalRange indices, IDAVariableType type);
+    IDAVariable(unsigned int argNumber, IDAVariableType type);
 
     unsigned int argNumber;
-    modeling::MultidimensionalRange indices;
     IDAVariableType type;
   };
 
@@ -119,46 +118,14 @@ namespace marco::codegen
         mlir::Value runtimeDataPtr,
         mlir::ValueRange variables);
 
-      mlir::LogicalResult createAlgebraicVariableGetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Location loc,
-          mlir::Type variableType,
-          const modeling::MultidimensionalRange& indices,
-          llvm::StringRef functionName);
-
-      mlir::LogicalResult createStateVariableGetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Location loc,
-          mlir::Type variableType,
-          const modeling::MultidimensionalRange& indices,
-          llvm::StringRef functionName);
-
-      mlir::LogicalResult createDerivativeGetterFunction(
+      mlir::LogicalResult createGetterFunction(
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Location loc,
           mlir::Type variableType,
           llvm::StringRef functionName);
 
-      mlir::LogicalResult createAlgebraicVariableSetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Location loc,
-          mlir::Type variableType,
-          const modeling::MultidimensionalRange& indices,
-          llvm::StringRef functionName);
-
-      mlir::LogicalResult createStateVariableSetterFunction(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Location loc,
-          mlir::Type variableType,
-          const modeling::MultidimensionalRange& indices,
-          llvm::StringRef functionName);
-
-      mlir::LogicalResult createDerivativeSetterFunction(
+      mlir::LogicalResult createSetterFunction(
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Location loc,
