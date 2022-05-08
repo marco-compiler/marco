@@ -1,174 +1,52 @@
 #include "marco/Codegen/Transforms/ModelSolving/Variable.h"
+#include "marco/Codegen/Transforms/ModelSolving/VariableImpl.h"
+#include "marco/Codegen/Transforms/ModelSolving/ScalarVariable.h"
+#include "marco/Codegen/Transforms/ModelSolving/ArrayVariable.h"
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  class Variable::Impl
-  {
-    public:
-    Impl(mlir::Value value) : value(value)
-    {
-      assert(value.isa<mlir::BlockArgument>());
-      size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
-      auto model = value.getParentRegion()->getParentOfType<ModelOp>();
-      auto terminator = mlir::cast<YieldOp>(model.initRegion().back().getTerminator());
-      assert(index < terminator.values().size());
-      definingOp = terminator.values()[index].getDefiningOp();
-      assert(mlir::isa<MemberCreateOp>(definingOp));
-    }
-
-    Impl(const Impl& other) = default;
-
-    virtual ~Impl() = default;
-
-    virtual std::unique_ptr<Variable::Impl> clone() const = 0;
-
-    mlir::Operation* getId() const
-    {
-      return definingOp;
-    }
-
-    virtual size_t getRank() const = 0;
-
-    virtual long getDimensionSize(size_t index) const = 0;
-
-    mlir::Value getValue() const
-    {
-      return value;
-    }
-
-    MemberCreateOp getDefiningOp() const
-    {
-      return mlir::cast<MemberCreateOp>(definingOp);
-    }
-
-    private:
-    mlir::Value value;
-    mlir::Operation* definingOp;
-  };
-}
-
-/// Variable implementation for scalar values.
-/// The arrays declaration are kept untouched within the IR, but they
-/// are masked by this class as arrays with just one element.
-class ScalarVariable : public Variable::Impl
-{
-  public:
-  ScalarVariable(mlir::Value value) : Impl(value)
-  {
-    assert(value.getType().isa<ArrayType>());
-    assert(value.getType().cast<ArrayType>().getRank() == 0);
-  }
-
-  std::unique_ptr<Variable::Impl> clone() const override
-  {
-    return std::make_unique<ScalarVariable>(*this);
-  }
-
-  size_t getRank() const override
-  {
-    return 1;
-  }
-
-  long getDimensionSize(size_t index) const override
-  {
-    return 1;
-  }
-};
-
-/// Variable implementation for array values.
-/// The class just acts as a forwarder.
-class ArrayVariable : public Variable::Impl
-{
-  public:
-  ArrayVariable(mlir::Value value) : Impl(value)
-  {
-    assert(value.getType().isa<ArrayType>());
-    assert(value.getType().cast<ArrayType>().getRank() != 0);
-  }
-
-  std::unique_ptr<Variable::Impl> clone() const override
-  {
-    return std::make_unique<ArrayVariable>(*this);
-  }
-
-  size_t getRank() const override
-  {
-    return getValue().getType().cast<ArrayType>().getRank();
-  }
-
-  long getDimensionSize(size_t index) const override
-  {
-    return getValue().getType().cast<ArrayType>().getShape()[index];
-  }
-};
-
-namespace marco::codegen
-{
   std::unique_ptr<Variable> Variable::build(mlir::Value value)
   {
-    return std::make_unique<Variable>(std::move(value));
-  }
-
-  Variable::Variable(mlir::Value value)
-  {
-    if (auto arrayType = value.getType().dyn_cast<ArrayType>(); arrayType.getRank() != 0) {
-      impl = std::make_unique<ArrayVariable>(value);
-    } else {
-      impl = std::make_unique<ScalarVariable>(value);
+    if (auto arrayType = value.getType().dyn_cast<ArrayType>(); !arrayType.isScalar()) {
+      return std::make_unique<ArrayVariable>(value);
     }
-  }
 
-  Variable::Variable(const Variable& other)
-      : impl(other.impl->clone())
-  {
+    return std::make_unique<ScalarVariable>(value);
   }
 
   Variable::~Variable() = default;
 
-  Variable& Variable::operator=(const Variable& other)
+  BaseVariable::BaseVariable(mlir::Value value)
+    : value(value)
   {
-    Variable result(other);
-    swap(*this, result);
-    return *this;
+    assert(value.isa<mlir::BlockArgument>());
+    size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
+    auto model = value.getParentRegion()->getParentOfType<ModelOp>();
+    auto terminator = mlir::cast<YieldOp>(model.initRegion().back().getTerminator());
+    assert(index < terminator.values().size());
+    definingOp = terminator.values()[index].getDefiningOp();
+    assert(mlir::isa<MemberCreateOp>(definingOp));
   }
 
-  Variable& Variable::operator=(Variable&& other) = default;
-
-  void swap(Variable& first, Variable& second)
+  BaseVariable::Id BaseVariable::getId() const
   {
-    using std::swap;
-    swap(first.impl, second.impl);
+    return definingOp;
   }
 
-  Variable::Id Variable::getId() const
+  mlir::Value BaseVariable::getValue() const
   {
-    return impl->getId();
+    return value;
   }
 
-  size_t Variable::getRank() const
+  mlir::modelica::MemberCreateOp BaseVariable::getDefiningOp() const
   {
-    return impl->getRank();
+    return mlir::cast<MemberCreateOp>(definingOp);
   }
 
-  long Variable::getDimensionSize(size_t index) const
-  {
-    return impl->getDimensionSize(index);
-  }
-
-  mlir::Value Variable::getValue() const
-  {
-    return impl->getValue();
-  }
-
-  MemberCreateOp Variable::getDefiningOp() const
-  {
-    return impl->getDefiningOp();
-  }
-
-  bool Variable::isConstant() const
+  bool BaseVariable::isConstant() const
   {
     return getDefiningOp().isConstant();
   }

@@ -1,4 +1,5 @@
 #include "marco/Codegen/Transforms/ModelSolving/Matching.h"
+#include "marco/Codegen/Transforms/ModelSolving/FilteredVariable.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 
 using namespace ::marco::codegen;
@@ -202,7 +203,7 @@ namespace marco::codegen
   mlir::LogicalResult match(
       Model<MatchedEquation>& result,
       const Model<Equation>& model,
-      std::function<bool(const Variable&)> isMatchableFn)
+      std::function<IndexSet(const Variable&)> matchableIndicesFn)
   {
     Variables allVariables = model.getVariables();
 
@@ -223,8 +224,11 @@ namespace marco::codegen
     Variables filteredVariables;
 
     for (const auto& variable : allVariables) {
-      if (isMatchableFn(*variable)) {
-        filteredVariables.add(std::make_unique<Variable>(variable->getValue()));
+      auto matchableIndices = matchableIndicesFn(*variable);
+
+      for (const auto& range : matchableIndices) {
+        auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
+        filteredVariables.add(std::move(filteredVariable));
       }
     }
 

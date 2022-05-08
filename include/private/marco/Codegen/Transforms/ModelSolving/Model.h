@@ -34,16 +34,6 @@ namespace marco::codegen
         /// Set the variables the are managed by this model.
         void setVariables(Variables value);
 
-        llvm::ArrayRef<llvm::StringRef> getVariableNames() const;
-
-        void setVariableNames(llvm::ArrayRef<llvm::StringRef> names);
-
-        VariablesMap& getVariablesMap();
-
-        const VariablesMap& getVariablesMap() const;
-
-        void setVariablesMap(VariablesMap map);
-
         DerivativesMap& getDerivativesMap();
 
         const DerivativesMap& getDerivativesMap() const;
@@ -53,8 +43,6 @@ namespace marco::codegen
       private:
         mlir::Operation* modelOp;
         Variables variables;
-        llvm::SmallVector<llvm::StringRef, 10> variableNames;
-        VariablesMap variablesMap;
         DerivativesMap derivativesMap;
     };
   }

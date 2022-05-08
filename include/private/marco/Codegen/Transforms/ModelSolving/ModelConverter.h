@@ -161,7 +161,7 @@ namespace marco::codegen
           mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
-          const modeling::MultidimensionalRange& mappedIndices,
+          const modeling::MultidimensionalRange& indices,
           VariableFilter::Filter filter,
           bool shouldPreprendSeparator = true) const;
 
@@ -176,7 +176,7 @@ namespace marco::codegen
           mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
-          const modeling::MultidimensionalRange& mappedIndices,
+          const modeling::MultidimensionalRange& indices,
           VariableFilter::Filter filter,
           bool shouldPrependSeparator) const;
 
@@ -189,7 +189,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Value var,
-          const modeling::MultidimensionalRange& mappedIndices,
+          const modeling::MultidimensionalRange& indices,
           VariableFilter::Filter filter,
           bool shouldPrependSeparator = true) const;
 
@@ -203,7 +203,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Value var,
-          const modeling::MultidimensionalRange& mappedIndices,
+          const modeling::MultidimensionalRange& indices,
           VariableFilter::Filter filter,
           bool shouldPrependSeparator = true) const;
 

@@ -104,80 +104,77 @@ static void collectDerivedVariablesIndices(std::map<unsigned int, IndexSet>& der
   }
 }
 
-static void collectDerivedVariables(std::set<unsigned int>& derivedVariables, const Equations<Equation>& equations)
+static unsigned int addDerivativeToRegions(
+    mlir::OpBuilder& builder,
+    mlir::Location loc,
+    llvm::ArrayRef<mlir::Region*> regions,
+    ArrayType derType,
+    const IndexSet& derivedIndices)
 {
-  for (const auto& equation : equations) {
-    auto accesses = equation->getAccesses();
-
-    equation->getOperation().walk([&](DerOp derOp) {
-      auto it = llvm::find_if(accesses, [&](const auto& access) {
-        auto value = equation->getValueAtPath(access.getPath());
-        return value == derOp.operand();
-      });
-
-      assert(it != accesses.end());
-      const auto& access = *it;
-      auto argNumber = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
-      derivedVariables.insert(argNumber);
-    });
-  }
-}
-
-static unsigned int addArgumentToRegions(llvm::ArrayRef<mlir::Region*> regions, mlir::Type type)
-{
+  mlir::OpBuilder::InsertionGuard guard(builder);
   assert(!regions.empty());
 
   assert(llvm::all_of(regions, [&](const auto& region) {
     return region->getNumArguments() == regions[0]->getNumArguments();
   }));
 
+  std::vector<Range> dimensions;
+
+  if (derType.isScalar()) {
+    dimensions.emplace_back(0, 1);
+  } else {
+    for (const auto& dimension : derType.getShape()) {
+      dimensions.emplace_back(0, dimension);
+    }
+  }
+
+  IndexSet allIndices(MultidimensionalRange(std::move(dimensions)));
+  auto nonDerivedIndices = allIndices - derivedIndices;
+
   unsigned int newArgNumber = regions[0]->getNumArguments();
 
   for (auto& region : regions) {
-    region->addArgument(type);
+    assert(region->hasOneBlock());
+
+    mlir::Value derivative = region->addArgument(derType);
+
+    // We need to create additional equations in case of some non-derived indices.
+    // If this is not done, then the matching process would fail by detecting an
+    // underdetermined problem. An alternative would be to split each variable
+    // according to the algebraic / differential nature of its indices, but that
+    // is way too complicated with the respect to performance gain.
+
+    for (const auto& range : nonDerivedIndices) {
+      builder.setInsertionPointToEnd(&region->front());
+      std::vector<mlir::Value> inductionVariables;
+
+      for (unsigned int i = 0; i < range.rank(); ++i) {
+        auto forOp = builder.create<ForEquationOp>(loc, range[i].getBegin(), range[i].getEnd() - 1);
+        inductionVariables.push_back(forOp.induction());
+        builder.setInsertionPointToStart(forOp.bodyBlock());
+      }
+
+      auto equationOp = builder.create<EquationOp>(loc);
+      assert(equationOp.bodyRegion().empty());
+      mlir::Block* bodyBlock = builder.createBlock(&equationOp.bodyRegion());
+      builder.setInsertionPointToStart(bodyBlock);
+
+      mlir::Value zero = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
+
+      std::vector<mlir::Value> indices;
+
+      for (unsigned int i = 0; i < derType.getRank(); ++i) {
+        indices.push_back(inductionVariables[i]);
+      }
+
+      mlir::Value scalarValue = builder.create<LoadOp>(loc, derivative, indices);
+      mlir::Value lhs = builder.create<EquationSideOp>(loc, scalarValue);
+      mlir::Value rhs = builder.create<EquationSideOp>(loc, zero);
+      builder.create<EquationSidesOp>(loc, lhs, rhs);
+    }
   }
 
   return newArgNumber;
-}
-
-static mlir::modelica::EquationOp cloneEquationWithNewIndices(
-    mlir::OpBuilder& builder,
-    const Equation& equation,
-    const MultidimensionalRange& indices,
-    mlir::BlockAndValueMapping& mapping)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  auto equationOp = equation.getOperation();
-  builder.setInsertionPointAfter(equationOp.getOperation());
-  ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
-
-  while (parent != nullptr) {
-    builder.setInsertionPointAfter(parent.getOperation());
-    parent = parent->getParentOfType<ForEquationOp>();
-  }
-
-  auto oldIterationVariables = equation.getInductionVariables();
-  assert(indices.rank() >= oldIterationVariables.size());
-
-  for (size_t i = 0; i < oldIterationVariables.size(); ++i) {
-    auto loop = builder.create<ForEquationOp>(oldIterationVariables[i].getLoc(), indices[i].getBegin(), indices[i].getEnd() - 1);
-    builder.setInsertionPointToStart(loop.bodyBlock());
-    mapping.map(oldIterationVariables[i], loop.induction());
-  }
-
-  return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation(), mapping));
-}
-
-static std::vector<long> variableRangeToShape(ArrayType arrayType, MultidimensionalRange range)
-{
-  std::vector<long> result;
-
-  for (size_t i = 0, e = std::min(range.rank(), arrayType.getRank()); i < e; ++i) {
-    auto dimension = range[i].size();
-    result.push_back(dimension);
-  }
-
-  return result;
 }
 
 static void eraseValueInsideEquation(mlir::Value value)
@@ -220,306 +217,11 @@ static void eraseValueInsideEquation(mlir::Value value)
   }
 }
 
-static mlir::LogicalResult splitVariables(
-    mlir::OpBuilder& builder,
-    ModelOp modelOp,
-    VariablesMap& variablesMap,
-    const std::map<unsigned int, IndexSet>& derivedIndices)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-
-  // Collect the regions to be modified
-  llvm::SmallVector<mlir::Region*, 2> regions;
-  regions.push_back(&modelOp.equationsRegion());
-  regions.push_back(&modelOp.initialEquationsRegion());
-
-  // Set the insertion point to the end of the init block, as we will need to declare new members
-  auto terminator = mlir::cast<YieldOp>(modelOp.initRegion().back().getTerminator());
-  builder.setInsertionPoint(terminator);
-
-  llvm::SmallVector<mlir::Value, 3> initRegionTerminatorValues;
-
-  std::map<unsigned int, std::vector<SplitVariable>> splitVariables;
-  auto variableNames = modelOp.variableNames();
-  auto variablesTypes = regions[0]->getArgumentTypes();
-
-  // Ensure that all regions have the same arguments
-  assert(llvm::all_of(regions, [&](const auto& region) {
-    return region->getArgumentTypes() == variablesTypes;
-  }));
-
-  for (const auto& name : llvm::enumerate(variableNames)) {
-    auto arg = regions[0]->getArgument(name.index());
-    unsigned int argNumber = arg.getArgNumber();
-    auto variableArrayType = arg.getType().cast<ArrayType>();
-    assert(variableArrayType.hasConstantShape());
-
-    std::vector<Range> dimensions;
-
-    if (variableArrayType.isScalar()) {
-      dimensions.emplace_back(0, 1);
-    } else {
-      for (const auto& dimension : variableArrayType.getShape()) {
-        dimensions.emplace_back(0, dimension);
-      }
-    }
-
-    MultidimensionalRange allIndices(std::move(dimensions));
-    IndexSet algebraicIndices(allIndices);
-
-    size_t variableNameCounter = 0;
-
-    auto addArgumentFn = [&](unsigned int baseArgNumber, const MultidimensionalRange& mappedIndices) -> unsigned int {
-      builder.setInsertionPoint(terminator);
-
-      auto memberCreateOp = terminator.values()[baseArgNumber].getDefiningOp<MemberCreateOp>();
-
-      auto newArgArrayType = ArrayType::get(
-          builder.getContext(), variableArrayType.getElementType(),
-          variableRangeToShape(variableArrayType, mappedIndices));
-
-      auto newArgNumber = addArgumentToRegions(regions, newArgArrayType);
-      std::string newArgName = memberCreateOp.name().str() + "_" + std::to_string(variableNameCounter++);
-
-      auto newMemberOp = builder.create<MemberCreateOp>(
-          modelOp.getLoc(), newArgName,
-          memberCreateOp.getMemberType().withShape(newArgArrayType.getShape()),
-          llvm::None);
-
-      initRegionTerminatorValues.push_back(newMemberOp);
-
-      // Copy the original values
-      mlir::Value source = builder.create<MemberLoadOp>(newMemberOp.getLoc(), memberCreateOp);
-
-      if (newArgArrayType.isScalar()) {
-        builder.create<MemberStoreOp>(newMemberOp.getLoc(), newMemberOp, source);
-      } else {
-        mlir::Value destination = builder.create<MemberLoadOp>(newMemberOp.getLoc(), newMemberOp);
-
-        std::vector<mlir::Value> lowerBounds;
-        std::vector<mlir::Value> upperBounds;
-        std::vector<mlir::Value> steps;
-
-        for (size_t i = 0; i < newArgArrayType.getRank(); ++i) {
-          lowerBounds.push_back(builder.create<ConstantOp>(newMemberOp.getLoc(), builder.getIndexAttr(mappedIndices[i].getBegin())));
-          upperBounds.push_back(builder.create<ConstantOp>(newMemberOp.getLoc(), builder.getIndexAttr(mappedIndices[i].getEnd())));
-          steps.push_back(builder.create<ConstantOp>(newMemberOp.getLoc(), builder.getIndexAttr(1)));
-        }
-
-        mlir::scf::buildLoopNest(
-            builder, newMemberOp.getLoc(), lowerBounds, upperBounds, steps,
-            [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
-              std::vector<mlir::Value> destinationIndices;
-
-              for (size_t i = 0; i < indices.size(); ++i) {
-                mlir::Value offset = builder.create<ConstantOp>(loc, builder.getIndexAttr(-1 * mappedIndices[i].getBegin()));
-                mlir::Value index = builder.create<mlir::AddIOp>(loc, builder.getIndexType(), indices[i], offset);
-                destinationIndices.push_back(index);
-              }
-
-              mlir::Value sourceScalar = nestedBuilder.create<LoadOp>(loc, source, indices);
-              builder.create<StoreOp>(loc, sourceScalar, destination, destinationIndices);
-            });
-      }
-
-      return newArgNumber;
-    };
-
-    if (auto derivedVariableIndices = derivedIndices.find(argNumber); derivedVariableIndices != derivedIndices.end()) {
-      for (const auto& derivedRange : derivedVariableIndices->second) {
-        auto newArgNumber = addArgumentFn(argNumber, derivedRange);
-        splitVariables[argNumber].push_back(SplitVariable(derivedRange, newArgNumber));
-        algebraicIndices -= derivedRange;
-      }
-    }
-
-    for (const auto& range : algebraicIndices) {
-      auto newArgNumber = addArgumentFn(argNumber, range);
-      splitVariables[argNumber].push_back(SplitVariable(range, newArgNumber));
-    }
-  }
-
-  // Replace the old variables usages
-  for (auto& region : regions) {
-    Variables variables;
-
-    // Consider only the variables to be replaced, so that we can identify right
-    // just the accesses using them.
-
-    for (const auto& argument : region->getArguments()) {
-      if (splitVariables.find(argument.getArgNumber()) != splitVariables.end()) {
-        variables.add(std::make_unique<Variable>(argument));
-      }
-    }
-
-    for (auto& originalEquation : discoverEquations(*region, variables)) {
-      // The equations to be processed
-      std::queue<std::unique_ptr<Equation>> equations;
-
-      // Add the original equation to the processing queue
-      equations.push(Equation::build(originalEquation->cloneIR(), originalEquation->getVariables()));
-      originalEquation->eraseIR();
-
-      while (!equations.empty()) {
-        auto& equation = equations.front();
-
-        if (auto accesses = equation->getAccesses(); !accesses.empty()) {
-          // We need to process the accesses one by one, because otherwise we would wrongly
-          // create duplicates of the equation itself.
-          const auto& access = accesses[0];
-
-          auto equationIndices = IndexSet(equation->getIterationRanges());
-          auto inductionVariables = equation->getInductionVariables();
-
-          auto variable = access.getVariable()->getValue();
-          auto requestedIndices = access.getAccessFunction().map(equationIndices);
-
-          auto argNumber = variable.cast<mlir::BlockArgument>().getArgNumber();
-          assert(splitVariables.find(argNumber) != splitVariables.end());
-
-          for (const auto& splitVariable : splitVariables[argNumber]) {
-            const auto& availableIndices = splitVariable.getIndices();
-
-            if (!requestedIndices.overlaps(availableIndices)) {
-              continue;
-            }
-
-            auto coveredIndices = requestedIndices.intersect(availableIndices);
-            auto newEquationIndices = access.getAccessFunction().inverseMap(coveredIndices, equationIndices);
-
-            for (const auto& newRange : newEquationIndices) {
-              mlir::BlockAndValueMapping mapping;
-
-              // We need to map the variables to themselves, as they may appear straight into
-              // the EquationSideOp in case of array assignments.
-
-              for (const auto& arg : region->getArguments()) {
-                mapping.map(arg, arg);
-              }
-
-              auto cloneOp = cloneEquationWithNewIndices(builder, *equation, newRange, mapping);
-              auto clone = Equation::build(cloneOp, equation->getVariables());
-              auto newIterationVariables = clone->getInductionVariables();
-
-              mlir::Value mappedUsage = mapping.lookup(equation->getValueAtPath(access.getPath()));
-
-              if (mappedUsage.isa<mlir::BlockArgument>()) {
-                builder.setInsertionPointToStart(clone->getOperation().bodyBlock());
-              } else {
-                builder.setInsertionPointAfterValue(mappedUsage);
-              }
-
-              mlir::Value replacement = region->getArgument(splitVariable.getArgNumber());
-              size_t rank = replacement.getType().cast<ArrayType>().getRank();
-              assert(rank <= access.getAccessFunction().size());
-              std::vector<mlir::Value> indices;
-
-              for (size_t i = 0; i < std::min(rank, inductionVariables.size()); ++i) {
-                const auto& dimensionAccess = access.getAccessFunction()[i];
-
-                if (dimensionAccess.isConstantAccess()) {
-                  mlir::Value index = builder.create<ConstantOp>(
-                      replacement.getLoc(),
-                      builder.getIndexAttr(dimensionAccess.getPosition() - splitVariable.getIndices()[i].getBegin()));
-
-                  indices.push_back(index);
-                } else {
-                  mlir::Value inductionVar = mapping.lookup(inductionVariables[dimensionAccess.getInductionVariableIndex()]);
-
-                  mlir::Value offset = builder.create<ConstantOp>(
-                      replacement.getLoc(),
-                      builder.getIndexAttr(dimensionAccess.getOffset() - splitVariable.getIndices()[i].getBegin()));
-
-                  mlir::Value index = builder.create<AddOp>(replacement.getLoc(), builder.getIndexType(), inductionVar, offset);
-                  indices.push_back(index);
-                }
-              }
-
-              if (rank == 0 || rank == inductionVariables.size()) {
-                replacement = builder.create<LoadOp>(replacement.getLoc(), replacement, indices);
-              } else if (!inductionVariables.empty()) {
-                replacement = builder.create<SubscriptionOp>(replacement.getLoc(), replacement, indices);
-              }
-
-              for (auto& use : mappedUsage.getUses()) {
-                auto parentEquation = use.getOwner()->getParentOfType<EquationOp>();
-
-                if (parentEquation == clone->getOperation()) {
-                  use.set(replacement);
-                }
-              }
-
-              eraseValueInsideEquation(mappedUsage);
-
-              equations.push(std::move(clone));
-            }
-          }
-
-          equation->eraseIR();
-        }
-
-        equations.pop();
-      }
-    }
-  }
-
-  // Erase the original arguments that are not used anymore
-  llvm::SmallVector<unsigned int> erasedArgs;
-  std::map<unsigned int, unsigned int> mappedArgsAfterPruning;
-  unsigned int lastPosition = 0;
-
-  for (unsigned int i = 0; i < regions[0]->getNumArguments(); ++i) {
-    if (splitVariables.find(i) == splitVariables.end()) {
-      mappedArgsAfterPruning[i] = lastPosition++;
-    } else {
-      erasedArgs.push_back(i);
-    }
-  }
-
-  for (const auto& name : llvm::enumerate(variableNames)) {
-    if (auto it = splitVariables.find(name.index()); it != splitVariables.end()) {
-      for (const auto& splitVariable : it->second) {
-        auto newArgNumber = mappedArgsAfterPruning.find(splitVariable.getArgNumber());
-        assert(newArgNumber != mappedArgsAfterPruning.end());
-        SplitVariable variable(splitVariable.getIndices(), newArgNumber->second);
-        variablesMap.add(name.value(), std::move(variable));
-      }
-    } else {
-      auto newArgNumber = mappedArgsAfterPruning.find(name.index());
-      assert(newArgNumber != mappedArgsAfterPruning.end());
-
-      auto var = std::make_unique<Variable>(regions[0]->getArgument(name.index()));
-      std::vector<Range> dimensions;
-
-      for (size_t i = 0, e = var->getRank(); i < e; ++i) {
-        dimensions.emplace_back(0, var->getDimensionSize(i));
-      }
-
-      SplitVariable splitVariable(MultidimensionalRange(std::move(dimensions)), newArgNumber->second);
-      variablesMap.add(name.value(), std::move(splitVariable));
-    }
-  }
-
-  // Erase in reverse order so that the arguments numbers don't get invalidated
-  for (auto it = erasedArgs.rbegin(); it != erasedArgs.rend(); ++it) {
-    for (auto& region : regions) {
-      region->eraseArgument(*it);
-    }
-  }
-
-  // Update the terminator with the new values
-  builder.setInsertionPointToEnd(&modelOp.initRegion().back());
-  builder.create<YieldOp>(terminator.getLoc(), initRegionTerminatorValues);
-  terminator.erase();
-
-  return mlir::success();
-}
-
 static mlir::LogicalResult createDerivativeVariables(
     mlir::OpBuilder& builder,
     ModelOp modelOp,
     DerivativesMap& derivativesMap,
-    const std::set<unsigned int>& derivedVariables)
+    const std::map<unsigned int, IndexSet>& derivedIndices)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -544,8 +246,8 @@ static mlir::LogicalResult createDerivativeVariables(
   // Create the new variables for the derivatives
   llvm::SmallVector<unsigned int> derivedVariablesOrdered;
 
-  for (const auto& argNumber : derivedVariables) {
-    derivedVariablesOrdered.push_back(argNumber);
+  for (const auto& variable : derivedIndices) {
+    derivedVariablesOrdered.push_back(variable.first);
   }
 
   llvm::sort(derivedVariablesOrdered);
@@ -557,8 +259,13 @@ static mlir::LogicalResult createDerivativeVariables(
 
     auto derType = ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), variableMemberType.getShape());
     assert(derType.hasConstantShape());
-    auto derArgNumber = addArgumentToRegions(regions, derType);
+
+    auto derivedVariableIndices = derivedIndices.find(argNumber);
+    assert(derivedVariableIndices != derivedIndices.end());
+
+    auto derArgNumber = addDerivativeToRegions(builder, modelOp.getLoc(), regions, derType, derivedVariableIndices->second);
     derivativesMap.setDerivative(argNumber, derArgNumber);
+    derivativesMap.setDerivedIndices(argNumber, derivedVariableIndices->second);
 
     // Create the variable and initialize it at zero
     builder.setInsertionPoint(terminator);
@@ -582,89 +289,71 @@ static mlir::LogicalResult createDerivativeVariables(
   return mlir::success();
 }
 
-static mlir::LogicalResult removeDerOps(mlir::OpBuilder& builder, Model<Equation>& model)
+static mlir::LogicalResult removeDerOps(mlir::OpBuilder& builder, ModelOp modelOp, const DerivativesMap& derivativesMap)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
-  auto& derivativesMap = model.getDerivativesMap();
 
-  std::vector<mlir::Value> variables;
-  variables.resize(model.getVariables().size());
+  // Collect the regions to be modified
+  llvm::SmallVector<mlir::Region*, 2> regions;
+  regions.push_back(&modelOp.equationsRegion());
+  regions.push_back(&modelOp.initialEquationsRegion());
 
-  for (const auto& variable : model.getVariables()) {
-    variables[variable->getValue().cast<mlir::BlockArgument>().getArgNumber()] = variable->getValue();
-  }
+  auto appendIndexesFn = [](std::vector<mlir::Value>& destination, mlir::ValueRange indices) {
+    for (size_t i = 0, e = indices.size(); i < e; ++i) {
+      mlir::Value index = indices[e - 1 - i];
+      destination.push_back(index);
+    }
+  };
 
-  for (auto& equation : model.getEquations()) {
-    std::vector<DerOp> derOps;
+  for (auto& region : regions) {
+    region->walk([&](EquationOp equationOp) {
+      std::vector<DerOp> derOps;
 
-    equation->getOperation().walk([&](DerOp derOp) {
-      derOps.push_back(derOp);
-    });
-
-    if (!derOps.empty()) {
-      auto inductionVariables = equation->getInductionVariables();
-      auto accesses = equation->getAccesses();
+      equationOp.walk([&](DerOp derOp) {
+        derOps.push_back(derOp);
+      });
 
       for (auto& derOp : derOps) {
         builder.setInsertionPoint(derOp);
 
-        auto access = llvm::find_if(accesses, [&](const auto& access) {
-          auto value = equation->getValueAtPath(access.getPath());
-          return value == derOp.operand();
-        });
+        // If the value to be derived belongs to an array, then also the derived
+        // value is stored within an array. Thus, we need to store its position.
 
-        assert(access != accesses.end());
-        auto variable = access->getVariable()->getValue();
-        auto varArgNumber = variable.cast<mlir::BlockArgument>().getArgNumber();
-        const auto& accessFunction = access->getAccessFunction();
+        std::vector<mlir::Value> subscriptions;
+        mlir::Value operand = derOp.operand();
 
-        auto derArgNumber = derivativesMap.getDerivative(varArgNumber);
-        mlir::Value replacement = model.getVariables()[derArgNumber]->getValue();
+        while (!operand.isa<mlir::BlockArgument>()) {
+          mlir::Operation* definingOp = operand.getDefiningOp();
+          assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
 
-        // Check that all the requested indices are contained within the derivative variable
-        assert(llvm::all_of(accessFunction.map(equation->getIterationRanges()), [&](const auto& indices) {
-          auto arrayType = replacement.getType().cast<ArrayType>();
-
-          if (arrayType.isScalar()) {
-            return llvm::all_of(indices, [](const auto& index) {
-              return index == 0;
-            });
+          if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
+            appendIndexesFn(subscriptions, loadOp.indices());
+            operand = loadOp.array();
           } else {
-            auto shape = arrayType.getShape();
-
-            for (size_t i = 0; i < arrayType.getRank(); ++i) {
-              if (indices[i] >= shape[i]) {
-                return false;
-              }
-            }
-          }
-
-          return true;
-        }));
-
-        size_t rank = replacement.getType().cast<ArrayType>().getRank();
-        assert(rank <= access->getAccessFunction().size());
-        std::vector<mlir::Value> indices;
-
-        for (size_t i = 0; i < rank; ++i) {
-          const auto& dimensionAccess = access->getAccessFunction()[i];
-
-          if (dimensionAccess.isConstantAccess()) {
-            mlir::Value index = builder.create<ConstantOp>(replacement.getLoc(), builder.getIndexAttr(dimensionAccess.getPosition()));
-            indices.push_back(index);
-          } else {
-            mlir::Value inductionVar = inductionVariables[dimensionAccess.getInductionVariableIndex()];
-            mlir::Value offset = builder.create<ConstantOp>(replacement.getLoc(), builder.getIndexAttr(dimensionAccess.getOffset()));
-            mlir::Value index = builder.create<AddOp>(replacement.getLoc(), builder.getIndexType(), inductionVar, offset);
-            indices.push_back(index);
+            auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
+            appendIndexesFn(subscriptions, subscriptionOp.indices());
+            operand = subscriptionOp.source();
           }
         }
 
-        replacement = builder.create<LoadOp>(replacement.getLoc(), replacement, indices);
-        derOp.replaceAllUsesWith(replacement);
+        auto variableArgNumber = operand.cast<mlir::BlockArgument>().getArgNumber();
+        auto derivativeArgNumber = derivativesMap.getDerivative(variableArgNumber);
+        mlir::Value derivative = region->getArgument(derivativeArgNumber);
+
+        std::vector<mlir::Value> reverted(subscriptions.rbegin(), subscriptions.rend());
+
+        if (!subscriptions.empty()) {
+          derivative = builder.create<SubscriptionOp>(derivative.getLoc(), derivative, reverted);
+        }
+
+        if (auto arrayType = derivative.getType().cast<ArrayType>(); arrayType.isScalar()) {
+          derivative = builder.create<LoadOp>(derivative.getLoc(), derivative);
+        }
+
+        derOp.replaceAllUsesWith(derivative);
         eraseValueInsideEquation(derOp.getResult());
       }
-    }
+    });
   }
 
   return mlir::success();
@@ -732,11 +421,6 @@ namespace
         Model<Equation> initialModel(models[0]);
         Model<Equation> model(models[0]);
 
-        // Set the names of the original variables, so that we can modify the 'init'
-        // without losing information about the original names.
-        initialModel.setVariableNames(variableNames);
-        model.setVariableNames(variableNames);
-
         initialModel.setVariables(discoverVariables(initialModel.getOperation().initialEquationsRegion()));
         initialModel.setEquations(discoverEquations(initialModel.getOperation().initialEquationsRegion(), initialModel.getVariables()));
 
@@ -749,17 +433,6 @@ namespace
         collectDerivedVariablesIndices(derivedIndices, initialModel.getEquations());
         collectDerivedVariablesIndices(derivedIndices, model.getEquations());
 
-        VariablesMap variablesMap;
-
-        models[0].dump();
-
-        if (mlir::failed(splitVariables(builder, models[0], variablesMap, derivedIndices))) {
-          return signalPassFailure();
-        }
-
-        initialModel.setVariablesMap(variablesMap);
-        model.setVariablesMap(variablesMap);
-
         // The variable splitting may have caused a variable list change and equations splitting.
         // For this reason we need to perform again the discovery process.
 
@@ -769,16 +442,10 @@ namespace
         model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
         model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
 
-        models[0].dump();
-
         // Create the variables for the derivatives
-        std::set<unsigned int> derivedVariables;
-        collectDerivedVariables(derivedVariables, initialModel.getEquations());
-        collectDerivedVariables(derivedVariables, model.getEquations());
-
         DerivativesMap derivativesMap;
 
-        if (mlir::failed(createDerivativeVariables(builder, models[0], derivativesMap, derivedVariables))) {
+        if (mlir::failed(createDerivativeVariables(builder, models[0], derivativesMap, derivedIndices))) {
           return signalPassFailure();
         }
 
@@ -791,20 +458,16 @@ namespace
         initialModel.setVariables(discoverVariables(initialModel.getOperation().initialEquationsRegion()));
         model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
 
-        // Remove the derivative operations
-        if (mlir::failed(removeDerOps(builder, initialModel))) {
-          return signalPassFailure();
-        }
-
-        if (mlir::failed(removeDerOps(builder, model))) {
-          return signalPassFailure();
-        }
-
-        // Erasing the derivative operations may have caused equations splitting.
-        // For this reason we need to perform again the discovery process.
+        // Additional equations are introduced in case of partially derived arrays. Thus, we need
+        // to perform again the discovery of the equations.
 
         initialModel.setEquations(discoverEquations(initialModel.getOperation().initialEquationsRegion(), initialModel.getVariables()));
         model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
+
+        // Remove the derivative operations
+        if (mlir::failed(removeDerOps(builder, models[0], derivativesMap))) {
+          return signalPassFailure();
+        }
 
         // Convert both the models to scheduled ones
         Model<ScheduledEquationsBlock> scheduledInitialModel(initialModel.getOperation());
@@ -821,11 +484,17 @@ namespace
         }
          */
 
-        auto modelVariableMatchableFn = [&](const Variable& variable) -> bool {
-          mlir::Value var = variable.getValue();
-          auto argNumber = var.cast<mlir::BlockArgument>().getArgNumber();
+        auto modelVariableMatchableFn = [&](const Variable& variable) -> IndexSet {
+          IndexSet matchableIndices(variable.getIndices());
 
-          return !model.getDerivativesMap().hasDerivative(argNumber) && !variable.isConstant();
+          if (variable.isConstant()) {
+            matchableIndices.clear();
+            return matchableIndices;
+          }
+
+          auto argNumber = variable.getValue().cast<mlir::BlockArgument>().getArgNumber();
+          matchableIndices -= derivedIndices[argNumber];
+          return matchableIndices;
         };
 
         if (mlir::failed(convertToScheduledModel(builder, scheduledModel, model, modelVariableMatchableFn))) {
@@ -1003,15 +672,13 @@ namespace
           mlir::OpBuilder& builder,
           Model<ScheduledEquationsBlock>& result,
           const Model<Equation>& model,
-          std::function<bool(const Variable&)> isMatchableFn)
+          std::function<IndexSet(const Variable&)> matchableIndicesFn)
       {
         // Matching process
         Model<MatchedEquation> matchedModel(model.getOperation());
-        matchedModel.setVariableNames(model.getVariableNames());
-        matchedModel.setVariablesMap(model.getVariablesMap());
         matchedModel.setDerivativesMap(model.getDerivativesMap());
 
-        if (auto res = match(matchedModel, model, isMatchableFn); mlir::failed(res)) {
+        if (auto res = match(matchedModel, model, matchableIndicesFn); mlir::failed(res)) {
           return res;
         }
 
@@ -1032,10 +699,7 @@ namespace
           return res;
         }
 
-        result.setVariableNames(model.getVariableNames());
-        result.setVariablesMap(model.getVariablesMap());
         result.setDerivativesMap(model.getDerivativesMap());
-
         return mlir::success();
       }
 

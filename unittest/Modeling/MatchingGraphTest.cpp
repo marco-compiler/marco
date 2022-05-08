@@ -27,18 +27,6 @@ TEST(MatchingGraph, multipleVariablesInsertion)
   EXPECT_FALSE(graph.hasVariable("z"));
 }
 
-TEST(MatchingGraph, multidimensionalVariableInsertion)
-{
-  MatchingGraph<Variable, Equation> graph;
-  graph.addVariable(Variable("x", {2, 3, 4}));
-
-  auto var = graph.getVariable("x");
-  EXPECT_EQ(var.getRank(), 3);
-  EXPECT_EQ(var.getDimensionSize(0), 2);
-  EXPECT_EQ(var.getDimensionSize(1), 3);
-  EXPECT_EQ(var.getDimensionSize(2), 4);
-}
-
 TEST(MatchingGraph, addEquation)
 {
   MatchingGraph<Variable, Equation> graph;

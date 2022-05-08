@@ -4,10 +4,12 @@ set(SOURCES
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
     ModelSolving/Access.cpp
+    ModelSolving/ArrayVariable.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
     ModelSolving/DerivativesMap.cpp
     ModelSolving/Equation.cpp
+    ModelSolving/FilteredVariable.cpp
     ModelSolving/LoopEquation.cpp
     ModelSolving/Matching.cpp
     ModelSolving/Model.cpp
@@ -15,6 +17,7 @@ set(SOURCES
     ModelSolving/ModelSolving.cpp
     ModelSolving/Path.cpp
     ModelSolving/ScalarEquation.cpp
+    ModelSolving/ScalarVariable.cpp
     ModelSolving/Scheduling.cpp
     ModelSolving/TypeConverter.cpp
     ModelSolving/Variable.cpp

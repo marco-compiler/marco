@@ -18,7 +18,7 @@ namespace marco::modeling::matching
 
         size_t getRank() const;
 
-        long getDimensionSize(size_t index) const;
+        IndexSet getIndices() const;
 
       private:
         std::string name;
@@ -41,9 +41,9 @@ namespace marco::modeling::matching
       return variable->getRank();
     }
 
-    static size_t getDimensionSize(const test::Variable* variable, size_t index)
+    static IndexSet getIndices(const test::Variable* variable)
     {
-      return variable->getDimensionSize(index);
+      return variable->getIndices();
     }
   };
 

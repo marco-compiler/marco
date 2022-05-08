@@ -6,6 +6,7 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
+using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
 namespace
@@ -42,8 +43,8 @@ namespace
 
         Model<MatchedEquation> matchedModel(model.getOperation());
 
-        auto isMatchableFn = [](const Variable& variable) -> bool {
-          return true;
+        auto isMatchableFn = [](const Variable& variable) -> IndexSet {
+          return IndexSet(variable.getIndices());
         };
 
         if (auto res = match(matchedModel, model, isMatchableFn); mlir::failed(res)) {

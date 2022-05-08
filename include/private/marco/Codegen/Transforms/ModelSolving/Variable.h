@@ -12,32 +12,23 @@ namespace marco::codegen
   class Variable
   {
     public:
-      class Impl;
       using Id = mlir::Operation*;
 
       static std::unique_ptr<Variable> build(mlir::Value value);
 
-      Variable(mlir::Value value);
+      virtual ~Variable();
 
-      Variable(const Variable& other);
+      virtual std::unique_ptr<Variable> clone() const = 0;
 
-      ~Variable();
+      virtual Id getId() const = 0;
+      virtual size_t getRank() const = 0;
+      virtual long getDimensionSize(size_t index) const = 0;
 
-      Variable& operator=(const Variable& other);
-      Variable& operator=(Variable&& other);
+      virtual modeling::IndexSet getIndices() const = 0;
 
-      friend void swap(Variable& first, Variable& second);
-
-      Id getId() const;
-      size_t getRank() const;
-      long getDimensionSize(size_t index) const;
-
-      mlir::Value getValue() const;
-      mlir::modelica::MemberCreateOp getDefiningOp() const;
-      bool isConstant() const;
-
-    private:
-      std::unique_ptr<Impl> impl;
+      virtual mlir::Value getValue() const = 0;
+      virtual mlir::modelica::MemberCreateOp getDefiningOp() const = 0;
+      virtual bool isConstant() const = 0;
   };
 
   /// Container for the variables of the model.
@@ -116,9 +107,9 @@ namespace marco::modeling
         return (*variable)->getRank();
       }
 
-      static long getDimensionSize(const Variable* variable, size_t index)
+      static IndexSet getIndices(const Variable* variable)
       {
-        return (*variable)->getDimensionSize(index);
+        return (*variable)->getIndices();
       }
     };
   }

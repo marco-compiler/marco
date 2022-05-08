@@ -9,12 +9,6 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  void DerivativesMap::setDerivative(unsigned int variable, unsigned int derivative)
-  {
-    derivatives[variable] = derivative;
-    inverseDerivatives[derivative] = variable;
-  }
-
   bool DerivativesMap::hasDerivative(unsigned int variable) const
   {
     return derivatives.find(variable) != derivatives.end();
@@ -27,6 +21,12 @@ namespace marco::codegen
     return it->second;
   }
 
+  void DerivativesMap::setDerivative(unsigned int variable, unsigned int derivative)
+  {
+    derivatives[variable] = derivative;
+    inverseDerivatives[derivative] = variable;
+  }
+
   bool DerivativesMap::isDerivative(unsigned int variable) const
   {
     return inverseDerivatives.find(variable) != inverseDerivatives.end();
@@ -37,5 +37,17 @@ namespace marco::codegen
     auto it = inverseDerivatives.find(derivative);
     assert(it != inverseDerivatives.end());
     return it->second;
+  }
+
+  const IndexSet& DerivativesMap::getDerivedIndices(unsigned int variable) const
+  {
+    auto it = derivedIndices.find(variable);
+    assert(it != derivedIndices.end());
+    return it->second;
+  }
+
+  void DerivativesMap::setDerivedIndices(unsigned int variable, modeling::IndexSet indices)
+  {
+    derivedIndices[variable] = std::move(indices);
   }
 }

@@ -158,7 +158,7 @@ namespace marco::codegen
   mlir::LogicalResult match(
       Model<MatchedEquation>& result,
       const Model<Equation>& model,
-      std::function<bool(const Variable&)> isMatchableFn);
+      std::function<modeling::IndexSet(const Variable&)> matchableIndicesFn);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MATCHING_H

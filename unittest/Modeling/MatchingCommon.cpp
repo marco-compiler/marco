@@ -19,9 +19,15 @@ namespace marco::modeling::matching::test
     return dimensions.size();
   }
 
-  long Variable::getDimensionSize(size_t index) const
+  IndexSet Variable::getIndices() const
   {
-    return dimensions[index];
+    std::vector<Range> ranges;
+
+    for (const auto& dimension : dimensions) {
+      ranges.emplace_back(0, dimension);
+    }
+
+    return IndexSet(MultidimensionalRange(std::move(ranges)));
   }
 
   Equation::Equation(llvm::StringRef name) : name(name.str())

@@ -10,11 +10,15 @@ namespace marco::codegen
   class DerivativesMap
   {
     public:
-      void setDerivative(unsigned int variable, unsigned int derivative);
-
       bool hasDerivative(unsigned int variable) const;
 
       unsigned int getDerivative(unsigned int variable) const;
+
+      void setDerivative(unsigned int variable, unsigned int derivative);
+
+      const modeling::IndexSet& getDerivedIndices(unsigned int variable) const;
+
+      void setDerivedIndices(unsigned int variable, modeling::IndexSet indices);
 
       bool isDerivative(unsigned int variable) const;
 
@@ -23,6 +27,7 @@ namespace marco::codegen
     private:
       std::map<unsigned int, unsigned int> derivatives;
       std::map<unsigned int, unsigned int> inverseDerivatives;
+      std::map<unsigned int, modeling::IndexSet> derivedIndices;
   };
 }
 

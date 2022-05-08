@@ -2,7 +2,8 @@
 
 namespace marco::modeling::internal::matching
 {
-  Matchable::Matchable(MultidimensionalRange dimensions) : dimensions(std::move(dimensions))
+  Matchable::Matchable(IndexSet matchableIndices)
+    : matchableIndices(std::move(matchableIndices))
   {
   }
 
@@ -13,22 +14,17 @@ namespace marco::modeling::internal::matching
 
   IndexSet Matchable::getUnmatched() const
   {
-    return match.complement(dimensions);
+    return matchableIndices - match;
   }
 
   bool Matchable::allComponentsMatched() const
   {
-    return match.contains(dimensions);
+    return matchableIndices == match;
   }
 
   void Matchable::addMatch(const IndexSet& newMatch)
   {
-    [[maybe_unused]] auto containsIndexes = [&]() {
-      IndexSet possibleIndexes(dimensions);
-      return possibleIndexes.contains(newMatch);
-    };
-
-    assert(containsIndexes() && "The matched indexes set is not a subset of the matchable indexes");
+    assert(matchableIndices.contains(newMatch) && "The matched indexes set is not a subset of the matchable indexes");
     match += newMatch;
   }
 

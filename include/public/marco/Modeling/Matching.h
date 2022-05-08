@@ -37,8 +37,8 @@ namespace marco::modeling
       // static size_t getRank(const VariableType*)
       //    return the number of dimensions.
       //
-      // static long getDimensionSize(const VariableType*, size_t index)
-      //    return the size of a dimension.
+      // static IndexSet getIndices(const VariableType*)
+      //    return the indices of a variable.
 
       using Id = typename VariableType::UnknownVariableTypeError;
     };
@@ -81,7 +81,7 @@ namespace marco::modeling
       class Matchable
       {
         public:
-          Matchable(MultidimensionalRange dimensions);
+          Matchable(IndexSet matchableIndices);
 
           const IndexSet& getMatched() const;
 
@@ -95,7 +95,7 @@ namespace marco::modeling
           void removeMatch(const IndexSet& removedMatch);
 
         private:
-          MultidimensionalRange dimensions;
+          IndexSet matchableIndices;
           IndexSet match;
       };
 
@@ -109,7 +109,7 @@ namespace marco::modeling
           using Id = typename Traits::Id;
 
           VariableVertex(VariableProperty property)
-              : Matchable(getRanges(property)),
+              : Matchable(getIndices(property)),
                 property(property),
                 visible(true)
           {
@@ -127,13 +127,7 @@ namespace marco::modeling
             os << "Variable\n";
             os << tree_property << "ID: " << getId() << "\n";
             os << tree_property << "Rank: " << getRank() << "\n";
-            os << tree_property << "Dimensions: ";
-
-            for (size_t i = 0 ; i < getRank() ; ++i) {
-              os << "[" << getDimensionSize(i) << "]";
-            }
-
-            os << "\n";
+            os << tree_property << "Indices: " << getIndices() << "\n";
             os << tree_property << "Matched: " << getMatched() << "\n";
 
             stream << std::endl;
@@ -159,27 +153,14 @@ namespace marco::modeling
             return getRank(property);
           }
 
-          long getDimensionSize(size_t index) const
+          IndexSet getIndices() const
           {
-            return getDimensionSize(property, index);
-          }
-
-          MultidimensionalRange getRanges() const
-          {
-            return getRanges(property);
+            return getIndices(property);
           }
 
           unsigned int flatSize() const
           {
-            unsigned int result = 1;
-
-            for (unsigned int i = 0, rank = getRank() ; i < rank ; ++i) {
-              long size = getDimensionSize(i);
-              assert(size > 0);
-              result *= size;
-            }
-
-            return result;
+            return getIndices().size();
           }
 
           bool isVisible() const
@@ -198,23 +179,9 @@ namespace marco::modeling
             return Traits::getRank(&p);
           }
 
-          static long getDimensionSize(const VariableProperty& p, size_t index)
+          static IndexSet getIndices(const VariableProperty& p)
           {
-            assert(index < getRank(p));
-            return Traits::getDimensionSize(&p, index);
-          }
-
-          static MultidimensionalRange getRanges(const VariableProperty& p)
-          {
-            llvm::SmallVector<Range, 3> ranges;
-
-            for (size_t i = 0, e = getRank(p); i < e; ++i) {
-              long size = getDimensionSize(p, i);
-              assert(size > 0);
-              ranges.emplace_back(0, size);
-            }
-
-            return MultidimensionalRange(ranges);
+            return Traits::getIndices(&p);
           }
 
           // Custom equation property
@@ -318,7 +285,7 @@ namespace marco::modeling
             typename get_access_property<EquationProperty>::type>;
 
         EquationVertex(EquationProperty property)
-            : Matchable(getIterationRanges(property)),
+            : Matchable(IndexSet(getIterationRanges(property))),
               property(property),
               visible(true)
         {
@@ -1067,8 +1034,10 @@ namespace marco::modeling
           auto variableDescriptor = getVariableVertex(access.getVariable());
           Variable& variable = getVariable(variableDescriptor);
 
-          Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), variable.getRanges(), access);
-          graph.addEdge(equationDescriptor, variableDescriptor, edge);
+          for (const auto& range : variable.getIndices()) {
+            Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), range, access);
+            graph.addEdge(equationDescriptor, variableDescriptor, edge);
+          }
         }
       }
 
