@@ -7,11 +7,6 @@ set(SOURCES
 		SourcePosition.cpp
 		VariableFilter.cpp)
 
-if(MINGW OR MSVC)
-set(LINK_MODE STATIC)
-else()
-set(LINK_MODE SHARED)
-endif()
 marco_add_library(utils ${LINK_MODE}
 		${SOURCES}
 

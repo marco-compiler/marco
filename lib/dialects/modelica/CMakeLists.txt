@@ -1,8 +1,3 @@
-if(MINGW OR MSVC)
-    set(LINK_MODE STATIC)
-else()
-    set(LINK_MODE SHARED)
-endif()
 add_mlir_dialect_library(MLIRModelica ${LINK_MODE}
     Attributes.cpp
     ModelicaDialect.cpp

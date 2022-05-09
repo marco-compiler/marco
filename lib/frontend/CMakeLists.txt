@@ -17,11 +17,6 @@ set(MLIR_LIBS
         ${dialect_libs}
         ${conversion_libs})
 
-if(MINGW OR MSVC)
-    set(LINK_MODE STATIC)
-else()
-    set(LINK_MODE SHARED)
-endif()
 marco_add_library(frontend ${LINK_MODE}
     ${SOURCES}
 

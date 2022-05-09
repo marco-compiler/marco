@@ -29,6 +29,11 @@ if(MSVC)
 	include_directories("C:\\boost")
 endif()
 
+if(MINGW OR MSVC)
+    set(LINK_MODE STATIC)
+else()
+    set(LINK_MODE SHARED)
+endif()
 
 # Disable exceptions and RTTI
 if(MSVC)
