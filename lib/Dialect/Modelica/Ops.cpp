@@ -5773,6 +5773,9 @@ namespace mlir::modelica
 
   void PrintOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
+    // Ensure the operation doesn't get erased, no matter what.
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+
     if (value().getType().isa<ArrayType>()) {
       effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
     }
