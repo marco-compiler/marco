@@ -189,9 +189,10 @@ namespace marco::codegen
       /// The equations managed by IDA.
       std::set<ScheduledEquation*> equations;
 
-      /// Map from the entries of 'managedVariables' to the IDA variables living within the IDA
-      /// runtime data structure.
-      std::map<size_t, size_t> mappedVariables;
+      /// Map from the argument numbers of the elements of 'managedVariables'
+      /// to the index of the IDA variables living within the IDA runtime
+      /// data structure.
+      std::map<unsigned int, size_t> mappedVariables;
   };
 }
 

@@ -264,12 +264,12 @@ namespace marco::codegen
     // Map between the original variable argument numbers and the IDA state variables
     std::map<unsigned int, mlir::Value> idaStateVariables;
 
-    for (const auto& managedVariable : llvm::enumerate(managedVariables)) {
-      if (managedVariable.value().type == IDAVariableType::DERIVATIVE) {
+    for (const auto& managedVariable : managedVariables) {
+      if (managedVariable.type == IDAVariableType::DERIVATIVE) {
         continue;
       }
 
-      mlir::Value variable = variables[managedVariable.value().argNumber];
+      mlir::Value variable = variables[managedVariable.argNumber];
       auto arrayType = variable.getType().cast<ArrayType>();
       assert(arrayType.hasConstantShape());
 
@@ -300,7 +300,7 @@ namespace marco::codegen
         return res;
       }
 
-      if (managedVariable.value().type == IDAVariableType::ALGEBRAIC) {
+      if (managedVariable.type == IDAVariableType::ALGEBRAIC) {
         mlir::Value idaVariable = builder.create<mlir::ida::AddAlgebraicVariableOp>(
             variable.getLoc(),
             idaInstance,
@@ -309,13 +309,13 @@ namespace marco::codegen
             getterName,
             setterName);
 
-        mappedVariables[managedVariable.index()] = idaVariableIndex;
-        setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
+        mappedVariables[managedVariable.argNumber] = idaVariableIndex;
+        runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaVariable);
 
         ++idaVariableIndex;
       }
 
-      if (managedVariable.value().type == IDAVariableType::STATE) {
+      if (managedVariable.type == IDAVariableType::STATE) {
         mlir::Value idaStateVariable = builder.create<mlir::ida::AddStateVariableOp>(
             variable.getLoc(),
             idaInstance,
@@ -324,12 +324,12 @@ namespace marco::codegen
             getterName,
             setterName);
 
-        mappedVariables[managedVariable.index()] = idaVariableIndex;
-        idaStateVariables[managedVariable.value().argNumber] = idaStateVariable;
+        mappedVariables[managedVariable.argNumber] = idaVariableIndex;
+        idaStateVariables[managedVariable.argNumber] = idaStateVariable;
 
         runtimeData = setIDAVariable(builder, runtimeData, idaVariableIndex, idaStateVariable);
 
-        const auto& derivative = derivativesMap->getDerivative(managedVariable.value().argNumber);
+        const auto& derivative = derivativesMap->getDerivative(managedVariable.argNumber);
         mappedVariables[derivative] = idaVariableIndex;
 
         ++idaVariableIndex;
@@ -628,15 +628,15 @@ namespace marco::codegen
       }
 
       // Create the Jacobian functions
-      for (const auto& variable : llvm::enumerate(managedVariables)) {
-        if (variable.value().type == IDAVariableType::DERIVATIVE) {
+      for (const auto& variable : managedVariables) {
+        if (variable.type == IDAVariableType::DERIVATIVE) {
           // If the variable is a derivative, then skip the creation of the Jacobian functions
           // because it is already handled when encountering the state variable through the
           // 'alpha' parameter set into the derivative seed.
           continue;
         }
 
-        mlir::Value var = equationVariables[variable.value().argNumber];
+        mlir::Value var = equationVariables[variable.argNumber];
 
         std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
           return "ida_jacobianFunction_" + std::to_string(jacobianFunctionsCounter++);
@@ -650,7 +650,7 @@ namespace marco::codegen
             equation->getOperation().getLoc(),
             idaInstance,
             idaEquation,
-            getIDAVariable(builder, runtimeData, mappedVariables[variable.index()]),
+            getIDAVariable(builder, runtimeData, mappedVariables[variable.argNumber]),
             jacobianFunctionName);
       }
     }
