@@ -42,7 +42,7 @@ namespace
         std::cerr << "Time spent on initialization: " << initialization.totalElapsedTime() << " ms\n";
         std::cerr << "Time spent on non-state variables computation: " << nonStateVariables.totalElapsedTime() << " ms\n";
         std::cerr << "Time spent on state variables computation: " << stateVariables.totalElapsedTime() << " ms\n";
-        std::cerr << "Time spent on values printing: " << stateVariables.totalElapsedTime() << " ms\n";
+        std::cerr << "Time spent on values printing: " << printing.totalElapsedTime() << " ms\n";
       }
 
     public:
@@ -70,10 +70,10 @@ namespace
   #define PROFILER_NONSTATEVAR_STOP ::profiler().nonStateVariables.stop()
 
   #define PROFILER_STATEVAR_START ::profiler().stateVariables.start()
-  #define PROFILER_STATEVAR_STOP ::profiler().stateVariables.start()
+  #define PROFILER_STATEVAR_STOP ::profiler().stateVariables.stop()
 
   #define PROFILER_PRINTING_START ::profiler().printing.start()
-  #define PROFILER_PRINTING_STOP ::profiler().printing.start()
+  #define PROFILER_PRINTING_STOP ::profiler().printing.stop()
 
 #else
   #define PROFILER_ARG_START

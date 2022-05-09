@@ -175,59 +175,97 @@ namespace
 
   void print_csv_void(bool value)
   {
-    PROFILER_BOOL_START;
     auto& config = printerConfig();
 
     if (config.scientificNotation) {
+      PROFILER_BOOL_START;
       std::cout << std::scientific;
+      PROFILER_BOOL_STOP;
     } else {
+      PROFILER_BOOL_START;
       std::cout << std::boolalpha;
+      PROFILER_BOOL_STOP;
     }
 
+    PROFILER_BOOL_START;
     std::cout << value;
     PROFILER_BOOL_STOP;
   }
 
-  template<typename T>
-  void print_csv_value(T value)
+  void print_csv_void(int32_t value)
   {
     auto& config = printerConfig();
 
     if (config.scientificNotation) {
+      PROFILER_INT_START;
       std::cout << std::scientific;
+      PROFILER_INT_STOP;
     } else {
+      PROFILER_INT_START;
       std::cout << std::fixed << std::setprecision(config.precision);
+      PROFILER_INT_STOP;
     }
 
-    std::cout << value;
-  }
-
-  void print_csv_void(int32_t value)
-  {
     PROFILER_INT_START;
-    print_csv_value(value);
+    std::cout << value;
     PROFILER_INT_STOP;
   }
 
   void print_csv_void(int64_t value)
   {
+    auto& config = printerConfig();
+
+    if (config.scientificNotation) {
+      PROFILER_INT_START;
+      std::cout << std::scientific;
+      PROFILER_INT_STOP;
+    } else {
+      PROFILER_INT_START;
+      std::cout << std::fixed << std::setprecision(config.precision);
+      PROFILER_INT_STOP;
+    }
+
     PROFILER_INT_START;
-    print_csv_value(value);
+    std::cout << value;
     PROFILER_INT_STOP;
   }
 
   void print_csv_void(float value)
   {
-    PROFILER_FLOAT_START;
-    print_csv_value(value);
-    PROFILER_FLOAT_STOP;
+    auto& config = printerConfig();
+
+    if (config.scientificNotation) {
+      PROFILER_FLOAT_START;
+      std::cout << std::scientific;
+      PROFILER_FLOAT_STOP;
+    } else {
+      PROFILER_FLOAT_START;
+      std::cout << std::fixed << std::setprecision(config.precision);
+      PROFILER_FLOAT_STOP;
+    }
+
+    PROFILER_INT_START;
+    std::cout << value;
+    PROFILER_INT_STOP;
   }
 
   void print_csv_void(double value)
   {
-    PROFILER_FLOAT_START;
-    print_csv_value(value);
-    PROFILER_FLOAT_STOP;
+    auto& config = printerConfig();
+
+    if (config.scientificNotation) {
+      PROFILER_FLOAT_START;
+      std::cout << std::scientific;
+      PROFILER_FLOAT_STOP;
+    } else {
+      PROFILER_FLOAT_START;
+      std::cout << std::fixed << std::setprecision(config.precision);
+      PROFILER_FLOAT_STOP;
+    }
+
+    PROFILER_INT_START;
+    std::cout << value;
+    PROFILER_INT_STOP;
   }
 }
 
