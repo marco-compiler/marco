@@ -13,14 +13,16 @@
 // The following three functions are needed for a dll without stdlib to be
 // compiled against on Windows.
 
-BOOL WINAPI DllMain(
-    HINSTANCE hinstDLL,
-    DWORD fdwReason,
-    LPVOID lpReserved)
-{
-    return TRUE;
-}
+// Needed if building with standard library
+// BOOL WINAPI DllMain(
+//     HINSTANCE hinstDLL,
+//     DWORD fdwReason,
+//     LPVOID lpReserved)
+// {
+//     return TRUE;
+// }
 
+// Needed on MINGW for RuntimeTest, when building dll to avoid warning
 extern "C" BOOL WINAPI DllMainCRTStartup(
 	HINSTANCE hinstDLL,
 	DWORD fdwReason,
@@ -29,6 +31,7 @@ extern "C" BOOL WINAPI DllMainCRTStartup(
 	return TRUE;
 }
 
+// Needed on MSVC to avoid unresolved external error
 extern "C" BOOL WINAPI _DllMainCRTStartup(
     HINSTANCE hinstDLL,
     DWORD fdwReason,
@@ -64,16 +67,14 @@ extern "C" int __main()
 
 // The following code is needed when building with MSVC.
 #ifdef MSVC_BUILD
-#ifndef MSVC_SHARED
-extern "C" int main();
+//extern "C" int main();
 
-// This is the first function called in the Windows executable.
-extern "C" void mainCRTStartup()
-{
-	main();
-	return;
-}
-#endif
+// This is the first function called in the Windows executable with cstdlib.
+// extern "C" void mainCRTStartup()
+// {
+// 	main();
+// 	return;
+// }
 
 extern "C" __declspec(noreturn) void __cdecl 
 __imp__invalid_parameter_noinfo_noreturn(void)
@@ -184,12 +185,3 @@ void* memset(void* s, int c,  size_t len)
 }
 
 #endif // WINDOWS_NOSTDLIB
-
-namespace nst {
-	int mux(int a, int b)
-	{
-		if(a > b)
-			return a;
-		return b;
-	}
-}
