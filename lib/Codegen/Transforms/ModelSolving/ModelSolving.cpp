@@ -9,23 +9,17 @@
 #include "marco/Codegen/Transforms/ModelSolving/TypeConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/VariablesMap.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
-#include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/VariableFilter/VariableFilter.h"
-#include "mlir/Conversion/LLVMCommon/Pattern.h"
-#include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cassert>
 #include <map>
 #include <memory>
 #include <queue>
-#include <set>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -84,7 +78,9 @@ namespace
   };
 }
 
-static void collectDerivedVariablesIndices(std::map<unsigned int, IndexSet>& derivedIndices, const Equations<Equation>& equations)
+static void collectDerivedVariablesIndices(
+    std::map<unsigned int, IndexSet>& derivedIndices,
+    const Equations<Equation>& equations)
 {
   for (const auto& equation : equations) {
     auto accesses = equation->getAccesses();
@@ -289,7 +285,10 @@ static mlir::LogicalResult createDerivativeVariables(
   return mlir::success();
 }
 
-static mlir::LogicalResult removeDerOps(mlir::OpBuilder& builder, ModelOp modelOp, const DerivativesMap& derivativesMap)
+static mlir::LogicalResult removeDerOps(
+    mlir::OpBuilder& builder,
+    ModelOp modelOp,
+    const DerivativesMap& derivativesMap)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -396,10 +395,6 @@ namespace
 
         mlir::OpBuilder builder(models[0]);
 
-        // Store the list of the original variable names, as it will be needed when
-        // printing the values but new additional members will have been created by that time.
-        auto variableNames = models[0].variableNames();
-
         // Copy the equations into the initial equations' region, in order to use
         // them when computing the initial values of the variables.
 
@@ -469,36 +464,21 @@ namespace
           return signalPassFailure();
         }
 
-        // Convert both the models to scheduled ones
+        // Solve the initial conditions problem
         Model<ScheduledEquationsBlock> scheduledInitialModel(initialModel.getOperation());
-        Model<ScheduledEquationsBlock> scheduledModel(model.getOperation());
 
         /*
-        auto initialModelVariableMatchableFn = [](const Variable& variable) -> bool {
-          return !variable.isConstant();
-        };
-
-        if (mlir::failed(convertToScheduledModel(builder, scheduledInitialModel, initialModel, initialModelVariableMatchableFn))) {
-          scheduledInitialModel.getOperation().emitError("Can't solve the initialization problem");
+        if (mlir::failed(solveInitialConditionsModel(scheduledInitialModel, initialModel))) {
+          initialModel.getOperation().emitError("Can't solve the initialization problem");
           return signalPassFailure();
         }
          */
 
-        auto modelVariableMatchableFn = [&](const Variable& variable) -> IndexSet {
-          IndexSet matchableIndices(variable.getIndices());
+        // Solve the main model
+        Model<ScheduledEquationsBlock> scheduledModel(model.getOperation());
 
-          if (variable.isConstant()) {
-            matchableIndices.clear();
-            return matchableIndices;
-          }
-
-          auto argNumber = variable.getValue().cast<mlir::BlockArgument>().getArgNumber();
-          matchableIndices -= derivedIndices[argNumber];
-          return matchableIndices;
-        };
-
-        if (mlir::failed(convertToScheduledModel(builder, scheduledModel, model, modelVariableMatchableFn))) {
-          scheduledInitialModel.getOperation().emitError("Can't solve the model");
+        if (mlir::failed(solveMainModel(builder, scheduledModel, model))) {
+          model.getOperation().emitError("Can't solve the main model");
           return signalPassFailure();
         }
 
@@ -668,15 +648,76 @@ namespace
         return mlir::success();
       }
 
-      mlir::LogicalResult convertToScheduledModel(
+      mlir::LogicalResult solveInitialConditionsModel(
           mlir::OpBuilder& builder,
           Model<ScheduledEquationsBlock>& result,
-          const Model<Equation>& model,
-          std::function<IndexSet(const Variable&)> matchableIndicesFn)
+          const Model<Equation>& model)
       {
         // Matching process
         Model<MatchedEquation> matchedModel(model.getOperation());
         matchedModel.setDerivativesMap(model.getDerivativesMap());
+
+        auto matchableIndicesFn = [&](const Variable& variable) -> IndexSet {
+          IndexSet matchableIndices(variable.getIndices());
+
+          if (variable.isConstant()) {
+            matchableIndices.clear();
+            return matchableIndices;
+          }
+
+          return matchableIndices;
+        };
+
+        if (auto res = match(matchedModel, model, matchableIndicesFn); mlir::failed(res)) {
+          return res;
+        }
+
+        if (auto res = splitEquations(builder, matchedModel); mlir::failed(res)) {
+          return res;
+        }
+
+        // Resolve the algebraic loops
+        if (auto res = solveCycles(matchedModel, builder); mlir::failed(res)) {
+          if (options.solver != Solver::ida) {
+            // Check if the selected solver can deal with cycles. If not, fail.
+            return res;
+          }
+        }
+
+        // Schedule the equations
+        if (auto res = schedule(result, matchedModel); mlir::failed(res)) {
+          return res;
+        }
+
+        result.setDerivativesMap(model.getDerivativesMap());
+        return mlir::success();
+      }
+
+      mlir::LogicalResult solveMainModel(
+          mlir::OpBuilder& builder,
+          Model<ScheduledEquationsBlock>& result,
+          const Model<Equation>& model)
+      {
+        // Matching process
+        Model<MatchedEquation> matchedModel(model.getOperation());
+        matchedModel.setDerivativesMap(model.getDerivativesMap());
+
+        auto matchableIndicesFn = [&](const Variable& variable) -> IndexSet {
+          IndexSet matchableIndices(variable.getIndices());
+
+          if (variable.isConstant()) {
+            matchableIndices.clear();
+            return matchableIndices;
+          }
+
+          auto argNumber = variable.getValue().cast<mlir::BlockArgument>().getArgNumber();
+
+          if (auto derivativesMap = matchedModel.getDerivativesMap(); derivativesMap.hasDerivative(argNumber)) {
+            matchableIndices -= matchedModel.getDerivativesMap().getDerivedIndices(argNumber);
+          }
+
+          return matchableIndices;
+        };
 
         if (auto res = match(matchedModel, model, matchableIndicesFn); mlir::failed(res)) {
           return res;

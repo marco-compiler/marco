@@ -551,7 +551,9 @@ namespace marco::codegen
           auto res = explicitWritingEquation->replaceInto(
               builder, explicitWritingEquation->getIterationRanges(), *clone, access.getAccessFunction(), access.getPath());
 
-          assert(mlir::succeeded(res));
+          if (mlir::failed(res)) {
+            return res;
+          }
 
           // Add the equation with the replaced access
           auto readAccessIndices = access.getAccessFunction().inverseMap(
@@ -580,6 +582,19 @@ namespace marco::codegen
 
       processedEquations.pop();
     }
+
+    // Check that all the non-IDA variables have been replaced
+    assert(llvm::none_of(independentEquations, [&](const auto& equation) {
+      return llvm::any_of(equation->getAccesses(), [&](const auto& access) {
+        auto argNumber = access.getVariable()->getValue().template cast<mlir::BlockArgument>().getArgNumber();
+
+        auto it = llvm::find_if(managedVariables, [&](const auto& managedVariable) {
+          return managedVariable.argNumber == argNumber;
+        });
+
+        return it == managedVariables.end();
+      });
+    }) && "Some non-IDA variables have not been replaced");
 
     // The accesses to non-IDA variables have been replaced. Now we can proceed to create the
     // residual and jacobian functions.
@@ -668,9 +683,8 @@ namespace marco::codegen
     mlir::Value idaInstance = getIDAInstance(builder, runtimeData);
 
     for (const auto& access : equation.getAccesses()) {
-      auto accessedVariableIndex = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
-
-      auto idaVariableIndex = mappedVariables.find(accessedVariableIndex);
+      auto argNumber = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+      auto idaVariableIndex = mappedVariables.find(argNumber);
       assert(idaVariableIndex != mappedVariables.end());
 
       mlir::Value idaVariable = getIDAVariable(builder, runtimeData, idaVariableIndex->second);

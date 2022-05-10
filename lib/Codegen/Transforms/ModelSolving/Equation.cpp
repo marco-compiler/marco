@@ -561,6 +561,12 @@ namespace marco::codegen
     // Map of the source equation values to the destination ones
     mlir::BlockAndValueMapping mapping;
 
+    // First map the variables to themselves, so that direct accesses can be replaced in case of implicit loops
+    for (const auto& variable : getVariables()) {
+      auto variableValue = variable->getValue();
+      mapping.map(variableValue, variableValue);
+    }
+
     // Determine the access transformation to be applied to each induction variable usage.
     // For example, given the following equations:
     //   destination: x[i0, i1] = 1 - y[i1 + 3, i0 - 2]
@@ -652,7 +658,7 @@ namespace marco::codegen
 
       for (size_t i = 0, e = getNumOfIterationVars(); i < e; ++i) {
         if (usedInductions[i]) {
-          transformationAccesses.push_back(combinedReducedAccess[usedInductionIndex]);
+          transformationAccesses.push_back(combinedReducedAccess[usedInductionIndex++]);
 
         } else {
           const auto& range = equationIndices[i];

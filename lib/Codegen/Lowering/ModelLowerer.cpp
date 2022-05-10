@@ -151,8 +151,20 @@ namespace marco::codegen::lowering
       } else {
         reference.set(*values[0]);
       }
+
     } else if (member.isParameter() && member.hasInitializer()){
-      reference.set(*lower(*member.getInitializer())[0]);
+      mlir::Value value = *lower(*member.getInitializer())[0];
+
+      if (type.isa<ArrayType>()) {
+        if (value.getType().isa<ArrayType>()) {
+          reference.set(value);
+        } else {
+          builder().create<ArrayFillOp>(location, *reference, value);
+        }
+      } else {
+        reference.set(value);
+      }
+
     } else {
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(arrayType.getElementType()));
@@ -173,18 +185,48 @@ namespace marco::codegen::lowering
     mlir::OpBuilder::InsertionGuard guard(builder());
     builder().setInsertionPointToEnd(modelOp.equationsBlock());
 
+    auto memberType = lower(member.getType());
+    auto expressionType = lower(expression.getType());
+
+    std::vector<mlir::Value> inductionVariables;
+
+    if (auto memberArrayType = memberType.dyn_cast<ArrayType>()) {
+      unsigned int expressionRank = 0;
+
+      if (auto expressionArrayType = expressionType.dyn_cast<ArrayType>()) {
+        expressionRank = expressionArrayType.getRank();
+      }
+
+      auto memberRank = memberArrayType.getRank();
+      assert(expressionRank == 0 || expressionRank == memberRank);
+
+      for (unsigned int i = 0; i < memberRank - expressionRank; ++i) {
+        auto forEquationOp = builder().create<ForEquationOp>(location, 0, memberArrayType.getShape()[i] - 1);
+        inductionVariables.push_back(forEquationOp.induction());
+        builder().setInsertionPointToStart(forEquationOp.bodyBlock());
+      }
+    }
+
     auto equationOp = builder().create<EquationOp>(location);
     assert(equationOp.bodyRegion().empty());
     mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.bodyRegion());
     builder().setInsertionPointToStart(equationBodyBlock);
 
+    // Left-hand side
+    mlir::Value lhsValue = *symbolTable().lookup(member.getName());
+
+    if (!inductionVariables.empty()) {
+      lhsValue = builder().create<LoadOp>(location, lhsValue, inductionVariables);
+    }
+
     // Right-hand side
     auto rhs = lower(expression);
     assert(rhs.size() == 1);
+    mlir::Value rhsValue = *rhs[0];
 
     // Create the assignment
-    mlir::Value lhsTuple = builder().create<EquationSideOp>(location, *symbolTable().lookup(member.getName()));
-    mlir::Value rhsTuple = builder().create<EquationSideOp>(location, *rhs[0]);
+    mlir::Value lhsTuple = builder().create<EquationSideOp>(location, lhsValue);
+    mlir::Value rhsTuple = builder().create<EquationSideOp>(location, rhsValue);
     builder().create<EquationSidesOp>(location, lhsTuple, rhsTuple);
   }
 }
