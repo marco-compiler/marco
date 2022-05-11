@@ -34,7 +34,7 @@ inline int printString(const char* str)
 {
 	int len = strlen(str);
 	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-	WriteConsoleA(out, str, len, NULL, NULL);
+	WriteFile(out, str, len, NULL, NULL);
 	return len;
 }
 
@@ -285,7 +285,7 @@ inline void printBool(bool value) {
 
 inline void printChar(int c) {
 	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-	WriteConsoleA(out, &c, 1, NULL, NULL);
+	WriteFile(out, &c, 1, NULL, NULL);
 }
 
 template<typename T>

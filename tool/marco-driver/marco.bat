@@ -29,7 +29,6 @@ if %PRINT_VERSION% == "True" (
 )
 
 set TEMPORARY_DIR=%tmp%\test~%random%.tmp
-if exist %TEMPORARY_DIR% rmdir /s /q %TEMPORARY_DIR%
 mkdir %TEMPORARY_DIR%
 
 marco-driver %OPTIONS% %INPUT_FILES% -o "%TEMPORARY_DIR%\simulation.obj"
@@ -41,14 +40,11 @@ if not %errorlevel% == 0 (
 )
 
 if %COMPILE_ONLY% == "True" (
-    mv "%TEMPORARY_DIR%/simulation.obj" "%OUTPUT_FILE%.o"
-    call :cleanup
-    exit /b 0
+    mv "%TEMPORARY_DIR%%MODEL%/simulation.obj" "%OUTPUT_FILE%.o"
 )
 
 if %SHOULD_LINK% == "True" (
-    link /nologo /machine:x64 "%TEMPORARY_DIR%\simulation.obj" Kernel32.lib %SCRIPT_PATH%\..\lib\MARCORuntime.lib /out:%OUTPUT_FILE%
-    exit /b
+    link /nologo /machine:x64 "%TEMPORARY_DIR%\simulation.obj" Kernel32.lib %SCRIPT_PATH%\..\lib\MARCORuntime.lib /out:%OUTPUT_FILE%.exe
 )
 
 if not %errorlevel% == 0 (
