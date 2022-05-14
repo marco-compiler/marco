@@ -317,7 +317,7 @@ namespace marco::modeling
       class Iterator;
       using const_iterator = Iterator;
 
-      Impl(size_t minElements = 1, size_t maxElements = 2);
+      Impl(size_t minElements = 4, size_t maxElements = 16);
 
       Impl(llvm::ArrayRef<Point> points);
 
@@ -797,7 +797,8 @@ namespace marco::modeling
       return rhs.contains(range);
     }));
 
-    // Add each range one by one
+    std::vector<MultidimensionalRange> toReinsert;
+
     for (const auto& range : nonOverlappingRanges) {
       if (root == nullptr) {
         root = std::make_unique<Node>(nullptr, range);
@@ -809,39 +810,62 @@ namespace marco::modeling
         // Add the record to the leaf node
         node->values.push_back(range);
 
-        // Ascend from a leaf node to the root, adjusting the covering
-        // rectangles and propagating node splits as necessary.
+        // Merge the adjacent ranges
+        merge(node->values);
 
-        while (node->fanOut() > maxElements) {
-          auto newNodes = splitNode(*node);
+        if (!node->isRoot() && node->fanOut() < minElements) {
+          while (!node->isRoot() && node->fanOut() < minElements) {
+            for (const auto& value : node->values) {
+              toReinsert.push_back(value);
+            }
 
-          if (node->isRoot()) {
-            // If node split propagation caused the root to split, then
-            // create a new root whose children are the two resulting nodes.
-            auto rootBoundary = getMBR(newNodes.first->getBoundary(), newNodes.second->getBoundary());
+            std::vector<std::unique_ptr<Node>> newChildren;
 
-            root = std::make_unique<Node>(nullptr, rootBoundary);
+            if (auto parent = node->parent; parent != nullptr) {
+              for (auto& child : node->parent->children) {
+                if (child.get() != node) {
+                  newChildren.push_back(std::move(child));
+                }
+              }
+            }
 
-            newNodes.first->parent = root.get();
-            newNodes.second->parent = root.get();
-
-            root->add(std::move(newNodes.first));
-            root->add(std::move(newNodes.second));
-
-            node = root.get();
-            break;
+            node->parent->children = std::move(newChildren);
+            node->parent->recalcBoundary();
+            node = node->parent;
           }
+        } else if (node->fanOut() > maxElements) {
+          // Propagate node splits
+          while (node->fanOut() > maxElements) {
+            auto newNodes = splitNode(*node);
 
-          *node = std::move(*newNodes.first);
+            if (node->isRoot()) {
+              // If node split propagation caused the root to split, then
+              // create a new root whose children are the two resulting nodes.
+              auto rootBoundary = getMBR(newNodes.first->getBoundary(), newNodes.second->getBoundary());
 
-          for (auto& child : node->children) {
-            child->parent = node;
+              root = std::make_unique<Node>(nullptr, rootBoundary);
+
+              newNodes.first->parent = root.get();
+              newNodes.second->parent = root.get();
+
+              root->add(std::move(newNodes.first));
+              root->add(std::move(newNodes.second));
+
+              node = root.get();
+              break;
+            }
+
+            *node = std::move(*newNodes.first);
+
+            for (auto& child : node->children) {
+              child->parent = node;
+            }
+
+            node->parent->add(std::move(newNodes.second));
+
+            // Propagate changes upward
+            node = node->parent;
           }
-
-          node->parent->add(std::move(newNodes.second));
-
-          // Propagate changes upward
-          node = node->parent;
         }
 
         while (node != nullptr) {
@@ -849,6 +873,10 @@ namespace marco::modeling
           node = node->parent;
         }
       }
+    }
+
+    for (const auto& range : toReinsert) {
+      *this += range;
     }
 
     // Check that all the invariants are respected
@@ -1258,6 +1286,7 @@ namespace marco::modeling
     }
 
     if (!checkFanOutInvariant(*this)) {
+      std::cerr << "IndexSet: fan-out invariant failure" << std::endl;
       return false;
     }
 
