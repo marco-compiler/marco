@@ -17,7 +17,7 @@ TEST(IndexSet, empty)
   EXPECT_FALSE(nonEmptyIndexSet.empty());
 }
 
-TEST(IndexSet, size)
+TEST(IndexSet, flatSize)
 {
   IndexSet indices;
 
@@ -31,7 +31,7 @@ TEST(IndexSet, size)
       Range(2, 5)
   });
 
-  EXPECT_EQ(indices.size(), 27);
+  EXPECT_EQ(indices.flatSize(), 27);
 }
 
 TEST(IndexSet, clear)
@@ -44,7 +44,7 @@ TEST(IndexSet, clear)
   });
 
   indices.clear();
-  EXPECT_EQ(indices.size(), 0);
+  EXPECT_EQ(indices.flatSize(), 0);
 }
 
 TEST(IndexSet, containsElement)

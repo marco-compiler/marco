@@ -160,7 +160,7 @@ namespace marco::modeling
 
           unsigned int flatSize() const
           {
-            return getIndices().size();
+            return getIndices().flatSize();
           }
 
           bool isVisible() const
@@ -1392,7 +1392,7 @@ namespace marco::modeling
       void getAugmentingPaths(llvm::SmallVectorImpl<AugmentingPath>& paths) const
       {
         auto sortHeuristic = [](const BFSStep& first, const BFSStep& second) {
-          return first.getCandidates().size() > second.getCandidates().size();
+          return first.getCandidates().flatSize() > second.getCandidates().flatSize();
         };
 
         Frontier frontier;
