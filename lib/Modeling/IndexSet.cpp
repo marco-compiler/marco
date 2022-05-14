@@ -1,5 +1,5 @@
-#include "llvm/ADT/SmallVector.h"
 #include "marco/Modeling/IndexSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include <stack>
 #include <queue>
 
@@ -36,7 +36,7 @@ namespace
     unsigned int getFlatSize() const;
 
     /// Get the amount of children or contained values.
-    size_t size() const;
+    size_t fanOut() const;
 
     /// Add a child node.
     void add(std::unique_ptr<Node> child);
@@ -229,7 +229,7 @@ namespace
     return flatSize;
   }
 
-  size_t Node::size() const
+  size_t Node::fanOut() const
   {
     if (isLeaf()) {
       return values.size();
@@ -395,6 +395,8 @@ namespace marco::modeling
 
       IndexSet::Impl complement(const MultidimensionalRange& other) const;
 
+      const Node* getRoot() const;
+
     private:
       /// Select a leaf node in which to place a new entry.
       Node* chooseLeaf(const MultidimensionalRange& entry) const;
@@ -497,15 +499,17 @@ namespace marco::modeling
 
       std::pair<std::unique_ptr<Node>, std::unique_ptr<Node>> splitNode(Node& node);
 
+      /// Check if all the invariants are respected.
       bool isValid() const;
 
-    private:
+    public:
       /// The minimum number of elements for each node (apart the root).
       const size_t minElements;
 
       /// The maximum number of elements for each node.
       const size_t maxElements;
 
+    private:
       std::unique_ptr<Node> root;
       bool initialized;
       size_t allowedRank;
@@ -544,7 +548,94 @@ namespace marco::modeling
       const Node* node;
       size_t valueIndex;
   };
+}
 
+/// Check that all the children of a node has the correct parent set.
+static bool checkParentRelationships(const IndexSet::Impl& indexSet)
+{
+  std::stack<const Node*> nodes;
+
+  if (auto root = indexSet.getRoot(); root != nullptr) {
+    nodes.push(root);
+  }
+
+  while (!nodes.empty()) {
+    auto node = nodes.top();
+    nodes.pop();
+
+    for (const auto& child : node->children) {
+      if (child->parent != node) {
+        return false;
+      }
+
+      nodes.push(child.get());
+    }
+  }
+
+  return true;
+}
+
+/// Check the correctness of the MBR of all the nodes.
+static bool checkMBRsInvariant(const IndexSet::Impl& indexSet)
+{
+  std::stack<const Node*> nodes;
+
+  if (auto root = indexSet.getRoot(); root != nullptr) {
+    nodes.push(root);
+  }
+
+  while (!nodes.empty()) {
+    auto node = nodes.top();
+    nodes.pop();
+
+    if (node->isLeaf()) {
+      if (node->getBoundary() != getMBR(llvm::makeArrayRef(node->values))) {
+        return false;
+      }
+    } else {
+      if (node->getBoundary() != getMBR(llvm::makeArrayRef(node->children))) {
+        return false;
+      }
+    }
+
+    for (const auto& child : node->children) {
+      nodes.push(child.get());
+    }
+  }
+
+  return true;
+}
+
+/// Check that all the nodes have between a minimum and a maximum
+/// amount of out edges (apart the root node).
+static bool checkFanOutInvariant(const IndexSet::Impl& indexSet)
+{
+  std::stack<const Node*> nodes;
+
+  if (auto root = indexSet.getRoot(); root != nullptr) {
+    for (const auto& child : root->children) {
+      nodes.push(child.get());
+    }
+  }
+
+  while (!nodes.empty()) {
+    auto node = nodes.top();
+    nodes.pop();
+
+    if (auto size = node->fanOut(); size < indexSet.minElements || size > indexSet.maxElements) {
+      return false;
+    }
+
+    for (const auto& child : node->children) {
+      nodes.push(child.get());
+    }
+  }
+
+  return true;
+}
+
+namespace marco::modeling
+{
   IndexSet::Impl::Impl(size_t minElements, size_t maxElements)
     : minElements(minElements),
       maxElements(maxElements),
@@ -670,16 +761,15 @@ namespace marco::modeling
     assert(rhs.rank() == allowedRank && "Incompatible rank");
 
     // We must add only the non-existing points
-    std::vector<MultidimensionalRange> values;
+    std::vector<MultidimensionalRange> nonOverlappingRanges;
 
     if (root == nullptr) {
-      values.push_back(rhs);
+      nonOverlappingRanges.push_back(rhs);
     } else {
       std::vector<MultidimensionalRange> current;
       current.push_back(rhs);
 
-      for (auto it = begin(), e = end(); it != e; ++it) {
-        const auto& range = *it;
+      for (const auto& range : *this) {
         std::vector<MultidimensionalRange> next;
 
         for (const auto& curr : current) {
@@ -687,7 +777,7 @@ namespace marco::modeling
             if (overlaps(diff)) {
               next.push_back(std::move(diff));
             } else {
-              values.push_back(std::move(diff));
+              nonOverlappingRanges.push_back(std::move(diff));
             }
           }
         }
@@ -696,26 +786,33 @@ namespace marco::modeling
       }
     }
 
-    // Add each range one by one
-    for (const auto& value : values) {
-      assert(llvm::none_of(*this, [&](const auto& range) {
-        return range.overlaps(value);
-      }));
+    // Check that all the identified ranges do not overlap the existing points
+    assert(llvm::none_of(nonOverlappingRanges, [&](const auto& range) {
+      return overlaps(range);
+    }));
 
+    // For safety, also check that all the ranges we are going to add do belong
+    // to the original range.
+    assert(llvm::all_of(nonOverlappingRanges, [&](const auto& range) {
+      return rhs.contains(range);
+    }));
+
+    // Add each range one by one
+    for (const auto& range : nonOverlappingRanges) {
       if (root == nullptr) {
-        root = std::make_unique<Node>(nullptr, value);
-        root->values.push_back(value);
+        root = std::make_unique<Node>(nullptr, range);
+        root->values.push_back(range);
       } else {
         // Find position for the new record
-        auto node = chooseLeaf(value);
+        auto node = chooseLeaf(range);
 
         // Add the record to the leaf node
-        node->values.push_back(value);
+        node->values.push_back(range);
 
         // Ascend from a leaf node to the root, adjusting the covering
         // rectangles and propagating node splits as necessary.
 
-        while (node->size() > maxElements) {
+        while (node->fanOut() > maxElements) {
           auto newNodes = splitNode(*node);
 
           if (node->isRoot()) {
@@ -752,15 +849,12 @@ namespace marco::modeling
           node = node->parent;
         }
       }
-
-      // Check that all the inviariants are respected
-      //assert(isValid() && "IndexSet invariants are not respected");
     }
 
-    // Check that all the points belonging to the added range now belong to the index set.
-    assert(llvm::all_of(rhs, [&](const auto& point) {
-      return contains(point);
-    }));
+    // Check that all the invariants are respected
+    assert(isValid());
+
+    return *this;
   }
 
   IndexSet::Impl& IndexSet::Impl::operator+=(const IndexSet::Impl& rhs)
@@ -1088,6 +1182,11 @@ namespace marco::modeling
     return IndexSet::Impl(result);
   }
 
+  const Node* IndexSet::Impl::getRoot() const
+  {
+    return root.get();
+  }
+
   Node* IndexSet::Impl::chooseLeaf(const MultidimensionalRange& entry) const
   {
     Node* node = root.get();
@@ -1146,35 +1245,22 @@ namespace marco::modeling
     }
   }
 
-  static bool checkLeavesDepths(const Node* root)
-  {
-    std::vector<size_t> depths;
-    std::stack<const Node*> nodes;
-
-    if (root != nullptr) {
-      nodes.push(root);
-    }
-
-    while (!nodes.empty()) {
-      auto node = nodes.top();
-      nodes.pop();
-
-      for (const auto& child : node->children) {
-        nodes.push(child.get());
-      }
-
-      if (node->isLeaf()) {
-
-      }
-    }
-
-    return depths.empty() || llvm::all_of(depths, [&](const auto& depth) {
-             return depth == depths[0];
-           });
-  }
-
   bool IndexSet::Impl::isValid() const
   {
+    if (!checkParentRelationships(*this)) {
+      std::cerr << "IndexSet: parents hierarchy invariant failure" << std::endl;
+      return false;
+    }
+
+    if (!checkMBRsInvariant(*this)) {
+      std::cerr << "IndexSet: MBRs invariant failure" << std::endl;
+      return false;
+    }
+
+    if (!checkFanOutInvariant(*this)) {
+      return false;
+    }
+
     return true;
   }
 
