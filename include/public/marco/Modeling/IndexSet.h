@@ -3,7 +3,10 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "marco/Modeling/MultidimensionalRange.h"
+#include <memory>
 #include <list>
+#include <set>
+#include <variant>
 
 namespace marco::modeling
 {
@@ -11,11 +14,50 @@ namespace marco::modeling
    /// It replaces the multidimensional vectors in order to achieve O(1) scaling.
   class IndexSet
   {
-    private:
-      using Container = std::list<MultidimensionalRange>;
-
     public:
-      using const_iterator = Container::const_iterator;
+      class Iterator
+      {
+        public:
+          using iterator_category = std::input_iterator_tag;
+          using value_type = MultidimensionalRange;
+          using difference_type = std::ptrdiff_t;
+          using pointer = const MultidimensionalRange*;
+          using reference = const MultidimensionalRange&;
+
+          class Impl;
+
+          Iterator(const Iterator& other);
+
+          Iterator(Iterator&& other);
+
+          ~Iterator();
+
+          Iterator& operator=(const Iterator& other);
+
+          friend void swap(Iterator& first, Iterator& second);
+
+          static Iterator begin(const IndexSet& indexSet);
+
+          static Iterator end(const IndexSet& indexSet);
+
+          bool operator==(const Iterator& it) const;
+
+          bool operator!=(const Iterator& it) const;
+
+          Iterator& operator++();
+
+          Iterator operator++(int);
+
+          reference operator*() const;
+
+        private:
+          Iterator(std::unique_ptr<Impl> impl);
+
+          std::unique_ptr<Impl> impl;
+      };
+
+      using const_iterator = Iterator;
+      class Impl;
 
       IndexSet();
 
@@ -23,7 +65,17 @@ namespace marco::modeling
 
       IndexSet(llvm::ArrayRef<MultidimensionalRange> ranges);
 
-      friend std::ostream& operator<<(std::ostream& stream, const IndexSet& obj);
+      IndexSet(const IndexSet& other);
+
+      IndexSet(IndexSet&& other);
+
+      ~IndexSet();
+
+      IndexSet& operator=(const IndexSet& other);
+
+      friend void swap(IndexSet& first, IndexSet& second);
+
+      friend std::ostream& operator<<(std::ostream& os, const IndexSet& obj);
 
       bool operator==(const Point& rhs) const;
 
@@ -36,8 +88,6 @@ namespace marco::modeling
       bool operator!=(const MultidimensionalRange& rhs) const;
 
       bool operator!=(const IndexSet& rhs) const;
-
-      const MultidimensionalRange& operator[](size_t index) const;
 
       IndexSet& operator+=(const Point& rhs);
 
@@ -63,7 +113,7 @@ namespace marco::modeling
 
       size_t rank() const;
 
-      size_t size() const;
+      size_t flatSize() const;
 
       void clear();
 
@@ -88,11 +138,9 @@ namespace marco::modeling
       IndexSet complement(const MultidimensionalRange& other) const;
 
     private:
-      void sort();
+      IndexSet(std::unique_ptr<Impl> impl);
 
-      void merge();
-
-      std::list<MultidimensionalRange> ranges;
+      std::unique_ptr<Impl> impl;
   };
 }
 
