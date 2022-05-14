@@ -1342,6 +1342,8 @@ namespace marco::modeling
       fetchNextLeaf();
       valueIndex = 0;
     }
+
+    return *this;
   }
 
   IndexSet::Impl::Iterator IndexSet::Impl::Iterator::operator++(int)
