@@ -14,6 +14,8 @@ namespace marco::modeling::internal
         public:
           Delta(const Point& keys, const Point& values);
 
+          Delta(const MultidimensionalRange& keys, const MultidimensionalRange& values);
+
           bool operator==(const Delta& other) const;
 
           long operator[](size_t index) const;
@@ -68,6 +70,8 @@ namespace marco::modeling::internal
       bool get(const Point& equation, const Point& variable) const override;
 
       void set(const Point& equation, const Point& variable) override;
+
+      void set(const MultidimensionalRange& equations, const MultidimensionalRange& variables);
 
       void unset(const Point& equation, const Point& variable) override;
 

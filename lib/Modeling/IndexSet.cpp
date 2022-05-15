@@ -772,7 +772,7 @@ namespace marco::modeling
       auto& range = nonOverlappingRanges.front();
 
       // Check that all the range do not overlap the existing points
-      assert(!overlaps(range));
+      //assert(!overlaps(range));
 
       if (root == nullptr) {
         root = std::make_unique<Node>(nullptr, range);
@@ -785,6 +785,7 @@ namespace marco::modeling
         node->add(std::move(range));
 
         // Merge the adjacent ranges
+        llvm::sort(node->values);
         merge(node->values);
 
         if (!node->isRoot() && node->fanOut() < minElements) {
@@ -866,10 +867,10 @@ namespace marco::modeling
       }
 
       nonOverlappingRanges.pop();
-    }
 
-    // Check that all the invariants are respected
-    assert(isValid());
+      // Check that all the invariants are respected
+      //assert(isValid());
+    }
 
     return *this;
   }
@@ -1102,13 +1103,9 @@ namespace marco::modeling
 
   bool IndexSet::Impl::overlaps(const IndexSet::Impl& other) const
   {
-    for (const auto& range : other) {
-      if (overlaps(range)) {
-        return true;
-      }
-    }
-
-    return false;
+    return llvm::any_of(other, [&](const auto& range) {
+      return overlaps(range);
+    });
   }
 
   IndexSet::Impl IndexSet::Impl::intersect(const MultidimensionalRange& other) const

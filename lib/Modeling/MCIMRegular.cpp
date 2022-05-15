@@ -6,8 +6,18 @@ namespace marco::modeling::internal
   {
     assert(keys.rank() == values.rank());
 
-    for (const auto&[key, value]: llvm::zip(keys, values)) {
+    for (const auto& [key, value]: llvm::zip(keys, values)) {
       this->values.push_back(value - key);
+    }
+  }
+
+  RegularMCIM::Delta::Delta(const MultidimensionalRange& keys, const MultidimensionalRange& values)
+  {
+    assert(keys.rank() == values.rank());
+
+    for (size_t i = 0, e = keys.rank(); i < e; ++i) {
+      assert(values[i].getBegin() - keys[i].getBegin() == values[i].getEnd() - keys[i].getEnd());
+      this->values.push_back(values[i].getBegin() - keys[i].getBegin());
     }
   }
 
@@ -195,10 +205,25 @@ namespace marco::modeling::internal
 
   void RegularMCIM::apply(const AccessFunction& access)
   {
-    for (const auto& equationIndexes: getEquationRanges()) {
-      assert(access.size() == getVariableRanges().rank());
-      auto variableIndexes = access.map(equationIndexes);
-      set(equationIndexes, variableIndexes);
+    bool accessWithoutConstants = llvm::none_of(access, [](const auto& dimensionAccess) {
+      return dimensionAccess.isConstantAccess();
+    });
+
+    if (accessWithoutConstants) {
+      auto equationRanges = getEquationRanges();
+      assert(access.size() == equationRanges.rank());
+      auto variableRanges = access.map(equationRanges);
+      set(equationRanges, variableRanges);
+
+    } else {
+      // Some equation indices lead to the same variable indices, so we have
+      // to iterate on all the equation range.
+
+      for (const auto& equationIndices: getEquationRanges()) {
+        assert(access.size() == getVariableRanges().rank());
+        auto variableIndices = access.map(equationIndices);
+        set(equationIndices, variableIndices);
+      }
     }
   }
 
@@ -227,6 +252,17 @@ namespace marco::modeling::internal
     }
 
     IndexSet keys(MultidimensionalRange(std::move(ranges)));
+    add(std::move(keys), std::move(delta));
+  }
+
+  void RegularMCIM::set(const MultidimensionalRange& equations, const MultidimensionalRange& variables)
+  {
+    assert(equations.rank() == getEquationRanges().rank());
+    assert(variables.rank() == getVariableRanges().rank());
+
+    IndexSet keys(equations);
+    Delta delta(equations, variables);
+
     add(std::move(keys), std::move(delta));
   }
 
