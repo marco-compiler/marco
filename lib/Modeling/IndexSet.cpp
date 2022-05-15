@@ -15,13 +15,9 @@ namespace
 
     Node(const Node& other);
 
-    Node(Node&& other);
-
     ~Node();
 
-    Node& operator=(const Node& other);
-
-    friend void swap(Node& first, Node& second);
+    Node& operator=(Node&& other);
 
     bool isRoot() const;
 
@@ -60,41 +56,6 @@ namespace
       std::vector<std::unique_ptr<Node>> children;
       std::vector<MultidimensionalRange> values;
   };
-}
-
-static void merge(std::vector<MultidimensionalRange>& ranges)
-{
-  if (ranges.empty()) {
-    return;
-  }
-
-  using It = std::vector<MultidimensionalRange>::iterator;
-
-  auto findCandidates = [&](It begin, It end) -> std::tuple<It, It, size_t> {
-    for (It it1 = begin; it1 != end; ++it1) {
-      for (It it2 = std::next(it1); it2 != end; ++it2) {
-        if (auto mergePossibility = it1->canBeMerged(*it2); mergePossibility.first) {
-          return std::make_tuple(it1, it2, mergePossibility.second);
-        }
-      }
-    }
-
-    return std::make_tuple(end, end, 0);
-  };
-
-  auto candidates = findCandidates(ranges.begin(), ranges.end());
-
-  while (std::get<0>(candidates) != ranges.end() && std::get<1>(candidates) != ranges.end()) {
-    auto& first = std::get<0>(candidates);
-    auto& second = std::get<1>(candidates);
-    size_t dimension = std::get<2>(candidates);
-
-    *first = first->merge(*second, dimension);
-    ranges.erase(second);
-    candidates = findCandidates(ranges.begin(), ranges.end());
-  }
-
-  assert(!ranges.empty());
 }
 
 namespace
@@ -165,26 +126,9 @@ namespace
     }
   }
 
-  Node::Node(Node&& other) = default;
-
   Node::~Node() = default;
 
-  Node& Node::operator=(const Node& other)
-  {
-    Node result(other);
-    swap(*this, result);
-    return *this;
-  }
-
-  void swap(Node& first, Node& second)
-  {
-    using std::swap;
-    swap(first.parent, second.parent);
-    swap(first.boundary, second.boundary);
-    swap(first.flatSize, second.flatSize);
-    swap(first.children, second.children);
-    swap(first.values, second.values);
-  }
+  Node& Node::operator=(Node&& other) = default;
 
   bool Node::isRoot() const
   {
@@ -550,6 +494,41 @@ namespace marco::modeling
   };
 }
 
+static void merge(std::vector<MultidimensionalRange>& ranges)
+{
+  if (ranges.empty()) {
+    return;
+  }
+
+  using It = std::vector<MultidimensionalRange>::iterator;
+
+  auto findCandidates = [&](It begin, It end) -> std::tuple<It, It, size_t> {
+    for (It it1 = begin; it1 != end; ++it1) {
+      for (It it2 = std::next(it1); it2 != end; ++it2) {
+        if (auto mergePossibility = it1->canBeMerged(*it2); mergePossibility.first) {
+          return std::make_tuple(it1, it2, mergePossibility.second);
+        }
+      }
+    }
+
+    return std::make_tuple(end, end, 0);
+  };
+
+  auto candidates = findCandidates(ranges.begin(), ranges.end());
+
+  while (std::get<0>(candidates) != ranges.end() && std::get<1>(candidates) != ranges.end()) {
+    auto& first = std::get<0>(candidates);
+    auto& second = std::get<1>(candidates);
+    size_t dimension = std::get<2>(candidates);
+
+    *first = first->merge(*second, dimension);
+    ranges.erase(second);
+    candidates = findCandidates(ranges.begin(), ranges.end());
+  }
+
+  assert(!ranges.empty());
+}
+
 /// Check that all the children of a node has the correct parent set.
 static bool checkParentRelationships(const IndexSet::Impl& indexSet)
 {
@@ -761,10 +740,10 @@ namespace marco::modeling
     assert(rhs.rank() == allowedRank && "Incompatible rank");
 
     // We must add only the non-existing points
-    std::vector<MultidimensionalRange> nonOverlappingRanges;
+    std::queue<MultidimensionalRange> nonOverlappingRanges;
 
     if (root == nullptr) {
-      nonOverlappingRanges.push_back(rhs);
+      nonOverlappingRanges.push(rhs);
     } else {
       std::vector<MultidimensionalRange> current;
       current.push_back(rhs);
@@ -773,11 +752,14 @@ namespace marco::modeling
         std::vector<MultidimensionalRange> next;
 
         for (const auto& curr : current) {
-          for (const auto& diff : curr.subtract(range)) {
+          for (auto& diff : curr.subtract(range)) {
             if (overlaps(diff)) {
               next.push_back(std::move(diff));
             } else {
-              nonOverlappingRanges.push_back(std::move(diff));
+              // For safety, also check that all the range we are going to add do belongs
+              // to the original range.
+              assert(rhs.contains(diff));
+              nonOverlappingRanges.push(std::move(diff));
             }
           }
         }
@@ -786,52 +768,61 @@ namespace marco::modeling
       }
     }
 
-    // Check that all the identified ranges do not overlap the existing points
-    assert(llvm::none_of(nonOverlappingRanges, [&](const auto& range) {
-      return overlaps(range);
-    }));
+    while (!nonOverlappingRanges.empty()) {
+      auto& range = nonOverlappingRanges.front();
 
-    // For safety, also check that all the ranges we are going to add do belong
-    // to the original range.
-    assert(llvm::all_of(nonOverlappingRanges, [&](const auto& range) {
-      return rhs.contains(range);
-    }));
+      // Check that all the range do not overlap the existing points
+      assert(!overlaps(range));
 
-    std::vector<MultidimensionalRange> toReinsert;
-
-    for (const auto& range : nonOverlappingRanges) {
       if (root == nullptr) {
         root = std::make_unique<Node>(nullptr, range);
-        root->values.push_back(range);
+        root->add(std::move(range));
       } else {
         // Find position for the new record
         auto node = chooseLeaf(range);
 
         // Add the record to the leaf node
-        node->values.push_back(range);
+        node->add(std::move(range));
 
         // Merge the adjacent ranges
         merge(node->values);
 
         if (!node->isRoot() && node->fanOut() < minElements) {
           while (!node->isRoot() && node->fanOut() < minElements) {
-            for (const auto& value : node->values) {
-              toReinsert.push_back(value);
-            }
+            std::stack<Node*> nodes;
+            nodes.push(node);
 
-            std::vector<std::unique_ptr<Node>> newChildren;
+            while (!nodes.empty()) {
+              auto current = nodes.top();
+              nodes.pop();
 
-            if (auto parent = node->parent; parent != nullptr) {
-              for (auto& child : node->parent->children) {
-                if (child.get() != node) {
-                  newChildren.push_back(std::move(child));
-                }
+              for (auto& child : current->children) {
+                nodes.push(child.get());
+              }
+
+              for (auto& value : current->values) {
+                nonOverlappingRanges.push(std::move(value));
               }
             }
 
-            node->parent->children = std::move(newChildren);
-            node->parent->recalcBoundary();
-            node = node->parent;
+            for (const auto& value : node->values) {
+              nonOverlappingRanges.push(value);
+            }
+
+            auto parent = node->parent;
+            assert(parent != nullptr);
+
+            std::vector<std::unique_ptr<Node>> newChildren;
+
+            for (auto& child : node->parent->children) {
+              if (child.get() != node) {
+                newChildren.push_back(std::move(child));
+              }
+            }
+
+            parent->children = std::move(newChildren);
+            parent->recalcBoundary();
+            node = parent;
           }
         } else if (node->fanOut() > maxElements) {
           // Propagate node splits
@@ -873,10 +864,8 @@ namespace marco::modeling
           node = node->parent;
         }
       }
-    }
 
-    for (const auto& range : toReinsert) {
-      *this += range;
+      nonOverlappingRanges.pop();
     }
 
     // Check that all the invariants are respected
