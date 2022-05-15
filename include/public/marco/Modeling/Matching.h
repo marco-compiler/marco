@@ -1030,7 +1030,6 @@ namespace marco::modeling
         // accesses.
 
         for (const auto& access : accesses) {
-
           auto variableDescriptor = getVariableVertex(access.getVariable());
           Variable& variable = getVariable(variableDescriptor);
 

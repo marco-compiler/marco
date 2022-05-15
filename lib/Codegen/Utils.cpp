@@ -78,7 +78,7 @@ namespace marco::codegen
     assert(destination.getType().isa<ArrayType>());
 
     auto sourceArrayType = source.getType().cast<ArrayType>();
-    auto destinationArrayType = destination.getType().cast<ArrayType>();
+    [[maybe_unused]] auto destinationArrayType = destination.getType().cast<ArrayType>();
 
     assert(checkArrayTypeCompatibility(sourceArrayType, destinationArrayType));
 

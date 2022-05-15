@@ -772,7 +772,7 @@ namespace marco::modeling
       auto& range = nonOverlappingRanges.front();
 
       // Check that all the range do not overlap the existing points
-      //assert(!overlaps(range));
+      assert(!overlaps(range));
 
       if (root == nullptr) {
         root = std::make_unique<Node>(nullptr, range);
@@ -869,7 +869,7 @@ namespace marco::modeling
       nonOverlappingRanges.pop();
 
       // Check that all the invariants are respected
-      //assert(isValid());
+      assert(isValid());
     }
 
     return *this;
