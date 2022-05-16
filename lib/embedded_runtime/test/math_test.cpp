@@ -3,10 +3,16 @@
 #include "pll_driver.h"
 #include "heap.h"
 #include "StdFunctions.h"
-#include "Print.h"
+#include "../include/marco/lib/Print.h"
+#include <initializer_list>
 
 PLL_Driver pll;
 
+SerialPort serial(115200);
+
+void f(std::initializer_list<int> const &items){
+    print_char("CIAO");
+};
 
 void delay()
 {
@@ -23,12 +29,11 @@ void bar(){
 
 
 int main(){
-    pll.setMaxFrequency();
+    
 
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
 	GPIOA->MODER |= 1<<10;
-    SerialPort serial(115200);
-        
+        /*
         foo();
         serial.write("log of 10 =>");
         serial.write(stde::log(10));
@@ -78,7 +83,7 @@ int main(){
         v.push_back(12);
         serial.write("second last \n\r");
         serial.write(v.second_last->data);
-         serial.write("\n\r");
+        serial.write("\n\r");
         v.push_back(539);
         serial.write("second last \n\r");
         serial.write(v.second_last->data);
@@ -88,12 +93,45 @@ int main(){
 
         stde::array<float,20> arr;  
 
-        while (h->next != nullptr){
-            serial.write(h->data);
-            serial.write("\n\r");
-            h = h->next;
-        }
-        
+        int init[3] = {2,3,4};
+        print_char("start \n\r");
+        print_integer_array(init);
+        print_char("Array_end  \n\r");
+        int* value = (int*) malloc(sizeof(int));
+        *value = 134;
+        serial.write("Before ");
+        print_integer(*value);
+        serial.write("\n\r");
+        //int* new_value = stde::forward<int>(value);
+        //free(value);
+        serial.write("After ");
+        print_serial(*value);
+        serial.write("\n\r");
+        //serial.write(*new_value);
+
+        print_serial(1.234f);
+        */
+       //f({1,2,3,4});
+       stde::Vector<int> v;
+       v.push_back(2);
+       v.push_back(3);
+       /*
+       for(int i :v){
+           print_integer(i);
+           print_char("\n\r");
+       }
+        */
+       stde::array<float,3> farr  {3.3,2.1,22};
+
+       for(float f : farr){
+        //for(int i = 0; i < farr.max_size();i++){
+           print_float(f);
+           //print_float(farr[i]);
+           print_char("<>\n\r");
+       }
+       //print_integer(farr.max_size());
+        //print_array(array);
+
     for(;;){
     }
 }

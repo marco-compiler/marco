@@ -39,6 +39,12 @@ public:
 
 	void write(const int n);
 
+	void write(long long int n);
+
+	void write(long int n);
+
+	void write(double f); 
+
 	void write(const float f);
 
 	void write(const float f, const int p);

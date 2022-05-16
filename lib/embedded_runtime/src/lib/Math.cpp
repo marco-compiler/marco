@@ -1,4 +1,4 @@
-#include "marco/runtime/Math.h"
+#include "../../include/marco/lib/Math.h"
 #include "../../include/marco/lib/StdFunctions.h"
 //#include <cassert>
 //#include <cmath>
@@ -12,7 +12,7 @@ template<typename Result, typename Base, typename Exp>
 inline Result pow(Base base, Exp exp)
 {
   if (base == 0) {
-    stde::assert(exp > 0);
+    stde::assertt(exp > 0);
     return base;
   }
 
@@ -30,14 +30,14 @@ inline bool pow_boolBase(bool base, Exp exp)
     return true;
   }
 
-  stde::assert(exp > 0);
+  stde::assertt(exp > 0);
   return false;
 }
 
 template<>
 inline bool pow_boolBase<bool>(bool base, bool exp)
 {
-  stde::assert(base || exp);
+  stde::assertt(base || exp);
   return base;
 }
 
@@ -48,7 +48,7 @@ inline Result pow_boolExp(Base base, bool exp)
     return base;
   }
 
-  stde::assert(base != 0);
+  stde::assertt(base != 0);
   return 1;
 }
 
@@ -61,7 +61,7 @@ inline bool pow_boolExp(bool base, bool exp)
 template<typename Base, typename Exp>
 inline bool pow_i1(Base base, Exp exp)
 {
-  sdte::assert(base != 0 || exp != 0);
+  stde::assertt(base != 0 || exp != 0);
 
   if (base == 0) {
     return false;
@@ -140,7 +140,7 @@ RUNTIME_FUNC_DEF(pow, bool, double, double)
 template<typename Base, typename Exp>
 inline int32_t pow_i32(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return stde::pow(base, exp);
 }
 
 template<>
@@ -188,7 +188,7 @@ RUNTIME_FUNC_DEF(pow, int32_t, float, float)
 template<typename Base, typename Exp>
 inline int64_t pow_i64(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return stde::pow(base, exp);
 }
 
 template<>
@@ -236,7 +236,7 @@ RUNTIME_FUNC_DEF(pow, int64_t, double, double)
 template<typename Base, typename Exp>
 inline float pow_f32(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return stde::pow(base, exp);
 }
 
 template<>
@@ -284,7 +284,7 @@ RUNTIME_FUNC_DEF(pow, float, float, float)
 template<typename Base, typename Exp>
 inline double pow_f64(Base base, Exp exp)
 {
-  return pow(base, exp);
+  return stde::pow(base, exp);
 }
 
 template<>

@@ -1,9 +1,9 @@
 #ifdef MARCO_PROFILING
 
-#include "marco/runtime/Profiling.h"
+#include "../../include/marco/lib/Profiling.h"
 #include "../../include/marco/lib/StdFunctions.h"
 
-#include <vector>
+//#include <vector>
 
 Profiler::Profiler(const char*& name) : name(name)
 {
@@ -69,7 +69,6 @@ class Statistics
     size_t spaces = width - 2 - title.size();
     size_t left = spaces / 2;
     size_t right = spaces - left;
-
     print_char("|");
 
     for (size_t i = 0; i < left; ++i) {

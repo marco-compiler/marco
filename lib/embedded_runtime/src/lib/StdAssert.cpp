@@ -3,12 +3,9 @@
 
 extern void UnimplementedIrq();
 
-
-
-//CASSERT
-void stde::assert(bool cond){
+void stde::assertt(bool cond){
     if(cond)
     return;
     else
-    UnimplementedIrq(); //send to an interrupt in case assertion is not satisfied.
+    return;//UnimplementedIrq(); //send to an interrupt in case assertion is not satisfied.
 }

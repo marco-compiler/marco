@@ -48,6 +48,14 @@ do {								\
   (ix1) = ew_u.parts.lsw;					\
 } while (0)
 
+#define INSERT_WORDS(d,ix0,ix1)					\
+do {								\
+  ieee_double_shape_type iw_u;					\
+  iw_u.parts.msw = (ix0);					\
+  iw_u.parts.lsw = (ix1);					\
+  (d) = iw_u.value;						\
+} while (0)
+
 
 //static	double	one	= 1.0, tiny=1.0e-300;
 static float
@@ -137,18 +145,25 @@ Lg5 = 1.818357216161805012e-01,  /* 3FC74664 96CB03DE */
 Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
 Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
 
+
 //CMATH
+
 int stde::pow(int base, int exponent){
     return (int) pow((float) base, (float) exponent);
 }
 
 float stde::pow(float base, float exponent){
     if( exponent < 0){
-        return pow(1/base,abs(exponent) -1);
+        return pow(1/base,stde::abs(exponent) -1);
     }
     return exponent != 0 ? pow(base,exponent-1) : 1;
 };
 
+
+float stde::factorial(float n){
+	if( n == 1 || n == 0) return 1;
+	else return stde::factorial(n-1);
+}
 float stde::abs(float value){
     return value > 0 ? value : value * -1;
 }
@@ -168,7 +183,6 @@ sqrt=(n/sqrt+sqrt)/2;
 } 
 return sqrt;
 }
-
 
 int stde::max(int x, int y){
 	return x > y ? x : y;
@@ -649,5 +663,69 @@ float stde::sinh(float x){
 	return x*shuge;
 }
 
+float stde::cos(float x){
+    while(x<0) x+=2*pi;
+    while(x>2*pi) x-=2*pi;
+    double t = 1;
+    double cos= t;
+    for ( int a=1; a<40; ++a)
+    {
+        double mult = -x*x/((2*a)*(2*a-1));
+        t *= mult;
+        cos += t;
+    }
+    return cos;
+}
+
+float stde::fmod(float a, float b)
+{
+    double frac = a / b;
+    int floor = frac > 0 ? (int)frac : (int)(frac - 0.9999999999999999);
+    return (a - b * floor);
+}
+
+float stde::sin(float n) {
+    // Define PI
+    const float my_pi = 3.14159265358979323846;
+    // Sine's period is 2*PI
+    n = stde::fmod(n, 2 * my_pi);
+    // Any negative angle can be brought back
+    // to it's equivalent positive angle
+    if (n < 0) {
+        n = 2 * my_pi - n;
+    }
+    // Sine is an odd function...
+    // let's take advantage of it.
+    char sign = 1;
+    if (n > my_pi) {
+        n -= my_pi;
+        sign = -1;
+    }
+    // Now n is in range [0, PI].
+
+    float result = n;
+    double coefficent = 3; // Increment this by 2 each loop
+    for(int i = 0; i < 10; i++) { // Change 10 to go out to more/less terms
+        float pow = stde::pow(n, coefficent);
+        float frac = factorial(coefficent);
 
 
+        // Switch between adding/subtracting
+        if(i % 2 == 0) { // If the index of the loop is divided by 2, the index is even, so subtract
+            result = result - (pow/frac); // x - ((x^3)/(3!)) - ((x^5)/(5!))...
+        } else {
+            result = result + (pow/frac); // x - ((x^3)/(3!)) + ((x^5)/(5!))...
+        }
+        coefficent = coefficent + 2;
+    }
+
+    return sign * result;
+}
+
+float stde::tan(float x){
+	return stde::sin(x)/stde::cos(x);
+}
+
+float stde::tanh(float x){
+	return stde::sinh(x)/stde::cosh(x);
+}

@@ -1,9 +1,8 @@
 #ifndef MARCO_RUNTIME_BUILTINFUNCTIONS_H
 #define MARCO_RUNTIME_BUILTINFUNCTIONS_H
 
-#include "marco/runtime/ArrayDescriptor.h"
-#include "marco/runtime/Mangling.h"
-#include "marco/runtime/Print.h"
+#include "./ArrayDescriptor.h"
+#include "./Mangling.h"
 #include <cstdint>
 
 RUNTIME_FUNC_DECL(abs, bool, bool)

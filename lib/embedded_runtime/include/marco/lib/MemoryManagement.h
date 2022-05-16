@@ -1,7 +1,7 @@
 #ifndef MARCO_RUNTIME_MEMORYMANAGEMENT_H
 #define MARCO_RUNTIME_MEMORYMANAGEMENT_H
 
-#include "marco/runtime/Mangling.h"
+#include "./Mangling.h"
 #include <cstdint>
 
 RUNTIME_FUNC_DECL(heapAlloc, PTR(void), int64_t)

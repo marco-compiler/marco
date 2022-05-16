@@ -1,5 +1,5 @@
-#include "marco/runtime/ProfilingEmbedded.h"
-#include "marco/runtime/Runtime.h"
+#include "../../include/marco/lib/Profiling.h"
+#include "../../include/marco/lib/Runtime.h"
 
 static void runtimeInit()
 {

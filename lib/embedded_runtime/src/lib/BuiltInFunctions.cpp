@@ -1,10 +1,11 @@
-#include "marco/runtime/BuiltInFunctions.h"
-#include "../../include/lib/StdFunctions.h"
-//#include <algorithm>
-//#include <cmath>
-//#include <numeric>
-//#include <vector>
-
+#include "../../include/marco/lib/StdFunctions.h"
+#include "../../include/marco/lib/BuiltInFunctions.h"
+/*
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <vector>
+*/
 //===----------------------------------------------------------------------===//
 // abs
 //===----------------------------------------------------------------------===//
@@ -171,21 +172,21 @@ inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDes
 	// while the "identity" Modelica function is defined only for 2-D arrays.
 	// Still, the implementation complexity would be the same.
 
-	assert(destination.hasSameSizes());
+	stde::assertt(destination.hasSameSizes());
 
 	// Check that the sizes of the matrix dimensions match with the amount of
 	// values to be set.
 
-	assert(destination.getRank() > 0);
-	assert(values.getRank() == 1);
-	assert(destination.getDimensionSize(0) == values.getDimensionSize(0));
+	stde::assertt(destination.getRank() > 0);
+	stde::assertt(values.getRank() == 1);
+	stde::assertt(destination.getDimensionSize(0) == values.getDimensionSize(0));
 
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
 
 	for (auto it = destination.begin(), end = destination.end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
-		assert(!indexes.empty());
+		stde::assertt(!indexes.empty());
 
 		bool isIdentityAccess = stde::all_of(indexes.begin(), indexes.end(), [&indexes](const auto& i) {
 			return i == indexes[0];
@@ -225,6 +226,7 @@ RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
 
+/*
 //===----------------------------------------------------------------------===//
 // exp
 //===----------------------------------------------------------------------===//
@@ -281,14 +283,14 @@ inline void identity_void(UnsizedArrayDescriptor<T> array)
 	// while the "identity" Modelica function is defined only for 2-D arrays.
 	// Still, the implementation complexity would be the same.
 
-	assert(array.hasSameSizes());
+	stde::assertt(array.hasSameSizes());
 
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
 
 	for (auto it = array.begin(), end = array.end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
-		assert(!indexes.empty());
+		stde::assertt(!indexes.empty());
 
 		bool isIdentityAccess = stde::all_of(indexes.begin(), indexes.end(), [&indexes](const auto& i) {
 			return i == indexes[0];
@@ -318,7 +320,7 @@ template<typename T>
 inline void linspace_void(UnsizedArrayDescriptor<T> array, double start, double end)
 {
 	using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
-	assert(array.getRank() == 1);
+	stde::assertt(array.getRank() == 1);
 
 	auto n = array.getDimensionSize(0);
 	double step = (end - start) / ((double) n - 1);
@@ -345,13 +347,13 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
 
 inline float log_f32(float value)
 {
-	assert(value > 0);
+	stde::assertt(value > 0);
 	return stde::log(value);
 }
 
 inline double log_f64(double value)
 {
-  assert(value > 0);
+  stde::assertt(value > 0);
   return stde::log(value);
 }
 
@@ -364,13 +366,13 @@ RUNTIME_FUNC_DEF(log, double, double)
 
 inline float log10_f32(float value)
 {
-  assert(value > 0);
+  stde::assertt(value > 0);
   return stde::log10(value);
 }
 
 inline double log10_f64(double value)
 {
-	assert(value > 0);
+	stde::assertt(value > 0);
 	return stde::log10(value);
 }
 
@@ -714,13 +716,13 @@ RUNTIME_FUNC_DEF(sinh, double, double)
 
 inline float sqrt_f32(float value)
 {
-  assert(value >= 0);
+  stde::assertt(value >= 0);
   return stde::sqrt(value);
 }
 
 inline double sqrt_f64(double value)
 {
-	assert(value >= 0);
+	stde::assertt(value >= 0);
 	return stde::sqrt(value);
 }
 
@@ -792,12 +794,12 @@ void symmetric_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 	using dimension_t = typename UnsizedArrayDescriptor<Destination>::dimension_t;
 
 	// The two arrays must have exactly two dimensions
-	assert(destination.getRank() == 2);
-	assert(source.getRank() == 2);
+	stde::assertt(destination.getRank() == 2);
+	stde::assertt(source.getRank() == 2);
 
 	// The two matrixes must have the same dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
+	stde::assertt(destination.getDimensionSize(0) == source.getDimensionSize(0));
+	stde::assertt(destination.getDimensionSize(1) == source.getDimensionSize(1));
 
 	auto size = destination.getDimensionSize(0);
 
@@ -895,21 +897,21 @@ void transpose_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
 	using dimension_t = typename UnsizedArrayDescriptor<Source>::dimension_t;
 
 	// The two arrays must have exactly two dimensions
-	assert(destination.getRank() == 2);
-	assert(source.getRank() == 2);
+	stde::assertt(destination.getRank() == 2);
+	stde::assertt(source.getRank() == 2);
 
 	// The two matrixes must have transposed dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(1));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(0));
+	stde::assertt(destination.getDimensionSize(0) == source.getDimensionSize(1));
+	stde::assertt(destination.getDimensionSize(1) == source.getDimensionSize(0));
 
 	// Directly use the iterators, as we need to determine the current
 	// indexes and transpose them to access the other matrix.
 
 	for (auto it = source.begin(), end = source.end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
-		assert(indexes.size() == 2);\
+		stde::assertt(indexes.size() == 2);
 
-		stde::vector<dimension_t> transposedIndexes;
+		stde::Vector<dimension_t> transposedIndexes;
 
 		for (auto revIt = indexes.rbegin(), revEnd = indexes.rend(); revIt != revEnd; ++revIt) {
       transposedIndexes.push_back(*revIt);
@@ -970,3 +972,4 @@ RUNTIME_FUNC_DEF(zeros, void, ARRAY(int32_t))
 RUNTIME_FUNC_DEF(zeros, void, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(zeros, void, ARRAY(float))
 RUNTIME_FUNC_DEF(zeros, void, ARRAY(double))
+*/

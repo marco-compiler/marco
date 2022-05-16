@@ -1,8 +1,8 @@
 #ifndef MARCO_RUNTIME_UTILITYFUNCTIONS_H
 #define MARCO_RUNTIME_UTILITYFUNCTIONS_H
 
-#include "marco/runtime/ArrayDescriptor.h"
-#include "marco/runtime/Mangling.h"
+#include "./ArrayDescriptor.h"
+#include "./Mangling.h"
 #include <cstdint>
 
 RUNTIME_FUNC_DECL(clone, void, ARRAY(bool), ARRAY(bool))

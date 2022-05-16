@@ -77,6 +77,22 @@ void SerialPort::write(const int n){
 	this->write(s);
 }
 
+void SerialPort::write(long long int n){
+	int m = (int) n;
+	this->write(m);
+}
+
+void SerialPort::write(long int n){
+	int m = (int) n;
+	this->write(m);
+}
+
+void SerialPort::write(double n){
+	float m = (float) n;
+	this->write(m);
+}
+
+
 
 void SerialPort::write(float f, const int p){
 	char s[64] = {};

@@ -1,7 +1,7 @@
 #ifndef MARCO_RUNTIME_MATH_H
 #define MARCO_RUNTIME_MATH_H
 
-#include "marco/runtime/Mangling.h"
+#include "./Mangling.h"
 #include <cstdint>
 
 // Pow with 'bool' return type

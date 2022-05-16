@@ -1,13 +1,17 @@
 #pragma once
+#include "./StdFunctions.h"
+#include "./Print.h"
+#include <cstdint>
+#include <initializer_list>
+//#include <iterator>
 
-#include "Print.h"
-#include "StdFunctions.h"
+/*
 #include <array>
-#include <cassert>
+#include <cstde::assertt>
 #include <initializer_list>
 #include <iostream>
 #include <vector>
-
+*/
 template <typename T>
 class ArrayIterator;
 
@@ -39,7 +43,7 @@ class ArrayDescriptor
 	ArrayDescriptor(stde::array<T, Size>& data)
 			: data(data.data()), rank(1), sizes{}
 	{
-		assert(Rank == rank);
+		stde::assertt(Rank == rank);
 		this->sizes[0] = Size;
 	}
 
@@ -61,7 +65,7 @@ class ArrayDescriptor
 	/// @return value
 	T& operator[](dimension_t offset)
 	{
-		assert(data != nullptr);
+		stde::assertt(data != nullptr);
 		return data[offset];
 	}
 
@@ -71,13 +75,13 @@ class ArrayDescriptor
 	/// @return value
 	const T& operator[](dimension_t offset) const
 	{
-		assert(data != nullptr);
+		stde::assertt(data != nullptr);
 		return data[offset];
 	}
 
 	void dump() const
-	{
-		dump(std::cout);
+	{	stde::ostream os;
+		dump(os);
 	}
 
 	void dump(stde::ostream& os) const
@@ -89,28 +93,27 @@ class ArrayDescriptor
 		os << "\n";*/
 		print_char("Array descriptor\n\r");
 		print_char(" - address: ");
-		print_integer(getData();
+		print_serial( getData());
 		print_char("\n\r");
 		print_char(" - rank: ");
-		print_integer(getRank());
+		print_serial( getRank());
 		print_char("\n\r");
 		print_char(" - values: ");
-		print_integer_array(*this);
+		print_serial( *this);
 		print_char("\n\r");
-		
 	}
 
-  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  template<typename Index,typename stde::enable_if<stde::is_integral<Index>::value>::type* = nullptr>
   T& get(const Index& index)
   {
-    assert(data != nullptr);
+    stde::assertt(data != nullptr);
     return (*this)[index];
   }
 
-  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  template<typename Index,typename stde::enable_if<stde::is_integral<Index>::value>::type* = nullptr>
   const T& get(const Index& index) const
   {
-    assert(data != nullptr);
+    stde::assertt(data != nullptr);
     return (*this)[index];
   }
 
@@ -120,7 +123,7 @@ class ArrayDescriptor
     return get({
       firstIndex,
       secondIndex,
-      std::forward<Others>(otherIndexes)...
+      stde::forward<Others>(otherIndexes)...
     });
   }
 
@@ -130,14 +133,14 @@ class ArrayDescriptor
     return get({
         firstIndex,
         secondIndex,
-        std::forward<Others>(otherIndexes)...
+        stde::forward<Others>(otherIndexes)...
     });
   }
 
   template<typename Index>
   T& get(std::initializer_list<Index> indexes)
   {
-    assert(data != nullptr);
+    stde::assertt(data != nullptr);
     dimension_t offset = computeOffset(indexes);
     return (*this)[offset];
   }
@@ -145,23 +148,23 @@ class ArrayDescriptor
   template<typename Index>
   const T& get(std::initializer_list<Index> indexes) const
   {
-    assert(data != nullptr);
+    stde::assertt(data != nullptr);
     dimension_t offset = computeOffset(indexes);
     return (*this)[offset];
   }
 
-  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  template<typename Indexes,typename stde::enable_if<!stde::is_integral<Indexes>::value>::type* = nullptr>
 	T& get(const Indexes& indexesBegin)
 	{
-		assert(data != nullptr);
+		stde::assertt(data != nullptr);
 		dimension_t offset = computeOffset(indexesBegin);
 		return (*this)[offset];
 	}
 
-  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  template<typename Indexes,typename stde::enable_if<!stde::is_integral<Indexes>::value>::type* = nullptr>
 	const T& get(const Indexes& indexes) const
 	{
-		assert(data != nullptr);
+		stde::assertt(data != nullptr);
 		dimension_t offset = computeOffset(indexes);
 		return (*this)[offset];
 	}
@@ -169,15 +172,15 @@ class ArrayDescriptor
   template<typename Index>
   void set(std::initializer_list<Index> indexes, T value)
   {
-    assert(data != nullptr);
+    stde::assertt(data != nullptr);
     dimension_t offset = computeOffset(indexes);
     (*this)[offset] = value;
   }
 
-  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  template<typename Indexes,typename stde::enable_if<!stde::is_integral<Indexes>::value>::type* = nullptr>
 	void set(const Indexes& indexes, T value)
 	{
-		assert(data != nullptr);
+		stde::assertt(data != nullptr);
 		dimension_t offset = computeOffset(indexes);
 		(*this)[offset] = value;
 	}
@@ -194,7 +197,7 @@ class ArrayDescriptor
 
 	dimension_t getDimension(rank_t index) const
 	{
-		assert(index >= 0 && index < rank);
+		stde::assertt(index >= 0 && index < rank);
 		return sizes[index];
 	}
 
@@ -258,14 +261,14 @@ class ArrayDescriptor
 
     for (auto it = begin; it != end; ++it) {
       dimension_t size = getDimension(currentDimension);
-      assert(size > 0);
+      stde::assertt(size > 0);
       auto index = *it;
-      assert(index >= 0);
+      stde::assertt(index >= 0);
       offset = offset * size + index;
       ++currentDimension;
     }
 
-    assert(currentDimension == rank && "Wrong number of indexes");
+    stde::assertt(currentDimension == rank && "Wrong number of indexes");
     return offset;
 	}
 
@@ -289,24 +292,27 @@ namespace impl
 	{
 		using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
 
+		//stream << "[";
 		print_char("[");
 
 		for (dimension_t i = 0, e = descriptor.getDimension(dimension); i < e; ++i) {
 			indexes[dimension] = i;
 
 			if (i > 0) {
-        print_char(", ");
+        //stream << ", "
+		print_char( ", ");
       }
 
 			if (dimension == descriptor.getRank() - 1) {
         //stream << descriptor.get(indexes);
-		print_float_array(descriptor.get(indexes));
+		print_integer(descriptor.get(indexes));
       } else {
         printArrayDescriptor(stream, descriptor, indexes, dimension + 1);
       }
 		}
 
 		indexes[dimension] = 0;
+		//stream << "]";
 		print_char("]");
 	}
 }
@@ -316,7 +322,7 @@ stde::ostream& operator<<(
     stde::ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
 {
 	using dimension_t = typename ArrayDescriptor<T, Rank>::dimension_t;
-	stde::vector<dimension_t> indexes(descriptor.getRank(), 0);
+	stde::Vector<dimension_t> indexes(descriptor.getRank(), 0);
 	impl::printArrayDescriptor(stream, descriptor, indexes, 0);
 	return stream;
 }
@@ -353,18 +359,18 @@ class UnsizedArrayDescriptor
     getDescriptor()->dump();
   }
 
-  void dump(std::ostream& os) const
+  void dump(stde::ostream& os) const
   {
     getDescriptor()->dump(os);
   }
 
-  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  template<typename Index,typename stde::enable_if<stde::is_integral<Index>::value>::type* = nullptr>
   T& get(const Index& index)
   {
     return getDescriptor()->get(index);
   }
 
-  template<typename Index, std::enable_if_t<std::is_integral<Index>::value>* = nullptr>
+  template<typename Index,typename stde::enable_if<stde::is_integral<Index>::value>::type* = nullptr>
   const T& get(const Index& index) const
   {
     return getDescriptor()->get(index);
@@ -373,13 +379,13 @@ class UnsizedArrayDescriptor
   template<typename First, typename Second, typename... Others>
   T& get(const First& firstIndex, const Second& secondIndex, Others&&... otherIndexes)
   {
-    return getDescriptor()->get(firstIndex, secondIndex, std::forward<Others>(otherIndexes)...);
+    return getDescriptor()->get(firstIndex, secondIndex, stde::forward<Others>(otherIndexes)...);
   }
 
   template<typename First, typename Second, typename... Others>
   const T& get(const First& firstIndex, const Second& secondIndex, Others&&... otherIndexes) const
   {
-    return getDescriptor()->get(firstIndex, secondIndex, std::forward<Others>(otherIndexes)...);
+    return getDescriptor()->get(firstIndex, secondIndex, stde::forward<Others>(otherIndexes)...);
   }
 
   template<typename Index>
@@ -394,13 +400,13 @@ class UnsizedArrayDescriptor
     return getDescriptor()->get(indexes);
   }
 
-  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  template<typename Indexes,typename stde::enable_if<!stde::is_integral<Indexes>::value>::type* = nullptr>
 	T& get(const Indexes& indexes)
 	{
 		return getDescriptor()->get(indexes);
 	}
 
-  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  template<typename Indexes,typename stde::enable_if<!stde::is_integral<Indexes>::value>::type* = nullptr>
   const T& get(const Indexes& indexes) const
   {
     return getDescriptor()->get(indexes);
@@ -412,7 +418,7 @@ class UnsizedArrayDescriptor
     getDescriptor()->set(indexes, value);
   }
 
-  template<typename Indexes, std::enable_if_t<!std::is_integral<Indexes>::value>* = nullptr>
+  template<typename Indexes,typename stde::enable_if<!stde::is_integral<Indexes>::value>::type* = nullptr>
 	void set(const Indexes& indexes, T value)
 	{
 		getDescriptor()->set(indexes, value);
@@ -425,7 +431,7 @@ class UnsizedArrayDescriptor
 
 	rank_t getRank() const
 	{
-		assert(getDescriptor()->getRank() == rank);
+		stde::assertt(getDescriptor()->getRank() == rank);
 		return rank;
 	}
 
@@ -464,13 +470,13 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->hasSameSizes();
 	}
 
-	friend std::ostream& operator<< <>(
-      std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+	friend stde::ostream& operator<< <>(
+      stde::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
 
-	public:
+	private:
 	ArrayDescriptor<T, 0>* getDescriptor() const
 	{
-		assert(descriptor != nullptr);
+		stde::assertt(descriptor != nullptr);
 
 		// In order to keep the iterator rank-agnostic we can cast the descriptor
 		// to a 0-ranked one. This works only under assumption that the
@@ -485,10 +491,11 @@ class UnsizedArrayDescriptor
 };
 
 template<typename T>
-std::ostream& operator<<(
-    std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
+stde::ostream& operator<<(
+    stde::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
 {
-	return stream << *descriptor.getDescriptor();
+	//return stream << *descriptor.getDescriptor();
+	print_char(*descriptor.getDescriptor);
 }
 
 /// Iterate over all the elements of a multi-dimensional array as if it was
@@ -504,14 +511,14 @@ template<typename T>
 class ArrayIterator
 {
 	public:
-	using iterator_category = std::forward_iterator_tag;
+	using iterator_category = stde::forward_iterator_tag;
 	using value_type = T;
 	using difference_type = std::ptrdiff_t;
 	using pointer = T*;
 	using reference = T&;
 
 	private:
-	using ArrayType = typename std::remove_const<T>::type;
+	using ArrayType = typename stde::remove_const<T>::type;
 
 	using rank_t = typename ArrayDescriptor<T, 0>::rank_t;
 	using dimension_t = typename ArrayDescriptor<T, 0>::dimension_t;
@@ -549,7 +556,7 @@ class ArrayIterator
 			return *this;
 		}
 
-		assert(consumedDimensions < rank);
+		stde::assertt(consumedDimensions < rank);
 		++indexes[rank - 1 - consumedDimensions];
 		offset += 1;
 
@@ -590,7 +597,7 @@ class ArrayIterator
 					 other.descriptor != descriptor;
 	}
 
-	const std::vector<dimension_t>& getCurrentIndexes() const
+	const stde::Vector<dimension_t>& getCurrentIndexes() const
 	{
 		return indexes;
 	}
@@ -598,6 +605,6 @@ class ArrayIterator
 	private:
 	bool finished = false;
 	dimension_t offset = 0;
-	std::vector<dimension_t> indexes;
+	stde::Vector<dimension_t> indexes;
 	ArrayDescriptor<ArrayType, 0>* descriptor;
 };

@@ -6,7 +6,9 @@
 
 #define PLLM 16
 
-PLL_Driver::PLL_Driver(){};
+PLL_Driver::PLL_Driver(){
+    this->setMaxFrequency();
+};
 /**
  * @brief set system clock frequency
  * 

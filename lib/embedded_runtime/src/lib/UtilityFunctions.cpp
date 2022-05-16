@@ -1,9 +1,7 @@
-#include "marco/runtime/UtilityFunctions.h"
+#include "../../include/marco/lib/UtilityFunctions.h"
 #include "../../include/marco/lib/StdFunctions.h"
 #include "../../include/marco/lib/Print.h"
-//#include <cassert>
-//#include <cstring>
-//#include <iostream>
+
 
 //===----------------------------------------------------------------------===//
 // clone
@@ -16,14 +14,14 @@
 /// @param destination  destination array
 /// @param values 			source values
 template<typename T, typename U>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+inline void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* source)
 {
-	stde::assert(source.getNumElements() == destination.getNumElements());
+	stde::assertt(source->getNumElements() == destination->getNumElements());
 
-  auto sourceIt = source.begin();
-  auto destinationIt = destination.begin();
+  auto sourceIt = source->begin();
+  auto destinationIt = destination->begin();
 
-  for (size_t i = 0, e = source.getNumElements(); i < e; ++i) {
+  for (size_t i = 0, e = source->getNumElements(); i < e; ++i) {
     *destinationIt = *sourceIt;
 
     ++sourceIt;
@@ -33,11 +31,11 @@ inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescri
 
 // Optimization for arrays with the same type
 template<typename T>
-inline void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+inline void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<T>* source)
 {
-	auto destinationSize = destination.getNumElements();
-	stde::assert(source.getNumElements() == destinationSize);
-	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
+	auto destinationSize = destination->getNumElements();
+	stde::assertt(source->getNumElements() == destinationSize);
+	stde::memcpy(destination->getData(), source->getData(), destinationSize * sizeof(T));
 }
 
 RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(bool))
@@ -77,16 +75,43 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 template<typename T>
 inline void print_void(T value)
 {
-	//std::cout << std::scientific << value << std::endl;
-  print_float(value);
+  print_char("Unknown type\n");
 }
 
 template<>
 inline void print_void<bool>(bool value)
 {
-	//std::cout << std::boolalpha << value << std::endl;
   print_integer(value);
 }
+
+template<>
+inline void print_void<int32_t>(int32_t value)
+{
+  print_integer(value);
+  print_char("\n\r");
+}
+
+template<>
+inline void print_void<int64_t>(int64_t value)
+{
+  print_integer(value);
+  print_char("\n\r");
+}
+
+template<>
+inline void print_void<float>(float value)
+{
+  print_float(value);
+  print_char("\n\r");
+}
+
+template<>
+inline void print_void<double>(double value)
+{
+    print_float(value);
+  print_char("\n\r");
+}
+
 
 RUNTIME_FUNC_DEF(print, void, bool)
 RUNTIME_FUNC_DEF(print, void, int32_t)
@@ -95,17 +120,17 @@ RUNTIME_FUNC_DEF(print, void, float)
 RUNTIME_FUNC_DEF(print, void, double)
 
 template<typename T>
-inline void print_void(UnsizedArrayDescriptor<T> array)
+inline void print_void(UnsizedArrayDescriptor<T>* array)
 {
-	//std::cout << std::scientific << array << std::endl;
-  print_float(array);
+
+  printUnsized(*array);
+
 }
 
 template<>
-inline void print_void<bool>(UnsizedArrayDescriptor<bool> array)
+inline void print_void<bool>(UnsizedArrayDescriptor<bool>* array)
 {
-  //std::cout << std::boolalpha << array << std::endl;
-  print_float(array);
+  print_array(array);
 }
 
 RUNTIME_FUNC_DEF(print, void, ARRAY(bool))

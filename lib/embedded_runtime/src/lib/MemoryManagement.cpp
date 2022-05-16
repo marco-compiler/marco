@@ -1,15 +1,17 @@
 #include "../../include/marco/lib/MemoryManagement.h"
-#include <cstdlib>
+#include "../../include/marco/lib/StdFunctions.h"
+#include "../../include/marco/driver/heap.h"
+#include "../../include/marco/lib/Print.h"
+//#include <cstdlib>
 
 #ifdef MARCO_PROFILING
 
 #include "../../include/marco/lib/Profiling.h"
 #include <chrono>
-#include <iostream>
-#include <map>
+//#include <iostream>
+//#include <map>
 
-#include "../../include/marco/driver/heap.h"
-#include "../../include/marco/lib/Print.h"
+
 
 class MemoryProfiler : public Profiler
 {
@@ -50,7 +52,7 @@ class MemoryProfiler : public Profiler
     print_char(" bytes\n\r");
 
     print_char( "Peak of heap memory usage: " );
-    print_integer(totalHeapMemory);
+    print_integer(totalHeapory);
     print_char(" bytes\n\r");
 
   
@@ -103,7 +105,7 @@ class MemoryProfiler : public Profiler
   int64_t totalHeapMemory;
   int64_t currentHeapMemory;
   int64_t peakHeapMemory;
-  std::map<void*, int64_t> sizes;
+  stde::map<void*, int64_t> sizes;
   std::chrono::steady_clock::time_point start;
   std::chrono::nanoseconds accumulatedTime;
 };
