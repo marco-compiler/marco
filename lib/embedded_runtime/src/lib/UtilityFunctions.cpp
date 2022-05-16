@@ -123,14 +123,18 @@ template<typename T>
 inline void print_void(UnsizedArrayDescriptor<T>* array)
 {
 
-  printUnsized(*array);
+  for(auto a : *array){
+    print_serial(a);
+  }
 
 }
 
 template<>
 inline void print_void<bool>(UnsizedArrayDescriptor<bool>* array)
 {
-  print_array(array);
+  for(bool a : *array){
+    print_integer(a);
+  }
 }
 
 RUNTIME_FUNC_DEF(print, void, ARRAY(bool))

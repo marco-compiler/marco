@@ -32,6 +32,4 @@ void print_array(T *array){
     }
     serial.write("\n\r");
 }
-
-
 #endif

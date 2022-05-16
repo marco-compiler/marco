@@ -193,7 +193,7 @@ T accumulate(InputIt first, InputIt last, T init,
     
 
 template <typename T>
-class Vector {
+class Vector  : public std::initializer_list<T>{ //???
 private:
     T* arr;
  
@@ -252,22 +252,36 @@ public:
             ++ptr;
             return *this;
         }
+        iterator& operator--()
+        {
+            --ptr;
+            return *this;
+        }
         iterator operator++(int)
         {
             iterator temp(*this);
             ++*this;
             return temp;
         }
+        iterator operator--(int)
+        {
+            iterator temp(*this);
+            --*this;
+            return temp;
+        }
         T operator[](int idx){
             return ptr[idx];
         }
     };
+
+    
  
     // Begin iterator
     iterator begin() const;
  
     // End iterator
     iterator end() const;
+    
 
     bool empty(){
         if(this->capacity == 0) return true;
@@ -359,6 +373,7 @@ typename Vector<T>::iterator
 {
     return iterator(arr + length);
 }
+
  
 // Template class to display element in
 // vector
@@ -398,7 +413,7 @@ class array{
     T at(unsigned int i);
     T* data();
 
-    // Iterator Class
+        // Iterator Class
     class iterator {
     private:
         // Dynamic array using pointers
@@ -430,19 +445,36 @@ class array{
             ++ptr;
             return *this;
         }
+        iterator& operator--()
+        {
+            --ptr;
+            return *this;
+        }
         iterator operator++(int)
         {
             iterator temp(*this);
             ++*this;
             return temp;
         }
+        iterator operator--(int)
+        {
+            iterator temp(*this);
+            --*this;
+            return temp;
+        }
+        T operator[](int idx){
+            return ptr[idx];
+        }
     };
+
+
  
     // Begin iterator
     iterator begin() const;
  
     // End iterator
     iterator end() const;
+
 
     
 };
@@ -527,16 +559,7 @@ typename array<T,S>::iterator
 
 
     struct ostream{}; //stub structure in order to allow printing functions work.
-/*
-    template<class A,class T>
-    bool is_integral(T data){
-        int res = data / 1;
-        if(data <= 0 || data >= 0 && res*1==data){
-            return 1;
-        }else
-            return 0;
-    }
-    */
+
 
 
 template<class T, T v>
@@ -561,6 +584,11 @@ template<typename> struct is_integral_base: stde::false_type {};
 template<> struct is_integral_base<bool>: stde::true_type {};
 template<> struct is_integral_base<int>: stde::true_type {};
 template<> struct is_integral_base<short>: stde::true_type {};
+template<> struct is_integral_base<long int>: stde::true_type {};
+template<> struct is_integral_base<long long int>: stde::true_type {};
+template<> struct is_integral_base<unsigned int>: stde::true_type {};
+template<> struct is_integral_base<long unsigned int>: stde::true_type {};
+template<> struct is_integral_base<long long unsigned int>: stde::true_type {};
 
 template<typename T> struct is_integral: is_integral_base<typename stde::remove_cv<T>::type> {};
 /*

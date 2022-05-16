@@ -42,7 +42,6 @@ lib: $(MLIB)
 	$(CXX) $(CXXFLAGS) ./src/lib/StdAssert.cpp -o ./staticlib/StdAssert.o
 	$(CXX) $(CXXFLAGS) ./src/lib/StdMath.cpp -o ./staticlib/StdMath.o
 	$(CXX) $(CXXFLAGS) ./src/lib/BuiltInFunctions.cpp -o ./staticlib/BuiltInFunctions.o
-xko:
 	$(CXX) $(CXXFLAGS) ./src/lib/Math.cpp -o ./staticlib/Math.o
 	$(CXX) $(CXXFLAGS) ./src/lib/MemoryManagement.cpp -o ./staticlib/MemoryManagement.o
 	$(CXX) $(CXXFLAGS) ./src/lib/Profiling.cpp -o ./staticlib/Profiling.o

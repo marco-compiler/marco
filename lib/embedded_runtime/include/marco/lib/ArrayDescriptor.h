@@ -3,6 +3,7 @@
 #include "./Print.h"
 #include <cstdint>
 #include <initializer_list>
+//#include <vector>
 //#include <iterator>
 
 /*
@@ -605,6 +606,7 @@ class ArrayIterator
 	private:
 	bool finished = false;
 	dimension_t offset = 0;
+
 	stde::Vector<dimension_t> indexes;
 	ArrayDescriptor<ArrayType, 0>* descriptor;
 };
