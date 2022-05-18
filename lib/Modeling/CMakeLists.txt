@@ -9,8 +9,6 @@ set(SOURCES
     LocalMatchingSolutionsVAF.cpp
     Matching.cpp
     MCIM.cpp
-    MCIMFlat.cpp
-    MCIMRegular.cpp
     MultidimensionalRange.cpp
     Point.cpp
     Range.cpp

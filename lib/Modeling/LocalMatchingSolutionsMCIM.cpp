@@ -19,7 +19,7 @@ namespace marco::modeling::internal
 
   void MCIMSolutions::compute(const MCIM& obj)
   {
-    for (const auto& solution: obj.splitGroups()) {
+    for (auto& solution: obj.splitGroups()) {
       solutions.push_back(std::move(solution));
     }
   }

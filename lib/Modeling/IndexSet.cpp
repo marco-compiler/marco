@@ -764,7 +764,7 @@ namespace marco::modeling
           }
         }
 
-        current = next;
+        current = std::move(next);
       }
     }
 

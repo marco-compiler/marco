@@ -276,6 +276,18 @@ namespace marco::modeling
         });
   }
 
+  MultidimensionalRange MultidimensionalRange::slice(size_t dimensions) const
+  {
+    assert(dimensions <= rank());
+    llvm::SmallVector<Range, 3> slicedRanges;
+
+    for (size_t i = 0; i < dimensions; ++i) {
+      slicedRanges.push_back(ranges[i]);
+    }
+
+    return MultidimensionalRange(std::move(slicedRanges));
+  }
+
   std::ostream& operator<<(std::ostream& stream, const MultidimensionalRange& obj)
   {
     stream << "[";

@@ -1,8 +1,15 @@
 #include "llvm/Support/Casting.h"
 #include "marco/Modeling/MCIM.h"
-#include "marco/Modeling/MCIMFlat.h"
-#include "marco/Modeling/MCIMRegular.h"
+#include "marco/Modeling/MCIMImpl.h"
 #include <numeric>
+
+using namespace ::marco;
+using namespace ::marco::modeling;
+using namespace ::marco::modeling::internal;
+
+//===----------------------------------------------------------------------===//
+// MCIM iterator
+//===----------------------------------------------------------------------===//
 
 namespace marco::modeling::internal
 {
@@ -69,15 +76,23 @@ namespace marco::modeling::internal
       varCurrentIt = varBeginIt;
     }
   }
+}
 
-  MCIM::Impl::Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-      : kind(kind), equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
+//===----------------------------------------------------------------------===//
+// MCIM implementation
+//===----------------------------------------------------------------------===//
+
+namespace marco::modeling::internal
+{
+  MCIM::Impl::Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+      : equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
   {
   }
 
-  MCIM::Impl::Impl(const Impl& other) = default;
-
-  MCIM::Impl::~Impl() = default;
+  std::unique_ptr<MCIM::Impl> MCIM::Impl::clone()
+  {
+    return std::make_unique<Impl>(*this);
+  }
 
   const MultidimensionalRange& MCIM::Impl::getEquationRanges() const
   {
@@ -91,7 +106,15 @@ namespace marco::modeling::internal
 
   bool MCIM::Impl::operator==(const MCIM::Impl& rhs) const
   {
-    for (const auto&[equation, variable]: getIndexes()) {
+    if (equationRanges != rhs.equationRanges) {
+      return false;
+    }
+
+    if (variableRanges != rhs.variableRanges) {
+      return false;
+    }
+
+    for (const auto& [equation, variable] : getIndexes()) {
       if (get(equation, variable) != rhs.get(equation, variable)) {
         return false;
       }
@@ -102,7 +125,15 @@ namespace marco::modeling::internal
 
   bool MCIM::Impl::operator!=(const MCIM::Impl& rhs) const
   {
-    for (const auto&[equation, variable]: getIndexes()) {
+    if (getEquationRanges() != rhs.getEquationRanges()) {
+      return true;
+    }
+
+    if (getVariableRanges() != rhs.getVariableRanges()) {
+      return true;
+    }
+
+    for (const auto& [equation, variable] : getIndexes()) {
       if (get(equation, variable) != rhs.get(equation, variable)) {
         return true;
       }
@@ -126,10 +157,11 @@ namespace marco::modeling::internal
 
   MCIM::Impl& MCIM::Impl::operator+=(const MCIM::Impl& rhs)
   {
-    for (const auto&[equation, variable]: getIndexes()) {
-      if (rhs.get(equation, variable)) {
-        set(equation, variable);
-      }
+    assert(equationRanges == rhs.equationRanges && "Different equation ranges");
+    assert(variableRanges == rhs.variableRanges && "Different variable ranges");
+
+    for (const auto& group : rhs.groups) {
+      add(group.getKeys(), group.getDelta());
     }
 
     return *this;
@@ -137,33 +169,460 @@ namespace marco::modeling::internal
 
   MCIM::Impl& MCIM::Impl::operator-=(const MCIM::Impl& rhs)
   {
-    for (const auto&[equation, variable]: getIndexes()) {
-      set(equation, variable);
-    }
+    assert(equationRanges == rhs.equationRanges && "Different equation ranges");
+    assert(variableRanges == rhs.variableRanges && "Different variable ranges");
 
-    for (const auto&[equation, variable]: getIndexes()) {
-      if (rhs.get(equation, variable)) {
-        unset(equation, variable);
+    std::vector<MCIMElement> newGroups;
+
+    for (const auto& group : groups) {
+      auto groupIt = llvm::find_if(rhs.groups, [&](const MCIMElement& obj) {
+        return obj.getDelta() == group.getDelta();
+      });
+
+      if (groupIt == rhs.groups.end()) {
+        newGroups.push_back(std::move(group));
+      } else {
+        IndexSet diff = group.getKeys() - groupIt->getKeys();
+        newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
       }
     }
 
+    groups = std::move(newGroups);
     return *this;
   }
 
-  MCIM::MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+  void MCIM::Impl::apply(const AccessFunction& access)
   {
-    if (equationRanges.rank() == variableRanges.rank()) {
-      impl = std::make_unique<RegularMCIM>(std::move(equationRanges), std::move(variableRanges));
+    bool accessWithoutConstants = llvm::none_of(access, [](const auto& dimensionAccess) {
+      return dimensionAccess.isConstantAccess();
+    });
+
+    if (accessWithoutConstants) {
+      auto mappedVariableRanges = access.map(equationRanges);
+      set(equationRanges, mappedVariableRanges);
+
     } else {
-      impl = std::make_unique<FlatMCIM>(std::move(equationRanges), std::move(variableRanges));
+      // Some equation indices lead to the same variable indices, so we have
+      // to iterate on all the equations indices.
+
+      for (const auto& equationIndices : getEquationRanges()) {
+        auto variableIndices = access.map(equationIndices);
+        set(equationIndices, variableIndices);
+      }
     }
   }
 
-  MCIM::MCIM(std::unique_ptr<Impl> impl) : impl(std::move(impl))
+  bool MCIM::Impl::get(const Point& equation, const Point& variable) const
+  {
+    assert(equationRanges.contains(equation) && "Equation indices don't belong to the equation ranges");
+    assert(variableRanges.contains(variable) && "Variable indices don't belong to the variable ranges");
+
+    auto delta = getDelta(equation, variable);
+    const auto& key = getKey(equation, variable);
+
+    return llvm::any_of(groups, [&](const MCIMElement& group) -> bool {
+      return group.getDelta() == delta && group.getKeys().contains(key);
+    });
+  }
+
+  void MCIM::Impl::set(const Point& equation, const Point& variable)
+  {
+    assert(equationRanges.contains(equation) && "Equation indices don't belong to the equation ranges");
+    assert(variableRanges.contains(variable) && "Variable indices don't belong to the variable ranges");
+
+    auto delta = getDelta(equation, variable);
+    IndexSet keys(getKey(equation, variable));
+    add(std::move(keys), std::move(delta));
+  }
+
+  void MCIM::Impl::set(const MultidimensionalRange& equations, const MultidimensionalRange& variables)
+  {
+    assert(equations.rank() == getEquationRanges().rank());
+    assert(variables.rank() == getVariableRanges().rank());
+
+    IndexSet keys(getKey(equations, variables));
+    auto delta = getDelta(equations, variables);
+
+    add(std::move(keys), std::move(delta));
+  }
+
+  void MCIM::Impl::unset(const Point& equation, const Point& variable)
+  {
+    assert(equationRanges.contains(equation) && "Equation indices don't belong to the equation ranges");
+    assert(variableRanges.contains(variable) && "Variable indices don't belong to the variable ranges");
+
+    const auto& key = getKey(equation, variable);
+    MultidimensionalRange keyRange(key);
+
+    std::vector<MCIMElement> newGroups;
+
+    for (const auto& group : groups) {
+      IndexSet diff = group.getKeys() - keyRange;
+
+      if (!diff.empty()) {
+        newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+      }
+    }
+
+    groups = std::move(newGroups);
+  }
+
+  bool MCIM::Impl::empty() const
+  {
+    return groups.empty();
+  }
+
+  void MCIM::Impl::clear()
+  {
+    groups.clear();
+  }
+
+  IndexSet MCIM::Impl::flattenRows() const
+  {
+    IndexSet result;
+
+    if (equationRanges.rank() >= variableRanges.rank()) {
+      for (const auto& group : groups) {
+        for (const auto& range : group.getValues()) {
+          result += range.slice(variableRanges.rank());
+        }
+      }
+    } else {
+      for (const auto& group : groups) {
+        const auto& keys = group.getKeys();
+        assert(keys.rank() == variableRanges.rank());
+        result += keys;
+      }
+    }
+
+    return result;
+  }
+
+  IndexSet MCIM::Impl::flattenColumns() const
+  {
+    IndexSet result;
+
+    if (equationRanges.rank() >= variableRanges.rank()) {
+      for (const auto& group : groups) {
+        const auto& keys = group.getKeys();
+        assert(keys.rank() == equationRanges.rank());
+        result += keys;
+      }
+    } else {
+      for (const auto& group : groups) {
+        for (const auto& range : group.getValues()) {
+          result += range.slice(equationRanges.rank());
+        }
+      }
+    }
+
+    return result;
+  }
+
+  std::unique_ptr<MCIM::Impl> MCIM::Impl::filterRows(const IndexSet& filter) const
+  {
+    auto result = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
+
+    if (equationRanges.rank() >= variableRanges.rank()) {
+      for (const MCIMElement& group : groups) {
+        if (auto& equations = group.getKeys(); equations.overlaps(filter)) {
+          result->add(equations.intersect(filter), group.getDelta());
+        }
+      }
+    } else {
+      auto rankDifference = variableRanges.rank() - equationRanges.rank();
+
+      for (const MCIMElement& group : groups) {
+        auto invertedGroup = group.inverse();
+        IndexSet equations;
+
+        for (const auto& extendedEquations : invertedGroup.getKeys()) {
+          equations += extendedEquations.slice(equationRanges.rank());
+        }
+
+        if (equations.overlaps(filter)) {
+          IndexSet filteredEquations = equations.intersect(filter);
+          IndexSet filteredExtendedEquations;
+
+          for (const auto& filteredEquation : filteredEquations) {
+            std::vector<Range> ranges;
+
+            for (size_t i = 0; i < filteredEquation.rank(); ++i) {
+              ranges.push_back(std::move(filteredEquation[i]));
+            }
+
+            for (size_t i = 0; i < rankDifference; ++i) {
+              ranges.push_back(Range(0, 1));
+            }
+
+            filteredExtendedEquations += MultidimensionalRange(std::move(ranges));
+          }
+
+          MCIMElement filteredEquationGroup(std::move(filteredExtendedEquations), invertedGroup.getDelta());
+          MCIMElement filteredVariables = filteredEquationGroup.inverse();
+          result->add(std::move(filteredVariables.getKeys()), std::move(filteredVariables.getDelta()));
+        }
+      }
+    }
+
+    return result;
+  }
+
+  std::unique_ptr<MCIM::Impl> MCIM::Impl::filterColumns(const IndexSet& filter) const
+  {
+    auto result = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
+
+    if (equationRanges.rank() == variableRanges.rank()) {
+      for (const MCIMElement& group: groups) {
+        auto invertedGroup = group.inverse();
+        const auto& variables = invertedGroup.getKeys();
+
+        if (variables.overlaps(filter)) {
+          IndexSet filteredVariables = variables.intersect(filter);
+          MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
+          MCIMElement filteredEquations = filteredVariableGroup.inverse();
+          result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+        }
+      }
+    } else if (equationRanges.rank() > variableRanges.rank()) {
+      auto rankDifference = equationRanges.rank() - variableRanges.rank();
+
+      for (const MCIMElement& group : groups) {
+        auto invertedGroup = group.inverse();
+        IndexSet variables;
+
+        for (const auto& extendedVariables : invertedGroup.getKeys()) {
+          variables += extendedVariables.slice(variableRanges.rank());
+        }
+
+        if (variables.overlaps(filter)) {
+          IndexSet filteredVariables = variables.intersect(filter);
+          IndexSet filteredExtendedVariables;
+
+          for (const auto& filteredVariable : filteredVariables) {
+            std::vector<Range> ranges;
+
+            for (size_t i = 0; i < filteredVariable.rank(); ++i) {
+              ranges.push_back(std::move(filteredVariable[i]));
+            }
+
+            for (size_t i = 0; i < rankDifference; ++i) {
+              ranges.push_back(Range(0, 1));
+            }
+
+            filteredExtendedVariables += MultidimensionalRange(std::move(ranges));
+          }
+
+          MCIMElement filteredVariableGroup(std::move(filteredExtendedVariables), invertedGroup.getDelta());
+          MCIMElement filteredEquations = filteredVariableGroup.inverse();
+          result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+        }
+      }
+    } else {
+      for (const MCIMElement& group : groups) {
+        if (auto& equations = group.getKeys(); equations.overlaps(filter)) {
+          result->add(equations.intersect(filter), group.getDelta());
+        }
+      }
+    }
+
+    return result;
+  }
+
+  std::vector<std::unique_ptr<MCIM::Impl>> MCIM::Impl::splitGroups() const
+  {
+    std::vector<std::unique_ptr<MCIM::Impl>> result;
+
+    for (const auto& group: groups) {
+      auto entry = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
+      entry->groups.push_back(group);
+      result.push_back(std::move(entry));
+    }
+
+    return result;
+  }
+
+  MCIM::Impl::Delta MCIM::Impl::getDelta(const Point& equation, const Point& variable) const
+  {
+    if (equation.rank() >= variable.rank()) {
+      return Delta(equation, variable);
+    }
+
+    return Delta(variable, equation);
+  }
+
+  MCIM::Impl::Delta MCIM::Impl::getDelta(const MultidimensionalRange& equations, const MultidimensionalRange& variables) const
+  {
+    if (equations.rank() >= variables.rank()) {
+      return Delta(equations, variables);
+    }
+
+    return Delta(variables, equations);
+  }
+
+  const Point& MCIM::Impl::getKey(const Point& equation, const Point& variable) const
+  {
+    if (equation.rank() >= variable.rank()) {
+      return equation;
+    }
+
+    return variable;
+  }
+
+  const MultidimensionalRange& MCIM::Impl::getKey(const MultidimensionalRange& equations, const MultidimensionalRange& variables) const
+  {
+    if (equations.rank() >= variables.rank()) {
+      return equations;
+    }
+
+    return variables;
+  }
+
+  void MCIM::Impl::add(IndexSet equations, Delta delta)
+  {
+    auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
+      return group.getDelta() == delta;
+    });
+
+    if (groupIt == groups.end()) {
+      groups.emplace_back(std::move(equations), std::move(delta));
+    } else {
+      groupIt->addKeys(std::move(equations));
+    }
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Delta
+//===----------------------------------------------------------------------===//
+
+namespace marco::modeling::internal
+{
+  MCIM::Impl::Delta::Delta(const Point& keys, const Point& values)
+  {
+    assert(keys.rank() >= values.rank());
+    auto rankDifference = keys.rank() - values.rank();
+    auto minRank = std::min(keys.rank(), values.rank());
+
+    for (size_t i = 0; i < minRank; ++i) {
+      offsets.push_back(values[i] - keys[i]);
+    }
+
+    for (size_t i = 0; i < rankDifference; ++i) {
+      offsets.push_back(-1 * keys[values.rank() + i]);
+    }
+  }
+
+  MCIM::Impl::Delta::Delta(const MultidimensionalRange& keys, const MultidimensionalRange& values)
+  {
+    assert(keys.rank() >= values.rank());
+    auto rankDifference = keys.rank() - values.rank();
+    auto minRank = std::min(keys.rank(), values.rank());
+
+    for (size_t i = 0; i < minRank; ++i) {
+      offsets.push_back(values[i].getBegin() - keys[i].getBegin());
+    }
+
+    for (size_t i = 0; i < rankDifference; ++i) {
+      offsets.push_back(-1 * keys[values.rank() + i].getBegin());
+    }
+  }
+
+  bool MCIM::Impl::Delta::operator==(const MCIM::Impl::Delta& other) const
+  {
+    return offsets == other.offsets;
+  }
+
+  long MCIM::Impl::Delta::operator[](size_t index) const
+  {
+    assert(index < offsets.size());
+    return offsets[index];
+  }
+
+  size_t MCIM::Impl::Delta::size() const
+  {
+    return offsets.size();
+  }
+
+  MCIM::Impl::Delta MCIM::Impl::Delta::inverse() const
+  {
+    Delta result(*this);
+
+    for (auto& value: result.offsets) {
+      value *= -1;
+    }
+
+    return result;
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// MCIMElement
+//===----------------------------------------------------------------------===//
+
+namespace marco::modeling::internal
+{
+  MCIM::Impl::MCIMElement::MCIMElement(IndexSet keys, Delta delta)
+      : keys(std::move(keys)), delta(std::move(delta))
   {
   }
 
-  MCIM::MCIM(const MCIM& other) : impl(other.impl->clone())
+  const IndexSet& MCIM::Impl::MCIMElement::getKeys() const
+  {
+    return keys;
+  }
+
+  void MCIM::Impl::MCIMElement::addKeys(IndexSet newKeys)
+  {
+    keys += std::move(newKeys);
+  }
+
+  const MCIM::Impl::Delta& MCIM::Impl::MCIMElement::getDelta() const
+  {
+    return delta;
+  }
+
+  IndexSet MCIM::Impl::MCIMElement::getValues() const
+  {
+    IndexSet result;
+
+    for (const auto& keyRange : keys) {
+      std::vector<Range> valueRanges;
+
+      for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
+        valueRanges.emplace_back(keyRange[i].getBegin() + delta[i], keyRange[i].getEnd() + delta[i]);
+      }
+
+      result += MultidimensionalRange(valueRanges);
+    }
+
+    return result;
+  }
+
+  MCIM::Impl::MCIMElement MCIM::Impl::MCIMElement::inverse() const
+  {
+    return MCIM::Impl::MCIMElement(getValues(), delta.inverse());
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// MCIM
+//===----------------------------------------------------------------------===//
+
+namespace marco::modeling::internal
+{
+  MCIM::MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+    : impl(std::make_unique<Impl>(std::move(equationRanges), std::move(variableRanges)))
+  {
+  }
+
+  MCIM::MCIM(std::unique_ptr<Impl> impl)
+    : impl(std::move(impl))
+  {
+  }
+
+  MCIM::MCIM(const MCIM& other)
+    : impl(other.impl->clone())
   {
   }
 
@@ -178,6 +637,8 @@ namespace marco::modeling::internal
     return *this;
   }
 
+  MCIM& MCIM::operator=(MCIM&& other) = default;
+
   void swap(MCIM& first, MCIM& second)
   {
     using std::swap;
@@ -186,28 +647,12 @@ namespace marco::modeling::internal
 
   bool MCIM::operator==(const MCIM& other) const
   {
-    if (getEquationRanges() != other.getEquationRanges()) {
-      return false;
-    }
-
-    if (getVariableRanges() != other.getVariableRanges()) {
-      return false;
-    }
-
-    return (*impl) == *other.impl;
+    return *impl == *other.impl;
   }
 
   bool MCIM::operator!=(const MCIM& other) const
   {
-    if (getEquationRanges() != other.getEquationRanges()) {
-      return true;
-    }
-
-    if (getVariableRanges() != other.getVariableRanges()) {
-      return true;
-    }
-
-    return (*impl) != *other.impl;
+    return *impl != *other.impl;
   }
 
   const MultidimensionalRange& MCIM::getEquationRanges() const
@@ -227,10 +672,7 @@ namespace marco::modeling::internal
 
   MCIM& MCIM::operator+=(const MCIM& rhs)
   {
-    assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
-    assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
-
-    (*impl) += *rhs.impl;
+    *impl += *rhs.impl;
     return *this;
   }
 
@@ -243,10 +685,7 @@ namespace marco::modeling::internal
 
   MCIM& MCIM::operator-=(const MCIM& rhs)
   {
-    assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
-    assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
-
-    (*impl) -= *rhs.impl;
+    *impl -= *rhs.impl;
     return *this;
   }
 
@@ -264,22 +703,16 @@ namespace marco::modeling::internal
 
   bool MCIM::get(const Point& equation, const Point& variable) const
   {
-    assert(getEquationRanges().contains(equation) && "Equation indexes don't belong to the equation ranges");
-    assert(getVariableRanges().contains(variable) && "Variable indexes don't belong to the variable ranges");
     return impl->get(equation, variable);
   }
 
   void MCIM::set(const Point& equation, const Point& variable)
   {
-    assert(getEquationRanges().contains(equation) && "Equation indexes don't belong to the equation ranges");
-    assert(getVariableRanges().contains(variable) && "Variable indexes don't belong to the variable ranges");
     impl->set(equation, variable);
   }
 
   void MCIM::unset(const Point& equation, const Point& variable)
   {
-    assert(getEquationRanges().contains(equation) && "Equation indexes don't belong to the equation ranges");
-    assert(getVariableRanges().contains(variable) && "Variable indexes don't belong to the variable ranges");
     impl->unset(equation, variable);
   }
 
@@ -318,13 +751,16 @@ namespace marco::modeling::internal
     std::vector<MCIM> result;
     auto groups = impl->splitGroups();
 
-    for (auto& group: groups) {
+    for (auto& group : groups) {
       result.push_back(MCIM(std::move(group)));
     }
 
     return result;
   }
+}
 
+namespace
+{
   template<class T>
   static size_t numDigits(T value)
   {
@@ -341,49 +777,52 @@ namespace marco::modeling::internal
 
     return digits;
   }
+}
 
-  static size_t getRangeMaxColumns(const Range& range)
-  {
-    size_t beginDigits = numDigits(range.getBegin());
-    size_t endDigits = numDigits(range.getEnd());
+static size_t getRangeMaxColumns(const Range& range)
+{
+  size_t beginDigits = numDigits(range.getBegin());
+  size_t endDigits = numDigits(range.getEnd());
 
-    if (range.getBegin() < 0) {
-      ++beginDigits;
-    }
-
-    if (range.getEnd() < 0) {
-      ++endDigits;
-    }
-
-    return std::max(beginDigits, endDigits);
+  if (range.getBegin() < 0) {
+    ++beginDigits;
   }
 
-  static size_t getIndexesWidth(const Point& indexes)
-  {
-    size_t result = 0;
+  if (range.getEnd() < 0) {
+    ++endDigits;
+  }
 
-    for (const auto& index: indexes) {
-      result += numDigits(index);
+  return std::max(beginDigits, endDigits);
+}
 
-      if (index < 0) {
-        ++result;
-      }
+static size_t getIndexesWidth(const Point& indexes)
+{
+  size_t result = 0;
+
+  for (const auto& index: indexes) {
+    result += numDigits(index);
+
+    if (index < 0) {
+      ++result;
     }
-
-    return result;
   }
 
-  static size_t getWrappedIndexesLength(size_t indexesLength, size_t numberOfIndexes)
-  {
-    size_t result = indexesLength;
+  return result;
+}
 
-    result += 1; // '(' character
-    result += numberOfIndexes - 1; // ',' characters
-    result += 1; // ')' character
+static size_t getWrappedIndexesLength(size_t indexesLength, size_t numberOfIndexes)
+{
+  size_t result = indexesLength;
 
-    return result;
-  }
+  result += 1; // '(' character
+  result += numberOfIndexes - 1; // ',' characters
+  result += 1; // ')' character
 
+  return result;
+}
+
+namespace marco::modeling::internal
+{
   std::ostream& operator<<(std::ostream& stream, const MCIM& mcim)
   {
     const auto& equationRanges = mcim.getEquationRanges();

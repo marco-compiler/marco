@@ -161,6 +161,8 @@ namespace marco::modeling
 
       const_iterator end() const;
 
+      MultidimensionalRange slice(size_t dimensions) const;
+
     private:
       Container ranges;
   };

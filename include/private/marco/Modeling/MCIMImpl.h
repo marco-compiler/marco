@@ -3,59 +3,64 @@
 
 #include "llvm/Support/Casting.h"
 #include "marco/Modeling/MCIM.h"
+#include <memory>
 
 namespace marco::modeling::internal
 {
   class MCIM::Impl
   {
     public:
-      enum MCIMKind
+      class Delta
       {
-        Regular,
-        Flat
+        public:
+          Delta(const Point& keys, const Point& values);
+
+          Delta(const MultidimensionalRange& keys, const MultidimensionalRange& values);
+
+          bool operator==(const Delta& other) const;
+
+          //size_t getRankDifference() const;
+
+          long operator[](size_t index) const;
+
+          size_t size() const;
+
+          Delta inverse() const;
+
+        private:
+          //size_t rankDifference;
+          std::vector<Point::data_type> offsets;
       };
 
-      Impl(MCIMKind kind, MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
-
-      Impl(const Impl& other);
-
-      virtual ~Impl();
-
-      /// @name LLVM-style RTTI methods
-      /// {
-
-      MCIMKind getKind() const
+      class MCIMElement
       {
-        return kind;
-      }
+        public:
+          MCIMElement(IndexSet keys, Delta delta);
 
-      template<typename T>
-      bool isa() const
-      {
-        return llvm::isa<T>(this);
-      }
+          //bool contains(const Point& equation, const Point& variable) const;
 
-      template<typename T>
-      T* dyn_cast()
-      {
-        return llvm::dyn_cast<T>(this);
-      }
+          const IndexSet& getKeys() const;
 
-      template<typename T>
-      const T* dyn_cast() const
-      {
-        return llvm::dyn_cast<T>(this);
-      }
+          void addKeys(IndexSet newKeys);
 
-      /// }
-      /// @name Forwarding methods
-      /// {
+          const Delta& getDelta() const;
 
-      virtual bool operator==(const MCIM::Impl& rhs) const;
+          IndexSet getValues() const;
 
-      virtual bool operator!=(const MCIM::Impl& rhs) const;
+          MCIMElement inverse() const;
 
-      virtual std::unique_ptr<MCIM::Impl> clone() = 0;
+        private:
+          IndexSet keys;
+          Delta delta;
+      };
+
+      Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+
+      bool operator==(const MCIM::Impl& rhs) const;
+
+      bool operator!=(const MCIM::Impl& rhs) const;
+
+      std::unique_ptr<MCIM::Impl> clone();
 
       const MultidimensionalRange& getEquationRanges() const;
 
@@ -67,34 +72,46 @@ namespace marco::modeling::internal
 
       virtual MCIM::Impl& operator-=(const MCIM::Impl& rhs);
 
-      virtual void apply(const AccessFunction& access) = 0;
+      void apply(const AccessFunction& access);
 
-      virtual bool get(const Point& equation, const Point& variable) const = 0;
+      bool get(const Point& equation, const Point& variable) const;
 
-      virtual void set(const Point& equation, const Point& variable) = 0;
+      void set(const Point& equation, const Point& variable);
 
-      virtual void unset(const Point& equation, const Point& variable) = 0;
+      void set(const MultidimensionalRange& equations, const MultidimensionalRange& variables);
 
-      virtual bool empty() const = 0;
+      void unset(const Point& equation, const Point& variable);
 
-      virtual void clear() = 0;
+      bool empty() const;
 
-      virtual IndexSet flattenRows() const = 0;
+      void clear();
 
-      virtual IndexSet flattenColumns() const = 0;
+      IndexSet flattenRows() const;
 
-      virtual std::unique_ptr<MCIM::Impl> filterRows(const IndexSet& filter) const = 0;
+      IndexSet flattenColumns() const;
 
-      virtual std::unique_ptr<MCIM::Impl> filterColumns(const IndexSet& filter) const = 0;
+      std::unique_ptr<MCIM::Impl> filterRows(const IndexSet& filter) const;
 
-      virtual std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const = 0;
+      std::unique_ptr<MCIM::Impl> filterColumns(const IndexSet& filter) const;
 
-      /// }
+      std::vector<std::unique_ptr<MCIM::Impl>> splitGroups() const;
 
     private:
-      const MCIMKind kind;
+      Delta getDelta(const Point& equation, const Point& variable) const;
+
+      Delta getDelta(const MultidimensionalRange& equations, const MultidimensionalRange& variables) const;
+
+      const Point& getKey(const Point& equation, const Point& variable) const;
+
+      const MultidimensionalRange& getKey(const MultidimensionalRange& equations, const MultidimensionalRange& variables) const;
+
+      void add(IndexSet equations, Delta delta);
+
+    private:
       MultidimensionalRange equationRanges;
       MultidimensionalRange variableRanges;
+
+      std::vector<MCIMElement> groups;
   };
 }
 

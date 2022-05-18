@@ -61,6 +61,8 @@ namespace marco::modeling::internal
 
       MCIM& operator=(const MCIM& other);
 
+      MCIM& operator=(MCIM&& other);
+
       friend void swap(MCIM& first, MCIM& second);
 
       bool operator==(const MCIM& other) const;

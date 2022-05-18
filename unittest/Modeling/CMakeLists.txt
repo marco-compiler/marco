@@ -7,8 +7,7 @@ set(SOURCES
     MatchingGraphTest.cpp
     MatchingTest.cpp
     MatchingTestCases.cpp
-    MCIMFlatTest.cpp
-    MCIMRegularTest.cpp
+    MCIMTest.cpp
     MultidimensionalRangeTest.cpp
     PointTest.cpp
     RangeTest.cpp

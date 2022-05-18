@@ -252,7 +252,10 @@ namespace marco::codegen
       matchingGraph.addVariable(variable.get());
     }
 
+    size_t equationCounter = 0;
+
     for (const auto& equation : filteredModel.getEquations()) {
+      std::cerr << "equation: " << equationCounter++ << "\n";
       matchingGraph.addEquation(equation.get());
     }
 
