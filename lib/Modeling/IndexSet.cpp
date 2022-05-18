@@ -258,8 +258,8 @@ namespace marco::modeling
   class IndexSet::Impl
   {
     public:
-      class Iterator;
-      using const_iterator = Iterator;
+      class RangeIterator;
+      using const_range_iterator = RangeIterator;
 
       Impl(size_t minElements = 4, size_t maxElements = 16);
 
@@ -319,9 +319,9 @@ namespace marco::modeling
 
       void clear();
 
-      const_iterator begin() const;
+      const_range_iterator begin() const;
 
-      const_iterator end() const;
+      const_range_iterator end() const;
 
       bool contains(const Point& other) const;
 
@@ -459,7 +459,7 @@ namespace marco::modeling
       size_t allowedRank;
   };
 
-  class IndexSet::Impl::Iterator
+  class IndexSet::Impl::RangeIterator
   {
     public:
       using iterator_category = std::input_iterator_tag;
@@ -468,22 +468,22 @@ namespace marco::modeling
       using pointer = const MultidimensionalRange*;
       using reference = const MultidimensionalRange&;
 
-      static Iterator begin(const IndexSet::Impl& indexSet);
+      static RangeIterator begin(const IndexSet::Impl& indexSet);
 
-      static Iterator end(const IndexSet::Impl& indexSet);
+      static RangeIterator end(const IndexSet::Impl& indexSet);
 
-      bool operator==(const Iterator& it) const;
+      bool operator==(const RangeIterator& it) const;
 
-      bool operator!=(const Iterator& it) const;
+      bool operator!=(const RangeIterator& it) const;
 
-      Iterator& operator++();
+      RangeIterator& operator++();
 
-      Iterator operator++(int);
+      RangeIterator operator++(int);
 
       reference operator*() const;
 
     private:
-      Iterator(const Node* root);
+      RangeIterator(const Node* root);
 
       void fetchNextLeaf();
 
@@ -996,14 +996,14 @@ namespace marco::modeling
     root = nullptr;
   }
 
-  IndexSet::Impl::const_iterator IndexSet::Impl::begin() const
+  IndexSet::Impl::const_range_iterator IndexSet::Impl::begin() const
   {
-    return IndexSet::Impl::Iterator::begin(*this);
+    return IndexSet::Impl::RangeIterator::begin(*this);
   }
 
-  IndexSet::Impl::const_iterator IndexSet::Impl::end() const
+  IndexSet::Impl::const_range_iterator IndexSet::Impl::end() const
   {
-    return IndexSet::Impl::Iterator::end(*this);
+    return IndexSet::Impl::RangeIterator::end(*this);
   }
 
   bool IndexSet::Impl::contains(const Point& other) const
@@ -1279,7 +1279,7 @@ namespace marco::modeling
     return true;
   }
 
-  IndexSet::Impl::Iterator::Iterator(const Node* root)
+  IndexSet::Impl::RangeIterator::RangeIterator(const Node* root)
     : node(root),
       valueIndex(0)
   {
@@ -1300,27 +1300,27 @@ namespace marco::modeling
     }
   }
 
-  IndexSet::Impl::Iterator IndexSet::Impl::Iterator::begin(const IndexSet::Impl& indexSet)
+  IndexSet::Impl::RangeIterator IndexSet::Impl::RangeIterator::begin(const IndexSet::Impl& indexSet)
   {
-    return Iterator(indexSet.root.get());
+    return RangeIterator(indexSet.root.get());
   }
 
-  IndexSet::Impl::Iterator IndexSet::Impl::Iterator::end(const IndexSet::Impl& indexSet)
+  IndexSet::Impl::RangeIterator IndexSet::Impl::RangeIterator::end(const IndexSet::Impl& indexSet)
   {
-    return Iterator(nullptr);
+    return RangeIterator(nullptr);
   }
 
-  bool IndexSet::Impl::Iterator::operator==(const Iterator& it) const
+  bool IndexSet::Impl::RangeIterator::operator==(const RangeIterator& it) const
   {
     return node == it.node && valueIndex == it.valueIndex;
   }
 
-  bool IndexSet::Impl::Iterator::operator!=(const Iterator& it) const
+  bool IndexSet::Impl::RangeIterator::operator!=(const RangeIterator& it) const
   {
     return node != it.node || valueIndex != it.valueIndex;
   }
 
-  IndexSet::Impl::Iterator& IndexSet::Impl::Iterator::operator++()
+  IndexSet::Impl::RangeIterator& IndexSet::Impl::RangeIterator::operator++()
   {
     ++valueIndex;
 
@@ -1332,21 +1332,21 @@ namespace marco::modeling
     return *this;
   }
 
-  IndexSet::Impl::Iterator IndexSet::Impl::Iterator::operator++(int)
+  IndexSet::Impl::RangeIterator IndexSet::Impl::RangeIterator::operator++(int)
   {
     auto temp = *this;
     ++(*this);
     return temp;
   }
 
-  IndexSet::Impl::Iterator::reference IndexSet::Impl::Iterator::operator*() const
+  IndexSet::Impl::RangeIterator::reference IndexSet::Impl::RangeIterator::operator*() const
   {
     assert(node != nullptr);
     assert(node->isLeaf());
     return node->values[valueIndex];
   }
 
-  void IndexSet::Impl::Iterator::fetchNextLeaf()
+  void IndexSet::Impl::RangeIterator::fetchNextLeaf()
   {
     nodes.pop();
 
@@ -1370,7 +1370,7 @@ namespace marco::modeling
 
 namespace marco::modeling
 {
-  class IndexSet::Iterator::Impl
+  class IndexSet::RangeIterator::Impl
   {
     public:
       using iterator_category = std::input_iterator_tag;
@@ -1394,50 +1394,50 @@ namespace marco::modeling
       reference operator*() const;
 
     private:
-      Impl(IndexSet::Impl::Iterator impl);
+      Impl(IndexSet::Impl::RangeIterator impl);
 
-      IndexSet::Impl::Iterator impl;
+      IndexSet::Impl::RangeIterator impl;
   };
 
-  IndexSet::Iterator::Impl::Impl(IndexSet::Impl::Iterator impl)
+  IndexSet::RangeIterator::Impl::Impl(IndexSet::Impl::RangeIterator impl)
     : impl(std::move(impl))
   {
   }
 
-  IndexSet::Iterator::Impl IndexSet::Iterator::Impl::begin(const IndexSet& indexSet)
+  IndexSet::RangeIterator::Impl IndexSet::RangeIterator::Impl::begin(const IndexSet& indexSet)
   {
     return Impl(indexSet.impl->begin());
   }
 
-  IndexSet::Iterator::Impl IndexSet::Iterator::Impl::end(const IndexSet& indexSet)
+  IndexSet::RangeIterator::Impl IndexSet::RangeIterator::Impl::end(const IndexSet& indexSet)
   {
     return Impl(indexSet.impl->end());
   }
 
-  bool IndexSet::Iterator::Impl::operator==(const IndexSet::Iterator::Impl& it) const
+  bool IndexSet::RangeIterator::Impl::operator==(const IndexSet::RangeIterator::Impl& it) const
   {
     return impl == it.impl;
   }
 
-  bool IndexSet::Iterator::Impl::operator!=(const IndexSet::Iterator::Impl& it) const
+  bool IndexSet::RangeIterator::Impl::operator!=(const IndexSet::RangeIterator::Impl& it) const
   {
     return impl != it.impl;
   }
 
-  IndexSet::Iterator::Impl& IndexSet::Iterator::Impl::operator++()
+  IndexSet::RangeIterator::Impl& IndexSet::RangeIterator::Impl::operator++()
   {
     ++impl;
     return *this;
   }
 
-  IndexSet::Iterator::Impl IndexSet::Iterator::Impl::operator++(int)
+  IndexSet::RangeIterator::Impl IndexSet::RangeIterator::Impl::operator++(int)
   {
     auto temp = *this;
     ++impl;
     return temp;
   }
 
-  IndexSet::Iterator::Impl::reference IndexSet::Iterator::Impl::operator*() const
+  IndexSet::RangeIterator::Impl::reference IndexSet::RangeIterator::Impl::operator*() const
   {
     return *impl;
   }
@@ -1445,67 +1445,67 @@ namespace marco::modeling
 
 namespace marco::modeling
 {
-  IndexSet::Iterator::Iterator(std::unique_ptr<Impl> impl)
+  IndexSet::RangeIterator::RangeIterator(std::unique_ptr<Impl> impl)
     : impl(std::move(impl))
   {
   }
 
-  IndexSet::Iterator::Iterator(const IndexSet::Iterator& other)
+  IndexSet::RangeIterator::RangeIterator(const IndexSet::RangeIterator& other)
     : impl(std::make_unique<Impl>(*other.impl))
   {
   }
 
-  IndexSet::Iterator::Iterator(IndexSet::Iterator&& other) = default;
+  IndexSet::RangeIterator::RangeIterator(IndexSet::RangeIterator&& other) = default;
 
-  IndexSet::Iterator::~Iterator() = default;
+  IndexSet::RangeIterator::~RangeIterator() = default;
 
-  IndexSet::Iterator& IndexSet::Iterator::operator=(const IndexSet::Iterator& other)
+  IndexSet::RangeIterator& IndexSet::RangeIterator::operator=(const IndexSet::RangeIterator& other)
   {
-    IndexSet::Iterator result(other);
+    IndexSet::RangeIterator result(other);
     swap(*this, result);
     return *this;
   }
 
-  void swap(IndexSet::Iterator& first, IndexSet::Iterator& second)
+  void swap(IndexSet::RangeIterator& first, IndexSet::RangeIterator& second)
   {
     using std::swap;
     swap(first.impl, second.impl);
   }
 
-  IndexSet::Iterator IndexSet::Iterator::begin(const IndexSet& indexSet)
+  IndexSet::RangeIterator IndexSet::RangeIterator::begin(const IndexSet& indexSet)
   {
-    return Iterator(std::make_unique<Impl>(Impl::begin(indexSet)));
+    return RangeIterator(std::make_unique<Impl>(Impl::begin(indexSet)));
   }
 
-  IndexSet::Iterator IndexSet::Iterator::end(const IndexSet& indexSet)
+  IndexSet::RangeIterator IndexSet::RangeIterator::end(const IndexSet& indexSet)
   {
-    return Iterator(std::make_unique<Impl>(Impl::end(indexSet)));
+    return RangeIterator(std::make_unique<Impl>(Impl::end(indexSet)));
   }
 
-  bool IndexSet::Iterator::operator==(const IndexSet::Iterator& it) const
+  bool IndexSet::RangeIterator::operator==(const IndexSet::RangeIterator& it) const
   {
     return *impl == *it.impl;
   }
 
-  bool IndexSet::Iterator::operator!=(const IndexSet::Iterator& it) const
+  bool IndexSet::RangeIterator::operator!=(const IndexSet::RangeIterator& it) const
   {
     return *impl != *it.impl;
   }
 
-  IndexSet::Iterator& IndexSet::Iterator::operator++()
+  IndexSet::RangeIterator& IndexSet::RangeIterator::operator++()
   {
     ++(*impl);
     return *this;
   }
 
-  IndexSet::Iterator IndexSet::Iterator::operator++(int)
+  IndexSet::RangeIterator IndexSet::RangeIterator::operator++(int)
   {
     auto temp = *this;
     ++(*impl);
     return temp;
   }
 
-  IndexSet::Iterator::reference IndexSet::Iterator::operator*() const
+  IndexSet::RangeIterator::reference IndexSet::RangeIterator::operator*() const
   {
     return **impl;
   }
@@ -1667,19 +1667,19 @@ namespace marco::modeling
     impl->clear();
   }
 
-  // IndexSet::const_iterator IndexSet::begin() const
+  // IndexSet::const_range_iterator IndexSet::begin() const
   // {
-  //   return Iterator::begin(*this);
+  //   return RangeIterator::begin(*this);
   // }
 
-  // IndexSet::const_iterator IndexSet::end() const
+  // IndexSet::const_range_iterator IndexSet::end() const
   // {
-  //   return Iterator::end(*this);
+  //   return RangeIterator::end(*this);
   // }
 
-  llvm::iterator_range<IndexSet::const_iterator> IndexSet::getRanges() const
+  llvm::iterator_range<IndexSet::const_range_iterator> IndexSet::getRanges() const
   {
-    return llvm::make_range(Iterator::begin(*this),Iterator::end(*this));
+    return llvm::make_range(RangeIterator::begin(*this),RangeIterator::end(*this));
   }
 
   bool IndexSet::contains(const Point& other) const

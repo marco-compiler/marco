@@ -15,7 +15,7 @@ namespace marco::modeling
   class IndexSet
   {
     public:
-      class Iterator
+      class RangeIterator
       {
         public:
           using iterator_category = std::input_iterator_tag;
@@ -26,37 +26,37 @@ namespace marco::modeling
 
           class Impl;
 
-          Iterator(const Iterator& other);
+          RangeIterator(const RangeIterator& other);
 
-          Iterator(Iterator&& other);
+          RangeIterator(RangeIterator&& other);
 
-          ~Iterator();
+          ~RangeIterator();
 
-          Iterator& operator=(const Iterator& other);
+          RangeIterator& operator=(const RangeIterator& other);
 
-          friend void swap(Iterator& first, Iterator& second);
+          friend void swap(RangeIterator& first, RangeIterator& second);
 
-          static Iterator begin(const IndexSet& indexSet);
+          static RangeIterator begin(const IndexSet& indexSet);
 
-          static Iterator end(const IndexSet& indexSet);
+          static RangeIterator end(const IndexSet& indexSet);
 
-          bool operator==(const Iterator& it) const;
+          bool operator==(const RangeIterator& it) const;
 
-          bool operator!=(const Iterator& it) const;
+          bool operator!=(const RangeIterator& it) const;
 
-          Iterator& operator++();
+          RangeIterator& operator++();
 
-          Iterator operator++(int);
+          RangeIterator operator++(int);
 
           reference operator*() const;
 
         private:
-          Iterator(std::unique_ptr<Impl> impl);
+          RangeIterator(std::unique_ptr<Impl> impl);
 
           std::unique_ptr<Impl> impl;
       };
 
-      using const_iterator = Iterator;
+      using const_range_iterator = RangeIterator;
       class Impl;
 
       IndexSet();
@@ -117,12 +117,12 @@ namespace marco::modeling
 
       void clear();
 
-      // const_iterator begin() const;
+      // const_range_iterator begin() const;
 
-      // const_iterator end() const;
+      // const_range_iterator end() const;
 
       // todo: if called on something that is not a lvalue, it produces a LLVM ERROR: out of memory
-      llvm::iterator_range<const_iterator> getRanges() const;
+      llvm::iterator_range<const_range_iterator> getRanges() const;
 
       bool contains(const Point& other) const;
 
