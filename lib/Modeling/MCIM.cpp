@@ -161,7 +161,7 @@ namespace marco::modeling::internal
     assert(variableRanges == rhs.variableRanges && "Different variable ranges");
 
     for (const auto& group : rhs.groups) {
-      add(group.getKeys(), group.getDelta());
+      add(group.second.getKeys(), group.first);
     }
 
     return *this;
@@ -172,18 +172,16 @@ namespace marco::modeling::internal
     assert(equationRanges == rhs.equationRanges && "Different equation ranges");
     assert(variableRanges == rhs.variableRanges && "Different variable ranges");
 
-    std::vector<MCIMElement> newGroups;
+    std::map<Delta, MCIMElement> newGroups;
 
     for (const auto& group : groups) {
-      auto groupIt = llvm::find_if(rhs.groups, [&](const MCIMElement& obj) {
-        return obj.getDelta() == group.getDelta();
-      });
+      auto groupIt = rhs.groups.find(group.first);
 
       if (groupIt == rhs.groups.end()) {
-        newGroups.push_back(std::move(group));
+        newGroups.try_emplace(group.first, std::move(group.second));
       } else {
-        IndexSet diff = group.getKeys() - groupIt->getKeys();
-        newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+        IndexSet diff = group.second.getKeys() - groupIt->second.getKeys();
+        newGroups.try_emplace(group.first, MCIMElement(std::move(diff)));
       }
     }
 
@@ -193,19 +191,30 @@ namespace marco::modeling::internal
 
   void MCIM::Impl::apply(const AccessFunction& access)
   {
-    bool accessWithoutConstants = llvm::none_of(access, [](const auto& dimensionAccess) {
-      return dimensionAccess.isConstantAccess();
+    apply(equationRanges, access);
+  }
+
+  void MCIM::Impl::apply(const MultidimensionalRange& equations, const AccessFunction& access)
+  {
+    assert(equationRanges.contains(equations));
+
+    bool isIdentityLike = llvm::all_of(llvm::enumerate(access), [](const auto& dimensionAccess) {
+      if (dimensionAccess.value().isConstantAccess()) {
+        return false;
+      }
+
+      return dimensionAccess.index() == dimensionAccess.value().getInductionVariableIndex();
     });
 
-    if (accessWithoutConstants) {
-      auto mappedVariableRanges = access.map(equationRanges);
-      set(equationRanges, mappedVariableRanges);
+    if (isIdentityLike) {
+      auto mappedVariableRanges = access.map(equations);
+      set(equations, mappedVariableRanges);
 
     } else {
       // Some equation indices lead to the same variable indices, so we have
       // to iterate on all the equations indices.
 
-      for (const auto& equationIndices : getEquationRanges()) {
+      for (const auto& equationIndices : equations) {
         auto variableIndices = access.map(equationIndices);
         set(equationIndices, variableIndices);
       }
@@ -220,8 +229,8 @@ namespace marco::modeling::internal
     auto delta = getDelta(equation, variable);
     const auto& key = getKey(equation, variable);
 
-    return llvm::any_of(groups, [&](const MCIMElement& group) -> bool {
-      return group.getDelta() == delta && group.getKeys().contains(key);
+    return llvm::any_of(groups, [&](const auto& group) -> bool {
+      return group.first == delta && group.second.getKeys().contains(key);
     });
   }
 
@@ -254,13 +263,13 @@ namespace marco::modeling::internal
     const auto& key = getKey(equation, variable);
     MultidimensionalRange keyRange(key);
 
-    std::vector<MCIMElement> newGroups;
+    std::map<Delta, MCIMElement> newGroups;
 
     for (const auto& group : groups) {
-      IndexSet diff = group.getKeys() - keyRange;
+      IndexSet diff = group.second.getKeys() - keyRange;
 
       if (!diff.empty()) {
-        newGroups.emplace_back(std::move(diff), std::move(group.getDelta()));
+        newGroups.try_emplace(group.first, MCIMElement(std::move(diff)));
       }
     }
 
@@ -283,13 +292,13 @@ namespace marco::modeling::internal
 
     if (equationRanges.rank() >= variableRanges.rank()) {
       for (const auto& group : groups) {
-        for (const auto& range : group.getValues()) {
+        for (const auto& range : group.second.getValues(group.first)) {
           result += range.slice(variableRanges.rank());
         }
       }
     } else {
       for (const auto& group : groups) {
-        const auto& keys = group.getKeys();
+        const auto& keys = group.second.getKeys();
         assert(keys.rank() == variableRanges.rank());
         result += keys;
       }
@@ -304,13 +313,13 @@ namespace marco::modeling::internal
 
     if (equationRanges.rank() >= variableRanges.rank()) {
       for (const auto& group : groups) {
-        const auto& keys = group.getKeys();
+        const auto& keys = group.second.getKeys();
         assert(keys.rank() == equationRanges.rank());
         result += keys;
       }
     } else {
       for (const auto& group : groups) {
-        for (const auto& range : group.getValues()) {
+        for (const auto& range : group.second.getValues(group.first)) {
           result += range.slice(equationRanges.rank());
         }
       }
@@ -324,16 +333,16 @@ namespace marco::modeling::internal
     auto result = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
 
     if (equationRanges.rank() >= variableRanges.rank()) {
-      for (const MCIMElement& group : groups) {
-        if (auto& equations = group.getKeys(); equations.overlaps(filter)) {
-          result->add(equations.intersect(filter), group.getDelta());
+      for (const auto& group : groups) {
+        if (auto& equations = group.second.getKeys(); equations.overlaps(filter)) {
+          result->add(equations.intersect(filter), group.first);
         }
       }
     } else {
       auto rankDifference = variableRanges.rank() - equationRanges.rank();
 
-      for (const MCIMElement& group : groups) {
-        auto invertedGroup = group.inverse();
+      for (const auto& group : groups) {
+        auto invertedGroup = group.second.inverse(group.first);
         IndexSet equations;
 
         for (const auto& extendedEquations : invertedGroup.getKeys()) {
@@ -358,9 +367,9 @@ namespace marco::modeling::internal
             filteredExtendedEquations += MultidimensionalRange(std::move(ranges));
           }
 
-          MCIMElement filteredEquationGroup(std::move(filteredExtendedEquations), invertedGroup.getDelta());
-          MCIMElement filteredVariables = filteredEquationGroup.inverse();
-          result->add(std::move(filteredVariables.getKeys()), std::move(filteredVariables.getDelta()));
+          MCIMElement filteredEquationGroup(std::move(filteredExtendedEquations));
+          MCIMElement filteredVariables = filteredEquationGroup.inverse(group.first.inverse());
+          result->add(std::move(filteredVariables.getKeys()), group.first);
         }
       }
     }
@@ -373,22 +382,22 @@ namespace marco::modeling::internal
     auto result = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
 
     if (equationRanges.rank() == variableRanges.rank()) {
-      for (const MCIMElement& group: groups) {
-        auto invertedGroup = group.inverse();
+      for (const auto& group : groups) {
+        auto invertedGroup = group.second.inverse(group.first);
         const auto& variables = invertedGroup.getKeys();
 
         if (variables.overlaps(filter)) {
           IndexSet filteredVariables = variables.intersect(filter);
-          MCIMElement filteredVariableGroup(std::move(filteredVariables), invertedGroup.getDelta());
-          MCIMElement filteredEquations = filteredVariableGroup.inverse();
-          result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+          MCIMElement filteredVariableGroup(std::move(filteredVariables));
+          MCIMElement filteredEquations = filteredVariableGroup.inverse(group.first.inverse());
+          result->add(std::move(filteredEquations.getKeys()), group.first);
         }
       }
     } else if (equationRanges.rank() > variableRanges.rank()) {
       auto rankDifference = equationRanges.rank() - variableRanges.rank();
 
-      for (const MCIMElement& group : groups) {
-        auto invertedGroup = group.inverse();
+      for (const auto& group : groups) {
+        auto invertedGroup = group.second.inverse(group.first);
         IndexSet variables;
 
         for (const auto& extendedVariables : invertedGroup.getKeys()) {
@@ -413,15 +422,15 @@ namespace marco::modeling::internal
             filteredExtendedVariables += MultidimensionalRange(std::move(ranges));
           }
 
-          MCIMElement filteredVariableGroup(std::move(filteredExtendedVariables), invertedGroup.getDelta());
-          MCIMElement filteredEquations = filteredVariableGroup.inverse();
-          result->add(std::move(filteredEquations.getKeys()), std::move(filteredEquations.getDelta()));
+          MCIMElement filteredVariableGroup(std::move(filteredExtendedVariables));
+          MCIMElement filteredEquations = filteredVariableGroup.inverse(group.first.inverse());
+          result->add(std::move(filteredEquations.getKeys()), group.first);
         }
       }
     } else {
-      for (const MCIMElement& group : groups) {
-        if (auto& equations = group.getKeys(); equations.overlaps(filter)) {
-          result->add(equations.intersect(filter), group.getDelta());
+      for (const auto& group : groups) {
+        if (auto& equations = group.second.getKeys(); equations.overlaps(filter)) {
+          result->add(equations.intersect(filter), group.first);
         }
       }
     }
@@ -435,7 +444,7 @@ namespace marco::modeling::internal
 
     for (const auto& group: groups) {
       auto entry = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
-      entry->groups.push_back(group);
+      entry->groups.insert(group);
       result.push_back(std::move(entry));
     }
 
@@ -480,15 +489,7 @@ namespace marco::modeling::internal
 
   void MCIM::Impl::add(IndexSet equations, Delta delta)
   {
-    auto groupIt = llvm::find_if(groups, [&](const MCIMElement& group) {
-      return group.getDelta() == delta;
-    });
-
-    if (groupIt == groups.end()) {
-      groups.emplace_back(std::move(equations), std::move(delta));
-    } else {
-      groupIt->addKeys(std::move(equations));
-    }
+    groups[delta].addKeys(std::move(equations));
   }
 }
 
@@ -533,6 +534,23 @@ namespace marco::modeling::internal
     return offsets == other.offsets;
   }
 
+  bool MCIM::Impl::Delta::operator<(const Delta& other) const
+  {
+    assert(size() == other.size());
+
+    for (const auto& [lhs, rhs] : llvm::zip(offsets, other.offsets)) {
+      if (rhs > lhs) {
+        return true;
+      }
+
+      if (rhs < lhs) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
   long MCIM::Impl::Delta::operator[](size_t index) const
   {
     assert(index < offsets.size());
@@ -562,8 +580,10 @@ namespace marco::modeling::internal
 
 namespace marco::modeling::internal
 {
-  MCIM::Impl::MCIMElement::MCIMElement(IndexSet keys, Delta delta)
-      : keys(std::move(keys)), delta(std::move(delta))
+  MCIM::Impl::MCIMElement::MCIMElement() = default;
+
+  MCIM::Impl::MCIMElement::MCIMElement(IndexSet keys)
+      : keys(std::move(keys))
   {
   }
 
@@ -577,12 +597,7 @@ namespace marco::modeling::internal
     keys += std::move(newKeys);
   }
 
-  const MCIM::Impl::Delta& MCIM::Impl::MCIMElement::getDelta() const
-  {
-    return delta;
-  }
-
-  IndexSet MCIM::Impl::MCIMElement::getValues() const
+  IndexSet MCIM::Impl::MCIMElement::getValues(const Delta& delta) const
   {
     IndexSet result;
 
@@ -599,9 +614,9 @@ namespace marco::modeling::internal
     return result;
   }
 
-  MCIM::Impl::MCIMElement MCIM::Impl::MCIMElement::inverse() const
+  MCIM::Impl::MCIMElement MCIM::Impl::MCIMElement::inverse(const Delta& delta) const
   {
-    return MCIM::Impl::MCIMElement(getValues(), delta.inverse());
+    return MCIM::Impl::MCIMElement(getValues(delta));
   }
 }
 
@@ -699,6 +714,11 @@ namespace marco::modeling::internal
   void MCIM::apply(const AccessFunction& access)
   {
     impl->apply(access);
+  }
+
+  void MCIM::apply(const MultidimensionalRange& equations, const AccessFunction& access)
+  {
+    impl->apply(equations, access);
   }
 
   bool MCIM::get(const Point& equation, const Point& variable) const

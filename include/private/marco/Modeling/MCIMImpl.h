@@ -1,8 +1,8 @@
 #ifndef MARCO_MODELING_MCIMIMPL_H
 #define MARCO_MODELING_MCIMIMPL_H
 
-#include "llvm/Support/Casting.h"
 #include "marco/Modeling/MCIM.h"
+#include <map>
 #include <memory>
 
 namespace marco::modeling::internal
@@ -19,7 +19,7 @@ namespace marco::modeling::internal
 
           bool operator==(const Delta& other) const;
 
-          //size_t getRankDifference() const;
+          bool operator<(const Delta& other) const;
 
           long operator[](size_t index) const;
 
@@ -28,30 +28,26 @@ namespace marco::modeling::internal
           Delta inverse() const;
 
         private:
-          //size_t rankDifference;
           std::vector<Point::data_type> offsets;
       };
 
       class MCIMElement
       {
         public:
-          MCIMElement(IndexSet keys, Delta delta);
+          MCIMElement();
 
-          //bool contains(const Point& equation, const Point& variable) const;
+          MCIMElement(IndexSet keys);
 
           const IndexSet& getKeys() const;
 
           void addKeys(IndexSet newKeys);
 
-          const Delta& getDelta() const;
+          IndexSet getValues(const Delta& delta) const;
 
-          IndexSet getValues() const;
-
-          MCIMElement inverse() const;
+          MCIMElement inverse(const Delta& delta) const;
 
         private:
           IndexSet keys;
-          Delta delta;
       };
 
       Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
@@ -74,11 +70,11 @@ namespace marco::modeling::internal
 
       void apply(const AccessFunction& access);
 
+      void apply(const MultidimensionalRange& equations, const AccessFunction& access);
+
       bool get(const Point& equation, const Point& variable) const;
 
       void set(const Point& equation, const Point& variable);
-
-      void set(const MultidimensionalRange& equations, const MultidimensionalRange& variables);
 
       void unset(const Point& equation, const Point& variable);
 
@@ -105,13 +101,15 @@ namespace marco::modeling::internal
 
       const MultidimensionalRange& getKey(const MultidimensionalRange& equations, const MultidimensionalRange& variables) const;
 
+      void set(const MultidimensionalRange& equations, const MultidimensionalRange& variables);
+
       void add(IndexSet equations, Delta delta);
 
     private:
       MultidimensionalRange equationRanges;
       MultidimensionalRange variableRanges;
 
-      std::vector<MCIMElement> groups;
+      std::map<Delta, MCIMElement> groups;
   };
 }
 

@@ -85,6 +85,8 @@ namespace marco::modeling::internal
 
       void apply(const AccessFunction& access);
 
+      void apply(const MultidimensionalRange& equations, const AccessFunction& access);
+
       bool get(const Point& equation, const Point& variable) const;
 
       void set(const Point& equation, const Point& variable);
