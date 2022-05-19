@@ -42,12 +42,11 @@ namespace marco::modeling::internal
       llvm::SmallVector<MCIM, 3> matrices;
 
       size_t currentAccessFunction = 0;
-      size_t groupSize;
-      llvm::SmallVector<Range, 3> reorderedRanges;
-      std::unique_ptr<MultidimensionalRange> range;
-      llvm::SmallVector<size_t, 3> ordering;
-      std::unique_ptr<MultidimensionalRange::const_iterator> rangeIt;
-      std::unique_ptr<MultidimensionalRange::const_iterator> rangeEnd;
+      llvm::SmallVector<Range, 3> ranges;
+      std::unique_ptr<MultidimensionalRange> unusedRange;
+      llvm::SmallVector<size_t, 3> unusedRangeOriginalPosition;
+      std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeIt;
+      std::unique_ptr<MultidimensionalRange::const_iterator> unusedRangeEnd;
   };
 }
 

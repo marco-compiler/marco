@@ -58,7 +58,7 @@ namespace marco::modeling::internal
   {
     assert(index < size());
 
-    while (matrices.size() <= index) {
+    while (matrices.size() <= index && currentAccessFunction < accessFunctions.size()) {
       fetchNext();
     }
 
@@ -72,72 +72,78 @@ namespace marco::modeling::internal
 
   void VAFSolutions::fetchNext()
   {
-    if (rangeIt == nullptr || *rangeIt == *rangeEnd) {
-      assert(currentAccessFunction < accessFunctions.size() &&
-          "No more access functions to be processed");
+    if (unusedRangeIt == nullptr || *unusedRangeIt == *unusedRangeEnd) {
+      assert(currentAccessFunction < accessFunctions.size() && "No more access functions to be processed");
 
       llvm::SmallVector<size_t, 3> inductionsUsage;
       getInductionVariablesUsage(inductionsUsage, accessFunctions[currentAccessFunction]);
 
-      groupSize = 1;
+      ranges.clear();
+      ranges.resize(equationRanges.rank(), Range(0, 1));
 
-      reorderedRanges.clear();
+      llvm::SmallVector<Range, 3> unusedRanges;
 
-      ordering.clear();
-      ordering.insert(ordering.begin(), equationRanges.rank(), 0);
+      unusedRangeOriginalPosition.clear();
+      unusedRangeOriginalPosition.resize(equationRanges.rank(), 0);
 
-      // We need to reorder iteration of the variables so that the unused ones
-      // are the last ones changing. In fact, the unused variables are the one
-      // leading to repetitions among variable usages, and thus lead to a new
-      // group for each time they change value.
+      // We need to separate the unused induction variables. Those are in fact
+      // the ones leading to repetitions among variable usages, and thus lead
+      // to a new group for each time they change value.
 
       for (const auto& usage: llvm::enumerate(inductionsUsage)) {
         if (usage.value() == 0) {
-          ordering[usage.index()] = reorderedRanges.size();
-          reorderedRanges.push_back(equationRanges[usage.index()]);
+          unusedRangeOriginalPosition[unusedRanges.size()] = usage.index();
+          unusedRanges.push_back(equationRanges[usage.index()]);
+        } else {
+          ranges[usage.index()] = equationRanges[usage.index()];
         }
       }
 
-      for (const auto& usage: llvm::enumerate(inductionsUsage)) {
-        if (usage.value() != 0) {
-          ordering[usage.index()] = reorderedRanges.size();
-          reorderedRanges.push_back(equationRanges[usage.index()]);
-          groupSize *= equationRanges[usage.index()].size();
-        }
+      if (unusedRanges.empty()) {
+        // There are no unused variables, so we can just add the whole equation and
+        // variable ranges to the matrix.
+
+        MCIM matrix(equationRanges, variableRanges);
+        MultidimensionalRange equations(ranges);
+        matrix.apply(equations, accessFunctions[currentAccessFunction]);
+        matrices.push_back(std::move(matrix));
+
+        unusedRange = nullptr;
+        ++currentAccessFunction;
+
+      } else {
+        // Theoretically, it would be sufficient to store just the iterators of
+        // the reordered multidimensional range. However, their implementation may
+        // rely on the range existence, and having it allocated on the stack may
+        // lead to dangling pointers. Thus, we also store the range inside the
+        // class.
+
+        unusedRange = std::make_unique<MultidimensionalRange>(std::move(unusedRanges));
+        unusedRangeIt = std::make_unique<MultidimensionalRange::const_iterator>(unusedRange->begin());
+        unusedRangeEnd = std::make_unique<MultidimensionalRange::const_iterator>(unusedRange->end());
       }
-
-      // Theoretically, it would be sufficient to store just the iterators of
-      // the reordered multidimensional range. However, their implementation may
-      // rely on the range existence, and having it allocated on the stack may
-      // lead to dangling pointers. Thus, we also store the range inside the
-      // class.
-
-      range = std::make_unique<MultidimensionalRange>(reorderedRanges);
-      rangeIt = std::make_unique<MultidimensionalRange::const_iterator>(range->begin());
-      rangeEnd = std::make_unique<MultidimensionalRange::const_iterator>(range->end());
     }
 
-    MCIM matrix(equationRanges, variableRanges);
-    llvm::SmallVector<Point::data_type, 3> equationIndexes;
-    size_t counter = 0;
+    if (unusedRange != nullptr) {
+      assert(unusedRangeIt != nullptr);
+      assert(unusedRangeEnd != nullptr);
 
-    while (counter++ != groupSize) {
-      auto reorderedIndexes = **rangeIt;
-      equationIndexes.clear();
+      MCIM matrix(equationRanges, variableRanges);
+      auto unusedIndices = **unusedRangeIt;
 
-      for (size_t i = 0, e = equationRanges.rank(); i < e; ++i) {
-        equationIndexes.push_back(reorderedIndexes[ordering[i]]);
+      for (size_t i = 0; i < unusedIndices.rank(); ++i) {
+        ranges[unusedRangeOriginalPosition[i]] = Range(unusedIndices[i], unusedIndices[i] + 1);
       }
 
-      Point equation(equationIndexes);
-      auto variable = accessFunctions[currentAccessFunction].map(equation);
-      matrix.set(equation, variable);
+      MultidimensionalRange equations(ranges);
+      matrix.apply(equations, accessFunctions[currentAccessFunction]);
+      matrices.push_back(std::move(matrix));
 
-      if (counter == groupSize) {
-        matrices.push_back(std::move(matrix));
+      ++(*unusedRangeIt);
+
+      if (*unusedRangeIt == *unusedRangeEnd) {
+        ++currentAccessFunction;
       }
-
-      ++(*rangeIt);
     }
   }
 
