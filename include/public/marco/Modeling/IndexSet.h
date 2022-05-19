@@ -15,6 +15,7 @@ namespace marco::modeling
   class IndexSet
   {
     public:
+      // this iterator class is to iterate MultidimensionalRanges
       class RangeIterator
       {
         public:
@@ -56,7 +57,47 @@ namespace marco::modeling
           std::unique_ptr<Impl> impl;
       };
 
+      // this iterator class is to iterate indexes (points)
+      class PointIterator
+      {
+        public:
+          using value_type = Point;
+          using reference = const Point&;
+
+          class Impl;
+
+          PointIterator(const PointIterator& other);
+
+          PointIterator(PointIterator&& other);
+
+          ~PointIterator();
+
+          PointIterator& operator=(const PointIterator& other);
+
+          friend void swap(PointIterator& first, PointIterator& second);
+
+          static PointIterator begin(const IndexSet& indexSet);
+
+          static PointIterator end(const IndexSet& indexSet);
+
+          bool operator==(const PointIterator& it) const;
+
+          bool operator!=(const PointIterator& it) const;
+
+          PointIterator& operator++();
+
+          PointIterator operator++(int);
+
+          value_type operator*() const;
+
+        private:
+          PointIterator(std::unique_ptr<Impl> impl);
+
+          std::unique_ptr<Impl> impl;
+      };
+
       using const_range_iterator = RangeIterator;
+      using const_point_iterator = PointIterator;
       class Impl;
 
       IndexSet();
@@ -117,9 +158,9 @@ namespace marco::modeling
 
       void clear();
 
-      // const_range_iterator begin() const;
+      const_point_iterator begin() const;
 
-      // const_range_iterator end() const;
+      const_point_iterator end() const;
 
       // todo: if called on something that is not a lvalue, it produces a LLVM ERROR: out of memory
       llvm::iterator_range<const_range_iterator> getRanges() const;

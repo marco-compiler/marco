@@ -282,3 +282,59 @@ TEST(IndexSet, complementEmptyBase)
   for (auto indexes: range)
     EXPECT_TRUE(result.contains(indexes));
 }
+
+TEST(MultidimensionalRange, rangesIteration)
+{
+  MultidimensionalRange a({
+      Range(1, 3),
+      Range(2, 5),
+      Range(8, 10)
+  });
+
+  IndexSet set(a);
+
+  size_t count = 0;
+  for(auto range : set.getRanges())
+  {
+    EXPECT_EQ(range, a);
+    ++count;
+  }
+
+  EXPECT_EQ(count, 1);
+}
+
+TEST(MultidimensionalRange, indexesIteration)
+{
+  IndexSet range = IndexSet(MultidimensionalRange({
+      Range(1, 3),
+      Range(2, 5),
+      Range(8, 10)
+  }));
+
+  llvm::SmallVector<std::tuple<long, long, long>, 3> expected;
+  expected.emplace_back(1, 2, 8);
+  expected.emplace_back(1, 2, 9);
+  expected.emplace_back(1, 3, 8);
+  expected.emplace_back(1, 3, 9);
+  expected.emplace_back(1, 4, 8);
+  expected.emplace_back(1, 4, 9);
+  expected.emplace_back(2, 2, 8);
+  expected.emplace_back(2, 2, 9);
+  expected.emplace_back(2, 3, 8);
+  expected.emplace_back(2, 3, 9);
+  expected.emplace_back(2, 4, 8);
+  expected.emplace_back(2, 4, 9);
+
+  size_t index = 0;
+
+  for (auto it = range.begin(), end = range.end(); it != end; ++it) {
+    auto values = *it;
+
+    EXPECT_EQ(values.rank(), 3);
+    EXPECT_EQ(values[0], std::get<0>(expected[index]));
+    EXPECT_EQ(values[1], std::get<1>(expected[index]));
+    EXPECT_EQ(values[2], std::get<2>(expected[index]));
+
+    ++index;
+  }
+}

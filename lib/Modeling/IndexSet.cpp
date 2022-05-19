@@ -1445,6 +1445,138 @@ namespace marco::modeling
 
 namespace marco::modeling
 {
+  class IndexSet::PointIterator::Impl
+  {
+    public:
+      using value_type = Point;
+
+      Impl(const IndexSet &indexSet, bool end = false) :
+        container(&indexSet),
+        rangeIt(IndexSet::RangeIterator::begin(indexSet)),
+        rangeEnd(IndexSet::RangeIterator::end(indexSet)),
+        pointIt((*rangeIt).begin()),
+        end(end)
+      {}
+
+      bool operator==(const Impl& it) const
+      {
+        assert(container==it.container);
+        return end==it.end && (end || (rangeIt==it.rangeIt && pointIt==it.pointIt));
+      }
+
+      bool operator!=(const Impl& it) const
+      {
+        return !(*this==it);
+      }
+
+      Impl& operator++()
+      {
+        fetchNext();
+        return *this;
+      }
+
+      value_type operator*() const
+      {
+        return *pointIt;
+      }
+
+    private:
+      void fetchNext();
+
+      const IndexSet *container;
+      IndexSet::RangeIterator rangeIt, rangeEnd;
+      MultidimensionalRange::const_iterator pointIt;
+      bool end;
+  };
+
+  void IndexSet::PointIterator::Impl::fetchNext()
+  {
+    if(end)
+      return;
+
+    if(++pointIt==(*rangeIt).end())
+    {
+      if(++rangeIt == rangeEnd)
+      {
+        
+        end=true;
+      }
+      else
+      {
+        pointIt=(*rangeIt).begin();
+      }
+    }
+  }
+
+  IndexSet::PointIterator::PointIterator(std::unique_ptr<Impl> impl)
+    : impl(std::move(impl))
+  {
+  }
+
+  IndexSet::PointIterator::PointIterator(const IndexSet::PointIterator& other)
+    : impl(std::make_unique<Impl>(*other.impl))
+  {
+  }
+
+  IndexSet::PointIterator::PointIterator(IndexSet::PointIterator&& other) = default;
+
+  IndexSet::PointIterator::~PointIterator() = default;
+
+  IndexSet::PointIterator& IndexSet::PointIterator::operator=(const IndexSet::PointIterator& other)
+  {
+    IndexSet::PointIterator result(other);
+    swap(*this, result);
+    return *this;
+  }
+
+  void swap(IndexSet::PointIterator& first, IndexSet::PointIterator& second)
+  {
+    using std::swap;
+    swap(first.impl, second.impl);
+  }
+
+  IndexSet::PointIterator IndexSet::PointIterator::begin(const IndexSet& indexSet)
+  {
+    return PointIterator(std::make_unique<Impl>(indexSet,false));
+  }
+
+  IndexSet::PointIterator IndexSet::PointIterator::end(const IndexSet& indexSet)
+  {
+    return PointIterator(std::make_unique<Impl>(indexSet,true));
+  }
+
+  bool IndexSet::PointIterator::operator==(const IndexSet::PointIterator& it) const
+  {
+    return *impl == *it.impl;
+  }
+
+  bool IndexSet::PointIterator::operator!=(const IndexSet::PointIterator& it) const
+  {
+    return *impl != *it.impl;
+  }
+
+  IndexSet::PointIterator& IndexSet::PointIterator::operator++()
+  {
+    ++(*impl);
+    return *this;
+  }
+
+  IndexSet::PointIterator IndexSet::PointIterator::operator++(int)
+  {
+    auto tmp = *this;
+    ++(*impl);
+    return tmp;
+  }
+
+  IndexSet::PointIterator::value_type IndexSet::PointIterator::operator*() const
+  {
+    return **impl;
+  }
+
+}
+
+namespace marco::modeling
+{
   IndexSet::RangeIterator::RangeIterator(std::unique_ptr<Impl> impl)
     : impl(std::move(impl))
   {
@@ -1667,15 +1799,15 @@ namespace marco::modeling
     impl->clear();
   }
 
-  // IndexSet::const_range_iterator IndexSet::begin() const
-  // {
-  //   return RangeIterator::begin(*this);
-  // }
+  IndexSet::const_point_iterator IndexSet::begin() const
+  {
+    return PointIterator::begin(*this);
+  }
 
-  // IndexSet::const_range_iterator IndexSet::end() const
-  // {
-  //   return RangeIterator::end(*this);
-  // }
+  IndexSet::const_point_iterator IndexSet::end() const
+  {
+    return PointIterator::end(*this);
+  }
 
   llvm::iterator_range<IndexSet::const_range_iterator> IndexSet::getRanges() const
   {
