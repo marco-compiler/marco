@@ -15,7 +15,7 @@ namespace marco::modeling::internal
     public:
       class Impl;
 
-      class IndexesIterator
+      class IndicesIterator
       {
         public:
           using iterator_category = std::input_iterator_tag;
@@ -26,18 +26,18 @@ namespace marco::modeling::internal
 
           using Iterator = MultidimensionalRange::const_iterator;
 
-          IndexesIterator(
+          IndicesIterator(
               const MultidimensionalRange& equationRanges,
               const MultidimensionalRange& variableRanges,
               std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction);
 
-          bool operator==(const IndexesIterator& it) const;
+          bool operator==(const IndicesIterator& it) const;
 
-          bool operator!=(const IndexesIterator& it) const;
+          bool operator!=(const IndicesIterator& it) const;
 
-          IndexesIterator& operator++();
+          IndicesIterator& operator++();
 
-          IndexesIterator operator++(int);
+          IndicesIterator operator++(int);
 
           value_type operator*() const;
 
@@ -73,7 +73,7 @@ namespace marco::modeling::internal
 
       const MultidimensionalRange& getVariableRanges() const;
 
-      llvm::iterator_range<IndexesIterator> getIndexes() const;
+      llvm::iterator_range<IndicesIterator> getIndices() const;
 
       MCIM& operator+=(const MCIM& rhs);
 

@@ -13,7 +13,7 @@ using namespace ::marco::modeling::internal;
 
 namespace marco::modeling::internal
 {
-  MCIM::IndexesIterator::IndexesIterator(
+  MCIM::IndicesIterator::IndicesIterator(
       const MultidimensionalRange& equationRange,
       const MultidimensionalRange& variableRange,
       std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
@@ -23,42 +23,40 @@ namespace marco::modeling::internal
         varCurrentIt(initFunction(variableRange)),
         varEndIt(variableRange.end())
   {
-    if (eqCurrentIt != eqEndIt) {
-      assert(varCurrentIt != varEndIt);
-    }
+    assert(eqCurrentIt == eqEndIt || varCurrentIt != varEndIt);
   }
 
-  bool MCIM::IndexesIterator::operator==(const MCIM::IndexesIterator& it) const
+  bool MCIM::IndicesIterator::operator==(const MCIM::IndicesIterator& it) const
   {
     return eqCurrentIt == it.eqCurrentIt && eqEndIt == it.eqEndIt && varBeginIt == it.varBeginIt
         && varCurrentIt == it.varCurrentIt && varEndIt == it.varEndIt;
   }
 
-  bool MCIM::IndexesIterator::operator!=(const MCIM::IndexesIterator& it) const
+  bool MCIM::IndicesIterator::operator!=(const MCIM::IndicesIterator& it) const
   {
     return eqCurrentIt != it.eqCurrentIt || eqEndIt != it.eqEndIt || varBeginIt != it.varBeginIt
         || varCurrentIt != it.varCurrentIt || varEndIt != it.varEndIt;
   }
 
-  MCIM::IndexesIterator& MCIM::IndexesIterator::operator++()
+  MCIM::IndicesIterator& MCIM::IndicesIterator::operator++()
   {
     advance();
     return *this;
   }
 
-  MCIM::IndexesIterator MCIM::IndexesIterator::operator++(int)
+  MCIM::IndicesIterator MCIM::IndicesIterator::operator++(int)
   {
     auto temp = *this;
     advance();
     return temp;
   }
 
-  MCIM::IndexesIterator::value_type MCIM::IndexesIterator::operator*() const
+  MCIM::IndicesIterator::value_type MCIM::IndicesIterator::operator*() const
   {
     return std::make_pair(*eqCurrentIt, *varCurrentIt);
   }
 
-  void MCIM::IndexesIterator::advance()
+  void MCIM::IndicesIterator::advance()
   {
     if (eqCurrentIt == eqEndIt) {
       return;
@@ -114,7 +112,7 @@ namespace marco::modeling::internal
       return false;
     }
 
-    for (const auto& [equation, variable] : getIndexes()) {
+    for (const auto& [equation, variable] : getIndices()) {
       if (get(equation, variable) != rhs.get(equation, variable)) {
         return false;
       }
@@ -133,7 +131,7 @@ namespace marco::modeling::internal
       return true;
     }
 
-    for (const auto& [equation, variable] : getIndexes()) {
+    for (const auto& [equation, variable] : getIndices()) {
       if (get(equation, variable) != rhs.get(equation, variable)) {
         return true;
       }
@@ -142,17 +140,17 @@ namespace marco::modeling::internal
     return false;
   }
 
-  llvm::iterator_range<MCIM::IndexesIterator> MCIM::Impl::getIndexes() const
+  llvm::iterator_range<MCIM::IndicesIterator> MCIM::Impl::getIndices() const
   {
-    IndexesIterator begin(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
+    IndicesIterator begin(equationRanges, variableRanges, [](const MultidimensionalRange& range) {
       return range.begin();
     });
 
-    IndexesIterator end(getEquationRanges(), getVariableRanges(), [](const MultidimensionalRange& range) {
+    IndicesIterator end(equationRanges, variableRanges, [](const MultidimensionalRange& range) {
       return range.end();
     });
 
-    return llvm::iterator_range<MCIM::IndexesIterator>(begin, end);
+    return llvm::iterator_range<MCIM::IndicesIterator>(begin, end);
   }
 
   MCIM::Impl& MCIM::Impl::operator+=(const MCIM::Impl& rhs)
@@ -211,8 +209,9 @@ namespace marco::modeling::internal
       set(equations, mappedVariableRanges);
 
     } else {
-      // Some equation indices lead to the same variable indices, so we have
-      // to iterate on all the equations indices.
+      // In case of constant accesses or out-of-order induction variables
+      // the delta would be wrong. Thus, we need to iterate over all the
+      // equations indices.
 
       for (const auto& equationIndices : equations) {
         auto variableIndices = access.map(equationIndices);
@@ -248,6 +247,31 @@ namespace marco::modeling::internal
   {
     assert(equations.rank() == getEquationRanges().rank());
     assert(variables.rank() == getVariableRanges().rank());
+
+    assert(llvm::all_of(llvm::zip(equations, variables), [&](const auto& pair) {
+      const auto& equation = std::get<0>(pair);
+      const auto& variable = std::get<1>(pair);
+
+      auto delta = getDelta(equations, variables);
+      IndexSet key(getKey(equation, variable));
+      MCIMElement group(key);
+
+      IndexSet reducedValues;
+
+      if (equation.rank() >= variable.rank()) {
+        for (const auto& value : group.getValues(delta)) {
+          reducedValues += value.slice(variable.rank());
+        }
+
+        return reducedValues == variable;
+      } else {
+        for (const auto& value : group.getValues(delta)) {
+          reducedValues += value.slice(equation.rank());
+        }
+
+        return reducedValues == equation;
+      }
+    }));
 
     IndexSet keys(getKey(equations, variables));
     auto delta = getDelta(equations, variables);
@@ -442,7 +466,7 @@ namespace marco::modeling::internal
   {
     std::vector<std::unique_ptr<MCIM::Impl>> result;
 
-    for (const auto& group: groups) {
+    for (const auto& group : groups) {
       auto entry = std::make_unique<MCIM::Impl>(equationRanges, variableRanges);
       entry->groups.insert(group);
       result.push_back(std::move(entry));
@@ -566,7 +590,7 @@ namespace marco::modeling::internal
   {
     Delta result(*this);
 
-    for (auto& value: result.offsets) {
+    for (auto& value : result.offsets) {
       value *= -1;
     }
 
@@ -680,9 +704,9 @@ namespace marco::modeling::internal
     return impl->getVariableRanges();
   }
 
-  llvm::iterator_range<MCIM::IndexesIterator> MCIM::getIndexes() const
+  llvm::iterator_range<MCIM::IndicesIterator> MCIM::getIndices() const
   {
-    return impl->getIndexes();
+    return impl->getIndices();
   }
 
   MCIM& MCIM::operator+=(const MCIM& rhs)
@@ -815,11 +839,11 @@ static size_t getRangeMaxColumns(const Range& range)
   return std::max(beginDigits, endDigits);
 }
 
-static size_t getIndexesWidth(const Point& indexes)
+static size_t getIndicesWidth(const Point& indexes)
 {
   size_t result = 0;
 
-  for (const auto& index: indexes) {
+  for (const auto& index : indexes) {
     result += numDigits(index);
 
     if (index < 0) {
@@ -856,7 +880,7 @@ namespace marco::modeling::internal
       equationIndexesCols.push_back(getRangeMaxColumns(equationRanges[i]));
     }
 
-    size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), 0);
+    size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), static_cast<size_t>(0));
     size_t equationIndexesColumnWidth = getWrappedIndexesLength(equationIndexesMaxWidth, equationRanges.rank());
 
     // Determine the max column width, so that the horizontal spacing is the
@@ -867,7 +891,7 @@ namespace marco::modeling::internal
       variableIndexesCols.push_back(getRangeMaxColumns(variableRanges[i]));
     }
 
-    size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), 0);
+    size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), static_cast<size_t>(0));
     size_t variableIndexesColumnWidth = getWrappedIndexesLength(variableIndexesMaxWidth, variableRanges.rank());
 
     // Print the spacing of the first line
@@ -876,9 +900,9 @@ namespace marco::modeling::internal
     }
 
     // Print the variable indexes
-    for (const auto& variableIndexes: variableRanges) {
+    for (const auto& variableIndexes : variableRanges) {
       stream << " ";
-      size_t columnWidth = getIndexesWidth(variableIndexes);
+      size_t columnWidth = getIndicesWidth(variableIndexes);
 
       for (size_t i = columnWidth; i < variableIndexesMaxWidth; ++i) {
         stream << " ";
@@ -891,14 +915,14 @@ namespace marco::modeling::internal
     stream << "\n";
 
     // Print a line for each equation
-    for (const auto& equation: equationRanges) {
-      for (size_t i = getIndexesWidth(equation); i < equationIndexesMaxWidth; ++i) {
+    for (const auto& equation : equationRanges) {
+      for (size_t i = getIndicesWidth(equation); i < equationIndexesMaxWidth; ++i) {
         stream << " ";
       }
 
       stream << equation;
 
-      for (const auto& variable: variableRanges) {
+      for (const auto& variable : variableRanges) {
         stream << " ";
 
         size_t columnWidth = variableIndexesColumnWidth;

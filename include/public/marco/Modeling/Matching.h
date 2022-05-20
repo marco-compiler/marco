@@ -1043,12 +1043,13 @@ namespace marco::modeling
       /// Get the total amount of scalar variables inside the graph.
       size_t getNumberOfScalarVariables() const
       {
-        auto vars = getVariables();
+        size_t result = 0;
 
-        return std::accumulate(
-            vars.begin(), vars.end(), 0, [&](size_t sum, const auto& desc) {
-              return sum + getVariable(desc).flatSize();
-            });
+        for (auto variableDescriptor : getVariables()) {
+          result += getVariable(variableDescriptor).flatSize();
+        }
+
+        return result;
       }
 
       /// Get the total amount of scalar equations inside the graph.
@@ -1056,12 +1057,13 @@ namespace marco::modeling
       /// the loops defining them.
       size_t getNumberOfScalarEquations() const
       {
-        auto eqs = getEquations();
+        size_t result = 0;
 
-        return std::accumulate(
-            eqs.begin(), eqs.end(), 0, [&](size_t sum, VertexDescriptor descriptor) {
-              return sum + getEquation(descriptor).flatSize();
-            });
+        for (auto equationDescriptor : getEquations()) {
+          result += getEquation(equationDescriptor).flatSize();
+        }
+
+        return result;
       }
 
       bool allNodesMatched() const

@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "marco/Modeling/MCIM.h"
 
 using namespace ::marco::modeling;
@@ -22,29 +23,21 @@ TEST(MCIM_SameRank, indexesIterator)
 
   MCIM mcim(eq, var);
 
-  llvm::SmallVector<std::pair<Point, Point>, 8> expectedList;
+  std::vector<std::pair<Point, Point>> actual;
+
+  for (auto [equation, variable] : mcim.getIndices()) {
+    actual.emplace_back(equation, variable);
+  }
+
+  std::vector<std::pair<Point, Point>> expected;
 
   for (auto equation : eq) {
     for (auto variable : var) {
-      expectedList.push_back(std::make_pair(equation, variable));
+      expected.push_back(std::make_pair(equation, variable));
     }
   }
 
-  size_t counter = 0;
-
-  for (auto [equation, variable] : mcim.getIndexes()) {
-    ASSERT_LT(counter, expectedList.size());
-
-    auto& expectedEquation = expectedList[counter].first;
-    EXPECT_EQ(equation, expectedEquation);
-
-    auto& expectedVariable = expectedList[counter].second;
-    EXPECT_EQ(variable, expectedVariable);
-
-    ++counter;
-  }
-
-  EXPECT_EQ(counter, eq.flatSize() * var.flatSize());
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
 }
 
 // Try setting to true the 4 vertices of the matrix.
@@ -515,29 +508,21 @@ TEST(MCIM_UnderdimensionedVariables, indexesIterator)
 
   MCIM mcim(eq, var);
 
-  llvm::SmallVector<std::pair<Point, Point>, 8> expectedList;
+  std::vector<std::pair<Point, Point>> actual;
+
+  for (auto [equation, variable] : mcim.getIndices()) {
+    actual.emplace_back(equation, variable);
+  }
+
+  std::vector<std::pair<Point, Point>> expected;
 
   for (auto equation : eq) {
     for (auto variable : var) {
-      expectedList.push_back(std::make_pair(equation, variable));
+      expected.push_back(std::make_pair(equation, variable));
     }
   }
 
-  size_t counter = 0;
-
-  for (auto[equation, variable] : mcim.getIndexes()) {
-    ASSERT_LT(counter, expectedList.size());
-
-    auto& expectedEquation = expectedList[counter].first;
-    EXPECT_EQ(equation, expectedEquation);
-
-    auto& expectedVariable = expectedList[counter].second;
-    EXPECT_EQ(variable, expectedVariable);
-
-    ++counter;
-  }
-
-  EXPECT_EQ(counter, eq.flatSize() * var.flatSize());
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
 }
 
 // Try setting to true the 4 vertices of the matrix.
@@ -993,29 +978,21 @@ TEST(MCIM_UnderdimensionedEquations, indexesIterator)
 
   MCIM mcim(eq, var);
 
-  llvm::SmallVector<std::pair<Point, Point>, 8> expectedList;
+  std::vector<std::pair<Point, Point>> actual;
+
+  for (auto [equation, variable] : mcim.getIndices()) {
+    actual.emplace_back(equation, variable);
+  }
+
+  std::vector<std::pair<Point, Point>> expected;
 
   for (auto equation : eq) {
     for (auto variable : var) {
-      expectedList.push_back(std::make_pair(equation, variable));
+      expected.push_back(std::make_pair(equation, variable));
     }
   }
 
-  size_t counter = 0;
-
-  for (auto [equation, variable] : mcim.getIndexes()) {
-    ASSERT_LT(counter, expectedList.size());
-
-    auto& expectedEquation = expectedList[counter].first;
-    EXPECT_EQ(equation, expectedEquation);
-
-    auto& expectedVariable = expectedList[counter].second;
-    EXPECT_EQ(variable, expectedVariable);
-
-    ++counter;
-  }
-
-  EXPECT_EQ(counter, eq.flatSize() * var.flatSize());
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
 }
 
 // Try setting to true the 4 vertices of the matrix.
