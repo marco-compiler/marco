@@ -1,4 +1,12 @@
 set(SOURCES
+    AST.cpp
+    Error.cpp
+    Filter.cpp
+    LexerStateMachine.cpp
+    Parser.cpp
+    Range.cpp
+    Token.cpp
+    Tracker.cpp
     VariableFilter.cpp)
 
 marco_add_library(variableFilter SHARED
