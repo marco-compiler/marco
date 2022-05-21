@@ -3,7 +3,7 @@
 
 #include "../driver/heap.h"
 #include <initializer_list>
-
+#include <iterator>
 
 
 
@@ -193,7 +193,7 @@ T accumulate(InputIt first, InputIt last, T init,
     
 
 template <typename T>
-class Vector  : public std::initializer_list<T>{ //???
+class Vector { //???
 private:
     T* arr;
  
@@ -219,83 +219,38 @@ public:
     // Function that return the size of vector
     unsigned int size() const;
     T& operator[](unsigned int);
- 
-    // Iterator Class
-    class iterator {
-    private:
-        // Dynamic array using pointers
-        T* ptr;
- 
-    public:
-        explicit iterator()
-            : ptr(nullptr)
-        {
-        }
-        explicit iterator(T* p)
-            : ptr(p)
-        {
-        }
-        bool operator==(const iterator& rhs) const
-        {
-            return ptr == rhs.ptr;
-        }
-        bool operator!=(const iterator& rhs) const
-        {
-            return !(*this == rhs);
-        }
-        T operator*() const
-        {
-            return *ptr;
-        }
-        iterator& operator++()
-        {
-            ++ptr;
-            return *this;
-        }
-        iterator& operator--()
-        {
-            --ptr;
-            return *this;
-        }
-        iterator operator++(int)
-        {
-            iterator temp(*this);
-            ++*this;
-            return temp;
-        }
-        iterator operator--(int)
-        {
-            iterator temp(*this);
-            --*this;
-            return temp;
-        }
-        T operator[](int idx){
-            return ptr[idx];
-        }
-    };
 
-    
- 
-    // Begin iterator
-    iterator begin() const;
- 
-    // End iterator
-    iterator end() const;
-    
+    typedef T* iterator;
+    typedef const T* const_iterator;
+
+    iterator begin(){
+        return arr;
+    }
+
+    iterator end(){
+        return arr + length;
+    }
+
+    const_iterator begin() const{
+        return arr;
+    }
+
+    const_iterator end() const {
+        return arr + length;
+    }
 
     bool empty(){
-        if(this->capacity == 0) return true;
-        return false;
+        return length == 0;
     }
+
+
 };
- 
-// Template class to return the size of
-// vector of different data_type
+
 template <typename T>
 Vector<T>::Vector(unsigned int n)
-    : capacity(n),length(0)
+    : capacity(100),length(n)
 {
-    arr = (T*) malloc(sizeof(T)*n);
+    arr = (T*) malloc(sizeof(T)*100);
 }
 
 template <typename T>
@@ -303,10 +258,10 @@ Vector<T>::Vector(std::initializer_list<T> init){
     arr = (T*) malloc(sizeof(T)*100);
     int counter = 0;
     for(T t : init){
-        arr[counter] = t;
+        arr[counter]= t;
         counter++;
     }
-    length = sizeof(arr)/sizeof(arr[0]);
+    length = counter;// sizeof(arr)/sizeof(arr[0]);
     //stde::assertt(length <= capacity);
 }
  
@@ -319,7 +274,7 @@ unsigned int Vector<T>::push_back(T data)
         T* old = arr;
         //arr = new T[capacity = capacity * 2];
         arr = (T*) malloc(sizeof(T)*capacity*2);
-        //copy(old, old + length, arr);
+        //stde::memcpy(arr,old,capacity*2);
         arr = old;
         free(old);
     }
@@ -358,22 +313,6 @@ T& Vector<T>::operator[](unsigned int index)
     return *(arr + index);
 }
  
-// Template class to return begin iterator
-template <typename T>
-typename Vector<T>::iterator
-                      Vector<T>::begin() const
-{
-    return iterator(arr);
-}
- 
-// Template class to return end iterator
-template <typename T>
-typename Vector<T>::iterator
-                        Vector<T>::end() const
-{
-    return iterator(arr + length);
-}
-
  
 // Template class to display element in
 // vector
@@ -385,7 +324,6 @@ void display_vector(V& v)
     for (ptr = v.begin(); ptr != v.end(); ptr++) {
         //cout << *ptr << ' ';
     }
-    //cout << '\n';
 }
 
 template<class T, int S>
@@ -399,7 +337,7 @@ class array{
 
     public:
     array<T,S>(): length(S), capacity(S) {
-        *arr =(T*) malloc(sizeof(T) * S);
+        arr =(T*) malloc(sizeof(T) * S);
     }
     array<T,S>(std::initializer_list<T> init);
 
@@ -413,84 +351,39 @@ class array{
     T at(unsigned int i);
     T* data();
 
-        // Iterator Class
-    class iterator {
-    private:
-        // Dynamic array using pointers
-        T* ptr;
- 
-    public:
-        explicit iterator()
-            : ptr(nullptr)
-        {
-        }
-        explicit iterator(T* p)
-            : ptr(p)
-        {
-        }
-        bool operator==(const iterator& rhs) const
-        {
-            return ptr == rhs.ptr;
-        }
-        bool operator!=(const iterator& rhs) const
-        {
-            return !(*this == rhs);
-        }
-        T operator*() const
-        {
-            return *ptr;
-        }
-        iterator& operator++()
-        {
-            ++ptr;
-            return *this;
-        }
-        iterator& operator--()
-        {
-            --ptr;
-            return *this;
-        }
-        iterator operator++(int)
-        {
-            iterator temp(*this);
-            ++*this;
-            return temp;
-        }
-        iterator operator--(int)
-        {
-            iterator temp(*this);
-            --*this;
-            return temp;
-        }
-        T operator[](int idx){
-            return ptr[idx];
-        }
-    };
+    typedef T* iterator;
+    typedef const T* const_iterator;
 
+    iterator begin(){
+        return arr;
+    }
 
- 
-    // Begin iterator
-    iterator begin() const;
- 
-    // End iterator
-    iterator end() const;
+    iterator end(){
+        return arr + length - 1;
+    }
 
+    const_iterator begin() const{
+        return arr;
+    }
+
+    const_iterator end() const {
+        return arr + length - 1;
+    }
 
     
 };
 
 template <class T,int S>
 array<T,S>::array(std::initializer_list<T> init)
-    : capacity(S),length(0)
+    : capacity(S)
 {
     arr = (T*) malloc(sizeof(T)*S);
     int counter = 0;
     for(T t : init){
-        arr[counter] = t;
+        arr[counter]= t;
         counter++;
     }
-    length = sizeof(arr)/sizeof(arr[0]);
-    stde::assertt(length <= capacity);
+    length = counter;
 }
 
 template <typename T,int S>
@@ -519,7 +412,7 @@ int array<T,S>::max_size(){
 
 template <typename T, int S>
 unsigned int array<T,S>::size(){
-    return capacity;
+    return length;
 }
 
 template <typename T, int S>
@@ -530,21 +423,6 @@ T array<T,S>::at(unsigned int index){
 template <typename T, int S>
 T* array<T,S>::data(){
     return *arr;
-}
-
-template <class T, int S>
-typename array<T,S>::iterator
-                      array<T,S>::begin() const
-{
-    return iterator(arr);
-}
- 
-// Template class to return end iterator
-template <class T, int S>
-typename array<T,S>::iterator
-                      array<T,S>::end() const
-{
-    return iterator(arr + capacity);
 }
 
 

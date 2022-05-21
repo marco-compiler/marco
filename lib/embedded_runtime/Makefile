@@ -26,11 +26,11 @@ OBJS := $(addsuffix .o, $(basename $(SRCS))) ./test/nomain.o
 #arm-miosix-eabi-ld -r -o output.o ./libMARCORuntime.a ./test/nomain.o $(OBJS) 
 #$(CP) -O binary main.elf main.bin
 all: $(OBJ)
+	make lib
 	$(CXX) $(LFLAGS) -o math_test.elf $(OBJ) 
 	$(CP) -O binary math_test.elf math_test.bin
 
 sim: $(OBJS)
-
 	$(CXX) $(LFLAGS) -o main.elf $(OBJS) -L. -lMARCORuntime 
 	$(CP) -O binary main.elf main.bin
 
@@ -78,6 +78,7 @@ nlib: $(MLIB)
 	$(CXX) $(CXXFLAGS) ../runtime/Print.cpp -nostdlib -o ./staticlib/Print.o
 	arm-miosix-eabi-ar -rcs libMARCORuntime.a $(OBJLIB)
 clean:
+	make cleanlib
 	-rm $(OBJ) main.elf main.bin main.map
 
 cleansim:

@@ -1,4 +1,7 @@
-#include "heap.h"
+#include "../include/marco/driver/heap.h"
+#include "../include/marco/driver/serial.h"
+
+extern SerialPort serial;
 
 
 extern char *_Min_Stack_Size;
@@ -49,14 +52,7 @@ void *malloc(size_t size) {
   return (char *)header + HEADER_SIZE;
 }
 
-/*
-void *malloc(size_t size) {
-size_t blk_size = ALIGN(size + HEADER_SIZE);
-size_t *header = sbrk(blk_size);
-*header = blk_size | 1; // mark allocated bit
-return (char *)header + HEADER_SIZE;
-}
-*/
+
 
 
 void free(void *ptr) {
@@ -65,4 +61,34 @@ void free(void *ptr) {
     ptr=nullptr;
 }
 
+/*
+static uint8_t *__sbrk_heap_end = NULL;
 
+void *sbrk(ptrdiff_t incr)
+{
+  extern uint8_t _end;
+  extern uint8_t _stack_top; 
+  extern uint32_t _Min_Stack_Size; 
+  const uint32_t stack_limit = (uint32_t)&_stack_top - (uint32_t)&_Min_Stack_Size;
+  const uint8_t *max_heap = (uint8_t *) stack_limit;
+  uint8_t *prev_heap_end;
+
+  
+  if (NULL == __sbrk_heap_end)
+  {
+    __sbrk_heap_end = &_end;
+  }
+
+  if (__sbrk_heap_end + incr > max_heap)
+  {
+    //errno = ENOMEM;
+    serial.write("\r\n Out Of Memory \r\n");
+    return (void *)-1;
+  }
+
+  prev_heap_end = __sbrk_heap_end;
+  __sbrk_heap_end += incr;
+
+  return (void *)prev_heap_end;
+}
+*/

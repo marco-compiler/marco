@@ -1,8 +1,8 @@
-#include "registers.h"
-#include "serial.h"
-#include "pll_driver.h"
-#include "heap.h"
-#include "StdFunctions.h"
+#include "../include/marco/driver/registers.h"
+#include "../include/marco/driver/serial.h"
+#include "../include/marco/driver/pll_driver.h"
+#include "../include/marco/driver/heap.h"
+#include "../include/marco/lib/StdFunctions.h"
 #include "../include/marco/lib/Print.h"
 #include <initializer_list>
 
@@ -33,6 +33,8 @@ int main(){
 
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
 	GPIOA->MODER |= 1<<10;
+
+    int a = stde::abs(3);
         /*
         foo();
         serial.write("log of 10 =>");
@@ -112,19 +114,32 @@ int main(){
         print_serial(1.234f);
         */
        //f({1,2,3,4});
-       stde::Vector<int> v;
+       /*
+       stde::Vector<int> v = {2,3,4,5};
        v.push_back(2);
        v.push_back(3);
-       /*
+       
        for(int i :v){
            print_integer(i);
            print_char("\n\r");
        }
-        */
-       stde::array<float,3> farr  {3.3,2.1,22};
+
+        print_char("Size : ");
+        print_integer(v.size());
+        print_char("\n\r");
+    */
+       stde::array<float,4> farr = {3.3,2.1,22,12};
+        //stde::array<int,3> farr = {2,3,4};
+    
+       print_float(farr.size());
+       print_char("\n\rBegin ");
+       print_float(*farr.begin());
+       print_char("\n\r End ");
+       print_float(*farr.end());
+       print_char("\n\r");
 
        for(float f : farr){
-        //for(int i = 0; i < farr.max_size();i++){
+        //for(int i = 0; i < farr.size();i++){
            print_float(f);
            //print_float(farr[i]);
            print_char("<>\n\r");

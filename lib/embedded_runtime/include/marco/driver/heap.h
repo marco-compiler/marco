@@ -1,6 +1,7 @@
 #ifndef HEAP_H
 #define HEAP_H
 
+#include <stdint.h>
 #include <cstddef>
 
 #define ALIGNMENT 8
@@ -9,10 +10,12 @@
 #define HEADER_SIZE (ALIGN(sizeof(size_t))) // header size -contains packet length and determine whether the block is free or not
 
 
-void *malloc(size_t size);
+extern "C" void *malloc(size_t size);
 
-void free(void *ptr);
+extern "C" void free(void *ptr);
 
 size_t sbrk();
+
+//extern "C" void *sbrk(ptrdiff_t incr);
 
 #endif
