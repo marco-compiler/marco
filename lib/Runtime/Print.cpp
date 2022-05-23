@@ -106,15 +106,15 @@ RUNTIME_FUNC_DEF(print, void, double)
 namespace
 {
   template<typename T>
-  void print_void(UnsizedArrayDescriptor<T> array)
+  void print_void(UnsizedArrayDescriptor<T>* array)
   {
-    std::cout << std::scientific << array << std::endl;
+    std::cout << std::scientific << *array << std::endl;
   }
 
   template<>
-  void print_void<bool>(UnsizedArrayDescriptor<bool> array)
+  void print_void<bool>(UnsizedArrayDescriptor<bool>* array)
   {
-    std::cout << std::boolalpha << array << std::endl;
+    std::cout << std::boolalpha << *array << std::endl;
   }
 }
 

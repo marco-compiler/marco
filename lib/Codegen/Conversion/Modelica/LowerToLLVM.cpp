@@ -71,17 +71,13 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 
 		mlir::Value totalSize = rewriter.create<mlir::LLVM::ConstantOp>(loc, sizeType, rewriter.getIntegerAttr(sizeType, 1));
 
-		for (size_t i = 0, dynamicDimensions = 0, end = shape.size(); i < end; ++i)
-		{
+		for (size_t i = 0, dynamicDimensions = 0, end = shape.size(); i < end; ++i) {
 			long dimension = shape[i];
 
-			if (dimension == -1)
-			{
+			if (dimension == -1) {
 				mlir::Value size = operands[dynamicDimensions++];
 				sizes.push_back(size);
-			}
-			else
-			{
+			} else {
 				mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, sizeType, rewriter.getIntegerAttr(sizeType, dimension));
 				sizes.push_back(size);
 			}
@@ -232,13 +228,11 @@ class SubscriptOpLowering : public ModelicaOpConversion<SubscriptionOp>
 
 		mlir::Value index = adaptor.indices()[0];
 
-		for (size_t i = 1, e = sourceArrayType.getRank(); i < e; ++i)
-		{
+		for (size_t i = 1, e = sourceArrayType.getRank(); i < e; ++i) {
 			mlir::Value size = sourceDescriptor.getSize(rewriter, loc, i);
 			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
 
-			if (i < adaptor.indices().size())
-			{
+			if (i < adaptor.indices().size()) {
 				mlir::Value offset = adaptor.indices()[i];
 				index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, offset);
 			}
@@ -252,8 +246,9 @@ class SubscriptOpLowering : public ModelicaOpConversion<SubscriptionOp>
 		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, rankType, rewriter.getIntegerAttr(rankType, resultArrayType.getRank()));
 		result.setRank(rewriter, loc, rank);
 
-		for (size_t i = sourceArrayType.getRank() - resultArrayType.getRank(), e = sourceArrayType.getRank(), j = 0; i < e; ++i, ++j)
-			result.setSize(rewriter, loc, j, sourceDescriptor.getSize(rewriter, loc, i));
+		for (size_t i = sourceArrayType.getRank() - resultArrayType.getRank(), e = sourceArrayType.getRank(), j = 0; i < e; ++i, ++j) {
+      result.setSize(rewriter, loc, j, sourceDescriptor.getSize(rewriter, loc, i));
+    }
 
 		rewriter.replaceOp(op, *result);
 		return mlir::success();
@@ -271,23 +266,23 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 		Adaptor adaptor(operands);
 		auto indexes = adaptor.indices();
 
-			assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
+    assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
 		ArrayDescriptor descriptor(typeConverter, adaptor.array());
 		auto indexType = convertType(rewriter.getIndexType());
 
 		auto indexFn = [&]() -> mlir::Value {
-			if (indexes.empty())
-				return rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
+			if (indexes.empty()) {
+        return rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
+      }
 
 			return indexes[0];
 		};
 
 		mlir::Value index = indexFn();
 
-		for (size_t i = 1, e = indexes.size(); i < e; ++i)
-		{
+		for (size_t i = 1, e = indexes.size(); i < e; ++i) {
 			mlir::Value size = descriptor.getSize(rewriter, loc, i);
 			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
 			index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, indexes[i]);
@@ -321,8 +316,7 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		auto indexType = convertType(rewriter.getIndexType());
 		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0)) : indexes[0];
 
-		for (size_t i = 1, e = indexes.size(); i < e; ++i)
-		{
+		for (size_t i = 1, e = indexes.size(); i < e; ++i) {
 			mlir::Value size = memoryDescriptor.getSize(rewriter, loc, i);
 			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
 			index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, indexes[i]);
@@ -344,28 +338,26 @@ class CastOpIndexLowering: public ModelicaOpConversion<CastOp>
 
 	mlir::LogicalResult matchAndRewrite(CastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		if (!op.value().getType().isa<mlir::IndexType>())
-			return rewriter.notifyMatchFailure(op, "Source is not an IndexType");
+		if (!op.value().getType().isa<mlir::IndexType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not an IndexType");
+    }
 
 		mlir::Location location = op.getLoc();
 
 		auto source = op.value().getType().cast<mlir::IndexType>();
 		mlir::Type destination = op.getResult().getType();
 
-		if (source == destination)
-		{
+		if (source == destination) {
 			rewriter.replaceOp(op, op.value());
 			return mlir::success();
 		}
 
-		if (destination.isa<IntegerType>())
-		{
+		if (destination.isa<IntegerType>()) {
 			rewriter.replaceOpWithNewOp<mlir::IndexCastOp>(op, op.value(), convertType(destination));
 			return mlir::success();
 		}
 
-		if (destination.isa<RealType>())
-		{
+		if (destination.isa<RealType>()) {
 			mlir::Value value = rewriter.create<mlir::IndexCastOp>(location, op.value(), convertType(IntegerType::get(rewriter.getContext())));
 			value = materializeTargetConversion(rewriter, value);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
@@ -382,8 +374,9 @@ class CastOpBooleanLowering: public ModelicaOpConversion<CastOp>
 
 	mlir::LogicalResult matchAndRewrite(CastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		if (!op.value().getType().isa<BooleanType>())
-			return rewriter.notifyMatchFailure(op, "Source is not a BooleanType");
+		if (!op.value().getType().isa<BooleanType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not a BooleanType");
+    }
 
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
@@ -391,22 +384,19 @@ class CastOpBooleanLowering: public ModelicaOpConversion<CastOp>
 		auto source = op.value().getType().cast<BooleanType>();
 		mlir::Type destination = op.getResult().getType();
 
-		if (source == destination)
-		{
+		if (source == destination) {
 			rewriter.replaceOp(op, op.value());
 			return mlir::success();
 		}
 
-		if (destination.isa<RealType>())
-		{
+		if (destination.isa<RealType>()) {
 			mlir::Value value = adaptor.value();
 			value = rewriter.create<mlir::LLVM::SExtOp>(location, convertType(IntegerType::get(rewriter.getContext())), value);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
 
-		if (destination.isa<mlir::IndexType>())
-		{
+		if (destination.isa<mlir::IndexType>()) {
 			rewriter.replaceOpWithNewOp<mlir::IndexCastOp>(op, adaptor.value(), rewriter.getIndexType());
 			return mlir::success();
 		}
@@ -421,29 +411,27 @@ class CastOpIntegerLowering: public ModelicaOpConversion<CastOp>
 
 	mlir::LogicalResult matchAndRewrite(CastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		if (!op.value().getType().isa<IntegerType>())
-			return rewriter.notifyMatchFailure(op, "Source is not an IntegerType");
+		if (!op.value().getType().isa<IntegerType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not an IntegerType");
+    }
 
 		Adaptor adaptor(operands);
 
 		auto source = op.value().getType().cast<IntegerType>();
 		mlir::Type destination = op.getResult().getType();
 
-		if (source == destination)
-		{
+		if (source == destination) {
 			rewriter.replaceOp(op, op.value());
 			return mlir::success();
 		}
 
-		if (destination.isa<RealType>())
-		{
+		if (destination.isa<RealType>()) {
 			mlir::Value value = adaptor.value();
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
 
-		if (destination.isa<mlir::IndexType>())
-		{
+		if (destination.isa<mlir::IndexType>()) {
 			rewriter.replaceOpWithNewOp<mlir::IndexCastOp>(op, adaptor.value(), rewriter.getIndexType());
 			return mlir::success();
 		}
@@ -458,8 +446,9 @@ class CastOpRealLowering: public ModelicaOpConversion<CastOp>
 
 	mlir::LogicalResult matchAndRewrite(CastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		if (!op.value().getType().isa<RealType>())
-			return rewriter.notifyMatchFailure(op, "Source is not a RealType");
+		if (!op.value().getType().isa<RealType>()) {
+      return rewriter.notifyMatchFailure(op, "Source is not a RealType");
+    }
 
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
@@ -467,21 +456,18 @@ class CastOpRealLowering: public ModelicaOpConversion<CastOp>
 		auto source = op.value().getType().cast<RealType>();
 		mlir::Type destination = op.getResult().getType();
 
-		if (source == destination)
-		{
+		if (source == destination) {
 			rewriter.replaceOp(op, op.value());
 			return mlir::success();
 		}
 
-		if (destination.isa<IntegerType>())
-		{
+		if (destination.isa<IntegerType>()) {
 			mlir::Value value = adaptor.value();
 			rewriter.replaceOpWithNewOp<mlir::LLVM::FPToSIOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
 
-		if (destination.isa<mlir::IndexType>())
-		{
+		if (destination.isa<mlir::IndexType>()) {
 			mlir::Value value = rewriter.create<mlir::LLVM::FPToSIOp>(location, convertType(destination), adaptor.value());
 			rewriter.replaceOpWithNewOp<mlir::IndexCastOp>(op, value, rewriter.getIndexType());
 			return mlir::success();
@@ -560,59 +546,38 @@ struct ArrayCastOpArrayToUnsizedArrayLowering : public ModelicaOpConversion<Arra
       return rewriter.notifyMatchFailure(op, "Result is not an unsized array");
     }
 
-    // Create the unsized array descriptor that holds the ranked one.
-    // The inner descriptor (that is, the sized array descriptor) is allocated on the stack.
-    UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, convertType(resultType));
-    resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
+    // Create the unsized array descriptor that holds the ranked one. It is allocated on the stack, because
+    // the runtime library expects a pointer in order to avoid any unrolling due to calling conventions.
+    // The inner descriptor (that is, the sized array descriptor) is also allocated on the stack.
+    mlir::Type indexType = getTypeConverter()->getIndexType();
+    mlir::Value one = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIntegerAttr(indexType, 1));
 
-    mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
-    resultDescriptor.setPtr(rewriter, loc, underlyingDescPtr);
-    mlir::Type sourceDescriptorArrayType = mlir::LLVM::LLVMPointerType::get(transformed.source().getType());
-    underlyingDescPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, sourceDescriptorArrayType, underlyingDescPtr);
+    // Allocate space on the stack for the sized array descriptor
+    auto sizedArrayDescPtrType = mlir::LLVM::LLVMPointerType::get(getTypeConverter()->convertType(sourceType));
+    mlir::Value sizedArrayDescNullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, sizedArrayDescPtrType);
+    mlir::Value sizedArrayDescGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, sizedArrayDescPtrType, llvm::ArrayRef<mlir::Value>{ sizedArrayDescNullPtr, one });
+    mlir::Value sizedArrayDescSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, indexType, sizedArrayDescGepPtr);
+    mlir::Value sizedArrayDescOpaquePtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sizedArrayDescSizeBytes);
+    mlir::Value sizedArrayDescPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, sizedArrayDescPtrType, sizedArrayDescOpaquePtr);
 
-    mlir::Type indexType = convertType(rewriter.getIndexType());
-    mlir::Value zero = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
-    mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, underlyingDescPtr.getType(), underlyingDescPtr, zero);
-    rewriter.create<mlir::LLVM::StoreOp>(loc, *sourceDescriptor, ptr);
+    // Allocate space on the stack for the unsized array descriptor
+    auto unsizedArrayDescPtrType = getTypeConverter()->convertType(resultType).cast<mlir::LLVM::LLVMPointerType>();
+    mlir::Value unsizedArrayDescNullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, unsizedArrayDescPtrType);
+    mlir::Value unsizedArrayDescGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, unsizedArrayDescPtrType, llvm::ArrayRef<mlir::Value>{ unsizedArrayDescNullPtr, one });
+    mlir::Value unsizedArrayDescSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, indexType, unsizedArrayDescGepPtr);
+    mlir::Value unsizedArrayDescOpaquePtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), unsizedArrayDescSizeBytes);
+    mlir::Value unsizedArrayDescPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, unsizedArrayDescPtrType, unsizedArrayDescOpaquePtr);
 
-    mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, *resultDescriptor);
-    rewriter.replaceOp(op, result);
-    return mlir::success();
-  }
-};
+    // Populate the sized array descriptor
+    rewriter.create<mlir::LLVM::StoreOp>(loc, *sourceDescriptor, sizedArrayDescPtr);
 
-struct ArrayCastOpUnsizedArrayToArrayLowering : public ModelicaOpConversion<ArrayCastOp>
-{
-  using ModelicaOpConversion<ArrayCastOp>::ModelicaOpConversion;
+    // Populate the unsized array descriptor
+    UnsizedArrayDescriptor unsizedArrayDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, unsizedArrayDescPtrType.getElementType());
+    unsizedArrayDescriptor.setPtr(rewriter, loc, sizedArrayDescOpaquePtr);
+    unsizedArrayDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
+    rewriter.create<mlir::LLVM::StoreOp>(loc, *unsizedArrayDescriptor, unsizedArrayDescPtr);
 
-  mlir::LogicalResult matchAndRewrite(ArrayCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-  {
-    auto loc = op->getLoc();
-    Adaptor transformed(operands);
-    mlir::Type sourceType = op.source().getType();
-    auto resultType = op.getResult().getType();
-
-    if (!sourceType.isa<UnsizedArrayType>()) {
-      return rewriter.notifyMatchFailure(op, "Source is not an unsized array");
-    }
-
-    UnsizedArrayDescriptor sourceDescriptor(transformed.source());
-
-    if (!resultType.isa<ArrayType>()) {
-      return rewriter.notifyMatchFailure(op, "Result is not an array");
-    }
-
-    mlir::Value arrayDescriptorPtr = sourceDescriptor.getPtr(rewriter, loc);
-
-    arrayDescriptorPtr = rewriter.create<mlir::LLVM::BitcastOp>(
-        loc,
-        mlir::LLVM::LLVMPointerType::get(getTypeConverter()->convertType(resultType)),
-        arrayDescriptorPtr);
-
-    mlir::Value arrayDescriptor = rewriter.create<mlir::LLVM::LoadOp>(loc, arrayDescriptorPtr);
-    arrayDescriptor = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, arrayDescriptor);
-    rewriter.replaceOp(op, arrayDescriptor);
-
+    rewriter.replaceOp(op, unsizedArrayDescPtr);
     return mlir::success();
   }
 };
@@ -632,8 +597,7 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			CastOpIntegerLowering,
 			CastOpRealLowering,
       ArrayCastOpArrayToArrayLowering,
-      ArrayCastOpArrayToUnsizedArrayLowering,
-      ArrayCastOpUnsizedArrayToArrayLowering>(typeConverter);
+      ArrayCastOpArrayToUnsizedArrayLowering>(typeConverter);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>

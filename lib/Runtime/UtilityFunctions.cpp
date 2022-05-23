@@ -16,14 +16,14 @@ namespace
   /// @param destination  destination array
   /// @param values 			source values
   template<typename T, typename U>
-  void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+  void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* source)
   {
-    assert(source.getNumElements() == destination.getNumElements());
+    assert(source->getNumElements() == destination->getNumElements());
 
-    auto sourceIt = source.begin();
-    auto destinationIt = destination.begin();
+    auto sourceIt = source->begin();
+    auto destinationIt = destination->begin();
 
-    for (size_t i = 0, e = source.getNumElements(); i < e; ++i) {
+    for (size_t i = 0, e = source->getNumElements(); i < e; ++i) {
       *destinationIt = *sourceIt;
 
       ++sourceIt;
@@ -33,11 +33,11 @@ namespace
 
   // Optimization for arrays with the same type
   template<typename T>
-  void clone_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+  void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<T>* source)
   {
-    auto destinationSize = destination.getNumElements();
-    assert(source.getNumElements() == destinationSize);
-    memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
+    auto destinationSize = destination->getNumElements();
+    assert(source->getNumElements() == destinationSize);
+    memcpy(destination->getData(), source->getData(), destinationSize * sizeof(T));
   }
 }
 

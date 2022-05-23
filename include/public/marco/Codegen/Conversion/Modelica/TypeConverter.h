@@ -33,6 +33,9 @@ namespace mlir::modelica
       llvm::Optional<mlir::Value> llvmStructTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
+      llvm::Optional<mlir::Value> llvmPointerTypeTargetMaterialization(
+          mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
+
       llvm::Optional<mlir::Value> booleanTypeSourceMaterialization(
           mlir::OpBuilder& builder, mlir::modelica::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
