@@ -34,7 +34,7 @@ int main(){
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
 	GPIOA->MODER |= 1<<10;
 
-    int a = stde::abs(3);
+    //int a = stde::abs(3);
         /*
         foo();
         serial.write("log of 10 =>");
@@ -130,7 +130,7 @@ int main(){
     */
        stde::array<float,4> farr = {3.3,2.1,22,12};
         //stde::array<int,3> farr = {2,3,4};
-    
+        /*
        print_float(farr.size());
        print_char("\n\rBegin ");
        print_float(*farr.begin());
@@ -146,7 +146,20 @@ int main(){
        }
        //print_integer(farr.max_size());
         //print_array(array);
+    */
+        int* a = (int*) malloc(sizeof(int));
+        *a = 12;
+        serial.write("\n\r Before ");
+        serial.write(*a);
 
+        free(&a);
+
+        serial.write("\n\r After ");
+        serial.write(*a);
+/*
+        int* b = (int*) malloc(sizeof(int));
+        *b = 123;
+*/
     for(;;){
     }
 }
