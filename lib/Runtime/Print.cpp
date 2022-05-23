@@ -140,14 +140,14 @@ namespace
   void print_csv_separator_void()
   {
     PROFILER_STRING_START;
-    std::cout << ";";
+    std::cout << ",";
     PROFILER_STRING_STOP;
   }
 
   void print_csv_name_void(void* name, int64_t rank, int64_t* indices)
   {
     PROFILER_STRING_START;
-    std::cout << static_cast<char*>(name);
+    std::cout << "\"" << static_cast<char*>(name);
     PROFILER_STRING_STOP;
 
     if (rank != 0) {
@@ -171,6 +171,10 @@ namespace
       std::cout << "]";
       PROFILER_STRING_STOP;
     }
+
+    PROFILER_STRING_START;
+    std::cout << "\"";
+    PROFILER_STRING_STOP;
   }
 
   void print_csv_void(bool value)
