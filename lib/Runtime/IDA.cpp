@@ -337,6 +337,7 @@ namespace
       void printIncidenceMatrix() const;
 
     private:
+      SUNContext ctx;
       bool initialized;
 
       int64_t marcoBitWidth;
@@ -525,20 +526,22 @@ namespace
         scalarEquationsNumber(scalarEquationsNumber),
         timeStep(kUndefinedTimeStep)
   {
+    SUNContext_Create(nullptr, &ctx);
+
     variableOffsets.push_back(0);
 
     if (scalarEquationsNumber != 0) {
       // Create and initialize the required N-vectors for the variables.
-      variablesVector = N_VNew_Serial(scalarEquationsNumber);
+      variablesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
       assert(checkAllocation(static_cast<void*>(variablesVector), "N_VNew_Serial"));
 
-      derivativesVector = N_VNew_Serial(scalarEquationsNumber);
+      derivativesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
       assert(checkAllocation(static_cast<void*>(derivativesVector), "N_VNew_Serial"));
 
-      idVector = N_VNew_Serial(scalarEquationsNumber);
+      idVector = N_VNew_Serial(scalarEquationsNumber, ctx);
       assert(checkAllocation(static_cast<void*>(idVector), "N_VNew_Serial"));
 
-      tolerancesVector = N_VNew_Serial(scalarEquationsNumber);
+      tolerancesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
       assert(checkAllocation(static_cast<void*>(tolerancesVector), "N_VNew_Serial"));
     }
   }
@@ -792,7 +795,7 @@ namespace
     computeNNZ();
 
     // Create and initialize IDA memory.
-    idaMemory = IDACreate();
+    idaMemory = IDACreate(ctx);
 
     if (!checkAllocation(idaMemory, "IDACreate")) {
       return false;
@@ -828,14 +831,15 @@ namespace
         scalarEquationsNumber,
         scalarEquationsNumber,
         nonZeroValuesNumber,
-        CSR_MAT);
+        CSR_MAT,
+        ctx);
 
     if (!checkAllocation(static_cast<void*>(sparseMatrix), "SUNSparseMatrix")) {
       return false;
     }
 
     // Create and attach a KLU SUNLinearSolver object.
-    linearSolver = SUNLinSol_KLU(variablesVector, sparseMatrix);
+    linearSolver = SUNLinSol_KLU(variablesVector, sparseMatrix, ctx);
 
     if (!checkAllocation(static_cast<void*>(linearSolver), "SUNLinSol_KLU")) {
       return false;

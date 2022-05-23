@@ -13,17 +13,17 @@ INSTDIR=`pwd`/install
 [ -d $INSTDIR ] && exit 0 # If libraries directory already present nothing to do
 mkdir $INSTDIR || fail "Error creating directory $INSTDIR"
 
-OPENBLAS=OpenBLAS-0.3.13
-SUITESPARSE=SuiteSparse-5.8.1
-SUNDIALS=sundials-5.7.0
+OPENBLAS=OpenBLAS-0.3.20
+SUITESPARSE=SuiteSparse-5.12.0
+SUNDIALS=sundials-6.2.0
 
-OPENBLAS_URL=https://github.com/xianyi/OpenBLAS/releases/download/v0.3.13/OpenBLAS-0.3.13.tar.gz
-SUITESPARSE_URL=https://github.com/DrTimothyAldenDavis/SuiteSparse/archive/v5.8.1.tar.gz
-SUNDIALS_URL=https://github.com/LLNL/sundials/releases/download/v5.7.0/sundials-5.7.0.tar.gz
+OPENBLAS_URL=https://github.com/xianyi/OpenBLAS/releases/download/v0.3.20/OpenBLAS-0.3.20.tar.gz
+SUITESPARSE_URL=https://github.com/DrTimothyAldenDavis/SuiteSparse/archive/v5.12.0.tar.gz
+SUNDIALS_URL=https://github.com/LLNL/sundials/releases/download/v6.2.0/sundials-6.2.0.tar.gz
 
 [ -f $OPENBLAS.tar.gz ]    || wget $OPENBLAS_URL    || fail "Error downloading $OPENBLAS.tar.gz"
 [ -f $SUITESPARSE.tar.gz ] || wget $SUITESPARSE_URL || fail "Error downloading $SUITESPARSE.tar.gz"
-[ -f $SUITESPARSE.tar.gz ] || mv v5.8.1.tar.gz $SUITESPARSE.tar.gz # HACK to fix file name
+[ -f $SUITESPARSE.tar.gz ] || mv v5.12.0.tar.gz $SUITESPARSE.tar.gz # HACK to fix file name
 [ -f $SUNDIALS.tar.gz ]    || wget $SUNDIALS_URL    || fail "Error downloading $SUNDIALS.tar.gz"
 
 tar xzvf $OPENBLAS.tar.gz    || fail "Error extracting $OPENBLAS.tar.gz"
