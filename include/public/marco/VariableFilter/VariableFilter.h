@@ -6,6 +6,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
+#include <set>
 
 namespace marco
 {
@@ -33,9 +34,9 @@ namespace marco
 
       void addRegexString(llvm::StringRef regex);
 
-      Filter getVariableInfo(llvm::StringRef name, unsigned int expectedRank = 0) const;
+      std::vector<Filter> getVariableInfo(llvm::StringRef name, unsigned int expectedRank = 0) const;
 
-      Filter getVariableDerInfo(llvm::StringRef name, unsigned int expectedRank = 0) const;
+      std::vector<Filter> getVariableDerInfo(llvm::StringRef name, unsigned int expectedRank = 0) const;
 
     private:
       /// Check whether a variable identifier matches any of the regular
@@ -43,8 +44,8 @@ namespace marco
       bool matchesRegex(llvm::StringRef identifier) const;
 
     private:
-      llvm::StringMap<Tracker> variables;
-      llvm::StringMap<Tracker> derivatives;
+      llvm::StringMap<std::vector<Tracker>> variables;
+      llvm::StringMap<std::vector<Tracker>> derivatives;
       llvm::SmallVector<std::string> regex;
       bool enabled = false;
   };

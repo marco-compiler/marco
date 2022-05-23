@@ -84,6 +84,38 @@ static std::vector<unsigned int> removeUnusedArguments(
   return removedArgs;
 }
 
+static IndexSet getFilteredIndices(mlir::Type variableType, llvm::ArrayRef<VariableFilter::Filter> filters)
+{
+  IndexSet result;
+
+  auto arrayType = variableType.cast<ArrayType>();
+  assert(arrayType.hasConstantShape());
+
+  for (const auto& filter : filters) {
+    if (!filter.isVisible()) {
+      continue;
+    }
+
+    auto filterRanges = filter.getRanges();
+    assert(filterRanges.size() == arrayType.getRank());
+
+    std::vector<Range> ranges;
+
+    for (const auto& range : llvm::enumerate(filterRanges)) {
+      // In Modelica, arrays are 1-based. If present, we need to lower by 1
+      // the value given by the variable filter.
+
+      auto lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
+      auto upperBound = range.value().hasUpperBound() ? range.value().getUpperBound() : arrayType.getShape()[range.index()];
+      ranges.emplace_back(lowerBound, upperBound);
+    }
+
+    result += MultidimensionalRange(std::move(ranges));
+  }
+
+  return result;
+}
+
 namespace marco::codegen
 {
   ModelConverter::ModelConverter(ModelSolvingOptions options, mlir::LLVMTypeConverter& typeConverter)
@@ -1145,15 +1177,14 @@ namespace marco::codegen
       mlir::ModuleOp module,
       mlir::Value name,
       mlir::Value value,
-      const MultidimensionalRange& indices,
-      VariableFilter::Filter filter,
+      const IndexSet& filteredIndices,
       bool shouldPrependSeparator) const
   {
     if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
       if (arrayType.getRank() == 0) {
         printScalarVariableName(builder, module, name, shouldPrependSeparator);
       } else {
-        printArrayVariableName(builder, module, name, value, indices, filter, shouldPrependSeparator);
+        printArrayVariableName(builder, module, name, value, filteredIndices, shouldPrependSeparator);
       }
     } else {
       printScalarVariableName(builder, module, name, shouldPrependSeparator);
@@ -1183,8 +1214,7 @@ namespace marco::codegen
       mlir::ModuleOp module,
       mlir::Value name,
       mlir::Value value,
-      const MultidimensionalRange& indices,
-      VariableFilter::Filter filter,
+      const IndexSet& filteredIndices,
       bool shouldPrependSeparator) const
   {
     auto loc = name.getLoc();
@@ -1212,69 +1242,55 @@ namespace marco::codegen
     mlir::Value indicesPtr = builder.create<mlir::LLVM::BitcastOp>(loc, indexPtrType, indicesOpaquePtr);
     args.push_back(indicesPtr);
 
-    // Create the lower and upper bounds
-    auto ranges = filter.getRanges();
-    assert(arrayType.getRank() == ranges.size());
+    for (const auto& filteredRange : filteredIndices) {
+      // Create the lower and upper bounds
+      assert(filteredRange.rank() == arrayType.getRank());
 
-    llvm::SmallVector<mlir::Value, 3> lowerBounds;
-    llvm::SmallVector<mlir::Value, 3> upperBounds;
+      llvm::SmallVector<mlir::Value, 3> lowerBounds;
+      llvm::SmallVector<mlir::Value, 3> upperBounds;
 
-    mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-    llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
+      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
 
-    for (const auto& range : llvm::enumerate(ranges)) {
-      // In Modelica, arrays are 1-based. If present, we need to lower by 1
-      // the value given by the variable filter.
-
-      unsigned int lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
-      lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
-
-      // The upper bound is not lowered because the SCF's for operation assumes
-      // them as excluded.
-
-      if (range.value().hasUpperBound()) {
-        mlir::Value upperBound = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.value().getUpperBound()));
-        upperBounds.push_back(upperBound);
-      } else {
-        mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.index()));
-        mlir::Value upperBound = builder.create<DimOp>(loc, value, dim);
-        upperBounds.push_back(upperBound);
+      for (size_t i = 0; i < filteredRange.rank(); ++i) {
+        lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getBegin())));
+        upperBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getEnd())));
       }
-    }
 
-    // Create nested loops in order to iterate on each dimension of the array
-    mlir::scf::buildLoopNest(
-        builder, loc, lowerBounds, upperBounds, steps,
-        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
-          // Print the separator and the variable name
-          printSeparator(builder, module);
+      // Create nested loops in order to iterate on each dimension of the array
+      mlir::scf::buildLoopNest(
+          builder, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
+            // Print the separator and the variable name
+            printSeparator(builder, module);
 
-          for (auto index : llvm::enumerate(indices)) {
-            mlir::Type convertedType = typeConverter->convertType(index.value().getType());
-            mlir::Value indexValue = typeConverter->materializeTargetConversion(builder, loc, convertedType, index.value());
+            for (auto index : llvm::enumerate(indices)) {
+              mlir::Type convertedType = typeConverter->convertType(index.value().getType());
+              mlir::Value indexValue = typeConverter->materializeTargetConversion(builder, loc, convertedType, index.value());
 
-            if (convertedType.getIntOrFloatBitWidth() < 64) {
-              indexValue = builder.create<mlir::SignExtendIOp>(loc, builder.getI64Type(), indexValue);
-            } else if (convertedType.getIntOrFloatBitWidth() > 64) {
-              indexValue = builder.create<mlir::TruncateIOp>(loc, builder.getI64Type(), indexValue);
+              if (convertedType.getIntOrFloatBitWidth() < 64) {
+                indexValue = builder.create<mlir::SignExtendIOp>(loc, builder.getI64Type(), indexValue);
+              } else if (convertedType.getIntOrFloatBitWidth() > 64) {
+                indexValue = builder.create<mlir::TruncateIOp>(loc, builder.getI64Type(), indexValue);
+              }
+
+              mlir::Value offset = builder.create<mlir::ConstantOp>(
+                  loc, typeConverter->getIndexType(), builder.getIntegerAttr(typeConverter->getIndexType(), index.index()));
+
+              mlir::Value indexPtr = builder.create<mlir::LLVM::GEPOp>(
+                  loc, indexPtrType, llvm::makeArrayRef({ indicesPtr, offset }));
+
+              // Arrays are 1-based in Modelica, so we add 1 in order to print indexes that are
+              // coherent with the model source.
+              mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(indexValue.getType(), 1));
+              indexValue = builder.create<mlir::AddIOp>(loc, indexValue.getType(), indexValue, increment);
+
+              builder.create<mlir::LLVM::StoreOp>(loc, indexValue, indexPtr);
             }
 
-            mlir::Value offset = builder.create<mlir::ConstantOp>(
-                loc, typeConverter->getIndexType(), builder.getIntegerAttr(typeConverter->getIndexType(), index.index()));
-
-            mlir::Value indexPtr = builder.create<mlir::LLVM::GEPOp>(
-                loc, indexPtrType, llvm::makeArrayRef({ indicesPtr, offset }));
-
-            // Arrays are 1-based in Modelica, so we add 1 in order to print indexes that are
-            // coherent with the model source.
-            mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(indexValue.getType(), 1));
-            indexValue = builder.create<mlir::AddIOp>(loc, indexValue.getType(), indexValue, increment);
-
-            builder.create<mlir::LLVM::StoreOp>(loc, indexValue, indexPtr);
-          }
-
-          builder.create<mlir::LLVM::CallOp>(loc, function, args);
-        });
+            builder.create<mlir::LLVM::CallOp>(loc, function, args);
+          });
+    }
 
     // Deallocate the indices array
     auto heapFreeFn = lookupOrCreateHeapFreeFn(builder, module);
@@ -1289,7 +1305,7 @@ namespace marco::codegen
     auto modelOp = model.getOperation();
     auto module = modelOp.getOperation()->getParentOfType<mlir::ModuleOp>();
 
-    auto callback = [&](llvm::StringRef name, mlir::Value value, const MultidimensionalRange& indices, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
+    auto callback = [&](llvm::StringRef name, mlir::Value value, const IndexSet& filteredIndices, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       auto loc = modelOp.getLoc();
 
       std::string symbolName = "var" + std::to_string(processedValues);
@@ -1298,7 +1314,7 @@ namespace marco::codegen
       mlir::Value symbol = getOrCreateGlobalString(loc, builder, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1), module);
 
       bool shouldPrintSeparator = processedValues != 0;
-      printVariableName(builder, module, symbol, value, indices, filter, shouldPrintSeparator);
+      printVariableName(builder, module, symbol, value, filteredIndices, shouldPrintSeparator);
       return mlir::success();
     };
 
@@ -1309,8 +1325,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       mlir::Value var,
-      const MultidimensionalRange& indices,
-      VariableFilter::Filter filter,
+      const IndexSet& filteredIndices,
       bool shouldPrependSeparator) const
   {
     if (auto arrayType = var.getType().dyn_cast<ArrayType>()) {
@@ -1318,7 +1333,7 @@ namespace marco::codegen
         mlir::Value value = builder.create<LoadOp>(var.getLoc(), var);
         printScalarVariable(builder, module, value, shouldPrependSeparator);
       } else {
-        printArrayVariable(builder, module, var, indices, filter, shouldPrependSeparator);
+        printArrayVariable(builder, module, var, filteredIndices, shouldPrependSeparator);
       }
     } else {
       printScalarVariable(builder, module, var, shouldPrependSeparator);
@@ -1342,68 +1357,37 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       mlir::Value var,
-      const MultidimensionalRange& indices,
-      VariableFilter::Filter filter,
+      const IndexSet& filteredIndices,
       bool shouldPrependSeparator) const
   {
     mlir::Location loc = var.getLoc();
     assert(var.getType().isa<ArrayType>());
 
-    auto ranges = filter.getRanges();
-    auto arrayType = var.getType().cast<ArrayType>();
-    assert(arrayType.getRank() == ranges.size());
+    for (const auto& filteredRange : filteredIndices) {
+      auto arrayType = var.getType().cast<ArrayType>();
+      assert(filteredRange.rank() == arrayType.getRank());
 
-    llvm::SmallVector<mlir::Value, 3> lowerBounds;
-    llvm::SmallVector<mlir::Value, 3> upperBounds;
+      llvm::SmallVector<mlir::Value, 3> lowerBounds;
+      llvm::SmallVector<mlir::Value, 3> upperBounds;
 
-    mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-    llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
+      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
 
-    for (const auto& range : llvm::enumerate(ranges)) {
-      // In Modelica, arrays are 1-based. If present, we need to lower by 1
-      // the value given by the variable filter.
-
-      unsigned int lowerBound = range.value().hasLowerBound() ? range.value().getLowerBound() - 1 : 0;
-      lowerBound = std::max(static_cast<Range::data_type>(lowerBound), indices[range.index()].getBegin());
-      lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(lowerBound)));
-
-      // The upper bound is not lowered because the SCF's for operation assumes
-      // them as excluded.
-
-      if (range.value().hasUpperBound()) {
-        long upperBound = std::min(
-            static_cast<Range::data_type>(range.value().getUpperBound()),
-            indices[range.index()].getEnd());
-
-        upperBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(upperBound)));
-      } else {
-        mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.index()));
-        mlir::Value upperBound = builder.create<DimOp>(loc, var, dim);
-        mlir::Value availableUpperBound = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(indices[range.index()].getEnd()));
-
-        mlir::Value condition = builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::sle, availableUpperBound, upperBound);
-        auto ifOp = builder.create<mlir::scf::IfOp>(loc, builder.getIndexType(), condition, true);
-
-        builder.setInsertionPointToStart(ifOp.thenBlock());
-        builder.create<mlir::scf::YieldOp>(loc, availableUpperBound);
-
-        builder.setInsertionPointToStart(ifOp.elseBlock());
-        builder.create<mlir::scf::YieldOp>(loc, upperBound);
-
-        builder.setInsertionPointAfter(ifOp);
-        upperBounds.push_back(ifOp.getResult(0));
+      for (size_t i = 0; i < filteredRange.rank(); ++i) {
+        lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getBegin())));
+        upperBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getEnd())));
       }
+
+      // Create nested loops in order to iterate on each dimension of the array
+      mlir::scf::buildLoopNest(
+          builder, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
+            mlir::Value value = nestedBuilder.create<LoadOp>(loc, var, position);
+
+            printSeparator(nestedBuilder, module);
+            printElement(nestedBuilder, module, value);
+          });
     }
-
-    // Create nested loops in order to iterate on each dimension of the array
-    mlir::scf::buildLoopNest(
-        builder, loc, lowerBounds, upperBounds, steps,
-        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
-          mlir::Value value = nestedBuilder.create<LoadOp>(loc, var, position);
-
-          printSeparator(nestedBuilder, module);
-          printElement(nestedBuilder, module, value);
-        });
   }
 
   void ModelConverter::printElement(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Value value) const
@@ -1442,9 +1426,9 @@ namespace marco::codegen
     auto modelOp = model.getOperation();
     auto module = modelOp.getOperation()->getParentOfType<mlir::ModuleOp>();
 
-    auto callback = [&](llvm::StringRef name, mlir::Value value, const MultidimensionalRange& indices, VariableFilter::Filter filter, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
+    auto callback = [&](llvm::StringRef name, mlir::Value value, const IndexSet& filteredIndices, mlir::ModuleOp module, size_t processedValues) -> mlir::LogicalResult {
       bool shouldPrintSeparator = processedValues != 0;
-      printVariable(builder, module, value, indices, filter, shouldPrintSeparator);
+      printVariable(builder, module, value, filteredIndices, shouldPrintSeparator);
       return mlir::success();
     };
 
@@ -1457,7 +1441,7 @@ namespace marco::codegen
       const Model<ScheduledEquationsBlock>& model,
       ExternalSolvers& externalSolvers,
       llvm::StringRef functionName,
-      std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const MultidimensionalRange&, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const
+      std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const IndexSet&, mlir::ModuleOp, size_t)> elementCallback) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto modelOp = model.getOperation();
@@ -1505,7 +1489,7 @@ namespace marco::codegen
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
 
-    if (auto res = elementCallback("time", time, MultidimensionalRange(Range(0, 1)), VariableFilter::Filter::visibleScalar(), module, processedValues++); mlir::failed(res)) {
+    if (auto res = elementCallback("time", time, IndexSet(MultidimensionalRange(Range(0, 1))), module, processedValues++); mlir::failed(res)) {
       return res;
     }
 
@@ -1525,19 +1509,19 @@ namespace marco::codegen
         rank = arrayType.getRank();
       }
 
-      auto filter = options.variableFilter->getVariableInfo(name, rank);
+      auto filters = options.variableFilter->getVariableInfo(name, rank);
+      IndexSet filteredIndices = getFilteredIndices(variableTypes[position], filters);
 
-      if (!filter.isVisible()) {
+      if (filteredIndices.empty()) {
+        // Nothing to print, so we can also skip the extraction of the variable
+        // from the runtime data structure.
         continue;
       }
 
       mlir::Value value = extractValue(builder, structValue, variableTypes[position], position + variablesOffset);
-      auto indices = model.getVariables()[position]->getIndices();
 
-      for (const auto& range : indices) {
-        if (auto res = elementCallback(name, value, range, filter, module, processedValues++); mlir::failed(res)) {
-          return res;
-        }
+      if (auto res = elementCallback(name, value, filteredIndices, module, processedValues++); mlir::failed(res)) {
+        return res;
       }
     }
 
@@ -1557,9 +1541,11 @@ namespace marco::codegen
         rank = arrayType.getRank();
       }
 
-      auto filter = options.variableFilter->getVariableDerInfo(name, rank);
+      auto filters = options.variableFilter->getVariableDerInfo(name, rank);
+      IndexSet filteredIndices = getFilteredIndices(variableTypes[derPosition], filters);
+      filteredIndices -= derivativesMap.getDerivedIndices(varPosition);
 
-      if (!filter.isVisible()) {
+      if (filteredIndices.empty()) {
         continue;
       }
 
@@ -1569,13 +1555,9 @@ namespace marco::codegen
       derName.append(")");
 
       mlir::Value value = extractValue(builder, structValue, variableTypes[derPosition], derPosition + variablesOffset);
-      auto indices = model.getVariables()[varPosition]->getIndices();
-      indices -= derivativesMap.getDerivedIndices(varPosition);
 
-      for (const auto& range : indices) {
-        if (auto res = elementCallback(derName, value, range, filter, module, processedValues++); mlir::failed(res)) {
-          return res;
-        }
+      if (auto res = elementCallback(derName, value, filteredIndices, module, processedValues++); mlir::failed(res)) {
+        return res;
       }
     }
 

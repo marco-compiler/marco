@@ -61,13 +61,13 @@ namespace marco
   void VariableFilter::addVariable(Tracker var)
   {
     setEnabled(true);
-    variables[var.getName()] = var;
+    variables[var.getName()].push_back(var);
   }
 
   void VariableFilter::addDerivative(Tracker var)
   {
     setEnabled(true);
-    derivatives[var.getName()] = var;
+    derivatives[var.getName()].push_back(var);
   }
 
   void VariableFilter::addRegexString(llvm::StringRef newRegex)
@@ -76,42 +76,59 @@ namespace marco
     regex.push_back(newRegex.str());
   }
 
-  VariableFilter::Filter VariableFilter::getVariableInfo(llvm::StringRef name, unsigned int expectedRank) const
+  std::vector<Filter> VariableFilter::getVariableInfo(llvm::StringRef name, unsigned int expectedRank) const
   {
+    std::vector<Filter> filters;
+
     bool visibility = !isEnabled();
-    llvm::SmallVector<Range, 3> ranges;
 
     if (matchesRegex(name)) {
+      std::vector<Range> ranges;
       visibility = true;
-      Range unboundedRange(Range::kUnbounded, Range::kUnbounded);
-      ranges.insert(ranges.begin(), expectedRank, unboundedRange);
     }
 
-    if (variables.count(name) != 0) {
-      visibility = true;
-      auto tracker = variables.lookup(name);
-      ranges.clear();
+    if (auto trackersIt = variables.find(name); trackersIt != variables.end()) {
+      for (const auto& tracker : trackersIt->second) {
+        visibility = true;
 
-      // If the requested rank is lower than the one known by the variable filter,
-      // then only keep an amount of ranges equal to the rank.
+        std::vector<Range> ranges;
 
-      auto trackerRanges = tracker.getRanges();
-      unsigned int amount = expectedRank < trackerRanges.size() ? expectedRank : trackerRanges.size();
-      auto it = trackerRanges.begin();
-      ranges.insert(ranges.begin(), it, it + amount);
+        // If the requested rank is lower than the one known by the variable filter,
+        // then only keep an amount of ranges equal to the rank.
+
+        auto trackerRanges = tracker.getRanges();
+        unsigned int amount = expectedRank < trackerRanges.size() ? expectedRank : trackerRanges.size();
+        auto it = trackerRanges.begin();
+        ranges.insert(ranges.begin(), it, it + amount);
+
+        // If the requested rank is higher than the one known by the variable filter,
+        // then set the remaining ranges as unbounded.
+
+        for (size_t i = ranges.size(); i < expectedRank; ++i) {
+          ranges.emplace_back(Range::kUnbounded, Range::kUnbounded);
+        }
+
+        filters.push_back(VariableFilter::Filter(visibility, ranges));
+      }
     }
 
-    // If the requested rank is higher than the one known by the variable filter,
-    // then set the remaining ranges as unbounded.
+    if (filters.empty()) {
+      std::vector<Range> ranges;
 
-    for (size_t i = ranges.size(); i < expectedRank; ++i)
-      ranges.emplace_back(Range::kUnbounded, Range::kUnbounded);
+      for (size_t i = ranges.size(); i < expectedRank; ++i) {
+        ranges.emplace_back(Range::kUnbounded, Range::kUnbounded);
+      }
 
-    return VariableFilter::Filter(visibility, ranges);
+      filters.push_back(VariableFilter::Filter(visibility, ranges));
+    }
+
+    return filters;
   }
 
-  Filter VariableFilter::getVariableDerInfo(llvm::StringRef name, unsigned int expectedRank) const
+  std::vector<Filter> VariableFilter::getVariableDerInfo(llvm::StringRef name, unsigned int expectedRank) const
   {
+    std::vector<Filter> result;
+
     bool visibility = false;
     llvm::SmallVector<Range, 3> ranges;
 
@@ -126,7 +143,9 @@ namespace marco
       ranges.emplace_back(Range::kUnbounded, Range::kUnbounded);
     }
 
-    return VariableFilter::Filter(visibility, ranges);
+    result.push_back(VariableFilter::Filter(visibility, ranges));
+
+    return result;
   }
 
   bool VariableFilter::matchesRegex(llvm::StringRef identifier) const

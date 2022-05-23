@@ -161,8 +161,7 @@ namespace marco::codegen
           mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
-          const modeling::MultidimensionalRange& indices,
-          VariableFilter::Filter filter,
+          const modeling::IndexSet& filteredIndices,
           bool shouldPreprendSeparator = true) const;
 
       void printScalarVariableName(
@@ -176,8 +175,7 @@ namespace marco::codegen
           mlir::ModuleOp module,
           mlir::Value name,
           mlir::Value value,
-          const modeling::MultidimensionalRange& indices,
-          VariableFilter::Filter filter,
+          const modeling::IndexSet& filteredIndices,
           bool shouldPrependSeparator) const;
 
       mlir::LogicalResult createPrintHeaderFunction(
@@ -189,8 +187,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Value var,
-          const modeling::MultidimensionalRange& indices,
-          VariableFilter::Filter filter,
+          const modeling::IndexSet& filteredIndices,
           bool shouldPrependSeparator = true) const;
 
       void printScalarVariable(
@@ -203,8 +200,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           mlir::Value var,
-          const modeling::MultidimensionalRange& indices,
-          VariableFilter::Filter filter,
+          const modeling::IndexSet& filteredIndices,
           bool shouldPrependSeparator = true) const;
 
       void printElement(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Value value) const;
@@ -220,7 +216,7 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model,
           ExternalSolvers& externalSolvers,
           llvm::StringRef functionName,
-          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const modeling::MultidimensionalRange&, VariableFilter::Filter, mlir::ModuleOp, size_t)> elementCallback) const;
+          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const modeling::IndexSet&, mlir::ModuleOp, size_t)> elementCallback) const;
 
     private:
       ModelSolvingOptions options;
