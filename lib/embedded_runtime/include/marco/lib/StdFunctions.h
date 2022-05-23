@@ -359,7 +359,7 @@ class array{
     }
 
     iterator end(){
-        return arr + length - 1;
+        return arr + length ;
     }
 
     const_iterator begin() const{
@@ -367,7 +367,7 @@ class array{
     }
 
     const_iterator end() const {
-        return arr + length - 1;
+        return arr + length ;
     }
 
     
