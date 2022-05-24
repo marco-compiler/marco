@@ -47,11 +47,11 @@
 
 #define ARRAY(type) ARRAY_ ##type
 
-#define ARRAY_bool_CPP UnsizedArrayDescriptor<bool_CPP>*
-#define ARRAY_int32_t_CPP UnsizedArrayDescriptor<int32_t_CPP>*
-#define ARRAY_int64_t_CPP UnsizedArrayDescriptor<int64_t_CPP>*
-#define ARRAY_float_CPP UnsizedArrayDescriptor<float_CPP>*
-#define ARRAY_double_CPP UnsizedArrayDescriptor<double_CPP>*
+#define ARRAY_bool_CPP UnsizedArrayDescriptor<bool_CPP>
+#define ARRAY_int32_t_CPP UnsizedArrayDescriptor<int32_t_CPP>
+#define ARRAY_int64_t_CPP UnsizedArrayDescriptor<int64_t_CPP>
+#define ARRAY_float_CPP UnsizedArrayDescriptor<float_CPP>
+#define ARRAY_double_CPP UnsizedArrayDescriptor<double_CPP>
 
 #define ARRAY_bool_MANGLED _ai1
 #define ARRAY_int32_t_MANGLED _ai32
