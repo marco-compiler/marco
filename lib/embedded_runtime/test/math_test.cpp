@@ -162,6 +162,8 @@ int main(){
         *b = 123;
         serial.write("\n\r New Alloc ");
         serial.write(*b);
+        serial.write("\n\r After ");
+        serial.write(*a);
         //serial.write("CIAO");
     
        
