@@ -1433,16 +1433,6 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& ex
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<RecordInstance>(const Expression& expression)
-{
-	assert(expression.isa<RecordInstance>());
-	assert(false && "RecordInstances not handled in the code generation phase.");
-
-	Container<Reference> result;
-	return result;
-}
-
-template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression)
 {
 	assert(expression.isa<Array>());

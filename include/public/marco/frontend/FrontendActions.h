@@ -25,13 +25,6 @@ namespace marco::frontend
       void execute() override;
   };
 
-  class EmitFinalASTAction : public FrontendAction
-  {
-    public:
-      bool beginAction() override;
-      void execute() override;
-  };
-
   class EmitModelicaDialectAction : public FrontendAction
   {
     public:

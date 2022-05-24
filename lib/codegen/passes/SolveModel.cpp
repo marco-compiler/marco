@@ -1442,7 +1442,7 @@ static Equations<Equation> discoverEquations(ModelOp model, const Variables& var
 template<typename EquationType>
 static mlir::LogicalResult matching(
     Model<MatchedEquation>& result,
-    const Model<EquationType>& model,
+    Model<EquationType>& model,
     const mlir::BlockAndValueMapping& derivatives)
 {
   Variables allVariables = model.getVariables();
@@ -1466,50 +1466,19 @@ static mlir::LogicalResult matching(
     }
   }
 
+  model.setVariables(variables);
   result.setVariables(variables);
 
-  // Clone the equation wrappers, in order to leave the original ones
-  // untouched.
-  Equations equations;
+  model.getEquations().setVariables(model.getVariables());
 
-  for (const auto& equation : model.getEquations()) {
-    equations.add(equation->clone());
-  }
-
-  equations.setVariables(variables);
-
-  // Add variables and equations to the matching graph
   MatchingGraph<Variable*, Equation*> matchingGraph;
 
-  for (const auto& variable : variables) {
+  for (const auto& variable : model.getVariables()) {
     matchingGraph.addVariable(variable.get());
   }
 
-  for (const auto& equation : equations) {
+  for (const auto& equation : model.getEquations()) {
     matchingGraph.addEquation(equation.get());
-  }
-
-  auto numberOfScalarEquations = matchingGraph.getNumberOfScalarEquations();
-  auto numberOfScalarVariables = matchingGraph.getNumberOfScalarVariables();
-
-  if (numberOfScalarEquations < numberOfScalarVariables) {
-    model.getOperation().emitError(
-        "Underdetermined model. Found " +
-        std::to_string(numberOfScalarEquations) +
-        " scalar equations and " +
-        std::to_string(numberOfScalarVariables) +
-        " scalar variables.");
-
-    return mlir::failure();
-  } else if (numberOfScalarEquations < numberOfScalarVariables) {
-    model.getOperation().emitError(
-        "Overdetermined model. Found " +
-            std::to_string(numberOfScalarEquations) +
-            " scalar equations and " +
-            std::to_string(numberOfScalarVariables) +
-            " scalar variables.");
-
-    return mlir::failure();
   }
 
   // Apply the simplification algorithm to solve the obliged matches

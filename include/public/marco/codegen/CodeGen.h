@@ -150,9 +150,4 @@ namespace marco::codegen
 	template<>
 	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::Array>(
 			const ast::Expression& expression);
-
-	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ast::RecordInstance>(
-			const ast::Expression& expression);
-
 }

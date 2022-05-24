@@ -624,7 +624,7 @@ Token ModelicaStateMachine::scan<State::Normal>()
 
 	setTokenStartPosition();
 
-	if (isNonDigit(current) || (current == '$' && isNonDigit(next)))
+	if (isNonDigit(current))
 	{
 		state = State::ParsingId;
 		lastIdentifier = "";

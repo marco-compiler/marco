@@ -138,13 +138,6 @@ namespace marco::ast
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
-		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> recordInstance(SourceRange location, Type type, Args&&... args)
-		{
-			RecordInstance content(std::move(location), std::move(type), std::forward<Args>(args)...);
-			return std::unique_ptr<Expression>(new Expression(std::move(content)));
-		}
-
 		private:
 		explicit Expression(Array content);
 		explicit Expression(Call content);
@@ -152,10 +145,8 @@ namespace marco::ast
 		explicit Expression(Operation content);
 		explicit Expression(ReferenceAccess content);
 		explicit Expression(Tuple content);
-		explicit Expression(RecordInstance content);
-		
 
-		std::variant<Array, Call, Constant, Operation, ReferenceAccess, Tuple, RecordInstance> content;
+		std::variant<Array, Call, Constant, Operation, ReferenceAccess, Tuple> content;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Expression& obj);

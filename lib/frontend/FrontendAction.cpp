@@ -26,17 +26,17 @@
 bool exec(const char* cmd, std::string& result)
 {
   std::array<char, 128> buffer;
-  FILE* pipe = popen(cmd, "r");
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
 
   if (!pipe) {
     return false;
   }
 
-  while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
     result += buffer.data();
   }
 
-  return pclose(pipe)==0;
+  return true;
 }
 
 namespace marco::frontend
@@ -112,19 +112,7 @@ namespace marco::frontend
       }
     }
 
-    auto result = exec(cmd.c_str(), ci.getFlattened());
-
-    if(!result)
-    {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Fatal,
-          "OMC flattening failed");
-
-      ci.getDiagnostics().Report(diagID);
-      llvm::errs() << ci.getFlattened();
-    }
-
-    return result;
+    return exec(cmd.c_str(), ci.getFlattened());
   }
 
   bool FrontendAction::runParse()
@@ -140,10 +128,7 @@ namespace marco::frontend
           "AST generation failed");
 
       ci.getDiagnostics().Report(diagID);
-
-      auto error = cls.takeError();
-      llvm::errs() << error;
-      llvm::consumeError(std::move(error));
+      llvm::consumeError(cls.takeError());
       return false;
     }
 
@@ -157,7 +142,6 @@ namespace marco::frontend
 
     marco::ast::PassManager frontendPassManager;
     frontendPassManager.addPass(ast::createTypeCheckingPass());
-    frontendPassManager.addPass(ast::createInliningPass());
     frontendPassManager.addPass(ast::createConstantFolderPass());
     auto error = frontendPassManager.run(instance().getAST());
 
@@ -167,7 +151,6 @@ namespace marco::frontend
           "Frontend passes failed");
 
       ci.getDiagnostics().Report(diagID);
-      llvm::errs() << error;
       llvm::consumeError(std::move(error));
       return false;
     }

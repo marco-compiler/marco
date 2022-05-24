@@ -32,4 +32,4 @@ add_lit_testsuite(check "Running the regression tests"
 
 set_target_properties(check PROPERTIES FOLDER "Tests")
 
-add_lit_testsuites(MARCO ${CMAKE_CURRENT_SOURCE_DIR} DEPENDS ${MARCO_TEST_DEPENDS})
+add_lit_testsuites(MARCO ${CMAKE_CURRENT_BINARY_DIR} DEPENDS ${MARCO_TEST_DEPENDS})

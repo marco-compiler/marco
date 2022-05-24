@@ -25,7 +25,6 @@ set(SOURCES
 		passes/ConstantFoldingPass.cpp
 		passes/PassManager.cpp
 		passes/TypeCheckingPass.cpp
-		passes/InliningPass.cpp
 		Errors.cpp
 		LexerStateMachine.cpp
 		Parser.cpp
@@ -37,7 +36,7 @@ marco_add_library(ast SHARED
 
 		LINK_LIBS
 		PRIVATE marco::utils
-		PUBLIC boost
+		PRIVATE boost
 
 		LINK_COMPONENTS
 		Core

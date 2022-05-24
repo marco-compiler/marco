@@ -117,10 +117,6 @@ Type& Member::getType() { return type; }
 
 const Type& Member::getType() const { return type; }
 
-void Member::setType(Type new_type){
-	type = std::move(new_type);
-}
-
 bool Member::hasInitializer() const
 {
 	return initializer.hasValue();
@@ -173,9 +169,4 @@ bool Member::isInput() const
 bool Member::isOutput() const
 {
 	return typePrefix.isOutput();
-}
-
-TypePrefix Member::getTypePrefix() const
-{
-	return typePrefix;
 }

@@ -49,10 +49,8 @@ namespace marco::ast
 
 void Array::print(llvm::raw_ostream& os, size_t indents) const
 {
-	os.indent(indents);
-	os << "array:\n";
 	for (const auto& value : values)
-		value->print(os, indents+1);
+		value->print(os, indents);
 }
 
 bool Array::isLValue() const

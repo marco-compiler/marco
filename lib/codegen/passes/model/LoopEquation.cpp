@@ -94,10 +94,9 @@ namespace marco::codegen
 
     auto processFn = [&](mlir::Value value, EquationPath path) {
       std::vector<DimensionAccess> implicitDimensionAccesses;
+      size_t implicitInductionVar = 0;
 
       if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
-        size_t implicitInductionVar = 0;
-
         for (size_t i = 0, e = arrayType.getRank(); i < e; ++i) {
           auto dimensionAccess = DimensionAccess::relative(explicitInductions + implicitInductionVar, 0);
           implicitDimensionAccesses.push_back(dimensionAccess);
@@ -105,7 +104,6 @@ namespace marco::codegen
         }
       }
 
-      std::reverse(implicitDimensionAccesses.begin(), implicitDimensionAccesses.end());
       searchAccesses(accesses, value, implicitDimensionAccesses, std::move(path));
     };
 

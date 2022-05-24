@@ -16,7 +16,6 @@ namespace marco::frontend
     InitOnly,
     EmitFlattened,
     EmitAST,
-    EmitFinalAST,
     EmitModelicaDialect,
     EmitLLVMDialect,
     EmitLLVMIR,
