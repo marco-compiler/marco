@@ -11,6 +11,13 @@ extern "C" void* __cxa_get_globals(){}
 
 extern "C" void* __cxa_get_globals_fast(){}
 
+extern "C" void* __cxa_type_match(){}
+
+extern "C" void* __cxa_call_unexpected(){}
+
+extern "C" void* __cxa_begin_cleanup(){}
+
+
 void* pthread_once;
 
 /*

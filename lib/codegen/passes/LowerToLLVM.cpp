@@ -863,7 +863,8 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 
 				// Create the unsized array descriptor that holds the ranked one.
 				// The inner descriptor is allocated on stack.
-				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, convertType(resultType));
+				mlir::Type dereferencedUnsizedType = convertType(resultType).cast<mlir::LLVM::LLVMPointerType>().getElementType();
+				UnsizedArrayDescriptor resultDescriptor = UnsizedArrayDescriptor::undef(rewriter, loc, dereferencedUnsizedType);
 				resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
 
 				mlir::Value underlyingDescPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, getVoidPtrType(), sourceDescriptor.computeSize(rewriter, loc), llvm::None);
@@ -876,7 +877,14 @@ struct ArrayCastOpLowering : public ModelicaOpConversion<ArrayCastOp>
 				mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, underlyingDescPtr.getType(), underlyingDescPtr, zero);
 				rewriter.create<mlir::LLVM::StoreOp>(loc, *sourceDescriptor, ptr);
 
-				mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, *resultDescriptor);
+				// Store the unsized array descriptor on the stack to pass it via
+				// pointer.
+				mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(1));
+				mlir::Value descPtr = rewriter.create<mlir::LLVM::AllocaOp>(loc, convertType(resultType), size, llvm::None);
+				descPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, convertType(resultType), descPtr);
+				rewriter.create<mlir::LLVM::StoreOp>(loc, *resultDescriptor, descPtr);
+
+				mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, descPtr);
 				rewriter.replaceOp(op, result);
 				return mlir::success();
 			}
