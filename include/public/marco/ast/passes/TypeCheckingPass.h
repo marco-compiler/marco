@@ -124,6 +124,7 @@ namespace marco::ast
 		[[nodiscard]] llvm::Error checkMulOp(Expression& expression);
 		[[nodiscard]] llvm::Error checkNegateOp(Expression& expression);
 		[[nodiscard]] llvm::Error checkPowerOfOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkRangeOp(Expression& expression);
 		[[nodiscard]] llvm::Error checkSubOp(Expression& expression);
 		[[nodiscard]] llvm::Error checkSubscriptionOp(Expression& expression);
 
@@ -170,6 +171,9 @@ namespace marco::ast
 
 	template<>
 	llvm::Error TypeChecker::run<Tuple>(Expression& expression);
+
+	template<>
+	llvm::Error TypeChecker::run<RecordInstance>(Expression& expression);
 
 	template<>
 	llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement);

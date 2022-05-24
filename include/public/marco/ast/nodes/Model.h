@@ -43,15 +43,26 @@ namespace marco::ast
 
 		[[nodiscard]] llvm::StringRef getName() const;
 
+		[[nodiscard]] llvm::SmallVectorImpl<std::unique_ptr<Member>>& getMembers_mut();
+
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Member>> getMembers();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Member>> getMembers() const;
+		[[nodiscard]] Member* getMember(llvm::StringRef name) const;
+
 		void addMember(std::unique_ptr<Member> member);
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Equation>> getEquations();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Equation>> getEquations() const;
 
+		void addEquation(std::unique_ptr<Equation> equation);
+
+		
+		[[nodiscard]] llvm::SmallVectorImpl<std::unique_ptr<Equation>>& getEquations_mut();
+
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<ForEquation>> getForEquations();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<ForEquation>> getForEquations() const;
+
+		void addForEquation(std::unique_ptr<ForEquation> forEquation);
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Algorithm>> getAlgorithms();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Algorithm>> getAlgorithms() const;

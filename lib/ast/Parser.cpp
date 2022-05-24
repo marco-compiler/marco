@@ -363,12 +363,29 @@ llvm::Expected<std::unique_ptr<Member>> Parser::element(bool publicSection)
 	{
 		TRY(init, expression());
 
+		// string comment, ignore it for now
 		accept<Token::String>();
+
+		// annotation
+		if (current == Token::AnnotationKeyword)
+		{
+			TRY(ann, annotation());
+			//todo: handle elements annotations
+		}
+
 		return Member::build(
 				name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), std::move(*init), publicSection);
 	}
 
+	// string comment, ignore it for now
 	accept<Token::String>();
+
+	// annotation
+	if (current == Token::AnnotationKeyword)
+	{
+		TRY(ann, annotation());
+		//todo: handle elements annotations
+	}
 
 	return Member::build(
 			name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), llvm::None, publicSection,
@@ -383,6 +400,7 @@ llvm::Expected<llvm::Optional<std::unique_ptr<Expression>>> Parser::termModifica
 
 	do
 	{
+		accept<Token::EachKeyword>();
 		auto lastIndent = lexer.getLastIdentifier();
 		EXPECT(Token::Ident);
 		EXPECT(Token::Equal);
@@ -537,9 +555,9 @@ llvm::Expected<std::unique_ptr<Induction>> Parser::induction()
 
 	EXPECT(Token::InKeyword);
 
-	TRY(begin, expression());
+	TRY(begin, logicalExpression());
 	EXPECT(Token::Colons);
-	TRY(end, expression());
+	TRY(end, logicalExpression());
 
 	return Induction::build(std::move(loc), variableName, std::move(*begin), std::move(*end));
 }
@@ -828,7 +846,27 @@ llvm::Error Parser::forEquationBody(llvm::SmallVectorImpl<std::unique_ptr<ForEqu
 
 llvm::Expected<std::unique_ptr<Expression>> Parser::expression()
 {
+	auto loc = getPosition();
 	TRY(l, logicalExpression());
+	
+	if(accept<Token::Colons>())
+	{	
+		std::vector<std::unique_ptr<Expression>> arguments;
+		TRY(l2, logicalExpression());
+		
+		arguments.push_back(std::move(*l));
+		arguments.push_back(std::move(*l2));
+
+		if(accept<Token::Colons>())
+		{
+			TRY(l3, logicalExpression());
+			arguments.push_back(std::move(*l3));
+		}
+
+		loc.extendEnd(arguments.back()->getLocation());
+		return Expression::operation(std::move(loc), Type::unknown(), OperationKind::range, move(arguments));
+	}
+
 	return std::move(*l);
 }
 
@@ -1189,7 +1227,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()
 
 	while (accept<Token::Dot>())
 	{
-		auto memberName = Expression::reference(loc, makeType<std::string>(), lexer.getLastString());
+		auto memberName = Expression::reference(loc, makeType<std::string>(), lexer.getLastIdentifier());
 		loc.extendEnd(getPosition());
 		EXPECT(Token::Ident);
 
@@ -1207,6 +1245,8 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()
 			return std::move(error);
 
 		loc.extendEnd(subscriptsLocation);
+
+		subscripts.insert(subscripts.begin(), std::move(expression));
 		expression = Expression::operation(loc, Type::unknown(), OperationKind::subscription, subscripts);
 	}
 
@@ -1284,17 +1324,48 @@ llvm::Error Parser::arraySubscript(SourceRange& location, llvm::SmallVectorImpl<
 	do
 	{
 		auto loc = getPosition();
-		TRY(exp, expression());
-		location.extendEnd((*exp)->getLocation());
 
-		*exp = Expression::operation(
-				location, makeType<BuiltInType::Integer>(), OperationKind::add,
-				llvm::ArrayRef({
-						std::move(*exp),
-						Expression::constant(loc, makeType<BuiltInType::Integer>(), (long) -1)
-				}));
+		if(accept<Token::Colons>()){
+			llvm::SmallVector<std::unique_ptr<Expression>,3> args;
+			
+			args.push_back(Expression::constant(loc, makeType<BuiltInType::Integer>(), (long) 0));
 
-		subscripts.push_back(std::move(*exp));
+			if(current!=Token::Comma && current!=Token::RSquare)
+			{
+				TRY(exp2, logicalExpression());
+				args.push_back(std::move(*exp2));
+				
+				if(accept<Token::Colons>())
+				{
+					if(current!=Token::Comma && current!=Token::RSquare)
+					{
+						TRY(exp3, logicalExpression());
+						args.push_back(std::move(*exp3));
+					}
+					else
+						args.push_back(Expression::constant(loc, makeType<BuiltInType::Integer>(), (long) -1));
+				}
+			}
+			else
+				args.push_back(Expression::constant(loc, makeType<BuiltInType::Integer>(), (long) -1));
+
+			
+			subscripts.push_back(Expression::operation(location, Type::unknown(), OperationKind::range,args));
+		}
+		else
+		{
+			TRY(exp, expression());
+			location.extendEnd((*exp)->getLocation());
+
+			*exp = Expression::operation(
+					location, makeType<BuiltInType::Integer>(), OperationKind::add,
+					llvm::ArrayRef({
+							std::move(*exp),
+							Expression::constant(loc, makeType<BuiltInType::Integer>(), (long) -1)
+					}));
+
+			subscripts.push_back(std::move(*exp));
+		}
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RSquare);

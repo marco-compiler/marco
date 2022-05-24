@@ -13,6 +13,7 @@ namespace marco::ast
 {
 	class Type;
 	class Expression;
+	class Record;
 
 	enum class BuiltInType
 	{
@@ -294,6 +295,7 @@ namespace marco::ast
 		Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 		Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 		Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
+		Type(Record *type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 
 		Type(const Type& other);
 		Type(Type&& other);
@@ -388,13 +390,15 @@ namespace marco::ast
 		[[nodiscard]] static Type unknown();
 
 		private:
-		std::variant<BuiltInType, PackedType, UserDefinedType> content;
+		std::variant<BuiltInType, PackedType, UserDefinedType, Record*> content;
 		llvm::SmallVector<ArrayDimension, 3> dimensions;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj);
 
 	std::string toString(Type obj);
+
+	Type getFlattenedMemberType(Type baseType, Type memberType);
 
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args&&... args)

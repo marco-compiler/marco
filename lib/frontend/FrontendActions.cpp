@@ -43,6 +43,17 @@ namespace marco::frontend
     instance().getAST()->dump(llvm::outs());
   }
 
+  bool EmitFinalASTAction::beginAction()
+  {
+    return runFlattening() && runParse() && runFrontendPasses() ;
+  }
+
+  void EmitFinalASTAction::execute()
+  {
+    // Print the AST on the standard output
+    instance().getAST()->dump(llvm::outs());
+  }
+
   bool EmitModelicaDialectAction::beginAction()
   {
     return runFlattening() && runParse() && runFrontendPasses() && runASTConversion();

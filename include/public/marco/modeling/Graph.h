@@ -696,8 +696,11 @@ namespace marco::modeling::internal
         VertexDescriptor addVertex(VertexProperty property)
         {
           auto* ptr = new Vertex(std::move(property));
+          vertices.push_back(ptr);
+
           [[maybe_unused]] bool vertexInsertion = graph.addNode(*ptr);
           assert(vertexInsertion);
+
           return VertexDescriptor(this, ptr);
         }
 
@@ -1074,11 +1077,11 @@ namespace marco::modeling::internal
         return impl->getLinkedVertices(std::move(vertex));
       }
 
-      llvm::iterator_range<FilteredLinkedVerticesIterator> getOutgoingEdges(
+      llvm::iterator_range<FilteredLinkedVerticesIterator> getLinkedVertices(
           VertexDescriptor vertex,
           std::function<bool(const VertexProperty&)> visibilityFn) const
       {
-        return impl->getOutgoingEdges(std::move(vertex), std::move(visibilityFn));
+        return impl->getLinkedVertices(std::move(vertex), std::move(visibilityFn));
       }
 
       /// Split the graph into multiple independent ones, if possible.

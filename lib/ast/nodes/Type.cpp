@@ -213,7 +213,7 @@ namespace marco::ast
 
 	std::string toString(UserDefinedType obj)
 	{
-		return "{" +
+		return obj.getName().str() + "{" +
 					 accumulate(
 							 obj.begin(),
 							 obj.end(),
@@ -336,6 +336,15 @@ Type::Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim)
 			dimensions(dim.begin(), dim.end())
 {
 	assert(std::holds_alternative<UserDefinedType>(content));
+	assert(!dimensions.empty());
+}
+
+Type::Type(Record *type, llvm::ArrayRef<ArrayDimension> dim)
+		: content(std::move(type)),
+			dimensions(dim.begin(), dim.end())
+{
+	assert(type);
+	assert(std::holds_alternative<Record*>(content));
 	assert(!dimensions.empty());
 }
 
@@ -497,6 +506,11 @@ Type Type::to(llvm::ArrayRef<ArrayDimension> dims) const
 	return copy;
 }
 
+// helper type for the visitor #4
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+// explicit deduction guide (not needed as of C++20)
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 namespace marco::ast
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj)
@@ -506,7 +520,10 @@ namespace marco::ast
 
 	std::string toString(Type obj)
 	{
-		auto visitor = [](const auto& t) { return toString(t); };
+		auto visitor = overloaded{
+			[](const auto& t) { return toString(t); },
+			[](Record *&r){ return r->getName().str();}
+		};
 
 		auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
 			return a + (a.length() > 0 ? "," : "") +
@@ -525,6 +542,31 @@ namespace marco::ast
 																				"]";
 
 		return obj.visit(visitor) + size;
+	}
+
+	/**
+	 *  used when flattening nested arrays of records
+	 *	e.g. given baseType=Record{NestedRecord[5] a)[10]
+	 * 			   memberType=NestedRecord[5]
+	 * 	->	 result = NestedRecord[10,5]
+	 */
+	Type getFlattenedMemberType(Type baseType, Type memberType)
+	{
+		// note: (todo) concatenating the dimensions should be enough, but it doesn't work since scalars are assumed to be arrays of dimension 1
+		if(!baseType.isScalar() )
+		{
+			if(memberType.isScalar()){
+				memberType.setDimensions(baseType.getDimensions());
+			}else{
+				auto d = memberType.getDimensions();
+				llvm::SmallVector<ArrayDimension,3> dimensions(d.begin(),d.end());
+				auto new_dimensions = baseType.getDimensions();
+				dimensions.insert(dimensions.begin(),new_dimensions.begin(),new_dimensions.end());
+
+				memberType.setDimensions(dimensions); 
+			}
+		}
+		return memberType;
 	}
 }
 
