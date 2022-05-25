@@ -33,3 +33,7 @@ void print_array(T *array){
     serial.write("\n\r");
 }
 #endif
+
+//void printf(char* string);
+
+ extern "C" int printf(const char* string,...);

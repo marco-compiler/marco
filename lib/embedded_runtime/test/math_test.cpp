@@ -114,7 +114,7 @@ int main(){
         print_serial(1.234f);
         */
        //f({1,2,3,4});
-       
+       /*
        stde::Vector<int> v = {2,3,4,5};
        v.push_back(2);
        v.push_back(3);
@@ -129,6 +129,7 @@ int main(){
         print_char("\n\r");
     
        stde::array<float,4> farr = {3.3,3.1,22,12};
+       *
        // stde::array<int,3> farr = {2,3,4};
         /*
        print_float(farr.size());
@@ -147,7 +148,7 @@ int main(){
        //print_integer(farr.max_size());
         //print_array(array);
     */
-   
+   /*
         int* a = (int*) malloc(sizeof(int));
         *a = 12;
         serial.write("\n\r Before ");
@@ -174,6 +175,10 @@ int main(){
            //print_float(farr[i]);
            print_char("<>\n\r");
        }
+       */
+      print_char("CIAO\n\r");
+      printf("PROVA %c %d %4f",'c', 3 , 7.634545);
+      printf("\n\rend");
     
     for(;;){
     }

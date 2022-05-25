@@ -35,6 +35,8 @@ public:
 	SerialPort();
 	SerialPort(int br);
 
+	void write(const char c);
+
 	void write(const char *s);
 
 	void write(const int n);

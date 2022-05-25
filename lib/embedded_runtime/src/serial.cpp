@@ -60,6 +60,11 @@ SerialPort::SerialPort(int br){
 
 }	
 
+void SerialPort::write(const char c){
+	while((USART2->SR & USART_SR_TXE)==0) ;
+	USART2->DR = c;
+}
+
 void SerialPort::write(const char *str)
 {
 	while((*str)!='\0')
