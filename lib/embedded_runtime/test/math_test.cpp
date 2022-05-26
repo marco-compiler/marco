@@ -177,7 +177,7 @@ int main(){
        }
        */
       print_char("CIAO\n\r");
-      printf("PROVA %c %d %4f",'c', 3 , 7.634545);
+      printf("PROVA %c %d %12f",'c', 3 , 0.231454253242);
       printf("\n\rend");
     
     for(;;){

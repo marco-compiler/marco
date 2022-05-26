@@ -43,10 +43,10 @@ void printf(char* string){
 
 int getPrecision(int* values, int digits){
     int precision = 0;
-    int m[3] = {100,10,1};
+    int m[3] = {1,10,100};// {100,10,1};
     int limit = digits <= 3 ? digits-1 : 2;
     for(int i = limit; i >= 0;i--){
-        precision += values[i] * m[i];
+        precision += values[i] * m[limit-i];
     }
     return precision;
 }
@@ -67,37 +67,23 @@ int printf(const char* string, ...){
         }
 
         string++;
-        /*
         if(*string == '\0')
         {
             break;
         }
-        int *values;
-        int digits = 0;
-        if(*string == 'd'){
-            int d = va_arg(lst,int);
-            serial.write(d);
-        }if(*string > 48 && *string <=57){
-            while(*string != 'f'){
-                *(values + digits++) = (int)*string;
-                if(!(*string > 48 && *string <=57) && *string != 'f') break;
-                string++;
-                if(*string == 'f'){
-                    int precision = getPrecision(values,digits);
-                    serial.write(va_arg(lst,float),precision);
-                }
-            }
-        }else if(*string == 'f') serial.write(va_arg(lst,float));
-        */
+
+       
         char c;
         int d;
         float f;
-        int *values;
+        int values[3];
         int digits = 0;
         int precision  = 0;
         switch(*string)
         {
-            //case 's': fputs(va_arg(lst, char *), stdout); break;
+            case 's': 
+                serial.write((char*)va_arg(lst,char*));
+                break;
             case 'c':
                 c = va_arg(lst,int);
                 serial.write(c);
@@ -110,19 +96,24 @@ int printf(const char* string, ...){
                 f = va_arg(lst,double);
                 serial.write(f);
                 break;
+            case 'l':
+                if(*++string == 'd')
+                    serial.write((int) va_arg(lst,int));
+                else serial.write(string[0]);
+                break;
+            case '.':
+                ++string;
             default:
                 while((*string >= 48 && *string <=57) && *string != 'f'){
                     char t = string[0];
-                    *(values + digits) = (int)t - 48;
+                    values[digits] = (int)t - 48;
+
                     digits++;
                     if(!(*string >= 48 && *string <=57) && *string != 'f') break;
                     string++;
                     if(*string == 'f'){
                         if(digits == 1) precision = (int)t - 48 ;//?
                         else precision = getPrecision(values,digits);
-                        serial.write("\n\r PRECISION = ");
-                        serial.write(precision);
-                        serial.write("\n\r");
                         serial.write((float)va_arg(lst,double),precision);
                 }
                 }
@@ -130,6 +121,7 @@ int printf(const char* string, ...){
             
         }
         string++;
+    
     }
     return 0;
 }

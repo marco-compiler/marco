@@ -31,6 +31,7 @@ all: $(OBJ)
 	$(CP) -O binary math_test.elf math_test.bin
 
 sim: $(OBJS)
+	make lib
 	$(CXX) $(LFLAGS) -o main.elf $(OBJS) -L. -lMARCORuntime 
 	$(CP) -O binary main.elf main.bin
 
@@ -82,6 +83,7 @@ clean:
 	-rm $(OBJ) main.elf main.bin main.map
 
 cleansim:
+	make cleanlib
 	rm $(addsuffix .o, $(basename $(SRCS))) main.bin main.elf main.map
 
 cleanlib:
