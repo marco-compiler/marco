@@ -601,7 +601,7 @@ namespace marco::ast
     auto* array = expression.get<Array>();
     llvm::SmallVector<long, 3> sizes;
 
-    auto resultType = makeType<BuiltInType::Boolean>();
+    llvm::Optional<Type> resultType;
 
     for (auto& element : *array) {
       if (!run<Expression>(*element)) {
@@ -609,10 +609,12 @@ namespace marco::ast
       }
 
       auto& elementType = element->getType();
-      assert(elementType.isNumeric());
 
-      resultType = getMostGenericBuiltInType(resultType.get<BuiltInType>(), elementType.get<BuiltInType>());
+      llvm::Optional<BuiltInType> mostGenericType = resultType ? getMostGenericBuiltInType(resultType->get<BuiltInType>(), elementType.get<BuiltInType>()) : elementType.get<BuiltInType>();
+      
+      assert(mostGenericType.hasValue() || "array elements types are incompatible");
 
+      resultType = *mostGenericType;
       auto rank = elementType.dimensionsCount();
 
       if (!elementType.isScalar()) {
@@ -634,8 +636,8 @@ namespace marco::ast
       dimensions.emplace_back(size);
     }
 
-    resultType.setDimensions(dimensions);
-    expression.setType(resultType);
+    resultType->setDimensions(dimensions);
+    expression.setType(*resultType);
 
     return numOfErrors == diagnostics()->numOfErrors();
   }
@@ -801,7 +803,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() != rhsType.getRank()) {
       diagnostics()->emitError<IncompatibleShapesMessage>(expression.getLocation());
@@ -847,7 +849,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() == 0 && rhsType.getRank() == 0) {
       expression.setType(Type(baseType, llvm::None));
@@ -920,7 +922,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() == 0 && rhsType.getRank() == 0) {
       expression.setType(Type(baseType, llvm::None));
@@ -951,7 +953,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() == 0 && rhsType.getRank() == 0) {
       expression.setType(Type(baseType, llvm::None));
@@ -1048,7 +1050,7 @@ namespace marco::ast
 
     auto trueValueBaseType = trueValueType.get<BuiltInType>();
     auto falseValueBaseType = falseValueType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(trueValueBaseType, falseValueBaseType);
+    auto baseType = *getMostGenericBuiltInType(trueValueBaseType, falseValueBaseType);
 
     if (trueValueType.getRank() != falseValueType.getRank()) {
       diagnostics()->emitError<IncompatibleShapesMessage>(expression.getLocation());
@@ -1250,7 +1252,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() == 0 && rhsType.getRank() == 0) {
       expression.setType(Type(baseType, llvm::None));
@@ -1301,7 +1303,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() == 0 && rhsType.getRank() == 0) {
       expression.setType(Type(baseType, llvm::None));
@@ -1592,7 +1594,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() != rhsType.getRank()) {
       diagnostics()->emitError<IncompatibleShapesMessage>(expression.getLocation());
@@ -1638,7 +1640,7 @@ namespace marco::ast
 
     auto lhsBaseType = lhsType.get<BuiltInType>();
     auto rhsBaseType = rhsType.get<BuiltInType>();
-    auto baseType = getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
+    auto baseType = *getMostGenericBuiltInType(lhsBaseType, rhsBaseType);
 
     if (lhsType.getRank() == 0 && rhsType.getRank() == 0) {
       expression.setType(Type(baseType, llvm::None));
@@ -2072,7 +2074,7 @@ namespace marco::ast
       auto startValueType = startExpression->getType();
 
       if (memberType.isa<BuiltInType>() && startValueType.isa<BuiltInType>()) {
-        auto mostGenericType = getMostGenericBuiltInType(
+        auto mostGenericType = *getMostGenericBuiltInType(
             memberType.get<BuiltInType>(),
                 startValueType.get<BuiltInType>());
 
