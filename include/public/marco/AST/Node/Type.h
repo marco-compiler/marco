@@ -37,7 +37,11 @@ namespace marco::ast
   ///   Boolean      x           x/y             y           y
   ///   Integer      x            x             x/y          y
   ///   Real         x            x              x          x/y
-  BuiltInType getMostGenericBuiltInType(BuiltInType x, BuiltInType y);
+  BuiltInType getMostGenericNumericBuiltInType(BuiltInType x, BuiltInType y);
+
+  /// like getMostGenericBuiltInType but wrapped in optional and handling also the (String,String) case.
+  /// Returns only if the types are compatible.
+  llvm::Optional<BuiltInType> getMostGenericBuiltInType(BuiltInType x, BuiltInType y);
 
   namespace detail
   {
