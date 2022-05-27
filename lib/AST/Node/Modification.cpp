@@ -240,7 +240,7 @@ namespace marco::ast
     : ASTNode(std::move(location)),
       each(each),
       final(final),
-      name(std::move(name)),
+      name(name.str()),
       modification(std::move(modification))
   {
   }
@@ -253,7 +253,7 @@ namespace marco::ast
     : ASTNode(std::move(location)),
       each(each),
       final(final),
-      name(std::move(name))
+      name(name.str())
   {
   }
 

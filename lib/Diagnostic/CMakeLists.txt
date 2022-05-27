@@ -1,7 +1,8 @@
 set(SOURCES
     Diagnostic.cpp
     Location.cpp
-    LogMessage.cpp)
+    LogMessage.cpp
+    Printer.cpp)
 
 marco_add_library(diagnostic SHARED
     ${SOURCES}

@@ -2,8 +2,8 @@
 #define MARCO_VARIABLEFILTER_ERROR_H
 
 #include "marco/VariableFilter/Token.h"
+#include "marco/Diagnostic/Location.h"
 #include "marco/Utils/LogMessage.h"
-#include "marco/Utils/SourcePosition.h"
 #include "llvm/Support/Error.h"
 #include <system_error>
 

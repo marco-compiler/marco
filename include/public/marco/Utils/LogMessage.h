@@ -1,7 +1,7 @@
 #pragma once
 
 #include "llvm/Support/raw_ostream.h"
-#include "marco/Utils/SourcePosition.h"
+#include "marco/Diagnostic/Location.h"
 
 namespace marco
 {

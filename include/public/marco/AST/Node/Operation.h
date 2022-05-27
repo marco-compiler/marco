@@ -19,9 +19,13 @@ namespace marco::ast
 	{
 		negate,
 		add,
+    addEW,
 		subtract,
+    subtractEW,
 		multiply,
+    multiplyEW,
 		divide,
+    divideEW,
 		ifelse,
 		greater,
 		greaterEqual,
@@ -34,6 +38,7 @@ namespace marco::ast
 		subscription,
 		memberLookup,
 		powerOf,
+    powerOfEW,
 		range,
 	};
 

@@ -1,6 +1,7 @@
 #include "marco/Frontend/FrontendAction.h"
-#include "marco/AST/Parser.h"
+#include "marco/Diagnostic/Printer.h"
 #include "marco/AST/Passes.h"
+#include "marco/Parser/Parser.h"
 #include "marco/Codegen/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
@@ -26,7 +27,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Transforms/Utils.h"
 
-bool exec(const char* cmd, std::string& result)
+static bool exec(const char* cmd, std::string& result)
 {
   std::array<char, 128> buffer;
   FILE* pipe = popen(cmd, "r");
@@ -134,19 +135,16 @@ namespace marco::frontend
   {
     CompilerInstance& ci = instance();
 
-    ast::Parser parser(ci.getFlattened());
-    auto cls = parser.classDefinition();
+    diagnostic::DiagnosticEngine diagnostics(std::make_unique<diagnostic::Printer>());
+    parser::Parser parser(diagnostics, ci.getFlattened());
+    auto cls = parser.parseClassDefinition();
 
-    if (!cls) {
+    if (!cls.hasValue()) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,
           "AST generation failed");
 
       ci.getDiagnostics().Report(diagID);
-
-      auto error = cls.takeError();
-      llvm::errs() << error;
-      llvm::consumeError(std::move(error));
       return false;
     }
 

@@ -1,7 +1,6 @@
 #ifndef MARCO_AST_SYMBOL_H
 #define MARCO_AST_SYMBOL_H
 
-#include "marco/Utils/SourcePosition.h"
 #include <variant>
 
 namespace marco::ast

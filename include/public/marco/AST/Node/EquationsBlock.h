@@ -2,6 +2,7 @@
 #define MARCO_AST_NODE_EQUATIONSBLOCK_H
 
 #include "marco/AST/Node/ASTNode.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace marco::ast
 {

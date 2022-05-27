@@ -1,60 +1,52 @@
 #ifndef MARCO_DIAGNOSTIC_LOCATION_H
 #define MARCO_DIAGNOSTIC_LOCATION_H
 
-/*
-namespace marco::diagnostic
+#include "llvm/ADT/StringRef.h"
+#include <memory>
+
+namespace llvm
+{
+  class raw_ostream;
+}
+
+namespace marco
 {
   class SourcePosition
   {
     public:
-      SourcePosition(std::string file, unsigned int line, unsigned int column);
+      SourcePosition(llvm::StringRef file, size_t line, size_t column);
 
-      [[nodiscard]] static SourcePosition unknown();
+      static SourcePosition unknown();
 
+    public:
       std::shared_ptr<std::string> file;
-      unsigned int line;
-      unsigned int column;
+      size_t line;
+      size_t column;
   };
 
+  /*
   llvm::raw_ostream& operator<<(
       llvm::raw_ostream& stream, const SourcePosition& obj);
 
   std::string toString(const SourcePosition& obj);
+   */
 
   class SourceRange
   {
     public:
-      SourceRange(llvm::StringRef fileName,
-                  const char* source,
-                  size_t startLine, size_t startColumn,
-                  size_t endLine, size_t endColumn);
+      SourceRange(SourcePosition begin, SourcePosition end);
 
-      [[nodiscard]] static SourceRange unknown();
+      static SourceRange unknown();
 
-      [[nodiscard]] SourcePosition getStartPosition() const;
-      void extendEnd(SourceRange to);
+      //SourcePosition getStartPosition() const;
+      //void extendEnd(SourceRange to);
 
-      void printLines(llvm::raw_ostream& os) const;
+      //void printLines(llvm::raw_ostream& os) const;
 
-      std::shared_ptr<std::string> fileName;
-      const char* source;
-
-      size_t startLine;
-      size_t startColumn;
-
-      size_t endLine;
-      size_t endColumn;
-
-    private:
-      SourceRange(bool unknown,
-                  llvm::StringRef fileName,
-                  const char* source,
-                  size_t startLine, size_t startColumn,
-                  size_t endLine, size_t endColumn);
-
-      bool isUnknown;
+    public:
+      SourcePosition begin;
+      SourcePosition end;
   };
 }
- */
 
 #endif // MARCO_DIAGNOSTIC_LOCATION_H

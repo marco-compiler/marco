@@ -1,7 +1,6 @@
 #include "marco/Diagnostic/Diagnostic.h"
 #include "marco/Diagnostic/LogMessage.h"
 
-/*
 namespace marco::diagnostic
 {
   Message::Message() = default;
@@ -16,26 +15,8 @@ namespace marco::diagnostic
 
   Message& Message::operator=(Message&& other) = default;
 
-  void Message::beforeMessage(const PrintInstance& print, llvm::raw_ostream& os) const
-  {
-  }
-
-  void Message::afterMessage(const PrintInstance& print, llvm::raw_ostream& os) const
-  {
-
-  }
-
-  void Message::before(llvm::raw_ostream& os) const
-  {
-    printBeforeMessage(os);
-  }
-
-  void Message::after(llvm::raw_ostream& os) const
-  {
-    printAfterMessage(os);
-  }
-
-  SourceMessage::SourceMessage(SourceRange location) : location(std::move(location))
+  SourceMessage::SourceMessage(SourceRange location)
+    : location(std::move(location))
   {
   }
 
@@ -49,6 +30,7 @@ namespace marco::diagnostic
 
   SourceMessage& SourceMessage::operator=(SourceMessage&& other) = default;
 
+  /*
   void SourceMessage::before(Printer* printer, llvm::raw_ostream& os) const
   {
     Message::before(os);
@@ -58,11 +40,9 @@ namespace marco::diagnostic
 
   void SourceMessage::after(Printer* printer, llvm::raw_ostream& os) const
   {
-
-
     Message::after(os);
     location.printLines(os, getFormatter());
     // TODO printLines();
   }
+   */
 }
-*/

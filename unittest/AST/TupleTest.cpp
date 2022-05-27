@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "marco/AST/AST.h"
-#include "marco/AST/Parser.h"
 
 using namespace marco;
 using namespace marco::ast;
@@ -30,14 +29,4 @@ TEST(AST, multipleElementsTupleCanBeBuilt)	// NOLINT
 			}));
 
 	EXPECT_EQ(tuple->get<Tuple>()->size(), 3);
-}
-
-TEST(Parser, emptyTuple)	 // NOLINT
-{
-	Parser parser("() := Foo(time);");
-
-	auto ast = parser.statement();
-	ASSERT_FALSE(!ast);
-
-	EXPECT_EQ((*ast)->get<AssignmentStatement>()->getDestinations()->get<Tuple>()->size(), 0);
 }

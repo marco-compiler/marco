@@ -29,7 +29,7 @@ void AbstractMessage::print(llvm::raw_ostream& os) const
 	SourceRange location = getLocation();
 
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-	os << *location.fileName << ":" << location.startLine << ":" << location.startColumn << ": ";
+	//os << *location.fileName << ":" << location.startLine << ":" << location.startColumn << ": ";
 
 	getFormatter()(os);
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
@@ -39,7 +39,7 @@ void AbstractMessage::print(llvm::raw_ostream& os) const
 	printMessage(os);
 	os << "\n";
 
-	location.printLines(os, getFormatter());
+	//location.printLines(os, getFormatter());
 
 	if (printAfterLines(os))
 		os << "\n";

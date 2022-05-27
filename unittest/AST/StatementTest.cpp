@@ -1,5 +1,7 @@
 #include "gtest/gtest.h"
 #include "marco/AST/AST.h"
+
+/*
 #include "marco/AST/Parser.h"
 #include "marco/AST/Passes.h"
 
@@ -195,36 +197,6 @@ TEST(Parser, assignmentStatementFunctionCall)	 // NOLINT
 	EXPECT_EQ(call->argumentsCount(), 2);
 	EXPECT_EQ(call->getArg(0)->get<ReferenceAccess>()->getName(), "y");
 	EXPECT_EQ(call->getArg(1)->get<ReferenceAccess>()->getName(), "z");
-}
-
-TEST(Parser, assignmentStatementMultipleOutputs)	// NOLINT
-{
-	Parser parser("(x, y) := Foo ();");
-
-	auto ast = parser.assignmentStatement();
-	ASSERT_FALSE(!ast);
-
-	// Right-hand side is not tested because not so important for this test
-	auto* destinations = (*ast)->get<AssignmentStatement>()->getDestinations()->get<Tuple>();
-	EXPECT_EQ(destinations->size(), 2);
-	EXPECT_EQ(destinations->getArg(0)->get<ReferenceAccess>()->getName(), "x");
-	EXPECT_EQ(destinations->getArg(1)->get<ReferenceAccess>()->getName(), "y");
-}
-
-TEST(Parser, assignmentStatementIgnoredOutputs)	 // NOLINT
-{
-	Parser parser("(x, , z) := Foo ();");
-
-	auto ast = parser.assignmentStatement();
-	ASSERT_FALSE(!ast);
-
-	// Right-hand side is not tested because not so important for this test
-	auto* destinations = (*ast)->get<AssignmentStatement>()->getDestinations()->get<Tuple>();
-	EXPECT_EQ(destinations->size(), 3);
-
-	EXPECT_EQ(destinations->getArg(0)->get<ReferenceAccess>()->getName(), "x");
-	EXPECT_TRUE(destinations->getArg(1)->get<ReferenceAccess>()->isDummy());
-	EXPECT_EQ(destinations->getArg(2)->get<ReferenceAccess>()->getName(), "z");
 }
 
 TEST(Parser, ifStatementBlockCondition)	 // NOLINT
@@ -445,3 +417,5 @@ TEST(TypeChecker, assignmentStatementCall)	 // NOLINT
 	EXPECT_EQ(statement->getDestinations()->get<Tuple>()->getArg(0)->getType(), makeType<int>());
 	EXPECT_EQ(statement->getExpression()->getType(), makeType<int>());
 }
+
+ */

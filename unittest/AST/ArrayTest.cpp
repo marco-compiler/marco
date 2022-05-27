@@ -1,4 +1,6 @@
 #include "gtest/gtest.h"
+
+/*
 #include "llvm/Support/Error.h"
 #include "marco/AST/Parser.h"
 #include "marco/AST/Passes.h"
@@ -32,3 +34,4 @@ TEST(TypeChecking, arrayOfReals)	// NOLINT
 
 	EXPECT_EQ((*ast)->getType(), makeType<float>(3));
 }
+*/

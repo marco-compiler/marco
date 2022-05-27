@@ -4,8 +4,8 @@
 #include "marco/VariableFilter/AST.h"
 #include "marco/VariableFilter/LexerStateMachine.h"
 #include "marco/VariableFilter/VariableFilter.h"
+#include "marco/Diagnostic/Location.h"
 #include "marco/Utils/Lexer.h"
-#include "marco/Utils/SourcePosition.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 

@@ -2,7 +2,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/Error.h"
 #include "marco/AST/AST.h"
-#include "marco/AST/Parser.h"
 #include "marco/AST/Passes/TypeCheckingPass.h"
 #include "marco/Utils/ErrorTest.h"
 

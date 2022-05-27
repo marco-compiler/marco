@@ -1,7 +1,7 @@
 #ifndef MARCO_AST_NODE_ASTNODE_H
 #define MARCO_AST_NODE_ASTNODE_H
 
-#include "marco/Utils/SourcePosition.h"
+#include "marco/Diagnostic/Location.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace marco::ast

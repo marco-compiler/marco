@@ -20,7 +20,7 @@ namespace marco::vf
       : vf(&vf),
         lexer(source.data()),
         current(lexer.scan()),
-        tokenRange("-", source.data(), 1, 1, 1, 1)
+        tokenRange(SourceRange(SourcePosition("-", 1, 1), SourcePosition("-", 1, 1)))
   {
     updateTokenSourceRange();
   }
@@ -185,9 +185,9 @@ namespace marco::vf
 
   void Parser::updateTokenSourceRange()
   {
-    tokenRange.startLine = lexer.getTokenStartLine();
-    tokenRange.startColumn = lexer.getTokenStartColumn();
-    tokenRange.endLine = lexer.getTokenEndLine();
-    tokenRange.endColumn = lexer.getTokenEndColumn();
+    tokenRange.begin.line = lexer.getTokenStartLine();
+    tokenRange.begin.column = lexer.getTokenStartColumn();
+    tokenRange.end.line = lexer.getTokenEndLine();
+    tokenRange.end.column = lexer.getTokenEndColumn();
   }
 }

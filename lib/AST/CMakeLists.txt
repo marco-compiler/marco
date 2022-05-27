@@ -28,8 +28,6 @@ set(SOURCES
 	Passes/PassManager.cpp
 	Passes/TypeCheckingPass.cpp
 	Errors.cpp
-	LexerStateMachine.cpp
-	Parser.cpp
 	Symbol.cpp
 	SymbolTable.cpp)
 
@@ -37,6 +35,7 @@ marco_add_library(ast SHARED
 	${SOURCES}
 
 	LINK_LIBS
+	PUBLIC marco::diagnostic
 	PRIVATE marco::utils
 	PUBLIC boost
 

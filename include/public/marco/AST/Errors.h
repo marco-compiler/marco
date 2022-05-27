@@ -3,9 +3,8 @@
 
 #include "llvm/Support/Error.h"
 #include "llvm/Support/WithColor.h"
-#include "marco/AST/LexerStateMachine.h"
 #include "marco/Utils/LogMessage.h"
-#include "marco/Utils/SourcePosition.h"
+#include "marco/Diagnostic/Location.h"
 #include <string>
 #include <system_error>
 #include <utility>

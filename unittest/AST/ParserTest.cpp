@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "llvm/Support/Error.h"
 #include "marco/AST/AST.h"
+
+/*
 #include "marco/AST/Parser.h"
 
 using namespace marco;
@@ -184,3 +186,4 @@ TEST(ParserTest, memberStartOverloadTest)
 	EXPECT_EQ((*member)->getType(), makeType<BuiltInType::Float>(10, 10));
 	EXPECT_TRUE((*member)->getStartOverload()->isa<ReferenceAccess>());
 }
+*/

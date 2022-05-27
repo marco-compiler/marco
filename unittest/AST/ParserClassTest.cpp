@@ -1,4 +1,6 @@
 #include "gtest/gtest.h"
+
+/*
 #include "marco/AST/Parser.h"
 
 using namespace marco;
@@ -14,3 +16,4 @@ TEST(classTest, modelComment)	 // NOLINT
 		FAIL();
 	SUCCEED();
 }
+ */

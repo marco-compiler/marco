@@ -6,7 +6,6 @@
 #include "marco/Codegen/Lowering/LoweringContext.h"
 #include "marco/Codegen/Lowering/Results.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Utils/SourcePosition.h"
 #include "mlir/IR/Builders.h"
 
 namespace marco::codegen::lowering

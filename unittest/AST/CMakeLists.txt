@@ -1,5 +1,4 @@
 set(SOURCES
-    AlgorithmTest.cpp
     AnnotationTest.cpp
     ArrayTest.cpp
     ConstantFolderTest.cpp
@@ -7,9 +6,7 @@ set(SOURCES
     FunctionTest.cpp
     LexerStateMachineTest.cpp
     ParserClassTest.cpp
-    ParserEquationTest.cpp
     ParserTest.cpp
-    RecordTest.cpp
     StatementTest.cpp
     TupleTest.cpp
     TypeCheckerTest.cpp)

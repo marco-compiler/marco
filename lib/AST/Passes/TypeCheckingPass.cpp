@@ -2749,7 +2749,7 @@ namespace marco::ast
   bool AssignmentToInputMember::printBeforeMessage(llvm::raw_ostream& os) const
   {
     os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-    os << *location.fileName << ": ";
+    //os << *location.fileName << ": ";
     os.resetColor();
     os << "in class \"";
     os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
@@ -2856,7 +2856,7 @@ namespace marco::ast
   bool MultipleAlgorithmsFunction::printBeforeMessage(llvm::raw_ostream& os) const
   {
     os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-    os << *location.fileName << ": ";
+    //os << *location.fileName << ": ";
     os.resetColor();
     os << "in function \"";
     os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);

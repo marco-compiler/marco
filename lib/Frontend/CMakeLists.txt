@@ -23,6 +23,7 @@ marco_add_library(frontend SHARED
 
     DEPENDS
     marco::ast
+    marco::parser
     marco::codegen
     marco::variableFilter
     marco::utils
@@ -30,6 +31,7 @@ marco_add_library(frontend SHARED
 
     LINK_LIBS
     PUBLIC marco::ast
+    PUBLIC marco::parser
     PRIVATE clangDriver
     PRIVATE marco::codegen
     PRIVATE marco::variableFilter

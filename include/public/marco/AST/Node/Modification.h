@@ -3,6 +3,7 @@
 
 #include "marco/AST/Node/ASTNode.h"
 #include "boost/iterator/indirect_iterator.hpp"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include <variant>

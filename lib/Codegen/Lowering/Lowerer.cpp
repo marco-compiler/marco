@@ -25,7 +25,7 @@ namespace marco::codegen::lowering
 
   mlir::Location Lowerer::loc(const SourceRange& location)
   {
-    return loc(location.getStartPosition());
+    return loc(location.begin);
   }
 
   LoweringContext* Lowerer::context()

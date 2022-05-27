@@ -1,18 +1,18 @@
 #ifndef MARCO_DIAGNOSTIC_LOGMESSAGE_H
 #define MARCO_DIAGNOSTIC_LOGMESSAGE_H
 
-#include <llvm/Support/raw_ostream.h>
-#include <marco/Utils/SourcePosition.h>
+#include "marco/Diagnostic/Location.h"
+#include "llvm/ADT/StringRef.h"
 
-/*
 namespace marco::diagnostic
 {
-  class PrintInstance;
+  class PrinterInstance;
 
   class Message
   {
     public:
       Message();
+
       Message(const Message& other);
       Message(Message&& other);
 
@@ -21,37 +21,25 @@ namespace marco::diagnostic
       Message& operator=(const Message& other);
       Message& operator=(Message&& other);
 
-      virtual void print(llvm::raw_ostream& os) const = 0;
-
-      virtual void beforeMessage(const PrintInstance& print, llvm::raw_ostream& os) const;
-      virtual void message(const PrintInstance& print, llvm::raw_ostream& os) const;
-      virtual void afterMessage(const PrintInstance& print, llvm::raw_ostream& os) const;
-
-      virtual void beforeMessage(llvm::raw_ostream& os) const;
-      virtual void message(llvm::raw_ostream& os) const = 0;
-      virtual void afterMessage(llvm::raw_ostream& os) const;
+      virtual void print(PrinterInstance* printer) const = 0;
   };
 
 	class SourceMessage : public Message
 	{
 		public:
-    SourceMessage(SourceRange location);
-    SourceMessage(const SourceMessage& other);
-    SourceMessage(SourceMessage&& other);
+      SourceMessage(SourceRange location);
 
-		virtual ~SourceMessage();
+      SourceMessage(const SourceMessage& other);
+      SourceMessage(SourceMessage&& other);
 
-    SourceMessage& operator=(const SourceMessage& other);
-    SourceMessage& operator=(SourceMessage&& other);
+      virtual ~SourceMessage();
 
-    void beforeMessage(const PrintInstance& print, llvm::raw_ostream& os) const override;
-    void message(const PrintInstance& print, llvm::raw_ostream& os) const override;
-    void afterMessage(const PrintInstance& print, llvm::raw_ostream& os) const override;
+      SourceMessage& operator=(const SourceMessage& other);
+      SourceMessage& operator=(SourceMessage&& other);
 
     private:
       SourceRange location;
 	};
 }
- */
 
 #endif // MARCO_DIAGNOSTIC_LOGMESSAGE_H

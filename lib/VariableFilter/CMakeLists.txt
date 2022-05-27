@@ -16,6 +16,7 @@ marco_add_library(variableFilter SHARED
     marco::utils
 
     LINK_LIBS
+    marco::diagnostic
     marco::utils
 
     LINK_COMPONENTS
