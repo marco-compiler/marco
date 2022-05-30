@@ -3,7 +3,7 @@
 
 //PA2 : USART2 TX
 //PA3 : USART2 RX
-
+#define BUF_SIZE 32
 static const int bufsize=16;
 static char rxbuffer[bufsize];
 static int putpos=0;
@@ -75,6 +75,12 @@ void SerialPort::write(const char *str)
 	}
 }
 
+void SerialPort::write(const int* n){
+	char s[64];
+	tochar(*n,s);
+	this->write(s);
+}
+
 
 void SerialPort::write(const int n){
 	char s[64];
@@ -100,7 +106,7 @@ void SerialPort::write(double n){
 
 
 void SerialPort::write(float f, const int p){
-	char s[64] = {};
+	char s[BUF_SIZE] = {0};
 	tochar(f,p,s);
 	this->write(s);
 }
@@ -129,6 +135,8 @@ char SerialPort::read()
 
 
 char* SerialPort::tochar(int i, char* res){
+
+
    int len = 0;
    for(; i >0; ++len)
    {	
@@ -145,11 +153,10 @@ char* SerialPort::tochar(int i, char* res){
        char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
    }
    return res;
+   
 };
-/*
-char* SerialPort::tochar(const int i, char* res){
-  snprintf(res,sizeof(int)+3,"%d\r\n",i);
-};*/
+
+
 char* SerialPort::tochar(const float x,const int precision,char* p){
 	int a,b,c,k,l=0,m,i=0,j;
 	float f = x;
@@ -168,7 +175,7 @@ char* SerialPort::tochar(const float x,const int precision,char* p){
 	k = precision;
 	
 	// number of digits in whole number
-	while(k>-1)
+	do
 	{
 		l = power(10,k);
 		m = a/l;
@@ -177,14 +184,10 @@ char* SerialPort::tochar(const float x,const int precision,char* p){
 			break;
 		}
 	k--;
-	}
+	}while(k>-1);
 
 	// number of digits in whole number are k+1
 	
-	/*
-	extracting most significant digit i.e. right most digit , and concatenating to string
-	obtained as quotient by dividing number by 10^k where k = (number of digit -1)
-	*/
 	for(; a>0; ++i)
    {	
       p[i] = a%10+'0';
@@ -198,7 +201,6 @@ char* SerialPort::tochar(const float x,const int precision,char* p){
    }
 	p[i++] = '.';
 	
-	/* extracting decimal digits till precision */
 
 	for(l=0;l<precision;l++)
 	{

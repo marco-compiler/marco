@@ -1,7 +1,8 @@
 set(SOURCES
     ArrayDescriptorTest.cpp
-    BuiltInFunctionsTest.cpp
-    UtilityFunctionsTest.cpp)
+    #BuiltInFunctionsTest.cpp
+)
+   # UtilityFunctionsTest.cpp)
 
 marco_add_unittest(RuntimeTest ${SOURCES})
 

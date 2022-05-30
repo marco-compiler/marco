@@ -29,6 +29,7 @@
 
 #include "stdio.h"
 
+
 class SerialPort
 {
 public:
@@ -38,6 +39,8 @@ public:
 	void write(const char c);
 
 	void write(const char *s);
+
+	void write(const int* n);
 
 	void write(const int n);
 

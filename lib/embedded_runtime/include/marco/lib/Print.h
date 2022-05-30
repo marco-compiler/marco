@@ -37,3 +37,5 @@ void print_array(T *array){
 //void printf(char* string);
 
  extern "C" int printf(const char* string,...);
+
+ extern "C" int putchar(int c);

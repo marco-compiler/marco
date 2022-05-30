@@ -163,26 +163,26 @@ RUNTIME_FUNC_DEF(cosh, double, double)
 /// @param destination destination matrix
 /// @param values 			source values
 template<typename T, typename U>
-inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> values)
+inline void diagonal_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* values)
 {
 	// Check that the array is square-like (all the dimensions have the same
 	// size). Note that the implementation is generalized to n-D dimensions,
 	// while the "identity" Modelica function is defined only for 2-D arrays.
 	// Still, the implementation complexity would be the same.
 
-	assert(destination.hasSameSizes());
+	assert(destination->hasSameSizes());
 
 	// Check that the sizes of the matrix dimensions match with the amount of
 	// values to be set.
 
-	assert(destination.getRank() > 0);
-	assert(values.getRank() == 1);
-	assert(destination.getDimensionSize(0) == values.getDimensionSize(0));
+	assert(destination->getRank() > 0);
+	assert(values->getRank() == 1);
+	assert(destination->getDimensionSize(0) == values->getDimensionSize(0));
 
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
 
-	for (auto it = destination.begin(), end = destination.end(); it != end; ++it) {
+	for (auto it = destination->begin(), end = destination->end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
 		assert(!indexes.empty());
 
@@ -190,7 +190,7 @@ inline void diagonal_void(UnsizedArrayDescriptor<T> destination, UnsizedArrayDes
 			return i == indexes[0];
 		});
 
-		*it = isIdentityAccess ? values.get(indexes[0]) : 0;
+		*it = isIdentityAccess ? values->get(indexes[0]) : 0;
 	}
 }
 
@@ -251,9 +251,9 @@ RUNTIME_FUNC_DEF(exp, double, double)
 /// @param array  array to be populated
 /// @param value  value to be set
 template<typename T>
-inline void fill_void(UnsizedArrayDescriptor<T> array, T value)
+inline void fill_void(UnsizedArrayDescriptor<T> *array, T value)
 {
-	for (auto& element : array) {
+	for (auto& element : *array) {
     element = value;
   }
 }
@@ -273,19 +273,19 @@ RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
 /// @tparam T 	   data type
 /// @param array  array to be populated
 template<typename T>
-inline void identity_void(UnsizedArrayDescriptor<T> array)
+inline void identity_void(UnsizedArrayDescriptor<T>* array)
 {
 	// Check that the array is square-like (all the dimensions have the same
 	// size). Note that the implementation is generalized to n-D dimensions,
 	// while the "identity" Modelica function is defined only for 2-D arrays.
 	// Still, the implementation complexity would be the same.
 
-	assert(array.hasSameSizes());
+	assert(array->hasSameSizes());
 
 	// Directly use the iterators, as we need to determine the current indexes
 	// so that we can place a 1 if the access is on the matrix diagonal.
 
-	for (auto it = array.begin(), end = array.end(); it != end; ++it) {
+	for (auto it = array->begin(), end = array->end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
 		assert(!indexes.empty());
 
@@ -314,16 +314,16 @@ RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 /// @param start  start value
 /// @param end 	 end value
 template<typename T>
-inline void linspace_void(UnsizedArrayDescriptor<T> array, double start, double end)
+inline void linspace_void(UnsizedArrayDescriptor<T> *array, double start, double end)
 {
 	using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
-	assert(array.getRank() == 1);
+	assert(array->getRank() == 1);
 
-	auto n = array.getDimensionSize(0);
+	auto n = array->getDimensionSize(0);
 	double step = (end - start) / ((double) n - 1);
 
 	for (dimension_t i = 0; i < n; ++i) {
-    array.get(i) = start + static_cast<double>(i) * step;
+    array->get(i) = start + static_cast<double>(i) * step;
   }
 }
 
@@ -381,34 +381,34 @@ RUNTIME_FUNC_DEF(log10, double, double)
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T max(UnsizedArrayDescriptor<T> array)
+inline T max(UnsizedArrayDescriptor<T>* array)
 {
-	return *std::max_element(array.begin(), array.end());
+	return *std::max_element(array->begin(), array->end());
 }
 
-inline bool max_i1(UnsizedArrayDescriptor<bool> array)
+inline bool max_i1(UnsizedArrayDescriptor<bool>* array)
 {
-  return std::any_of(array.begin(), array.end(), [](const bool& value) {
+  return std::any_of(array->begin(), array->end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t max_i32(UnsizedArrayDescriptor<int32_t> array)
+inline int32_t max_i32(UnsizedArrayDescriptor<int32_t>* array)
 {
   return max(array);
 }
 
-inline int32_t max_i64(UnsizedArrayDescriptor<int64_t> array)
+inline int32_t max_i64(UnsizedArrayDescriptor<int64_t>* array)
 {
   return max(array);
 }
 
-inline float max_f32(UnsizedArrayDescriptor<float> array)
+inline float max_f32(UnsizedArrayDescriptor<float>* array)
 {
   return max(array);
 }
 
-inline double max_f64(UnsizedArrayDescriptor<double> array)
+inline double max_f64(UnsizedArrayDescriptor<double> *array)
 {
   return max(array);
 }
@@ -465,34 +465,34 @@ RUNTIME_FUNC_DEF(max, double, double, double)
 //===----------------------------------------------------------------------===//
 
 template<typename T>
-inline T min(UnsizedArrayDescriptor<T> array)
+inline T min(UnsizedArrayDescriptor<T>* array)
 {
-	return *std::min_element(array.begin(), array.end());
+	return *std::min_element(array->begin(), array->end());
 }
 
-inline bool min_i1(UnsizedArrayDescriptor<bool> array)
+inline bool min_i1(UnsizedArrayDescriptor<bool>* array)
 {
-  return std::all_of(array.begin(), array.end(), [](const bool& value) {
+  return std::all_of(array->begin(), array->end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t min_i32(UnsizedArrayDescriptor<int32_t> array)
+inline int32_t min_i32(UnsizedArrayDescriptor<int32_t>* array)
 {
   return min(array);
 }
 
-inline int32_t min_i64(UnsizedArrayDescriptor<int64_t> array)
+inline int32_t min_i64(UnsizedArrayDescriptor<int64_t>* array)
 {
   return min(array);
 }
 
-inline float min_f32(UnsizedArrayDescriptor<float> array)
+inline float min_f32(UnsizedArrayDescriptor<float>* array)
 {
   return min(array);
 }
 
-inline double min_f64(UnsizedArrayDescriptor<double> array)
+inline double min_f64(UnsizedArrayDescriptor<double>* array)
 {
   return min(array);
 }
@@ -553,9 +553,9 @@ RUNTIME_FUNC_DEF(min, double, double, double)
 /// @tparam T data type
 /// @param array   array to be populated
 template<typename T>
-inline void ones_void(UnsizedArrayDescriptor<T> array)
+inline void ones_void(UnsizedArrayDescriptor<T>* array)
 {
-	for (auto& element : array) {
+	for (auto& element : *array) {
     element = 1;
   }
 }
@@ -576,34 +576,34 @@ RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
 /// @param array  array
 /// @return product of all the values
 template<typename T>
-inline T product(UnsizedArrayDescriptor<T> array)
+inline T product(UnsizedArrayDescriptor<T>* array)
 {
-	return std::accumulate(array.begin(), array.end(), 1, std::multiplies<T>());
+	return std::accumulate(array->begin(), array->end(), 1, std::multiplies<T>());
 }
 
-inline bool product_i1(UnsizedArrayDescriptor<bool> array)
+inline bool product_i1(UnsizedArrayDescriptor<bool>* array)
 {
-  return std::all_of(array.begin(), array.end(), [](const bool& value) {
+  return std::all_of(array->begin(), array->end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t product_i32(UnsizedArrayDescriptor<int32_t> array)
+inline int32_t product_i32(UnsizedArrayDescriptor<int32_t>* array)
 {
   return product(array);
 }
 
-inline int64_t product_i64(UnsizedArrayDescriptor<int64_t> array)
+inline int64_t product_i64(UnsizedArrayDescriptor<int64_t>* array)
 {
   return product(array);
 }
 
-inline float product_f32(UnsizedArrayDescriptor<float> array)
+inline float product_f32(UnsizedArrayDescriptor<float>* array)
 {
   return product(array);
 }
 
-inline double product_f64(UnsizedArrayDescriptor<double> array)
+inline double product_f64(UnsizedArrayDescriptor<double>* array)
 {
   return product(array);
 }
@@ -736,34 +736,34 @@ RUNTIME_FUNC_DEF(sqrt, double, double)
 /// @param array  array
 /// @return sum of all the values
 template<typename T>
-inline T sum(UnsizedArrayDescriptor<T> array)
+inline T sum(UnsizedArrayDescriptor<T>* array)
 {
-	return std::accumulate(array.begin(), array.end(), 0, std::plus<T>());
+	return std::accumulate(array->begin(), array->end(), 0, std::plus<T>());
 }
 
-inline bool sum_i1(UnsizedArrayDescriptor<bool> array)
+inline bool sum_i1(UnsizedArrayDescriptor<bool> *array)
 {
-  return std::any_of(array.begin(), array.end(), [](const bool& value) {
+  return std::any_of(array->begin(), array->end(), [](const bool& value) {
     return value;
   });
 }
 
-inline int32_t sum_i32(UnsizedArrayDescriptor<int32_t> array)
+inline int32_t sum_i32(UnsizedArrayDescriptor<int32_t>* array)
 {
   return sum(array);
 }
 
-inline int64_t sum_i64(UnsizedArrayDescriptor<int64_t> array)
+inline int64_t sum_i64(UnsizedArrayDescriptor<int64_t>* array)
 {
   return sum(array);
 }
 
-inline float sum_f32(UnsizedArrayDescriptor<float> array)
+inline float sum_f32(UnsizedArrayDescriptor<float>* array)
 {
   return sum(array);
 }
 
-inline double sum_f64(UnsizedArrayDescriptor<double> array)
+inline double sum_f64(UnsizedArrayDescriptor<double>* array)
 {
   return sum(array);
 }
@@ -786,29 +786,29 @@ RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
 /// @param destination		destination matrix
 /// @param source				source matrix
 template<typename Destination, typename Source>
-void symmetric_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
+void symmetric_void(UnsizedArrayDescriptor<Destination>* destination, UnsizedArrayDescriptor<Source>* source)
 {
 	using dimension_t = typename UnsizedArrayDescriptor<Destination>::dimension_t;
 
 	// The two arrays must have exactly two dimensions
-	assert(destination.getRank() == 2);
-	assert(source.getRank() == 2);
+	assert(destination->getRank() == 2);
+	assert(source->getRank() == 2);
 
 	// The two matrixes must have the same dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
+	assert(destination->getDimensionSize(0) == source->getDimensionSize(0));
+	assert(destination->getDimensionSize(1) == source->getDimensionSize(1));
 
-	auto size = destination.getDimensionSize(0);
+	auto size = destination->getDimensionSize(0);
 
 	// Manually iterate on the dimensions, so that we can explore just half
 	// of the source matrix.
 
 	for (dimension_t i = 0; i < size; ++i) {
 		for (dimension_t j = i; j < size; ++j) {
-			destination.set({ i, j }, source.get({ i, j }));
+			destination->set({ i, j }, source->get({ i, j }));
 
 			if (i != j) {
-        destination.set({j, i}, source.get({ i, j }));
+        destination->set({j, i}, source->get({ i, j }));
       }
 		}
 	}
@@ -889,22 +889,22 @@ RUNTIME_FUNC_DEF(tanh, double, double)
 /// @param destination  destination matrix
 /// @param source  		 source matrix
 template<typename Destination, typename Source>
-void transpose_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
+void transpose_void(UnsizedArrayDescriptor<Destination>* destination, UnsizedArrayDescriptor<Source>* source)
 {
 	using dimension_t = typename UnsizedArrayDescriptor<Source>::dimension_t;
 
 	// The two arrays must have exactly two dimensions
-	assert(destination.getRank() == 2);
-	assert(source.getRank() == 2);
+	assert(destination->getRank() == 2);
+	assert(source->getRank() == 2);
 
 	// The two matrixes must have transposed dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(1));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(0));
+	assert(destination->getDimensionSize(0) == source->getDimensionSize(1));
+	assert(destination->getDimensionSize(1) == source->getDimensionSize(0));
 
 	// Directly use the iterators, as we need to determine the current
 	// indexes and transpose them to access the other matrix.
 
-	for (auto it = source.begin(), end = source.end(); it != end; ++it) {
+	for (auto it = source->begin(), end = source->end(); it != end; ++it) {
 		auto indexes = it.getCurrentIndexes();
 		assert(indexes.size() == 2);
 
@@ -914,7 +914,7 @@ void transpose_void(UnsizedArrayDescriptor<Destination> destination, UnsizedArra
       transposedIndexes.push_back(*revIt);
     }
 
-		destination.set(transposedIndexes, *it);
+		destination->set(transposedIndexes, *it);
 	}
 }
 
@@ -957,9 +957,9 @@ RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(double))
 /// @tparam T data type
 /// @param array   array to be populated
 template<typename T>
-inline void zeros_void(UnsizedArrayDescriptor<T> array)
+inline void zeros_void(UnsizedArrayDescriptor<T>* array)
 {
-	for (auto& element : array) {
+	for (auto& element : *array) {
     element = 0;
   }
 }

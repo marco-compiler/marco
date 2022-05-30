@@ -177,11 +177,11 @@ TEST(Runtime, diagonalSquareMatrix_i1_i1)
 	ArraySizes<bool, 2> destinationSizes = { 3, 3 };
 
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+	UnsizedArrayDescriptor<bool>* unsizedDestination(destinationDescriptor);
 
 	std::array<bool, 3> values = { true, true, true };
 	ArrayDescriptor<bool, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+	UnsizedArrayDescriptor<bool>* unsizedValues(valuesDescriptor);
 
 	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedValues);
 

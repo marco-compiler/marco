@@ -37,10 +37,6 @@ void print_integer_array(const int array[]){
 }
 
 
-void printf(char* string){
-    serial.write(string);
-}
-
 int getPrecision(int* values, int digits){
     int precision = 0;
     int m[3] = {1,10,100};// {100,10,1};
@@ -79,6 +75,7 @@ int printf(const char* string, ...){
         int values[3];
         int digits = 0;
         int precision  = 0;
+        int* pointer;
         switch(*string)
         {
             case 's': 
@@ -97,8 +94,9 @@ int printf(const char* string, ...){
                 serial.write(f);
                 break;
             case 'l':
-                if(*++string == 'd')
-                    serial.write((int) va_arg(lst,int));
+                if(*++string == 'd'){
+                    serial.write((int)va_arg(lst,long int));
+                }
                 else serial.write(string[0]);
                 break;
             case '.':
@@ -107,7 +105,6 @@ int printf(const char* string, ...){
                 while((*string >= 48 && *string <=57) && *string != 'f'){
                     char t = string[0];
                     values[digits] = (int)t - 48;
-
                     digits++;
                     if(!(*string >= 48 && *string <=57) && *string != 'f') break;
                     string++;
@@ -125,3 +122,11 @@ int printf(const char* string, ...){
     }
     return 0;
 }
+
+ int putchar(int c){
+     if((char) c == '\n'){
+         serial.write('\r');
+     }
+     serial.write((char)c);
+     return 0;
+ }
