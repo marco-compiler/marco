@@ -181,6 +181,8 @@ namespace marco::modeling
 
       IndexSet complement(const MultidimensionalRange& other) const;
 
+      MultidimensionalRange minContainingRange() const;
+
     private:
       IndexSet(std::unique_ptr<Impl> impl);
 

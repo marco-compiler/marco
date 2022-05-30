@@ -1854,6 +1854,37 @@ namespace marco::modeling
     return IndexSet(std::make_unique<Impl>(impl->complement(other)));
   }
 
+  MultidimensionalRange IndexSet::minContainingRange() const
+  {
+    auto ranges = getRanges();
+    assert(!ranges.empty());
+
+    auto it = ranges.begin();
+    if(std::next(it) == ranges.end()) //if size==1
+      return *it;
+
+    llvm::SmallVector<Range,2> containingRanges;
+
+    auto getMinContaining = [](const Range& a, const Range& b){
+      return Range(std::min(a.getBegin(),b.getBegin()),std::max(a.getEnd(),b.getEnd()));
+    };
+
+    for(size_t i=0UL; i<rank(); i++)
+    {
+      containingRanges.push_back((*it)[i]);
+    }
+
+    for (++it;it!=ranges.end();++it)
+    {
+      for(size_t i=0UL; i<rank(); i++)
+      {
+        containingRanges[i] = getMinContaining(containingRanges[i],(*it)[i]);
+      }
+    }
+
+    return MultidimensionalRange(containingRanges);
+  }
+
   std::ostream& operator<<(std::ostream& os, const IndexSet& obj)
   {
     return os << *obj.impl;
