@@ -1885,6 +1885,13 @@ namespace marco::modeling
     return MultidimensionalRange(containingRanges);
   }
 
+  bool IndexSet::isSingleMultidimensionalRange() const
+  {
+    auto ranges = getRanges();
+    return ranges.begin() != ranges.end() &&
+           std::next(ranges.begin()) == ranges.end();
+  }
+
   std::ostream& operator<<(std::ostream& os, const IndexSet& obj)
   {
     return os << *obj.impl;

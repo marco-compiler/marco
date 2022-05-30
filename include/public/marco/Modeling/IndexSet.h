@@ -183,6 +183,8 @@ namespace marco::modeling
 
       MultidimensionalRange minContainingRange() const;
 
+      bool isSingleMultidimensionalRange() const;
+
     private:
       IndexSet(std::unique_ptr<Impl> impl);
 
