@@ -1,4 +1,5 @@
 set(SOURCES
+    Level.cpp
     Message.cpp
     ModelicaStateMachine.cpp
     Parser.cpp

@@ -17,9 +17,13 @@ namespace marco::codegen::lowering
 
       Results negate(const ast::Operation& operation);
       Results add(const ast::Operation& operation);
+      Results addEW(const ast::Operation& operation);
       Results subtract(const ast::Operation& operation);
+      Results subtractEW(const ast::Operation& operation);
       Results multiply(const ast::Operation& operation);
+      Results multiplyEW(const ast::Operation& operation);
       Results divide(const ast::Operation& operation);
+      Results divideEW(const ast::Operation& operation);
       Results ifElse(const ast::Operation& operation);
       Results greater(const ast::Operation& operation);
       Results greaterOrEqual(const ast::Operation& operation);
@@ -32,6 +36,7 @@ namespace marco::codegen::lowering
       Results subscription(const ast::Operation& operation);
       Results memberLookup(const ast::Operation& operation);
       Results powerOf(const ast::Operation& operation);
+      Results powerOfEW(const ast::Operation& operation);
 
     protected:
       using Lowerer::lower;

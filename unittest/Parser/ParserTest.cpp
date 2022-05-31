@@ -133,6 +133,54 @@ TEST(Parser, algorithm_emptyBody)
   EXPECT_TRUE((*node)->getBody().empty());
 }
 
+TEST(Parser, model)
+{
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  std::string str = "model M\n"
+                    "  Real x;\n"
+                    "  Real y;\n"
+                    "equation\n"
+                    "  y = x;"
+                    "end M;";
+
+  Parser parser(diagnostics, str);
+  auto node = parser.parseClassDefinition();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 7);
+
+  EXPECT_TRUE((*node)->isa<Model>());
+  EXPECT_EQ((*node)->get<Model>()->getName(), "M");
+}
+
+TEST(Parser, standardFunction)
+{
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  std::string str = "function foo\n"
+                    "  input Real x;\n"
+                    "  output Real y;\n"
+                    "algorithm\n"
+                    "  y := x;\n"
+                    "end foo;";
+
+  Parser parser(diagnostics, str);
+  auto node = parser.parseClassDefinition();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 7);
+
+  EXPECT_TRUE((*node)->isa<StandardFunction>());
+  EXPECT_EQ((*node)->get<StandardFunction>()->getName(), "foo");
+}
+
 TEST(Parser, algorithm_statementsCount)
 {
   DiagnosticEngine diagnostics(std::make_unique<Printer>());
@@ -152,6 +200,30 @@ TEST(Parser, algorithm_statementsCount)
   EXPECT_EQ((*node)->getLocation().end.column, 8);
 
   EXPECT_EQ((*node)->getBody().size(), 3);
+}
+
+TEST(Parser, equation)
+{
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  std::string str = "y = x";
+
+  Parser parser(diagnostics, str);
+  auto node = parser.parseEquation();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 5);
+
+  auto lhs = (*node)->getLhsExpression();
+  ASSERT_TRUE(lhs->isa<ReferenceAccess>());
+  EXPECT_EQ(lhs->get<ReferenceAccess>()->getName(), "y");
+
+  auto rhs = (*node)->getRhsExpression();
+  ASSERT_TRUE(rhs->isa<ReferenceAccess>());
+  EXPECT_EQ(rhs->get<ReferenceAccess>()->getName(), "x");
 }
 
 TEST(Parser, statement_assignment)

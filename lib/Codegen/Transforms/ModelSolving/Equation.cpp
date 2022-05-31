@@ -894,7 +894,7 @@ namespace marco::codegen
       std::vector<Access> accesses;
       searchAccesses(accesses, value, path);
 
-      return llvm::any_of(accesses, [&](const Access& acc) {
+      bool result = llvm::any_of(accesses, [&](const Access& acc) {
         if (acc.getVariable() != access.getVariable()) {
           return false;
         }
@@ -905,30 +905,32 @@ namespace marco::codegen
         assert(requestedIndices == currentIndices || !requestedIndices.overlaps(currentIndices));
         return requestedIndices == currentIndices;
       });
+
+      return result;
     };
 
     auto groupFactorsFn = [&](auto beginIt, auto endIt) -> mlir::Value {
-      return std::accumulate(
-          beginIt, endIt,
-          builder.create<ConstantOp>(getOperation()->getLoc(), RealAttr::get(builder.getContext(), 0)).getResult(),
-          [&](mlir::Value acc, mlir::Value value) -> mlir::Value {
-            if (!acc) {
-              return nullptr;
-            }
+      mlir::Value result = builder.create<ConstantOp>(getOperation()->getLoc(), RealAttr::get(builder.getContext(), 0));
 
-            auto factor = getMultiplyingFactor(
-                builder, equationIndices, value,
-                access.getVariable()->getValue(),
-                IndexSet(access.getAccessFunction().map(equationIndices)));
+      for (auto it = beginIt; it != endIt; ++it) {
+        mlir::Value value = *it;
 
-            if (!factor.second || factor.first > 1) {
-              return nullptr;
-            }
+        auto factor = getMultiplyingFactor(
+            builder, equationIndices, value,
+            access.getVariable()->getValue(),
+            IndexSet(access.getAccessFunction().map(equationIndices)));
 
-            return builder.create<AddOp>(
-                value.getLoc(), getMostGenericType(acc.getType(), value.getType()),
-                acc, factor.second);
-          });
+        if (!factor.second || factor.first > 1) {
+          return nullptr;
+        }
+
+        result = builder.create<AddOp>(
+            value.getLoc(),
+            getMostGenericType(result.getType(), value.getType()),
+            result, factor.second);
+      }
+
+      return result;
     };
 
     auto groupRemainingFn = [&](auto beginIt, auto endIt) -> mlir::Value {

@@ -1578,12 +1578,14 @@ namespace marco::ast
     switch (operation->getOperationKind())
     {
       case OperationKind::add:
+      case OperationKind::addEW:
         return checkOperation(expression, &TypeChecker::checkAddOp);
 
       case OperationKind::different:
         return checkOperation(expression, &TypeChecker::checkDifferentOp);
 
       case OperationKind::divide:
+      case OperationKind::divideEW:
         return checkOperation(expression, &TypeChecker::checkDivOp);
 
       case OperationKind::equal:
@@ -1614,12 +1616,14 @@ namespace marco::ast
         return checkOperation(expression, &TypeChecker::checkMemberLookupOp);
 
       case OperationKind::multiply:
+      case OperationKind::multiplyEW:
         return checkOperation(expression, &TypeChecker::checkMulOp);
 
       case OperationKind::negate:
         return checkOperation(expression, &TypeChecker::checkNegateOp);
 
       case OperationKind::powerOf:
+      case OperationKind::powerOfEW:
         return checkOperation(expression, &TypeChecker::checkPowerOfOp);
 
       case OperationKind::range:
@@ -1629,6 +1633,7 @@ namespace marco::ast
         return checkOperation(expression, &TypeChecker::checkSubscriptionOp);
 
       case OperationKind::subtract:
+      case OperationKind::subtractEW:
         return checkOperation(expression, &TypeChecker::checkSubOp);
     }
 

@@ -5,11 +5,11 @@ using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-#define EXPECT(Token)                                                                             \
-	if (!accept<Token>()) {                                                                         \
-	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);     \
-    return llvm::None;                                                                            \
-  }                                                                                               \
+#define EXPECT(Token)                                                                                     \
+	if (!accept<Token>()) {                                                                                 \
+	  diagnostics->emitError<UnexpectedTokenMessage>(source, lexer.getTokenPosition(), current, Token);     \
+    return llvm::None;                                                                                    \
+  }                                                                                                       \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
@@ -23,6 +23,7 @@ namespace marco::parser
 {
   Parser::Parser(diagnostic::DiagnosticEngine& diagnostics, llvm::StringRef file, const char* source)
       : diagnostics(&diagnostics),
+        source(source),
         lexer(file, source),
         current(Token::Begin)
   {
@@ -145,7 +146,7 @@ namespace marco::parser
       TRY(name, parseIdentifier());
       loc.end = name->getLocation().end;
 
-      if (accept<Token::Equal>()) {
+      if (accept<Token::EqualityOperator>()) {
         // Function derivative
         assert(classType == ClassType::Function);
         EXPECT(Token::Der);
@@ -259,7 +260,7 @@ namespace marco::parser
 
       if (name->getValue() != endName->getValue()) {
         diagnostics->emitError<UnexpectedIdentifierMessage>(
-            endName->getLocation(), endName->getValue(), name->getValue());
+            source, endName->getLocation(), endName->getValue(), name->getValue());
 
         return llvm::None;
       }
@@ -406,10 +407,10 @@ namespace marco::parser
     auto loc = lexer.getTokenPosition();
 
     TRY(lhs, parseExpression());
-    EXPECT(Token::Equal);
+    EXPECT(Token::EqualityOperator);
     TRY(rhs, parseExpression());
 
-    loc.end = lexer.getTokenPosition().end;
+    loc.end = (*rhs)->getLocation().end;
     accept<Token::String>();
 
     return Equation::build(std::move(loc), std::move(*lhs), std::move(*rhs));
@@ -1172,9 +1173,8 @@ namespace marco::parser
       } else {
         TRY(equation, parseEquation());
         equations.push_back(std::move(*equation));
+        EXPECT(Token::Semicolon);
       }
-
-      EXPECT(Token::Semicolon);
     }
 
     return std::make_unique<EquationsBlock>(std::move(loc), equations, forEquations);
@@ -1210,11 +1210,14 @@ namespace marco::parser
             (*equation)->getLocation(),
             (*induction)->clone(),
             std::move(*equation)));
+
+        EXPECT(Token::Semicolon);
       }
     }
 
     EXPECT(Token::End);
     EXPECT(Token::For);
+    EXPECT(Token::Semicolon);
 
     return result;
   }
@@ -1277,7 +1280,7 @@ namespace marco::parser
       }
     }
 
-    if (accept<Token::Equal>()) {
+    if (accept<Token::EqualityOperator>()) {
       TRY(init, parseExpression());
 
       // String comment. Ignore it for now.
@@ -1394,7 +1397,7 @@ namespace marco::parser
       accept<Token::Each>();
       auto lastIndentifier = lexer.getIdentifier();
       EXPECT(Token::Identifier);
-      EXPECT(Token::Equal);
+      EXPECT(Token::EqualityOperator);
 
       if (lastIndentifier == "start") {
         TRY(exp, parseExpression());

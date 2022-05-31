@@ -107,14 +107,26 @@ namespace marco::codegen::lowering
         case OperationKind::add:
           return &OperationLowerer::add;
 
+        case OperationKind::addEW:
+          return &OperationLowerer::addEW;
+
         case OperationKind::subtract:
           return &OperationLowerer::subtract;
+
+        case OperationKind::subtractEW:
+          return &OperationLowerer::subtractEW;
 
         case OperationKind::multiply:
           return &OperationLowerer::multiply;
 
+        case OperationKind::multiplyEW:
+          return &OperationLowerer::multiplyEW;
+
         case OperationKind::divide:
           return &OperationLowerer::divide;
+
+        case OperationKind::divideEW:
+          return &OperationLowerer::divideEW;
 
         case OperationKind::ifelse:
           return &OperationLowerer::ifElse;
@@ -151,6 +163,9 @@ namespace marco::codegen::lowering
 
         case OperationKind::powerOf:
           return &OperationLowerer::powerOf;
+
+        case OperationKind::powerOfEW:
+          return &OperationLowerer::powerOfEW;
       }
 
       llvm_unreachable("Unknown operation type");

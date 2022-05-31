@@ -21,6 +21,8 @@ namespace marco::diagnostic
 
       llvm::raw_ostream& getOutputStream();
 
+      Level diagnosticLevel() const;
+
       llvm::raw_ostream::Colors diagnosticLevelColor() const;
 
       void setColor(llvm::raw_ostream& os, llvm::raw_ostream::Colors color);
@@ -33,6 +35,7 @@ namespace marco::diagnostic
 
     private:
       Printer* printer_;
+      Level level_;
       llvm::raw_ostream::Colors color_;
       bool bold_;
   };

@@ -14,14 +14,14 @@ namespace marco
   class SourcePosition
   {
     public:
-      SourcePosition(llvm::StringRef file, size_t line, size_t column);
+      SourcePosition(llvm::StringRef file, int64_t line, int64_t column);
 
       static SourcePosition unknown();
 
     public:
       std::shared_ptr<std::string> file;
-      size_t line;
-      size_t column;
+      int64_t line;
+      int64_t column;
   };
 
   /*

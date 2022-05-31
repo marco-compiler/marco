@@ -217,6 +217,7 @@ namespace marco::parser
 
     private:
       diagnostic::DiagnosticEngine* diagnostics;
+      const char* source;
       Lexer<ModelicaStateMachine> lexer;
       Token current;
   };

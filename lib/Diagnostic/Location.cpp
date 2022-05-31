@@ -4,7 +4,7 @@ using namespace ::marco;
 
 namespace marco
 {
-  SourcePosition::SourcePosition(llvm::StringRef file, size_t line, size_t column)
+  SourcePosition::SourcePosition(llvm::StringRef file, int64_t line, int64_t column)
       : file(std::make_shared<std::string>(file.str())),
         line(line),
         column(column)

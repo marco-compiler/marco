@@ -213,12 +213,14 @@ namespace marco::ast
     switch (operation->getOperationKind())
     {
       case OperationKind::add:
+      case OperationKind::addEW:
         return foldOperation(expression, &ConstantFolder::foldAddOp);
 
       case OperationKind::different:
         return foldOperation(expression, &ConstantFolder::foldDifferentOp);
 
       case OperationKind::divide:
+      case OperationKind::divideEW:
         return foldOperation(expression, &ConstantFolder::foldDivOp);
 
       case OperationKind::equal:
@@ -249,12 +251,14 @@ namespace marco::ast
         return foldOperation(expression, &ConstantFolder::foldMemberLookupOp);
 
       case OperationKind::multiply:
+      case OperationKind::multiplyEW:
         return foldOperation(expression, &ConstantFolder::foldMulOp);
 
       case OperationKind::negate:
         return foldOperation(expression, &ConstantFolder::foldNegateOp);
 
       case OperationKind::powerOf:
+      case OperationKind::powerOfEW:
         return foldOperation(expression, &ConstantFolder::foldPowerOfOp);
 
       case OperationKind::range:
@@ -264,6 +268,7 @@ namespace marco::ast
         return foldOperation(expression, &ConstantFolder::foldSubscriptionOp);
 
       case OperationKind::subtract:
+      case OperationKind::subtractEW:
         return foldOperation(expression, &ConstantFolder::foldSubOp);
     }
 

@@ -17,13 +17,6 @@ namespace marco::diagnostic
   // only in the implementation sources.
   class Printer;
 
-  enum class Level
-  {
-    ERROR,
-    WARNING,
-    NOTE
-  };
-
   struct DiagnosticOptions
   {
     bool showColors = true;

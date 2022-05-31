@@ -22,14 +22,26 @@ namespace marco::ast
 			case OperationKind::add:
 				return "add";
 
+      case OperationKind::addEW:
+        return "addEW";
+
 			case OperationKind::subtract:
 				return "subtract";
+
+      case OperationKind::subtractEW:
+        return "subtractEW";
 
 			case OperationKind::multiply:
 				return "multiply";
 
+      case OperationKind::multiplyEW:
+        return "multiplyEW";
+
 			case OperationKind::divide:
 				return "divide";
+
+      case OperationKind::divideEW:
+        return "divideEW";
 
 			case OperationKind::ifelse:
 				return "ifelse";
@@ -66,6 +78,9 @@ namespace marco::ast
 
 			case OperationKind::powerOf:
 				return "powerOf";
+
+      case OperationKind::powerOfEW:
+        return "powerOfEW";
 
 			case OperationKind::range:
 				return "range";
@@ -276,6 +291,7 @@ namespace marco::ast
         return "(not" + toString(*obj[0]) + ")";
 
       case OperationKind::add:
+      case OperationKind::addEW:
         return "(" +
             accumulate(obj.begin(), obj.end(), std::string(),
                        [](const std::string& result, const std::unique_ptr<Expression>& element) {
@@ -285,6 +301,7 @@ namespace marco::ast
             + ")";
 
       case OperationKind::subtract:
+      case OperationKind::subtractEW:
         return "(" +
             accumulate(obj.begin(), obj.end(), std::string(),
                        [](const std::string& result, const std::unique_ptr<Expression>& element) {
@@ -294,6 +311,7 @@ namespace marco::ast
             + ")";
 
       case OperationKind::multiply:
+      case OperationKind::multiplyEW:
         return "(" +
             accumulate(obj.begin(), obj.end(), std::string(),
                        [](const std::string& result, const std::unique_ptr<Expression>& element) {
@@ -303,6 +321,7 @@ namespace marco::ast
             + ")";
 
       case OperationKind::divide:
+      case OperationKind::divideEW:
         return "(" +
             accumulate(obj.begin(), obj.end(), std::string(),
                        [](const std::string& result, const std::unique_ptr<Expression>& element) {
@@ -351,6 +370,7 @@ namespace marco::ast
         return "(" + toString(*obj[0]) + " . " + toString(*obj[1]) + ")";
 
       case OperationKind::powerOf:
+      case OperationKind::powerOfEW:
         return "(" + toString(*obj[0]) + " ^ " + toString(*obj[1]) + ")";
 
       case OperationKind::range:

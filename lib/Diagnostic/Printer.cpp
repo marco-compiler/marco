@@ -57,6 +57,11 @@ namespace marco::diagnostic
     return printer_->getOutputStream();
   }
 
+  Level PrinterInstance::diagnosticLevel() const
+  {
+    return level_;
+  }
+
   llvm::raw_ostream::Colors PrinterInstance::diagnosticLevelColor() const
   {
     return color_;
