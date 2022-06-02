@@ -124,6 +124,16 @@ namespace marco::codegen::lowering
     }
 
     result.push_back(modelOp);
+
+    // Inner classes
+    builder().setInsertionPointAfter(modelOp);
+
+    for (const auto& innerClass : model.getInnerClasses()) {
+      for (auto& loweredInnerClass : lower(*innerClass)) {
+        result.push_back(std::move(loweredInnerClass));
+      }
+    }
+
     return result;
   }
 

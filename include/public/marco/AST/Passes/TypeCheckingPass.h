@@ -129,6 +129,8 @@ namespace marco::ast
 		[[nodiscard]] llvm::Error checkSubOp(Expression& expression);
 		[[nodiscard]] llvm::Error checkSubscriptionOp(Expression& expression);
 
+    llvm::Error checkStandardFunctionMembers(Class& cls);
+
 		private:
 		SymbolTable symbolTable;
 		llvm::StringMap<std::unique_ptr<typecheck::detail::BuiltInFunction>> builtInFunctions;

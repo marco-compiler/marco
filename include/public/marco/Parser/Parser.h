@@ -48,6 +48,8 @@ namespace marco::parser
       Parser(diagnostic::DiagnosticEngine& diagnostics, const std::string& source);
       Parser(diagnostic::DiagnosticEngine& diagnostics, const char* source);
 
+      llvm::Optional<std::unique_ptr<ast::Class>> parseRoot();
+
       /// Parse a boolean value.
       llvm::Optional<ValueWrapper<bool>> parseBoolValue();
 
@@ -197,7 +199,7 @@ namespace marco::parser
 
       llvm::Optional<std::unique_ptr<ast::Expression>> parseTermModification();
 
-      private:
+    private:
       /// Read the next token.
       void next();
 

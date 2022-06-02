@@ -837,8 +837,6 @@ namespace marco::ast
     };
   }
 
-
-
   TypeChecker::TypeChecker()
   {
     using namespace typecheck::detail;
@@ -1029,99 +1027,84 @@ namespace marco::ast
           function->getAlgorithms()[1]->getLocation(),
           function->getName());
 
-    // For now, functions can't have an external implementation and thus must
-    // have exactly one algorithm section. When external implementations will
-    // be allowed, the algorithms amount may also be zero.
-    assert(algorithms.size() == 1);
+    if (algorithms.size() > 0) {
+      assert(algorithms.size() == 1);
 
-    if (auto error = run(*algorithms[0]); error)
-      return error;
+      if (auto error = run(*algorithms[0]); error)
+        return error;
+    }
 
     if (auto error = resolveDummyReferences(*function); error)
       return error;
 
-    for (const auto& statement : *algorithms[0])
-    {
-      for (const auto& assignment : *statement)
-      {
-        for (const auto& exp : *assignment.getDestinations()->get<Tuple>())
-        {
-          // From Function reference:
-          // "Input formal parameters are read-only after being bound to the
-          // actual arguments or default values, i.e., they may not be assigned
-          // values in the body of the function."
-          const auto* current = exp.get();
+    if (algorithms.size() > 0) {
+      for (const auto& statement : *algorithms[0]) {
+        for (const auto& assignment : *statement) {
+          for (const auto& exp : *assignment.getDestinations()->get<Tuple>()) {
+            // From Function reference:
+            // "Input formal parameters are read-only after being bound to the
+            // actual arguments or default values, i.e., they may not be assigned
+            // values in the body of the function."
+            const auto* current = exp.get();
 
-          while (current->isa<Operation>())
-          {
-            const auto* operation = current->get<Operation>();
-            assert(operation->getOperationKind() == OperationKind::subscription);
-            current = operation->getArg(0);
-          }
-
-          assert(current->isa<ReferenceAccess>());
-          const auto* ref = current->get<ReferenceAccess>();
-
-          if (!ref->isDummy())
-          {
-            const auto& name = ref->getName();
-
-            if (symbolTable.count(name) == 0)
-              return llvm::make_error<NotFound>(ref->getLocation(), name);
-
-            const auto& member = symbolTable.lookup(name).get<Member>();
-
-            if (member->isInput())
-              return llvm::make_error<AssignmentToInputMember>(
-                  ref->getLocation(),
-                  function->getName());
-          }
-        }
-
-        // From Function reference:
-        // "A function cannot contain calls to the Modelica built-in operators
-        // der, initial, terminal, sample, pre, edge, change, reinit, delay,
-        // cardinality, inStream, actualStream, to the operators of the built-in
-        // package Connections, and is not allowed to contain when-statements."
-
-        std::stack<const Expression*> stack;
-        stack.push(assignment.getExpression());
-
-        while (!stack.empty())
-        {
-          const auto *expression = stack.top();
-          stack.pop();
-
-          if (expression->isa<ReferenceAccess>())
-          {
-            llvm::StringRef name = expression->get<ReferenceAccess>()->getName();
-
-            if (name == "der" || name == "initial" || name == "terminal" ||
-                name == "sample" || name == "pre" || name == "edge" ||
-                name == "change" || name == "reinit" || name == "delay" ||
-                name == "cardinality" || name == "inStream" ||
-                name == "actualStream")
-            {
-              return llvm::make_error<BadSemantic>(
-                  expression->getLocation(),
-                  "'" + name.str() + "' is not allowed in procedural code");
+            while (current->isa<Operation>()) {
+              const auto* operation = current->get<Operation>();
+              assert(operation->getOperationKind() == OperationKind::subscription);
+              current = operation->getArg(0);
             }
 
-            // TODO: Connections built-in operators + when statement
-          }
-          else if (expression->isa<Operation>())
-          {
-            for (const auto& arg : *expression->get<Operation>())
-              stack.push(arg.get());
-          }
-          else if (expression->isa<Call>())
-          {
-            const auto* call = expression->get<Call>();
+            assert(current->isa<ReferenceAccess>());
+            const auto* ref = current->get<ReferenceAccess>();
 
-            for (const auto& arg : *call)
-              stack.push(arg.get());
+            if (!ref->isDummy()) {
+              const auto& name = ref->getName();
 
-            stack.push(call->getFunction());
+              if (symbolTable.count(name) == 0)
+                return llvm::make_error<NotFound>(ref->getLocation(), name);
+
+              const auto& member = symbolTable.lookup(name).get<Member>();
+
+              if (member->isInput())
+                return llvm::make_error<AssignmentToInputMember>(
+                    ref->getLocation(),
+                    function->getName());
+            }
+          }
+
+          // From Function reference:
+          // "A function cannot contain calls to the Modelica built-in operators
+          // der, initial, terminal, sample, pre, edge, change, reinit, delay,
+          // cardinality, inStream, actualStream, to the operators of the built-in
+          // package Connections, and is not allowed to contain when-statements."
+
+          std::stack<const Expression*> stack;
+          stack.push(assignment.getExpression());
+
+          while (!stack.empty()) {
+            const auto* expression = stack.top();
+            stack.pop();
+
+            if (expression->isa<ReferenceAccess>()) {
+              llvm::StringRef name = expression->get<ReferenceAccess>()->getName();
+
+              if (name == "der" || name == "initial" || name == "terminal" || name == "sample" || name == "pre" || name == "edge" || name == "change" || name == "reinit" || name == "delay" || name == "cardinality" || name == "inStream" || name == "actualStream") {
+                return llvm::make_error<BadSemantic>(
+                    expression->getLocation(),
+                    "'" + name.str() + "' is not allowed in procedural code");
+              }
+
+              // TODO: Connections built-in operators + when statement
+            } else if (expression->isa<Operation>()) {
+              for (const auto& arg : *expression->get<Operation>())
+                stack.push(arg.get());
+            } else if (expression->isa<Call>()) {
+              const auto* call = expression->get<Call>();
+
+              for (const auto& arg : *call)
+                stack.push(arg.get());
+
+              stack.push(call->getFunction());
+            }
           }
         }
       }
@@ -1144,10 +1127,8 @@ namespace marco::ast
       symbolTable.insert(member->getName(), Symbol(*member));
     }
 
-    for (auto& m : model->getMembers()) {
-      if (auto error = run(*m)) {
-        return error;
-      }
+    for (auto& innerClass : model->getInnerClasses()) {
+      symbolTable.insert(innerClass->getName(), Symbol(*innerClass));
     }
 
     // Functions type checking must be done before the equations or algorithm
@@ -1155,6 +1136,12 @@ namespace marco::ast
     // be invoked elsewhere.
     for (auto& innerClass : model->getInnerClasses()) {
       if (auto error = run<Class>(*innerClass)) {
+        return error;
+      }
+    }
+
+    for (auto& m : model->getMembers()) {
+      if (auto error = run(*m)) {
         return error;
       }
     }
@@ -2663,6 +2650,11 @@ namespace marco::ast
     );
 
     return llvm::Error::success();
+  }
+
+  llvm::Error TypeChecker::checkStandardFunctionMembers(Class& cls)
+  {
+
   }
 
   std::unique_ptr<Pass> createTypeCheckingPass()

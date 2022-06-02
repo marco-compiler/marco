@@ -175,7 +175,7 @@ TEST(Parser, standardFunction)
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
 
   EXPECT_EQ((*node)->getLocation().end.line, 1);
-  EXPECT_EQ((*node)->getLocation().end.column, 7);
+  EXPECT_EQ((*node)->getLocation().end.column, 12);
 
   EXPECT_TRUE((*node)->isa<StandardFunction>());
   EXPECT_EQ((*node)->get<StandardFunction>()->getName(), "foo");

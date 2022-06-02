@@ -137,7 +137,7 @@ namespace marco::frontend
 
     diagnostic::DiagnosticEngine diagnostics(std::make_unique<diagnostic::Printer>());
     parser::Parser parser(diagnostics, ci.getFlattened());
-    auto cls = parser.parseClassDefinition();
+    auto cls = parser.parseRoot();
 
     if (!cls.hasValue()) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(

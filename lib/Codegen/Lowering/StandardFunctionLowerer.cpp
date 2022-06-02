@@ -113,13 +113,15 @@ namespace marco::codegen::lowering
     }
 
     // Emit the body of the function
-    const auto& algorithm = function.getAlgorithms()[0];
+    if (auto algorithms = function.getAlgorithms(); algorithms.size() > 0) {
+      assert(algorithms.size() == 1);
 
-    for (const auto& statement : *algorithm) {
-      lower(*statement);
+      const auto& algorithm = function.getAlgorithms()[0];
+
+      for (const auto& statement : *algorithm) {
+        lower(*statement);
+      }
     }
-
-    //builder().create<FunctionTerminatorOp>(location);
 
     result.push_back(functionOp);
     return result;

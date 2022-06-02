@@ -45,6 +45,25 @@ namespace marco::parser
     current = lexer.scan();
   }
 
+  llvm::Optional<std::unique_ptr<ast::Class>> Parser::parseRoot()
+  {
+    auto loc = lexer.getTokenPosition();
+    llvm::SmallVector<std::unique_ptr<Class>, 1> classes;
+
+    while (current != Token::EndOfFile) {
+      TRY(classDefinition, parseClassDefinition());
+      classes.push_back(std::move(*classDefinition));
+    }
+
+    // If multiple root classes exist, then wrap them into a package
+    if (classes.size() != 1) {
+      return Class::package(SourceRange::unknown(), "Main", classes);
+    }
+
+    assert(classes.size() == 1);
+    return std::move(classes[0]);
+  }
+
   llvm::Optional<Parser::ValueWrapper<bool>> Parser::parseBoolValue()
   {
     auto loc = lexer.getTokenPosition();
@@ -94,201 +113,191 @@ namespace marco::parser
       EXPECT(Token::Identifier);
     }
 
-    return ValueWrapper<std::string>(loc, std::move(identifier));
+    return ValueWrapper(loc, std::move(identifier));
   }
 
   llvm::Optional<std::unique_ptr<Class>> Parser::parseClassDefinition()
   {
     auto loc = lexer.getTokenPosition();
-    llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
+    ClassType classType = ClassType::Model;
 
-    while (current != Token::EndOfFile) {
-      ClassType classType = ClassType::Model;
+    bool isOperator = accept<Token::Operator>();
+    bool isPure = true;
 
-      bool isOperator = accept<Token::Operator>();
-      bool isPure = true;
-
-      if (isOperator) {
-        if (accept<Token::Record>()) {
-          classType = ClassType::Record;
-        } else {
-          EXPECT(Token::Function);
-          classType = ClassType::Function;
-        }
-      } else if (accept<Token::Model>()) {
-        classType = ClassType::Model;
-
-      } else if (accept<Token::Record>()) {
+    if (isOperator) {
+      if (accept<Token::Record>()) {
         classType = ClassType::Record;
-
-      } else if (accept<Token::Package>()) {
-        classType = ClassType::Package;
-
-      } else if (accept<Token::Function>()) {
-        classType = ClassType::Function;
-
-      } else if (accept<Token::Pure>()) {
-        isPure = true;
-        isOperator = accept<Token::Operator>();
-        EXPECT(Token::Function);
-        classType = ClassType::Function;
-
-      } else if (accept<Token::Impure>()) {
-        isPure = false;
-        isOperator = accept<Token::Operator>();
-        EXPECT(Token::Function);
-        classType = ClassType::Function;
-
       } else {
-        EXPECT(Token::Class);
+        EXPECT(Token::Function);
+        classType = ClassType::Function;
+      }
+    } else if (accept<Token::Model>()) {
+      classType = ClassType::Model;
+
+    } else if (accept<Token::Record>()) {
+      classType = ClassType::Record;
+
+    } else if (accept<Token::Package>()) {
+      classType = ClassType::Package;
+
+    } else if (accept<Token::Function>()) {
+      classType = ClassType::Function;
+
+    } else if (accept<Token::Pure>()) {
+      isPure = true;
+      isOperator = accept<Token::Operator>();
+      EXPECT(Token::Function);
+      classType = ClassType::Function;
+
+    } else if (accept<Token::Impure>()) {
+      isPure = false;
+      isOperator = accept<Token::Operator>();
+      EXPECT(Token::Function);
+      classType = ClassType::Function;
+
+    } else {
+      EXPECT(Token::Class);
+    }
+
+    TRY(name, parseIdentifier());
+    loc.end = name->getLocation().end;
+
+    if (accept<Token::EqualityOperator>()) {
+      // Function derivative
+      assert(classType == ClassType::Function);
+      EXPECT(Token::Der);
+      EXPECT(Token::LPar);
+
+      TRY(derivedFunction, parseExpression());
+      llvm::SmallVector<std::unique_ptr<Expression>, 3> independentVariables;
+
+      while (accept<Token::Comma>()) {
+        TRY(var, parseExpression());
+        independentVariables.push_back(std::move(*var));
       }
 
-      TRY(name, parseIdentifier());
-      loc.end = name->getLocation().end;
+      EXPECT(Token::RPar);
+      accept<Token::String>();
+      EXPECT(Token::Semicolon);
 
-      if (accept<Token::EqualityOperator>()) {
-        // Function derivative
-        assert(classType == ClassType::Function);
-        EXPECT(Token::Der);
-        EXPECT(Token::LPar);
+      return Class::partialDerFunction(loc, name->getValue(), std::move(*derivedFunction), independentVariables);
+    }
 
-        TRY(derivedFunction, parseExpression());
-        llvm::SmallVector<std::unique_ptr<Expression>, 3> independentVariables;
+    accept<Token::String>();
 
-        while (accept<Token::Comma>()) {
-          TRY(var, parseExpression());
-          independentVariables.push_back(std::move(*var));
-        }
+    llvm::SmallVector<std::unique_ptr<Member>, 3> members;
+    llvm::SmallVector<std::unique_ptr<EquationsBlock>, 3> equationsBlocks;
+    llvm::SmallVector<std::unique_ptr<EquationsBlock>, 3> initialEquationsBlocks;
+    llvm::SmallVector<std::unique_ptr<Algorithm>, 3> algorithms;
+    llvm::SmallVector<std::unique_ptr<Class>, 3> innerClasses;
 
-        EXPECT(Token::RPar);
-        accept<Token::String>();
-        EXPECT(Token::Semicolon);
+    // Whether the first elements list is allowed to be encountered or not.
+    // In fact, the class definition allows a first elements list definition
+    // and then others more if preceded by "public" or "protected", but no
+    // more "lone" definitions are allowed if any of those keywords are
+    // encountered.
 
-        classes.push_back(Class::partialDerFunction(loc, name->getValue(), std::move(*derivedFunction), independentVariables));
+    bool firstElementListParsable = true;
+
+    while (current != Token::End && current != Token::Annotation) {
+      if (current == Token::Equation) {
+        TRY(equationsBlock, parseEquationsBlock());
+        equationsBlocks.push_back(std::move(*equationsBlock));
         continue;
       }
 
-      accept<Token::String>();
-
-      llvm::SmallVector<std::unique_ptr<Member>, 3> members;
-      llvm::SmallVector<std::unique_ptr<EquationsBlock>, 3> equationsBlocks;
-      llvm::SmallVector<std::unique_ptr<EquationsBlock>, 3> initialEquationsBlocks;
-      llvm::SmallVector<std::unique_ptr<Algorithm>, 3> algorithms;
-      llvm::SmallVector<std::unique_ptr<Class>, 3> innerClasses;
-
-      // Whether the first elements list is allowed to be encountered or not.
-      // In fact, the class definition allows a first elements list definition
-      // and then others more if preceded by "public" or "protected", but no
-      // more "lone" definitions are allowed if any of those keywords are
-      // encountered.
-
-      bool firstElementListParsable = true;
-
-      while (current != Token::End && current != Token::Annotation) {
-        if (current == Token::Equation) {
-          TRY(equationsBlock, parseEquationsBlock());
-          equationsBlocks.push_back(std::move(*equationsBlock));
-          continue;
-        }
-
-        if (accept<Token::Initial>()) {
-          TRY(equationsBlock, parseEquationsBlock());
-          initialEquationsBlocks.push_back(std::move(*equationsBlock));
-          continue;
-        }
-
-        if (current == Token::Algorithm) {
-          TRY(algorithm, parseAlgorithmSection());
-          algorithms.emplace_back(std::move(*algorithm));
-          continue;
-        }
-
-        if (current == Token::Class ||
-            current == Token::Function ||
-            current == Token::Model ||
-            current == Token::Record) {
-          TRY(innerClass, parseClassDefinition());
-          innerClasses.emplace_back(std::move(*innerClass));
-          continue;
-        }
-
-        if (accept<Token::Public>()) {
-          TRY(elementList, parseElementList(true));
-
-          for (auto& element : *elementList) {
-            members.push_back(std::move(element));
-          }
-
-          firstElementListParsable = false;
-          continue;
-        }
-
-        if (accept<Token::Protected>()) {
-          TRY(elementList, parseElementList(false));
-
-          for (auto& element : *elementList) {
-            members.push_back(std::move(element));
-          }
-
-          firstElementListParsable = false;
-          continue;
-        }
-
-        if (firstElementListParsable) {
-          TRY(elementList, parseElementList(true));
-
-          for (auto& element : *elementList) {
-            members.push_back(std::move(element));
-          }
-        }
+      if (accept<Token::Initial>()) {
+        TRY(equationsBlock, parseEquationsBlock());
+        initialEquationsBlocks.push_back(std::move(*equationsBlock));
+        continue;
       }
 
-      // Parse an optional annotation
-      llvm::Optional<std::unique_ptr<Annotation>> clsAnnotation;
-
-      if (current == Token::Annotation) {
-        TRY(annotation, parseAnnotation());
-        clsAnnotation = std::move(*annotation);
-        EXPECT(Token::Semicolon);
-      } else {
-        clsAnnotation = llvm::None;
+      if (current == Token::Algorithm) {
+        TRY(algorithm, parseAlgorithmSection());
+        algorithms.emplace_back(std::move(*algorithm));
+        continue;
       }
 
-      // The class name must be present also after the 'end' keyword
-      EXPECT(Token::End);
-      TRY(endName, parseIdentifier());
-
-      if (name->getValue() != endName->getValue()) {
-        diagnostics->emitError<UnexpectedIdentifierMessage>(
-            source, endName->getLocation(), endName->getValue(), name->getValue());
-
-        return llvm::None;
+      if (current == Token::Class ||
+          current == Token::Function ||
+          current == Token::Model ||
+          current == Token::Record) {
+        TRY(innerClass, parseClassDefinition());
+        innerClasses.emplace_back(std::move(*innerClass));
+        continue;
       }
 
+      if (accept<Token::Public>()) {
+        TRY(elementList, parseElementList(true));
+
+        for (auto& element : *elementList) {
+          members.push_back(std::move(element));
+        }
+
+        firstElementListParsable = false;
+        continue;
+      }
+
+      if (accept<Token::Protected>()) {
+        TRY(elementList, parseElementList(false));
+
+        for (auto& element : *elementList) {
+          members.push_back(std::move(element));
+        }
+
+        firstElementListParsable = false;
+        continue;
+      }
+
+      if (firstElementListParsable) {
+        TRY(elementList, parseElementList(true));
+
+        for (auto& element : *elementList) {
+          members.push_back(std::move(element));
+        }
+      }
+    }
+
+    // Parse an optional annotation
+    llvm::Optional<std::unique_ptr<Annotation>> clsAnnotation;
+
+    if (current == Token::Annotation) {
+      TRY(annotation, parseAnnotation());
+      clsAnnotation = std::move(*annotation);
       EXPECT(Token::Semicolon);
-
-      if (classType == ClassType::Function) {
-        classes.push_back(Class::standardFunction(loc, isPure, name->getValue(), members, algorithms, std::move(clsAnnotation)));
-
-      } else if (classType == ClassType::Model) {
-        classes.push_back(Class::model(
-            loc, name->getValue(), members, equationsBlocks, initialEquationsBlocks, algorithms, innerClasses));
-
-      } else if (classType == ClassType::Package) {
-        classes.push_back(Class::package(loc, name->getValue(), innerClasses));
-
-      } else if (classType == ClassType::Record) {
-        classes.push_back(Class::record(loc, name->getValue(), members));
-      }
+    } else {
+      clsAnnotation = llvm::None;
     }
 
-    // If multiple root classes exist, then wrap them into a package
-    if (classes.size() != 1) {
-      return Class::package(SourceRange::unknown(), "Main", classes);
+    // The class name must be present also after the 'end' keyword
+    EXPECT(Token::End);
+    TRY(endName, parseIdentifier());
+
+    if (name->getValue() != endName->getValue()) {
+      diagnostics->emitError<UnexpectedIdentifierMessage>(
+          source, endName->getLocation(), endName->getValue(), name->getValue());
+
+      return llvm::None;
     }
 
-    assert(classes.size() == 1);
-    return std::move(classes[0]);
+    EXPECT(Token::Semicolon);
+
+    if (classType == ClassType::Function) {
+      return Class::standardFunction(loc, isPure, name->getValue(), members, algorithms, std::move(clsAnnotation));
+
+    } else if (classType == ClassType::Model) {
+      return Class::model(
+          loc, name->getValue(), members, equationsBlocks, initialEquationsBlocks, algorithms, innerClasses);
+
+    } else if (classType == ClassType::Package) {
+      return Class::package(loc, name->getValue(), innerClasses);
+
+    } else if (classType == ClassType::Record) {
+      return Class::record(loc, name->getValue(), members);
+    }
+
+    llvm_unreachable("Unknown class type");
+    return llvm::None;
   }
 
   llvm::Optional<std::unique_ptr<Modification>> Parser::parseModification()
