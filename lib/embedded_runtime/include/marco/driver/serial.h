@@ -61,6 +61,8 @@ public:
 private:
 
 	char *tochar(int i, char* res);
+
+	char *tochar(long int i, char* res);
 	
 	char *tochar(float f, int precision, char* res);
 

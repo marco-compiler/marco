@@ -179,9 +179,10 @@ int main(){
 
       long int g = 1;
       print_char("CIAO\n\r");
-      printf("PROVA %c [%d] ;;;%12f",'c', 1 , 0.231454253242);
+      printf("PROVA %c [%d] ;;;%12f",'c', 1 , 0.334);
       printf("\n\rend");
     
     for(;;){
     }
 }
+

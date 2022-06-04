@@ -34,8 +34,6 @@ void print_array(T *array){
 }
 #endif
 
-//void printf(char* string);
-
  extern "C" int printf(const char* string,...);
 
  extern "C" int putchar(int c);

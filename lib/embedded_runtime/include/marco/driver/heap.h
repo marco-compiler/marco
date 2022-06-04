@@ -13,7 +13,6 @@
 extern "C" void *malloc(size_t size);
 
 extern "C" void free(void *ptr);
-//size_t sbrk();
 
 extern "C" void *sbrk(ptrdiff_t incr);
 

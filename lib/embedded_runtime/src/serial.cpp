@@ -135,7 +135,29 @@ char SerialPort::read()
 
 
 char* SerialPort::tochar(int i, char* res){
+	
 
+   int len = 0;
+   for(; i >0; ++len)
+   {	
+      res[len] = i%10+'0';
+      i/=10; 
+   }
+   //res[len++] = '\r';
+   //res[len++] = '\n';
+   res[len] = 0; //null-terminating
+
+   //now we need to reverse res
+   for(int i = 0; i < len/2; ++i)
+   {
+       char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
+   }
+   return res;
+   
+};
+
+char* SerialPort::tochar(long int i, char* res){
+	
 
    int len = 0;
    for(; i >0; ++len)
@@ -187,12 +209,13 @@ char* SerialPort::tochar(const float x,const int precision,char* p){
 	}while(k>-1);
 
 	// number of digits in whole number are k+1
-	
-	for(; a>0; ++i)
-   {	
-      p[i] = a%10+'0';
-      a/=10; 
-   }
+	for(; a>0; ++i){
+   		{
+      		p[i] = a%10+'0';
+      		a/=10; 
+   		}
+	}
+
    
    //now we need to reverse res
    for(; o < i/2; ++o)
@@ -206,10 +229,11 @@ char* SerialPort::tochar(const float x,const int precision,char* p){
 	{
 		f*=10.0;
 		b = f;
+		//write(b);
 		p[i++]=b+48;
-		f-=b;
+		f-=b ;
 	}
-
+	if( f* 10 >= 5) p[i-1] = p[i-1] + 1;
 	p[i]='\0';
 }
 

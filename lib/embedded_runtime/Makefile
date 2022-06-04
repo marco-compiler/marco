@@ -6,7 +6,7 @@ CPU := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
 AFLAGS   := $(CPU) 
 CFLAGS   := $(CPU) -O0 -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver
-CXXFLAGS := $(CPU) -O0 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public -I./include/marco/lib
+CXXFLAGS := $(CPU) -O0 -mbe32 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public -I./include/marco/lib
 LFLAGS   := $(CPU) -Wl,-T./src/linker.ld,-Map,./test/main.map #-nostdlib
 
 CLANG := clang --target=arm-none-eabi -march=armv7e-m $(CPU) -fshort-enums
