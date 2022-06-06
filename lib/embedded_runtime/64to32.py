@@ -1,5 +1,5 @@
-with open("example.ll") as file:
-    result = open("nomain.ll","a")
+with open("test/example.ll") as file:
+    result = open("test/nomain.ll","a")
     for l in file:
         string = l
         if "@printf" in string:
