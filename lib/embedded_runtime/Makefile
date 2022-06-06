@@ -9,8 +9,6 @@ CFLAGS   := $(CPU) -O0 -g -c -I./include/marco/driver/CMSIS/Include -I./include/
 CXXFLAGS := $(CPU) -O0 -mbe32 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public -I./include/marco/lib
 LFLAGS   := $(CPU) -Wl,-T./src/linker.ld,-Map,./test/main.map #-nostdlib
 
-CLANG := clang --target=arm-none-eabi -march=armv7e-m $(CPU) -fshort-enums
-
 SRC := ./src/startup.s ./test/math_test.cpp ./src/lib/Print.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/lib/StdMath.cpp ./src/lib/StdAssert.cpp
 
 SRCS :=  ./src/startup.s ./src/main.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/stub.cpp ./src/lib/Print.cpp
@@ -20,11 +18,8 @@ OBJ := $(addsuffix .o, $(basename $(SRC)))
 
 OBJLIB := ./staticlib/Print.o ./staticlib/heap.o ./staticlib/StdMath.o ./staticlib/StdAssert.o ./staticlib/BuiltInFunctions.o ./staticlib/Math.o ./staticlib/MemoryManagement.o ./staticlib/Profiling.o ./staticlib/Runtime.o ./staticlib/UtilityFunctions.o 
 
-OBJS := $(addsuffix .o, $(basename $(SRCS))) #./test/nomain.o
+OBJS := $(addsuffix .o, $(basename $(SRCS))) 
 
-#-L ./ -l:libMARCORuntime.a
-#arm-miosix-eabi-ld -r -o output.o ./libMARCORuntime.a ./test/nomain.o $(OBJS) 
-#$(CP) -O binary main.elf main.bin
 all: $(OBJ)
 	make lib
 	$(CXX) $(LFLAGS) -o math_test.elf $(OBJ) 

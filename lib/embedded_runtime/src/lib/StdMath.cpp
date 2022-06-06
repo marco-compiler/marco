@@ -69,6 +69,7 @@ r[] = { -0.16666666666666665052,
                              0.16058936490371589114e-09,
                             -0.76429178068910467734e-12,
                              0.27204790957888846175e-14 },
+z_rooteps = 0.2441,
 shuge = 1.0e307,
 atanhi[] = {
   4.63647609000806093515e-01, /* atan(0.5)hi 0x3FDDAC67, 0x0561BB4F */
@@ -144,7 +145,6 @@ Lg4 = 2.222219843214978396e-01,  /* 3FCC71C5 1D8E78AF */
 Lg5 = 1.818357216161805012e-01,  /* 3FC74664 96CB03DE */
 Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
 Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
-
 
 //CMATH
 
@@ -663,63 +663,79 @@ float stde::sinh(float x){
 	return x*shuge;
 }
 
-float stde::cos(float x){
-    while(x<0) x+=2*pi;
-    while(x>2*pi) x-=2*pi;
-    double t = 1;
-    double cos= t;
-    for ( int a=1; a<40; ++a)
+
+float stde::sine(float x, int cosine){
+	int sgn, N;
+  double y, XN, g, R, res;
+  double YMAX = 210828714.0;
+
+  /* Use sin and cos properties to ease computations. */
+  if (cosine)
     {
-        double mult = -x*x/((2*a)*(2*a-1));
-        t *= mult;
-        cos += t;
+      sgn = 1;
+      y = stde::abs (x) + HALF_PI;
     }
-    return cos;
-}
-
-float stde::fmod(float a, float b)
-{
-    double frac = a / b;
-    int floor = frac > 0 ? (int)frac : (int)(frac - 0.9999999999999999);
-    return (a - b * floor);
-}
-
-float stde::sin(float n) {
-    // Define PI
-    const float my_pi = 3.14159265358979323846;
-    // Sine's period is 2*PI
-    n = stde::fmod(n, 2 * my_pi);
-    // Any negative angle can be brought back
-    // to it's equivalent positive angle
-    if (n < 0) {
-        n = 2 * my_pi - n;
-    }
-    // Sine is an odd function...
-    // let's take advantage of it.
-    char sign = 1;
-    if (n > my_pi) {
-        n -= my_pi;
-        sign = -1;
-    }
-    // Now n is in range [0, PI].
-
-    float result = n;
-    double coefficent = 3; // Increment this by 2 each loop
-    for(int i = 0; i < 10; i++) { // Change 10 to go out to more/less terms
-        float pow = stde::pow(n, coefficent);
-        float frac = factorial(coefficent);
-
-
-        // Switch between adding/subtracting
-        if(i % 2 == 0) { // If the index of the loop is divided by 2, the index is even, so subtract
-            result = result - (pow/frac); // x - ((x^3)/(3!)) - ((x^5)/(5!))...
-        } else {
-            result = result + (pow/frac); // x - ((x^3)/(3!)) + ((x^5)/(5!))...
+  else
+    {
+      if (x < 0.0)
+        {
+          sgn = -1;
+          y = -x;
         }
-        coefficent = coefficent + 2;
+      else
+        {
+          sgn = 1;
+          y = x;
+        }
     }
 
-    return sign * result;
+  /* Check for values of y that will overflow here. */
+  if (y > YMAX)
+    {
+      errno = ERANGE;
+      return (x);
+    }
+
+  /* Calculate the exponent. */
+  if (y < 0.0)
+    N = (int) (y * ONE_OVER_PI - 0.5);
+  else
+    N = (int) (y * ONE_OVER_PI + 0.5);
+  XN = (double) N;
+
+  if (N & 1)
+    sgn = -sgn;
+
+  if (cosine)
+    XN -= 0.5;
+
+  y = stde::abs (x) - XN * pi;
+
+  if (-z_rooteps < y && y < z_rooteps)
+    res = y;
+
+  else
+    {
+      g = y * y;
+
+      /* Calculate the Taylor series. */
+      R = (((((((r[6] * g + r[5]) * g + r[4]) * g + r[3]) * g + r[2]) * g + r[1]) * g + r[0]) * g);
+
+      /* Finally, compute the result. */
+      res = y + y * R;
+    }
+ 
+  res *= sgn;
+
+  return (res);
+}
+
+float stde::sin(float x ){
+	return sine(x,0);
+}
+
+float stde::cos(float x){
+	return sine(x,1);
 }
 
 float stde::tan(float x){

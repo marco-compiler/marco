@@ -29,10 +29,10 @@ namespace stde{
     float min(float x, float y);
     int min(int x, int y);
     float sinh(float value);
+    float sine(float x, int cosine);
     float cos(float value);
     float sin(float value);
-
-    float fmod(float a, float b);
+    
     float factorial(float n);
 
     float tan(float value);
