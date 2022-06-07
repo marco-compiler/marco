@@ -3,14 +3,20 @@
 #include "marco/AST/AST.h"
 #include "marco/AST/Node/EquationsBlock.h"
 #include "marco/AST/Passes/ConstantFoldingPass.h"
+#include <cmath>
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
+  ConstantFoldingPass::ConstantFoldingPass(diagnostic::DiagnosticEngine& diagnostics)
+      : Pass(diagnostics)
+  {
+  }
+
   template<>
-  llvm::Error ConstantFolder::run<Class>(Class& cls)
+  bool ConstantFoldingPass::run<Class>(Class& cls)
   {
     return cls.visit([&](auto& obj) {
       using type = decltype(obj);
@@ -20,142 +26,125 @@ namespace marco::ast
     });
   }
 
-  llvm::Error ConstantFolder::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
+  bool ConstantFoldingPass::run(std::unique_ptr<Class>& cls)
   {
-    for (const auto& cls : classes)
-      if (auto error = run<Class>(*cls); error)
-        return error;
-
-    return llvm::Error::success();
+    return run<Class>(*cls);
   }
 
   template<>
-  llvm::Error ConstantFolder::run<PartialDerFunction>(Class& cls)
+  bool ConstantFoldingPass::run<PartialDerFunction>(Class& cls)
   {
-    return llvm::Error::success();
+    return true;
   }
 
   template<>
-  llvm::Error ConstantFolder::run<StandardFunction>(Class& cls)
+  bool ConstantFoldingPass::run<StandardFunction>(Class& cls)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* function = cls.get<StandardFunction>();
-    SymbolTableScope varScope(symbolTable);
 
-    // Populate the symbol table
-    symbolTable.insert(function->getName(), Symbol(cls));
+    for (auto& member : function->getMembers()) {
+      if (!run(*member)) {
+        return false;
+      }
+    }
 
-    for (auto& member : function->getMembers())
-      if (auto error = run(*member); error)
-        return error;
+    for (auto& algorithm : function->getAlgorithms()) {
+      if (!run(*algorithm)) {
+        return false;
+      }
+    }
 
-    for (auto& algorithm : function->getAlgorithms())
-      if (auto error = run(*algorithm); error)
-        return error;
-
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Model>(Class& cls)
+  bool ConstantFoldingPass::run<Model>(Class& cls)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* model = cls.get<Model>();
-    SymbolTableScope varScope(symbolTable);
 
-    symbolTable.insert(model->getName(), Symbol(cls));
-
-    for (auto& member : model->getMembers()) {
-      symbolTable.insert(member->getName(), Symbol(*member));
+    for (auto& innerClass : model->getInnerClasses()) {
+      if (!run<Class>(*innerClass)) {
+        return false;
+      }
     }
 
     for (auto& member : model->getMembers()) {
-      if (auto error = run(*member); error) {
-        return error;
+      if (!run(*member)) {
+        return false;
       }
     }
 
     for (auto& equationsBlock : model->getEquationsBlocks()) {
       for (auto& equation : equationsBlock->getEquations()) {
-        if (auto error = run(*equation); error) {
-          return error;
+        if (!run(*equation)) {
+          return false;
         }
       }
 
       for (auto& forEquation : equationsBlock->getForEquations()) {
-        if (auto error = run(*forEquation); error) {
-          return error;
+        if (!run(*forEquation)) {
+          return false;
         }
       }
     }
 
     for (auto& equationsBlock : model->getInitialEquationsBlocks()) {
       for (auto& equation : equationsBlock->getEquations()) {
-        if (auto error = run(*equation); error) {
-          return error;
+        if (!run(*equation)) {
+          return false;
         }
       }
 
       for (auto& forEquation : equationsBlock->getForEquations()) {
-        if (auto error = run(*forEquation); error) {
-          return error;
+        if (!run(*forEquation)) {
+          return false;
         }
       }
     }
 
-    return llvm::Error::success();
-  }
-
-  template<>
-  llvm::Error ConstantFolder::run<Package>(Class& cls)
-  {
-    auto* package = cls.get<Package>();
-
-    for (auto& innerClass : *package)
-      if (auto error = run<Class>(*innerClass); error)
-        return error;
-
-    return llvm::Error::success();
-  }
-
-  template<>
-  llvm::Error ConstantFolder::run<Record>(Class& cls)
-  {
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::run(Equation& equation)
-  {
-    if (auto error = run<Expression>(*equation.getLhsExpression()); error)
-      return error;
-
-    if (auto error = run<Expression>(*equation.getRhsExpression()); error)
-      return error;
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::run(ForEquation& forEquation)
-  {
-    SymbolTableScope varScope(symbolTable);
-
-    for (auto& ind : forEquation.getInductions())
-    {
-      symbolTable.insert(ind->getName(), Symbol(*ind));
-
-      if (auto error = run<Expression>(*ind->getBegin()); error)
-        return error;
-
-      if (auto error = run<Expression>(*ind->getEnd()); error)
-        return error;
+    for (auto& algorithm : model->getAlgorithms()) {
+      if (!run(*algorithm)) {
+        return false;
+      }
     }
 
-    if (auto error = run(*forEquation.getEquation()); error)
-      return error;
-
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Expression>(Expression& expression)
+  bool ConstantFoldingPass::run<Package>(Class& cls)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+    auto* package = cls.get<Package>();
+
+    for (auto& innerClass : *package) {
+      if (!run<Class>(*innerClass)) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool ConstantFoldingPass::run<Record>(Class& cls)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+    auto* record = cls.get<Record>();
+
+    for (auto& member : *record) {
+      if (!run(*member)) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool ConstantFoldingPass::run<Expression>(Expression& expression)
   {
     return expression.visit([&](auto& obj) {
       using type = decltype(obj);
@@ -166,177 +155,880 @@ namespace marco::ast
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Array>(Expression& expression)
+  bool ConstantFoldingPass::run<Array>(Expression& expression)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* array = expression.get<Array>();
 
-    for (auto& element : *array)
-      if (auto error = run<Expression>(*element); error)
-        return error;
+    for (auto& element : *array) {
+      if (!run<Expression>(*element)) {
+        return false;
+      }
+    }
 
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Call>(Expression& expression)
+  bool ConstantFoldingPass::run<Call>(Expression& expression)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* call = expression.get<Call>();
 
-    if (auto error = run<Expression>(*call->getFunction()); error)
-      return error;
+    for (auto& arg : *call) {
+      if (!run<Expression>(*arg)) {
+        return false;
+      }
+    }
 
-    for (auto& arg : *call)
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Constant>(Expression& expression)
+  bool ConstantFoldingPass::run<Constant>(Expression& expression)
   {
-    return llvm::Error::success();
+    return true;
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldNegateOp_scalar(
+      SourceRange loc, const Expression& operand)
+  {
+    assert(operand.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        -1 * operand.get<Constant>()->as<Type>());
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Operation>(Expression& expression)
+  bool ConstantFoldingPass::processOp<OperationKind::negate>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 1);
+
+    auto* operand = operation->getArg(0);
+
+    if (operand->isa<Constant>()) {
+      assert(operand->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldNegateOp_scalar<BuiltInType::Boolean>(expression.getLocation(), *operand));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldNegateOp_scalar<BuiltInType::Integer>(expression.getLocation(), *operand));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldNegateOp_scalar<BuiltInType::Real>(expression.getLocation(), *operand));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldAddOp_scalars(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() + lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::add>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldAddOp_scalars<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldAddOp_scalars<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldAddOp_scalars<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldSubOp_scalars(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() - lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::subtract>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldSubOp_scalars<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldSubOp_scalars<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldSubOp_scalars<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldMulOp_scalars(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() * lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::multiply>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldMulOp_scalars<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldMulOp_scalars<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldMulOp_scalars<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldDivOp_scalars(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() / lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::divide>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldDivOp_scalars<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldDivOp_scalars<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldDivOp_scalars<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldPowOp_scalars(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        std::pow(lhs.get<Constant>()->as<Type>(), lhs.get<Constant>()->as<Type>()));
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::powerOf>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* base = operation->getArg(0);
+    auto* exponent = operation->getArg(1);
+
+    if (base->isa<Constant>() && exponent->isa<Constant>()) {
+      assert(base->getType().isa<BuiltInType>() && exponent->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldPowOp_scalars<BuiltInType::Boolean>(expression.getLocation(), *base, *exponent));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldPowOp_scalars<BuiltInType::Integer>(expression.getLocation(), *base, *exponent));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldPowOp_scalars<BuiltInType::Real>(expression.getLocation(), *base, *exponent));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldEqualOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() == lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::equal>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldEqualOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldEqualOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldEqualOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldNotEqualOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() != lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::different>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldNotEqualOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldNotEqualOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldNotEqualOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldGreaterOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() > lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::greater>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldGreaterOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldGreaterOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldGreaterOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldGreaterEqualOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() >= lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::greaterEqual>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldGreaterEqualOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldGreaterEqualOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldGreaterEqualOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldLessOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() < lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::less>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldLessOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldLessOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldLessOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldLessEqualOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() <= lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::lessEqual>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldLessEqualOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldLessEqualOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldLessEqualOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldNotOp(
+      SourceRange loc, const Expression& operand)
+  {
+    assert(operand.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        operand.get<Constant>()->as<Type>() <= 0);
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::lnot>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 1);
+
+    auto* operand = operation->getArg(0);
+
+    if (operand->isa<Constant>()) {
+      assert(operand->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldNotOp<BuiltInType::Boolean>(expression.getLocation(), *operand));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldNotOp<BuiltInType::Integer>(expression.getLocation(), *operand));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldNotOp<BuiltInType::Real>(expression.getLocation(), *operand));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldAndOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() && lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::land>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldAndOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldAndOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldAndOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<BuiltInType Type>
+  static std::unique_ptr<Expression> foldOrOp(
+      SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        lhs.get<Constant>()->as<Type>() || lhs.get<Constant>()->as<Type>());
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::lor>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 2);
+
+    auto* lhs = operation->getArg(0);
+    auto* rhs = operation->getArg(1);
+
+    if (lhs->isa<Constant>() && rhs->isa<Constant>()) {
+      assert(lhs->getType().isa<BuiltInType>() && rhs->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (type == BuiltInType::Boolean) {
+        expression = std::move(*foldOrOp<BuiltInType::Boolean>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Integer) {
+        expression = std::move(*foldOrOp<BuiltInType::Integer>(expression.getLocation(), *lhs, *rhs));
+      } else if (type == BuiltInType::Real) {
+        expression = std::move(*foldOrOp<BuiltInType::Real>(expression.getLocation(), *lhs, *rhs));
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool ConstantFoldingPass::processOp<OperationKind::ifelse>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->argumentsCount() == 3);
+
+    auto* condition = operation->getArg(0);
+    auto* trueValue = operation->getArg(1);
+    auto* falseValue = operation->getArg(2);
+
+    if (condition->isa<Constant>()) {
+      assert(condition->getType().isa<BuiltInType>());
+      auto type = expression.getType();
+      assert(type.isa<BuiltInType>());
+      assert(type.get<BuiltInType>() != BuiltInType::Unknown);
+
+      if (condition->get<Constant>()->as<BuiltInType::Boolean>()) {
+        expression = std::move(*trueValue);
+      } else {
+        expression = std::move(*falseValue);
+      }
+
+      expression.setType(type);
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool ConstantFoldingPass::run<Operation>(Expression& expression)
   {
     auto* operation = expression.get<Operation>();
 
-    auto foldOperation = [&](Expression& expression, std::function<llvm::Error(ConstantFolder&, Expression&)> folder) -> llvm::Error {
-      if (auto error = folder(*this, expression); error)
-        return error;
+    for (size_t i = 0; i < operation->argumentsCount(); ++i) {
+      if (!run<Expression>(*operation->getArg(i))) {
+        return false;
+      }
+    }
 
-      return llvm::Error::success();
-    };
-
-    switch (operation->getOperationKind())
-    {
+    switch (operation->getOperationKind()) {
       case OperationKind::add:
+        return processOp<OperationKind::add>(expression);
+
       case OperationKind::addEW:
-        return foldOperation(expression, &ConstantFolder::foldAddOp);
+        return true;
 
       case OperationKind::different:
-        return foldOperation(expression, &ConstantFolder::foldDifferentOp);
+        return processOp<OperationKind::different>(expression);
 
       case OperationKind::divide:
+        return processOp<OperationKind::divide>(expression);
+
       case OperationKind::divideEW:
-        return foldOperation(expression, &ConstantFolder::foldDivOp);
+        return true;
 
       case OperationKind::equal:
-        return foldOperation(expression, &ConstantFolder::foldEqualOp);
+        return processOp<OperationKind::equal>(expression);
 
       case OperationKind::greater:
-        return foldOperation(expression, &ConstantFolder::foldGreaterOp);
+        return processOp<OperationKind::greater>(expression);
 
       case OperationKind::greaterEqual:
-        return foldOperation(expression, &ConstantFolder::foldGreaterEqualOp);
+        return processOp<OperationKind::greaterEqual>(expression);
 
       case OperationKind::ifelse:
-        return foldOperation(expression, &ConstantFolder::foldIfElseOp);
+        return processOp<OperationKind::ifelse>(expression);
 
       case OperationKind::less:
-        return foldOperation(expression, &ConstantFolder::foldLessOp);
+        return processOp<OperationKind::less>(expression);
 
       case OperationKind::lessEqual:
-        return foldOperation(expression, &ConstantFolder::foldLessEqualOp);
+        return processOp<OperationKind::lessEqual>(expression);
 
       case OperationKind::land:
-        return foldOperation(expression, &ConstantFolder::foldLogicalAndOp);
+        return processOp<OperationKind::land>(expression);
+
+      case OperationKind::lnot:
+        return processOp<OperationKind::lnot>(expression);
 
       case OperationKind::lor:
-        return foldOperation(expression, &ConstantFolder::foldLogicalOrOp);
+        return processOp<OperationKind::lor>(expression);
 
       case OperationKind::memberLookup:
-        return foldOperation(expression, &ConstantFolder::foldMemberLookupOp);
+        return true;
 
       case OperationKind::multiply:
+        return processOp<OperationKind::multiply>(expression);
+
       case OperationKind::multiplyEW:
-        return foldOperation(expression, &ConstantFolder::foldMulOp);
+        return true;
 
       case OperationKind::negate:
-        return foldOperation(expression, &ConstantFolder::foldNegateOp);
+        return processOp<OperationKind::negate>(expression);
 
       case OperationKind::powerOf:
+        return processOp<OperationKind::powerOf>(expression);
+
       case OperationKind::powerOfEW:
-        return foldOperation(expression, &ConstantFolder::foldPowerOfOp);
+        return true;
 
       case OperationKind::range:
-        return foldOperation(expression, &ConstantFolder::foldRangeOp);
+        return true;
 
       case OperationKind::subscription:
-        return foldOperation(expression, &ConstantFolder::foldSubscriptionOp);
+        return true;
 
       case OperationKind::subtract:
+        return processOp<OperationKind::subtract>(expression);
+
       case OperationKind::subtractEW:
-        return foldOperation(expression, &ConstantFolder::foldSubOp);
+        return true;
     }
 
-    return llvm::Error::success();
+    llvm_unreachable("Unknown operation kind");
+    return false;
   }
 
   template<>
-  llvm::Error ConstantFolder::run<ReferenceAccess>(Expression& expression)
+  bool ConstantFoldingPass::run<ReferenceAccess>(Expression& expression)
   {
-    auto* reference = expression.get<ReferenceAccess>();
-
-    if (symbolTable.count(reference->getName()) == 0)
-    {
-      // Built-in variables (such as time) or functions are not in the symbol
-      // table.
-      return llvm::Error::success();
-    }
-
-    const auto& symbol = symbolTable.lookup(reference->getName());
-
-    if (!symbol.isa<Member>())
-      return llvm::Error::success();
-
-    // Try to fold references of known variables that have a initializer
-    const auto* member = symbol.get<Member>();
-
-    if (!member->hasInitializer())
-      return llvm::Error::success();
-
-    if (member->getInitializer()->isa<Constant>() && member->isParameter())
-      expression = *member->getInitializer();
-
-    return llvm::Error::success();
+    return true;
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Tuple>(Expression& expression)
+  bool ConstantFoldingPass::run<Tuple>(Expression& expression)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* tuple = expression.get<Tuple>();
 
-    for (auto& element : *tuple)
-      if (auto error = run<Expression>(*element); error)
-        return error;
+    for (auto& exp : *tuple) {
+      if (!run<Expression>(*exp)) {
+        return false;
+      }
+    }
 
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<RecordInstance>(Expression& expression)
+  bool ConstantFoldingPass::run<RecordInstance>(Expression& expression)
   {
-    assert(false && "RecordInstances not handled in the constant folding phase.");
-    return llvm::Error::success();
+    return true;
   }
 
-  llvm::Error ConstantFolder::run(Member& member)
+  bool ConstantFoldingPass::run(Equation& equation)
   {
-    if (member.hasInitializer())
-      if (auto error = run<Expression>(*member.getInitializer()); error)
-        return error;
+    auto numOfErrors = diagnostics()->numOfErrors();
 
-    if (member.hasStartOverload())
-      return run<Expression>(*member.getStartOverload());
+    if (!run<Expression>(*equation.getLhsExpression())) {
+      return false;
+    }
 
-    return llvm::Error::success();
+    if (!run<Expression>(*equation.getRhsExpression())) {
+      return false;
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  bool ConstantFoldingPass::run(ForEquation& forEquation)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    for (auto& induction : forEquation.getInductions()) {
+      if (!run<Expression>(*induction->getBegin())) {
+        return false;
+      }
+
+      if (!run<Expression>(*induction->getEnd())) {
+        return false;
+      }
+    }
+
+    if (!run(*forEquation.getEquation())) {
+      return false;
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  bool ConstantFoldingPass::run(Induction& induction)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    if (!run<Expression>(*induction.getBegin())) {
+      return false;
+    }
+
+    if (!run<Expression>(*induction.getBegin())) {
+      return true;
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  bool ConstantFoldingPass::run(Member& member)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto& type = member.getType();
+
+    for (auto& dimension : type.getDimensions()) {
+      if (dimension.hasExpression()) {
+        if (!run<Expression>(*dimension.getExpression())) {
+          return false;
+        }
+      }
+    }
+
+    if (member.hasInitializer()) {
+      if (!run<Expression>(*member.getInitializer())) {
+        return false;
+      }
+    }
+
+    if (member.hasStartOverload()) {
+      if (!run<Expression>(*member.getStartOverload())) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<Statement>(Statement& statement)
+  bool ConstantFoldingPass::run<Statement>(Statement& statement)
   {
     return statement.visit([&](auto& obj) {
       using type = decltype(obj);
@@ -346,836 +1038,117 @@ namespace marco::ast
     });
   }
 
-  template<>
-  llvm::Error ConstantFolder::run<AssignmentStatement>(Statement& statement)
+  bool ConstantFoldingPass::run(Algorithm& algorithm)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    for (auto& statement : algorithm.getBody()) {
+      if (!run<Statement>(*statement)) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool ConstantFoldingPass::run<AssignmentStatement>(Statement& statement)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* assignmentStatement = statement.get<AssignmentStatement>();
 
-    if (auto error = run<Expression>(*assignmentStatement->getDestinations()); error)
-      return error;
+    if (!run<Expression>(*assignmentStatement->getDestinations())) {
+      return false;
+    }
 
-    if (auto error = run<Expression>(*assignmentStatement->getExpression()); error)
-      return error;
+    if (!run<Expression>(*assignmentStatement->getExpression())) {
+      return false;
+    }
 
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<BreakStatement>(Statement& statement)
+  bool ConstantFoldingPass::run<BreakStatement>(Statement& statement)
   {
-    return llvm::Error::success();
+    return true;
   }
 
   template<>
-  llvm::Error ConstantFolder::run<ForStatement>(Statement& statement)
+  bool ConstantFoldingPass::run<ForStatement>(Statement& statement)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* forStatement = statement.get<ForStatement>();
 
-    if (auto error = run(*forStatement->getInduction()); error)
-      return error;
+    if (!run(*forStatement->getInduction())) {
+      return false;
+    }
 
-    for (auto& stmnt : forStatement->getBody())
-      if (auto error = run<Statement>(*stmnt); error)
-        return error;
+    for (auto& stmnt : forStatement->getBody()) {
+      if (!run<Statement>(*stmnt)) {
+        return false;
+      }
+    }
 
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::run(Induction& induction)
-  {
-    if (auto error = run<Expression>(*induction.getBegin()); error)
-      return error;
-
-    if (auto error = run<Expression>(*induction.getEnd()); error)
-      return error;
-
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<IfStatement>(Statement& statement)
+  bool ConstantFoldingPass::run<IfStatement>(Statement& statement)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* ifStatement = statement.get<IfStatement>();
 
-    for (auto& block : *ifStatement)
-    {
-      if (auto error = run<Expression>(*block.getCondition()); error)
-        return error;
+    for (auto& block : *ifStatement) {
+      if (!run<Expression>(*block.getCondition())) {
+        return false;
+      }
 
-      for (auto& stmnt : block)
-        if (auto error = run<Statement>(*stmnt); error)
-          return error;
+      for (auto& stmnt : block) {
+        if (!run<Statement>(*stmnt)) {
+          return false;
+        }
+      }
     }
 
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
-  llvm::Error ConstantFolder::run<ReturnStatement>(Statement& statement)
+  bool ConstantFoldingPass::run<ReturnStatement>(Statement& statement)
   {
-    return llvm::Error::success();
+    return true;
   }
 
   template<>
-  llvm::Error ConstantFolder::run<WhenStatement>(Statement& statement)
+  bool ConstantFoldingPass::run<WhenStatement>(Statement& statement)
   {
-    return llvm::Error::success();
+    llvm_unreachable("Not implemented");
+    return false;
   }
 
   template<>
-  llvm::Error ConstantFolder::run<WhileStatement>(Statement& statement)
+  bool ConstantFoldingPass::run<WhileStatement>(Statement& statement)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* whileStatement = statement.get<WhileStatement>();
 
-    if (auto error = run<Expression>(*whileStatement->getCondition()); error)
-      return error;
+    if (!run<Expression>(*whileStatement->getCondition())) {
+      return false;
+    }
 
-    for (auto& stmnt : whileStatement->getBody())
-      if (auto error = run<Statement>(*stmnt); error)
-        return error;
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::run(Algorithm& algorithm)
-  {
-    for (const auto& statement : algorithm.getBody())
-      if (auto error = run<Statement>(*statement); error)
-        return error;
-
-    return llvm::Error::success();
-  }
-
-  template<BuiltInType Type>
-  static llvm::Error foldAddOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::add);
-
-    using ResultType = frontendTypeToType_v<Type>;
-
-    // For each argument, if it is a constant then accumulate it, otherwise
-    // add it to the non constant values.
-    ResultType constantsSum = 0;
-    llvm::SmallVector<std::unique_ptr<Expression>, 3> newArgs;
-
-    // Depth first search, in order to preserve the order
-    std::stack<std::unique_ptr<Expression>> stack;
-
-    for (auto it = operation->getArguments().rbegin(), end = operation->getArguments().rend(); it != end; ++it)
-      stack.push(std::move(*it));
-
-    while (!stack.empty())
-    {
-      auto current = std::move(stack.top());
-      stack.pop();
-
-      if (auto* constant = current->dyn_get<Constant>())
-      {
-        // Constants can be folded
-        constantsSum += constant->as<Type>();
-      }
-      else if (auto* op = current->dyn_get<Operation>();
-               op && op->getOperationKind() == OperationKind::add)
-      {
-        for (auto it = op->getArguments().rbegin(), end = op->getArguments().rend(); it != end; ++it)
-          stack.push(std::move(*it));
-      }
-      else
-      {
-        newArgs.push_back(std::move(current));
+    for (auto& stmnt : whileStatement->getBody()) {
+      if (!run<Statement>(*stmnt)) {
+        return false;
       }
     }
 
-    // If there are no non-constant arguments, then transform the expression
-    // into a constant.
-    if (newArgs.empty())
-    {
-      expression = *Expression::constant(expression.getLocation(), makeType<ResultType>(), constantsSum);
-      return llvm::Error::success();
-    }
-
-    // If the accumulator is not the neutral value, then insert a new constant
-    // argument.
-    if (constantsSum != 0)
-      newArgs.push_back(Expression::constant(expression.getLocation(), makeType<ResultType>(), constantsSum));
-
-    // If there is just one argument, then replace the sum with that value
-    if (newArgs.size() == 1)
-    {
-      expression = *newArgs[0];
-      return llvm::Error::success();
-    }
-
-    // Otherwise apply the operation to all the arguments
-    expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::add, std::move(newArgs));
-    return llvm::Error::success();
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  llvm::Error ConstantFolder::foldAddOp(Expression& expression)
+  std::unique_ptr<Pass> createConstantFoldingPass(diagnostic::DiagnosticEngine& diagnostics)
   {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::add);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    if (expression.getType() == makeType<BuiltInType::Float>())
-      return ::foldAddOp<BuiltInType::Float>(expression);
-
-    if (expression.getType() == makeType<BuiltInType::Integer>())
-      return ::foldAddOp<BuiltInType::Integer>(expression);
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldDifferentOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::different);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      assert(args.size() == 2);
-
-      // Cast the values to floats, in order to avoid information loss
-      // during the static comparison.
-
-      auto x = args[0]->get<Constant>()->as<BuiltInType::Float>();
-      auto y = args[1]->get<Constant>()->as<BuiltInType::Float>();
-
-      if (x == y)
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), true);
-      else
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), false);
-    }
-
-    return llvm::Error::success();
-  }
-
-  template<BuiltInType Type>
-  static llvm::Error foldDivOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::divide);
-    using ResultType = frontendTypeToType_v<Type>;
-
-    llvm::SmallVector<std::unique_ptr<Expression>, 3> newArgs;
-
-    for (auto& arg : operation->getArguments())
-    {
-      if (newArgs.empty())
-      {
-        newArgs.push_back(std::move(arg));
-        continue;
-      }
-
-      if (!arg->isa<Constant>())
-      {
-        // If the current argument is not a constant, then there's nothing
-        // we can do.
-        newArgs.push_back(std::move(arg));
-      }
-      else
-      {
-        // If the previous element was a constant, then we can fold them.
-        auto& last = newArgs.back();
-
-        if (last->isa<Constant>())
-        {
-          *last = *Expression::constant(
-              arg->getLocation(),
-              makeType<ResultType>(),
-              last->get<Constant>()->as<Type>() / arg->get<Constant>()->as<Type>());
-        }
-        else
-        {
-          newArgs.push_back(std::move(arg));
-        }
-      }
-    }
-
-    assert(!newArgs.empty());
-
-    // If there is just one argument, then replace the sum with that value
-    if (newArgs.size() == 1)
-    {
-      expression = *newArgs[0];
-      return llvm::Error::success();
-    }
-
-    // Otherwise apply the operation to all the arguments
-    expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::divide, std::move(newArgs));
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldDivOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::divide);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    if (expression.getType() == makeType<BuiltInType::Float>())
-      return ::foldDivOp<BuiltInType::Float>(expression);
-
-    if (expression.getType() == makeType<BuiltInType::Integer>())
-      return ::foldDivOp<BuiltInType::Integer>(expression);
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldEqualOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::equal);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      assert(args.size() == 2);
-
-      // Cast the values to floats, in order to avoid information loss
-      // during the static comparison.
-
-      auto x = args[0]->get<Constant>()->as<BuiltInType::Float>();
-      auto y = args[1]->get<Constant>()->as<BuiltInType::Float>();
-
-      if (x == y)
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), true);
-      else
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), false);
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldGreaterOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::greater);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      assert(args.size() == 2);
-
-      // Cast the values to floats, in order to avoid information loss
-      // during the static comparison.
-
-      auto x = args[0]->get<Constant>()->as<BuiltInType::Float>();
-      auto y = args[1]->get<Constant>()->as<BuiltInType::Float>();
-
-      if (x > y)
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), true);
-      else
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), false);
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldGreaterEqualOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::greaterEqual);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      assert(args.size() == 2);
-
-      // Cast the values to floats, in order to avoid information loss
-      // during the static comparison.
-
-      auto x = args[0]->get<Constant>()->as<BuiltInType::Float>();
-      auto y = args[1]->get<Constant>()->as<BuiltInType::Float>();
-
-      if (x >= y)
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), true);
-      else
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), false);
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldIfElseOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::ifelse);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>())
-    {
-      assert(args.size() == 3);
-      bool value = args[0]->get<Constant>()->as<BuiltInType::Boolean>();
-      Type type = operation->getType();
-      expression = value ? *args[1] : *args[2];
-      expression.setType(std::move(type));
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldLessOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::less);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      assert(args.size() == 2);
-
-      // Cast the values to floats, in order to avoid information loss
-      // during the static comparison.
-
-      auto x = args[0]->get<Constant>()->as<BuiltInType::Float>();
-      auto y = args[1]->get<Constant>()->as<BuiltInType::Float>();
-
-      if (x < y)
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), true);
-      else
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), false);
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldLessEqualOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::lessEqual);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    auto args = operation->getArguments();
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      assert(args.size() == 2);
-
-      // Cast the values to floats, in order to avoid information loss
-      // during the static comparison.
-
-      auto x = args[0]->get<Constant>()->as<BuiltInType::Float>();
-      auto y = args[1]->get<Constant>()->as<BuiltInType::Float>();
-
-      if (x <= y)
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), true);
-      else
-        expression = *Expression::constant(expression.getLocation(), makeType<bool>(), false);
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldLogicalAndOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::land);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    // For each argument, if it is a constant then accumulate it, otherwise
-    // add it to the non constant values.
-    bool constant = true;
-    llvm::SmallVector<std::unique_ptr<Expression>, 3> newArgs;
-
-    for (auto& arg : operation->getArguments())
-    {
-      if (arg->isa<Constant>())
-        constant &= arg->get<Constant>()->as<BuiltInType::Boolean>();
-      else
-        newArgs.push_back(std::move(arg));
-    }
-
-    // If there are no non-constant arguments, then transform the expression
-    // into a constant.
-    if (newArgs.empty())
-    {
-      expression = *Expression::constant(expression.getLocation(), makeType<bool>(), constant);
-      return llvm::Error::success();
-    }
-
-    // If the accumulator is not the neutral value, then insert a new constant
-    // argument. We keep the other arguments also if the constant is false,
-    // because they may have side effects.
-
-    if (!constant)
-      newArgs.push_back(Expression::constant(expression.getLocation(), makeType<bool>(), constant));
-
-    // If there is just one argument, then replace the sum with that value
-    if (newArgs.size() == 1)
-    {
-      expression = *newArgs[0];
-      return llvm::Error::success();
-    }
-
-    // Otherwise apply the operation to all the arguments
-    expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::land, std::move(newArgs));
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldLogicalOrOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::lor);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    // For each argument, if it is a constant then accumulate it, otherwise
-    // add it to the non constant values.
-    bool constant = false;
-    llvm::SmallVector<std::unique_ptr<Expression>, 3> newArgs;
-
-    for (auto& arg : operation->getArguments())
-    {
-      if (arg->isa<Constant>())
-        constant |= arg->get<Constant>()->as<BuiltInType::Boolean>();
-      else
-        newArgs.push_back(std::move(arg));
-    }
-
-    // If there are no non-constant arguments, then transform the expression
-    // into a constant.
-    if (newArgs.empty())
-    {
-      expression = *Expression::constant(expression.getLocation(), makeType<bool>(), constant);
-      return llvm::Error::success();
-    }
-
-    // If the accumulator is not the neutral value, then insert a new constant
-    // argument. We keep the other arguments also if the constant is true,
-    // because they may have side effects.
-
-    if (constant)
-      newArgs.push_back(Expression::constant(expression.getLocation(), makeType<bool>(), constant));
-
-    // If there is just one argument, then replace the sum with that value
-    if (newArgs.size() == 1)
-    {
-      expression = *newArgs[0];
-      return llvm::Error::success();
-    }
-
-    // Otherwise apply the operation to all the arguments
-    expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::lor, std::move(newArgs));
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldMemberLookupOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::memberLookup);
-
-    for (auto& arg : operation->getArguments())
-      if(auto error = run<Expression>(*arg))
-        return error;
-
-    return llvm::Error::success();
-  }
-
-  template<BuiltInType Type>
-  static llvm::Error foldMulOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::multiply);
-    using ResultType = frontendTypeToType_v<Type>;
-
-    llvm::SmallVector<std::unique_ptr<Expression>, 3> newArgs;
-
-    for (auto& arg : operation->getArguments())
-    {
-      if (newArgs.empty())
-      {
-        newArgs.push_back(std::move(arg));
-        continue;
-      }
-
-      if (!arg->isa<Constant>())
-      {
-        // If the current argument is not a constant, then there's nothing
-        // we can do.
-        newArgs.push_back(std::move(arg));
-      }
-      else
-      {
-        // If the previous element was a constant, then we can fold them.
-        auto& last = newArgs.back();
-
-        if (last->isa<Constant>())
-        {
-          *last = *Expression::constant(
-              arg->getLocation(),
-              makeType<ResultType>(),
-              last->get<Constant>()->as<Type>() * arg->get<Constant>()->as<Type>());
-        }
-        else
-        {
-          newArgs.push_back(std::move(arg));
-        }
-      }
-    }
-
-    assert(!newArgs.empty());
-
-    // If there is just one argument, then replace the sum with that value
-    if (newArgs.size() == 1)
-    {
-      expression = *newArgs[0];
-      return llvm::Error::success();
-    }
-
-    // Otherwise apply the operation to all the arguments
-    expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::multiply, std::move(newArgs));
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldMulOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::multiply);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    if (expression.getType() == makeType<BuiltInType::Float>())
-      return ::foldMulOp<BuiltInType::Float>(expression);
-
-    if (expression.getType() == makeType<BuiltInType::Integer>())
-      return ::foldMulOp<BuiltInType::Integer>(expression);
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldNegateOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::negate);
-
-    if (auto error = run<Expression>(*operation->getArg(0)); error)
-      return error;
-
-    if (auto* arg = operation->getArg(0); arg->isa<Constant>())
-    {
-      auto* constant = arg->get<Constant>();
-      assert(constant->isa<BuiltInType::Boolean>());
-
-      bool value = constant->get<BuiltInType::Boolean>();
-      expression = *Expression::constant(operation->getLocation(), operation->getType(), !value);
-      return llvm::Error::success();
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldPowerOfOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::powerOf);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldRangeOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::range);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    return llvm::Error::success();
-  }
-
-  template<BuiltInType Type>
-  static llvm::Error foldSubOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::subtract);
-    using ResultType = frontendTypeToType_v<Type>;
-
-    assert(operation->argumentsCount() <= 2);
-    auto args = operation->getArguments();
-
-    if (args.size() == 1)
-    {
-      if (args[0]->isa<Constant>())
-      {
-        expression = *Expression::constant(expression.getLocation(), args[0]->getType(), -args[0]->get<Constant>()->get<Type>());
-        return llvm::Error::success();
-      }
-    }
-
-    if (args[0]->isa<Constant>() && args[1]->isa<Constant>())
-    {
-      expression = *Expression::constant(
-          expression.getLocation(),
-          makeType<ResultType>(),
-          args[0]->get<Constant>()->as<Type>() - args[1]->get<Constant>()->as<Type>());
-
-      return llvm::Error::success();
-    }
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldSubOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::subtract);
-
-    for (auto& arg : operation->getArguments())
-      if (auto error = run<Expression>(*arg); error)
-        return error;
-
-    if (expression.getType() == makeType<BuiltInType::Float>())
-      return ::foldSubOp<BuiltInType::Float>(expression);
-
-    if (expression.getType() == makeType<BuiltInType::Integer>())
-      return ::foldSubOp<BuiltInType::Integer>(expression);
-
-    return llvm::Error::success();
-  }
-
-  llvm::Error ConstantFolder::foldSubscriptionOp(Expression& expression)
-  {
-    auto* operation = expression.get<Operation>();
-    assert(operation->getOperationKind() == OperationKind::subscription);
-    auto args = operation->getArguments();
-
-    for (auto &	it:args)
-      if (auto error = run<Expression>(*it); error)
-        return error;
-
-    if (args[0]->isa<Constant>())
-    {
-      //todo handle implicit casting
-      expression = *args[0];
-      return llvm::Error::success();
-    }
-
-    if(auto *lhs = args[0]->dyn_get<Operation>(); lhs && lhs->getOperationKind() == OperationKind::subscription)
-    {
-      // collapse multiple subscriptions together. e.g.  (a[1])[2] -> a[1][2] or a[1,2]
-      auto nested_args = lhs->getArguments();
-
-      llvm::SmallVector<std::unique_ptr<Expression>,3> new_args;
-
-      for(auto &a : nested_args)
-        new_args.emplace_back(std::move(a));
-      bool first=true;
-      for(auto &a : args)
-        if(first)
-          first=false;
-        else
-          new_args.emplace_back(std::move(a));
-
-      expression = *Expression::operation(expression.getLocation(),expression.getType(),OperationKind::subscription, new_args);
-
-      operation = expression.get<Operation>();
-      args = operation->getArguments();
-    }
-
-    //substitutes the subscription with the constant value, if possible
-    if(args.size() == 2 && args[0]->isa<ReferenceAccess>() && args[1]->isa<Constant>()){
-      auto* reference = args[0]->get<ReferenceAccess>();
-      auto* index = args[1]->get<Constant>();
-
-      if(index->isa<BuiltInType::Integer>()){
-        int int_index = index->as<BuiltInType::Integer>();
-
-        if(int_index < 0){
-          // negative index : probably an error
-          return llvm::Error::success();
-        }
-
-        if (symbolTable.count(reference->getName()) == 0)
-        {
-          // Built-in variables (such as time) or functions are not in the symbol
-          // table.
-          return llvm::Error::success();
-        }
-
-        const auto& symbol = symbolTable.lookup(reference->getName());
-
-        if (!symbol.isa<Member>())
-          return llvm::Error::success();
-
-        // Try to fold references of known variables that have a initializer
-        const auto* member = symbol.get<Member>();
-
-        if (!member->hasInitializer())
-          return llvm::Error::success();
-
-        auto* initializer = member->getInitializer();
-
-        if (initializer->isa<Array>() && member->isParameter()){
-          auto* array = initializer->get<Array>();
-
-          if(int_index < array->size()){
-            //if all conditions are met, substitute the subscription with the constant value
-            expression = *(*array)[int_index];
-          }
-          return llvm::Error::success();
-        }
-      }
-
-    }
-
-    return llvm::Error::success();
-  }
-
-  std::unique_ptr<Pass> createConstantFolderPass()
-  {
-    return std::make_unique<ConstantFolder>();
+    return std::make_unique<ConstantFoldingPass>(diagnostics);
   }
 }
+

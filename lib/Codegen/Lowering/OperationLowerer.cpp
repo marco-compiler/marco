@@ -30,7 +30,7 @@ namespace marco::codegen::lowering
 
     return lowerOperation<OperationKind::negate>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       assert(args.size() == 1);
-      mlir::Value result = builder().create<NotOp>(loc, resultType, args[0]);
+      mlir::Value result = builder().create<NegateOp>(loc, resultType, args[0]);
       return Reference::ssa(&builder(), result);
     });
   }
@@ -66,29 +66,11 @@ namespace marco::codegen::lowering
   {
     mlir::Type resultType = lower(operation.getType());
 
-    if (operation.getArguments().size() == 1) {
-      // TODO
-      // Special case for sign change (i.e "-x").
-      // In future, when all the project will rely on MLIR, a different
-      // operation in the frontend should be created for this purpose.
-
-      return lowerOperation<OperationKind::subtract>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
-        assert(args.size() == 1);
-        mlir::Value result = builder().create<NegateOp>(loc, resultType, args[0]);
-        return Reference::ssa(&builder(), result);
-      });
-    }
-
-    if (operation.getArguments().size() == 2) {
-      return lowerOperation<OperationKind::subtract>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
-        assert(args.size() == 2);
-        mlir::Value result = builder().create<SubOp>(loc, resultType, args[0], args[1]);
-        return Reference::ssa(&builder(), result);
-      });
-    }
-
-    llvm_unreachable("Unexpect number of arguments for subtract operation.");
-    return Results();
+    return lowerOperation<OperationKind::subtract>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 2);
+      mlir::Value result = builder().create<SubOp>(loc, resultType, args[0], args[1]);
+      return Reference::ssa(&builder(), result);
+    });
   }
 
   Results OperationLowerer::subtractEW(const ast::Operation& operation)
@@ -239,6 +221,17 @@ namespace marco::codegen::lowering
     return lowerOperation<OperationKind::land>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
       assert(args.size() == 2);
       mlir::Value result = builder().create<AndOp>(loc, resultType, args[0], args[1]);
+      return Reference::ssa(&builder(), result);
+    });
+  }
+
+  Results OperationLowerer::logicalNot(const ast::Operation& operation)
+  {
+    mlir::Type resultType = lower(operation.getType());
+
+    return lowerOperation<OperationKind::lnot>(operation, [&](mlir::Location loc, mlir::ValueRange args) -> Results {
+      assert(args.size() == 1);
+      mlir::Value result = builder().create<NotOp>(loc, resultType, args[0]);
       return Reference::ssa(&builder(), result);
     });
   }

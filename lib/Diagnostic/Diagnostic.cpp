@@ -13,7 +13,7 @@ namespace marco::diagnostic
 
   DiagnosticOptions DiagnosticOptions::getDefaultOptions()
   {
-    DiagnosticOptions options;
+    static DiagnosticOptions options;
     return options;
   }
 
@@ -22,7 +22,7 @@ namespace marco::diagnostic
   //===----------------------------------------------------------------------===//
 
   DiagnosticEngine::DiagnosticEngine(std::unique_ptr<Printer> printer, DiagnosticOptions options)
-    : printer_(std::move(printer)), options_(std::move(options))
+    : numOfErrors_(0), printer_(std::move(printer)), options_(std::move(options))
   {
     if (this->printer_ == nullptr) {
       this->printer_ = std::make_unique<Printer>();

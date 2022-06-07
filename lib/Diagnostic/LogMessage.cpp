@@ -54,10 +54,9 @@ namespace marco::diagnostic
     }
   }
 
-  SourceMessage::SourceMessage(const char* source, SourceRange location)
-    : source(source), location(std::move(location))
+  SourceMessage::SourceMessage(SourceRange location)
+    : location(std::move(location))
   {
-    assert(source != nullptr);
   }
 
   SourceMessage::SourceMessage(const SourceMessage& other) = default;
@@ -75,8 +74,8 @@ namespace marco::diagnostic
     assert(*location.begin.file == *location.end.file);
     const auto& file = *location.begin.file;
 
-    if (file != "-") {
-      os << file << ":" << std::to_string(location.begin.line);
+    if (file.filePath() != "-") {
+      os << file.filePath() << ":" << std::to_string(location.begin.line);
     }
   }
 
@@ -85,7 +84,9 @@ namespace marco::diagnostic
     assert(*location.begin.file == *location.end.file);
     assert(location.begin.line < location.end.line || (location.begin.line == location.end.line && location.begin.column <= location.end.column));
 
-    auto buffer = llvm::MemoryBuffer::getMemBuffer(llvm::StringRef(source), *location.begin.file);
+    auto buffer = llvm::MemoryBuffer::getMemBuffer(
+        location.begin.file->source(),
+        location.begin.file->filePath());
 
     if (buffer == nullptr) {
       return;

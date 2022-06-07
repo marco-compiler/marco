@@ -1,156 +1,109 @@
 #ifndef MARCO_AST_PASSES_CONSTANTFOLDINGPASS_H
 #define MARCO_AST_PASSES_CONSTANTFOLDINGPASS_H
 
-#include "llvm/ADT/ScopedHashTable.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Error.h"
+#include "marco/AST/AST.h"
 #include "marco/AST/Pass.h"
-#include "marco/AST/SymbolTable.h"
-#include <memory>
+#include "marco/AST/Symbol.h"
+#include "marco/AST/BuiltInFunction.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace marco::ast
 {
-	class Algorithm;
-	class AssignmentStatement;
-	class BreakStatement;
-	class Call;
-	class Class;
-	class ClassContainer;
-	class Constant;
-	class PartialDerFunction;
-	class Equation;
-	class Expression;
-	class ForEquation;
-	class ForStatement;
-	class IfStatement;
-	class Member;
-	class Operation;
-	class ReferenceAccess;
-	class ReturnStatement;
-	class StandardFunction;
-	class Statement;
-	class Tuple;
-	class Type;
-	class WhenStatement;
-	class WhileStatement;
-
-	class ConstantFolder : public Pass
+	class ConstantFoldingPass : public Pass
 	{
 		public:
-		using SymbolTable = llvm::ScopedHashTable<llvm::StringRef, Symbol>;
-		using SymbolTableScope = llvm::ScopedHashTableScope<llvm::StringRef, Symbol>;
+      ConstantFoldingPass(diagnostic::DiagnosticEngine& diagnostics);
 
-		llvm::Error run(llvm::ArrayRef<std::unique_ptr<Class>> classes) final;
+      bool run(std::unique_ptr<Class>& cls) final;
 
-		llvm::Error run(Algorithm& algorithm);
+      template<typename T>
+      bool run(Class& cls);
 
-		template<typename T>
-		[[nodiscard]] llvm::Error run(Class& cls);
+      template<typename T>
+      bool run(Expression& expression);
 
-		llvm::Error run(Equation& equation);
+      template<OperationKind op>
+      bool processOp(Expression& expression);
 
-		template<typename T>
-		[[nodiscard]] llvm::Error run(Expression& expression);
+      template<typename T>
+      bool run(Statement& statement);
 
-		llvm::Error run(ForEquation& forEquation);
-		llvm::Error run(Induction& induction);
-		llvm::Error run(Member& member);
+      bool run(Equation& equation);
 
-		template<typename T>
-		[[nodiscard]] llvm::Error run(Statement& statement);
+      bool run(ForEquation& forEquation);
 
-		[[nodiscard]] llvm::Error foldAddOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldDifferentOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldDivOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldEqualOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldGreaterOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldGreaterEqualOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldIfElseOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldLogicalAndOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldLogicalOrOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldLessOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldLessEqualOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldMemberLookupOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldMulOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldNegateOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldPowerOfOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldRangeOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldSubOp(Expression& expression);
-		[[nodiscard]] llvm::Error foldSubscriptionOp(Expression& expression);
+      bool run(Induction& induction);
 
-		SymbolTable& getSymbolTable()
-		{
-			return symbolTable;
-		}
+      bool run(Member& member);
 
-		private:
-		llvm::ScopedHashTable<llvm::StringRef, Symbol> symbolTable;
+      bool run(Algorithm& algorithm);
 	};
 
-	template<>
-	llvm::Error ConstantFolder::run<Class>(Class& cls);
+  template<>
+  bool ConstantFoldingPass::run<Class>(Class& cls);
 
-	template<>
-	llvm::Error ConstantFolder::run<PartialDerFunction>(Class& cls);
+  template<>
+  bool ConstantFoldingPass::run<PartialDerFunction>(Class& cls);
 
-	template<>
-	llvm::Error ConstantFolder::run<StandardFunction>(Class& cls);
+  template<>
+  bool ConstantFoldingPass::run<StandardFunction>(Class& cls);
 
-	template<>
-	llvm::Error ConstantFolder::run<Model>(Class& cls);
+  template<>
+  bool ConstantFoldingPass::run<Model>(Class& cls);
 
-	template<>
-	llvm::Error ConstantFolder::run<Package>(Class& cls);
+  template<>
+  bool ConstantFoldingPass::run<Package>(Class& cls);
 
-	template<>
-	llvm::Error ConstantFolder::run<Record>(Class& cls);
+  template<>
+  bool ConstantFoldingPass::run<Record>(Class& cls);
 
-	template<>
-	llvm::Error ConstantFolder::run<Expression>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<Expression>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<Array>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<Array>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<Call>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<Call>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<Constant>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<Constant>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<Operation>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<Operation>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<ReferenceAccess>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<ReferenceAccess>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<Tuple>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<Tuple>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<RecordInstance>(Expression& expression);
+  template<>
+  bool ConstantFoldingPass::run<RecordInstance>(Expression& expression);
 
-	template<>
-	llvm::Error ConstantFolder::run<AssignmentStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<AssignmentStatement>(Statement& statement);
 
-	template<>
-	llvm::Error ConstantFolder::run<BreakStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<BreakStatement>(Statement& statement);
 
-	template<>
-	llvm::Error ConstantFolder::run<ForStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<ForStatement>(Statement& statement);
 
-	template<>
-	llvm::Error ConstantFolder::run<IfStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<IfStatement>(Statement& statement);
 
-	template<>
-	llvm::Error ConstantFolder::run<ReturnStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<ReturnStatement>(Statement& statement);
 
-	template<>
-	llvm::Error ConstantFolder::run<WhenStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<WhenStatement>(Statement& statement);
 
-	template<>
-	llvm::Error ConstantFolder::run<WhileStatement>(Statement& statement);
+  template<>
+  bool ConstantFoldingPass::run<WhileStatement>(Statement& statement);
 
-	std::unique_ptr<Pass> createConstantFolderPass();
+  std::unique_ptr<Pass> createConstantFoldingPass(diagnostic::DiagnosticEngine& diagnostics);
 }
 
 #endif // MARCO_AST_PASSES_CONSTANTFOLDINGPASS_H

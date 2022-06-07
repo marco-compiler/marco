@@ -1,15 +1,15 @@
 #ifndef MARCO_MODELING_SCC_H
 #define MARCO_MODELING_SCC_H
 
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/SCCIterator.h"
+#include "marco/Diagnostic/TreeOStream.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/Dependency.h"
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
-#include "marco/Utils/TreeOStream.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/SCCIterator.h"
 #include <list>
 #include <stack>
 

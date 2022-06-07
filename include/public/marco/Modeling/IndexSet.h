@@ -1,8 +1,8 @@
 #ifndef MARCO_MODELING_INDEXSET_H
 #define MARCO_MODELING_INDEXSET_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "llvm/ADT/ArrayRef.h"
 #include <memory>
 #include <list>
 #include <set>

@@ -15,7 +15,7 @@ namespace marco::parser
   class UnexpectedTokenMessage : public diagnostic::SourceMessage
   {
     public:
-      UnexpectedTokenMessage(const char* source, SourceRange location, Token actual, Token expected);
+      UnexpectedTokenMessage(SourceRange location, Token actual, Token expected);
 
       void print(diagnostic::PrinterInstance* printer) const override;
 
@@ -27,7 +27,7 @@ namespace marco::parser
   class UnexpectedIdentifierMessage : public diagnostic::SourceMessage
   {
     public:
-      UnexpectedIdentifierMessage(const char* source, SourceRange location, std::string actual, std::string expected);
+      UnexpectedIdentifierMessage(SourceRange location, std::string actual, std::string expected);
 
       void print(diagnostic::PrinterInstance* printer) const override;
 

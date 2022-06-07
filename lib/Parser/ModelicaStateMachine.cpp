@@ -52,7 +52,7 @@ static char escapedChar(char c)
 
 namespace marco::parser
 {
-  ModelicaStateMachine::ModelicaStateMachine(llvm::StringRef file, char first)
+  ModelicaStateMachine::ModelicaStateMachine(std::shared_ptr<SourceFile> file, char first)
     : state(State::Normal),
       current('\0'),
       next(first),

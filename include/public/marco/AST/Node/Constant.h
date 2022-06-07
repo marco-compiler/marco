@@ -74,8 +74,8 @@ namespace marco::ast
         if (isa<BuiltInType::Integer>())
           return static_cast<Tr>(get<BuiltInType::Integer>());
 
-        if (isa<BuiltInType::Float>())
-          return static_cast<Tr>(get<BuiltInType::Float>());
+        if (isa<BuiltInType::Real>())
+          return static_cast<Tr>(get<BuiltInType::Real>());
 
         if (isa<BuiltInType::Boolean>())
           return static_cast<Tr>(get<BuiltInType::Boolean>());

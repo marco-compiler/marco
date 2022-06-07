@@ -257,7 +257,7 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
 
     let description = [{
         Set all the elements of an array to a given value.
-        The value to be set must have the same type of array elemments.
+        The value to be set must have the same type of array elements.
 
         Example:
 

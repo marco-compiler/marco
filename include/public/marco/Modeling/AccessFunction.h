@@ -1,10 +1,10 @@
 #ifndef MARCO_MODELING_ACCESSFUNCTION_H
 #define MARCO_MODELING_ACCESSFUNCTION_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include <iostream>
 
 namespace marco::modeling

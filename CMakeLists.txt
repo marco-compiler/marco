@@ -195,7 +195,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # Simulation runtime profiling
 #-------------------------------------------------------------------------------
 
-option(MARCO_PROFILING "Generate code for runtime profiling.")
+option(MARCO_PROFILING "Generate code for runtime profiling." OFF)
 
 if (MARCO_PROFILING)
 	# If the profiling system is enabled, the macro is propagated to the libraries
@@ -208,7 +208,7 @@ endif()
 # Assertions toggle
 #-------------------------------------------------------------------------------
 
-option(ASSERTIONS "Assertions toggle.")
+option(ASSERTIONS "Assertions toggle." ON)
 
 if (NOT ASSERTIONS)
 	add_compile_definitions(NDEBUG)

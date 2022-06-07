@@ -1,8 +1,10 @@
 #ifndef MARCO_LEXER_LEXER_H
 #define MARCO_LEXER_LEXER_H
 
+#include "marco/Diagnostic/Location.h"
 #include "llvm/ADT/StringRef.h"
 #include <functional>
+#include <memory>
 
 namespace marco
 {
@@ -55,47 +57,33 @@ namespace marco
     };
   }
 
+  namespace lexer
+  {
+    template<typename Token>
+    struct TokenTraits
+    {
+      // static Token getNoneToken();
+      // static Token getEOFToken();
+
+      using Id = typename Token::UnknownTokenTypeError;
+    };
+  }
+
   template<typename StateMachine>
   class Lexer : public StateMachine
   {
     public:
       /// The type of objects that the state machine is allowed to return.
       using Token = typename StateMachine::Token;
+      using TokenTraits = typename lexer::TokenTraits<Token>;
 
-      /// Makes a lexer out of an iterable type.
-      /// The iterable type will be copied, so it is should be cheap to copy.
-      template<typename Iterator>
-      Lexer(llvm::StringRef file, const Iterator&& iter)
-        : StateMachine(file, *iter),
-          getNext([iter = iter]() mutable -> char {
+      explicit Lexer(std::shared_ptr<SourceFile> file)
+        : StateMachine(file, *file->source()),
+          getNext([iter = file->source()]() mutable -> char {
             iter++;
             return *iter;
           }),
-          lastChar(*iter)
-      {
-      }
-
-      /// Makes a lexer out of a string taken by reference. The string is not
-      /// copied, but is just used to extract an iterator.
-      /// Do NOT change the parameter to a llvm::StringRef, because it is not
-      /// null terminated.
-      Lexer(llvm::StringRef file, const std::string& str)
-        : StateMachine(file, str[0]),
-          getNext([iter = str.begin()]() mutable -> char {
-            iter++;
-            return *iter;
-          }),
-          lastChar(str[0])
-      {
-      }
-
-      Lexer(llvm::StringRef file, const char* str)
-        : StateMachine(file, *str),
-          getNext([iter = str]() mutable -> char {
-            iter++;
-            return *iter;
-          }),
-          lastChar(*str)
+          lastChar(*file->source())
       {
       }
 
@@ -106,7 +94,7 @@ namespace marco
       /// thus delegating him the responsibility of returning a token.
       Token scan()
       {
-        Token noneToken = StateMachine::getNoneToken();
+        Token noneToken = TokenTraits::getNoneToken();
         Token token = noneToken;
 
         while (token == noneToken) {
@@ -130,7 +118,7 @@ namespace marco
       /// Returns a iterator operating on this lexer loaded with the EOF token.
       detail::IteratorLexer<Lexer> end()
       {
-        return detail::IteratorLexer(this, StateMachine::getEOFToken());
+        return detail::IteratorLexer(this, TokenTraits::getEOFToken());
       }
 
     private:

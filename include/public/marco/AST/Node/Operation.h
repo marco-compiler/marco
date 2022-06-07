@@ -35,6 +35,7 @@ namespace marco::ast
 		less,
 		land,
 		lor,
+    lnot,
 		subscription,
 		memberLookup,
 		powerOf,

@@ -36,7 +36,7 @@ namespace marco::diagnostic
 	class SourceMessage : public Message
 	{
 		public:
-      SourceMessage(const char* source, SourceRange location);
+      SourceMessage(SourceRange location);
 
       SourceMessage(const SourceMessage& other);
       SourceMessage(SourceMessage&& other);
@@ -68,7 +68,6 @@ namespace marco::diagnostic
           bool shouldPrintLineNumber) const;
 
     private:
-      const char* source;
       SourceRange location;
 	};
 }

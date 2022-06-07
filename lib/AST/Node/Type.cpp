@@ -16,24 +16,61 @@ namespace marco::ast
 
 	std::string toString(BuiltInType type)
 	{
-		switch (type)
-		{
+		switch (type) {
 			case BuiltInType::None:
 				return "None";
+
 			case BuiltInType::Integer:
 				return "Integer";
-			case BuiltInType::Float:
+
+			case BuiltInType::Real:
 				return "Real";
+
 			case BuiltInType::String:
 				return "String";
+
 			case BuiltInType::Boolean:
 				return "Boolean";
+
 			case BuiltInType::Unknown:
 				return "Unknown";
 		}
 
-		assert(false && "Unexpected type");
+    llvm_unreachable("Unexpected type");
+    return "";
 	}
+
+  BuiltInType getMostGenericBuiltInType(BuiltInType x, BuiltInType y)
+  {
+    assert(x == BuiltInType::Boolean || x == BuiltInType::Integer || x == BuiltInType::Real);
+    assert(y == BuiltInType::Boolean || y == BuiltInType::Integer || y == BuiltInType::Real);
+
+    if (x == y) {
+      return x;
+    }
+
+    if (x == BuiltInType::Unknown) {
+      return y;
+    }
+
+    if (y == BuiltInType::Unknown) {
+      return x;
+    }
+
+    if (x == BuiltInType::Boolean) {
+      return y;
+    }
+
+    if (y == BuiltInType::Boolean) {
+      return x;
+    }
+
+    if (x == BuiltInType::Integer) {
+      return y;
+    }
+
+    return x;
+  }
 
   PackedType::PackedType(llvm::ArrayRef<Type> types)
   {
@@ -278,7 +315,7 @@ namespace marco::ast
 
   bool ArrayDimension::isDynamic() const
   {
-    return hasExpression() || getNumericSize() == -1;
+    return hasExpression() || getNumericSize() == kDynamicSize;
   }
 
   long ArrayDimension::getNumericSize() const
@@ -317,7 +354,6 @@ namespace marco::ast
         dimensions(dim.begin(), dim.end())
   {
     assert(std::holds_alternative<BuiltInType>(content));
-    assert(!dimensions.empty());
   }
 
   Type::Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim)
@@ -325,7 +361,6 @@ namespace marco::ast
         dimensions(dim.begin(), dim.end())
   {
     assert(std::holds_alternative<PackedType>(content));
-    assert(!dimensions.empty());
   }
 
   Type::Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim)
@@ -333,7 +368,6 @@ namespace marco::ast
         dimensions(dim.begin(), dim.end())
   {
     assert(std::holds_alternative<UserDefinedType>(content));
-    assert(!dimensions.empty());
   }
 
   Type::Type(Record *type, llvm::ArrayRef<ArrayDimension> dim)
@@ -342,7 +376,6 @@ namespace marco::ast
   {
     assert(type);
     assert(std::holds_alternative<Record*>(content));
-    assert(!dimensions.empty());
   }
 
   Type::Type(const Type& other)
@@ -398,12 +431,6 @@ namespace marco::ast
 
   size_t Type::getRank() const
   {
-    // TODO: temporary workaround for x[1] being considered as a scalar.
-    if (dimensions.size() == 1 &&
-        !dimensions[0].isDynamic() &&
-        dimensions[0].getNumericSize() == 1)
-      return 0;
-
     return dimensions.size();
   }
 
@@ -428,7 +455,7 @@ namespace marco::ast
     return dimensions.size();
   }
 
-  size_t Type::size() const
+  long Type::size() const
   {
     long result = 1;
 
@@ -437,7 +464,13 @@ namespace marco::ast
         return -1;
       }
 
-      result *= dimension.getNumericSize();
+      auto numericSize = dimension.getNumericSize();
+
+      if (numericSize == -1) {
+        return -1;
+      }
+
+      result *= numericSize;
     }
 
     return result;
@@ -460,11 +493,7 @@ namespace marco::ast
 
   bool Type::isScalar() const
   {
-    // TODO: Change this once the MLIR transition is complete. Arrays of 1 element are NOT scalars!
-
-    return dimensions.size() == 1 &&
-        !dimensions[0].hasExpression() &&
-        dimensions[0].getNumericSize() == 1;
+    return dimensions.empty();
   }
 
   Type::dimensions_iterator Type::begin()

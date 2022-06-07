@@ -1,4 +1,4 @@
-set(SOURCES
+set(AST_NODES
 	Node/Algorithm.cpp
 	Node/Annotation.cpp
 	Node/Array.cpp
@@ -23,13 +23,55 @@ set(SOURCES
 	Node/Statement.cpp
 	Node/Tuple.cpp
 	Node/Type.cpp
-	Node/TypePrefix.cpp
+	Node/TypePrefix.cpp)
+
+set(BUILT_IN_FUNCTIONS
+	BuiltInFunction/Abs.cpp
+	BuiltInFunction/Acos.cpp
+	BuiltInFunction/Asin.cpp
+	BuiltInFunction/Atan.cpp
+	BuiltInFunction/Atan2.cpp
+	BuiltInFunction/Cos.cpp
+	BuiltInFunction/Cosh.cpp
+	BuiltInFunction/Der.cpp
+	BuiltInFunction/Diagonal.cpp
+	BuiltInFunction/Exp.cpp
+	BuiltInFunction/Identity.cpp
+	BuiltInFunction/Linspace.cpp
+	BuiltInFunction/Log.cpp
+	BuiltInFunction/Log10.cpp
+	BuiltInFunction/Max.cpp
+	BuiltInFunction/Min.cpp
+	BuiltInFunction/Ndims.cpp
+	BuiltInFunction/Ones.cpp
+	BuiltInFunction/Product.cpp
+	BuiltInFunction/Sign.cpp
+	BuiltInFunction/Sin.cpp
+	BuiltInFunction/Sinh.cpp
+	BuiltInFunction/Size.cpp
+	BuiltInFunction/Sqrt.cpp
+	BuiltInFunction/Sum.cpp
+	BuiltInFunction/Symmetric.cpp
+	BuiltInFunction/Tan.cpp
+	BuiltInFunction/Tanh.cpp
+	BuiltInFunction/Transpose.cpp
+	BuiltInFunction/Zeros.cpp)
+
+set(PASSES
 	Passes/ConstantFoldingPass.cpp
 	Passes/PassManager.cpp
+	Passes/SemanticAnalysisPass.cpp
+	Passes/StructuralConstantPropagationPass.cpp
 	Passes/TypeCheckingPass.cpp
-	Errors.cpp
-	Symbol.cpp
-	SymbolTable.cpp)
+	Passes/TypeInferencePass.cpp)
+
+set(SOURCES
+	${AST_NODES}
+	${BUILT_IN_FUNCTIONS}
+	${PASSES}
+	BuiltInFunction.cpp
+	Pass.cpp
+	Symbol.cpp)
 
 marco_add_library(ast SHARED
 	${SOURCES}

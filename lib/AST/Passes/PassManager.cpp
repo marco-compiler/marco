@@ -1,17 +1,23 @@
 #include "marco/AST/PassManager.h"
 
-using namespace marco::ast;
+using namespace ::marco;
+using namespace ::marco::ast;
 
-void PassManager::addPass(std::unique_ptr<Pass> pass)
+namespace marco::ast
 {
-	passes.push_back(std::move(pass));
-}
+  void PassManager::addPass(std::unique_ptr<Pass> pass)
+  {
+    passes.push_back(std::move(pass));
+  }
 
-llvm::Error PassManager::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
-{
-	for (auto& pass : passes)
-		if (auto error = pass->run(classes); error)
-			return error;
+  bool PassManager::run(std::unique_ptr<Class>& cls)
+  {
+    for (auto& pass : passes) {
+      if (!pass->run(cls)) {
+        return false;
+      }
+    }
 
-	return llvm::Error::success();
+    return true;
+  }
 }

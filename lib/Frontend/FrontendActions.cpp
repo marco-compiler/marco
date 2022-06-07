@@ -110,7 +110,7 @@ namespace marco::frontend
 
   bool EmitFinalASTAction::beginAction()
   {
-    return runFlattening() && runParse() && runFrontendPasses() ;
+    return runFlattening() && runParse() && runFrontendPasses();
   }
 
   void EmitFinalASTAction::execute()

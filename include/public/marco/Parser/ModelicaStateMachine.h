@@ -6,7 +6,25 @@
 #include "marco/Parser/FloatLexer.h"
 #include "marco/Parser/Token.h"
 #include "llvm/ADT/StringMap.h"
+#include <memory>
 #include <string>
+
+namespace marco::lexer
+{
+  template<>
+  struct TokenTraits<parser::Token>
+  {
+    static parser::Token getNoneToken()
+    {
+      return parser::Token::None;
+    }
+
+    static parser::Token getEOFToken()
+    {
+      return parser::Token::EndOfFile;
+    }
+  };
+}
 
 namespace marco::parser
 {
@@ -43,7 +61,7 @@ namespace marco::parser
         IgnoredCharacter
       };
 
-      ModelicaStateMachine(llvm::StringRef file, char first);
+      ModelicaStateMachine(std::shared_ptr<SourceFile> file, char first);
 
 		  /// Returns the last seen identifier, or the one being built if the machine
 		  /// is in the process of recognizing one.

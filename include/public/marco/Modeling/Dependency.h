@@ -1,17 +1,17 @@
 #ifndef MARCO_MODELING_DEPENDENCY_H
 #define MARCO_MODELING_DEPENDENCY_H
 
-#include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/PostOrderIterator.h"
-#include "llvm/ADT/SCCIterator.h"
-#include "llvm/ADT/STLExtras.h"
+#include "marco/Diagnostic/TreeOStream.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
-#include "marco/Utils/TreeOStream.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/SCCIterator.h"
+#include "llvm/ADT/STLExtras.h"
 
 namespace marco::modeling
 {

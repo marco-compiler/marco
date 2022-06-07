@@ -32,6 +32,7 @@ namespace marco::codegen::lowering
       Results lessOrEqual(const ast::Operation& operation);
       Results less(const ast::Operation& operation);
       Results logicalAnd(const ast::Operation& operation);
+      Results logicalNot(const ast::Operation& operation);
       Results logicalOr(const ast::Operation& operation);
       Results subscription(const ast::Operation& operation);
       Results memberLookup(const ast::Operation& operation);

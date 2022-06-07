@@ -18,7 +18,7 @@ namespace marco::codegen::lowering
   mlir::Location Lowerer::loc(const SourcePosition& location)
   {
     return mlir::FileLineColLoc::get(
-        builder().getIdentifier(*location.file),
+        builder().getIdentifier(location.file->filePath()),
         location.line,
         location.column);
   }
@@ -100,7 +100,7 @@ namespace marco::codegen::lowering
       case BuiltInType::Integer:
         return IntegerType::get(builder().getContext());
 
-      case BuiltInType::Float:
+      case BuiltInType::Real:
         return RealType::get(builder().getContext());
 
       case BuiltInType::Boolean:

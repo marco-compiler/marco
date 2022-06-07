@@ -1,15 +1,12 @@
 set(SOURCES
-    AnnotationTest.cpp
     ArrayTest.cpp
     ConstantFolderTest.cpp
     ExpressionTest.cpp
-    FunctionTest.cpp
-    LexerStateMachineTest.cpp
-    ParserClassTest.cpp
-    ParserTest.cpp
+    SemanticAnalysisTest.cpp
     StatementTest.cpp
     TupleTest.cpp
-    TypeCheckerTest.cpp)
+    TypeCheckingTest.cpp
+    TypeInferenceTest.cpp)
 
 marco_add_unittest(ASTTest ${SOURCES})
 

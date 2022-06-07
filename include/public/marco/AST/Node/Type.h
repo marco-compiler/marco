@@ -21,7 +21,7 @@ namespace marco::ast
   {
     None,
     Integer,
-    Float,
+    Real,
     String,
     Boolean,
     Unknown
@@ -30,6 +30,14 @@ namespace marco::ast
   llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const BuiltInType& obj);
 
   std::string toString(BuiltInType type);
+
+  /// Get the most generic built-in numeric type.
+  ///     x/y     Unknown       Boolean       Integer       Real
+  ///   Unknown     x/y           y              y           y
+  ///   Boolean      x           x/y             y           y
+  ///   Integer      x            x             x/y          y
+  ///   Real         x            x              x          x/y
+  BuiltInType getMostGenericBuiltInType(BuiltInType x, BuiltInType y);
 
   namespace detail
   {
@@ -99,13 +107,13 @@ namespace marco::ast
     template<>
     struct [[maybe_unused]] FrontendType<float>
     {
-      static const BuiltInType value = BuiltInType::Float;
+      static const BuiltInType value = BuiltInType::Real;
     };
 
     template<>
     struct [[maybe_unused]] FrontendType<double>
     {
-      static const BuiltInType value = BuiltInType::Float;
+      static const BuiltInType value = BuiltInType::Real;
     };
 
     template<>
@@ -129,11 +137,11 @@ namespace marco::ast
   class frontendTypeToType<BuiltInType::Integer>
   {
     public:
-      using value = long;
+      using value = int64_t;
   };
 
   template<>
-  class frontendTypeToType<BuiltInType::Float>
+  class frontendTypeToType<BuiltInType::Real>
   {
     public:
       using value = double;
@@ -237,6 +245,8 @@ namespace marco::ast
   class ArrayDimension
   {
     public:
+      static constexpr long kDynamicSize = -1;
+
       ArrayDimension(long size);
       ArrayDimension(std::unique_ptr<Expression> size);
 
@@ -291,10 +301,10 @@ namespace marco::ast
       using dimensions_iterator = Container<ArrayDimension>::iterator;
       using dimensions_const_iterator = Container<ArrayDimension>::const_iterator;
 
-      Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
-      Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
-      Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
-      Type(Record *type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
+      Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim = llvm::None);
+      Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim = llvm::None);
+      Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim = llvm::None);
+      Type(Record *type, llvm::ArrayRef<ArrayDimension> dim = llvm::None);
 
       Type(const Type& other);
       Type(Type&& other);
@@ -369,7 +379,7 @@ namespace marco::ast
       void setDimensions(llvm::ArrayRef<ArrayDimension> dimensions);
 
       [[nodiscard]] size_t dimensionsCount() const;
-      [[nodiscard]] size_t size() const;
+      [[nodiscard]] long size() const;
 
       [[nodiscard]] bool hasConstantShape() const;
 

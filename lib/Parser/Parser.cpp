@@ -7,7 +7,7 @@ using namespace ::marco::parser;
 
 #define EXPECT(Token)                                                                                     \
 	if (!accept<Token>()) {                                                                                 \
-	  diagnostics->emitError<UnexpectedTokenMessage>(source, lexer.getTokenPosition(), current, Token);     \
+	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);     \
     return llvm::None;                                                                                    \
   }                                                                                                       \
   static_assert(true)
@@ -21,23 +21,12 @@ using namespace ::marco::parser;
 
 namespace marco::parser
 {
-  Parser::Parser(diagnostic::DiagnosticEngine& diagnostics, llvm::StringRef file, const char* source)
+  Parser::Parser(diagnostic::DiagnosticEngine& diagnostics, std::shared_ptr<SourceFile> file)
       : diagnostics(&diagnostics),
-        source(source),
-        lexer(file, source),
+        lexer(file),
         current(Token::Begin)
   {
     next();
-  }
-
-  Parser::Parser(diagnostic::DiagnosticEngine& diagnostics, const std::string& source)
-    : Parser(diagnostics, "-", source.data())
-  {
-  }
-
-  Parser::Parser(diagnostic::DiagnosticEngine& diagnostics, const char* source)
-    : Parser(diagnostics, "-", source)
-  {
   }
 
   void Parser::next()
@@ -275,7 +264,7 @@ namespace marco::parser
 
     if (name->getValue() != endName->getValue()) {
       diagnostics->emitError<UnexpectedIdentifierMessage>(
-          source, endName->getLocation(), endName->getValue(), name->getValue());
+          endName->getLocation(), endName->getValue(), name->getValue());
 
       return llvm::None;
     }
@@ -709,7 +698,7 @@ namespace marco::parser
     loc.end = (*relation)->getLocation().end;
 
     if (negated) {
-      return Expression::operation(std::move(loc), Type::unknown(), OperationKind::negate, std::move(*relation));
+      return Expression::operation(std::move(loc), Type::unknown(), OperationKind::lnot, std::move(*relation));
     }
 
     return std::move(*relation);
@@ -780,7 +769,7 @@ namespace marco::parser
     loc.end = (*term)->getLocation().end;
 
     auto result = negative
-        ? Expression::operation(loc, Type::unknown(), OperationKind::subtract, std::move(*term))
+        ? Expression::operation(loc, Type::unknown(), OperationKind::negate, std::move(*term))
         : std::move(*term);
 
     while (current == Token::Plus || current == Token::PlusEW || current == Token::Minus || current == Token::MinusEW) {
@@ -906,7 +895,7 @@ namespace marco::parser
 
     if (current == Token::FloatingPoint) {
       TRY(value, parseFloatValue());
-      return Expression::constant(value->getLocation(), makeType<BuiltInType::Float>(), value->getValue());
+      return Expression::constant(value->getLocation(), makeType<BuiltInType::Real>(), value->getValue());
     }
 
     if (current == Token::String) {
@@ -1373,10 +1362,6 @@ namespace marco::parser
       EXPECT(Token::RSquare);
     }
 
-    if (dimensions.empty()) {
-      dimensions.emplace_back(1);
-    }
-
     if (name == "string") {
       return Type(BuiltInType::String, dimensions);
     }
@@ -1390,7 +1375,7 @@ namespace marco::parser
     }
 
     if (name == "Real") {
-      return Type(BuiltInType::Float, dimensions);
+      return Type(BuiltInType::Real, dimensions);
     }
 
     return Type(UserDefinedType(name, {}), dimensions);

@@ -7,8 +7,8 @@ using namespace ::marco::parser;
 
 namespace marco::parser
 {
-  UnexpectedTokenMessage::UnexpectedTokenMessage(const char* source, SourceRange location, Token actual, Token expected)
-    : SourceMessage(source, std::move(location)),
+  UnexpectedTokenMessage::UnexpectedTokenMessage(SourceRange location, Token actual, Token expected)
+    : SourceMessage(std::move(location)),
       actual(actual),
       expected(expected)
   {
@@ -46,8 +46,8 @@ namespace marco::parser
     printLines(os, highlightSourceFn);
   }
 
-  UnexpectedIdentifierMessage::UnexpectedIdentifierMessage(const char* source, SourceRange location, std::string actual, std::string expected)
-    : SourceMessage(source, std::move(location)),
+  UnexpectedIdentifierMessage::UnexpectedIdentifierMessage(SourceRange location, std::string actual, std::string expected)
+    : SourceMessage(std::move(location)),
       actual(std::move(actual)),
       expected(std::move(expected))
   {

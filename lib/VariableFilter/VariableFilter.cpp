@@ -159,7 +159,8 @@ namespace marco
   llvm::Expected<VariableFilter> VariableFilter::fromString(llvm::StringRef str)
   {
     VariableFilter vf;
-    Parser parser(vf, str);
+    auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+    Parser parser(vf, sourceFile);
 
     if (auto error = parser.run()) {
       return std::move(error);

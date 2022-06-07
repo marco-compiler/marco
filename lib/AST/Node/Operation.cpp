@@ -67,6 +67,9 @@ namespace marco::ast
 			case OperationKind::land:
 				return "land";
 
+      case OperationKind::lnot:
+        return "lnot";
+
 			case OperationKind::lor:
 				return "lor";
 
@@ -353,6 +356,9 @@ namespace marco::ast
 
       case OperationKind::land:
         return "(" + toString(*obj[0]) + " && " + toString(*obj[1]) + ")";
+
+      case OperationKind::lnot:
+        return "(not " + toString(*obj[0]) + ")";
 
       case OperationKind::lor:
         return "(" + toString(*obj[0]) + " || " + toString(*obj[1]) + ")";

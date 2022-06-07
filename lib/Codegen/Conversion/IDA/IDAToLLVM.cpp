@@ -830,6 +830,10 @@ namespace
           auto constantAccess = dimensionAccess.cast<mlir::AffineConstantExpr>();
           accessValues.push_back(rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(-1)));
           accessValues.push_back(rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(constantAccess.getValue())));
+        } else if (dimensionAccess.isa<mlir::AffineDimExpr>()) {
+          auto dimension = dimensionAccess.cast<mlir::AffineDimExpr>();
+          accessValues.push_back(rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(dimension.getPosition())));
+          accessValues.push_back(rewriter.create<mlir::ConstantOp>(loc, rewriter.getI64IntegerAttr(0)));
         } else {
           auto dynamicAccess = dimensionAccess.cast<mlir::AffineBinaryOpExpr>();
           auto dimension = dynamicAccess.getLHS().cast<mlir::AffineDimExpr>();

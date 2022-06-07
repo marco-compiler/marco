@@ -2,6 +2,7 @@
 #define MARCO_DIAGNOSTIC_LOCATION_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include <memory>
 
 namespace llvm
@@ -11,25 +12,33 @@ namespace llvm
 
 namespace marco
 {
+  class SourceFile
+  {
+    public:
+      SourceFile(llvm::StringRef file, std::unique_ptr<llvm::MemoryBuffer> buffer);
+
+      bool operator==(const SourceFile& other) const;
+
+      llvm::StringRef filePath() const;
+      const char* source() const;
+
+    private:
+      std::string filePath_;
+      std::unique_ptr<llvm::MemoryBuffer> buffer_;
+  };
+
   class SourcePosition
   {
     public:
-      SourcePosition(llvm::StringRef file, int64_t line, int64_t column);
+      SourcePosition(std::shared_ptr<SourceFile> file, int64_t line, int64_t column);
 
       static SourcePosition unknown();
 
     public:
-      std::shared_ptr<std::string> file;
+      std::shared_ptr<SourceFile> file;
       int64_t line;
       int64_t column;
   };
-
-  /*
-  llvm::raw_ostream& operator<<(
-      llvm::raw_ostream& stream, const SourcePosition& obj);
-
-  std::string toString(const SourcePosition& obj);
-   */
 
   class SourceRange
   {
@@ -37,11 +46,6 @@ namespace marco
       SourceRange(SourcePosition begin, SourcePosition end);
 
       static SourceRange unknown();
-
-      //SourcePosition getStartPosition() const;
-      //void extendEnd(SourceRange to);
-
-      //void printLines(llvm::raw_ostream& os) const;
 
     public:
       SourcePosition begin;

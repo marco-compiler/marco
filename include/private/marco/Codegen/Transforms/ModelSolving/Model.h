@@ -40,6 +40,10 @@ namespace marco::codegen
 
         void setDerivativesMap(DerivativesMap map);
 
+      protected:
+        /// Hook function that is called when a new set of variables is set.
+        virtual void onVariablesSet(Variables newVariables);
+
       private:
         mlir::Operation* modelOp;
         Variables variables;
@@ -66,6 +70,18 @@ namespace marco::codegen
       void setEquations(Equations<EquationType> value)
       {
         this->equations = std::move(value);
+
+        for (auto& equation : this->equations) {
+          equation->setVariables(getVariables());
+        }
+      }
+
+    protected:
+      void onVariablesSet(Variables newVariables) override
+      {
+        for (auto& equation : equations) {
+          equation->setVariables(newVariables);
+        }
       }
 
     private:

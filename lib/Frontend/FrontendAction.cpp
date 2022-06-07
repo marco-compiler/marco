@@ -118,8 +118,7 @@ namespace marco::frontend
 
     auto result = exec(cmd.c_str(), ci.getFlattened());
 
-    if(!result)
-    {
+    if (!result) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,
           "OMC flattening failed");
@@ -136,7 +135,8 @@ namespace marco::frontend
     CompilerInstance& ci = instance();
 
     diagnostic::DiagnosticEngine diagnostics(std::make_unique<diagnostic::Printer>());
-    parser::Parser parser(diagnostics, ci.getFlattened());
+    auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(ci.getFlattened()));
+    parser::Parser parser(diagnostics, sourceFile);
     auto cls = parser.parseRoot();
 
     if (!cls.hasValue()) {
@@ -155,20 +155,20 @@ namespace marco::frontend
   bool FrontendAction::runFrontendPasses()
   {
     CompilerInstance& ci = instance();
+    diagnostic::DiagnosticEngine diagnostics(std::make_unique<diagnostic::Printer>());
 
     marco::ast::PassManager frontendPassManager;
-    frontendPassManager.addPass(ast::createTypeCheckingPass());
-    frontendPassManager.addPass(ast::createConstantFolderPass());
-    auto error = frontendPassManager.run(instance().getAST());
+    frontendPassManager.addPass(ast::createTypeInferencePass(diagnostics));
+    frontendPassManager.addPass(ast::createTypeCheckingPass(diagnostics));
+    frontendPassManager.addPass(ast::createSemanticAnalysisPass(diagnostics));
+    frontendPassManager.addPass(ast::createConstantFoldingPass(diagnostics));
 
-    if (error) {
+    if (!frontendPassManager.run(instance().getAST())) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,
           "Frontend passes failed");
 
       ci.getDiagnostics().Report(diagID);
-      llvm::errs() << error;
-      llvm::consumeError(std::move(error));
       return false;
     }
 
@@ -277,6 +277,8 @@ namespace marco::frontend
     }
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
+      ci.getMLIRModule().dump();
+
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,
           "Modelica dialect conversion failure");

@@ -1,7 +1,7 @@
 #ifndef MARCO_AST_PASS_H
 #define MARCO_AST_PASS_H
 
-#include "llvm/Support/Error.h"
+#include "marco/Diagnostic/Diagnostic.h"
 
 namespace marco::ast
 {
@@ -10,17 +10,23 @@ namespace marco::ast
 	class Pass
 	{
 		public:
-		Pass() = default;
-		Pass(const Pass& other) = default;
+      Pass(diagnostic::DiagnosticEngine& diagnostics);
+      Pass(const Pass& other);
 
-		Pass(Pass&& other) = default;
-		Pass& operator=(Pass&& other) = default;
+      Pass(Pass&& other);
+      Pass& operator=(Pass&& other);
 
-		virtual ~Pass() = default;
+      virtual ~Pass();
 
-		Pass& operator=(const Pass& other) = default;
+      Pass& operator=(const Pass& other);
 
-		virtual llvm::Error run(llvm::ArrayRef<std::unique_ptr<Class>> classes) = 0;
+      virtual bool run(std::unique_ptr<Class>& cls) = 0;
+
+    protected:
+      diagnostic::DiagnosticEngine* diagnostics();
+
+    private:
+      diagnostic::DiagnosticEngine* diagnostics_;
 	};
 }
 

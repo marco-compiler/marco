@@ -274,8 +274,13 @@ static mlir::LogicalResult createDerivativeVariables(
     variables.push_back(derMemberOp);
 
     mlir::Value zero = builder.create<ConstantOp>(derMemberOp.getLoc(), RealAttr::get(builder.getContext(), 0));
-    mlir::Value derivative = builder.create<MemberLoadOp>(derMemberOp.getLoc(), derMemberOp);
-    builder.create<ArrayFillOp>(derMemberOp.getLoc(), derivative, zero);
+
+    if (derType.isScalar()) {
+      builder.create<MemberStoreOp>(derMemberOp.getLoc(), derMemberOp, zero);
+    } else {
+      mlir::Value derivative = builder.create<MemberLoadOp>(derMemberOp.getLoc(), derMemberOp);
+      builder.create<ArrayFillOp>(derMemberOp.getLoc(), derivative, zero);
+    }
   }
 
   builder.setInsertionPointToEnd(&modelOp.initRegion().back());
@@ -487,7 +492,7 @@ namespace
         marco::codegen::TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
         ModelConverter modelConverter(options, typeConverter);
 
-        if (auto status = modelConverter.convert(builder, scheduledModel); mlir::failed(status)) {
+        if (mlir::failed(modelConverter.convert(builder, scheduledModel))) {
           return signalPassFailure();
         }
 

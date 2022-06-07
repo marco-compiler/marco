@@ -5,7 +5,7 @@
 #include "marco/VariableFilter/LexerStateMachine.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "marco/Diagnostic/Location.h"
-#include "marco/Utils/Lexer.h"
+#include "marco/Parser/Lexer.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -14,7 +14,7 @@ namespace marco::vf
   class Parser
   {
     public:
-      Parser(VariableFilter& vf, llvm::StringRef source);
+      Parser(VariableFilter& vf, std::shared_ptr<SourceFile> file);
 
       llvm::Error run();
 
@@ -53,13 +53,10 @@ namespace marco::vf
 
       llvm::Expected<bool> expect(Token t);
 
-      void updateTokenSourceRange();
-
     private:
       VariableFilter* vf;
       Lexer<LexerStateMachine> lexer;
       Token current;
-      SourceRange tokenRange;
   };
 }
 

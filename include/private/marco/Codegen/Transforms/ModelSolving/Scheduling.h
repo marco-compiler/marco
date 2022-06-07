@@ -444,7 +444,23 @@ namespace marco::codegen
       }
 
       void setScheduledBlocks(ScheduledEquationsBlocks blocks) {
-        scheduledBlocks = std::move(blocks);
+        this->scheduledBlocks = std::move(blocks);
+
+        for (auto& scheduledBlock : this->scheduledBlocks) {
+          for (auto& equation : *scheduledBlock) {
+            equation->setVariables(getVariables());
+          }
+        }
+      }
+
+    protected:
+      void onVariablesSet(Variables newVariables) override
+      {
+        for (auto& scheduledBlock : scheduledBlocks) {
+          for (auto& equation : *scheduledBlock) {
+            equation->setVariables(newVariables);
+          }
+        }
       }
 
     private:

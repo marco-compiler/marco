@@ -15,19 +15,16 @@ static bool isNonDigit(char c)
 
 namespace marco::vf
 {
-  LexerStateMachine::LexerStateMachine(char first)
+  LexerStateMachine::LexerStateMachine(std::shared_ptr<SourceFile> file, char first)
       : state(State::Normal),
         current('\0'),
         next(first),
         currentToken(Token::BeginOfFile),
         lastIdentifier(""),
         lastRegex(""),
-        currentLine(1),
-        currentColumn(0),
-        startLine(1),
-        startColumn(0),
-        endLine(1),
-        endColumn(0)
+        currentPosition(SourcePosition(file, 1, 0)),
+        beginPosition(SourcePosition(file, 1, 0)),
+        endPosition(SourcePosition(file, 1, 0))
   {
     symbols['('] = Token::LPar;
     symbols[')'] = Token::RPar;
@@ -43,36 +40,6 @@ namespace marco::vf
   Token LexerStateMachine::getCurrent() const
   {
     return currentToken;
-  }
-
-  size_t LexerStateMachine::getCurrentLine() const
-  {
-    return currentLine;
-  }
-
-  size_t LexerStateMachine::getCurrentColumn() const
-  {
-    return currentColumn;
-  }
-
-  size_t LexerStateMachine::getTokenStartLine() const
-  {
-    return startLine;
-  }
-
-  size_t LexerStateMachine::getTokenStartColumn() const
-  {
-    return startColumn;
-  }
-
-  size_t LexerStateMachine::getTokenEndLine() const
-  {
-    return endLine;
-  }
-
-  size_t LexerStateMachine::getTokenEndColumn() const
-  {
-    return endColumn;
   }
 
   const std::string& LexerStateMachine::getLastIdentifier() const
@@ -95,16 +62,36 @@ namespace marco::vf
     return error;
   }
 
+  SourcePosition LexerStateMachine::getCurrentPosition() const
+  {
+    return currentPosition;
+  }
+
+  SourceRange LexerStateMachine::getTokenPosition() const
+  {
+    return SourceRange(beginPosition, endPosition);
+  }
+
   void LexerStateMachine::advance(char c)
   {
     current = next;
     next = c;
-    currentColumn++;
+    ++currentPosition.column;
 
     if (current == '\n') {
-      currentColumn = 0;
-      currentLine++;
+      currentPosition.column = 0;
+      ++currentPosition.line;
     }
+  }
+
+  void LexerStateMachine::setTokenBeginPosition()
+  {
+    beginPosition = currentPosition;
+  }
+
+  void LexerStateMachine::setTokenEndPosition()
+  {
+    endPosition = currentPosition;
   }
 
   Token LexerStateMachine::stringToToken(llvm::StringRef str) const
@@ -143,25 +130,12 @@ namespace marco::vf
     return token;
   }
 
-  void LexerStateMachine::setTokenStartPosition()
-  {
-    startLine = currentLine;
-    startColumn = currentColumn;
-  }
-
-  void LexerStateMachine::setTokenEndPosition()
-  {
-    endLine = currentLine;
-    endColumn = currentColumn;
-  }
-
   template<>
   Token LexerStateMachine::scan<LexerStateMachine::State::ParsingId>()
   {
     lastIdentifier.push_back(current);
 
-    if (!isDigit(next) && !isNonDigit(next) && next != '.')
-    {
+    if (!isDigit(next) && !isNonDigit(next) && next != '.') {
       state = State::Normal;
       setTokenEndPosition();
       return stringToToken(lastIdentifier);
@@ -173,11 +147,11 @@ namespace marco::vf
   template<>
   Token LexerStateMachine::scan<LexerStateMachine::State::ParsingNum>()
   {
-    if (isDigit(current))
+    if (isDigit(current)) {
       lastNum += (current - '0');
+    }
 
-    if (!isDigit(next))
-    {
+    if (!isDigit(next)) {
       state = State::Normal;
       setTokenEndPosition();
       return Token::Integer;
@@ -189,15 +163,13 @@ namespace marco::vf
   template<>
   Token LexerStateMachine::scan<LexerStateMachine::State::ParsingRegex>()
   {
-    if (current == '/')
-    {
+    if (current == '/') {
       state = State::Normal;
       setTokenEndPosition();
       return Token::Regex;
     }
 
-    if (current == '\0')
-    {
+    if (current == '\0') {
       state = State::End;
       error = "Reached end of string while parsing a regex";
       return Token::Error;
@@ -210,35 +182,33 @@ namespace marco::vf
   template<>
   Token LexerStateMachine::scan<LexerStateMachine::State::Normal>()
   {
-    if (std::isspace(current) != 0)
+    if (std::isspace(current) != 0) {
       return Token::None;
+    }
 
-    setTokenStartPosition();
+    setTokenBeginPosition();
+    setTokenEndPosition();
 
-    if (isNonDigit(current))
-    {
+    if (isNonDigit(current)) {
       state = State::ParsingId;
       lastIdentifier = "";
 
       return scan<State::ParsingId>();
     }
 
-    if (isDigit(current))
-    {
+    if (isDigit(current)) {
       state = State::ParsingNum;
       lastNum = IntegerLexer<10>();
       return scan<State::ParsingNum>();
     }
 
-    if (current == '/')
-    {
+    if (current == '/') {
       state = State::ParsingRegex;
       lastRegex = "";
       return Token::None;
     }
 
-    if (current == '\0')
-    {
+    if (current == '\0') {
       state = State::End;
       return Token::EndOfFile;
     }
@@ -250,8 +220,7 @@ namespace marco::vf
   {
     advance(c);
 
-    switch (state)
-    {
+    switch (state) {
       case (State::Normal):
         return scan<State::Normal>();
 

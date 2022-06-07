@@ -46,6 +46,7 @@ namespace marco::diagnostic
 
   PrinterInstance::PrinterInstance(Printer* printer, Level level, bool showColors)
       : printer_(printer),
+        level_(level),
         color_(printer->diagnosticLevelToColor(level)),
         bold_(false)
   {

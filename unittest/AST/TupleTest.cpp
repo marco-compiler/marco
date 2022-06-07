@@ -1,32 +1,31 @@
 #include "gtest/gtest.h"
 #include "marco/AST/AST.h"
 
-using namespace marco;
-using namespace marco::ast;
+using namespace ::marco;
+using namespace ::marco::ast;
 
-TEST(AST, singleElementTupleCanBeBuilt)	 // NOLINT
+#define LOC SourceRange::unknown()
+
+TEST(AST, tuple_singleElement)
 {
-	SourceRange location = SourceRange::unknown();
-	auto reference = Expression::reference(location, makeType<int>(), "x");
-	auto tuple = Expression::tuple(location, Type::unknown(), std::move(reference));
-	EXPECT_EQ(tuple->get<Tuple>()->size(), 1);
+	auto expression = Expression::tuple(
+      LOC, Type::unknown(),
+      Expression::reference(LOC, makeType<BuiltInType::Integer>(), "x"));
+
+  ASSERT_TRUE(expression->isa<Tuple>());
+	EXPECT_EQ(expression->get<Tuple>()->size(), 1);
 }
 
-TEST(AST, multipleElementsTupleCanBeBuilt)	// NOLINT
+TEST(AST, tuple_multipleElements)
 {
-	SourceRange location = SourceRange::unknown();
+  std::vector<std::unique_ptr<Expression>> values;
 
-	auto exp1 = Expression::reference(location, makeType<int>(), "x");
-	auto exp2 = Expression::reference(location, makeType<float>(), "y");
-	auto exp3 = Expression::reference(location, Type::unknown(), "z");
+	values.push_back(Expression::reference(LOC, makeType<BuiltInType::Boolean>(), "x"));
+	values.push_back(Expression::reference(LOC, makeType<BuiltInType::Integer>(), "y"));
+	values.push_back(Expression::reference(LOC, makeType<BuiltInType::Real>(), "z"));
 
-	auto tuple = Expression::tuple(
-			location, Type::unknown(),
-			llvm::ArrayRef({
-					std::move(exp1),
-					std::move(exp2),
-					std::move(exp3)
-			}));
+	auto expression = Expression::tuple(LOC, Type::unknown(), values);
 
-	EXPECT_EQ(tuple->get<Tuple>()->size(), 3);
+  ASSERT_TRUE(expression->isa<Tuple>());
+	EXPECT_EQ(expression->get<Tuple>()->size(), 3);
 }

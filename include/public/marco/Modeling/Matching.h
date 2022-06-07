@@ -1,17 +1,17 @@
 #ifndef MARCO_MODELING_MATCHING_H
 #define MARCO_MODELING_MATCHING_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/iterator_range.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SmallVector.h"
+#include "marco/Diagnostic/TreeOStream.h"
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/Dumpable.h"
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/LocalMatchingSolutions.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/Range.h"
-#include "marco/Utils/TreeOStream.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallVector.h"
 #include <iostream>
 #include <map>
 #include <memory>

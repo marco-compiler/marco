@@ -87,8 +87,8 @@ namespace marco::codegen::lowering
       attribute = BooleanAttr::get(builder().getContext(), constant.as<BuiltInType::Boolean>());
     } else if (builtInType == BuiltInType::Integer) {
       attribute = IntegerAttr::get(builder().getContext(), constant.as<BuiltInType::Integer>());
-    } else if (builtInType == BuiltInType::Float) {
-      attribute = RealAttr::get(builder().getContext(), constant.as<BuiltInType::Float>());
+    } else if (builtInType == BuiltInType::Real) {
+      attribute = RealAttr::get(builder().getContext(), constant.as<BuiltInType::Real>());
     } else {
       llvm_unreachable("Unsupported constant type");
     }
@@ -151,6 +151,9 @@ namespace marco::codegen::lowering
 
         case OperationKind::land:
           return &OperationLowerer::logicalAnd;
+
+        case OperationKind::lnot:
+          return &OperationLowerer::logicalNot;
 
         case OperationKind::lor:
           return &OperationLowerer::logicalOr;

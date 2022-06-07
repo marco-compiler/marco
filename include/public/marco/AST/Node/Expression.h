@@ -146,7 +146,7 @@ namespace marco::ast
         return std::unique_ptr<Expression>(new Expression(std::move(content)));
       }
 
-		private:
+    private:
       explicit Expression(Array content);
       explicit Expression(Call content);
       explicit Expression(Constant content);

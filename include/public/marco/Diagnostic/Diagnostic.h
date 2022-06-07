@@ -43,6 +43,11 @@ namespace marco::diagnostic
       void emitWarning(Args&&... args)
       {
         Level level = options_.warningAsError ? Level::ERROR : Level::WARNING;
+
+        if (level == Level::ERROR) {
+          ++numOfErrors_;
+        }
+
         emit(level, Message(std::forward<Args>(args)...));
       }
 

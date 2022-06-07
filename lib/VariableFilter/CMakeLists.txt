@@ -12,11 +12,9 @@ set(SOURCES
 marco_add_library(variableFilter SHARED
     ${SOURCES}
 
-    DEPENDS
-    marco::utils
-
     LINK_LIBS
     marco::diagnostic
+    marco::parser
     marco::utils
 
     LINK_COMPONENTS

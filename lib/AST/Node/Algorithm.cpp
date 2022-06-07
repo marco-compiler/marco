@@ -90,6 +90,11 @@ void Algorithm::print(llvm::raw_ostream& os, size_t indents) const
     return statements.size();
   }
 
+  bool Algorithm::empty() const
+  {
+    return statements.empty();
+  }
+
   Algorithm::statements_iterator Algorithm::begin()
   {
     return statements.begin();

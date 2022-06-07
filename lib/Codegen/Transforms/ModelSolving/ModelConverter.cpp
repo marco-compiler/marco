@@ -439,7 +439,8 @@ namespace marco::codegen
         auto loadReplacer = [&builder, reference](MemberLoadOp loadOp) -> void {
           mlir::OpBuilder::InsertionGuard guard(builder);
           builder.setInsertionPoint(loadOp);
-          loadOp.replaceAllUsesWith(reference);
+          mlir::Value value = builder.create<LoadOp>(loadOp.getLoc(), reference);
+          loadOp.replaceAllUsesWith(value);
           loadOp.erase();
         };
 

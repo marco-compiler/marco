@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "marco/AST/AST.h"
 #include "marco/AST/Passes.h"
+
+/*
 #include "marco/AST/SymbolTable.h"
 
 using namespace marco;
@@ -145,6 +147,7 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 	auto* accessIndex = arg->get<Operation>()->getArg(1);
 	EXPECT_EQ(accessIndex->get<Constant>()->get<BuiltInType::Integer>(), 2);
 }
+ */
 
 /*
 TEST(folderTest, startDeclarationWithReference)	 // NOLINT

@@ -1,10 +1,30 @@
 #ifndef MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 #define MARCO_VARIABLEFILTER_LEXERSTATEMACHINE_H
 
+#include "marco/Diagnostic/Location.h"
+#include "marco/Parser/Lexer.h"
+#include "marco/Parser/IntegerLexer.h"
 #include "marco/VariableFilter/Token.h"
-#include "marco/Utils/NumbersLexer.h"
 #include "llvm/ADT/StringMap.h"
 #include <map>
+#include <memory>
+
+namespace marco::lexer
+{
+  template<>
+  struct TokenTraits<vf::Token>
+  {
+    static vf::Token getNoneToken()
+    {
+      return vf::Token::None;
+    }
+
+    static vf::Token getEOFToken()
+    {
+      return vf::Token::EndOfFile;
+    }
+  };
+}
 
 namespace marco::vf
 {
@@ -26,7 +46,7 @@ namespace marco::vf
         End
       };
 
-      LexerStateMachine(char first);
+      LexerStateMachine(std::shared_ptr<SourceFile> file, char first);
 
       /// Returns the last seen token, or 'Begin' if none was seen.
       Token getCurrent() const;
@@ -61,6 +81,10 @@ namespace marco::vf
       /// Returns the string associated to the last Error token found.
       const std::string& getLastError() const;
 
+      SourcePosition getCurrentPosition() const;
+
+      SourceRange getTokenPosition() const;
+
     protected:
       /// Feeds a character to the state machine, returns 'None' if
       /// the current token has not eaten all the possible character
@@ -84,8 +108,7 @@ namespace marco::vf
       /// simple symbols such as '==' or ':='.
       Token tryScanSymbol();
 
-      void setTokenStartPosition();
-
+      void setTokenBeginPosition();
       void setTokenEndPosition();
 
     private:
@@ -97,14 +120,9 @@ namespace marco::vf
       IntegerLexer<10> lastNum;
       std::string lastRegex;
 
-      size_t currentLine;
-      size_t currentColumn;
-
-      size_t startLine;
-      size_t startColumn;
-
-      size_t endLine;
-      size_t endColumn;
+      SourcePosition currentPosition;
+      SourcePosition beginPosition;
+      SourcePosition endPosition;
 
       std::string error;
       llvm::StringMap<Token> keywordMap;

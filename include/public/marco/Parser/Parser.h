@@ -6,6 +6,7 @@
 #include "marco/Parser/ModelicaStateMachine.h"
 #include "marco/AST/AST.h"
 #include "llvm/ADT/Optional.h"
+#include <memory>
 
 namespace marco::parser
 {
@@ -44,9 +45,13 @@ namespace marco::parser
           T value;
       };
 
+      Parser(diagnostic::DiagnosticEngine& diagnostics, std::shared_ptr<SourceFile> source);
+
+      /*
       Parser(diagnostic::DiagnosticEngine& diagnostics, llvm::StringRef file, const char* source);
       Parser(diagnostic::DiagnosticEngine& diagnostics, const std::string& source);
       Parser(diagnostic::DiagnosticEngine& diagnostics, const char* source);
+       */
 
       llvm::Optional<std::unique_ptr<ast::Class>> parseRoot();
 
@@ -219,7 +224,6 @@ namespace marco::parser
 
     private:
       diagnostic::DiagnosticEngine* diagnostics;
-      const char* source;
       Lexer<ModelicaStateMachine> lexer;
       Token current;
   };

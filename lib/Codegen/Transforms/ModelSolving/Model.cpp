@@ -48,6 +48,7 @@ namespace marco::codegen
     void BaseModel::setVariables(Variables value)
     {
       this->variables = std::move(value);
+      onVariablesSet(this->variables);
     }
 
     DerivativesMap& BaseModel::getDerivativesMap()
@@ -63,6 +64,12 @@ namespace marco::codegen
     void BaseModel::setDerivativesMap(DerivativesMap map)
     {
       derivativesMap = std::move(map);
+    }
+
+    void BaseModel::onVariablesSet(Variables newVariables)
+    {
+      // Default implementation.
+      // Do nothing.
     }
   }
 }

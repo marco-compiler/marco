@@ -49,6 +49,7 @@ namespace marco::ast
       void setBody(llvm::ArrayRef<std::unique_ptr<Statement>> body);
 
       [[nodiscard]] size_t size() const;
+      [[nodiscard]] bool empty() const;
 
       [[nodiscard]] statements_iterator begin();
       [[nodiscard]] statements_const_iterator begin() const;

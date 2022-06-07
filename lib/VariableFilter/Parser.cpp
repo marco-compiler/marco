@@ -16,13 +16,11 @@ using namespace ::marco::vf;
 
 namespace marco::vf
 {
-  Parser::Parser(VariableFilter& vf, llvm::StringRef source)
+  Parser::Parser(VariableFilter& vf, std::shared_ptr<SourceFile> file)
       : vf(&vf),
-        lexer(source.data()),
-        current(lexer.scan()),
-        tokenRange(SourceRange(SourcePosition("-", 1, 1), SourcePosition("-", 1, 1)))
+        lexer(file),
+        current(lexer.scan())
   {
-    updateTokenSourceRange();
   }
 
   llvm::Error Parser::run()
@@ -98,17 +96,18 @@ namespace marco::vf
 
   llvm::Expected<RegexExpression> Parser::regex()
   {
+    auto loc = lexer.getTokenPosition();
     RegexExpression node(lexer.getLastRegex());
     EXPECT(Token::Regex);
 
     if (node.getRegex().empty()) {
-      return llvm::make_error<EmptyRegex>(tokenRange);
+      return llvm::make_error<EmptyRegex>(loc);
     }
 
     llvm::Regex regexObj(node.getRegex());
 
     if (!regexObj.isValid()) {
-      return llvm::make_error<InvalidRegex>(tokenRange);
+      return llvm::make_error<InvalidRegex>(loc);
     }
 
     return node;
@@ -160,7 +159,6 @@ namespace marco::vf
   void Parser::next()
   {
     current = lexer.scan();
-    updateTokenSourceRange();
   }
 
   bool Parser::accept(Token t)
@@ -180,14 +178,7 @@ namespace marco::vf
       return true;
     }
 
-    return llvm::make_error<UnexpectedToken>(tokenRange, current);
-  }
-
-  void Parser::updateTokenSourceRange()
-  {
-    tokenRange.begin.line = lexer.getTokenStartLine();
-    tokenRange.begin.column = lexer.getTokenStartColumn();
-    tokenRange.end.line = lexer.getTokenEndLine();
-    tokenRange.end.column = lexer.getTokenEndColumn();
+    auto loc = lexer.getTokenPosition();
+    return llvm::make_error<UnexpectedToken>(loc, current);
   }
 }

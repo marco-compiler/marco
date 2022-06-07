@@ -10,7 +10,7 @@ marco_add_unittest(ModelTransformTest ${SOURCES})
 
 marco_link_llvm_libs(ModelTransformTest Core Support)
 
-target_link_libraries(ModelTransformTest PRIVATE
-    marco::codegen
-    marco::modeling
-    MLIRModelicaTransforms)
+target_link_libraries(ModelTransformTest
+    PRIVATE marco::codegen
+    PRIVATE marco::modeling
+    PRIVATE MLIRModelicaTransforms)

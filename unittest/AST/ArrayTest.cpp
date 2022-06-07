@@ -1,37 +1,21 @@
 #include "gtest/gtest.h"
+#include "marco/AST/AST.h"
 
-/*
-#include "llvm/Support/Error.h"
-#include "marco/AST/Parser.h"
-#include "marco/AST/Passes.h"
-#include "marco/Utils/ErrorTest.h"
+using namespace ::marco;
+using namespace ::marco::ast;
 
-using namespace marco::ast;
-using namespace std;
+#define LOC SourceRange::unknown()
 
-TEST(TypeChecking, arrayOfIntegers)	// NOLINT
+TEST(AST, array_1D)
 {
-	Parser parser("{ 1, 2, 3 }");
+  std::vector<std::unique_ptr<Expression>> values;
 
-	auto ast = parser.expression();
-	ASSERT_FALSE(!ast);
+  values.push_back(Expression::constant(SourceRange::unknown(), makeType<BuiltInType::Integer>(), 0));
+  values.push_back(Expression::constant(SourceRange::unknown(), makeType<BuiltInType::Integer>(), 0));
+  values.push_back(Expression::constant(SourceRange::unknown(), makeType<BuiltInType::Integer>(), 0));
 
-	TypeChecker typeChecker;
-	EXPECT_FALSE(typeChecker.run<Expression>(**ast));
+  auto expression = Expression::array(LOC, Type::unknown(), values);
 
-	EXPECT_EQ((*ast)->getType(), makeType<int>(3));
+  ASSERT_TRUE(expression->isa<Array>());
+  EXPECT_EQ(expression->get<Array>()->size(), 3);
 }
-
-TEST(TypeChecking, arrayOfReals)	// NOLINT
-{
-	Parser parser("{ 1.0, 2, 3.0 }");
-
-	auto ast = parser.expression();
-	ASSERT_FALSE(!ast);
-
-	TypeChecker typeChecker;
-	EXPECT_FALSE(typeChecker.run<Expression>(**ast));
-
-	EXPECT_EQ((*ast)->getType(), makeType<float>(3));
-}
-*/
