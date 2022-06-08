@@ -5,6 +5,7 @@
 #include "marco/Codegen/Utils.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include <numeric>
 
@@ -50,6 +51,61 @@ static mlir::Attribute getIntegerAttribute(mlir::OpBuilder& builder, mlir::Type 
   }
 
   return builder.getIndexAttr(value);
+}
+
+static void foldValue(EquationOp equationOp, mlir::Value value)
+{
+  mlir::OperationFolder helper(value.getContext());
+  std::stack<mlir::Operation*> visitStack;
+  llvm::SmallVector<mlir::Operation*, 3> ops;
+
+  if (auto definingOp = value.getDefiningOp()) {
+    visitStack.push(definingOp);
+  }
+
+  while (!visitStack.empty()) {
+    auto op = visitStack.top();
+    visitStack.pop();
+
+    ops.push_back(op);
+
+    for (const auto& operand : op->getOperands()) {
+      if (auto definingOp = operand.getDefiningOp()) {
+        visitStack.push(definingOp);
+      }
+    }
+  }
+
+  llvm::SmallVector<mlir::Operation*, 3> constants;
+
+  for (auto *op : llvm::reverse(ops)) {
+    if (mlir::failed(helper.tryToFold(op, [&](mlir::Operation* constant) {
+          constants.push_back(constant);
+        }))) {
+      break;
+    }
+  }
+
+  for (auto* op : llvm::reverse(constants)) {
+    op->moveBefore(equationOp.bodyBlock(), equationOp.bodyBlock()->begin());
+  }
+}
+
+static bool isZeroAttr(mlir::Attribute attribute)
+{
+  if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
+    return !booleanAttr.getValue();
+  }
+
+  if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
+    return integerAttr.getValue() == 0;
+  }
+
+  if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+    return realAttr.getValue().isZero();
+  }
+
+  return attribute.cast<mlir::IntegerAttr>().getValue() == 0;
 }
 
 /// Check if an equation has explicit or implicit induction variables.
@@ -966,17 +1022,26 @@ namespace marco::codegen
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
 
-      mlir::Value rhs = builder.create<DivOp>(
+      auto rhs = builder.create<DivOp>(
           loc, lhs.getType(),
           builder.create<SubOp>(loc, getMostGenericType(rhsRemaining.getType(), lhsRemaining.getType()), rhsRemaining, lhsRemaining),
           builder.create<SubOp>(loc, getMostGenericType(lhsFactor.getType(), rhsFactor.getType()), lhsFactor, rhsFactor));
+
+      // Check if we are dividing by zero
+      foldValue(getOperation(), rhs.rhs());
+
+      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.rhs().getDefiningOp())) {
+        if (isZeroAttr(divisorOp.value())) {
+          return mlir::failure();
+        }
+      }
 
       auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
       auto oldLhsOp = terminator.lhs().getDefiningOp();
       oldLhsOp->replaceAllUsesWith(lhsOp);
       oldLhsOp->erase();
 
-      auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+      auto rhsOp = builder.create<EquationSideOp>(loc, rhs.getResult());
       auto oldRhsOp = terminator.rhs().getDefiningOp();
       oldRhsOp->replaceAllUsesWith(rhsOp);
       oldRhsOp->erase();
@@ -1000,17 +1065,26 @@ namespace marco::codegen
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
 
-      mlir::Value rhs = builder.create<DivOp>(
+      auto rhs = builder.create<DivOp>(
           loc, lhs.getType(),
           builder.create<SubOp>(loc, getMostGenericType(terminator.rhsValues()[0].getType(), lhsRemaining.getType()), terminator.rhsValues()[0], lhsRemaining),
           lhsFactor);
+
+      // Check if we are dividing by zero
+      foldValue(getOperation(), rhs.rhs());
+
+      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.rhs().getDefiningOp())) {
+        if (isZeroAttr(divisorOp.value())) {
+          return mlir::failure();
+        }
+      }
 
       auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
       auto oldLhsOp = terminator.lhs().getDefiningOp();
       oldLhsOp->replaceAllUsesWith(lhsOp);
       oldLhsOp->erase();
 
-      auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+      auto rhsOp = builder.create<EquationSideOp>(loc, rhs.getResult());
       auto oldRhsOp = terminator.rhs().getDefiningOp();
       oldRhsOp->replaceAllUsesWith(rhsOp);
       oldRhsOp->erase();
@@ -1034,17 +1108,26 @@ namespace marco::codegen
       auto terminator = getTerminator();
       auto loc = terminator->getLoc();
 
-      mlir::Value rhs = builder.create<DivOp>(
+      auto rhs = builder.create<DivOp>(
           loc, lhs.getType(),
           builder.create<SubOp>(loc, getMostGenericType(terminator.lhsValues()[0].getType(), rhsRemaining.getType()), terminator.lhsValues()[0], rhsRemaining),
           rhsFactor);
+
+      // Check if we are dividing by zero
+      foldValue(getOperation(), rhs.rhs());
+
+      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.rhs().getDefiningOp())) {
+        if (isZeroAttr(divisorOp.value())) {
+          return mlir::failure();
+        }
+      }
 
       auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
       auto oldLhsOp = terminator.lhs().getDefiningOp();
       oldLhsOp->replaceAllUsesWith(lhsOp);
       oldLhsOp->erase();
 
-      auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+      auto rhsOp = builder.create<EquationSideOp>(loc, rhs.getResult());
       auto oldRhsOp = terminator.rhs().getDefiningOp();
       oldRhsOp->replaceAllUsesWith(rhsOp);
       oldRhsOp->erase();
