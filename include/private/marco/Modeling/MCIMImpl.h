@@ -52,6 +52,8 @@ namespace marco::modeling::internal
 
       Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+      virtual ~Impl();
+
       bool operator==(const MCIM::Impl& rhs) const;
 
       bool operator!=(const MCIM::Impl& rhs) const;

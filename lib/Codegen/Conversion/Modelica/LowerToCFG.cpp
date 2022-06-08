@@ -198,7 +198,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           loadOp->erase();
           return mlir::success();
         },
-        [&builder, &op, arrayType, stackValue, typeConverter, indexType](MemberStoreOp storeOp) -> mlir::LogicalResult {
+        [&builder, arrayType, stackValue, typeConverter, indexType](MemberStoreOp storeOp) -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
 
           // The destination array has dynamic and unknown sizes. Thus, the

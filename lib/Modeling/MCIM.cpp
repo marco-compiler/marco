@@ -87,6 +87,8 @@ namespace marco::modeling::internal
   {
   }
 
+  MCIM::Impl::~Impl() = default;
+
   std::unique_ptr<MCIM::Impl> MCIM::Impl::clone()
   {
     return std::make_unique<Impl>(*this);

@@ -25,6 +25,8 @@ namespace marco::codegen
       public:
         BaseModel(mlir::modelica::ModelOp modelOp);
 
+        virtual ~BaseModel();
+
         /// Get the IR model operation
         mlir::modelica::ModelOp getOperation() const;
 

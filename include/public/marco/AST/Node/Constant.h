@@ -88,16 +88,17 @@ namespace marco::ast
       friend class Expression;
 
       Constant(SourceRange location, Type type, bool value);
-      Constant(SourceRange location, Type type, long value);
+      Constant(SourceRange location, Type type, int64_t value);
       Constant(SourceRange location, Type type, double value);
       Constant(SourceRange location, Type type, std::string value);
 
-      Constant(SourceRange location, Type type, int value);
+      // Utility constructors for tests
+      Constant(SourceRange location, Type type, int32_t value);
       Constant(SourceRange location, Type type, float value);
 
     private:
       Type type;
-      std::variant<bool, long, double, std::string> value;
+      std::variant<bool, int64_t, double, std::string> value;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj);

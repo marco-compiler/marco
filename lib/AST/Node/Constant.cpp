@@ -12,7 +12,7 @@ namespace marco::ast
   {
   }
 
-  Constant::Constant(SourceRange location, Type type, long value)
+  Constant::Constant(SourceRange location, Type type, int64_t value)
       : ASTNode(std::move(location)),
         type(std::move(type)),
         value(value)
@@ -33,13 +33,13 @@ namespace marco::ast
   {
   }
 
-  Constant::Constant(SourceRange location, Type type, int value)
-      : Constant(std::move(location), std::move(type), static_cast<long>(value))
+  Constant::Constant(SourceRange location, Type type, int32_t value)
+      : Constant(std::move(location), std::move(type), static_cast<int64_t>(value))
   {
   }
 
   Constant::Constant(SourceRange location, Type type, float value)
-      : Constant(std::move(location), std::move(type), static_cast<double >(value))
+      : Constant(std::move(location), std::move(type), static_cast<double>(value))
   {
   }
 
@@ -121,7 +121,7 @@ namespace marco::ast
         return value ? "true" : "false";
       }
 
-      std::string operator()(const long& value)
+      std::string operator()(const int64_t& value)
       {
         return std::to_string(value);
       }

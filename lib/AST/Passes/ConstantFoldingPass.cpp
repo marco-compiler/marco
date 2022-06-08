@@ -198,7 +198,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        -1 * operand.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(-1 * operand.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -238,7 +238,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() + lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() + lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -279,7 +279,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() - lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() - lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -320,7 +320,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() * lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() * lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -361,7 +361,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() / lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() / lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -402,7 +402,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        std::pow(lhs.get<Constant>()->as<Type>(), lhs.get<Constant>()->as<Type>()));
+        static_cast<frontendTypeToType_v<Type>>(std::pow(lhs.get<Constant>()->as<Type>(), lhs.get<Constant>()->as<Type>())));
   }
 
   template<>
@@ -443,7 +443,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() == lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() == lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -484,7 +484,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() != lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() != lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -525,7 +525,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() > lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() > lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -566,7 +566,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() >= lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() >= lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -607,7 +607,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() < lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() < lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -648,7 +648,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() <= lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() <= lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -688,7 +688,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        operand.get<Constant>()->as<Type>() <= 0);
+        static_cast<frontendTypeToType_v<Type>>(operand.get<Constant>()->as<Type>() <= 0));
   }
 
   template<>
@@ -728,7 +728,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() && lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() && lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -769,7 +769,7 @@ namespace marco::ast
 
     return Expression::constant(
         loc, makeType<Type>(),
-        lhs.get<Constant>()->as<Type>() || lhs.get<Constant>()->as<Type>());
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() || lhs.get<Constant>()->as<Type>()));
   }
 
   template<>

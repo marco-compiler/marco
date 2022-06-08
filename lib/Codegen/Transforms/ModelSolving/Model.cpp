@@ -35,6 +35,8 @@ namespace marco::codegen
     {
     }
 
+    BaseModel::~BaseModel() = default;
+
     ModelOp BaseModel::getOperation() const
     {
       return mlir::cast<ModelOp>(modelOp);
