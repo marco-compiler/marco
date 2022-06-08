@@ -110,6 +110,11 @@ static IndexSet getFilteredIndices(mlir::Type variableType, llvm::ArrayRef<Varia
       ranges.emplace_back(lowerBound, upperBound);
     }
 
+    if (ranges.empty()) {
+      // Scalar value
+      ranges.emplace_back(0, 1);
+    }
+
     result += MultidimensionalRange(std::move(ranges));
   }
 

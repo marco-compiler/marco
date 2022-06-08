@@ -5,6 +5,7 @@ namespace marco::modeling
   MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
       : ranges(ranges.begin(), ranges.end())
   {
+    assert(!ranges.empty());
   }
 
   MultidimensionalRange::MultidimensionalRange(Point point)

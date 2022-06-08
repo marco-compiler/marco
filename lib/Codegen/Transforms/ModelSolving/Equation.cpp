@@ -352,7 +352,7 @@ namespace marco::codegen
           std::vector<Range> additionalRanges;
           auto shape = arrayType.getShape();
 
-          for (size_t i = shape.size() - dimensionsAccesses.size(); i < shape.size(); ++i) {
+          for (size_t i = dimensionsAccesses.size(); i < shape.size(); ++i) {
             additionalRanges.push_back(modeling::Range(0, shape[i]));
           }
 
