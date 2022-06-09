@@ -1,12 +1,208 @@
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
 #include "marco/AST/AST.h"
-#include "marco/AST/Node/EquationsBlock.h"
 #include "marco/AST/Passes/ConstantFoldingPass.h"
 #include <cmath>
 
 using namespace ::marco;
 using namespace ::marco::ast;
+
+namespace
+{
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldNegateOp_scalar(SourceRange loc, const Expression& operand)
+  {
+    assert(operand.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(-1 * operand.get<Constant>()->as<Type>()));
+  }
+
+  template<>
+  std::unique_ptr<Expression> foldNegateOp_scalar<BuiltInType::Boolean>(SourceRange loc, const Expression& operand)
+  {
+    assert(operand.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<BuiltInType::Boolean>(),
+        !operand.get<Constant>()->as<BuiltInType::Boolean>());
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldAddOp_scalars(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() + rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<>
+  std::unique_ptr<Expression> foldAddOp_scalars<BuiltInType::Boolean>(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<BuiltInType::Boolean>(),
+        lhs.get<Constant>()->as<BuiltInType::Boolean>() || rhs.get<Constant>()->as<BuiltInType::Boolean>());
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldSubOp_scalars(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() - rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<>
+  std::unique_ptr<Expression> foldSubOp_scalars<BuiltInType::Boolean>(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<BuiltInType::Boolean>(),
+        lhs.get<Constant>()->as<BuiltInType::Boolean>() - rhs.get<Constant>()->as<BuiltInType::Boolean>());
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldMulOp_scalars(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() * rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<>
+  std::unique_ptr<Expression> foldMulOp_scalars<BuiltInType::Boolean>(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<BuiltInType::Boolean>(),
+        lhs.get<Constant>()->as<BuiltInType::Boolean>() && rhs.get<Constant>()->as<BuiltInType::Boolean>());
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldDivOp_scalars(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() / rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldPowOp_scalars(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(std::pow(lhs.get<Constant>()->as<Type>(), rhs.get<Constant>()->as<Type>())));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldEqualOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() == rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldNotEqualOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() != rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldGreaterOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() > rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldGreaterEqualOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() >= rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldLessOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() < rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldLessEqualOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() <= rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldAndOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() && rhs.get<Constant>()->as<Type>()));
+  }
+
+  template<BuiltInType Type>
+  std::unique_ptr<Expression> foldOrOp(SourceRange loc, const Expression& lhs, const Expression& rhs)
+  {
+    assert(lhs.getType().isScalar());
+    assert(rhs.getType().isScalar());
+
+    return Expression::constant(
+        loc, makeType<Type>(),
+        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() || rhs.get<Constant>()->as<Type>()));
+  }
+}
 
 namespace marco::ast
 {
@@ -190,17 +386,6 @@ namespace marco::ast
     return true;
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldNegateOp_scalar(
-      SourceRange loc, const Expression& operand)
-  {
-    assert(operand.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(-1 * operand.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::negate>(Expression& expression)
   {
@@ -227,18 +412,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldAddOp_scalars(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() + lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -270,18 +443,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldSubOp_scalars(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() - lhs.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::subtract>(Expression& expression)
   {
@@ -309,18 +470,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldMulOp_scalars(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() * lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -352,18 +501,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldDivOp_scalars(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() / lhs.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::divide>(Expression& expression)
   {
@@ -391,18 +528,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldPowOp_scalars(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(std::pow(lhs.get<Constant>()->as<Type>(), lhs.get<Constant>()->as<Type>())));
   }
 
   template<>
@@ -434,18 +559,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldEqualOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() == lhs.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::equal>(Expression& expression)
   {
@@ -473,18 +586,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldNotEqualOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() != lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -516,18 +617,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldGreaterOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() > lhs.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::greater>(Expression& expression)
   {
@@ -555,18 +644,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldGreaterEqualOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() >= lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -598,18 +675,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldLessOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() < lhs.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::less>(Expression& expression)
   {
@@ -637,18 +702,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldLessEqualOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() <= lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -719,18 +772,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldAndOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() && lhs.get<Constant>()->as<Type>()));
-  }
-
   template<>
   bool ConstantFoldingPass::processOp<OperationKind::land>(Expression& expression)
   {
@@ -758,18 +799,6 @@ namespace marco::ast
     }
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<BuiltInType Type>
-  static std::unique_ptr<Expression> foldOrOp(
-      SourceRange loc, const Expression& lhs, const Expression& rhs)
-  {
-    assert(lhs.getType().isScalar());
-    assert(rhs.getType().isScalar());
-
-    return Expression::constant(
-        loc, makeType<Type>(),
-        static_cast<frontendTypeToType_v<Type>>(lhs.get<Constant>()->as<Type>() || lhs.get<Constant>()->as<Type>()));
   }
 
   template<>
@@ -1151,4 +1180,3 @@ namespace marco::ast
     return std::make_unique<ConstantFoldingPass>(diagnostics);
   }
 }
-

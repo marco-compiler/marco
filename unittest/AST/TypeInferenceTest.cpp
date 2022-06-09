@@ -114,8 +114,8 @@ TEST(TypeInference, add_integerScalar_realScalar)
 TEST(TypeInference, add_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::add, args);
 
@@ -254,8 +254,8 @@ TEST(TypeInference, addEW_integerScalar_realScalar)
 TEST(TypeInference, addEW_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::addEW, args);
 
@@ -392,8 +392,8 @@ TEST(TypeInference, sub_integerScalar_realScalar)
 TEST(TypeInference, sub_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::subtract, args);
 
@@ -532,8 +532,8 @@ TEST(TypeInference, subEW_integerScalar_realScalar)
 TEST(TypeInference, subEW_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::subtractEW, args);
 
@@ -670,8 +670,8 @@ TEST(TypeInference, mul_integerScalar_realScalar)
 TEST(TypeInference, mul_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::multiply, args);
 
@@ -765,8 +765,8 @@ TEST(TypeInference, mulEW_integerScalar_realScalar)
 TEST(TypeInference, mulEW_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::multiplyEW, args);
 
@@ -831,8 +831,8 @@ TEST(TypeInference, div_integerScalar_realScalar)
 TEST(TypeInference, div_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::divide, args);
 
@@ -897,8 +897,8 @@ TEST(TypeInference, divEW_integerScalar_realScalar)
 TEST(TypeInference, divEW_realScalar_integerScalar)
 {
   std::vector<std::unique_ptr<Expression>> args;
-  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
   args.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 0));
+  args.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0));
 
   auto expression = Expression::operation(LOC, Type::unknown(), OperationKind::divideEW, args);
 

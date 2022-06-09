@@ -1,6 +1,6 @@
 set(SOURCES
     ArrayTest.cpp
-    ConstantFolderTest.cpp
+    ConstantFoldingTest.cpp
     ExpressionTest.cpp
     SemanticAnalysisTest.cpp
     StatementTest.cpp

@@ -324,6 +324,15 @@ namespace marco::ast
 
       void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
+      template<BuiltInType T>
+      [[nodiscard]] bool isa() const
+      {
+        if (!std::holds_alternative<BuiltInType>(content))
+          return false;
+
+        return std::get<BuiltInType>(content) == T;
+      }
+
       template<typename T,  typename std::enable_if<
           !detail::IsBuiltInTypeCompatible<T>::value, bool>::type = true>
       [[nodiscard]] bool isa() const
