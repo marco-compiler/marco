@@ -44,7 +44,10 @@ int getPrecision(int* values, int digits){
     for(int i = limit; i >= 0;i--){
         precision += values[i] * m[limit-i];
     }
-    return precision;
+    if(precision <= 6)
+        return precision;
+    else 
+        return 6;
 }
 
 int printf(const char* string, ...){

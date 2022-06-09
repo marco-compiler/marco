@@ -1,4 +1,7 @@
-
+/**
+ *This file contains stub functions in order to allow the miosix compiler to compile without problems.
+ * 
+ */
 extern "C" int __cxa_guard_acquire(void *g){
     return 0;
 }
@@ -19,12 +22,3 @@ extern "C" void* __cxa_begin_cleanup(){}
 
 
 void* pthread_once;
-
-/*
-void __cxa_rethrow(){
-    return;
-}
-
-void __cxa_throw(){
-    return;
-}*/

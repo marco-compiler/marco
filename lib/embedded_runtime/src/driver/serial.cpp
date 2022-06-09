@@ -143,36 +143,15 @@ char* SerialPort::tochar(int i, char* res){
       res[len] = i%10+'0';
       i/=10; 
    }
-   //res[len++] = '\r';
-   //res[len++] = '\n';
+
    res[len] = 0; //null-terminating
 
-   //now we need to reverse res
+   //reverse the string
    for(int i = 0; i < len/2; ++i)
    {
-       char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
-   }
-   return res;
-   
-};
-
-char* SerialPort::tochar(long int i, char* res){
-	
-
-   int len = 0;
-   for(; i >0; ++len)
-   {	
-      res[len] = i%10+'0';
-      i/=10; 
-   }
-   //res[len++] = '\r';
-   //res[len++] = '\n';
-   res[len] = 0; //null-terminating
-
-   //now we need to reverse res
-   for(int i = 0; i < len/2; ++i)
-   {
-       char c = res[i]; res[i] = res[len-i-1]; res[len-i-1] = c;
+       char c = res[i]; 
+	   res[i] = res[len-i-1]; 
+	   res[len-i-1] = c;
    }
    return res;
    

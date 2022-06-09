@@ -1,5 +1,5 @@
-#include "../include/marco/driver/heap.h"
-#include "../include/marco/driver/serial.h"
+#include "../../include/marco/driver/heap.h"
+#include "../../include/marco/driver/serial.h"
 #include <assert.h>
 
 extern SerialPort serial;
@@ -47,14 +47,6 @@ block *find_free_space(size_t size){
   block* it;
   it = head_block;
   while(it != nullptr){
-    /*
-    serial.write("searching\n\r");
-    serial.write((int)(it->free) );
-    serial.write(" Size ");
-    serial.write((int)(it->size ));
-    serial.write(" Block size ");
-    serial.write((int)size);
-    */
     if(it->free && size <= it->size){
       return it;
     }

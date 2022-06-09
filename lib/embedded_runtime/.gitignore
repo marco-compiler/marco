@@ -1,5 +1,5 @@
 include/marco/driver/CMSIS/
-main.*
+*.map
 *.o
 *.ll
 *.bc
@@ -7,3 +7,4 @@ main.*
 */staticlib
 *.elf
 *.bin
+simulation

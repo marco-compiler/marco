@@ -7,11 +7,11 @@ CPU := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
 AFLAGS   := $(CPU) 
 CFLAGS   := $(CPU) -O0 -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver
 CXXFLAGS := $(CPU) -O0 -mbe32 -ggdb -fno-exceptions -fno-rtti -g -c -I./include/marco/driver/CMSIS/Include -I./include/marco/driver/CMSIS/Device/ST/STM32F4xx/Include -I./include/marco/driver -I../../include/public -I./include/marco/lib
-LFLAGS   := $(CPU) -Wl,-T./src/linker.ld,-Map,./test/main.map #-nostdlib
+LFLAGS   := $(CPU) -Wl,-T./src/driver/linker.ld,-Map,./test/main.map 
 
-SRC := ./src/startup.s ./test/math_test.cpp ./src/lib/Print.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/lib/StdMath.cpp ./src/lib/StdAssert.cpp
+SRC := ./src/driver/startup.s ./test/math_test.cpp ./src/lib/Print.cpp ./src/driver/serial.cpp ./src/driver/pll_driver.cpp ./src/driver/heap.cpp ./src/lib/StdMath.cpp ./src/lib/StdAssert.cpp
 
-SRCS :=  ./src/startup.s ./src/main.cpp ./src/serial.cpp ./src/pll_driver.cpp ./src/heap.cpp ./src/stub.cpp ./src/lib/Print.cpp
+SRCS :=  ./src/driver/startup.s ./src/main.cpp ./src/driver/serial.cpp ./src/driver/pll_driver.cpp ./src/driver/heap.cpp ./src/stub.cpp ./src/lib/Print.cpp
 MLIB := ./src/lib/BuiltInFunctions.cpp ./src/lib/Math.cpp ./src/lib/MemoryManagement.cpp ./src/lib/Profiling.cpp ./src/lib/Runtime.cpp ./src/lib/UtilityFunctions.cpp
 
 OBJ := $(addsuffix .o, $(basename $(SRC))) 
@@ -37,7 +37,7 @@ sim: $(OBJS)
 
 lib: $(MLIB) 
 	mkdir staticlib
-	$(CXX) $(CXXFLAGS) ./src/heap.cpp -o ./staticlib/heap.o
+	$(CXX) $(CXXFLAGS) ./src/driver/heap.cpp -o ./staticlib/heap.o
 	$(CXX) $(CXXFLAGS) ./src/lib/Print.cpp -o ./staticlib/Print.o
 	$(CXX) $(CXXFLAGS) ./src/lib/StdAssert.cpp -o ./staticlib/StdAssert.o
 	$(CXX) $(CXXFLAGS) ./src/lib/StdMath.cpp -o ./staticlib/StdMath.o
