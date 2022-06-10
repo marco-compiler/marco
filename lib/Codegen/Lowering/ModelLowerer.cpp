@@ -191,7 +191,7 @@ namespace marco::codegen::lowering
   void ModelLowerer::createMemberTrivialEquation(
       ModelOp modelOp, const ast::Member& member, const ast::Expression& expression)
   {
-    assert(member.hasInitializer());
+    assert(member.hasExpression());
     auto location = loc(expression.getLocation());
 
     mlir::OpBuilder::InsertionGuard guard(builder());

@@ -92,12 +92,13 @@ namespace marco::ast
       std::unique_ptr<Modification> modification;
 	};
 
-  struct StartModificationProperty
+  class StartModificationProperty
   {
-    StartModificationProperty(bool each, const Expression& value);
+    public:
+      StartModificationProperty(bool each, const Expression& value);
 
-    bool each;
-    const Expression* value;
+      bool each;
+      const Expression* value;
   };
 }
 

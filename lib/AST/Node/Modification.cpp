@@ -223,7 +223,7 @@ namespace marco::ast
         continue;
       }
 
-      assert(elementModification.hasModification());
+      assert(elementModification->hasModification());
       return true;
     }
 
@@ -266,9 +266,9 @@ namespace marco::ast
         continue;
       }
 
-      assert(elementModification.hasModification());
+      assert(elementModification->hasModification());
       const auto* modification = elementModification->getModification();
-      assert(modification.hasExpression());
+      assert(modification->hasExpression());
       const auto* modificationExpression = modification->getExpression();
       assert(modificationExpression->isa<Constant>());
       return modificationExpression->get<Constant>()->as<BuiltInType::Boolean>();
