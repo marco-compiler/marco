@@ -40,7 +40,7 @@ static bool resolveDummyReferences(StandardFunction& function)
           }
 
           std::string name = getTemporaryVariableName(function);
-          auto temp = Member::build(destination->getLocation(), name, destination->getType(), TypePrefix::none(), llvm::None);
+          auto temp = Member::build(destination->getLocation(), name, destination->getType(), TypePrefix::none());
           ref->setName(temp->getName());
           function.addMember(std::move(temp));
 
@@ -70,7 +70,7 @@ static bool resolveDummyReferences(Model& model)
         }
 
         std::string name = getTemporaryVariableName(model);
-        auto temp = Member::build(expression->getLocation(), name, expression->getType(), TypePrefix::none(), llvm::None);
+        auto temp = Member::build(expression->getLocation(), name, expression->getType(), TypePrefix::none());
         ref->setName(temp->getName());
         model.addMember(std::move(temp));
 
@@ -2058,14 +2058,8 @@ namespace marco::ast
       }
     }
 
-    if (member.hasInitializer()) {
-      if (!run<Expression>(*member.getInitializer())) {
-        return false;
-      }
-    }
-
-    if (member.hasStartOverload()) {
-      if (!run<Expression>(*member.getStartOverload())) {
+    if (member.hasModification()) {
+      if (!run(*member.getModification())) {
         return false;
       }
     }
@@ -2249,6 +2243,78 @@ namespace marco::ast
 
     for (auto& stmnt : whileStatement->getBody()) {
       if (!run<Statement>(*stmnt)) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  bool TypeInferencePass::run(Modification& modification)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    if (modification.hasClassModification()) {
+      if (!run(*modification.getClassModification())) {
+        return false;
+      }
+    }
+
+    if (modification.hasExpression()) {
+      if (!run<Expression>(*modification.getExpression())) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool TypeInferencePass::run<ElementModification>(Argument& argument)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+    auto* elementModification = argument.get<ElementModification>();
+
+    if (elementModification->hasModification()) {
+      if (!run(*elementModification->getModification())) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool TypeInferencePass::run<ElementRedeclaration>(Argument& argument)
+  {
+    llvm_unreachable("Not implemented");
+    return false;
+  }
+
+  template<>
+  bool TypeInferencePass::run<ElementReplaceable>(Argument& argument)
+  {
+    llvm_unreachable("Not implemented");
+    return false;
+  }
+
+  template<>
+  bool TypeInferencePass::run<Argument>(Argument& argument)
+  {
+    return argument.visit([&](auto& obj) {
+      using type = decltype(obj);
+      using deref = typename std::remove_reference<type>::type;
+      using deconst = typename std::remove_const<deref>::type;
+      return run<deconst>(argument);
+    });
+  }
+
+  bool TypeInferencePass::run(ClassModification& classModification)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    for (auto& argument : classModification) {
+      if (!run<Argument>(*argument)) {
         return false;
       }
     }

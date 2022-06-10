@@ -125,18 +125,17 @@ namespace marco::ast
 
   bool StructuralConstantPropagationPass::run(Member& member)
   {
-    if (member.hasInitializer()) {
-      if (!run<Expression>(*member.getInitializer()))
-        return false;
-    }
+    auto numOfErrors = diagnostics()->numOfErrors();
 
-    if (member.hasStartOverload()) {
-      if (!run<Expression>(*member.getStartOverload())) {
-        return false;
+    for (auto& dimension : member.getType().getDimensions()) {
+      if (dimension.hasExpression()) {
+        if (!run<Expression>(*dimension.getExpression())) {
+          return false;
+        }
       }
     }
 
-    return true;
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>
@@ -206,6 +205,7 @@ namespace marco::ast
   template<>
   bool StructuralConstantPropagationPass::run<ReferenceAccess>(Expression& expression)
   {
+    auto numOfErrors = diagnostics()->numOfErrors();
     auto* reference = expression.get<ReferenceAccess>();
 
     if (symbolTable.count(reference->getName()) == 0) {
@@ -216,15 +216,13 @@ namespace marco::ast
     const auto& symbol = symbolTable.lookup(reference->getName());
     const auto* member = symbol.get<Member>();
 
-    if (!member->hasInitializer()) {
-      return true;
+    if (member->hasModification()) {
+      if (auto* modification = member->getModification(); modification->hasExpression()) {
+        expression = *modification->getExpression();
+      }
     }
 
-    if (member->getInitializer()->isa<Constant>() && member->isParameter()) {
-      expression = *member->getInitializer();
-    }
-
-    return true;
+    return numOfErrors == diagnostics()->numOfErrors();
   }
 
   template<>

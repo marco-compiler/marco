@@ -179,11 +179,11 @@ namespace marco::codegen::lowering
     // Add the member to the symbol table
     symbolTable().insert(member.getName(), Reference::member(&builder(), var));
 
-    if (member.hasInitializer()) {
+    if (member.hasExpression()) {
       // If the member has an initializer expression, lower and assign it as
       // if it was a regular assignment statement.
 
-      mlir::Value value = *lower(*member.getInitializer())[0];
+      mlir::Value value = *lower(*member.getExpression())[0];
       symbolTable().lookup(member.getName()).set(value);
     }
   }

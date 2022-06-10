@@ -81,8 +81,10 @@ namespace marco::codegen::lowering
 
       // Members with an assigned value are conceptually the same as equations performing that assignment.
       for (const auto& member : model.getMembers()) {
-        if (!member->isParameter() && member->hasInitializer()) {
-          createMemberTrivialEquation(modelOp, *member, *member->getInitializer());
+        if (member->hasModification()) {
+          if (const auto* modification = member->getModification(); modification->hasExpression()) {
+            createMemberTrivialEquation(modelOp, *member, *modification->getExpression());
+          }
         }
       }
 
@@ -152,18 +154,19 @@ namespace marco::codegen::lowering
 
     Reference reference = symbolTable().lookup(member.getName());
 
-    if (member.hasStartOverload()) {
-      auto values = lower(*member.getStartOverload());
+    if (member.hasStartProperty()) {
+      auto startProperty = member.getStartProperty();
+      auto values = lower(*startProperty.value);
       assert(values.size() == 1);
 
-      if (type.isa<ArrayType>()) {
+      if (startProperty.each) {
+        assert(type.isa<ArrayType>());
         builder().create<ArrayFillOp>(location, *reference, *values[0]);
       } else {
         reference.set(*values[0]);
       }
-
-    } else if (member.isParameter() && member.hasInitializer()){
-      mlir::Value value = *lower(*member.getInitializer())[0];
+    } else if (member.isParameter() && member.hasExpression()) {
+      mlir::Value value = *lower(*member.getExpression())[0];
 
       if (type.isa<ArrayType>()) {
         if (value.getType().isa<ArrayType>()) {
@@ -174,7 +177,6 @@ namespace marco::codegen::lowering
       } else {
         reference.set(value);
       }
-
     } else {
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(arrayType.getElementType()));

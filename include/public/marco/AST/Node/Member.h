@@ -9,7 +9,9 @@
 
 namespace marco::ast
 {
-	class Expression;
+  class Expression;
+  class Modification;
+  class StartModificationProperty;
 
 	class Member
 			: public ASTNode,
@@ -35,49 +37,68 @@ namespace marco::ast
 
       void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-      [[nodiscard]] bool operator==(const Member& other) const;
-      [[nodiscard]] bool operator!=(const Member& other) const;
+      bool operator==(const Member& other) const;
+      bool operator!=(const Member& other) const;
 
-      [[nodiscard]] llvm::StringRef getName() const;
+      llvm::StringRef getName() const;
 
-      [[nodiscard]] Type& getType();
-      [[nodiscard]] const Type& getType() const;
+      Type& getType();
+      const Type& getType() const;
 
       void setType(Type new_type);
 
-      [[nodiscard]] bool hasInitializer() const;
-      [[nodiscard]] Expression* getInitializer();
-      [[nodiscard]] const Expression* getInitializer() const;
+      TypePrefix getTypePrefix() const;
 
-      [[nodiscard]] bool hasStartOverload() const;
-      [[nodiscard]] Expression* getStartOverload();
-      [[nodiscard]] const Expression* getStartOverload() const;
+      bool isPublic() const;
+      bool isParameter() const;
+      bool isInput() const;
+      bool isOutput() const;
 
-      [[nodiscard]] bool isPublic() const;
-      [[nodiscard]] bool isParameter() const;
-      [[nodiscard]] bool isInput() const;
-      [[nodiscard]] bool isOutput() const;
+      bool hasModification() const;
+      Modification* getModification();
+      const Modification* getModification() const;
 
-      [[nodiscard]] TypePrefix getTypePrefix() const;
+      /// @name Modification properties
+      /// {
+
+      bool hasExpression() const;
+
+      Expression* getExpression();
+
+      const Expression* getExpression() const;
+
+      bool hasStartProperty() const;
+
+      StartModificationProperty getStartProperty() const;
+
+      bool getFixedProperty() const;
+
+      /// }
 
 		private:
       Member(
           SourceRange location,
           llvm::StringRef name,
-          Type tp,
-          TypePrefix prefix,
-          llvm::Optional<std::unique_ptr<Expression>> initializer = llvm::None,
+          Type type,
+          TypePrefix typePrefix,
           bool isPublic = true,
-          llvm::Optional<std::unique_ptr<Expression>> startOverload = llvm::None);
+          std::unique_ptr<Modification> modification = nullptr);
 
     private:
       std::string name;
       Type type;
       TypePrefix typePrefix;
-      llvm::Optional<std::unique_ptr<Expression>> initializer;
       bool isPublicMember;
-      llvm::Optional<std::unique_ptr<Expression>> startOverload;
+      std::unique_ptr<Modification> modification;
 	};
+
+  struct StartModificationProperty
+  {
+    StartModificationProperty(bool each, const Expression& value);
+
+    bool each;
+    const Expression* value;
+  };
 }
 
 #endif // MARCO_AST_NODE_MEMBER_H

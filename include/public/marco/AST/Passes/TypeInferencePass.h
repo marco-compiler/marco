@@ -37,6 +37,9 @@ namespace marco::ast
       template<typename T>
       bool run(Statement& statement);
 
+      template<typename T>
+      bool run(Argument& argument);
+
       bool run(Equation& equation);
 
       bool run(ForEquation& forEquation);
@@ -46,6 +49,10 @@ namespace marco::ast
       bool run(Member& member);
 
       bool run(Algorithm& algorithm);
+
+      bool run(Modification& modification);
+
+      bool run(ClassModification& classModification);
 
     private:
       SymbolTable symbolTable;
@@ -114,6 +121,18 @@ namespace marco::ast
 
   template<>
   bool TypeInferencePass::run<WhileStatement>(Statement& statement);
+
+  template<>
+  bool TypeInferencePass::run<Argument>(Argument& argument);
+
+  template<>
+  bool TypeInferencePass::run<ElementModification>(Argument& argument);
+
+  template<>
+  bool TypeInferencePass::run<ElementRedeclaration>(Argument& argument);
+
+  template<>
+  bool TypeInferencePass::run<ElementReplaceable>(Argument& argument);
   
   std::unique_ptr<Pass> createTypeInferencePass(diagnostic::DiagnosticEngine& diagnostics);
 }

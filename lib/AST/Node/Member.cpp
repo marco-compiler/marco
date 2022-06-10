@@ -1,5 +1,6 @@
 #include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/Modification.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -9,28 +10,17 @@ namespace marco::ast
   Member::Member(
       SourceRange location,
       llvm::StringRef name,
-      Type tp,
+      Type type,
       TypePrefix typePrefix,
-      llvm::Optional<std::unique_ptr<Expression>> initializer,
       bool isPublic,
-      llvm::Optional<std::unique_ptr<Expression>> startOverload)
+      std::unique_ptr<Modification> modification)
       : ASTNode(std::move(location)),
         name(name.str()),
-        type(std::move(tp)),
+        type(std::move(type)),
         typePrefix(std::move(typePrefix)),
-        isPublicMember(isPublic)
+        isPublicMember(isPublic),
+        modification(std::move(modification))
   {
-    if (initializer.hasValue()) {
-      this->initializer = initializer.getValue()->clone();
-    } else {
-      this->initializer = llvm::None;
-    }
-
-    if (startOverload.hasValue()) {
-      this->startOverload = startOverload.getValue()->clone();
-    } else {
-      this->startOverload = llvm::None;
-    }
   }
 
   Member::Member(const Member& other)
@@ -40,16 +30,8 @@ namespace marco::ast
         typePrefix(other.typePrefix),
         isPublicMember(other.isPublicMember)
   {
-    if (other.initializer.hasValue()) {
-      initializer = other.initializer.getValue()->clone();
-    } else {
-      initializer = llvm::None;
-    }
-
-    if (other.startOverload.hasValue()) {
-      startOverload = other.startOverload.getValue()->clone();
-    } else {
-      startOverload = llvm::None;
+    if (other.hasModification()) {
+      modification = std::make_unique<Modification>(*other.modification);
     }
   }
 
@@ -74,9 +56,8 @@ namespace marco::ast
     swap(first.name, second.name);
     swap(first.type, second.type);
     swap(first.typePrefix, second.typePrefix);
-    swap(first.initializer, second.initializer);
     swap(first.isPublicMember, second.isPublicMember);
-    swap(first.startOverload, second.startOverload);
+    swap(first.modification, second.modification);
   }
 
   void Member::print(llvm::raw_ostream& os, size_t indents) const
@@ -86,16 +67,10 @@ namespace marco::ast
     type.print(os);
     os << "}\n";
 
-    if (hasInitializer()) {
+    if (hasModification()) {
       os.indent(indents + 1);
-      os << "initializer:\n";
-      initializer.getValue()->print(os, indents + 2);
-    }
-
-    if (hasStartOverload()) {
-      os.indent(indents + 1);
-      os << "start overload:\n";
-      startOverload.getValue()->print(os, indents + 2);
+      os << "modification:\n";
+      modification->print(os, indents + 2);
     }
   }
 
@@ -103,7 +78,7 @@ namespace marco::ast
   {
     return name == other.name &&
         type == other.type &&
-        initializer == other.initializer;
+        modification == other.modification;
   }
 
   bool Member::operator!=(const Member& other) const
@@ -131,38 +106,9 @@ namespace marco::ast
     type = std::move(new_type);
   }
 
-  bool Member::hasInitializer() const
+  TypePrefix Member::getTypePrefix() const
   {
-    return initializer.hasValue();
-  }
-
-  Expression* Member::getInitializer()
-  {
-    assert(hasInitializer());
-    return initializer->get();
-  }
-
-  const Expression* Member::getInitializer() const
-  {
-    assert(hasInitializer());
-    return initializer->get();
-  }
-
-  bool Member::hasStartOverload() const
-  {
-    return startOverload.hasValue();
-  }
-
-  Expression* Member::getStartOverload()
-  {
-    assert(hasStartOverload());
-    return startOverload->get();
-  }
-
-  const Expression* Member::getStartOverload() const
-  {
-    assert(hasStartOverload());
-    return startOverload->get();
+    return typePrefix;
   }
 
   bool Member::isPublic() const
@@ -185,8 +131,74 @@ namespace marco::ast
     return typePrefix.isOutput();
   }
 
-  TypePrefix Member::getTypePrefix() const
+  bool Member::hasModification() const
   {
-    return typePrefix;
+    return modification != nullptr;
+  }
+
+  Modification* Member::getModification()
+  {
+    assert(hasModification());
+    return modification.get();
+  }
+
+  const Modification* Member::getModification() const
+  {
+    assert(hasModification());
+    return modification.get();
+  }
+
+  bool Member::hasExpression() const
+  {
+    if (!hasModification()) {
+      return false;
+    }
+
+    if (!modification->hasExpression()) {
+      return false;
+    }
+
+    return modification->getExpression();
+  }
+
+  Expression* Member::getExpression()
+  {
+    assert(hasExpression());
+    return modification->getExpression();
+  }
+
+  const Expression* Member::getExpression() const
+  {
+    assert(hasExpression());
+    return modification->getExpression();
+  }
+
+  bool Member::hasStartProperty() const
+  {
+    if (!hasModification()) {
+      return false;
+    }
+
+    return modification->hasStartProperty();
+  }
+
+  StartModificationProperty Member::getStartProperty() const
+  {
+    assert(hasStartProperty());
+    return modification->getStartProperty();
+  }
+
+  bool Member::getFixedProperty() const
+  {
+    if (!hasModification()) {
+      return false;
+    }
+
+    return modification->getFixedProperty();
+  }
+
+  StartModificationProperty::StartModificationProperty(bool each, const Expression& value)
+    : each(each), value(&value)
+  {
   }
 }

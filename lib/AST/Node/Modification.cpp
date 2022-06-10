@@ -1,5 +1,6 @@
 #include "marco/AST/Node/Modification.h"
 #include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/Member.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -117,6 +118,30 @@ namespace marco::ast
     return expression->get();
   }
 
+  bool Modification::hasStartProperty() const
+  {
+    if (!hasClassModification()) {
+      return false;
+    }
+
+    return getClassModification()->hasStartProperty();
+  }
+
+  StartModificationProperty Modification::getStartProperty() const
+  {
+    assert(hasStartProperty());
+    return getClassModification()->getStartProperty();
+  }
+
+  bool Modification::getFixedProperty() const
+  {
+    if (!hasClassModification()) {
+      return false;
+    }
+
+    return getClassModification()->getFixedProperty();
+  }
+
   ClassModification::ClassModification(
       SourceRange location,
       llvm::ArrayRef<std::unique_ptr<Argument>> arguments)
@@ -183,6 +208,73 @@ namespace marco::ast
   ClassModification::const_iterator ClassModification::end() const
   {
     return arguments.end();
+  }
+
+  bool ClassModification::hasStartProperty() const
+  {
+    for (const auto& argument : arguments) {
+      if (!argument->isa<ElementModification>()) {
+        continue;
+      }
+
+      auto* elementModification = argument->get<ElementModification>();
+
+      if (elementModification->getName() != "start") {
+        continue;
+      }
+
+      assert(elementModification.hasModification());
+      return true;
+    }
+
+    return false;
+  }
+
+  StartModificationProperty ClassModification::getStartProperty() const
+  {
+    assert(hasStartProperty());
+
+    for (const auto& argument : arguments) {
+      if (!argument->isa<ElementModification>()) {
+        continue;
+      }
+
+      auto* elementModification = argument->get<ElementModification>();
+
+      if (elementModification->getName() != "start") {
+        continue;
+      }
+
+      return StartModificationProperty(
+          elementModification->hasEachProperty(),
+          *elementModification->getModification()->getExpression());
+    }
+
+    llvm_unreachable("Start property not found");
+  }
+
+  bool ClassModification::getFixedProperty() const
+  {
+    for (const auto& argument : arguments) {
+      if (!argument->isa<ElementModification>()) {
+        continue;
+      }
+
+      const auto* elementModification = argument->get<ElementModification>();
+
+      if (elementModification->getName() != "fixed") {
+        continue;
+      }
+
+      assert(elementModification.hasModification());
+      const auto* modification = elementModification->getModification();
+      assert(modification.hasExpression());
+      const auto* modificationExpression = modification->getExpression();
+      assert(modificationExpression->isa<Constant>());
+      return modificationExpression->get<Constant>()->as<BuiltInType::Boolean>();
+    }
+
+    return false;
   }
 
   Argument::Argument(ElementModification content)

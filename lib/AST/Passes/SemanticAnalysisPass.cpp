@@ -181,7 +181,7 @@ namespace marco::ast
       // arguments or default values, i.e., they may not be assigned values in
       // the body of the function."
 
-      if (member->isInput() && member->hasInitializer() && !function->isCustomRecordConstructor()) {
+      if (member->isInput() && member->hasExpression() && !function->isCustomRecordConstructor()) {
         diagnostics()->emitError<BadSemanticMessage>(
             member->getLocation(),
             "input member can't receive a new value");
@@ -806,14 +806,8 @@ namespace marco::ast
       }
     }
 
-    if (member.hasInitializer()) {
-      if (!run<Expression>(*member.getInitializer())) {
-        return false;
-      }
-    }
-
-    if (member.hasStartOverload()) {
-      if (!run<Expression>(*member.getStartOverload())) {
+    if (member.hasModification()) {
+      if (!run(*member.getModification())) {
         return false;
       }
     }
@@ -951,6 +945,78 @@ namespace marco::ast
       diagnostics()->emitWarning<BadSemanticMessage>(
           algorithm.getLocation(),
           "empty algorithm");
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  bool SemanticAnalysisPass::run(Modification& modification)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    if (modification.hasClassModification()) {
+      if (!run(*modification.getClassModification())) {
+        return false;
+      }
+    }
+
+    if (modification.hasExpression()) {
+      if (!run<Expression>(*modification.getExpression())) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool SemanticAnalysisPass::run<ElementModification>(Argument& argument)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+    auto* elementModification = argument.get<ElementModification>();
+
+    if (elementModification->hasModification()) {
+      if (!run(*elementModification->getModification())) {
+        return false;
+      }
+    }
+
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
+  bool SemanticAnalysisPass::run<ElementRedeclaration>(Argument& argument)
+  {
+    llvm_unreachable("Not implemented");
+    return false;
+  }
+
+  template<>
+  bool SemanticAnalysisPass::run<ElementReplaceable>(Argument& argument)
+  {
+    llvm_unreachable("Not implemented");
+    return false;
+  }
+
+  template<>
+  bool SemanticAnalysisPass::run<Argument>(Argument& argument)
+  {
+    return argument.visit([&](auto& obj) {
+      using type = decltype(obj);
+      using deref = typename std::remove_reference<type>::type;
+      using deconst = typename std::remove_const<deref>::type;
+      return run<deconst>(argument);
+    });
+  }
+
+  bool SemanticAnalysisPass::run(ClassModification& classModification)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    for (auto& argument : classModification) {
+      if (!run<Argument>(*argument)) {
+        return false;
+      }
     }
 
     return numOfErrors == diagnostics()->numOfErrors();

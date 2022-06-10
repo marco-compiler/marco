@@ -18,6 +18,8 @@ namespace marco::ast
   class Expression;
 	class Modification;
 
+  class StartModificationProperty;
+
 	class Modification
 			: public ASTNode,
 				public impl::Cloneable<Modification>,
@@ -48,6 +50,17 @@ namespace marco::ast
       [[nodiscard]] bool hasExpression() const;
       [[nodiscard]] Expression* getExpression();
       [[nodiscard]] const Expression* getExpression() const;
+
+      /// @name Forwarded methods
+      /// {
+
+      bool hasStartProperty() const;
+
+      StartModificationProperty getStartProperty() const;
+
+      bool getFixedProperty() const;
+
+      /// }
 
 		private:
       Modification(SourceRange location,
@@ -100,6 +113,17 @@ namespace marco::ast
       [[nodiscard]] iterator end();
       [[nodiscard]] const_iterator end() const;
 
+      /// @name Predefined properties
+      /// {
+
+      bool hasStartProperty() const;
+
+      StartModificationProperty getStartProperty() const;
+
+      bool getFixedProperty() const;
+
+      /// }
+
 		private:
       ClassModification(SourceRange location,
                         llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
@@ -113,44 +137,45 @@ namespace marco::ast
 				public impl::Dumpable<ElementModification>
 	{
 		public:
-		ElementModification(const ElementModification& other);
-		ElementModification(ElementModification&& other);
-		~ElementModification() override;
+      ElementModification(const ElementModification& other);
+      ElementModification(ElementModification&& other);
+      ~ElementModification() override;
 
-		ElementModification& operator=(const ElementModification& other);
-		ElementModification& operator=(ElementModification&& other);
+      ElementModification& operator=(const ElementModification& other);
+      ElementModification& operator=(ElementModification&& other);
 
-		friend void swap(ElementModification& first, ElementModification& second);
+      friend void swap(ElementModification& first, ElementModification& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] bool hasEachProperty() const;
-		[[nodiscard]] bool hasFinalProperty() const;
+      [[nodiscard]] bool hasEachProperty() const;
+      [[nodiscard]] bool hasFinalProperty() const;
 
-		[[nodiscard]] llvm::StringRef getName() const;
+      [[nodiscard]] llvm::StringRef getName() const;
 
-		[[nodiscard]] bool hasModification() const;
-		[[nodiscard]] Modification* getModification();
-		[[nodiscard]] const Modification* getModification() const;
+      [[nodiscard]] bool hasModification() const;
+      [[nodiscard]] Modification* getModification();
+      [[nodiscard]] const Modification* getModification() const;
 
 		private:
-		friend class Argument;
+      friend class Argument;
 
-		ElementModification(SourceRange location,
-												bool each,
-												bool final,
-												llvm::StringRef name,
-												std::unique_ptr<Modification> modification);
+      ElementModification(SourceRange location,
+                          bool each,
+                          bool final,
+                          llvm::StringRef name,
+                          std::unique_ptr<Modification> modification);
 
-		ElementModification(SourceRange location,
-												bool each,
-												bool final,
-												llvm::StringRef name);
+      ElementModification(SourceRange location,
+                          bool each,
+                          bool final,
+                          llvm::StringRef name);
 
-		bool each;
-		bool final;
-		std::string name;
-		llvm::Optional<std::unique_ptr<Modification>> modification;
+    private:
+      bool each;
+      bool final;
+      std::string name;
+      llvm::Optional<std::unique_ptr<Modification>> modification;
 	};
 
 	// TODO: ElementReplaceable
@@ -159,21 +184,21 @@ namespace marco::ast
 				public impl::Dumpable<ElementReplaceable>
 	{
 		public:
-		ElementReplaceable(const ElementReplaceable& other);
-		ElementReplaceable(ElementReplaceable&& other);
-		~ElementReplaceable() override;
+      ElementReplaceable(const ElementReplaceable& other);
+      ElementReplaceable(ElementReplaceable&& other);
+      ~ElementReplaceable() override;
 
-		ElementReplaceable& operator=(const ElementReplaceable& other);
-		ElementReplaceable& operator=(ElementReplaceable&& other);
+      ElementReplaceable& operator=(const ElementReplaceable& other);
+      ElementReplaceable& operator=(ElementReplaceable&& other);
 
-		friend void swap(ElementReplaceable& first, ElementReplaceable& second);
+      friend void swap(ElementReplaceable& first, ElementReplaceable& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		private:
-		friend class Argument;
+      friend class Argument;
 
-		explicit ElementReplaceable(SourceRange location);
+      explicit ElementReplaceable(SourceRange location);
 	};
 
 	// TODO: ElementRedeclaration
@@ -182,21 +207,21 @@ namespace marco::ast
 				public impl::Dumpable<ElementRedeclaration>
 	{
 		public:
-		ElementRedeclaration(const ElementRedeclaration& other);
-		ElementRedeclaration(ElementRedeclaration&& other);
-		~ElementRedeclaration() override;
+      ElementRedeclaration(const ElementRedeclaration& other);
+      ElementRedeclaration(ElementRedeclaration&& other);
+      ~ElementRedeclaration() override;
 
-		ElementRedeclaration& operator=(const ElementRedeclaration& other);
-		ElementRedeclaration& operator=(ElementRedeclaration&& other);
+      ElementRedeclaration& operator=(const ElementRedeclaration& other);
+      ElementRedeclaration& operator=(ElementRedeclaration&& other);
 
-		friend void swap(ElementRedeclaration& first, ElementRedeclaration& second);
+      friend void swap(ElementRedeclaration& first, ElementRedeclaration& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		private:
-		friend class Argument;
+      friend class Argument;
 
-		explicit ElementRedeclaration(SourceRange location);
+      explicit ElementRedeclaration(SourceRange location);
 	};
 
 	class Argument
@@ -204,101 +229,104 @@ namespace marco::ast
 				public impl::Dumpable<Argument>
 	{
 		public:
-		template<typename... Args>
-		static std::unique_ptr<Argument> build(Args&&... args)
-		{
-			return std::make_unique<Argument>(std::forward<Args>(args)...);
-		}
+      template<typename... Args>
+      static std::unique_ptr<Argument> build(Args&&... args)
+      {
+        return std::make_unique<Argument>(std::forward<Args>(args)...);
+      }
 
-		Argument(const Argument& other);
-		Argument(Argument&& other);
-		~Argument();
+      Argument(const Argument& other);
+      Argument(Argument&& other);
+      ~Argument();
 
-		Argument& operator=(const Argument& other);
-		Argument& operator=(Argument&& other);
+      Argument& operator=(const Argument& other);
+      Argument& operator=(Argument&& other);
 
-		friend void swap(Argument& first, Argument& second);
+      friend void swap(Argument& first, Argument& second);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		template<typename T>
-		[[nodiscard]] bool isa() const
-		{
-			return std::holds_alternative<T>(content);
-		}
+      template<typename T>
+      [[nodiscard]] bool isa() const
+      {
+        return std::holds_alternative<T>(content);
+      }
 
-		template<typename T>
-		[[nodiscard]] T* get()
-		{
-			return &std::get<T>(content);
-		}
+      template<typename T>
+      [[nodiscard]] T* get()
+      {
+        return &std::get<T>(content);
+      }
 
-		template<typename T>
-		[[nodiscard]] const T* get() const
-		{
-			return &std::get<T>(content);
-		}
+      template<typename T>
+      [[nodiscard]] const T* get() const
+      {
+        return &std::get<T>(content);
+      }
 
-		template<typename T>
-		[[nodiscard]] T* dyn_get()
-		{
-			if (!isa<T>())
-				return nullptr;
+      template<typename T>
+      [[nodiscard]] T* dyn_get()
+      {
+        if (!isa<T>()) {
+          return nullptr;
+        }
 
-			return get<T>();
-		}
+        return get<T>();
+      }
 
-		template<typename T>
-		[[nodiscard]] const T* dyn_get() const
-		{
-			if (!isa<T>())
-				return nullptr;
+      template<typename T>
+      [[nodiscard]] const T* dyn_get() const
+      {
+        if (!isa<T>()) {
+          return nullptr;
+        }
 
-			return get<T>();
-		}
+        return get<T>();
+      }
 
-		template<typename Visitor>
-		void visit(Visitor&& visitor)
-		{
-			std::visit(visitor, content);
-		}
+      template<typename Visitor>
+      auto visit(Visitor&& visitor)
+      {
+        return std::visit(visitor, content);
+      }
 
-		template<typename Visitor>
-		void visit(Visitor&& visitor) const
-		{
-			std::visit(visitor, content);
-		}
+      template<typename Visitor>
+      auto visit(Visitor&& visitor) const
+      {
+        return std::visit(visitor, content);
+      }
 
-		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Argument> elementModification(Args&&... args)
-		{
-			ElementModification content(std::forward<Args>(args)...);
-			return std::unique_ptr<Argument>(new Argument(std::move(content)));
-		}
+      template<typename... Args>
+      [[nodiscard]] static std::unique_ptr<Argument> elementModification(Args&&... args)
+      {
+        ElementModification content(std::forward<Args>(args)...);
+        return std::unique_ptr<Argument>(new Argument(std::move(content)));
+      }
 
-		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Argument> elementRedeclaration(Args&&... args)
-		{
-			ElementRedeclaration content(std::forward<Args>(args)...);
-			return std::unique_ptr<Argument>(new Argument(std::move(content)));
-		}
+      template<typename... Args>
+      [[nodiscard]] static std::unique_ptr<Argument> elementRedeclaration(Args&&... args)
+      {
+        ElementRedeclaration content(std::forward<Args>(args)...);
+        return std::unique_ptr<Argument>(new Argument(std::move(content)));
+      }
 
-		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Argument> elementReplaceable(Args&&... args)
-		{
-			ElementReplaceable content(std::forward<Args>(args)...);
-			return std::unique_ptr<Argument>(new Argument(std::move(content)));
-		}
+      template<typename... Args>
+      [[nodiscard]] static std::unique_ptr<Argument> elementReplaceable(Args&&... args)
+      {
+        ElementReplaceable content(std::forward<Args>(args)...);
+        return std::unique_ptr<Argument>(new Argument(std::move(content)));
+      }
 
 		private:
-		explicit Argument(ElementModification content);
-		explicit Argument(ElementRedeclaration content);
-		explicit Argument(ElementReplaceable content);
+      explicit Argument(ElementModification content);
+      explicit Argument(ElementRedeclaration content);
+      explicit Argument(ElementReplaceable content);
 
-		std::variant<
-		    ElementModification,
-				ElementRedeclaration,
-				ElementReplaceable> content;
+    private:
+      std::variant<
+          ElementModification,
+          ElementRedeclaration,
+          ElementReplaceable> content;
 	};
 }
 

@@ -5,11 +5,11 @@ using namespace ::marco;
 using namespace ::marco::ast;
 using namespace ::marco::parser;
 
-#define EXPECT(Token)                                                                                     \
-	if (!accept<Token>()) {                                                                                 \
-	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);     \
-    return llvm::None;                                                                                    \
-  }                                                                                                       \
+#define EXPECT(Token)                                                                           \
+	if (!accept<Token>()) {                                                                       \
+	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);   \
+    return llvm::None;                                                                          \
+  }                                                                                             \
   static_assert(true)
 
 #define TRY(outVar, expression)       \
@@ -1264,34 +1264,15 @@ namespace marco::parser
   llvm::Optional<std::unique_ptr<ast::Member>> Parser::parseElement(bool publicSection)
   {
     accept<Token::Final>();
-    TRY(prefix, parseTypePrefix());
+    TRY(typePrefix, parseTypePrefix());
     TRY(type, parseTypeSpecifier());
     TRY(name, parseIdentifier());
 
-    llvm::Optional<std::unique_ptr<Expression>> startOverload;
+    std::unique_ptr<Modification> modification = nullptr;
 
-    if (current == Token::LPar) {
-      TRY(start, parseTermModification());
-
-      if (*start != nullptr) {
-        startOverload = std::move(*start);
-      }
-    }
-
-    if (accept<Token::EqualityOperator>()) {
-      TRY(init, parseExpression());
-
-      // String comment. Ignore it for now.
-      accept<Token::String>();
-
-      // Annotation
-      if (current == Token::Annotation) {
-        TRY(annotation, parseAnnotation());
-        // TODO: handle elements annotations
-      }
-
-      return Member::build(
-          name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), std::move(*init), publicSection);
+    if (current == Token::LPar || current == Token::EqualityOperator) {
+      TRY(mod, parseModification());
+      modification = std::move(*mod);
     }
 
     // String comment. Ignore it for now.
@@ -1304,8 +1285,12 @@ namespace marco::parser
     }
 
     return Member::build(
-        name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), llvm::None, publicSection,
-        startOverload.hasValue() ? llvm::Optional(std::move(*startOverload)) : llvm::None);
+        name->getLocation(),
+        name->getValue(),
+        std::move(*type),
+        std::move(*typePrefix),
+        publicSection,
+        std::move(modification));
   }
 
   llvm::Optional<ast::TypePrefix> Parser::parseTypePrefix()

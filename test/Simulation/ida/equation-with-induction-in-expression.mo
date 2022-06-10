@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,0.700000,1.300000,1.700000,2.100000,2.500000
 
 model InductionUsage
-	Real[5] x(start = 0.5);
+	Real[5] x(each start = 0.5);
 equation
 	5.0 * der(x[1]) = 1.0;
 

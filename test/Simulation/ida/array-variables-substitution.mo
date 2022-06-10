@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,10.000000,5.200433,3.348477,5.200433,10.000000,106.874672,101.674239,98.325761,93.125328
 
 model ArrayVariablesSubstitution
-  Real[4] T(start = 100.0);
+  Real[4] T(each start = 100.0);
   Real[5] Q;
 equation
   for i in 1:4 loop

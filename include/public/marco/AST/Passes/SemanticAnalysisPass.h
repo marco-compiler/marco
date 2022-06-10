@@ -37,6 +37,9 @@ namespace marco::ast
       template<typename T>
       bool run(Statement& statement);
 
+      template<typename T>
+      bool run(Argument& argument);
+
       bool run(Equation& equation);
 
       bool run(ForEquation& forEquation);
@@ -46,6 +49,10 @@ namespace marco::ast
       bool run(Member& member);
 
       bool run(Algorithm& algorithm);
+
+      bool run(Modification& modification);
+
+      bool run(ClassModification& classModification);
 
     private:
       bool processComparisonOp(Expression& expression);
@@ -116,6 +123,18 @@ namespace marco::ast
 
   template<>
   bool SemanticAnalysisPass::run<WhileStatement>(Statement& statement);
+
+  template<>
+  bool SemanticAnalysisPass::run<Argument>(Argument& argument);
+
+  template<>
+  bool SemanticAnalysisPass::run<ElementModification>(Argument& argument);
+
+  template<>
+  bool SemanticAnalysisPass::run<ElementRedeclaration>(Argument& argument);
+
+  template<>
+  bool SemanticAnalysisPass::run<ElementReplaceable>(Argument& argument);
 
   std::unique_ptr<Pass> createSemanticAnalysisPass(diagnostic::DiagnosticEngine& diagnostics);
 }

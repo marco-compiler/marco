@@ -29,6 +29,9 @@ namespace marco::ast
       template<typename T>
       bool run(Statement& statement);
 
+      template<typename T>
+      bool run(Argument& argument);
+
       bool run(Equation& equation);
 
       bool run(ForEquation& forEquation);
@@ -38,6 +41,10 @@ namespace marco::ast
       bool run(Member& member);
 
       bool run(Algorithm& algorithm);
+
+      bool run(Modification& modification);
+
+      bool run(ClassModification& classModification);
 	};
 
   template<>
@@ -102,6 +109,18 @@ namespace marco::ast
 
   template<>
   bool ConstantFoldingPass::run<WhileStatement>(Statement& statement);
+
+  template<>
+  bool ConstantFoldingPass::run<Argument>(Argument& argument);
+
+  template<>
+  bool ConstantFoldingPass::run<ElementModification>(Argument& argument);
+
+  template<>
+  bool ConstantFoldingPass::run<ElementRedeclaration>(Argument& argument);
+
+  template<>
+  bool ConstantFoldingPass::run<ElementReplaceable>(Argument& argument);
 
   std::unique_ptr<Pass> createConstantFoldingPass(diagnostic::DiagnosticEngine& diagnostics);
 }
