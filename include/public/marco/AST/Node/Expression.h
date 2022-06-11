@@ -91,6 +91,8 @@ namespace marco::ast
 
       [[nodiscard]] SourceRange getLocation() const;
 
+      void setLocation(SourceRange location);
+
       [[nodiscard]] Type& getType();
       [[nodiscard]] const Type& getType() const;
       void setType(Type tp);

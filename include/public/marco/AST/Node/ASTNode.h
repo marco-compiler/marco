@@ -68,7 +68,9 @@ namespace marco::ast
 
       friend void swap(ASTNode& first, ASTNode& second);
 
-      [[nodiscard]] SourceRange getLocation() const;
+      SourceRange getLocation() const;
+
+      void setLocation(SourceRange loc);
 
 		private:
 		  SourceRange location;

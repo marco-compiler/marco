@@ -88,6 +88,13 @@ namespace marco::ast
     });
   }
 
+  void Expression::setLocation(SourceRange location)
+  {
+    visit([&](auto& obj) {
+      obj.setLocation(std::move(location));
+    });
+  }
+
   Type& Expression::getType()
   {
     return std::visit([](auto& obj) -> Type& {

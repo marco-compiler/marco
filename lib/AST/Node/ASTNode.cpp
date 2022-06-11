@@ -36,4 +36,9 @@ namespace marco::ast
   {
     return location;
   }
+
+  void ASTNode::setLocation(SourceRange loc)
+  {
+    this->location = std::move(loc);
+  }
 }

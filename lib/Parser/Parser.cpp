@@ -818,7 +818,7 @@ namespace marco::parser
 
     while (current == Token::Product || current == Token::ProductEW || current == Token::Division || current == Token::DivisionEW) {
       TRY(mulOperator, parseMulOperator());
-      TRY(rhs, parseTerm());
+      TRY(rhs, parseFactor());
       loc.end = (*rhs)->getLocation().end;
 
       std::vector<std::unique_ptr<Expression>> args;
@@ -916,6 +916,7 @@ namespace marco::parser
       EXPECT(Token::RPar);
 
       if (outputExpressionList->size() == 1) {
+        (*outputExpressionList)[0]->setLocation(loc);
         return std::move((*outputExpressionList)[0]);
       }
 

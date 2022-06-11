@@ -930,6 +930,204 @@ TEST(Parser, expression_divisionElementWise)
   EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::divideEW);
 }
 
+TEST(Parser, expression_additionAndMultiplication)
+{
+  std::string str = "x + y * z";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 9);
+
+  ASSERT_TRUE((*node)->isa<Operation>());
+  ASSERT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::add);
+
+  auto* addition = (*node)->get<Operation>();
+
+  auto* x = addition->getArg(0);
+  ASSERT_TRUE(x->isa<ReferenceAccess>());
+  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+
+  auto* multiplication = addition->getArg(1)->get<Operation>();
+  ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
+
+  auto* y = multiplication->getArg(0);
+  ASSERT_TRUE(y->isa<ReferenceAccess>());
+  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+
+  auto* z = multiplication->getArg(1);
+  ASSERT_TRUE(z->isa<ReferenceAccess>());
+  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+}
+
+TEST(Parser, expression_multiplicationAndAddition)
+{
+  std::string str = "x * y + z";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 9);
+
+  ASSERT_TRUE((*node)->isa<Operation>());
+  ASSERT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::add);
+
+  auto* addition = (*node)->get<Operation>();
+
+  auto* z = addition->getArg(1);
+  ASSERT_TRUE(z->isa<ReferenceAccess>());
+  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+
+  ASSERT_TRUE(addition->getArg(0)->isa<Operation>());
+
+  auto* multiplication = addition->getArg(0)->get<Operation>();
+  ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
+
+  auto* x = multiplication->getArg(0);
+  ASSERT_TRUE(x->isa<ReferenceAccess>());
+  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+
+  auto* y = multiplication->getArg(1);
+  ASSERT_TRUE(y->isa<ReferenceAccess>());
+  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+}
+
+TEST(Parser, expression_multiplicationAndDivision)
+{
+  std::string str = "x * y / z";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 9);
+
+  ASSERT_TRUE((*node)->isa<Operation>());
+
+  auto* division = (*node)->get<Operation>();
+  ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
+
+  auto* z = division->getArg(1);
+  ASSERT_TRUE(z->isa<ReferenceAccess>());
+  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+
+  ASSERT_TRUE(division->getArg(0)->isa<Operation>());
+
+  auto* multiplication = division->getArg(0)->get<Operation>();
+  ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
+
+  auto* x = multiplication->getArg(0);
+  ASSERT_TRUE(x->isa<ReferenceAccess>());
+  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+
+  auto* y = multiplication->getArg(1);
+  ASSERT_TRUE(y->isa<ReferenceAccess>());
+  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+}
+
+TEST(Parser, expression_divisionAndMultiplication)
+{
+  std::string str = "x / y * z";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 9);
+
+  ASSERT_TRUE((*node)->isa<Operation>());
+
+  auto* multiplication = (*node)->get<Operation>();
+  ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
+
+  auto* z = multiplication->getArg(1);
+  ASSERT_TRUE(z->isa<ReferenceAccess>());
+  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+
+  ASSERT_TRUE(multiplication->getArg(0)->isa<Operation>());
+
+  auto* division = multiplication->getArg(0)->get<Operation>();
+  ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
+
+  auto* x = division->getArg(0);
+  ASSERT_TRUE(x->isa<ReferenceAccess>());
+  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+
+  auto* y = division->getArg(1);
+  ASSERT_TRUE(y->isa<ReferenceAccess>());
+  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+}
+
+TEST(Parser, expression_arithmeticExpressionWithParentheses)
+{
+  std::string str = "x / (y * z)";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseExpression();
+  ASSERT_TRUE(node.hasValue());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 11);
+
+  ASSERT_TRUE((*node)->isa<Operation>());
+
+  auto* division = (*node)->get<Operation>();
+  ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
+
+  auto* x = division->getArg(0);
+  ASSERT_TRUE(x->isa<ReferenceAccess>());
+  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+
+  ASSERT_TRUE(division->getArg(1)->isa<Operation>());
+
+  auto* multiplication = division->getArg(1)->get<Operation>();
+  ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
+
+  auto* y = multiplication->getArg(0);
+  ASSERT_TRUE(y->isa<ReferenceAccess>());
+  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+
+  auto* z = multiplication->getArg(1);
+  ASSERT_TRUE(z->isa<ReferenceAccess>());
+  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+}
+
 TEST(Parser, expression_pow)
 {
   std::string str = "x ^ y";
