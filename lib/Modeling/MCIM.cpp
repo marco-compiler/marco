@@ -250,30 +250,41 @@ namespace marco::modeling::internal
     assert(equations.rank() == getEquationRanges().rank());
     assert(variables.rank() == getVariableRanges().rank());
 
-    assert(llvm::all_of(llvm::zip(equations, variables), [&](const auto& pair) {
-      const auto& equation = std::get<0>(pair);
-      const auto& variable = std::get<1>(pair);
+    assert(equations.rank() < variables.rank() || llvm::all_of(equations, [&](const auto& equation) {
+             auto delta = getDelta(equations, variables);
+             IndexSet key(equation);
+             MCIMElement group(key);
 
-      auto delta = getDelta(equations, variables);
-      IndexSet key(getKey(equation, variable));
-      MCIMElement group(key);
+             IndexSet reducedValues;
 
-      IndexSet reducedValues;
+             for (const auto& value : group.getValues(delta)) {
+               reducedValues += value.slice(variables.rank());
+             }
 
-      if (equation.rank() >= variable.rank()) {
-        for (const auto& value : group.getValues(delta)) {
-          reducedValues += value.slice(variable.rank());
-        }
+             return llvm::none_of(reducedValues, [&](const auto& range) {
+               return llvm::any_of(range, [&](const auto& point) {
+                 return !variables.contains(point);
+               });
+             });
+           }));
 
-        return reducedValues == variable;
-      } else {
-        for (const auto& value : group.getValues(delta)) {
-          reducedValues += value.slice(equation.rank());
-        }
+    assert(equations.rank() >= variables.rank() || llvm::all_of(variables, [&](const auto& variable) {
+             auto delta = getDelta(equations, variables);
+             IndexSet key(variable);
+             MCIMElement group(key);
 
-        return reducedValues == equation;
-      }
-    }));
+             IndexSet reducedValues;
+
+             for (const auto& value : group.getValues(delta)) {
+               reducedValues += value.slice(equations.rank());
+             }
+
+             return llvm::none_of(reducedValues, [&](const auto& range) {
+               return llvm::any_of(range, [&](const auto& point) {
+                 return !equations.contains(point);
+               });
+             });
+           }));
 
     IndexSet keys(getKey(equations, variables));
     auto delta = getDelta(equations, variables);

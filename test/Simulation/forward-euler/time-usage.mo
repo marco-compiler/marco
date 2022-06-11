@@ -16,7 +16,7 @@
 
 model TimeUsage
 	Real x;
-	Real y;
+	Real y(start = 0, fixed = true);
 equation
     x = sin(time * 100);
     der(y) = x;

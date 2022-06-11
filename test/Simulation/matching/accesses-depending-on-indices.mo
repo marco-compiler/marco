@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000,4.000000
 
 model AccessesDependingOnIndices
-	Real[3, 4] x;
+	Real[3, 4] x(each start = 0, fixed = true);
 equation
 	for i in 1:3 loop
 		for j in 1:4 loop

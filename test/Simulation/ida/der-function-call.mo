@@ -33,8 +33,8 @@ end foo;
 function bar = der(foo, T);
 
 model DerFunctionCall
-	Real z;
-	Real w;
+	Real z(start = 0, fixed = true);
+	Real w(start = 0, fixed = true);
 equation
 	der(w) = foo(3.0);
 	der(z) = bar(3.0);

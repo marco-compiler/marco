@@ -7,7 +7,7 @@
 // CHECK-NEXT: 0.200000,0.600000,1.000000
 
 model CycleWithDerivative
-	Real x;
+	Real x(start = 0, fixed = true);
 	Real y;
 equation
 	der(x) + y = 4;

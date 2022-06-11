@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,1.739204
 
 model ImplicitEquation
-	Real x;
+	Real x(start = 0, fixed = false);
 equation
 	x + x * x * x = 7.0;
 end ImplicitEquation;

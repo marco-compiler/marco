@@ -170,9 +170,11 @@ static mlir::LogicalResult removeSubtractions(mlir::OpBuilder& builder, mlir::Op
     return mlir::success();
   }
 
-  for (auto operand : op->getOperands()) {
-    if (auto res = removeSubtractions(builder, operand.getDefiningOp()); mlir::failed(res)) {
-      return res;
+  if (!mlir::isa<SubscriptionOp>(op) && !mlir::isa<LoadOp>(op)) {
+    for (auto operand : op->getOperands()) {
+      if (auto res = removeSubtractions(builder, operand.getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
     }
   }
 
@@ -872,6 +874,7 @@ namespace marco::codegen
       const ::marco::modeling::MultidimensionalRange& equationIndices,
       const Access& access)
   {
+    dumpIR();
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto lhs = getValueAtPath(access.getPath());
 
@@ -1050,6 +1053,7 @@ namespace marco::codegen
     }
 
     if (lhsHasAccess) {
+      dumpIR();
       auto leftPos = llvm::partition(lhsSummedValues, [&](const auto& value) {
         return containsAccessFn(value, access, EquationPath::LEFT);
       });

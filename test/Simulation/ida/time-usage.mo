@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,0.500000
 
 model TimeUsage
-	Real x;
+	Real x(start = 0, fixed = true);
 equation
 	der(x) = time;
 end TimeUsage;

@@ -22,8 +22,8 @@ algorithm
 end foo;
 
 model FunctionCall
-	Real x;
-	Real y;
+	Real x(start = 0, fixed = true);
+	Real y(start = 0, fixed = true);
 equation
 	der(x) = 2;
 	der(y) = foo(x);

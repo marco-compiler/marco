@@ -15,8 +15,8 @@
 // CHECK-NEXT: 1.000000,-0.664044,-1.187815
 
 model CycleWithImplicitEquation
-    Real x(start = -0.7);
-    Real y(start = -0.7);
+    Real x(start = -0.7, fixed = false);
+    Real y(start = -0.7, fixed = false);
 equation
     x * x + y * y + x + y = 0;
     x * x * y + x = y;

@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,2.000000,2.000000
 
 model ScalarVariablesSubstitution
-	Real x;
+	Real x(start = 0, fixed = true);
 	Real y;
 equation
 	der(x) = y;

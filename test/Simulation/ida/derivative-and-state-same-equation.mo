@@ -15,8 +15,8 @@
 // CHECK-NEXT: 1.000000,1.000000,1.000000,1.000000,3.500000,3.500000,3.500000
 
 model ArraysWithState
-	Real[3] x;
-	Real[3] y;
+	Real[3] x(each start = 0, fixed = true);
+	Real[3] y(each start = 0, fixed = true);
 equation
 	for i in 1:3 loop
 		der(x[i]) = 1.0;

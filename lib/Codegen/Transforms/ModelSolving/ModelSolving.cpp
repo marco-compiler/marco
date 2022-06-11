@@ -100,6 +100,42 @@ static void collectDerivedVariablesIndices(
   }
 }
 
+static void createInitializingEquation(
+    mlir::OpBuilder& builder,
+    mlir::Location loc,
+    mlir::Value variable,
+    const IndexSet& indices,
+    std::function<mlir::Value(mlir::OpBuilder&, mlir::Location)> valueCallback)
+{
+  for (const auto& range : indices) {
+    std::vector<mlir::Value> inductionVariables;
+
+    for (unsigned int i = 0; i < range.rank(); ++i) {
+      auto forOp = builder.create<ForEquationOp>(loc, range[i].getBegin(), range[i].getEnd() - 1);
+      inductionVariables.push_back(forOp.induction());
+      builder.setInsertionPointToStart(forOp.bodyBlock());
+    }
+
+    auto equationOp = builder.create<EquationOp>(loc);
+    assert(equationOp.bodyRegion().empty());
+    mlir::Block* bodyBlock = builder.createBlock(&equationOp.bodyRegion());
+    builder.setInsertionPointToStart(bodyBlock);
+
+    mlir::Value value = valueCallback(builder, loc);
+
+    std::vector<mlir::Value> currentIndices;
+
+    for (unsigned int i = 0; i <variable.getType().cast<ArrayType>().getRank(); ++i) {
+      currentIndices.push_back(inductionVariables[i]);
+    }
+
+    mlir::Value scalarVariable = builder.create<LoadOp>(loc, variable, currentIndices);
+    mlir::Value lhs = builder.create<EquationSideOp>(loc, scalarVariable);
+    mlir::Value rhs = builder.create<EquationSideOp>(loc, value);
+    builder.create<EquationSidesOp>(loc, lhs, rhs);
+  }
+}
+
 static unsigned int addDerivativeToRegions(
     mlir::OpBuilder& builder,
     mlir::Location loc,
@@ -138,36 +174,12 @@ static unsigned int addDerivativeToRegions(
     // If this is not done, then the matching process would fail by detecting an
     // underdetermined problem. An alternative would be to split each variable
     // according to the algebraic / differential nature of its indices, but that
-    // is way too complicated with the respect to performance gain.
+    // is way too complicated with respect to the performance gain.
 
-    for (const auto& range : nonDerivedIndices) {
-      builder.setInsertionPointToEnd(&region->front());
-      std::vector<mlir::Value> inductionVariables;
-
-      for (unsigned int i = 0; i < range.rank(); ++i) {
-        auto forOp = builder.create<ForEquationOp>(loc, range[i].getBegin(), range[i].getEnd() - 1);
-        inductionVariables.push_back(forOp.induction());
-        builder.setInsertionPointToStart(forOp.bodyBlock());
-      }
-
-      auto equationOp = builder.create<EquationOp>(loc);
-      assert(equationOp.bodyRegion().empty());
-      mlir::Block* bodyBlock = builder.createBlock(&equationOp.bodyRegion());
-      builder.setInsertionPointToStart(bodyBlock);
-
+    createInitializingEquation(builder, loc, derivative, nonDerivedIndices, [](mlir::OpBuilder& builder, mlir::Location loc) {
       mlir::Value zero = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
-
-      std::vector<mlir::Value> indices;
-
-      for (unsigned int i = 0; i < derType.getRank(); ++i) {
-        indices.push_back(inductionVariables[i]);
-      }
-
-      mlir::Value scalarValue = builder.create<LoadOp>(loc, derivative, indices);
-      mlir::Value lhs = builder.create<EquationSideOp>(loc, scalarValue);
-      mlir::Value rhs = builder.create<EquationSideOp>(loc, zero);
-      builder.create<EquationSidesOp>(loc, lhs, rhs);
-    }
+      return zero;
+    });
   }
 
   return newArgNumber;
@@ -213,7 +225,7 @@ static void eraseValueInsideEquation(mlir::Value value)
   }
 }
 
-static mlir::LogicalResult createDerivativeVariables(
+static mlir::LogicalResult createDerivatives(
     mlir::OpBuilder& builder,
     ModelOp modelOp,
     DerivativesMap& derivativesMap,
@@ -281,6 +293,19 @@ static mlir::LogicalResult createDerivativeVariables(
       mlir::Value derivative = builder.create<MemberLoadOp>(derMemberOp.getLoc(), derMemberOp);
       builder.create<ArrayFillOp>(derMemberOp.getLoc(), derivative, zero);
     }
+
+    /*
+    // Create the initial equations needed to initialize the derivative to zero
+    builder.setInsertionPointToEnd(modelOp.initialEquationsBlock());
+    mlir::Value derivative = modelOp.initialEquationsRegion().getArgument(derArgNumber);
+
+    createInitializingEquation(
+        builder, modelOp.getLoc(), derivative, derivativesMap.getDerivedIndices(argNumber),
+        [](mlir::OpBuilder& builder, mlir::Location loc) {
+          mlir::Value zero = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
+          return zero;
+        });
+        */
   }
 
   builder.setInsertionPointToEnd(&modelOp.initRegion().back());
@@ -427,8 +452,7 @@ namespace
         model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
         model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
 
-        // Split variables according to their type.
-        // Determine which scalar variables do appear as argument to the derivative operation.
+        // Determine which scalar variables do appear as argument to the derivative operation
         std::map<unsigned int, IndexSet> derivedIndices;
         collectDerivedVariablesIndices(derivedIndices, initialModel.getEquations());
         collectDerivedVariablesIndices(derivedIndices, model.getEquations());
@@ -442,10 +466,11 @@ namespace
         model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
         model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
 
-        // Create the variables for the derivatives
+        // Create the variables for the derivatives, together with the initial equations needed to
+        // initialize them to zero.
         DerivativesMap derivativesMap;
 
-        if (mlir::failed(createDerivativeVariables(builder, models[0], derivativesMap, derivedIndices))) {
+        if (mlir::failed(createDerivatives(builder, models[0], derivativesMap, derivedIndices))) {
           return signalPassFailure();
         }
 
@@ -472,12 +497,10 @@ namespace
         // Solve the initial conditions problem
         Model<ScheduledEquationsBlock> scheduledInitialModel(initialModel.getOperation());
 
-        /*
-        if (mlir::failed(solveInitialConditionsModel(scheduledInitialModel, initialModel))) {
+        if (mlir::failed(solveInitialConditionsModel(builder, scheduledInitialModel, initialModel))) {
           initialModel.getOperation().emitError("Can't solve the initialization problem");
           return signalPassFailure();
         }
-         */
 
         // Solve the main model
         Model<ScheduledEquationsBlock> scheduledModel(model.getOperation());
@@ -492,7 +515,11 @@ namespace
         marco::codegen::TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
         ModelConverter modelConverter(options, typeConverter);
 
-        if (mlir::failed(modelConverter.convert(builder, scheduledModel))) {
+        if (mlir::failed(modelConverter.convertInitialModel(builder, scheduledInitialModel))) {
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(modelConverter.convertMainModel(builder, scheduledModel))) {
           return signalPassFailure();
         }
 

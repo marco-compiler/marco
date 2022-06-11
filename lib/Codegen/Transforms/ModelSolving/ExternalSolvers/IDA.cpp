@@ -35,7 +35,7 @@ namespace marco::codegen
       endTime(endTime),
       timeStep(timeStep)
   {
-    assert(startTime < endTime);
+    assert(startTime <= endTime);
     assert(timeStep > 0);
     assert(options.relativeTolerance > 0);
     assert(options.absoluteTolerance > 0);

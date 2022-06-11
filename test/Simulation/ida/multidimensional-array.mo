@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,1.000000,2.000000,2.000000,1.000000,2.000000,2.000000
 
 model MultidimensionalArray
-	Real[2, 3] x;
+	Real[2, 3] x(each start = 0, fixed = true);
 equation
 	for i in 1:2 loop
 		der(x[i, 1]) = 1.0;

@@ -4,6 +4,14 @@
 
 // Functions defined by the compiled model module
 extern "C" void* init();
+
+extern "C" void* initICSolvers(void* data);
+extern "C" void* deinitICSolvers(void* data);
+
+extern "C" void initMainSolvers(void* data);
+extern "C" void deinitMainSolvers(void* data);
+
+extern "C" void calcIC(void* data);
 extern "C" void updateNonStateVariables(void* data);
 extern "C" void updateStateVariables(void* data);
 extern "C" bool incrementTime(void* data);
@@ -31,6 +39,7 @@ namespace
       {
         commandLineArgs.reset();
         initialization.reset();
+        initialConditions.reset();
         nonStateVariables.reset();
         stateVariables.reset();
         printing.reset();
@@ -40,6 +49,7 @@ namespace
       {
         std::cerr << "Time spent on command-line arguments processing: " << commandLineArgs.totalElapsedTime() << " ms\n";
         std::cerr << "Time spent on initialization: " << initialization.totalElapsedTime() << " ms\n";
+        std::cerr << "Time spent on initial conditions computation: " << initialConditions.totalElapsedTime() << " ms\n";
         std::cerr << "Time spent on non-state variables computation: " << nonStateVariables.totalElapsedTime() << " ms\n";
         std::cerr << "Time spent on state variables computation: " << stateVariables.totalElapsedTime() << " ms\n";
         std::cerr << "Time spent on values printing: " << printing.totalElapsedTime() << " ms\n";
@@ -48,6 +58,7 @@ namespace
     public:
       Timer commandLineArgs;
       Timer initialization;
+      Timer initialConditions;
       Timer nonStateVariables;
       Timer stateVariables;
       Timer printing;
@@ -66,6 +77,9 @@ namespace
   #define PROFILER_INIT_START ::profiler().initialization.start()
   #define PROFILER_INIT_STOP ::profiler().initialization.stop()
 
+  #define PROFILER_IC_START ::profiler().initialConditions.start()
+  #define PROFILER_IC_STOP ::profiler().initialConditions.stop()
+
   #define PROFILER_NONSTATEVAR_START ::profiler().nonStateVariables.start()
   #define PROFILER_NONSTATEVAR_STOP ::profiler().nonStateVariables.stop()
 
@@ -81,6 +95,9 @@ namespace
 
   #define PROFILER_INIT_START
   #define PROFILER_INIT_STOP
+
+  #define PROFILER_IC_START
+  #define PROFILER_IC_STOP
 
   #define PROFILER_NONSTATEVAR_START
   #define PROFILER_NONSTATEVAR_STOP
@@ -150,19 +167,25 @@ namespace
   // TODO check IDA initialization through static checker
   // Same for IDA step
 
+  initICSolvers(data);
+
+  // Compute the initial conditions
+  PROFILER_IC_START;
+  calcIC(data);
+  PROFILER_IC_STOP;
+
+  deinitICSolvers(data);
+
+  // Print the data header and the initial values
   PROFILER_PRINTING_START;
   printHeader(data);
   PROFILER_PRINTING_STOP;
 
-  // Update the non-state variables.
-  PROFILER_NONSTATEVAR_START;
-  updateNonStateVariables(data);
-  PROFILER_NONSTATEVAR_STOP;
-
-  // Print the data header and the initial values
   PROFILER_PRINTING_START;
   print(data);
   PROFILER_PRINTING_STOP;
+
+  initMainSolvers(data);
 
   bool continueSimulation;
 
@@ -184,6 +207,7 @@ namespace
     PROFILER_PRINTING_STOP;
   } while (continueSimulation);
 
+  deinitMainSolvers(data);
   deinit(data);
 
   // De-initialize the runtime library

@@ -20,8 +20,11 @@ namespace marco::codegen::lowering
     private:
       void lower(const ast::Member& member);
 
-      void createMemberTrivialEquation(
-          mlir::modelica::ModelOp modelOp, const ast::Member& member, const ast::Expression& expression);
+      void createEquations(const ast::Model& model);
+
+      void createInitialEquations(const ast::Model& model);
+
+      void createMemberEquation(const ast::Member& member, const ast::Expression& expression);
   };
 }
 

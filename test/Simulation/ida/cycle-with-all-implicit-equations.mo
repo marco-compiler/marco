@@ -7,8 +7,8 @@
 // CHECK-NEXT: 0.200000,0.785398,0.785398
 
 model CycleWithAllImplicitEquations
-	Real x(start = 0);
-	Real y(start = 0);
+	Real x(start = 0, fixed = false);
+	Real y(start = 0, fixed = false);
 equation
 	x + cos(x) = y + sin(y);
 	x + x*x = y + y*y;

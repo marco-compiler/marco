@@ -15,7 +15,7 @@
 // CHECK-NEXT: 1.000000,0.651322
 
 model SimpleFirstOrder
-    Real x;
+    Real x(start = 0, fixed = true);
 equation
     der(x) = 1 - x;
 end SimpleFirstOrder;
