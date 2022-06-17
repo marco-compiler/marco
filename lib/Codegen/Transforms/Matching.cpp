@@ -2,7 +2,10 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include "marco/Codegen/Transforms/ModelSolving/Matching.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include <set>
+
+#include "marco/Codegen/Transforms/PassDetail.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -11,14 +14,9 @@ using namespace ::mlir::modelica;
 
 namespace
 {
-  class MatchingPass : public mlir::PassWrapper<MatchingPass, mlir::OperationPass<mlir::ModuleOp>>
+  class MatchingPass : public MatchingBase<MatchingPass>
   {
     public:
-      void getDependentDialects(mlir::DialectRegistry& registry) const override
-      {
-        registry.insert<ModelicaDialect>();
-      }
-
       void runOnOperation() override
       {
         mlir::OpBuilder builder(getOperation());
@@ -38,8 +36,8 @@ namespace
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<Equation> model(modelOp);
-        model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
-        model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
+        model.setVariables(discoverVariables(model.getOperation().getEquationsRegion()));
+        model.setEquations(discoverEquations(model.getOperation().getEquationsRegion(), model.getVariables()));
 
         Model<MatchedEquation> matchedModel(model.getOperation());
 

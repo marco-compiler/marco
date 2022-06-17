@@ -1,6 +1,6 @@
 #include "marco/Codegen/Utils.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/SCF/SCF.h"
 
 using namespace ::marco;
@@ -84,15 +84,15 @@ namespace marco::codegen
 
     auto rank = sourceArrayType.getRank();
 
-    mlir::Value zero = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(0));
-    mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+    mlir::Value zero = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(0));
+    mlir::Value one = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(1));
 
     llvm::SmallVector<mlir::Value, 3> lowerBounds(rank, zero);
     llvm::SmallVector<mlir::Value, 3> upperBounds;
     llvm::SmallVector<mlir::Value, 3> steps(rank, one);
 
     for (unsigned int i = 0, e = sourceArrayType.getRank(); i < e; ++i) {
-      mlir::Value dim = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(i));
+      mlir::Value dim = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(i));
       upperBounds.push_back(builder.create<DimOp>(loc, source, dim));
     }
 

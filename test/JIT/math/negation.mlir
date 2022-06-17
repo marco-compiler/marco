@@ -1,8 +1,10 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -11,7 +13,7 @@
 // CHECK{LITERAL}: -2
 // CHECK-NEXT{LITERAL}: 3
 
-func @test_integerScalars() -> () {
+func.func @test_integerScalars() -> () {
     %x = modelica.constant #modelica.int<2>
     %xNeg = modelica.neg %x : !modelica.int -> !modelica.int
     modelica.print %xNeg : !modelica.int
@@ -26,7 +28,7 @@ func @test_integerScalars() -> () {
 // CHECK-NEXT{LITERAL}: -2.500000e+00
 // CHECK-NEXT{LITERAL}: 3.500000e+00
 
-func @test_realScalars() -> () {
+func.func @test_realScalars() -> () {
     %x = modelica.constant #modelica.real<2.5>
     %xNeg = modelica.neg %x : !modelica.real -> !modelica.real
     modelica.print %xNeg : !modelica.real
@@ -40,14 +42,14 @@ func @test_realScalars() -> () {
 
 // CHECK-NEXT{LITERAL}: [-2, 3]
 
-func @test_staticIntegerArray() -> () {
+func.func @test_staticIntegerArray() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %0 = modelica.constant #modelica.int<2>
     modelica.store %array[%c0], %0 : !modelica.array<2x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %1 = modelica.constant #modelica.int<-3>
     modelica.store %array[%c1], %1 : !modelica.array<2x!modelica.int>
 
@@ -58,14 +60,14 @@ func @test_staticIntegerArray() -> () {
 
 // CHECK-NEXT{LITERAL}: [-2.500000e+00, 3.500000e+00]
 
-func @test_staticRealArray() -> () {
+func.func @test_staticRealArray() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %0 = modelica.constant #modelica.real<2.5>
     modelica.store %array[%c0], %0 : !modelica.array<2x!modelica.real>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %1 = modelica.constant #modelica.real<-3.5>
     modelica.store %array[%c1], %1 : !modelica.array<2x!modelica.real>
 
@@ -76,16 +78,16 @@ func @test_staticRealArray() -> () {
 
 // CHECK-NEXT{LITERAL}: [-2, 3]
 
-func @test_dynamicIntegerArray() -> () {
-    %s = constant 2 : index
+func.func @test_dynamicIntegerArray() -> () {
+    %s = arith.constant 2 : index
 
     %array = modelica.alloc %s : !modelica.array<?x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %0 = modelica.constant #modelica.int<2>
     modelica.store %array[%c0], %0 : !modelica.array<?x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %1 = modelica.constant #modelica.int<-3>
     modelica.store %array[%c1], %1 : !modelica.array<?x!modelica.int>
 
@@ -98,16 +100,16 @@ func @test_dynamicIntegerArray() -> () {
 
 // CHECK-NEXT{LITERAL}: [-2.500000e+00, 3.500000e+00]
 
-func @test_dynamicRealArray() -> () {
-    %s = constant 2 : index
+func.func @test_dynamicRealArray() -> () {
+    %s = arith.constant 2 : index
 
     %array = modelica.alloc %s : !modelica.array<?x!modelica.real>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %0 = modelica.constant #modelica.real<2.5>
     modelica.store %array[%c0], %0 : !modelica.array<?x!modelica.real>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %1 = modelica.constant #modelica.real<-3.5>
     modelica.store %array[%c1], %1 : !modelica.array<?x!modelica.real>
 
@@ -118,7 +120,7 @@ func @test_dynamicRealArray() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test_integerScalars() : () -> ()
     call @test_realScalars() : () -> ()
 

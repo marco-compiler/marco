@@ -1,7 +1,8 @@
 #include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDASolver.h"
 #include "marco/Codegen/Runtime.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 
@@ -52,15 +53,15 @@ namespace
   /// Remove the unused arguments of a function and also update the function calls
   /// to reflect the function signature change.
   template<typename CallIt>
-  std::vector<unsigned int> removeUnusedArguments(
-      mlir::FuncOp function, CallIt callsBegin, CallIt callsEnd)
+  void removeUnusedArguments(
+      mlir::func::FuncOp function, CallIt callsBegin, CallIt callsEnd)
   {
-    std::vector<unsigned int> removedArgs;
+    llvm::BitVector removedArgs(function.getNumArguments(), false);
 
     // Determine the unused arguments
     for (const auto& arg : function.getArguments()) {
       if (arg.getUsers().empty()) {
-        removedArgs.push_back(arg.getArgNumber());
+        removedArgs[arg.getArgNumber()] = true;
       }
     }
 
@@ -69,18 +70,16 @@ namespace
       function.eraseArguments(removedArgs);
 
       // Update the function calls
-      std::sort(removedArgs.begin(), removedArgs.end());
-
       for (auto callIt = callsBegin; callIt != callsEnd; ++callIt) {
-        mlir::CallOp call = callIt->second;
+        mlir::func::CallOp call = callIt->second;
 
-        for (auto argIt = removedArgs.rbegin(); argIt != removedArgs.rend(); ++argIt) {
-          call->eraseOperand(*argIt);
+        for (size_t i = 0, e = removedArgs.size(); i < e; ++i) {
+          if (removedArgs[e - i - 1]) {
+            call->eraseOperand(e - i - 1);
+          }
         }
       }
     }
-
-    return removedArgs;
   }
 
   IndexSet getFilteredIndices(mlir::Type variableType, llvm::ArrayRef<VariableFilter::Filter> filters)
@@ -131,8 +130,6 @@ namespace marco::codegen
 
   mlir::LogicalResult ModelConverter::convertInitialModel(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const
   {
-    ModelOp modelOp = model.getOperation();
-
     // Determine the external solvers to be used
     ExternalSolvers solvers;
 
@@ -406,10 +403,9 @@ namespace marco::codegen
     mlir::Type ptrType = mlir::LLVM::LLVMPointerType::get(type);
     mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, ptrType);
 
-    mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
-    one = typeConverter->materializeTargetConversion(builder, loc, typeConverter->getIndexType(), one);
+    mlir::Value one = builder.create<mlir::LLVM::ConstantOp>(loc, typeConverter->getIndexType(), builder.getIndexAttr(1));
 
-    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, ptrType, llvm::makeArrayRef({ nullPtr, one }));
+    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, ptrType, nullPtr, one);
     mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, typeConverter->getIndexType(), gepPtr);
     mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, heapAllocFunc, sizeBytes, getVoidPtrType())[0];
 
@@ -433,7 +429,7 @@ namespace marco::codegen
     argsTypes.push_back(builder.getI32Type());
     argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8))));
 
-    auto mainFunction = builder.create<mlir::FuncOp>(loc, mainFunctionName, builder.getFunctionType(argsTypes, resultType));
+    auto mainFunction = builder.create<mlir::func::FuncOp>(loc, mainFunctionName, builder.getFunctionType(argsTypes, resultType));
 
     auto* entryBlock = mainFunction.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -447,7 +443,7 @@ namespace marco::codegen
     mlir::Value returnValue = builder.create<mlir::LLVM::CallOp>(loc, runFunction, mainFunction.getArguments()).getResult(0);
 
     // Create the return statement
-    builder.create<mlir::ReturnOp>(loc, returnValue);
+    builder.create<mlir::func::ReturnOp>(loc, returnValue);
 
     return mlir::success();
   }
@@ -559,14 +555,14 @@ namespace marco::codegen
     // Create the memory buffer for the variable
     builder.setInsertionPoint(op);
 
-    mlir::Value reference = builder.create<AllocOp>(loc, arrayType, op.dynamicSizes());
+    mlir::Value reference = builder.create<AllocOp>(loc, arrayType, op.getDynamicSizes());
 
     // Replace loads and stores with appropriate instructions operating on the new memory buffer.
     // The way such replacements are executed depend on the nature of the variable.
 
     auto replacers = [&]() {
       if (arrayType.isScalar()) {
-        assert(op.dynamicSizes().empty());
+        assert(op.getDynamicSizes().empty());
 
         auto loadReplacer = [&builder, reference](MemberLoadOp loadOp) -> void {
           mlir::OpBuilder::InsertionGuard guard(builder);
@@ -579,7 +575,7 @@ namespace marco::codegen
         auto storeReplacer = [&builder, reference](MemberStoreOp storeOp) -> void {
           mlir::OpBuilder::InsertionGuard guard(builder);
           builder.setInsertionPoint(storeOp);
-          auto assignment = builder.create<AssignmentOp>(storeOp.getLoc(), reference, storeOp.value());
+          auto assignment = builder.create<AssignmentOp>(storeOp.getLoc(), reference, storeOp.getValue());
           storeOp->replaceAllUsesWith(assignment);
           storeOp.erase();
         };
@@ -597,7 +593,7 @@ namespace marco::codegen
       auto storeReplacer = [&builder, reference](MemberStoreOp storeOp) -> void {
         mlir::OpBuilder::InsertionGuard guard(builder);
         builder.setInsertionPoint(storeOp);
-        auto assignment = builder.create<AssignmentOp>(storeOp.getLoc(), reference, storeOp.value());
+        auto assignment = builder.create<AssignmentOp>(storeOp.getLoc(), reference, storeOp.getValue());
         storeOp->replaceAllUsesWith(assignment);
         storeOp.erase();
       };
@@ -636,19 +632,19 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, functionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    auto returnOp = builder.create<mlir::ReturnOp>(loc);
+    auto returnOp = builder.create<mlir::func::ReturnOp>(loc);
     builder.setInsertionPoint(returnOp);
 
     // Extract the runtime data structure
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
@@ -667,7 +663,7 @@ namespace marco::codegen
 
     llvm::SmallVector<mlir::Value, 3> variables;
 
-    for (const auto& varType : llvm::enumerate(modelOp.equationsRegion().getArgumentTypes())) {
+    for (const auto& varType : llvm::enumerate(modelOp.getEquationsRegion().getArgumentTypes())) {
       variables.push_back(extractValue(builder, runtimeDataStruct, varType.value(), varType.index() + variablesOffset));
     }
 
@@ -711,19 +707,19 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, functionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    auto returnOp = builder.create<mlir::ReturnOp>(loc);
+    auto returnOp = builder.create<mlir::func::ReturnOp>(loc);
     builder.setInsertionPoint(returnOp);
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
@@ -785,7 +781,7 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, calcICFunctionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
@@ -794,31 +790,34 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.initialEquationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getInitialEquationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
     llvm::SmallVector<mlir::Value, 3> vars;
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
+    //time = typeConverter->materializeTargetConversion(builder, time.getLoc(), typeConverter->convertType(time.getType()), time);
     vars.push_back(time);
 
-    for (const auto& varType : llvm::enumerate(modelOp.initialEquationsRegion().getArgumentTypes())) {
-      vars.push_back(extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset));
+    for (const auto& varType : llvm::enumerate(modelOp.getInitialEquationsRegion().getArgumentTypes())) {
+      mlir::Value var = extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset);
+      //var = typeConverter->materializeTargetConversion(builder, var.getLoc(), typeConverter->convertType(var.getType()), var);
+      vars.push_back(var);
     }
 
     // Convert the equations into algorithmic code
     size_t equationTemplateCounter = 0;
     size_t equationCounter = 0;
 
-    std::map<EquationTemplateInfo, mlir::FuncOp> equationTemplatesMap;
-    std::set<mlir::FuncOp> equationTemplateFunctions;
-    std::multimap<mlir::FuncOp, mlir::CallOp> equationTemplateCalls;
-    std::set<mlir::FuncOp> equationFunctions;
-    std::multimap<mlir::FuncOp, mlir::CallOp> equationCalls;
+    std::map<EquationTemplateInfo, mlir::func::FuncOp> equationTemplatesMap;
+    std::set<mlir::func::FuncOp> equationTemplateFunctions;
+    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationTemplateCalls;
+    std::set<mlir::func::FuncOp> equationFunctions;
+    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationCalls;
 
     // Get or create the template equation function for a scheduled equation
-    auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::FuncOp {
+    auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::func::FuncOp {
       EquationTemplateInfo requestedTemplate(equation->getOperation(), equation->getSchedulingDirection());
       auto it = equationTemplatesMap.find(requestedTemplate);
 
@@ -834,20 +833,23 @@ namespace marco::codegen
       });
 
       if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
-        // The equations can't be made explicit and it is not passed to any external solver
+        // The equation can't be made explicit and is not passed to any external solver
         return nullptr;
       }
 
       // Create the equation template function
       auto templateFunction = explicitEquation->second->createTemplateFunction(
-          builder, templateFunctionName, modelOp.initialEquationsRegion().getArguments(), equation->getSchedulingDirection());
+          builder, templateFunctionName,
+          modelOp.getInitialEquationsRegion().getArguments(),
+          equation->getSchedulingDirection());
 
       auto timeArgumentIndex = equation->getNumOfIterationVars() * 3;
 
       templateFunction.insertArgument(
           timeArgumentIndex,
           RealType::get(builder.getContext()),
-          builder.getDictionaryAttr(llvm::None));
+          builder.getDictionaryAttr(llvm::None),
+          equation->getOperation().getLoc());
 
       templateFunction.walk([&](TimeOp timeOp) {
         mlir::OpBuilder::InsertionGuard guard(builder);
@@ -885,18 +887,18 @@ namespace marco::codegen
           auto equationFunction = createEquationFunction(
               builder, *equation, equationFunctionName, templateFunction,
               equationTemplateCalls,
-              modelOp.initialEquationsRegion().getArgumentTypes());
+              modelOp.getInitialEquationsRegion().getArgumentTypes());
 
           equationFunctions.insert(equationFunction);
 
           // Create the call to the instantiated template function
-          auto equationCall = builder.create<mlir::CallOp>(loc, equationFunction, vars);
+          auto equationCall = builder.create<mlir::func::CallOp>(loc, equationFunction, vars);
           equationCalls.emplace(equationFunction, equationCall);
         }
       }
     }
 
-    builder.create<mlir::ReturnOp>(loc);
+    builder.create<mlir::func::ReturnOp>(loc);
 
     // Remove the unused function arguments
     for (const auto& equationTemplateFunction : equationTemplateFunctions) {
@@ -934,13 +936,13 @@ namespace marco::codegen
     builder.setInsertionPointToEnd(module.getBody());
 
     auto functionType = builder.getFunctionType(llvm::None, getVoidPtrType());
-    auto function = builder.create<mlir::FuncOp>(loc, initFunctionName, functionType);
+    auto function = builder.create<mlir::func::FuncOp>(loc, initFunctionName, functionType);
 
     mlir::BlockAndValueMapping mapping;
 
     // Move the initialization instructions into the new function
     // TODO clone instead of moving
-    modelOp.initRegion().cloneInto(&function.getBody(), mapping);
+    modelOp.getInitRegion().cloneInto(&function.getBody(), mapping);
     builder.setInsertionPointToStart(&function.getBody().front());
 
     // The values to be packed into the structure to be passed around the simulation functions
@@ -952,7 +954,7 @@ namespace marco::codegen
     // Add variables to the struct to be passed around (i.e. to the step and
     // print functions).
 
-    for (const auto& var : terminator.values()) {
+    for (const auto& var : terminator.getValues()) {
       auto memberCreateOp = var.getDefiningOp<MemberCreateOp>();
       mlir::Value array = convertMember(builder, memberCreateOp);
       builder.setInsertionPointAfterValue(array);
@@ -968,7 +970,7 @@ namespace marco::codegen
     builder.setInsertionPointAfter(terminator);
 
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), model.getOperation().equationsRegion().getArgumentTypes());
+        builder.getContext(), model.getOperation().getEquationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStructValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
 
@@ -990,7 +992,7 @@ namespace marco::codegen
 
     mlir::Value runtimeDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(loc, getVoidPtrType(), runtimeDataStructPtr);
 
-    builder.create<mlir::ReturnOp>(loc, runtimeDataOpaquePtr);
+    builder.create<mlir::func::ReturnOp>(loc, runtimeDataOpaquePtr);
     terminator->erase();
 
     return mlir::success();
@@ -1022,7 +1024,7 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, deinitFunctionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
@@ -1031,12 +1033,12 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
     // Deallocate the arrays
-    for (const auto& varType : llvm::enumerate(modelOp.equationsRegion().getArgumentTypes())) {
+    for (const auto& varType : llvm::enumerate(modelOp.getEquationsRegion().getArgumentTypes())) {
       if (auto arrayType = varType.value().dyn_cast<ArrayType>()) {
         mlir::Value var = extractValue(builder, runtimeDataStruct, varType.value(), varType.index() + variablesOffset);
         builder.create<FreeOp>(loc, var);
@@ -1047,19 +1049,18 @@ namespace marco::codegen
     auto freeFunc = lookupOrCreateHeapFreeFn(builder, module);
 
     // Deallocate the data structure
-    builder.create<mlir::LLVM::CallOp>(
-        loc, llvm::None, builder.getSymbolRefAttr(freeFunc), function.getArgument(0));
+    builder.create<mlir::LLVM::CallOp>(loc, freeFunc, function.getArgument(0));
 
-    builder.create<mlir::ReturnOp>(loc);
+    builder.create<mlir::func::ReturnOp>(loc);
     return mlir::success();
   }
 
-  mlir::FuncOp ModelConverter::createEquationFunction(
+  mlir::func::FuncOp ModelConverter::createEquationFunction(
       mlir::OpBuilder& builder,
       const ScheduledEquation& equation,
       llvm::StringRef equationFunctionName,
-      mlir::FuncOp templateFunction,
-      std::multimap<mlir::FuncOp, mlir::CallOp>& equationTemplateCalls,
+      mlir::func::FuncOp templateFunction,
+      std::multimap<mlir::func::FuncOp, mlir::func::CallOp>& equationTemplateCalls,
       mlir::TypeRange varsTypes) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1070,13 +1071,18 @@ namespace marco::codegen
 
     // Function arguments ('time' + variables)
     llvm::SmallVector<mlir::Type, 3> argsTypes;
-    argsTypes.push_back(RealType::get(builder.getContext()));
-    argsTypes.insert(argsTypes.end(), varsTypes.begin(), varsTypes.end());
+    //argsTypes.push_back(typeConverter->convertType(RealType::get(builder.getContext())));
+    argsTypes.push_back(typeConverter->convertType(RealType::get(builder.getContext())));
+
+    for (const auto& type : varsTypes) {
+      //argsTypes.push_back(typeConverter->convertType(type));
+      argsTypes.push_back(type);
+    }
 
     // Function type. The equation doesn't need to return any value.
     auto functionType = builder.getFunctionType(argsTypes, llvm::None);
 
-    auto function = builder.create<mlir::FuncOp>(loc, equationFunctionName, functionType);
+    auto function = builder.create<mlir::func::FuncOp>(loc, equationFunctionName, functionType);
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
@@ -1085,16 +1091,16 @@ namespace marco::codegen
           iterationDirection == marco::modeling::scheduling::Direction::Backward);
 
       if (iterationDirection == marco::modeling::scheduling::Direction::Forward) {
-        mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getBegin()));
-        mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getEnd()));
-        mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+        mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(range.getBegin()));
+        mlir::Value end = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(range.getEnd()));
+        mlir::Value step = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(1));
 
         return std::make_tuple(begin, end, step);
       }
 
-      mlir::Value begin = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getEnd() - 1));
-      mlir::Value end = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(range.getBegin() - 1));
-      mlir::Value step = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(range.getEnd() - 1));
+      mlir::Value end = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(range.getBegin() - 1));
+      mlir::Value step = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(1));
 
       return std::make_tuple(begin, end, step);
     };
@@ -1114,10 +1120,10 @@ namespace marco::codegen
     args.insert(args.end(), vars.begin(), vars.end());
 
     // Call the equation template function
-    auto templateFunctionCall = builder.create<mlir::CallOp>(loc, templateFunction, args);
+    auto templateFunctionCall = builder.create<mlir::func::CallOp>(loc, templateFunction, args);
     equationTemplateCalls.emplace(templateFunction, templateFunctionCall);
 
-    builder.create<mlir::ReturnOp>(loc);
+    builder.create<mlir::func::ReturnOp>(loc);
     return function;
   }
 
@@ -1134,7 +1140,7 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, updateNonStateVariablesFunctionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
@@ -1143,31 +1149,34 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
     llvm::SmallVector<mlir::Value, 3> vars;
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
+    //time = typeConverter->materializeTargetConversion(builder, time.getLoc(), typeConverter->convertType(time.getType()), time);
     vars.push_back(time);
 
-    for (const auto& varType : llvm::enumerate(modelOp.equationsRegion().getArgumentTypes())) {
-      vars.push_back(extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset));
+    for (const auto& varType : llvm::enumerate(modelOp.getEquationsRegion().getArgumentTypes())) {
+      mlir::Value var = extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset);
+      //var = typeConverter->materializeTargetConversion(builder, var.getLoc(), typeConverter->convertType(var.getType()), var);
+      vars.push_back(var);
     }
 
     // Convert the equations into algorithmic code
     size_t equationTemplateCounter = 0;
     size_t equationCounter = 0;
 
-    std::map<EquationTemplateInfo, mlir::FuncOp> equationTemplatesMap;
-    std::set<mlir::FuncOp> equationTemplateFunctions;
-    std::multimap<mlir::FuncOp, mlir::CallOp> equationTemplateCalls;
-    std::set<mlir::FuncOp> equationFunctions;
-    std::multimap<mlir::FuncOp, mlir::CallOp> equationCalls;
+    std::map<EquationTemplateInfo, mlir::func::FuncOp> equationTemplatesMap;
+    std::set<mlir::func::FuncOp> equationTemplateFunctions;
+    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationTemplateCalls;
+    std::set<mlir::func::FuncOp> equationFunctions;
+    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationCalls;
 
     // Get or create the template equation function for a scheduled equation
-    auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::FuncOp {
+    auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::func::FuncOp {
       EquationTemplateInfo requestedTemplate(equation->getOperation(), equation->getSchedulingDirection());
       auto it = equationTemplatesMap.find(requestedTemplate);
 
@@ -1183,20 +1192,23 @@ namespace marco::codegen
       });
 
       if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
-        // The equations can't be made explicit and it is not passed to any external solver
+        // The equation can't be made explicit and is not passed to any external solver
         return nullptr;
       }
 
       // Create the equation template function
       auto templateFunction = explicitEquation->second->createTemplateFunction(
-          builder, templateFunctionName, modelOp.equationsRegion().getArguments(), equation->getSchedulingDirection());
+          builder, templateFunctionName,
+          modelOp.getEquationsRegion().getArguments(),
+          equation->getSchedulingDirection());
 
       auto timeArgumentIndex = equation->getNumOfIterationVars() * 3;
 
       templateFunction.insertArgument(
           timeArgumentIndex,
           RealType::get(builder.getContext()),
-          builder.getDictionaryAttr(llvm::None));
+          builder.getDictionaryAttr(llvm::None),
+          explicitEquation->second->getOperation().getLoc());
 
       templateFunction.walk([&](TimeOp timeOp) {
         mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1234,18 +1246,18 @@ namespace marco::codegen
           auto equationFunction = createEquationFunction(
               builder, *equation, equationFunctionName, templateFunction,
               equationTemplateCalls,
-              modelOp.equationsRegion().getArgumentTypes());
+              modelOp.getEquationsRegion().getArgumentTypes());
 
           equationFunctions.insert(equationFunction);
 
           // Create the call to the instantiated template function
-          auto equationCall = builder.create<mlir::CallOp>(loc, equationFunction, vars);
+          auto equationCall = builder.create<mlir::func::CallOp>(loc, equationFunction, vars);
           equationCalls.emplace(equationFunction, equationCall);
         }
       }
     }
 
-    builder.create<mlir::ReturnOp>(loc);
+    builder.create<mlir::func::ReturnOp>(loc);
 
     // Remove the unused function arguments
     for (const auto& equationTemplateFunction : equationTemplateFunctions) {
@@ -1270,12 +1282,12 @@ namespace marco::codegen
     auto modelOp = model.getOperation();
     auto loc = modelOp.getLoc();
 
-    auto varTypes = modelOp.equationsRegion().getArgumentTypes();
+    auto varTypes = modelOp.getEquationsRegion().getArgumentTypes();
 
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, updateStateVariablesFunctionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
@@ -1284,11 +1296,11 @@ namespace marco::codegen
 
     // Extract the state variables from the opaque pointer
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
-    auto returnOp = builder.create<mlir::ReturnOp>(loc);
+    auto returnOp = builder.create<mlir::func::ReturnOp>(loc);
     builder.setInsertionPoint(returnOp);
 
     // External solvers
@@ -1304,7 +1316,7 @@ namespace marco::codegen
 
     std::vector<mlir::Value> variables;
 
-    for (const auto& variable : modelOp.equationsRegion().getArguments()) {
+    for (const auto& variable : modelOp.getEquationsRegion().getArguments()) {
       size_t index = variable.getArgNumber();
       mlir::Value var = extractValue(builder, structValue, varTypes[index], index + variablesOffset);
       variables.push_back(var);
@@ -1397,7 +1409,7 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, incrementTimeFunctionName,
         builder.getFunctionType(getVoidPtrType(), builder.getI1Type()));
 
@@ -1406,7 +1418,7 @@ namespace marco::codegen
 
     // Extract the data from the struct
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     // Extract the external solvers data
     mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
@@ -1463,8 +1475,8 @@ namespace marco::codegen
 
     endTime = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(endTime.getType()), endTime);
 
-    mlir::Value condition = builder.create<mlir::CmpFOp>(loc, mlir::CmpFPredicate::OLT, increasedTime, endTime);
-    builder.create<mlir::ReturnOp>(loc, condition);
+    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(loc, mlir::arith::CmpFPredicate::OLT, increasedTime, endTime);
+    builder.create<mlir::func::ReturnOp>(loc, condition);
 
     return mlir::success();
   }
@@ -1585,7 +1597,7 @@ namespace marco::codegen
     }
 
     auto loc = name.getLoc();
-    mlir::Value rank = builder.create<mlir::ConstantOp>(loc, builder.getI64IntegerAttr(0));
+    mlir::Value rank = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(0));
     mlir::Value indices = builder.create<mlir::LLVM::NullOp>(loc, mlir::LLVM::LLVMPointerType::get(builder.getI64Type()));
 
     auto function = getOrInsertPrintNameFunction(builder, module);
@@ -1612,14 +1624,14 @@ namespace marco::codegen
     args.push_back(name);
 
     // Create the rank constant and the array of the indices
-    mlir::Value rank = builder.create<mlir::ConstantOp>(loc, builder.getI64IntegerAttr(arrayType.getRank()));
+    mlir::Value rank = builder.create<mlir::arith::ConstantOp>(loc, builder.getI64IntegerAttr(arrayType.getRank()));
     args.push_back(rank);
 
     auto heapAllocFn = lookupOrCreateHeapAllocFn(builder, module);
 
     mlir::Type indexPtrType = mlir::LLVM::LLVMPointerType::get(builder.getI64Type());
     mlir::Value indexNullPtr = builder.create<mlir::LLVM::NullOp>(loc, indexPtrType);
-    mlir::Value indicesGepPtr = builder.create<mlir::LLVM::GEPOp>(loc, indexPtrType, llvm::makeArrayRef({ indexNullPtr, rank }));
+    mlir::Value indicesGepPtr = builder.create<mlir::LLVM::GEPOp>(loc, indexPtrType, indexNullPtr, rank);
     mlir::Value indicesSizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, builder.getI64Type(), indicesGepPtr);
     mlir::Value indicesOpaquePtr = builder.create<mlir::LLVM::CallOp>(loc, heapAllocFn, indicesSizeBytes).getResult(0);
     mlir::Value indicesPtr = builder.create<mlir::LLVM::BitcastOp>(loc, indexPtrType, indicesOpaquePtr);
@@ -1632,12 +1644,12 @@ namespace marco::codegen
       llvm::SmallVector<mlir::Value, 3> lowerBounds;
       llvm::SmallVector<mlir::Value, 3> upperBounds;
 
-      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      mlir::Value one = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(1));
       llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
 
       for (size_t i = 0; i < filteredRange.rank(); ++i) {
-        lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getBegin())));
-        upperBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getEnd())));
+        lowerBounds.push_back(builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getBegin())));
+        upperBounds.push_back(builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getEnd())));
       }
 
       // Create nested loops in order to iterate on each dimension of the array
@@ -1652,21 +1664,21 @@ namespace marco::codegen
               mlir::Value indexValue = typeConverter->materializeTargetConversion(builder, loc, convertedType, index.value());
 
               if (convertedType.getIntOrFloatBitWidth() < 64) {
-                indexValue = builder.create<mlir::SignExtendIOp>(loc, builder.getI64Type(), indexValue);
+                indexValue = builder.create<mlir::arith::ExtSIOp>(loc, builder.getI64Type(), indexValue);
               } else if (convertedType.getIntOrFloatBitWidth() > 64) {
-                indexValue = builder.create<mlir::TruncateIOp>(loc, builder.getI64Type(), indexValue);
+                indexValue = builder.create<mlir::arith::TruncIOp>(loc, builder.getI64Type(), indexValue);
               }
 
-              mlir::Value offset = builder.create<mlir::ConstantOp>(
+              mlir::Value offset = builder.create<mlir::arith::ConstantOp>(
                   loc, typeConverter->getIndexType(), builder.getIntegerAttr(typeConverter->getIndexType(), index.index()));
 
               mlir::Value indexPtr = builder.create<mlir::LLVM::GEPOp>(
-                  loc, indexPtrType, llvm::makeArrayRef({ indicesPtr, offset }));
+                  loc, indexPtrType, indicesPtr, offset);
 
               // Arrays are 1-based in Modelica, so we add 1 in order to print indexes that are
               // coherent with the model source.
-              mlir::Value increment = builder.create<mlir::ConstantOp>(loc, builder.getIntegerAttr(indexValue.getType(), 1));
-              indexValue = builder.create<mlir::AddIOp>(loc, indexValue.getType(), indexValue, increment);
+              mlir::Value increment = builder.create<mlir::arith::ConstantOp>(loc, builder.getIntegerAttr(indexValue.getType(), 1));
+              indexValue = builder.create<mlir::arith::AddIOp>(loc, indexValue.getType(), indexValue, increment);
 
               builder.create<mlir::LLVM::StoreOp>(loc, indexValue, indexPtr);
             }
@@ -1753,12 +1765,12 @@ namespace marco::codegen
       llvm::SmallVector<mlir::Value, 3> lowerBounds;
       llvm::SmallVector<mlir::Value, 3> upperBounds;
 
-      mlir::Value one = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(1));
+      mlir::Value one = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(1));
       llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
 
       for (size_t i = 0; i < filteredRange.rank(); ++i) {
-        lowerBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getBegin())));
-        upperBounds.push_back(builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getEnd())));
+        lowerBounds.push_back(builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getBegin())));
+        upperBounds.push_back(builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(filteredRange[i].getEnd())));
       }
 
       // Create nested loops in order to iterate on each dimension of the array
@@ -1835,7 +1847,7 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::FuncOp>(
+    auto function = builder.create<mlir::func::FuncOp>(
         loc, functionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
@@ -1844,7 +1856,7 @@ namespace marco::codegen
 
     // Load the runtime data structure
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), modelOp.equationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
@@ -1947,7 +1959,7 @@ namespace marco::codegen
     // Print a newline character after all the variables have been processed
     printNewline(builder, module);
 
-    builder.create<mlir::ReturnOp>(loc);
+    builder.create<mlir::func::ReturnOp>(loc);
     return mlir::success();
   }
 }

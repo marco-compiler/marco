@@ -1,7 +1,7 @@
 #ifndef MARCO_FRONTEND_SIMULATIONOPTIONS_H
 #define MARCO_FRONTEND_SIMULATIONOPTIONS_H
 
-#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving.h"
 #include <string>
 
 namespace marco::frontend

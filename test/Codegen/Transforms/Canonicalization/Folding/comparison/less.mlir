@@ -4,7 +4,7 @@
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_integerScalars_firstSmaller() -> (!modelica.bool) {
+func.func @test_integerScalars_firstSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.int<9>
     %y = modelica.constant #modelica.int<10>
     %result = modelica.lt %x, %y : (!modelica.int, !modelica.int) -> !modelica.bool
@@ -15,7 +15,7 @@ func @test_integerScalars_firstSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_integerScalars_equal() -> (!modelica.bool) {
+func.func @test_integerScalars_equal() -> (!modelica.bool) {
     %x = modelica.constant #modelica.int<10>
     %y = modelica.constant #modelica.int<10>
     %result = modelica.lt %x, %y : (!modelica.int, !modelica.int) -> !modelica.bool
@@ -26,7 +26,7 @@ func @test_integerScalars_equal() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_integerScalars_secondSmaller() -> (!modelica.bool) {
+func.func @test_integerScalars_secondSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.int<10>
     %y = modelica.constant #modelica.int<9>
     %result = modelica.lt %x, %y : (!modelica.int, !modelica.int) -> !modelica.bool
@@ -39,7 +39,7 @@ func @test_integerScalars_secondSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_realScalars_firstSmaller() -> (!modelica.bool) {
+func.func @test_realScalars_firstSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.real<9.0>
     %y = modelica.constant #modelica.real<10.0>
     %result = modelica.lt %x, %y : (!modelica.real, !modelica.real) -> !modelica.bool
@@ -50,7 +50,7 @@ func @test_realScalars_firstSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_realScalars_equal() -> (!modelica.bool) {
+func.func @test_realScalars_equal() -> (!modelica.bool) {
     %x = modelica.constant #modelica.real<10.0>
     %y = modelica.constant #modelica.real<10.0>
     %result = modelica.lt %x, %y : (!modelica.real, !modelica.real) -> !modelica.bool
@@ -61,7 +61,7 @@ func @test_realScalars_equal() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_realScalars_secondSmaller() -> (!modelica.bool) {
+func.func @test_realScalars_secondSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.real<10.0>
     %y = modelica.constant #modelica.real<9.0>
     %result = modelica.lt %x, %y : (!modelica.real, !modelica.real) -> !modelica.bool
@@ -74,7 +74,7 @@ func @test_realScalars_secondSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars_integerReal_firstSmaller() -> (!modelica.bool) {
+func.func @test_mixedScalars_integerReal_firstSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.int<10>
     %y = modelica.constant #modelica.real<10.2>
     %result = modelica.lt %x, %y : (!modelica.int, !modelica.real) -> !modelica.bool
@@ -85,7 +85,7 @@ func @test_mixedScalars_integerReal_firstSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars_integerReal_equal() -> (!modelica.bool) {
+func.func @test_mixedScalars_integerReal_equal() -> (!modelica.bool) {
     %x = modelica.constant #modelica.int<10>
     %y = modelica.constant #modelica.real<10.0>
     %result = modelica.lt %x, %y : (!modelica.int, !modelica.real) -> !modelica.bool
@@ -96,7 +96,7 @@ func @test_mixedScalars_integerReal_equal() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars_integerReal_secondSmaller() -> (!modelica.bool) {
+func.func @test_mixedScalars_integerReal_secondSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.int<10>
     %y = modelica.constant #modelica.real<9.7>
     %result = modelica.lt %x, %y : (!modelica.int, !modelica.real) -> !modelica.bool
@@ -109,7 +109,7 @@ func @test_mixedScalars_integerReal_secondSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars_realInteger_firstSmaller() -> (!modelica.bool) {
+func.func @test_mixedScalars_realInteger_firstSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.real<9.7>
     %y = modelica.constant #modelica.int<10>
     %result = modelica.lt %x, %y : (!modelica.real, !modelica.int) -> !modelica.bool
@@ -120,7 +120,7 @@ func @test_mixedScalars_realInteger_firstSmaller() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars_realInteger_equal() -> (!modelica.bool) {
+func.func @test_mixedScalars_realInteger_equal() -> (!modelica.bool) {
     %x = modelica.constant #modelica.real<10.0>
     %y = modelica.constant #modelica.int<10>
     %result = modelica.lt %x, %y : (!modelica.real, !modelica.int) -> !modelica.bool
@@ -131,7 +131,7 @@ func @test_mixedScalars_realInteger_equal() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars_realInteger_secondSmaller() -> (!modelica.bool) {
+func.func @test_mixedScalars_realInteger_secondSmaller() -> (!modelica.bool) {
     %x = modelica.constant #modelica.real<10.2>
     %y = modelica.constant #modelica.int<10>
     %result = modelica.lt %x, %y : (!modelica.real, !modelica.int) -> !modelica.bool

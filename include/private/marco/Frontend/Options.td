@@ -140,14 +140,12 @@ class FlagDefExpanded<FlagDef flag, string prefix, string name, string spelling>
   code ValueAsCode = !if(flag.Value, "true", "false");
 }
 
-// TableGen record for a single marshalled flag.
 class MarshalledFlagRec<FlagDefExpanded flag, FlagDefExpanded other,
                         FlagDefExpanded implied, KeyPathAndMacro kpm,
                         Default default>
   : Flag<["--"], flag.Spelling>, Flags<flag.OptionFlags>, HelpText<flag.Help>,
     MarshallingInfoBooleanFlag<kpm, default.Value, flag.ValueAsCode,
-                               flag.RecordName, other.ValueAsCode,
-                               other.RecordName>,
+                               other.ValueAsCode, other.RecordName>,
     ImpliedByAnyOf<implied.ImpliedBy, implied.ValueAsCode> {}
 
 // Generates TableGen records for two command line flags that control the same

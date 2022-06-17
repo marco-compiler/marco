@@ -90,14 +90,14 @@ namespace marco::codegen::lowering
     auto forOp = builder().create<ForOp>(location, llvm::None);
     mlir::OpBuilder::InsertionGuard guard(builder());
 
-    assert(forOp.conditionRegion().getBlocks().empty());
-    mlir::Block* conditionBlock = builder().createBlock(&forOp.conditionRegion());
+    assert(forOp.getConditionRegion().getBlocks().empty());
+    mlir::Block* conditionBlock = builder().createBlock(&forOp.getConditionRegion());
 
-    assert(forOp.bodyRegion().getBlocks().empty());
-    mlir::Block* bodyBlock = builder().createBlock(&forOp.bodyRegion());
+    assert(forOp.getBodyRegion().getBlocks().empty());
+    mlir::Block* bodyBlock = builder().createBlock(&forOp.getBodyRegion());
 
-    assert(forOp.stepRegion().getBlocks().empty());
-    mlir::Block* stepBlock = builder().createBlock(&forOp.stepRegion());
+    assert(forOp.getStepRegion().getBlocks().empty());
+    mlir::Block* stepBlock = builder().createBlock(&forOp.getStepRegion());
 
     {
       // Check the loop condition
@@ -152,8 +152,8 @@ namespace marco::codegen::lowering
     {
       // Condition
       Lowerer::SymbolScope scope(symbolTable());
-      assert(whileOp.conditionRegion().empty());
-      mlir::Block* conditionBlock = builder().createBlock(&whileOp.conditionRegion());
+      assert(whileOp.getConditionRegion().empty());
+      mlir::Block* conditionBlock = builder().createBlock(&whileOp.getConditionRegion());
       builder().setInsertionPointToStart(conditionBlock);
       const auto* condition = statement.getCondition();
       builder().create<ConditionOp>(loc(condition->getLocation()), *lower(*condition)[0]);
@@ -162,15 +162,15 @@ namespace marco::codegen::lowering
     {
       // Body
       Lowerer::SymbolScope scope(symbolTable());
-      assert(whileOp.bodyRegion().empty());
-      mlir::Block* bodyBlock = builder().createBlock(&whileOp.bodyRegion());
+      assert(whileOp.getBodyRegion().empty());
+      mlir::Block* bodyBlock = builder().createBlock(&whileOp.getBodyRegion());
       builder().setInsertionPointToStart(bodyBlock);
 
       for (const auto& stmnt : statement) {
         lower(*stmnt);
       }
 
-      if (auto& body = whileOp.bodyRegion().back(); body.empty() || !body.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
+      if (auto& body = whileOp.getBodyRegion().back(); body.empty() || !body.back().hasTrait<mlir::OpTrait::IsTerminator>()) {
         builder().setInsertionPointToEnd(&body);
         builder().create<YieldOp>(location, llvm::None);
       }

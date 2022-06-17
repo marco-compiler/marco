@@ -4,7 +4,7 @@
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<5>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_integerScalars() -> (!modelica.int) {
+func.func @test_integerScalars() -> (!modelica.int) {
     %x = modelica.constant #modelica.int<3>
     %y = modelica.constant #modelica.int<2>
     %result = modelica.add %x, %y : (!modelica.int, !modelica.int) -> !modelica.int
@@ -16,7 +16,7 @@ func @test_integerScalars() -> (!modelica.int) {
 // CHECK-SAME: 5.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_realScalars() -> (!modelica.real) {
+func.func @test_realScalars() -> (!modelica.real) {
     %x = modelica.constant #modelica.real<3.0>
     %y = modelica.constant #modelica.real<2.0>
     %result = modelica.add %x, %y : (!modelica.real, !modelica.real) -> !modelica.real
@@ -28,7 +28,7 @@ func @test_realScalars() -> (!modelica.real) {
 // CHECK-SAME: 5.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars1() -> (!modelica.real) {
+func.func @test_mixedScalars1() -> (!modelica.real) {
     %x = modelica.constant #modelica.int<3>
     %y = modelica.constant #modelica.real<2.0>
     %result = modelica.add %x, %y : (!modelica.int, !modelica.real) -> !modelica.real
@@ -40,7 +40,7 @@ func @test_mixedScalars1() -> (!modelica.real) {
 // CHECK-SAME: 5.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test_mixedScalars2() -> (!modelica.real) {
+func.func @test_mixedScalars2() -> (!modelica.real) {
     %x = modelica.constant #modelica.real<3.0>
     %y = modelica.constant #modelica.int<2>
     %result = modelica.add %x, %y : (!modelica.real, !modelica.int) -> !modelica.real

@@ -1,5 +1,4 @@
 #include "marco/Codegen/Transforms/ModelSolving/ScalarEquation.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
@@ -18,8 +17,8 @@ namespace marco::codegen
       return type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>() || type.isa<mlir::IndexType>();
     };
 
-    assert(llvm::all_of(getTerminator().lhsValues(), isScalarFn));
-    assert(llvm::all_of(getTerminator().rhsValues(), isScalarFn));
+    assert(llvm::all_of(getTerminator().getLhsValues(), isScalarFn));
+    assert(llvm::all_of(getTerminator().getRhsValues(), isScalarFn));
   }
 
   std::unique_ptr<Equation> ScalarEquation::clone() const
@@ -64,8 +63,8 @@ namespace marco::codegen
       searchAccesses(accesses, value, std::move(path));
     };
 
-    processFn(terminator.lhsValues()[0], EquationPath(EquationPath::LEFT));
-    processFn(terminator.rhsValues()[0], EquationPath(EquationPath::RIGHT));
+    processFn(terminator.getLhsValues()[0], EquationPath(EquationPath::LEFT));
+    processFn(terminator.getRhsValues()[0], EquationPath(EquationPath::RIGHT));
 
     return accesses;
   }
@@ -117,7 +116,7 @@ namespace marco::codegen
     for (auto& op : equationOp.bodyBlock()->getOperations()) {
       if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
         // Convert the equality into an assignment
-        for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
+        for (auto [lhs, rhs] : llvm::zip(terminator.getLhsValues(), terminator.getRhsValues())) {
           mlir::Value mappedLhs = mapping.lookup(lhs);
           mlir::Value mappedRhs = mapping.lookup(rhs);
 
@@ -135,7 +134,7 @@ namespace marco::codegen
           } else {
             auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
             mappedRhs = builder.create<CastOp>(loc, mappedLhs.getType(), mappedRhs);
-            builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indices());
+            builder.create<StoreOp>(loc, mappedRhs, loadOp.getArray(), loadOp.getIndices());
           }
         }
       } else if (mlir::isa<EquationSideOp>(op)) {

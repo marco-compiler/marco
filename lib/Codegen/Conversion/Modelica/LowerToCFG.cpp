@@ -2,11 +2,16 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
 #include "marco/Codegen/Utils.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include <set>
 #include <stack>
+
+#include "marco/Codegen/Conversion/PassDetail.h"
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -46,7 +51,7 @@ static mlir::LogicalResult convertArgument(mlir::OpBuilder& builder, MemberCreat
   auto replacers = [&]() {
     if (!unwrappedType.isa<ArrayType>()) {
       // The value is a scalar
-      assert(op.dynamicSizes().empty());
+      assert(op.getDynamicSizes().empty());
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
           [&replacement](MemberLoadOp loadOp) -> mlir::LogicalResult {
@@ -73,7 +78,7 @@ static mlir::LogicalResult convertArgument(mlir::OpBuilder& builder, MemberCreat
         },
         [&builder, &replacement](MemberStoreOp storeOp) -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
-          copyArray(builder, storeOp.getLoc(), storeOp.value(), replacement);
+          copyArray(builder, storeOp.getLoc(), storeOp.getValue(), replacement);
           storeOp->erase();
           return mlir::success();
         });
@@ -101,7 +106,11 @@ static mlir::LogicalResult convertArgument(mlir::OpBuilder& builder, MemberCreat
   return mlir::success();
 }
 
-static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder, MemberCreateOp op, mlir::TypeConverter* typeConverter)
+static mlir::LogicalResult convertResultOrProtectedVar(
+    mlir::OpBuilder& builder,
+    MemberCreateOp op,
+    mlir::TypeConverter* typeConverter,
+    std::function<bool(mlir::Value)> isFunctionArgFn)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   mlir::Location loc = op.getLoc();
@@ -110,7 +119,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
   auto replacers = [&]() {
     if (!unwrappedType.isa<ArrayType>()) {
       // The value is a scalar
-      assert(op.dynamicSizes().empty());
+      assert(op.getDynamicSizes().empty());
 
       builder.setInsertionPoint(op);
 
@@ -127,7 +136,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           },
           [&builder, reference, unwrappedType](MemberStoreOp storeOp) -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
-            mlir::Value value = builder.create<CastOp>(storeOp.getLoc(), unwrappedType, storeOp.value());
+            mlir::Value value = builder.create<CastOp>(storeOp.getLoc(), unwrappedType, storeOp.getValue());
             builder.create<StoreOp>(storeOp.getLoc(), value, reference, llvm::None);
             storeOp.erase();
             return mlir::success();
@@ -141,11 +150,11 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
     // the dimensions change.
 
     auto arrayType = unwrappedType.cast<ArrayType>();
-    bool hasStaticSize = op.dynamicSizes().size() == arrayType.getDynamicDimensionsCount();
+    bool hasStaticSize = op.getDynamicSizes().size() == arrayType.getDynamicDimensionsCount();
 
     if (hasStaticSize) {
       builder.setInsertionPoint(op);
-      mlir::Value reference = builder.create<AllocOp>(loc, arrayType, op.dynamicSizes());
+      mlir::Value reference = builder.create<AllocOp>(loc, arrayType, op.getDynamicSizes());
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
           [reference](MemberLoadOp loadOp) -> mlir::LogicalResult {
@@ -155,7 +164,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           },
           [&builder, reference](MemberStoreOp storeOp) -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
-            copyArray(builder, storeOp.getLoc(), storeOp.value(), reference);
+            copyArray(builder, storeOp.getLoc(), storeOp.getValue(), reference);
             storeOp->erase();
             return mlir::success();
           });
@@ -164,7 +173,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
     // The array can change sizes during at runtime. Thus, we need to create
     // a pointer to the array currently in use.
 
-    assert(op.dynamicSizes().empty());
+    assert(op.getDynamicSizes().empty());
     builder.setInsertionPoint(op);
 
     // Create the pointer to the array
@@ -172,7 +181,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
     mlir::Type indexType = typeConverter->convertType(builder.getIndexType());
     mlir::Value nullPtr = builder.create<mlir::LLVM::NullOp>(loc, arrayPtrType);
     mlir::Value one = builder.create<mlir::LLVM::ConstantOp>(loc, indexType, builder.getIntegerAttr(indexType, 1));
-    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, arrayPtrType, llvm::ArrayRef<mlir::Value>{ nullPtr, one });
+    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, arrayPtrType, nullPtr, one);
     mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, indexType, gepPtr);
     mlir::Value stackValue = builder.create<mlir::LLVM::AllocaOp>(loc, arrayPtrType, sizeBytes, llvm::None);
 
@@ -198,30 +207,30 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
           loadOp->erase();
           return mlir::success();
         },
-        [&builder, arrayType, stackValue, typeConverter, indexType](MemberStoreOp storeOp) -> mlir::LogicalResult {
+        [&builder, arrayType, stackValue, typeConverter, indexType, &isFunctionArgFn](MemberStoreOp storeOp) -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
 
           // The destination array has dynamic and unknown sizes. Thus, the
           // array has not been allocated yet, and we need to create a copy
           // of the source one.
 
-          mlir::Value value = storeOp.value();
+          mlir::Value value = storeOp.getValue();
 
           // The function input arguments must be cloned, in order to avoid
           // inputs modifications.
-          if (value.isa<mlir::BlockArgument>()) {
+          if (isFunctionArgFn(value)) {
             std::vector<mlir::Value> dynamicDimensions;
 
             for (const auto& dimension : llvm::enumerate(arrayType.getShape())) {
-              if (dimension.value() == -1) {
+              if (dimension.value() == ArrayType::kDynamicSize) {
                 mlir::Value dimensionIndex = builder.create<mlir::LLVM::ConstantOp>(storeOp.getLoc(), indexType, builder.getIntegerAttr(indexType, dimension.index()));
                 dimensionIndex = typeConverter->materializeSourceConversion(builder, storeOp.getLoc(), builder.getIndexType(), dimensionIndex);
-                dynamicDimensions.push_back(builder.create<DimOp>(storeOp.getLoc(), storeOp.value(), dimensionIndex));
+                dynamicDimensions.push_back(builder.create<DimOp>(storeOp.getLoc(), storeOp.getValue(), dimensionIndex));
               }
             }
 
             value = builder.create<AllocOp>(storeOp.getLoc(), arrayType, dynamicDimensions);
-            copyArray(builder, storeOp.getLoc(), storeOp.value(), value);
+            copyArray(builder, storeOp.getLoc(), storeOp.getValue(), value);
           }
 
           // Deallocate the previously allocated memory. This is only apparently
@@ -265,24 +274,32 @@ static mlir::LogicalResult convertResultOrProtectedVar(mlir::OpBuilder& builder,
   return mlir::success();
 }
 
-static mlir::LogicalResult convertCall(mlir::OpBuilder& builder, CallOp callOp, std::set<size_t> promotedResults)
+static mlir::LogicalResult convertCall(
+    mlir::OpBuilder& builder,
+    mlir::TypeConverter* typeConverter,
+    CallOp callOp,
+    std::set<size_t> promotedResults)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPoint(callOp);
 
-  llvm::SmallVector<mlir::Value, 3> args;
-  llvm::SmallVector<mlir::Type, 1> resultTypes;
+  llvm::SmallVector<mlir::Value, 3> convertedArgs;
+  llvm::SmallVector<mlir::Type, 1> convertedResultTypes;
 
-  for (const auto& arg : callOp.args()) {
-    args.push_back(arg);
+  for (const auto& arg : callOp.getArgs()) {
+    mlir::Value converted = typeConverter->materializeTargetConversion(
+        builder, arg.getLoc(), typeConverter->convertType(arg.getType()), arg);
+
+    convertedArgs.push_back(converted);
   }
 
   mlir::BlockAndValueMapping mapping;
 
   for (const auto& resultType : llvm::enumerate(callOp->getResultTypes())) {
     if (promotedResults.find(resultType.index()) == promotedResults.end()) {
-      resultTypes.push_back(resultType.value());
+      convertedResultTypes.push_back(typeConverter->convertType(resultType.value()));
     } else {
+      // The result has been promoted to argument
       assert(resultType.value().isa<ArrayType>());
       auto resultArrayType = resultType.value().cast<ArrayType>();
       assert(resultArrayType.hasConstantShape());
@@ -290,21 +307,34 @@ static mlir::LogicalResult convertCall(mlir::OpBuilder& builder, CallOp callOp, 
       // Allocate the array inside the caller body
       mlir::Value array = builder.create<AllocOp>(callOp.getLoc(), resultArrayType, llvm::None);
 
-      // Add the array to the arguments and map the previous result
-      // to the array allocated by the caller.
-      args.push_back(array);
+      // Add the array to the arguments
+      array = typeConverter->materializeTargetConversion(
+          builder, array.getLoc(), typeConverter->convertType(array.getType()), array);
+
+      convertedArgs.push_back(array);
+
+      // Map the previous result to the array allocated by the caller.
+      array = typeConverter->materializeSourceConversion(builder, array.getLoc(), resultArrayType, array);
       mapping.map(callOp->getResult(resultType.index()), array);
     }
   }
 
-  auto newCallOp = builder.create<mlir::CallOp>(callOp.getLoc(), callOp.callee(), resultTypes, args);
+  // We want the 'func.call' operation to have types already belonging to the built-in types list
+  auto newCallOp = builder.create<mlir::func::CallOp>(
+      callOp.getLoc(), callOp.getCallee(), convertedResultTypes, convertedArgs);
+
   size_t newResultsCounter = 0;
 
   for (const auto& originalResult : callOp.getResults()) {
     mlir::Value mappedResult = mapping.lookupOrNull(originalResult);
 
     if (mappedResult == nullptr) {
-      originalResult.replaceAllUsesWith(newCallOp.getResult(newResultsCounter++));
+      mlir::Value replacement = newCallOp.getResult(newResultsCounter++);
+
+      replacement = typeConverter->materializeSourceConversion(
+          builder, replacement.getLoc(), originalResult.getType(), replacement);
+
+      originalResult.replaceAllUsesWith(replacement);
     } else {
       originalResult.replaceAllUsesWith(mappedResult);
     }
@@ -334,27 +364,35 @@ static mlir::LogicalResult convertToStdFunction(
     }
   }
 
-  // Determine the function type, taking into account the promoted results
+  // Determine the function type, taking into account the promoted results.
+  // We also keep track of the types as defined in the original type system, in order to
+  // materialize the values back to the original type when needed.
   llvm::SmallVector<mlir::Type, 3> argTypes;
   llvm::SmallVector<mlir::Type, 3> resultTypes;
 
+  llvm::SmallVector<mlir::Type, 3> argOriginalTypes;
+  llvm::SmallVector<mlir::Type, 3> resultOriginalTypes;
+
   for (const auto& type : modelicaFunctionOp.getArgumentTypes()) {
-    argTypes.push_back(type);
+    argOriginalTypes.push_back(type);
+    argTypes.push_back(typeConverter->convertType(type));
   }
 
   for (const auto& type : llvm::enumerate(modelicaFunctionOp.getResultTypes())) {
     if (promotedResults.find(type.index()) != promotedResults.end()) {
-      argTypes.push_back(type.value());
+      argOriginalTypes.push_back(type.value());
+      argTypes.push_back(typeConverter->convertType(type.value()));
     } else {
-      resultTypes.push_back(type.value());
+      resultOriginalTypes.push_back(type.value());
+      resultTypes.push_back(typeConverter->convertType(type.value()));
     }
   }
 
   auto functionType = builder.getFunctionType(argTypes, resultTypes);
 
   // Create the converted function
-  auto funcOp = builder.create<mlir::FuncOp>(
-      modelicaFunctionOp.getLoc(), modelicaFunctionOp.name(), functionType);
+  auto funcOp = builder.create<mlir::func::FuncOp>(
+      modelicaFunctionOp.getLoc(), modelicaFunctionOp.getSymName(), functionType);
 
   mlir::Block* entryBlock = funcOp.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
@@ -362,24 +400,46 @@ static mlir::LogicalResult convertToStdFunction(
   mlir::BlockAndValueMapping mapping;
 
   // Clone the blocks structure
-  for (auto& block : llvm::enumerate(modelicaFunctionOp.body())) {
+  for (auto& block : llvm::enumerate(modelicaFunctionOp.getBody())) {
     if (block.index() == 0) {
       mapping.map(&block.value(), entryBlock);
 
     } else {
-      mlir::Block* clonedBlock = builder.createBlock(
-          &funcOp.getBody(), funcOp.getBody().end(), block.value().getArgumentTypes());
+      std::vector<mlir::Location> argLocations;
 
+      for (const auto& arg : block.value().getArguments()) {
+        argLocations.push_back(arg.getLoc());
+      }
+
+      auto signatureConversion = typeConverter->convertBlockSignature(&block.value());
+
+      if (!signatureConversion) {
+        return mlir::failure();
+      }
+
+      mlir::Block* clonedBlock = builder.createBlock(
+          &funcOp.getBody(),
+          funcOp.getBody().end(),
+          signatureConversion->getConvertedTypes(),
+          argLocations);
+
+      builder.setInsertionPointToStart(clonedBlock);
       mapping.map(&block.value(), clonedBlock);
 
       for (const auto& [original, cloned] : llvm::zip(block.value().getArguments(), clonedBlock->getArguments())) {
-        mapping.map(original, cloned);
+        mlir::Value mapped = cloned;
+
+        if (original.getType() != mapped.getType()) {
+          mapped = typeConverter->materializeSourceConversion(builder, mapped.getLoc(), original.getType(), mapped);
+        }
+
+        mapping.map(original, mapped);
       }
     }
   }
 
   // Clone the operations
-  for (auto& block : modelicaFunctionOp.body()) {
+  for (auto& block : modelicaFunctionOp.getBody()) {
     builder.setInsertionPointToStart(mapping.lookup(&block));
 
     for (auto& op : block.getOperations()) {
@@ -395,7 +455,7 @@ static mlir::LogicalResult convertToStdFunction(
   llvm::StringMap<MemberCreateOp> membersMap;
 
   modelicaFunctionOp->walk([&membersMap](MemberCreateOp member) {
-    membersMap[member.name()] = member;
+    membersMap[member.getSymName()] = member;
   });
 
   for (const auto& name : modelicaFunctionOp.inputMemberNames()) {
@@ -410,8 +470,9 @@ static mlir::LogicalResult convertToStdFunction(
     protectedMembers.push_back(membersMap[name]);
   }
 
-  // Deallocate the protected members
-  builder.setInsertionPointToEnd(&funcOp.body().back());
+  // Deallocate the protected members. We do this in the last block of the function,
+  // so that they are deallocated even in case of early function termination.
+  builder.setInsertionPointToEnd(&funcOp.getBody().back());
 
   for (auto& member : protectedMembers) {
     mlir::Type unwrappedType = member.getMemberType().unwrap();
@@ -424,7 +485,7 @@ static mlir::LogicalResult convertToStdFunction(
   }
 
   // Create the return operation
-  builder.setInsertionPointToEnd(&funcOp.body().back());
+  builder.setInsertionPointToEnd(&funcOp.getBody().back());
 
   llvm::SmallVector<mlir::Value, 1> results;
 
@@ -433,32 +494,65 @@ static mlir::LogicalResult convertToStdFunction(
       auto mappedMember = mapping.lookup(membersMap[name.value()].getResult()).getDefiningOp<MemberCreateOp>();
       auto memberType = mappedMember.getType().cast<MemberType>();
       mlir::Value value = builder.create<MemberLoadOp>(funcOp.getLoc(), memberType.unwrap(), mappedMember);
+      value = typeConverter->materializeTargetConversion(builder, value.getLoc(), typeConverter->convertType(value.getType()), value);
       results.push_back(value);
     }
   }
 
-  builder.create<mlir::ReturnOp>(funcOp.getLoc(), results);
+  builder.create<mlir::func::ReturnOp>(funcOp.getLoc(), results);
+
+  // Convert the input arguments back to the original types, so that they can be used
+  // by the cloned operations.
+  mlir::BlockAndValueMapping argumentsMapping;
+  mlir::BlockAndValueMapping funcArgsMaterializationMapping;
+  builder.setInsertionPointToStart(&funcOp.getBody().front());
+
+  for (const auto& argument : llvm::enumerate(funcOp.getArguments())) {
+    assert(argument.index() < argOriginalTypes.size());
+
+    mlir::Value converted = typeConverter->materializeSourceConversion(
+        builder, argument.value().getLoc(), argOriginalTypes[argument.index()], argument.value());
+
+    argumentsMapping.map(argument.value(), converted);
+    funcArgsMaterializationMapping.map(converted, argument.value());
+  }
 
   // Convert the member operations
   for (auto& member : llvm::enumerate(inputMembers)) {
     auto mappedMember = mapping.lookup(member.value().getResult()).getDefiningOp<MemberCreateOp>();
 
-    if (auto res = convertArgument(builder, mappedMember, funcOp.getArgument(member.index())); mlir::failed(res)) {
+    mlir::Value replacement = funcOp.getArgument(member.index());
+    replacement = argumentsMapping.lookup(replacement);
+
+    if (auto res = convertArgument(builder, mappedMember, replacement); mlir::failed(res)) {
       return res;
     }
   }
 
   size_t movedResultArgumentPosition = inputMembers.size();
 
+  auto isFunctionArgFn = [&](mlir::Value value) -> bool {
+    if (auto mapped = funcArgsMaterializationMapping.lookupOrNull(value)) {
+      return mapped.isa<mlir::BlockArgument>();
+    }
+
+    return false;
+  };
+
   for (auto& member : llvm::enumerate(outputMembers)) {
     auto mappedMember = mapping.lookup(member.value().getResult()).getDefiningOp<MemberCreateOp>();
 
     if (auto index = member.index(); promotedResults.find(index) != promotedResults.end()) {
-      if (auto res = convertArgument(builder, mappedMember, funcOp.getArgument(movedResultArgumentPosition++)); mlir::failed(res)) {
+      mlir::Value replacement = funcOp.getArgument(movedResultArgumentPosition);
+      replacement = argumentsMapping.lookup(replacement);
+
+      if (auto res = convertArgument(builder, mappedMember, replacement); mlir::failed(res)) {
         return res;
       }
+
+      ++movedResultArgumentPosition;
     } else {
-      if (auto res = convertResultOrProtectedVar(builder, mappedMember, typeConverter); mlir::failed(res)) {
+      if (auto res = convertResultOrProtectedVar(builder, mappedMember, typeConverter, isFunctionArgFn); mlir::failed(res)) {
         return res;
       }
     }
@@ -466,8 +560,7 @@ static mlir::LogicalResult convertToStdFunction(
 
   for (auto& member : protectedMembers) {
     auto mappedMember = mapping.lookup(member.getResult()).getDefiningOp<MemberCreateOp>();
-
-    if (auto res = convertResultOrProtectedVar(builder, mappedMember, typeConverter); mlir::failed(res)) {
+    if (auto res = convertResultOrProtectedVar(builder, mappedMember, typeConverter, isFunctionArgFn); mlir::failed(res)) {
       return res;
     }
   }
@@ -476,13 +569,13 @@ static mlir::LogicalResult convertToStdFunction(
   std::vector<CallOp> callOps;
 
   modelicaFunctionOp->getParentOfType<mlir::ModuleOp>()->walk([&](CallOp callOp) {
-    if (callOp.callee() == modelicaFunctionOp.name()) {
+    if (callOp.getCallee() == modelicaFunctionOp.getSymName()) {
       callOps.push_back(callOp);
     }
   });
 
   for (const auto& callOp : callOps) {
-    if (auto res = convertCall(builder, callOp, promotedResults); mlir::failed(res)) {
+    if (auto res = convertCall(builder, typeConverter, callOp, promotedResults); mlir::failed(res)) {
       return res;
     }
   }
@@ -546,7 +639,7 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto loc = function.getLoc();
 
-  auto& body = function.body();
+  auto& body = function.getBody();
 
   if (body.empty()) {
     return mlir::success();
@@ -554,7 +647,7 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
 
   llvm::SmallVector<mlir::Operation*, 3> bodyOps;
 
-  for (auto& block : function.body()) {
+  for (auto& block : function.getBody()) {
     for (auto& nestedOp : llvm::make_early_inc_range(block)) {
       bodyOps.push_back(&nestedOp);
     }
@@ -563,7 +656,7 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
   mlir::Block* lastBlock = function.bodyBlock();
   mlir::Block* functionReturnBlock = &body.emplaceBlock();
   builder.setInsertionPointToEnd(lastBlock);
-  builder.create<mlir::BranchOp>(loc, functionReturnBlock);
+  builder.create<mlir::cf::BranchOp>(loc, functionReturnBlock);
 
   // Create the return instruction
   for (auto& bodyOp : bodyOps) {
@@ -573,7 +666,7 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
   }
 
   // Remove the unreachable blocks that may have arised from break or return operations
-  removeUnreachableBlocks(function.body());
+  removeUnreachableBlocks(function.getBody());
 
   // Convert the Modelica function to the standard dialect
   if (auto res = convertToStdFunction(builder, function, typeConverter, outputArraysPromotion); mlir::failed(res)) {
@@ -622,7 +715,7 @@ mlir::LogicalResult CFGLowerer::run(
   currentBlock->splitBlock(op);
 
   builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::BranchOp>(op->getLoc(), loopExitBlock);
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), loopExitBlock);
 
   op->erase();
   return mlir::success();
@@ -639,31 +732,31 @@ mlir::LogicalResult CFGLowerer::run(
   mlir::Block* continuation = currentBlock->splitBlock(op);
 
   // Keep the references to the op blocks
-  mlir::Block* conditionFirst = &op.conditionRegion().front();
-  mlir::Block* conditionLast = &op.conditionRegion().back();
-  mlir::Block* bodyFirst = &op.bodyRegion().front();
-  mlir::Block* bodyLast = &op.bodyRegion().back();
-  mlir::Block* stepFirst = &op.stepRegion().front();
-  mlir::Block* stepLast = &op.stepRegion().back();
+  mlir::Block* conditionFirst = &op.getConditionRegion().front();
+  mlir::Block* conditionLast = &op.getConditionRegion().back();
+  mlir::Block* bodyFirst = &op.getBodyRegion().front();
+  mlir::Block* bodyLast = &op.getBodyRegion().back();
+  mlir::Block* stepFirst = &op.getStepRegion().front();
+  mlir::Block* stepLast = &op.getStepRegion().back();
 
   // Inline the regions
-  inlineRegionBefore(op.conditionRegion(), continuation);
-  inlineRegionBefore(op.bodyRegion(), continuation);
-  inlineRegionBefore(op.stepRegion(), continuation);
+  inlineRegionBefore(op.getConditionRegion(), continuation);
+  inlineRegionBefore(op.getBodyRegion(), continuation);
+  inlineRegionBefore(op.getStepRegion(), continuation);
 
   // Start the for loop by branching to the "condition" region
   builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::BranchOp>(op->getLoc(), conditionFirst, op.args());
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst, op.getArgs());
 
   // Check the condition
   auto conditionOp = mlir::cast<ConditionOp>(conditionLast->getTerminator());
   builder.setInsertionPoint(conditionOp);
 
   mlir::Value conditionValue = typeConverter->materializeTargetConversion(
-      builder, conditionOp.condition().getLoc(), builder.getI1Type(), conditionOp.condition());
+      builder, conditionOp.getCondition().getLoc(), builder.getI1Type(), conditionOp.getCondition());
 
-  builder.create<mlir::CondBranchOp>(
-      conditionOp->getLoc(), conditionValue, bodyFirst, conditionOp.values(), continuation, llvm::None);
+  builder.create<mlir::cf::CondBranchOp>(
+      conditionOp->getLoc(), conditionValue, bodyFirst, conditionOp.getValues(), continuation, llvm::None);
 
   conditionOp->erase();
 
@@ -673,28 +766,28 @@ mlir::LogicalResult CFGLowerer::run(
   llvm::SmallVector<mlir::Value, 3> bodyYieldValues;
 
   if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->back())) {
-    for (mlir::Value value : yieldOp.values()) {
+    for (mlir::Value value : yieldOp.getValues()) {
       bodyYieldValues.push_back(value);
     }
 
     yieldOp->erase();
   }
 
-  builder.create<mlir::BranchOp>(op->getLoc(), stepFirst, bodyYieldValues);
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), stepFirst, bodyYieldValues);
 
   // Branch to the condition check after incrementing the induction variable
   builder.setInsertionPointToEnd(stepLast);
   llvm::SmallVector<mlir::Value, 3> stepYieldValues;
 
   if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->back())) {
-    for (mlir::Value value : yieldOp.values()) {
+    for (mlir::Value value : yieldOp.getValues()) {
       stepYieldValues.push_back(value);
     }
 
     yieldOp->erase();
   }
 
-  builder.create<mlir::BranchOp>(op->getLoc(), conditionFirst, stepYieldValues);
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst, stepYieldValues);
 
   // Erase the operation
   op->erase();
@@ -714,26 +807,26 @@ mlir::LogicalResult CFGLowerer::run(
   mlir::Block* continuation = currentBlock->splitBlock(op);
 
   // Keep the references to the op blocks
-  mlir::Block* thenFirst = &op.thenRegion().front();
-  mlir::Block* thenLast = &op.thenRegion().back();
+  mlir::Block* thenFirst = &op.getThenRegion().front();
+  mlir::Block* thenLast = &op.getThenRegion().back();
 
   // Inline the regions
-  inlineRegionBefore(op.thenRegion(), continuation);
+  inlineRegionBefore(op.getThenRegion(), continuation);
   builder.setInsertionPointToEnd(currentBlock);
 
   mlir::Value conditionValue = typeConverter->materializeTargetConversion(
-      builder, op.condition().getLoc(), builder.getI1Type(), op.condition());
+      builder, op.getCondition().getLoc(), builder.getI1Type(), op.getCondition());
 
-  if (op.elseRegion().empty())
+  if (op.getElseRegion().empty())
   {
     // Branch to the "then" region or to the continuation block according
     // to the condition.
 
-    builder.create<mlir::CondBranchOp>(
+    builder.create<mlir::cf::CondBranchOp>(
         op->getLoc(), conditionValue, thenFirst, llvm::None, continuation, llvm::None);
 
     builder.setInsertionPointToEnd(thenLast);
-    builder.create<mlir::BranchOp>(op->getLoc(), continuation);
+    builder.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
 
     // Erase the operation
     op->erase();
@@ -745,20 +838,20 @@ mlir::LogicalResult CFGLowerer::run(
   } else {
     // Branch to the "then" region or to the "else" region according
     // to the condition.
-    mlir::Block* elseFirst = &op.elseRegion().front();
-    mlir::Block* elseLast = &op.elseRegion().back();
+    mlir::Block* elseFirst = &op.getElseRegion().front();
+    mlir::Block* elseLast = &op.getElseRegion().back();
 
-    inlineRegionBefore(op.elseRegion(), continuation);
+    inlineRegionBefore(op.getElseRegion(), continuation);
 
-    builder.create<mlir::CondBranchOp>(
+    builder.create<mlir::cf::CondBranchOp>(
         op->getLoc(), conditionValue, thenFirst, llvm::None, elseFirst, llvm::None);
 
     // Branch to the continuation block
     builder.setInsertionPointToEnd(thenLast);
-    builder.create<mlir::BranchOp>(op->getLoc(), continuation);
+    builder.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
 
     builder.setInsertionPointToEnd(elseLast);
-    builder.create<mlir::BranchOp>(op->getLoc(), continuation);
+    builder.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
 
     // Erase the operation
     op->erase();
@@ -782,35 +875,35 @@ mlir::LogicalResult CFGLowerer::run(
   mlir::Block* continuation = currentBlock->splitBlock(op);
 
   // Keep the references to the op blocks
-  mlir::Block* conditionFirst = &op.conditionRegion().front();
-  mlir::Block* conditionLast = &op.conditionRegion().back();
+  mlir::Block* conditionFirst = &op.getConditionRegion().front();
+  mlir::Block* conditionLast = &op.getConditionRegion().back();
 
-  mlir::Block* bodyFirst = &op.bodyRegion().front();
-  mlir::Block* bodyLast = &op.bodyRegion().back();
+  mlir::Block* bodyFirst = &op.getBodyRegion().front();
+  mlir::Block* bodyLast = &op.getBodyRegion().back();
 
   // Inline the regions
-  inlineRegionBefore(op.conditionRegion(), continuation);
-  inlineRegionBefore(op.bodyRegion(), continuation);
+  inlineRegionBefore(op.getConditionRegion(), continuation);
+  inlineRegionBefore(op.getBodyRegion(), continuation);
 
   // Branch to the "condition" region
   builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::BranchOp>(op->getLoc(), conditionFirst);
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst);
 
   // Branch to the "body" region
   builder.setInsertionPointToEnd(conditionLast);
   auto conditionOp = mlir::cast<ConditionOp>(conditionLast->getTerminator());
 
   mlir::Value conditionValue = typeConverter->materializeTargetConversion(
-      builder, conditionOp->getLoc(), builder.getI1Type(), conditionOp.condition());
+      builder, conditionOp->getLoc(), builder.getI1Type(), conditionOp.getCondition());
 
-  builder.create<mlir::CondBranchOp>(
+  builder.create<mlir::cf::CondBranchOp>(
       op->getLoc(), conditionValue, bodyFirst, llvm::None, continuation, llvm::None);
 
   conditionOp->erase();
 
   // Branch back to the "condition" region
   builder.setInsertionPointToEnd(bodyLast);
-  builder.create<mlir::BranchOp>(op->getLoc(), conditionFirst);
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst);
 
   // Erase the operation
   op->erase();
@@ -833,7 +926,7 @@ mlir::LogicalResult CFGLowerer::run(
   currentBlock->splitBlock(op);
 
   builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::BranchOp>(op->getLoc(), functionReturnBlock);
+  builder.create<mlir::cf::BranchOp>(op->getLoc(), functionReturnBlock);
 
   op->erase();
   return mlir::success();
@@ -867,20 +960,12 @@ mlir::LogicalResult CFGLowerer::recurse(
 
 namespace
 {
-  class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
+  class LowerToCFGPass : public ConvertModelicaToCFGBase<LowerToCFGPass>
   {
     public:
       explicit LowerToCFGPass(LowerToCFGOptions options)
           : options(std::move(options))
       {
-      }
-
-      void getDependentDialects(mlir::DialectRegistry &registry) const override
-      {
-        registry.insert<mlir::BuiltinDialect>();
-        registry.insert<mlir::StandardOpsDialect>();
-        registry.insert<mlir::scf::SCFDialect>();
-        registry.insert<mlir::LLVM::LLVMDialect>();
       }
 
       void runOnOperation() override
@@ -903,11 +988,6 @@ namespace
           mlir::emitError(module.getLoc(), "Error in converting the Modelica operations to CFG");
           return signalPassFailure();
         }
-
-        if (mlir::failed(convertSCF())) {
-          mlir::emitError(module.getLoc(), "Error in converting the SCF ops to CFG");
-          return signalPassFailure();
-        }
       }
 
       mlir::LogicalResult convertModelicaToCFG()
@@ -926,27 +1006,6 @@ namespace
         }
 
         return mlir::success();
-      }
-
-      mlir::LogicalResult convertSCF()
-      {
-        auto module = getOperation();
-
-        mlir::ConversionTarget target(getContext());
-
-        target.addIllegalOp<mlir::scf::ForOp, mlir::scf::IfOp, mlir::scf::ParallelOp, mlir::scf::WhileOp>();
-
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
-
-        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
-
-        mlir::OwningRewritePatternList patterns(&getContext());
-        mlir::populateLoopToStdConversionPatterns(patterns);
-
-        return applyPartialConversion(module, target, std::move(patterns));
       }
 
     private:

@@ -1,11 +1,12 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cfg | FileCheck %s
 
-// CHECK:      func @foo(%arg0: !modelica.int) -> !modelica.int {
-// CHECK-NEXT:      %0 = modelica.alloca  : !modelica.array<!modelica.int>
-// CHECK-NEXT:      br ^[[out:[a-zA-Z0-9]*]]
+// CHECK:      func @foo(%arg0: i64) -> i64 {
+// CHECK:      %[[Y:[a-zA-Z0-9]*]] = modelica.alloca : !modelica.array<!modelica.int>
+// CHECK-NEXT:      cf.br ^[[out:[a-zA-Z0-9]*]]
 // CHECK-NEXT: ^[[out]]:  // pred: ^bb0
-// CHECK-NEXT:      %1 = modelica.load %0[] : !modelica.array<!modelica.int>
-// CHECK-NEXT:      return %1 : !modelica.int
+// CHECK-NEXT:      %[[Y_LOAD:[a-zA-Z0-9]*]] = modelica.load %[[Y]][] : !modelica.array<!modelica.int>
+// CHECK-NEXT:      %[[Y_CAST:[a-zA-Z0-9]*]] = builtin.unrealized_conversion_cast %[[Y_LOAD]] : !modelica.int to i64
+// CHECK-NEXT:      return %[[Y_CAST]]
 // CHECK-NEXT: }
 
 modelica.function @foo : (!modelica.int) -> (!modelica.int) {

@@ -101,1183 +101,6 @@ static double getScalarFloatLikeValue(mlir::Attribute attribute)
   return attribute.dyn_cast<RealAttr>().getValue().convertToDouble();
 }
 
-static mlir::LogicalResult verify(AbsOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AcosOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AddOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AddEWOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AllocOp op)
-{
-  auto dynamicDimensionsAmount = op.getArrayType().getDynamicDimensionsCount();
-  auto valuesAmount = op.dynamicSizes().size();
-
-  if (dynamicDimensionsAmount != valuesAmount) {
-    return op.emitOpError(
-        "incorrect number of values for dynamic dimensions (expected " +
-        std::to_string(dynamicDimensionsAmount) + ", got " +
-        std::to_string(valuesAmount) + ")");
-  }
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AllocaOp op)
-{
-  auto dynamicDimensionsAmount = op.getArrayType().getDynamicDimensionsCount();
-  auto valuesAmount = op.dynamicSizes().size();
-
-  if (dynamicDimensionsAmount != valuesAmount) {
-    return op.emitOpError(
-        "incorrect number of values for dynamic dimensions (expected " +
-            std::to_string(dynamicDimensionsAmount) + ", got " +
-            std::to_string(valuesAmount) + ")");
-  }
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AndOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ArrayCastOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AsinOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(AtanOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(Atan2Op op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ConstantOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(CosOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(CoshOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(DerOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(DiagonalOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(DimOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(DivOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(DivEWOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ExpOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ArrayFillOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(FreeOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(IdentityOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(LinspaceOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(LoadOp op)
-{
-  auto indicesAmount = op.indices().size();
-  auto rank = op.getArrayType().getRank();
-
-  if (indicesAmount != rank) {
-    return op.emitOpError(
-        "incorrect number of indices for load (expected " +
-        std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
-  }
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SubscriptionOp op)
-{
-  auto indicesAmount = op.indices().size();
-
-  if (op.getSourceArrayType().slice(indicesAmount) != op.getResultArrayType()) {
-    return op.emitOpError("incompatible source array type and result sliced type");
-  }
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(LogOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(Log10Op op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(MulOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(MulEWOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(NegateOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(NotOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(OnesOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(OrOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(PowOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(PowEWOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(PrintOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ProductOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SignOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SinOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SinhOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SizeOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SqrtOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(StoreOp op)
-{
-  auto indicesAmount = op.indices().size();
-  auto rank = op.getArrayType().getRank();
-
-  if (indicesAmount != rank) {
-    return op.emitOpError(
-        "incorrect number of indices for store (expected " +
-        std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
-  }
-
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SubOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SubEWOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SumOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(SymmetricOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(TanOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(TanhOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(TransposeOp op)
-{
-  return mlir::success();
-}
-
-static mlir::LogicalResult verify(ZerosOp op)
-{
-  return mlir::success();
-}
-
-//===----------------------------------------------------------------------===//
-// ConstantOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseConstantOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::Attribute value;
-
-  if (parser.parseAttribute(value)) {
-    return mlir::failure();
-  }
-
-  result.attributes.append("value", value);
-  result.addTypes(value.getType());
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, ConstantOp op)
-{
-  printer << op.getOperationName();
-  printer.printOptionalAttrDict(op->getAttrs(), {"value"});
-  printer << " " << op.value();
-
-  // If the value is a symbol reference, print a trailing type.
-  if (op.value().isa<mlir::SymbolRefAttr>()) {
-    printer << " : " << op.getType();
-  }
-}
-
-//===----------------------------------------------------------------------===//
-// MemberCreateOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseMemberCreateOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  auto& builder = parser.getBuilder();
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
-    return mlir::failure();
-  }
-
-  llvm::SmallVector<mlir::OpAsmParser::OperandType, 1> dynamicSizes;
-  mlir::Type resultType;
-
-  if (parser.parseOperandList(dynamicSizes) ||
-      parser.resolveOperands(dynamicSizes, builder.getIndexType(), result.operands) ||
-      parser.parseOptionalAttrDict(result.attributes) ||
-      parser.parseColon() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, MemberCreateOp op)
-{
-  printer << op.getOperationName() << " ";
-  printer.printSymbolName(op.name());
-  printer.printOptionalAttrDict(op->getAttrs(), { "sym_name" });
-  printer << op.dynamicSizes();
-  printer << " : " << op.getResult().getType();
-}
-
-//===----------------------------------------------------------------------===//
-// MemberLoadOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseMemberLoadOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::OpAsmParser::OperandType member;
-  mlir::Type memberType;
-  mlir::Type resultType;
-
-  if (parser.parseOperand(member) ||
-      parser.parseOptionalAttrDict(result.attributes) ||
-      parser.parseColonType(memberType) ||
-      parser.resolveOperand(member, memberType, result.operands)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalArrow())) {
-    if (parser.parseType(resultType)) {
-      return mlir::failure();
-    }
-
-    result.addTypes(resultType);
-  } else {
-    result.addTypes(memberType.cast<MemberType>().unwrap());
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, MemberLoadOp op)
-{
-  printer << op.getOperationName();
-  printer << " " << op.member();
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << " : " << op.member().getType();
-
-  if (auto resultType = op.getResult().getType(); resultType != op.getMemberType().unwrap()) {
-    printer << " -> " << resultType;
-  }
-}
-
-//===----------------------------------------------------------------------===//
-// MemberStoreOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseMemberStoreOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::OpAsmParser::OperandType member;
-  mlir::OpAsmParser::OperandType value;
-  mlir::Type memberType;
-  mlir::Type valueType;
-
-  if (parser.parseOperand(member) ||
-      parser.parseComma() ||
-      parser.parseOperand(value) ||
-      parser.parseOptionalAttrDict(result.attributes) ||
-      parser.parseColonType(memberType) ||
-      parser.resolveOperand(member, memberType, result.operands)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    if (parser.parseType(valueType) ||
-        parser.resolveOperand(value, valueType, result.operands)) {
-      return mlir::failure();
-    }
-  } else if (parser.resolveOperand(value, memberType.cast<MemberType>().unwrap(), result.operands)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, MemberStoreOp op)
-{
-  printer << op.getOperationName();
-  printer << " " << op.member() << ", " << op.value();
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << " : " << op.member().getType();
-
-  if (auto valueType = op.value().getType(); valueType != op.getMemberType().unwrap()) {
-    printer << ", " << valueType;
-  }
-}
-
-//===----------------------------------------------------------------------===//
-// ModelOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseModelOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region* initRegion = result.addRegion();
-  mlir::Region* equationsRegion = result.addRegion();
-  mlir::Region* initialEquationsRegion = result.addRegion();
-
-  if (parser.parseRegion(*initRegion)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("equations"))) {
-    if (parser.parseRegion(*equationsRegion)) {
-      return mlir::failure();
-    }
-  }
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("initial equations"))) {
-    if (parser.parseRegion(*initialEquationsRegion)) {
-      return mlir::failure();
-    }
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, ModelOp op)
-{
-  printer << op.getOperationName();
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
-  printer.printRegion(op.initRegion());
-
-  if (auto& region = op.equationsRegion(); !region.empty()) {
-    printer << " equations";
-    printer.printRegion(region);
-  }
-
-  if (auto& region = op.initialEquationsRegion(); !region.empty()) {
-    printer << " initial equations";
-    printer.printRegion(region);
-  }
-}
-
-//===----------------------------------------------------------------------===//
-// FunctionOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseFunctionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  auto& builder = parser.getBuilder();
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
-    return mlir::failure();
-  }
-
-  llvm::SmallVector<mlir::Type, 3> argsTypes;
-  llvm::SmallVector<mlir::Type, 3> resultsTypes;
-
-  if (parser.parseColon() ||
-      parser.parseLParen()) {
-    return mlir::failure();
-  }
-
-  if (mlir::failed(parser.parseOptionalRParen())) {
-    if (parser.parseTypeList(argsTypes) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseArrow() ||
-      parser.parseLParen()) {
-    return mlir::failure();
-  }
-
-  if (mlir::failed(parser.parseOptionalRParen())) {
-    if (parser.parseTypeList(resultsTypes) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
-  result.attributes.append("type", mlir::TypeAttr::get(functionType));
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region* bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion, llvm::None, llvm::None)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, FunctionOp op)
-{
-  printer << op.getOperationName() << " ";
-  printer.printSymbolName(op.name());
-  printer << " : " << op.getType();
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs(), { "sym_name", "type" });
-  printer.printRegion(op.body());
-}
-
-//===----------------------------------------------------------------------===//
-// DerFunctionOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseDerFunctionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::StringAttr nameAttr;
-
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes) ||
-      parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, DerFunctionOp op)
-{
-  printer << op.getOperationName() << " ";
-  printer.printSymbolName(op.name());
-  printer.printOptionalAttrDict(op->getAttrs(), { "sym_name" });
-}
-
-//===----------------------------------------------------------------------===//
-// ForEquationOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseForEquationOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  auto& builder = parser.getBuilder();
-
-  mlir::OpAsmParser::OperandType induction;
-  long from;
-  long to;
-
-  if (parser.parseOperand(induction) ||
-      parser.parseEqual() ||
-      parser.parseInteger(from) ||
-      parser.parseKeyword("to") ||
-      parser.parseInteger(to)) {
-    return mlir::failure();
-  }
-
-  result.attributes.append("from", builder.getIndexAttr(from));
-  result.attributes.append("to", builder.getIndexAttr(to));
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region* bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion, induction, builder.getIndexType())) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, ForEquationOp op)
-{
-  printer << op.getOperationName() << " " << op.induction() << " = " << op.from() << " to " << op.to();
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs(), {"from", "to"});
-  printer.printRegion(op.bodyRegion(), false);
-}
-
-//===----------------------------------------------------------------------===//
-// EquationOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseEquationOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  mlir::Region* bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, EquationOp op)
-{
-  printer << op.getOperationName();
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
-  printer.printRegion(op.bodyRegion());
-}
-
-//===----------------------------------------------------------------------===//
-// SubscriptionOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseSubscriptionOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  auto loc = parser.getCurrentLocation();
-  mlir::OpAsmParser::OperandType source;
-  mlir::Type sourceType;
-  llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indices;
-  llvm::SmallVector<mlir::Type, 3> indicesTypes;
-
-  if (parser.parseOperand(source) ||
-      parser.parseOperandList(indices, mlir::OpAsmParser::Delimiter::Square) ||
-      parser.parseColonType(sourceType) ||
-      parser.resolveOperand(source, sourceType, result.operands)) {
-    return mlir::failure();
-  }
-
-  indicesTypes.resize(indices.size(),  mlir::IndexType::get(result.getContext()));
-  size_t i = 0;
-
-  while (mlir::succeeded(parser.parseOptionalComma())) {
-    if (parser.parseType(indicesTypes[i++])) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(sourceType.cast<ArrayType>().slice(indices.size()));
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, SubscriptionOp op)
-{
-  printer << op.getOperationName();
-  printer << " " << op.source() << "[" << op.indices() << "]";
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << " : " << op.getResult().getType();
-}
-
-//===----------------------------------------------------------------------===//
-// EquationSideOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseEquationSideOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  llvm::SmallVector<mlir::OpAsmParser::OperandType, 1> values;
-  mlir::Type resultType;
-  auto loc = parser.getCurrentLocation();
-
-  if (parser.parseOperandList(values) ||
-      parser.parseColon() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  assert(resultType.isa<mlir::TupleType>());
-  auto tupleType = resultType.cast<mlir::TupleType>();
-
-  llvm::SmallVector<mlir::Type, 1> types(tupleType.begin(), tupleType.end());
-  assert(types.size() == values.size());
-
-  if (parser.resolveOperands(values, types, loc, result.operands)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, EquationSideOp op)
-{
-  printer << op.getOperationName() << " ";
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << op.values() << " : " << op.getResult().getType();
-}
-
-//===----------------------------------------------------------------------===//
-// IfOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseIfOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::OpAsmParser::OperandType condition;
-  mlir::Type conditionType;
-
-  if (parser.parseLParen() ||
-      parser.parseOperand(condition) ||
-      parser.parseColonType(conditionType) ||
-      parser.parseRParen() ||
-      parser.resolveOperand(condition, conditionType, result.operands)) {
-    return mlir::failure();
-  }
-
-  mlir::Region* thenRegion = result.addRegion();
-
-  if (parser.parseRegion(*thenRegion)) {
-    return mlir::failure();
-  }
-
-  mlir::Region* elseRegion = result.addRegion();
-
-  if (mlir::succeeded(parser.parseOptionalKeyword("else"))) {
-    if (parser.parseRegion(*elseRegion)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, IfOp op)
-{
-  printer << op.getOperationName();
-  printer << " (" << op.condition() << " : " << op.condition().getType() << ")";
-
-  printer.printRegion(op.thenRegion());
-
-  if (!op.elseRegion().empty()) {
-    printer << " else";
-    printer.printRegion(op.elseRegion());
-  }
-
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
-}
-
-//===----------------------------------------------------------------------===//
-// ForOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseForOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::Region* conditionRegion = result.addRegion();
-
-  if (mlir::succeeded(parser.parseOptionalLParen())) {
-    if (mlir::failed(parser.parseOptionalRParen())) {
-      do {
-        mlir::OpAsmParser::OperandType arg;
-        mlir::Type argType;
-
-        if (parser.parseOperand(arg) ||
-            parser.parseColonType(argType) ||
-            parser.resolveOperand(arg, argType, result.operands))
-          return mlir::failure();
-      } while (mlir::succeeded(parser.parseOptionalComma()));
-    }
-
-    if (parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseKeyword("condition")) {
-    return mlir::failure();
-  }
-
-  if (parser.parseRegion(*conditionRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseKeyword("body")) {
-    return mlir::failure();
-  }
-
-  mlir::Region* bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseKeyword("step")) {
-    return mlir::failure();
-  }
-
-  mlir::Region* stepRegion = result.addRegion();
-
-  if (parser.parseRegion(*stepRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, ForOp op)
-{
-  printer << op.getOperationName();
-
-  if (auto values = op.args(); !values.empty()) {
-    printer << " (";
-
-    for (auto arg : llvm::enumerate(values)) {
-      if (arg.index() != 0) {
-        printer << ", ";
-      }
-
-      printer << arg.value() << " : " << arg.value().getType();
-    }
-
-    printer << ")";
-  }
-
-  printer << " condition";
-  printer.printRegion(op.conditionRegion(), true);
-  printer << " body";
-  printer.printRegion(op.bodyRegion(), true);
-  printer << " step";
-  printer.printRegion(op.stepRegion(), true);
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
-}
-
-//===----------------------------------------------------------------------===//
-// WhileOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseWhileOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::Region* conditionRegion = result.addRegion();
-  mlir::Region* bodyRegion = result.addRegion();
-
-  if (parser.parseRegion(*conditionRegion) ||
-      parser.parseKeyword("do") ||
-      parser.parseRegion(*bodyRegion)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (conditionRegion->empty()) {
-    conditionRegion->emplaceBlock();
-  }
-
-  if (bodyRegion->empty()) {
-    bodyRegion->emplaceBlock();
-  }
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, WhileOp op)
-{
-  printer << op.getOperationName();
-  printer.printRegion(op.conditionRegion(), false);
-  printer << " do";
-  printer.printRegion(op.bodyRegion(), false);
-  printer.printOptionalAttrDictWithKeyword(op->getAttrs());
-}
-
-//===----------------------------------------------------------------------===//
-// MaxOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseMaxOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::OpAsmParser::OperandType first;
-  mlir::Type firstType;
-
-  mlir::OpAsmParser::OperandType second;
-  mlir::Type secondType;
-
-  size_t numOperands = 1;
-
-  if (parser.parseOperand(first)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    numOperands = 2;
-
-    if (parser.parseOperand(second)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseColon()) {
-    return mlir::failure();
-  }
-
-  if (numOperands == 1) {
-    if (parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands)) {
-      return mlir::failure();
-    }
-  } else {
-    if (parser.parseLParen() ||
-        parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands) ||
-        parser.parseComma() ||
-        parser.parseType(secondType) ||
-        parser.resolveOperand(second, secondType, result.operands) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  mlir::Type resultType;
-
-  if (parser.parseArrow() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, MaxOp op)
-{
-  printer << op.getOperationName();
-  printer << " " << op.first();
-
-  if (op->getNumOperands() == 2) {
-    printer << ", " << op.second();
-  }
-
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << " : ";
-
-  if (op->getNumOperands() == 1) {
-    printer << op.first().getType();
-  } else {
-    printer << "(" << op.first().getType() << ", " << op.second().getType() << ")";
-  }
-
-  printer << " -> " << op.getResult().getType();
-}
-
-//===----------------------------------------------------------------------===//
-// MinOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseMinOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::OpAsmParser::OperandType first;
-  mlir::Type firstType;
-
-  mlir::OpAsmParser::OperandType second;
-  mlir::Type secondType;
-
-  size_t numOperands = 1;
-
-  if (parser.parseOperand(first)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    numOperands = 2;
-
-    if (parser.parseOperand(second)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseColon()) {
-    return mlir::failure();
-  }
-
-  if (numOperands == 1) {
-    if (parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands)) {
-      return mlir::failure();
-    }
-  } else {
-    if (parser.parseLParen() ||
-        parser.parseType(firstType) ||
-        parser.resolveOperand(first, firstType, result.operands) ||
-        parser.parseComma() ||
-        parser.parseType(secondType) ||
-        parser.resolveOperand(second, secondType, result.operands) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  mlir::Type resultType;
-
-  if (parser.parseArrow() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, MinOp op)
-{
-  printer << op.getOperationName();
-  printer << " " << op.first();
-
-  if (op->getNumOperands() == 2) {
-    printer << ", " << op.second();
-  }
-
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << " : ";
-
-  if (op->getNumOperands() == 1) {
-    printer << op.first().getType();
-  } else {
-    printer << "(" << op.first().getType() << ", " << op.second().getType() << ")";
-  }
-
-  printer << " -> " << op.getResult().getType();
-}
-
-//===----------------------------------------------------------------------===//
-// SizeOp
-//===----------------------------------------------------------------------===//
-
-static mlir::ParseResult parseSizeOp(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-  mlir::OpAsmParser::OperandType array;
-  mlir::Type arrayType;
-
-  mlir::OpAsmParser::OperandType dimension;
-  mlir::Type dimensionType;
-
-  size_t numOperands = 1;
-
-  if (parser.parseOperand(array)) {
-    return mlir::failure();
-  }
-
-  if (mlir::succeeded(parser.parseOptionalComma())) {
-    numOperands = 2;
-
-    if (parser.parseOperand(dimension)) {
-      return mlir::failure();
-    }
-  }
-
-  if (parser.parseOptionalAttrDict(result.attributes)) {
-    return mlir::failure();
-  }
-
-  if (parser.parseColon()) {
-    return mlir::failure();
-  }
-
-  if (numOperands == 1) {
-    if (parser.parseType(arrayType) ||
-        parser.resolveOperand(array, arrayType, result.operands)) {
-      return mlir::failure();
-    }
-  } else {
-    if (parser.parseLParen() ||
-        parser.parseType(arrayType) ||
-        parser.resolveOperand(array, arrayType, result.operands) ||
-        parser.parseComma() ||
-        parser.parseType(dimensionType) ||
-        parser.resolveOperand(dimension, dimensionType, result.operands) ||
-        parser.parseRParen()) {
-      return mlir::failure();
-    }
-  }
-
-  mlir::Type resultType;
-
-  if (parser.parseArrow() ||
-      parser.parseType(resultType)) {
-    return mlir::failure();
-  }
-
-  result.addTypes(resultType);
-
-  return mlir::success();
-}
-
-static void print(mlir::OpAsmPrinter& printer, SizeOp op)
-{
-  printer << op.getOperationName();
-  printer << " " << op.array();
-
-  if (op->getNumOperands() == 2) {
-    printer << ", " << op.dimension();
-  }
-
-  printer.printOptionalAttrDict(op->getAttrs());
-  printer << " : ";
-
-  if (op->getNumOperands() == 1) {
-    printer << op.array().getType();
-  } else {
-    printer << "(" << op.array().getType() << ", " << op.dimension().getType() << ")";
-  }
-
-  printer << " -> " << op.getResult().getType();
-}
-
 #define GET_OP_CLASSES
 #include "marco/Dialect/Modelica/Modelica.cpp.inc"
 
@@ -1287,13 +110,58 @@ namespace mlir::modelica
   // ModelOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult ModelOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* initRegion = result.addRegion();
+    mlir::Region* equationsRegion = result.addRegion();
+    mlir::Region* initialEquationsRegion = result.addRegion();
+
+    if (parser.parseRegion(*initRegion)) {
+      return mlir::failure();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalKeyword("equations"))) {
+      if (parser.parseRegion(*equationsRegion)) {
+        return mlir::failure();
+      }
+    }
+
+    if (mlir::succeeded(parser.parseOptionalKeyword("initial equations"))) {
+      if (parser.parseRegion(*initialEquationsRegion)) {
+        return mlir::failure();
+      }
+    }
+
+    return mlir::success();
+  }
+
+  void ModelOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
+    printer.printRegion(getInitRegion());
+
+    if (auto& region = getEquationsRegion(); !region.empty()) {
+      printer << " equations ";
+      printer.printRegion(region);
+    }
+
+    if (auto& region = getInitialEquationsRegion(); !region.empty()) {
+      printer << " initial equations ";
+      printer.printRegion(region);
+    }
+  }
+
   SmallVector<StringRef> ModelOp::variableNames()
   {
     SmallVector<StringRef> result;
-    auto terminator = mlir::cast<YieldOp>(initRegion().back().getTerminator());
+    auto terminator = mlir::cast<YieldOp>(getInitRegion().back().getTerminator());
 
-    for (const auto& variable : terminator.values()) {
-      auto name = variable.getDefiningOp<MemberCreateOp>().name();
+    for (const auto& variable : terminator.getValues()) {
+      auto name = variable.getDefiningOp<MemberCreateOp>().getSymName();
       result.push_back(name);
     }
 
@@ -1302,34 +170,96 @@ namespace mlir::modelica
 
   bool ModelOp::hasEquationsBlock()
   {
-    return !equationsRegion().empty();
+    return !getEquationsRegion().empty();
   }
 
   mlir::Block* ModelOp::equationsBlock()
   {
-    assert(equationsRegion().hasOneBlock());
-    return &equationsRegion().front();
+    assert(getEquationsRegion().hasOneBlock());
+    return &getEquationsRegion().front();
   }
 
   bool ModelOp::hasInitialEquationsBlock()
   {
-    return !initialEquationsRegion().empty();
+    return !getInitialEquationsRegion().empty();
   }
 
   mlir::Block* ModelOp::initialEquationsBlock()
   {
-    assert(initialEquationsRegion().hasOneBlock());
-    return &initialEquationsRegion().front();
+    assert(getInitialEquationsRegion().hasOneBlock());
+    return &getInitialEquationsRegion().front();
   }
 
   //===----------------------------------------------------------------------===//
   // FunctionOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult FunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto& builder = parser.getBuilder();
+    mlir::StringAttr nameAttr;
+
+    if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<mlir::Type, 3> argsTypes;
+    llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+    if (parser.parseColon() ||
+        parser.parseLParen()) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(parser.parseOptionalRParen())) {
+      if (parser.parseTypeList(argsTypes) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseArrow() ||
+        parser.parseLParen()) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(parser.parseOptionalRParen())) {
+      if (parser.parseTypeList(resultsTypes) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
+    result.attributes.append(getFunctionTypeAttrName(result.name), mlir::TypeAttr::get(functionType));
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseRegion(*bodyRegion, llvm::None)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void FunctionOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer.printSymbolName(getSymName());
+    printer << " : " << getFunctionType();
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), { "sym_name", "function_type" });
+    printer << " ";
+    printer.printRegion(getBody());
+  }
+
   mlir::Block* FunctionOp::bodyBlock()
   {
-    assert(body().hasOneBlock());
-    return &body().front();
+    assert(getBody().hasOneBlock());
+    return &getBody().front();
   }
 
   SmallVector<StringRef> FunctionOp::inputMemberNames()
@@ -1338,7 +268,7 @@ namespace mlir::modelica
 
     walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
       if (op.isInput()) {
-        result.push_back(op.name());
+        result.push_back(op.getSymName());
       }
     });
 
@@ -1351,7 +281,7 @@ namespace mlir::modelica
 
     walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
       if (op.isOutput()) {
-        result.push_back(op.name());
+        result.push_back(op.getSymName());
       }
     });
 
@@ -1364,16 +294,11 @@ namespace mlir::modelica
 
     walk<WalkOrder::PreOrder>([&](MemberCreateOp op) {
       if (!op.isInput() && !op.isOutput()) {
-        result.push_back(op.name());
+        result.push_back(op.getSymName());
       }
     });
 
     return result;
-  }
-
-  FunctionType FunctionOp::getType()
-  {
-    return getOperation()->getAttrOfType<mlir::TypeAttr>(typeAttrName()).getValue().cast<mlir::FunctionType>();
   }
 
   bool FunctionOp::shouldBeInlined()
@@ -1403,34 +328,97 @@ namespace mlir::modelica
 
   mlir::Block* EquationOp::bodyBlock()
   {
-    assert(bodyRegion().getBlocks().size() == 1);
-    return &bodyRegion().front();
+    assert(getBodyRegion().getBlocks().size() == 1);
+    return &getBodyRegion().front();
+  }
+
+  mlir::ParseResult EquationOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseRegion(*bodyRegion)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void EquationOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
+    printer << " ";
+    printer.printRegion(getBodyRegion());
   }
 
   //===----------------------------------------------------------------------===//
   // ForEquationOp
   //===----------------------------------------------------------------------===//
 
-  void ForEquationOp::build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, long from, long to)
+  void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long from, long to)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    state.addAttribute(fromAttrName(state.name), builder.getIndexAttr(from));
-    state.addAttribute(toAttrName(state.name), builder.getIndexAttr(to));
+    state.addAttribute(getFromAttrName(state.name), builder.getIndexAttr(from));
+    state.addAttribute(getToAttrName(state.name), builder.getIndexAttr(to));
 
     mlir::Region* bodyRegion = state.addRegion();
-    builder.createBlock(bodyRegion, {}, builder.getIndexType());
+    builder.createBlock(bodyRegion, {}, builder.getIndexType(), builder.getUnknownLoc());
   }
 
   mlir::Block* ForEquationOp::bodyBlock()
   {
-    assert(bodyRegion().getBlocks().size() == 1);
-    return &bodyRegion().front();
+    assert(getBodyRegion().getBlocks().size() == 1);
+    return &getBodyRegion().front();
   }
 
   mlir::Value ForEquationOp::induction()
   {
-    assert(bodyRegion().getNumArguments() != 0);
-    return bodyRegion().getArgument(0);
+    assert(getBodyRegion().getNumArguments() != 0);
+    return getBodyRegion().getArgument(0);
+  }
+
+  mlir::ParseResult ForEquationOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto& builder = parser.getBuilder();
+
+    mlir::OpAsmParser::Argument induction;
+    long from;
+    long to;
+
+    if (parser.parseArgument(induction) ||
+        parser.parseEqual() ||
+        parser.parseInteger(from) ||
+        parser.parseKeyword("to") ||
+        parser.parseInteger(to)) {
+      return mlir::failure();
+    }
+
+    induction.type = builder.getIndexType();
+
+    result.attributes.append("from", builder.getIndexAttr(from));
+    result.attributes.append("to", builder.getIndexAttr(to));
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseRegion(*bodyRegion, induction)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void ForEquationOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << induction() << " = " << getFrom() << " to " << getTo();
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"from", "to"});
+    printer.printRegion(getBodyRegion(), false);
   }
 
   //===----------------------------------------------------------------------===//
@@ -1450,9 +438,34 @@ namespace mlir::modelica
   // ConstantOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::Attribute value;
+
+    if (parser.parseAttribute(value)) {
+      return mlir::failure();
+    }
+
+    result.attributes.append("value", value);
+    result.addTypes(value.getType());
+
+    return mlir::success();
+  }
+
+  void ConstantOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), {"value"});
+    printer << " " << getValue();
+
+    // If the value is a symbol reference, print a trailing type.
+    if (getValue().isa<mlir::SymbolRefAttr>()) {
+      printer << " : " << getType();
+    }
+  }
+
   mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
   {
-    return value();
+    return getValue();
   }
 
   mlir::ValueRange ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -1479,8 +492,8 @@ namespace mlir::modelica
 
   void SqrtOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -1495,10 +508,10 @@ namespace mlir::modelica
 
     auto loc = getLoc();
 
-    mlir::Value derivedOperand = derivatives.lookup(operand());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
     mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value sqrt = builder.create<SqrtOp>(loc, type, operand());
+    mlir::Value sqrt = builder.create<SqrtOp>(loc, type, getOperand());
     mlir::Value numerator = builder.create<DivEWOp>(loc, type, derivedOperand, sqrt);
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
     auto derivedOp = builder.create<DivEWOp>(loc, type, numerator, two);
@@ -1517,18 +530,93 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // MemberCreateOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto& builder = parser.getBuilder();
+    mlir::StringAttr nameAttr;
+
+    if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
+      return mlir::failure();
+    }
+
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 1> dynamicSizes;
+    mlir::Type resultType;
+
+    if (parser.parseOperandList(dynamicSizes) ||
+        parser.resolveOperands(dynamicSizes, builder.getIndexType(), result.operands) ||
+        parser.parseOptionalAttrDict(result.attributes) ||
+        parser.parseColon() ||
+        parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultType);
+    return mlir::success();
+  }
+
+  void MemberCreateOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer.printSymbolName(getSymName());
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), { "sym_name" });
+    printer << getDynamicSizes();
+    printer << " : " << getResult().getType();
+  }
+
+  //===----------------------------------------------------------------------===//
   // MemberLoadOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult MemberLoadOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand member;
+    mlir::Type memberType;
+    mlir::Type resultType;
+
+    if (parser.parseOperand(member) ||
+        parser.parseOptionalAttrDict(result.attributes) ||
+        parser.parseColonType(memberType) ||
+        parser.resolveOperand(member, memberType, result.operands)) {
+      return mlir::failure();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalArrow())) {
+      if (parser.parseType(resultType)) {
+        return mlir::failure();
+      }
+
+      result.addTypes(resultType);
+    } else {
+      result.addTypes(memberType.cast<MemberType>().unwrap());
+    }
+
+    return mlir::success();
+  }
+
+  void MemberLoadOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer << getMember();
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : " << getMember().getType();
+
+    if (auto resultType = getResult().getType(); resultType != getMemberType().unwrap()) {
+      printer << " -> " << resultType;
+    }
+  }
+
   mlir::ValueRange MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivedOp = builder.create<MemberLoadOp>(getLoc(), getResult().getType(), derivatives.lookup(member()));
+    auto derivedOp = builder.create<MemberLoadOp>(getLoc(), getResult().getType(), derivatives.lookup(getMember()));
     return derivedOp->getResults();
   }
 
   void MemberLoadOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(member());
+    toBeDerived.push_back(getMember());
   }
 
   void MemberLoadOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -1540,23 +628,63 @@ namespace mlir::modelica
   // MemberStoreOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand member;
+    mlir::OpAsmParser::UnresolvedOperand value;
+    mlir::Type memberType;
+    mlir::Type valueType;
+
+    if (parser.parseOperand(member) ||
+        parser.parseComma() ||
+        parser.parseOperand(value) ||
+        parser.parseOptionalAttrDict(result.attributes) ||
+        parser.parseColonType(memberType) ||
+        parser.resolveOperand(member, memberType, result.operands)) {
+      return mlir::failure();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseType(valueType) ||
+          parser.resolveOperand(value, valueType, result.operands)) {
+        return mlir::failure();
+      }
+    } else if (parser.resolveOperand(value, memberType.cast<MemberType>().unwrap(), result.operands)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void MemberStoreOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer << getMember() << ", " << getValue();
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : " << getMember().getType();
+
+    if (auto valueType = getValue().getType(); valueType != getMemberType().unwrap()) {
+      printer << ", " << valueType;
+    }
+  }
+
   mlir::ValueRange MemberStoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     // Store operations should be derived only if they store a value into
     // a member whose derivative is created by the current function. Otherwise,
     // we would create a double store into that derived member.
 
-    assert(derivatives.contains(member()) && "Derived member not found");
-    mlir::Value derivedMember = derivatives.lookup(member());
-    builder.create<MemberStoreOp>(getLoc(), derivedMember, derivatives.lookup(value()));
+    assert(derivatives.contains(getMember()) && "Derived member not found");
+    mlir::Value derivedMember = derivatives.lookup(getMember());
+    builder.create<MemberStoreOp>(getLoc(), derivedMember, derivatives.lookup(getValue()));
 
     return llvm::None;
   }
 
   void MemberStoreOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(value());
-    toBeDerived.push_back(member());
+    toBeDerived.push_back(getValue());
+    toBeDerived.push_back(getMember());
   }
 
   void MemberStoreOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -1570,13 +698,13 @@ namespace mlir::modelica
 
   mlir::ValueRange CastOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivedOp = builder.create<CastOp>(getLoc(), getResult().getType(), derivatives.lookup(value()));
+    auto derivedOp = builder.create<CastOp>(getLoc(), getResult().getType(), derivatives.lookup(getValue()));
     return derivedOp->getResults();
   }
 
   void CastOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(value());
+    toBeDerived.push_back(getValue());
   }
 
   void CastOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -1640,15 +768,10 @@ namespace mlir::modelica
     }
   }
 
-  mlir::ValueRange CallOp::getArgs()
-  {
-    return args();
-  }
-
   unsigned int CallOp::getArgExpectedRank(unsigned int argIndex)
   {
     auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
-    auto function = module.lookupSymbol<FunctionOp>(callee());
+    auto function = module.lookupSymbol<FunctionOp>(getCallee());
 
     if (function == nullptr) {
       // If the function is not declare, then assume that the arguments types
@@ -1686,7 +809,7 @@ namespace mlir::modelica
 
     llvm::SmallVector<mlir::Value, 3> newArgs;
 
-    for (mlir::Value arg : args())
+    for (mlir::Value arg : getArgs())
     {
       assert(arg.getType().isa<ArrayType>());
       mlir::Value newArg = builder.create<SubscriptionOp>(getLoc(), arg, indexes);
@@ -1697,7 +820,7 @@ namespace mlir::modelica
       newArgs.push_back(newArg);
     }
 
-    auto op = builder.create<CallOp>(getLoc(), callee(), newResultsTypes, newArgs);
+    auto op = builder.create<CallOp>(getLoc(), getCallee(), newResultsTypes, newArgs);
     return op->getResults();
   }
 
@@ -1709,7 +832,7 @@ namespace mlir::modelica
       return emitError("The callee must have one and only one result");
     }
 
-    if (argumentIndex >= args().size()) {
+    if (argumentIndex >= getArgs().size()) {
       return emitError("Index out of bounds: " + std::to_string(argumentIndex));
     }
 
@@ -1720,7 +843,7 @@ namespace mlir::modelica
     mlir::Value toNest = currentResult[0];
 
     auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
-    auto callee = module.lookupSymbol<FunctionOp>(this->callee());
+    auto callee = module.lookupSymbol<FunctionOp>(this->getCallee());
 
     if (!callee->hasAttr("inverse")) {
       return emitError("Function " + callee->getName().getStringRef() + " is not invertible");
@@ -1732,21 +855,21 @@ namespace mlir::modelica
       return emitError("Function " + callee->getName().getStringRef() + " is not invertible for argument " + std::to_string(argumentIndex));
     }
 
-    size_t argsSize = args().size();
+    size_t argsSize = getArgs().size();
     llvm::SmallVector<mlir::Value, 3> args;
 
     for (auto arg : inverseAnnotation.getArgumentsIndexes(argumentIndex)) {
       if (arg < argsSize) {
-        args.push_back(this->args()[arg]);
+        args.push_back(this->getArgs()[arg]);
       } else {
         assert(arg == argsSize);
         args.push_back(toNest);
       }
     }
 
-    auto invertedCall = builder.create<CallOp>(getLoc(), inverseAnnotation.getFunction(argumentIndex), this->args()[argumentIndex].getType(), args);
+    auto invertedCall = builder.create<CallOp>(getLoc(), inverseAnnotation.getFunction(argumentIndex), this->getArgs()[argumentIndex].getType(), args);
 
-    getResult(0).replaceAllUsesWith(this->args()[argumentIndex]);
+    getResult(0).replaceAllUsesWith(this->getArgs()[argumentIndex]);
     erase();
 
     for (auto& use : toNest.getUses()) {
@@ -1768,16 +891,16 @@ namespace mlir::modelica
 
     auto loc = getLoc();
 
-    mlir::Value derivedY = derivatives.lookup(y());
-    mlir::Value derivedX = derivatives.lookup(x());
+    mlir::Value derivedY = derivatives.lookup(getY());
+    mlir::Value derivedX = derivatives.lookup(getX());
     mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedY, x());
-    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, y(), derivedX);
+    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedY, getX());
+    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, getY(), derivedX);
     mlir::Value numerator = builder.create<SubEWOp>(loc, type, firstMul, secondMul);
 
-    mlir::Value firstSquared = builder.create<MulEWOp>(loc, type, y(), y());
-    mlir::Value secondSquared = builder.create<MulEWOp>(loc, type, x(), x());
+    mlir::Value firstSquared = builder.create<MulEWOp>(loc, type, getY(), getY());
+    mlir::Value secondSquared = builder.create<MulEWOp>(loc, type, getX(), getX());
     mlir::Value denominator = builder.create<AddEWOp>(loc, type, firstSquared, secondSquared);
     auto derivedOp = builder.create<DivEWOp>(loc, type, numerator, denominator);
 
@@ -1800,19 +923,19 @@ namespace mlir::modelica
 
   void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (value().getType().isa<ArrayType>())
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
+    if (getValue().getType().isa<ArrayType>())
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getValue(), mlir::SideEffects::DefaultResource::get());
 
-    if (destination().getType().isa<ArrayType>())
-      effects.emplace_back(mlir::MemoryEffects::Write::get(), value(), mlir::SideEffects::DefaultResource::get());
+    if (getDestination().getType().isa<ArrayType>())
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getDestination(), mlir::SideEffects::DefaultResource::get());
   }
 
   mlir::ValueRange AssignmentOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     auto loc = getLoc();
 
-    mlir::Value derivedSource = derivatives.lookup(value());
-    mlir::Value derivedDestination = derivatives.lookup(destination());
+    mlir::Value derivedSource = derivatives.lookup(getValue());
+    mlir::Value derivedDestination = derivatives.lookup(getDestination());
 
     builder.create<AssignmentOp>(loc, derivedDestination, derivedSource);
     return llvm::None;
@@ -1830,6 +953,21 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // AllocaOp
   //===----------------------------------------------------------------------===//
+
+  mlir::LogicalResult AllocaOp::verify()
+  {
+    auto dynamicDimensionsAmount = getArrayType().getDynamicDimensionsCount();
+    auto valuesAmount = getDynamicSizes().size();
+
+    if (dynamicDimensionsAmount != valuesAmount) {
+      return emitOpError(
+          "incorrect number of values for dynamic dimensions (expected " +
+          std::to_string(dynamicDimensionsAmount) + ", got " +
+          std::to_string(valuesAmount) + ")");
+    }
+
+    return mlir::success();
+  }
 
   void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
@@ -1857,6 +995,21 @@ namespace mlir::modelica
   // AllocOp
   //===----------------------------------------------------------------------===//
 
+  mlir::LogicalResult AllocOp::verify()
+  {
+    auto dynamicDimensionsAmount = getArrayType().getDynamicDimensionsCount();
+    auto valuesAmount = getDynamicSizes().size();
+
+    if (dynamicDimensionsAmount != valuesAmount) {
+      return emitOpError(
+          "incorrect number of values for dynamic dimensions (expected " +
+          std::to_string(dynamicDimensionsAmount) + ", got " +
+          std::to_string(valuesAmount) + ")");
+    }
+
+    return mlir::success();
+  }
+
   void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     if (auto arrayType = getResult().getType().dyn_cast<ArrayType>()) {
@@ -1883,10 +1036,28 @@ namespace mlir::modelica
   // DerFunctionOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult DerFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::StringAttr nameAttr;
+
+    if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes) ||
+        parser.parseOptionalAttrDict(result.attributes)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void DerFunctionOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer.printSymbolName(getSymName());
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), { "sym_name" });
+  }
+
   mlir::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults()
   {
     auto module = getOperation()->getParentOfType<::mlir::ModuleOp>();
-    return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(derived_function())).getCallableResults();
+    return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(getDerivedFunction())).getCallableResults();
   }
 
   //===----------------------------------------------------------------------===//
@@ -1918,8 +1089,8 @@ namespace mlir::modelica
 
   void AbsOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -1940,13 +1111,13 @@ namespace mlir::modelica
 
   mlir::ValueRange AbsOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -1985,8 +1156,8 @@ namespace mlir::modelica
 
   void AcosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2007,13 +1178,13 @@ namespace mlir::modelica
 
   mlir::ValueRange AcosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -2028,12 +1199,12 @@ namespace mlir::modelica
     // D[acos(x)] = -x' / sqrt(1 - x^2)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
     mlir::Value one = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 1));
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
-    mlir::Value argSquared = builder.create<PowEWOp>(loc, type, operand(), two);
+    mlir::Value argSquared = builder.create<PowEWOp>(loc, type, getOperand(), two);
     mlir::Value sub = builder.create<SubEWOp>(loc, type, one, argSquared);
     mlir::Value denominator = builder.create<SqrtOp>(loc, type, sub);
     mlir::Value div = builder.create<DivEWOp>(loc, type, derivedOperand, denominator);
@@ -2044,7 +1215,7 @@ namespace mlir::modelica
 
   void AcosOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void AcosOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2090,12 +1261,12 @@ namespace mlir::modelica
 
   void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2117,7 +1288,7 @@ namespace mlir::modelica
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
       //mlir::Type resultType = getMostGenericType(nestedOperand, get)
-      auto right = builder.create<SubOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<SubOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2125,7 +1296,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(lhs());
+      replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -2133,7 +1304,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
+      auto right = builder.create<SubOp>(getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2141,7 +1312,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(rhs());
+      replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -2166,8 +1337,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -2188,8 +1359,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -2210,8 +1381,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -2220,19 +1391,19 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
     auto derivedOp = builder.create<AddOp>(
-        loc, convertToRealType(result().getType()), derivedLhs, derivedRhs);
+        loc, convertToRealType(getResult().getType()), derivedLhs, derivedRhs);
 
     return derivedOp->getResults();
   }
 
   void AddOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void AddOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2278,12 +1449,12 @@ namespace mlir::modelica
 
   void AddEWOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2304,7 +1475,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<SubEWOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2312,7 +1483,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(lhs());
+      replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -2320,7 +1491,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubEWOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
+      auto right = builder.create<SubEWOp>(getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2328,7 +1499,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(rhs());
+      replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -2353,8 +1524,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -2375,8 +1546,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -2397,8 +1568,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<AddEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -2407,19 +1578,19 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
     auto derivedOp = builder.create<AddEWOp>(
-        loc, convertToRealType(result().getType()), derivedLhs, derivedRhs);
+        loc, convertToRealType(getResult().getType()), derivedLhs, derivedRhs);
 
     return derivedOp->getResults();
   }
 
   void AddEWOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void AddEWOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2465,12 +1636,12 @@ namespace mlir::modelica
 
   void AndOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2508,8 +1679,8 @@ namespace mlir::modelica
 
   void AsinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2530,13 +1701,13 @@ namespace mlir::modelica
 
   mlir::ValueRange AsinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -2551,12 +1722,12 @@ namespace mlir::modelica
     // D[arcsin(x)] = x' / sqrt(1 - x^2)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
     mlir::Value one = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 1));
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
-    mlir::Value argSquared = builder.create<PowEWOp>(loc, type, operand(), two);
+    mlir::Value argSquared = builder.create<PowEWOp>(loc, type, getOperand(), two);
     mlir::Value sub = builder.create<SubEWOp>(loc, type, one, argSquared);
     mlir::Value denominator = builder.create<SqrtOp>(loc, type, sub);
     auto derivedOp = builder.create<DivEWOp>(loc, type, derivedOperand, denominator);
@@ -2566,7 +1737,7 @@ namespace mlir::modelica
 
   void AsinOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void AsinOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2603,8 +1774,8 @@ namespace mlir::modelica
 
   void AtanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2625,13 +1796,13 @@ namespace mlir::modelica
 
   mlir::ValueRange AtanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -2646,12 +1817,12 @@ namespace mlir::modelica
     // D[atan(x)] = x' / (1 + x^2)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
     mlir::Value one = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 1));
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
-    mlir::Value argSquared = builder.create<PowEWOp>(loc, type, operand(), two);
+    mlir::Value argSquared = builder.create<PowEWOp>(loc, type, getOperand(), two);
     mlir::Value denominator = builder.create<AddEWOp>(loc, type, one, argSquared);
     auto derivedOp = builder.create<DivEWOp>(loc, type, derivedOperand, denominator);
 
@@ -2660,7 +1831,7 @@ namespace mlir::modelica
 
   void AtanOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void AtanOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2674,12 +1845,12 @@ namespace mlir::modelica
 
   void Atan2Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (y().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), y(), mlir::SideEffects::DefaultResource::get());
+    if (getY().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getY(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (x().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), x(), mlir::SideEffects::DefaultResource::get());
+    if (getX().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getX(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2700,19 +1871,19 @@ namespace mlir::modelica
 
   mlir::ValueRange Atan2Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newY = builder.create<SubscriptionOp>(getLoc(), y(), indexes);
+    mlir::Value newY = builder.create<SubscriptionOp>(getLoc(), getY(), indexes);
 
     if (auto arrayType = newY.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newY = builder.create<LoadOp>(getLoc(), newY);
     }
 
-    mlir::Value newX = builder.create<SubscriptionOp>(getLoc(), x(), indexes);
+    mlir::Value newX = builder.create<SubscriptionOp>(getLoc(), getX(), indexes);
 
     if (auto arrayType = newX.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newX = builder.create<LoadOp>(getLoc(), newX);
@@ -2751,8 +1922,8 @@ namespace mlir::modelica
 
   void CosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2773,13 +1944,13 @@ namespace mlir::modelica
 
   mlir::ValueRange CosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -2794,10 +1965,10 @@ namespace mlir::modelica
     // D[cos(x)] = -x' * sin(x)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value sin = builder.create<SinOp>(loc, type, operand());
+    mlir::Value sin = builder.create<SinOp>(loc, type, getOperand());
     mlir::Value negatedSin = builder.create<NegateOp>(loc, type, sin);
     auto derivedOp = builder.create<MulEWOp>(loc, type, negatedSin, derivedOperand);
 
@@ -2806,7 +1977,7 @@ namespace mlir::modelica
 
   void CosOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void CosOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2843,8 +2014,8 @@ namespace mlir::modelica
 
   void CoshOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2865,13 +2036,13 @@ namespace mlir::modelica
 
   mlir::ValueRange CoshOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -2886,10 +2057,10 @@ namespace mlir::modelica
     // D[cosh(x)] = x' * sinh(x)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value sinh = builder.create<SinhOp>(loc, type, operand());
+    mlir::Value sinh = builder.create<SinhOp>(loc, type, getOperand());
     auto derivedOp = builder.create<MulEWOp>(loc, type, sinh, derivedOperand);
 
     return derivedOp->getResults();
@@ -2897,7 +2068,7 @@ namespace mlir::modelica
 
   void CoshOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void CoshOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -2911,7 +2082,7 @@ namespace mlir::modelica
 
   void DiagonalOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), values(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getValues(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
@@ -2954,12 +2125,12 @@ namespace mlir::modelica
 
   void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -2980,7 +2151,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<MulOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<MulOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -2988,7 +2159,7 @@ namespace mlir::modelica
         }
       }
 
-      getResult().replaceAllUsesWith(lhs());
+      getResult().replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -2996,7 +2167,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
+      auto right = builder.create<DivOp>(getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -3004,7 +2175,7 @@ namespace mlir::modelica
         }
       }
 
-      getResult().replaceAllUsesWith(rhs());
+      getResult().replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -3018,7 +2189,7 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    auto lhsDefiningOp = lhs().getDefiningOp();
+    auto lhsDefiningOp = getLhs().getDefiningOp();
 
     if (!lhsDefiningOp) {
       return getResult();
@@ -3031,9 +2202,9 @@ namespace mlir::modelica
     }
 
     DivOpDistributionInterface childOp = mlir::cast<DivOpDistributionInterface>(lhsDefiningOp);
-    mlir::Value toDistribute = rhs();
+    mlir::Value toDistribute = getRhs();
 
-    return childOp.distributeDivOp(builder, result().getType(), toDistribute);
+    return childOp.distributeDivOp(builder, getResult().getType(), toDistribute);
   }
 
   mlir::Value DivOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
@@ -3052,8 +2223,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -3074,8 +2245,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -3096,8 +2267,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -3106,16 +2277,16 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, rhs());
-    mlir::Value secondMul = builder.create<MulOp>(loc, type, lhs(), derivedRhs);
+    mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, getRhs());
+    mlir::Value secondMul = builder.create<MulOp>(loc, type, getLhs(), derivedRhs);
     mlir::Value numerator = builder.create<SubOp>(loc, type, firstMul, secondMul);
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
-    mlir::Value denominator = builder.create<PowOp>(loc, convertToRealType(rhs().getType()), rhs(), two);
+    mlir::Value denominator = builder.create<PowOp>(loc, convertToRealType(getRhs().getType()), getRhs(), two);
     auto derivedOp = builder.create<DivOp>(loc, type, numerator, denominator);
 
     return derivedOp->getResults();
@@ -3123,8 +2294,8 @@ namespace mlir::modelica
 
   void DivOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void DivOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -3170,12 +2341,12 @@ namespace mlir::modelica
 
   void DivEWOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -3196,7 +2367,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<MulEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<MulEWOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -3204,7 +2375,7 @@ namespace mlir::modelica
         }
       }
 
-      getResult().replaceAllUsesWith(lhs());
+      getResult().replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -3212,7 +2383,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivEWOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
+      auto right = builder.create<DivEWOp>(getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -3220,7 +2391,7 @@ namespace mlir::modelica
         }
       }
 
-      getResult().replaceAllUsesWith(rhs());
+      getResult().replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -3234,7 +2405,7 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    auto lhsDefiningOp = lhs().getDefiningOp();
+    auto lhsDefiningOp = getLhs().getDefiningOp();
 
     if (!lhsDefiningOp) {
       return getResult();
@@ -3247,9 +2418,9 @@ namespace mlir::modelica
     }
 
     DivOpDistributionInterface childOp = mlir::cast<DivOpDistributionInterface>(lhsDefiningOp);
-    mlir::Value toDistribute = rhs();
+    mlir::Value toDistribute = getRhs();
 
-    return childOp.distributeDivOp(builder, result().getType(), toDistribute);
+    return childOp.distributeDivOp(builder, getResult().getType(), toDistribute);
   }
 
   mlir::Value DivEWOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
@@ -3268,8 +2439,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -3290,8 +2461,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -3312,8 +2483,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<DivEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -3322,16 +2493,16 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedLhs, rhs());
-    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, lhs(), derivedRhs);
+    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedLhs, getRhs());
+    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, getLhs(), derivedRhs);
     mlir::Value numerator = builder.create<SubEWOp>(loc, type, firstMul, secondMul);
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
-    mlir::Value denominator = builder.create<PowEWOp>(loc, convertToRealType(rhs().getType()), rhs(), two);
+    mlir::Value denominator = builder.create<PowEWOp>(loc, convertToRealType(getRhs().getType()), getRhs(), two);
     auto derivedOp = builder.create<DivEWOp>(loc, type, numerator, denominator);
 
     return derivedOp->getResults();
@@ -3339,13 +2510,49 @@ namespace mlir::modelica
 
   void DivEWOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void DivEWOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
 
+  }
+
+  //===----------------------------------------------------------------------===//
+  // EquationSideOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::ParseResult EquationSideOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 1> values;
+    mlir::Type resultType;
+    auto loc = parser.getCurrentLocation();
+
+    if (parser.parseOperandList(values) ||
+        parser.parseColon() ||
+        parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    assert(resultType.isa<mlir::TupleType>());
+    auto tupleType = resultType.cast<mlir::TupleType>();
+
+    llvm::SmallVector<mlir::Type, 1> types(tupleType.begin(), tupleType.end());
+    assert(types.size() == values.size());
+
+    if (parser.resolveOperands(values, types, loc, result.operands)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultType);
+    return mlir::success();
+  }
+
+  void EquationSideOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " " << getValues() << " : " << getResult().getType();
   }
 
   //===----------------------------------------------------------------------===//
@@ -3377,8 +2584,8 @@ namespace mlir::modelica
 
   void ExpOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (exponent().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
+    if (getExponent().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getExponent(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -3399,13 +2606,13 @@ namespace mlir::modelica
 
   mlir::ValueRange ExpOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), exponent(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getExponent(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -3420,10 +2627,10 @@ namespace mlir::modelica
     // D[e^x] = x' * e^x
 
     auto loc = getLoc();
-    mlir::Value derivedExponent = derivatives.lookup(exponent());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedExponent = derivatives.lookup(getExponent());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value pow = builder.create<ExpOp>(loc, type, exponent());
+    mlir::Value pow = builder.create<ExpOp>(loc, type, getExponent());
     auto derivedOp = builder.create<MulEWOp>(loc, type, pow, derivedExponent);
 
     return derivedOp->getResults();
@@ -3431,7 +2638,7 @@ namespace mlir::modelica
 
   void ExpOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(exponent());
+    toBeDerived.push_back(getExponent());
   }
 
   void ExpOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -3445,20 +2652,102 @@ namespace mlir::modelica
 
   mlir::Block* ForOp::conditionBlock()
   {
-    assert(!conditionRegion().empty());
-    return &conditionRegion().front();
+    assert(!getConditionRegion().empty());
+    return &getConditionRegion().front();
   }
 
   mlir::Block* ForOp::bodyBlock()
   {
-    assert(!bodyRegion().empty());
-    return &bodyRegion().front();
+    assert(!getBodyRegion().empty());
+    return &getBodyRegion().front();
   }
 
   mlir::Block* ForOp::stepBlock()
   {
-    assert(!stepRegion().empty());
-    return &stepRegion().front();
+    assert(!getStepRegion().empty());
+    return &getStepRegion().front();
+  }
+
+  mlir::ParseResult ForOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::Region* conditionRegion = result.addRegion();
+
+    if (mlir::succeeded(parser.parseOptionalLParen())) {
+      if (mlir::failed(parser.parseOptionalRParen())) {
+        do {
+          mlir::OpAsmParser::UnresolvedOperand arg;
+          mlir::Type argType;
+
+          if (parser.parseOperand(arg) ||
+              parser.parseColonType(argType) ||
+              parser.resolveOperand(arg, argType, result.operands))
+            return mlir::failure();
+        } while (mlir::succeeded(parser.parseOptionalComma()));
+      }
+
+      if (parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseKeyword("condition")) {
+      return mlir::failure();
+    }
+
+    if (parser.parseRegion(*conditionRegion)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseKeyword("body")) {
+      return mlir::failure();
+    }
+
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseRegion(*bodyRegion)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseKeyword("step")) {
+      return mlir::failure();
+    }
+
+    mlir::Region* stepRegion = result.addRegion();
+
+    if (parser.parseRegion(*stepRegion)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void ForOp::print(mlir::OpAsmPrinter& printer)
+  {
+    if (auto values = getArgs(); !values.empty()) {
+      printer << "(";
+
+      for (auto arg : llvm::enumerate(values)) {
+        if (arg.index() != 0) {
+          printer << ", ";
+        }
+
+        printer << arg.value() << " : " << arg.value().getType();
+      }
+
+      printer << ")";
+    }
+
+    printer << " condition";
+    printer.printRegion(getConditionRegion(), true);
+    printer << " body";
+    printer.printRegion(getBodyRegion(), true);
+    printer << " step";
+    printer.printRegion(getStepRegion(), true);
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
   }
 
   mlir::ValueRange ForOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -3473,7 +2762,7 @@ namespace mlir::modelica
 
   void ForOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
-    regions.push_back(&bodyRegion());
+    regions.push_back(&getBodyRegion());
   }
 
   //===----------------------------------------------------------------------===//
@@ -3482,7 +2771,7 @@ namespace mlir::modelica
 
   void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Free::get(), array(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Free::get(), getArray(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -3518,12 +2807,60 @@ namespace mlir::modelica
 
   mlir::Block* IfOp::thenBlock()
   {
-    return &thenRegion().front();
+    return &getThenRegion().front();
   }
 
   mlir::Block* IfOp::elseBlock()
   {
-    return &elseRegion().front();
+    return &getElseRegion().front();
+  }
+
+  mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand condition;
+    mlir::Type conditionType;
+
+    if (parser.parseLParen() ||
+        parser.parseOperand(condition) ||
+        parser.parseColonType(conditionType) ||
+        parser.parseRParen() ||
+        parser.resolveOperand(condition, conditionType, result.operands)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* thenRegion = result.addRegion();
+
+    if (parser.parseRegion(*thenRegion)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* elseRegion = result.addRegion();
+
+    if (mlir::succeeded(parser.parseOptionalKeyword("else"))) {
+      if (parser.parseRegion(*elseRegion)) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void IfOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << "(" << getCondition() << " : " << getCondition().getType() << ")";
+
+    printer.printRegion(getThenRegion());
+
+    if (!getElseRegion().empty()) {
+      printer << " else";
+      printer.printRegion(getElseRegion());
+    }
+
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
   }
 
   mlir::ValueRange IfOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -3538,8 +2875,8 @@ namespace mlir::modelica
 
   void IfOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
-    regions.push_back(&thenRegion());
-    regions.push_back(&elseRegion());
+    regions.push_back(&getThenRegion());
+    regions.push_back(&getElseRegion());
   }
 
   //===----------------------------------------------------------------------===//
@@ -3556,20 +2893,34 @@ namespace mlir::modelica
   // LoadOp
   //===----------------------------------------------------------------------===//
 
+  mlir::LogicalResult LoadOp::verify()
+  {
+    auto indicesAmount = getIndices().size();
+    auto rank = getArrayType().getRank();
+
+    if (indicesAmount != rank) {
+      return emitOpError(
+          "incorrect number of indices for load (expected " +
+          std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+    }
+
+    return mlir::success();
+  }
+
   void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), array(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getArray(), mlir::SideEffects::DefaultResource::get());
   }
 
   mlir::ValueRange LoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivedOp = builder.create<LoadOp>(getLoc(), derivatives.lookup(array()), indices());
+    auto derivedOp = builder.create<LoadOp>(getLoc(), derivatives.lookup(getArray()), getIndices());
     return derivedOp->getResults();
   }
 
   void LoadOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(array());
+    toBeDerived.push_back(getArray());
   }
 
   void LoadOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -3606,8 +2957,8 @@ namespace mlir::modelica
 
   void LogOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -3628,13 +2979,13 @@ namespace mlir::modelica
 
   mlir::ValueRange LogOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -3648,17 +2999,17 @@ namespace mlir::modelica
   {
     // D[ln(x)] = x' / x
 
-    mlir::Value derivedOperand = derivatives.lookup(operand());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
 
     auto derivedOp = builder.create<DivEWOp>(
-        getLoc(), convertToRealType(result().getType()), derivedOperand, operand());
+        getLoc(), convertToRealType(getResult().getType()), derivedOperand, getOperand());
 
     return derivedOp->getResults();
   }
 
   void LogOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void LogOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -3695,8 +3046,8 @@ namespace mlir::modelica
 
   void Log10Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -3717,13 +3068,13 @@ namespace mlir::modelica
 
   mlir::ValueRange Log10Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -3738,20 +3089,20 @@ namespace mlir::modelica
     // D[log10(x)] = x' / (x * ln(10))
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
     mlir::Value ten = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 10));
     mlir::Value log = builder.create<LogOp>(loc, RealType::get(getContext()), ten);
-    mlir::Value mul = builder.create<MulEWOp>(loc, type, operand(), log);
-    auto derivedOp = builder.create<DivEWOp>(loc, result().getType(), derivedOperand, mul);
+    mlir::Value mul = builder.create<MulEWOp>(loc, type, getOperand(), log);
+    auto derivedOp = builder.create<DivEWOp>(loc, getResult().getType(), derivedOperand, mul);
 
     return derivedOp->getResults();
   }
 
   void Log10Op::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void Log10Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -3762,6 +3113,85 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // MaxOp
   //===----------------------------------------------------------------------===//
+
+  mlir::ParseResult MaxOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand first;
+    mlir::Type firstType;
+
+    mlir::OpAsmParser::UnresolvedOperand second;
+    mlir::Type secondType;
+
+    size_t numOperands = 1;
+
+    if (parser.parseOperand(first)) {
+      return mlir::failure();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      numOperands = 2;
+
+      if (parser.parseOperand(second)) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseOptionalAttrDict(result.attributes)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseColon()) {
+      return mlir::failure();
+    }
+
+    if (numOperands == 1) {
+      if (parser.parseType(firstType) ||
+          parser.resolveOperand(first, firstType, result.operands)) {
+        return mlir::failure();
+      }
+    } else {
+      if (parser.parseLParen() ||
+          parser.parseType(firstType) ||
+          parser.resolveOperand(first, firstType, result.operands) ||
+          parser.parseComma() ||
+          parser.parseType(secondType) ||
+          parser.resolveOperand(second, secondType, result.operands) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    mlir::Type resultType;
+
+    if (parser.parseArrow() ||
+        parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultType);
+
+    return mlir::success();
+  }
+
+  void MaxOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << getFirst();
+
+    if (getOperation()->getNumOperands() == 2) {
+      printer << ", " << getSecond();
+    }
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : ";
+
+    if (getOperation()->getNumOperands() == 1) {
+      printer << getFirst().getType();
+    } else {
+      printer << "(" << getFirst().getType() << ", " << getSecond().getType() << ")";
+    }
+
+    printer << " -> " << getResult().getType();
+  }
 
   mlir::OpFoldResult MaxOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
   {
@@ -3813,14 +3243,93 @@ namespace mlir::modelica
 
   void MaxOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (first().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), first(), mlir::SideEffects::DefaultResource::get());
+    if (getFirst().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getFirst(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
   //===----------------------------------------------------------------------===//
   // MinOp
   //===----------------------------------------------------------------------===//
+
+  mlir::ParseResult MinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand first;
+    mlir::Type firstType;
+
+    mlir::OpAsmParser::UnresolvedOperand second;
+    mlir::Type secondType;
+
+    size_t numOperands = 1;
+
+    if (parser.parseOperand(first)) {
+      return mlir::failure();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      numOperands = 2;
+
+      if (parser.parseOperand(second)) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseOptionalAttrDict(result.attributes)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseColon()) {
+      return mlir::failure();
+    }
+
+    if (numOperands == 1) {
+      if (parser.parseType(firstType) ||
+          parser.resolveOperand(first, firstType, result.operands)) {
+        return mlir::failure();
+      }
+    } else {
+      if (parser.parseLParen() ||
+          parser.parseType(firstType) ||
+          parser.resolveOperand(first, firstType, result.operands) ||
+          parser.parseComma() ||
+          parser.parseType(secondType) ||
+          parser.resolveOperand(second, secondType, result.operands) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    mlir::Type resultType;
+
+    if (parser.parseArrow() ||
+        parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultType);
+
+    return mlir::success();
+  }
+
+  void MinOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << getFirst();
+
+    if (getOperation()->getNumOperands() == 2) {
+      printer << ", " << getSecond();
+    }
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : ";
+
+    if (getOperation()->getNumOperands() == 1) {
+      printer << getFirst().getType();
+    } else {
+      printer << "(" << getFirst().getType() << ", " << getSecond().getType() << ")";
+    }
+
+    printer << " -> " << getResult().getType();
+  }
 
   mlir::OpFoldResult MinOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
   {
@@ -3872,8 +3381,8 @@ namespace mlir::modelica
 
   void MinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (first().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), first(), mlir::SideEffects::DefaultResource::get());
+    if (getFirst().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getFirst(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
@@ -3915,12 +3424,12 @@ namespace mlir::modelica
 
   void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -3941,14 +3450,14 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<DivOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
           use.set(right.getResult());
       }
 
-      replaceAllUsesWith(lhs());
+      replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -3956,14 +3465,14 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
+      auto right = builder.create<DivOp>(getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
           use.set(right.getResult());
       }
 
-      getResult().replaceAllUsesWith(rhs());
+      getResult().replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -3977,8 +3486,8 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    auto lhsDefiningOp = lhs().getDefiningOp();
-    auto rhsDefiningOp = rhs().getDefiningOp();
+    auto lhsDefiningOp = getLhs().getDefiningOp();
+    auto rhsDefiningOp = getRhs().getDefiningOp();
 
     if (!lhsDefiningOp && !rhsDefiningOp) {
       return getResult();
@@ -3995,15 +3504,15 @@ namespace mlir::modelica
 
     if (lhsDefiningOp != nullptr && mlir::isa<MulOpDistributionInterface>(lhsDefiningOp)) {
       childOp = mlir::cast<MulOpDistributionInterface>(lhsDefiningOp);
-      toDistribute = rhs();
+      toDistribute = getRhs();
     } else {
       assert(rhsDefiningOp != nullptr);
       childOp = mlir::cast<MulOpDistributionInterface>(rhsDefiningOp);
-      toDistribute = lhs();
+      toDistribute = getLhs();
     }
 
     assert(childOp != nullptr && toDistribute != nullptr);
-    return childOp.distributeMulOp(builder, result().getType(), toDistribute);
+    return childOp.distributeMulOp(builder, getResult().getType(), toDistribute);
   }
 
   mlir::Value MulOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
@@ -4022,8 +3531,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -4044,8 +3553,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -4066,8 +3575,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -4076,13 +3585,13 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, rhs());
-    mlir::Value secondMul = builder.create<MulOp>(loc, type, lhs(), derivedRhs);
+    mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, getRhs());
+    mlir::Value secondMul = builder.create<MulOp>(loc, type, getLhs(), derivedRhs);
     auto derivedOp = builder.create<AddOp>(loc, type, firstMul, secondMul);
 
     return derivedOp->getResults();
@@ -4090,8 +3599,8 @@ namespace mlir::modelica
 
   void MulOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void MulOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -4137,12 +3646,12 @@ namespace mlir::modelica
 
   void MulEWOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4163,7 +3672,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<DivEWOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -4171,7 +3680,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(lhs());
+      replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -4179,7 +3688,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<DivEWOp>(getLoc(), rhs().getType(), nestedOperand, lhs());
+      auto right = builder.create<DivEWOp>(getLoc(), getRhs().getType(), nestedOperand, getLhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -4187,7 +3696,7 @@ namespace mlir::modelica
         }
       }
 
-      getResult().replaceAllUsesWith(rhs());
+      getResult().replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -4201,14 +3710,14 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    auto lhsDefiningOp = lhs().getDefiningOp();
-    auto rhsDefiningOp = rhs().getDefiningOp();
+    auto lhsDefiningOp = getLhs().getDefiningOp();
+    auto rhsDefiningOp = getRhs().getDefiningOp();
 
     if (!lhsDefiningOp && !rhsDefiningOp) {
       return getResult();
     }
 
-    if (!mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) && !mlir::isa<MulOpDistributionInterface>(rhs().getDefiningOp())) {
+    if (!mlir::isa<MulOpDistributionInterface>(getLhs().getDefiningOp()) && !mlir::isa<MulOpDistributionInterface>(getRhs().getDefiningOp())) {
       // The operation can't be propagated because none of the children
       // know how to distribute the multiplication to their children.
       return getResult();
@@ -4219,15 +3728,15 @@ namespace mlir::modelica
 
     if (lhsDefiningOp != nullptr && mlir::isa<MulOpDistributionInterface>(lhsDefiningOp)) {
       childOp = mlir::cast<MulOpDistributionInterface>(lhsDefiningOp);
-      toDistribute = rhs();
+      toDistribute = getRhs();
     } else {
       assert(rhsDefiningOp != nullptr);
       childOp = mlir::cast<MulOpDistributionInterface>(rhsDefiningOp);
-      toDistribute = lhs();
+      toDistribute = getLhs();
     }
 
     assert(childOp != nullptr && toDistribute != nullptr);
-    return childOp.distributeMulOp(builder, result().getType(), toDistribute);
+    return childOp.distributeMulOp(builder, getResult().getType(), toDistribute);
   }
 
   mlir::Value MulEWOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
@@ -4246,8 +3755,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -4268,8 +3777,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -4290,8 +3799,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = this->rhs();
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = this->getRhs();
 
     return builder.create<MulEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -4300,13 +3809,13 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedLhs, rhs());
-    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, lhs(), derivedRhs);
+    mlir::Value firstMul = builder.create<MulEWOp>(loc, type, derivedLhs, getRhs());
+    mlir::Value secondMul = builder.create<MulEWOp>(loc, type, getLhs(), derivedRhs);
     auto derivedOp = builder.create<AddEWOp>(loc, type, firstMul, secondMul);
 
     return derivedOp->getResults();
@@ -4314,8 +3823,8 @@ namespace mlir::modelica
 
   void MulEWOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void MulEWOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -4352,8 +3861,8 @@ namespace mlir::modelica
 
   void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4377,7 +3886,7 @@ namespace mlir::modelica
     mlir::Value toNest = currentResult[0];
 
     mlir::Value nestedOperand = readValue(builder, toNest);
-    auto right = builder.create<NegateOp>(getLoc(), operand().getType(), nestedOperand);
+    auto right = builder.create<NegateOp>(getLoc(), getOperand().getType(), nestedOperand);
 
     for (auto& use : toNest.getUses()) {
       if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -4385,7 +3894,7 @@ namespace mlir::modelica
       }
     }
 
-    replaceAllUsesWith(operand());
+    replaceAllUsesWith(getOperand());
     erase();
 
     return mlir::success();
@@ -4396,14 +3905,14 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPoint(*this);
 
-    auto operandDefiningOp = operand().getDefiningOp();
+    auto operandDefiningOp = getOperand().getDefiningOp();
 
     if (!operandDefiningOp) {
       return getResult();
     }
 
-    if (auto childOp = mlir::dyn_cast<NegateOpDistributionInterface>(operand().getDefiningOp())) {
-      return childOp.distributeNegateOp(builder, result().getType());
+    if (auto childOp = mlir::dyn_cast<NegateOpDistributionInterface>(getOperand().getDefiningOp())) {
+      return childOp.distributeNegateOp(builder, getResult().getType());
     }
 
     // The operation can't be propagated because the child doesn't
@@ -4427,7 +3936,7 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value operand = distributeFn(this->operand());
+    mlir::Value operand = distributeFn(this->getOperand());
 
     return builder.create<NegateOp>(getLoc(), resultType, operand);
   }
@@ -4448,7 +3957,7 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value operand = distributeFn(this->operand());
+    mlir::Value operand = distributeFn(this->getOperand());
 
     return builder.create<NegateOp>(getLoc(), resultType, operand);
   }
@@ -4469,21 +3978,21 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value operand = distributeFn(this->operand());
+    mlir::Value operand = distributeFn(this->getOperand());
 
     return builder.create<NegateOp>(getLoc(), resultType, operand);
   }
 
   mlir::ValueRange NegateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    auto derivedOp = builder.create<NegateOp>(getLoc(), convertToRealType(result().getType()), derivedOperand);
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    auto derivedOp = builder.create<NegateOp>(getLoc(), convertToRealType(getResult().getType()), derivedOperand);
     return derivedOp->getResults();
   }
 
   void NegateOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void NegateOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -4520,8 +4029,8 @@ namespace mlir::modelica
 
   void NotOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4578,12 +4087,12 @@ namespace mlir::modelica
 
   void OrOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4630,12 +4139,12 @@ namespace mlir::modelica
 
   void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (base().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), base(), mlir::SideEffects::DefaultResource::get());
+    if (getBase().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getBase(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (exponent().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
+    if (getExponent().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getExponent(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4650,16 +4159,16 @@ namespace mlir::modelica
 
     auto loc = getLoc();
 
-    mlir::Value derivedBase = derivatives.lookup(base());
-    mlir::Value derivedExponent = derivatives.lookup(exponent());
+    mlir::Value derivedBase = derivatives.lookup(getBase());
+    mlir::Value derivedExponent = derivatives.lookup(getExponent());
 
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value pow = builder.create<PowOp>(loc, type, base(), exponent());
-    mlir::Value ln = builder.create<LogOp>(loc, type, base());
+    mlir::Value pow = builder.create<PowOp>(loc, type, getBase(), getExponent());
+    mlir::Value ln = builder.create<LogOp>(loc, type, getBase());
     mlir::Value firstOperand = builder.create<MulOp>(loc, type, derivedExponent, ln);
-    mlir::Value numerator = builder.create<MulOp>(loc, type, exponent(), derivedBase);
-    mlir::Value secondOperand = builder.create<DivOp>(loc, type, numerator, base());
+    mlir::Value numerator = builder.create<MulOp>(loc, type, getExponent(), derivedBase);
+    mlir::Value secondOperand = builder.create<DivOp>(loc, type, numerator, getBase());
     mlir::Value sum = builder.create<AddOp>(loc, type, firstOperand, secondOperand);
     auto derivedOp = builder.create<MulOp>(loc, type, pow, sum);
 
@@ -4668,8 +4177,8 @@ namespace mlir::modelica
 
   void PowOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(base());
-    toBeDerived.push_back(exponent());
+    toBeDerived.push_back(getBase());
+    toBeDerived.push_back(getExponent());
   }
 
   void PowOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -4715,12 +4224,12 @@ namespace mlir::modelica
 
   void PowEWOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (base().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), base(), mlir::SideEffects::DefaultResource::get());
+    if (getBase().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getBase(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (exponent().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
+    if (getExponent().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getExponent(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4735,16 +4244,16 @@ namespace mlir::modelica
 
     auto loc = getLoc();
 
-    mlir::Value derivedBase = derivatives.lookup(base());
-    mlir::Value derivedExponent = derivatives.lookup(exponent());
+    mlir::Value derivedBase = derivatives.lookup(getBase());
+    mlir::Value derivedExponent = derivatives.lookup(getExponent());
 
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value pow = builder.create<PowEWOp>(loc, type, base(), exponent());
-    mlir::Value ln = builder.create<LogOp>(loc, type, base());
+    mlir::Value pow = builder.create<PowEWOp>(loc, type, getBase(), getExponent());
+    mlir::Value ln = builder.create<LogOp>(loc, type, getBase());
     mlir::Value firstOperand = builder.create<MulEWOp>(loc, type, derivedExponent, ln);
-    mlir::Value numerator = builder.create<MulEWOp>(loc, type, exponent(), derivedBase);
-    mlir::Value secondOperand = builder.create<DivEWOp>(loc, type, numerator, base());
+    mlir::Value numerator = builder.create<MulEWOp>(loc, type, getExponent(), derivedBase);
+    mlir::Value secondOperand = builder.create<DivEWOp>(loc, type, numerator, getBase());
     mlir::Value sum = builder.create<AddEWOp>(loc, type, firstOperand, secondOperand);
     auto derivedOp = builder.create<MulEWOp>(loc, type, pow, sum);
 
@@ -4753,8 +4262,8 @@ namespace mlir::modelica
 
   void PowEWOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(base());
-    toBeDerived.push_back(exponent());
+    toBeDerived.push_back(getBase());
+    toBeDerived.push_back(getExponent());
   }
 
   void PowEWOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -4807,8 +4316,8 @@ namespace mlir::modelica
 
   void SignOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4829,12 +4338,12 @@ namespace mlir::modelica
 
   mlir::ValueRange SignOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
       newResultType = arrayType.getElementType();
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -4872,8 +4381,8 @@ namespace mlir::modelica
 
   void SinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4894,12 +4403,12 @@ namespace mlir::modelica
 
   mlir::ValueRange SinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
       newResultType = arrayType.getElementType();
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -4913,10 +4422,10 @@ namespace mlir::modelica
     // D[sin(x)] = x' * cos(x)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value cos = builder.create<CosOp>(loc, type, operand());
+    mlir::Value cos = builder.create<CosOp>(loc, type, getOperand());
     auto derivedOp = builder.create<MulEWOp>(loc, type, cos, derivedOperand);
 
     return derivedOp->getResults();
@@ -4924,7 +4433,7 @@ namespace mlir::modelica
 
   void SinOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void SinOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -4961,8 +4470,8 @@ namespace mlir::modelica
 
   void SinhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -4983,13 +4492,13 @@ namespace mlir::modelica
 
   mlir::ValueRange SinhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -5004,10 +4513,10 @@ namespace mlir::modelica
     // D[sinh(x)] = x' * cosh(x)
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value cosh = builder.create<CoshOp>(loc, type, operand());
+    mlir::Value cosh = builder.create<CoshOp>(loc, type, getOperand());
     auto derivedOp = builder.create<MulEWOp>(loc, type, cosh, derivedOperand);
 
     return derivedOp->getResults();
@@ -5015,7 +4524,7 @@ namespace mlir::modelica
 
   void SinhOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void SinhOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -5027,9 +4536,88 @@ namespace mlir::modelica
   // SizeOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult SizeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand array;
+    mlir::Type arrayType;
+
+    mlir::OpAsmParser::UnresolvedOperand dimension;
+    mlir::Type dimensionType;
+
+    size_t numOperands = 1;
+
+    if (parser.parseOperand(array)) {
+      return mlir::failure();
+    }
+
+    if (mlir::succeeded(parser.parseOptionalComma())) {
+      numOperands = 2;
+
+      if (parser.parseOperand(dimension)) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseOptionalAttrDict(result.attributes)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseColon()) {
+      return mlir::failure();
+    }
+
+    if (numOperands == 1) {
+      if (parser.parseType(arrayType) ||
+          parser.resolveOperand(array, arrayType, result.operands)) {
+        return mlir::failure();
+      }
+    } else {
+      if (parser.parseLParen() ||
+          parser.parseType(arrayType) ||
+          parser.resolveOperand(array, arrayType, result.operands) ||
+          parser.parseComma() ||
+          parser.parseType(dimensionType) ||
+          parser.resolveOperand(dimension, dimensionType, result.operands) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    mlir::Type resultType;
+
+    if (parser.parseArrow() ||
+        parser.parseType(resultType)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultType);
+
+    return mlir::success();
+  }
+
+  void SizeOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << getArray();
+
+    if (getOperation()->getNumOperands() == 2) {
+      printer << ", " << getDimension();
+    }
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : ";
+
+    if (getOperation()->getNumOperands() == 1) {
+      printer << getArray().getType();
+    } else {
+      printer << "(" << getArray().getType() << ", " << getDimension().getType() << ")";
+    }
+
+    printer << " -> " << getResult().getType();
+  }
+
   void SizeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), array(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getArray(), mlir::SideEffects::DefaultResource::get());
 
     if (getResult().getType().isa<ArrayType>()) {
       effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -5076,13 +4664,13 @@ namespace mlir::modelica
 
   mlir::ValueRange SqrtOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -5096,23 +4684,37 @@ namespace mlir::modelica
   // StoreOp
   //===----------------------------------------------------------------------===//
 
+  mlir::LogicalResult StoreOp::verify()
+  {
+    auto indicesAmount = getIndices().size();
+    auto rank = getArrayType().getRank();
+
+    if (indicesAmount != rank) {
+      return emitOpError(
+          "incorrect number of indices for store (expected " +
+          std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
+    }
+
+    return mlir::success();
+  }
+
   void StoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), array(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getArray(), mlir::SideEffects::DefaultResource::get());
   }
 
   mlir::ValueRange StoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
     auto derivedOp = builder.create<StoreOp>(
-        getLoc(), derivatives.lookup(value()), derivatives.lookup(array()), indices());
+        getLoc(), derivatives.lookup(getValue()), derivatives.lookup(getArray()), getIndices());
 
     return derivedOp->getResults();
   }
 
   void StoreOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(array());
-    toBeDerived.push_back(value());
+    toBeDerived.push_back(getArray());
+    toBeDerived.push_back(getValue());
   }
 
   void StoreOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -5158,12 +4760,12 @@ namespace mlir::modelica
 
   void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -5184,7 +4786,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<AddOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<AddOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -5192,7 +4794,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(lhs());
+      replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -5200,7 +4802,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
+      auto right = builder.create<SubOp>(getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -5208,7 +4810,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(rhs());
+      replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -5233,8 +4835,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -5255,8 +4857,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -5277,8 +4879,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -5287,19 +4889,19 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
     auto derivedOp = builder.create<SubOp>(
-        loc, convertToRealType(result().getType()), derivedLhs, derivedRhs);
+        loc, convertToRealType(getResult().getType()), derivedLhs, derivedRhs);
 
     return derivedOp->getResults();
   }
 
   void SubOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void SubOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -5345,12 +4947,12 @@ namespace mlir::modelica
 
   void SubEWOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (lhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+    if (getLhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getLhs(), mlir::SideEffects::DefaultResource::get());
     }
 
-    if (rhs().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+    if (getRhs().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getRhs(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -5371,7 +4973,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 0) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<AddEWOp>(getLoc(), lhs().getType(), nestedOperand, rhs());
+      auto right = builder.create<AddEWOp>(getLoc(), getLhs().getType(), nestedOperand, getRhs());
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -5379,7 +4981,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(lhs());
+      replaceAllUsesWith(getLhs());
       erase();
 
       return mlir::success();
@@ -5387,7 +4989,7 @@ namespace mlir::modelica
 
     if (argumentIndex == 1) {
       mlir::Value nestedOperand = readValue(builder, toNest);
-      auto right = builder.create<SubEWOp>(getLoc(), rhs().getType(), lhs(), nestedOperand);
+      auto right = builder.create<SubEWOp>(getLoc(), getRhs().getType(), getLhs(), nestedOperand);
 
       for (auto& use : toNest.getUses()) {
         if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right)) {
@@ -5395,7 +4997,7 @@ namespace mlir::modelica
         }
       }
 
-      replaceAllUsesWith(rhs());
+      replaceAllUsesWith(getRhs());
       erase();
 
       return mlir::success();
@@ -5420,8 +5022,8 @@ namespace mlir::modelica
       return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -5442,8 +5044,8 @@ namespace mlir::modelica
       return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -5464,8 +5066,8 @@ namespace mlir::modelica
       return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
     };
 
-    mlir::Value lhs = distributeFn(this->lhs());
-    mlir::Value rhs = distributeFn(this->rhs());
+    mlir::Value lhs = distributeFn(this->getLhs());
+    mlir::Value rhs = distributeFn(this->getRhs());
 
     return builder.create<SubEWOp>(getLoc(), resultType, lhs, rhs);
   }
@@ -5474,19 +5076,19 @@ namespace mlir::modelica
   {
     auto loc = getLoc();
 
-    mlir::Value derivedLhs = derivatives.lookup(lhs());
-    mlir::Value derivedRhs = derivatives.lookup(rhs());
+    mlir::Value derivedLhs = derivatives.lookup(getLhs());
+    mlir::Value derivedRhs = derivatives.lookup(getRhs());
 
     auto derivedOp = builder.create<SubEWOp>(
-        loc, convertToRealType(result().getType()), derivedLhs, derivedRhs);
+        loc, convertToRealType(getResult().getType()), derivedLhs, derivedRhs);
 
     return derivedOp->getResults();
   }
 
   void SubEWOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(lhs());
-    toBeDerived.push_back(rhs());
+    toBeDerived.push_back(getLhs());
+    toBeDerived.push_back(getRhs());
   }
 
   void SubEWOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -5498,9 +5100,59 @@ namespace mlir::modelica
   // SubscriptionOp
   //===----------------------------------------------------------------------===//
 
+  mlir::ParseResult SubscriptionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto loc = parser.getCurrentLocation();
+    mlir::OpAsmParser::UnresolvedOperand source;
+    mlir::Type sourceType;
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
+    llvm::SmallVector<mlir::Type, 3> indicesTypes;
+
+    if (parser.parseOperand(source) ||
+        parser.parseOperandList(indices, mlir::OpAsmParser::Delimiter::Square) ||
+        parser.parseColonType(sourceType) ||
+        parser.resolveOperand(source, sourceType, result.operands)) {
+      return mlir::failure();
+    }
+
+    indicesTypes.resize(indices.size(),  mlir::IndexType::get(result.getContext()));
+    size_t i = 0;
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseType(indicesTypes[i++])) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(sourceType.cast<ArrayType>().slice(indices.size()));
+    return mlir::success();
+  }
+
+  void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << getSource() << "[" << getIndices() << "]";
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : " << getResult().getType();
+  }
+
+  mlir::LogicalResult SubscriptionOp::verify()
+  {
+    auto indicesAmount = getIndices().size();
+
+    if (getSourceArrayType().slice(indicesAmount) != getResultArrayType()) {
+      return emitOpError("incompatible source array type and result sliced type");
+    }
+
+    return mlir::success();
+  }
+
   mlir::ValueRange SubscriptionOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivedOp = builder.create<SubscriptionOp>(getLoc(), derivatives.lookup(source()), indices());
+    auto derivedOp = builder.create<SubscriptionOp>(getLoc(), derivatives.lookup(getSource()), getIndices());
     return derivedOp->getResults();
   }
 
@@ -5520,7 +5172,7 @@ namespace mlir::modelica
 
   void SymmetricOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), matrix(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getMatrix(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
   }
@@ -5554,8 +5206,8 @@ namespace mlir::modelica
 
   void TanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -5576,13 +5228,13 @@ namespace mlir::modelica
 
   mlir::ValueRange TanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -5597,10 +5249,10 @@ namespace mlir::modelica
     // D[tan(x)] = x' / (cos(x))^2
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value cos = builder.create<CosOp>(loc, type, operand());
+    mlir::Value cos = builder.create<CosOp>(loc, type, getOperand());
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
     mlir::Value denominator = builder.create<PowEWOp>(loc, type, cos, two);
     auto derivedOp = builder.create<DivEWOp>(loc, type, derivedOperand, denominator);
@@ -5610,7 +5262,7 @@ namespace mlir::modelica
 
   void TanOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void TanOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -5647,8 +5299,8 @@ namespace mlir::modelica
 
   void TanhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (operand().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -5669,13 +5321,13 @@ namespace mlir::modelica
 
   mlir::ValueRange TanhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
   {
-    mlir::Type newResultType = result().getType().cast<ArrayType>().slice(indexes.size());
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
 
     if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newResultType = arrayType.getElementType();
     }
 
-    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
 
     if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
       newOperand = builder.create<LoadOp>(getLoc(), newOperand);
@@ -5690,10 +5342,10 @@ namespace mlir::modelica
     // D[tanh(x)] = x' / (cosh(x))^2
 
     auto loc = getLoc();
-    mlir::Value derivedOperand = derivatives.lookup(operand());
-    mlir::Type type = convertToRealType(result().getType());
+    mlir::Value derivedOperand = derivatives.lookup(getOperand());
+    mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value cosh = builder.create<CoshOp>(loc, type, operand());
+    mlir::Value cosh = builder.create<CoshOp>(loc, type, getOperand());
     mlir::Value two = builder.create<ConstantOp>(loc, RealAttr::get(getContext(), 2));
     mlir::Value pow = builder.create<PowEWOp>(loc, type, cosh, two);
     auto derivedOp = builder.create<DivEWOp>(loc, type, derivedOperand, pow);
@@ -5703,7 +5355,7 @@ namespace mlir::modelica
 
   void TanhOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
-    toBeDerived.push_back(operand());
+    toBeDerived.push_back(getOperand());
   }
 
   void TanhOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
@@ -5717,8 +5369,8 @@ namespace mlir::modelica
 
   void TransposeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (matrix().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), matrix(), mlir::SideEffects::DefaultResource::get());
+    if (getMatrix().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getMatrix(), mlir::SideEffects::DefaultResource::get());
     }
 
     if (getResult().getType().isa<ArrayType>()) {
@@ -5730,6 +5382,40 @@ namespace mlir::modelica
   //===----------------------------------------------------------------------===//
   // WhileOp
   //===----------------------------------------------------------------------===//
+
+  mlir::ParseResult WhileOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::Region* conditionRegion = result.addRegion();
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseRegion(*conditionRegion) ||
+        parser.parseKeyword("do") ||
+        parser.parseRegion(*bodyRegion)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    if (conditionRegion->empty()) {
+      conditionRegion->emplaceBlock();
+    }
+
+    if (bodyRegion->empty()) {
+      bodyRegion->emplaceBlock();
+    }
+
+    return mlir::success();
+  }
+
+  void WhileOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer.printRegion(getConditionRegion(), false);
+    printer << " do";
+    printer.printRegion(getBodyRegion(), false);
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
+  }
 
   mlir::ValueRange WhileOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
@@ -5743,7 +5429,7 @@ namespace mlir::modelica
 
   void WhileOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
   {
-    regions.push_back(&bodyRegion());
+    regions.push_back(&getBodyRegion());
   }
 
   //===----------------------------------------------------------------------===//
@@ -5762,8 +5448,8 @@ namespace mlir::modelica
 
   void ArrayFillOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    if (array().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Write::get(), array(), mlir::SideEffects::DefaultResource::get());
+    if (getArray().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getArray(), mlir::SideEffects::DefaultResource::get());
     }
   }
 
@@ -5776,8 +5462,8 @@ namespace mlir::modelica
     // Ensure the operation doesn't get erased, no matter what.
     effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 
-    if (value().getType().isa<ArrayType>()) {
-      effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
+    if (getValue().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getValue(), mlir::SideEffects::DefaultResource::get());
     }
   }
 

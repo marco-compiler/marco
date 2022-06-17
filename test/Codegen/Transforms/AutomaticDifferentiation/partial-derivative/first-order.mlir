@@ -1,9 +1,11 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --auto-diff                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -21,7 +23,7 @@ modelica.function @simpleVar : (!modelica.real) -> (!modelica.real) {
 
 modelica.der_function @simpleVar_x {derived_function = "simpleVar", independent_vars = ["x"]}
 
-func @test_simpleVarDer() -> () {
+func.func @test_simpleVarDer() -> () {
     %x = modelica.constant #modelica.real<57.0>
     %result = modelica.call @simpleVar_x(%x) : (!modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
@@ -42,7 +44,7 @@ modelica.function @mulByScalar : (!modelica.real) -> (!modelica.real) {
 
 modelica.der_function @mulByScalar_x {derived_function = "mulByScalar", independent_vars = ["x"]}
 
-func @test_mulByScalar() -> () {
+func.func @test_mulByScalar() -> () {
     %x = modelica.constant #modelica.real<57.0>
     %result = modelica.call @mulByScalar_x(%x) : (!modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
@@ -64,7 +66,7 @@ modelica.function @sumOfVars : (!modelica.real, !modelica.real) -> (!modelica.re
 
 modelica.der_function @sumOfVars_x {derived_function = "sumOfVars", independent_vars = ["x"]}
 
-func @test_sumOfVars() -> () {
+func.func @test_sumOfVars() -> () {
     %x = modelica.constant #modelica.real<57.0>
     %y = modelica.constant #modelica.real<23.0>
     %result = modelica.call @sumOfVars_x(%x, %y) : (!modelica.real, !modelica.real) -> (!modelica.real)
@@ -87,7 +89,7 @@ modelica.function @mulOfVars : (!modelica.real, !modelica.real) -> (!modelica.re
 
 modelica.der_function @mulOfVars_x {derived_function = "mulOfVars", independent_vars = ["x"]}
 
-func @test_mulOfVars() -> () {
+func.func @test_mulOfVars() -> () {
     %x = modelica.constant #modelica.real<57.0>
     %y = modelica.constant #modelica.real<23.0>
     %result = modelica.call @mulOfVars_x(%x, %y) : (!modelica.real, !modelica.real) -> (!modelica.real)
@@ -120,14 +122,14 @@ modelica.function @callOpDer : (!modelica.real) -> (!modelica.real) {
 
 modelica.der_function @callOpDer_x2 {derived_function = "callOpDer", independent_vars = ["x2"]}
 
-func @test_callOpDer() -> () {
+func.func @test_callOpDer() -> () {
     %x = modelica.constant #modelica.real<2000.0>
     %result = modelica.call @callOpDer_x2(%x) : (!modelica.real) -> (!modelica.real)
     modelica.print %result : !modelica.real
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test_simpleVarDer() : () -> ()
     call @test_mulByScalar() : () -> ()
     call @test_sumOfVars() : () -> ()

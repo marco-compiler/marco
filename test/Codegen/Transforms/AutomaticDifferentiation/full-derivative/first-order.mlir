@@ -1,9 +1,11 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --auto-diff                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -19,7 +21,7 @@ modelica.function @var : (!modelica.real) -> (!modelica.real) attributes {deriva
     modelica.member_store %1, %2 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_var() -> () {
+func.func @test_var() -> () {
     %x = modelica.constant #modelica.real<57.0> : !modelica.real
     %der_x = modelica.constant #modelica.real<2.0> : !modelica.real
     %result = modelica.call @var_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
@@ -38,7 +40,7 @@ modelica.function @neg : (!modelica.real) -> (!modelica.real) attributes {deriva
     modelica.member_store %1, %3 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_neg() -> () {
+func.func @test_neg() -> () {
     %x = modelica.constant #modelica.real<57.0>
     %der_x = modelica.constant #modelica.real<2.0>
     %result = modelica.call @neg_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
@@ -59,7 +61,7 @@ modelica.function @add : (!modelica.real, !modelica.real) -> (!modelica.real) at
     modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_add() -> () {
+func.func @test_add() -> () {
     %x = modelica.constant #modelica.real<23.0>
     %y = modelica.constant #modelica.real<57.0>
     %der_x = modelica.constant #modelica.real<3.0>
@@ -82,7 +84,7 @@ modelica.function @sub : (!modelica.real, !modelica.real) -> (!modelica.real) at
     modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_sub() -> () {
+func.func @test_sub() -> () {
     %x = modelica.constant #modelica.real<23.0>
     %y = modelica.constant #modelica.real<57.0>
     %der_x = modelica.constant #modelica.real<3.0>
@@ -105,7 +107,7 @@ modelica.function @mul : (!modelica.real, !modelica.real) -> (!modelica.real) at
     modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_mul() -> () {
+func.func @test_mul() -> () {
     %x = modelica.constant #modelica.real<23.0>
     %y = modelica.constant #modelica.real<57.0>
     %der_x = modelica.constant #modelica.real<3.0>
@@ -128,7 +130,7 @@ modelica.function @div : (!modelica.real, !modelica.real) -> (!modelica.real) at
     modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_div() -> () {
+func.func @test_div() -> () {
     %x = modelica.constant #modelica.real<23.0>
     %y = modelica.constant #modelica.real<57.0>
     %der_x = modelica.constant #modelica.real<3.0>
@@ -138,7 +140,7 @@ func @test_div() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test_var() : () -> ()
     call @test_neg() : () -> ()
     call @test_add() : () -> ()

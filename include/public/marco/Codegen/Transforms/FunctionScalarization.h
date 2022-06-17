@@ -17,15 +17,6 @@ namespace marco::codegen
 
 	std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(
       FunctionScalarizationOptions options = FunctionScalarizationOptions::getDefaultOptions());
-
-	inline void registerFunctionScalarizationPass()
-	{
-		mlir::registerPass(
-        "scalarize", "Convert vectorized functions in loops with scalar calls",
-        []() -> std::unique_ptr<::mlir::Pass> {
-          return createFunctionScalarizationPass();
-        });
-	}
 }
 
 #endif // MARCO_CODEN_TRANSFORMS_FUNCTIONSCALARIZATION_H

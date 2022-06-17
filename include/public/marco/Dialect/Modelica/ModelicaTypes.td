@@ -8,60 +8,38 @@ include "mlir/IR/OpBase.td"
 // Modelica type definitions
 //===----------------------------------------------------------------------===//
 
-class Modelica_Type<string name, string typeMnemonic>
-    : TypeDef<Modelica_Dialect, name> {
-    let mnemonic = typeMnemonic;
-}
+class Modelica_Type<string name>
+    : TypeDef<Modelica_Dialect, name>;
 
-def BooleanType : Modelica_Type<"Boolean", "bool"> {
+def BooleanType : Modelica_Type<"Boolean"> {
+    let mnemonic = "bool";
     let summary = "Modelica's Boolean type";
 
     let description = [{
         Type representing Modelica's Boolean.
     }];
-
-    let printer = [{
-        $_printer << "bool";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
 }
 
-def IntegerType : Modelica_Type<"Integer", "int"> {
+def IntegerType : Modelica_Type<"Integer"> {
+    let mnemonic = "int";
     let summary = "Modelica's Integer type";
 
     let description = [{
         Type representing Modelica's Integer.
     }];
-
-    let printer = [{
-        $_printer << "int";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
 }
 
-def RealType : Modelica_Type<"Real", "real"> {
+def RealType : Modelica_Type<"Real"> {
+    let mnemonic = "real";
     let summary = "Modelica's Real type";
 
     let description = [{
         Type representing Modelica's Real.
     }];
-
-    let printer = [{
-        $_printer << "real";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
 }
 
-def ArrayType : Modelica_Type<"Array", "array"> {
+def ArrayType : Modelica_Type<"Array"> {
+    let mnemonic = "array";
     let summary = "Array type";
 
     let description = [{
@@ -72,6 +50,8 @@ def ArrayType : Modelica_Type<"Array", "array"> {
         "mlir::Type":$elementType,
         ArrayRefParameter<"long", "Dimensions">:$shape
     );
+
+    let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
         static constexpr int64_t kDynamicSize = -1;
@@ -95,17 +75,21 @@ def ArrayType : Modelica_Type<"Array", "array"> {
      }];
 }
 
-def UnsizedArrayType : Modelica_Type<"UnsizedArray", "array"> {
+def UnsizedArrayType : Modelica_Type<"UnsizedArray"> {
+    let mnemonic = "unsized_array";
     let summary = "Unsized array type";
 
     let description = [{
-        Unsized rray type.
+        Unsized array type.
     }];
 
     let parameters = (ins "mlir::Type":$elementType);
+
+    let hasCustomAssemblyFormat = 1;
 }
 
-def MemberType : Modelica_Type<"Member", "member"> {
+def MemberType : Modelica_Type<"Member"> {
+    let mnemonic = "member";
     let summary = "Member type";
 
     let description = [{
@@ -119,30 +103,31 @@ def MemberType : Modelica_Type<"Member", "member"> {
         "IOProperty":$visibilityProperty
     );
 
+    let hasCustomAssemblyFormat = 1;
+
     let extraClassDeclaration = [{
-		public:
-            unsigned int getRank() const;
+        unsigned int getRank() const;
 
-            bool isConstant() const {
-                return getConstantProperty();
-            }
+        bool isConstant() const {
+            return getConstantProperty();
+        }
 
-            bool isInput() const {
-                return getVisibilityProperty() == IOProperty::input;
-            }
+        bool isInput() const {
+            return getVisibilityProperty() == IOProperty::input;
+        }
 
-            bool isOutput() const {
-                return getVisibilityProperty() == IOProperty::output;
-            }
+        bool isOutput() const {
+            return getVisibilityProperty() == IOProperty::output;
+        }
 
-            static MemberType wrap(mlir::Type type, bool isConstant = false, IOProperty ioProperty = IOProperty::none);
+        static MemberType wrap(mlir::Type type, bool isConstant = false, IOProperty ioProperty = IOProperty::none);
 
-            ArrayType toArrayType() const;
-            mlir::Type unwrap() const;
+        ArrayType toArrayType() const;
+        mlir::Type unwrap() const;
 
-            MemberType withShape(ArrayRef<long> shape) const;
-            MemberType withType(Type type) const;
-            MemberType withIOProperty(IOProperty ioProperty) const;
+        MemberType withShape(ArrayRef<long> shape) const;
+        MemberType withType(Type type) const;
+        MemberType withIOProperty(IOProperty ioProperty) const;
      }];
 }
 

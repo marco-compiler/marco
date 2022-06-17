@@ -61,19 +61,19 @@ namespace marco::codegen
       mlir::LogicalResult processInitFunction(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          mlir::FuncOp initFunction,
+          mlir::func::FuncOp initFunction,
           mlir::ValueRange variables,
           const Model<ScheduledEquationsBlock>& model) override;
 
       mlir::LogicalResult processDeinitFunction(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          mlir::FuncOp deinitFunction) override;
+          mlir::func::FuncOp deinitFunction) override;
 
       mlir::LogicalResult processUpdateStatesFunction(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          mlir::FuncOp updateStatesFunction,
+          mlir::func::FuncOp updateStatesFunction,
           mlir::ValueRange variables) override;
 
       bool hasTimeOwnership() const override;

@@ -2,6 +2,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "llvm/ADT/STLExtras.h"
 #include <queue>
@@ -25,7 +26,7 @@ static llvm::StringMap<mlir::Value> mapMembersByName(FunctionOp functionOp)
   llvm::StringMap<mlir::Value> result;
 
   functionOp->walk([&](MemberCreateOp op) {
-    result[op.name()] = op.getResult();
+    result[op.getSymName()] = op.getResult();
   });
 
   return result;
@@ -60,7 +61,7 @@ static bool isFullDerivative(llvm::StringRef name, FunctionOp originalFunction, 
 
   if (name.rfind("der_") == 0) {
     for (mlir::Value member : originalFunction.getMembers()) {
-      auto originalMemberName = member.getDefiningOp<MemberCreateOp>().name();
+      auto originalMemberName = member.getDefiningOp<MemberCreateOp>().getSymName();
 
       for (unsigned int i = 1; i <= maxOrder; ++i) {
         if (name == getFullDerVariableName(originalMemberName, i)) {
@@ -197,7 +198,7 @@ namespace marco::codegen
         builder.getFunctionType(argsTypes, resultsTypes));
 
     // Start the body of the function
-    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.body());
+    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.getBody());
     builder.setInsertionPointToStart(entryBlock);
 
     // Clone the original operations, which will be interleaved in the
@@ -207,7 +208,7 @@ namespace marco::codegen
 
     for (auto& baseOp : functionOp.bodyBlock()->getOperations()) {
       if (auto memberCreateOp = mlir::dyn_cast<MemberCreateOp>(baseOp)) {
-        auto name = memberCreateOp.name();
+        auto name = memberCreateOp.getSymName();
 
         if (memberCreateOp.isInput()) {
           latestMemberCreateOp = builder.clone(baseOp, mapping);
@@ -216,7 +217,7 @@ namespace marco::codegen
           // Convert the output members to protected members
           std::vector<mlir::Value> mappedDynamicDimensions;
 
-          for (const auto& dynamicDimension : memberCreateOp.dynamicSizes()) {
+          for (const auto& dynamicDimension : memberCreateOp.getDynamicSizes()) {
             mappedDynamicDimensions.push_back(mapping.lookup(dynamicDimension));
           }
 
@@ -253,7 +254,7 @@ namespace marco::codegen
 
         builder.create<MemberCreateOp>(
             baseMember.getLoc(), name, type,
-            baseMember.getDefiningOp<MemberCreateOp>().dynamicSizes());
+            baseMember.getDefiningOp<MemberCreateOp>().getDynamicSizes());
       }
     };
 
@@ -291,7 +292,7 @@ namespace marco::codegen
 
     auto loc = derFunctionOp.getLoc();
     auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
-    auto baseFunctionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.derived_function());
+    auto baseFunctionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.getDerivedFunction());
 
     // Map the members for a faster lookup
     auto originalMembersMap = mapMembersByName(baseFunctionOp);
@@ -301,25 +302,25 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Type, 6> resultsTypes;
 
     // The original arguments
-    for (const auto& type : baseFunctionOp.getType().getInputs()) {
+    for (const auto& type : baseFunctionOp.getFunctionType().getInputs()) {
       argsTypes.push_back(type);
     }
 
     // The original results
-    for (const auto& type : baseFunctionOp.getType().getResults()) {
+    for (const auto& type : baseFunctionOp.getFunctionType().getResults()) {
       resultsTypes.push_back(type);
     }
 
     // Create the derived function
     auto derivedFunctionOp = builder.create<FunctionOp>(
         derFunctionOp.getLoc(),
-        derFunctionOp.name(),
+        derFunctionOp.getSymName(),
         builder.getFunctionType(argsTypes, resultsTypes));
 
-    partialDersTemplateCallers[derivedFunctionOp.name()] = templateFunction;
+    partialDersTemplateCallers[derivedFunctionOp.getSymName()] = templateFunction;
 
     // Start the body of the function
-    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.body());
+    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.getBody());
     builder.setInsertionPointToStart(entryBlock);
 
     // Create the input members
@@ -353,13 +354,13 @@ namespace marco::codegen
       args.push_back(builder.create<MemberLoadOp>(loc, inputMember));
     }
 
-    auto zeroOrderArgsNumber = zeroOrderFunctionOp.getType().getNumInputs();
+    auto zeroOrderArgsNumber = zeroOrderFunctionOp.getFunctionType().getNumInputs();
     auto inputMemberNames = zeroOrderFunctionOp.inputMemberNames();
 
     std::vector<mlir::Attribute> allIndependentVars;
 
-    if (auto previousTemplateIt = partialDerTemplates.find(templateFunction.name()); previousTemplateIt != partialDerTemplates.end()) {
-      auto previousTemplateVarsIt = partialDerTemplatesIndependentVars.find(previousTemplateIt->second.name());
+    if (auto previousTemplateIt = partialDerTemplates.find(templateFunction.getSymName()); previousTemplateIt != partialDerTemplates.end()) {
+      auto previousTemplateVarsIt = partialDerTemplatesIndependentVars.find(previousTemplateIt->second.getSymName());
 
       if (previousTemplateVarsIt != partialDerTemplatesIndependentVars.end()) {
         for (const auto& independentVar : previousTemplateVarsIt->second) {
@@ -368,11 +369,11 @@ namespace marco::codegen
       }
     }
 
-    for (const auto& independentVariable : derFunctionOp.independent_vars()) {
+    for (const auto& independentVariable : derFunctionOp.getIndependentVars()) {
       allIndependentVars.push_back(independentVariable.cast<mlir::StringAttr>());
     }
 
-    partialDerTemplatesIndependentVars[templateFunction.name()] = builder.getArrayAttr(allIndependentVars);
+    partialDerTemplatesIndependentVars[templateFunction.getSymName()] = builder.getArrayAttr(allIndependentVars);
 
     assert(templateOrder == allIndependentVars.size());
     unsigned int numberOfSeeds = zeroOrderArgsNumber;
@@ -392,7 +393,7 @@ namespace marco::codegen
 
       for (unsigned int i = 0; i < numberOfSeeds; ++i) {
         float seed = i == memberIndex ? 1 : 0;
-        auto argType = templateFunction.getType().getInput(i);
+        auto argType = templateFunction.getFunctionType().getInput(i);
         assert(!(seed == 1 && argType.isa<ArrayType>()));
 
         if (auto arrayType = argType.dyn_cast<ArrayType>()) {
@@ -413,7 +414,7 @@ namespace marco::codegen
 
     auto callOp = builder.create<CallOp>(
         loc,
-        templateFunction.name(),
+        templateFunction.getSymName(),
         resultsTypes, args);
 
     assert(callOp->getNumResults() == outputMembers.size());
@@ -429,15 +430,15 @@ namespace marco::codegen
       mlir::OpBuilder& builder, DerFunctionOp derFunctionOp)
   {
     auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
-    FunctionOp functionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.derived_function());
+    FunctionOp functionOp = module.lookupSymbol<FunctionOp>(derFunctionOp.getDerivedFunction());
 
-    if (auto it = partialDersTemplateCallers.find(functionOp.name()); it != partialDersTemplateCallers.end()) {
+    if (auto it = partialDersTemplateCallers.find(functionOp.getSymName()); it != partialDersTemplateCallers.end()) {
       functionOp = it->second;
     }
 
-    std::string derivedFunctionName = getPartialDerFunctionName(derFunctionOp.name());
+    std::string derivedFunctionName = getPartialDerFunctionName(derFunctionOp.getSymName());
 
-    for (size_t i = 0; i < derFunctionOp.independent_vars().size(); ++i) {
+    for (size_t i = 0; i < derFunctionOp.getIndependentVars().size(); ++i) {
       auto derTemplate = createPartialDerTemplateFunction(
           builder, derFunctionOp.getLoc(), functionOp, derivedFunctionName);
 
@@ -445,9 +446,9 @@ namespace marco::codegen
         return nullptr;
       }
 
-      partialDerTemplates[derTemplate.name()] = functionOp;
+      partialDerTemplates[derTemplate.getSymName()] = functionOp;
       functionOp = derTemplate;
-      derivedFunctionName = getPartialDerFunctionName(functionOp.name());
+      derivedFunctionName = getPartialDerFunctionName(functionOp.getSymName());
     }
 
     return functionOp;
@@ -478,12 +479,12 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Type, 6> resultsTypes;
 
     // The original arguments
-    for (const auto& type : functionOp.getType().getInputs()) {
+    for (const auto& type : functionOp.getFunctionType().getInputs()) {
       argsTypes.push_back(type);
     }
 
     // The seed values
-    for (const auto& type : functionOp.getType().getInputs()) {
+    for (const auto& type : functionOp.getFunctionType().getInputs()) {
       auto realType = RealType::get(builder.getContext());
 
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
@@ -494,7 +495,7 @@ namespace marco::codegen
     }
 
     // The original results
-    for (const auto& type : functionOp.getType().getResults()) {
+    for (const auto& type : functionOp.getFunctionType().getResults()) {
       resultsTypes.push_back(type);
     }
 
@@ -505,7 +506,7 @@ namespace marco::codegen
         builder.getFunctionType(argsTypes, resultsTypes));
 
     // Start the body of the function
-    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.body());
+    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.getBody());
     builder.setInsertionPointToStart(entryBlock);
 
     // Clone the original operations, which will be interleaved in the
@@ -515,7 +516,7 @@ namespace marco::codegen
 
     for (auto& baseOp : functionOp.bodyBlock()->getOperations()) {
       if (auto memberCreateOp = mlir::dyn_cast<MemberCreateOp>(baseOp)) {
-        auto name = memberCreateOp.name();
+        auto name = memberCreateOp.getSymName();
 
         if (memberCreateOp.isInput()) {
           latestMemberCreateOp = builder.clone(baseOp, mapping);
@@ -524,7 +525,7 @@ namespace marco::codegen
           // Convert the output members to protected members
           std::vector<mlir::Value> mappedDynamicDimensions;
 
-          for (const auto& dynamicDimension : memberCreateOp.dynamicSizes()) {
+          for (const auto& dynamicDimension : memberCreateOp.getDynamicSizes()) {
             mappedDynamicDimensions.push_back(mapping.lookup(dynamicDimension));
           }
 
@@ -604,7 +605,7 @@ namespace marco::codegen
 
         auto derivedMember = builder.create<MemberCreateOp>(
             baseMember.getLoc(), name, type,
-            baseMember.getDefiningOp<MemberCreateOp>().dynamicSizes());
+            baseMember.getDefiningOp<MemberCreateOp>().getDynamicSizes());
 
         derivatives.map(baseMember, derivedMember.getResult());
       }
@@ -633,9 +634,9 @@ namespace marco::codegen
     unsigned int order = 0;
     FunctionOp baseFunction = functionOp;
 
-    while (partialDerTemplates.find(baseFunction.name()) != partialDerTemplates.end()) {
+    while (partialDerTemplates.find(baseFunction.getSymName()) != partialDerTemplates.end()) {
       ++order;
-      baseFunction = partialDerTemplates.lookup(baseFunction.name());
+      baseFunction = partialDerTemplates.lookup(baseFunction.getSymName());
     }
 
     return std::make_pair(baseFunction, order);
@@ -651,7 +652,7 @@ namespace marco::codegen
     // we find them, as we would invalidate the operation walk's iterator.
     std::queue<mlir::Operation*> ops;
 
-    for (auto& op : functionOp.body().getOps()) {
+    for (auto& op : functionOp.getBody().getOps()) {
       ops.push(&op);
     }
 
@@ -751,17 +752,17 @@ namespace marco::codegen
   {
     auto loc = callOp.getLoc();
     auto module = callOp->getParentOfType<mlir::ModuleOp>();
-    auto callee = module.lookupSymbol<FunctionOp>(callOp.callee());
+    auto callee = module.lookupSymbol<FunctionOp>(callOp.getCallee());
 
-    std::string derivedFunctionName = "call_pder_" + callOp.callee().str();
+    std::string derivedFunctionName = "call_pder_" + callOp.getCallee().str();
 
     llvm::SmallVector<mlir::Value, 3> args;
 
-    for (auto arg : callOp.args()) {
+    for (auto arg : callOp.getArgs()) {
       args.push_back(arg);
     }
 
-    for (auto arg : callOp.args()) {
+    for (auto arg : callOp.getArgs()) {
       args.push_back(derivatives.lookup(arg));
     }
 

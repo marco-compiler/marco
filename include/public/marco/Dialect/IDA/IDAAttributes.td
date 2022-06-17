@@ -3,6 +3,7 @@
 
 include "marco/Dialect/IDA/IDADialect.td"
 include "mlir/IR/OpBase.td"
+include "mlir/IR/AttrTypeBase.td"
 
 //===----------------------------------------------------------------------===//
 // IDA attribute definitions

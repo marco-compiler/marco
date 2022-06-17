@@ -16,6 +16,8 @@ def IDA_Dialect : Dialect {
     }];
 
     let cppNamespace = "::mlir::ida";
+    let useDefaultTypePrinterParser = 1;
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 }
 
 #endif // MARCO_DIALECTS_IDA_IDADIALECT_TD

@@ -16,8 +16,8 @@ namespace marco::codegen::lowering
   {
     mlir::Location location = loc(equation.getLocation());
     auto equationOp = builder().create<EquationOp>(location);
-    assert(equationOp.bodyRegion().empty());
-    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.bodyRegion());
+    assert(equationOp.getBodyRegion().empty());
+    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.getBodyRegion());
     builder().setInsertionPointToStart(equationBodyBlock);
 
     llvm::SmallVector<mlir::Value, 1> lhs;

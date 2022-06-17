@@ -104,7 +104,7 @@ namespace marco::codegen::lowering
     }
 
     // Start the body of the function
-    mlir::Block* entryBlock = builder().createBlock(&functionOp.body());
+    mlir::Block* entryBlock = builder().createBlock(&functionOp.getBody());
     builder().setInsertionPointToStart(entryBlock);
 
     // Initialize members

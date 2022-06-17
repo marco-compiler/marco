@@ -3,8 +3,9 @@
 #include "marco/Codegen/Transforms/ModelSolving/LoopEquation.h"
 #include "marco/Codegen/Transforms/ModelSolving/ScalarEquation.h"
 #include "marco/Codegen/Utils.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include <numeric>
@@ -121,7 +122,7 @@ static bool hasInductionVariables(EquationOp equation)
   auto hasImplicitLoops = [&]() -> bool {
     auto terminator = mlir::cast<EquationSidesOp>(equation.bodyBlock()->getTerminator());
 
-    return llvm::any_of(terminator.lhsValues(), [](mlir::Value value) {
+    return llvm::any_of(terminator.getLhsValues(), [](mlir::Value value) {
       return value.getType().isa<ArrayType>();
     });
   };
@@ -136,23 +137,23 @@ static std::pair<mlir::Value, std::vector<mlir::Value>> collectSubscriptionIndex
 
   while (op != nullptr && mlir::isa<LoadOp, SubscriptionOp>(op)) {
     if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-      auto loadIndexes = loadOp.indices();
+      auto loadIndexes = loadOp.getIndices();
 
       for (size_t i = 0, e = loadIndexes.size(); i < e; ++i) {
         indexes.push_back(loadIndexes[e - i - 1]);
       }
 
-      value = loadOp.array();
+      value = loadOp.getArray();
       op = value.getDefiningOp();
     } else {
       auto subscriptionOp = mlir::cast<SubscriptionOp>(op);
-      auto subscriptionIndexes = subscriptionOp.indices();
+      auto subscriptionIndexes = subscriptionOp.getIndices();
 
       for (size_t i = 0, e = subscriptionIndexes.size(); i < e; ++i) {
         indexes.push_back(subscriptionIndexes[e - i - 1]);
       }
 
-      value = subscriptionOp.source();
+      value = subscriptionOp.getSource();
       op = value.getDefiningOp();
     }
   }
@@ -180,9 +181,9 @@ static mlir::LogicalResult removeSubtractions(mlir::OpBuilder& builder, mlir::Op
 
   if (auto subOp = mlir::dyn_cast<SubOp>(op)) {
     builder.setInsertionPoint(subOp);
-    mlir::Value rhs = subOp.rhs();
+    mlir::Value rhs = subOp.getRhs();
     mlir::Value negatedRhs = builder.create<NegateOp>(rhs.getLoc(), rhs.getType(), rhs);
-    auto addOp = builder.create<AddOp>(subOp->getLoc(), subOp.getResult().getType(), subOp.lhs(), negatedRhs);
+    auto addOp = builder.create<AddOp>(subOp->getLoc(), subOp.getResult().getType(), subOp.getLhs(), negatedRhs);
     subOp->replaceAllUsesWith(addOp.getOperation());
     subOp->erase();
   }
@@ -251,11 +252,11 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
 static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result, mlir::Value root)
 {
   if (auto addOp = mlir::dyn_cast<AddOp>(root.getDefiningOp())) {
-    if (auto res = collectSummedValues(result, addOp.lhs()); mlir::failed(res)) {
+    if (auto res = collectSummedValues(result, addOp.getLhs()); mlir::failed(res)) {
       return res;
     }
 
-    if (auto res = collectSummedValues(result, addOp.rhs()); mlir::failed(res)) {
+    if (auto res = collectSummedValues(result, addOp.getRhs()); mlir::failed(res)) {
       return res;
     }
 
@@ -318,11 +319,11 @@ namespace marco::codegen
     mlir::Operation* definingOp = value.getDefiningOp();
 
     if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
-      return isReferenceAccess(loadOp.array());
+      return isReferenceAccess(loadOp.getArray());
     }
 
     if (auto viewOp = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
-      return isReferenceAccess(viewOp.source());
+      return isReferenceAccess(viewOp.getSource());
     }
 
     return false;
@@ -365,11 +366,11 @@ namespace marco::codegen
     };
 
     if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
-      processIndexesFn(loadOp.indices());
-      searchAccesses(accesses, loadOp.array(), dimensionAccesses, std::move(path));
+      processIndexesFn(loadOp.getIndices());
+      searchAccesses(accesses, loadOp.getArray(), dimensionAccesses, std::move(path));
     } else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
-      processIndexesFn(subscriptionOp.indices());
-      searchAccesses(accesses, subscriptionOp.source(), dimensionAccesses, std::move(path));
+      processIndexesFn(subscriptionOp.getIndices());
+      searchAccesses(accesses, subscriptionOp.getSource(), dimensionAccesses, std::move(path));
     } else {
       for (size_t i = 0, e = op->getNumOperands(); i < e; ++i) {
         EquationPath::Guard guard(path);
@@ -440,12 +441,12 @@ namespace marco::codegen
     assert((mlir::isa<ConstantOp>(op) || mlir::isa<AddOp>(op) || mlir::isa<SubOp>(op)) && "Invalid access pattern");
 
     if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
-      return std::make_pair(nullptr, getIntFromAttribute(constantOp.value()));
+      return std::make_pair(nullptr, getIntFromAttribute(constantOp.getValue()));
     }
 
     if (auto addOp = mlir::dyn_cast<AddOp>(op)) {
-      auto first = evaluateDimensionAccess(addOp.lhs());
-      auto second = evaluateDimensionAccess(addOp.rhs());
+      auto first = evaluateDimensionAccess(addOp.getLhs());
+      auto second = evaluateDimensionAccess(addOp.getRhs());
 
       assert(first.first == nullptr || second.first == nullptr);
       mlir::Value induction = first.first != nullptr ? first.first : second.first;
@@ -454,8 +455,8 @@ namespace marco::codegen
 
     auto subOp = mlir::dyn_cast<SubOp>(op);
 
-    auto first = evaluateDimensionAccess(subOp.lhs());
-    auto second = evaluateDimensionAccess(subOp.rhs());
+    auto first = evaluateDimensionAccess(subOp.getLhs());
+    auto second = evaluateDimensionAccess(subOp.getRhs());
 
     assert(first.first == nullptr || second.first == nullptr);
     mlir::Value induction = first.first != nullptr ? first.first : second.first;
@@ -475,8 +476,8 @@ namespace marco::codegen
       : equationOp(equation.getOperation()),
         variables(std::move(variables))
   {
-    assert(getTerminator().lhsValues().size() == 1);
-    assert(getTerminator().rhsValues().size() == 1);
+    assert(getTerminator().getLhsValues().size() == 1);
+    assert(getTerminator().getRhsValues().size() == 1);
   }
 
   mlir::modelica::EquationOp BaseEquation::getOperation() const
@@ -498,7 +499,7 @@ namespace marco::codegen
   {
     auto side = path.getEquationSide();
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
-    mlir::Value value = side == EquationPath::LEFT ? terminator.lhsValues()[0] : terminator.rhsValues()[0];
+    mlir::Value value = side == EquationPath::LEFT ? terminator.getLhsValues()[0] : terminator.getRhsValues()[0];
 
     for (auto index : path) {
       mlir::Operation* op = value.getDefiningOp();
@@ -542,8 +543,8 @@ namespace marco::codegen
     if (accesses.size() == 1) {
       auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
 
-      auto lhsOp = terminator.lhs().getDefiningOp();
-      auto rhsOp = terminator.rhs().getDefiningOp();
+      auto lhsOp = terminator.getLhs().getDefiningOp();
+      auto rhsOp = terminator.getRhs().getDefiningOp();
 
       builder.setInsertionPoint(lhsOp);
 
@@ -559,7 +560,7 @@ namespace marco::codegen
 
       if (path.getEquationSide() == EquationPath::RIGHT) {
         builder.setInsertionPointAfter(terminator);
-        builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
+        builder.create<EquationSidesOp>(terminator->getLoc(), terminator.getRhs(), terminator.getLhs());
         terminator->erase();
       }
     } else {
@@ -734,7 +735,7 @@ namespace marco::codegen
 
     // Obtain the value to be used for the replacement
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
-    mlir::Value replacement = terminator.rhsValues()[0];
+    mlir::Value replacement = terminator.getRhsValues()[0];
 
     // The operations to be cloned, in reverse order
     std::vector<mlir::Operation*> toBeCloned;
@@ -853,11 +854,11 @@ namespace marco::codegen
       mlir::OpBuilder& builder, size_t argumentIndex, EquationPath::EquationSide side)
   {
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
-    assert(terminator.lhsValues().size() == 1);
-    assert(terminator.rhsValues().size() == 1);
+    assert(terminator.getLhsValues().size() == 1);
+    assert(terminator.getRhsValues().size() == 1);
 
-    mlir::Value toExplicitate = side == EquationPath::LEFT ? terminator.lhsValues()[0] : terminator.rhsValues()[0];
-    mlir::Value otherExp = side == EquationPath::RIGHT ? terminator.lhsValues()[0] : terminator.rhsValues()[0];
+    mlir::Value toExplicitate = side == EquationPath::LEFT ? terminator.getLhsValues()[0] : terminator.getRhsValues()[0];
+    mlir::Value otherExp = side == EquationPath::RIGHT ? terminator.getLhsValues()[0] : terminator.getRhsValues()[0];
 
     mlir::Operation* op = toExplicitate.getDefiningOp();
 
@@ -922,7 +923,7 @@ namespace marco::codegen
 
     if (lhsHasAccess) {
       auto rootFn = [&]() -> mlir::Value {
-        return getTerminator().lhsValues()[0];
+        return getTerminator().getLhsValues()[0];
       };
 
       if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
@@ -936,7 +937,7 @@ namespace marco::codegen
 
     if (rhsHasAccess) {
       auto rootFn = [&]() -> mlir::Value {
-        return getTerminator().rhsValues()[0];
+        return getTerminator().getRhsValues()[0];
       };
 
       if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
@@ -1031,21 +1032,21 @@ namespace marco::codegen
           builder.create<SubOp>(loc, getMostGenericType(lhsFactor.getType(), rhsFactor.getType()), lhsFactor, rhsFactor));
 
       // Check if we are dividing by zero
-      foldValue(getOperation(), rhs.rhs());
+      foldValue(getOperation(), rhs.getRhs());
 
-      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.rhs().getDefiningOp())) {
-        if (isZeroAttr(divisorOp.value())) {
+      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
+        if (isZeroAttr(divisorOp.getValue())) {
           return mlir::failure();
         }
       }
 
       auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
-      auto oldLhsOp = terminator.lhs().getDefiningOp();
+      auto oldLhsOp = terminator.getLhs().getDefiningOp();
       oldLhsOp->replaceAllUsesWith(lhsOp);
       oldLhsOp->erase();
 
       auto rhsOp = builder.create<EquationSideOp>(loc, rhs.getResult());
-      auto oldRhsOp = terminator.rhs().getDefiningOp();
+      auto oldRhsOp = terminator.getRhs().getDefiningOp();
       oldRhsOp->replaceAllUsesWith(rhsOp);
       oldRhsOp->erase();
 
@@ -1071,25 +1072,25 @@ namespace marco::codegen
 
       auto rhs = builder.create<DivOp>(
           loc, lhs.getType(),
-          builder.create<SubOp>(loc, getMostGenericType(terminator.rhsValues()[0].getType(), lhsRemaining.getType()), terminator.rhsValues()[0], lhsRemaining),
+          builder.create<SubOp>(loc, getMostGenericType(terminator.getRhsValues()[0].getType(), lhsRemaining.getType()), terminator.getRhsValues()[0], lhsRemaining),
           lhsFactor);
 
       // Check if we are dividing by zero
-      foldValue(getOperation(), rhs.rhs());
+      foldValue(getOperation(), rhs.getRhs());
 
-      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.rhs().getDefiningOp())) {
-        if (isZeroAttr(divisorOp.value())) {
+      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
+        if (isZeroAttr(divisorOp.getValue())) {
           return mlir::failure();
         }
       }
 
       auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
-      auto oldLhsOp = terminator.lhs().getDefiningOp();
+      auto oldLhsOp = terminator.getLhs().getDefiningOp();
       oldLhsOp->replaceAllUsesWith(lhsOp);
       oldLhsOp->erase();
 
       auto rhsOp = builder.create<EquationSideOp>(loc, rhs.getResult());
-      auto oldRhsOp = terminator.rhs().getDefiningOp();
+      auto oldRhsOp = terminator.getRhs().getDefiningOp();
       oldRhsOp->replaceAllUsesWith(rhsOp);
       oldRhsOp->erase();
 
@@ -1114,25 +1115,25 @@ namespace marco::codegen
 
       auto rhs = builder.create<DivOp>(
           loc, lhs.getType(),
-          builder.create<SubOp>(loc, getMostGenericType(terminator.lhsValues()[0].getType(), rhsRemaining.getType()), terminator.lhsValues()[0], rhsRemaining),
+          builder.create<SubOp>(loc, getMostGenericType(terminator.getLhsValues()[0].getType(), rhsRemaining.getType()), terminator.getLhsValues()[0], rhsRemaining),
           rhsFactor);
 
       // Check if we are dividing by zero
-      foldValue(getOperation(), rhs.rhs());
+      foldValue(getOperation(), rhs.getRhs());
 
-      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.rhs().getDefiningOp())) {
-        if (isZeroAttr(divisorOp.value())) {
+      if (auto divisorOp = mlir::dyn_cast<ConstantOp>(rhs.getRhs().getDefiningOp())) {
+        if (isZeroAttr(divisorOp.getValue())) {
           return mlir::failure();
         }
       }
 
       auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
-      auto oldLhsOp = terminator.lhs().getDefiningOp();
+      auto oldLhsOp = terminator.getLhs().getDefiningOp();
       oldLhsOp->replaceAllUsesWith(lhsOp);
       oldLhsOp->erase();
 
       auto rhsOp = builder.create<EquationSideOp>(loc, rhs.getResult());
-      auto oldRhsOp = terminator.rhs().getDefiningOp();
+      auto oldRhsOp = terminator.getRhs().getDefiningOp();
       oldRhsOp->replaceAllUsesWith(rhsOp);
       oldRhsOp->erase();
 
@@ -1172,7 +1173,7 @@ namespace marco::codegen
     }
 
     if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
-      auto operand = getMultiplyingFactor(builder, equationIndices, negateOp.operand(), variable, variableIndices);
+      auto operand = getMultiplyingFactor(builder, equationIndices, negateOp.getOperand(), variable, variableIndices);
 
       if (!operand.second) {
         return std::make_pair(operand.first, nullptr);
@@ -1185,8 +1186,8 @@ namespace marco::codegen
     }
 
     if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
-      auto lhs = getMultiplyingFactor(builder, equationIndices, mulOp.lhs(), variable, variableIndices);
-      auto rhs = getMultiplyingFactor(builder, equationIndices, mulOp.rhs(), variable, variableIndices);
+      auto lhs = getMultiplyingFactor(builder, equationIndices, mulOp.getLhs(), variable, variableIndices);
+      auto rhs = getMultiplyingFactor(builder, equationIndices, mulOp.getRhs(), variable, variableIndices);
 
       if (!lhs.second || !rhs.second) {
         return std::make_pair(0, nullptr);
@@ -1218,19 +1219,19 @@ namespace marco::codegen
     };
 
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
-      auto dividend = getMultiplyingFactor(builder, equationIndices, divOp.lhs(), variable, variableIndices);
+      auto dividend = getMultiplyingFactor(builder, equationIndices, divOp.getLhs(), variable, variableIndices);
 
       if (!dividend.second) {
         return dividend;
       }
 
       // Check that the right-hand side value has no access to the variable of interest
-      if (hasAccessToVar(divOp.rhs())) {
+      if (hasAccessToVar(divOp.getRhs())) {
         return std::make_pair(dividend.first, nullptr);
       }
 
       mlir::Value result = builder.create<DivOp>(
-          divOp.getLoc(), divOp.getResult().getType(), dividend.second, divOp.rhs());
+          divOp.getLoc(), divOp.getResult().getType(), dividend.second, divOp.getRhs());
 
       return std::make_pair(dividend.first, result);
     }
@@ -1263,18 +1264,18 @@ namespace marco::codegen
 
     auto conditionFn = [&](mlir::Value index, mlir::Value end) -> mlir::Value {
       if (iterationDirection == modeling::scheduling::Direction::Backward) {
-        return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::sgt, index, end).getResult();
+        return builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::sgt, index, end).getResult();
       }
 
-      return builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::slt, index, end).getResult();
+      return builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::slt, index, end).getResult();
     };
 
     auto updateFn = [&](mlir::Value index, mlir::Value step) -> mlir::Value {
       if (iterationDirection == modeling::scheduling::Direction::Backward) {
-        return builder.create<mlir::SubIOp>(loc, index, step).getResult();
+        return builder.create<mlir::arith::SubIOp>(loc, index, step).getResult();
       }
 
-      return builder.create<mlir::AddIOp>(loc, index, step).getResult();
+      return builder.create<mlir::arith::AddIOp>(loc, index, step).getResult();
     };
 
     mlir::Operation* firstLoop = nullptr;
@@ -1290,13 +1291,13 @@ namespace marco::codegen
       // A naive check can consist in the equality comparison. However, in order to be future-proof with
       // respect to steps greater than one, we need to check if the current value is beyond the end boundary.
       // This in turn requires to know the iteration direction.
-      mlir::Block* beforeBlock = builder.createBlock(&whileOp.before(), {}, builder.getIndexType());
+      mlir::Block* beforeBlock = builder.createBlock(&whileOp.getBefore(), {}, builder.getIndexType(), loc);
       builder.setInsertionPointToStart(beforeBlock);
-      mlir::Value condition = conditionFn(whileOp.before().getArgument(0), endIndices[i]);
-      builder.create<mlir::scf::ConditionOp>(loc, condition, whileOp.before().getArgument(0));
+      mlir::Value condition = conditionFn(whileOp.getBefore().getArgument(0), endIndices[i]);
+      builder.create<mlir::scf::ConditionOp>(loc, condition, whileOp.getBefore().getArgument(0));
 
       // Execute the loop body
-      mlir::Block* afterBlock = builder.createBlock(&whileOp.after(), {}, builder.getIndexType());
+      mlir::Block* afterBlock = builder.createBlock(&whileOp.getAfter(), {}, builder.getIndexType(), loc);
       mlir::Value inductionVariable = afterBlock->getArgument(0);
       inductionVariables.push_back(inductionVariable);
       builder.setInsertionPointToStart(afterBlock);
@@ -1314,7 +1315,7 @@ namespace marco::codegen
     }
   }
 
-  mlir::FuncOp BaseEquation::createTemplateFunction(
+  mlir::func::FuncOp BaseEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
       mlir::ValueRange vars,
@@ -1334,15 +1335,28 @@ namespace marco::codegen
     // and the iteration step.
     argsTypes.append(3 * getNumOfIterationVars(), builder.getIndexType());
 
-    auto varsTypes = vars.getTypes();
-    argsTypes.append(varsTypes.begin(), varsTypes.end());
+    // Add the variables to the function signature
+    for (const auto& type : vars.getTypes()) {
+      argsTypes.push_back(type);
+    }
 
     // Create the "template" function and its entry block
     auto functionType = builder.getFunctionType(argsTypes, llvm::None);
-    auto function = builder.create<mlir::FuncOp>(loc, functionName, functionType);
+    auto function = builder.create<mlir::func::FuncOp>(loc, functionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
+
+    mlir::BlockAndValueMapping mapping;
+
+    // Cast the variables to their original types, so that the body of the equation
+    // can be cloned seamlessly.
+    size_t varsOffset = getNumOfIterationVars() * 3;
+
+    for (size_t i = 0, e = vars.size(); i < e; ++i) {
+      mlir::Value variable = function.getArgument(i + varsOffset);
+      mapping.map(vars[i], variable);
+    }
 
     // Create the iteration loops
     llvm::SmallVector<mlir::Value, 3> lowerBounds;
@@ -1355,23 +1369,14 @@ namespace marco::codegen
       steps.push_back(function.getArgument(2 + i * 3));
     }
 
-    mlir::BlockAndValueMapping mapping;
-
-    // Map the variables
-    size_t varsOffset = getNumOfIterationVars() * 3;
-
-    for (size_t i = 0, e = vars.size(); i < e; ++i) {
-      mapping.map(vars[i], function.getArgument(i + varsOffset));
-    }
-
     // Delegate the body creation to the actual equation implementation
     if (auto status = createTemplateFunctionBody(
         builder, mapping, lowerBounds, upperBounds, steps, iterationDirection); mlir::failed(status)) {
       return nullptr;
     }
 
-    builder.setInsertionPointToEnd(&function.body().back());
-    builder.create<mlir::ReturnOp>(loc);
+    builder.setInsertionPointToEnd(&function.getBody().back());
+    builder.create<mlir::func::ReturnOp>(loc);
     return function;
   }
 }

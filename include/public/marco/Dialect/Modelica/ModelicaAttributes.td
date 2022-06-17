@@ -3,6 +3,7 @@
 
 include "marco/Dialect/Modelica/ModelicaDialect.td"
 include "mlir/IR/OpBase.td"
+include "mlir/IR/AttrTypeBase.td"
 
 //===----------------------------------------------------------------------===//
 // Modelica attribute definitions
@@ -32,6 +33,7 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
     ];
 
     let typeBuilder = "$_type";
+    let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
@@ -53,6 +55,7 @@ def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
     ];
 
     let typeBuilder = "$_type";
+    let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
@@ -74,6 +77,7 @@ def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
     ];
 
     let typeBuilder = "$_type";
+    let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {
@@ -84,6 +88,8 @@ def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivativ
     }];
 
     let parameters = (ins SelfAllocationParameter<"InverseFunctionsMap", "Inverse functions map">:$inverseFunctionsMap);
+
+    let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
         public:
@@ -101,6 +107,8 @@ def Modelica_DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {
     }];
 
     let parameters = (ins StringRefParameter<"Derived function name">:$name, "unsigned int":$order);
+
+    let hasCustomAssemblyFormat = 1;
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD

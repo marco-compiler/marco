@@ -34,6 +34,7 @@ namespace marco::codegen::lowering
     auto location = loc(model.getLocation());
 
     llvm::SmallVector<mlir::Type, 3> variableTypes;
+    llvm::SmallVector<mlir::Location, 3> variableLocations;
 
     // Determine the type of each variable
     llvm::SmallVector<mlir::Attribute, 3> variableNames;
@@ -49,14 +50,16 @@ namespace marco::codegen::lowering
 
       mlir::StringAttr nameAttribute = builder().getStringAttr(member->getName());
       variableNames.push_back(nameAttribute);
+
+      variableLocations.push_back(loc(member->getLocation()));
     }
 
     // Create the model operation and its blocks
     auto modelOp = builder().create<ModelOp>(location);
 
-    mlir::Block* initBlock = builder().createBlock(&modelOp.initRegion());
-    mlir::Block* equationsBlock = builder().createBlock(&modelOp.equationsRegion(), {}, variableTypes);
-    mlir::Block* initialEquationsBlock = builder().createBlock(&modelOp.initialEquationsRegion(), {}, variableTypes);
+    mlir::Block* initBlock = builder().createBlock(&modelOp.getInitRegion());
+    mlir::Block* equationsBlock = builder().createBlock(&modelOp.getEquationsRegion(), {}, variableTypes, variableLocations);
+    mlir::Block* initialEquationsBlock = builder().createBlock(&modelOp.getInitialEquationsRegion(), {}, variableTypes, variableLocations);
 
     {
       // Simulation variables
@@ -79,7 +82,7 @@ namespace marco::codegen::lowering
       for (const auto& member : llvm::enumerate(model.getMembers())) {
         symbolTable().insert(
             member.value()->getName(),
-            Reference::memory(&builder(), modelOp.equationsRegion().getArgument(member.index())));
+            Reference::memory(&builder(), modelOp.getEquationsRegion().getArgument(member.index())));
       }
 
       // Members with an assigned value are conceptually the same as equations performing that assignment.
@@ -112,7 +115,7 @@ namespace marco::codegen::lowering
       for (const auto& member : llvm::enumerate(model.getMembers())) {
         symbolTable().insert(
             member.value()->getName(),
-            Reference::memory(&builder(), modelOp.initialEquationsRegion().getArgument(member.index())));
+            Reference::memory(&builder(), modelOp.getInitialEquationsRegion().getArgument(member.index())));
       }
 
       // Create the initial equations from the 'start' attributes
@@ -242,8 +245,8 @@ namespace marco::codegen::lowering
     }
 
     auto equationOp = builder().create<EquationOp>(location);
-    assert(equationOp.bodyRegion().empty());
-    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.bodyRegion());
+    assert(equationOp.getBodyRegion().empty());
+    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.getBodyRegion());
     builder().setInsertionPointToStart(equationBodyBlock);
 
     // Left-hand side

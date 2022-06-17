@@ -1,15 +1,18 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
-#include "mlir/Transforms/BufferUtils.h"
+#include "mlir/Dialect/Bufferization/Transforms/BufferUtils.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/Passes.h"
+
+#include "marco/Codegen/Transforms/PassDetail.h"
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace
 {
-  class ArrayDeallocation : public mlir::BufferPlacementTransformationBase
+  class ArrayDeallocation : public mlir::bufferization::BufferPlacementTransformationBase
   {
     public:
       ArrayDeallocation(mlir::Operation* op)
@@ -20,13 +23,13 @@ namespace
 
       void deallocate() const
       {
-        for (const mlir::BufferPlacementAllocs::AllocEntry& entry : allocs) {
+        for (const mlir::bufferization::BufferPlacementAllocs::AllocEntry& entry : allocs) {
           mlir::Value alloc = std::get<0>(entry);
 
           if (auto arrayType = alloc.getType().dyn_cast<ArrayType>(); arrayType && !arrayType.hasConstantShape()) {
             bool isStored = llvm::any_of(alloc.getUsers(), [&](const auto& op) {
               if (auto memberStoreOp = mlir::dyn_cast<MemberStoreOp>(op)) {
-                return memberStoreOp.value() == alloc;
+                return memberStoreOp.getValue() == alloc;
               }
 
               return false;
@@ -100,13 +103,15 @@ namespace
       mlir::PostDominanceInfo postDominators;
   };
 
-  class ArrayDeallocationPass : public mlir::PassWrapper<ArrayDeallocationPass, mlir::OperationPass<mlir::ModuleOp>>
+  class ArrayDeallocationPass : public ArrayDeallocationBase<ArrayDeallocationPass>
   {
     public:
       void runOnOperation() override
       {
-        getOperation().walk([](mlir::FuncOp op) {
-          if (op.getName() != ModelConverter::initFunctionName) {
+        getOperation().walk([](mlir::func::FuncOp op) {
+          if (op.getSymName() != ModelConverter::initFunctionName &&
+              op.getSymName() != ModelConverter::initICSolversFunctionName &&
+              op.getSymName() != ModelConverter::initMainSolversFunctionName) {
             ArrayDeallocation deallocation(op);
             deallocation.deallocate();
           }

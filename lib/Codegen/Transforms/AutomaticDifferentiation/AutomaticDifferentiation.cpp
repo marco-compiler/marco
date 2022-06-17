@@ -1,8 +1,12 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/ADT/STLExtras.h"
+
+#include "marco/Codegen/Transforms/PassDetail.h"
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -57,11 +61,11 @@ namespace marco::codegen
 
     for (const auto& member : members) {
       auto memberOp = member.getDefiningOp<MemberCreateOp>();
-      membersByName[memberOp.name()] = member;
+      membersByName[memberOp.getSymName()] = member;
     }
 
     for (const auto& member : members) {
-      auto name = member.getDefiningOp<MemberCreateOp>().name();
+      auto name = member.getDefiningOp<MemberCreateOp>().getSymName();
 
       // Given a variable "x", first search for "der_x". If it doesn't exist,
       // then also "der_2_x", "der_3_x", etc. will not exist and thus we can
@@ -100,151 +104,146 @@ namespace marco::codegen
 
 namespace
 {
-  class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
+  class AutomaticDifferentiationPass : public AutomaticDifferentiationBase<AutomaticDifferentiationPass>
   {
     public:
-    void getDependentDialects(mlir::DialectRegistry& registry) const override
-    {
-      registry.insert<ModelicaDialect>();
-    }
-
-    void runOnOperation() override
-    {
-      if (mlir::failed(createFullDerFunctions())) {
-        mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
-        return signalPassFailure();
-      }
-
-      if (mlir::failed(createPartialDerFunctions())) {
-        mlir::emitError(getOperation().getLoc(), "Error in creating the functions partial derivatives");
-        return signalPassFailure();
-      }
-
-      if (mlir::failed(resolveTrivialDerCalls())) {
-        mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
-        return signalPassFailure();
-      }
-    }
-
-    mlir::LogicalResult createFullDerFunctions()
-    {
-      auto module = getOperation();
-      mlir::OpBuilder builder(module);
-
-      llvm::SmallVector<FunctionOp, 3> toBeDerived;
-
-      module->walk([&](FunctionOp op) {
-        if (op->hasAttrOfType<DerivativeAttr>("derivative")) {
-          toBeDerived.push_back(op);
+      void runOnOperation() override
+      {
+        if (mlir::failed(createFullDerFunctions())) {
+          mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
+          return signalPassFailure();
         }
-      });
 
-      // Sort the functions so that a function derivative is computed only
-      // when the base function already has its body determined.
+        if (mlir::failed(createPartialDerFunctions())) {
+          mlir::emitError(getOperation().getLoc(), "Error in creating the functions partial derivatives");
+          return signalPassFailure();
+        }
 
-      llvm::sort(toBeDerived, [](FunctionOp first, FunctionOp second) {
-        auto annotation = first->getAttrOfType<DerivativeAttr>("derivative");
-        return annotation.getName() == second.name();
-      });
-
-      ForwardAD forwardAD;
-
-      for (auto& function : toBeDerived) {
-        if (auto res = forwardAD.createFullDerFunction(builder, function); mlir::failed(res)) {
-          return res;
+        if (mlir::failed(resolveTrivialDerCalls())) {
+          mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
+          return signalPassFailure();
         }
       }
 
-      return mlir::success();
-    }
+      mlir::LogicalResult createFullDerFunctions()
+      {
+        auto module = getOperation();
+        mlir::OpBuilder builder(module);
 
-    mlir::LogicalResult createPartialDerFunctions()
-    {
-      auto module = getOperation();
-      mlir::OpBuilder builder(module);
+        llvm::SmallVector<FunctionOp, 3> toBeDerived;
 
-      llvm::SmallVector<DerFunctionOp, 3> toBeProcessed;
-
-      // The conversion is done in an iterative way, because new derivative
-      // functions may be created while converting the existing one (i.e. when
-      // a function to be derived contains a call to an another function).
-
-      auto findDerFunctions = [&]() -> bool {
-        module->walk([&](DerFunctionOp op) {
-          toBeProcessed.push_back(op);
+        module->walk([&](FunctionOp op) {
+          if (op->hasAttrOfType<DerivativeAttr>("derivative")) {
+            toBeDerived.push_back(op);
+          }
         });
 
-        return !toBeProcessed.empty();
-      };
-
-      ForwardAD forwardAD;
-
-      while (findDerFunctions()) {
         // Sort the functions so that a function derivative is computed only
         // when the base function already has its body determined.
 
-        llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
-          return first.name() == second.derived_function();
+        llvm::sort(toBeDerived, [](FunctionOp first, FunctionOp second) {
+          auto annotation = first->getAttrOfType<DerivativeAttr>("derivative");
+          return annotation.getName() == second.getSymName();
         });
 
-        for (auto& function : toBeProcessed) {
-          if (auto res = forwardAD.createPartialDerFunction(builder, function); mlir::failed(res)) {
+        ForwardAD forwardAD;
+
+        for (auto& function : toBeDerived) {
+          if (auto res = forwardAD.createFullDerFunction(builder, function); mlir::failed(res)) {
             return res;
           }
-
-          function->erase();
         }
 
-        toBeProcessed.clear();
+        return mlir::success();
       }
 
-      return mlir::success();
-    }
+      mlir::LogicalResult createPartialDerFunctions()
+      {
+        auto module = getOperation();
+        mlir::OpBuilder builder(module);
 
-    mlir::LogicalResult resolveTrivialDerCalls()
-    {
-      auto module = getOperation();
-      mlir::OpBuilder builder(module);
+        llvm::SmallVector<DerFunctionOp, 3> toBeProcessed;
 
-      std::vector<DerOp> ops;
+        // The conversion is done in an iterative way, because new derivative
+        // functions may be created while converting the existing one (i.e. when
+        // a function to be derived contains a call to an another function).
 
-      module.walk([&](DerOp op) {
-        ops.push_back(op);
-      });
+        auto findDerFunctions = [&]() -> bool {
+          module->walk([&](DerFunctionOp op) {
+            toBeProcessed.push_back(op);
+          });
 
-      ForwardAD forwardAD;
+          return !toBeProcessed.empty();
+        };
 
-      for (auto derOp : ops) {
-        mlir::Value operand = derOp.operand();
-        mlir::Operation* definingOp = operand.getDefiningOp();
+        ForwardAD forwardAD;
 
-        if (definingOp == nullptr) {
-          continue;
+        while (findDerFunctions()) {
+          // Sort the functions so that a function derivative is computed only
+          // when the base function already has its body determined.
+
+          llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
+            return first.getSymName() == second.getDerivedFunction();
+          });
+
+          for (auto& function : toBeProcessed) {
+            if (auto res = forwardAD.createPartialDerFunction(builder, function); mlir::failed(res)) {
+              return res;
+            }
+
+            function->erase();
+          }
+
+          toBeProcessed.clear();
         }
 
-        if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp)) {
-          auto classOp = derOp->getParentOfType<ClassInterface>();
+        return mlir::success();
+      }
 
-          if (classOp == nullptr) {
+      mlir::LogicalResult resolveTrivialDerCalls()
+      {
+        auto module = getOperation();
+        mlir::OpBuilder builder(module);
+
+        std::vector<DerOp> ops;
+
+        module.walk([&](DerOp op) {
+          ops.push_back(op);
+        });
+
+        ForwardAD forwardAD;
+
+        for (auto derOp : ops) {
+          mlir::Value operand = derOp.getOperand();
+          mlir::Operation* definingOp = operand.getDefiningOp();
+
+          if (definingOp == nullptr) {
             continue;
           }
 
-          mlir::BlockAndValueMapping derivatives;
-          mapFullDerivatives(derivatives, classOp.getMembers());
+          if (auto derivableOp = mlir::dyn_cast<DerivableOpInterface>(definingOp)) {
+            auto classOp = derOp->getParentOfType<ClassInterface>();
 
-          mlir::ValueRange ders = forwardAD.deriveTree(builder, derivableOp, derivatives);
+            if (classOp == nullptr) {
+              continue;
+            }
 
-          if (ders.size() != derOp->getNumResults()) {
-            continue;
+            mlir::BlockAndValueMapping derivatives;
+            mapFullDerivatives(derivatives, classOp.getMembers());
+
+            mlir::ValueRange ders = forwardAD.deriveTree(builder, derivableOp, derivatives);
+
+            if (ders.size() != derOp->getNumResults()) {
+              continue;
+            }
+
+            derOp->replaceAllUsesWith(ders);
+            derOp.erase();
           }
-
-          derOp->replaceAllUsesWith(ders);
-          derOp.erase();
         }
-      }
 
-      return mlir::success();
-    }
+        return mlir::success();
+      }
   };
 }
 

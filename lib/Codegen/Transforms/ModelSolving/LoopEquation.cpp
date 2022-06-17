@@ -1,5 +1,4 @@
 #include "marco/Codegen/Transforms/ModelSolving/LoopEquation.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
@@ -37,8 +36,8 @@ namespace marco::codegen
     }
 
     for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it) {
-      long from = it->from().getSExtValue();
-      long to = it->to().getSExtValue();
+      long from = it->getFrom().getSExtValue();
+      long to = it->getTo().getSExtValue();
       auto loop = builder.create<ForEquationOp>(it->getLoc(), from, to);
       builder.setInsertionPointToStart(loop.bodyBlock());
       mapping.map(it->induction(), loop.induction());
@@ -82,7 +81,7 @@ namespace marco::codegen
     std::vector<Range> ranges;
 
     for (auto& explicitLoop : getExplicitLoops()) {
-      ranges.emplace_back(explicitLoop.from().getSExtValue(), explicitLoop.to().getSExtValue() + 1);
+      ranges.emplace_back(explicitLoop.getFrom().getSExtValue(), explicitLoop.getTo().getSExtValue() + 1);
     }
 
     auto implicitLoops = getImplicitLoops();
@@ -114,8 +113,8 @@ namespace marco::codegen
       searchAccesses(accesses, value, implicitDimensionAccesses, std::move(path));
     };
 
-    processFn(terminator.lhsValues()[0], EquationPath(EquationPath::LEFT));
-    processFn(terminator.rhsValues()[0], EquationPath(EquationPath::RIGHT));
+    processFn(terminator.getLhsValues()[0], EquationPath(EquationPath::LEFT));
+    processFn(terminator.getRhsValues()[0], EquationPath(EquationPath::RIGHT));
 
     return accesses;
   }
@@ -276,7 +275,7 @@ namespace marco::codegen
           for (auto& op : equation.bodyBlock()->getOperations()) {
             if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
               // Convert the equality into an assignment
-              for (auto [lhs, rhs] : llvm::zip(terminator.lhsValues(), terminator.rhsValues())) {
+              for (auto [lhs, rhs] : llvm::zip(terminator.getLhsValues(), terminator.getRhsValues())) {
                 mlir::Value mappedLhs = mapping.lookup(lhs);
                 mlir::Value mappedRhs = mapping.lookup(rhs);
 
@@ -294,7 +293,7 @@ namespace marco::codegen
                 } else {
                   auto loadOp = mlir::cast<LoadOp>(mappedLhs.getDefiningOp());
                   mappedRhs = builder.create<CastOp>(loc, mappedLhs.getType(), mappedRhs);
-                  builder.create<StoreOp>(loc, mappedRhs, loadOp.array(), loadOp.indices());
+                  builder.create<StoreOp>(loc, mappedRhs, loadOp.getArray(), loadOp.getIndices());
                 }
               }
             } else if (mlir::isa<EquationSideOp>(op)) {
@@ -349,7 +348,7 @@ namespace marco::codegen
     size_t result = 0;
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
 
-    if (auto arrayType = terminator.lhsValues()[0].getType().dyn_cast<ArrayType>()) {
+    if (auto arrayType = terminator.getLhsValues()[0].getType().dyn_cast<ArrayType>()) {
       result += arrayType.getRank();
     }
 
@@ -363,7 +362,7 @@ namespace marco::codegen
     size_t counter = 0;
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
 
-    if (auto arrayType = terminator.lhsValues()[0].getType().dyn_cast<ArrayType>()) {
+    if (auto arrayType = terminator.getLhsValues()[0].getType().dyn_cast<ArrayType>()) {
       for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
         result.emplace_back(0, arrayType.getShape()[i]);
       }

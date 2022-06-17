@@ -6,7 +6,7 @@
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.neg %[[neg0]]
 // CHECK: return %[[res]]
 
-func @neg(%arg0: !modelica.int) -> !modelica.int {
+func.func @neg(%arg0: !modelica.int) -> !modelica.int {
     %0 = modelica.neg %arg0 : !modelica.int -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -21,7 +21,7 @@ func @neg(%arg0: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.add %[[neg0]], %[[neg1]]
 // CHECK: return %[[res]]
 
-func @add(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @add(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.add %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -36,7 +36,7 @@ func @add(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.add_ew %[[neg0]], %[[neg1]]
 // CHECK: return %[[res]]
 
-func @add_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @add_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.add_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -51,7 +51,7 @@ func @add_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.sub %[[neg0]], %[[neg1]]
 // CHECK: return %[[res]]
 
-func @sub(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @sub(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.sub %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -66,7 +66,7 @@ func @sub(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.sub_ew %[[neg0]], %[[neg1]]
 // CHECK: return %[[res]]
 
-func @sub_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @sub_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.sub_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -80,7 +80,7 @@ func @sub_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.mul %[[neg0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func @mul(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @mul(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.mul %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -94,7 +94,7 @@ func @mul(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.mul_ew %[[neg0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func @mul_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @mul_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.mul_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -108,7 +108,7 @@ func @mul_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.div %[[neg0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func @div(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @div(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.div %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int
@@ -122,7 +122,7 @@ func @div(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
 // CHECK: %[[res:[a-zA-Z0-9]*]] = modelica.div_ew %[[neg0]], %[[arg1]]
 // CHECK: return %[[res]]
 
-func @div_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
+func.func @div_ew(%arg0: !modelica.int, %arg1: !modelica.int) -> !modelica.int {
     %0 = modelica.div_ew %arg0, %arg1 : (!modelica.int, !modelica.int) -> !modelica.int
     %1 = modelica.neg %0 : !modelica.int -> !modelica.int
     return %1 : !modelica.int

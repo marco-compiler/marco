@@ -5,23 +5,25 @@
 #include "marco/Codegen/Transforms/Passes.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/InitAllPasses.h"
+#include "mlir/Tools/mlir-opt/MlirOptMain.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
-#include "mlir/Support/MlirOptMain.h"
 #include "llvm/Support/SourceMgr.h"
-
-using namespace ::marco::codegen;
 
 int main(int argc, char* argv[])
 {
   // Register the passes defined by MARCO
-  registerModelicaTransformationPasses();
-	registerModelicaConversionPasses();
-  registerGenericConversionPasses();
+  marco::codegen::registerTransformsPasses();
+  marco::codegen::registerConversionPasses();
 
   // Register some useful MLIR built-in transformations
   mlir::registerCanonicalizerPass();
   mlir::registerCSEPass();
+  mlir::registerConvertArithmeticToLLVMPass();
+  mlir::registerConvertFuncToLLVMPass();
+  mlir::registerSCFToControlFlowPass();
+  mlir::registerConvertControlFlowToLLVMPass();
+  mlir::registerReconcileUnrealizedCastsPass();
 
   // Register the dialects
 	mlir::DialectRegistry registry;

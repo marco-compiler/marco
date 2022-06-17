@@ -1,9 +1,11 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --scalarize                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -11,7 +13,7 @@
 
 // CHECK{LITERAL}: [2.000000e+00, 0.000000e+00, 3.000000e+00]
 
-func @test_abs() -> () {
+func.func @test_abs() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-2.0> : !modelica.real
@@ -33,7 +35,7 @@ func @test_abs() -> () {
 
 // CHECK{LITERAL}: [3.141593e+00, 1.570796e+00, 0.000000e+00]
 
-func @test_acos() -> () {
+func.func @test_acos() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -55,7 +57,7 @@ func @test_acos() -> () {
 
 // CHECK{LITERAL}: [-1.570796e+00, 0.000000e+00, 1.570796e+00]
 
-func @test_asin() -> () {
+func.func @test_asin() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -77,7 +79,7 @@ func @test_asin() -> () {
 
 // CHECK{LITERAL}: [-7.853982e-01, 0.000000e+00, 7.853982e-01]
 
-func @test_atan() -> () {
+func.func @test_atan() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -99,7 +101,7 @@ func @test_atan() -> () {
 
 // CHECK{LITERAL}: [7.853982e-01, 2.356194e+00, -2.356194e+00, -7.853982e-01]
 
-func @test_atan2() -> () {
+func.func @test_atan2() -> () {
     %y = modelica.alloca : !modelica.array<4x!modelica.real>
     %x = modelica.alloca : !modelica.array<4x!modelica.real>
 
@@ -134,7 +136,7 @@ func @test_atan2() -> () {
 
 // CHECK{LITERAL}: [8.660254e-01, 7.071068e-01]
 
-func @test_cos() -> () {
+func.func @test_cos() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.523598775> : !modelica.real
@@ -152,7 +154,7 @@ func @test_cos() -> () {
 
 // CHECK{LITERAL}: [1.543081e+00, 1.000000e+00, 1.543081e+00]
 
-func @test_cosh() -> () {
+func.func @test_cosh() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -174,7 +176,7 @@ func @test_cosh() -> () {
 
 // CHECK{LITERAL}: [3.678794e-01, 1.000000e+00, 2.718282e+00]
 
-func @test_exp() -> () {
+func.func @test_exp() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -196,7 +198,7 @@ func @test_exp() -> () {
 
 // CHECK{LITERAL}: [-2.000000e+00, 0.000000e+00, 2.000000e+00]
 
-func @test_log() -> () {
+func.func @test_log() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.135335283> : !modelica.real
@@ -218,7 +220,7 @@ func @test_log() -> () {
 
 // CHECK{LITERAL}: [-2.000000e+00, 0.000000e+00, 2.000000e+00]
 
-func @test_log10() -> () {
+func.func @test_log10() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.01> : !modelica.real
@@ -240,7 +242,7 @@ func @test_log10() -> () {
 
 // CHECK{LITERAL}: [-1.000000e+00, 0.000000e+00, 1.000000e+00]
 
-func @test_sign() -> () {
+func.func @test_sign() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-2.0> : !modelica.real
@@ -262,7 +264,7 @@ func @test_sign() -> () {
 
 // CHECK{LITERAL}: [5.000000e-01, 7.071068e-01]
 
-func @test_sin() -> () {
+func.func @test_sin() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.523598775> : !modelica.real
@@ -280,7 +282,7 @@ func @test_sin() -> () {
 
 // CHECK{LITERAL}: [-1.175201e+00, 0.000000e+00, 1.175201e+00]
 
-func @test_sinh() -> () {
+func.func @test_sinh() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -302,7 +304,7 @@ func @test_sinh() -> () {
 
 // CHECK{LITERAL}: [2.000000e+00, 3.000000e+00]
 
-func @test_sqrt() -> () {
+func.func @test_sqrt() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<4.0> : !modelica.real
@@ -320,7 +322,7 @@ func @test_sqrt() -> () {
 
 // CHECK{LITERAL}: [5.773503e-01, 1.732051e+00]
 
-func @test_tan() -> () {
+func.func @test_tan() -> () {
     %array = modelica.alloca : !modelica.array<2x!modelica.real>
 
     %0 = modelica.constant #modelica.real<0.523598775> : !modelica.real
@@ -338,7 +340,7 @@ func @test_tan() -> () {
 
 // CHECK{LITERAL}: [-7.615942e-01, 0.000000e+00, 7.615942e-01]
 
-func @test_tanh() -> () {
+func.func @test_tanh() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %0 = modelica.constant #modelica.real<-1.0> : !modelica.real
@@ -358,7 +360,7 @@ func @test_tanh() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test_abs() : () -> ()
     call @test_acos() : () -> ()
     call @test_asin() : () -> ()

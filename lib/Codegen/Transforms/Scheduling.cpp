@@ -2,7 +2,10 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include <set>
+
+#include "marco/Codegen/Transforms/PassDetail.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -25,14 +28,9 @@ static mlir::Operation* getEquationRoot(EquationOp equationOp)
 
 namespace
 {
-  class SchedulingPass : public mlir::PassWrapper<SchedulingPass, mlir::OperationPass<mlir::ModuleOp>>
+  class SchedulingPass : public SchedulingBase<SchedulingPass>
   {
     public:
-      void getDependentDialects(mlir::DialectRegistry& registry) const override
-      {
-        registry.insert<ModelicaDialect>();
-      }
-
       void runOnOperation() override
       {
         mlir::OpBuilder builder(getOperation());
@@ -52,11 +50,11 @@ namespace
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<MatchedEquation> matchedModel(modelOp);
-        matchedModel.setVariables(discoverVariables(modelOp.equationsRegion()));
+        matchedModel.setVariables(discoverVariables(modelOp.getEquationsRegion()));
 
         Equations<MatchedEquation> matchedEquations;
 
-        for (auto& equation : discoverEquations(modelOp.equationsRegion(), matchedModel.getVariables())) {
+        for (auto& equation : discoverEquations(modelOp.getEquationsRegion(), matchedModel.getVariables())) {
           // Matched indices
           std::vector<modeling::Range> ranges;
 

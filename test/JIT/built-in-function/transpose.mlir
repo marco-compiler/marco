@@ -1,10 +1,10 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
-// RUN: | mlir-opt                                  \
-// RUN:      --convert-scf-to-std                   \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -12,12 +12,12 @@
 
 // CHECK{LITERAL}: [[1, 3, 5], [2, 4, 6]]
 
-func @test() -> () {
+func.func @test() -> () {
     %matrix = modelica.alloca : !modelica.array<3x2x!modelica.int>
 
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
 
     %00 = modelica.constant #modelica.int<1>
     modelica.store %matrix[%c0, %c0], %00 : !modelica.array<3x2x!modelica.int>
@@ -43,7 +43,7 @@ func @test() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test() : () -> ()
     return
 }

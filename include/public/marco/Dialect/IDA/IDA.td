@@ -6,6 +6,7 @@ include "marco/Dialect/IDA/IDADialect.td"
 include "marco/Dialect/IDA/IDATypes.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 
 //===----------------------------------------------------------------------===//
@@ -28,7 +29,7 @@ def IDAVariable : Type<CPred<"$_self.isa<::mlir::ida::VariableType>()">,
 // IDA operation definitions
 //===----------------------------------------------------------------------===//
 
-class IDA_Op<string mnemonic, list<OpTrait> traits = []> :
+class IDA_Op<string mnemonic, list<Trait> traits = []> :
     Op<IDA_Dialect, mnemonic, traits>;
 
 def IDA_CreateOp : IDA_Op<"create",
@@ -357,8 +358,8 @@ def IDA_AddAlgebraicVariableOp : IDA_Op<"add_algebraic_variable",
         }]>,
         OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$dimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            auto getterAttr = $_builder.getSymbolRefAttr(getter);
-            auto setterAttr = $_builder.getSymbolRefAttr(setter);
+            auto getterAttr = SymbolRefAttr::get($_builder.getContext(), getter);
+            auto setterAttr = SymbolRefAttr::get($_builder.getContext(), setter);
             build($_builder, $_state, resultType, idaInstance, variable, dimensions, getterAttr, setterAttr);
         }]>
     ];
@@ -413,8 +414,8 @@ def IDA_AddStateVariableOp : IDA_Op<"add_state_variable",
         }]>,
         OpBuilder<(ins "Value":$idaInstance, "Value":$variable, "ArrayAttr":$dimensions, "StringRef":$getter, "StringRef":$setter), [{
             auto resultType = ida::VariableType::get($_builder.getContext());
-            auto getterAttr = $_builder.getSymbolRefAttr(getter);
-            auto setterAttr = $_builder.getSymbolRefAttr(setter);
+            auto getterAttr = SymbolRefAttr::get($_builder.getContext(), getter);
+            auto setterAttr = SymbolRefAttr::get($_builder.getContext(), setter);
             build($_builder, $_state, resultType, idaInstance, variable, dimensions, getterAttr, setterAttr);
         }]>
     ];
@@ -457,8 +458,8 @@ def IDA_SetDerivativeOp : IDA_Op<"set_derivative",
 
     let builders = [
         OpBuilder<(ins "Value":$idaInstance, "Value":$stateVariable, "Value":$derivative, "StringRef":$getter, "StringRef":$setter), [{
-            auto getterAttr = $_builder.getSymbolRefAttr(getter);
-            auto setterAttr = $_builder.getSymbolRefAttr(setter);
+            auto getterAttr = SymbolRefAttr::get($_builder.getContext(), getter);
+            auto setterAttr = SymbolRefAttr::get($_builder.getContext(), setter);
             build($_builder, $_state, idaInstance, stateVariable, derivative, getterAttr, setterAttr);
         }]>
     ];
@@ -469,7 +470,7 @@ def IDA_SetDerivativeOp : IDA_Op<"set_derivative",
 }
 
 def IDA_VariableGetterOp : IDA_Op<"variable_getter",
-    [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
 {
     let summary = "Getter interface for an external variable.";
 
@@ -489,7 +490,7 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttr:$type);
+        TypeAttrOf<FunctionType>:$function_type);
 
     let results = (outs);
 
@@ -513,73 +514,35 @@ def IDA_VariableGetterOp : IDA_Op<"variable_getter",
     ];
 
     let extraClassDeclaration = [{
-        public:
-            llvm::StringRef name() {
-                return sym_name();
-            }
+        BlockArgument getVariable();
+        ArrayRef<BlockArgument> getVariableIndices();
 
-            FunctionType getType() {
-                return getTypeAttr().getValue().cast<FunctionType>();
-            }
+        //===------------------------------------------------------------------===//
+        // FunctionOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            BlockArgument getVariable();
-            ArrayRef<BlockArgument> getVariableIndices();
+        /// Returns the argument types of this function.
+        ArrayRef<Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
 
-            //===------------------------------------------------------------------===//
-            // FunctionOpInterface Methods
-            //===------------------------------------------------------------------===//
+        /// Returns the result types of this function.
+        ArrayRef<Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
 
-            /// Returns the argument types of this function.
-            ArrayRef<Type> getArgumentTypes() {
-                return getType().getInputs();
-            }
+        //===------------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            /// Returns the result types of this function.
-            ArrayRef<Type> getResultTypes() {
-                return getType().getResults();
-            }
-
-            //===------------------------------------------------------------------===//
-            // SymbolOpInterface Methods
-            //===------------------------------------------------------------------===//
-
-            bool isDeclaration() {
-                return isExternal();
-            }
-
-        private:
-            // This trait needs access to the hooks defined below.
-            friend class OpTrait::FunctionLike<VariableGetterOp>;
-
-            /// Returns the number of arguments. This is a hook for
-            /// OpTrait::FunctionLike.
-            unsigned getNumFuncArguments() {
-                return getType().getInputs().size();
-            }
-
-            /// Returns the number of results. This is a hook for OpTrait::FunctionLike.
-            unsigned getNumFuncResults() {
-                return getType().getResults().size();
-            }
-
-            /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
-            /// attribute is present and checks if it holds a function type. Ensures
-            /// getType, getNumFuncArguments, and getNumFuncResults can be called
-            /// safely.
-            LogicalResult verifyType() {
-                auto type = getTypeAttr().getValue();
-
-                if (!type.isa<FunctionType>()) {
-                    return emitOpError("requires '" + getTypeAttrName() + "' attribute of function type");
-               }
-
-                return success();
-            }
+        bool isDeclaration() {
+            return isExternal();
+        }
     }];
 }
 
 def IDA_VariableSetterOp : IDA_Op<"variable_setter",
-    [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
 {
     let summary = "Setter interface for an external variable.";
 
@@ -598,7 +561,7 @@ def IDA_VariableSetterOp : IDA_Op<"variable_setter",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttr:$type);
+        TypeAttrOf<FunctionType>:$function_type);
 
     let results = (outs);
 
@@ -623,69 +586,31 @@ def IDA_VariableSetterOp : IDA_Op<"variable_setter",
     ];
 
     let extraClassDeclaration = [{
-        public:
-            llvm::StringRef name() {
-                return sym_name();
-            }
+        BlockArgument getVariable();
+        BlockArgument getValue();
+        ArrayRef<BlockArgument> getVariableIndices();
 
-            FunctionType getType() {
-                return getTypeAttr().getValue().cast<FunctionType>();
-            }
+        //===------------------------------------------------------------------===//
+        // FunctionOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            BlockArgument getVariable();
-            BlockArgument getValue();
-            ArrayRef<BlockArgument> getVariableIndices();
+        /// Returns the argument types of this function.
+        ArrayRef<Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
 
-            //===------------------------------------------------------------------===//
-            // FunctionOpInterface Methods
-            //===------------------------------------------------------------------===//
+        /// Returns the result types of this function.
+        ArrayRef<Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
 
-            /// Returns the argument types of this function.
-            ArrayRef<Type> getArgumentTypes() {
-                return getType().getInputs();
-            }
+        //===------------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            /// Returns the result types of this function.
-            ArrayRef<Type> getResultTypes() {
-                return getType().getResults();
-            }
-
-            //===------------------------------------------------------------------===//
-            // SymbolOpInterface Methods
-            //===------------------------------------------------------------------===//
-
-            bool isDeclaration() {
-                return isExternal();
-            }
-
-        private:
-            // This trait needs access to the hooks defined below.
-            friend class OpTrait::FunctionLike<VariableSetterOp>;
-
-            /// Returns the number of arguments. This is a hook for
-            /// OpTrait::FunctionLike.
-            unsigned getNumFuncArguments() {
-                return getType().getInputs().size();
-            }
-
-            /// Returns the number of results. This is a hook for OpTrait::FunctionLike.
-            unsigned getNumFuncResults() {
-                return getType().getResults().size();
-            }
-
-            /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
-            /// attribute is present and checks if it holds a function type. Ensures
-            /// getType, getNumFuncArguments, and getNumFuncResults can be called
-            /// safely.
-            LogicalResult verifyType() {
-                auto type = getTypeAttr().getValue();
-
-                if (!type.isa<FunctionType>()) {
-                    return emitOpError("requires '" + getTypeAttrName() + "' attribute of function type");
-               }
-
-                return success();
-            }
+        bool isDeclaration() {
+            return isExternal();
+        }
     }];
 }
 
@@ -720,7 +645,7 @@ def IDA_AddVariableAccessOp : IDA_Op<"add_variable_access",
 }
 
 def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
-    [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
 {
     let summary = "Residual function of a loop equation.";
 
@@ -754,7 +679,7 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttr:$type,
+        TypeAttrOf<FunctionType>:$function_type,
         IndexAttr:$equationRank);
 
     let results = (outs);
@@ -786,74 +711,36 @@ def IDA_ResidualFunctionOp : IDA_Op<"residual_function",
     ];
 
     let extraClassDeclaration = [{
-        public:
-            llvm::StringRef name() {
-                return sym_name();
-            }
+        BlockArgument getTime();
+        ArrayRef<BlockArgument> getVariables();
+        ArrayRef<BlockArgument> getEquationIndices();
 
-            FunctionType getType() {
-                return getTypeAttr().getValue().cast<FunctionType>();
-            }
+        //===------------------------------------------------------------------===//
+        // FunctionOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            BlockArgument getTime();
-            ArrayRef<BlockArgument> getVariables();
-            ArrayRef<BlockArgument> getEquationIndices();
+        /// Returns the argument types of this function.
+        ArrayRef<Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
 
-            //===------------------------------------------------------------------===//
-            // FunctionOpInterface Methods
-            //===------------------------------------------------------------------===//
+        /// Returns the result types of this function.
+        ArrayRef<Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
 
-            /// Returns the argument types of this function.
-            ArrayRef<Type> getArgumentTypes() {
-                return getType().getInputs();
-            }
+        //===------------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            /// Returns the result types of this function.
-            ArrayRef<Type> getResultTypes() {
-                return getType().getResults();
-            }
-
-            //===------------------------------------------------------------------===//
-            // SymbolOpInterface Methods
-            //===------------------------------------------------------------------===//
-
-            bool isDeclaration() {
-                return isExternal();
-            }
-
-        private:
-            // This trait needs access to the hooks defined below.
-            friend class OpTrait::FunctionLike<ResidualFunctionOp>;
-
-            /// Returns the number of arguments. This is a hook for
-            /// OpTrait::FunctionLike.
-            unsigned getNumFuncArguments() {
-                return getType().getInputs().size();
-            }
-
-            /// Returns the number of results. This is a hook for OpTrait::FunctionLike.
-            unsigned getNumFuncResults() {
-                return getType().getResults().size();
-            }
-
-            /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
-            /// attribute is present and checks if it holds a function type. Ensures
-            /// getType, getNumFuncArguments, and getNumFuncResults can be called
-            /// safely.
-            LogicalResult verifyType() {
-                auto type = getTypeAttr().getValue();
-
-                if (!type.isa<FunctionType>()) {
-                    return emitOpError("requires '" + getTypeAttrName() + "' attribute of function type");
-               }
-
-                return success();
-            }
+        bool isDeclaration() {
+            return isExternal();
+        }
     }];
 }
 
 def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
-    [IsolatedFromAbove, FunctionLike, AutomaticAllocationScope, Symbol]>
+    [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
 {
     let summary = "Jacobian function of a loop equation.";
 
@@ -888,7 +775,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 
     let arguments = (ins
         SymbolNameAttr:$sym_name,
-        TypeAttr:$type,
+        TypeAttrOf<FunctionType>:$function_type,
         IndexAttr:$equationRank,
         IndexAttr:$variableRank);
 
@@ -927,71 +814,33 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
     ];
 
     let extraClassDeclaration = [{
-        public:
-            llvm::StringRef name() {
-                return sym_name();
-            }
+        BlockArgument getTime();
+        ArrayRef<BlockArgument> getVariables();
+        ArrayRef<BlockArgument> getEquationIndices();
+        ArrayRef<BlockArgument> getVariableIndices();
+        BlockArgument getAlpha();
 
-            BlockArgument getTime();
-            ArrayRef<BlockArgument> getVariables();
-            ArrayRef<BlockArgument> getEquationIndices();
-            ArrayRef<BlockArgument> getVariableIndices();
-            BlockArgument getAlpha();
+        //===------------------------------------------------------------------===//
+        // FunctionOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            FunctionType getType() {
-                return getTypeAttr().getValue().cast<FunctionType>();
-            }
+        /// Returns the argument types of this function.
+        ArrayRef<Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
 
-            //===------------------------------------------------------------------===//
-            // FunctionOpInterface Methods
-            //===------------------------------------------------------------------===//
+        /// Returns the result types of this function.
+        ArrayRef<Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
 
-            /// Returns the argument types of this function.
-            ArrayRef<Type> getArgumentTypes() {
-                return getType().getInputs();
-            }
+        //===------------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===------------------------------------------------------------------===//
 
-            /// Returns the result types of this function.
-            ArrayRef<Type> getResultTypes() {
-                return getType().getResults();
-            }
-
-            //===------------------------------------------------------------------===//
-            // SymbolOpInterface Methods
-            //===------------------------------------------------------------------===//
-
-            bool isDeclaration() {
-                return isExternal();
-            }
-
-        private:
-            // This trait needs access to the hooks defined below.
-            friend class OpTrait::FunctionLike<JacobianFunctionOp>;
-
-            /// Returns the number of arguments. This is a hook for
-            /// OpTrait::FunctionLike.
-            unsigned getNumFuncArguments() {
-                return getType().getInputs().size();
-            }
-
-            /// Returns the number of results. This is a hook for OpTrait::FunctionLike.
-            unsigned getNumFuncResults() {
-                return getType().getResults().size();
-            }
-
-            /// Hook for OpTrait::FunctionLike, called after verifying that the 'type'
-            /// attribute is present and checks if it holds a function type. Ensures
-            /// getType, getNumFuncArguments, and getNumFuncResults can be called
-            /// safely.
-            LogicalResult verifyType() {
-                auto type = getTypeAttr().getValue();
-
-                if (!type.isa<FunctionType>()) {
-                    return emitOpError("requires '" + getTypeAttrName() + "' attribute of function type");
-               }
-
-                return success();
-            }
+        bool isDeclaration() {
+            return isExternal();
+        }
     }];
 }
 

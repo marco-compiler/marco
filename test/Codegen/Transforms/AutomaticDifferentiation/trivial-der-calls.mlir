@@ -1,9 +1,11 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --auto-diff                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -21,7 +23,7 @@ modelica.function @sin_der : (!modelica.real, !modelica.real) -> (!modelica.real
     modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_sin() -> () {
+func.func @test_sin() -> () {
     %x = modelica.constant #modelica.real<3.0>
     %der_x = modelica.constant #modelica.real<2.0>
     %result = modelica.call @sin_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
@@ -41,7 +43,7 @@ modelica.function @cos_der : (!modelica.real, !modelica.real) -> (!modelica.real
     modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @test_cos() -> () {
+func.func @test_cos() -> () {
     %x = modelica.constant #modelica.real<3.0>
     %der_x = modelica.constant #modelica.real<2.0>
     %result = modelica.call @cos_der(%x, %der_x) : (!modelica.real, !modelica.real) -> (!modelica.real)
@@ -49,7 +51,7 @@ func @test_cos() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test_sin() : () -> ()
     call @test_cos() : () -> ()
     return

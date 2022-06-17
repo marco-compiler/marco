@@ -37,7 +37,7 @@ namespace marco::codegen
           const ::marco::modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const override;
 
-      virtual mlir::FuncOp createTemplateFunction(
+      virtual mlir::func::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           mlir::ValueRange vars,

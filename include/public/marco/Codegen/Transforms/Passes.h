@@ -3,7 +3,7 @@
 
 // Just a convenience header file to include the Modelica transformation passes
 
-#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving.h"
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
@@ -14,21 +14,13 @@
 
 namespace marco::codegen
 {
-	inline void registerModelicaTransformationPasses()
-	{
-    registerArrayDeallocationPass();
-		registerAutomaticDifferentiationPass();
-		registerExplicitCastInsertionPass();
-		registerFunctionScalarizationPass();
-		registerSolveModelPass();
+  //===----------------------------------------------------------------------===//
+  // Registration
+  //===----------------------------------------------------------------------===//
 
-    // Debug transformations
-    registerNegateOpDistributionPass();
-    registerMulOpDistributionPass();
-    registerDivOpDistributionPass();
-    registerMatchingPass();
-    registerSchedulingPass();
-	}
+  /// Generate the code for registering passes.
+  #define GEN_PASS_REGISTRATION
+  #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-#endif //MARCO_CODEGEN_TRANSFORMS_PASSES_H
+#endif // MARCO_CODEGEN_TRANSFORMS_PASSES_H

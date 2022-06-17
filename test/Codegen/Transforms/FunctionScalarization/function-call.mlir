@@ -1,9 +1,11 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --scalarize                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -12,14 +14,14 @@
 // CHECK{LITERAL}: [0.000000e+00, 1.000000e+00, 2.000000e+00]
 
 modelica.function @callee : (!modelica.real) -> (!modelica.real) {
-    %cst = constant 3 : index
+    %cst = arith.constant 3 : index
     %3 = modelica.member_create @x : !modelica.member<!modelica.real, input>
     %1 = modelica.member_create @y : !modelica.member<!modelica.real, output>
     %2 = modelica.member_load %3 : !modelica.member<!modelica.real, input> -> !modelica.real
     modelica.member_store %1, %2 : !modelica.member<!modelica.real, output>, !modelica.real
 }
 
-func @caller() -> () {
+func.func @caller() -> () {
     %array = modelica.alloca : !modelica.array<3x!modelica.real>
 
     %c0 = modelica.constant 0 : index
@@ -39,7 +41,7 @@ func @caller() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @caller() : () -> ()
     return
 }

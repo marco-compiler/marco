@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving.h"
 #include "marco/Codegen/Transforms/ModelSolving/Cycles.h"
 #include "marco/Codegen/Transforms/ModelSolving/Equation.h"
 #include "marco/Codegen/Transforms/ModelSolving/EquationImpl.h"
@@ -10,9 +10,10 @@
 #include "marco/Codegen/Transforms/ModelSolving/VariablesMap.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/STLExtras.h"
@@ -20,6 +21,10 @@
 #include <map>
 #include <memory>
 #include <queue>
+
+#include "marco/Codegen/Transforms/PassDetail.h"
+
+#include "llvm/Support/Debug.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -37,18 +42,18 @@ namespace
       auto loc = op.getLoc();
       auto terminator = mlir::cast<EquationSidesOp>(op.bodyBlock()->getTerminator());
 
-      if (terminator.lhsValues().size() != terminator.rhsValues().size()) {
+      if (terminator.getLhsValues().size() != terminator.getRhsValues().size()) {
         return rewriter.notifyMatchFailure(op, "Different amount of values in left-hand and right-hand sides of the equation");
       }
 
-      auto amountOfValues = terminator.lhsValues().size();
+      auto amountOfValues = terminator.getLhsValues().size();
 
       for (size_t i = 0; i < amountOfValues; ++i) {
         rewriter.setInsertionPointAfter(op);
 
         auto clone = rewriter.create<EquationOp>(loc);
-        assert(clone.bodyRegion().empty());
-        mlir::Block* cloneBodyBlock = rewriter.createBlock(&clone.bodyRegion());
+        assert(clone.getBodyRegion().empty());
+        mlir::Block* cloneBodyBlock = rewriter.createBlock(&clone.getBodyRegion());
         rewriter.setInsertionPointToStart(cloneBodyBlock);
 
         mlir::BlockAndValueMapping mapping;
@@ -59,11 +64,11 @@ namespace
           }
 
           if (mlir::isa<EquationSidesOp>(originalOp)) {
-            auto lhsOp = mlir::cast<EquationSideOp>(terminator.lhs().getDefiningOp());
-            auto rhsOp = mlir::cast<EquationSideOp>(terminator.rhs().getDefiningOp());
+            auto lhsOp = mlir::cast<EquationSideOp>(terminator.getLhs().getDefiningOp());
+            auto rhsOp = mlir::cast<EquationSideOp>(terminator.getRhs().getDefiningOp());
 
-            auto newLhsOp = rewriter.create<EquationSideOp>(lhsOp.getLoc(), mapping.lookup(terminator.lhsValues()[i]));
-            auto newRhsOp = rewriter.create<EquationSideOp>(rhsOp.getLoc(), mapping.lookup(terminator.rhsValues()[i]));
+            auto newLhsOp = rewriter.create<EquationSideOp>(lhsOp.getLoc(), mapping.lookup(terminator.getLhsValues()[i]));
+            auto newRhsOp = rewriter.create<EquationSideOp>(rhsOp.getLoc(), mapping.lookup(terminator.getRhsValues()[i]));
 
             rewriter.create<EquationSidesOp>(terminator.getLoc(), newLhsOp, newRhsOp);
           } else {
@@ -88,7 +93,7 @@ static void collectDerivedVariablesIndices(
     equation->getOperation().walk([&](DerOp derOp) {
       auto it = llvm::find_if(accesses, [&](const auto& access) {
         auto value = equation->getValueAtPath(access.getPath());
-        return value == derOp.operand();
+        return value == derOp.getOperand();
       });
 
       assert(it != accesses.end());
@@ -117,8 +122,8 @@ static void createInitializingEquation(
     }
 
     auto equationOp = builder.create<EquationOp>(loc);
-    assert(equationOp.bodyRegion().empty());
-    mlir::Block* bodyBlock = builder.createBlock(&equationOp.bodyRegion());
+    assert(equationOp.getBodyRegion().empty());
+    mlir::Block* bodyBlock = builder.createBlock(&equationOp.getBodyRegion());
     builder.setInsertionPointToStart(bodyBlock);
 
     mlir::Value value = valueCallback(builder, loc);
@@ -168,7 +173,7 @@ static unsigned int addDerivativeToRegions(
   for (auto& region : regions) {
     assert(region->hasOneBlock());
 
-    mlir::Value derivative = region->addArgument(derType);
+    mlir::Value derivative = region->addArgument(derType, loc);
 
     // We need to create additional equations in case of some non-derived indices.
     // If this is not done, then the matching process would fail by detecting an
@@ -235,8 +240,8 @@ static mlir::LogicalResult createDerivatives(
 
   // Collect the regions to be modified
   llvm::SmallVector<mlir::Region*, 2> regions;
-  regions.push_back(&modelOp.equationsRegion());
-  regions.push_back(&modelOp.initialEquationsRegion());
+  regions.push_back(&modelOp.getEquationsRegion());
+  regions.push_back(&modelOp.getInitialEquationsRegion());
 
   // Ensure that all regions have the same arguments
   assert(llvm::all_of(regions, [&](const auto& region) {
@@ -245,9 +250,9 @@ static mlir::LogicalResult createDerivatives(
 
   // The list of the new variables
   std::vector<mlir::Value> variables;
-  auto terminator = mlir::cast<YieldOp>(modelOp.initRegion().back().getTerminator());
+  auto terminator = mlir::cast<YieldOp>(modelOp.getInitRegion().back().getTerminator());
 
-  for (auto variable : terminator.values()) {
+  for (auto variable : terminator.getValues()) {
     variables.push_back(variable);
   }
 
@@ -261,7 +266,7 @@ static mlir::LogicalResult createDerivatives(
   llvm::sort(derivedVariablesOrdered);
 
   for (const auto& argNumber : derivedVariablesOrdered) {
-    auto variable = terminator.values()[argNumber];
+    auto variable = terminator.getValues()[argNumber];
     auto memberCreateOp = variable.getDefiningOp<MemberCreateOp>();
     auto variableMemberType = memberCreateOp.getMemberType();
 
@@ -278,7 +283,7 @@ static mlir::LogicalResult createDerivatives(
     // Create the variable and initialize it at zero
     builder.setInsertionPoint(terminator);
 
-    auto derivativeName = getNextFullDerVariableName(memberCreateOp.name(), 1);
+    auto derivativeName = getNextFullDerVariableName(memberCreateOp.getSymName(), 1);
 
     auto derMemberOp = builder.create<MemberCreateOp>(
         memberCreateOp.getLoc(), derivativeName, MemberType::wrap(derType), llvm::None);
@@ -308,7 +313,7 @@ static mlir::LogicalResult createDerivatives(
         */
   }
 
-  builder.setInsertionPointToEnd(&modelOp.initRegion().back());
+  builder.setInsertionPointToEnd(&modelOp.getInitRegion().back());
   builder.create<YieldOp>(terminator.getLoc(), variables);
   terminator.erase();
 
@@ -324,8 +329,8 @@ static mlir::LogicalResult removeDerOps(
 
   // Collect the regions to be modified
   llvm::SmallVector<mlir::Region*, 2> regions;
-  regions.push_back(&modelOp.equationsRegion());
-  regions.push_back(&modelOp.initialEquationsRegion());
+  regions.push_back(&modelOp.getEquationsRegion());
+  regions.push_back(&modelOp.getInitialEquationsRegion());
 
   auto appendIndexesFn = [](std::vector<mlir::Value>& destination, mlir::ValueRange indices) {
     for (size_t i = 0, e = indices.size(); i < e; ++i) {
@@ -349,19 +354,19 @@ static mlir::LogicalResult removeDerOps(
         // value is stored within an array. Thus, we need to store its position.
 
         std::vector<mlir::Value> subscriptions;
-        mlir::Value operand = derOp.operand();
+        mlir::Value operand = derOp.getOperand();
 
         while (!operand.isa<mlir::BlockArgument>()) {
           mlir::Operation* definingOp = operand.getDefiningOp();
           assert(mlir::isa<LoadOp>(definingOp) || mlir::isa<SubscriptionOp>(definingOp));
 
           if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
-            appendIndexesFn(subscriptions, loadOp.indices());
-            operand = loadOp.array();
+            appendIndexesFn(subscriptions, loadOp.getIndices());
+            operand = loadOp.getArray();
           } else {
             auto subscriptionOp = mlir::cast<SubscriptionOp>(definingOp);
-            appendIndexesFn(subscriptions, subscriptionOp.indices());
-            operand = subscriptionOp.source();
+            appendIndexesFn(subscriptions, subscriptionOp.getIndices());
+            operand = subscriptionOp.getSource();
           }
         }
 
@@ -390,24 +395,143 @@ static mlir::LogicalResult removeDerOps(
 
 namespace
 {
+  struct FuncOpTypesPattern : public mlir::OpConversionPattern<mlir::func::FuncOp>
+  {
+    using mlir::OpConversionPattern<mlir::func::FuncOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(mlir::func::FuncOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Type, 3> resultTypes;
+      llvm::SmallVector<mlir::Type, 3> argTypes;
+
+      for (const auto& type : op.getFunctionType().getResults()) {
+        resultTypes.push_back(getTypeConverter()->convertType(type));
+      }
+
+      for (const auto& type : op.getFunctionType().getInputs()) {
+        argTypes.push_back(getTypeConverter()->convertType(type));
+      }
+
+      auto functionType = rewriter.getFunctionType(argTypes, resultTypes);
+      auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(op, op.getSymName(), functionType);
+
+      mlir::Block* entryBlock = newOp.addEntryBlock();
+      rewriter.setInsertionPointToStart(entryBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      // Clone the blocks structure
+      for (auto& block : llvm::enumerate(op.getBody())) {
+        if (block.index() == 0) {
+          mapping.map(&block.value(), entryBlock);
+        } else {
+          std::vector<mlir::Location> argLocations;
+
+          for (const auto& arg : block.value().getArguments()) {
+            argLocations.push_back(arg.getLoc());
+          }
+
+          auto signatureConversion = typeConverter->convertBlockSignature(&block.value());
+
+          if (!signatureConversion) {
+            return mlir::failure();
+          }
+
+          mlir::Block* clonedBlock = rewriter.createBlock(
+              &newOp.getBody(),
+              newOp.getBody().end(),
+              signatureConversion->getConvertedTypes(),
+              argLocations);
+
+          mapping.map(&block.value(), clonedBlock);
+        }
+      }
+
+      for (auto& block : op.getBody().getBlocks()) {
+        mlir::Block* clonedBlock = mapping.lookup(&block);
+        rewriter.setInsertionPointToStart(clonedBlock);
+
+        // Cast the block arguments
+        for (const auto& [original, cloned] : llvm::zip(block.getArguments(), clonedBlock->getArguments())) {
+          mlir::Value arg = typeConverter->materializeSourceConversion(
+              rewriter, cloned.getLoc(), original.getType(), cloned);
+
+          mapping.map(original, arg);
+        }
+
+        // Clone the operations
+        for (auto& bodyOp : block.getOperations()) {
+          if (auto returnOp = mlir::dyn_cast<mlir::func::ReturnOp>(bodyOp)) {
+            std::vector<mlir::Value> returnValues;
+
+            for (auto returnValue : returnOp.operands()) {
+              returnValues.push_back(getTypeConverter()->materializeTargetConversion(
+                  rewriter, returnOp.getLoc(),
+                  getTypeConverter()->convertType(returnValue.getType()),
+                  mapping.lookup(returnValue)));
+            }
+
+            rewriter.create<mlir::func::ReturnOp>(returnOp.getLoc(), returnValues);
+          } else {
+            rewriter.clone(bodyOp, mapping);
+          }
+        }
+      }
+
+      return mlir::success();
+    }
+  };
+
+  struct CallOpTypesPattern : public mlir::OpConversionPattern<mlir::func::CallOp>
+  {
+    using mlir::OpConversionPattern<mlir::func::CallOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(mlir::func::CallOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 3> values;
+
+      for (const auto& operand : op.operands()) {
+        values.push_back(getTypeConverter()->materializeTargetConversion(
+            rewriter, operand.getLoc(), getTypeConverter()->convertType(operand.getType()), operand));
+      }
+
+      llvm::SmallVector<mlir::Type, 3> resultTypes;
+
+      for (const auto& type : op.getResults().getTypes()) {
+        resultTypes.push_back(getTypeConverter()->convertType(type));
+      }
+
+      auto newOp = rewriter.create<mlir::func::CallOp>(op.getLoc(), op.getCallee(), resultTypes, values);
+
+      llvm::SmallVector<mlir::Value, 3> results;
+
+      for (const auto& [oldResult, newResult] : llvm::zip(op.getResults(), newOp.getResults())) {
+        if (oldResult.getType() != newResult.getType()) {
+          results.push_back(getTypeConverter()->materializeSourceConversion(
+              rewriter, newResult.getLoc(), oldResult.getType(), newResult));
+        } else {
+          results.push_back(newResult);
+        }
+      }
+
+      rewriter.replaceOp(op, results);
+      return mlir::success();
+    }
+  };
+}
+
+namespace
+{
   /// Model solving pass.
   /// Its objective is to convert a descriptive (and thus not sequential) model into an
   /// algorithmic one and to create the functions to be called during the simulation.
-  class ModelSolvingPass: public mlir::PassWrapper<ModelSolvingPass, mlir::OperationPass<mlir::ModuleOp>>
+  class ModelSolvingPass: public ModelSolvingBase<ModelSolvingPass>
   {
     public:
-      explicit ModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
+      ModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
           : options(std::move(options)),
             bitWidth(std::move(bitWidth))
       {
-      }
-
-      void getDependentDialects(mlir::DialectRegistry& registry) const override
-      {
-        registry.insert<ModelicaDialect>();
-        registry.insert<mlir::ida::IDADialect>();
-        registry.insert<mlir::scf::SCFDialect>();
-        registry.insert<mlir::LLVM::LLVMDialect>();
       }
 
       void runOnOperation() override
@@ -446,11 +570,11 @@ namespace
         Model<Equation> initialModel(models[0]);
         Model<Equation> model(models[0]);
 
-        initialModel.setVariables(discoverVariables(initialModel.getOperation().initialEquationsRegion()));
-        initialModel.setEquations(discoverEquations(initialModel.getOperation().initialEquationsRegion(), initialModel.getVariables()));
+        initialModel.setVariables(discoverVariables(initialModel.getOperation().getInitialEquationsRegion()));
+        initialModel.setEquations(discoverEquations(initialModel.getOperation().getInitialEquationsRegion(), initialModel.getVariables()));
 
-        model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
-        model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
+        model.setVariables(discoverVariables(model.getOperation().getEquationsRegion()));
+        model.setEquations(discoverEquations(model.getOperation().getEquationsRegion(), model.getVariables()));
 
         // Determine which scalar variables do appear as argument to the derivative operation
         std::map<unsigned int, IndexSet> derivedIndices;
@@ -460,11 +584,11 @@ namespace
         // The variable splitting may have caused a variable list change and equations splitting.
         // For this reason we need to perform again the discovery process.
 
-        initialModel.setVariables(discoverVariables(initialModel.getOperation().initialEquationsRegion()));
-        initialModel.setEquations(discoverEquations(initialModel.getOperation().initialEquationsRegion(), initialModel.getVariables()));
+        initialModel.setVariables(discoverVariables(initialModel.getOperation().getInitialEquationsRegion()));
+        initialModel.setEquations(discoverEquations(initialModel.getOperation().getInitialEquationsRegion(), initialModel.getVariables()));
 
-        model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
-        model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
+        model.setVariables(discoverVariables(model.getOperation().getEquationsRegion()));
+        model.setEquations(discoverEquations(model.getOperation().getEquationsRegion(), model.getVariables()));
 
         // Create the variables for the derivatives, together with the initial equations needed to
         // initialize them to zero.
@@ -480,14 +604,14 @@ namespace
 
         // Now that the derivatives have been converted to variables, we need perform a new scan
         // of the variables so that they become available inside the model.
-        initialModel.setVariables(discoverVariables(initialModel.getOperation().initialEquationsRegion()));
-        model.setVariables(discoverVariables(model.getOperation().equationsRegion()));
+        initialModel.setVariables(discoverVariables(initialModel.getOperation().getInitialEquationsRegion()));
+        model.setVariables(discoverVariables(model.getOperation().getEquationsRegion()));
 
         // Additional equations are introduced in case of partially derived arrays. Thus, we need
         // to perform again the discovery of the equations.
 
-        initialModel.setEquations(discoverEquations(initialModel.getOperation().initialEquationsRegion(), initialModel.getVariables()));
-        model.setEquations(discoverEquations(model.getOperation().equationsRegion(), model.getVariables()));
+        initialModel.setEquations(discoverEquations(initialModel.getOperation().getInitialEquationsRegion(), initialModel.getVariables()));
+        model.setEquations(discoverEquations(model.getOperation().getEquationsRegion(), model.getVariables()));
 
         // Remove the derivative operations
         if (mlir::failed(removeDerOps(builder, models[0], derivativesMap))) {
@@ -525,6 +649,13 @@ namespace
 
         // Erase the model operation, which has been converted to algorithmic code
         models[0].erase();
+
+        //llvm::DebugFlag = true;
+
+        // Convert the functions having a Modelica type within their signature.
+        if (mlir::failed(convertFuncOps())) {
+          return signalPassFailure();
+        }
       }
 
     private:
@@ -539,13 +670,23 @@ namespace
         mlir::OpBuilder::InsertionGuard guard(builder);
 
         if (!modelOp.hasInitialEquationsBlock()) {
-          builder.createBlock(&modelOp.initialEquationsRegion(), {}, modelOp.equationsRegion().getArgumentTypes());
+          llvm::SmallVector<mlir::Location> variableLocations;
+
+          for (const auto& variable : modelOp.getEquationsRegion().getArguments()) {
+            variableLocations.push_back(variable.getLoc());
+          }
+
+          builder.createBlock(
+              &modelOp.getInitialEquationsRegion(),
+              {},
+              modelOp.getEquationsRegion().getArgumentTypes(),
+              variableLocations);
         }
 
         // Map the variables declared into the equations region to the ones declared into the initial equations' region
         mlir::BlockAndValueMapping mapping;
-        auto originalVariables = modelOp.equationsRegion().getArguments();
-        auto mappedVariables = modelOp.initialEquationsRegion().getArguments();
+        auto originalVariables = modelOp.getEquationsRegion().getArguments();
+        auto mappedVariables = modelOp.getInitialEquationsRegion().getArguments();
         assert(originalVariables.size() == mappedVariables.size());
 
         for (const auto& [original, mapped] : llvm::zip(originalVariables, mappedVariables)) {
@@ -572,10 +713,10 @@ namespace
 
         target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
           auto terminator = mlir::cast<EquationSidesOp>(op.bodyBlock()->getTerminator());
-          return terminator.lhsValues().size() == 1 && terminator.rhsValues().size() == 1;
+          return terminator.getLhsValues().size() == 1 && terminator.getRhsValues().size() == 1;
         });
 
-        mlir::OwningRewritePatternList patterns(&getContext());
+        mlir::RewritePatternSet patterns(&getContext());
         patterns.insert<EquationOpMultipleValuesPattern>(&getContext());
 
         return applyPartialConversion(getOperation(), target, std::move(patterns));
@@ -774,6 +915,44 @@ namespace
 
         result.setDerivativesMap(model.getDerivativesMap());
         return mlir::success();
+      }
+
+      mlir::LogicalResult convertFuncOps()
+      {
+        mlir::ConversionTarget target(getContext());
+
+        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        marco::codegen::TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
+        target.addDynamicallyLegalOp<mlir::func::FuncOp>([&](mlir::func::FuncOp op) {
+          return typeConverter.isSignatureLegal(op.getFunctionType());
+        });
+
+        target.addDynamicallyLegalOp<mlir::func::CallOp>([&](mlir::func::CallOp op) {
+          for (const auto& type : op.operands().getTypes()) {
+            if (!typeConverter.isLegal(type)) {
+              return false;
+            }
+          }
+
+          for (const auto& type : op.getResults().getTypes()) {
+            if (!typeConverter.isLegal(type)) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+          return true;
+        });
+
+        mlir::RewritePatternSet patterns(&getContext());
+        patterns.insert<FuncOpTypesPattern>(typeConverter, &getContext());
+        patterns.insert<CallOpTypesPattern>(typeConverter, &getContext());
+
+        return applyPartialConversion(getOperation(), target, std::move(patterns));
       }
 
     private:

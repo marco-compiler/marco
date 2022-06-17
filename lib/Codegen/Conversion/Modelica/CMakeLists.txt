@@ -16,9 +16,7 @@ add_mlir_dialect_library(MLIRModelicaConversion
     ${SOURCES}
 
     DEPENDS
-    marco::codegen
-    marco::modeling
-    MLIRIDAConversion
+    MARCOConversionPassIncGen
 
     LINK_LIBS PUBLIC
     marco::codegen

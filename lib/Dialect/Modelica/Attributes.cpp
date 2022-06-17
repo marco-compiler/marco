@@ -1,6 +1,31 @@
 #include "marco/Dialect/Modelica/Attributes.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "llvm/ADT/TypeSwitch.h"
+
+using namespace ::mlir::modelica;
+
+//===----------------------------------------------------------------------===//
+// Tablegen attribute definitions
+//===----------------------------------------------------------------------===//
+
+#define GET_ATTRDEF_CLASSES
+#include "marco/Dialect/Modelica/ModelicaAttributes.cpp.inc"
+
+//===----------------------------------------------------------------------===//
+// ModelicaDialect
+//===----------------------------------------------------------------------===//
+
+namespace mlir::modelica
+{
+  void ModelicaDialect::registerAttributes()
+  {
+    addAttributes<
+      #define GET_ATTRDEF_LIST
+      #include "marco/Dialect/Modelica/ModelicaAttributes.cpp.inc"
+    >();
+  }
+}
 
 namespace mlir::modelica
 {
@@ -74,8 +99,7 @@ namespace mlir::modelica
   // BooleanAttr
   //===----------------------------------------------------------------------===//
 
-  mlir::Attribute BooleanAttr::parse(
-      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  mlir::Attribute BooleanAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
     bool value;
 
@@ -98,23 +122,22 @@ namespace mlir::modelica
     }
 
     if (!type) {
-      type = BooleanType::get(context);
+      type = BooleanType::get(parser.getContext());
     }
 
-    return BooleanAttr::get(context, type, value);
+    return BooleanAttr::get(parser.getContext(), type, value);
   }
 
-  void BooleanAttr::print(mlir::DialectAsmPrinter& os) const
+  void BooleanAttr::print(mlir::AsmPrinter& printer) const
   {
-    os << "bool<" << (getValue() == 0 ? "false" : "true") << ">";
+    printer << "<" << (getValue() == 0 ? "false" : "true") << ">";
   }
 
   //===----------------------------------------------------------------------===//
   // IntegerAttr
   //===----------------------------------------------------------------------===//
 
-  mlir::Attribute IntegerAttr::parse(
-      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  mlir::Attribute IntegerAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
     long value;
 
@@ -125,23 +148,22 @@ namespace mlir::modelica
     }
 
     if (!type) {
-      type = IntegerType::get(context);
+      type = IntegerType::get(parser.getContext());
     }
 
-    return IntegerAttr::get(context, type, llvm::APInt(sizeof(long) * 8, value, true));
+    return IntegerAttr::get(parser.getContext(), type, llvm::APInt(sizeof(long) * 8, value, true));
   }
 
-  void IntegerAttr::print(mlir::DialectAsmPrinter& os) const
+  void IntegerAttr::print(mlir::AsmPrinter& printer) const
   {
-    os << "int<" << getValue() << ">";
+    printer << "<" << getValue() << ">";
   }
 
   //===----------------------------------------------------------------------===//
   // RealAttr
   //===----------------------------------------------------------------------===//
 
-  mlir::Attribute RealAttr::parse(
-      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  mlir::Attribute RealAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
     double value;
 
@@ -152,15 +174,15 @@ namespace mlir::modelica
     }
 
     if (!type) {
-      type = RealType::get(context);
+      type = RealType::get(parser.getContext());
     }
 
-    return RealAttr::get(context, type, llvm::APFloat(value));
+    return RealAttr::get(parser.getContext(), type, llvm::APFloat(value));
   }
 
-  void RealAttr::print(mlir::DialectAsmPrinter& os) const
+  void RealAttr::print(mlir::AsmPrinter& printer) const
   {
-    os << "real<" << getValue() << ">";
+    printer << "<" << getValue() << ">";
   }
 
   //===----------------------------------------------------------------------===//
@@ -234,42 +256,42 @@ namespace mlir::modelica
     return llvm::hash_combine_range(map.begin(), map.end());
   }
 
-  mlir::Attribute InverseFunctionsAttr::parse(mlir::MLIRContext*, mlir::DialectAsmParser&, mlir::Type)
+  mlir::Attribute InverseFunctionsAttr::parse(mlir::AsmParser& parser, mlir::Type)
   {
     // TODO parse InverseFunctionsAttr
     llvm_unreachable("InverseFunctionsAttr parsing is not implemented");
     return mlir::Attribute();
   }
 
-  void InverseFunctionsAttr::print(mlir::DialectAsmPrinter& os) const
+  void InverseFunctionsAttr::print(mlir::AsmPrinter& printer) const
   {
-    os << "inverse<";
+    printer << "inverse<";
     auto inverseFunctionsMap = getInverseFunctionsMap();
     bool separator = false;
 
     for (auto invertibleArg : inverseFunctionsMap) {
       if (separator) {
-        os << ", ";
+        printer << ", ";
       }
 
-      os << invertibleArg << ": ";
-      os << inverseFunctionsMap.getFunction(invertibleArg) << "(";
+      printer << invertibleArg << ": ";
+      printer << inverseFunctionsMap.getFunction(invertibleArg) << "(";
       bool innerSeparator = false;
 
       for (const auto& arg : inverseFunctionsMap.getArgumentsIndexes(invertibleArg)) {
         if (innerSeparator) {
-          os << ", ";
+          printer << ", ";
         }
 
-        os << arg;
+        printer << arg;
         innerSeparator = true;
       }
 
-      os << ")";
+      printer << ")";
       separator = true;
     }
 
-    os << ">";
+    printer << ">";
   }
 
   bool InverseFunctionsAttr::isInvertible(unsigned int argumentIndex) const
@@ -291,8 +313,7 @@ namespace mlir::modelica
   // DerivativeAttr
   //===----------------------------------------------------------------------===//
 
-  mlir::Attribute DerivativeAttr::parse(
-      mlir::MLIRContext* context, mlir::DialectAsmParser& parser, mlir::Type type)
+  mlir::Attribute DerivativeAttr::parse(mlir::AsmParser& parser, mlir::Type type)
   {
     mlir::StringAttr name;
     unsigned int order = 1;
@@ -305,11 +326,11 @@ namespace mlir::modelica
       return mlir::Attribute();
     }
 
-    return DerivativeAttr::get(context, name.getValue(), order);
+    return DerivativeAttr::get(parser.getContext(), name.getValue(), order);
   }
 
-  void DerivativeAttr::print(mlir::DialectAsmPrinter& os) const
+  void DerivativeAttr::print(mlir::AsmPrinter& printer) const
   {
-    os << "derivative" << "<\"" << getName() << "\", " << getOrder() << ">";
+    printer << "derivative" << "<\"" << getName() << "\", " << getOrder() << ">";
   }
 }

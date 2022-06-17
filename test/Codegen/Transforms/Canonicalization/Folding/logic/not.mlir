@@ -4,7 +4,7 @@
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test() -> (!modelica.bool) {
+func.func @test() -> (!modelica.bool) {
     %x = modelica.constant #modelica.bool<false>
     %result = modelica.not %x : !modelica.bool -> !modelica.bool
     return %result : !modelica.bool
@@ -16,7 +16,7 @@ func @test() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test() -> (!modelica.bool) {
+func.func @test() -> (!modelica.bool) {
     %x = modelica.constant #modelica.bool<true>
     %result = modelica.not %x : !modelica.bool -> !modelica.bool
     return %result : !modelica.bool

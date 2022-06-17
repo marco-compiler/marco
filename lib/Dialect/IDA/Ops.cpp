@@ -28,7 +28,7 @@ namespace mlir::ida
 
   void SetStartTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -37,7 +37,7 @@ namespace mlir::ida
 
   void SetEndTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -46,7 +46,7 @@ namespace mlir::ida
 
   void SetTimeStepOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -55,7 +55,7 @@ namespace mlir::ida
 
   void SetRelativeToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -64,7 +64,7 @@ namespace mlir::ida
 
   void SetAbsoluteToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -73,7 +73,7 @@ namespace mlir::ida
 
   void GetCurrentTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -82,8 +82,8 @@ namespace mlir::ida
 
   void InitOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -92,7 +92,7 @@ namespace mlir::ida
 
   void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Free::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Free::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -101,8 +101,8 @@ namespace mlir::ida
 
   void StepOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -111,8 +111,8 @@ namespace mlir::ida
 
   void AddEquationOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), equationRanges(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getEquationRanges(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -121,7 +121,7 @@ namespace mlir::ida
 
   void AddResidualOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -130,7 +130,7 @@ namespace mlir::ida
 
   void AddJacobianOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -139,7 +139,7 @@ namespace mlir::ida
 
   void AddAlgebraicVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -148,7 +148,7 @@ namespace mlir::ida
 
   void AddStateVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -157,7 +157,7 @@ namespace mlir::ida
 
   void SetDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -166,12 +166,12 @@ namespace mlir::ida
 
   mlir::BlockArgument VariableGetterOp::getVariable()
   {
-    return bodyRegion().getArgument(0);
+    return getBodyRegion().getArgument(0);
   }
 
   llvm::ArrayRef<BlockArgument> VariableGetterOp::getVariableIndices()
   {
-    return bodyRegion().getArguments().slice(1);
+    return getBodyRegion().getArguments().slice(1);
   }
 
   //===----------------------------------------------------------------------===//
@@ -180,17 +180,17 @@ namespace mlir::ida
 
   mlir::BlockArgument VariableSetterOp::getVariable()
   {
-    return bodyRegion().getArgument(0);
+    return getBodyRegion().getArgument(0);
   }
 
   BlockArgument VariableSetterOp::getValue()
   {
-    return bodyRegion().getArgument(1);
+    return getBodyRegion().getArgument(1);
   }
 
   llvm::ArrayRef<BlockArgument> VariableSetterOp::getVariableIndices()
   {
-    return bodyRegion().getArguments().slice(2);
+    return getBodyRegion().getArguments().slice(2);
   }
 
   //===----------------------------------------------------------------------===//
@@ -199,7 +199,7 @@ namespace mlir::ida
 
   void AddVariableAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 
   //===----------------------------------------------------------------------===//
@@ -208,18 +208,18 @@ namespace mlir::ida
 
   mlir::BlockArgument ResidualFunctionOp::getTime()
   {
-    return bodyRegion().getArgument(0);
+    return getBodyRegion().getArgument(0);
   }
 
   llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getVariables()
   {
-    size_t numVariables = bodyRegion().getNumArguments() - 1 - equationRank().getSExtValue();
-    return bodyRegion().getArguments().slice(1, numVariables);
+    size_t numVariables = getBodyRegion().getNumArguments() - 1 - getEquationRank().getSExtValue();
+    return getBodyRegion().getArguments().slice(1, numVariables);
   }
 
   llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getEquationIndices()
   {
-    return bodyRegion().getArguments().take_back(equationRank().getSExtValue());
+    return getBodyRegion().getArguments().take_back(getEquationRank().getSExtValue());
   }
 
   //===----------------------------------------------------------------------===//
@@ -228,30 +228,30 @@ namespace mlir::ida
 
   mlir::BlockArgument JacobianFunctionOp::getTime()
   {
-    return bodyRegion().getArgument(0);
+    return getBodyRegion().getArgument(0);
   }
 
   llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariables()
   {
-    size_t numVariables = bodyRegion().getNumArguments() - 1 - equationRank().getSExtValue() - variableRank().getSExtValue() - 1;
-    return bodyRegion().getArguments().slice(1, numVariables);
+    size_t numVariables = getBodyRegion().getNumArguments() - 1 - getEquationRank().getSExtValue() - getVariableRank().getSExtValue() - 1;
+    return getBodyRegion().getArguments().slice(1, numVariables);
   }
 
   llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getEquationIndices()
   {
-    size_t offset = bodyRegion().getNumArguments() - equationRank().getSExtValue() - variableRank().getSExtValue() - 1;
-    return bodyRegion().getArguments().slice(offset, equationRank().getSExtValue());
+    size_t offset = getBodyRegion().getNumArguments() - getEquationRank().getSExtValue() - getVariableRank().getSExtValue() - 1;
+    return getBodyRegion().getArguments().slice(offset, getEquationRank().getSExtValue());
   }
 
   llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariableIndices()
   {
-    size_t offset = bodyRegion().getNumArguments() - variableRank().getSExtValue() - 1;
-    return bodyRegion().getArguments().slice(offset, variableRank().getSExtValue());
+    size_t offset = getBodyRegion().getNumArguments() - getVariableRank().getSExtValue() - 1;
+    return getBodyRegion().getArguments().slice(offset, getVariableRank().getSExtValue());
   }
 
   BlockArgument JacobianFunctionOp::getAlpha()
   {
-    return bodyRegion().getArguments().back();
+    return getBodyRegion().getArguments().back();
   }
 
   //===----------------------------------------------------------------------===//
@@ -260,6 +260,6 @@ namespace mlir::ida
 
   void PrintStatisticsOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), instance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }
 }

@@ -144,7 +144,7 @@ namespace marco::codegen
     return equation->replaceInto(builder, equationIndices, destination, destinationAccessFunction, destinationPath);
   }
 
-  mlir::FuncOp ScheduledEquation::createTemplateFunction(
+  mlir::func::FuncOp ScheduledEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
       mlir::ValueRange vars,

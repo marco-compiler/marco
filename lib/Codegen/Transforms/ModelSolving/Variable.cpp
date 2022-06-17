@@ -25,9 +25,9 @@ namespace marco::codegen
     assert(value.isa<mlir::BlockArgument>());
     size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
     auto model = value.getParentRegion()->getParentOfType<ModelOp>();
-    auto terminator = mlir::cast<YieldOp>(model.initRegion().back().getTerminator());
-    assert(index < terminator.values().size());
-    definingOp = terminator.values()[index].getDefiningOp();
+    auto terminator = mlir::cast<YieldOp>(model.getInitRegion().back().getTerminator());
+    assert(index < terminator.getValues().size());
+    definingOp = terminator.getValues()[index].getDefiningOp();
     assert(mlir::isa<MemberCreateOp>(definingOp));
   }
 

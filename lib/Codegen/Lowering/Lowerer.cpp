@@ -18,7 +18,7 @@ namespace marco::codegen::lowering
   mlir::Location Lowerer::loc(const SourcePosition& location)
   {
     return mlir::FileLineColLoc::get(
-        builder().getIdentifier(location.file->filePath()),
+        builder().getStringAttr(location.file->filePath()),
         location.line,
         location.column);
   }

@@ -4,7 +4,7 @@
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test() -> (!modelica.bool) {
+func.func @test() -> (!modelica.bool) {
     %x = modelica.constant #modelica.bool<false>
     %y = modelica.constant #modelica.bool<false>
     %result = modelica.or %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
@@ -17,7 +17,7 @@ func @test() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test() -> (!modelica.bool) {
+func.func @test() -> (!modelica.bool) {
     %x = modelica.constant #modelica.bool<false>
     %y = modelica.constant #modelica.bool<true>
     %result = modelica.or %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
@@ -30,7 +30,7 @@ func @test() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test() -> (!modelica.bool) {
+func.func @test() -> (!modelica.bool) {
     %x = modelica.constant #modelica.bool<true>
     %y = modelica.constant #modelica.bool<false>
     %result = modelica.or %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool
@@ -43,7 +43,7 @@ func @test() -> (!modelica.bool) {
 // CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
-func @test() -> (!modelica.bool) {
+func.func @test() -> (!modelica.bool) {
     %x = modelica.constant #modelica.bool<true>
     %y = modelica.constant #modelica.bool<true>
     %result = modelica.or %x, %y : (!modelica.bool, !modelica.bool) -> !modelica.bool

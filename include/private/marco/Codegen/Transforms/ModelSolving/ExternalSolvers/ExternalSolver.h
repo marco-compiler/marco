@@ -28,19 +28,19 @@ namespace marco::codegen
       virtual mlir::LogicalResult processInitFunction(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          mlir::FuncOp initFunction,
+          mlir::func::FuncOp initFunction,
           mlir::ValueRange variables,
           const Model<ScheduledEquationsBlock>& model) = 0;
 
       virtual mlir::LogicalResult processDeinitFunction(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          mlir::FuncOp deinitFunction) = 0;
+          mlir::func::FuncOp deinitFunction) = 0;
 
       virtual mlir::LogicalResult processUpdateStatesFunction(
           mlir::OpBuilder& builder,
           mlir::Value runtimeDataPtr,
-          mlir::FuncOp updateStatesFunction,
+          mlir::func::FuncOp updateStatesFunction,
           mlir::ValueRange variables) = 0;
 
       virtual bool hasTimeOwnership() const = 0;

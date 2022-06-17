@@ -1,10 +1,10 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
-// RUN: | mlir-opt                                  \
-// RUN:      --convert-scf-to-std                   \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -12,19 +12,19 @@
 
 // CHECK{LITERAL}: [1, 2, 3]
 
-func @arrayAssignment() -> () {
+func.func @arrayAssignment() -> () {
     %x = modelica.alloca : !modelica.array<3x!modelica.int>
     %y = modelica.alloca : !modelica.array<3x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %0 = modelica.constant #modelica.int<1>
     modelica.store %x[%c0], %0 : !modelica.array<3x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %1 = modelica.constant #modelica.int<2>
     modelica.store %x[%c1], %1 : !modelica.array<3x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %2 = modelica.constant #modelica.int<3>
     modelica.store %x[%c2], %2 : !modelica.array<3x!modelica.int>
 
@@ -36,15 +36,15 @@ func @arrayAssignment() -> () {
 
 // CHECK-NEXT{LITERAL}: [[1, 2], [3, 4], [5, 6]]
 
-func @arraySliceAssignment() -> () {
+func.func @arraySliceAssignment() -> () {
     %x = modelica.alloca : !modelica.array<2x!modelica.int>
     %y = modelica.alloca : !modelica.array<2x!modelica.int>
     %z = modelica.alloca : !modelica.array<2x!modelica.int>
     %t = modelica.alloca : !modelica.array<3x2x!modelica.int>
 
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
 
     %0 = modelica.constant #modelica.int<1>
     modelica.store %x[%c0], %0 : !modelica.array<2x!modelica.int>
@@ -78,7 +78,7 @@ func @arraySliceAssignment() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @arrayAssignment() : () -> ()
     call @arraySliceAssignment() : () -> ()
     return

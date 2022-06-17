@@ -10,6 +10,7 @@
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Frontend/FrontendOptions.h"
 #include "mlir/Conversion/Passes.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -241,11 +242,13 @@ namespace marco::frontend
 
     if (codegenOptions.cse) {
       passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
-      passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
+      passManager.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
     }
 
     // Place the deallocation instructions for the arrays
     passManager.addPass(codegen::createArrayDeallocationPass());
+
+    passManager.addPass(codegen::createLowerToCFGPass());
 
     // Modelica conversion pass
     codegen::ModelicaConversionOptions modelicaConversionOptions;
@@ -253,23 +256,17 @@ namespace marco::frontend
     modelicaConversionOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
 
     passManager.addPass(codegen::createModelicaConversionPass(modelicaConversionOptions));
+    passManager.addPass(codegen::createIDAToLLVMConversionPass());
 
     if (codegenOptions.omp) {
       // Use OpenMP for parallel loops
-      passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+      passManager.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToOpenMPPass());
     }
 
-    passManager.addPass(codegen::createLowerToCFGPass());
-
-    passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
-    passManager.addPass(codegen::createIDAToLLVMConversionPass());
-
-    // Conversion to LLVM dialect
-    codegen::ModelicaToLLVMConversionOptions llvmLoweringOptions;
-    llvmLoweringOptions.assertions = ci.getCodegenOptions().assertions;
-    passManager.addPass(codegen::createLLVMLoweringPass(llvmLoweringOptions));
-
-    passManager.addPass(codegen::createUnrealizedCastsEliminationPass());
+    passManager.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
+    passManager.addPass(mlir::createConvertSCFToCFPass());
+    passManager.addPass(mlir::createConvertFuncToLLVMPass());
+    passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
 
     if (!codegenOptions.debug) {
       // Remove the debug information if a non-debuggable executable has been requested

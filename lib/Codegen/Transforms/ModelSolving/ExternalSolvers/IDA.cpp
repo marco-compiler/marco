@@ -4,7 +4,6 @@
 #include "marco/Codegen/Utils.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include <queue>
 
@@ -195,14 +194,14 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::processInitFunction(
       mlir::OpBuilder& builder,
       mlir::Value runtimeDataPtr,
-      mlir::FuncOp initFunction,
+      mlir::func::FuncOp initFunction,
       mlir::ValueRange variables,
       const Model<ScheduledEquationsBlock>& model)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto module = initFunction->getParentOfType<mlir::ModuleOp>();
 
-    auto terminator = mlir::cast<mlir::ReturnOp>(initFunction.getBody().back().getTerminator());
+    auto terminator = mlir::cast<mlir::func::ReturnOp>(initFunction.getBody().back().getTerminator());
     builder.setInsertionPoint(terminator);
 
     // Create the IDA instance.
@@ -416,7 +415,7 @@ namespace marco::codegen
     auto receivedIndices = getterOp.getVariableIndices().take_front(variableArrayType.getRank());
     mlir::Value result = builder.create<LoadOp>(loc, getterOp.getVariable(), receivedIndices);
 
-    if (auto requestedResultType = getterOp.getType().getResult(0); result.getType() != requestedResultType) {
+    if (auto requestedResultType = getterOp.getFunctionType().getResult(0); result.getType() != requestedResultType) {
       result = builder.create<CastOp>(loc, requestedResultType, result);
     }
 
@@ -733,7 +732,7 @@ namespace marco::codegen
         equation.getNumOfIterationVars(),
         RealType::get(builder.getContext()));
 
-    assert(residualFunction.bodyRegion().empty());
+    assert(residualFunction.getBodyRegion().empty());
     mlir::Block* bodyBlock = residualFunction.addEntryBlock();
     builder.setInsertionPointToStart(bodyBlock);
 
@@ -768,13 +767,13 @@ namespace marco::codegen
       }
     }
 
-    auto clonedTerminator = mlir::cast<EquationSidesOp>(residualFunction.bodyRegion().back().getTerminator());
+    auto clonedTerminator = mlir::cast<EquationSidesOp>(residualFunction.getBodyRegion().back().getTerminator());
 
-    assert(clonedTerminator.lhsValues().size() == 1);
-    assert(clonedTerminator.rhsValues().size() == 1);
+    assert(clonedTerminator.getLhsValues().size() == 1);
+    assert(clonedTerminator.getRhsValues().size() == 1);
 
-    mlir::Value lhs = clonedTerminator.lhsValues()[0];
-    mlir::Value rhs = clonedTerminator.rhsValues()[0];
+    mlir::Value lhs = clonedTerminator.getLhsValues()[0];
+    mlir::Value rhs = clonedTerminator.getRhsValues()[0];
 
     if (lhs.getType().isa<ArrayType>()) {
       std::vector<mlir::Value> indices(
@@ -797,8 +796,8 @@ namespace marco::codegen
     mlir::Value difference = builder.create<SubOp>(residualFunction.getLoc(), RealType::get(builder.getContext()), rhs, lhs);
     builder.create<mlir::ida::ReturnOp>(difference.getLoc(), difference);
 
-    auto lhsOp = clonedTerminator.lhs().getDefiningOp<EquationSideOp>();
-    auto rhsOp = clonedTerminator.rhs().getDefiningOp<EquationSideOp>();
+    auto lhsOp = clonedTerminator.getLhs().getDefiningOp<EquationSideOp>();
+    auto rhsOp = clonedTerminator.getRhs().getDefiningOp<EquationSideOp>();
     clonedTerminator.erase();
     lhsOp.erase();
     rhsOp.erase();
@@ -830,13 +829,13 @@ namespace marco::codegen
     std::vector<mlir::Type> args;
     args.push_back(timeMember.getMemberType().unwrap());
 
-    for (auto type : partialDerTemplate.getType().getInputs()) {
+    for (auto type : partialDerTemplate.getFunctionType().getInputs()) {
       args.push_back(type);
     }
 
     partialDerTemplate->setAttr(
-        partialDerTemplate.typeAttrName(),
-        mlir::TypeAttr::get(builder.getFunctionType(args, partialDerTemplate.getType().getResults())));
+        partialDerTemplate.getFunctionTypeAttrName(),
+        mlir::TypeAttr::get(builder.getFunctionType(args, partialDerTemplate.getFunctionType().getResults())));
 
     // Replace the TimeOp with the newly created member
     partialDerTemplate.walk([&](TimeOp timeOp) {
@@ -884,7 +883,7 @@ namespace marco::codegen
         builder.getFunctionType(argsTypes, RealType::get(builder.getContext())));
 
     // Start the body of the function
-    mlir::Block* entryBlock = builder.createBlock(&functionOp.body());
+    mlir::Block* entryBlock = builder.createBlock(&functionOp.getBody());
     builder.setInsertionPointToStart(entryBlock);
 
     // Create the input members and map them to the original variables (and inductions)
@@ -907,8 +906,8 @@ namespace marco::codegen
     // Create the output member, that is the difference between its equation right-hand side value and its
     // left-hand side value.
     auto originalTerminator = mlir::cast<EquationSidesOp>(equation.getOperation().bodyBlock()->getTerminator());
-    assert(originalTerminator.lhsValues().size() == 1);
-    assert(originalTerminator.rhsValues().size() == 1);
+    assert(originalTerminator.getLhsValues().size() == 1);
+    assert(originalTerminator.getRhsValues().size() == 1);
 
     auto outputMember = builder.create<MemberCreateOp>(
         loc, "out",
@@ -940,8 +939,8 @@ namespace marco::codegen
         // and if such variable is a scalar one there would be a load operation wrongly operating
         // on a scalar value.
 
-        if (loadOp.array().getType().cast<ArrayType>().isScalar()) {
-          if (auto memberLoadOp = mapping.lookup(loadOp.array()).getDefiningOp<MemberLoadOp>()) {
+        if (loadOp.getArray().getType().cast<ArrayType>().isScalar()) {
+          if (auto memberLoadOp = mapping.lookup(loadOp.getArray()).getDefiningOp<MemberLoadOp>()) {
             mapping.map(loadOp.getResult(), memberLoadOp.getResult());
             continue;
           }
@@ -952,11 +951,11 @@ namespace marco::codegen
     }
 
     auto terminator = mlir::cast<EquationSidesOp>(functionOp.bodyBlock()->getTerminator());
-    assert(terminator.lhsValues().size() == 1);
-    assert(terminator.rhsValues().size() == 1);
+    assert(terminator.getLhsValues().size() == 1);
+    assert(terminator.getRhsValues().size() == 1);
 
-    mlir::Value lhs = terminator.lhsValues()[0];
-    mlir::Value rhs = terminator.rhsValues()[0];
+    mlir::Value lhs = terminator.getLhsValues()[0];
+    mlir::Value rhs = terminator.getRhsValues()[0];
 
     if (auto arrayType = lhs.getType().dyn_cast<ArrayType>()) {
       assert(rhs.getType().isa<ArrayType>());
@@ -970,8 +969,8 @@ namespace marco::codegen
     auto result = builder.create<SubOp>(loc, RealType::get(builder.getContext()), rhs, lhs);
     builder.create<MemberStoreOp>(loc, outputMember, result);
 
-    auto lhsOp = terminator.lhs().getDefiningOp<EquationSideOp>();
-    auto rhsOp = terminator.rhs().getDefiningOp<EquationSideOp>();
+    auto lhsOp = terminator.getLhs().getDefiningOp<EquationSideOp>();
+    auto rhsOp = terminator.getRhs().getDefiningOp<EquationSideOp>();
     terminator.erase();
     lhsOp.erase();
     rhsOp.erase();
@@ -1008,7 +1007,7 @@ namespace marco::codegen
         RealType::get(builder.getContext()),
         RealType::get(builder.getContext()));
 
-    assert(jacobianFunction.bodyRegion().empty());
+    assert(jacobianFunction.getBodyRegion().empty());
     mlir::Block* bodyBlock = jacobianFunction.addEntryBlock();
     builder.setInsertionPointToStart(bodyBlock);
 
@@ -1102,11 +1101,11 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::processDeinitFunction(
       mlir::OpBuilder& builder,
       mlir::Value runtimeDataPtr,
-      mlir::FuncOp deinitFunction)
+      mlir::func::FuncOp deinitFunction)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    auto terminator = mlir::cast<mlir::ReturnOp>(deinitFunction.body().back().getTerminator());
+    auto terminator = mlir::cast<mlir::func::ReturnOp>(deinitFunction.getBody().back().getTerminator());
     builder.setInsertionPoint(terminator);
 
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);
@@ -1120,12 +1119,12 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::processUpdateStatesFunction(
       mlir::OpBuilder& builder,
       mlir::Value runtimeDataPtr,
-      mlir::FuncOp updateStatesFunction,
+      mlir::func::FuncOp updateStatesFunction,
       mlir::ValueRange variables)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    auto terminator = mlir::cast<mlir::ReturnOp>(updateStatesFunction.body().back().getTerminator());
+    auto terminator = mlir::cast<mlir::func::ReturnOp>(updateStatesFunction.getBody().back().getTerminator());
     builder.setInsertionPoint(terminator);
 
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);

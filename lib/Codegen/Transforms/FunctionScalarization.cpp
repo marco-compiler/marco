@@ -1,7 +1,11 @@
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Conversion/Passes.h"
+
+#include "marco/Codegen/Transforms/PassDetail.h"
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -120,7 +124,7 @@ static mlir::LogicalResult scalarizeVectorizableOp(
         // Get the actual size from the first operand. Others should have
         // the same size by construction.
 
-        mlir::Value index = builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(dimension.index()));
+        mlir::Value index = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(dimension.index()));
         dynamicDimensions.push_back(builder.create<DimOp>(loc, args[0], index));
       }
     }
@@ -140,7 +144,7 @@ static mlir::LogicalResult scalarizeVectorizableOp(
     llvm::SmallVector<mlir::Value, 3> indexes;
 
     for (size_t i = 0; i < vectorizationRank; ++i) {
-      builder.create<mlir::ConstantOp>(loc, builder.getIndexAttr(i));
+      builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(i));
     }
 
     for (mlir::Value index : indexes) {
@@ -151,14 +155,14 @@ static mlir::LogicalResult scalarizeVectorizableOp(
       }
 
       for (size_t i = 1; i < dimensions.size(); ++i) {
-        mlir::Value condition = builder.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, dimensions[0], dimensions[i]);
-        builder.create<mlir::AssertOp>(loc, condition, "Incompatible dimensions for vectorized function arguments");
+        mlir::Value condition = builder.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::eq, dimensions[0], dimensions[i]);
+        builder.create<mlir::cf::AssertOp>(loc, condition, "Incompatible dimensions for vectorized function arguments");
       }
     }
   }
 
-  mlir::Value zero = builder.create<mlir::ConstantOp>(op->getLoc(), builder.getIndexAttr(0));
-  mlir::Value one = builder.create<mlir::ConstantOp>(op->getLoc(), builder.getIndexAttr(1));
+  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(op->getLoc(), builder.getIndexAttr(0));
+  mlir::Value one = builder.create<mlir::arith::ConstantOp>(op->getLoc(), builder.getIndexAttr(1));
   llvm::SmallVector<mlir::Value, 3> indexes;
 
   for (unsigned int i = 0; i < vectorizationRank; ++i) {
@@ -198,19 +202,12 @@ static mlir::LogicalResult scalarizeVectorizableOp(
 
 namespace
 {
-  class FunctionScalarizationPass: public mlir::PassWrapper<FunctionScalarizationPass, mlir::OperationPass<mlir::ModuleOp>>
+  class FunctionScalarizationPass : public FunctionScalarizationBase<FunctionScalarizationPass>
   {
     public:
-      explicit FunctionScalarizationPass(FunctionScalarizationOptions options)
+      FunctionScalarizationPass(FunctionScalarizationOptions options)
           : options(std::move(options))
       {
-      }
-
-      void getDependentDialects(mlir::DialectRegistry &registry) const override
-      {
-        registry.insert<ModelicaDialect>();
-        registry.insert<mlir::StandardOpsDialect>();
-        registry.insert<mlir::scf::SCFDialect>();
       }
 
       void runOnOperation() override

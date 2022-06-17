@@ -16,6 +16,7 @@ namespace marco::codegen::test
       names.push_back(builder.getStringAttr("var" + std::to_string(i)));
     }
 
+    llvm::SmallVector<mlir::Location, 3> varLocations;
     llvm::SmallVector<mlir::Type, 3> varArrayTypes;
 
     for (const auto& type : varTypes) {
@@ -24,11 +25,13 @@ namespace marco::codegen::test
       } else {
         varArrayTypes.push_back(ArrayType::get(builder.getContext(), type, llvm::None));
       }
+
+      varLocations.push_back(builder.getUnknownLoc());
     }
 
     auto modelOp = builder.create<ModelOp>(builder.getUnknownLoc());
 
-    mlir::Block* initBlock = builder.createBlock(&modelOp.initRegion());
+    mlir::Block* initBlock = builder.createBlock(&modelOp.getInitRegion());
     builder.setInsertionPointToStart(initBlock);
 
     llvm::SmallVector<mlir::Value, 3> members;
@@ -42,7 +45,7 @@ namespace marco::codegen::test
 
     builder.create<YieldOp>(builder.getUnknownLoc(), members);
 
-    builder.createBlock(&modelOp.equationsRegion(), {}, varArrayTypes);
+    builder.createBlock(&modelOp.getEquationsRegion(), {}, varArrayTypes, varLocations);
     return modelOp;
   }
 
@@ -50,7 +53,7 @@ namespace marco::codegen::test
   {
     Variables variables;
 
-    for (const auto& variable : model.equationsRegion().getArguments()) {
+    for (const auto& variable : model.getEquationsRegion().getArguments()) {
       variables.add(Variable::build(variable));
     }
 
@@ -64,7 +67,7 @@ namespace marco::codegen::test
       std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToStart(&model.equationsRegion().front());
+    builder.setInsertionPointToStart(&model.getEquationsRegion().front());
     auto loc = builder.getUnknownLoc();
 
     // Create the iteration ranges
@@ -80,7 +83,7 @@ namespace marco::codegen::test
     // Create the equation body
     auto equationOp = builder.create<EquationOp>(loc);
 
-    mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.bodyRegion());
+    mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
     builder.setInsertionPointToStart(equationBodyBlock);
 
     bodyFn(builder, inductionVariables);

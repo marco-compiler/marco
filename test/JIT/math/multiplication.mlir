@@ -1,8 +1,10 @@
 // RUN: modelica-opt %s                             \
-// RUN:     --convert-modelica                      \
 // RUN:     --convert-modelica-to-cfg               \
-// RUN:     --convert-to-llvm                       \
-// RUN:     --remove-unrealized-casts               \
+// RUN:     --convert-modelica-to-llvm              \
+// RUN:     --convert-scf-to-cf                     \
+// RUN:     --convert-func-to-llvm                  \
+// RUN:     --convert-cf-to-llvm                    \
+// RUN:     --reconcile-unrealized-casts            \
 // RUN: | mlir-cpu-runner                           \
 // RUN:     -e main -entry-point-result=void -O0    \
 // RUN:     -shared-libs=%runtime_lib               \
@@ -13,37 +15,37 @@
 // CHECK-NEXT: -15
 // CHECK-NEXT: -15
 
-func @test_integerScalars() -> () {
-    %size = constant 4 : index
+func.func @test_integerScalars() -> () {
+    %size = arith.constant 4 : index
     %x = modelica.alloca %size : !modelica.array<?x!modelica.int>
     %y = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<0>
     %y0 = modelica.constant #modelica.int<10>
     modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<3>
     %y1 = modelica.constant #modelica.int<5>
     modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<3>
     %y2 = modelica.constant #modelica.int<-5>
     modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.int>
 
-    %c3 = constant 3 : index
+    %c3 = arith.constant 3 : index
     %x3 = modelica.constant #modelica.int<-5>
     %y3 = modelica.constant #modelica.int<3>
     modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.int>
 
-    %lb = constant 0 : index
-    %step = constant 1 : index
+    %lb = arith.constant 0 : index
+    %step = arith.constant 1 : index
 
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.int>
@@ -60,37 +62,37 @@ func @test_integerScalars() -> () {
 // CHECK-NEXT: -1.925000e+01
 // CHECK-NEXT: -1.925000e+01
 
-func @test_realScalars() -> () {
-    %size = constant 4 : index
+func.func @test_realScalars() -> () {
+    %size = arith.constant 4 : index
     %x = modelica.alloca %size : !modelica.array<?x!modelica.real>
     %y = modelica.alloca %size : !modelica.array<?x!modelica.real>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.real<0.0>
     %y0 = modelica.constant #modelica.real<10.5>
     modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.real>
     modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.real>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.real<3.5>
     %y1 = modelica.constant #modelica.real<5.5>
     modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.real>
     modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.real>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.real<3.5>
     %y2 = modelica.constant #modelica.real<-5.5>
     modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.real>
     modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.real>
 
-    %c3 = constant 3 : index
+    %c3 = arith.constant 3 : index
     %x3 = modelica.constant #modelica.real<-3.5>
     %y3 = modelica.constant #modelica.real<5.5>
     modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.real>
     modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.real>
 
-    %lb = constant 0 : index
-    %step = constant 1 : index
+    %lb = arith.constant 0 : index
+    %step = arith.constant 1 : index
 
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.real>
@@ -107,37 +109,37 @@ func @test_realScalars() -> () {
 // CHECK-NEXT: -1.650000e+01
 // CHECK-NEXT: -1.750000e+01
 
-func @test_mixedScalars() -> () {
-    %size = constant 4 : index
+func.func @test_mixedScalars() -> () {
+    %size = arith.constant 4 : index
     %x = modelica.alloca %size : !modelica.array<?x!modelica.int>
     %y = modelica.alloca %size : !modelica.array<?x!modelica.real>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<0>
     %y0 = modelica.constant #modelica.real<10.5>
     modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.real>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<3>
     %y1 = modelica.constant #modelica.real<5.5>
     modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.real>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<3>
     %y2 = modelica.constant #modelica.real<-5.5>
     modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c2], %y2 : !modelica.array<?x!modelica.real>
 
-    %c3 = constant 3 : index
+    %c3 = arith.constant 3 : index
     %x3 = modelica.constant #modelica.int<-5>
     %y3 = modelica.constant #modelica.real<3.5>
     modelica.store %x[%c3], %x3 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c3], %y3 : !modelica.array<?x!modelica.real>
 
-    %lb = constant 0 : index
-    %step = constant 1 : index
+    %lb = arith.constant 0 : index
+    %step = arith.constant 1 : index
 
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.int>
@@ -151,18 +153,18 @@ func @test_mixedScalars() -> () {
 
 // CHECK-NEXT: [10, -4, 0]
 
-func @test_staticArrayAndScalar() -> () {
+func.func @test_staticArrayAndScalar() -> () {
     %x = modelica.alloca : !modelica.array<3x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<5>
     modelica.store %x[%c0], %x0 : !modelica.array<3x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<-2>
     modelica.store %x[%c1], %x1 : !modelica.array<3x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<0>
     modelica.store %x[%c2], %x2 : !modelica.array<3x!modelica.int>
 
@@ -176,19 +178,19 @@ func @test_staticArrayAndScalar() -> () {
 
 // CHECK-NEXT: [10, -4, 0]
 
-func @test_dynamicArrayAndScalar() -> () {
-    %size = constant 3 : index
+func.func @test_dynamicArrayAndScalar() -> () {
+    %size = arith.constant 3 : index
     %x = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<5>
     modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<-2>
     modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<0>
     modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.int>
 
@@ -202,18 +204,18 @@ func @test_dynamicArrayAndScalar() -> () {
 
 // CHECK-NEXT: [10, -4, 0]
 
-func @test_scalarAndStaticArray() -> () {
+func.func @test_scalarAndStaticArray() -> () {
     %x = modelica.alloca : !modelica.array<3x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<5>
     modelica.store %x[%c0], %x0 : !modelica.array<3x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<-2>
     modelica.store %x[%c1], %x1 : !modelica.array<3x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<0>
     modelica.store %x[%c2], %x2 : !modelica.array<3x!modelica.int>
 
@@ -227,19 +229,19 @@ func @test_scalarAndStaticArray() -> () {
 
 // CHECK-NEXT: [10, -4, 0]
 
-func @test_scalarAndDynamicArray() -> () {
-    %size = constant 3 : index
+func.func @test_scalarAndDynamicArray() -> () {
+    %size = arith.constant 3 : index
     %x = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<5>
     modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<-2>
     modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<0>
     modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.int>
 
@@ -253,23 +255,23 @@ func @test_scalarAndDynamicArray() -> () {
 
 // CHECK-NEXT: 32
 
-func @test_static1dArrays() -> () {
+func.func @test_static1dArrays() -> () {
     %x = modelica.alloca : !modelica.array<3x!modelica.int>
     %y = modelica.alloca : !modelica.array<3x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<1>
     %y0 = modelica.constant #modelica.int<4>
     modelica.store %x[%c0], %x0 : !modelica.array<3x!modelica.int>
     modelica.store %y[%c0], %y0 : !modelica.array<3x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<2>
     %y1 = modelica.constant #modelica.int<5>
     modelica.store %x[%c1], %x1 : !modelica.array<3x!modelica.int>
     modelica.store %y[%c1], %y1 : !modelica.array<3x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<3>
     %y2 = modelica.constant #modelica.int<6>
     modelica.store %x[%c2], %x2 : !modelica.array<3x!modelica.int>
@@ -283,24 +285,24 @@ func @test_static1dArrays() -> () {
 
 // CHECK-NEXT: 32
 
-func @test_dynamic1dArrays() -> () {
-    %size = constant 3 : index
+func.func @test_dynamic1dArrays() -> () {
+    %size = arith.constant 3 : index
     %x = modelica.alloca %size : !modelica.array<?x!modelica.int>
     %y = modelica.alloca %size : !modelica.array<?x!modelica.int>
 
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x0 = modelica.constant #modelica.int<1>
     %y0 = modelica.constant #modelica.int<4>
     modelica.store %x[%c0], %x0 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c0], %y0 : !modelica.array<?x!modelica.int>
 
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %x1 = modelica.constant #modelica.int<2>
     %y1 = modelica.constant #modelica.int<5>
     modelica.store %x[%c1], %x1 : !modelica.array<?x!modelica.int>
     modelica.store %y[%c1], %y1 : !modelica.array<?x!modelica.int>
 
-    %c2 = constant 2 : index
+    %c2 = arith.constant 2 : index
     %x2 = modelica.constant #modelica.int<3>
     %y2 = modelica.constant #modelica.int<6>
     modelica.store %x[%c2], %x2 : !modelica.array<?x!modelica.int>
@@ -314,13 +316,13 @@ func @test_dynamic1dArrays() -> () {
 
 // CHECK-NEXT{LITERAL}: [[22, 28], [49, 64]]
 
-func @test_static2dArrays() -> () {
+func.func @test_static2dArrays() -> () {
     %x = modelica.alloca : !modelica.array<2x3x!modelica.int>
     %y = modelica.alloca : !modelica.array<3x2x!modelica.int>
 
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
 
     %x00 = modelica.constant #modelica.int<1>
     %x01 = modelica.constant #modelica.int<2>
@@ -358,11 +360,11 @@ func @test_static2dArrays() -> () {
 
 // CHECK-NEXT{LITERAL}: [[22, 28], [49, 64]]
 
-func @test_dynamic2dArrays() -> () {
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
-    %c3 = constant 3 : index
+func.func @test_dynamic2dArrays() -> () {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
 
     %x = modelica.alloca %c2, %c3 : !modelica.array<?x?x!modelica.int>
     %y = modelica.alloca %c3, %c2 : !modelica.array<?x?x!modelica.int>
@@ -403,14 +405,14 @@ func @test_dynamic2dArrays() -> () {
 
 // CHECK-NEXT{LITERAL}: [70, 80, 90]
 
-func @test_static1dArrayAndStatic2dArray() -> () {
+func.func @test_static1dArrayAndStatic2dArray() -> () {
     %x = modelica.alloca : !modelica.array<4x!modelica.int>
     %y = modelica.alloca : !modelica.array<4x3x!modelica.int>
 
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
-    %c3 = constant 3 : index
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
 
     %x0 = modelica.constant #modelica.int<1>
     %x1 = modelica.constant #modelica.int<2>
@@ -456,12 +458,12 @@ func @test_static1dArrayAndStatic2dArray() -> () {
 
 // CHECK-NEXT{LITERAL}: [70, 80, 90]
 
-func @test_dynamic1dArrayAndDynamic2dArray() -> () {
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
-    %c3 = constant 3 : index
-    %c4 = constant 4 : index
+func.func @test_dynamic1dArrayAndDynamic2dArray() -> () {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
+    %c4 = arith.constant 4 : index
 
     %x = modelica.alloca %c4 : !modelica.array<?x!modelica.int>
     %y = modelica.alloca %c4, %c3 : !modelica.array<?x?x!modelica.int>
@@ -510,14 +512,14 @@ func @test_dynamic1dArrayAndDynamic2dArray() -> () {
 
 // CHECK-NEXT{LITERAL}: [14, 32, 50, 68]
 
-func @test_static2dArrayAndStatic1dArray() -> () {
+func.func @test_static2dArrayAndStatic1dArray() -> () {
     %x = modelica.alloca : !modelica.array<4x3x!modelica.int>
     %y = modelica.alloca : !modelica.array<3x!modelica.int>
 
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
-    %c3 = constant 3 : index
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
 
     %x00 = modelica.constant #modelica.int<1>
     %x01 = modelica.constant #modelica.int<2>
@@ -561,12 +563,12 @@ func @test_static2dArrayAndStatic1dArray() -> () {
 
 // CHECK-NEXT{LITERAL}: [14, 32, 50, 68]
 
-func @test_dynamic2dArrayAndDynamic1dArray() -> () {
-    %c0 = constant 0 : index
-    %c1 = constant 1 : index
-    %c2 = constant 2 : index
-    %c3 = constant 3 : index
-    %c4 = constant 4 : index
+func.func @test_dynamic2dArrayAndDynamic1dArray() -> () {
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
+    %c4 = arith.constant 4 : index
 
     %x = modelica.alloca %c4, %c3 : !modelica.array<?x?x!modelica.int>
     %y = modelica.alloca %c3 : !modelica.array<?x!modelica.int>
@@ -611,7 +613,7 @@ func @test_dynamic2dArrayAndDynamic1dArray() -> () {
     return
 }
 
-func @main() -> () {
+func.func @main() -> () {
     call @test_integerScalars() : () -> ()
     call @test_realScalars() : () -> ()
     call @test_mixedScalars() : () -> ()

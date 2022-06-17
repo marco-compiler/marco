@@ -38,6 +38,7 @@ void IDADialect::initialize() {
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/IDA/IDATypes.cpp.inc"
 
+/*
 mlir::Type IDADialect::parseType(mlir::DialectAsmParser& parser) const
 {
   llvm::SMLoc typeLoc = parser.getCurrentLocation();
@@ -64,6 +65,7 @@ void IDADialect::printType(mlir::Type type, mlir::DialectAsmPrinter& os) const
     llvm_unreachable("Unexpected 'IDA' type kind");
   }
 }
+ */
 
 //===----------------------------------------------------------------------===//
 // Tablegen attribute definitions

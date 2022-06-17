@@ -3,7 +3,6 @@
 
 // Just a convenience header file to include the conversion passes
 
-#include "marco/Codegen/Conversion/Generic/UnrealizedCastsElimination.h"
 #include "marco/Codegen/Conversion/IDA/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/Modelica/LowerToCFG.h"
 #include "marco/Codegen/Conversion/Modelica/LowerToLLVM.h"
@@ -11,24 +10,13 @@
 
 namespace marco::codegen
 {
-	inline void registerModelicaConversionPasses()
-	{
-		registerLowerToCFGPass();
-		registerLLVMLoweringPass();
-		registerModelicaConversionPass();
-		registerLowerToCFGPass();
-	}
+  //===----------------------------------------------------------------------===//
+  // Registration
+  //===----------------------------------------------------------------------===//
 
-  inline void registerIDAToLLVMConversionPasses()
-  {
-    registerIDAToLLVMConversionPass();
-  }
-
-  // To be removed
-  inline void registerGenericConversionPasses()
-  {
-    registerUnrealizedCastsEliminationPass();
-  }
+  /// Generate the code for registering passes.
+  #define GEN_PASS_REGISTRATION
+  #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_H

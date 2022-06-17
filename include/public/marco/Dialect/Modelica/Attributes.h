@@ -1,10 +1,11 @@
 #ifndef MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_H
 #define MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/Hashing.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/Support/StorageUniquer.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Hashing.h"
 #include <map>
 
 namespace mlir::modelica
@@ -68,7 +69,8 @@ namespace mlir::modelica
   class InverseFunctionsMap
   {
     private:
-      using InverseFunction =  std::pair<llvm::StringRef, llvm::ArrayRef<unsigned int>>;
+    llvm::StringRef str;
+      using InverseFunction = std::pair<llvm::StringRef, llvm::ArrayRef<unsigned int>>;
       using Map = std::map<unsigned int, InverseFunction>;
 
     public:

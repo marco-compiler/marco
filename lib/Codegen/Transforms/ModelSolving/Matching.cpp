@@ -96,7 +96,7 @@ namespace marco::codegen
     return equation->resolveDimensionAccess(std::move(access));
   }
 
-  mlir::FuncOp MatchedEquation::createTemplateFunction(
+  mlir::func::FuncOp MatchedEquation::createTemplateFunction(
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
       mlir::ValueRange vars,

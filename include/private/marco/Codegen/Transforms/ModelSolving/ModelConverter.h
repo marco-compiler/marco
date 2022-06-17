@@ -4,7 +4,7 @@
 #include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/ExternalSolver.h"
 #include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
-#include "marco/Codegen/Transforms/ModelSolving/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "llvm/ADT/StringRef.h"
@@ -96,7 +96,10 @@ namespace marco::codegen
       /// Extract a value from the data structure shared between the various
       /// simulation main functions.
       mlir::Value extractValue(
-          mlir::OpBuilder& builder, mlir::Value structValue, mlir::Type type, unsigned int position) const;
+          mlir::OpBuilder& builder,
+          mlir::Value structValue,
+          mlir::Type type,
+          unsigned int position) const;
 
       /// Allocate the structure needed by each solver and the wrapping structure containing their addresses.
       mlir::Value createExternalSolvers(
@@ -168,12 +171,12 @@ namespace marco::codegen
       mlir::LogicalResult createDeinitFunction(
           mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, ExternalSolvers& externalSolvers) const;
 
-      mlir::FuncOp createEquationFunction(
+      mlir::func::FuncOp createEquationFunction(
           mlir::OpBuilder& builder,
           const ScheduledEquation& equation,
           llvm::StringRef equationFunctionName,
-          mlir::FuncOp templateFunction,
-          std::multimap<mlir::FuncOp, mlir::CallOp>& equationTemplateCalls,
+          mlir::func::FuncOp templateFunction,
+          std::multimap<mlir::func::FuncOp, mlir::func::CallOp>& equationTemplateCalls,
           mlir::TypeRange varsTypes) const;
 
       mlir::LogicalResult createUpdateNonStateVariablesFunction(

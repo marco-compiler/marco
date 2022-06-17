@@ -2,8 +2,45 @@
 #include "marco/Dialect/Modelica/Types.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::modelica;
+
+//===----------------------------------------------------------------------===//
+// Tablegen type definitions
+//===----------------------------------------------------------------------===//
+
+#define GET_TYPEDEF_CLASSES
+#include "marco/Dialect/Modelica/ModelicaTypes.cpp.inc"
+
+//===----------------------------------------------------------------------===//
+// ModelicaDialect
+//===----------------------------------------------------------------------===//
+
+namespace mlir::modelica
+{
+  void ModelicaDialect::registerTypes()
+  {
+    addTypes<
+      #define GET_TYPEDEF_LIST
+      #include "marco/Dialect/Modelica/ModelicaTypes.cpp.inc"
+    >();
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica Types
+//===----------------------------------------------------------------------===//
+
+namespace mlir::modelica
+{
+  /*
+  bool ModelicaType::classof(mlir::Type type)
+  {
+    return llvm::isa<ModelicaDialect>(type.getDialect());
+  }
+   */
+}
 
 namespace mlir::modelica
 {
@@ -11,7 +48,7 @@ namespace mlir::modelica
   // ArrayType
   //===----------------------------------------------------------------------===//
 
-  mlir::Type ArrayType::parse(mlir::MLIRContext* context, mlir::DialectAsmParser& parser)
+  mlir::Type ArrayType::parse(mlir::AsmParser& parser)
   {
     if (parser.parseLess()) {
       return mlir::Type();
@@ -31,18 +68,18 @@ namespace mlir::modelica
     }
 
     llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
-    return ArrayType::get(context, elementType, castedDims);
+    return ArrayType::get(parser.getContext(), elementType, castedDims);
   }
 
-  void ArrayType::print(DialectAsmPrinter& os) const
+  void ArrayType::print(mlir::AsmPrinter& printer) const
   {
-    os << "array<";
+    printer << "<";
 
     for (const auto& dimension : getShape()) {
-      os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
+      printer << (dimension == ArrayType::kDynamicSize ? "?" : std::to_string(dimension)) << "x";
     }
 
-    os << getElementType() << ">";
+    printer << getElementType() << ">";
   }
 
   unsigned int ArrayType::getRank() const
@@ -69,8 +106,8 @@ namespace mlir::modelica
     long result = 1;
 
     for (long size : getShape()) {
-      if (size == -1) {
-        return -1;
+      if (size == ArrayType::kDynamicSize) {
+        return ArrayType::kDynamicSize;
       }
 
       result *= size;
@@ -82,7 +119,7 @@ namespace mlir::modelica
   bool ArrayType::hasConstantShape() const
   {
     return llvm::all_of(getShape(), [](long size) {
-      return size != -1;
+      return size != ArrayType::kDynamicSize;
     });
   }
 
@@ -123,7 +160,7 @@ namespace mlir::modelica
   // UnsizedArrayType
   //===----------------------------------------------------------------------===//
 
-  mlir::Type UnsizedArrayType::parse(mlir::MLIRContext* context, mlir::DialectAsmParser& parser)
+  mlir::Type UnsizedArrayType::parse(mlir::AsmParser& parser)
   {
     mlir::Type elementType;
     
@@ -135,19 +172,19 @@ namespace mlir::modelica
       return mlir::Type();
     }
     
-    return UnsizedArrayType::get(context, elementType);
+    return UnsizedArrayType::get(parser.getContext(), elementType);
   }
 
-  void UnsizedArrayType::print(DialectAsmPrinter& os) const
+  void UnsizedArrayType::print(mlir::AsmPrinter& os) const
   {
-    os << "array<*x" << getElementType() << ">";
+    os << "<*x" << getElementType() << ">";
   }
 
   //===----------------------------------------------------------------------===//
   // MemberType
   //===----------------------------------------------------------------------===//
 
-  mlir::Type MemberType::parse(mlir::MLIRContext* context, mlir::DialectAsmParser& parser)
+  mlir::Type MemberType::parse(mlir::AsmParser& parser)
   {
     if (parser.parseLess()) {
       return mlir::Type();
@@ -183,30 +220,30 @@ namespace mlir::modelica
     }
 
     llvm::SmallVector<long, 3> castedDimensions(dimensions.begin(), dimensions.end());
-    return MemberType::get(context, elementType, castedDimensions, isConstant, ioProperty);
+    return MemberType::get(parser.getContext(), elementType, castedDimensions, isConstant, ioProperty);
   }
 
-  void MemberType::print(DialectAsmPrinter& os) const
+  void MemberType::print(mlir::AsmPrinter& printer) const
   {
-    os << "member<";
+    printer << "<";
 
     for (const auto& dimension : getShape()) {
-      os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
+      printer << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
     }
 
-    os << getElementType();
+    printer << getElementType();
 
     if (isConstant()) {
-      os << ", constant";
+      printer << ", constant";
     }
 
     if (isInput()) {
-      os << ", input";
+      printer << ", input";
     } else if (isOutput()) {
-      os << ", output";
+      printer << ", output";
     }
 
-    os << ">";
+    printer << ">";
   }
 
   unsigned int MemberType::getRank() const

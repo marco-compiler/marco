@@ -8,6 +8,7 @@
 #include "marco/Modeling/Matching.h"
 #include "marco/Modeling/Scheduling.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "llvm/Support/raw_ostream.h"
 #include <memory>
 #include <vector>
@@ -83,7 +84,7 @@ namespace marco::codegen
           const ::marco::modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const = 0;
 
-      virtual mlir::FuncOp createTemplateFunction(
+      virtual mlir::func::FuncOp createTemplateFunction(
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           mlir::ValueRange vars,

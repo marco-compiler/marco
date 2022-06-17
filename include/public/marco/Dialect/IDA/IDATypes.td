@@ -20,14 +20,6 @@ def InstanceType : IDA_Type<"Instance", "instance">
     let description = [{
         The type represents an instance of IDA.
     }];
-
-    let printer = [{
-        $_printer << "instance";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
 }
 
 def EquationType : IDA_Type<"Equation", "equation">
@@ -37,14 +29,6 @@ def EquationType : IDA_Type<"Equation", "equation">
     let description = [{
         The type represents an equation that is managed by IDA.
     }];
-
-    let printer = [{
-        $_printer << "equation";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
-    }];
 }
 
 def VariableType : IDA_Type<"Variable", "variable">
@@ -53,14 +37,6 @@ def VariableType : IDA_Type<"Variable", "variable">
 
     let description = [{
         The type represents a variable that is managed by IDA.
-    }];
-
-    let printer = [{
-        $_printer << "variable";
-    }];
-
-    let parser = [{
-        return get($_ctxt);
     }];
 }
 

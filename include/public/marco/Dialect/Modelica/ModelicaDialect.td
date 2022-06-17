@@ -17,6 +17,14 @@ def Modelica_Dialect : Dialect {
 
     let cppNamespace = "::mlir::modelica";
     let hasConstantMaterializer = 1;
+    let useDefaultAttributePrinterParser = 1;
+    let useDefaultTypePrinterParser = 1;
+    let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
+
+    let extraClassDeclaration = [{
+        void registerTypes();
+        void registerAttributes();
+    }];
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICADIALECT_TD

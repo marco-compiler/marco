@@ -10,7 +10,6 @@
 #include "marco/Frontend/Options.h"
 #include "marco/Frontend/TextDiagnosticPrinter.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 
 // Helper method to generate the path of the output file. The following logic
 // applies:
@@ -48,7 +47,6 @@ namespace marco::frontend
         llvmContext_(std::make_unique<llvm::LLVMContext>())
   {
     mlirContext_->loadDialect<mlir::modelica::ModelicaDialect>();
-    mlirContext_->loadDialect<mlir::StandardOpsDialect>();
   }
 
   CompilerInstance::~CompilerInstance()
