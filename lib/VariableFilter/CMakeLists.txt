@@ -9,7 +9,7 @@ set(SOURCES
     Tracker.cpp
     VariableFilter.cpp)
 
-marco_add_library(variableFilter SHARED
+marco_add_library(variableFilter
     ${SOURCES}
 
     LINK_LIBS

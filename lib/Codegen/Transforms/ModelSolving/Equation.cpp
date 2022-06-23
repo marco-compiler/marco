@@ -875,7 +875,6 @@ namespace marco::codegen
       const ::marco::modeling::MultidimensionalRange& equationIndices,
       const Access& access)
   {
-    dumpIR();
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto lhs = getValueAtPath(access.getPath());
 
@@ -1054,7 +1053,6 @@ namespace marco::codegen
     }
 
     if (lhsHasAccess) {
-      dumpIR();
       auto leftPos = llvm::partition(lhsSummedValues, [&](const auto& value) {
         return containsAccessFn(value, access, EquationPath::LEFT);
       });

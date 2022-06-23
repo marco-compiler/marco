@@ -29,6 +29,7 @@ if (NOT WIN32)
   if (MARCO_USE_BUILTIN_SUNDIALS)
     set(RUNTIME_LIBS_PATHS "$SCRIPT_PATH/../dependencies/lib")
   endif()
+
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/marco ${CMAKE_CURRENT_BINARY_DIR}/install/marco @ONLY)
   install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/install/marco DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

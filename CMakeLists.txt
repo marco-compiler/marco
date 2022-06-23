@@ -153,6 +153,20 @@ target_compile_features(boost INTERFACE cxx_std_17)
 # MARCO configuration
 #-------------------------------------------------------------------------------
 
+# Shared libraries
+option(BUILD_SHARED_LIBS "Whether the MARCO libraries should be shared" OFF)
+
+if (BUILD_SHARED_LIBS)
+	if (WIN32)
+		message(WARNING "Shared libraries are not supported on Windows. Disabling them.")
+		set(BUILD_SHARED_LIBS OFF)
+	elseif (APPLE)
+		message(WARNING "Shared libraries are not supported on MacOS. Disabling them.")
+		set(BUILD_SHARED_LIBS OFF)
+	endif()
+endif()
+
+# Paths
 set(MARCO_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(MARCO_INCLUDE_PUBLIC_DIR ${MARCO_ROOT}/include/public)

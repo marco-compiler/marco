@@ -1,7 +1,7 @@
 set(SOURCES
 	LogMessage.cpp)
 
-marco_add_library(utils SHARED
+marco_add_library(utils
 	${SOURCES}
 
 	LINK_COMPONENTS

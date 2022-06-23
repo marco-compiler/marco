@@ -90,23 +90,23 @@ namespace
   #define PROFILER_PRINTING_STOP ::profiler().printing.stop()
 
 #else
-  #define PROFILER_ARG_START
-  #define PROFILER_ARG_STOP
+  #define PROFILER_ARG_START static_assert(true)
+  #define PROFILER_ARG_STOP static_assert(true)
 
-  #define PROFILER_INIT_START
-  #define PROFILER_INIT_STOP
+  #define PROFILER_INIT_START static_assert(true)
+  #define PROFILER_INIT_STOP static_assert(true)
 
-  #define PROFILER_IC_START
-  #define PROFILER_IC_STOP
+  #define PROFILER_IC_START static_assert(true)
+  #define PROFILER_IC_STOP static_assert(true)
 
-  #define PROFILER_NONSTATEVAR_START
-  #define PROFILER_NONSTATEVAR_STOP
+  #define PROFILER_NONSTATEVAR_START static_assert(true)
+  #define PROFILER_NONSTATEVAR_STOP static_assert(true)
 
-  #define PROFILER_STATEVAR_START
-  #define PROFILER_STATEVAR_STOP
+  #define PROFILER_STATEVAR_START static_assert(true)
+  #define PROFILER_STATEVAR_STOP static_assert(true)
 
-  #define PROFILER_PRINTING_START
-  #define PROFILER_PRINTING_STOP
+  #define PROFILER_PRINTING_START static_assert(true)
+  #define PROFILER_PRINTING_STOP static_assert(true)
 #endif
 
 namespace

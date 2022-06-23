@@ -615,12 +615,14 @@ namespace
     variableOffsets.push_back(offset + flatSize);
 
     // Initialize derivativeValues, idValues and absoluteTolerances
+    auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
     realtype absTol = std::min(algebraicTolerance, absoluteTolerance);
 
     for (int64_t i = 0; i < flatSize; ++i) {
+      derivativeValues[offset + i] = 0;
       idValues[offset + i] = 0;
       toleranceValues[offset + i] = absTol;
     }

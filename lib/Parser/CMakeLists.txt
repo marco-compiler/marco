@@ -5,7 +5,7 @@ set(SOURCES
     Parser.cpp
     Token.cpp)
 
-marco_add_library(parser SHARED
+marco_add_library(parser
     ${SOURCES}
 
     LINK_LIBS

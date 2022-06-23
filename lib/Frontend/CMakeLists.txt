@@ -18,7 +18,7 @@ set(MLIR_LIBS
     MLIRExecutionEngine
     MLIROpenMPToLLVMIRTranslation)
 
-marco_add_library(frontend SHARED
+marco_add_library(frontend
     ${SOURCES}
 
     DEPENDS

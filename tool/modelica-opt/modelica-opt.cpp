@@ -12,6 +12,14 @@
 
 int main(int argc, char* argv[])
 {
+  // Register the dialects
+	mlir::DialectRegistry registry;
+
+  mlir::registerAllDialects(registry);
+
+	registry.insert<mlir::modelica::ModelicaDialect>();
+  registry.insert<mlir::ida::IDADialect>();
+
   // Register the passes defined by MARCO
   marco::codegen::registerTransformsPasses();
   marco::codegen::registerConversionPasses();
@@ -24,14 +32,6 @@ int main(int argc, char* argv[])
   mlir::registerSCFToControlFlowPass();
   mlir::registerConvertControlFlowToLLVMPass();
   mlir::registerReconcileUnrealizedCastsPass();
-
-  // Register the dialects
-	mlir::DialectRegistry registry;
-
-  mlir::registerAllDialects(registry);
-
-	registry.insert<mlir::modelica::ModelicaDialect>();
-  registry.insert<mlir::ida::IDADialect>();
 
 	auto result = mlir::MlirOptMain(argc, argv, "Modelica optimizer driver\n", registry);
 	return mlir::asMainReturnCode(result);

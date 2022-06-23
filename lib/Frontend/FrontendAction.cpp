@@ -274,8 +274,6 @@ namespace marco::frontend
     }
 
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
-      ci.getMLIRModule().dump();
-
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,
           "Modelica dialect conversion failure");

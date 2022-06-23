@@ -73,7 +73,7 @@ set(SOURCES
 	Pass.cpp
 	Symbol.cpp)
 
-marco_add_library(ast SHARED
+marco_add_library(ast
 	${SOURCES}
 
 	LINK_LIBS

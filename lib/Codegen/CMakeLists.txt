@@ -24,7 +24,6 @@ set(MLIR_LIBS
     ${dialect_libs})
 
 marco_add_library(codegen
-    SHARED
     ${SOURCES}
 
     DEPENDS

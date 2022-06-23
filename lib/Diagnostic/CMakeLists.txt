@@ -4,7 +4,7 @@ set(SOURCES
     LogMessage.cpp
     Printer.cpp)
 
-marco_add_library(diagnostic SHARED
+marco_add_library(diagnostic
     ${SOURCES}
 
     LINK_LIBS

@@ -21,7 +21,13 @@ macro(marco_add_library name)
   marco_canonize_library_name(canonized_name ${name})
   set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
 
-  llvm_add_library(${name} OUTPUT_NAME ${canonized_name} ${ARGN})
+  if (BUILD_SHARED_LIBRARIES)
+    set(LIB_TYPE SHARED)
+  else()
+    set(LIB_TYPE STATIC)
+  endif()
+
+  llvm_add_library(${name} OUTPUT_NAME ${canonized_name} ${LIB_TYPE} ${ARGN})
   add_library(marco::${name} ALIAS ${name})
 
   install(TARGETS ${name}

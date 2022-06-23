@@ -1,4 +1,4 @@
-add_mlir_dialect_library(MLIRIDA SHARED
+add_mlir_dialect_library(MLIRIDA
     Attributes.cpp
     IDADialect.cpp
     Interfaces.cpp

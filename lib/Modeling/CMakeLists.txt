@@ -14,7 +14,7 @@ set(SOURCES
     Range.cpp
     Scheduling.cpp)
 
-marco_add_library(modeling SHARED
+marco_add_library(modeling
     ${SOURCES}
 
     LINK_LIBS
