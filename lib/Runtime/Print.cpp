@@ -1,6 +1,10 @@
 #include "marco/Runtime/Print.h"
-#include <iostream>
 #include <iomanip>
+#include <iostream>
+
+//===----------------------------------------------------------------------===//
+// Profiling
+//===----------------------------------------------------------------------===//
 
 #ifdef MARCO_PROFILING
 
@@ -59,24 +63,69 @@ namespace
   #define PROFILER_STRING_STOP ::profiler().stringValues.start()
 
 #else
-  #define PROFILER_BOOL_START
-  #define PROFILER_BOOL_STOP
+  #define PROFILER_BOOL_START static_assert(true)
+  #define PROFILER_BOOL_STOP static_assert(true)
 
-  #define PROFILER_INT_START
-  #define PROFILER_INT_STOP
+  #define PROFILER_INT_START static_assert(true)
+  #define PROFILER_INT_STOP static_assert(true)
 
-  #define PROFILER_FLOAT_START
-  #define PROFILER_FLOAT_STOP
+  #define PROFILER_FLOAT_START static_assert(true)
+  #define PROFILER_FLOAT_STOP static_assert(true)
 
-  #define PROFILER_STRING_START
-  #define PROFILER_STRING_STOP
+  #define PROFILER_STRING_START static_assert(true)
+  #define PROFILER_STRING_STOP static_assert(true)
 #endif
 
-PrinterConfig& printerConfig()
+//===----------------------------------------------------------------------===//
+// CLI
+//===----------------------------------------------------------------------===//
+
+namespace
 {
-  static PrinterConfig obj;
-  return obj;
+  struct PrinterConfig
+  {
+    bool scientificNotation = false;
+    unsigned int precision = 9;
+  };
+
+  PrinterConfig& printerConfig()
+  {
+    static PrinterConfig obj;
+    return obj;
+  }
 }
+
+#ifdef MARCO_CLI
+
+namespace marco::runtime::formatting
+{
+  class CommandLineOptions : public cli::Category
+  {
+    std::string getTitle() const override
+    {
+      return "Formatting";
+    }
+
+    void printCommandLineOptions(std::ostream& os) const override
+    {
+      os << "  --scientific-notation      Print the values using the scientific notation.\n";
+      os << "  --precision=<value>        Set the number of decimals to be printed.\n";
+    }
+
+    void parseCommandLineOptions(const argh::parser& options) const override
+    {
+      printerConfig().scientificNotation = options["scientific-notation"];
+      options("precision", printerConfig().precision) >> printerConfig().precision;
+    }
+  };
+
+  std::unique_ptr<cli::Category> getCLIOptionsCategory()
+  {
+    return std::make_unique<CommandLineOptions>();
+  }
+}
+
+#endif
 
 //===----------------------------------------------------------------------===//
 // print

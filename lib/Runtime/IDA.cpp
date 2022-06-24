@@ -1,4 +1,5 @@
 #include "marco/Runtime/IDA.h"
+#include "marco/Runtime/IDAImpl.h"
 #include "marco/Runtime/ArrayDescriptor.h"
 #include "marco/Runtime/MemoryManagement.h"
 #include <cassert>
@@ -10,10 +11,45 @@
 using namespace marco::runtime::ida;
 
 //===----------------------------------------------------------------------===//
+// CLI
+//===----------------------------------------------------------------------===//
+
+#ifdef MARCO_CLI
+
+namespace marco::runtime::ida
+{
+  class CommandLineOptions : public cli::Category
+  {
+    std::string getTitle() const override
+    {
+      return "IDA";
+    }
+
+    void printCommandLineOptions(std::ostream& os) const override
+    {
+      os << "  --ida-print-jacobian       Whether to print the Jacobian matrices while debugging\n";
+    }
+
+    void parseCommandLineOptions(const argh::parser& options) const override
+    {
+      ida::getOptions().printJacobian = options["ida-print-jacobian"];
+    }
+  };
+
+  std::unique_ptr<cli::Category> getCLIOptionsCategory()
+  {
+    return std::make_unique<CommandLineOptions>();
+  }
+}
+
+#endif
+
+//===----------------------------------------------------------------------===//
 // Profiling
 //===----------------------------------------------------------------------===//
 
 #ifdef MARCO_PROFILING
+
 #include "marco/Runtime/Profiling.h"
 
 namespace

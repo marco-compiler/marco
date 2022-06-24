@@ -5,14 +5,16 @@
 #include "marco/Runtime/Mangling.h"
 #include <cstdint>
 
-class PrinterConfig
-{
-  public:
-    bool scientificNotation = false;
-    unsigned int precision = 9;
-};
+#ifdef MARCO_CLI
 
-PrinterConfig& printerConfig();
+#include "marco/Runtime/CLI.h"
+
+namespace marco::runtime::formatting
+{
+  std::unique_ptr<cli::Category> getCLIOptionsCategory();
+}
+
+#endif
 
 RUNTIME_FUNC_DECL(print, void, bool)
 RUNTIME_FUNC_DECL(print, void, int32_t)

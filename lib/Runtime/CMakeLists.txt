@@ -1,7 +1,7 @@
 set(SHARED_SOURCES
 	BuiltInFunctions.cpp
     IDA.cpp
-        Print.cpp
+	Print.cpp
 	Math.cpp
 	MemoryManagement.cpp
 	Profiling.cpp
@@ -9,6 +9,7 @@ set(SHARED_SOURCES
 
 set(STATIC_SOURCES
 	${SHARED_SOURCES}
+	CLI.cpp
 	Runtime.cpp)
 
 # Fetch the Argh! project, which is used to handle runtime command-line arguments
@@ -56,8 +57,11 @@ marco_add_library(runtime
 	STATIC
 	${STATIC_SOURCES}
 
-	LINK_LIBS
+	LINK_LIBS PUBLIC
 	${LIBS}
 	argh)
+
+# Enable the CLI only for the static runtime library
+target_compile_definitions(runtime PUBLIC MARCO_CLI)
 
 add_dependencies(marco-runtime marco::runtime)

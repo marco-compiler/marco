@@ -1,27 +1,13 @@
 #include "marco/Runtime/Runtime.h"
+#include "marco/Runtime/CLI.h"
 #include "marco/Runtime/IDA.h"
 #include "marco/Runtime/Print.h"
-#include "argh.h"
 
 using namespace ::marco::runtime;
 
-// Functions defined by the compiled model module
-extern "C" void* init();
-
-extern "C" void* initICSolvers(void* data);
-extern "C" void* deinitICSolvers(void* data);
-
-extern "C" void initMainSolvers(void* data);
-extern "C" void deinitMainSolvers(void* data);
-
-extern "C" void calcIC(void* data);
-extern "C" void updateNonStateVariables(void* data);
-extern "C" void updateStateVariables(void* data);
-extern "C" bool incrementTime(void* data);
-extern "C" void deinit(void* data);
-
-extern "C" void printHeader(void* data);
-extern "C" void print(void* data);
+//===----------------------------------------------------------------------===//
+// Profiling
+//===----------------------------------------------------------------------===//
 
 #ifdef MARCO_PROFILING
 
@@ -129,6 +115,10 @@ namespace
   }
 }
 
+//===----------------------------------------------------------------------===//
+// CLI
+//===----------------------------------------------------------------------===//
+
 namespace
 {
   void printHelp()
@@ -137,18 +127,51 @@ namespace
     std::cout << "Generated with MARCO compiler.\n\n";
 
     std::cout << "OPTIONS:\n";
-    std::cout << "  --help                     Display the available options.\n";
-    std::cout << "  --scientific-notation      Print the values using the scientific notation.\n";
-    std::cout << "  --precision=<value>        Set the number of decimals to be printed.\n";
-    std::cout << "\n";
-    std::cout << "  --ida-print-jacobian       Whether to print the Jacobian matrices while debugging\n";
+    std::cout << "  --help      Display the available options.\n\n";
+
+    auto& cli = getCLI();
+
+    for (size_t i = 0; i < cli.size(); ++i) {
+      std::cout << cli[i].getTitle() << "\n";
+      cli[i].printCommandLineOptions(std::cout);
+      std::cout << "\n";
+    }
   }
+}
+
+//===----------------------------------------------------------------------===//
+// Simulation
+//===----------------------------------------------------------------------===//
+
+// Functions defined by the compiled model module
+extern "C"
+{
+  void* init();
+
+  void* initICSolvers(void* data);
+  void* deinitICSolvers(void* data);
+
+  void initMainSolvers(void* data);
+  void deinitMainSolvers(void* data);
+
+  void calcIC(void* data);
+  void updateNonStateVariables(void* data);
+  void updateStateVariables(void* data);
+  bool incrementTime(void* data);
+  void deinit(void* data);
+
+  void printHeader(void* data);
+  void print(void* data);
 }
 
 [[maybe_unused]] int runSimulation(int argc, char* argv[])
 {
   // Parse the command-line arguments
   PROFILER_ARG_START;
+  auto& cli = getCLI();
+  cli += formatting::getCLIOptionsCategory();
+  cli += ida::getCLIOptionsCategory();
+
   argh::parser cmdl(argc, argv);
 
   if (cmdl["help"]) {
@@ -156,10 +179,9 @@ namespace
     return 0;
   }
 
-  printerConfig().scientificNotation = cmdl["scientific-notation"];
-  cmdl("precision", printerConfig().precision) >> printerConfig().precision;
-
-  ida::getOptions().printJacobian = cmdl["ida-print-jacobian"];
+  for (size_t i = 0; i < cli.size(); ++i) {
+    cli[i].parseCommandLineOptions(cmdl);
+  }
 
   PROFILER_ARG_STOP;
 
