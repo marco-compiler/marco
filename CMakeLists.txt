@@ -154,7 +154,13 @@ target_compile_features(boost INTERFACE cxx_std_17)
 #-------------------------------------------------------------------------------
 
 # Shared libraries
-option(BUILD_SHARED_LIBS "Whether the MARCO libraries should be shared" OFF)
+if (UNIX AND NOT APPLE)
+	set(BUILD_SHARED_LIBS_DEFAULT ON)
+else()
+	set(BUILD_SHARED_LIBS_DEFAULT OFF)
+endif()
+
+option(BUILD_SHARED_LIBS "Whether the MARCO libraries should be shared" ${BUILD_SHARED_LIBS_DEFAULT})
 
 if (BUILD_SHARED_LIBS)
 	if (WIN32)
@@ -164,6 +170,12 @@ if (BUILD_SHARED_LIBS)
 		message(WARNING "Shared libraries are not supported on MacOS. Disabling them.")
 		set(BUILD_SHARED_LIBS OFF)
 	endif()
+endif()
+
+if (BUILD_SHARED_LIBS)
+	set(LIB_TYPE SHARED)
+else()
+	set(LIB_TYPE STATIC)
 endif()
 
 # Paths

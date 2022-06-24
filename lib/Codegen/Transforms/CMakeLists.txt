@@ -35,7 +35,6 @@ set(MLIR_LIBS
     ${dialect_libs})
 
 add_mlir_dialect_library(MLIRModelicaTransforms
-    SHARED
     ${SOURCES}
 
     DEPENDS
