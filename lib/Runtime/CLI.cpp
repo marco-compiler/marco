@@ -4,6 +4,11 @@ using namespace ::marco::runtime;
 
 namespace marco::runtime
 {
+  namespace cli
+  {
+    Category::~Category() = default;
+  }
+
   const cli::Category& CLI::operator[](size_t index) const
   {
     assert(index < categories.size());

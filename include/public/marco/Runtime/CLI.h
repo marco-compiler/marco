@@ -14,6 +14,8 @@ namespace marco::runtime
     class Category
     {
       public:
+        virtual ~Category();
+
         virtual std::string getTitle() const = 0;
 
         virtual void printCommandLineOptions(std::ostream& os) const = 0;
