@@ -1,7 +1,7 @@
 #ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODELCONVERTER_H
 #define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_MODELCONVERTER_H
 
-#include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/ExternalSolver.h"
 #include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
 #include "marco/Codegen/Transforms/ModelSolving.h"

@@ -146,38 +146,9 @@ namespace mlir::modelica
     return ArrayType::get(getContext(), elementType, getShape());
   }
 
-  UnsizedArrayType ArrayType::toUnsized() const
-  {
-    return UnsizedArrayType::get(getContext(), getElementType());
-  }
-
   bool ArrayType::canBeOnStack() const
   {
     return hasConstantShape();
-  }
-
-  //===----------------------------------------------------------------------===//
-  // UnsizedArrayType
-  //===----------------------------------------------------------------------===//
-
-  mlir::Type UnsizedArrayType::parse(mlir::AsmParser& parser)
-  {
-    mlir::Type elementType;
-    
-    if (parser.parseLess() ||
-        parser.parseKeyword("*") ||
-        parser.parseKeyword("x") ||
-        parser.parseType(elementType) ||
-        parser.parseGreater()) {
-      return mlir::Type();
-    }
-    
-    return UnsizedArrayType::get(parser.getContext(), elementType);
-  }
-
-  void UnsizedArrayType::print(mlir::AsmPrinter& os) const
-  {
-    os << "<*x" << getElementType() << ">";
   }
 
   //===----------------------------------------------------------------------===//

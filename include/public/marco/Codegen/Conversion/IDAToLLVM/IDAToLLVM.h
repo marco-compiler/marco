@@ -7,10 +7,12 @@
 
 namespace marco::codegen
 {
-	std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
-
   void populateIDAStructuralTypeConversionsAndLegality(
-      mlir::LLVMTypeConverter& typeConverter, mlir::RewritePatternSet& patterns, mlir::ConversionTarget& target);
+      mlir::LLVMTypeConverter& typeConverter,
+      mlir::RewritePatternSet& patterns,
+      mlir::ConversionTarget& target);
+
+  std::unique_ptr<mlir::Pass> createIDAToLLVMPass();
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_IDA_IDATOLLVM_H

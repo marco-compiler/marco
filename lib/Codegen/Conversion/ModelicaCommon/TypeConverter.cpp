@@ -1,4 +1,4 @@
-#include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 
 using namespace ::mlir::modelica;
 
@@ -23,10 +23,6 @@ namespace mlir::modelica
       return convertArrayType(type);
     });
 
-    addConversion([&](UnsizedArrayType type) {
-      return convertUnsizedArrayType(type);
-    });
-
     addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
       return integerTypeTargetMaterialization(builder, resultType, inputs, loc);
     });
@@ -37,10 +33,6 @@ namespace mlir::modelica
 
     addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
       return llvmStructTypeTargetMaterialization(builder, resultType, inputs, loc);
-    });
-
-    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return llvmPointerTypeTargetMaterialization(builder, resultType, inputs, loc);
     });
 
     addSourceMaterialization([&](mlir::OpBuilder& builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
@@ -57,10 +49,6 @@ namespace mlir::modelica
 
     addSourceMaterialization([&](mlir::OpBuilder& builder, ArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
       return arrayTypeSourceMaterialization(builder, resultType, inputs, loc);
-    });
-
-    addSourceMaterialization([&](mlir::OpBuilder& builder, UnsizedArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return unsizedArrayTypeSourceMaterialization(builder, resultType, inputs, loc);
     });
   }
 
@@ -96,12 +84,6 @@ namespace mlir::modelica
   {
     auto types = getArrayDescriptorFields(type);
     return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
-  }
-
-  mlir::Type TypeConverter::convertUnsizedArrayType(UnsizedArrayType type)
-  {
-    auto types = getUnsizedArrayDescriptorFields(type);
-    return mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types));
   }
 
   llvm::Optional<mlir::Value> TypeConverter::integerTypeTargetMaterialization(
@@ -141,20 +123,6 @@ namespace mlir::modelica
     }
 
     if (!inputs[0].getType().isa<ArrayType>()) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::llvmPointerTypeTargetMaterialization(
-      mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (!inputs[0].getType().isa<UnsizedArrayType>()) {
       return llvm::None;
     }
 
@@ -244,26 +212,6 @@ namespace mlir::modelica
     return llvm::None;
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::unsizedArrayTypeSourceMaterialization(
-      mlir::OpBuilder& builder, UnsizedArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (auto ptrType = inputs[0].getType().dyn_cast<mlir::LLVM::LLVMPointerType>()) {
-      if (auto structType = ptrType.getElementType().dyn_cast<mlir::LLVM::LLVMStructType>()) {
-        if (auto types = structType.getBody(); types.size() == 2) {
-          if (types[0].isa<mlir::IntegerType>() && types[1].isa<mlir::LLVM::LLVMPointerType>()) {
-            return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-          }
-        }
-      }
-    }
-
-    return llvm::None;
-  }
-
   llvm::SmallVector<mlir::Type, 3> TypeConverter::getArrayDescriptorFields(ArrayType type)
   {
     mlir::Type elementType = type.getElementType();
@@ -280,15 +228,6 @@ namespace mlir::modelica
     }
 
     results.insert(results.end(), 1, mlir::LLVM::LLVMArrayType::get(indexType, rank));
-    return results;
-  }
-
-  llvm::SmallVector<mlir::Type, 3> TypeConverter::getUnsizedArrayDescriptorFields(UnsizedArrayType type)
-  {
-    auto indexType = getIndexType();
-    auto voidPtr = mlir::LLVM::LLVMPointerType::get(convertType(mlir::IntegerType::get(type.getContext(), 8)));
-
-    llvm::SmallVector<mlir::Type, 3> results = { indexType, voidPtr };
     return results;
   }
 }

@@ -1,5 +1,5 @@
-#include "marco/Codegen/Conversion/IDA/IDAToLLVM.h"
-#include "marco/Codegen/Conversion/IDA/TypeConverter.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/TypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
@@ -1724,7 +1724,7 @@ namespace
 
 namespace marco::codegen
 {
-  std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass()
+  std::unique_ptr<mlir::Pass> createIDAToLLVMPass()
   {
     return std::make_unique<IDAToLLVMConversionPass>();
   }

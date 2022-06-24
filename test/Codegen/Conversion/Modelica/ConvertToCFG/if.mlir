@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-modelica-to-cfg | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
 // CHECK:       func @foo(%arg0: i64) -> i64 {
 // CHECK:           cond_br %{{[a-zA-Z0-9]*}}, ^[[if_then:[a-zA-Z0-9]*]], ^[[if_else:[a-zA-Z0-9]*]]

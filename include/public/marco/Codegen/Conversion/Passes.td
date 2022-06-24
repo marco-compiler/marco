@@ -7,14 +7,14 @@ include "mlir/Pass/PassBase.td"
 // IDA
 //===----------------------------------------------------------------------===//
 
-def IDAToLLVM : Pass<"ida-to-llvm", "mlir::ModuleOp"> {
+def IDAToLLVM : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
   let summary = "IDA: conversion to Std + LLVM dialect";
 
   let description = [{
     // TODO
   }];
 
-  let constructor = "marco::codegen::createIDAToLLVMConversionPass()";
+  let constructor = "marco::codegen::createIDAToLLVMPass()";
 
   let dependentDialects = [
     "mlir::LLVM::LLVMDialect"
@@ -22,17 +22,17 @@ def IDAToLLVM : Pass<"ida-to-llvm", "mlir::ModuleOp"> {
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica
+// Modelica to LLVM
 //===----------------------------------------------------------------------===//
 
-def ConvertModelica : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
+def ModelicaToLLVM : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
   let summary = "Modelica: conversion to std + scf + llvm dialects";
 
   let description = [{
     // TODO
   }];
 
-  let constructor = "marco::codegen::createModelicaConversionPass()";
+  let constructor = "marco::codegen::createModelicaToLLVMPass()";
 
   let dependentDialects = [
     "mlir::modelica::ModelicaDialect",
@@ -44,36 +44,20 @@ def ConvertModelica : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
   ];
 }
 
-def ConvertModelicaToCFG : Pass<"convert-modelica-to-cfg", "mlir::ModuleOp"> {
+def ModelicaToCF : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
   let summary = "Modelica: convert to CFG";
 
   let description = [{
     // TODO
   }];
 
-  let constructor = "marco::codegen::createLowerToCFGPass()";
+  let constructor = "marco::codegen::createModelicaToCFPass()";
 
   let dependentDialects = [
     "mlir::modelica::ModelicaDialect",
     "mlir::cf::ControlFlowDialect",
     "mlir::func::FuncDialect",
     "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect"
-  ];
-}
-
-def ConvertModelicaToLLVM : Pass<"convert-to-llvm", "mlir::ModuleOp"> {
-  let summary = "Modelica: LLVM lowering pass";
-
-  let description = [{
-    // TODO
-  }];
-
-  let constructor = "marco::codegen::createLLVMLoweringPass()";
-
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect",
     "mlir::LLVM::LLVMDialect"
   ];
 }

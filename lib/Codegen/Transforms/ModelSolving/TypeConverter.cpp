@@ -1,6 +1,6 @@
 #include "marco/Codegen/Transforms/ModelSolving/TypeConverter.h"
-#include "marco/Codegen/Conversion/IDA/TypeConverter.h"
-#include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;

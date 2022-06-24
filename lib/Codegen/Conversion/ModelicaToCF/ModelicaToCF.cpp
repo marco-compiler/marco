@@ -1,13 +1,13 @@
-#include "marco/Codegen/Conversion/Modelica/LowerToCFG.h"
-#include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Conversion/Modelica/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Utils.h"
-#include "mlir/IR/BuiltinOps.h"
+#include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/IR/BuiltinOps.h"
 #include <set>
 #include <stack>
 
@@ -960,10 +960,10 @@ mlir::LogicalResult CFGLowerer::recurse(
 
 namespace
 {
-  class LowerToCFGPass : public ConvertModelicaToCFGBase<LowerToCFGPass>
+  class ModelicaToCFPass : public ModelicaToCFBase<ModelicaToCFPass>
   {
     public:
-      explicit LowerToCFGPass(LowerToCFGOptions options)
+      ModelicaToCFPass(ModelicaToCFOptions options)
           : options(std::move(options))
       {
       }
@@ -1009,14 +1009,20 @@ namespace
       }
 
     private:
-      LowerToCFGOptions options;
+      ModelicaToCFOptions options;
   };
 }
 
 namespace marco::codegen
 {
-  std::unique_ptr<mlir::Pass> createLowerToCFGPass(LowerToCFGOptions options)
+  const ModelicaToCFOptions& ModelicaToCFOptions::getDefaultOptions()
   {
-    return std::make_unique<LowerToCFGPass>(std::move(options));
+    static ModelicaToCFOptions options;
+    return options;
+  }
+
+  std::unique_ptr<mlir::Pass> createModelicaToCFPass(ModelicaToCFOptions options)
+  {
+    return std::make_unique<ModelicaToCFPass>(std::move(options));
   }
 }

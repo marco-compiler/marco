@@ -69,23 +69,9 @@ def ArrayType : Modelica_Type<"Array"> {
 
         ArrayType slice(unsigned int subscriptsAmount) const;
         ArrayType toElementType(Type elementType) const;
-        UnsizedArrayType toUnsized() const;
 
 		bool canBeOnStack() const;
      }];
-}
-
-def UnsizedArrayType : Modelica_Type<"UnsizedArray"> {
-    let mnemonic = "unsized_array";
-    let summary = "Unsized array type";
-
-    let description = [{
-        Unsized array type.
-    }];
-
-    let parameters = (ins "mlir::Type":$elementType);
-
-    let hasCustomAssemblyFormat = 1;
 }
 
 def MemberType : Modelica_Type<"Member"> {

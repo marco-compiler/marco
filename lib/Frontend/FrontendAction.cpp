@@ -248,15 +248,20 @@ namespace marco::frontend
     // Place the deallocation instructions for the arrays
     passManager.addPass(codegen::createArrayDeallocationPass());
 
-    passManager.addPass(codegen::createLowerToCFGPass());
+    // Modelica to CF conversion
+    codegen::ModelicaToCFOptions modelicaToCFOptions;
+    modelicaToCFOptions.bitWidth = codegenOptions.bitWidth;
+    modelicaToCFOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
+    modelicaToCFOptions.inlining = codegenOptions.inlining;
 
-    // Modelica conversion pass
-    codegen::ModelicaConversionOptions modelicaConversionOptions;
-    modelicaConversionOptions.assertions = codegenOptions.assertions;
-    modelicaConversionOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
+    passManager.addPass(codegen::createModelicaToCFPass(modelicaToCFOptions));
 
-    passManager.addPass(codegen::createModelicaConversionPass(modelicaConversionOptions));
-    passManager.addPass(codegen::createIDAToLLVMConversionPass());
+    // Modelica To LLVM conversion
+    codegen::ModelicaToLLVMOptions modelicaToLLVMOptions;
+    modelicaToLLVMOptions.assertions = codegenOptions.assertions;
+
+    passManager.addPass(codegen::createModelicaToLLVMPass(modelicaToLLVMOptions));
+    passManager.addPass(codegen::createIDAToLLVMPass());
 
     if (codegenOptions.omp) {
       // Use OpenMP for parallel loops

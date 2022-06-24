@@ -1,7 +1,5 @@
 set(SOURCES
-    LowerToCFG.cpp
-    LowerToLLVM.cpp
-    ModelicaConversion.cpp
+    IDAToLLVM.cpp
     TypeConverter.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
@@ -11,8 +9,7 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs})
 
-add_mlir_dialect_library(MLIRModelicaConversion
-    SHARED
+add_mlir_conversion_library(MLIRIDAToLLVM
     ${SOURCES}
 
     DEPENDS
@@ -20,6 +17,4 @@ add_mlir_dialect_library(MLIRModelicaConversion
 
     LINK_LIBS PUBLIC
     marco::codegen
-    marco::modeling
-    MLIRIDAConversion
     ${MLIR_LIBS})

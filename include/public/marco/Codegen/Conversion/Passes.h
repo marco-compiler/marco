@@ -3,10 +3,9 @@
 
 // Just a convenience header file to include the conversion passes
 
-#include "marco/Codegen/Conversion/IDA/IDAToLLVM.h"
-#include "marco/Codegen/Conversion/Modelica/LowerToCFG.h"
-#include "marco/Codegen/Conversion/Modelica/LowerToLLVM.h"
-#include "marco/Codegen/Conversion/Modelica/ModelicaConversion.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
+#include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
+#include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 
 namespace marco::codegen
 {
@@ -14,7 +13,7 @@ namespace marco::codegen
   // Registration
   //===----------------------------------------------------------------------===//
 
-  /// Generate the code for registering passes.
+  /// Generate the code for registering passes
   #define GEN_PASS_REGISTRATION
   #include "marco/Codegen/Conversion/Passes.h.inc"
 }

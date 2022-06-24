@@ -21,7 +21,6 @@ namespace mlir::modelica
       mlir::Type convertIntegerType(mlir::modelica::IntegerType type);
       mlir::Type convertRealType(mlir::modelica::RealType type);
       mlir::Type convertArrayType(mlir::modelica::ArrayType type);
-      mlir::Type convertUnsizedArrayType(mlir::modelica::UnsizedArrayType type);
 
       llvm::Optional<mlir::Value> integerTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
@@ -31,9 +30,6 @@ namespace mlir::modelica
 
       llvm::Optional<mlir::Value> llvmStructTypeTargetMaterialization(
           mlir::OpBuilder& builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
-
-      llvm::Optional<mlir::Value> llvmPointerTypeTargetMaterialization(
-          mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
       llvm::Optional<mlir::Value> booleanTypeSourceMaterialization(
           mlir::OpBuilder& builder, mlir::modelica::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
@@ -47,12 +43,8 @@ namespace mlir::modelica
       llvm::Optional<mlir::Value> arrayTypeSourceMaterialization(
           mlir::OpBuilder& builder, mlir::modelica::ArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
 
-      llvm::Optional<mlir::Value> unsizedArrayTypeSourceMaterialization(
-          mlir::OpBuilder& builder, mlir::modelica::UnsizedArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const;
-
     private:
       llvm::SmallVector<mlir::Type, 3> getArrayDescriptorFields(mlir::modelica::ArrayType type);
-      llvm::SmallVector<mlir::Type, 3> getUnsizedArrayDescriptorFields(mlir::modelica::UnsizedArrayType type);
 
     private:
 		  unsigned int bitWidth;

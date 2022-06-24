@@ -1,6 +1,9 @@
 #include "marco/Runtime/Runtime.h"
+#include "marco/Runtime/IDA.h"
 #include "marco/Runtime/Print.h"
 #include "argh.h"
+
+using namespace ::marco::runtime;
 
 // Functions defined by the compiled model module
 extern "C" void* init();
@@ -137,6 +140,8 @@ namespace
     std::cout << "  --help                     Display the available options.\n";
     std::cout << "  --scientific-notation      Print the values using the scientific notation.\n";
     std::cout << "  --precision=<value>        Set the number of decimals to be printed.\n";
+    std::cout << "\n";
+    std::cout << "  --ida-print-jacobian       Whether to print the Jacobian matrices while debugging\n";
   }
 }
 
@@ -146,13 +151,15 @@ namespace
   PROFILER_ARG_START;
   argh::parser cmdl(argc, argv);
 
-  printerConfig().scientificNotation = cmdl["scientific-notation"];
-  cmdl("precision", printerConfig().precision) >> printerConfig().precision;
-
   if (cmdl["help"]) {
     printHelp();
     return 0;
   }
+
+  printerConfig().scientificNotation = cmdl["scientific-notation"];
+  cmdl("precision", printerConfig().precision) >> printerConfig().precision;
+
+  ida::getOptions().printJacobian = cmdl["ida-print-jacobian"];
 
   PROFILER_ARG_STOP;
 

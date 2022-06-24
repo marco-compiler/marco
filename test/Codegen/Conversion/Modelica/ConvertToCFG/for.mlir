@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-modelica-to-cfg | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
 // CHECK:      func @foo() {
 // CHECK:           br ^[[for_condition:[a-zA-Z0-9]*]]

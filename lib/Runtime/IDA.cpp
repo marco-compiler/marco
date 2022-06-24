@@ -1,171 +1,83 @@
 #include "marco/Runtime/IDA.h"
 #include "marco/Runtime/ArrayDescriptor.h"
 #include "marco/Runtime/MemoryManagement.h"
-#include "ida/ida.h"
-#include "nvector/nvector_serial.h"
-#include "sundials/sundials_config.h"
-#include "sundials/sundials_types.h"
-#include "sunlinsol/sunlinsol_klu.h"
-#include "sunmatrix/sunmatrix_sparse.h"
 #include <cassert>
 #include <climits>
 #include <functional>
 #include <iostream>
 #include <set>
 
-using Access = std::vector<std::pair<sunindextype, sunindextype>>;
-using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
+using namespace marco::runtime::ida;
 
-using DerivativeVariable = std::pair<size_t, std::vector<size_t>>;
+//===----------------------------------------------------------------------===//
+// Profiling
+//===----------------------------------------------------------------------===//
+
+#ifdef MARCO_PROFILING
+#include "marco/Runtime/Profiling.h"
 
 namespace
 {
-  class VariableIndicesIterator;
-
-  class VariableDimensions
-  {
-    private:
-      using Container = std::vector<size_t>;
-
-    public:
-      using iterator = typename Container::iterator;
-      using const_iterator = typename Container::const_iterator;
-
-      VariableDimensions(size_t rank);
-
-      size_t& operator[](size_t index);
-      const size_t& operator[](size_t index) const;
-
-      size_t rank() const;
-
-      const_iterator begin() const;
-      const_iterator end() const;
-
-      VariableIndicesIterator indicesBegin() const;
-      VariableIndicesIterator indicesEnd() const;
-
-    private:
-      Container dimensions;
-  };
-
-  class VariableIndicesIterator
+  class IDAProfiler : public Profiler
   {
     public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = size_t*;
-      using difference_type = std::ptrdiff_t;
-      using pointer = size_t**;
-      using reference = size_t*&;
+    IDAProfiler() : Profiler("IDA")
+    {
+      registerProfiler(*this);
+    }
 
-      ~VariableIndicesIterator()
-      {
-        delete indices;
-      }
+    void reset() override
+    {
+      initialConditionsTimer.reset();
+      stepsTimer.reset();
+    }
 
-      static VariableIndicesIterator begin(const VariableDimensions& dimensions)
-      {
-        VariableIndicesIterator result(dimensions);
+    void print() const override
+    {
+      std::cerr << "Time spent on computing the initial conditions: " << initialConditionsTimer.totalElapsedTime() << " ms\n";
+      std::cerr << "Time spent on IDA steps: " << stepsTimer.totalElapsedTime() << " ms\n";
+    }
 
-        for (size_t i = 0; i < dimensions.rank(); ++i) {
-          result.indices[i] = 0;
-        }
-
-        return result;
-      }
-
-      static VariableIndicesIterator end(const VariableDimensions& dimensions)
-      {
-        VariableIndicesIterator result(dimensions);
-
-        for (size_t i = 0; i < dimensions.rank(); ++i) {
-          result.indices[i] = dimensions[i];
-        }
-
-        return result;
-      }
-
-      bool operator==(const VariableIndicesIterator& it) const
-      {
-        if (dimensions != it.dimensions) {
-          return false;
-        }
-
-        for (size_t i = 0; i < dimensions->rank(); ++i) {
-          if (indices[i] != it.indices[i]) {
-            return false;
-          }
-        }
-
-        return true;
-      }
-
-      bool operator!=(const VariableIndicesIterator& it) const
-      {
-        if (dimensions != it.dimensions) {
-          return true;
-        }
-
-        for (size_t i = 0; i < dimensions->rank(); ++i) {
-          if (indices[i] != it.indices[i]) {
-            return true;
-          }
-        }
-
-        return false;
-      }
-
-      VariableIndicesIterator& operator++()
-      {
-        fetchNext();
-        return *this;
-      }
-
-      VariableIndicesIterator operator++(int)
-      {
-        auto temp = *this;
-        fetchNext();
-        return temp;
-      }
-
-      size_t* operator*() const
-      {
-        return indices;
-      }
-
-    private:
-      VariableIndicesIterator(const VariableDimensions& dimensions) : dimensions(&dimensions)
-      {
-        indices = new size_t[dimensions.rank()];
-      }
-
-      void fetchNext()
-      {
-        size_t rank = dimensions->rank();
-        size_t posFromLast = 0;
-
-        assert(std::none_of(dimensions->begin(), dimensions->end(), [](const auto& dimension) {
-          return dimension == 0;
-        }));
-
-        while (posFromLast < rank && ++indices[rank - posFromLast - 1] == (*dimensions)[rank - posFromLast - 1]) {
-          ++posFromLast;
-        }
-
-        if (posFromLast != rank) {
-          for (size_t i = 0; i < posFromLast; ++i) {
-            indices[rank - i - 1] = 0;
-          }
-        }
-      }
-
-    private:
-      size_t* indices;
-      const VariableDimensions* dimensions;
+    Timer initialConditionsTimer;
+    Timer stepsTimer;
   };
 
+  IDAProfiler& profiler()
+  {
+    static IDAProfiler obj;
+    return obj;
+  }
+}
+
+#endif
+
+//===----------------------------------------------------------------------===//
+// Options
+//===----------------------------------------------------------------------===//
+
+namespace marco::runtime::ida
+{
+  Options& getOptions()
+  {
+    static Options options;
+    return options;
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Utilities
+//===----------------------------------------------------------------------===//
+
+namespace marco::runtime::ida
+{
   VariableDimensions::VariableDimensions(size_t rank)
   {
     dimensions.resize(rank, 0);
+  }
+
+  size_t VariableDimensions::rank() const
+  {
+    return dimensions.size();
   }
 
   size_t& VariableDimensions::operator[](size_t index)
@@ -178,226 +90,136 @@ namespace
     return dimensions[index];
   }
 
-  size_t VariableDimensions::rank() const
-  {
-    return dimensions.size();
-  }
-
   VariableDimensions::const_iterator VariableDimensions::begin() const
   {
+    assert(isValid() && "Variable dimensions have not been initialized");
     return dimensions.begin();
   }
 
   VariableDimensions::const_iterator VariableDimensions::end() const
   {
+    assert(isValid() && "Variable dimensions have not been initialized");
     return dimensions.end();
   }
 
   VariableIndicesIterator VariableDimensions::indicesBegin() const
   {
+    assert(isValid() && "Variable dimensions have not been initialized");
     return VariableIndicesIterator::begin(*this);
   }
 
   VariableIndicesIterator VariableDimensions::indicesEnd() const
   {
+    assert(isValid() && "Variable dimensions have not been initialized");
     return VariableIndicesIterator::end(*this);
   }
-}
 
-using EqDimension = std::vector<std::pair<size_t, size_t>>;
-
-template<typename FloatType>
-using VariableGetterFunction = FloatType(*)(void*, size_t*);
-
-template<typename FloatType>
-using VariableSetterFunction = void(*)(void*, FloatType, size_t*);
-
-template<typename FloatType>
-using ResidualFunction = FloatType(*)(FloatType, void*, size_t*);
-
-template<typename FloatType>
-using JacobianFunction = FloatType(*)(FloatType, void*, size_t*, size_t*, FloatType);
-
-// Debugging options
-const bool printJacobian = false;
-
-// Arbitrary initial guesses on 20/12/2021 Modelica Call
-const realtype algebraicTolerance = 1e-12;
-const realtype timeScalingFactorInit = 1e5;
-
-// Default IDA values
-const realtype initTimeStep = 0.0;
-
-const long maxNumSteps = 1e4;
-const int maxErrTestFail = 10;
-const int maxNonlinIters = 4;
-const int maxConvFails = 10;
-const realtype nonlinConvCoef = 0.33;
-
-const int maxNumStepsIC = 5;
-const int maxNumJacsIC = 4;
-const int maxNumItersIC = 10;
-const realtype nonlinConvCoefIC = 0.0033;
-
-const int suppressAlg = SUNFALSE;
-const int lineSearchOff = SUNFALSE;
-
-namespace
-{
-  /// Container for all the data required by IDA in order to compute the residual
-  /// functions and the Jacobian matrix.
-  class IDAInstance
+  bool VariableDimensions::isValid() const
   {
-    public:
-      static constexpr realtype kUndefinedTimeStep = -1;
+    return std::none_of(dimensions.begin(), dimensions.end(), [](const auto& dimension) {
+      return dimension == 0;
+    });
+  }
 
-      IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber);
+  VariableIndicesIterator::~VariableIndicesIterator()
+  {
+    delete indices;
+  }
 
-      ~IDAInstance();
+  VariableIndicesIterator VariableIndicesIterator::begin(const VariableDimensions& dimensions)
+  {
+    VariableIndicesIterator result(dimensions);
 
-      void setStartTime(double time);
-      void setEndTime(double time);
-      void setTimeStep(double time);
+    for (size_t i = 0; i < dimensions.rank(); ++i) {
+      result.indices[i] = 0;
+    }
 
-      void setRelativeTolerance(double tolerance);
-      void setAbsoluteTolerance(double tolerance);
+    return result;
+  }
 
-      /// Add and initialize a new variable given its array.
-      int64_t addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+  VariableIndicesIterator VariableIndicesIterator::end(const VariableDimensions& dimensions)
+  {
+    VariableIndicesIterator result(dimensions);
 
-      int64_t addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+    for (size_t i = 0; i < dimensions.rank(); ++i) {
+      result.indices[i] = dimensions[i];
+    }
 
-      void setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter);
+    return result;
+  }
 
-      /// Add the dimension of an equation to the IDA user data.
-      int64_t addEquation(int64_t* ranges, int64_t rank);
+  bool VariableIndicesIterator::operator==(const VariableIndicesIterator& it) const
+  {
+    if (dimensions != it.dimensions) {
+      return false;
+    }
 
-      void addVariableAccess(int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank);
+    for (size_t i = 0; i < dimensions->rank(); ++i) {
+      if (indices[i] != it.indices[i]) {
+        return false;
+      }
+    }
 
-      /// Add the function pointer that computes the index-th residual function to the
-      /// IDA user data.
-      void addResidualFunction(int64_t equationIndex, void* residualFunction);
+    return true;
+  }
 
-      /// Add the function pointer that computes the index-th jacobian row to the user
-      /// data.
-      void addJacobianFunction(int64_t equationIndex, int64_t variableIndex, void* jacobianFunction);
+  bool VariableIndicesIterator::operator!=(const VariableIndicesIterator& it) const
+  {
+    if (dimensions != it.dimensions) {
+      return true;
+    }
 
-      /// Instantiate and initialize all the classes needed by IDA in order to solve
-      /// the given system of equations. It also sets optional simulation parameters
-      /// for IDA. It must be called before the first usage of idaStep() and after a
-      /// call to idaAllocData(). It may fail in case of malformed model.
-      bool initialize();
+    for (size_t i = 0; i < dimensions->rank(); ++i) {
+      if (indices[i] != it.indices[i]) {
+        return true;
+      }
+    }
 
-      /// Invoke IDA to perform one step of the computation. If a time step is given,
-      /// the output will show the variables in an equidistant time grid based on the
-      /// step time parameter. Otherwise, the output will show the variables at every
-      /// step of the computation. Returns true if the computation was successful,
-      /// false otherwise.
-      bool step();
+    return false;
+  }
 
-      /// Returns the time reached by the solver after the last step.
-      realtype getCurrentTime() const;
+  VariableIndicesIterator& VariableIndicesIterator::operator++()
+  {
+    fetchNext();
+    return *this;
+  }
 
-      /// Prints statistics regarding the computation of the system.
-      void printStatistics() const;
+  VariableIndicesIterator VariableIndicesIterator::operator++(int)
+  {
+    auto temp = *this;
+    fetchNext();
+    return temp;
+  }
 
-      /// IDAResFn user-defined residual function, passed to IDA through IDAInit.
-      /// It contains how to compute the Residual Function of the system, starting
-      /// from the provided UserData struct, iterating through every equation.
-      static int residualFunction(
-          realtype time,
-          N_Vector variables, N_Vector derivatives, N_Vector residuals,
-          void* userData);
+  size_t* VariableIndicesIterator::operator*() const
+  {
+    return indices;
+  }
 
-      /// IDALsJacFn user-defined Jacobian approximation function, passed to IDA
-      /// through IDASetJacFn. It contains how to compute the Jacobian Matrix of
-      /// the system, starting from the provided UserData struct, iterating through
-      /// every equation and variable. The matrix is represented in CSR format.
-      static int jacobianMatrix(
-          realtype time, realtype alpha,
-          N_Vector variables, N_Vector derivatives, N_Vector residuals,
-          SUNMatrix jacobianMatrix,
-          void* userData,
-          N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+  VariableIndicesIterator::VariableIndicesIterator(const VariableDimensions& dimensions) : dimensions(&dimensions)
+  {
+    indices = new size_t[dimensions.rank()];
+  }
 
-    private:
-      std::set<DerivativeVariable> computeIndexSet(size_t eq, size_t* eqIndexes) const;
+  void VariableIndicesIterator::fetchNext()
+  {
+    size_t rank = dimensions->rank();
+    size_t posFromLast = 0;
 
-      void computeNNZ();
+    assert(std::none_of(dimensions->begin(), dimensions->end(), [](const auto& dimension) {
+      return dimension == 0;
+    }));
 
-      void copyVariablesFromMARCO(N_Vector values);
+    while (posFromLast < rank && ++indices[rank - posFromLast - 1] == (*dimensions)[rank - posFromLast - 1]) {
+      ++posFromLast;
+    }
 
-      void copyDerivativesFromMARCO(N_Vector values);
-
-      void copyVariablesIntoMARCO(N_Vector values);
-
-      void copyDerivativesIntoMARCO(N_Vector values);
-
-      /// Prints the Jacobian incidence matrix of the system.
-      void printIncidenceMatrix() const;
-
-    private:
-      SUNContext ctx;
-      bool initialized;
-
-      int64_t marcoBitWidth;
-      static constexpr int64_t idaBitWidth = sizeof(realtype) * CHAR_BIT;
-
-      // Model size
-      int64_t scalarEquationsNumber;
-      int64_t nonZeroValuesNumber;
-
-      // Equations data
-      std::vector<EqDimension> equationDimensions;
-      std::vector<void*> residuals;
-      std::vector<std::vector<void*>> jacobians;
-      std::vector<VarAccessList> variableAccesses;
-
-      // The offset of each array variable inside the flattened variables vector
-      std::vector<sunindextype> variableOffsets;
-
-      // The dimensions list of each array variable
-      std::vector<VariableDimensions> variablesDimensions;
-      std::vector<VariableDimensions> derivativesDimensions;
-
-      // Simulation times
-      realtype startTime;
-      realtype endTime;
-      realtype timeStep;
-      realtype currentTime;
-
-      // Error tolerances
-      realtype relativeTolerance;
-      realtype absoluteTolerance;
-
-      // Variables vectors and values
-      N_Vector variablesVector;
-      N_Vector derivativesVector;
-
-      // The vector stores whether each scalar variable is an algebraic or a state one.
-      // 0 = algebraic
-      // 1 = state
-      N_Vector idVector;
-
-      // The tolerance for each scalar variable.
-      N_Vector tolerancesVector;
-
-      // IDA classes
-      void* idaMemory;
-      SUNMatrix sparseMatrix;
-      SUNLinearSolver linearSolver;
-
-      std::vector<void*> variables;
-      std::vector<void*> derivatives;
-
-      std::vector<void*> variablesGetters;
-      std::vector<void*> derivativesGetters;
-
-      std::vector<void*> variablesSetters;
-      std::vector<void*> derivativesSetters;
-
-      void** simulationData;
-  };
+    if (posFromLast != rank) {
+      for (size_t i = 0; i < posFromLast; ++i) {
+        indices[rank - i - 1] = 0;
+      }
+    }
+  }
 }
 
 /// Check if SUNDIALS function returned NULL pointer (no memory allocated).
@@ -480,45 +302,11 @@ static size_t computeOffset(const VariableDimensions& dimensions, const std::vec
 	return offset;
 }
 
-#ifdef MARCO_PROFILING
-#include "marco/Runtime/Profiling.h"
+//===----------------------------------------------------------------------===//
+// Solver
+//===----------------------------------------------------------------------===//
 
-namespace
-{
-  class IDAProfiler : public Profiler
-  {
-    public:
-    IDAProfiler() : Profiler("IDA")
-    {
-      registerProfiler(*this);
-    }
-
-    void reset() override
-    {
-      initialConditionsTimer.reset();
-      stepsTimer.reset();
-    }
-
-    void print() const override
-    {
-      std::cerr << "Time spent on computing the initial conditions: " << initialConditionsTimer.totalElapsedTime() << " ms\n";
-      std::cerr << "Time spent on IDA steps: " << stepsTimer.totalElapsedTime() << " ms\n";
-    }
-
-    Timer initialConditionsTimer;
-    Timer stepsTimer;
-  };
-
-  IDAProfiler& profiler()
-  {
-    static IDAProfiler obj;
-    return obj;
-  }
-}
-
-#endif
-
-namespace
+namespace marco::runtime::ida
 {
   IDAInstance::IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber)
       : initialized(false),
@@ -619,7 +407,7 @@ namespace
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
-    realtype absTol = std::min(algebraicTolerance, absoluteTolerance);
+    realtype absTol = std::min(getOptions().algebraicTolerance, absoluteTolerance);
 
     for (int64_t i = 0; i < flatSize; ++i) {
       derivativeValues[offset + i] = 0;
@@ -874,7 +662,7 @@ namespace
     }
 
     // Add the remaining optional parameters.
-    retval = IDASetInitStep(idaMemory, initTimeStep);
+    retval = IDASetInitStep(idaMemory, getOptions().initTimeStep);
 
     if (!checkRetval(retval, "IDASetInitStep")) {
       return false;
@@ -886,76 +674,76 @@ namespace
       return false;
     }
 
-    retval = IDASetSuppressAlg(idaMemory, suppressAlg);
+    retval = IDASetSuppressAlg(idaMemory, getOptions().suppressAlg);
 
     if (!checkRetval(retval, "IDASetSuppressAlg")) {
       return false;
     }
 
     // Increase the maximum number of iterations taken by IDA before failing.
-    retval = IDASetMaxNumSteps(idaMemory, maxNumSteps);
+    retval = IDASetMaxNumSteps(idaMemory, getOptions().maxNumSteps);
 
     if (!checkRetval(retval, "IDASetMaxNumSteps")) {
       return false;
     }
 
-    retval = IDASetMaxErrTestFails(idaMemory, maxErrTestFail);
+    retval = IDASetMaxErrTestFails(idaMemory, getOptions().maxErrTestFail);
 
     if (!checkRetval(retval, "IDASetMaxErrTestFails")) {
       return false;
     }
 
-    retval = IDASetMaxNonlinIters(idaMemory, maxNonlinIters);
+    retval = IDASetMaxNonlinIters(idaMemory, getOptions().maxNonlinIters);
 
     if (!checkRetval(retval, "IDASetMaxNonlinIters")) {
       return false;
     }
 
-    retval = IDASetMaxConvFails(idaMemory, maxConvFails);
+    retval = IDASetMaxConvFails(idaMemory, getOptions().maxConvFails);
 
     if (!checkRetval(retval, "IDASetMaxConvFails")) {
       return false;
     }
 
-    retval = IDASetNonlinConvCoef(idaMemory, nonlinConvCoef);
+    retval = IDASetNonlinConvCoef(idaMemory, getOptions().nonlinConvCoef);
 
     if (!checkRetval(retval, "IDASetNonlinConvCoef")) {
       return false;
     }
 
     // Increase the maximum number of iterations taken by IDA IC before failing.
-    retval = IDASetMaxNumStepsIC(idaMemory, maxNumStepsIC);
+    retval = IDASetMaxNumStepsIC(idaMemory, getOptions().maxNumStepsIC);
 
     if (!checkRetval(retval, "IDASetMaxNumStepsIC")) {
       return false;
     }
 
-    retval = IDASetMaxNumJacsIC(idaMemory, maxNumJacsIC);
+    retval = IDASetMaxNumJacsIC(idaMemory, getOptions().maxNumJacsIC);
 
     if (!checkRetval(retval, "IDASetMaxNumJacsIC")) {
       return false;
     }
 
-    retval = IDASetMaxNumItersIC(idaMemory, maxNumItersIC);
+    retval = IDASetMaxNumItersIC(idaMemory, getOptions().maxNumItersIC);
 
     if (!checkRetval(retval, "IDASetMaxNumItersIC")) {
       return false;
     }
 
-    retval = IDASetNonlinConvCoefIC(idaMemory, nonlinConvCoefIC);
+    retval = IDASetNonlinConvCoefIC(idaMemory, getOptions().nonlinConvCoefIC);
 
     if (!checkRetval(retval, "IDASetNonlinConvCoefIC")) {
       return false;
     }
 
-    retval = IDASetLineSearchOffIC(idaMemory, lineSearchOff);
+    retval = IDASetLineSearchOffIC(idaMemory, getOptions().lineSearchOff);
 
     if (!checkRetval(retval, "IDASetLineSearchOffIC")) {
       return false;
     }
 
     // Call IDACalcIC to correct the initial values.
-    realtype firstOutTime = (endTime - startTime) / timeScalingFactorInit;
+    realtype firstOutTime = (endTime - startTime) / getOptions().timeScalingFactorInit;
 
 #ifdef MARCO_PROFILING
     profiler().initialConditionsTimer.start();
@@ -1292,7 +1080,7 @@ namespace
       return;
     }
 
-    if (printJacobian) {
+    if (getOptions().printJacobian) {
       printIncidenceMatrix();
     }
 
