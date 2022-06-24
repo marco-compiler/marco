@@ -1,5 +1,7 @@
 #include "marco/Runtime/CLI.h"
 
+#ifdef MARCO_CLI
+
 using namespace ::marco::runtime;
 
 namespace marco::runtime
@@ -31,3 +33,5 @@ namespace marco::runtime
     return cli;
   }
 }
+
+#endif

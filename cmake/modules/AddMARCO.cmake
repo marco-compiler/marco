@@ -32,6 +32,24 @@ macro(marco_add_library name)
   install(TARGETS ${name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endmacro()
 
+# Declare a runtime library
+macro(marco_add_runtime_library name)
+  marco_canonize_library_name(canonized_name ${name})
+  set_property(GLOBAL APPEND PROPERTY MARCO_LIBS ${canonized_name})
+
+  llvm_add_library(${name} OUTPUT_NAME ${canonized_name} ${ARGN})
+  add_library(marco::${name} ALIAS ${name})
+
+  add_dependencies(marco-runtime marco::${name})
+
+  install(TARGETS ${name}
+          COMPONENT ${name}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+          PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+  install(TARGETS ${name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endmacro()
+
 # Declare a MARCO tool
 macro(marco_add_tool name)
   add_llvm_executable(${name} ${ARGN})

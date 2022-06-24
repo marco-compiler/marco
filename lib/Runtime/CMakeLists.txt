@@ -42,7 +42,7 @@ set(LIBS
 	PUBLIC SUNDIALS::sunlinsolklu)
 
 # Declare the shared library
-marco_add_library(runtimeShared
+marco_add_runtime_library(runtimeShared
 	SHARED
 	PARTIAL_SOURCES_INTENDED
 	${SHARED_SOURCES}
@@ -50,10 +50,8 @@ marco_add_library(runtimeShared
 	LINK_LIBS
 	${LIBS})
 
-add_dependencies(marco-runtime marco::runtimeShared)
-
 # Declare the static library
-marco_add_library(runtime
+marco_add_runtime_library(runtime
 	STATIC
 	${STATIC_SOURCES}
 
@@ -63,5 +61,3 @@ marco_add_library(runtime
 
 # Enable the CLI only for the static runtime library
 target_compile_definitions(runtime PUBLIC MARCO_CLI)
-
-add_dependencies(marco-runtime marco::runtime)
