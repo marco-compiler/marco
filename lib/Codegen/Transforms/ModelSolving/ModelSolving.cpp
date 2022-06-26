@@ -7,7 +7,6 @@
 #include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
 #include "marco/Codegen/Transforms/ModelSolving/TypeConverter.h"
-#include "marco/Codegen/Transforms/ModelSolving/VariablesMap.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/Common.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
@@ -23,8 +22,6 @@
 #include <queue>
 
 #include "marco/Codegen/Transforms/PassDetail.h"
-
-#include "llvm/Support/Debug.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -639,6 +636,28 @@ namespace
         marco::codegen::TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
         ModelConverter modelConverter(options, typeConverter);
 
+        if (mlir::failed(modelConverter.createGetModelNameFunction(builder, models[0]))) {
+          models[0].emitError("Could not create the '" + ModelConverter::getModelNameFunctionName + "' function");
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(modelConverter.createInitFunction(builder, models[0]))) {
+          models[0].emitError("Could not create the '" + ModelConverter::initFunctionName + "' function");
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(modelConverter.createDeinitFunction(builder, models[0]))) {
+          models[0].emitError("Could not create the '" + ModelConverter::deinitFunctionName + "' function");
+          return signalPassFailure();
+        }
+
+        if (options.emitMain) {
+          if (mlir::failed(modelConverter.createMainFunction(builder, models[0]))) {
+            models[0].emitError("Could not create the '" + ModelConverter::mainFunctionName + "' function");
+            return signalPassFailure();
+          }
+        }
+
         if (mlir::failed(modelConverter.convertInitialModel(builder, scheduledInitialModel))) {
           return signalPassFailure();
         }
@@ -649,8 +668,6 @@ namespace
 
         // Erase the model operation, which has been converted to algorithmic code
         models[0].erase();
-
-        //llvm::DebugFlag = true;
 
         // Convert the functions having a Modelica type within their signature.
         if (mlir::failed(convertFuncOps())) {

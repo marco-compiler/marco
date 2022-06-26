@@ -217,7 +217,6 @@ namespace marco::codegen
 
   mlir::LogicalResult ModelConverter::convertMainModel(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const
   {
-    ModelOp modelOp = model.getOperation();
     const auto& derivativesMap = model.getDerivativesMap();
 
     // Determine the external solvers to be used
@@ -304,17 +303,6 @@ namespace marco::codegen
 
     solvers.addSolver(std::move(ida));
 
-    if (auto res = createGetModelNameFunction(builder, model.getOperation()); mlir::failed(res)) {
-      model.getOperation().emitError("Could not create the '" + getModelNameFunctionName + "' function");
-      return res;
-    }
-
-    // Create the various functions composing the simulation
-    if (auto res = createInitFunction(builder, model, solvers); mlir::failed(res)) {
-      model.getOperation().emitError("Could not create the '" + initFunctionName + "' function");
-      return res;
-    }
-
     if (auto res = createInitMainSolversFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + initMainSolversFunctionName + "' function");
       return res;
@@ -322,11 +310,6 @@ namespace marco::codegen
 
     if (auto res = createDeinitMainSolversFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + deinitMainSolversFunctionName + "' function");
-      return res;
-    }
-
-    if (auto res = createDeinitFunction(builder, modelOp, solvers); mlir::failed(res)) {
-      model.getOperation().emitError("Could not create the '" + deinitFunctionName + "' function");
       return res;
     }
 
@@ -345,21 +328,14 @@ namespace marco::codegen
       return res;
     }
 
-    if (auto res = createPrintHeaderFunction(builder, model, solvers); mlir::failed(res)) {
+    if (auto res = createPrintHeaderFunction(builder, model); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + printHeaderFunctionName + "' function");
       return res;
     }
 
-    if (auto res = createPrintFunction(builder, model, solvers); mlir::failed(res)) {
+    if (auto res = createPrintFunction(builder, model); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + printFunctionName + "' function");
       return res;
-    }
-
-    if (options.emitMain) {
-      if (auto res = createMainFunction(builder, model); mlir::failed(res)) {
-        model.getOperation().emitError("Could not create the '" + mainFunctionName + "' function");
-        return res;
-      }
     }
 
     return mlir::success();
@@ -440,10 +416,9 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult ModelConverter::createMainFunction(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const
+  mlir::LogicalResult ModelConverter::createMainFunction(mlir::OpBuilder& builder, ModelOp modelOp) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    ModelOp modelOp = model.getOperation();
     mlir::Location loc = modelOp.getLoc();
 
     // Create the function inside the parent module
@@ -949,13 +924,9 @@ namespace marco::codegen
     return createDeinitSolversFunction(builder, deinitICSolversFunctionName, model, externalSolvers);
   }
 
-  mlir::LogicalResult ModelConverter::createInitFunction(
-      mlir::OpBuilder& builder,
-      const Model<ScheduledEquationsBlock>& model,
-      ExternalSolvers& externalSolvers) const
+  mlir::LogicalResult ModelConverter::createInitFunction(mlir::OpBuilder& builder, ModelOp modelOp) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    auto modelOp = model.getOperation();
     mlir::Location loc = modelOp.getLoc();
     auto module = modelOp->getParentOfType<mlir::ModuleOp>();
 
@@ -997,7 +968,7 @@ namespace marco::codegen
     builder.setInsertionPointAfter(terminator);
 
     auto runtimeDataStructType = getRuntimeDataStructType(
-        builder.getContext(), model.getOperation().getEquationsRegion().getArgumentTypes());
+        builder.getContext(), modelOp.getEquationsRegion().getArgumentTypes());
 
     mlir::Value runtimeDataStructValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
 
@@ -1041,8 +1012,7 @@ namespace marco::codegen
     return createDeinitSolversFunction(builder, deinitMainSolversFunctionName, model, externalSolvers);
   }
 
-  mlir::LogicalResult ModelConverter::createDeinitFunction(
-      mlir::OpBuilder& builder, ModelOp modelOp, ExternalSolvers& externalSolvers) const
+  mlir::LogicalResult ModelConverter::createDeinitFunction(mlir::OpBuilder& builder, ModelOp modelOp) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto loc = modelOp.getLoc();
@@ -1721,8 +1691,7 @@ namespace marco::codegen
 
   mlir::LogicalResult ModelConverter::createPrintHeaderFunction(
       mlir::OpBuilder& builder,
-      const Model<ScheduledEquationsBlock>& model,
-      ExternalSolvers& externalSolvers) const
+      const Model<ScheduledEquationsBlock>& model) const
   {
     auto modelOp = model.getOperation();
     auto module = modelOp.getOperation()->getParentOfType<mlir::ModuleOp>();
@@ -1740,7 +1709,7 @@ namespace marco::codegen
       return mlir::success();
     };
 
-    return createPrintFunctionBody(builder, module, model, externalSolvers, printHeaderFunctionName, callback);
+    return createPrintFunctionBody(builder, module, model, printHeaderFunctionName, callback);
   }
 
   void ModelConverter::printVariable(
@@ -1841,9 +1810,7 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult ModelConverter::createPrintFunction(
-      mlir::OpBuilder& builder,
-      const Model<ScheduledEquationsBlock>& model,
-      ExternalSolvers& externalSolvers) const
+      mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const
   {
     auto modelOp = model.getOperation();
     auto module = modelOp.getOperation()->getParentOfType<mlir::ModuleOp>();
@@ -1854,14 +1821,13 @@ namespace marco::codegen
       return mlir::success();
     };
 
-    return createPrintFunctionBody(builder, module, model, externalSolvers, printFunctionName, callback);
+    return createPrintFunctionBody(builder, module, model, printFunctionName, callback);
   }
 
   mlir::LogicalResult ModelConverter::createPrintFunctionBody(
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       const Model<ScheduledEquationsBlock>& model,
-      ExternalSolvers& externalSolvers,
       llvm::StringRef functionName,
       std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const IndexSet&, mlir::ModuleOp, size_t)> elementCallback) const
   {

@@ -3,7 +3,6 @@
 
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/Variable.h"
-#include "marco/Codegen/Transforms/ModelSolving/VariablesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/DerivativesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/Equation.h"
 #include "marco/Codegen/Transforms/ModelSolving/Path.h"

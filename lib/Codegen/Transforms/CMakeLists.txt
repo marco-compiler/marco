@@ -21,7 +21,6 @@ set(SOURCES
     ModelSolving/Scheduling.cpp
     ModelSolving/TypeConverter.cpp
     ModelSolving/Variable.cpp
-    ModelSolving/VariablesMap.cpp
     ArrayDeallocation.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp

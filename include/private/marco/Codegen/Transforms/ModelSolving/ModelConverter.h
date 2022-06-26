@@ -53,6 +53,25 @@ namespace marco::codegen
     public:
       ModelConverter(ModelSolvingOptions options, mlir::LLVMTypeConverter& typeConverter);
 
+      /// Create the function to be called to retrieve the name of the compiled model.
+      mlir::LogicalResult createGetModelNameFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the initialization function that allocates the variables and
+      /// stores them into an appropriate data structure to be passed to the other
+      /// simulation functions.
+      mlir::LogicalResult createInitFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create a function to be called when the simulation has finished and the
+      /// variables together with its data structure are not required anymore and
+      /// thus can be deallocated.
+      mlir::LogicalResult createDeinitFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the main function, which is called when the executable of the simulation is run.
+      /// In order to keep the code generation simpler, the real implementation of the function
+      /// managing the simulation lives within the runtime library and the main just consists in
+      /// a call to such function.
+      mlir::LogicalResult createMainFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
       /// Convert the initial scheduled model into the algorithmic functions used to determine the
       /// initial values of the simulation.
       mlir::LogicalResult convertInitialModel(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const;
@@ -64,23 +83,14 @@ namespace marco::codegen
       /// Get the MLIR type corresponding to void*.
       mlir::Type getVoidPtrType() const;
 
+      /// Get the function to be used to allocate heap memory.
       mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
 
+      /// Get the function to be used to deallocate heap memory.
       mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
 
       /// Allocate some data on the heap.
       mlir::Value alloc(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Location loc, mlir::Type type) const;
-
-      /// Create the function to be called to retrieve the name of the compiled model.
-      mlir::LogicalResult createGetModelNameFunction(
-          mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
-
-      /// Create the main function, which is called when the executable of the simulation is run.
-      /// In order to keep the code generation simpler, the real implementation of the function
-      /// managing the simulation lives within the runtime library and the main just consists in
-      /// a call to such function.
-      mlir::LogicalResult createMainFunction(
-          mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const;
 
       mlir::LLVM::LLVMStructType getRuntimeDataStructType(
           mlir::MLIRContext* context, mlir::TypeRange varTypes) const;
@@ -150,14 +160,6 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model,
           const ExternalSolvers& externalSolvers) const;
 
-      /// Create the initialization function that allocates the variables and
-      /// stores them into an appropriate data structure to be passed to the other
-      /// simulation functions.
-      mlir::LogicalResult createInitFunction(
-          mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model,
-          ExternalSolvers& externalSolvers) const;
-
       /// Create the function that instantiates the external solvers to be used during the simulation.
       mlir::LogicalResult createInitMainSolversFunction(
           mlir::OpBuilder& builder,
@@ -169,12 +171,6 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
           const ExternalSolvers& externalSolvers) const;
-
-      /// Create a function to be called when the simulation has finished and the
-      /// variables together with its data structure are not required anymore and
-      /// thus can be deallocated.
-      mlir::LogicalResult createDeinitFunction(
-          mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, ExternalSolvers& externalSolvers) const;
 
       mlir::func::FuncOp createEquationFunction(
           mlir::OpBuilder& builder,
@@ -241,11 +237,6 @@ namespace marco::codegen
           const modeling::IndexSet& filteredIndices,
           bool shouldPrependSeparator) const;
 
-      mlir::LogicalResult createPrintHeaderFunction(
-          mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model,
-          ExternalSolvers& externalSolvers) const;
-
       void printVariable(
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
@@ -268,18 +259,20 @@ namespace marco::codegen
 
       void printElement(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Value value) const;
 
-      mlir::LogicalResult createPrintFunction(
-          mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model,
-          ExternalSolvers& externalSolvers) const;
-
       mlir::LogicalResult createPrintFunctionBody(
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
           const Model<ScheduledEquationsBlock>& model,
-          ExternalSolvers& externalSolvers,
           llvm::StringRef functionName,
           std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const modeling::IndexSet&, mlir::ModuleOp, size_t)> elementCallback) const;
+
+      mlir::LogicalResult createPrintHeaderFunction(
+          mlir::OpBuilder& builder,
+          const Model<ScheduledEquationsBlock>& model) const;
+
+      mlir::LogicalResult createPrintFunction(
+          mlir::OpBuilder& builder,
+          const Model<ScheduledEquationsBlock>& model) const;
 
     private:
       ModelSolvingOptions options;
