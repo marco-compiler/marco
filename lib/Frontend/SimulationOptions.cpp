@@ -13,8 +13,6 @@ namespace marco::frontend
 
     this->solver = defaultModelSolvingOptions.solver;
 
-    this->ida.relativeTolerance = defaultModelSolvingOptions.ida.relativeTolerance;
-    this->ida.absoluteTolerance = defaultModelSolvingOptions.ida.absoluteTolerance;
     this->ida.equidistantTimeGrid = defaultModelSolvingOptions.ida.equidistantTimeGrid;
   }
 }

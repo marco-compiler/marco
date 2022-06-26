@@ -50,24 +50,6 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
-  // SetRelativeToleranceOp
-  //===----------------------------------------------------------------------===//
-
-  void SetRelativeToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
-  // SetAbsoluteToleranceOp
-  //===----------------------------------------------------------------------===//
-
-  void SetAbsoluteToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
   // GetCurrentTimeOp
   //===----------------------------------------------------------------------===//
 

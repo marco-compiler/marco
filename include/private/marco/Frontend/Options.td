@@ -327,16 +327,6 @@ def solver : Joined<["--"], "solver=">,
 // IDA options
 //===----------------------------------------------------------------------===//
 
-def ida_relative_tolerance : Joined<["--"], "ida-relative-tolerance=">,
-    Group<IDA_Group>,
-    Flags<[MC1Option]>,
-    HelpText<"IDA relative tolerance">;
-
-def ida_absolute_tolerance : Joined<["--"], "ida-absolute-tolerance=">,
-    Group<IDA_Group>,
-    Flags<[MC1Option]>,
-    HelpText<"IDA absolute tolerance">;
-
 def ida_equidistant_time_grid : Flag<["--"], "ida-equidistant-time-grid">,
     Flags<[MC1Option]>,
     Group<IDA_Group>,

@@ -2,20 +2,8 @@
 
 // CHECK-DEFAULT-LABEL: [IDA]
 // CHECK-DEFAULT-DAG: Equidistant time grid: false
-// CHECK-DEFAULT-DAG: Relative tolerance: 1.000000e-06
-// CHECK-DEFAULT-DAG: Absolute tolerance: 1.000000e-06
 
 // RUN: marco-driver --init-only --ida-equidistant-time-grid | FileCheck %s --check-prefix="CHECK-EQUIDISTANT-TIME-GRID"
 
 // CHECK-EQUIDISTANT-TIME-GRID-LABEL: [Simulation]
 // CHECK-EQUIDISTANT-TIME-GRID-DAG: Equidistant time grid: true
-
-// RUN: marco-driver --init-only --ida-relative-tolerance=0.001 | FileCheck %s --check-prefix="CHECK-RELATIVE-TOLERANCE"
-
-// CHECK-RELATIVE-TOLERANCE-LABEL: [Simulation]
-// CHECK-RELATIVE-TOLERANCE-DAG: Relative tolerance: 1.000000e-03
-
-// RUN: marco-driver --init-only --ida-absolute-tolerance=0.001 | FileCheck %s --check-prefix="CHECK-ABSOLUTE-TOLERANCE"
-
-// CHECK-ABSOLUTE-TOLERANCE-LABEL: [Simulation]
-// CHECK-ABSOLUTE-TOLERANCE-DAG: Absolute tolerance: 1.000000e-03

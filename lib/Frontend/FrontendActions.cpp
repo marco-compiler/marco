@@ -55,8 +55,6 @@ namespace marco::frontend
 
     // IDA
     printCategory(os, "IDA");
-    printOption(os, "Relative tolerance", simulationOptions.ida.relativeTolerance);
-    printOption(os, "Absolute tolerance", simulationOptions.ida.absoluteTolerance);
     printOption(os, "Equidistant time grid", simulationOptions.ida.equidistantTimeGrid);
     os << "\n";
   }

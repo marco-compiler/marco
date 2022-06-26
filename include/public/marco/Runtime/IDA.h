@@ -37,9 +37,6 @@ RUNTIME_FUNC_DECL(idaSetStartTime, void, PTR(void), double)
 RUNTIME_FUNC_DECL(idaSetEndTime, void, PTR(void), double)
 RUNTIME_FUNC_DECL(idaSetTimeStep, void, PTR(void), double)
 
-RUNTIME_FUNC_DECL(idaSetRelativeTolerance, void, PTR(void), double)
-RUNTIME_FUNC_DECL(idaSetAbsoluteTolerance, void, PTR(void), double)
-
 //===----------------------------------------------------------------------===//
 // Equation setters
 //===----------------------------------------------------------------------===//

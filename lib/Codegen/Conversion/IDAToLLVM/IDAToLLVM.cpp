@@ -227,74 +227,6 @@ namespace
     }
   };
 
-  struct SetRelativeToleranceOpLowering : public IDAOpConversion<SetRelativeToleranceOp>
-  {
-    using IDAOpConversion<SetRelativeToleranceOp>::IDAOpConversion;
-
-    mlir::LogicalResult matchAndRewrite(SetRelativeToleranceOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-      auto module = op->getParentOfType<mlir::ModuleOp>();
-
-      RuntimeFunctionsMangling mangling;
-
-      llvm::SmallVector<mlir::Value, 2> newOperands;
-      llvm::SmallVector<std::string, 2> mangledArgsTypes;
-
-      // IDA instance
-      newOperands.push_back(adaptor.getInstance());
-      mangledArgsTypes.push_back(mangling.getVoidPointerType());
-
-      // Tolerance
-      mlir::Value tolerance = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getF64FloatAttr(op.getTolerance().convertToDouble()));
-      newOperands.push_back(tolerance);
-      mangledArgsTypes.push_back(mangling.getFloatingPointType(tolerance.getType().getIntOrFloatBitWidth()));
-
-      // Create the call to the runtime library
-      auto resultType = getVoidType();
-      auto mangledResultType = mangling.getVoidType();
-      auto functionName = mangling.getMangledFunction("idaSetRelativeTolerance", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
-      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
-
-      return mlir::success();
-    }
-  };
-
-  struct SetAbsoluteToleranceOpLowering : public IDAOpConversion<SetAbsoluteToleranceOp>
-  {
-    using IDAOpConversion<SetAbsoluteToleranceOp>::IDAOpConversion;
-
-    mlir::LogicalResult matchAndRewrite(SetAbsoluteToleranceOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-      auto module = op->getParentOfType<mlir::ModuleOp>();
-
-      RuntimeFunctionsMangling mangling;
-
-      llvm::SmallVector<mlir::Value, 2> newOperands;
-      llvm::SmallVector<std::string, 2> mangledArgsTypes;
-
-      // IDA instance
-      newOperands.push_back(adaptor.getInstance());
-      mangledArgsTypes.push_back(mangling.getVoidPointerType());
-
-      // Tolerance
-      mlir::Value tolerance = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getF64FloatAttr(op.getTolerance().convertToDouble()));
-      newOperands.push_back(tolerance);
-      mangledArgsTypes.push_back(mangling.getFloatingPointType(tolerance.getType().getIntOrFloatBitWidth()));
-
-      // Create the call to the runtime library
-      auto resultType = getVoidType();
-      auto mangledResultType = mangling.getVoidType();
-      auto functionName = mangling.getMangledFunction("idaSetAbsoluteTolerance", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
-      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
-
-      return mlir::success();
-    }
-  };
-
   struct GetCurrentTimeOpLowering : public IDAOpConversion<GetCurrentTimeOp>
   {
     using IDAOpConversion<GetCurrentTimeOp>::IDAOpConversion;
@@ -1326,8 +1258,6 @@ static void populateIDAConversionPatterns(
       SetStartTimeOpLowering,
       SetEndTimeOpLowering,
       SetTimeStepOpLowering,
-      SetRelativeToleranceOpLowering,
-      SetAbsoluteToleranceOpLowering,
       GetCurrentTimeOpLowering,
       AddEquationOpLowering,
       AddAlgebraicVariableOpLowering,

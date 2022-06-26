@@ -212,8 +212,6 @@ namespace marco::frontend
 
     modelSolvingOptions.solver = simulationOptions.solver;
 
-    modelSolvingOptions.ida.relativeTolerance = simulationOptions.ida.relativeTolerance;
-    modelSolvingOptions.ida.absoluteTolerance = simulationOptions.ida.absoluteTolerance;
     modelSolvingOptions.ida.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
 
     passManager.addPass(codegen::createModelSolvingPass(modelSolvingOptions));

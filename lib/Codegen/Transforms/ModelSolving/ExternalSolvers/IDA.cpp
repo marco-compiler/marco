@@ -36,8 +36,6 @@ namespace marco::codegen
   {
     assert(startTime <= endTime);
     assert(timeStep > 0);
-    assert(options.relativeTolerance > 0);
-    assert(options.absoluteTolerance > 0);
   }
 
   bool IDASolver::isEnabled() const
@@ -222,9 +220,6 @@ namespace marco::codegen
     if (options.equidistantTimeGrid) {
       builder.create<mlir::ida::SetTimeStepOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(timeStep));
     }
-
-    builder.create<mlir::ida::SetRelativeToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(options.relativeTolerance));
-    builder.create<mlir::ida::SetAbsoluteToleranceOp>(idaInstance.getLoc(), idaInstance, builder.getF64FloatAttr(options.absoluteTolerance));
 
     // Store the IDA instance into the runtime data structure
     mlir::Value runtimeData = loadRuntimeData(builder, runtimeDataPtr);

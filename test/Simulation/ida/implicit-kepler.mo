@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=ImplicitKepler --end-time=1 --time-step=0.1 --solver=ida --ida-relative-tolerance=1e-03 --ida-absolute-tolerance=1e-03 --ida-equidistant-time-grid -o %basename_t %s
+// RUN: marco --omc-bypass --model=ImplicitKepler --end-time=1 --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
 // RUN: ./%basename_t --precision=6 | FileCheck %s
 
 // CHECK: "time","x[1]","x[2]"

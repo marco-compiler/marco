@@ -5,8 +5,6 @@ namespace marco::codegen
 {
   struct IDAOptions
   {
-    double relativeTolerance = 1e-06;
-    double absoluteTolerance = 1e-06;
     bool equidistantTimeGrid = false;
   };
 }

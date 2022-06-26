@@ -27,11 +27,15 @@ namespace marco::runtime::ida
 
     void printCommandLineOptions(std::ostream& os) const override
     {
-      os << "  --ida-print-jacobian       Whether to print the Jacobian matrices while debugging\n";
+      os << "  --ida-relative-tolerance=<value>     Set the relative tolerance\n";
+      os << "  --ida-absolute-tolerance=<value>     Set the absolute tolerance\n";
+      os << "  --ida-print-jacobian                 Whether to print the Jacobian matrices while debugging\n";
     }
 
     void parseCommandLineOptions(const argh::parser& options) const override
     {
+      options("ida-relative-tolerance", getOptions().relativeTolerance) >> getOptions().relativeTolerance;
+      options("ida-absolute-tolerance", getOptions().absoluteTolerance) >> getOptions().absoluteTolerance;
       ida::getOptions().printJacobian = options["ida-print-jacobian"];
     }
   };
@@ -409,16 +413,6 @@ namespace marco::runtime::ida
     timeStep = step;
   }
 
-  void IDAInstance::setRelativeTolerance(double tolerance)
-  {
-    relativeTolerance = tolerance;
-  }
-
-  void IDAInstance::setAbsoluteTolerance(double tolerance)
-  {
-    absoluteTolerance = tolerance;
-  }
-
   int64_t IDAInstance::addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
   {
     assert(!initialized && "The IDA instance has already been initialized");
@@ -443,7 +437,7 @@ namespace marco::runtime::ida
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
-    realtype absTol = std::min(getOptions().algebraicTolerance, absoluteTolerance);
+    realtype absTol = std::min(getOptions().algebraicTolerance, getOptions().absoluteTolerance);
 
     for (int64_t i = 0; i < flatSize; ++i) {
       derivativeValues[offset + i] = 0;
@@ -490,7 +484,7 @@ namespace marco::runtime::ida
     for (int64_t i = 0; i < flatSize; ++i) {
       derivativeValues[offset + i] = 0;
       idValues[offset + i] = 1;
-      toleranceValues[offset + i] = absoluteTolerance;
+      toleranceValues[offset + i] = getOptions().absoluteTolerance;
     }
 
     variables.push_back(variable);
@@ -636,7 +630,7 @@ namespace marco::runtime::ida
     // Set tolerance and id of every scalar value.
     // The vectors are then deallocated as no longer needed inside the runtime library.
     // The IDA library, in fact, creates an internal copy of them.
-    retval = IDASVtolerances(idaMemory, relativeTolerance, tolerancesVector);
+    retval = IDASVtolerances(idaMemory, getOptions().relativeTolerance, tolerancesVector);
 
     if (!checkRetval(retval, "IDASVtolerances")) {
       return false;
@@ -1263,22 +1257,6 @@ static void idaSetTimeStep_void(void* userData, double timeStep)
 }
 
 RUNTIME_FUNC_DEF(idaSetTimeStep, void, PTR(void), double)
-
-static void idaSetRelativeTolerance_void(void* userData, double relativeTolerance)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setRelativeTolerance(relativeTolerance);
-}
-
-RUNTIME_FUNC_DEF(idaSetRelativeTolerance, void, PTR(void), double)
-
-static void idaSetAbsoluteTolerance_void(void* userData, double absoluteTolerance)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setAbsoluteTolerance(absoluteTolerance);
-}
-
-RUNTIME_FUNC_DEF(idaSetAbsoluteTolerance, void, PTR(void), double)
 
 //===----------------------------------------------------------------------===//
 // Equation setters

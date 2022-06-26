@@ -14,6 +14,32 @@ namespace marco::runtime::ida
 {
   struct Options
   {
+    // Relative tolerance is intended as the difference between the values
+    // computed through the n-th and the (n+1)-th order BDF method, divided
+    // by the absolute value given by the (n+1)-th order BDF method.
+    //
+    // It is mandatory to set the parameter higher than the minimum
+    // precision of the floating point unit roundoff (10^-15 for doubles).
+    //
+    // It is also highly suggested to set the parameter lower than 10^-3 in
+    // order to avoid inaccurate results. IDA defaults to 10^-6.
+    realtype relativeTolerance = 1e-06;
+
+    // Absolute tolerance is intended as the maximum acceptable difference
+    // between the values computed through the n-th and  the (n+1)-th order
+    // BDF method.
+    //
+    // Absolute tolerance is used to substitute relative tolerance when the
+    // value converges to zero. When this happens, in fact, the relative
+    // error would tend to infinity, thus exceeding the set tolerance.
+    //
+    // It is mandatory to set the parameter higher than the minimum precision
+    // of the floating point unit roundoff (10^-15 for doubles).
+    //
+    // It is also highly suggested to set the parameter lower than 10^-3 in
+    // order to avoid inaccurate results. IDA defaults to 10^-6.
+    realtype absoluteTolerance = 1e-06;
+
     // Whether to print the Jacobian matrices while debugging
     bool printJacobian = false;
 
@@ -174,9 +200,6 @@ namespace marco::runtime::ida
       void setEndTime(double time);
       void setTimeStep(double time);
 
-      void setRelativeTolerance(double tolerance);
-      void setAbsoluteTolerance(double tolerance);
-
       /// Add and initialize a new variable given its array.
       int64_t addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
 
@@ -280,10 +303,6 @@ namespace marco::runtime::ida
       realtype endTime;
       realtype timeStep;
       realtype currentTime;
-
-      // Error tolerances
-      realtype relativeTolerance;
-      realtype absoluteTolerance;
 
       // Variables vectors and values
       N_Vector variablesVector;
