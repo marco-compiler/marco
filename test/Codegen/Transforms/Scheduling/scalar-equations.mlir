@@ -3,7 +3,7 @@
 // CHECK{LITERAL}: {id = 1 : i64, scheduled_direction = "forward", scheduled_indices = [[0, 0]]}
 // CHECK{LITERAL}: {id = 0 : i64, scheduled_direction = "forward", scheduled_indices = [[0, 0]]}
 
-modelica.model {
+modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<!modelica.int>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int>
     modelica.yield %0, %1 : !modelica.member<!modelica.int>, !modelica.member<!modelica.int>

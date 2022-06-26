@@ -29,7 +29,7 @@ namespace marco::codegen::test
       varLocations.push_back(builder.getUnknownLoc());
     }
 
-    auto modelOp = builder.create<ModelOp>(builder.getUnknownLoc());
+    auto modelOp = builder.create<ModelOp>(builder.getUnknownLoc(), "Test");
 
     mlir::Block* initBlock = builder.createBlock(&modelOp.getInitRegion());
     builder.setInsertionPointToStart(initBlock);

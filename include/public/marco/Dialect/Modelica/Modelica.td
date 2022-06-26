@@ -2048,6 +2048,7 @@ def Modelica_DerOp : Modelica_Op<"der", []>
 
 def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
+    Symbol,
     DeclareOpInterfaceMethods<RegionKindInterface>,
     NoTerminator]>
 {
@@ -2057,7 +2058,7 @@ def Modelica_ModelOp : Modelica_Op<"model",
         The operation represents a Modelica model.
     }];
 
-    let arguments = (ins);
+    let arguments = (ins SymbolNameAttr:$sym_name);
 
     let results = (outs);
 

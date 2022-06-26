@@ -5,6 +5,29 @@
 
 using namespace ::marco::runtime;
 
+// Functions defined by the compiled model module
+extern "C"
+{
+  void* getModelName();
+
+  void* init();
+
+  void* initICSolvers(void* data);
+  void* deinitICSolvers(void* data);
+
+  void initMainSolvers(void* data);
+  void deinitMainSolvers(void* data);
+
+  void calcIC(void* data);
+  void updateNonStateVariables(void* data);
+  void updateStateVariables(void* data);
+  bool incrementTime(void* data);
+  void deinit(void* data);
+
+  void printHeader(void* data);
+  void print(void* data);
+}
+
 //===----------------------------------------------------------------------===//
 // Profiling
 //===----------------------------------------------------------------------===//
@@ -124,6 +147,7 @@ namespace
   void printHelp()
   {
     std::cout << "Modelica simulation.\n";
+    std::cout << "Model: " << static_cast<char*>(getModelName()) << "\n";
     std::cout << "Generated with MARCO compiler.\n\n";
 
     std::cout << "OPTIONS:\n";
@@ -142,27 +166,6 @@ namespace
 //===----------------------------------------------------------------------===//
 // Simulation
 //===----------------------------------------------------------------------===//
-
-// Functions defined by the compiled model module
-extern "C"
-{
-  void* init();
-
-  void* initICSolvers(void* data);
-  void* deinitICSolvers(void* data);
-
-  void initMainSolvers(void* data);
-  void deinitMainSolvers(void* data);
-
-  void calcIC(void* data);
-  void updateNonStateVariables(void* data);
-  void updateStateVariables(void* data);
-  bool incrementTime(void* data);
-  void deinit(void* data);
-
-  void printHeader(void* data);
-  void print(void* data);
-}
 
 [[maybe_unused]] int runSimulation(int argc, char* argv[])
 {

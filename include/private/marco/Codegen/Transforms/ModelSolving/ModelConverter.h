@@ -21,6 +21,7 @@ namespace marco::codegen
   {
     public:
       // Name for the functions of the simulation
+      static constexpr llvm::StringLiteral getModelNameFunctionName = "getModelName";
       static constexpr llvm::StringLiteral mainFunctionName = "main";
       static constexpr llvm::StringLiteral initFunctionName = "init";
       static constexpr llvm::StringLiteral initICSolversFunctionName = "initICSolvers";
@@ -69,6 +70,10 @@ namespace marco::codegen
 
       /// Allocate some data on the heap.
       mlir::Value alloc(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Location loc, mlir::Type type) const;
+
+      /// Create the function to be called to retrieve the name of the compiled model.
+      mlir::LogicalResult createGetModelNameFunction(
+          mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
 
       /// Create the main function, which is called when the executable of the simulation is run.
       /// In order to keep the code generation simpler, the real implementation of the function

@@ -4,7 +4,7 @@
 // CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
 // CHECK-DAG{LITERAL}: {id = 2 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
 
-modelica.model {
+modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<!modelica.int>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int>
     %2 = modelica.member_create @z : !modelica.member<!modelica.int>

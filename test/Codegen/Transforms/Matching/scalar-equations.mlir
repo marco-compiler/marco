@@ -3,7 +3,7 @@
 // CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
 // CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 0]], matched_path = ["L"]}
 
-modelica.model {
+modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<!modelica.int>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int>
     modelica.yield %0, %1 : !modelica.member<!modelica.int>, !modelica.member<!modelica.int>
@@ -31,7 +31,7 @@ modelica.model {
 // CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
 // CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 0]], matched_path = ["L"]}
 
-modelica.model {
+modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<2x!modelica.int>
     modelica.yield %0 : !modelica.member<2x!modelica.int>
 } equations {

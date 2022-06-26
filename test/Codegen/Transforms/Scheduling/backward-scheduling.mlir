@@ -3,7 +3,7 @@
 // CHECK{LITERAL}: {id = 1 : i64, scheduled_direction = "forward", scheduled_indices = [[0, 0]]}
 // CHECK{LITERAL}: {id = 0 : i64, scheduled_direction = "backward", scheduled_indices = [[0, 1]]}
 
-modelica.model {
+modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
     modelica.yield %0 : !modelica.member<3x!modelica.int>
 } equations {

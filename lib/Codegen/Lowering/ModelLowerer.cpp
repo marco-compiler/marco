@@ -55,7 +55,7 @@ namespace marco::codegen::lowering
     }
 
     // Create the model operation and its blocks
-    auto modelOp = builder().create<ModelOp>(location);
+    auto modelOp = builder().create<ModelOp>(location, model.getName());
 
     mlir::Block* initBlock = builder().createBlock(&modelOp.getInitRegion());
     mlir::Block* equationsBlock = builder().createBlock(&modelOp.getEquationsRegion(), {}, variableTypes, variableLocations);

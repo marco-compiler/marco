@@ -112,6 +112,12 @@ namespace mlir::modelica
 
   mlir::ParseResult ModelOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
+    mlir::StringAttr nameAttr;
+
+    if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
+      return mlir::failure();
+    }
+
     if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
       return mlir::failure();
     }
@@ -141,6 +147,8 @@ namespace mlir::modelica
 
   void ModelOp::print(mlir::OpAsmPrinter& printer)
   {
+    printer << " ";
+    printer.printSymbolName(getSymName());
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
     printer.printRegion(getInitRegion());
 
@@ -153,6 +161,15 @@ namespace mlir::modelica
       printer << " initial equations ";
       printer.printRegion(region);
     }
+  }
+
+  mlir::RegionKind ModelOp::getRegionKind(unsigned index)
+  {
+    if (index == 0) {
+      return mlir::RegionKind::SSACFG;
+    }
+
+    return mlir::RegionKind::Graph;
   }
 
   SmallVector<StringRef> ModelOp::variableNames()
@@ -419,19 +436,6 @@ namespace mlir::modelica
     printer << induction() << " = " << getFrom() << " to " << getTo();
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"from", "to"});
     printer.printRegion(getBodyRegion(), false);
-  }
-
-  //===----------------------------------------------------------------------===//
-  // ModelOp
-  //===----------------------------------------------------------------------===//
-
-  mlir::RegionKind ModelOp::getRegionKind(unsigned index)
-  {
-    if (index == 0) {
-      return mlir::RegionKind::SSACFG;
-    }
-
-    return mlir::RegionKind::Graph;
   }
 
   //===----------------------------------------------------------------------===//

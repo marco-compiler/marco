@@ -304,23 +304,28 @@ namespace marco::codegen
 
     solvers.addSolver(std::move(ida));
 
+    if (auto res = createGetModelNameFunction(builder, model.getOperation()); mlir::failed(res)) {
+      model.getOperation().emitError("Could not create the '" + getModelNameFunctionName + "' function");
+      return res;
+    }
+
     // Create the various functions composing the simulation
-    if (auto res = createInitFunction(builder, model, solvers); failed(res)) {
+    if (auto res = createInitFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + initFunctionName + "' function");
       return res;
     }
 
-    if (auto res = createInitMainSolversFunction(builder, model, solvers); failed(res)) {
+    if (auto res = createInitMainSolversFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + initMainSolversFunctionName + "' function");
       return res;
     }
 
-    if (auto res = createDeinitMainSolversFunction(builder, model, solvers); failed(res)) {
+    if (auto res = createDeinitMainSolversFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + deinitMainSolversFunctionName + "' function");
       return res;
     }
 
-    if (auto res = createDeinitFunction(builder, modelOp, solvers); failed(res)) {
+    if (auto res = createDeinitFunction(builder, modelOp, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + deinitFunctionName + "' function");
       return res;
     }
@@ -340,12 +345,12 @@ namespace marco::codegen
       return res;
     }
 
-    if (auto res = createPrintHeaderFunction(builder, model, solvers); failed(res)) {
+    if (auto res = createPrintHeaderFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + printHeaderFunctionName + "' function");
       return res;
     }
 
-    if (auto res = createPrintFunction(builder, model, solvers); failed(res)) {
+    if (auto res = createPrintFunction(builder, model, solvers); mlir::failed(res)) {
       model.getOperation().emitError("Could not create the '" + printFunctionName + "' function");
       return res;
     }
@@ -411,6 +416,28 @@ namespace marco::codegen
 
     // Cast the allocated memory pointer to a pointer of the original type
     return builder.create<mlir::LLVM::BitcastOp>(loc, ptrType, resultOpaquePtr);
+  }
+
+  mlir::LogicalResult ModelConverter::createGetModelNameFunction(
+      mlir::OpBuilder& builder, ModelOp modelOp) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Location loc = modelOp.getLoc();
+
+    // Create the function inside the parent module
+    auto module = modelOp->getParentOfType<mlir::ModuleOp>();
+    builder.setInsertionPointToEnd(module.getBody());
+
+    mlir::Type resultType = getVoidPtrType();
+    auto function = builder.create<mlir::func::FuncOp>(loc, getModelNameFunctionName, builder.getFunctionType(llvm::None, resultType));
+
+    auto* entryBlock = function.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    mlir::Value name = getOrCreateGlobalString(loc, builder, "modelName", modelOp.getSymName(), module);
+    builder.create<mlir::func::ReturnOp>(loc, name);
+
+    return mlir::success();
   }
 
   mlir::LogicalResult ModelConverter::createMainFunction(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model) const
@@ -1539,7 +1566,7 @@ namespace marco::codegen
     return builder.create<mlir::LLVM::GEPOp>(
         loc,
         getVoidPtrType(),
-        globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
+        globalPtr, llvm::makeArrayRef({cst0, cst0}));
   }
 
   mlir::LLVM::LLVMFuncOp ModelConverter::getOrInsertPrintNameFunction(
