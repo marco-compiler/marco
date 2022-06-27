@@ -29,6 +29,8 @@ namespace marco::runtime::ida
     {
       os << "  --ida-relative-tolerance=<value>     Set the relative tolerance" << std::endl;
       os << "  --ida-absolute-tolerance=<value>     Set the absolute tolerance" << std::endl;
+      os << "  --ida-max-algebraic-abs-tol=<value>  Set the maximum absolute tolerance allowed for algebraic variables" << std::endl;
+      os << "  --ida-time-scaling-factor-ic=<value> Set the dividing factor for the initial step size guess (the higher the value, the smaller the step)" << std::endl;
 
       os << "  --ida-max-steps=<value>              Set the maximum number of steps to be taken by the solver in its attempt to reach the next output time" << std::endl;
       os << "  --ida-initial-step-size=<value>      Set the initial step size" << std::endl;
@@ -52,6 +54,8 @@ namespace marco::runtime::ida
     {
       options("ida-relative-tolerance", getOptions().relativeTolerance) >> getOptions().relativeTolerance;
       options("ida-absolute-tolerance", getOptions().absoluteTolerance) >> getOptions().absoluteTolerance;
+      options("ida-max-algebraic-abs-tol", getOptions().maxAlgebraicAbsoluteTolerance) >> getOptions().maxAlgebraicAbsoluteTolerance;
+      options("ida-time-scaling-factor-ic", getOptions().timeScalingFactorInit) >> getOptions().timeScalingFactorInit;
 
       options("ida-max-steps", getOptions().maxSteps) >> getOptions().maxSteps;
       options("ida-initial-step-size", getOptions().initialStepSize) >> getOptions().initialStepSize;
@@ -459,7 +463,7 @@ namespace marco::runtime::ida
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
-    realtype absTol = std::min(getOptions().algebraicTolerance, getOptions().absoluteTolerance);
+    realtype absTol = std::min(getOptions().maxAlgebraicAbsoluteTolerance, getOptions().absoluteTolerance);
 
     for (int64_t i = 0; i < flatSize; ++i) {
       derivativeValues[offset + i] = 0;

@@ -40,12 +40,14 @@ namespace marco::runtime::ida
     // order to avoid inaccurate results. IDA defaults to 10^-6.
     realtype absoluteTolerance = 1e-06;
 
+    // Arbitrary initial guess made in the 20/12/2021 Modelica Call
+    realtype maxAlgebraicAbsoluteTolerance = 1e-12;
+
+    // Arbitrary initial guess made in the 20/12/2021 Modelica Call
+    realtype timeScalingFactorInit = 1e5;
+
     // Whether to print the Jacobian matrices while debugging
     bool printJacobian = false;
-
-    // Arbitrary initial guesses on 20/12/2021 Modelica Call
-    realtype algebraicTolerance = 1e-12;
-    realtype timeScalingFactorInit = 1e5;
 
     // Maximum number of steps to reach the next output time
     long maxSteps = 1e4;
@@ -304,6 +306,9 @@ namespace marco::runtime::ida
       void printIncidenceMatrix() const;
 
     private:
+      /// @name Forwarded methods
+      /// {
+
       bool idaInit();
       bool idaSVTolerances();
       bool idaSetLinearSolver();
@@ -325,6 +330,8 @@ namespace marco::runtime::ida
       bool idaSetMaxNumJacsIC();
       bool idaSetMaxNumItersIC();
       bool idaSetLineSearchOffIC();
+
+      /// }
 
     private:
       SUNContext ctx;
