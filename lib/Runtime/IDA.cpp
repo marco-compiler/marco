@@ -27,8 +27,24 @@ namespace marco::runtime::ida
 
     void printCommandLineOptions(std::ostream& os) const override
     {
-      os << "  --ida-relative-tolerance=<value>     Set the relative tolerance\n";
-      os << "  --ida-absolute-tolerance=<value>     Set the absolute tolerance\n";
+      os << "  --ida-relative-tolerance=<value>     Set the relative tolerance" << std::endl;
+      os << "  --ida-absolute-tolerance=<value>     Set the absolute tolerance" << std::endl;
+
+      os << "  --ida-max-steps=<value>              Set the maximum number of steps to be taken by the solver in its attempt to reach the next output time" << std::endl;
+      os << "  --ida-initial-step-size=<value>      Set the initial step size" << std::endl;
+      os << "  --ida-min-step-size=<value>          Set the minimum absolute value of the step size" << std::endl;
+      os << "  --ida-max-step-size=<value>          Set the maximum absolute value of the step size" << std::endl;
+      os << "  --ida-max-err-test-fails=<value>     Set the maximum number of error test failures in attempting one step" << std::endl;
+      os << "  --ida-suppress-alg-vars              Suppress algebraic variables in the local error test" << std::endl;
+      os << "  --ida-max-nonlin-iters=<value>       Maximum number of nonlinear solver iterations in one solve attempt" << std::endl;
+      os << "  --ida-max-conv-fails=<value>         Maximum number of nonlinear solver convergence failures in one step" << std::endl;
+      os << "  --ida-nonlin-conv-coef=<value>       Safety factor in the nonlinear convergence test" << std::endl;
+      os << "  --ida-nonlin-conv-coef-ic=<value>    Positive constant in the Newton iteration convergence test within the initial condition calculation" << std::endl;
+      os << "  --ida-max-steps-ic=<value>           Maximum number of steps allowed for IC" << std::endl;
+      os << "  --ida-max-jacs-ic=<value>            Maximum number of the approximate Jacobian or preconditioner evaluations allowed when the Newton iteration appears to be slowly converging" << std::endl;
+      os << "  --ida-max-iters-ic=<value>           Maximum number of Newton iterations allowed in any one attempt to solve the initial conditions calculation problem" << std::endl;
+      os << "  --ida-line-search-off                Disable the linesearch algorithm" << std::endl;
+
       os << "  --ida-print-jacobian                 Whether to print the Jacobian matrices while debugging\n";
     }
 
@@ -36,6 +52,22 @@ namespace marco::runtime::ida
     {
       options("ida-relative-tolerance", getOptions().relativeTolerance) >> getOptions().relativeTolerance;
       options("ida-absolute-tolerance", getOptions().absoluteTolerance) >> getOptions().absoluteTolerance;
+
+      options("ida-max-steps", getOptions().maxSteps) >> getOptions().maxSteps;
+      options("ida-initial-step-size", getOptions().initialStepSize) >> getOptions().initialStepSize;
+      options("ida-min-step-size", getOptions().minStepSize) >> getOptions().minStepSize;
+      options("ida-max-step-size", getOptions().maxStepSize) >> getOptions().maxStepSize;
+      options("ida-max-err-test-fails", getOptions().maxErrTestFails) >> getOptions().maxErrTestFails;
+      ida::getOptions().suppressAlg = options["ida-suppress-alg-vars"] ? SUNTRUE : SUNFALSE;
+      options("ida-max-nonlin-iters", getOptions().maxNonlinIters) >> getOptions().maxNonlinIters;
+      options("ida-max-conv-fails", getOptions().maxConvFails) >> getOptions().maxConvFails;
+      options("ida-nonlin-conv-coef", getOptions().nonlinConvCoef) >> getOptions().nonlinConvCoef;
+      options("ida-nonlin-conv-coef-ic", getOptions().nonlinConvCoefIC) >> getOptions().nonlinConvCoefIC;
+      options("ida-max-steps-ic", getOptions().maxStepsIC) >> getOptions().maxStepsIC;
+      options("ida-max-jacs-ic", getOptions().maxNumJacsIC) >> getOptions().maxNumJacsIC;
+      options("ida-max-iters-ic", getOptions().maxNumItersIC) >> getOptions().maxNumItersIC;
+      ida::getOptions().lineSearchOff = options["ida-line-search-off"] ? SUNTRUE : SUNFALSE;
+
       ida::getOptions().printJacobian = options["ida-print-jacobian"];
     }
   };
@@ -274,18 +306,6 @@ static bool checkAllocation(void* retval, const char* funcname)
   return true;
 }
 
-/// Check if SUNDIALS function returned a success value (positive integer).
-static bool checkRetval(int retval, const char* funcname)
-{
-  if (retval < 0) {
-    std::cerr << "SUNDIALS_ERROR: " << funcname;
-    std::cerr << "() failed with return value = " << retval << std::endl;
-    return false;
-  }
-
-  return true;
-}
-
 /// Given an array of indexes and the dimension of an equation, increase the
 /// indexes within the induction bounds of the equation. Return false if the
 /// indexes exceed the equation bounds, which means the computation has finished,
@@ -394,6 +414,8 @@ namespace marco::runtime::ida
       SUNMatDestroy(sparseMatrix);
       N_VDestroy(variablesVector);
       N_VDestroy(derivativesVector);
+      N_VDestroy(idVector);
+      N_VDestroy(tolerancesVector);
     }
   }
 
@@ -621,30 +643,13 @@ namespace marco::runtime::ida
       return false;
     }
 
-    int retval = IDAInit(idaMemory, residualFunction, startTime, variablesVector, derivativesVector);
-
-    if (!checkRetval(retval, "IDAInit")) {
+    if (!idaInit()) {
       return false;
     }
 
-    // Set tolerance and id of every scalar value.
-    // The vectors are then deallocated as no longer needed inside the runtime library.
-    // The IDA library, in fact, creates an internal copy of them.
-    retval = IDASVtolerances(idaMemory, getOptions().relativeTolerance, tolerancesVector);
-
-    if (!checkRetval(retval, "IDASVtolerances")) {
+    if (!idaSVTolerances()) {
       return false;
     }
-
-    N_VDestroy(tolerancesVector);
-
-    retval = IDASetId(idaMemory, idVector);
-
-    if (!checkRetval(retval, "IDASetId")) {
-      return false;
-    }
-
-    N_VDestroy(idVector);
 
     // Create sparse SUNMatrix for use in linear solver.
     sparseMatrix = SUNSparseMatrix(
@@ -665,110 +670,28 @@ namespace marco::runtime::ida
       return false;
     }
 
-    retval = IDASetLinearSolver(idaMemory, linearSolver, sparseMatrix);
-
-    if (!checkRetval(retval, "IDASetLinearSolver")) {
+    if (!idaSetLinearSolver()) {
       return false;
     }
 
-    // Set the user-supplied Jacobian routine.
-    retval = IDASetJacFn(idaMemory, jacobianMatrix);
-
-    if (!checkRetval(retval, "IDASetJacFn")) {
-      return false;
-    }
-
-    // Add the remaining mandatory parameters.
-    retval = IDASetUserData(idaMemory, static_cast<void*>(this));
-
-    if (!checkRetval(retval, "IDASetUserData")) {
-      return false;
-    }
-
-    retval = IDASetStopTime(idaMemory, endTime);
-
-    if (!checkRetval(retval, "IDASetStopTime")) {
-      return false;
-    }
-
-    // Add the remaining optional parameters.
-    retval = IDASetInitStep(idaMemory, getOptions().initTimeStep);
-
-    if (!checkRetval(retval, "IDASetInitStep")) {
-      return false;
-    }
-
-    retval = IDASetMaxStep(idaMemory, endTime);
-
-    if (!checkRetval(retval, "IDASetMaxStep")) {
-      return false;
-    }
-
-    retval = IDASetSuppressAlg(idaMemory, getOptions().suppressAlg);
-
-    if (!checkRetval(retval, "IDASetSuppressAlg")) {
-      return false;
-    }
-
-    // Increase the maximum number of iterations taken by IDA before failing.
-    retval = IDASetMaxNumSteps(idaMemory, getOptions().maxNumSteps);
-
-    if (!checkRetval(retval, "IDASetMaxNumSteps")) {
-      return false;
-    }
-
-    retval = IDASetMaxErrTestFails(idaMemory, getOptions().maxErrTestFail);
-
-    if (!checkRetval(retval, "IDASetMaxErrTestFails")) {
-      return false;
-    }
-
-    retval = IDASetMaxNonlinIters(idaMemory, getOptions().maxNonlinIters);
-
-    if (!checkRetval(retval, "IDASetMaxNonlinIters")) {
-      return false;
-    }
-
-    retval = IDASetMaxConvFails(idaMemory, getOptions().maxConvFails);
-
-    if (!checkRetval(retval, "IDASetMaxConvFails")) {
-      return false;
-    }
-
-    retval = IDASetNonlinConvCoef(idaMemory, getOptions().nonlinConvCoef);
-
-    if (!checkRetval(retval, "IDASetNonlinConvCoef")) {
-      return false;
-    }
-
-    // Increase the maximum number of iterations taken by IDA IC before failing.
-    retval = IDASetMaxNumStepsIC(idaMemory, getOptions().maxNumStepsIC);
-
-    if (!checkRetval(retval, "IDASetMaxNumStepsIC")) {
-      return false;
-    }
-
-    retval = IDASetMaxNumJacsIC(idaMemory, getOptions().maxNumJacsIC);
-
-    if (!checkRetval(retval, "IDASetMaxNumJacsIC")) {
-      return false;
-    }
-
-    retval = IDASetMaxNumItersIC(idaMemory, getOptions().maxNumItersIC);
-
-    if (!checkRetval(retval, "IDASetMaxNumItersIC")) {
-      return false;
-    }
-
-    retval = IDASetNonlinConvCoefIC(idaMemory, getOptions().nonlinConvCoefIC);
-
-    if (!checkRetval(retval, "IDASetNonlinConvCoefIC")) {
-      return false;
-    }
-
-    retval = IDASetLineSearchOffIC(idaMemory, getOptions().lineSearchOff);
-
-    if (!checkRetval(retval, "IDASetLineSearchOffIC")) {
+    if (!idaSetUserData() ||
+        !idaSetMaxNumSteps() ||
+        !idaSetInitialStepSize() ||
+        !idaSetMinStepSize() ||
+        !idaSetMaxStepSize() ||
+        !idaSetStopTime() ||
+        !idaSetMaxErrTestFails() ||
+        !idaSetSuppressAlg() ||
+        !idaSetId() ||
+        !idaSetJacobianFunction() ||
+        !idaSetMaxNonlinIters() ||
+        !idaSetMaxConvFails() ||
+        !idaSetNonlinConvCoef() ||
+        !idaSetNonlinConvCoefIC() ||
+        !idaSetMaxNumStepsIC() ||
+        !idaSetMaxNumJacsIC() ||
+        !idaSetMaxNumItersIC() ||
+        !idaSetLineSearchOffIC()) {
       return false;
     }
 
@@ -779,13 +702,41 @@ namespace marco::runtime::ida
     profiler().initialConditionsTimer.start();
 #endif
 
-    retval = IDACalcIC(idaMemory, IDA_YA_YDP_INIT, firstOutTime);
+    auto calcICRetVal = IDACalcIC(idaMemory, IDA_YA_YDP_INIT, firstOutTime);
 
 #ifdef MARCO_PROFILING
     profiler().initialConditionsTimer.stop();
 #endif
 
-    if (!checkRetval(retval, "IDACalcIC")) {
+    if (calcICRetVal != IDA_SUCCESS) {
+      if (calcICRetVal == IDALS_MEM_NULL) {
+        std::cerr << "IDACalcIC - The ida_mem pointer is NULL" << std::endl;
+      } else if (calcICRetVal == IDA_NO_MALLOC) {
+        std::cerr << "IDACalcIC - The allocation function IDAInit has not been called" << std::endl;
+      } else if (calcICRetVal == IDA_ILL_INPUT) {
+        std::cerr << "IDACalcIC - One of the input arguments was illegal" << std::endl;
+      } else if (calcICRetVal == IDA_LSETUP_FAIL) {
+        std::cerr << "IDACalcIC - The linear solver’s setup function failed in an unrecoverable manner" << std::endl;
+      } else if (calcICRetVal == IDA_LINIT_FAIL) {
+        std::cerr << "IDACalcIC - The linear solver’s initialization function failed" << std::endl;
+      } else if (calcICRetVal == IDA_LSOLVE_FAIL) {
+        std::cerr << "IDACalcIC - The linear solver’s solve function failed in an unrecoverable manner" << std::endl;
+      } else if (calcICRetVal == IDA_BAD_EWT) {
+        std::cerr << "IDACalcIC - Some component of the error weight vector is zero (illegal), either for the input value of y0 or a corrected value" << std::endl;
+      } else if (calcICRetVal == IDA_FIRST_RES_FAIL) {
+        std::cerr << "IDACalcIC - The user’s residual function returned a recoverable error flag on the first call, but IDACalcIC was unable to recover" << std::endl;
+      } else if (calcICRetVal == IDA_RES_FAIL) {
+        std::cerr << "IDACalcIC - The user’s residual function returned a nonrecoverable error flag" << std::endl;
+      } else if (calcICRetVal == IDA_NO_RECOVERY) {
+        std::cerr << "IDACalcIC - The user’s residual function, or the linear solver’s setup or solve function had a recoverable error, but IDACalcIC was unable to recover" << std::endl;
+      } else if (calcICRetVal == IDA_CONSTR_FAIL) {
+        std::cerr << "IDACalcIC - IDACalcIC was unable to find a solution satisfying the inequality constraints" << std::endl;
+      } else if (calcICRetVal == IDA_LINESEARCH_FAIL) {
+        std::cerr << "IDACalcIC - The linesearch algorithm failed to find a solution with a step larger than steptol in weighted RMS norm, and within the allowed number of backtracks" << std::endl;
+      } else if (calcICRetVal == IDA_CONV_FAIL) {
+        std::cerr << "IDACalcIC - IDACalcIC failed to get convergence of the Newton iterations" << std::endl;
+      }
+
       return false;
     }
 
@@ -814,7 +765,7 @@ namespace marco::runtime::ida
 #endif
 
     // Execute one step
-    int retval = IDASolve(
+    auto solveRetVal = IDASolve(
         idaMemory,
         equidistantTimeGrid ? (currentTime + timeStep) : endTime,
         &currentTime,
@@ -826,8 +777,39 @@ namespace marco::runtime::ida
     profiler().stepsTimer.stop();
 #endif
 
-    // Check if the solver failed
-    if (!checkRetval(retval, "IDASolve")) {
+    if (solveRetVal != IDA_SUCCESS) {
+      if (solveRetVal == IDA_TSTOP_RETURN) {
+        std::cerr << "IDASolve - IDASolve succeeded by reaching the stop point specified through the optional input function IDASetStopTime" << std::endl;
+      } else if (solveRetVal == IDA_ROOT_RETURN) {
+        std::cerr << "IDASolve - IDASolve succeeded and found one or more roots. In this case, tret is the location of the root. If nrtfn >1" << std::endl;
+      } else if (solveRetVal == IDA_MEM_NULL) {
+        std::cerr << "IDASolve - The ida_mem pointer is NULL" << std::endl;
+      } else if (solveRetVal == IDA_ILL_INPUT) {
+        std::cerr << "IDASolve - One of the inputs to IDASolve was illegal, or some other input to the solver was either illegal or missing" << std::endl;
+      } else if (solveRetVal == IDA_TOO_MUCH_WORK) {
+        std::cerr << "IDASolve - The solver took mxstep internal steps but could not reach tout" << std::endl;
+      } else if (solveRetVal == IDA_TOO_MUCH_ACC) {
+        std::cerr << "IDASolve - The solver could not satisfy the accuracy demanded by the user for some internal step" << std::endl;
+      } else if (solveRetVal == IDA_ERR_FAIL) {
+        std::cerr << "IDASolve - Error test failures occurred too many times (MXNEF = 10) during one internal time step or occurred with |h| = hmin" << std::endl;
+      } else if (solveRetVal == IDA_CONV_FAIL) {
+        std::cerr << "IDASolve - Convergence test failures occurred too many times (MXNCF = 10) during one internal time step or occurred with |h| = hmin" << std::endl;
+      } else if (solveRetVal == IDA_LINIT_FAIL) {
+        std::cerr << "IDASolve - The linear solver’s initialization function failed" << std::endl;
+      } else if (solveRetVal == IDA_LSETUP_FAIL) {
+        std::cerr << "IDASolve - The linear solver’s setup function failed in an unrecoverable manner" << std::endl;
+      } else if (solveRetVal == IDA_LSOLVE_FAIL) {
+        std::cerr << "IDASolve - The linear solver’s solve function failed in an unrecoverable manner" << std::endl;
+      } else if (solveRetVal == IDA_CONSTR_FAIL) {
+        std::cerr << "IDASolve - The inequality constraints were violated and the solver was unable to recover" << std::endl;
+      } else if (solveRetVal == IDA_REP_RES_ERR) {
+        std::cerr << "IDASolve - The user’s residual function repeatedly returned a recoverable error flag, but the solver was unable to recover" << std::endl;
+      } else if (solveRetVal == IDA_RES_FAIL) {
+        std::cerr << "IDASolve - The user’s residual function returned a nonrecoverable error flag" << std::endl;
+      } else if (solveRetVal == IDA_RTFUNC_FAIL) {
+        std::cerr << "IDASolve - The rootfinding function failed" << std::endl;
+      }
+
       return false;
     }
 
@@ -1190,6 +1172,348 @@ namespace marco::runtime::ida
         std::cerr << "│" << std::endl;
       } while (updateIndexes(indexes, equationDimensions[eq]));
     }
+  }
+
+  bool IDAInstance::idaInit()
+  {
+    auto retVal = IDAInit(idaMemory, residualFunction, startTime, variablesVector, derivativesVector);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDAInit - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_MEM_FAIL) {
+      std::cerr << "IDAInit - A memory allocation request has failed" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDAInit - An input argument to IDAInit has an illegal value" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSVTolerances()
+  {
+    auto retVal = IDASVtolerances(idaMemory, getOptions().relativeTolerance, tolerancesVector);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASVtolerances - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_NO_MALLOC) {
+      std::cerr << "IDASVtolerances - The allocation function IDAInit(has not been called" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASVtolerances - The relative error tolerance was negative or the absolute tolerance vector had a negative component" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetLinearSolver()
+  {
+    auto retVal = IDASetLinearSolver(idaMemory, linearSolver, sparseMatrix);
+
+    if (retVal == IDALS_MEM_NULL) {
+      std::cerr << "IDASetLinearSolver - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDALS_ILL_INPUT) {
+      std::cerr << "IDASetLinearSolver - The IDALS interface is not compatible with the LS or J input objects or is incompatible with the N_Vector object passed to IDAInit" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDALS_SUNLS_FAIL) {
+      std::cerr << "IDASetLinearSolver - A call to the LS object failed" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDALS_MEM_FAIL) {
+      std::cerr << "IDASetLinearSolver - A memory allocation request failed" << std::endl;
+      return false;
+    }
+
+    return retVal == IDALS_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetUserData()
+  {
+    auto retVal = IDASetUserData(idaMemory, this);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetUserData - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxNumSteps()
+  {
+    auto retVal = IDASetMaxNumSteps(idaMemory, getOptions().maxSteps);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxNumSteps - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMaxNumSteps - Either hmax is not positive or it is smaller than the minimum allowable step" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetInitialStepSize()
+  {
+    auto retVal = IDASetInitStep(idaMemory, getOptions().initialStepSize);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetInitStep - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMinStepSize()
+  {
+    auto retVal = IDASetMinStep(idaMemory, getOptions().minStepSize);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMinStep - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMinStep - hmin is negative" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxStepSize()
+  {
+    auto retVal = IDASetMaxStep(idaMemory, getOptions().maxStepSize);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxStep - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMaxStep - Either hmax is not positive or it is smaller than the minimum allowable step" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetStopTime()
+  {
+    auto retVal = IDASetStopTime(idaMemory, endTime);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxStep - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMaxStep - The value of tstop is not beyond the current t value" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxErrTestFails()
+  {
+    auto retVal = IDASetMaxErrTestFails(idaMemory, getOptions().maxErrTestFails);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxErrTestFails - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetSuppressAlg()
+  {
+    auto retVal = IDASetSuppressAlg(idaMemory, getOptions().suppressAlg);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetSuppressAlg - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetId()
+  {
+    auto retVal = IDASetId(idaMemory, idVector);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetId - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetJacobianFunction()
+  {
+    auto retVal = IDASetJacFn(idaMemory, jacobianMatrix);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetJacFn - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDALS_LMEM_NULL) {
+      std::cerr << "IDASetJacFn - The IDALS linear solver interface has not been initialized" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxNonlinIters()
+  {
+    auto retVal = IDASetMaxNonlinIters(idaMemory, getOptions().maxNonlinIters);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxNonlinIters - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_MEM_FAIL) {
+      std::cerr << "IDASetMaxNonlinIters - The SUNNonlinearSolver object is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxConvFails()
+  {
+    auto retVal = IDASetMaxConvFails(idaMemory, getOptions().maxConvFails);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxConvFails - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetNonlinConvCoef()
+  {
+    auto retVal = IDASetNonlinConvCoef(idaMemory, getOptions().nonlinConvCoef);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetNonlinConvCoef - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetNonlinConvCoef - The value of nlscoef is <= 0" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetNonlinConvCoefIC()
+  {
+    auto retVal = IDASetNonlinConvCoefIC(idaMemory, getOptions().nonlinConvCoefIC);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetNonlinConvCoefIC - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetNonlinConvCoefIC - The epiccon factor is <= 0" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxNumStepsIC()
+  {
+    auto retVal = IDASetMaxNumStepsIC(idaMemory, getOptions().maxStepsIC);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxNumStepsIC - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMaxNumStepsIC - maxnh is non-positive" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxNumJacsIC()
+  {
+    auto retVal = IDASetMaxNumJacsIC(idaMemory, getOptions().maxNumJacsIC);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxNumJacsIC - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMaxNumJacsIC - maxnj is non-positive" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetMaxNumItersIC()
+  {
+    auto retVal = IDASetMaxNumItersIC(idaMemory, getOptions().maxNumItersIC);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetMaxNumItersIC - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    if (retVal == IDA_ILL_INPUT) {
+      std::cerr << "IDASetMaxNumItersIC - maxnit is non-positive" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
+  }
+
+  bool IDAInstance::idaSetLineSearchOffIC()
+  {
+    auto retVal = IDASetLineSearchOffIC(idaMemory, getOptions().lineSearchOff);
+
+    if (retVal == IDA_MEM_NULL) {
+      std::cerr << "IDASetLineSearchOffIC - The ida_mem pointer is NULL" << std::endl;
+      return false;
+    }
+
+    return retVal == IDA_SUCCESS;
   }
 }
 

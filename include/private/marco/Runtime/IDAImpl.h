@@ -21,7 +21,7 @@ namespace marco::runtime::ida
     // It is mandatory to set the parameter higher than the minimum
     // precision of the floating point unit roundoff (10^-15 for doubles).
     //
-    // It is also highly suggested to set the parameter lower than 10^-3 in
+    // It is also highly suggested setting the parameter lower than 10^-3 in
     // order to avoid inaccurate results. IDA defaults to 10^-6.
     realtype relativeTolerance = 1e-06;
 
@@ -36,7 +36,7 @@ namespace marco::runtime::ida
     // It is mandatory to set the parameter higher than the minimum precision
     // of the floating point unit roundoff (10^-15 for doubles).
     //
-    // It is also highly suggested to set the parameter lower than 10^-3 in
+    // It is also highly suggested setting the parameter lower than 10^-3 in
     // order to avoid inaccurate results. IDA defaults to 10^-6.
     realtype absoluteTolerance = 1e-06;
 
@@ -47,22 +47,51 @@ namespace marco::runtime::ida
     realtype algebraicTolerance = 1e-12;
     realtype timeScalingFactorInit = 1e5;
 
-    // Default IDA values
-    realtype initTimeStep = 0.0;
+    // Maximum number of steps to reach the next output time
+    long maxSteps = 1e4;
 
-    long maxNumSteps = 1e4;
-    int maxErrTestFail = 10;
+    // Initial step size
+    realtype initialStepSize = 0;
+
+    // Minimum absolute value of the step size
+    realtype minStepSize = 0;
+
+    // Maximum absolute value of the step size
+    realtype maxStepSize = 0;
+
+    // Maximum number of error test failures in attempting one step
+    int maxErrTestFails = 10;
+
+    // Whether to suppress algebraic variables in the local error test
+    booleantype suppressAlg = SUNFALSE;
+
+    // Maximum number of nonlinear solver iterations in one solve attempt
     int maxNonlinIters = 4;
+
+    // Maximum number of nonlinear solver convergence failures in one step
     int maxConvFails = 10;
+
+    // Safety factor in the nonlinear convergence test
     realtype nonlinConvCoef = 0.33;
 
-    int maxNumStepsIC = 5;
-    int maxNumJacsIC = 4;
-    int maxNumItersIC = 10;
+    // Positive constant in the Newton iteration convergence test within
+    // the initial condition calculation.
     realtype nonlinConvCoefIC = 0.0033;
 
-    int suppressAlg = SUNFALSE;
-    int lineSearchOff = SUNFALSE;
+    // Maximum number of steps allowed for IC
+    long maxStepsIC = 5;
+
+    // Maximum number of the approximate Jacobian or preconditioner
+    // evaluations allowed when the Newton iteration appears to be slowly
+    // converging.
+    int maxNumJacsIC = 4;
+
+    // Maximum number of Newton iterations allowed in any one attempt
+    // to solve the initial conditions calculation problem.
+    int maxNumItersIC = 10;
+
+    // Whether to turn on or off the linesearch algorithm
+    booleantype lineSearchOff = SUNFALSE;
   };
 
   Options& getOptions();
@@ -275,11 +304,33 @@ namespace marco::runtime::ida
       void printIncidenceMatrix() const;
 
     private:
+      bool idaInit();
+      bool idaSVTolerances();
+      bool idaSetLinearSolver();
+      bool idaSetUserData();
+      bool idaSetMaxNumSteps();
+      bool idaSetInitialStepSize();
+      bool idaSetMinStepSize();
+      bool idaSetMaxStepSize();
+      bool idaSetStopTime();
+      bool idaSetMaxErrTestFails();
+      bool idaSetSuppressAlg();
+      bool idaSetId();
+      bool idaSetJacobianFunction();
+      bool idaSetMaxNonlinIters();
+      bool idaSetMaxConvFails();
+      bool idaSetNonlinConvCoef();
+      bool idaSetNonlinConvCoefIC();
+      bool idaSetMaxNumStepsIC();
+      bool idaSetMaxNumJacsIC();
+      bool idaSetMaxNumItersIC();
+      bool idaSetLineSearchOffIC();
+
+    private:
       SUNContext ctx;
       bool initialized;
 
       int64_t marcoBitWidth;
-      static constexpr int64_t idaBitWidth = sizeof(realtype) * CHAR_BIT;
 
       // Model size
       int64_t scalarEquationsNumber;
