@@ -60,6 +60,7 @@ namespace marco::codegen::lowering
     mlir::Block* initBlock = builder().createBlock(&modelOp.getInitRegion());
     mlir::Block* equationsBlock = builder().createBlock(&modelOp.getEquationsRegion(), {}, variableTypes, variableLocations);
     mlir::Block* initialEquationsBlock = builder().createBlock(&modelOp.getInitialEquationsRegion(), {}, variableTypes, variableLocations);
+    mlir::Block* algorithmBlock = builder().createBlock(&modelOp.getAlgorithmRegion(), {}, variableTypes, variableLocations);
 
     {
       // Simulation variables
@@ -120,8 +121,6 @@ namespace marco::codegen::lowering
 
       // Create the initial equations from the 'start' attributes
       for (const auto& member : model.getMembers()) {
-        // TODO: check also for fixed = true, but only when OMC will propagate it after the flattening stage
-
         if (member->hasStartProperty() && member->getFixedProperty()) {
           auto startProperty = member->getStartProperty();
           createMemberEquation(*member, *startProperty.value);
@@ -137,6 +136,30 @@ namespace marco::codegen::lowering
 
         for (const auto& forEquation : block->getForEquations()) {
           lower(*forEquation);
+        }
+      }
+    }
+
+    {
+      // Algorithm
+      builder().setInsertionPointToEnd(equationsBlock);
+      symbolTable().insert("time", Reference::time(&builder()));
+
+      for (const auto& member : llvm::enumerate(model.getMembers())) {
+        symbolTable().insert(
+            member.value()->getName(),
+            Reference::memory(&builder(), modelOp.getEquationsRegion().getArgument(member.index())));
+      }
+
+      for (const auto& algorithm : model.getAlgorithms()) {
+        builder().setInsertionPointToEnd(equationsBlock);
+        auto algorithmOp = builder().create<AlgorithmOp>(loc(algorithm->getLocation()));
+        assert(algorithmOp.getBodyRegion().empty());
+        mlir::Block* algorithmBody = builder().createBlock(&algorithmOp.getBodyRegion());
+        builder().setInsertionPointToStart(algorithmBody);
+
+        for (const auto& statement : algorithm->getBody()) {
+          lower(*statement);
         }
       }
     }

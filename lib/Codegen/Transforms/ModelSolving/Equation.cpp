@@ -251,16 +251,18 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
 
 static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result, mlir::Value root)
 {
-  if (auto addOp = mlir::dyn_cast<AddOp>(root.getDefiningOp())) {
-    if (auto res = collectSummedValues(result, addOp.getLhs()); mlir::failed(res)) {
-      return res;
-    }
+  if (auto definingOp = root.getDefiningOp()) {
+    if (auto addOp = mlir::dyn_cast<AddOp>(root.getDefiningOp())) {
+      if (auto res = collectSummedValues(result, addOp.getLhs()); mlir::failed(res)) {
+        return res;
+      }
 
-    if (auto res = collectSummedValues(result, addOp.getRhs()); mlir::failed(res)) {
-      return res;
-    }
+      if (auto res = collectSummedValues(result, addOp.getRhs()); mlir::failed(res)) {
+        return res;
+      }
 
-    return mlir::success();
+      return mlir::success();
+    }
   }
 
   result.push_back(root);
@@ -291,7 +293,7 @@ namespace marco::codegen
     auto variables = getVariables();
 
     auto it = llvm::find_if(variables, [&](const std::unique_ptr<Variable>& variable) {
-      return value == variable->getValue();
+      return *variable == value;
     });
 
     if (it == variables.end()) {
@@ -299,34 +301,6 @@ namespace marco::codegen
     }
 
     return (*it).get();
-  }
-
-  bool Equation::isVariable(mlir::Value value) const
-  {
-    if (value.isa<mlir::BlockArgument>()) {
-      return mlir::isa<ModelOp>(value.getParentRegion()->getParentOp());
-    }
-
-    return false;
-  }
-
-  bool Equation::isReferenceAccess(mlir::Value value) const
-  {
-    if (isVariable(value)) {
-      return true;
-    }
-
-    mlir::Operation* definingOp = value.getDefiningOp();
-
-    if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
-      return isReferenceAccess(loadOp.getArray());
-    }
-
-    if (auto viewOp = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
-      return isReferenceAccess(viewOp.getSource());
-    }
-
-    return false;
   }
 
   void Equation::searchAccesses(
@@ -344,7 +318,7 @@ namespace marco::codegen
       std::vector<DimensionAccess>& dimensionAccesses,
       EquationPath path) const
   {
-    if (isVariable(value)) {
+    if (getVariables().isVariable(value)) {
       resolveAccess(accesses, value, dimensionAccesses, std::move(path));
     } else if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr) {
       searchAccesses(accesses, definingOp, dimensionAccesses, std::move(path));
@@ -519,6 +493,7 @@ namespace marco::codegen
     // and function.
     auto requestedAccess = getAccessAtPath(path);
     std::vector<Access> accesses;
+    auto allAccesses = getAccesses();
 
     for (const auto& access : getAccesses()) {
       if (requestedAccess.getVariable() != access.getVariable()) {
@@ -527,6 +502,10 @@ namespace marco::codegen
 
       auto requestedIndices = requestedAccess.getAccessFunction().map(equationIndices);
       auto currentIndices = access.getAccessFunction().map(equationIndices);
+
+      if (requestedIndices != currentIndices && requestedIndices.overlaps(currentIndices)) {
+        return mlir::failure();
+      }
 
       assert(requestedIndices == currentIndices || !requestedIndices.overlaps(currentIndices));
 
@@ -1151,10 +1130,15 @@ namespace marco::codegen
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    if (isReferenceAccess(value)) {
+    if (getVariables().isReferenceAccess(value)) {
       std::vector<Access> accesses;
       EquationPath path(EquationPath::LEFT);
       searchAccesses(accesses, value, path);
+
+      if (accesses.size() != 1) {
+        return std::make_pair(1, nullptr);
+      }
+
       assert(accesses.size() == 1);
 
       if (accesses[0].getVariable()->getValue() == variable &&

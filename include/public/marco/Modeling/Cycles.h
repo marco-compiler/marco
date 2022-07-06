@@ -257,10 +257,15 @@ namespace marco::modeling
           auto next = std::next(step);
 
           if (next == end) {
-            for (const auto& range : step->getEquationIndexes()) {
-              intervals.push_back(Interval(range, llvm::None));
+            IndexSet newIntervals(step->getEquationIndexes());
+
+            for (const auto& interval : intervals) {
+              newIntervals -= interval.getRange();
             }
 
+            for (const auto& range : newIntervals) {
+              intervals.push_back(Interval(range, llvm::None));
+            }
           } else {
             Container newIntervals;
             IndexSet range = step->getEquationIndexes();
@@ -501,7 +506,7 @@ namespace marco::modeling
 
           // Search along the restricted path if the candidate equation has already been visited with the same indexes
           auto step = llvm::find_if(path, [&](const DFSStep& step) {
-            return step.getEquation() == equation && step.getEquationIndexes() == equationIndexes;
+            return step.getEquation() == equation && step.getEquationIndexes().contains(equationIndexes);
           });
 
           if (step == path.begin()) {

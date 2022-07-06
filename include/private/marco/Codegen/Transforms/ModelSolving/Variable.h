@@ -20,6 +20,8 @@ namespace marco::codegen
 
       virtual std::unique_ptr<Variable> clone() const = 0;
 
+      bool operator==(mlir::Value value) const;
+
       virtual Id getId() const = 0;
       virtual size_t getRank() const = 0;
       virtual long getDimensionSize(size_t index) const = 0;
@@ -64,6 +66,10 @@ namespace marco::codegen
       mlir::ValueRange getValues() const;
 
       mlir::TypeRange getTypes() const;
+
+      bool isVariable(mlir::Value value) const;
+
+      bool isReferenceAccess(mlir::Value value) const;
 
     private:
       class Impl;
