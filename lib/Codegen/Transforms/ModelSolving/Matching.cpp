@@ -174,7 +174,7 @@ namespace marco::codegen
       } else {
         auto accessedIndices = access.getAccessFunction().map(iterationRanges);
 
-        if (accessedIndices != writtenIndices) {
+        if (!writtenIndices.contains(accessedIndices)) {
           result.push_back(access);
         }
       }

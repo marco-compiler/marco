@@ -31,6 +31,12 @@ namespace marco::codegen
     assert(mlir::isa<MemberCreateOp>(definingOp));
   }
 
+  bool Variable::operator==(mlir::Value value) const
+  {
+    assert(value.isa<mlir::BlockArgument>());
+    return getValue() == value;
+  }
+
   BaseVariable::Id BaseVariable::getId() const
   {
     return definingOp;
@@ -186,5 +192,33 @@ namespace marco::codegen
   mlir::TypeRange Variables::getTypes() const
   {
     return impl->getTypes();
+  }
+
+  bool Variables::isVariable(mlir::Value value) const
+  {
+    if (value.isa<mlir::BlockArgument>()) {
+      return mlir::isa<ModelOp>(value.getParentRegion()->getParentOp());
+    }
+
+    return false;
+  }
+
+  bool Variables::isReferenceAccess(mlir::Value value) const
+  {
+    if (isVariable(value)) {
+      return true;
+    }
+
+    mlir::Operation* definingOp = value.getDefiningOp();
+
+    if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
+      return isReferenceAccess(loadOp.getArray());
+    }
+
+    if (auto viewOp = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
+      return isReferenceAccess(viewOp.getSource());
+    }
+
+    return false;
   }
 }

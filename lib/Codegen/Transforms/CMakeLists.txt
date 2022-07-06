@@ -4,6 +4,7 @@ set(SOURCES
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
     ModelSolving/Access.cpp
+    ModelSolving/Algorithm.cpp
     ModelSolving/ArrayVariable.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp

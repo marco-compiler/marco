@@ -93,10 +93,6 @@ namespace marco::codegen
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;
 
-      bool isVariable(mlir::Value value) const;
-
-      bool isReferenceAccess(mlir::Value value) const;
-
       void searchAccesses(
           std::vector<Access>& accesses,
           mlir::Value value,

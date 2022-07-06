@@ -28,6 +28,15 @@ namespace marco::codegen
     return result;
   }
 
+  Algorithms discoverAlgorithms(mlir::Region& equationsRegion, const Variables& variables)
+  {
+    Algorithms result;
+
+    // TODO
+
+    return result;
+  }
+
   namespace impl
   {
     BaseModel::BaseModel(mlir::modelica::ModelOp modelOp)
@@ -66,6 +75,16 @@ namespace marco::codegen
     void BaseModel::setDerivativesMap(DerivativesMap map)
     {
       derivativesMap = std::move(map);
+    }
+
+    Algorithms BaseModel::getAlgorithms() const
+    {
+      return algorithms;
+    }
+
+    void BaseModel::setAlgorithms(Algorithms newAlgorithms)
+    {
+      //algorithms = std::move(newAlgorithms);
     }
 
     void BaseModel::onVariablesSet(Variables newVariables)

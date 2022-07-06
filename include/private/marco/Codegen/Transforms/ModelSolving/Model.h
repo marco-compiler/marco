@@ -5,6 +5,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/Variable.h"
 #include "marco/Codegen/Transforms/ModelSolving/DerivativesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/Equation.h"
+#include "marco/Codegen/Transforms/ModelSolving/Algorithm.h"
 #include "marco/Codegen/Transforms/ModelSolving/Path.h"
 
 namespace marco::codegen
@@ -15,6 +16,9 @@ namespace marco::codegen
 
   /// Get the equations that are declared inside the Model operation.
   Equations<Equation> discoverEquations(
+      mlir::Region& equationsRegion, const Variables& variables);
+
+  Algorithms discoverAlgorithms(
       mlir::Region& equationsRegion, const Variables& variables);
 
   namespace impl
@@ -41,6 +45,10 @@ namespace marco::codegen
 
         void setDerivativesMap(DerivativesMap map);
 
+        Algorithms getAlgorithms() const;
+
+        void setAlgorithms(Algorithms algorithms);
+
       protected:
         /// Hook function that is called when a new set of variables is set.
         virtual void onVariablesSet(Variables newVariables);
@@ -49,6 +57,7 @@ namespace marco::codegen
         mlir::Operation* modelOp;
         Variables variables;
         DerivativesMap derivativesMap;
+        Algorithms algorithms;
     };
   }
 

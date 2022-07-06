@@ -2065,7 +2065,8 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let regions = (region
         AnyRegion:$initRegion,
         AnyRegion:$equationsRegion,
-        AnyRegion:$initialEquationsRegion
+        AnyRegion:$initialEquationsRegion,
+        AnyRegion:$algorithmRegion
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -2078,6 +2079,9 @@ def Modelica_ModelOp : Modelica_Op<"model",
 
         bool hasInitialEquationsBlock();
         Block* initialEquationsBlock();
+
+        bool hasAlgorithmBlock();
+        Block* algorithmBlock();
     }];
 }
 
@@ -2148,6 +2152,30 @@ def Modelica_EquationOp : Modelica_Op<"equation",
     let extraClassDeclaration = [{
         Block* bodyBlock();
     }];
+}
+
+def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
+    [ParentOneOf<["ModelOp"]>,
+    NoTerminator]>
+{
+  let summary = "Algorithm.";
+
+  let description = [{
+      The operation represents a Modelica algorithm.
+  }];
+
+  let arguments = (ins);
+  let results = (outs);
+
+  let regions = (region
+      SizedRegion<1>:$bodyRegion
+  );
+
+  let hasCustomAssemblyFormat = 1;
+
+  let extraClassDeclaration = [{
+    Block* bodyBlock();
+  }];
 }
 
 def Modelica_TimeOp : Modelica_Op<"time",

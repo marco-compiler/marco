@@ -546,6 +546,11 @@ namespace
 
         mlir::OpBuilder builder(models[0]);
 
+        // Convert the algorithms into equations
+        if (mlir::failed(convertAlgorithmsIntoEquations(builder, models[0]))) {
+          return signalPassFailure();
+        }
+
         // Copy the equations into the initial equations' region, in order to use
         // them when computing the initial values of the variables.
 
@@ -572,6 +577,7 @@ namespace
 
         model.setVariables(discoverVariables(model.getOperation().getEquationsRegion()));
         model.setEquations(discoverEquations(model.getOperation().getEquationsRegion(), model.getVariables()));
+        //model.setAlgorithms(discoverAlgorithms(model.getOperation().getEquationsRegion(), model.getVariables()));
 
         // Determine which scalar variables do appear as argument to the derivative operation
         std::map<unsigned int, IndexSet> derivedIndices;
@@ -676,6 +682,146 @@ namespace
       }
 
     private:
+      mlir::LogicalResult convertAlgorithmsIntoEquations(mlir::OpBuilder& builder, ModelOp modelOp)
+      {
+        auto module = modelOp->getParentOfType<mlir::ModuleOp>();
+        std::vector<AlgorithmOp> algorithms;
+
+        // Collect the algorithms
+        modelOp.getEquationsRegion().walk([&](AlgorithmOp op) {
+          algorithms.push_back(op);
+        });
+
+        // Convert them one by one
+        for (auto& algorithm : llvm::enumerate(algorithms)) {
+          mlir::OpBuilder::InsertionGuard guard(builder);
+          builder.setInsertionPointToStart(module.getBody());
+
+          auto loc = algorithm.value()->getLoc();
+          auto functionName = modelOp.getSymName().str() + "_algorithm_" + std::to_string(algorithm.index());
+
+          // Create the function
+          auto functionType = builder.getFunctionType(
+              modelOp.getEquationsRegion().getArgumentTypes(),
+              modelOp.getEquationsRegion().getArgumentTypes());
+
+          auto functionOp = builder.create<FunctionOp>(loc, functionName, functionType);
+
+          assert(functionOp.getBody().empty());
+          mlir::Block* functionBlock = builder.createBlock(&functionOp.getBody());
+          builder.setInsertionPointToStart(functionBlock);
+
+          std::vector<mlir::Value> inputMemberCreateOps;
+          std::vector<mlir::Value> outputMemberCreateOps;
+
+          std::vector<mlir::Value> inputMemberLoadOps;
+          std::vector<mlir::Value> outputMemberLoadOps;
+
+          for (const auto& type : llvm::enumerate(functionType.getInputs())) {
+            auto memberType = MemberType::wrap(type.value(), false, IOProperty::input);
+            auto memberCreateOp = builder.create<MemberCreateOp>(loc, "arg_" + std::to_string(type.index()), memberType, llvm::None);
+            inputMemberCreateOps.push_back(memberCreateOp);
+          }
+
+          for (const auto& type : llvm::enumerate(functionType.getResults())) {
+            auto memberType = MemberType::wrap(type.value(), false, IOProperty::output);
+            auto memberCreateOp = builder.create<MemberCreateOp>(loc, "result_" + std::to_string(type.index()), memberType, llvm::None);
+            outputMemberCreateOps.push_back(memberCreateOp);
+          }
+
+          mlir::BlockAndValueMapping mapping;
+
+          for (const auto& member : llvm::enumerate(inputMemberCreateOps)) {
+            auto memberLoadOp = builder.create<MemberLoadOp>(loc, member.value());
+            inputMemberLoadOps.push_back(memberLoadOp);
+          }
+
+          for (const auto& member : llvm::enumerate(outputMemberCreateOps)) {
+            auto memberLoadOp = builder.create<MemberLoadOp>(loc, member.value());
+            outputMemberLoadOps.push_back(memberLoadOp);
+            mapping.map(modelOp.getEquationsRegion().getArgument(member.index()), memberLoadOp);
+          }
+
+          for (auto& op : algorithm.value().bodyBlock()->getOperations()) {
+            builder.clone(op, mapping);
+          }
+
+          std::set<size_t> removedOutputVars;
+
+          for (const auto& outputVar : llvm::enumerate(outputMemberLoadOps)) {
+            if (outputVar.value().use_empty()) {
+              removedOutputVars.insert(outputVar.index());
+              outputVar.value().getDefiningOp()->erase();
+              outputMemberCreateOps[outputVar.index()].getDefiningOp()->erase();
+            } else {
+              builder.setInsertionPointAfterValue(inputMemberLoadOps[outputVar.index()]);
+              builder.create<MemberStoreOp>(loc, outputMemberCreateOps[outputVar.index()], inputMemberLoadOps[outputVar.index()]);
+            }
+          }
+
+          std::set<size_t> removedInputVars;
+
+          for (const auto& inputVar : llvm::enumerate(inputMemberLoadOps)) {
+            if (inputVar.value().use_empty()) {
+              removedInputVars.insert(inputVar.index());
+              inputVar.value().getDefiningOp()->erase();
+              inputMemberCreateOps[inputVar.index()].getDefiningOp()->erase();
+            }
+          }
+
+          std::vector<mlir::Type> newFunctionArgs;
+          std::vector<mlir::Type> newFunctionResults;
+
+          for (const auto& arg : llvm::enumerate(functionType.getInputs())) {
+            if (removedInputVars.find(arg.index()) == removedInputVars.end()) {
+              newFunctionArgs.push_back(arg.value());
+            }
+          }
+
+          for (const auto& result : llvm::enumerate(functionType.getResults())) {
+            if (removedOutputVars.find(result.index()) == removedOutputVars.end()) {
+              newFunctionResults.push_back(result.value());
+            }
+          }
+
+          functionOp.setFunctionTypeAttr(
+              mlir::TypeAttr::get(builder.getFunctionType(newFunctionArgs, newFunctionResults)));
+
+          // Create the equation
+          builder.setInsertionPointToEnd(modelOp.equationsBlock());
+          auto dummyEquationOp = builder.create<EquationOp>(loc);
+          assert(dummyEquationOp.getBodyRegion().empty());
+          mlir::Block* dummyEquationBody = builder.createBlock(&dummyEquationOp.getBodyRegion());
+          builder.setInsertionPointToStart(dummyEquationBody);
+
+          std::vector<mlir::Value> callArgs;
+          std::vector<mlir::Value> callResults;
+
+          for (const auto& var : llvm::enumerate(modelOp.getEquationsRegion().getArguments())) {
+            if (removedInputVars.find(var.index()) == removedInputVars.end()) {
+              callArgs.push_back(var.value());
+            }
+          }
+
+          for (const auto& var : llvm::enumerate(modelOp.getEquationsRegion().getArguments())) {
+            if (removedOutputVars.find(var.index()) == removedOutputVars.end()) {
+              callResults.push_back(var.value());
+            }
+          }
+
+          auto callOp = builder.create<CallOp>(
+              loc, functionName, mlir::ValueRange(callResults).getTypes(), callArgs);
+
+          mlir::Value lhs = builder.create<EquationSideOp>(loc, callResults);
+          mlir::Value rhs = builder.create<EquationSideOp>(loc, callOp.getResults());
+          builder.create<EquationSidesOp>(loc, lhs, rhs);
+
+          algorithm.value()->erase();
+        }
+
+        return mlir::success();
+      }
+
       /// Copy the equations declared into the 'equations' region into the 'initial equations' region.
       mlir::LogicalResult copyEquationsAmongInitialEquations(mlir::OpBuilder& builder, ModelOp modelOp)
       {
@@ -741,43 +887,54 @@ namespace
 
       mlir::LogicalResult convertToSingleEquationBody(ModelOp modelOp)
       {
-        llvm::SmallVector<EquationOp> equations;
-
-        for (auto op : modelOp.equationsBlock()->getOps<EquationOp>()) {
-          equations.push_back(op);
-        }
-
         mlir::OpBuilder builder(modelOp);
 
-        mlir::BlockAndValueMapping mapping;
+        llvm::SmallVector<mlir::Region*, 2> regions;
+        regions.push_back(&modelOp.getEquationsRegion());
+        regions.push_back(&modelOp.getInitialEquationsRegion());
 
-        for (auto& equationOp : equations) {
-          builder.setInsertionPointToEnd(modelOp.equationsBlock());
-          std::vector<ForEquationOp> parents;
+        for (auto& region : regions) {
+          assert(region->hasOneBlock());
+          std::vector<EquationOp> equations;
 
-          ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
-
-          while (parent != nullptr) {
-            parents.push_back(parent);
-            parent = parent->getParentOfType<ForEquationOp>();
+          // Collect all the equations inside the region
+          for (auto op : region->getOps<EquationOp>()) {
+            equations.push_back(op);
           }
 
-          for (size_t i = 0, e = parents.size(); i < e; ++i) {
-            auto clonedParent = mlir::cast<ForEquationOp>(builder.clone(*parents[e - i - 1].getOperation(), mapping));
-            builder.setInsertionPointToEnd(clonedParent.bodyBlock());
+          mlir::BlockAndValueMapping mapping;
+
+          for (auto& equationOp : equations) {
+            builder.setInsertionPointToEnd(&region->front());
+            std::vector<ForEquationOp> parents;
+
+            // Collect the wrapping loops
+            auto parent = equationOp->getParentOfType<ForEquationOp>();
+
+            while (parent != nullptr) {
+              parents.push_back(parent);
+              parent = parent->getParentOfType<ForEquationOp>();
+            }
+
+            // Clone them starting from the outermost one
+            for (size_t i = 0, e = parents.size(); i < e; ++i) {
+              auto clonedParent = mlir::cast<ForEquationOp>(builder.clone(*parents[e - i - 1].getOperation(), mapping));
+              builder.setInsertionPointToEnd(clonedParent.bodyBlock());
+            }
+
+            builder.clone(*equationOp.getOperation(), mapping);
           }
 
-          builder.clone(*equationOp.getOperation(), mapping);
-        }
+          // Erase the old equations
+          for (auto& equationOp : equations) {
+            auto parent = equationOp->getParentOfType<ForEquationOp>();
+            equationOp.erase();
 
-        for (auto& equationOp : equations) {
-          ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
-          equationOp.erase();
-
-          while (parent != nullptr && parent.bodyBlock()->empty()) {
-            ForEquationOp newParent = parent->getParentOfType<ForEquationOp>();
-            parent.erase();
-            parent = newParent;
+            while (parent != nullptr && parent.bodyBlock()->empty()) {
+              auto newParent = parent->getParentOfType<ForEquationOp>();
+              parent.erase();
+              parent = newParent;
+            }
           }
         }
 
@@ -902,9 +1059,21 @@ namespace
 
           auto argNumber = variable.getValue().cast<mlir::BlockArgument>().getArgNumber();
 
+          // Remove the derived indices
           if (auto derivativesMap = matchedModel.getDerivativesMap(); derivativesMap.hasDerivative(argNumber)) {
             matchableIndices -= matchedModel.getDerivativesMap().getDerivedIndices(argNumber);
           }
+
+          // Remove the indices already matched by the algorithms
+          /*
+          for (const auto& algorithm : model.getAlgorithms()) {
+            for (const auto& write : algorithm->getWrites()) {
+              if (variable.getValue() == write.getVariable()->getValue()) {
+                matchableIndices -= write.getAccessFunction().map(Point(0));
+              }
+            }
+          }
+           */
 
           return matchableIndices;
         };
