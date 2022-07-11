@@ -1,10 +1,7 @@
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
 
@@ -33,6 +30,8 @@ namespace marco::frontend
     printOption(os, "CSE", codegenOptions.cse);
     printOption(os, "OpenMP", codegenOptions.omp);
     printOption(os, "Main function generation", codegenOptions.generateMain);
+    printOption(os, "Target triple", codegenOptions.target);
+    printOption(os, "Target cpu", codegenOptions.cpu);
     os << "\n";
 
     const auto& simulationOptions = ci.getSimulationOptions();
@@ -153,44 +152,22 @@ namespace marco::frontend
   {
     CompilerInstance& ci = instance();
 
-    auto targetTriple = llvm::sys::getDefaultTargetTriple();
-    ci.getLLVMModule().setTargetTriple(targetTriple);
+    if (auto targetMachine = ci.getTargetMachine()) {
+      // Compile the module
+      llvm::legacy::PassManager passManager;
 
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+      if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType)) {
+        unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
+            clang::DiagnosticsEngine::Error,
+            "TargetMachine can't emit a file of this type");
 
-    // Print an error and exit if we couldn't find the requested target.
-    // This generally occurs if we've forgotten to initialise the
-    // TargetRegistry or we have a bogus target triple.
+        ci.getDiagnostics().Report(diagId);
+        return;
+      }
 
-    if (!target) {
-      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%s");
-      ci.getDiagnostics().Report(diagId) << error;
-      return;
+      passManager.run(ci.getLLVMModule());
+      os.flush();
     }
-
-    std::string cpu = std::string(llvm::sys::getHostCPUName());
-    auto features = "";
-
-    llvm::TargetOptions opt;
-    auto relocationModel = llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
-    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, relocationModel);
-
-    ci.getLLVMModule().setDataLayout(targetMachine->createDataLayout());
-
-    llvm::legacy::PassManager passManager;
-
-    if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType)) {
-      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Error,
-          "TargetMachine can't emit a file of this type");
-
-      ci.getDiagnostics().Report(diagId);
-      return;
-    }
-
-    passManager.run(ci.getLLVMModule());
-    os.flush();
   }
 
   void EmitAssemblyAction::execute()

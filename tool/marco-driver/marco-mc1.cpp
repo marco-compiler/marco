@@ -8,8 +8,8 @@ using namespace marco::frontend;
 
 extern int mc1_main(llvm::ArrayRef<const char*> argv)
 {
-  // Create CompilerInstance
-  std::unique_ptr<CompilerInstance> instance(new CompilerInstance());
+  // Create the compiler instance
+  auto instance = std::make_unique<CompilerInstance>();
 
   // Create diagnostics engine for the frontend driver
   instance->createDiagnostics();
@@ -30,7 +30,7 @@ extern int mc1_main(llvm::ArrayRef<const char*> argv)
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
 
-  bool success = CompilerInvocation::createFromArgs(instance->invocation(), argv, diagnosticEngine);
+  bool success = CompilerInvocation::createFromArgs(instance->getInvocation(), argv, diagnosticEngine);
 
   diagnosticBuffer->FlushDiagnostics(instance->getDiagnostics());
 

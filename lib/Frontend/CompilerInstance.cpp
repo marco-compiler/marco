@@ -58,7 +58,7 @@ namespace marco::frontend
     }
   }
 
-  CompilerInvocation& CompilerInstance::invocation()
+  CompilerInvocation& CompilerInstance::getInvocation()
   {
     assert(invocation_ && "Compiler instance has no invocation!");
     return *invocation_;
@@ -297,5 +297,52 @@ namespace marco::frontend
     // For non-seekable streams, we need to wrap the output stream into something
     // that supports 'pwrite' and takes care of the ownership for us.
     return std::make_unique<llvm::buffer_unique_ostream>(std::move(os));
+  }
+
+  const llvm::Target* CompilerInstance::getLLVMTarget()
+  {
+    std::string error;
+    const llvm::Target* target = llvm::TargetRegistry::lookupTarget(getCodegenOptions().target, error);
+
+    if (!target) {
+      // Print an error and exit if we couldn't find the requested target.
+      // This generally occurs if we've forgotten to initialise the
+      // TargetRegistry or if we have a bogus target triple.
+
+      unsigned int diagId = getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%s");
+      getDiagnostics().Report(diagId) << error;
+      return nullptr;
+    }
+
+    return target;
+  }
+
+  llvm::TargetMachine* CompilerInstance::getTargetMachine()
+  {
+    auto features = "";
+    llvm::TargetOptions opt;
+    auto relocationModel = llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
+
+    auto target = getLLVMTarget();
+
+    if (!target) {
+      return nullptr;
+    }
+
+    auto targetMachine = getLLVMTarget()->createTargetMachine(
+        getCodegenOptions().target,
+        getCodegenOptions().cpu,
+        features, opt, relocationModel);
+
+    if (!targetMachine) {
+      unsigned int diagId = getDiagnostics().getCustomDiagID(
+          clang::DiagnosticsEngine::Error,
+          "Can't create the TargetMachine");
+
+      getDiagnostics().Report(diagId);
+      return nullptr;
+    }
+
+    return targetMachine;
   }
 }

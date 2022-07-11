@@ -293,6 +293,16 @@ def : Alias<opt>, AliasArgs<["s"]>,
 def : Alias<opt>, AliasArgs<["z"]>,
   HelpText<"Optimize for size">;
 
+def target : Joined<["--"], "target=">,
+    Flags<[MC1Option]>,
+    Group<Codegen_Group>,
+    HelpText<"Generate code for the given target">;
+
+def cpu: Joined<["--"], "mcpu=">,
+    Flags<[MC1Option]>,
+    Group<Codegen_Group>,
+    HelpText<"Optimize code for a given CPU">;
+
 def model : Joined<["--"], "model=">,
     Group<Simulation_Group>,
     Flags<[MC1Option]>,

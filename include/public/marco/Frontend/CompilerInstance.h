@@ -4,7 +4,9 @@
 #include "clang/Basic/DiagnosticOptions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "marco/AST/AST.h"
 #include "marco/Frontend/CompilerInvocation.h"
@@ -29,36 +31,16 @@ namespace marco::frontend
         }
       };
 
-      explicit CompilerInstance();
+      CompilerInstance();
 
       ~CompilerInstance();
 
-    public:
-      void set_outputStream(std::unique_ptr<llvm::raw_pwrite_stream> outStream)
-      {
-        outputStream_ = std::move(outStream);
-      }
-
-      bool IsOutputStreamNull() { return (outputStream_ == nullptr); }
-
-      // Allow the frontend compiler to write in the output stream.
-      void WriteOutputStream(const std::string& message)
-      {
-        *outputStream_ << message;
-      }
-
-    public:
       CompilerInstance(const CompilerInstance&) = delete;
 
       void operator=(const CompilerInstance&) = delete;
 
-      // TODO rename to getInvocation()
       /// Get the current compiler invocation.
-      CompilerInvocation& invocation();
-
-      // TODO
-      /// setInvocation - Replace the current invocation.
-      //void setInvocation(std::shared_ptr<CompilerInvocation> Value);
+      CompilerInvocation& getInvocation();
 
       /// Create a diagnostics engine instance
       ///
@@ -171,6 +153,12 @@ namespace marco::frontend
       std::unique_ptr<llvm::raw_pwrite_stream> createDefaultOutputFile(
           bool binary = true, llvm::StringRef baseInput = "", llvm::StringRef extension = "");
 
+      /// Get the LLVM target mapped by the target triple that is set in the
+      /// codegen options.
+      const llvm::Target* getLLVMTarget();
+
+      llvm::TargetMachine* getTargetMachine();
+
     private:
       /// Create a new output file
       ///
@@ -190,12 +178,6 @@ namespace marco::frontend
       /// The list of active output files
       std::list<OutputFile> outputFiles_;
 
-      /// Holds the output stream provided by the user. Normally, users of
-      /// CompilerInstance will call CreateOutputFile to obtain/create an output
-      /// stream. If they want to provide their own output stream, this field will
-      /// facilitate this. It is optional and will normally be just a nullptr.
-      std::unique_ptr<llvm::raw_pwrite_stream> outputStream_;
-
       std::unique_ptr<mlir::MLIRContext> mlirContext_;
       std::unique_ptr<llvm::LLVMContext> llvmContext_;
 
@@ -207,8 +189,6 @@ namespace marco::frontend
 
   /// Construct the FrontendAction of a compiler invocation based on the
   /// options specified for the compiler invocation.
-  ///
-  /// @return the created FrontendAction object
   std::unique_ptr<FrontendAction> createFrontendAction(CompilerInstance& ci);
 
   /// Execute the given actions described by the compiler invocation object

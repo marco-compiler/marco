@@ -11,6 +11,7 @@
 #include "marco/Frontend/FrontendOptions.h"
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -19,6 +20,9 @@
 #include "mlir/Transforms/Passes.h"
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/InitLLVM.h"
@@ -192,10 +196,30 @@ namespace marco::frontend
   bool FrontendAction::runDialectConversion()
   {
     CompilerInstance& ci = instance();
-
     auto& codegenOptions = ci.getCodegenOptions();
     auto& simulationOptions = ci.getSimulationOptions();
 
+    // Set the target triple inside the MLIR module
+    instance().getMLIRModule()->setAttr(
+        mlir::LLVM::LLVMDialect::getTargetTripleAttrName(),
+        mlir::StringAttr::get(&instance().getMLIRContext(), codegenOptions.target));
+
+    // Set the data layout inside the MLIR module
+    auto* targetMachine = ci.getTargetMachine();
+
+    if (!targetMachine) {
+      return false;
+    }
+
+    const llvm::DataLayout &dl = targetMachine->createDataLayout();
+    std::string dataLayoutString = dl.getStringRepresentation();
+    assert(dataLayoutString != "" && "Expecting a valid target data layout");
+
+    instance().getMLIRModule()->setAttr(
+        mlir::LLVM::LLVMDialect::getDataLayoutAttrName(),
+        mlir::StringAttr::get(&instance().getMLIRContext(), dataLayoutString));
+
+    // Create the pass manager and populate it with the appropriate transformations
     mlir::PassManager passManager(&ci.getMLIRContext());
 
     passManager.addPass(codegen::createAutomaticDifferentiationPass());
@@ -276,6 +300,7 @@ namespace marco::frontend
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
 
+    // Run the conversion
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
       unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
           clang::DiagnosticsEngine::Fatal,
@@ -297,8 +322,8 @@ namespace marco::frontend
     mlir::registerOpenMPDialectTranslation(ci.getMLIRContext());
 
     // Initialize LLVM targets
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllAsmPrinters();
 
     // Convert to LLVM IR
     auto llvmModule = mlir::translateModuleToLLVMIR(ci.getMLIRModule(), ci.getLLVMContext());
@@ -311,6 +336,15 @@ namespace marco::frontend
       ci.getDiagnostics().Report(diagId);
       return false;
     }
+
+    auto targetMachine = ci.getTargetMachine();
+
+    if (!targetMachine) {
+      return false;
+    }
+
+    llvmModule->setTargetTriple(ci.getCodegenOptions().target);
+    llvmModule->setDataLayout(targetMachine->createDataLayout());
 
     // Optimize the IR
     auto optLevel = ci.getCodegenOptions().optLevel;

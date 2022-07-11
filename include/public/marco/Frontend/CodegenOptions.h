@@ -25,6 +25,9 @@ namespace marco::frontend
 
     unsigned int bitWidth = 64;
     bool generateMain = true;
+
+    std::string target = "unknown";
+    std::string cpu = "generic";
   };
 }
 

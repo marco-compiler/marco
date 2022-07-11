@@ -5,14 +5,13 @@
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/raw_ostream.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/Options.h"
 #include <memory>
@@ -228,10 +227,33 @@ namespace marco::frontend
       options.bitWidth = numericValue.getSExtValue();
     }
 
+    // Cross-compilation options
+
     options.generateMain = args.hasFlag(
         marco::frontend::options::OPT_generate_main,
         options::OPT_no_generate_main,
         options.generateMain);
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_target)) {
+      llvm::StringRef value = arg->getValue();
+      options.target = value.str();
+    } else {
+      // Default: native compilation
+      options.target = llvm::sys::getDefaultTargetTriple();
+    }
+
+    if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_cpu)) {
+      llvm::StringRef value = arg->getValue();
+      options.cpu = value.str();
+
+      if (options.cpu == "native") {
+        // Get the host CPU name
+        options.cpu = llvm::sys::getHostCPUName().str();
+      }
+    } else {
+      // Default: native compilation
+      options.cpu = llvm::sys::getHostCPUName().str();
+    }
 
     return diags.getNumErrors() == numErrorsBefore;
   }
@@ -313,14 +335,14 @@ namespace marco::frontend
           << args.getArgString(missingArgIndex)
           << missingArgCount;
 
-      success = false;
+      success &= false;
     }
 
     // Issue errors on unknown arguments
     for (const auto* a: args.filtered(options::OPT_UNKNOWN)) {
       auto argString = a->getAsString(args);
       diagnosticEngine.Report(clang::diag::err_drv_unknown_argument) << argString;
-      success = false;
+      success &= false;
     }
 
     success &= parseFrontendArgs(res.frontendOptions(), args, diagnosticEngine);
