@@ -5,8 +5,10 @@ namespace marco::diagnostic
 {
   enum class Level
   {
+    FATAL_ERROR,
     ERROR,
     WARNING,
+    REMARK,
     NOTE
   };
 }

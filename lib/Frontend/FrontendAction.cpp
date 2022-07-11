@@ -32,6 +32,61 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Transforms/Utils.h"
 
+using namespace ::marco;
+using namespace ::marco::diagnostic;
+using namespace ::marco::frontend;
+
+//===----------------------------------------------------------------------===//
+// Messages
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  class CantOpenInputFileMessage : public Message
+  {
+    public:
+      CantOpenInputFileMessage(llvm::StringRef file)
+          : file(file.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "Unable to open input file '" << file << "'" << "\n";
+      }
+
+    private:
+      std::string file;
+  };
+
+  class FlatteningFailureMessage : public Message
+  {
+    public:
+      FlatteningFailureMessage(llvm::StringRef error)
+          : error(error.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "OMC flattening failed";
+
+        if (!error.empty()) {
+          os << "\n\n" << error << "\n";
+        }
+      }
+
+    private:
+      std::string error;
+  };
+}
+
+//===----------------------------------------------------------------------===//
+// FrontendAction
+//===----------------------------------------------------------------------===//
+
 static bool exec(const char* cmd, std::string& result)
 {
   std::array<char, 128> buffer;
@@ -63,11 +118,9 @@ namespace marco::frontend
       const auto& inputs = ci.getFrontendOptions().inputs;
 
       if (inputs.size() > 1) {
-        unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-            clang::DiagnosticsEngine::Fatal,
+        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
             "MARCO can receive only one input flattened file");
 
-        ci.getDiagnostics().Report(diagID);
         return false;
       }
 
@@ -75,11 +128,7 @@ namespace marco::frontend
       auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
 
       if (!buffer) {
-        unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-            clang::DiagnosticsEngine::Fatal,
-            "Can't open the input file");
-
-        ci.getDiagnostics().Report(diagID);
+        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(inputs[0].file());
         llvm::consumeError(buffer.takeError());
         return false;
       }
@@ -101,11 +150,7 @@ namespace marco::frontend
     }
 
     if (const auto& modelName = ci.getSimulationOptions().modelName; modelName.empty()) {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Warning,
-          "Model name not specified");
-
-      ci.getDiagnostics().Report(diagID);
+      ci.getDiagnostics().emitWarning<GenericStringMessage>("Model name not specified");
     } else {
       cmd += " +i=" + ci.getSimulationOptions().modelName;
     }
@@ -124,11 +169,7 @@ namespace marco::frontend
     auto result = exec(cmd.c_str(), ci.getFlattened());
 
     if (!result) {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Fatal,
-          "OMC flattening failed");
-
-      ci.getDiagnostics().Report(diagID);
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>("OMC flattening failed");
       llvm::errs() << ci.getFlattened();
     }
 
@@ -145,11 +186,7 @@ namespace marco::frontend
     auto cls = parser.parseRoot();
 
     if (!cls.hasValue()) {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Fatal,
-          "AST generation failed");
-
-      ci.getDiagnostics().Report(diagID);
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>("AST generation failed");
       return false;
     }
 
@@ -169,11 +206,7 @@ namespace marco::frontend
     frontendPassManager.addPass(ast::createConstantFoldingPass(diagnostics));
 
     if (!frontendPassManager.run(instance().getAST())) {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Fatal,
-          "Frontend passes failed");
-
-      ci.getDiagnostics().Report(diagID);
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>("Frontend passes failed");
       return false;
     }
 
@@ -302,11 +335,7 @@ namespace marco::frontend
 
     // Run the conversion
     if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
-      unsigned int diagID = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Fatal,
-          "Modelica dialect conversion failure");
-
-      ci.getDiagnostics().Report(diagID);
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>("Modelica dialect conversion failure");
       return false;
     }
 
@@ -321,19 +350,11 @@ namespace marco::frontend
     mlir::registerLLVMDialectTranslation(ci.getMLIRContext());
     mlir::registerOpenMPDialectTranslation(ci.getMLIRContext());
 
-    // Initialize LLVM targets
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllAsmPrinters();
-
     // Convert to LLVM IR
     auto llvmModule = mlir::translateModuleToLLVMIR(ci.getMLIRModule(), ci.getLLVMContext());
 
     if (!llvmModule) {
-      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Error,
-          "Failed to emit LLVM IR");
-
-      ci.getDiagnostics().Report(diagId);
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>("Failed to emit LLVM-IR");
       return false;
     }
 
@@ -351,11 +372,7 @@ namespace marco::frontend
     auto optPipeline = mlir::makeOptimizingTransformer(optLevel.time, optLevel.size, nullptr);
 
     if (auto error = optPipeline(llvmModule.get())) {
-      unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Error,
-          "Failed to optimize LLVM IR");
-
-      ci.getDiagnostics().Report(diagId);
+      ci.getDiagnostics().emitError<GenericStringMessage>("Failed to optimize LLVM-IR");
       llvm::consumeError(std::move(error));
       return false;
     }

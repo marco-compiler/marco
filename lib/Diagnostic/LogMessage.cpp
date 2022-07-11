@@ -1,5 +1,6 @@
 #include "marco/Diagnostic/Diagnostic.h"
 #include "marco/Diagnostic/LogMessage.h"
+#include "marco/Diagnostic/Printer.h"
 #include "llvm/Support/LineIterator.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
@@ -40,6 +41,10 @@ namespace marco::diagnostic
   void Message::printDiagnosticLevel(llvm::raw_ostream& os, Level level) const
   {
     switch (level) {
+      case Level::FATAL_ERROR:
+        os << "fatal error";
+        break;
+
       case Level::ERROR:
         os << "error";
         break;
@@ -48,10 +53,25 @@ namespace marco::diagnostic
         os << "warning";
         break;
 
+      case Level::REMARK:
+        os << "remark";
+        break;
+
       case Level::NOTE:
         os << "note";
         break;
     }
+  }
+
+  GenericStringMessage::GenericStringMessage(llvm::StringRef message)
+    : message(message.str())
+  {
+  }
+
+  void GenericStringMessage::print(PrinterInstance* printer) const
+  {
+    auto& os = printer->getOutputStream();
+    os << message << "\n";
   }
 
   SourceMessage::SourceMessage(SourceRange location)

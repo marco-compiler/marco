@@ -1,8 +1,8 @@
 #ifndef MARCO_DIAGNOSTIC_DIAGNOSTIC_H
 #define MARCO_DIAGNOSTIC_DIAGNOSTIC_H
 
-#include "llvm/ADT/Twine.h"
 #include "marco/Diagnostic/LogMessage.h"
+#include "llvm/ADT/Twine.h"
 #include <memory>
 
 namespace llvm
@@ -31,6 +31,17 @@ namespace marco::diagnostic
       DiagnosticEngine(
         std::unique_ptr<Printer> printer,
         DiagnosticOptions options = DiagnosticOptions::getDefaultOptions());
+
+      DiagnosticOptions& getOptions();
+
+      const DiagnosticOptions& getOptions() const;
+
+      template<typename Message, typename... Args>
+      void emitFatalError(Args&&... args)
+      {
+        ++numOfErrors_;
+        emit(Level::FATAL_ERROR, Message(std::forward<Args>(args)...));
+      }
 
       template<typename Message, typename... Args>
       void emitError(Args&&... args)

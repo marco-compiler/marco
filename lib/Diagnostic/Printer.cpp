@@ -8,7 +8,7 @@ static const enum llvm::raw_ostream::Colors noteColor = llvm::raw_ostream::BLACK
 static const enum llvm::raw_ostream::Colors remarkColor = llvm::raw_ostream::BLUE;
 static const enum llvm::raw_ostream::Colors warningColor = llvm::raw_ostream::YELLOW;
 static const enum llvm::raw_ostream::Colors errorColor = llvm::raw_ostream::RED;
-static const enum llvm::raw_ostream::Colors fatalColor = llvm::raw_ostream::RED;
+static const enum llvm::raw_ostream::Colors fatalErrorColor = llvm::raw_ostream::RED;
 
 static const enum llvm::raw_ostream::Colors savedColor = llvm::raw_ostream::SAVEDCOLOR;
 
@@ -21,18 +21,24 @@ namespace marco::diagnostic
   llvm::raw_ostream::Colors Printer::diagnosticLevelToColor(marco::diagnostic::Level level) const
   {
     switch (level) {
+      case Level::FATAL_ERROR:
+        return fatalErrorColor;
+
       case Level::ERROR:
         return errorColor;
 
       case Level::WARNING:
         return warningColor;
 
+      case Level::REMARK:
+        return remarkColor;
+
       case Level::NOTE:
         return noteColor;
     }
 
     llvm_unreachable("Unknown diagnostic level");
-    return fatalColor;
+    return fatalErrorColor;
   }
 
   llvm::raw_ostream& Printer::getOutputStream()

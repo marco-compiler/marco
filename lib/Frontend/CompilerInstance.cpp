@@ -4,12 +4,16 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include "marco/Diagnostic/Printer.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Frontend/Options.h"
-#include "marco/Frontend/TextDiagnosticPrinter.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+
+using namespace ::marco;
+using namespace ::marco::diagnostic;
+using namespace ::marco::frontend;
 
 // Helper method to generate the path of the output file. The following logic
 // applies:
@@ -39,10 +43,60 @@ static std::string getOutputFilePath(
   return outFile;
 }
 
+//===----------------------------------------------------------------------===//
+// Messages
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  class CantOpenOutputFileMessage : public Message
+  {
+    public:
+      CantOpenOutputFileMessage(llvm::StringRef file, llvm::StringRef error)
+        : file(file.str()),
+          error(error.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "Unable to open output file '" << file << "': " << error << "\n";
+      }
+
+    private:
+      std::string file;
+      std::string error;
+  };
+
+  class InvalidTargetTripleMessage : public Message
+  {
+    public:
+      InvalidTargetTripleMessage(llvm::StringRef targetTriple)
+        : targetTriple(targetTriple.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "Invalid target triple '" << targetTriple << "'\n";
+      }
+
+    private:
+      std::string targetTriple;
+  };
+}
+
+//===----------------------------------------------------------------------===//
+// CompilerInstance
+//===----------------------------------------------------------------------===//
+
 namespace marco::frontend
 {
   CompilerInstance::CompilerInstance()
       : invocation_(new CompilerInvocation()),
+        diagnostics_(std::make_unique<DiagnosticEngine>(std::make_unique<Printer>())),
         mlirContext_(std::make_unique<mlir::MLIRContext>()),
         llvmContext_(std::make_unique<llvm::LLVMContext>())
   {
@@ -64,38 +118,10 @@ namespace marco::frontend
     return *invocation_;
   }
 
-  void CompilerInstance::createDiagnostics(clang::DiagnosticConsumer* client, bool shouldOwnClient)
-  {
-    diagnostics_ = createDiagnostics(&getDiagnosticOptions(), client, shouldOwnClient);
-  }
-
-  clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> CompilerInstance::createDiagnostics(
-      clang::DiagnosticOptions* options, clang::DiagnosticConsumer* client, bool shouldOwnClient)
-  {
-    clang::IntrusiveRefCntPtr<clang::DiagnosticIDs> diagID(new clang::DiagnosticIDs());
-    clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags(new clang::DiagnosticsEngine(diagID, options));
-
-    // Create the diagnostic client for reporting errors or for implementing -verify
-    if (client) {
-      diags->setClient(client, shouldOwnClient);
-    } else {
-      diags->setClient(new TextDiagnosticPrinter(llvm::errs(), options));
-    }
-
-    return diags;
-  }
-
-  clang::DiagnosticsEngine& CompilerInstance::getDiagnostics() const
+  diagnostic::DiagnosticEngine& CompilerInstance::getDiagnostics() const
   {
     assert(diagnostics_ && "Compiler instance has no diagnostics!");
     return *diagnostics_;
-  }
-
-  clang::DiagnosticConsumer& CompilerInstance::getDiagnosticClient() const
-  {
-    assert(diagnostics_ && diagnostics_->getClient() &&
-        "Compiler instance has no diagnostic client!");
-    return *diagnostics_->getClient();
   }
 
   FrontendOptions& CompilerInstance::getFrontendOptions()
@@ -118,11 +144,6 @@ namespace marco::frontend
     return invocation_->codegenOptions();
   }
 
-  clang::DiagnosticOptions& CompilerInstance::getDiagnosticOptions()
-  {
-    return invocation_->GetDiagnosticOpts();
-  }
-
   const SimulationOptions& CompilerInstance::getSimulationOptions() const
   {
     return invocation_->simulationOptions();
@@ -133,9 +154,14 @@ namespace marco::frontend
     return invocation_->simulationOptions();
   }
 
-  const clang::DiagnosticOptions& CompilerInstance::getDiagnosticOptions() const
+  DiagnosticOptions& CompilerInstance::getDiagnosticOptions()
   {
-    return invocation_->GetDiagnosticOpts();
+    return diagnostics_->getOptions();
+  }
+
+  const DiagnosticOptions& CompilerInstance::getDiagnosticOptions() const
+  {
+    return diagnostics_->getOptions();
   }
 
   bool CompilerInstance::executeAction(FrontendAction& action)
@@ -147,7 +173,7 @@ namespace marco::frontend
       action.execute();
     }
 
-    return getDiagnostics().getClient()->getNumErrors() == 0;
+    return getDiagnostics().numOfErrors() == 0;
   }
 
   void CompilerInstance::clearOutputFiles(bool eraseFiles)
@@ -265,10 +291,10 @@ namespace marco::frontend
     }
 
     // If unsuccessful, issue an error and return null
-    unsigned DiagID = getDiagnostics().getCustomDiagID(
-        clang::DiagnosticsEngine::Error, "unable to open output file '%0': '%1'");
+    getDiagnostics().emitFatalError<CantOpenOutputFileMessage>(
+        outputFilePath,
+        llvm::errorToErrorCode(os.takeError()).message());
 
-    getDiagnostics().Report(DiagID) << outputFilePath << llvm::errorToErrorCode(os.takeError()).message();
     return nullptr;
   }
 
@@ -309,8 +335,7 @@ namespace marco::frontend
       // This generally occurs if we've forgotten to initialise the
       // TargetRegistry or if we have a bogus target triple.
 
-      unsigned int diagId = getDiagnostics().getCustomDiagID(clang::DiagnosticsEngine::Error, "%s");
-      getDiagnostics().Report(diagId) << error;
+      getDiagnostics().emitFatalError<InvalidTargetTripleMessage>(getCodegenOptions().target);
       return nullptr;
     }
 
@@ -335,11 +360,7 @@ namespace marco::frontend
         features, opt, relocationModel);
 
     if (!targetMachine) {
-      unsigned int diagId = getDiagnostics().getCustomDiagID(
-          clang::DiagnosticsEngine::Error,
-          "Can't create the TargetMachine");
-
-      getDiagnostics().Report(diagId);
+      getDiagnostics().emitFatalError<GenericStringMessage>("Can't create TargetMachine");
       return nullptr;
     }
 

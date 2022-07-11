@@ -6,10 +6,7 @@ set(SOURCES
     FrontendActions.cpp
     FrontendOptions.cpp
     Options.cpp
-    SimulationOptions.cpp
-    TextDiagnostic.cpp
-    TextDiagnosticBuffer.cpp
-    TextDiagnosticPrinter.cpp)
+    SimulationOptions.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
@@ -34,7 +31,6 @@ marco_add_library(frontend
     LINK_LIBS
     PUBLIC marco::ast
     PUBLIC marco::parser
-    PRIVATE clangDriver
     PRIVATE marco::codegen
     PRIVATE marco::variableFilter
     PRIVATE marco::utils

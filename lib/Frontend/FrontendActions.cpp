@@ -1,9 +1,12 @@
+#include "marco/Frontend/CompilerInstance.h"
+#include "marco/Frontend/FrontendActions.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/Host.h"
-#include "llvm/Support/TargetSelect.h"
-#include "marco/Frontend/CompilerInstance.h"
-#include "marco/Frontend/FrontendActions.h"
+
+using namespace ::marco;
+using namespace ::marco::diagnostic;
+using namespace ::marco::frontend;
 
 namespace marco::frontend
 {
@@ -11,11 +14,8 @@ namespace marco::frontend
   {
     CompilerInstance& ci = this->instance();
 
-    unsigned int DiagID = ci.getDiagnostics().getCustomDiagID(
-        clang::DiagnosticsEngine::Warning,
+    ci.getDiagnostics().emitWarning<GenericStringMessage>(
         "Use '-init-only' for testing purposes only");
-
-    ci.getDiagnostics().Report(DiagID);
 
     auto& os = llvm::outs();
 
@@ -157,11 +157,9 @@ namespace marco::frontend
       llvm::legacy::PassManager passManager;
 
       if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType)) {
-        unsigned int diagId = ci.getDiagnostics().getCustomDiagID(
-            clang::DiagnosticsEngine::Error,
+        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
             "TargetMachine can't emit a file of this type");
 
-        ci.getDiagnostics().Report(diagId);
         return;
       }
 

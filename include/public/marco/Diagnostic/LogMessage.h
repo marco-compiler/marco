@@ -33,6 +33,17 @@ namespace marco::diagnostic
       void printDiagnosticLevel(llvm::raw_ostream& os, Level level) const;
   };
 
+  class GenericStringMessage : public Message
+  {
+    public:
+      GenericStringMessage(llvm::StringRef message);
+
+      void print(PrinterInstance* printer) const override;
+
+    private:
+      std::string message;
+  };
+
 	class SourceMessage : public Message
 	{
 		public:

@@ -81,7 +81,7 @@ namespace marco::frontend
     }
 
     // If there were errors in processing arguments, don't do anything else
-    if (ci->getDiagnostics().hasErrorOccurred()) {
+    if (ci->getDiagnostics().hasErrors()) {
       return false;
     }
 

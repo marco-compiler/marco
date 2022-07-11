@@ -1,17 +1,17 @@
 #ifndef MARCO_FRONTEND_COMPILERINSTANCE_H
 #define MARCO_FRONTEND_COMPILERINSTANCE_H
 
-#include "clang/Basic/DiagnosticOptions.h"
+#include "marco/AST/AST.h"
+#include "marco/Frontend/CompilerInvocation.h"
+#include "marco/Frontend/FrontendAction.h"
+#include "marco/Frontend/SimulationOptions.h"
+#include "marco/Diagnostic/Diagnostic.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "marco/AST/AST.h"
-#include "marco/Frontend/CompilerInvocation.h"
-#include "marco/Frontend/FrontendAction.h"
-#include "marco/Frontend/SimulationOptions.h"
 #include <list>
 
 namespace marco::frontend
@@ -42,31 +42,8 @@ namespace marco::frontend
       /// Get the current compiler invocation.
       CompilerInvocation& getInvocation();
 
-      /// Create a diagnostics engine instance
-      ///
-      /// If no diagnostic client is provided, this method creates a
-      /// DiagnosticConsumer that is owned by the returned diagnostic object. If
-      /// using directly, the caller is responsible for releasing the returned
-      /// DiagnosticsEngine's client eventually.
-      ///
-      /// @param options  diagnostic options
-      /// @param client - If non-NULL, a diagnostic client that will be attached to
-      /// (and optionally, depending on the shouldOwnClient parameter, owned by) the
-      /// returned DiagnosticsEngine object.
-      ///
-      /// @return the new object on success, or null on failure.
-      static clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> createDiagnostics(
-          clang::DiagnosticOptions* opts,
-          clang::DiagnosticConsumer* client = nullptr,
-          bool shouldOwnClient = true);
-
-      void createDiagnostics(clang::DiagnosticConsumer* client = nullptr, bool shouldOwnClient = true);
-
       /// Get the current diagnostics engine.
-      clang::DiagnosticsEngine& getDiagnostics() const;
-
-      /// Get the current diagnostics client.
-      clang::DiagnosticConsumer& getDiagnosticClient() const;
+      diagnostic::DiagnosticEngine& getDiagnostics() const;
 
       /// Get the frontend options.
       FrontendOptions& getFrontendOptions();
@@ -87,10 +64,10 @@ namespace marco::frontend
       const SimulationOptions& getSimulationOptions() const;
 
       /// Get the diagnostic options.
-      clang::DiagnosticOptions& getDiagnosticOptions();
+      diagnostic::DiagnosticOptions& getDiagnosticOptions();
 
       /// Get the diagnostic options.
-      const clang::DiagnosticOptions& getDiagnosticOptions() const;
+      const diagnostic::DiagnosticOptions& getDiagnosticOptions() const;
 
       /// Execute a frontend action.
       ///
@@ -173,7 +150,7 @@ namespace marco::frontend
       std::shared_ptr<CompilerInvocation> invocation_;
 
       /// The diagnostics engine instance
-      llvm::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diagnostics_;
+      std::unique_ptr<diagnostic::DiagnosticEngine> diagnostics_;
 
       /// The list of active output files
       std::list<OutputFile> outputFiles_;

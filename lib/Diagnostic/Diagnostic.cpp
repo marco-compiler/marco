@@ -22,11 +22,23 @@ namespace marco::diagnostic
   //===----------------------------------------------------------------------===//
 
   DiagnosticEngine::DiagnosticEngine(std::unique_ptr<Printer> printer, DiagnosticOptions options)
-    : numOfErrors_(0), printer_(std::move(printer)), options_(std::move(options))
+    : numOfErrors_(0),
+      printer_(std::move(printer)),
+      options_(std::move(options))
   {
     if (this->printer_ == nullptr) {
       this->printer_ = std::make_unique<Printer>();
     }
+  }
+
+  DiagnosticOptions& DiagnosticEngine::getOptions()
+  {
+    return options_;
+  }
+
+  const DiagnosticOptions& DiagnosticEngine::getOptions() const
+  {
+    return options_;
   }
 
   size_t DiagnosticEngine::numOfErrors() const
