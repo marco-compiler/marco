@@ -2,12 +2,15 @@
 #define MARCO_CODEN_CONVERSION_MODELICA_MODELICACONVERSION_H
 
 #include "mlir/Pass/Pass.h"
+#include "llvm/IR/DataLayout.h"
 
 namespace marco::codegen
 {
 	struct ModelicaToLLVMOptions
 	{
 		bool assertions = true;
+
+    llvm::DataLayout dataLayout = llvm::DataLayout("");
 
 		static const ModelicaToLLVMOptions& getDefaultOptions();
 	};

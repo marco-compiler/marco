@@ -996,6 +996,8 @@ namespace
         mlir::OpBuilder builder(module);
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        llvmLoweringOptions.dataLayout = options.dataLayout;
+
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
         CFGLowerer lowerer(typeConverter, options.outputArraysPromotion);
 

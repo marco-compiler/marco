@@ -169,8 +169,7 @@ namespace marco::frontend
     auto result = exec(cmd.c_str(), ci.getFlattened());
 
     if (!result) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>("OMC flattening failed");
-      llvm::errs() << ci.getFlattened();
+      ci.getDiagnostics().emitFatalError<FlatteningFailureMessage>(ci.getFlattened());
     }
 
     return result;
@@ -244,8 +243,8 @@ namespace marco::frontend
       return false;
     }
 
-    const llvm::DataLayout &dl = targetMachine->createDataLayout();
-    std::string dataLayoutString = dl.getStringRepresentation();
+    const llvm::DataLayout& dataLayout = targetMachine->createDataLayout();
+    std::string dataLayoutString = dataLayout.getStringRepresentation();
     assert(dataLayoutString != "" && "Expecting a valid target data layout");
 
     instance().getMLIRModule()->setAttr(
@@ -308,14 +307,20 @@ namespace marco::frontend
     modelicaToCFOptions.bitWidth = codegenOptions.bitWidth;
     modelicaToCFOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
     modelicaToCFOptions.inlining = codegenOptions.inlining;
+    modelicaToCFOptions.dataLayout = dataLayout;
 
     passManager.addPass(codegen::createModelicaToCFPass(modelicaToCFOptions));
 
-    // Modelica To LLVM conversion
+    // Modelica to LLVM conversion
     codegen::ModelicaToLLVMOptions modelicaToLLVMOptions;
     modelicaToLLVMOptions.assertions = codegenOptions.assertions;
+    modelicaToLLVMOptions.dataLayout = dataLayout;
 
     passManager.addPass(codegen::createModelicaToLLVMPass(modelicaToLLVMOptions));
+
+    // IDA to LLVM conversion
+    codegen::IDAToLLVMOptions idaToLLVMOptions;
+    idaToLLVMOptions.dataLayout = dataLayout;
     passManager.addPass(codegen::createIDAToLLVMPass());
 
     if (codegenOptions.omp) {
@@ -325,7 +330,11 @@ namespace marco::frontend
 
     passManager.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
-    passManager.addPass(mlir::createConvertFuncToLLVMPass());
+
+    mlir::LowerToLLVMOptions funcToLLVMOptions(&ci.getMLIRContext());
+    funcToLLVMOptions.dataLayout = dataLayout;
+    passManager.addPass(mlir::createConvertFuncToLLVMPass(funcToLLVMOptions));
+
     passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
 
     if (!codegenOptions.debug) {

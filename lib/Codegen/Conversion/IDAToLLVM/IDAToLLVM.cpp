@@ -3,8 +3,8 @@
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -1274,9 +1274,14 @@ static void populateIDAConversionPatterns(
 
 namespace marco::codegen
 {
-  class IDAToLLVMConversionPass : public IDAToLLVMBase<IDAToLLVMConversionPass> // mlir::PassWrapper<IDAToLLVMConversionPass, mlir::OperationPass<mlir::ModuleOp>> //
+  class IDAToLLVMConversionPass : public IDAToLLVMBase<IDAToLLVMConversionPass>
   {
     public:
+      IDAToLLVMConversionPass(IDAToLLVMOptions options)
+          : options(std::move(options))
+      {
+      }
+
       void runOnOperation() override
       {
         // Convert the function-like operations.
@@ -1340,6 +1345,8 @@ namespace marco::codegen
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        llvmLoweringOptions.dataLayout = options.dataLayout;
+
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
         mlir::RewritePatternSet patterns(&getContext());
@@ -1351,6 +1358,9 @@ namespace marco::codegen
 
         return mlir::success();
       }
+
+    private:
+      IDAToLLVMOptions options;
   };
 }
 
@@ -1654,9 +1664,15 @@ namespace
 
 namespace marco::codegen
 {
-  std::unique_ptr<mlir::Pass> createIDAToLLVMPass()
+  const IDAToLLVMOptions& IDAToLLVMOptions::getDefaultOptions()
   {
-    return std::make_unique<IDAToLLVMConversionPass>();
+    static IDAToLLVMOptions options;
+    return options;
+  }
+
+  std::unique_ptr<mlir::Pass> createIDAToLLVMPass(IDAToLLVMOptions options)
+  {
+    return std::make_unique<IDAToLLVMConversionPass>(std::move(options));
   }
 
   void populateIDAStructuralTypeConversionsAndLegality(

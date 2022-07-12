@@ -2,6 +2,7 @@
 #define MARCO_CODEGEN_CONVERSION_MODELICA_LOWERTOCFG_H
 
 #include "mlir/Pass/Pass.h"
+#include "llvm/IR/DataLayout.h"
 
 namespace marco::codegen
 {
@@ -10,6 +11,8 @@ namespace marco::codegen
     unsigned int bitWidth = 64;
     bool outputArraysPromotion = true;
     bool inlining = true;
+
+    llvm::DataLayout dataLayout = llvm::DataLayout("");
 
     static const ModelicaToCFOptions& getDefaultOptions();
   };

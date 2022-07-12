@@ -5347,6 +5347,7 @@ namespace
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        llvmLoweringOptions.dataLayout = options.dataLayout;
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
@@ -5364,7 +5365,8 @@ namespace
 
 namespace marco::codegen
 {
-  const ModelicaToLLVMOptions& ModelicaToLLVMOptions::getDefaultOptions() {
+  const ModelicaToLLVMOptions& ModelicaToLLVMOptions::getDefaultOptions()
+  {
     static ModelicaToLLVMOptions options;
     return options;
   }
