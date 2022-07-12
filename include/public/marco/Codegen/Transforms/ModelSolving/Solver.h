@@ -12,7 +12,8 @@ namespace marco::codegen
       enum class Kind
       {
         forwardEuler,
-        ida
+        ida,
+        kinsol
       };
 
       Solver();
@@ -23,6 +24,7 @@ namespace marco::codegen
 
       static Solver forwardEuler();
       static Solver ida();
+      static Solver kinsol();
 
     private:
       Solver(Kind kind);

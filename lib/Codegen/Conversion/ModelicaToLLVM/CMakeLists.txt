@@ -17,4 +17,5 @@ add_mlir_conversion_library(MLIRModelicaToLLVM
     LINK_LIBS PUBLIC
     MLIRModelicaCommonConversion
     MLIRIDAToLLVM
+    MLIRKINSOLToLLVM
     ${MLIR_LIBS})

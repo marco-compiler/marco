@@ -28,6 +28,31 @@ def IDAToLLVMConversionPass : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
     let constructor = "mlir::createIDAToLLVMConversionPass()";
 }
 
+//===----------------------------------------------------------------------===//
+// KINSOL to LLVM
+//===----------------------------------------------------------------------===//
+
+def KINSOLToLLVMConversionPass : Pass<"convert-kinsol-to-llvm", "mlir::ModuleOp"> {
+    let summary = "KINSOL: conversion to LLVM dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createKINSOLToLLVMConversionPass()";
+}
+
 //===---------------------------------------------------------------------===//
 // Modelica to Arith
 //===---------------------------------------------------------------------===//

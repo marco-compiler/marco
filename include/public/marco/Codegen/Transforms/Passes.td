@@ -178,6 +178,7 @@ def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
         "mlir::ida::IDADialect",
+        "mlir::kinsol::KINSOLDialect",
         "mlir::arith::ArithmeticDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",

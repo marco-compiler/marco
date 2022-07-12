@@ -2,6 +2,7 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
+#include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
@@ -365,10 +366,11 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   llvmLoweringOptions.dataLayout.reset(dataLayout);
   mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
-  mlir::RewritePatternSet patterns(&getContext());
+        mlir::RewritePatternSet patterns(&getContext());
 
-  populateModelicaToLLVMPatterns(patterns, typeConverter);
-  populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
+        populateModelicaToLLVMPatterns(patterns, typeConverter);
+        populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
+        populateKINSOLStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
 
   return applyPartialConversion(module, target, std::move(patterns));
 }

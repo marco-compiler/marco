@@ -1,5 +1,6 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/KINSOL/KINSOLDialect.h"
 #include "marco/Codegen/Bridge.h"
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
@@ -19,6 +20,7 @@ int main(int argc, char* argv[])
 
 	registry.insert<mlir::modelica::ModelicaDialect>();
   registry.insert<mlir::ida::IDADialect>();
+  registry.insert<mlir::kinsol::KINSOLDialect>();
 
   // Register the passes defined by MARCO
   marco::codegen::registerTransformsPasses();

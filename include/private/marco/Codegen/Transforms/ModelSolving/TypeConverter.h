@@ -3,6 +3,7 @@
 
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/KINSOLToLLVM/LLVMTypeConverter.h"
 #include "mlir/IR/MLIRContext.h"
 #include <memory>
 #include <vector>
@@ -16,6 +17,7 @@ namespace marco::codegen
 
     private:
       mlir::ida::LLVMTypeConverter idaTypeConverter;
+      mlir::kinsol::LLVMTypeConverter kinsolTypeConverter;
   };
 }
 

@@ -1,5 +1,6 @@
 #include "marco/Codegen/Transforms/ModelConversion.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/KINSOLToLLVM/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/Solvers/EulerForward.h"
 #include "marco/Codegen/Transforms/ModelSolving/Solvers/IDA.h"
@@ -203,6 +204,9 @@ mlir::LogicalResult ModelConversionPass::createSimulationHooks()
   // Add the conversions for the IDA types.
   mlir::ida::LLVMTypeConverter idaTypeConverter(&getContext(), llvmLoweringOptions);
 
+  // Add the conversions for the KINSOL types.
+  mlir::kinsol::LLVMTypeConverter kinsolTypeConverter(&getContext(), llvmLoweringOptions);
+
   typeConverter.addConversion([&](mlir::ida::InstanceType type) {
     return idaTypeConverter.convertType(type);
   });
@@ -213,6 +217,18 @@ mlir::LogicalResult ModelConversionPass::createSimulationHooks()
 
   typeConverter.addConversion([&](mlir::ida::EquationType type) {
     return idaTypeConverter.convertType(type);
+  });
+
+  typeConverter.addConversion([&](mlir::kinsol::InstanceType type) {
+    return kinsolTypeConverter.convertType(type);
+  });
+
+  typeConverter.addConversion([&](mlir::kinsol::VariableType type) {
+    return kinsolTypeConverter.convertType(type);
+  });
+
+  typeConverter.addConversion([&](mlir::kinsol::EquationType type) {
+    return kinsolTypeConverter.convertType(type);
   });
 
   for (auto& modelOp : modelOps) {

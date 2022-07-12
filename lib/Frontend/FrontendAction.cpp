@@ -273,6 +273,7 @@ namespace marco::frontend
     passManager.addPass(createModelicaToMemRefConversionPass());
     passManager.addPass(createModelicaToLLVMConversionPass());
     passManager.addPass(createIDAToLLVMConversionPass());
+    passManager.addPass(createKINSOLToLLVMConversionPass());
 
     if (ci.getCodegenOptions().omp) {
       // Use OpenMP for parallel loops
@@ -499,6 +500,14 @@ namespace marco::frontend
     options.dataLayout = getDataLayoutString();
 
     return mlir::createIDAToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createKINSOLToLLVMConversionPass()
+  {
+    mlir::KINSOLToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayoutString();
+
+    return mlir::createKINSOLToLLVMConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createFuncToLLVMConversionPass()

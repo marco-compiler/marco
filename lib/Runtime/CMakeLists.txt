@@ -7,9 +7,15 @@ set(SOLVER_IDA
 	Solvers/IDA/Options.cpp
 	Solvers/IDA/Profiler.cpp)
 
+set(SOLVER_KINSOL
+	Solvers/KINSOL/Instance.cpp
+	Solvers/KINSOL/Options.cpp
+	Solvers/KINSOL/Profiler.cpp)
+
 set(SHARED_SOURCES
 	${SOLVER_EULERFORWARD}
 	${SOLVER_IDA}
+	${SOLVER_KINSOL}
 	BuiltInFunctions.cpp
 	Modeling/IndexSet.cpp
 	Modeling/MultidimensionalRange.cpp
@@ -58,6 +64,7 @@ add_custom_target(marco-runtime)
 set(LIBS
 	PUBLIC SUNDIALS::KLU
 	PUBLIC SUNDIALS::ida
+	PUBLIC SUNDIALS::kinsol
 	PUBLIC SUNDIALS::nvecserial
 	PUBLIC SUNDIALS::sunlinsolklu)
 

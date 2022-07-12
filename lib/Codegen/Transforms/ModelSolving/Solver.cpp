@@ -9,6 +9,7 @@ static Solver::Kind getKindFromName(llvm::StringRef solverName)
   return llvm::StringSwitch<Solver::Kind>(solverName)
       .Case("forward-euler", Solver::Kind::forwardEuler)
       .Case("ida", Solver::Kind::ida)
+      .Case("kinsol", Solver::Kind::kinsol)
       .Default(Solver::Kind::forwardEuler);
 }
 
@@ -40,5 +41,10 @@ namespace marco::codegen
   Solver Solver::ida()
   {
     return Solver(Kind::ida);
+  }
+
+  Solver Solver::kinsol()
+  {
+    return Solver(Kind::kinsol);
   }
 }

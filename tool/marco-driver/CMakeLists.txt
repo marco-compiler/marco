@@ -11,7 +11,7 @@ install(TARGETS marco-driver RUNTIME DESTINATION bin)
 
 # This shell script will only work in a POSIX shell.
 if (NOT WIN32)
-  set(SIMULATION_LIBS "sundials_ida sundials_nvecserial sundials_sunlinsolklu klu")
+  set(SIMULATION_LIBS "sundials_ida sundials_kinsol sundials_nvecserial sundials_sunlinsolklu klu")
 
   # Build version of the driver script
   set(RUNTIME_LIBS_PATHS ${SUNDIALS_LIBRARY_DIR})
