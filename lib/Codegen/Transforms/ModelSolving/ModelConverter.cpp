@@ -997,8 +997,6 @@ namespace marco::codegen
           mlir::Value valueToBeStored = startOpsMapping.lookup(yieldOp.getValues()[0]);
           mlir::Value destination = startOpsMapping.lookup(startOp.getVariable());
 
-          std::vector<mlir::Value> indices;
-
           if (startOp.getEach()) {
             builder.create<ArrayFillOp>(startOp.getLoc(), destination, valueToBeStored);
           } else {

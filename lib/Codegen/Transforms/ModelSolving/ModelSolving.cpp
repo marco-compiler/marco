@@ -431,6 +431,79 @@ static mlir::LogicalResult removeDerOps(
   return mlir::success();
 }
 
+/// Determine if an array is read or written.
+/// The return value consists in pair of boolean values, respectively
+/// indicating whether the array is read and written.
+static std::pair<bool, bool> determineReadWrite(mlir::Value array)
+{
+  assert(array.getType().isa<ArrayType>());
+
+  bool read = false;
+  bool write = false;
+
+  std::stack<mlir::Value> aliases;
+  aliases.push(array);
+
+  auto shouldStopEarly = [&]() {
+    // Stop early if both a read and write have been found
+    return read && write;
+  };
+
+  // Keep the vector outside the loop, in order to avoid a stack overflow
+  llvm::SmallVector<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>> effects;
+
+  while (!aliases.empty() && !shouldStopEarly()) {
+    auto alias = aliases.top();
+    aliases.pop();
+
+    std::stack<mlir::Operation*> ops;
+
+    for (const auto& user : alias.getUsers()) {
+      ops.push(user);
+    }
+
+    while (!ops.empty() && !shouldStopEarly()) {
+      auto* op = ops.top();
+      ops.pop();
+
+      effects.clear();
+
+      if (auto memoryInterface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(op)) {
+        memoryInterface.getEffectsOnValue(alias, effects);
+
+        read |= llvm::any_of(effects, [](const auto& effect) {
+          return mlir::isa<mlir::MemoryEffects::Read>(effect.getEffect());
+        });
+
+        write |= llvm::any_of(effects, [](const auto& effect) {
+          return mlir::isa<mlir::MemoryEffects::Write>(effect.getEffect());
+        });
+      } else if (auto viewInterface = mlir::dyn_cast<mlir::ViewLikeOpInterface>(op)) {
+        if (viewInterface.getViewSource() == alias) {
+          for (const auto& result : viewInterface->getResults()) {
+            aliases.push(result);
+          }
+        }
+      }
+    }
+  }
+
+  return std::make_pair(read, write);
+}
+
+static StartOp getStartOperation(ModelOp modelOp, unsigned int varNumber)
+{
+  mlir::Value variable = modelOp.getBodyRegion().getArgument(varNumber);
+
+  for (auto op : modelOp.getBodyRegion().getOps<StartOp>()) {
+    if (op.getVariable() == variable) {
+      return op;
+    }
+  }
+
+  return nullptr;
+}
+
 namespace
 {
   struct FuncOpTypesPattern : public mlir::OpConversionPattern<mlir::func::FuncOp>
@@ -587,6 +660,13 @@ namespace
 
         mlir::OpBuilder builder(models[0]);
 
+        // Add a 'start' value of zero for the variables for which an explicit
+        // 'start' value has not been provided.
+
+        if (mlir::failed(addMissingStartOps(builder, models[0]))) {
+          return signalPassFailure();
+        }
+
         // A map that keeps track of which indices of a variable do appear under
         // the derivative operation.
         std::map<unsigned int, IndexSet> derivedIndices;
@@ -737,6 +817,46 @@ namespace
       }
 
     private:
+      mlir::LogicalResult addMissingStartOps(mlir::OpBuilder& builder, ModelOp modelOp)
+      {
+        std::vector<bool> startOpExistence(modelOp.getBodyRegion().getNumArguments(), false);
+
+        modelOp.getBodyRegion().walk([&](StartOp startOp) {
+          auto argNumber = startOp.getVariable().cast<mlir::BlockArgument>().getArgNumber();
+          startOpExistence[argNumber] = true;
+        });
+
+        for (const auto& existence : llvm::enumerate(startOpExistence)) {
+          if (!existence.value()) {
+            builder.setInsertionPointToEnd(modelOp.bodyBlock());
+            auto variable = modelOp.getBodyRegion().getArgument(existence.index());
+            auto arrayType = variable.getType().cast<ArrayType>();
+            bool each = false;
+
+            if (!arrayType.isScalar()) {
+              each = true;
+            }
+
+            auto startOp = builder.create<StartOp>(
+                variable.getLoc(),
+                variable,
+                builder.getBoolAttr(false),
+                builder.getBoolAttr(each));
+
+            assert(startOp.getBodyRegion().empty());
+            mlir::Block* bodyBlock = builder.createBlock(&startOp.getBodyRegion());
+            builder.setInsertionPointToStart(bodyBlock);
+
+            mlir::Value zero = builder.create<ConstantOp>(
+                variable.getLoc(), getZeroAttr(arrayType.getElementType()));
+
+            builder.create<YieldOp>(variable.getLoc(), zero);
+          }
+        }
+
+        return mlir::success();
+      }
+
       mlir::LogicalResult convertAlgorithmsIntoEquations(mlir::OpBuilder& builder, ModelOp modelOp)
       {
         auto module = modelOp->getParentOfType<mlir::ModuleOp>();
@@ -766,76 +886,138 @@ namespace
           // We will then prune both the lists according to which variables
           // are effectively accessed or not.
 
-          auto functionType = builder.getFunctionType(
-              modelOp.getBodyRegion().getArgumentTypes(),
-              modelOp.getBodyRegion().getArgumentTypes());
+          std::vector<mlir::Type> variableTypes;
 
+          for (const auto& type : modelOp.getBodyRegion().getArgumentTypes()) {
+            auto arrayType = type.cast<ArrayType>();
+
+            if (arrayType.isScalar()) {
+              variableTypes.push_back(arrayType.getElementType());
+            } else {
+              variableTypes.push_back(arrayType);
+            }
+          }
+
+          auto functionType = builder.getFunctionType(variableTypes, variableTypes);
           auto functionOp = builder.create<FunctionOp>(loc, functionName, functionType);
 
           assert(functionOp.getBody().empty());
           mlir::Block* functionBlock = builder.createBlock(&functionOp.getBody());
           builder.setInsertionPointToStart(functionBlock);
 
-          // Create the input and output members of the function
-          std::vector<mlir::Value> inputMemberCreateOps;
-          std::vector<mlir::Value> outputMemberCreateOps;
-
-          std::vector<mlir::Value> inputMemberLoadOps;
-          std::vector<mlir::Value> outputMemberLoadOps;
-
-          for (const auto& type : llvm::enumerate(functionType.getInputs())) {
-            auto memberType = MemberType::wrap(type.value(), false, IOProperty::input);
-            auto memberCreateOp = builder.create<MemberCreateOp>(loc, "arg_" + std::to_string(type.index()), memberType, llvm::None);
-            inputMemberCreateOps.push_back(memberCreateOp);
-          }
-
-          for (const auto& type : llvm::enumerate(functionType.getResults())) {
-            auto memberType = MemberType::wrap(type.value(), false, IOProperty::output);
-            auto memberCreateOp = builder.create<MemberCreateOp>(loc, "result_" + std::to_string(type.index()), memberType, llvm::None);
-            outputMemberCreateOps.push_back(memberCreateOp);
-          }
-
           mlir::BlockAndValueMapping mapping;
 
-          for (const auto& member : llvm::enumerate(inputMemberCreateOps)) {
-            auto memberLoadOp = builder.create<MemberLoadOp>(loc, member.value());
-            inputMemberLoadOps.push_back(memberLoadOp);
+          // Temporarily create the arrays as in the original model region, so that
+          // we can seamlessly clone the operations of the algorithm.
+          std::vector<mlir::Value> arrays;
+
+          for (const auto& arg : modelOp.getBodyRegion().getArguments()) {
+            mlir::Value array = builder.create<AllocOp>(loc, arg.getType(), llvm::None);
+            arrays.push_back(array);
+            mapping.map(arg, array);
           }
 
-          for (const auto& member : llvm::enumerate(outputMemberCreateOps)) {
-            auto memberLoadOp = builder.create<MemberLoadOp>(loc, member.value());
-            outputMemberLoadOps.push_back(memberLoadOp);
-            mapping.map(modelOp.getBodyRegion().getArgument(member.index()), memberLoadOp);
-          }
+          assert(arrays.size() == functionOp->getNumOperands());
+          assert(arrays.size() == functionOp->getNumResults());
 
           // Clone the operations of the algorithm into the function's body
-          for (auto& op : algorithm.bodyBlock()->getOperations()) {
+          for (auto& op : algorithm.getBodyRegion().getOps()) {
             builder.clone(op, mapping);
           }
 
-          // Remove the output variables that are never written
+          std::set<size_t> removedInputVars;
           std::set<size_t> removedOutputVars;
 
-          for (const auto& outputVar : llvm::enumerate(outputMemberLoadOps)) {
-            if (outputVar.value().use_empty()) {
-              removedOutputVars.insert(outputVar.index());
-              outputVar.value().getDefiningOp()->erase();
-              outputMemberCreateOps[outputVar.index()].getDefiningOp()->erase();
-            } else {
-              builder.setInsertionPointAfterValue(inputMemberLoadOps[outputVar.index()]);
-              builder.create<MemberStoreOp>(loc, outputMemberCreateOps[outputVar.index()], inputMemberLoadOps[outputVar.index()]);
+          for (auto& array : llvm::enumerate(arrays)) {
+            bool isRead = false;
+            bool isWritten = false;
+
+            std::tie(isRead, isWritten) = determineReadWrite(array.value());
+
+            if (!isRead && !isWritten) {
+              removedInputVars.insert(array.index());
+              removedOutputVars.insert(array.index());
+
+            } else if (isWritten) {
+              // If a variable is written, then it must not be taken as input.
+              // Instead, it must be initialized with its 'start' value.
+              removedInputVars.insert(array.index());
+
+              builder.setInsertionPointAfterValue(array.value());
+              auto startOp = getStartOperation(modelOp, array.index());
+              assert(startOp != nullptr);
+
+              for (auto& op : startOp.getBodyRegion().getOps()) {
+                if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
+                  mlir::Value valueToBeStored = mapping.lookup(yieldOp.getValues()[0]);
+                  mlir::Value destination = mapping.lookup(startOp.getVariable());
+
+                  if (startOp.getEach()) {
+                    builder.create<ArrayFillOp>(startOp.getLoc(), destination, valueToBeStored);
+                  } else {
+                    builder.create<StoreOp>(startOp.getLoc(), valueToBeStored, destination, llvm::None);
+                  }
+                } else {
+                  builder.clone(op, mapping);
+                }
+              }
+
+            } else if (isRead) {
+              // If a variable is just read, then it must be kept only as input.
+              removedOutputVars.insert(array.index());
             }
           }
 
-          // Remove the input variables that are never read
-          std::set<size_t> removedInputVars;
+          auto arrayReplacer = [&](mlir::Value array, mlir::Value member) {
+            auto arrayType = array.getType().cast<ArrayType>();
+            bool isScalar = arrayType.isScalar();
 
-          for (const auto& inputVar : llvm::enumerate(inputMemberLoadOps)) {
-            if (inputVar.value().use_empty()) {
-              removedInputVars.insert(inputVar.index());
-              inputVar.value().getDefiningOp()->erase();
-              inputMemberCreateOps[inputVar.index()].getDefiningOp()->erase();
+            if (isScalar) {
+              for (auto* user : llvm::make_early_inc_range(array.getUsers())) {
+                assert(mlir::isa<LoadOp>(user) || mlir::isa<StoreOp>(user));
+                builder.setInsertionPoint(user);
+
+                if (auto loadOp = mlir::dyn_cast<LoadOp>(user)) {
+                  mlir::Value replacement = builder.create<MemberLoadOp>(loadOp.getLoc(), member);
+                  loadOp.replaceAllUsesWith(replacement);
+                  loadOp.erase();
+
+                } else if (auto storeOp = mlir::dyn_cast<StoreOp>(user)) {
+                  builder.create<MemberStoreOp>(storeOp.getLoc(), member, storeOp.getValue());
+                  storeOp.erase();
+                }
+              }
+            } else {
+              mlir::Value replacement = builder.create<MemberLoadOp>(loc, member);
+              array.replaceAllUsesWith(replacement);
             }
+          };
+
+          for (auto& array : llvm::enumerate(arrays)) {
+            bool removedFromInput = removedInputVars.find(array.index()) != removedInputVars.end();
+            bool removedFromOutput = removedOutputVars.find(array.index()) != removedOutputVars.end();
+
+            if (removedFromOutput && !removedFromInput) {
+              // Input variable
+              builder.setInsertionPointToStart(functionBlock);
+              auto memberType = MemberType::wrap(array.value().getType(), false, IOProperty::input);
+
+              mlir::Value member = builder.create<MemberCreateOp>(
+                  loc, "arg_" + std::to_string(array.index()), memberType, llvm::None);
+
+              arrayReplacer(array.value(), member);
+
+            } else if (removedFromInput && !removedFromOutput) {
+              // Output variable
+              auto memberType = MemberType::wrap(array.value().getType(), false, IOProperty::output);
+
+              mlir::Value member = builder.create<MemberCreateOp>(
+                  loc, "result_" + std::to_string(array.index()), memberType, llvm::None);
+
+              arrayReplacer(array.value(), member);
+            }
+
+            array.value().getDefiningOp()->erase();
           }
 
           // Update the function signature according to the removed arguments and results
@@ -876,15 +1058,25 @@ namespace
           std::vector<mlir::Value> callArgs;
           std::vector<mlir::Value> callResults;
 
+          auto unboxFn = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value) -> mlir::Value {
+            auto arrayType = value.getType().cast<ArrayType>();
+
+            if (arrayType.isScalar()) {
+              return builder.create<LoadOp>(loc, value, llvm::None);
+            } else {
+              return value;
+            }
+          };
+
           for (const auto& var : llvm::enumerate(modelOp.getBodyRegion().getArguments())) {
             if (removedInputVars.find(var.index()) == removedInputVars.end()) {
-              callArgs.push_back(var.value());
+              callArgs.push_back(unboxFn(builder, loc, var.value()));
             }
           }
 
           for (const auto& var : llvm::enumerate(modelOp.getBodyRegion().getArguments())) {
             if (removedOutputVars.find(var.index()) == removedOutputVars.end()) {
-              callResults.push_back(var.value());
+              callResults.push_back(unboxFn(builder, loc, var.value()));
             }
           }
 
