@@ -699,6 +699,7 @@ namespace marco::ast
 
           if (auto* record = cls->dyn_get<Record>()) {
             // Calling the default record constructor
+            canBeCalledElementWise = false;
             return record->getDefaultConstructor().getType();
           }
         }
