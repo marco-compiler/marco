@@ -40,6 +40,10 @@ namespace marco::codegen::lowering
 
   std::vector<mlir::Operation*> ClassLowerer::operator()(const ast::StandardFunction& function)
   {
+    // inlined functions are already handled in the frontend's InliningPass.
+    if(function.shouldBeInlined())
+      return {};
+
     return standardFunctionLowerer->lower(function);
   }
 

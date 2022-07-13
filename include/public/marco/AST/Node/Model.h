@@ -37,8 +37,12 @@ namespace marco::ast
 
       [[nodiscard]] llvm::StringRef getName() const;
 
+      [[nodiscard]] llvm::SmallVectorImpl<std::unique_ptr<Member>>& getMembers_mut();
+
       [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Member>> getMembers();
       [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Member>> getMembers() const;
+
+  		[[nodiscard]] Member* getMember(llvm::StringRef name) const;
 
       void addMember(std::unique_ptr<Member> member);
 

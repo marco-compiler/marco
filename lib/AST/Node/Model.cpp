@@ -130,6 +130,21 @@ namespace marco::ast
     return members;
   }
 
+  llvm::SmallVectorImpl<std::unique_ptr<Member>>& Model::getMembers_mut()
+  {
+    return members;
+  }
+
+  Member* Model::getMember(llvm::StringRef name) const
+  {
+    for(auto &m : members){
+      if(m->getName() == name){
+        return m.get();
+      }
+    }
+    return nullptr;
+  }
+
   void Model::addMember(std::unique_ptr<Member> member)
   {
     members.push_back(std::move(member));
