@@ -1,6 +1,7 @@
 #include "marco/Codegen/Bridge.h"
 #include "marco/Codegen/BridgeInterface.h"
 #include "marco/Codegen/Lowering/LoweringContext.h"
+#include "marco/Codegen/Lowering/AlgorithmLowerer.h"
 #include "marco/Codegen/Lowering/ClassLowerer.h"
 #include "marco/Codegen/Lowering/EquationLowerer.h"
 #include "marco/Codegen/Lowering/ExpressionLowerer.h"
@@ -27,11 +28,13 @@ namespace marco::codegen::lowering
 
       Results lower(const ast::Expression& expression) override;
 
+      void lower(const ast::Algorithm& algorithm) override;
+
       void lower(const ast::Statement& statement) override;
 
-      void lower(const ast::Equation& equation) override;
+      void lower(const ast::Equation& equation, bool initialEquation) override;
 
-      void lower(const ast::ForEquation& forEquation) override;
+      void lower(const ast::ForEquation& forEquation, bool initialEquation) override;
 
       std::unique_ptr<mlir::ModuleOp>& getMLIRModule();
 
@@ -40,6 +43,7 @@ namespace marco::codegen::lowering
 
       std::unique_ptr<ClassLowerer> classLowerer;
       std::unique_ptr<ExpressionLowerer> expressionLowerer;
+      std::unique_ptr<AlgorithmLowerer> algorithmLowerer;
       std::unique_ptr<StatementLowerer> statementLowerer;
       std::unique_ptr<EquationLowerer> equationLowerer;
 
@@ -53,6 +57,7 @@ namespace marco::codegen::lowering
 
     this->classLowerer = std::make_unique<ClassLowerer>(this->context.get(), this);
     this->expressionLowerer = std::make_unique<ExpressionLowerer>(this->context.get(), this);
+    this->algorithmLowerer = std::make_unique<AlgorithmLowerer>(this->context.get(), this);
     this->statementLowerer = std::make_unique<StatementLowerer>(this->context.get(), this);
     this->equationLowerer = std::make_unique<EquationLowerer>(this->context.get(), this);
 
@@ -78,22 +83,28 @@ namespace marco::codegen::lowering
     return expression.visit(*expressionLowerer);
   }
 
+  void Bridge::Impl::lower(const ast::Algorithm& algorithm)
+  {
+    assert(algorithmLowerer != nullptr);
+    algorithmLowerer->lower(algorithm);
+  }
+
   void Bridge::Impl::lower(const ast::Statement& statement)
   {
     assert(statementLowerer != nullptr);
     statement.visit(*statementLowerer);
   }
 
-  void Bridge::Impl::lower(const ast::Equation& equation)
+  void Bridge::Impl::lower(const ast::Equation& equation, bool initialEquation)
   {
     assert(equationLowerer != nullptr);
-    equationLowerer->lower(equation);
+    equationLowerer->lower(equation, initialEquation);
   }
 
-  void Bridge::Impl::lower(const ast::ForEquation& forEquation)
+  void Bridge::Impl::lower(const ast::ForEquation& forEquation, bool initialEquation)
   {
     assert(equationLowerer != nullptr);
-    equationLowerer->lower(forEquation);
+    equationLowerer->lower(forEquation, initialEquation);
   }
 
   std::unique_ptr<mlir::ModuleOp>& Bridge::Impl::getMLIRModule()

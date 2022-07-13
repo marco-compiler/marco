@@ -11,7 +11,6 @@ namespace marco::ast
 {
   class Expression;
   class Modification;
-  class StartModificationProperty;
 
 	class Member
 			: public ASTNode,
@@ -67,11 +66,15 @@ namespace marco::ast
 
       const Expression* getExpression() const;
 
-      bool hasStartProperty() const;
+      bool hasStartExpression() const;
 
-      StartModificationProperty getStartProperty() const;
+      Expression* getStartExpression();
+
+      const Expression* getStartExpression() const;
 
       bool getFixedProperty() const;
+
+      bool getEachProperty() const;
 
       /// }
 
@@ -91,15 +94,6 @@ namespace marco::ast
       bool isPublicMember;
       std::unique_ptr<Modification> modification;
 	};
-
-  class StartModificationProperty
-  {
-    public:
-      StartModificationProperty(bool each, const Expression& value);
-
-      bool each;
-      const Expression* value;
-  };
 }
 
 #endif // MARCO_AST_NODE_MEMBER_H

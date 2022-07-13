@@ -5,7 +5,7 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  LoopEquation::LoopEquation(EquationOp equation, Variables variables)
+  LoopEquation::LoopEquation(EquationInterface equation, Variables variables)
       : BaseEquation(equation, variables)
   {
   }
@@ -15,9 +15,9 @@ namespace marco::codegen
     return std::make_unique<LoopEquation>(*this);
   }
 
-  EquationOp LoopEquation::cloneIR() const
+  EquationInterface LoopEquation::cloneIR() const
   {
-    EquationOp equationOp = getOperation();
+    EquationInterface equationOp = getOperation();
     mlir::OpBuilder builder(equationOp);
     ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
     llvm::SmallVector<ForEquationOp, 3> explicitLoops;
@@ -43,12 +43,12 @@ namespace marco::codegen
       mapping.map(it->induction(), loop.induction());
     }
 
-    return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation(), mapping));
+    return mlir::cast<EquationInterface>(builder.clone(*equationOp.getOperation(), mapping));
   }
 
   void LoopEquation::eraseIR()
   {
-    EquationOp equationOp = getOperation();
+    EquationInterface equationOp = getOperation();
     ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
     equationOp.erase();
 
@@ -61,7 +61,7 @@ namespace marco::codegen
 
   void LoopEquation::dumpIR(llvm::raw_ostream& os) const
   {
-    EquationOp equationOp = getOperation();
+    EquationInterface equationOp = getOperation();
     mlir::Operation* op = equationOp.getOperation();
 
     while (auto parent = op->getParentOfType<ForEquationOp>()) {

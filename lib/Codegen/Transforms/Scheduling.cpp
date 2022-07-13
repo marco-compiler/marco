@@ -11,12 +11,12 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static mlir::Operation* getEquationRoot(EquationOp equationOp)
+static mlir::Operation* getEquationRoot(EquationInterface equation)
 {
-  ForEquationOp parent = equationOp->getParentOfType<ForEquationOp>();
+  ForEquationOp parent = equation->getParentOfType<ForEquationOp>();
 
   if (parent == nullptr) {
-    return equationOp.getOperation();
+    return equation.getOperation();
   }
 
   while (parent->getParentOfType<ForEquationOp>() != nullptr) {
@@ -50,11 +50,11 @@ namespace
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<MatchedEquation> matchedModel(modelOp);
-        matchedModel.setVariables(discoverVariables(modelOp.getEquationsRegion()));
+        matchedModel.setVariables(discoverVariables(modelOp));
 
         Equations<MatchedEquation> matchedEquations;
 
-        for (auto& equation : discoverEquations(modelOp.getEquationsRegion(), matchedModel.getVariables())) {
+        for (auto& equation : discoverEquations(modelOp, matchedModel.getVariables())) {
           // Matched indices
           std::vector<modeling::Range> ranges;
 
@@ -116,7 +116,7 @@ namespace
 
               clone->setAttr("cycle", builder.getI64IntegerAttr(cyclesCounter));
 
-              builder.setInsertionPointToEnd(modelOp.equationsBlock());
+              builder.setInsertionPointToEnd(modelOp.bodyBlock());
               builder.clone(*getEquationRoot(clone));
 
               toBeErased.insert(clone.getOperation());
@@ -164,7 +164,7 @@ namespace
 
               clone->setAttr("scheduled_direction", schedulingDirection);
 
-              builder.setInsertionPointToEnd(modelOp.equationsBlock());
+              builder.setInsertionPointToEnd(modelOp.bodyBlock());
               builder.clone(*getEquationRoot(clone));
 
               toBeErased.insert(clone.getOperation());

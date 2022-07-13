@@ -31,7 +31,7 @@ namespace marco::codegen
       /// @name Forwarded methods
       /// {
 
-      mlir::modelica::EquationOp cloneIR() const override;
+      mlir::modelica::EquationInterface cloneIR() const override;
 
       void eraseIR() override;
 
@@ -39,7 +39,7 @@ namespace marco::codegen
 
       void dumpIR(llvm::raw_ostream& os) const override;
 
-      mlir::modelica::EquationOp getOperation() const override;
+      mlir::modelica::EquationInterface getOperation() const override;
 
       Variables getVariables() const override;
 

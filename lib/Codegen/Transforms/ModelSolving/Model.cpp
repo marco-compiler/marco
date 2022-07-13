@@ -6,33 +6,35 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  Variables discoverVariables(mlir::Region& equationsRegion)
+  Variables discoverVariables(ModelOp modelOp)
   {
     Variables result;
 
-    for (const auto& variable : equationsRegion.getArguments()) {
+    for (const auto& variable : modelOp.getBodyRegion().getArguments()) {
       result.add(Variable::build(variable));
     }
 
     return result;
   }
 
-  Equations<Equation> discoverEquations(mlir::Region& equationsRegion, const Variables& variables)
+  Equations<Equation> discoverInitialEquations(mlir::modelica::ModelOp modelOp, const Variables& variables)
   {
     Equations<Equation> result;
 
-    equationsRegion.walk([&](EquationOp equationOp) {
+    modelOp.getBodyRegion().walk([&](InitialEquationOp equationOp) {
       result.add(Equation::build(equationOp, variables));
     });
 
     return result;
   }
 
-  Algorithms discoverAlgorithms(mlir::Region& equationsRegion, const Variables& variables)
+  Equations<Equation> discoverEquations(mlir::modelica::ModelOp modelOp, const Variables& variables)
   {
-    Algorithms result;
+    Equations<Equation> result;
 
-    // TODO
+    modelOp.getBodyRegion().walk([&](EquationOp equationOp) {
+      result.add(Equation::build(equationOp, variables));
+    });
 
     return result;
   }
@@ -75,16 +77,6 @@ namespace marco::codegen
     void BaseModel::setDerivativesMap(DerivativesMap map)
     {
       derivativesMap = std::move(map);
-    }
-
-    Algorithms BaseModel::getAlgorithms() const
-    {
-      return algorithms;
-    }
-
-    void BaseModel::setAlgorithms(Algorithms newAlgorithms)
-    {
-      //algorithms = std::move(newAlgorithms);
     }
 
     void BaseModel::onVariablesSet(Variables newVariables)

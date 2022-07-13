@@ -47,7 +47,7 @@ namespace marco::codegen
     return std::make_unique<ScheduledEquation>(*this);
   }
 
-  EquationOp ScheduledEquation::cloneIR() const
+  EquationInterface ScheduledEquation::cloneIR() const
   {
     return equation->cloneIR();
   }
@@ -67,7 +67,7 @@ namespace marco::codegen
     equation->dumpIR(os);
   }
 
-  EquationOp ScheduledEquation::getOperation() const
+  EquationInterface ScheduledEquation::getOperation() const
   {
     return equation->getOperation();
   }

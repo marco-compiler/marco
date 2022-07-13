@@ -12,13 +12,24 @@ namespace marco::codegen::lowering
   {
   }
 
-  void EquationLowerer::lower(const ast::Equation& equation)
+  void EquationLowerer::lower(const ast::Equation& equation, bool initialEquation)
   {
     mlir::Location location = loc(equation.getLocation());
-    auto equationOp = builder().create<EquationOp>(location);
-    assert(equationOp.getBodyRegion().empty());
-    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.getBodyRegion());
-    builder().setInsertionPointToStart(equationBodyBlock);
+    mlir::Operation* op = nullptr;
+
+    if (initialEquation) {
+      auto initialEquationOp = builder().create<InitialEquationOp>(location);
+      op = initialEquationOp.getOperation();
+      assert(initialEquationOp.getBodyRegion().empty());
+      mlir::Block* bodyBlock = builder().createBlock(&initialEquationOp.getBodyRegion());
+      builder().setInsertionPointToStart(bodyBlock);
+    } else {
+      auto equationOp = builder().create<EquationOp>(location);
+      op = equationOp.getOperation();
+      assert(equationOp.getBodyRegion().empty());
+      mlir::Block* bodyBlock = builder().createBlock(&equationOp.getBodyRegion());
+      builder().setInsertionPointToStart(bodyBlock);
+    }
 
     llvm::SmallVector<mlir::Value, 1> lhs;
     llvm::SmallVector<mlir::Value, 1> rhs;
@@ -46,10 +57,10 @@ namespace marco::codegen::lowering
     mlir::Value lhsTuple = builder().create<EquationSideOp>(location, lhs);
     mlir::Value rhsTuple = builder().create<EquationSideOp>(location, rhs);
     builder().create<EquationSidesOp>(location, lhsTuple, rhsTuple);
-    builder().setInsertionPointAfter(equationOp);
+    builder().setInsertionPointAfter(op);
   }
 
-  void EquationLowerer::lower(const ast::ForEquation& forEquation)
+  void EquationLowerer::lower(const ast::ForEquation& forEquation, bool initialEquation)
   {
     Lowerer::SymbolScope scope(symbolTable());
     mlir::Location location = loc(forEquation.getEquation()->getLocation());
@@ -84,7 +95,7 @@ namespace marco::codegen::lowering
     }
 
     // Create the equation body
-    lower(*forEquation.getEquation());
+    lower(*forEquation.getEquation(), initialEquation);
 
     builder().setInsertionPointAfter(firstOp);
   }

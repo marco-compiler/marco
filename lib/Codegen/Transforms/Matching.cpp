@@ -36,8 +36,8 @@ namespace
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<Equation> model(modelOp);
-        model.setVariables(discoverVariables(model.getOperation().getEquationsRegion()));
-        model.setEquations(discoverEquations(model.getOperation().getEquationsRegion(), model.getVariables()));
+        model.setVariables(discoverVariables(model.getOperation()));
+        model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
 
         Model<MatchedEquation> matchedModel(model.getOperation());
 

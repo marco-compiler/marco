@@ -43,11 +43,13 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Expression& expression) override;
 
+      virtual void lower(const ast::Algorithm& algorithm) override;
+
       virtual void lower(const ast::Statement& statement) override;
 
-      virtual void lower(const ast::Equation& equation) override;
+      virtual void lower(const ast::Equation& equation, bool initialEquation) override;
 
-      virtual void lower(const ast::ForEquation& forEquation) override;
+      virtual void lower(const ast::ForEquation& forEquation, bool initialEquation) override;
 
       /// }
 

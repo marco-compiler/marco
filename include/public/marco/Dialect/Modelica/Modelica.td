@@ -576,6 +576,26 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
     }];
 }
 
+def Modelica_StartOp : Modelica_Op<"start",
+    [ParentOneOf<["ModelOp"]>,
+    SingleBlockImplicitTerminator<"YieldOp">]>
+{
+    let summary = "Start attribute of a variable";
+
+    let description = [{
+        The operation describes how to compute the initial value of a variable.
+    }];
+
+    let arguments = (ins AnyType:$variable, BoolAttr:$fixed, BoolAttr:$each);
+    let results = (outs);
+
+    let regions = (region
+        AnyRegion:$bodyRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Math operations
 //===----------------------------------------------------------------------===//
@@ -2063,10 +2083,8 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$initRegion,
-        AnyRegion:$equationsRegion,
-        AnyRegion:$initialEquationsRegion,
-        AnyRegion:$algorithmRegion
+        AnyRegion:$varsRegion,
+        AnyRegion:$bodyRegion
     );
 
     let hasCustomAssemblyFormat = 1;
@@ -2074,14 +2092,7 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let extraClassDeclaration = [{
         SmallVector<StringRef> variableNames();
 
-        bool hasEquationsBlock();
-        Block* equationsBlock();
-
-        bool hasInitialEquationsBlock();
-        Block* initialEquationsBlock();
-
-        bool hasAlgorithmBlock();
-        Block* algorithmBlock();
+        Block* bodyBlock();
     }];
 }
 
@@ -2132,7 +2143,8 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
 }
 
 def Modelica_EquationOp : Modelica_Op<"equation",
-    [ParentOneOf<["ModelOp", "ForEquationOp"]>]>
+    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
+    EquationInterface]>
 {
     let summary = "Equation.";
 
@@ -2154,8 +2166,33 @@ def Modelica_EquationOp : Modelica_Op<"equation",
     }];
 }
 
+def Modelica_InitialEquationOp : Modelica_Op<"initial_equation",
+    [ParentOneOf<["ModelOp", "ForEquationOp"]>,
+    EquationInterface]>
+{
+    let summary = "Initial equation.";
+
+    let description = [{
+        The operation represents a Modelica initial equation.
+    }];
+
+    let arguments = (ins);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        Block* bodyBlock();
+    }];
+}
+
 def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
     [ParentOneOf<["ModelOp"]>,
+    AlgorithmInterface,
     NoTerminator]>
 {
   let summary = "Algorithm.";
@@ -2178,8 +2215,33 @@ def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
   }];
 }
 
+def Modelica_InitialAlgorithmOp : Modelica_Op<"initial_algorithm",
+    [ParentOneOf<["ModelOp"]>,
+    AlgorithmInterface,
+    NoTerminator]>
+{
+  let summary = "Initial algorithm.";
+
+  let description = [{
+      The operation represents a Modelica initial algorithm.
+  }];
+
+  let arguments = (ins);
+  let results = (outs);
+
+  let regions = (region
+      SizedRegion<1>:$bodyRegion
+  );
+
+  let hasCustomAssemblyFormat = 1;
+
+  let extraClassDeclaration = [{
+    Block* bodyBlock();
+  }];
+}
+
 def Modelica_TimeOp : Modelica_Op<"time",
-    [HasParent<"EquationOp">]>
+    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
 {
     let summary = "Time.";
 
@@ -2203,7 +2265,7 @@ def Modelica_TimeOp : Modelica_Op<"time",
 }
 
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",
-    [HasParent<"EquationOp">]>
+    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
 {
     let summary = "Equation side.";
 
@@ -2226,7 +2288,8 @@ def Modelica_EquationSideOp : Modelica_Op<"equation_side",
 }
 
 def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
-    [HasParent<"EquationOp">, Terminator]>
+    [ParentOneOf<["EquationOp", "InitialEquationOp"]>,
+    Terminator]>
 {
     let summary = "Equation.";
 
@@ -2631,7 +2694,7 @@ def Modelica_WhileOp : Modelica_Op<"while",
 
 def Modelica_YieldOp : Modelica_Op<"yield",
     [Terminator,
-    ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp"]>]>
+    ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp", "StartOp"]>]>
 {
     let summary = "TODO";
 

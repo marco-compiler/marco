@@ -173,19 +173,25 @@ namespace marco::ast
     return modification->getExpression();
   }
 
-  bool Member::hasStartProperty() const
+  bool Member::hasStartExpression() const
   {
     if (!hasModification()) {
       return false;
     }
 
-    return modification->hasStartProperty();
+    return modification->hasStartExpression();
   }
 
-  StartModificationProperty Member::getStartProperty() const
+  Expression* Member::getStartExpression()
   {
-    assert(hasStartProperty());
-    return modification->getStartProperty();
+    assert(hasStartExpression());
+    return modification->getStartExpression();
+  }
+
+  const Expression* Member::getStartExpression() const
+  {
+    assert(hasStartExpression());
+    return modification->getStartExpression();
   }
 
   bool Member::getFixedProperty() const
@@ -197,8 +203,12 @@ namespace marco::ast
     return modification->getFixedProperty();
   }
 
-  StartModificationProperty::StartModificationProperty(bool each, const Expression& value)
-    : each(each), value(&value)
+  bool Member::getEachProperty() const
   {
+    if (!hasModification()) {
+      return false;
+    }
+
+    return modification->getEachProperty();
   }
 }

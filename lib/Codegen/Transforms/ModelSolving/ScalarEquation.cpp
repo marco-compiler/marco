@@ -5,7 +5,7 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  ScalarEquation::ScalarEquation(EquationOp equation, Variables variables)
+  ScalarEquation::ScalarEquation(EquationInterface equation, Variables variables)
       : BaseEquation(equation, variables)
   {
     // Check that the equation is not enclosed in a loop
@@ -26,12 +26,12 @@ namespace marco::codegen
     return std::make_unique<ScalarEquation>(*this);
   }
 
-  EquationOp ScalarEquation::cloneIR() const
+  EquationInterface ScalarEquation::cloneIR() const
   {
-    EquationOp equationOp = getOperation();
+    EquationInterface equationOp = getOperation();
     mlir::OpBuilder builder(equationOp);
     builder.setInsertionPointAfter(equationOp);
-    return mlir::cast<EquationOp>(builder.clone(*equationOp.getOperation()));
+    return mlir::cast<EquationInterface>(builder.clone(*equationOp.getOperation()));
   }
 
   void ScalarEquation::eraseIR()

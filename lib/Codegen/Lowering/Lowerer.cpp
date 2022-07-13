@@ -53,19 +53,24 @@ namespace marco::codegen::lowering
     return bridge_->lower(expression);
   }
 
+  void Lowerer::lower(const ast::Algorithm& algorithm)
+  {
+    bridge_->lower(algorithm);
+  }
+
   void Lowerer::lower(const ast::Statement& statement)
   {
     bridge_->lower(statement);
   }
 
-  void Lowerer::lower(const ast::Equation& equation)
+  void Lowerer::lower(const ast::Equation& equation, bool initialEquation)
   {
-    bridge_->lower(equation);
+    bridge_->lower(equation, initialEquation);
   }
 
-  void Lowerer::lower(const ast::ForEquation& forEquation)
+  void Lowerer::lower(const ast::ForEquation& forEquation, bool initialEquation)
   {
-    bridge_->lower(forEquation);
+    bridge_->lower(forEquation, initialEquation);
   }
 
   mlir::Type Lowerer::lower(const ast::Type& type)

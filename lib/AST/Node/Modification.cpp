@@ -118,19 +118,25 @@ namespace marco::ast
     return expression->get();
   }
 
-  bool Modification::hasStartProperty() const
+  bool Modification::hasStartExpression() const
   {
     if (!hasClassModification()) {
       return false;
     }
 
-    return getClassModification()->hasStartProperty();
+    return getClassModification()->hasStartExpression();
   }
 
-  StartModificationProperty Modification::getStartProperty() const
+  Expression* Modification::getStartExpression()
   {
-    assert(hasStartProperty());
-    return getClassModification()->getStartProperty();
+    assert(hasStartExpression());
+    return getClassModification()->getStartExpression();
+  }
+
+  const Expression* Modification::getStartExpression() const
+  {
+    assert(hasStartExpression());
+    return getClassModification()->getStartExpression();
   }
 
   bool Modification::getFixedProperty() const
@@ -140,6 +146,15 @@ namespace marco::ast
     }
 
     return getClassModification()->getFixedProperty();
+  }
+
+  bool Modification::getEachProperty() const
+  {
+    if (!hasClassModification()) {
+      return false;
+    }
+
+    return getClassModification()->getEachProperty();
   }
 
   ClassModification::ClassModification(
@@ -210,7 +225,7 @@ namespace marco::ast
     return arguments.end();
   }
 
-  bool ClassModification::hasStartProperty() const
+  bool ClassModification::hasStartExpression() const
   {
     for (const auto& argument : arguments) {
       if (!argument->isa<ElementModification>()) {
@@ -230,9 +245,30 @@ namespace marco::ast
     return false;
   }
 
-  StartModificationProperty ClassModification::getStartProperty() const
+  Expression* ClassModification::getStartExpression()
   {
-    assert(hasStartProperty());
+    assert(hasStartExpression());
+
+    for (auto& argument : arguments) {
+      if (!argument->isa<ElementModification>()) {
+        continue;
+      }
+
+      auto* elementModification = argument->get<ElementModification>();
+
+      if (elementModification->getName() != "start") {
+        continue;
+      }
+
+      return elementModification->getModification()->getExpression();
+    }
+
+    llvm_unreachable("Start property not found");
+  }
+
+  const Expression* ClassModification::getStartExpression() const
+  {
+    assert(hasStartExpression());
 
     for (const auto& argument : arguments) {
       if (!argument->isa<ElementModification>()) {
@@ -245,9 +281,7 @@ namespace marco::ast
         continue;
       }
 
-      return StartModificationProperty(
-          elementModification->hasEachProperty(),
-          *elementModification->getModification()->getExpression());
+      return elementModification->getModification()->getExpression();
     }
 
     llvm_unreachable("Start property not found");
@@ -272,6 +306,20 @@ namespace marco::ast
       const auto* modificationExpression = modification->getExpression();
       assert(modificationExpression->isa<Constant>());
       return modificationExpression->get<Constant>()->as<BuiltInType::Boolean>();
+    }
+
+    return false;
+  }
+
+  bool ClassModification::getEachProperty() const
+  {
+    for (const auto& argument : arguments) {
+      if (!argument->isa<ElementModification>()) {
+        continue;
+      }
+
+      auto* elementModification = argument->get<ElementModification>();
+      return elementModification->hasEachProperty();
     }
 
     return false;

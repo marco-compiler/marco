@@ -1,4 +1,5 @@
 set(SOURCES
+    Lowering/AlgorithmLowerer.cpp
     Lowering/CallLowerer.cpp
     Lowering/ClassLowerer.cpp
     Lowering/ExpressionLowerer.cpp

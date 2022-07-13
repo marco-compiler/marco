@@ -18,6 +18,7 @@ namespace marco::ast
   class Expression;
 	class Modification;
 
+  template<typename Exp>
   class StartModificationProperty;
 
 	class Modification
@@ -54,11 +55,15 @@ namespace marco::ast
       /// @name Forwarded methods
       /// {
 
-      bool hasStartProperty() const;
+      bool hasStartExpression() const;
 
-      StartModificationProperty getStartProperty() const;
+      Expression* getStartExpression();
+
+      const Expression* getStartExpression() const;
 
       bool getFixedProperty() const;
+
+      bool getEachProperty() const;
 
       /// }
 
@@ -116,11 +121,15 @@ namespace marco::ast
       /// @name Predefined properties
       /// {
 
-      bool hasStartProperty() const;
+      bool hasStartExpression() const;
 
-      StartModificationProperty getStartProperty() const;
+      Expression* getStartExpression();
+
+      const Expression* getStartExpression() const;
 
       bool getFixedProperty() const;
+
+      bool getEachProperty() const;
 
       /// }
 

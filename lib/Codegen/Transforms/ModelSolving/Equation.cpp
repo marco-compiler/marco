@@ -54,7 +54,7 @@ static mlir::Attribute getIntegerAttribute(mlir::OpBuilder& builder, mlir::Type 
   return builder.getIndexAttr(value);
 }
 
-static void foldValue(EquationOp equationOp, mlir::Value value)
+static void foldValue(EquationInterface equationOp, mlir::Value value)
 {
   mlir::OperationFolder helper(value.getContext());
   std::stack<mlir::Operation*> visitStack;
@@ -113,7 +113,7 @@ static bool isZeroAttr(mlir::Attribute attribute)
 ///
 /// @param equation  equation
 /// @return true if the equation is surrounded by explicit loops or defines implicit ones
-static bool hasInductionVariables(EquationOp equation)
+static bool hasInductionVariables(EquationInterface equation)
 {
   auto hasExplicitLoops = [&]() -> bool {
     return equation->getParentOfType<ForEquationOp>() != nullptr;
@@ -271,7 +271,7 @@ static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result,
 
 namespace marco::codegen
 {
-  std::unique_ptr<Equation> Equation::build(mlir::modelica::EquationOp equation, Variables variables)
+  std::unique_ptr<Equation> Equation::build(mlir::modelica::EquationInterface equation, Variables variables)
   {
     if (hasInductionVariables(equation)) {
       return std::make_unique<LoopEquation>(std::move(equation), std::move(variables));
@@ -446,7 +446,7 @@ namespace marco::codegen
     equation->eraseIR();
   }
 
-  BaseEquation::BaseEquation(mlir::modelica::EquationOp equation, Variables variables)
+  BaseEquation::BaseEquation(mlir::modelica::EquationInterface equation, Variables variables)
       : equationOp(equation.getOperation()),
         variables(std::move(variables))
   {
@@ -454,9 +454,9 @@ namespace marco::codegen
     assert(getTerminator().getRhsValues().size() == 1);
   }
 
-  mlir::modelica::EquationOp BaseEquation::getOperation() const
+  mlir::modelica::EquationInterface BaseEquation::getOperation() const
   {
-    return mlir::cast<EquationOp>(equationOp);
+    return mlir::cast<EquationInterface>(equationOp);
   }
 
   Variables BaseEquation::getVariables() const
@@ -557,7 +557,7 @@ namespace marco::codegen
   std::unique_ptr<Equation> BaseEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder, const MultidimensionalRange& equationIndices, const EquationPath& path) const
   {
-    EquationOp clonedOp = cloneIR();
+    EquationInterface clonedOp = cloneIR();
     auto result = Equation::build(clonedOp, getVariables());
 
     if (auto res = result->explicitate(builder, equationIndices, path); mlir::failed(res)) {

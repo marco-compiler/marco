@@ -9,7 +9,7 @@ modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<2x!modelica.int>
     %1 = modelica.member_create @y : !modelica.member<2x!modelica.int>
     modelica.yield %0, %1 : !modelica.member<2x!modelica.int>, !modelica.member<2x!modelica.int>
-} equations {
+} body {
 ^bb0(%arg0: !modelica.array<2x!modelica.int>, %arg1: !modelica.array<2x!modelica.int>):
     modelica.for_equation %arg2 = 1 to 2 {
         modelica.equation attributes {id = 0} {

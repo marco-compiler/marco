@@ -50,7 +50,7 @@ namespace marco::codegen
     return std::make_unique<MatchedEquation>(*this);
   }
 
-  EquationOp MatchedEquation::cloneIR() const
+  EquationInterface MatchedEquation::cloneIR() const
   {
     return equation->cloneIR();
   }
@@ -70,7 +70,7 @@ namespace marco::codegen
     equation->dumpIR(os);
   }
 
-  EquationOp MatchedEquation::getOperation() const
+  EquationInterface MatchedEquation::getOperation() const
   {
     return equation->getOperation();
   }

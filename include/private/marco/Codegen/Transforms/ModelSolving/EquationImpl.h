@@ -10,9 +10,9 @@ namespace marco::codegen
   class BaseEquation : public Equation
   {
     public:
-      BaseEquation(mlir::modelica::EquationOp equation, Variables variables);
+      BaseEquation(mlir::modelica::EquationInterface equation, Variables variables);
 
-      mlir::modelica::EquationOp getOperation() const override;
+      mlir::modelica::EquationInterface getOperation() const override;
 
       Variables getVariables() const override;
 

@@ -26,6 +26,44 @@ def ClassInterface : Modelica_Interface<"ClassInterface"> {
     ];
 }
 
+def EquationInterface : Modelica_Interface<"EquationInterface"> {
+    let description = [{
+        Interface for a Modelica equation.
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "Get the body region.",
+            "mlir::Region&", "getBodyRegion",
+            (ins)
+        >,
+        InterfaceMethod<
+            "Get the body block.",
+            "mlir::Block*", "bodyBlock",
+            (ins)
+        >
+    ];
+}
+
+def AlgorithmInterface : Modelica_Interface<"AlgorithmInterface"> {
+    let description = [{
+        Interface for a Modelica equation.
+    }];
+
+    let methods = [
+        InterfaceMethod<
+            "Get the body region.",
+            "mlir::Region&", "getBodyRegion",
+            (ins)
+        >,
+        InterfaceMethod<
+            "Get the body block.",
+            "mlir::Block*", "bodyBlock",
+            (ins)
+        >
+    ];
+}
+
 def VectorizableOpInterface : Modelica_Interface<"VectorizableOpInterface"> {
     let description = [{
         Interface for a vectorizable operation.

@@ -6,7 +6,7 @@
 modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
     modelica.yield %0 : !modelica.member<3x!modelica.int>
-} equations {
+} body {
 ^bb0(%arg0: !modelica.array<3x!modelica.int>):
     modelica.for_equation %arg1 = 1 to 2 {
         modelica.equation attributes {id = 0} {

@@ -19,13 +19,13 @@ namespace marco::codegen
   {
     public:
       static std::unique_ptr<Equation> build(
-          mlir::modelica::EquationOp equation, Variables variables);
+          mlir::modelica::EquationInterface equation, Variables variables);
 
       virtual ~Equation();
 
       virtual std::unique_ptr<Equation> clone() const = 0;
 
-      virtual mlir::modelica::EquationOp cloneIR() const = 0;
+      virtual mlir::modelica::EquationInterface cloneIR() const = 0;
 
       virtual void eraseIR() = 0;
 
@@ -34,7 +34,7 @@ namespace marco::codegen
       virtual void dumpIR(llvm::raw_ostream& os) const = 0;
 
       /// Get the IR operation.
-      virtual mlir::modelica::EquationOp getOperation() const = 0;
+      virtual mlir::modelica::EquationInterface getOperation() const = 0;
 
       /// Get the variables considered by the equation while determining the accesses.
       virtual Variables getVariables() const = 0;

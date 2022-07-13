@@ -31,7 +31,7 @@ namespace marco::codegen::test
 
     auto modelOp = builder.create<ModelOp>(builder.getUnknownLoc(), "Test");
 
-    mlir::Block* initBlock = builder.createBlock(&modelOp.getInitRegion());
+    mlir::Block* initBlock = builder.createBlock(&modelOp.getVarsRegion());
     builder.setInsertionPointToStart(initBlock);
 
     llvm::SmallVector<mlir::Value, 3> members;
@@ -45,7 +45,7 @@ namespace marco::codegen::test
 
     builder.create<YieldOp>(builder.getUnknownLoc(), members);
 
-    builder.createBlock(&modelOp.getEquationsRegion(), {}, varArrayTypes, varLocations);
+    builder.createBlock(&modelOp.getBodyRegion(), {}, varArrayTypes, varLocations);
     return modelOp;
   }
 
@@ -53,7 +53,7 @@ namespace marco::codegen::test
   {
     Variables variables;
 
-    for (const auto& variable : model.getEquationsRegion().getArguments()) {
+    for (const auto& variable : model.getBodyRegion().getArguments()) {
       variables.add(Variable::build(variable));
     }
 
@@ -67,7 +67,7 @@ namespace marco::codegen::test
       std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToStart(&model.getEquationsRegion().front());
+    builder.setInsertionPointToStart(&model.getBodyRegion().front());
     auto loc = builder.getUnknownLoc();
 
     // Create the iteration ranges

@@ -13,11 +13,11 @@ namespace marco::codegen
       using DimensionAccess = ::marco::modeling::DimensionAccess;
 
     public:
-      LoopEquation(mlir::modelica::EquationOp equation, Variables variables);
+      LoopEquation(mlir::modelica::EquationInterface equation, Variables variables);
 
       std::unique_ptr<Equation> clone() const override;
 
-      mlir::modelica::EquationOp cloneIR() const override;
+      mlir::modelica::EquationInterface cloneIR() const override;
 
       void eraseIR() override;
 
