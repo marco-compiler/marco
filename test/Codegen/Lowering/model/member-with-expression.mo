@@ -1,15 +1,15 @@
 // RUN: marco %s --omc-bypass --emit-modelica-dialect | FileCheck %s
 
 // CHECK-LABEL: body
-// CHECK-NEXT:  ^bb0(%[[X:[a-zA-Z0-9]*]]: !modelica.array<!modelica.int>):
+// CHECK-NEXT:  ^bb0(%[[x:[a-zA-Z0-9]*]]: !modelica.array<!modelica.int>):
 // CHECK-NEXT:      modelica.equation {
-// CHECK-NEXT:          %[[X_LOAD:[a-zA-Z0-9]*]] = modelica.load %[[X]][] : !modelica.array<!modelica.int>
-// CHECK-NEXT:          %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<0>
-// CHECK-NEXT:          %[[LHS:[a-zA-Z0-9]*]] = modelica.equation_side %[[X_LOAD]] : tuple<!modelica.int>
-// CHECK-NEXT:          %[[RHS:[a-zA-Z0-9]*]] = modelica.equation_side %[[VALUE]] : tuple<!modelica.int>
-// CHECK-NEXT:          modelica.equation_sides %[[LHS]], %[[RHS]] : tuple<!modelica.int>, tuple<!modelica.int>
+// CHECK-NEXT:          %[[x_load:[a-zA-Z0-9]*]] = modelica.load %[[x]][] : !modelica.array<!modelica.int>
+// CHECK-NEXT:          %[[value:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<5>
+// CHECK-DAG:           %[[lhs:[a-zA-Z0-9]*]] = modelica.equation_side %[[x_load]] : tuple<!modelica.int>
+// CHECK-DAG:           %[[rhs:[a-zA-Z0-9]*]] = modelica.equation_side %[[value]] : tuple<!modelica.int>
+// CHECK-NEXT:          modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:      }
 
 model MemberWithExpression
-    Integer x = 0;
+    Integer x = 5;
 end MemberWithExpression;

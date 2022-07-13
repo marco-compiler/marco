@@ -7,7 +7,6 @@
 function sizeArray
     input Real[:,:] x;
     output Integer[2] y;
-
 algorithm
     y := size(x);
 end sizeArray;
@@ -20,7 +19,6 @@ function sizeDimension
     input Real[:,:] x;
     input Integer n;
     output Integer[2] y;
-
 algorithm
     y := size(x, n);
 end sizeDimension;

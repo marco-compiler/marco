@@ -6,7 +6,6 @@
 
 function outputBooleanScalar
     output Boolean y;
-
 algorithm
 end outputBooleanScalar;
 
@@ -17,7 +16,6 @@ end outputBooleanScalar;
 
 function outputIntegerScalar
     output Integer y;
-
 algorithm
 end outputIntegerScalar;
 
@@ -28,7 +26,6 @@ end outputIntegerScalar;
 
 function outputRealScalar
     output Real y;
-
 algorithm
 end outputRealScalar;
 
@@ -39,7 +36,6 @@ end outputRealScalar;
 
 function outputBooleanStaticArray
     output Boolean[3,2] y;
-
 algorithm
 end outputBooleanStaticArray;
 
@@ -50,7 +46,6 @@ end outputBooleanStaticArray;
 
 function outputBooleanDynamicArray
     output Boolean[:,:] y;
-
 algorithm
 end outputBooleanDynamicArray;
 
@@ -61,7 +56,6 @@ end outputBooleanDynamicArray;
 
 function outputIntegerStaticArray
     output Integer[3,2] y;
-
 algorithm
 end outputIntegerStaticArray;
 
@@ -72,7 +66,6 @@ end outputIntegerStaticArray;
 
 function outputIntegerDynamicArray
     output Integer[:,:] y;
-
 algorithm
 end outputIntegerDynamicArray;
 
@@ -83,7 +76,6 @@ end outputIntegerDynamicArray;
 
 function outputRealStaticArray
     output Real[3,2] y;
-
 algorithm
 end outputRealStaticArray;
 
@@ -94,36 +86,33 @@ end outputRealStaticArray;
 
 function outputRealDynamicArray
     output Real[:,:] y;
-
 algorithm
 end outputRealDynamicArray;
 
 
 // CHECK-LABEL: @sizeDependingOnIntegerInput
-// CHECK: %[[X:[a-zA-Z0-9]*]] = modelica.member_create @n
+// CHECK: %[[x:[a-zA-Z0-9]*]] = modelica.member_create @n
 // CHECK-SAME: !modelica.member<!modelica.int, input>
-// CHECK: %[[X_VALUE:[a-zA-Z0-9]*]] = modelica.member_load %[[X]]
-// CHECK: %[[size:[a-zA-Z0-9]*]] = modelica.cast %[[X_VALUE]] : !modelica.int -> index
-// CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create @y
+// CHECK: %[[x_value:[a-zA-Z0-9]*]] = modelica.member_load %[[x]]
+// CHECK: %[[size:[a-zA-Z0-9]*]] = modelica.cast %[[x_value]] : !modelica.int -> index
+// CHECK: %[[y:[a-zA-Z0-9]*]] = modelica.member_create @y
 // CHECK-SAME: %[[size]]
 // CHECK-SAME: !modelica.member<?x!modelica.real, output>
 
 function sizeDependingOnIntegerInput
     input Integer n;
     output Real[n] y;
-
 algorithm
 end sizeDependingOnIntegerInput;
 
 
 // CHECK-LABEL: @defaultValue
-// CHECK: %[[X:[a-zA-Z0-9]*]] = modelica.member_create @x
+// CHECK: %[[x:[a-zA-Z0-9]*]] = modelica.member_create @x
 // CHECK-SAME: !modelica.member<!modelica.int, output>
-// CHECK: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<10>
-// CHECK: modelica.member_store %[[X]], %[[VALUE]]
+// CHECK: %[[value:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<10>
+// CHECK: modelica.member_store %[[x]], %[[value]]
 
 function defaultValue
     output Integer x = 10;
-
 algorithm
 end defaultValue;

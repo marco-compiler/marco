@@ -7,7 +7,6 @@
 function minArray
     input Real[:,:] x;
     output Real y;
-
 algorithm
     y := max(x);
 end minArray;
@@ -20,7 +19,6 @@ function minScalars
     input Real x;
     input Real y;
     output Real z;
-
 algorithm
     z := max(x, y);
 end minScalars;

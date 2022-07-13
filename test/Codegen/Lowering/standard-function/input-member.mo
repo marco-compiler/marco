@@ -6,7 +6,6 @@
 
 function inputBooleanScalar
     input Boolean x;
-
 algorithm
 end inputBooleanScalar;
 
@@ -17,7 +16,6 @@ end inputBooleanScalar;
 
 function inputIntegerScalar
     input Integer x;
-
 algorithm
 end inputIntegerScalar;
 
@@ -28,7 +26,6 @@ end inputIntegerScalar;
 
 function inputRealScalar
     input Real x;
-
 algorithm
 end inputRealScalar;
 
@@ -39,7 +36,6 @@ end inputRealScalar;
 
 function inputBooleanStaticArray
     input Boolean[3,2] x;
-
 algorithm
 end inputBooleanStaticArray;
 
@@ -50,7 +46,6 @@ end inputBooleanStaticArray;
 
 function inputBooleanDynamicArray
     input Boolean[:,:] x;
-
 algorithm
 end inputBooleanDynamicArray;
 
@@ -61,7 +56,6 @@ end inputBooleanDynamicArray;
 
 function inputIntegerStaticArray
     input Integer[3,2] x;
-
 algorithm
 end inputIntegerStaticArray;
 
@@ -72,7 +66,6 @@ end inputIntegerStaticArray;
 
 function inputIntegerDynamicArray
     input Integer[:,:] x;
-
 algorithm
 end inputIntegerDynamicArray;
 
@@ -83,7 +76,6 @@ end inputIntegerDynamicArray;
 
 function inputRealStaticArray
     input Real[3,2] x;
-
 algorithm
 end inputRealStaticArray;
 
@@ -94,6 +86,5 @@ end inputRealStaticArray;
 
 function inputRealDynamicArray
     input Real[:,:] x;
-
 algorithm
 end inputRealDynamicArray;

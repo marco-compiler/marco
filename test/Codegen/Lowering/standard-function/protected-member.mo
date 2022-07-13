@@ -14,10 +14,7 @@
 function foo
     input Integer[:] x;
     output Integer y;
-
 protected
     Integer[2] z;
-
 algorithm
-
 end foo;
