@@ -35,7 +35,10 @@ TEST(ScalarEquation, iterationRanges)
   auto equation = Equation::build(equationOp, variables);
   EXPECT_EQ(equation->getNumOfIterationVars(), 1);
 
-  auto ranges = equation->getIterationRanges();
+  auto iterationRanges = equation->getIterationRanges();
+  assert(iterationRanges.isSingleMultidimensionalRange());
+  auto ranges = equation->getIterationRanges().minContainingRange();
+  
   EXPECT_EQ(ranges.rank(), 1);
   EXPECT_EQ(ranges[0].getBegin(), 0);
   EXPECT_EQ(ranges[0].getEnd(), 1);
@@ -125,7 +128,10 @@ TEST(LoopEquation, explicitLoops_iterationRanges)
 
   EXPECT_EQ(equation->getNumOfIterationVars(), 2);
 
-  auto ranges = equation->getIterationRanges();
+  auto iterationRanges = equation->getIterationRanges();
+  assert(iterationRanges.isSingleMultidimensionalRange());
+  auto ranges = equation->getIterationRanges().minContainingRange();
+
   EXPECT_EQ(ranges.rank(), 2);
 
   EXPECT_EQ(ranges[0].getBegin(), 1);
@@ -225,7 +231,10 @@ TEST(LoopEquation, implicitLoops_iterationRanges)
 
   EXPECT_EQ(equation->getNumOfIterationVars(), 2);
 
-  auto ranges = equation->getIterationRanges();
+  auto iterationRanges = equation->getIterationRanges();
+  assert(iterationRanges.isSingleMultidimensionalRange());
+  auto ranges = equation->getIterationRanges().minContainingRange();
+
   EXPECT_EQ(ranges[0].getBegin(), 0);
   EXPECT_EQ(ranges[0].getEnd(), 3);
   EXPECT_EQ(ranges[1].getBegin(), 0);

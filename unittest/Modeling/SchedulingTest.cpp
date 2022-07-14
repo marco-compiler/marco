@@ -57,7 +57,7 @@ namespace marco::modeling::dependency
       return (*equation)->rank();
     }
 
-    static MultidimensionalRange getIterationRanges(Equation* const* equation)
+    static IndexSet getIterationRanges(Equation* const* equation)
     {
       std::vector<Range> ranges;
 
@@ -65,7 +65,7 @@ namespace marco::modeling::dependency
         ranges.emplace_back((*equation)->rangeBegin(i), (*equation)->rangeEnd(i));
       }
 
-      return MultidimensionalRange(std::move(ranges));
+      return IndexSet(MultidimensionalRange(std::move(ranges)));
     }
 
     using VariableType = Variable*;
@@ -114,7 +114,10 @@ TEST(Scheduling, forwardSchedulable) {
   EXPECT_THAT(schedule, testing::SizeIs(1));
   EXPECT_EQ(schedule[0][0].getEquation()->name(), "eq1");
 
-  auto scheduledIndexes = schedule[0][0].getIndexes();
+  auto scheduledIndexesSet = schedule[0][0].getIndexes();
+  assert(scheduledIndexesSet.isSingleMultidimensionalRange());
+  auto scheduledIndexes = scheduledIndexesSet.minContainingRange();
+  
   EXPECT_EQ(scheduledIndexes[0].getBegin(), 3);
   EXPECT_EQ(scheduledIndexes[0].getEnd(), 9);
 
@@ -151,7 +154,10 @@ TEST(Scheduling, backwardSchedulable) {
 
   EXPECT_EQ(schedule[0][0].getEquation()->name(), "eq1");
 
-  auto scheduledIndexes = schedule[0][0].getIndexes();
+  auto scheduledIndexesSet = schedule[0][0].getIndexes();
+  assert(scheduledIndexesSet.isSingleMultidimensionalRange());
+  auto scheduledIndexes = scheduledIndexesSet.minContainingRange();
+
   EXPECT_EQ(scheduledIndexes[0].getBegin(), 3);
   EXPECT_EQ(scheduledIndexes[0].getEnd(), 9);
 

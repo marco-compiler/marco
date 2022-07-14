@@ -72,7 +72,9 @@ namespace
 
           // Matched indices
           std::vector<mlir::Attribute> ranges;
-          auto iterationRanges = equation->getIterationRanges();
+          auto iterationRangesSet = equation->getIterationRanges(); //todo: handle ragged case
+          assert(iterationRangesSet.isSingleMultidimensionalRange());
+          auto iterationRanges = equation->getIterationRanges().minContainingRange();
 
           for (size_t i = 0; i < iterationRanges.rank(); ++i) {
             ranges.push_back(builder.getArrayAttr({

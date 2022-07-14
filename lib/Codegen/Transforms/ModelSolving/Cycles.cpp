@@ -47,7 +47,7 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
             cycle.getEquation()->getVariables());
 
         solution.add(std::make_unique<MatchedEquation>(
-            std::move(clonedEquation), range, cycle.getEquation()->getWrite().getPath()));
+            std::move(clonedEquation), IndexSet(range), cycle.getEquation()->getWrite().getPath()));
       }
     }
 

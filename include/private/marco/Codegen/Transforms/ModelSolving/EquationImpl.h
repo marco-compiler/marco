@@ -22,17 +22,17 @@ namespace marco::codegen
 
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) override;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) const override;
 
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           Equation& destination,
           const ::marco::modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const override;
@@ -55,12 +55,12 @@ namespace marco::codegen
 
       mlir::LogicalResult groupLeftHandSide(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const Access& access);
 
       std::pair<unsigned int, mlir::Value> getMultiplyingFactor(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           mlir::Value value,
           mlir::Value variable,
           const ::marco::modeling::IndexSet& variableIndices) const;

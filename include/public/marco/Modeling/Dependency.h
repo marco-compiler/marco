@@ -201,7 +201,7 @@ namespace marco::modeling
           return Traits::getNumOfIterationVars(equation);
         }
 
-        static MultidimensionalRange getIterationRanges(const EquationProperty* equation)
+        static IndexSet getIterationRanges(const EquationProperty* equation)
         {
           return Traits::getIterationRanges(equation);
         }
@@ -269,7 +269,7 @@ namespace marco::modeling
           return Traits::getIterationRange(&property, index);
         }
 
-        MultidimensionalRange getIterationRanges() const
+        IndexSet getIterationRanges() const
         {
           return Traits::getIterationRanges(&property);
         }

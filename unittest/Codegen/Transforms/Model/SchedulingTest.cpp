@@ -43,7 +43,7 @@ TEST(ScheduledEquation, inductionVariables)
   });
 
   EquationPath path(EquationPath::LEFT);
-  auto matchedEquation = std::make_unique<MatchedEquation>(std::move(equation), matchedIndices, path);
+  auto matchedEquation = std::make_unique<MatchedEquation>(std::move(equation), IndexSet(matchedIndices), path);
 
   MultidimensionalRange scheduledIndices({
     Range(3, 4),
@@ -51,7 +51,7 @@ TEST(ScheduledEquation, inductionVariables)
   });
 
   ScheduledEquation scheduledEquation(
-      std::move(matchedEquation), scheduledIndices, ::marco::modeling::scheduling::Direction::Forward);
+      std::move(matchedEquation), IndexSet(scheduledIndices), ::marco::modeling::scheduling::Direction::Forward);
 
   IndexSet actual(scheduledEquation.getIterationRanges());
   IndexSet expected(scheduledIndices);

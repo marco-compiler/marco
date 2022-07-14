@@ -70,8 +70,12 @@ namespace
                   rangeAttr[1].cast<mlir::IntegerAttr>().getInt() + 1);
             }
           } else {
+            auto iterationRangesSet = equation->getIterationRanges(); //todo: handle ragged case
+            assert(iterationRangesSet.isSingleMultidimensionalRange());
+            auto iterationRanges = equation->getIterationRanges().minContainingRange();
+
             for (size_t i = 0; i < equation->getNumOfIterationVars(); ++i) {
-              ranges.push_back(equation->getIterationRanges()[i]);
+              ranges.push_back(iterationRanges[i]);
             }
           }
 
@@ -90,7 +94,7 @@ namespace
 
           // Create the matched equation
           auto matchedEquation = std::make_unique<MatchedEquation>(
-              std::move(equation), modeling::MultidimensionalRange(ranges), EquationPath(side, pathIndices));
+              std::move(equation), modeling::IndexSet(modeling::MultidimensionalRange(ranges)), EquationPath(side, pathIndices));
 
           matchedEquations.add(std::move(matchedEquation));
         }
@@ -134,7 +138,10 @@ namespace
 
               // Scheduled indices
               std::vector<mlir::Attribute> ranges;
-              auto iterationRanges = equation->getIterationRanges();
+
+              auto iterationRangesSet = equation->getIterationRanges(); //todo: handle ragged case
+              assert(iterationRangesSet.isSingleMultidimensionalRange());
+              auto iterationRanges = equation->getIterationRanges().minContainingRange();
 
               for (size_t i = 0; i < iterationRanges.rank(); ++i) {
                 ranges.push_back(builder.getArrayAttr({

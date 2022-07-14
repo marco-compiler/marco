@@ -1170,7 +1170,9 @@ namespace marco::codegen
     };
 
     std::vector<mlir::Value> args;
-    auto iterationRanges = equation.getIterationRanges();
+    auto iterationRangesSet = equation.getIterationRanges();
+    assert(iterationRangesSet.isSingleMultidimensionalRange());//todo: handle ragged case
+    auto iterationRanges = iterationRangesSet.minContainingRange();
 
     for (size_t i = 0, e = equation.getNumOfIterationVars(); i < e; ++i) {
       auto values = valuesFn(equation.getSchedulingDirection(), iterationRanges[i]);

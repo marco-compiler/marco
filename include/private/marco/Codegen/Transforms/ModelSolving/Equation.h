@@ -46,7 +46,7 @@ namespace marco::codegen
       virtual size_t getNumOfIterationVars() const = 0;
 
       /// Get the iteration ranges.
-      virtual modeling::MultidimensionalRange getIterationRanges() const = 0;
+      virtual modeling::IndexSet getIterationRanges() const = 0;
 
       /// Get the accesses to variables.
       virtual std::vector<Access> getAccesses() const = 0;
@@ -64,13 +64,13 @@ namespace marco::codegen
       /// only term on the left hand side of the equation.
       virtual mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) = 0;
 
       /// Clone the equation IR and make it explicit with respect to the given equation path.
       virtual std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) const = 0;
 
       virtual std::vector<mlir::Value> getInductionVariables() const = 0;
@@ -79,7 +79,7 @@ namespace marco::codegen
       /// This equation is assumed to already be explicit.
       virtual mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           Equation& destination,
           const ::marco::modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const = 0;
@@ -363,7 +363,7 @@ namespace marco::modeling::matching
       return (*equation)->getNumOfIterationVars();
     }
 
-    static MultidimensionalRange getIterationRanges(const Equation* equation)
+    static IndexSet getIterationRanges(const Equation* equation)
     {
       return (*equation)->getIterationRanges();
     }

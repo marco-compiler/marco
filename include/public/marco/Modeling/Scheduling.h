@@ -27,7 +27,7 @@ namespace marco::modeling
       public:
         using Direction = ::marco::modeling::scheduling::Direction;
 
-        ScheduledEquation(EquationProperty property, MultidimensionalRange indexes, Direction direction)
+        ScheduledEquation(EquationProperty property, IndexSet indexes, Direction direction)
             : property(std::move(property)), indexes(std::move(indexes)), direction(direction)
         {
         }
@@ -37,7 +37,7 @@ namespace marco::modeling
           return property;
         }
 
-        const MultidimensionalRange& getIndexes() const
+        const IndexSet& getIndexes() const
         {
           return indexes;
         }
@@ -49,7 +49,7 @@ namespace marco::modeling
 
       private:
         EquationProperty property;
-        MultidimensionalRange indexes;
+        IndexSet indexes;
         Direction direction;
     };
 
@@ -220,7 +220,7 @@ namespace marco::modeling
 
               ScheduledEquation scheduledEquation(
                   scalarEquation.getProperty(),
-                  MultidimensionalRange(scalarEquation.getIndex()),
+                  IndexSet(MultidimensionalRange(scalarEquation.getIndex())),
                   scheduling::Direction::Forward);
 
               result.emplace_back(std::move(scheduledEquation));

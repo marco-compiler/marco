@@ -13,7 +13,7 @@ namespace marco::codegen
     public:
       MatchedEquation(
           std::unique_ptr<Equation> equation,
-          modeling::MultidimensionalRange matchedIndexes,
+          modeling::IndexSet matchedIndexes,
           EquationPath matchedPath);
 
       MatchedEquation(const MatchedEquation& other);
@@ -55,19 +55,19 @@ namespace marco::codegen
 
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) override;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
 
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
-          const modeling::MultidimensionalRange& equationIndices,
+          const modeling::IndexSet& equationIndices,
           Equation& destination,
           const modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const override;
@@ -84,7 +84,7 @@ namespace marco::codegen
 
       size_t getNumOfIterationVars() const override;
 
-      modeling::MultidimensionalRange getIterationRanges() const override;
+      modeling::IndexSet getIterationRanges() const override;
 
       /// }
 
@@ -94,13 +94,13 @@ namespace marco::codegen
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices) const;
+          const ::marco::modeling::IndexSet& equationIndices) const;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(mlir::OpBuilder& builder) const;
 
     private:
       std::unique_ptr<Equation> equation;
-      modeling::MultidimensionalRange matchedIndexes;
+      modeling::IndexSet matchedIndexes;
       EquationPath matchedPath;
   };
 }
@@ -124,7 +124,7 @@ namespace marco::modeling::dependency
       return (*equation)->getNumOfIterationVars();
     }
 
-    static MultidimensionalRange getIterationRanges(const Equation* equation)
+    static IndexSet getIterationRanges(const Equation* equation)
     {
       return (*equation)->getIterationRanges();
     }

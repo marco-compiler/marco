@@ -81,7 +81,7 @@ namespace marco::codegen
 
           for (const auto& range : indices.getRanges()) {
             result.add(std::make_unique<MatchedEquation>(
-                equation->clone(), range, equation->getWrite().getPath()));
+                equation->clone(), modeling::IndexSet(range), equation->getWrite().getPath()));
           }
         }
 
@@ -312,7 +312,7 @@ namespace marco::codegen
 
         processed.push_back(std::make_unique<MatchedEquation>(
             Equation::build(destination.cloneIR(), destination.getVariables()),
-            indexes, destination.getWrite().getPath()));
+            modeling::IndexSet(indexes), destination.getWrite().getPath()));
 
         for (auto dependency = dependencyBegin; dependency != dependencyEnd; ++dependency) {
           // The access to be replaced
@@ -384,7 +384,7 @@ namespace marco::codegen
                 for (const auto& newEquationRange : newEquationIndices.getRanges()) {
                   newProcessed.push_back(std::make_unique<MatchedEquation>(
                       Equation::build(cloned->cloneIR(), cloned->getVariables()),
-                      newEquationRange, destination.getWrite().getPath()));
+                      modeling::IndexSet(newEquationRange), destination.getWrite().getPath()));
                 }
               }
             }

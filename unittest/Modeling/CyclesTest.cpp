@@ -59,7 +59,7 @@ namespace marco::modeling::dependency
       return (*equation)->rank();
     }
 
-    static MultidimensionalRange getIterationRanges(Equation* const* equation)
+    static IndexSet getIterationRanges(Equation* const* equation)
     {
       std::vector<Range> ranges;
 
@@ -67,7 +67,7 @@ namespace marco::modeling::dependency
         ranges.emplace_back((*equation)->rangeBegin(i), (*equation)->rangeEnd(i));
       }
 
-      return MultidimensionalRange(std::move(ranges));
+      return IndexSet(MultidimensionalRange(std::move(ranges)));
     }
 
     using VariableType = Variable*;

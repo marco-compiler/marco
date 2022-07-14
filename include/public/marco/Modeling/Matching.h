@@ -326,7 +326,7 @@ namespace marco::modeling
           return getNumOfIterationVars(property);
         }
 
-        MultidimensionalRange getIterationRanges() const
+        IndexSet getIterationRanges() const
         {
           return getIterationRanges(property);
         }
@@ -357,7 +357,7 @@ namespace marco::modeling
           return Traits::getNumOfIterationVars(&p);
         }
 
-        static MultidimensionalRange getIterationRanges(const EquationProperty& p)
+        static IndexSet getIterationRanges(const EquationProperty& p)
         {
           return Traits::getIterationRanges(&p);
         }
@@ -378,8 +378,8 @@ namespace marco::modeling
 
         Edge(typename Equation::Id equation,
              typename Variable::Id variable,
-             MultidimensionalRange equationRanges,
-             MultidimensionalRange variableRanges,
+             IndexSet equationRanges,
+             IndexSet variableRanges,
              typename Equation::Access access)
             : equation(std::move(equation)),
               variable(std::move(variable)),
@@ -1035,7 +1035,7 @@ namespace marco::modeling
 
           auto indices = variable.getIndices();
           for (const auto& range : indices.getRanges()) {
-            Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), range, access);
+            Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), IndexSet(range), access);
             graph.addEdge(equationDescriptor, variableDescriptor, edge);
           }
         }

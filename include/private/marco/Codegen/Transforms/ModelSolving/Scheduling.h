@@ -14,7 +14,7 @@ namespace marco::codegen
     public:
       ScheduledEquation(
           std::unique_ptr<MatchedEquation> equation,
-          modeling::MultidimensionalRange scheduledIndexes,
+          modeling::IndexSet scheduledIndexes,
           modeling::scheduling::Direction schedulingDirection);
 
       ScheduledEquation(const ScheduledEquation& other);
@@ -60,19 +60,19 @@ namespace marco::codegen
 
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) override;
 
       std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder,
-          const ::marco::modeling::MultidimensionalRange& equationIndices,
+          const ::marco::modeling::IndexSet& equationIndices,
           const EquationPath& path) const override;
 
       std::vector<mlir::Value> getInductionVariables() const override;
 
       mlir::LogicalResult replaceInto(
           mlir::OpBuilder& builder,
-          const modeling::MultidimensionalRange& equationIndices,
+          const modeling::IndexSet& equationIndices,
           Equation& destination,
           const modeling::AccessFunction& destinationAccessFunction,
           const EquationPath& destinationPath) const override;
@@ -89,7 +89,7 @@ namespace marco::codegen
 
       size_t getNumOfIterationVars() const override;
 
-      modeling::MultidimensionalRange getIterationRanges() const override;
+      modeling::IndexSet getIterationRanges() const override;
 
       /// }
 
@@ -100,7 +100,7 @@ namespace marco::codegen
 
     private:
       std::unique_ptr<MatchedEquation> equation;
-      modeling::MultidimensionalRange scheduledIndexes;
+      modeling::IndexSet scheduledIndexes;
       modeling::scheduling::Direction schedulingDirection;
   };
 

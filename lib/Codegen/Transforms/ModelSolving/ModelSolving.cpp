@@ -1304,7 +1304,7 @@ namespace
             auto clone = Equation::build(equation->getOperation(), equation->getVariables());
 
             auto matchedClone = std::make_unique<MatchedEquation>(
-                std::move(clone), range, write.getPath());
+                std::move(clone), IndexSet(range), write.getPath());
 
             equations.add(std::move(matchedClone));
           }
@@ -1314,7 +1314,7 @@ namespace
             auto clone = Equation::build(equation->getOperation(), equation->getVariables());
 
             auto matchedClone = std::make_unique<MatchedEquation>(
-                std::move(clone), range, write.getPath());
+                std::move(clone), IndexSet(range), write.getPath());
 
             equations.add(std::move(matchedClone));
           }

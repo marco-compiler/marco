@@ -485,7 +485,7 @@ namespace marco::codegen
   }
 
   mlir::LogicalResult BaseEquation::explicitate(
-      mlir::OpBuilder& builder, const MultidimensionalRange& equationIndices, const EquationPath& path)
+      mlir::OpBuilder& builder, const IndexSet& equationIndices, const EquationPath& path)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -555,7 +555,7 @@ namespace marco::codegen
   }
 
   std::unique_ptr<Equation> BaseEquation::cloneIRAndExplicitate(
-      mlir::OpBuilder& builder, const MultidimensionalRange& equationIndices, const EquationPath& path) const
+      mlir::OpBuilder& builder, const IndexSet& equationIndices, const EquationPath& path) const
   {
     EquationInterface clonedOp = cloneIR();
     auto result = Equation::build(clonedOp, getVariables());
@@ -570,7 +570,7 @@ namespace marco::codegen
 
   mlir::LogicalResult BaseEquation::replaceInto(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices,
+      const IndexSet& equationIndices,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
       const EquationPath& destinationPath) const
@@ -658,7 +658,7 @@ namespace marco::codegen
           // If the induction variable is not used, then ensure that it iterates
           // on just one value and thus can be replaced with a constant value.
 
-          if (equationIndices[usage.index()].size() != 1) {
+          if (equationIndices.minContainingRange()[usage.index()].size() != 1) {
             getOperation().emitError("The write access is not invertible");
             return mlir::failure();
           }
@@ -699,7 +699,8 @@ namespace marco::codegen
           transformationAccesses.push_back(combinedReducedAccess[usedInductionIndex++]);
 
         } else {
-          const auto& range = equationIndices[i];
+          assert(equationIndices.isSingleMultidimensionalRange());
+          const auto& range = equationIndices.minContainingRange()[i];
           assert(range.size() == 1);
           transformationAccesses.push_back(DimensionAccess::constant(range.getBegin()));
         }
@@ -851,7 +852,7 @@ namespace marco::codegen
 
   mlir::LogicalResult BaseEquation::groupLeftHandSide(
       mlir::OpBuilder& builder,
-      const ::marco::modeling::MultidimensionalRange& equationIndices,
+      const ::marco::modeling::IndexSet& equationIndices,
       const Access& access)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1123,7 +1124,7 @@ namespace marco::codegen
 
   std::pair<unsigned int, mlir::Value> BaseEquation::getMultiplyingFactor(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices,
+      const IndexSet& equationIndices,
       mlir::Value value,
       mlir::Value variable,
       const IndexSet& variableIndices) const

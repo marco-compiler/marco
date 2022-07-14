@@ -8,7 +8,7 @@ namespace marco::codegen
 {
   ScheduledEquation::ScheduledEquation(
       std::unique_ptr<MatchedEquation> equation,
-      MultidimensionalRange scheduledIndexes,
+      IndexSet scheduledIndexes,
       scheduling::Direction schedulingDirection)
     : equation(std::move(equation)),
       scheduledIndexes(std::move(scheduledIndexes)),
@@ -115,7 +115,7 @@ namespace marco::codegen
 
   mlir::LogicalResult ScheduledEquation::explicitate(
       mlir::OpBuilder& builder,
-      const ::marco::modeling::MultidimensionalRange& equationIndices,
+      const ::marco::modeling::IndexSet& equationIndices,
       const EquationPath& path)
   {
     return equation->explicitate(builder, equationIndices, path);
@@ -123,7 +123,7 @@ namespace marco::codegen
 
   std::unique_ptr<Equation> ScheduledEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder,
-      const ::marco::modeling::MultidimensionalRange& equationIndices,
+      const ::marco::modeling::IndexSet& equationIndices,
       const EquationPath& path) const
   {
     return equation->cloneIRAndExplicitate(builder, equationIndices, path);
@@ -136,7 +136,7 @@ namespace marco::codegen
 
   mlir::LogicalResult ScheduledEquation::replaceInto(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices,
+      const IndexSet& equationIndices,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
       const EquationPath& destinationPath) const
@@ -158,7 +158,7 @@ namespace marco::codegen
     return scheduledIndexes.rank();
   }
 
-  modeling::MultidimensionalRange ScheduledEquation::getIterationRanges() const
+  modeling::IndexSet ScheduledEquation::getIterationRanges() const
   {
     return scheduledIndexes;
   }

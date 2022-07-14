@@ -76,7 +76,7 @@ namespace marco::codegen
     return getNumberOfExplicitLoops() + getNumberOfImplicitLoops();
   }
 
-  MultidimensionalRange LoopEquation::getIterationRanges() const
+  IndexSet LoopEquation::getIterationRanges() const
   {
     std::vector<Range> ranges;
 
@@ -87,7 +87,7 @@ namespace marco::codegen
     auto implicitLoops = getImplicitLoops();
     ranges.insert(ranges.end(), implicitLoops.begin(), implicitLoops.end());
 
-    return MultidimensionalRange(std::move(ranges));
+    return IndexSet(MultidimensionalRange(std::move(ranges)));
   }
 
   std::vector<Access> LoopEquation::getAccesses() const

@@ -49,9 +49,9 @@ namespace marco::codegen
     return 1;
   }
 
-  MultidimensionalRange ScalarEquation::getIterationRanges() const
+  IndexSet ScalarEquation::getIterationRanges() const
   {
-    return MultidimensionalRange(Point(0));
+    return IndexSet(Point(0));
   }
 
   std::vector<Access> ScalarEquation::getAccesses() const

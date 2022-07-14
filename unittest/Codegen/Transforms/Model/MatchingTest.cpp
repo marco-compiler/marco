@@ -43,7 +43,7 @@ TEST(MatchedEquation, inductionVariables)
   });
 
   EquationPath path(EquationPath::LEFT);
-  MatchedEquation matchedEquation(std::move(equation), matchedIndices, path);
+  MatchedEquation matchedEquation(std::move(equation), IndexSet(matchedIndices), path);
 
   IndexSet actual(matchedEquation.getIterationRanges());
   IndexSet expected(matchedIndices);

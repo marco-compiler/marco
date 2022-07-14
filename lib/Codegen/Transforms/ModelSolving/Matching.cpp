@@ -10,7 +10,7 @@ namespace marco::codegen
 {
   MatchedEquation::MatchedEquation(
       std::unique_ptr<Equation> equation,
-      modeling::MultidimensionalRange matchedIndexes,
+      modeling::IndexSet matchedIndexes,
       EquationPath matchedPath)
     : equation(std::move(equation)),
       matchedIndexes(std::move(matchedIndexes)),
@@ -117,7 +117,7 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::explicitate(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices,
+      const IndexSet& equationIndices,
       const EquationPath& path)
   {
     return equation->explicitate(builder, equationIndices, path);
@@ -125,7 +125,7 @@ namespace marco::codegen
 
   std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices,
+      const IndexSet& equationIndices,
       const EquationPath& path) const
   {
     return equation->cloneIRAndExplicitate(builder, equationIndices, path);
@@ -138,7 +138,7 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::replaceInto(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices,
+      const IndexSet& equationIndices,
       Equation& destination,
       const ::marco::modeling::AccessFunction& destinationAccessFunction,
       const EquationPath& destinationPath) const
@@ -151,7 +151,7 @@ namespace marco::codegen
     return matchedIndexes.rank();
   }
 
-  modeling::MultidimensionalRange MatchedEquation::getIterationRanges() const
+  modeling::IndexSet MatchedEquation::getIterationRanges() const
   {
     return matchedIndexes;
   }
@@ -190,7 +190,7 @@ namespace marco::codegen
 
   std::unique_ptr<Equation> MatchedEquation::cloneIRAndExplicitate(
       mlir::OpBuilder& builder,
-      const MultidimensionalRange& equationIndices) const
+      const IndexSet& equationIndices) const
   {
     return equation->cloneIRAndExplicitate(builder, equationIndices, getWrite().getPath());
   }
@@ -297,7 +297,7 @@ namespace marco::codegen
       auto clone = solution.getEquation()->clone();
 
       matchedEquations.add(std::make_unique<MatchedEquation>(
-          std::move(clone), solution.getIndexes(), solution.getAccess()));
+          std::move(clone), IndexSet(solution.getIndexes()), solution.getAccess()));
     }
 
     result.setVariables(model.getVariables());

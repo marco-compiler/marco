@@ -469,7 +469,7 @@ namespace marco::codegen
 
     // First create the writes map, that is the knowledge of which equation writes into a variable and in which indices.
     // The variables are mapped by their argument number.
-    std::multimap<unsigned int, std::pair<MultidimensionalRange, ScheduledEquation*>> writesMap;
+    std::multimap<unsigned int, std::pair<IndexSet, ScheduledEquation*>> writesMap;
 
     for (const auto& equationsBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *equationsBlock) {
@@ -529,7 +529,7 @@ namespace marco::codegen
 
         for (const auto& entry : writingEquations) {
           ScheduledEquation* writingEquation = entry.second.second;
-          auto writtenVariableIndices = entry.second.first;
+          auto writtenVariableIndices = IndexSet(entry.second.first);
 
           if (!writtenVariableIndices.overlaps(readIndices)) {
             continue;
@@ -542,11 +542,15 @@ namespace marco::codegen
           auto explicitWritingEquation = writingEquation->cloneIRAndExplicitate(builder);
           TemporaryEquationGuard guard(*explicitWritingEquation);
 
-          auto res = explicitWritingEquation->replaceInto(
-              builder, explicitWritingEquation->getIterationRanges(), *clone, access.getAccessFunction(), access.getPath());
+          auto iterationRanges = explicitWritingEquation->getIterationRanges(); //todo: check ragged case
+          for(auto range : iterationRanges.getRanges())
+          {
+            auto res = explicitWritingEquation->replaceInto(
+                builder, IndexSet(range), *clone, access.getAccessFunction(), access.getPath());
 
-          if (mlir::failed(res)) {
-            return res;
+            if (mlir::failed(res)) {
+              return res;
+            }
           }
 
           // Add the equation with the replaced access
@@ -558,10 +562,10 @@ namespace marco::codegen
 
           for (const auto& range : newEquationIndices.getRanges()) {
             auto matchedEquation = std::make_unique<MatchedEquation>(
-                clone->clone(), range, equation->getWrite().getPath());
+                clone->clone(), IndexSet(range), equation->getWrite().getPath());
 
             auto scheduledEquation = std::make_unique<ScheduledEquation>(
-                std::move(matchedEquation), range, equation->getSchedulingDirection());
+                std::move(matchedEquation), IndexSet(range), equation->getSchedulingDirection());
 
             processedEquations.push(std::move(scheduledEquation));
           }
@@ -599,68 +603,72 @@ namespace marco::codegen
     size_t jacobianFunctionsCounter = 0;
     size_t partialDerTemplatesCounter = 0;
 
-    for (const auto& equation : independentEquations) {
-      auto ranges = equation->getIterationRanges();
-      std::vector<mlir::Attribute> rangesAttr;
+    for (const auto& equation : independentEquations) 
+    {
+      auto iterationRanges = equation->getIterationRanges(); //todo: check ragged case
+      for(auto ranges : iterationRanges.getRanges())
+      {
+        std::vector<mlir::Attribute> rangesAttr;
 
-      for (size_t i = 0; i < ranges.rank(); ++i) {
-        rangesAttr.push_back(builder.getI64ArrayAttr({ ranges[i].getBegin(), ranges[i].getEnd() }));
-      }
-
-      auto idaEquation = builder.create<mlir::ida::AddEquationOp>(
-          equation->getOperation().getLoc(),
-          idaInstance,
-          builder.getArrayAttr(rangesAttr));
-
-      if (auto res = addVariableAccessesInfoToIDA(builder, runtimeDataPtr, *equation, idaEquation); mlir::failed(res)) {
-        return res;
-      }
-
-      // Create the residual function
-      std::string residualFunctionName = getUniqueSymbolName(module, [&]() {
-        return "ida_residualFunction_" + std::to_string(residualFunctionsCounter++);
-      });
-
-      if (auto res = createResidualFunction(builder, *equation, equationVariables, idaEquation, residualFunctionName); mlir::failed(res)) {
-        return res;
-      }
-
-      builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, residualFunctionName);
-
-      // Create the partial derivative template
-      std::string partialDerTemplateName = getUniqueSymbolName(module, [&]() {
-        return "ida_pder_" + std::to_string(partialDerTemplatesCounter++);
-      });
-
-      if (auto res = createPartialDerTemplateFunction(builder, *equation, equationVariables, partialDerTemplateName); mlir::failed(res)) {
-        return res;
-      }
-
-      // Create the Jacobian functions
-      for (const auto& variable : managedVariables) {
-        if (variable.type == IDAVariableType::DERIVATIVE) {
-          // If the variable is a derivative, then skip the creation of the Jacobian functions
-          // because it is already handled when encountering the state variable through the
-          // 'alpha' parameter set into the derivative seed.
-          continue;
+        for (size_t i = 0; i < ranges.rank(); ++i) {
+          rangesAttr.push_back(builder.getI64ArrayAttr({ ranges[i].getBegin(), ranges[i].getEnd() }));
         }
 
-        mlir::Value var = equationVariables[variable.argNumber];
+        auto idaEquation = builder.create<mlir::ida::AddEquationOp>(
+            equation->getOperation().getLoc(),
+            idaInstance,
+            builder.getArrayAttr(rangesAttr));
 
-        std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
-          return "ida_jacobianFunction_" + std::to_string(jacobianFunctionsCounter++);
-        });
-
-        if (auto res = createJacobianFunction(builder, *equation, equationVariables, jacobianFunctionName, var, partialDerTemplateName); mlir::failed(res)) {
+        if (auto res = addVariableAccessesInfoToIDA(builder, runtimeDataPtr, *equation, idaEquation); mlir::failed(res)) {
           return res;
         }
 
-        builder.create<mlir::ida::AddJacobianOp>(
-            equation->getOperation().getLoc(),
-            idaInstance,
-            idaEquation,
-            getIDAVariable(builder, runtimeData, mappedVariables[variable.argNumber]),
-            jacobianFunctionName);
+        // Create the residual function
+        std::string residualFunctionName = getUniqueSymbolName(module, [&]() {
+          return "ida_residualFunction_" + std::to_string(residualFunctionsCounter++);
+        });
+
+        if (auto res = createResidualFunction(builder, *equation, equationVariables, idaEquation, residualFunctionName); mlir::failed(res)) {
+          return res;
+        }
+
+        builder.create<mlir::ida::AddResidualOp>(equation->getOperation().getLoc(), idaInstance, idaEquation, residualFunctionName);
+
+        // Create the partial derivative template
+        std::string partialDerTemplateName = getUniqueSymbolName(module, [&]() {
+          return "ida_pder_" + std::to_string(partialDerTemplatesCounter++);
+        });
+
+        if (auto res = createPartialDerTemplateFunction(builder, *equation, equationVariables, partialDerTemplateName); mlir::failed(res)) {
+          return res;
+        }
+
+        // Create the Jacobian functions
+        for (const auto& variable : managedVariables) {
+          if (variable.type == IDAVariableType::DERIVATIVE) {
+            // If the variable is a derivative, then skip the creation of the Jacobian functions
+            // because it is already handled when encountering the state variable through the
+            // 'alpha' parameter set into the derivative seed.
+            continue;
+          }
+
+          mlir::Value var = equationVariables[variable.argNumber];
+
+          std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
+            return "ida_jacobianFunction_" + std::to_string(jacobianFunctionsCounter++);
+          });
+
+          if (auto res = createJacobianFunction(builder, *equation, equationVariables, jacobianFunctionName, var, partialDerTemplateName); mlir::failed(res)) {
+            return res;
+          }
+
+          builder.create<mlir::ida::AddJacobianOp>(
+              equation->getOperation().getLoc(),
+              idaInstance,
+              idaEquation,
+              getIDAVariable(builder, runtimeData, mappedVariables[variable.argNumber]),
+              jacobianFunctionName);
+        }
       }
     }
 
