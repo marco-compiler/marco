@@ -13,8 +13,6 @@ InlineExpanser::InlineExpanser(diagnostic::DiagnosticEngine& diagnostics)
 template<>
 bool InlineExpanser::run<Class>(Class& cls)
 {	
-	SymbolTable::ScopeTy scope(symbolTable);
-
 	return cls.visit([&](auto& obj) {
 		using type = decltype(obj);
 		using deref = typename std::remove_reference<type>::type;
@@ -26,6 +24,8 @@ bool InlineExpanser::run<Class>(Class& cls)
 bool InlineExpanser::run(std::unique_ptr<Class> &cls)
 {
 	//InlineExpanser starting point
+	SymbolTable::ScopeTy scope(symbolTable);
+
 	if (!run<Class>(*cls))
 		return false;
 
@@ -163,10 +163,11 @@ bool InlineExpanser::run<Model>(Class& cls)
 			
 			new_equations.clear();
 			explodeEquations(*equation);
-		
-			for(auto &e : new_equations)
-				equationsBlock->add(std::move(e));
     }
+
+		for(auto &e : new_equations)
+			equationsBlock->add(std::move(e));
+
 
 		for (auto& forEquation : equationsBlock->getForEquations())
 		{
@@ -179,9 +180,10 @@ bool InlineExpanser::run<Model>(Class& cls)
 			for(auto &e : new_equations){
 				new_for_equations.push_back(ForEquation::build(forEquation->getLocation(), forEquation->getInductions(), std::move(e)));
 			}
-			for(auto &e : new_for_equations)
-				equationsBlock->add(std::move(e));
 		}
+
+		for(auto &e : new_for_equations)
+			equationsBlock->add(std::move(e));
 
   }
 
@@ -210,6 +212,10 @@ bool InlineExpanser::run<Package>(Class& cls)
 template<>
 bool InlineExpanser::run<Record>(Class& cls)
 {
+	assert(cls.isa<Record>());
+	auto *record = cls.get<Record>();
+	
+	symbolTable.insert(record->getName(), Symbol(cls));
 	return true;
 }
 
