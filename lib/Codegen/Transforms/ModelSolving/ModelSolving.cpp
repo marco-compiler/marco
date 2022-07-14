@@ -917,9 +917,6 @@ namespace
             mapping.map(arg, array);
           }
 
-          assert(arrays.size() == functionOp->getNumOperands());
-          assert(arrays.size() == functionOp->getNumResults());
-
           // Clone the operations of the algorithm into the function's body
           for (auto& op : algorithm.getBodyRegion().getOps()) {
             builder.clone(op, mapping);
@@ -997,9 +994,10 @@ namespace
             bool removedFromInput = removedInputVars.find(array.index()) != removedInputVars.end();
             bool removedFromOutput = removedOutputVars.find(array.index()) != removedOutputVars.end();
 
+            builder.setInsertionPointToStart(functionBlock);
+
             if (removedFromOutput && !removedFromInput) {
               // Input variable
-              builder.setInsertionPointToStart(functionBlock);
               auto memberType = MemberType::wrap(array.value().getType(), false, IOProperty::input);
 
               mlir::Value member = builder.create<MemberCreateOp>(
