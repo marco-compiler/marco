@@ -3,6 +3,7 @@ add_mlir_dialect_library(MLIRModelica
     ModelicaDialect.cpp
     Interfaces.cpp
     Ops.cpp
+    Shape.cpp
     Types.cpp
 
     DEPENDS
