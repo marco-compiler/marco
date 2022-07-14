@@ -40,7 +40,7 @@ namespace marco::ast
     return "";
 	}
 
-  BuiltInType getMostGenericBuiltInType(BuiltInType x, BuiltInType y)
+  BuiltInType getMostGenericNumericBuiltInType(BuiltInType x, BuiltInType y)
   {
     assert(x == BuiltInType::Boolean || x == BuiltInType::Integer || x == BuiltInType::Real);
     assert(y == BuiltInType::Boolean || y == BuiltInType::Integer || y == BuiltInType::Real);
@@ -70,6 +70,20 @@ namespace marco::ast
     }
 
     return x;
+  }
+
+  llvm::Optional<BuiltInType> getMostGenericBuiltInType(BuiltInType x, BuiltInType y)
+  {
+    if(x == BuiltInType::String && y == BuiltInType::String)
+      return x;
+
+    if(x == BuiltInType::String || y == BuiltInType::String)
+      return {};
+  
+    if( x == BuiltInType::Unknown || y == BuiltInType::Unknown)
+      return {};
+
+    return getMostGenericNumericBuiltInType(x,y);
   }
 
   PackedType::PackedType(llvm::ArrayRef<Type> types)

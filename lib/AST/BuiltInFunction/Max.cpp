@@ -25,7 +25,7 @@ namespace marco::ast::builtin
       auto& xType = args[0]->getType();
       auto& yType = args[1]->getType();
 
-      return Type(getMostGenericBuiltInType(xType.get<BuiltInType>(), yType.get<BuiltInType>()));
+      return Type(*getMostGenericBuiltInType(xType.get<BuiltInType>(), yType.get<BuiltInType>()));
     }
 
     return llvm::None;
