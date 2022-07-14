@@ -1133,9 +1133,12 @@ namespace marco::modeling
 
           const auto& u = edge.getIncidenceMatrix();
 
+          assert(u.getEquationRanges().isSingleMultidimensionalRange());
+          assert(u.getVariableRanges().isSingleMultidimensionalRange());
+
           auto matchOptions = internal::solveLocalMatchingProblem(
-              u.getEquationRanges(),
-              u.getVariableRanges(),
+              u.getEquationRanges().minContainingRange(),//todo remove .minContainingRange()
+              u.getVariableRanges().minContainingRange(),//todo remove .minContainingRange()
               edge.getAccessFunction());
 
           // The simplification steps is executed only in case of a single

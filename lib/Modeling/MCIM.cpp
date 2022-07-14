@@ -14,9 +14,9 @@ using namespace ::marco::modeling::internal;
 namespace marco::modeling::internal
 {
   MCIM::IndicesIterator::IndicesIterator(
-      const MultidimensionalRange& equationRange,
-      const MultidimensionalRange& variableRange,
-      std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
+      const IndexSet& equationRange,
+      const IndexSet& variableRange,
+      std::function<IndexSet::const_point_iterator(const IndexSet&)> initFunction)
       : eqCurrentIt(initFunction(equationRange)),
         eqEndIt(equationRange.end()),
         varBeginIt(variableRange.begin()),
@@ -86,6 +86,11 @@ namespace marco::modeling::internal
       : equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
   {
   }
+  
+  MCIM::Impl::Impl(IndexSet equationRanges, IndexSet variableRanges)
+      : equationRanges(std::move(equationRanges)), variableRanges(std::move(variableRanges))
+  {
+  }
 
   MCIM::Impl::~Impl() = default;
 
@@ -94,12 +99,12 @@ namespace marco::modeling::internal
     return std::make_unique<Impl>(*this);
   }
 
-  const MultidimensionalRange& MCIM::Impl::getEquationRanges() const
+  const IndexSet& MCIM::Impl::getEquationRanges() const
   {
     return equationRanges;
   }
 
-  const MultidimensionalRange& MCIM::Impl::getVariableRanges() const
+  const IndexSet& MCIM::Impl::getVariableRanges() const
   {
     return variableRanges;
   }
@@ -144,11 +149,11 @@ namespace marco::modeling::internal
 
   llvm::iterator_range<MCIM::IndicesIterator> MCIM::Impl::getIndices() const
   {
-    IndicesIterator begin(equationRanges, variableRanges, [](const MultidimensionalRange& range) {
+    IndicesIterator begin(equationRanges, variableRanges, [](const IndexSet& range) {
       return range.begin();
     });
 
-    IndicesIterator end(equationRanges, variableRanges, [](const MultidimensionalRange& range) {
+    IndicesIterator end(equationRanges, variableRanges, [](const IndexSet& range) {
       return range.end();
     });
 
@@ -195,6 +200,34 @@ namespace marco::modeling::internal
   }
 
   void MCIM::Impl::apply(const MultidimensionalRange& equations, const AccessFunction& access)
+  {
+    assert(equationRanges.contains(equations));
+
+    bool isIdentityLike = llvm::all_of(llvm::enumerate(access), [](const auto& dimensionAccess) {
+      if (dimensionAccess.value().isConstantAccess()) {
+        return false;
+      }
+
+      return dimensionAccess.index() == dimensionAccess.value().getInductionVariableIndex();
+    });
+
+    if (isIdentityLike) {
+      auto mappedVariableRanges = access.map(equations);
+      set(equations, mappedVariableRanges);
+
+    } else {
+      // In case of constant accesses or out-of-order induction variables
+      // the delta would be wrong. Thus, we need to iterate over all the
+      // equations indices.
+
+      for (const auto& equationIndices : equations) {
+        auto variableIndices = access.map(equationIndices);
+        set(equationIndices, variableIndices);
+      }
+    }
+  }
+
+  void MCIM::Impl::apply(const IndexSet& equations, const AccessFunction& access)
   {
     assert(equationRanges.contains(equations));
 
@@ -291,6 +324,53 @@ namespace marco::modeling::internal
     IndexSet keys(getKey(equations, variables));
     auto delta = getDelta(equations, variables);
 
+    add(std::move(keys), std::move(delta));
+  }
+
+  void MCIM::Impl::set(const IndexSet& equations, const IndexSet& variables)
+  {
+    assert(equations.rank() == getEquationRanges().rank());
+    assert(variables.rank() == getVariableRanges().rank());
+
+    auto delta = getDelta(equations.minContainingRange(), variables.minContainingRange());
+
+    assert(equations.rank() < variables.rank() || llvm::all_of(equations.getRanges(), [&](const auto& equation) {
+             IndexSet key(equation);
+             MCIMElement group(key);
+
+             IndexSet reducedValues;
+
+             auto groupValues = group.getValues(delta);
+             for (const auto& value : groupValues.getRanges()) {
+               reducedValues += value.slice(variables.rank());
+             }
+
+             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
+               return llvm::any_of(range, [&](const auto& point) {
+                 return !variables.contains(point);
+               });
+             });
+           }));
+
+    assert(equations.rank() >= variables.rank() || llvm::all_of(variables.getRanges(), [&](const auto& variable) {
+             IndexSet key(variable);
+             MCIMElement group(key);
+
+             IndexSet reducedValues;
+
+             auto groupValues = group.getValues(delta);
+             for (const auto& value : groupValues.getRanges()) {
+               reducedValues += value.slice(equations.rank());
+             }
+
+             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
+               return llvm::any_of(range, [&](const auto& point) {
+                 return !equations.contains(point);
+               });
+             });
+           }));
+
+    IndexSet keys(getKey(equations.minContainingRange(), variables.minContainingRange()));
     add(std::move(keys), std::move(delta));
   }
 
@@ -674,6 +754,11 @@ namespace marco::modeling::internal
   {
   }
 
+  MCIM::MCIM(IndexSet equationRanges, IndexSet variableRanges)
+    : impl(std::make_unique<Impl>(std::move(equationRanges), std::move(variableRanges)))
+  {
+  }
+
   MCIM::MCIM(std::unique_ptr<Impl> impl)
     : impl(std::move(impl))
   {
@@ -713,12 +798,12 @@ namespace marco::modeling::internal
     return *impl != *other.impl;
   }
 
-  const MultidimensionalRange& MCIM::getEquationRanges() const
+  const IndexSet& MCIM::getEquationRanges() const
   {
     return impl->getEquationRanges();
   }
 
-  const MultidimensionalRange& MCIM::getVariableRanges() const
+  const IndexSet& MCIM::getVariableRanges() const
   {
     return impl->getVariableRanges();
   }
@@ -896,7 +981,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<size_t, 3> equationIndexesCols;
 
     for (size_t i = 0, e = equationRanges.rank(); i < e; ++i) {
-      equationIndexesCols.push_back(getRangeMaxColumns(equationRanges[i]));
+      equationIndexesCols.push_back(getRangeMaxColumns(equationRanges.minContainingRange()[i]));
     }
 
     size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), static_cast<size_t>(0));
@@ -907,7 +992,7 @@ namespace marco::modeling::internal
     llvm::SmallVector<size_t, 3> variableIndexesCols;
 
     for (size_t i = 0, e = variableRanges.rank(); i < e; ++i) {
-      variableIndexesCols.push_back(getRangeMaxColumns(variableRanges[i]));
+      variableIndexesCols.push_back(getRangeMaxColumns(variableRanges.minContainingRange()[i]));
     }
 
     size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), static_cast<size_t>(0));

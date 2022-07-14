@@ -40,6 +40,48 @@ TEST(MCIM_SameRank, indexesIterator)
   ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
 }
 
+//===----------------------------------------------------------------------===//
+// Equally dimensioned equations and variables, but ragged
+//===----------------------------------------------------------------------===//
+
+TEST(MCIM_SameRank, indexesIteratorRagged)
+{
+  // IndexSet representing the indexes of an array of shape [2,{2,3}]
+  IndexSet eq({  
+    MultidimensionalRange({
+      Range(0, 3),
+      Range(0, 3)
+    }),
+    MultidimensionalRange({
+      Range(0, 3),
+      Range(0, 4)
+    }),
+  });
+
+  MultidimensionalRange var({
+      Range(0, 2),
+      Range(0, 3)
+  });
+
+  MCIM mcim(eq, IndexSet(var));
+
+  std::vector<std::pair<Point, Point>> actual;
+
+  for (auto [equation, variable] : mcim.getIndices()) {
+    actual.emplace_back(equation, variable);
+  }
+
+  std::vector<std::pair<Point, Point>> expected;
+
+  for (auto equation : eq) {
+    for (auto variable : var) {
+      expected.push_back(std::make_pair(equation, variable));
+    }
+  }
+
+  ASSERT_THAT(actual, testing::UnorderedElementsAreArray(expected.begin(), expected.end()));
+}
+
 // Try setting to true the 4 vertices of the matrix.
 //
 // 			 (0,0)  (0,1)  (1,0)  (1,1)  (2,0)  (2,1)  (3,0)  (3,1)
@@ -101,6 +143,86 @@ TEST(MCIM_SameRank, set)
   EXPECT_FALSE(mcim.get({5, 3}, {2, 1}));
   EXPECT_FALSE(mcim.get({5, 3}, {3, 0}));
   EXPECT_TRUE(mcim.get({5, 3}, {3, 1}));
+}
+
+// Try setting to true the 4 vertices of the matrix.
+//
+// 			 (0,0)  (0,1)  (1,0)  (1,1)  (2,0)  (2,1)  (3,0)  (3,1)
+// (4,2)   1      0      0      0      0      0      0      1
+// (4,3)   0      0      0      0      0      0      0      0
+// (5,2)   0      0      0      0      0      0      0      0
+// (5,3)   1      0      0      0      0      0      0      1
+// (5,4)   0      0      0      0      0      0      0      1
+TEST(MCIM_SameRank, setRagged)
+{
+
+  IndexSet eq({  
+    MultidimensionalRange({
+      Range(4, 6),
+      Range(2, 4)
+    }),
+    MultidimensionalRange({
+      Range(5, 6),
+      Range(4, 5)
+    }),
+  });
+
+  MultidimensionalRange var({
+      Range(0, 4),
+      Range(0, 2)
+  });
+
+  MCIM mcim(eq, IndexSet(var));
+  mcim.set({4, 2}, {0, 0});
+  mcim.set({4, 2}, {3, 1});
+  mcim.set({5, 3}, {0, 0});
+  mcim.set({5, 3}, {3, 1});
+  mcim.set({5, 4}, {2, 1});
+
+  EXPECT_TRUE(mcim.get({4, 2}, {0, 0}));
+  EXPECT_FALSE(mcim.get({4, 2}, {0, 1}));
+  EXPECT_FALSE(mcim.get({4, 2}, {1, 0}));
+  EXPECT_FALSE(mcim.get({4, 2}, {1, 1}));
+  EXPECT_FALSE(mcim.get({4, 2}, {2, 0}));
+  EXPECT_FALSE(mcim.get({4, 2}, {2, 1}));
+  EXPECT_FALSE(mcim.get({4, 2}, {3, 0}));
+  EXPECT_TRUE(mcim.get({4, 2}, {3, 1}));
+
+  EXPECT_FALSE(mcim.get({4, 3}, {0, 0}));
+  EXPECT_FALSE(mcim.get({4, 3}, {0, 1}));
+  EXPECT_FALSE(mcim.get({4, 3}, {1, 0}));
+  EXPECT_FALSE(mcim.get({4, 3}, {1, 1}));
+  EXPECT_FALSE(mcim.get({4, 3}, {2, 0}));
+  EXPECT_FALSE(mcim.get({4, 3}, {2, 1}));
+  EXPECT_FALSE(mcim.get({4, 3}, {3, 0}));
+  EXPECT_FALSE(mcim.get({4, 3}, {3, 1}));
+
+  EXPECT_FALSE(mcim.get({5, 2}, {0, 0}));
+  EXPECT_FALSE(mcim.get({5, 2}, {0, 1}));
+  EXPECT_FALSE(mcim.get({5, 2}, {1, 0}));
+  EXPECT_FALSE(mcim.get({5, 2}, {1, 1}));
+  EXPECT_FALSE(mcim.get({5, 2}, {2, 0}));
+  EXPECT_FALSE(mcim.get({5, 2}, {2, 1}));
+  EXPECT_FALSE(mcim.get({5, 2}, {3, 0}));
+  EXPECT_FALSE(mcim.get({5, 2}, {3, 1}));
+
+  EXPECT_TRUE(mcim.get({5, 3}, {0, 0}));
+  EXPECT_FALSE(mcim.get({5, 3}, {0, 1}));
+  EXPECT_FALSE(mcim.get({5, 3}, {1, 0}));
+  EXPECT_FALSE(mcim.get({5, 3}, {1, 1}));
+  EXPECT_FALSE(mcim.get({5, 3}, {2, 0}));
+  EXPECT_FALSE(mcim.get({5, 3}, {2, 1}));
+  EXPECT_FALSE(mcim.get({5, 3}, {3, 0}));
+  EXPECT_TRUE(mcim.get({5, 3}, {3, 1}));
+
+  EXPECT_FALSE(mcim.get({5, 4}, {0, 0}));
+  EXPECT_FALSE(mcim.get({5, 4}, {0, 1}));
+  EXPECT_FALSE(mcim.get({5, 4}, {1, 0}));
+  EXPECT_FALSE(mcim.get({5, 4}, {1, 1}));
+  EXPECT_FALSE(mcim.get({5, 4}, {2, 0}));
+  EXPECT_TRUE(mcim.get({5, 4}, {2, 1}));
+  EXPECT_FALSE(mcim.get({5, 4}, {3, 0}));
+  EXPECT_FALSE(mcim.get({5, 4}, {3, 1}));
 }
 
 // Sum of MCIMs.

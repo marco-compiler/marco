@@ -51,6 +51,8 @@ namespace marco::modeling::internal
       };
 
       Impl(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
+      
+      Impl(IndexSet equationRanges, IndexSet variableRanges);
 
       virtual ~Impl();
 
@@ -60,9 +62,9 @@ namespace marco::modeling::internal
 
       std::unique_ptr<MCIM::Impl> clone();
 
-      const MultidimensionalRange& getEquationRanges() const;
+      const IndexSet& getEquationRanges() const;
 
-      const MultidimensionalRange& getVariableRanges() const;
+      const IndexSet& getVariableRanges() const;
 
       llvm::iterator_range<IndicesIterator> getIndices() const;
 
@@ -73,6 +75,8 @@ namespace marco::modeling::internal
       void apply(const AccessFunction& access);
 
       void apply(const MultidimensionalRange& equations, const AccessFunction& access);
+
+      void apply(const IndexSet& equations, const AccessFunction& access);
 
       bool get(const Point& equation, const Point& variable) const;
 
@@ -105,11 +109,13 @@ namespace marco::modeling::internal
 
       void set(const MultidimensionalRange& equations, const MultidimensionalRange& variables);
 
+      void set(const IndexSet& equations, const IndexSet& variables);
+
       void add(IndexSet equations, Delta delta);
 
     private:
-      MultidimensionalRange equationRanges;
-      MultidimensionalRange variableRanges;
+      IndexSet equationRanges;
+      IndexSet variableRanges;
 
       std::map<Delta, MCIMElement> groups;
   };
