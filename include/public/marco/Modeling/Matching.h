@@ -1033,7 +1033,8 @@ namespace marco::modeling
           auto variableDescriptor = getVariableVertex(access.getVariable());
           Variable& variable = getVariable(variableDescriptor);
 
-          for (const auto& range : variable.getIndices()) {
+          auto indices = variable.getIndices();
+          for (const auto& range : indices.getRanges()) {
             Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), range, access);
             graph.addEdge(equationDescriptor, variableDescriptor, edge);
           }
@@ -1281,7 +1282,7 @@ namespace marco::modeling
 
               IndexSet allIndexes = matched.flattenColumns();
 
-              for (const auto& groupedIndexes : allIndexes) {
+              for (const auto& groupedIndexes : allIndexes.getRanges()) {
                 result.emplace_back(
                     getEquation(equationDescriptor).getProperty(),
                     getVariable(variableDescriptor).getProperty(),

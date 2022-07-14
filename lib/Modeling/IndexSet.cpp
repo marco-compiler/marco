@@ -1667,14 +1667,19 @@ namespace marco::modeling
     impl->clear();
   }
 
-  IndexSet::const_iterator IndexSet::begin() const
-  {
-    return Iterator::begin(*this);
-  }
+  // IndexSet::const_iterator IndexSet::begin() const
+  // {
+  //   return Iterator::begin(*this);
+  // }
 
-  IndexSet::const_iterator IndexSet::end() const
+  // IndexSet::const_iterator IndexSet::end() const
+  // {
+  //   return Iterator::end(*this);
+  // }
+
+  llvm::iterator_range<IndexSet::const_iterator> IndexSet::getRanges() const
   {
-    return Iterator::end(*this);
+    return llvm::make_range(Iterator::begin(*this),Iterator::end(*this));
   }
 
   bool IndexSet::contains(const Point& other) const

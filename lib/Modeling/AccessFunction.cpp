@@ -312,7 +312,7 @@ namespace marco::modeling
   {
     IndexSet result;
 
-    for (const auto& range : indexes) {
+    for (const auto& range : indexes.getRanges()) {
       result += map(range);
     }
 
@@ -345,7 +345,7 @@ namespace marco::modeling
 
     IndexSet result;
 
-    for (const auto& range: parentIndexes) {
+    for (const auto& range: parentIndexes.getRanges()) {
       for (const auto& point: range) {
         if (indices.contains(map(point))) {
           result += point;

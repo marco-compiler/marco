@@ -556,7 +556,7 @@ namespace marco::codegen
 
           auto newEquationIndices = readAccessIndices.intersect(equation->getIterationRanges());
 
-          for (const auto& range : newEquationIndices) {
+          for (const auto& range : newEquationIndices.getRanges()) {
             auto matchedEquation = std::make_unique<MatchedEquation>(
                 clone->clone(), range, equation->getWrite().getPath());
 

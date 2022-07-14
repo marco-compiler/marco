@@ -257,11 +257,12 @@ namespace marco::modeling::internal
 
              IndexSet reducedValues;
 
-             for (const auto& value : group.getValues(delta)) {
+             auto groupValues = group.getValues(delta);
+             for (const auto& value : groupValues.getRanges()) {
                reducedValues += value.slice(variables.rank());
              }
 
-             return llvm::none_of(reducedValues, [&](const auto& range) {
+             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
                return llvm::any_of(range, [&](const auto& point) {
                  return !variables.contains(point);
                });
@@ -275,11 +276,12 @@ namespace marco::modeling::internal
 
              IndexSet reducedValues;
 
-             for (const auto& value : group.getValues(delta)) {
+             auto groupValues = group.getValues(delta);
+             for (const auto& value : groupValues.getRanges()) {
                reducedValues += value.slice(equations.rank());
              }
 
-             return llvm::none_of(reducedValues, [&](const auto& range) {
+             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
                return llvm::any_of(range, [&](const auto& point) {
                  return !equations.contains(point);
                });
@@ -329,7 +331,8 @@ namespace marco::modeling::internal
 
     if (equationRanges.rank() >= variableRanges.rank()) {
       for (const auto& group : groups) {
-        for (const auto& range : group.second.getValues(group.first)) {
+        auto values = group.second.getValues(group.first);
+        for (const auto& range : values.getRanges()) {
           result += range.slice(variableRanges.rank());
         }
       }
@@ -356,7 +359,8 @@ namespace marco::modeling::internal
       }
     } else {
       for (const auto& group : groups) {
-        for (const auto& range : group.second.getValues(group.first)) {
+        auto values = group.second.getValues(group.first);
+        for (const auto& range : values.getRanges()) {
           result += range.slice(equationRanges.rank());
         }
       }
@@ -382,7 +386,8 @@ namespace marco::modeling::internal
         auto invertedGroup = group.second.inverse(group.first);
         IndexSet equations;
 
-        for (const auto& extendedEquations : invertedGroup.getKeys()) {
+        auto invertedKeys = invertedGroup.getKeys();
+        for (const auto& extendedEquations : invertedKeys.getRanges()) {
           equations += extendedEquations.slice(equationRanges.rank());
         }
 
@@ -390,7 +395,7 @@ namespace marco::modeling::internal
           IndexSet filteredEquations = equations.intersect(filter);
           IndexSet filteredExtendedEquations;
 
-          for (const auto& filteredEquation : filteredEquations) {
+          for (const auto& filteredEquation : filteredEquations.getRanges()) {
             std::vector<Range> ranges;
 
             for (size_t i = 0; i < filteredEquation.rank(); ++i) {
@@ -437,7 +442,8 @@ namespace marco::modeling::internal
         auto invertedGroup = group.second.inverse(group.first);
         IndexSet variables;
 
-        for (const auto& extendedVariables : invertedGroup.getKeys()) {
+        auto invertedKeys = invertedGroup.getKeys();
+        for (const auto& extendedVariables : invertedKeys.getRanges()) {
           variables += extendedVariables.slice(variableRanges.rank());
         }
 
@@ -445,7 +451,7 @@ namespace marco::modeling::internal
           IndexSet filteredVariables = variables.intersect(filter);
           IndexSet filteredExtendedVariables;
 
-          for (const auto& filteredVariable : filteredVariables) {
+          for (const auto& filteredVariable : filteredVariables.getRanges()) {
             std::vector<Range> ranges;
 
             for (size_t i = 0; i < filteredVariable.rank(); ++i) {
@@ -638,7 +644,7 @@ namespace marco::modeling::internal
   {
     IndexSet result;
 
-    for (const auto& keyRange : keys) {
+    for (const auto& keyRange : keys.getRanges()) {
       std::vector<Range> valueRanges;
 
       for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {

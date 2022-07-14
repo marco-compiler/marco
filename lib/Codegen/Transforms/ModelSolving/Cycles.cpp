@@ -41,7 +41,7 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
       solver.solve(cycle);
 
       // Add the indices that do not present any loop
-      for (const auto& range : indexesWithoutCycles) {
+      for (const auto& range : indexesWithoutCycles.getRanges()) {
         auto clonedEquation = Equation::build(
             cycle.getEquation()->getOperation(),
             cycle.getEquation()->getVariables());
