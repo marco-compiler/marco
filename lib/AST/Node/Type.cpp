@@ -580,7 +580,11 @@ namespace marco::ast
 
     auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
       return a + (a.length() > 0 ? "," : "") +
-          (b.isDynamic() ? ":" : std::to_string(b.getNumericSize()));
+          (b.hasExpression() ? toString(*b.getExpression()) :
+            (b.isDynamic() ? ":" :
+              std::to_string(b.getNumericSize())
+            )
+          );
     };
 
     auto dimensions = obj.getDimensions();
