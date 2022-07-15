@@ -5,6 +5,7 @@
 
 using namespace ::marco;
 using namespace ::marco::codegen;
+using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
 [[maybe_unused]] static bool checkArrayTypeCompatibility(ArrayType first, ArrayType second)
@@ -103,5 +104,47 @@ namespace marco::codegen
           mlir::Value value = nestedBuilder.create<LoadOp>(loc, source, indices);
           nestedBuilder.create<StoreOp>(loc, value, destination, indices);
         });
+  }
+
+  modeling::IndexSet getIndexSet(mlir::modelica::IterationSpace iterationSpace)
+  {
+    IndexSet current;
+
+    if (auto iterationRange = iterationSpace.getIterationRange(); iterationRange.step() == 1) {
+      current += MultidimensionalRange(Range(iterationRange.from(), iterationRange.to() + 1));
+    } else {
+      for (auto index = iterationRange.from(); index < iterationRange.to(); index += iterationRange.step()) {
+        current += Point(index);
+      }
+    }
+
+    if (!iterationSpace.hasSubDimensions()) {
+      return current;
+    }
+
+    modeling::IndexSet result;
+
+    for (const auto& subDimension : iterationSpace) {
+      auto extension = current.intersect(MultidimensionalRange(Range(
+          subDimension.first.from(), subDimension.first.to() + 1)));
+
+      for (const auto& childRange : getIndexSet(*subDimension.second)) {
+        for (const auto& parentRange : extension) {
+          std::vector<Range> extended;
+
+          for (size_t i = 0; i < parentRange.rank(); ++i) {
+            extended.push_back(parentRange[i]);
+          }
+
+          for (size_t i = 0; i < childRange.rank(); ++i) {
+            extended.push_back(childRange[i]);
+          }
+
+          result += MultidimensionalRange(extended);
+        }
+      }
+    }
+
+    return result;
   }
 }

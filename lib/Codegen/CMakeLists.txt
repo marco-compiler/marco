@@ -27,13 +27,9 @@ set(MLIR_LIBS
 marco_add_library(codegen
     ${SOURCES}
 
-    DEPENDS
-    marco::ast
-    marco::variableFilter
-    marco::utils
-
     LINK_LIBS PUBLIC
     marco::ast
+    marco::modeling
     marco::variableFilter
     marco::utils
     ${MLIR_LIBS})

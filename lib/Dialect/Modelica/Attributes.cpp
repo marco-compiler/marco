@@ -333,4 +333,179 @@ namespace mlir::modelica
   {
     printer << "derivative" << "<\"" << getName() << "\", " << getOrder() << ">";
   }
+
+  //===----------------------------------------------------------------------===//
+  // IterationSpaceAttr
+  //===----------------------------------------------------------------------===//
+
+  ContiguousRange::ContiguousRange(size_t from, size_t to)
+      : from_(from), to_(to)
+  {
+  }
+
+  bool ContiguousRange::operator==(const ContiguousRange& other) const
+  {
+    return from_ == other.from_ && to_ == other.to_;
+  }
+
+  bool ContiguousRange::operator!=(const ContiguousRange& other) const
+  {
+    return from_ != other.from_ || to_ != other.to_;
+  }
+
+  size_t ContiguousRange::from() const
+  {
+    return from_;
+  }
+
+  size_t ContiguousRange::to() const
+  {
+    return to_;
+  }
+
+  IterationRange::IterationRange(size_t from, size_t to, size_t step)
+    : from_(from), to_(to), step_(step)
+  {
+  }
+
+  bool IterationRange::operator==(const IterationRange& other) const
+  {
+    return from_ == other.from_ && to_ == other.to_ && step_ == other.step_;
+  }
+
+  bool IterationRange::operator!=(const IterationRange& other) const
+  {
+    return from_ != other.from_ || to_ != other.to_ || step_ != other.step_;
+  }
+
+  size_t IterationRange::from() const
+  {
+    return from_;
+  }
+
+  size_t IterationRange::to() const
+  {
+    return to_;
+  }
+
+  size_t IterationRange::step() const
+  {
+    return step_;
+  }
+
+  IterationSpace::IterationSpace(IterationRange iterationRange, IterationSpace::SubDimensions subDimensions)
+    : iterationRange_(std::move(iterationRange)),
+      subDimensions_(std::move(subDimensions))
+  {
+  }
+
+  /*
+  IterationSpace::~IterationSpace()
+  {
+    for (auto& subDimension : subDimensions_) {
+      delete subDimension.second;
+    }
+  }
+   */
+
+  /*
+  IterationSpace::IterationSpace(const IterationSpace& other)
+    : iterationRange_(other.iterationRange_)
+  {
+    subDimensions_.clear();
+
+    for (const auto& subDimension : other.subDimensions_) {
+      auto* space = new IterationSpace(*subDimension.second);
+      subDimensions_.emplace_back(subDimension.first, space);
+    }
+  }
+   */
+
+  bool IterationSpace::operator==(const IterationSpace& other) const
+  {
+    if (iterationRange_ != other.iterationRange_) {
+      return false;
+    }
+
+    if (subDimensions_.size() != other.subDimensions_.size()) {
+      return false;
+    }
+
+    auto pairs = llvm::zip(subDimensions_, other.subDimensions_);
+
+    return llvm::all_of(pairs, [](const auto& pair) {
+      const auto& first = std::get<0>(pair);
+      const auto& second = std::get<1>(pair);
+
+      return first.first == second.first && *first.second == *second.second;
+    });
+  }
+
+  IterationSpace IterationSpace::allocateInto(mlir::StorageUniquer::StorageAllocator& allocator)
+  {
+    std::vector<std::pair<ContiguousRange, IterationSpace*>> subDimensions;
+
+    for (const auto& subDimension : subDimensions_) {
+      auto* space = allocator.allocate<IterationSpace>();
+      *space = subDimension.second->allocateInto(allocator);
+      subDimensions.emplace_back(subDimension.first, space);
+    }
+
+    return IterationSpace(
+        iterationRange_,
+        allocator.copyInto(llvm::makeArrayRef(subDimensions)));
+  }
+
+  const IterationRange& IterationSpace::getIterationRange() const
+  {
+    return iterationRange_;
+  }
+
+  size_t IterationSpace::getRank() const
+  {
+    if (subDimensions_.empty()) {
+      return 1;
+    }
+
+    auto childrenRank = subDimensions_[0].second->getRank();
+
+    assert(llvm::all_of(subDimensions_, [&](const auto& subDimension) {
+      return subDimension.second->getRank() == childrenRank;
+    }) && "The iteration space has paths with different ranks");
+
+    return childrenRank + 1;
+  }
+
+  bool IterationSpace::hasSubDimensions() const
+  {
+    return !subDimensions_.empty();
+  }
+
+  IterationSpace::const_iterator IterationSpace::begin() const
+  {
+    return subDimensions_.begin();
+  }
+
+  IterationSpace::const_iterator IterationSpace::end() const
+  {
+    return subDimensions_.end();
+  }
+
+  llvm::hash_code hash_value(const IterationSpace& iterationSpace)
+  {
+    // TODO
+    return llvm::hash_value(0);
+  }
+
+  mlir::Attribute IterationSpaceAttr::parse(mlir::AsmParser& parser, mlir::Type type)
+  {
+    // TODO
+    llvm_unreachable("Not implemented");
+  }
+
+  void IterationSpaceAttr::print(mlir::AsmPrinter& printer) const
+  {
+    // TODO
+    printer << "iteration_space";
+  }
 }
