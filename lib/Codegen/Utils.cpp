@@ -128,8 +128,9 @@ namespace marco::codegen
       auto extension = current.intersect(MultidimensionalRange(Range(
           subDimension.first.from(), subDimension.first.to() + 1)));
 
-      for (const auto& childRange : getIndexSet(*subDimension.second)) {
-        for (const auto& parentRange : extension) {
+      auto indexSet = getIndexSet(*subDimension.second);
+      for (const auto& childRange : indexSet.getRanges()) {
+        for (const auto& parentRange : extension.getRanges()) {
           std::vector<Range> extended;
 
           for (size_t i = 0; i < parentRange.rank(); ++i) {
