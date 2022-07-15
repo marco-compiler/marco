@@ -5,6 +5,7 @@ include(GoogleTest)
 
 add_subdirectory(AST)
 add_subdirectory(Codegen)
+add_subdirectory(Dialect)
 add_subdirectory(Modeling)
 add_subdirectory(Parser)
 add_subdirectory(Runtime)

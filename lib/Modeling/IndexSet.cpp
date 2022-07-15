@@ -1126,26 +1126,23 @@ namespace marco::modeling
       return result;
     }
 
-    MultidimensionalRange intersection = other;
-
     while (!nodes.empty()) {
       auto node = nodes.top();
       nodes.pop();
 
       for (const auto& child : node->children) {
-        if (child->getBoundary().overlaps(intersection)) {
+        if (child->getBoundary().overlaps(other)) {
           nodes.push(child.get());
         }
       }
 
       for (const auto& value : node->values) {
-        if (value.overlaps(intersection)) {
-          intersection = intersection.intersect(value);
+        if (value.overlaps(other)) {
+          result += other.intersect(value);
         }
       }
     }
 
-    result += intersection;
     return result;
   }
 

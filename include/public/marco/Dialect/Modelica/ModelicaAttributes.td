@@ -111,4 +111,16 @@ def Modelica_DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {
     let hasCustomAssemblyFormat = 1;
 }
 
+def Modelica_IterationSpaceAttr : Modelica_Attr<"IterationSpace", "iteration_space"> {
+    let summary = "TODO";
+
+    let description = [{
+        // TODO
+    }];
+
+    let parameters = (ins SelfAllocationParameter<"IterationSpace", "Iteration space">:$value);
+
+    let hasCustomAssemblyFormat = 1;
+}
+
 #endif // MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_TD

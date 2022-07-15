@@ -252,7 +252,7 @@ static mlir::LogicalResult pushNegateOps(mlir::OpBuilder& builder, mlir::Operati
 static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result, mlir::Value root)
 {
   if (auto definingOp = root.getDefiningOp()) {
-    if (auto addOp = mlir::dyn_cast<AddOp>(root.getDefiningOp())) {
+    if (auto addOp = mlir::dyn_cast<AddOp>(definingOp)) {
       if (auto res = collectSummedValues(result, addOp.getLhs()); mlir::failed(res)) {
         return res;
       }
