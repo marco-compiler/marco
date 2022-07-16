@@ -219,7 +219,7 @@ TEST(UndirectedGraph, outgoingEdges)
           UnwrappedEdge(y, z, e4)));
 
   auto zEdges = llvm::make_range(
-      graph.outgoingEdgesBegin(x),
+      graph.outgoingEdgesBegin(z),
       graph.outgoingEdgesEnd(z));
 
   EXPECT_THAT(unwrapEdges(graph, zEdges),
