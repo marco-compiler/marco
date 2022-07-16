@@ -1,6 +1,7 @@
 #include "llvm/Support/Casting.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/MCIMImpl.h"
+#include "llvm/ADT/iterator_range.h"
 #include <numeric>
 
 using namespace ::marco;
@@ -119,7 +120,9 @@ namespace marco::modeling::internal
       return false;
     }
 
-    for (const auto& [equation, variable] : getIndices()) {
+    auto indices = llvm::make_range(indicesBegin(), indicesEnd());
+
+    for (const auto& [equation, variable] : indices) {
       if (get(equation, variable) != rhs.get(equation, variable)) {
         return false;
       }
@@ -138,7 +141,9 @@ namespace marco::modeling::internal
       return true;
     }
 
-    for (const auto& [equation, variable] : getIndices()) {
+    auto indices = llvm::make_range(indicesBegin(), indicesEnd());
+
+    for (const auto& [equation, variable] : indices) {
       if (get(equation, variable) != rhs.get(equation, variable)) {
         return true;
       }
@@ -147,17 +152,18 @@ namespace marco::modeling::internal
     return false;
   }
 
-  llvm::iterator_range<MCIM::IndicesIterator> MCIM::Impl::getIndices() const
+  MCIM::IndicesIterator MCIM::Impl::indicesBegin() const
   {
-    IndicesIterator begin(equationRanges, variableRanges, [](const IndexSet& range) {
+    return IndicesIterator(equationRanges, variableRanges, [](const IndexSet& range) {
       return range.begin();
     });
+  }
 
-    IndicesIterator end(equationRanges, variableRanges, [](const IndexSet& range) {
+  MCIM::IndicesIterator MCIM::Impl::indicesEnd() const
+  {
+    return IndicesIterator(equationRanges, variableRanges, [](const IndexSet& range) {
       return range.end();
     });
-
-    return llvm::iterator_range<MCIM::IndicesIterator>(begin, end);
   }
 
   MCIM::Impl& MCIM::Impl::operator+=(const MCIM::Impl& rhs)
@@ -808,9 +814,14 @@ namespace marco::modeling::internal
     return impl->getVariableRanges();
   }
 
-  llvm::iterator_range<MCIM::IndicesIterator> MCIM::getIndices() const
+  MCIM::IndicesIterator MCIM::indicesBegin() const
   {
-    return impl->getIndices();
+    return impl->indicesBegin();
+  }
+
+  MCIM::IndicesIterator MCIM::indicesEnd() const
+  {
+    return impl->indicesEnd();
   }
 
   MCIM& MCIM::operator+=(const MCIM& rhs)

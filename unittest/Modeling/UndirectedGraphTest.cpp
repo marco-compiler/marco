@@ -139,7 +139,9 @@ TEST(UndirectedGraph, vertices)
   graph.addVertex(y);
   graph.addVertex(z);
 
-  EXPECT_THAT(unwrapVertices(graph, graph.getVertices()),
+  auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
+
+  EXPECT_THAT(unwrapVertices(graph, vertices),
       UnorderedElementsAre(UnwrappedVertex(x),
           UnwrappedVertex(y),
           UnwrappedVertex(z)));
@@ -161,7 +163,9 @@ TEST(UndirectedGraph, filteredVertices)
     return vertex.getValue() == 1;
   };
 
-  EXPECT_THAT(unwrapVertices(graph, graph.getVertices(filter)),
+  auto vertices = llvm::make_range(graph.verticesBegin(filter), graph.verticesEnd(filter));
+
+  EXPECT_THAT(unwrapVertices(graph, vertices),
       UnorderedElementsAre(UnwrappedVertex(x),
           UnwrappedVertex(z)));
 }
@@ -196,17 +200,29 @@ TEST(UndirectedGraph, outgoingEdges)
   Edge e4("e4");
   graph.addEdge(y, z, e4);
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(x)),
+  auto xEdges = llvm::make_range(
+      graph.outgoingEdgesBegin(x),
+      graph.outgoingEdgesEnd(x));
+
+  EXPECT_THAT(unwrapEdges(graph,xEdges),
       UnorderedElementsAre(UnwrappedEdge(x, y, e1),
           UnwrappedEdge(x, y, e2),
           UnwrappedEdge(x, z, e3)));
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(y)),
+  auto yEdges = llvm::make_range(
+      graph.outgoingEdgesBegin(y),
+      graph.outgoingEdgesEnd(y));
+
+  EXPECT_THAT(unwrapEdges(graph, yEdges),
       UnorderedElementsAre(UnwrappedEdge(y, x, e1),
           UnwrappedEdge(y, x, e2),
           UnwrappedEdge(y, z, e4)));
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(z)),
+  auto zEdges = llvm::make_range(
+      graph.outgoingEdgesBegin(x),
+      graph.outgoingEdgesEnd(z));
+
+  EXPECT_THAT(unwrapEdges(graph, zEdges),
       UnorderedElementsAre(UnwrappedEdge(z, x, e3),
           UnwrappedEdge(z, y, e4)));
 }
@@ -237,15 +253,27 @@ TEST(UndirectedGraph, filteredOutgoingEdges)
     return edge.getValue() == 1;
   };
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(x, filter)),
+  auto xEdges = llvm::make_range(
+      graph.outgoingEdgesBegin(x, filter),
+      graph.outgoingEdgesEnd(x, filter));
+
+  EXPECT_THAT(unwrapEdges(graph, xEdges),
       UnorderedElementsAre(UnwrappedEdge(x, y, e1),
           UnwrappedEdge(x, z, e3)));
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(y, filter)),
+  auto yEdges = llvm::make_range(
+      graph.outgoingEdgesBegin(y, filter),
+      graph.outgoingEdgesEnd(y, filter));
+
+  EXPECT_THAT(unwrapEdges(graph, yEdges),
       UnorderedElementsAre(UnwrappedEdge(y, x, e1),
           UnwrappedEdge(y, z, e4)));
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getOutgoingEdges(z, filter)),
+  auto zEdges = llvm::make_range(
+      graph.outgoingEdgesBegin(z, filter),
+      graph.outgoingEdgesEnd(z, filter));
+
+  EXPECT_THAT(unwrapEdges(graph, zEdges),
       UnorderedElementsAre(UnwrappedEdge(z, x, e3),
           UnwrappedEdge(z, y, e4)));
 }
@@ -269,7 +297,9 @@ TEST(UndirectedGraph, edges)
   Edge e4("e4");
   graph.addEdge(y, z, e4);
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getEdges()),
+  auto edges = llvm::make_range(graph.edgesBegin(), graph.edgesEnd());
+
+  EXPECT_THAT(unwrapEdges(graph, edges),
       UnorderedElementsAre(UnwrappedEdge(x, y, e1),
           UnwrappedEdge(x, y, e2),
           UnwrappedEdge(x, z, e3),
@@ -299,7 +329,11 @@ TEST(UndirectedGraph, filteredEdges)
     return edge.getValue() == 1;
   };
 
-  EXPECT_THAT(unwrapEdges(graph, graph.getEdges(filter)),
+  auto edges = llvm::make_range(
+      graph.edgesBegin(filter),
+      graph.edgesEnd(filter));
+
+  EXPECT_THAT(unwrapEdges(graph, edges),
       UnorderedElementsAre(UnwrappedEdge(x, y, e1),
           UnwrappedEdge(x, z, e3),
           UnwrappedEdge(y, z, e4)));

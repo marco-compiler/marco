@@ -25,7 +25,7 @@ TEST(MCIM_SameRank, indexesIterator)
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : mcim.getIndices()) {
+  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -67,7 +67,7 @@ TEST(MCIM_SameRank, indexesIteratorRagged)
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : mcim.getIndices()) {
+  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -632,7 +632,7 @@ TEST(MCIM_UnderdimensionedVariables, indexesIterator)
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : mcim.getIndices()) {
+  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 
@@ -1102,7 +1102,7 @@ TEST(MCIM_UnderdimensionedEquations, indexesIterator)
 
   std::vector<std::pair<Point, Point>> actual;
 
-  for (auto [equation, variable] : mcim.getIndices()) {
+  for (auto [equation, variable] : llvm::make_range(mcim.indicesBegin(), mcim.indicesEnd())) {
     actual.emplace_back(equation, variable);
   }
 

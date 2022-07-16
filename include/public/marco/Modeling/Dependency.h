@@ -444,9 +444,17 @@ namespace marco::modeling
           return descriptor;
         }
 
-        auto getVertices() const
+        auto verticesBegin() const
         {
-          return graph.getVertices([](const typename Graph::VertexProperty& vertex) {
+          return graph.verticesBegin([](const typename Graph::VertexProperty& vertex) {
+            // Hide the entry point
+            return !vertex.empty();
+          });
+        }
+
+        auto verticesEnd() const
+        {
+          return graph.verticesEnd([](const typename Graph::VertexProperty& vertex) {
             // Hide the entry point
             return !vertex.empty();
           });
@@ -462,14 +470,24 @@ namespace marco::modeling
           return graph.getEdges();
         }
 
-        auto getOutgoingEdges(VertexDescriptor vertex) const
+        auto outgoingEdgesBegin(VertexDescriptor vertex) const
         {
-          return graph.getOutgoingEdges(std::move(vertex));
+          return graph.outgoingEdgesBegin(std::move(vertex));
         }
 
-        auto getLinkedVertices(VertexDescriptor vertex) const
+        auto outgoingEdgesEnd(VertexDescriptor vertex) const
         {
-          return graph.getLinkedVertices(std::move(vertex));
+          return graph.outgoingEdgesEnd(std::move(vertex));
+        }
+
+        auto linkedVerticesBegin(VertexDescriptor vertex) const
+        {
+          return graph.linkedVerticesBegin(std::move(vertex));
+        }
+
+        auto linkedVerticesEnd(VertexDescriptor vertex) const
+        {
+          return graph.linkedVerticesEnd(std::move(vertex));
         }
 
       private:
@@ -593,7 +611,11 @@ namespace marco::modeling
           std::vector<ElementRef> result;
           const auto& graph = SCC->getGraph();
 
-          for (const auto& edge : graph.getOutgoingEdges(element)) {
+          auto edges = llvm::make_range(
+              graph.outgoingEdgesBegin(element),
+              graph.outgoingEdgesEnd(element));
+
+          for (const auto& edge : edges) {
             result.push_back(edge.to);
           }
 
@@ -622,26 +644,24 @@ namespace llvm
 
     static ChildIteratorType child_begin(NodeRef node)
     {
-      auto vertices = node.graph->getLinkedVertices(node);
-      return vertices.begin();
+      return node.graph->linkedVerticesBegin(node);
     }
 
     static ChildIteratorType child_end(NodeRef node)
     {
-      auto vertices = node.graph->getLinkedVertices(node);
-      return vertices.end();
+      return node.graph->linkedVerticesEnd(node);
     }
 
     using nodes_iterator = typename Graph::VertexIterator;
 
     static nodes_iterator nodes_begin(Graph* graph)
     {
-      return graph->getVertices().begin();
+      return graph->verticesBegin();
     }
 
     static nodes_iterator nodes_end(Graph* graph)
     {
-      return graph->getVertices().end();
+      return graph->verticesEnd();
     }
 
     using EdgeRef = typename Graph::EdgeDescriptor;
@@ -649,14 +669,12 @@ namespace llvm
 
     static ChildEdgeIteratorType child_edge_begin(NodeRef node)
     {
-      auto edges = node.graph->getOutgoingEdges(node);
-      return edges.begin();
+      return node.graph->outgoingEdgesBegin(node);
     }
 
     static ChildEdgeIteratorType child_edge_end(NodeRef node)
     {
-      auto edges = node.graph->getOutgoingEdges(node);
-      return edges.end();
+      return node.graph->outgoingEdgesEnd(node);
     }
 
     static NodeRef edge_dest(EdgeRef edge)
@@ -701,14 +719,14 @@ namespace marco::modeling::internal
         }
 
         // Determine which equation writes into which variable, together with the accessed indexes.
-        auto vertices = graph.getVertices();
+        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
         auto writes = getWritesMap(vertices.begin(), vertices.end());
 
         // Now that the writes are known, we can explore the reads in order to determine the dependencies among
         // the equations. An equation e1 depends on another equation e2 if e1 reads (a part) of a variable that is
         // written by e2.
 
-        for (const auto& equationDescriptor: graph.getVertices()) {
+        for (const auto& equationDescriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
           const Equation& equation = graph[equationDescriptor];
 
           auto reads = equation.getReads();
@@ -815,7 +833,7 @@ namespace marco::modeling::internal
         }
 
         // Connect the SCCs
-        for (const auto& sccDescriptor : graph.getVertices()) {
+        for (const auto& sccDescriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
           const auto& scc = graph[sccDescriptor];
 
           // The set of SCCs that have already been connected to the current SCC.
@@ -951,7 +969,7 @@ namespace marco::modeling::internal
         }
 
         // Determine the dependencies among the equations
-        for (const auto& equationDescriptor: graph.getVertices()) {
+        for (const auto& equationDescriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
           const ScalarEquation& scalarEquation = graph[equationDescriptor];
           auto reads = VectorEquationTraits::getReads(&scalarEquation.getProperty());
 

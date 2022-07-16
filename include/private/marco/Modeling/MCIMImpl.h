@@ -66,7 +66,9 @@ namespace marco::modeling::internal
 
       const IndexSet& getVariableRanges() const;
 
-      llvm::iterator_range<IndicesIterator> getIndices() const;
+      IndicesIterator indicesBegin() const;
+
+      IndicesIterator indicesEnd() const;
 
       virtual MCIM::Impl& operator+=(const MCIM::Impl& rhs);
 

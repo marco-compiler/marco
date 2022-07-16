@@ -889,7 +889,7 @@ namespace marco::modeling
         TreeOStream os(stream);
         os << "Matching graph\n";
 
-        for (auto descriptor : graph.getVertices()) {
+        for (auto descriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
           std::visit(
               [&](const auto& vertex) {
                 os << tree_property;
@@ -897,7 +897,7 @@ namespace marco::modeling
               }, graph[descriptor]);
         }
 
-        for (auto descriptor : graph.getEdges()) {
+        for (auto descriptor : llvm::make_range(graph.edgesBegin(), graph.edgesEnd())) {
           os << tree_property;
           graph[descriptor].dump(os);
         }
@@ -946,13 +946,22 @@ namespace marco::modeling
         return std::get<Variable>(vertex);
       }
 
-      llvm::iterator_range<VariableIterator> getVariables() const
+      VariableIterator variablesBegin() const
       {
         auto filter = [](const Vertex& vertex) -> bool {
           return std::holds_alternative<Variable>(vertex);
         };
 
-        return graph.getVertices(filter);
+        return graph.verticesBegin(filter);
+      }
+
+      VariableIterator variablesEnd() const
+      {
+        auto filter = [](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Variable>(vertex);
+        };
+
+        return graph.verticesEnd(filter);
       }
 
       void addVariable(VariableProperty property)
@@ -1005,13 +1014,22 @@ namespace marco::modeling
         return std::get<Equation>(vertex);
       }
 
-      llvm::iterator_range<EquationIterator> getEquations() const
+      EquationIterator equationsBegin() const
       {
         auto filter = [](const Vertex& vertex) -> bool {
           return std::holds_alternative<Equation>(vertex);
         };
 
-        return graph.getVertices(filter);
+        return graph.verticesBegin(filter);
+      }
+
+      EquationIterator equationsEnd() const
+      {
+        auto filter = [](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Equation>(vertex);
+        };
+
+        return graph.verticesEnd(filter);
       }
 
       void addEquation(EquationProperty property)
@@ -1046,7 +1064,7 @@ namespace marco::modeling
       {
         size_t result = 0;
 
-        for (auto variableDescriptor : getVariables()) {
+        for (auto variableDescriptor : llvm::make_range(variablesBegin(), variablesEnd())) {
           result += getVariable(variableDescriptor).flatSize();
         }
 
@@ -1060,7 +1078,7 @@ namespace marco::modeling
       {
         size_t result = 0;
 
-        for (auto equationDescriptor : getEquations()) {
+        for (auto equationDescriptor : llvm::make_range(equationsBegin(), equationsEnd())) {
           result += getEquation(equationDescriptor).flatSize();
         }
 
@@ -1069,7 +1087,7 @@ namespace marco::modeling
 
       bool allNodesMatched() const
       {
-        auto vertices = graph.getVertices();
+        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
 
         auto allComponentsMatchedFn = [](const auto& obj) {
           return obj.allComponentsMatched();
@@ -1092,7 +1110,7 @@ namespace marco::modeling
 
       EdgeDescriptor getFirstOutVisibleEdge(VertexDescriptor vertex) const
       {
-        auto edges = getVisibleEdges(vertex);
+        auto edges = llvm::make_range(visibleEdgesBegin(vertex), visibleEdgesEnd(vertex));
         assert(edges.begin() != edges.end() && "Vertex doesn't belong to any edge");
         return *edges.begin();
       }
@@ -1109,7 +1127,7 @@ namespace marco::modeling
         std::list<VertexDescriptor> candidates;
 
         // Determine the initial set of vertices with exactly one incident edge
-        for (VertexDescriptor vertex : graph.getVertices()) {
+        for (VertexDescriptor vertex : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
           auto incidentEdges = getVertexVisibilityDegree(vertex);
 
           if (incidentEdges == 0) {
@@ -1191,7 +1209,7 @@ namespace marco::modeling
               // v2 is removed because fully matched.
               // v3 and v4 become new candidates for the simplification pass.
 
-              for (auto e : graph.getOutgoingEdges(v2)) {
+              for (auto e : llvm::make_range(graph.outgoingEdgesBegin(v2), graph.outgoingEdgesEnd(v2))) {
                 remove(e);
 
                 VertexDescriptor v = e.from == v2 ? e.to : e.from;
@@ -1275,8 +1293,8 @@ namespace marco::modeling
         assert(allNodesMatched() && "Not all the nodes have been fully matched");
         std::vector<MatchingSolution> result;
 
-        for (auto equationDescriptor : getEquations()) {
-          for (auto edgeDescriptor : getEdges(equationDescriptor)) {
+        for (auto equationDescriptor : llvm::make_range(equationsBegin(), equationsEnd())) {
+          for (auto edgeDescriptor : llvm::make_range(edgesBegin(equationDescriptor), edgesEnd(equationDescriptor))) {
             const Edge& edge = graph[edgeDescriptor];
 
             if (const auto& matched = edge.getMatched(); !matched.empty()) {
@@ -1309,7 +1327,7 @@ namespace marco::modeling
       template<typename T>
       std::pair<bool, VertexIterator> findVertex(typename T::Id id) const
       {
-        auto vertices = graph.getVertices();
+        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
 
         auto it = std::find_if(
             vertices.begin(), vertices.end(), [&](const VertexDescriptor& v) {
@@ -1327,7 +1345,7 @@ namespace marco::modeling
 
       size_t getVertexVisibilityDegree(VertexDescriptor vertex) const
       {
-        auto edges = getVisibleEdges(vertex);
+        auto edges = llvm::make_range(visibleEdgesBegin(vertex), visibleEdgesEnd(vertex));
         return std::distance(edges.begin(), edges.end());
       }
 
@@ -1342,7 +1360,7 @@ namespace marco::modeling
       template<typename From, typename To>
       std::pair<bool, EdgeIterator> findEdge(typename From::Id from, typename To::Id to) const
       {
-        auto edges = graph.getEdges();
+        auto edges = llvm::make_range(graph.edgesBegin(), graph.edgesEnd());
 
         auto it = std::find_if(
             edges.begin(), edges.end(), [&](const EdgeDescriptor& e) {
@@ -1359,18 +1377,32 @@ namespace marco::modeling
         return std::make_pair(it != edges.end(), it);
       }
 
-      auto getEdges(VertexDescriptor vertex) const
+      auto edgesBegin(VertexDescriptor vertex) const
       {
-        return graph.getOutgoingEdges(vertex);
+        return graph.outgoingEdgesBegin(vertex);
       }
 
-      llvm::iterator_range<VisibleIncidentEdgeIterator> getVisibleEdges(VertexDescriptor vertex) const
+      auto edgesEnd(VertexDescriptor vertex) const
+      {
+        return graph.outgoingEdgesEnd(vertex);
+      }
+
+      VisibleIncidentEdgeIterator visibleEdgesBegin(VertexDescriptor vertex) const
       {
         auto filter = [&](const Edge& edge) -> bool {
           return edge.isVisible();
         };
 
-        return graph.getOutgoingEdges(vertex, filter);
+        return graph.outgoingEdgesBegin(vertex, filter);
+      }
+
+      VisibleIncidentEdgeIterator visibleEdgesEnd(VertexDescriptor vertex) const
+      {
+        auto filter = [&](const Edge& edge) -> bool {
+          return edge.isVisible();
+        };
+
+        return graph.outgoingEdgesEnd(vertex, filter);
       }
 
       void remove(EdgeDescriptor edge)
@@ -1403,7 +1435,7 @@ namespace marco::modeling
         Frontier frontier;
 
         // Calculation of the initial frontier
-        auto equations = getEquations();
+        auto equations = llvm::make_range(equationsBegin(), equationsEnd());
 
         for (auto equationDescriptor : equations) {
           const Equation& equation = getEquation(equationDescriptor);
@@ -1423,7 +1455,7 @@ namespace marco::modeling
           for (const BFSStep& step : frontier) {
             auto vertexDescriptor = step.getNode();
 
-            for (EdgeDescriptor edgeDescriptor : getEdges(vertexDescriptor)) {
+            for (EdgeDescriptor edgeDescriptor : llvm::make_range(edgesBegin(vertexDescriptor), edgesEnd(vertexDescriptor))) {
               assert(edgeDescriptor.from == vertexDescriptor);
               VertexDescriptor nextNode = edgeDescriptor.to;
               const Edge& edge = graph[edgeDescriptor];

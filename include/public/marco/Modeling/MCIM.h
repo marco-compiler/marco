@@ -4,7 +4,6 @@
 #include "marco/Modeling/AccessFunction.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
-#include "llvm/ADT/iterator_range.h"
 
 namespace marco::modeling::internal
 {
@@ -74,7 +73,9 @@ namespace marco::modeling::internal
 
       const IndexSet& getVariableRanges() const;
 
-      llvm::iterator_range<IndicesIterator> getIndices() const;
+      IndicesIterator indicesBegin() const;
+
+      IndicesIterator indicesEnd() const;
 
       MCIM& operator+=(const MCIM& rhs);
 

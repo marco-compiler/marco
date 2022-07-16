@@ -1,7 +1,6 @@
 #ifndef MARCO_MODELING_TEST_MATCHINGCOMMON_H
 #define MARCO_MODELING_TEST_MATCHINGCOMMON_H
 
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/StringRef.h"
 #include "marco/Modeling/Matching.h"
 

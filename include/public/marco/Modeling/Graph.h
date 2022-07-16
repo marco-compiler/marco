@@ -704,31 +704,46 @@ namespace marco::modeling::internal
           return VertexDescriptor(this, ptr);
         }
 
-        /// Get the vertices of the graph.
-        llvm::iterator_range<VertexIterator> getVertices() const
+        /// Get the begin iterator for the vertices of the graph.
+        VertexIterator verticesBegin() const
         {
-          return llvm::iterator_range<VertexIterator>(
-              VertexIterator::begin(*this, graph),
-              VertexIterator::end(*this, graph));
+          return VertexIterator::begin(*this, graph);
         }
 
-        /// Get the vertices of the graph that match a certain property.
+        /// Get the end iterator for the vertices of the graph.
+        VertexIterator verticesEnd() const
+        {
+          return VertexIterator::end(*this, graph);
+        }
+
+        /// Get the begin iterator for the vertices of the graph that
+        /// match a certain property.
         ///
         /// @param visibilityFn  function determining whether a vertex should be considered or not
-        /// @return iterable range of vertex descriptors
-        llvm::iterator_range<FilteredVertexIterator> getVertices(
+        /// @return vertices iterator
+        FilteredVertexIterator verticesBegin(
             std::function<bool(const VertexProperty&)> visibilityFn) const
         {
           auto filter = [=](VertexDescriptor descriptor) -> bool {
             return visibilityFn((*this)[descriptor]);
           };
 
-          auto allVertices = getVertices();
+          return FilteredVertexIterator(verticesBegin(), verticesEnd(), filter);
+        }
 
-          FilteredVertexIterator begin(allVertices.begin(), allVertices.end(), filter);
-          FilteredVertexIterator end(allVertices.end(), allVertices.end(), filter);
+        /// Get the end iterator for the vertices of the graph that
+        /// match a certain property.
+        ///
+        /// @param visibilityFn  function determining whether a vertex should be considered or not
+        /// @return vertices iterator
+        FilteredVertexIterator verticesEnd(
+            std::function<bool(const VertexProperty&)> visibilityFn) const
+        {
+          auto filter = [=](VertexDescriptor descriptor) -> bool {
+            return visibilityFn((*this)[descriptor]);
+          };
 
-          return llvm::iterator_range<FilteredVertexIterator>(begin, end);
+          return FilteredVertexIterator(verticesEnd(), verticesEnd(), filter);
         }
 
         /// Add an edge to the graph.
@@ -761,53 +776,78 @@ namespace marco::modeling::internal
           return EdgeDescriptor(this, from, to, ptr);
         }
 
-        /// Get all the edges of the graph.
+        /// Get the begin iterator for all the edges of the graph.
         /// If the graph is undirected, then the edge between two nodes is
         /// returned only once and its source / destination order is casual,
         /// as it is indeed conceptually irrelevant.
-        llvm::iterator_range<EdgeIterator> getEdges() const
+        EdgeIterator edgesBegin() const
         {
-          return llvm::iterator_range<EdgeIterator>(
-              EdgeIterator::begin(*this, directed, graph),
-              EdgeIterator::end(*this, directed, graph));
+          return EdgeIterator::begin(*this, directed, graph);
         }
 
-        /// Get all the edges of the graph that match a certain property.
+        /// Get the end iterator for all the edges of the graph.
         /// If the graph is undirected, then the edge between two nodes is
         /// returned only once and its source / destination order is casual,
         /// as it is indeed conceptually irrelevant.
+        EdgeIterator edgesEnd() const
+        {
+          return EdgeIterator::end(*this, directed, graph);
+        }
+
+        /// Get the begin iterator for all the edges of the graph that match
+        /// a certain property. If the graph is undirected, then the edge
+        /// between two nodes is returned only once and its source / destination
+        /// order is casual, as it is indeed conceptually irrelevant.
         ///
         /// @param visibilityFn  function determining whether an edge should be considered or not
-        /// @return iterable range of edge descriptors
-        llvm::iterator_range<FilteredEdgeIterator> getEdges(
+        /// @return iterator
+        FilteredEdgeIterator edgesBegin(
             std::function<bool(const EdgeProperty&)> visibilityFn) const
         {
           auto filter = [=](EdgeDescriptor descriptor) -> bool {
             return visibilityFn((*this)[descriptor]);
           };
 
-          auto allEdges = getEdges();
-
-          FilteredEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
-          FilteredEdgeIterator end(allEdges.end(), allEdges.end(), filter);
-
-          return llvm::iterator_range<FilteredEdgeIterator>(begin, end);
+          return FilteredEdgeIterator(edgesBegin(), edgesEnd(), filter);
         }
 
-        /// Get the edges exiting from a node.
-        llvm::iterator_range<IncidentEdgeIterator> getOutgoingEdges(VertexDescriptor vertex) const
+        /// Get the end iterator for all the edges of the graph that match
+        /// a certain property. If the graph is undirected, then the edge
+        /// between two nodes is returned only once and its source / destination
+        /// order is casual, as it is indeed conceptually irrelevant.
+        ///
+        /// @param visibilityFn  function determining whether an edge should be considered or not
+        /// @return iterator
+        FilteredEdgeIterator edgesEnd(
+            std::function<bool(const EdgeProperty&)> visibilityFn) const
         {
-          return llvm::iterator_range<IncidentEdgeIterator>(
-              IncidentEdgeIterator::begin(*this, graph, getVertex(vertex), vertex),
-              IncidentEdgeIterator::end(*this, graph, getVertex(vertex), vertex));
+          auto filter = [=](EdgeDescriptor descriptor) -> bool {
+            return visibilityFn((*this)[descriptor]);
+          };
+
+          return FilteredEdgeIterator(edgesEnd(), edgesEnd(), filter);
         }
 
-        /// Get the edges exiting from a node that match a certain property.
+        /// Get the begin iterator for the edges exiting from a node.
+        IncidentEdgeIterator outgoingEdgesBegin(VertexDescriptor vertex) const
+        {
+          return IncidentEdgeIterator::begin(*this, graph, getVertex(vertex), vertex);
+        }
+
+        /// Get the end iterator for the edges exiting from a node.
+        IncidentEdgeIterator outgoingEdgesEnd(VertexDescriptor vertex) const
+        {
+          return IncidentEdgeIterator::end(*this, graph, getVertex(vertex), vertex);
+        }
+
+        /// Get the begin iterator for the edges exiting from a node that
+        /// match a certain property.
         ///
         /// @param vertex        source vertex
-        /// @param visibilityFn  function determining whether an edge should be considered or not
-        /// @return iterable range of edge descriptors
-        llvm::iterator_range<FilteredIncidentEdgeIterator> getOutgoingEdges(
+        /// @param visibilityFn  function determining whether an edge
+        ///                      should be considered or not
+        /// @return iterator
+        FilteredIncidentEdgeIterator outgoingEdgesBegin(
             VertexDescriptor vertex,
             std::function<bool(const EdgeProperty&)> visibilityFn) const
         {
@@ -815,28 +855,49 @@ namespace marco::modeling::internal
             return visibilityFn((*this)[descriptor]);
           };
 
-          auto allEdges = getOutgoingEdges(vertex);
-
-          FilteredIncidentEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
-          FilteredIncidentEdgeIterator end(allEdges.end(), allEdges.end(), filter);
-
-          return llvm::iterator_range<FilteredIncidentEdgeIterator>(begin, end);
+          return FilteredIncidentEdgeIterator(
+              outgoingEdgesBegin(vertex), outgoingEdgesEnd(vertex), filter);
         }
 
-        /// Get the vertices connected to a node.
-        llvm::iterator_range<LinkedVerticesIterator> getLinkedVertices(VertexDescriptor vertex) const
-        {
-          return llvm::iterator_range<LinkedVerticesIterator>(
-              LinkedVerticesIterator::begin(*this, graph, getVertex(vertex)),
-              LinkedVerticesIterator::end(*this, graph, getVertex(vertex)));
-        }
-
-        /// Get the vertices connected to a node that match a certain property.
+        /// Get the end iterator for the edges exiting from a node that
+        /// match a certain property.
         ///
         /// @param vertex        source vertex
-        /// @param visibilityFn  function determining whether a vertex should be considered or not
-        /// @return iterable range of vertex descriptors
-        llvm::iterator_range<FilteredLinkedVerticesIterator> getLinkedVertices(
+        /// @param visibilityFn  function determining whether an edge
+        ///                      should be considered or not
+        /// @return iterator
+        FilteredIncidentEdgeIterator outgoingEdgesEnd(
+            VertexDescriptor vertex,
+            std::function<bool(const EdgeProperty&)> visibilityFn) const
+        {
+          auto filter = [=](EdgeDescriptor descriptor) -> bool {
+            return visibilityFn((*this)[descriptor]);
+          };
+
+          return FilteredIncidentEdgeIterator(
+              outgoingEdgesEnd(vertex), outgoingEdgesEnd(vertex), filter);
+        }
+
+        /// Get thebegin iterator for the vertices connected to a node.
+        LinkedVerticesIterator linkedVerticesBegin(VertexDescriptor vertex) const
+        {
+          return LinkedVerticesIterator::begin(*this, graph, getVertex(vertex));
+        }
+
+        /// Get the end iterator for the vertices connected to a node.
+        LinkedVerticesIterator linkedVerticesEnd(VertexDescriptor vertex) const
+        {
+          return LinkedVerticesIterator::end(*this, graph, getVertex(vertex));
+        }
+
+        /// Get the begin iterator for the vertices connected to a node
+        /// that match a certain property.
+        ///
+        /// @param vertex        source vertex
+        /// @param visibilityFn  function determining whether a vertex
+        ///                      should be considered or not
+        /// @return iterator
+        FilteredLinkedVerticesIterator linkedVerticesBegin(
             VertexDescriptor vertex,
             std::function<bool(const VertexProperty&)> visibilityFn) const
         {
@@ -844,16 +905,30 @@ namespace marco::modeling::internal
             return visibilityFn((*this)[descriptor]);
           };
 
-          auto allVertices = getLinkedVertices(vertex);
+          return FilteredLinkedVerticesIterator(
+              linkedVerticesBegin(vertex), linkedVerticesEnd(vertex), filter);
+        }
 
-          FilteredLinkedVerticesIterator begin(allVertices.begin(), allVertices.end(), filter);
-          FilteredLinkedVerticesIterator end(allVertices.end(), allVertices.end(), filter);
+        /// Get the end iterator for the vertices connected to a node
+        /// that match a certain property.
+        ///
+        /// @param vertex        source vertex
+        /// @param visibilityFn  function determining whether a vertex
+        ///                      should be considered or not
+        /// @return iterator
+        FilteredLinkedVerticesIterator linkedVerticesEnd(
+            VertexDescriptor vertex,
+            std::function<bool(const VertexProperty&)> visibilityFn) const
+        {
+          auto filter = [=](VertexDescriptor descriptor) -> bool {
+            return visibilityFn((*this)[descriptor]);
+          };
 
-          return llvm::iterator_range<FilteredLinkedVerticesIterator>(begin, end);
+          return FilteredLinkedVerticesIterator(
+              linkedVerticesEnd(vertex), linkedVerticesEnd(vertex), filter);
         }
 
         /// Split the graph into multiple independent ones, if possible.
-        // TODO create a view, instead of copying the vertices
         std::vector<Derived> getDisjointSubGraphs() const
         {
           std::vector<Derived> result;
@@ -861,7 +936,7 @@ namespace marco::modeling::internal
           llvm::DenseSet<VertexDescriptor> visited;
           llvm::DenseMap<VertexDescriptor, VertexDescriptor> newVertices;
 
-          for (auto vertex: getVertices()) {
+          for (auto vertex: llvm::make_range(verticesBegin(), verticesEnd())) {
             if (visited.contains(vertex)) {
               // If the node has already been visited, then it already belongs to
               // an identified sub-graph. The same holds for its connected nodes.
@@ -1033,15 +1108,26 @@ namespace marco::modeling::internal
         return impl->addVertex(std::move(property));
       }
 
-      llvm::iterator_range<VertexIterator> getVertices() const
+      VertexIterator verticesBegin() const
       {
-        return impl->getVertices();
+        return impl->verticesBegin();
       }
 
-      llvm::iterator_range<FilteredVertexIterator> getVertices(
+      VertexIterator verticesEnd() const
+      {
+        return impl->verticesEnd();
+      }
+
+      FilteredVertexIterator verticesBegin(
           std::function<bool(const VertexProperty&)> visibilityFn) const
       {
-        return impl->getVertices(std::move(visibilityFn));
+        return impl->verticesBegin(std::move(visibilityFn));
+      }
+
+      FilteredVertexIterator verticesEnd(
+          std::function<bool(const VertexProperty&)> visibilityFn) const
+      {
+        return impl->verticesEnd(std::move(visibilityFn));
       }
 
       EdgeDescriptor addEdge(VertexDescriptor from, VertexDescriptor to, EdgeProperty property = EdgeProperty())
@@ -1049,43 +1135,77 @@ namespace marco::modeling::internal
         return impl->addEdge(std::move(from), std::move(to), std::move(property));
       }
 
-      llvm::iterator_range<EdgeIterator> getEdges() const
+      EdgeIterator edgesBegin() const
       {
-        return impl->getEdges();
+        return impl->edgesBegin();
       }
 
-      llvm::iterator_range<FilteredEdgeIterator> getEdges(
+      EdgeIterator edgesEnd() const
+      {
+        return impl->edgesEnd();
+      }
+
+      FilteredEdgeIterator edgesBegin(
           std::function<bool(const EdgeProperty&)> visibilityFn) const
       {
-        return impl->getEdges(std::move(visibilityFn));
+        return impl->edgesBegin(std::move(visibilityFn));
       }
 
-      llvm::iterator_range<IncidentEdgeIterator> getOutgoingEdges(VertexDescriptor vertex) const
+      FilteredEdgeIterator edgesEnd(
+          std::function<bool(const EdgeProperty&)> visibilityFn) const
       {
-        return impl->getOutgoingEdges(std::move(vertex));
+        return impl->edgesEnd(std::move(visibilityFn));
       }
 
-      llvm::iterator_range<FilteredIncidentEdgeIterator> getOutgoingEdges(
+      IncidentEdgeIterator outgoingEdgesBegin(VertexDescriptor vertex) const
+      {
+        return impl->outgoingEdgesBegin(std::move(vertex));
+      }
+
+      IncidentEdgeIterator outgoingEdgesEnd(VertexDescriptor vertex) const
+      {
+        return impl->outgoingEdgesEnd(std::move(vertex));
+      }
+
+      FilteredIncidentEdgeIterator outgoingEdgesBegin(
           VertexDescriptor vertex,
           std::function<bool(const EdgeProperty&)> visibilityFn) const
       {
-        return impl->getOutgoingEdges(std::move(vertex), std::move(visibilityFn));
+        return impl->outgoingEdgesBegin(std::move(vertex), std::move(visibilityFn));
       }
 
-      llvm::iterator_range<LinkedVerticesIterator> getLinkedVertices(VertexDescriptor vertex) const
+      FilteredIncidentEdgeIterator outgoingEdgesEnd(
+          VertexDescriptor vertex,
+          std::function<bool(const EdgeProperty&)> visibilityFn) const
       {
-        return impl->getLinkedVertices(std::move(vertex));
+        return impl->outgoingEdgesEnd(std::move(vertex), std::move(visibilityFn));
       }
 
-      llvm::iterator_range<FilteredLinkedVerticesIterator> getLinkedVertices(
+      LinkedVerticesIterator linkedVerticesBegin(VertexDescriptor vertex) const
+      {
+        return impl->linkedVerticesBegin(std::move(vertex));
+      }
+
+      LinkedVerticesIterator linkedVerticesEnd(VertexDescriptor vertex) const
+      {
+        return impl->linkedVerticesEnd(std::move(vertex));
+      }
+
+      FilteredLinkedVerticesIterator linkedVerticesBegin(
           VertexDescriptor vertex,
           std::function<bool(const VertexProperty&)> visibilityFn) const
       {
-        return impl->getLinkedVertices(std::move(vertex), std::move(visibilityFn));
+        return impl->linkedVerticesBegin(std::move(vertex), std::move(visibilityFn));
+      }
+
+      FilteredLinkedVerticesIterator linkedVerticesEnd(
+          VertexDescriptor vertex,
+          std::function<bool(const VertexProperty&)> visibilityFn) const
+      {
+        return impl->linkedVerticesEnd(std::move(vertex), std::move(visibilityFn));
       }
 
       /// Split the graph into multiple independent ones, if possible.
-      // TODO create a view, instead of copying the vertices
       std::vector<Derived> getDisjointSubGraphs() const
       {
         return impl->getDisjointSubGraphs();

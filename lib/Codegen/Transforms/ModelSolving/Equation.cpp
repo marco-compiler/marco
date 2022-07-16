@@ -808,28 +808,6 @@ namespace marco::codegen
     return mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
   }
 
-  // TODO
-  std::vector<Access> BaseEquation::getUniqueAccesses(std::vector<Access> accesses) const
-  {
-    std::vector<Access> result;
-    std::set<std::pair<const Variable*, const AccessFunction*>> uniqueAccesses;
-
-    /*
-    for (const auto& access : accesses) {
-      auto it = llvm::find_if(uniqueAccesses, [&](const auto& uniqueAccess) {
-        return uniqueAccess->first == access.getVariable() && *uniqueAccess->second == access.getAccessFunction();
-      });
-
-      if (it != uniqueAccesses.end()) {
-        result.push_back(access);
-        uniqueAccesses.insert(std::make_pair<const Variable*, const AccessFunction*>(access.getVariable(), &access.getAccessFunction()));
-      }
-    }
-     */
-
-    return result;
-  }
-
   mlir::LogicalResult BaseEquation::explicitate(
       mlir::OpBuilder& builder, size_t argumentIndex, EquationPath::EquationSide side)
   {
