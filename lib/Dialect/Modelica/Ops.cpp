@@ -408,9 +408,10 @@ namespace mlir::modelica
     auto& builder = parser.getBuilder();
 
     mlir::OpAsmParser::Argument induction;
+
     long from;
     long to;
-    long step;
+    long step = 1;
 
     if (parser.parseArgument(induction) ||
         parser.parseEqual() ||
