@@ -380,11 +380,12 @@ namespace mlir::modelica
   // ForEquationOp
   //===----------------------------------------------------------------------===//
 
-  void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long from, long to)
+  void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long from, long to, long step)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     state.addAttribute(getFromAttrName(state.name), builder.getIndexAttr(from));
     state.addAttribute(getToAttrName(state.name), builder.getIndexAttr(to));
+    state.addAttribute(getStepAttrName(state.name), builder.getIndexAttr(step));
 
     mlir::Region* bodyRegion = state.addRegion();
     builder.createBlock(bodyRegion, {}, builder.getIndexType(), builder.getUnknownLoc());
@@ -409,6 +410,7 @@ namespace mlir::modelica
     mlir::OpAsmParser::Argument induction;
     long from;
     long to;
+    long step;
 
     if (parser.parseArgument(induction) ||
         parser.parseEqual() ||
@@ -418,10 +420,17 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
+    if (mlir::succeeded(parser.parseOptionalKeyword("step"))) {
+      if (parser.parseInteger(step)) {
+        return mlir::failure();
+      }
+    }
+
     induction.type = builder.getIndexType();
 
     result.attributes.append("from", builder.getIndexAttr(from));
     result.attributes.append("to", builder.getIndexAttr(to));
+    result.attributes.append("step", builder.getIndexAttr(step));
 
     if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
       return mlir::failure();
@@ -439,7 +448,12 @@ namespace mlir::modelica
   void ForEquationOp::print(mlir::OpAsmPrinter& printer)
   {
     printer << " " << induction() << " = " << getFrom() << " to " << getTo();
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"from", "to"});
+
+    if (auto step = getStep(); step != 1) {
+      printer << " step " << step;
+    }
+
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"from", "to", "step"});
     printer << " ";
     printer.printRegion(getBodyRegion(), false);
   }

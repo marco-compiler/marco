@@ -2109,13 +2109,13 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
         developers are used to, but rather a modeling construct that
         changes the model structure.
         The iteration starts from the `from` value (included) and ends
-        with the `to` value (excluded).
+        with the `to` value (excluded), with a increment of 'step'.
         Multiple for loops can be nested into each other.
 
         Example:
 
         ```mlir
-        modelica.for_equation {from = 3, to = 9} {
+        modelica.for_equation {from = 3, to = 9, step = 2} {
             modelica.equation {
                 ...
             }
@@ -2123,7 +2123,7 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
         ```
     }];
 
-    let arguments = (ins IndexAttr:$from, IndexAttr:$to);
+    let arguments = (ins IndexAttr:$from, IndexAttr:$to, IndexAttr:$step);
     let results = (outs);
 
     let regions = (region
@@ -2133,7 +2133,7 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins "long":$from, "long":$to)>
+        OpBuilder<(ins "long":$from, "long":$to, "long":$step)>
     ];
 
     let extraClassDeclaration = [{

@@ -45,6 +45,9 @@ namespace marco::ast
       [[nodiscard]] Expression* getEnd();
       [[nodiscard]] const Expression* getEnd() const;
 
+      [[nodiscard]] Expression* getStep();
+      [[nodiscard]] const Expression* getStep() const;
+
       [[nodiscard]] size_t getInductionIndex() const;
       void setInductionIndex(size_t index);
 
@@ -52,12 +55,14 @@ namespace marco::ast
       Induction(SourceRange location,
                 llvm::StringRef inductionVariable,
                 std::unique_ptr<Expression> begin,
-                std::unique_ptr<Expression> end);
+                std::unique_ptr<Expression> end,
+                std::unique_ptr<Expression> step);
 
     private:
       std::string inductionVariable;
       std::unique_ptr<Expression> begin;
       std::unique_ptr<Expression> end;
+      std::unique_ptr<Expression> step;
       size_t inductionIndex;
 	};
 }

@@ -9,11 +9,13 @@ namespace marco::ast
   Induction::Induction(SourceRange location,
                        llvm::StringRef inductionVariable,
                        std::unique_ptr<Expression> begin,
-                       std::unique_ptr<Expression> end)
+                       std::unique_ptr<Expression> end,
+                       std::unique_ptr<Expression> step)
       : ASTNode(std::move(location)),
         inductionVariable(inductionVariable.str()),
         begin(std::move(begin)),
         end(std::move(end)),
+        step(std::move(step)),
         inductionIndex(0)
   {
   }
@@ -23,6 +25,7 @@ namespace marco::ast
         inductionVariable(other.inductionVariable),
         begin(other.begin->clone()),
         end(other.end->clone()),
+        step(other.step->clone()),
         inductionIndex(other.inductionIndex)
   {
   }
@@ -48,6 +51,7 @@ namespace marco::ast
     swap(first.inductionVariable, second.inductionVariable);
     swap(first.begin, second.begin);
     swap(first.end, second.end);
+    swap(first.step, second.step);
     swap(first.inductionIndex, second.inductionIndex);
   }
 
@@ -63,6 +67,10 @@ namespace marco::ast
     os.indent(indents);
     os << "to";
     end->print(os, indents + 1);
+    os << "\n";
+    os.indent(indents);
+    os << "step";
+    step->print(os, indents + 1);
   }
 
   llvm::StringRef Induction::getName() const
@@ -88,6 +96,16 @@ namespace marco::ast
   const Expression* Induction::getEnd() const
   {
     return end.get();
+  }
+
+  Expression* Induction::getStep()
+  {
+    return step.get();
+  }
+
+  const Expression* Induction::getStep() const
+  {
+    return step.get();
   }
 
   size_t Induction::getInductionIndex() const

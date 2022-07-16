@@ -81,7 +81,11 @@ namespace marco::codegen::lowering
       assert(endExpression->isa<Constant>());
       long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
 
-      auto forEquationOp = builder().create<ForEquationOp>(location, start, end);
+      const auto& stepExpression = induction->getStep();
+      assert(stepExpression->isa<Constant>());
+      long step = stepExpression->get<Constant>()->as<BuiltInType::Integer>();
+
+      auto forEquationOp = builder().create<ForEquationOp>(location, start, end, step);
       builder().setInsertionPointToStart(forEquationOp.bodyBlock());
 
       // Add the induction variable to the symbol table

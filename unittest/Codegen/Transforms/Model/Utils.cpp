@@ -75,7 +75,7 @@ namespace marco::codegen::test
 
     for (const auto& [begin, end] : iterationRanges) {
       assert(begin <= end);
-      auto forEquationOp = builder.create<ForEquationOp>(loc, begin, end);
+      auto forEquationOp = builder.create<ForEquationOp>(loc, begin, end, 1);
       inductionVariables.push_back(forEquationOp.induction());
       builder.setInsertionPointToStart(forEquationOp.bodyBlock());
     }

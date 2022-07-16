@@ -174,7 +174,7 @@ static void createInitializingEquation(
     std::vector<mlir::Value> inductionVariables;
 
     for (unsigned int i = 0; i < range.rank(); ++i) {
-      auto forOp = builder.create<ForEquationOp>(loc, range[i].getBegin(), range[i].getEnd() - 1);
+      auto forOp = builder.create<ForEquationOp>(loc, range[i].getBegin(), range[i].getEnd() - 1, 1);
       inductionVariables.push_back(forOp.induction());
       builder.setInsertionPointToStart(forOp.bodyBlock());
     }
@@ -1158,7 +1158,7 @@ namespace
           std::vector<mlir::Value> inductionVariables;
 
           for (unsigned int i = 0; i < memberRank - expressionRank; ++i) {
-            auto forEquationOp = builder.create<ForEquationOp>(loc, 0, memberArrayType.getShape()[i] - 1);
+            auto forEquationOp = builder.create<ForEquationOp>(loc, 0, memberArrayType.getShape()[i] - 1, 1);
             inductionVariables.push_back(forEquationOp.induction());
             builder.setInsertionPointToStart(forEquationOp.bodyBlock());
           }

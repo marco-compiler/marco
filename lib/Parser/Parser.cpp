@@ -1230,12 +1230,30 @@ namespace marco::parser
 
     EXPECT(Token::In);
 
-    TRY(begin, parseLogicalExpression());
+    TRY(firstExpression, parseLogicalExpression());
     EXPECT(Token::Colon);
-    TRY(end, parseLogicalExpression());
+    TRY(secondExpression, parseLogicalExpression());
 
-    loc.end = (*end)->getLocation().end;
-    return Induction::build(std::move(loc), variableName, std::move(*begin), std::move(*end));
+    if (accept<Token::Colon>()) {
+      TRY(thirdExpression, parseLogicalExpression());
+      loc.end = (*thirdExpression)->getLocation().end;
+
+      return Induction::build(
+          std::move(loc),
+          variableName,
+          std::move(*firstExpression),
+          std::move(*thirdExpression),
+          std::move(*secondExpression));
+    }
+
+    loc.end = (*secondExpression)->getLocation().end;
+
+    return Induction::build(
+        std::move(loc),
+        variableName,
+        std::move(*firstExpression),
+        std::move(*secondExpression),
+        Expression::constant(loc, makeType<BuiltInType::Integer>(), 1));
   }
 
   llvm::Optional<std::vector<std::unique_ptr<Member>>> Parser::parseElementList(bool publicSection)

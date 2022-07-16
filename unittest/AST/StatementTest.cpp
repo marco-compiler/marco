@@ -44,7 +44,8 @@ TEST(AST, forStatement_emptyBody)
 	auto induction = Induction::build(
       LOC, "i",
 			Expression::constant(LOC, makeType<BuiltInType::Integer>(), 1),
-			Expression::constant(LOC, makeType<BuiltInType::Integer>(), 2));
+			Expression::constant(LOC, makeType<BuiltInType::Integer>(), 2),
+      Expression::constant(LOC, makeType<BuiltInType::Integer>(), 1));
 
 	auto statement = Statement::forStatement(LOC, std::move(induction), llvm::None);
 
@@ -58,7 +59,8 @@ TEST(AST, forStatement_nonEmptyBody)
 	auto induction = Induction::build(
       LOC, "i",
 			Expression::constant(LOC, makeType<BuiltInType::Integer>(), 1),
-			Expression::constant(LOC, makeType<BuiltInType::Integer>(), 2));
+			Expression::constant(LOC, makeType<BuiltInType::Integer>(), 2),
+      Expression::constant(LOC, makeType<BuiltInType::Integer>(), 1));
 
 	auto statement1 = Statement::assignmentStatement(
       LOC,

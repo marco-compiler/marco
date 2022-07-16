@@ -3,6 +3,40 @@
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
+static std::vector<MultidimensionalRange> getRangesCombinations(
+    const std::vector<std::vector<Range>>& ranges,
+    size_t startingDimension)
+{
+  assert(startingDimension < ranges.size());
+  std::vector<MultidimensionalRange> result;
+
+  if (startingDimension == ranges.size() - 1) {
+    for (const auto& range : ranges[startingDimension]) {
+      result.emplace_back(range);
+    }
+
+    return result;
+  }
+
+  auto subCombinations = getRangesCombinations(ranges, startingDimension + 1);
+  assert(!ranges[startingDimension].empty());
+
+  for (const auto& range : ranges[startingDimension]) {
+    for (const auto& subCombination : subCombinations) {
+      std::vector<Range> current;
+      current.push_back(range);
+
+      for (size_t i = 0; i < subCombination.rank(); ++i) {
+        current.push_back(subCombination[i]);
+      }
+
+      result.emplace_back(current);
+    }
+  }
+
+  return result;
+}
+
 namespace marco::codegen
 {
   LoopEquation::LoopEquation(EquationInterface equation, Variables variables)
@@ -38,7 +72,8 @@ namespace marco::codegen
     for (auto it = explicitLoops.rbegin(); it != explicitLoops.rend(); ++it) {
       long from = it->getFrom().getSExtValue();
       long to = it->getTo().getSExtValue();
-      auto loop = builder.create<ForEquationOp>(it->getLoc(), from, to);
+      long step = it->getStep().getSExtValue();
+      auto loop = builder.create<ForEquationOp>(it->getLoc(), from, to, step);
       builder.setInsertionPointToStart(loop.bodyBlock());
       mapping.map(it->induction(), loop.induction());
     }
@@ -78,16 +113,32 @@ namespace marco::codegen
 
   IndexSet LoopEquation::getIterationRanges() const
   {
-    std::vector<Range> ranges;
+    std::vector<std::vector<Range>> dimensionsRanges;
 
-    for (auto& explicitLoop : getExplicitLoops()) {
-      ranges.emplace_back(explicitLoop.getFrom().getSExtValue(), explicitLoop.getTo().getSExtValue() + 1);
+    auto explicitLoops = getExplicitLoops();
+    auto implicitLoops = getImplicitLoops();
+
+    dimensionsRanges.resize(explicitLoops.size() + implicitLoops.size());
+
+    for (auto& explicitLoop : llvm::enumerate(explicitLoops)) {
+      auto from = explicitLoop.value().getFrom().getSExtValue();
+      auto to = explicitLoop.value().getTo().getSExtValue();
+      auto step = explicitLoop.value().getStep().getSExtValue();
+
+      if (step == 1) {
+        dimensionsRanges[explicitLoop.index()].emplace_back(from, to + 1);
+      } else {
+        for (auto index = from; index < to + 1; index += step) {
+          dimensionsRanges[explicitLoop.index()].emplace_back(index, index + 1);
+        }
+      }
     }
 
-    auto implicitLoops = getImplicitLoops();
-    ranges.insert(ranges.end(), implicitLoops.begin(), implicitLoops.end());
+    for (const auto& implicitRange : llvm::enumerate(implicitLoops)) {
+      dimensionsRanges[explicitLoops.size() + implicitRange.index()].push_back(implicitRange.value());
+    }
 
-    return IndexSet(MultidimensionalRange(std::move(ranges)));
+    return IndexSet(getRangesCombinations(dimensionsRanges, 0));
   }
 
   std::vector<Access> LoopEquation::getAccesses() const

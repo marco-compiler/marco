@@ -228,7 +228,7 @@ namespace marco::codegen::lowering
       assert(expressionRank == 0 || expressionRank == memberRank);
 
       for (unsigned int i = 0; i < memberRank - expressionRank; ++i) {
-        auto forEquationOp = builder().create<ForEquationOp>(location, 0, memberArrayType.getShape()[i] - 1);
+        auto forEquationOp = builder().create<ForEquationOp>(location, 0, memberArrayType.getShape()[i] - 1, 1);
         inductionVariables.push_back(forEquationOp.induction());
         builder().setInsertionPointToStart(forEquationOp.bodyBlock());
       }
