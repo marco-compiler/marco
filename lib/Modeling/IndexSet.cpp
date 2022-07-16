@@ -1806,9 +1806,14 @@ namespace marco::modeling
     return PointIterator::end(*this);
   }
 
-  llvm::iterator_range<IndexSet::const_range_iterator> IndexSet::getRanges() const
+  IndexSet::const_range_iterator IndexSet::rangesBegin() const
   {
-    return llvm::make_range(RangeIterator::begin(*this),RangeIterator::end(*this));
+    return RangeIterator::begin(*this);
+  }
+
+  IndexSet::const_range_iterator IndexSet::rangesEnd() const
+  {
+    return RangeIterator::end(*this);
   }
 
   bool IndexSet::contains(const Point& other) const
@@ -1853,7 +1858,7 @@ namespace marco::modeling
 
   MultidimensionalRange IndexSet::minContainingRange() const
   {
-    auto ranges = getRanges();
+    auto ranges = llvm::make_range(rangesBegin(), rangesEnd());
     assert(!ranges.empty());
 
     auto it = ranges.begin();
@@ -1884,7 +1889,7 @@ namespace marco::modeling
 
   bool IndexSet::isSingleMultidimensionalRange() const
   {
-    auto ranges = getRanges();
+    auto ranges = llvm::make_range(rangesBegin(), rangesEnd());
     return ranges.begin() != ranges.end() &&
            std::next(ranges.begin()) == ranges.end();
   }

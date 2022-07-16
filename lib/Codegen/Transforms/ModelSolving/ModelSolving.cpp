@@ -170,7 +170,7 @@ static void createInitializingEquation(
     const IndexSet& indices,
     std::function<mlir::Value(mlir::OpBuilder&, mlir::Location)> valueCallback)
 {
-  for (const auto& range : indices.getRanges()) {
+  for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
     std::vector<mlir::Value> inductionVariables;
 
     for (unsigned int i = 0; i < range.rank(); ++i) {
@@ -1300,7 +1300,7 @@ namespace
                 IndexSet(iterationRanges));
           }
 
-          for (const auto& range : result.getRanges()) {
+          for (const auto& range : llvm::make_range(result.rangesBegin(), result.rangesEnd())) {
             auto clone = Equation::build(equation->getOperation(), equation->getVariables());
 
             auto matchedClone = std::make_unique<MatchedEquation>(
@@ -1310,7 +1310,7 @@ namespace
           }
 
           auto values = (IndexSet(iterationRanges) - result);
-          for (const auto& range : values.getRanges() ) {
+          for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd()) ) {
             auto clone = Equation::build(equation->getOperation(), equation->getVariables());
 
             auto matchedClone = std::make_unique<MatchedEquation>(

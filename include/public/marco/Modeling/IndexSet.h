@@ -162,8 +162,9 @@ namespace marco::modeling
 
       const_point_iterator end() const;
 
-      // todo: if called on something that is not a lvalue, it produces a LLVM ERROR: out of memory
-      llvm::iterator_range<const_range_iterator> getRanges() const;
+      const_range_iterator rangesBegin() const;
+
+      const_range_iterator rangesEnd() const;
 
       bool contains(const Point& other) const;
 

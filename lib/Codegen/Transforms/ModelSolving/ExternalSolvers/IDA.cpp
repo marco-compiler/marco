@@ -543,7 +543,7 @@ namespace marco::codegen
           TemporaryEquationGuard guard(*explicitWritingEquation);
 
           auto iterationRanges = explicitWritingEquation->getIterationRanges(); //todo: check ragged case
-          for(auto range : iterationRanges.getRanges())
+          for(auto range : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd()))
           {
             auto res = explicitWritingEquation->replaceInto(
                 builder, IndexSet(range), *clone, access.getAccessFunction(), access.getPath());
@@ -560,7 +560,7 @@ namespace marco::codegen
 
           auto newEquationIndices = readAccessIndices.intersect(equation->getIterationRanges());
 
-          for (const auto& range : newEquationIndices.getRanges()) {
+          for (const auto& range : llvm::make_range(newEquationIndices.rangesBegin(), newEquationIndices.rangesEnd())) {
             auto matchedEquation = std::make_unique<MatchedEquation>(
                 clone->clone(), IndexSet(range), equation->getWrite().getPath());
 
@@ -606,7 +606,7 @@ namespace marco::codegen
     for (const auto& equation : independentEquations) 
     {
       auto iterationRanges = equation->getIterationRanges(); //todo: check ragged case
-      for(auto ranges : iterationRanges.getRanges())
+      for(auto ranges : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd()))
       {
         std::vector<mlir::Attribute> rangesAttr;
 

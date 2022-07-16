@@ -79,7 +79,7 @@ namespace marco::codegen
           modeling::IndexSet indices(equation->getIterationRanges());
           indices -= getSolvedEquationIndices(equation);
 
-          for (const auto& range : indices.getRanges()) {
+          for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
             result.add(std::make_unique<MatchedEquation>(
                 equation->clone(), modeling::IndexSet(range), equation->getWrite().getPath()));
           }
@@ -381,7 +381,7 @@ namespace marco::codegen
 
                 auto newEquationIndices = readAccessIndices.intersect(equation->getIterationRanges());
 
-                for (const auto& newEquationRange : newEquationIndices.getRanges()) {
+                for (const auto& newEquationRange : llvm::make_range(newEquationIndices.rangesBegin(), newEquationIndices.rangesEnd())) {
                   newProcessed.push_back(std::make_unique<MatchedEquation>(
                       Equation::build(cloned->cloneIR(), cloned->getVariables()),
                       modeling::IndexSet(newEquationRange), destination.getWrite().getPath()));

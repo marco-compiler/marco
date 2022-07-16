@@ -294,7 +294,7 @@ TEST(MultidimensionalRange, rangesIteration)
   IndexSet set(a);
 
   size_t count = 0;
-  for(auto range : set.getRanges())
+  for(auto range : llvm::make_range(set.rangesBegin(), set.rangesEnd()))
   {
     EXPECT_EQ(range, a);
     ++count;

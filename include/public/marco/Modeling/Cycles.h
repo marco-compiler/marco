@@ -263,7 +263,7 @@ namespace marco::modeling
               newIntervals -= interval.getRange();
             }
 
-            for (const auto& range : newIntervals.getRanges()) {
+            for (const auto& range : llvm::make_range(newIntervals.rangesBegin(), newIntervals.rangesEnd())) {
               intervals.push_back(Interval(range, llvm::None));
             }
           } else {
@@ -279,13 +279,13 @@ namespace marco::modeling
               IndexSet restrictedRanges(interval.getRange());
               restrictedRanges -= range;
 
-              for (const auto& restrictedRange: restrictedRanges.getRanges()) {
+              for (const auto& restrictedRange: llvm::make_range(restrictedRanges.rangesBegin(), restrictedRanges.rangesEnd())) {
                 newIntervals.emplace_back(restrictedRange, interval.getDestinations());
               }
 
               auto intersectingRanges = range.intersect(interval.getRange());
 
-              for (const MultidimensionalRange& intersectingRange : intersectingRanges.getRanges()) {
+              for (const MultidimensionalRange& intersectingRange : llvm::make_range(intersectingRanges.rangesBegin(), intersectingRanges.rangesEnd())) {
                 range -= intersectingRange;
 
                 llvm::ArrayRef<Dependency> dependencies = interval.getDestinations();
@@ -319,7 +319,7 @@ namespace marco::modeling
               }
             }
 
-            for (const auto& subRange: range.getRanges()) {
+            for (const auto& subRange: llvm::make_range(range.rangesBegin(), range.rangesEnd())) {
               std::vector<Dependency> dependencies;
 
               auto& dependency = dependencies.emplace_back(

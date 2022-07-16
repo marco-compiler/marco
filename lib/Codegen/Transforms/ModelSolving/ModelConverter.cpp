@@ -1703,7 +1703,7 @@ namespace marco::codegen
     mlir::Value indicesPtr = builder.create<mlir::LLVM::BitcastOp>(loc, indexPtrType, indicesOpaquePtr);
     args.push_back(indicesPtr);
 
-    for (const auto& filteredRange : filteredIndices.getRanges()) {
+    for (const auto& filteredRange : llvm::make_range(filteredIndices.rangesBegin(), filteredIndices.rangesEnd())) {
       // Create the lower and upper bounds
       assert(filteredRange.rank() == arrayType.getRank());
 
@@ -1823,7 +1823,7 @@ namespace marco::codegen
     mlir::Location loc = var.getLoc();
     assert(var.getType().isa<ArrayType>());
 
-    for (const auto& filteredRange : filteredIndices.getRanges()) {
+    for (const auto& filteredRange : llvm::make_range(filteredIndices.rangesBegin(), filteredIndices.rangesEnd())) {
       auto arrayType = var.getType().cast<ArrayType>();
       assert(filteredRange.rank() == arrayType.getRank());
 

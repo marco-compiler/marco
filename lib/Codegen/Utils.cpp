@@ -129,8 +129,8 @@ namespace marco::codegen
           subDimension.first.from(), subDimension.first.to() + 1)));
 
       auto indexSet = getIndexSet(*subDimension.second);
-      for (const auto& childRange : indexSet.getRanges()) {
-        for (const auto& parentRange : extension.getRanges()) {
+      for (const auto& childRange : llvm::make_range(indexSet.rangesBegin(), indexSet.rangesEnd())) {
+        for (const auto& parentRange : llvm::make_range(extension.rangesBegin(), extension.rangesEnd())) {
           std::vector<Range> extended;
 
           for (size_t i = 0; i < parentRange.rank(); ++i) {

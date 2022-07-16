@@ -312,7 +312,7 @@ namespace marco::modeling
   {
     IndexSet result;
 
-    for (const auto& range : indexes.getRanges()) {
+    for (const auto& range : llvm::make_range(indexes.rangesBegin(), indexes.rangesEnd())) {
       result += map(range);
     }
 
@@ -345,7 +345,7 @@ namespace marco::modeling
 
     IndexSet result;
 
-    for (const auto& range: parentIndexes.getRanges()) {
+    for (const auto& range: llvm::make_range(parentIndexes.rangesBegin(), parentIndexes.rangesEnd())) {
       for (const auto& point: range) {
         if (indices.contains(map(point))) {
           result += point;

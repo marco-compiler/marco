@@ -226,7 +226,7 @@ namespace marco::codegen
     for (const auto& variable : allVariables) {
       auto matchableIndices = matchableIndicesFn(*variable);
 
-      for (const auto& range : matchableIndices.getRanges()) {
+      for (const auto& range : llvm::make_range(matchableIndices.rangesBegin(), matchableIndices.rangesEnd())) {
         auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
         filteredVariables.add(std::move(filteredVariable));
       }

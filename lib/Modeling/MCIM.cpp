@@ -291,11 +291,11 @@ namespace marco::modeling::internal
              IndexSet reducedValues;
 
              auto groupValues = group.getValues(delta);
-             for (const auto& value : groupValues.getRanges()) {
+             for (const auto& value : llvm::make_range(groupValues.rangesBegin(), groupValues.rangesEnd())) {
                reducedValues += value.slice(variables.rank());
              }
 
-             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
+             return llvm::none_of(llvm::make_range(reducedValues.rangesBegin(), reducedValues.rangesEnd()), [&](const auto& range) {
                return llvm::any_of(range, [&](const auto& point) {
                  return !variables.contains(point);
                });
@@ -310,11 +310,11 @@ namespace marco::modeling::internal
              IndexSet reducedValues;
 
              auto groupValues = group.getValues(delta);
-             for (const auto& value : groupValues.getRanges()) {
+             for (const auto& value : llvm::make_range(groupValues.rangesBegin(), groupValues.rangesEnd())) {
                reducedValues += value.slice(equations.rank());
              }
 
-             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
+             return llvm::none_of(llvm::make_range(reducedValues.rangesBegin(), reducedValues.rangesEnd()), [&](const auto& range) {
                return llvm::any_of(range, [&](const auto& point) {
                  return !equations.contains(point);
                });
@@ -334,36 +334,36 @@ namespace marco::modeling::internal
 
     auto delta = getDelta(equations.minContainingRange(), variables.minContainingRange());
 
-    assert(equations.rank() < variables.rank() || llvm::all_of(equations.getRanges(), [&](const auto& equation) {
+    assert(equations.rank() < variables.rank() || llvm::all_of(llvm::make_range(equations.rangesBegin(), equations.rangesEnd()), [&](const auto& equation) {
              IndexSet key(equation);
              MCIMElement group(key);
 
              IndexSet reducedValues;
 
              auto groupValues = group.getValues(delta);
-             for (const auto& value : groupValues.getRanges()) {
+             for (const auto& value : llvm::make_range(groupValues.rangesBegin(), groupValues.rangesEnd())) {
                reducedValues += value.slice(variables.rank());
              }
 
-             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
+             return llvm::none_of(llvm::make_range(reducedValues.rangesBegin(), reducedValues.rangesEnd()), [&](const auto& range) {
                return llvm::any_of(range, [&](const auto& point) {
                  return !variables.contains(point);
                });
              });
            }));
 
-    assert(equations.rank() >= variables.rank() || llvm::all_of(variables.getRanges(), [&](const auto& variable) {
+    assert(equations.rank() >= variables.rank() || llvm::all_of(llvm::make_range(equations.rangesBegin(), equations.rangesEnd()), [&](const auto& variable) {
              IndexSet key(variable);
              MCIMElement group(key);
 
              IndexSet reducedValues;
 
              auto groupValues = group.getValues(delta);
-             for (const auto& value : groupValues.getRanges()) {
+             for (const auto& value : llvm::make_range(groupValues.rangesBegin(), groupValues.rangesEnd())) {
                reducedValues += value.slice(equations.rank());
              }
 
-             return llvm::none_of(reducedValues.getRanges(), [&](const auto& range) {
+             return llvm::none_of(llvm::make_range(reducedValues.rangesBegin(), reducedValues.rangesEnd()), [&](const auto& range) {
                return llvm::any_of(range, [&](const auto& point) {
                  return !equations.contains(point);
                });
@@ -412,7 +412,7 @@ namespace marco::modeling::internal
     if (equationRanges.rank() >= variableRanges.rank()) {
       for (const auto& group : groups) {
         auto values = group.second.getValues(group.first);
-        for (const auto& range : values.getRanges()) {
+        for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd())) {
           result += range.slice(variableRanges.rank());
         }
       }
@@ -440,7 +440,7 @@ namespace marco::modeling::internal
     } else {
       for (const auto& group : groups) {
         auto values = group.second.getValues(group.first);
-        for (const auto& range : values.getRanges()) {
+        for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd())) {
           result += range.slice(equationRanges.rank());
         }
       }
@@ -467,7 +467,7 @@ namespace marco::modeling::internal
         IndexSet equations;
 
         auto invertedKeys = invertedGroup.getKeys();
-        for (const auto& extendedEquations : invertedKeys.getRanges()) {
+        for (const auto& extendedEquations : llvm::make_range(invertedKeys.rangesBegin(), invertedKeys.rangesEnd())) {
           equations += extendedEquations.slice(equationRanges.rank());
         }
 
@@ -475,7 +475,7 @@ namespace marco::modeling::internal
           IndexSet filteredEquations = equations.intersect(filter);
           IndexSet filteredExtendedEquations;
 
-          for (const auto& filteredEquation : filteredEquations.getRanges()) {
+          for (const auto& filteredEquation : llvm::make_range(filteredEquations.rangesBegin(), filteredEquations.rangesEnd())) {
             std::vector<Range> ranges;
 
             for (size_t i = 0; i < filteredEquation.rank(); ++i) {
@@ -523,7 +523,7 @@ namespace marco::modeling::internal
         IndexSet variables;
 
         auto invertedKeys = invertedGroup.getKeys();
-        for (const auto& extendedVariables : invertedKeys.getRanges()) {
+        for (const auto& extendedVariables : llvm::make_range(invertedKeys.rangesBegin(), invertedKeys.rangesEnd())) {
           variables += extendedVariables.slice(variableRanges.rank());
         }
 
@@ -531,7 +531,7 @@ namespace marco::modeling::internal
           IndexSet filteredVariables = variables.intersect(filter);
           IndexSet filteredExtendedVariables;
 
-          for (const auto& filteredVariable : filteredVariables.getRanges()) {
+          for (const auto& filteredVariable : llvm::make_range(filteredVariables.rangesBegin(), filteredVariables.rangesEnd())) {
             std::vector<Range> ranges;
 
             for (size_t i = 0; i < filteredVariable.rank(); ++i) {
@@ -724,7 +724,7 @@ namespace marco::modeling::internal
   {
     IndexSet result;
 
-    for (const auto& keyRange : keys.getRanges()) {
+    for (const auto& keyRange : llvm::make_range(keys.rangesBegin(), keys.rangesEnd())) {
       std::vector<Range> valueRanges;
 
       for (size_t i = 0, e = keyRange.rank(); i < e; ++i) {
