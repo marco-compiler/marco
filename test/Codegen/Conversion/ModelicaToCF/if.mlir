@@ -1,17 +1,17 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
 // CHECK:       func @foo(%arg0: i64) -> i64 {
-// CHECK:           cond_br %{{[a-zA-Z0-9]*}}, ^[[if_then:[a-zA-Z0-9]*]], ^[[if_else:[a-zA-Z0-9]*]]
+// CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_else:.*]]
 // CHECK-NEXT:  ^[[if_then]]:
 // CHECK:           modelica.constant #modelica.int<1>
 // CHECK:           modelica.store
-// CHECK:           br ^[[if_out:[a-zA-Z0-9]*]]
+// CHECK:           br ^[[if_out:.*]]
 // CHECK-NEXT:  ^[[if_else]]:
 // CHECK:           modelica.constant #modelica.int<2>
 // CHECK:           modelica.store
 // CHECK:           br ^[[if_out]]
 // CHECK-NEXT:  ^[[if_out]]:
-// CHECK-NEXT:      br ^[[out:[a-zA-Z0-9]*]]
+// CHECK-NEXT:      br ^[[out:.*]]
 // CHECK-NEXT:  ^[[out]]:
 // CHECK:           return
 // CHECK-NEXT:  }

@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test_integerScalars_first
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<2>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.int<2>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars_first() -> (!modelica.int) {
@@ -12,7 +12,7 @@ func.func @test_integerScalars_first() -> (!modelica.int) {
 }
 
 // CHECK-LABEL: @test_integerScalars_second
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<2>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.int<2>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars_second() -> (!modelica.int) {
@@ -23,7 +23,7 @@ func.func @test_integerScalars_second() -> (!modelica.int) {
 }
 
 // CHECK-LABEL: @test_integerScalars_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<2>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.int<2>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars_equal() -> (!modelica.int) {
@@ -36,7 +36,7 @@ func.func @test_integerScalars_equal() -> (!modelica.int) {
 // -----
 
 // CHECK-LABEL: @test_realScalars_first
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -48,7 +48,7 @@ func.func @test_realScalars_first() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_realScalars_second
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -60,7 +60,7 @@ func.func @test_realScalars_second() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_realScalars_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -74,7 +74,7 @@ func.func @test_realScalars_equal() -> (!modelica.real) {
 // -----
 
 // CHECK-LABEL: @test_mixedScalars_integerReal_first
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -86,7 +86,7 @@ func.func @test_mixedScalars_integerReal_first() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_integerReal_second
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -98,7 +98,7 @@ func.func @test_mixedScalars_integerReal_second() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_integerReal_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -112,7 +112,7 @@ func.func @test_mixedScalars_integerReal_equal() -> (!modelica.real) {
 // -----
 
 // CHECK-LABEL: @test_mixedScalars_realInteger_first
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -124,7 +124,7 @@ func.func @test_mixedScalars_realInteger_first() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_realInteger_second
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -136,7 +136,7 @@ func.func @test_mixedScalars_realInteger_second() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_realInteger_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 2.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 

@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test_integerScalars
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<3>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.int<3>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars() -> (!modelica.int) {
@@ -12,7 +12,7 @@ func.func @test_integerScalars() -> (!modelica.int) {
 }
 
 // CHECK-LABEL: @test_realScalars
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -24,7 +24,7 @@ func.func @test_realScalars() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars1
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 
@@ -36,7 +36,7 @@ func.func @test_mixedScalars1() -> (!modelica.real) {
 }
 
 // CHECK-LABEL: @test_mixedScalars2
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.real
 // CHECK-SAME: 3.000000e+00
 // CHECK-NEXT: return %[[VALUE]]
 

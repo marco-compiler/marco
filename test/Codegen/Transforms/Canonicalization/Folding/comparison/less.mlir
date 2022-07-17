@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test_integerScalars_firstSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars_firstSmaller() -> (!modelica.bool) {
@@ -12,7 +12,7 @@ func.func @test_integerScalars_firstSmaller() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_integerScalars_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars_equal() -> (!modelica.bool) {
@@ -23,7 +23,7 @@ func.func @test_integerScalars_equal() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_integerScalars_secondSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_integerScalars_secondSmaller() -> (!modelica.bool) {
@@ -36,7 +36,7 @@ func.func @test_integerScalars_secondSmaller() -> (!modelica.bool) {
 // -----
 
 // CHECK-LABEL: @test_realScalars_firstSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_realScalars_firstSmaller() -> (!modelica.bool) {
@@ -47,7 +47,7 @@ func.func @test_realScalars_firstSmaller() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_realScalars_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_realScalars_equal() -> (!modelica.bool) {
@@ -58,7 +58,7 @@ func.func @test_realScalars_equal() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_realScalars_secondSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_realScalars_secondSmaller() -> (!modelica.bool) {
@@ -71,7 +71,7 @@ func.func @test_realScalars_secondSmaller() -> (!modelica.bool) {
 // -----
 
 // CHECK-LABEL: @test_mixedScalars_integerReal_firstSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_mixedScalars_integerReal_firstSmaller() -> (!modelica.bool) {
@@ -82,7 +82,7 @@ func.func @test_mixedScalars_integerReal_firstSmaller() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_integerReal_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_mixedScalars_integerReal_equal() -> (!modelica.bool) {
@@ -93,7 +93,7 @@ func.func @test_mixedScalars_integerReal_equal() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_integerReal_secondSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_mixedScalars_integerReal_secondSmaller() -> (!modelica.bool) {
@@ -106,7 +106,7 @@ func.func @test_mixedScalars_integerReal_secondSmaller() -> (!modelica.bool) {
 // -----
 
 // CHECK-LABEL: @test_mixedScalars_realInteger_firstSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_mixedScalars_realInteger_firstSmaller() -> (!modelica.bool) {
@@ -117,7 +117,7 @@ func.func @test_mixedScalars_realInteger_firstSmaller() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_realInteger_equal
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_mixedScalars_realInteger_equal() -> (!modelica.bool) {
@@ -128,7 +128,7 @@ func.func @test_mixedScalars_realInteger_equal() -> (!modelica.bool) {
 }
 
 // CHECK-LABEL: @test_mixedScalars_realInteger_secondSmaller
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test_mixedScalars_realInteger_secondSmaller() -> (!modelica.bool) {

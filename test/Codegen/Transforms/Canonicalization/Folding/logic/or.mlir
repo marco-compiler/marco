@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --canonicalize | FileCheck %s
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<false>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<false>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test() -> (!modelica.bool) {
@@ -14,7 +14,7 @@ func.func @test() -> (!modelica.bool) {
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test() -> (!modelica.bool) {
@@ -27,7 +27,7 @@ func.func @test() -> (!modelica.bool) {
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test() -> (!modelica.bool) {
@@ -40,7 +40,7 @@ func.func @test() -> (!modelica.bool) {
 // -----
 
 // CHECK-LABEL: @test
-// CHECK-NEXT: %[[VALUE:[a-zA-Z0-9]*]] = modelica.constant #modelica.bool<true>
+// CHECK-NEXT: %[[VALUE:.*]] = modelica.constant #modelica.bool<true>
 // CHECK-NEXT: return %[[VALUE]]
 
 func.func @test() -> (!modelica.bool) {

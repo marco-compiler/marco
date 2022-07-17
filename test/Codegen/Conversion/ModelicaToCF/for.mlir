@@ -1,15 +1,15 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
 // CHECK:      func @foo() {
-// CHECK:           br ^[[for_condition:[a-zA-Z0-9]*]]
+// CHECK:           br ^[[for_condition:.*]]
 // CHECK-NEXT: ^[[for_condition]]:
-// CHECK:           cond_br %{{[a-zA-Z0-9]*}}, ^[[for_body:[a-zA-Z0-9]*]], ^[[for_out:[a-zA-Z0-9]*]]
+// CHECK:           cond_br %{{.*}}, ^[[for_body:.*]], ^[[for_out:.*]]
 // CHECK-NEXT: ^[[for_body]]:
-// CHECK:           br ^[[for_step:[a-zA-Z0-9]*]]
+// CHECK:           br ^[[for_step:.*]]
 // CHECK-NEXT: ^[[for_step]]:
 // CHECK:           br ^[[for_condition]]
 // CHECK-NEXT: ^[[for_out]]:
-// CHECK:           br ^[[out:[a-zA-Z0-9]*]]
+// CHECK:           br ^[[out:.*]]
 // CHECK-NEXT: ^[[out]]:
 // CHECK:           return
 // CHECK-NEXT: }

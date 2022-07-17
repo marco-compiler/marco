@@ -91,11 +91,11 @@ end outputRealDynamicArray;
 
 
 // CHECK-LABEL: @sizeDependingOnIntegerInput
-// CHECK: %[[x:[a-zA-Z0-9]*]] = modelica.member_create @n
+// CHECK: %[[x:.*]] = modelica.member_create @n
 // CHECK-SAME: !modelica.member<!modelica.int, input>
-// CHECK: %[[x_value:[a-zA-Z0-9]*]] = modelica.member_load %[[x]]
-// CHECK: %[[size:[a-zA-Z0-9]*]] = modelica.cast %[[x_value]] : !modelica.int -> index
-// CHECK: %[[y:[a-zA-Z0-9]*]] = modelica.member_create @y
+// CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
+// CHECK: %[[size:.*]] = modelica.cast %[[x_value]] : !modelica.int -> index
+// CHECK: %[[y:.*]] = modelica.member_create @y
 // CHECK-SAME: %[[size]]
 // CHECK-SAME: !modelica.member<?x!modelica.real, output>
 
@@ -107,9 +107,9 @@ end sizeDependingOnIntegerInput;
 
 
 // CHECK-LABEL: @defaultValue
-// CHECK: %[[x:[a-zA-Z0-9]*]] = modelica.member_create @x
+// CHECK: %[[x:.*]] = modelica.member_create @x
 // CHECK-SAME: !modelica.member<!modelica.int, output>
-// CHECK: %[[value:[a-zA-Z0-9]*]] = modelica.constant #modelica.int<10>
+// CHECK: %[[value:.*]] = modelica.constant #modelica.int<10>
 // CHECK: modelica.member_store %[[x]], %[[value]]
 
 function defaultValue
