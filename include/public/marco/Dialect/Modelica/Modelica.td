@@ -2264,6 +2264,29 @@ def Modelica_TimeOp : Modelica_Op<"time",
     ];
 }
 
+def Modelica_SelectOp : Modelica_Op<"select", [SameVariadicOperandSize]>
+{
+    let summary = "TODO";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins
+        AnyType:$condition,
+        Variadic<AnyType>:$trueValues,
+        Variadic<AnyType>:$falseValues);
+
+    let results = (outs Variadic<AnyType>:$results);
+
+    let assemblyFormat = [{
+        `(` $condition `:` qualified(type($condition)) `)` `,` ` `
+        `(` $trueValues `:` qualified(type($trueValues)) `)` `,` ` `
+        `(` $falseValues `:` qualified(type($falseValues)) `)`
+        attr-dict ` ` `:` ` `qualified(type($results))
+    }];
+}
+
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",
     [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
 {
