@@ -2279,12 +2279,7 @@ def Modelica_SelectOp : Modelica_Op<"select", [SameVariadicOperandSize]>
 
     let results = (outs Variadic<AnyType>:$results);
 
-    let assemblyFormat = [{
-        `(` $condition `:` qualified(type($condition)) `)` `,` ` `
-        `(` $trueValues `:` qualified(type($trueValues)) `)` `,` ` `
-        `(` $falseValues `:` qualified(type($falseValues)) `)`
-        attr-dict ` ` `:` ` `qualified(type($results))
-    }];
+    let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_EquationSideOp : Modelica_Op<"equation_side",

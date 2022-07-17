@@ -2642,6 +2642,87 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // SelectOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::ParseResult SelectOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand condition;
+    mlir::Type conditionType;
+
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 1> trueValues;
+    llvm::SmallVector<mlir::Type, 1> trueValuesTypes;
+
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 1> falseValues;
+    llvm::SmallVector<mlir::Type, 1> falseValuesTypes;
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (parser.parseLParen() ||
+        parser.parseOperand(condition) ||
+        parser.parseColonType(conditionType) ||
+        parser.parseRParen() ||
+        parser.resolveOperand(condition, conditionType, result.operands)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseComma()) {
+      return mlir::failure();
+    }
+
+    auto trueValuesLoc = parser.getCurrentLocation();
+
+    if (parser.parseLParen() ||
+        parser.parseOperandList(trueValues) ||
+        parser.parseColonTypeList(trueValuesTypes) ||
+        parser.parseRParen() ||
+        parser.resolveOperands(trueValues, trueValuesTypes, trueValuesLoc, result.operands)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseComma()) {
+      return mlir::failure();
+    }
+
+    auto falseValuesLoc = parser.getCurrentLocation();
+
+    if (parser.parseLParen() ||
+        parser.parseOperandList(falseValues) ||
+        parser.parseColonTypeList(falseValuesTypes) ||
+        parser.parseRParen() ||
+        parser.resolveOperands(falseValues, falseValuesTypes, falseValuesLoc, result.operands)) {
+      return mlir::failure();
+    }
+
+    if (parser.parseArrowTypeList(resultTypes)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(resultTypes);
+    return mlir::success();
+  }
+
+  void SelectOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer << "(" << getCondition() << " : " << getCondition().getType() << ")";
+    printer << ", ";
+    printer << "(" <<  getTrueValues() << " : " << getTrueValues().getTypes() << ")";
+    printer << ", ";
+    printer << "(" <<  getFalseValues() << " : " << getFalseValues().getTypes() << ")";
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " -> ";
+
+    auto resultTypes = getResultTypes();
+
+    if (resultTypes.size() == 1) {
+      printer << resultTypes;
+    } else {
+      printer << "(" << resultTypes << ")";
+    }
+  }
+
+  //===----------------------------------------------------------------------===//
   // EquationSideOp
   //===----------------------------------------------------------------------===//
 

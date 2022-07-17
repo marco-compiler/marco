@@ -5073,6 +5073,77 @@ namespace
       return mlir::success();
     }
   };
+
+  struct SelectOpCastPattern : public ModelicaOpRewritePattern<SelectOp>
+  {
+    using ModelicaOpRewritePattern<SelectOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(SelectOp op) const override
+    {
+      mlir::Type conditionType = op.getCondition().getType();
+      mlir::TypeRange trueValuesTypes = op.getTrueValues().getTypes();
+      mlir::TypeRange falseValuesTypes = op.getFalseValues().getTypes();
+      auto resultTypes = op.getResultTypes();
+
+      return mlir::LogicalResult::success(
+          !conditionType.isa<BooleanType>() ||
+          !llvm::all_of(llvm::zip(trueValuesTypes, resultTypes), [](const auto& pair) {
+            return std::get<0>(pair) == std::get<1>(pair);
+          }) ||
+          !llvm::all_of(llvm::zip(falseValuesTypes, resultTypes), [](const auto& pair) {
+            return std::get<0>(pair) == std::get<1>(pair);
+          }));
+    }
+
+    void rewrite(SelectOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      mlir::Value condition = op.getCondition();
+
+      if (!condition.getType().isa<BooleanType>()) {
+        condition = rewriter.create<CastOp>(loc, BooleanType::get(op.getContext()), condition);
+      }
+
+      llvm::SmallVector<mlir::Value, 1> trueValues;
+      llvm::SmallVector<mlir::Value, 1> falseValues;
+
+      for (const auto& [value, resultType] : llvm::zip(op.getTrueValues(), op.getResultTypes())) {
+        if (value.getType() != resultType) {
+          trueValues.push_back(rewriter.create<CastOp>(loc, resultType, value));
+        } else {
+          trueValues.push_back(value);
+        }
+      }
+
+      for (const auto& [value, resultType] : llvm::zip(op.getFalseValues(), op.getResultTypes())) {
+        if (value.getType() != resultType) {
+          falseValues.push_back(rewriter.create<CastOp>(loc, resultType, value));
+        } else {
+          falseValues.push_back(value);
+        }
+      }
+
+      rewriter.replaceOpWithNewOp<SelectOp>(op, op.getResultTypes(), condition, trueValues, falseValues);
+    }
+  };
+
+  struct SelectOpLowering : public ModelicaOpConversionPattern<SelectOp>
+  {
+    using ModelicaOpConversionPattern<SelectOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(SelectOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      llvm::SmallVector<mlir::Value, 1> results;
+
+      for (const auto& [trueValue, falseValue] : llvm::zip(adaptor.getTrueValues(), adaptor.getFalseValues())) {
+        results.push_back(rewriter.create<mlir::arith::SelectOp>(loc, adaptor.getCondition(), trueValue, falseValue));
+      }
+
+      rewriter.replaceOp(op, results);
+      return mlir::success();
+    }
+  };
 }
 
 //===----------------------------------------------------------------------===//
@@ -5308,6 +5379,12 @@ static void populateModelicaToLLVMPatterns(
   patterns.insert<
       AssignmentOpScalarLowering,
       AssignmentOpArrayLowering>(context, options);
+
+  patterns.insert<
+      SelectOpCastPattern>(context, options);
+
+  patterns.insert<
+      SelectOpLowering>(context, typeConverter, options);
 
   // Utility operations
   patterns.insert<
