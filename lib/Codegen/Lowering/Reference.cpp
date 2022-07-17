@@ -23,7 +23,7 @@ namespace marco::codegen::lowering
   {
   }
 
-  mlir::Value Reference::operator*()
+  mlir::Value Reference::operator*() const
   {
     return reader(builder, value);
   }

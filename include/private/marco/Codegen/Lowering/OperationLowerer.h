@@ -43,10 +43,10 @@ namespace marco::codegen::lowering
       using Lowerer::lower;
 
     private:
-      std::vector<mlir::Value> lowerArgs(const ast::Operation& operation);
+      std::vector<Results> lowerArgs(const ast::Operation& operation);
 
       template<ast::OperationKind Kind>
-      Results lowerOperation(const ast::Operation& operation, std::function<Results(mlir::Location, mlir::ValueRange)> callback)
+      Results lowerOperation(const ast::Operation& operation, std::function<Results(mlir::Location, std::vector<Results>)> callback)
       {
         assert(operation.getOperationKind() == Kind);
         auto args = lowerArgs(operation);

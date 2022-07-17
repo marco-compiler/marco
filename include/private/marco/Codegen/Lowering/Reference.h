@@ -10,7 +10,7 @@ namespace marco::codegen::lowering
     public:
       Reference();
 
-      mlir::Value operator*();
+      mlir::Value operator*() const;
       mlir::Value getReference() const;
 
       void set(mlir::Value value);
