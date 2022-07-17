@@ -612,7 +612,7 @@ namespace marco::ast
 
       llvm::Optional<BuiltInType> mostGenericType = resultType ? getMostGenericBuiltInType(resultType->get<BuiltInType>(), elementType.get<BuiltInType>()) : elementType.get<BuiltInType>();
       
-      assert(mostGenericType.hasValue() || "array elements types are incompatible");
+      assert(mostGenericType.hasValue() && "array elements types are incompatible");
 
       resultType = *mostGenericType;
       auto rank = elementType.dimensionsCount();
