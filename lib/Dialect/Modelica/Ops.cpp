@@ -3595,30 +3595,38 @@ namespace mlir::modelica
 
   mlir::OpFoldResult ModOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
   {
-    auto dividend = operands[0];
-    auto divisor = operands[1];
+    auto x = operands[0];
+    auto y = operands[1];
 
-    if (!dividend || !divisor) {
+    if (!x || !y) {
       return {};
     }
 
     auto resultType = getResult().getType();
 
-    if (isScalar(dividend) && isScalar(divisor)) {
-      if (isScalarIntegerLike(dividend) && isScalarIntegerLike(divisor)) {
-        return getAttr(resultType, getScalarIntegerLikeValue(dividend) % getScalarIntegerLikeValue(divisor));
+    if (isScalar(x) && isScalar(y)) {
+      if (isScalarIntegerLike(x) && isScalarIntegerLike(y)) {
+        auto xValue = getScalarIntegerLikeValue(x);
+        auto yValue = getScalarIntegerLikeValue(y);
+        return getAttr(resultType, xValue - std::floor(static_cast<double>(xValue) / yValue) * yValue);
       }
 
-      if (isScalarFloatLike(dividend) && isScalarFloatLike(divisor)) {
-        return getAttr(resultType, std::fmod(getScalarFloatLikeValue(dividend), getScalarFloatLikeValue(divisor)));
+      if (isScalarFloatLike(x) && isScalarFloatLike(y)) {
+        auto xValue = getScalarFloatLikeValue(x);
+        auto yValue = getScalarFloatLikeValue(y);
+        return getAttr(resultType, xValue - std::floor(xValue / yValue) * yValue);
       }
 
-      if (isScalarIntegerLike(dividend) && isScalarFloatLike(divisor)) {
-        return getAttr(resultType, std::fmod(getScalarIntegerLikeValue(dividend), getScalarFloatLikeValue(divisor)));
+      if (isScalarIntegerLike(x) && isScalarFloatLike(y)) {
+        auto xValue = getScalarIntegerLikeValue(x);
+        auto yValue = getScalarFloatLikeValue(y);
+        return getAttr(resultType, xValue - std::floor(xValue / yValue) * yValue);
       }
 
-      if (isScalarFloatLike(dividend) && isScalarIntegerLike(divisor)) {
-        return getAttr(resultType, std::fmod(getScalarFloatLikeValue(dividend), getScalarIntegerLikeValue(divisor)));
+      if (isScalarFloatLike(x) && isScalarIntegerLike(y)) {
+        auto xValue = getScalarFloatLikeValue(x);
+        auto yValue = getScalarIntegerLikeValue(y);
+        return getAttr(resultType, xValue - std::floor(xValue / yValue) * yValue);
       }
     }
 

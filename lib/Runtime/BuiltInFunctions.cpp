@@ -594,33 +594,33 @@ RUNTIME_FUNC_DEF(min, double, double, double)
 
 namespace
 {
-  bool mod_i1(bool dividend, bool divisor)
+  bool mod_i1(bool x, bool y)
   {
-    if (divisor) {
+    if (y) {
       return false;
     }
 
-    return dividend;
+    return x;
   }
 
-  int32_t mod_i32(int32_t dividend, int32_t divisor)
+  int32_t mod_i32(int32_t x, int32_t y)
   {
-    return dividend % divisor;
+    return x - std::floor(static_cast<float>(x) / y) * y;
   }
 
-  int64_t mod_i64(int64_t dividend, int64_t divisor)
+  int64_t mod_i64(int64_t x, int64_t y)
   {
-    return dividend % divisor;
+    return x - std::floor(static_cast<double>(x) / y) * y;
   }
 
-  float mod_f32(float dividend, float divisor)
+  float mod_f32(float x, float y)
   {
-    return std::fmod(dividend, divisor);
+    return x - std::floor(x / y) * y;
   }
 
-  double mod_f64(double dividend, double divisor)
+  double mod_f64(double x, double y)
   {
-    return std::fmod(dividend, divisor);
+    return x - std::floor(x / y) * y;
   }
 }
 

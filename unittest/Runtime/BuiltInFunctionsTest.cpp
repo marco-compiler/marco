@@ -1283,8 +1283,8 @@ TEST(Runtime, min_f64_f64)	 // NOLINT
 
 TEST(Runtime, mod_i1_i1)	 // NOLINT
 {
-  auto modFn = [](bool dividend, bool divisor) -> bool {
-    return NAME_MANGLED(mod, bool, bool, bool)(dividend, divisor);
+  auto modFn = [](bool x, bool y) -> bool {
+    return NAME_MANGLED(mod, bool, bool, bool)(x, y);
   };
 
   EXPECT_EQ(modFn(false, false), false);
@@ -1295,42 +1295,52 @@ TEST(Runtime, mod_i1_i1)	 // NOLINT
 
 TEST(Runtime, mod_i32_i32)	 // NOLINT
 {
-  auto modFn = [](int32_t dividend, int32_t divisor) -> int32_t {
-    return NAME_MANGLED(mod, int32_t, int32_t, int32_t)(dividend, divisor);
+  auto modFn = [](int32_t x, int32_t y) -> int32_t {
+    return NAME_MANGLED(mod, int32_t, int32_t, int32_t)(x, y);
   };
 
   EXPECT_EQ(modFn(6, 3), 0);
   EXPECT_EQ(modFn(8, 3), 2);
+  EXPECT_EQ(modFn(10, -3), -2);
+  EXPECT_EQ(modFn(-10, 3), 2);
 }
 
 TEST(Runtime, mod_i64_i64)	 // NOLINT
 {
-  auto modFn = [](int64_t dividend, int64_t divisor) -> int64_t {
-    return NAME_MANGLED(mod, int64_t, int64_t, int64_t)(dividend, divisor);
+  auto modFn = [](int64_t x, int64_t y) -> int64_t {
+    return NAME_MANGLED(mod, int64_t, int64_t, int64_t)(x, y);
   };
 
   EXPECT_EQ(modFn(6, 3), 0);
   EXPECT_EQ(modFn(8, 3), 2);
+  EXPECT_EQ(modFn(10, -3), -2);
+  EXPECT_EQ(modFn(-10, 3), 2);
 }
 
 TEST(Runtime, mod_f32_f32)	 // NOLINT
 {
-  auto modFn = [](float dividend, float divisor) -> float {
-    return NAME_MANGLED(mod, float, float, float)(dividend, divisor);
+  auto modFn = [](float x, float y) -> float {
+    return NAME_MANGLED(mod, float, float, float)(x, y);
   };
 
-  EXPECT_FLOAT_EQ(modFn(6, 3), 0);
-  EXPECT_FLOAT_EQ(modFn(8.5, 3), 2.5);
+  EXPECT_NEAR(modFn(6, 3), 0, 0.000001);
+  EXPECT_NEAR(modFn(8.5, 3), 2.5, 0.000001);
+  EXPECT_NEAR(modFn(3, 1.4), 0.2, 0.000001);
+  EXPECT_NEAR(modFn(-3, 1.4), 1.2, 0.000001);
+  EXPECT_NEAR(modFn(3, -1.4), -1.2, 0.000001);
 }
 
 TEST(Runtime, mod_f64_f64)	 // NOLINT
 {
-  auto modFn = [](double dividend, double divisor) -> double {
-    return NAME_MANGLED(mod, double, double, double)(dividend, divisor);
+  auto modFn = [](double x, double y) -> double {
+    return NAME_MANGLED(mod, double, double, double)(x, y);
   };
 
-  EXPECT_DOUBLE_EQ(modFn(6, 3), 0);
-  EXPECT_DOUBLE_EQ(modFn(8.5, 3), 2.5);
+  EXPECT_NEAR(modFn(6, 3), 0, 0.000001);
+  EXPECT_NEAR(modFn(8.5, 3), 2.5, 0.000001);
+  EXPECT_NEAR(modFn(3, 1.4), 0.2, 0.000001);
+  EXPECT_NEAR(modFn(-3, 1.4), 1.2, 0.000001);
+  EXPECT_NEAR(modFn(3, -1.4), -1.2, 0.000001);
 }
 
 TEST(Runtime, ones_i1)	 // NOLINT
