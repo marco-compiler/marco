@@ -20,6 +20,10 @@ namespace marco::codegen
 
       mlir::Value getValueAtPath(const EquationPath& path) const override;
 
+      void traversePath(
+          const EquationPath& path,
+          std::function<bool(mlir::Value)> traverseFn) const override;
+
       mlir::LogicalResult explicitate(
           mlir::OpBuilder& builder,
           const ::marco::modeling::IndexSet& equationIndices,

@@ -115,6 +115,13 @@ namespace marco::codegen
     return equation->getAccessAtPath(path);
   }
 
+  void MatchedEquation::traversePath(
+      const EquationPath& path,
+      std::function<bool(mlir::Value)> traverseFn) const
+  {
+    equation->traversePath(path, std::move(traverseFn));
+  }
+
   mlir::LogicalResult MatchedEquation::explicitate(
       mlir::OpBuilder& builder,
       const IndexSet& equationIndices,

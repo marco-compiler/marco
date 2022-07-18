@@ -60,6 +60,14 @@ namespace marco::codegen
       /// Obtain the access to a variable that is reached through a given path inside the equation.
       virtual Access getAccessAtPath(const EquationPath& path) const = 0;
 
+      /// Traverse an equation path.
+      /// The function takes the path to be walked and a callback function
+      /// that is called at each step with the current value. It must return
+      /// 'true' to continue the visit, or 'false' to stop.
+      virtual void traversePath(
+          const EquationPath& path,
+          std::function<bool(mlir::Value)> traverseFn) const = 0;
+
       /// Transform the equation IR such that the access at the given equation path is the
       /// only term on the left hand side of the equation.
       virtual mlir::LogicalResult explicitate(
@@ -377,7 +385,29 @@ namespace marco::modeling::matching
       std::vector<Access<VariableType, AccessProperty>> accesses;
 
       for (const auto& access : (*equation)->getAccesses()) {
-        accesses.emplace_back(access.getVariable(), access.getAccessFunction(), access.getPath());
+        bool isAllowed = true;
+
+        auto allowedAccessFn = [&](mlir::Value value) {
+          mlir::Operation* definingOp = value.getDefiningOp();
+
+          if (!definingOp) {
+            return true;
+          }
+
+          if (mlir::isa<mlir::modelica::SelectOp>(definingOp)) {
+            isAllowed = false;
+            return false;
+          }
+
+          return true;
+        };
+
+        const auto& path = access.getPath();
+        (*equation)->traversePath(path, allowedAccessFn);
+
+        if (isAllowed) {
+          accesses.emplace_back(access.getVariable(), access.getAccessFunction(), path);
+        }
       }
 
       return accesses;

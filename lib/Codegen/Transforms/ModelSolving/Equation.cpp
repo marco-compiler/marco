@@ -484,6 +484,29 @@ namespace marco::codegen
     return value;
   }
 
+  void BaseEquation::traversePath(
+      const EquationPath& path,
+      std::function<bool(mlir::Value)> traverseFn) const
+  {
+    auto side = path.getEquationSide();
+    auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
+    mlir::Value value = side == EquationPath::LEFT ? terminator.getLhsValues()[0] : terminator.getRhsValues()[0];
+
+    if (!traverseFn(value)) {
+      return;
+    }
+
+    for (auto index : path) {
+      mlir::Operation* op = value.getDefiningOp();
+      assert(op != nullptr && "Invalid equation path");
+      value = op->getOperand(index);
+
+      if (!traverseFn(value)) {
+        return;
+      }
+    }
+  }
+
   mlir::LogicalResult BaseEquation::explicitate(
       mlir::OpBuilder& builder, const IndexSet& equationIndices, const EquationPath& path)
   {

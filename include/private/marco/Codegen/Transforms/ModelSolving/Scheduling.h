@@ -54,6 +54,10 @@ namespace marco::codegen
 
       Access getAccessAtPath(const EquationPath& path) const override;
 
+      void traversePath(
+          const EquationPath& path,
+          std::function<bool(mlir::Value)> traverseFn) const override;
+
       std::vector<Access> getReads() const;
 
       Access getWrite() const;

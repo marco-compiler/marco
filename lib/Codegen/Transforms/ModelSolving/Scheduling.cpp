@@ -103,6 +103,13 @@ namespace marco::codegen
     return equation->getAccessAtPath(path);
   }
 
+  void ScheduledEquation::traversePath(
+      const EquationPath& path,
+      std::function<bool(mlir::Value)> traverseFn) const
+  {
+    equation->traversePath(path, std::move(traverseFn));
+  }
+
   std::vector<Access> ScheduledEquation::getReads() const
   {
     return equation->getReads();

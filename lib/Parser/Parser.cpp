@@ -614,6 +614,25 @@ namespace marco::parser
 
   llvm::Optional<std::unique_ptr<Expression>> Parser::parseExpression()
   {
+    auto loc = lexer.getTokenPosition();
+
+    if (accept<Token::If>()) {
+      TRY(condition, parseExpression());
+      EXPECT(Token::Then);
+      TRY(trueExpression, parseExpression());
+      EXPECT(Token::Else);
+      TRY(falseExpression, parseExpression());
+
+      loc.end = (*falseExpression)->getLocation().end;
+
+      llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
+      args.push_back(std::move(*condition));
+      args.push_back(std::move(*trueExpression));
+      args.push_back(std::move(*falseExpression));
+
+      return Expression::operation(loc, Type::unknown(), OperationKind::ifelse, args);
+    }
+
     return parseSimpleExpression();
   }
 
