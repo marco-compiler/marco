@@ -9,162 +9,214 @@ template<typename T, unsigned int N> using ArraySizes =
 
 TEST(Runtime, abs_i1)
 {
-	std::array<bool, 2> data = { false, true };
+  auto absFn = [](bool value) -> bool {
+    return NAME_MANGLED(abs, bool, bool)(value);
+  };
 
-	for (const auto& element : data) {
-		auto result = NAME_MANGLED(abs, bool, bool)(element);
-		EXPECT_EQ(result, element);
-	}
+  EXPECT_EQ(absFn(false), false);
+  EXPECT_EQ(absFn(true), true);
 }
 
 TEST(Runtime, abs_i32)
 {
-	std::array<int32_t, 3> data = { -5, 0, 5 };
+  auto absFn = [](int32_t value) -> int32_t {
+    return NAME_MANGLED(abs, int32_t, int32_t)(value);
+  };
 
-	for (const auto& element : data) {
-		auto result = NAME_MANGLED(abs, int32_t, int32_t)(element);
-		EXPECT_EQ(result, std::abs(element));
-	}
+  EXPECT_EQ(absFn(-5), 5);
+  EXPECT_EQ(absFn(0), 0);
+  EXPECT_EQ(absFn(5), 5);
 }
 
 TEST(Runtime, abs_i64)
 {
-	std::array<int64_t, 3> data = { -5, 0, 5 };
+  auto absFn = [](int64_t value) -> int64_t {
+    return NAME_MANGLED(abs, int64_t, int64_t)(value);
+  };
 
-	for (const auto& element : data) {
-		auto result = NAME_MANGLED(abs, int64_t, int64_t)(element);
-		EXPECT_EQ(result, std::abs(element));
-	}
+  EXPECT_EQ(absFn(-5), 5);
+  EXPECT_EQ(absFn(0), 0);
+  EXPECT_EQ(absFn(5), 5);
 }
 
 TEST(Runtime, abs_f32)
 {
-	std::array<float, 3> data = { -5, 0, 5 };
+  auto absFn = [](float value) -> float {
+    return NAME_MANGLED(abs, float, float)(value);
+  };
 
-	for (const auto& element : data) {
-		auto result = NAME_MANGLED(abs, float, float)(element);
-		EXPECT_EQ(result, std::abs(element));
-	}
+  EXPECT_FLOAT_EQ(absFn(-5), 5);
+  EXPECT_FLOAT_EQ(absFn(0), 0);
+  EXPECT_FLOAT_EQ(absFn(5), 5);
 }
 
 TEST(Runtime, abs_f64)
 {
-	std::array<double, 3> data = { -5, 0, 5 };
+  auto absFn = [](double value) -> double {
+    return NAME_MANGLED(abs, double, double)(value);
+  };
 
-  for (const auto& element : data) {
-    auto result = NAME_MANGLED(abs, double, double)(element);
-    EXPECT_EQ(result, std::abs(element));
-  }
+  EXPECT_DOUBLE_EQ(absFn(-5), 5);
+  EXPECT_DOUBLE_EQ(absFn(0), 0);
+  EXPECT_DOUBLE_EQ(absFn(5), 5);
 }
 
 TEST(Runtime, acos_f32)
 {
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(1), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(0.866025403403), M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(0), M_PI / 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(-0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(-0.866025403), M_PI * 5 / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, float, float)(-1), M_PI, 0.000001);
+  auto acosFn = [](float value) -> float {
+    return NAME_MANGLED(acos, float, float)(value);
+  };
+
+	EXPECT_NEAR(acosFn(1), 0, 0.000001);
+	EXPECT_NEAR(acosFn(0.866025403403), M_PI / 6, 0.000001);
+	EXPECT_NEAR(acosFn(0.707106781), M_PI / 4, 0.000001);
+	EXPECT_NEAR(acosFn(0), M_PI / 2, 0.000001);
+	EXPECT_NEAR(acosFn(-0.707106781), M_PI * 3 / 4, 0.000001);
+	EXPECT_NEAR(acosFn(-0.866025403), M_PI * 5 / 6, 0.000001);
+	EXPECT_NEAR(acosFn(-1), M_PI, 0.000001);
 }
 
 TEST(Runtime, acos_f64)
 {
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(1), 0, 0.00001);
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(0.866025403), M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(0), M_PI / 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(-0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(-0.866025403), M_PI * 5 / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(acos, double, double)(-1), M_PI, 0.000001);
+  auto acosFn = [](double value) -> double {
+    return NAME_MANGLED(acos, double, double)(value);
+  };
+
+	EXPECT_NEAR(acosFn(1), 0, 0.00001);
+	EXPECT_NEAR(acosFn(0.866025403), M_PI / 6, 0.000001);
+	EXPECT_NEAR(acosFn(0.707106781), M_PI / 4, 0.000001);
+	EXPECT_NEAR(acosFn(0), M_PI / 2, 0.000001);
+	EXPECT_NEAR(acosFn(-0.707106781), M_PI * 3 / 4, 0.000001);
+	EXPECT_NEAR(acosFn(-0.866025403), M_PI * 5 / 6, 0.000001);
+	EXPECT_NEAR(acosFn(-1), M_PI, 0.000001);
 }
 
 TEST(Runtime, asin_f32)
 {
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(1), M_PI / 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(0.866025403), M_PI / 3, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(-0.707106781), -1 * M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(-0.866025403), -1 * M_PI / 3, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, float, float)(-1), -1 * M_PI / 2, 0.000001);
+  auto asinFn = [](float value) -> float {
+    return NAME_MANGLED(asin, float, float)(value);
+  };
+
+	EXPECT_NEAR(asinFn(1), M_PI / 2, 0.000001);
+	EXPECT_NEAR(asinFn(0.866025403), M_PI / 3, 0.000001);
+	EXPECT_NEAR(asinFn(0.707106781), M_PI / 4, 0.000001);
+	EXPECT_NEAR(asinFn(0), 0, 0.000001);
+	EXPECT_NEAR(asinFn(-0.707106781), -1 * M_PI / 4, 0.000001);
+	EXPECT_NEAR(asinFn(-0.866025403), -1 * M_PI / 3, 0.000001);
+	EXPECT_NEAR(asinFn(-1), -1 * M_PI / 2, 0.000001);
 }
 
 TEST(Runtime, asin_f64)
 {
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(1), M_PI / 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(0.866025403), M_PI / 3, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(-0.707106781), -1 * M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(-0.866025403), -1 * M_PI / 3, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(asin, double, double)(-1), -1 * M_PI / 2, 0.000001);
+  auto asinFn = [](double value) -> double {
+    return NAME_MANGLED(asin, double, double)(value);
+  };
+
+	EXPECT_NEAR(asinFn(1), M_PI / 2, 0.000001);
+	EXPECT_NEAR(asinFn(0.866025403), M_PI / 3, 0.000001);
+	EXPECT_NEAR(asinFn(0.707106781), M_PI / 4, 0.000001);
+	EXPECT_NEAR(asinFn(0), 0, 0.000001);
+	EXPECT_NEAR(asinFn(-0.707106781), -1 * M_PI / 4, 0.000001);
+	EXPECT_NEAR(asinFn(-0.866025403), -1 * M_PI / 3, 0.000001);
+	EXPECT_NEAR(asinFn(-1), -1 * M_PI / 2, 0.000001);
 }
 
 TEST(Runtime, atan_f32)
 {
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(1), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(0.577350269), M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(-0.577350269), -1 * M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(-1), -1 * M_PI / 4, 0.000001);
+  auto atanFn = [](float value) -> float {
+    return NAME_MANGLED(atan, float, float)(value);
+  };
+
+	EXPECT_NEAR(atanFn(1), M_PI / 4, 0.000001);
+	EXPECT_NEAR(atanFn(0.577350269), M_PI / 6, 0.000001);
+	EXPECT_NEAR(atanFn(0), 0, 0.000001);
+	EXPECT_NEAR(atanFn(-0.577350269), -1 * M_PI / 6, 0.000001);
+	EXPECT_NEAR(atanFn(-1), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan_f64)
 {
-	EXPECT_NEAR(NAME_MANGLED(atan, double, double)(1), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, double, double)(0.577350269), M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, double, double)(0), 0, 0.0000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, double, double)(-0.577350269), -1 * M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, double, double)(-1), -1 * M_PI / 4, 0.000001);
+  auto atanFn = [](double value) -> double {
+    return NAME_MANGLED(atan, double, double)(value);
+  };
+
+	EXPECT_NEAR(atanFn(1), M_PI / 4, 0.000001);
+	EXPECT_NEAR(atanFn(0.577350269), M_PI / 6, 0.000001);
+	EXPECT_NEAR(atanFn(0), 0, 0.0000001);
+	EXPECT_NEAR(atanFn(-0.577350269), -1 * M_PI / 6, 0.000001);
+	EXPECT_NEAR(atanFn(-1), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan2_f32)
 {
-	EXPECT_NEAR(NAME_MANGLED(atan2, float, float, float)(0.707106781, 0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan2, float, float, float)(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan2, float, float, float)(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan2, float, float, float)(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
+  auto atan2Fn = [](float y, float x) -> float {
+    return NAME_MANGLED(atan2, float, float, float)(y, x);
+  };
+
+	EXPECT_NEAR(atan2Fn(0.707106781, 0.707106781), M_PI / 4, 0.000001);
+	EXPECT_NEAR(atan2Fn(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
+	EXPECT_NEAR(atan2Fn(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
+	EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan2_f64)
 {
-	EXPECT_NEAR(NAME_MANGLED(atan2, double, double, double)(0.707106781, 0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan2, double, double, double)(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan2, double, double, double)(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan2, double, double, double)(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
+  auto atan2Fn = [](double y, double x) -> double {
+    return NAME_MANGLED(atan2, double, double, double)(y, x);
+  };
+
+	EXPECT_NEAR(atan2Fn(0.707106781, 0.707106781), M_PI / 4, 0.000001);
+	EXPECT_NEAR(atan2Fn(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
+	EXPECT_NEAR(atan2Fn(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
+	EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, cos_f32)
 {
-	EXPECT_NEAR(NAME_MANGLED(cos, float, float)(0), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, float, float)(M_PI / 6), 0.866025403, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, float, float)(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, float, float)(M_PI / 2), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, float, float)(M_PI), -1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, float, float)(2 * M_PI), 1, 0.000001);
+  auto cosFn = [](float value) -> float {
+    return NAME_MANGLED(cos, float, float)(value);
+  };
+
+  EXPECT_NEAR(cosFn(0), 1, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
+	EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
 }
 
 TEST(Runtime, cos_f64)
 {
-	EXPECT_NEAR(NAME_MANGLED(cos, double, double)(0), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, double, double)(M_PI / 6), 0.866025403, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, double, double)(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, double, double)(M_PI / 2), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, double, double)(M_PI), -1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cos, double, double)(2 * M_PI), 1, 0.000001);
+  auto cosFn = [](double value) -> double {
+    return NAME_MANGLED(cos, double, double)(value);
+  };
+
+	EXPECT_NEAR(cosFn(0), 1, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
+	EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
+	EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
 }
 
 TEST(Runtime, cosh_f32)
 {
-	EXPECT_NEAR(NAME_MANGLED(cosh, float, float)(0), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cosh, float, float)(1), 1.543080634, 0.000001);
+  auto coshFn = [](float value) -> float {
+    return NAME_MANGLED(cosh, float, float)(value);
+  };
+
+	EXPECT_NEAR(coshFn(0), 1, 0.000001);
+	EXPECT_NEAR(coshFn(1), 1.543080634, 0.000001);
 }
 
 TEST(Runtime, cosh_f64)
 {
-	EXPECT_NEAR(NAME_MANGLED(cosh, double, double)(0), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(cosh, double, double)(1), 1.543080634, 0.000001);
+  auto coshFn = [](double value) -> double {
+    return NAME_MANGLED(cosh, double, double)(value);
+  };
+
+	EXPECT_NEAR(coshFn(0), 1, 0.000001);
+	EXPECT_NEAR(coshFn(1), 1.543080634, 0.000001);
 }
 
 TEST(Runtime, diagonalSquareMatrix_i1_i1)
@@ -694,18 +746,26 @@ TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
 
 TEST(Runtime, exp_f32)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(exp, float, float)(0), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(exp, float, float)(1), 2.718281, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(exp, float, float)(2), 7.389056, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(exp, float, float)(-2), 0.135335, 0.000001);
+  auto expFn = [](float exponent) -> float {
+    return NAME_MANGLED(exp, float, float)(exponent);
+  };
+
+	EXPECT_NEAR(expFn(0), 1, 0.000001);
+	EXPECT_NEAR(expFn(1), 2.718281, 0.000001);
+	EXPECT_NEAR(expFn(2), 7.389056, 0.000001);
+	EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
 }
 
 TEST(Runtime, exp_f64)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(exp, double, double)(0), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(exp, double, double)(1), 2.718281, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(exp, double, double)(2), 7.389056, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(exp, double, double)(-2), 0.135335, 0.000001);
+  auto expFn = [](double exponent) -> double {
+    return NAME_MANGLED(exp, double, double)(exponent);
+  };
+
+	EXPECT_NEAR(expFn(0), 1, 0.000001);
+	EXPECT_NEAR(expFn(1), 2.718281, 0.000001);
+	EXPECT_NEAR(expFn(2), 7.389056, 0.000001);
+	EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
 }
 
 TEST(Runtime, fill_i1)	 // NOLINT
@@ -717,9 +777,9 @@ TEST(Runtime, fill_i1)	 // NOLINT
 	bool value = true;
 	NAME_MANGLED(fill, void, ARRAY(bool), bool)(&unsized, value);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(value, element);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
+    return element == value;
+  }));
 }
 
 TEST(Runtime, fill_i32)	 // NOLINT
@@ -731,9 +791,9 @@ TEST(Runtime, fill_i32)	 // NOLINT
 	int value = 1;
 	NAME_MANGLED(fill, void, ARRAY(int32_t), int32_t)(&unsized, value);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(value, element);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
+    return element == value;
+  }));
 }
 
 TEST(Runtime, fill_i64)	 // NOLINT
@@ -745,9 +805,9 @@ TEST(Runtime, fill_i64)	 // NOLINT
 	long value = 1;
 	NAME_MANGLED(fill, void, ARRAY(int64_t), int64_t)(&unsized, value);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(value, element);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
+    return element == value;
+  }));
 }
 
 TEST(Runtime, fill_f32)	 // NOLINT
@@ -759,9 +819,9 @@ TEST(Runtime, fill_f32)	 // NOLINT
 	float value = 1;
 	NAME_MANGLED(fill, void, ARRAY(float), float)(&unsized, value);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(value, element);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
+    return element == value;
+  }));
 }
 
 TEST(Runtime, fill_f64)	 // NOLINT
@@ -773,9 +833,9 @@ TEST(Runtime, fill_f64)	 // NOLINT
 	double value = 1;
 	NAME_MANGLED(fill, void, ARRAY(double), double)(&unsized, value);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(value, element);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
+    return element == value;
+  }));
 }
 
 TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
@@ -945,34 +1005,50 @@ TEST(Runtime, linspace_f64)	 // NOLINT
 
 TEST(Runtime, log_f32)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(log, float, float)(1), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log, float, float)(2.718281828), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log, float, float)(7.389056099), 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log, float, float)(0.367879441), -1, 0.000001);
+  auto logFn = [](float value) -> float {
+    return NAME_MANGLED(log, float, float)(value);
+  };
+
+	EXPECT_NEAR(logFn(1), 0, 0.000001);
+	EXPECT_NEAR(logFn(2.718281828), 1, 0.000001);
+	EXPECT_NEAR(logFn(7.389056099), 2, 0.000001);
+	EXPECT_NEAR(logFn(0.367879441), -1, 0.000001);
 }
 
 TEST(Runtime, log_f64)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(log, double, double)(1), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log, double, double)(2.718281828), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log, double, double)(7.389056099), 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log, double, double)(0.367879441), -1, 0.000001);
+  auto logFn = [](double value) -> double {
+    return NAME_MANGLED(log, double, double)(value);
+  };
+
+	EXPECT_NEAR(logFn(1), 0, 0.000001);
+	EXPECT_NEAR(logFn(2.718281828), 1, 0.000001);
+	EXPECT_NEAR(logFn(7.389056099), 2, 0.000001);
+	EXPECT_NEAR(logFn(0.367879441), -1, 0.000001);
 }
 
 TEST(Runtime, log10_f32)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(log10, float, float)(1), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log10, float, float)(10), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log10, float, float)(100), 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log10, float, float)(0.1), -1, 0.000001);
+  auto log10Fn = [](float value) -> float {
+    return NAME_MANGLED(log10, float, float)(value);
+  };
+
+	EXPECT_NEAR(log10Fn(1), 0, 0.000001);
+	EXPECT_NEAR(log10Fn(10), 1, 0.000001);
+	EXPECT_NEAR(log10Fn(100), 2, 0.000001);
+	EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
 }
 
 TEST(Runtime, log10_f64)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(log10, double, double)(1), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log10, double, double)(10), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log10, double, double)(100), 2, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(log10, double, double)(0.1), -1, 0.000001);
+  auto log10Fn = [](double value) -> double {
+    return NAME_MANGLED(log10, double, double)(value);
+  };
+
+	EXPECT_NEAR(log10Fn(1), 0, 0.000001);
+	EXPECT_NEAR(log10Fn(10), 1, 0.000001);
+	EXPECT_NEAR(log10Fn(100), 2, 0.000001);
+	EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
 }
 
 TEST(Runtime, max_ai1)	 // NOLINT
@@ -1267,9 +1343,9 @@ TEST(Runtime, ones_i1)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(bool))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, true);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == true;
+  }));
 }
 
 TEST(Runtime, ones_i32)	 // NOLINT
@@ -1282,9 +1358,9 @@ TEST(Runtime, ones_i32)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(int32_t))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, 1);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 1;
+  }));
 }
 
 TEST(Runtime, ones_i64)	 // NOLINT
@@ -1297,9 +1373,9 @@ TEST(Runtime, ones_i64)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(int64_t))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, 1);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 1;
+  }));
 }
 
 TEST(Runtime, ones_f32)	 // NOLINT
@@ -1312,9 +1388,9 @@ TEST(Runtime, ones_f32)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(float))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_FLOAT_EQ(element, 1);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 1;
+  }));
 }
 
 TEST(Runtime, ones_f64)	 // NOLINT
@@ -1327,9 +1403,9 @@ TEST(Runtime, ones_f64)	 // NOLINT
 
 	NAME_MANGLED(ones, void, ARRAY(double))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_DOUBLE_EQ(element, 1);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 1;
+  }));
 }
 
 TEST(Runtime, product_ai1)	 // NOLINT
@@ -1379,107 +1455,169 @@ TEST(Runtime, product_af64)	 // NOLINT
 
 TEST(Runtime, sign_i1)	 // NOLINT
 {
-	std::array<bool, 2> data = { false, true };
+  auto signI32Fn = [](bool value) -> int32_t {
+    return NAME_MANGLED(sign, int32_t, bool)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, bool)(data[0]), 0);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, bool)(data[0]), 0);
+  auto signI64Fn = [](bool value) -> int64_t {
+    return NAME_MANGLED(sign, int64_t, bool)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, bool)(data[1]), 1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, bool)(data[1]), 1);
+	EXPECT_EQ(signI32Fn(false), 0);
+	EXPECT_EQ(signI64Fn(false), 0);
+
+	EXPECT_EQ(signI32Fn(true), 1);
+	EXPECT_EQ(signI64Fn(true), 1);
 }
 
 TEST(Runtime, sign_i32)	 // NOLINT
 {
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, int32_t)(-2), -1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, int32_t)(-2), -1);
+  auto signI32Fn = [](int32_t value) -> int32_t {
+    return NAME_MANGLED(sign, int32_t, int32_t)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, int32_t)(0), 0);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, int32_t)(0), 0);
+  auto signI64Fn = [](int32_t value) -> int64_t {
+    return NAME_MANGLED(sign, int64_t, int32_t)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, int32_t)(2), 1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, int32_t)(2), 1);
+	EXPECT_EQ(signI32Fn(-2), -1);
+	EXPECT_EQ(signI64Fn(-2), -1);
+
+	EXPECT_EQ(signI32Fn(0), 0);
+	EXPECT_EQ(signI64Fn(0), 0);
+
+	EXPECT_EQ(signI32Fn(2), 1);
+	EXPECT_EQ(signI64Fn(2), 1);
 }
 
 TEST(Runtime, sign_i64)	 // NOLINT
 {
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, int64_t)(-2), -1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, int64_t)(-2), -1);
+  auto signI32Fn = [](int64_t value) -> int32_t {
+    return NAME_MANGLED(sign, int32_t, int64_t)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, int64_t)(0), 0);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, int64_t)(0), 0);
+  auto signI64Fn = [](int64_t value) -> int64_t {
+    return NAME_MANGLED(sign, int64_t, int64_t)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, int64_t)(2), 1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, int64_t)(2), 1);
+	EXPECT_EQ(signI32Fn(-2), -1);
+	EXPECT_EQ(signI64Fn(-2), -1);
+
+	EXPECT_EQ(signI32Fn(0), 0);
+	EXPECT_EQ(signI64Fn(0), 0);
+
+	EXPECT_EQ(signI32Fn(2), 1);
+	EXPECT_EQ(signI64Fn(2), 1);
 }
 
 TEST(Runtime, sign_f32)	 // NOLINT
 {
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, float)(-2), -1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, float)(-2), -1);
+  auto signI32Fn = [](float value) -> int32_t {
+    return NAME_MANGLED(sign, int32_t, float)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, float)(0), 0);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, float)(0), 0);
+  auto signI64Fn = [](float value) -> int64_t {
+    return NAME_MANGLED(sign, int64_t, float)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, float)(2), 1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, float)(2), 1);
+	EXPECT_EQ(signI32Fn(-2), -1);
+	EXPECT_EQ(signI64Fn(-2), -1);
+
+	EXPECT_EQ(signI32Fn(0), 0);
+	EXPECT_EQ(signI64Fn(0), 0);
+
+	EXPECT_EQ(signI32Fn(2), 1);
+	EXPECT_EQ(signI64Fn(2), 1);
 }
 
 TEST(Runtime, sign_f64)	 // NOLINT
 {
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, double)(-2), -1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, double)(-2), -1);
+  auto signI32Fn = [](double value) -> int32_t {
+    return NAME_MANGLED(sign, int32_t, double)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, double)(0), 0);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, double)(0), 0);
+  auto signI64Fn = [](double value) -> int64_t {
+    return NAME_MANGLED(sign, int64_t, double)(value);
+  };
 
-	EXPECT_EQ(NAME_MANGLED(sign, int32_t, double)(2), 1);
-	EXPECT_EQ(NAME_MANGLED(sign, int64_t, double)(2), 1);
+	EXPECT_EQ(signI32Fn(-2), -1);
+	EXPECT_EQ(signI64Fn(-2), -1);
+
+	EXPECT_EQ(signI32Fn(0), 0);
+	EXPECT_EQ(signI64Fn(0), 0);
+
+	EXPECT_EQ(signI32Fn(2), 1);
+	EXPECT_EQ(signI64Fn(2), 1);
 }
 
 TEST(Runtime, sin_f32)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(sin, float, float)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, float, float)(M_PI / 6), 0.5, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, float, float)(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, float, float)(M_PI / 2), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, float, float)(M_PI), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, float, float)(2 * M_PI), 0, 0.000001);
+  auto sinFn = [](float value) -> float {
+    return NAME_MANGLED(sin, float, float)(value);
+  };
+
+	EXPECT_NEAR(sinFn(0), 0, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
+	EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
 }
 
 TEST(Runtime, sin_f64)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(sin, double, double)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, double, double)(M_PI / 6), 0.5, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, double, double)(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, double, double)(M_PI / 2), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, double, double)(M_PI), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sin, double, double)(2 * M_PI), 0, 0.000001);
+  auto sinFn = [](double value) -> double {
+    return NAME_MANGLED(sin, double, double)(value);
+  };
+
+	EXPECT_NEAR(sinFn(0), 0, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
+	EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
+	EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
 }
 
 TEST(Runtime, sqrt_f32)	 // NOLINT
 {
-	EXPECT_FLOAT_EQ(NAME_MANGLED(sqrt, float, float)(0), 0);
-	EXPECT_FLOAT_EQ(NAME_MANGLED(sqrt, float, float)(1), 1);
-	EXPECT_FLOAT_EQ(NAME_MANGLED(sqrt, float, float)(4), 2);
+  auto sqrtFn = [](float value) -> float {
+    return NAME_MANGLED(sqrt, float, float)(value);
+  };
+
+	EXPECT_FLOAT_EQ(sqrtFn(0), 0);
+	EXPECT_FLOAT_EQ(sqrtFn(1), 1);
+	EXPECT_FLOAT_EQ(sqrtFn(4), 2);
 }
 
 TEST(Runtime, sqrt_f64)	 // NOLINT
 {
-	EXPECT_DOUBLE_EQ(NAME_MANGLED(sqrt, double, double)(0), 0);
-	EXPECT_DOUBLE_EQ(NAME_MANGLED(sqrt, double, double)(1), 1);
-	EXPECT_DOUBLE_EQ(NAME_MANGLED(sqrt, double, double)(4), 2);
+  auto sqrtFn = [](double value) -> double {
+    return NAME_MANGLED(sqrt, double, double)(value);
+  };
+
+	EXPECT_DOUBLE_EQ(sqrtFn(0), 0);
+	EXPECT_DOUBLE_EQ(sqrtFn(1), 1);
+	EXPECT_DOUBLE_EQ(sqrtFn(4), 2);
 }
 
 TEST(Runtime, sinh_f32)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(sinh, float, float)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sinh, float, float)(1), 1.175201193, 0.000001);
+  auto sinhFn = [](float value) -> float {
+    return NAME_MANGLED(sinh, float, float)(value);
+  };
+
+	EXPECT_NEAR(sinhFn(0), 0, 0.000001);
+	EXPECT_NEAR(sinhFn(1), 1.175201193, 0.000001);
 }
 
 TEST(Runtime, sinh_f64)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(sinh, double, double)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(sinh, double, double)(1), 1.175201193, 0.000001);
+  auto sinhFn = [](double value) -> double {
+    return NAME_MANGLED(sinh, double, double)(value);
+  };
+
+	EXPECT_NEAR(sinhFn(0), 0, 0.000001);
+	EXPECT_NEAR(sinhFn(1), 1.175201193, 0.000001);
 }
 
 TEST(Runtime, sum_ai1)	 // NOLINT
@@ -2056,34 +2194,50 @@ TEST(Runtime, tan_f32)	 // NOLINT
 {
 	std::array<float, 5> data = { 0, M_PI / 6, M_PI / 4, M_PI, 2 * M_PI };
 
-	EXPECT_NEAR(NAME_MANGLED(tan, float, float)(data[0]), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, float, float)(data[1]), 0.577350269, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, float, float)(data[2]), 1, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, float, float)(data[3]), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, float, float)(data[4]), 0, 0.000001);
+  auto tanFn = [](float value) -> float {
+    return NAME_MANGLED(tan, float, float)(value);
+  };
+
+	EXPECT_NEAR(tanFn(data[0]), 0, 0.000001);
+	EXPECT_NEAR(tanFn(data[1]), 0.577350269, 0.000001);
+	EXPECT_NEAR(tanFn(data[2]), 1, 0.000001);
+	EXPECT_NEAR(tanFn(data[3]), 0, 0.000001);
+	EXPECT_NEAR(tanFn(data[4]), 0, 0.000001);
 }
 
 TEST(Runtime, tan_f64)	 // NOLINT
 {
 	std::array<double, 5> data = { 0, M_PI / 6, M_PI / 4, M_PI, 2 * M_PI };
 
-	EXPECT_NEAR(NAME_MANGLED(tan, double, double)(data[0]), 0, 0.000000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, double, double)(data[1]), 0.577350269, 0.000000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, double, double)(data[2]), 1, 0.000000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, double, double)(data[3]), 0, 0.000000001);
-	EXPECT_NEAR(NAME_MANGLED(tan, double, double)(data[4]), 0, 0.000000001);
+  auto tanFn = [](double value) -> double {
+    return NAME_MANGLED(tan, double, double)(value);
+  };
+
+	EXPECT_NEAR(tanFn(data[0]), 0, 0.000000001);
+	EXPECT_NEAR(tanFn(data[1]), 0.577350269, 0.000000001);
+	EXPECT_NEAR(tanFn(data[2]), 1, 0.000000001);
+	EXPECT_NEAR(tanFn(data[3]), 0, 0.000000001);
+	EXPECT_NEAR(tanFn(data[4]), 0, 0.000000001);
 }
 
 TEST(Runtime, tanh_f32)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(tanh, float, float)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(tanh, float, float)(1), 0.761594155, 0.000001);
+  auto tanhFn = [](float value) -> float {
+    return NAME_MANGLED(tanh, float, float)(value);
+  };
+
+	EXPECT_NEAR(tanhFn(0), 0, 0.000001);
+	EXPECT_NEAR(tanhFn(1), 0.761594155, 0.000001);
 }
 
 TEST(Runtime, tanh_f64)	 // NOLINT
 {
-	EXPECT_NEAR(NAME_MANGLED(tanh, double, double)(0), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(tanh, double, double)(1), 0.761594155, 0.000001);
+  auto tanhFn = [](double value) -> double {
+    return NAME_MANGLED(tanh, double, double)(value);
+  };
+
+	EXPECT_NEAR(tanhFn(0), 0, 0.000001);
+	EXPECT_NEAR(tanhFn(1), 0.761594155, 0.000001);
 }
 
 TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
@@ -2594,9 +2748,9 @@ TEST(Runtime, zeros_i1)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(bool))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, false);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == false;
+  }));
 }
 
 TEST(Runtime, zeros_i32)	 // NOLINT
@@ -2609,9 +2763,9 @@ TEST(Runtime, zeros_i32)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(int32_t))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, 0);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 0;
+  }));
 }
 
 TEST(Runtime, zeros_i64)	 // NOLINT
@@ -2624,9 +2778,9 @@ TEST(Runtime, zeros_i64)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(int64_t))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, 0);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 0;
+  }));
 }
 
 TEST(Runtime, zeros_f32)	 // NOLINT
@@ -2639,9 +2793,9 @@ TEST(Runtime, zeros_f32)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(float))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, 0);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 0;
+  }));
 }
 
 TEST(Runtime, zeros_f64)	 // NOLINT
@@ -2654,7 +2808,7 @@ TEST(Runtime, zeros_f64)	 // NOLINT
 
 	NAME_MANGLED(zeros, void, ARRAY(double))(&unsized);
 
-	for (const auto& element : data) {
-    EXPECT_EQ(element, 0);
-  }
+  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
+    return element == 0;
+  }));
 }
