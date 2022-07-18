@@ -1656,6 +1656,32 @@ def Modelica_MinOp : Modelica_Op<"min",
     let hasFolder = 1;
 }
 
+def Modelica_ModOp : Modelica_Op<"mod", []>
+{
+    let summary = "Get the modulus of a division of two numbers.";
+
+    let description = [{
+        Get the modulus of a division of two numbers.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = ... : !modelica.int
+        %2 = modelica.mod %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
+        ```
+    }];
+
+    let arguments = (ins AnyType:$dividend, AnyType:$divisor);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $dividend `,` $divisor attr-dict `:` `(` qualified(type($dividend)) `,` qualified(type($divisor)) `)` `->` qualified(type($result))
+    }];
+
+    let hasFolder = 1;
+}
+
 def Modelica_NDimsOp : Modelica_Op<"ndims", []>
 {
     let summary = "Get the number of dimensions of an array.";

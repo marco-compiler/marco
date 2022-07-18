@@ -34,6 +34,7 @@ namespace marco::codegen::lowering
       Results log10(const ast::Call& call);
       Results max(const ast::Call& call);
       Results min(const ast::Call& call);
+      Results mod(const ast::Call& call);
       Results ndims(const ast::Call& call);
       Results ones(const ast::Call& call);
       Results product(const ast::Call& call);

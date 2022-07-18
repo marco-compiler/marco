@@ -266,6 +266,21 @@ namespace marco::codegen::lowering
     return Reference::ssa(&builder(), result);
   }
 
+  Results CallLowerer::mod(const Call& call)
+  {
+    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "mod");
+    assert(call.argumentsCount() == 2);
+
+    auto location = loc(call.getLocation());
+
+    mlir::Value dividend = *lower(*call.getArg(0))[0];
+    mlir::Value divisor = *lower(*call.getArg(1))[0];
+
+    mlir::Type resultType = lower(call.getType());
+    mlir::Value result = builder().create<ModOp>(location, resultType, dividend, divisor);
+    return Reference::ssa(&builder(), result);
+  }
+
   Results CallLowerer::ndims(const Call& call)
   {
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ndims");

@@ -4308,6 +4308,74 @@ namespace
     }
   };
 
+  struct ModOpCastPattern : public ModelicaOpRewritePattern<ModOp>
+  {
+    using ModelicaOpRewritePattern<ModOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(ModOp op) const override
+    {
+      mlir::Type dividendType = op.getDividend().getType();
+      mlir::Type divisorType = op.getDivisor().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(
+          dividendType != divisorType || dividendType != resultType);
+    }
+
+    void rewrite(ModOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      llvm::SmallVector<mlir::Value, 2> castedValues;
+      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getDividend(), op.getDivisor() }), castedValues);
+      assert(castedValues[0].getType() == castedValues[1].getType());
+      mlir::Value result = rewriter.create<ModOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
+      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+    }
+  };
+
+  struct ModOpLowering : public ModelicaOpConversionPattern<ModOp>
+  {
+    using ModelicaOpConversionPattern<ModOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(ModOp op) const override
+    {
+      mlir::Type dividendType = op.getDividend().getType();
+      mlir::Type divisorType = op.getDivisor().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(
+          dividendType == divisorType && dividendType == resultType);
+    }
+
+    void rewrite(ModOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 2> newOperands;
+      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+
+      assert(op.getDividend().getType() == op.getDivisor().getType());
+
+      // Dividend
+      newOperands.push_back(adaptor.getDividend());
+      mangledArgsTypes.push_back(getMangledType(op.getDividend().getType()));
+
+      // Divisor
+      newOperands.push_back(adaptor.getDivisor());
+      mangledArgsTypes.push_back(getMangledType(op.getDivisor().getType()));
+
+      // Create the call to the runtime library
+      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      auto mangledResultType = getMangledType(op.getResult().getType());
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          getMangler()->getMangledFunction("mod", mangledResultType, mangledArgsTypes),
+          resultType, newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+    }
+  };
+
   struct NDimsOpLowering : public ModelicaOpRewritePattern<NDimsOp>
   {
     using ModelicaOpRewritePattern<NDimsOp>::ModelicaOpRewritePattern;
@@ -5331,6 +5399,7 @@ static void populateModelicaToLLVMPatterns(
       MaxOpScalarsCastPattern,
       MinOpArrayCastPattern,
       MinOpScalarsCastPattern,
+      ModOpCastPattern,
       NDimsOpLowering,
       ProductOpCastPattern,
       SignOpCastPattern,
@@ -5362,6 +5431,7 @@ static void populateModelicaToLLVMPatterns(
       MaxOpScalarsLowering,
       MinOpArrayLowering,
       MinOpScalarsLowering,
+      ModOpLowering,
       ProductOpLowering,
       SignOpLowering,
       SignOpLowering,

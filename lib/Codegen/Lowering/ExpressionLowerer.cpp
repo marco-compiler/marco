@@ -54,6 +54,7 @@ namespace marco::codegen::lowering
       .Case("log10", &CallLowerer::log10)
       .Case("max", &CallLowerer::max)
       .Case("min", &CallLowerer::min)
+      .Case("mod", &CallLowerer::mod)
       .Case("ndims", &CallLowerer::ndims)
       .Case("ones", &CallLowerer::ones)
       .Case("product", &CallLowerer::product)

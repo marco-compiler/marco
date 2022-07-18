@@ -15,6 +15,7 @@
 #include "marco/AST/BuiltInFunction/Log10.h"
 #include "marco/AST/BuiltInFunction/Max.h"
 #include "marco/AST/BuiltInFunction/Min.h"
+#include "marco/AST/BuiltInFunction/Mod.h"
 #include "marco/AST/BuiltInFunction/Ndims.h"
 #include "marco/AST/BuiltInFunction/Ones.h"
 #include "marco/AST/BuiltInFunction/Product.h"
@@ -68,6 +69,7 @@ namespace marco::ast
     result.push_back(std::make_unique<Log10Function>());
     result.push_back(std::make_unique<MaxFunction>());
     result.push_back(std::make_unique<MinFunction>());
+    result.push_back(std::make_unique<ModFunction>());
     result.push_back(std::make_unique<NdimsFunction>());
     result.push_back(std::make_unique<OnesFunction>());
     result.push_back(std::make_unique<ProductFunction>());

@@ -3590,6 +3590,42 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // ModOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult ModOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto dividend = operands[0];
+    auto divisor = operands[1];
+
+    if (!dividend || !divisor) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(dividend) && isScalar(divisor)) {
+      if (isScalarIntegerLike(dividend) && isScalarIntegerLike(divisor)) {
+        return getAttr(resultType, getScalarIntegerLikeValue(dividend) % getScalarIntegerLikeValue(divisor));
+      }
+
+      if (isScalarFloatLike(dividend) && isScalarFloatLike(divisor)) {
+        return getAttr(resultType, std::fmod(getScalarFloatLikeValue(dividend), getScalarFloatLikeValue(divisor)));
+      }
+
+      if (isScalarIntegerLike(dividend) && isScalarFloatLike(divisor)) {
+        return getAttr(resultType, std::fmod(getScalarIntegerLikeValue(dividend), getScalarFloatLikeValue(divisor)));
+      }
+
+      if (isScalarFloatLike(dividend) && isScalarIntegerLike(divisor)) {
+        return getAttr(resultType, std::fmod(getScalarFloatLikeValue(dividend), getScalarIntegerLikeValue(divisor)));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
   // MulOp
   //===----------------------------------------------------------------------===//
 

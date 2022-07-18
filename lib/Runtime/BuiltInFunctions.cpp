@@ -589,6 +589,48 @@ RUNTIME_FUNC_DEF(min, float, float, float)
 RUNTIME_FUNC_DEF(min, double, double, double)
 
 //===----------------------------------------------------------------------===//
+// mod
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  bool mod_i1(bool dividend, bool divisor)
+  {
+    if (divisor) {
+      return false;
+    }
+
+    return dividend;
+  }
+
+  int32_t mod_i32(int32_t dividend, int32_t divisor)
+  {
+    return dividend % divisor;
+  }
+
+  int64_t mod_i64(int64_t dividend, int64_t divisor)
+  {
+    return dividend % divisor;
+  }
+
+  float mod_f32(float dividend, float divisor)
+  {
+    return std::fmod(dividend, divisor);
+  }
+
+  double mod_f64(double dividend, double divisor)
+  {
+    return std::fmod(dividend, divisor);
+  }
+}
+
+RUNTIME_FUNC_DEF(mod, bool, bool, bool)
+RUNTIME_FUNC_DEF(mod, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(mod, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(mod, float, float, float)
+RUNTIME_FUNC_DEF(mod, double, double, double)
+
+//===----------------------------------------------------------------------===//
 // ones
 //===----------------------------------------------------------------------===//
 

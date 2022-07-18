@@ -115,6 +115,12 @@ RUNTIME_FUNC_DECL(min, int64_t, int64_t, int64_t)
 RUNTIME_FUNC_DECL(min, float, float, float)
 RUNTIME_FUNC_DECL(min, double, double, double)
 
+RUNTIME_FUNC_DECL(mod, bool, bool, bool)
+RUNTIME_FUNC_DECL(mod, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(mod, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DECL(mod, float, float, float)
+RUNTIME_FUNC_DECL(mod, double, double, double)
+
 RUNTIME_FUNC_DECL(ones, void, ARRAY(bool))
 RUNTIME_FUNC_DECL(ones, void, ARRAY(int32_t))
 RUNTIME_FUNC_DECL(ones, void, ARRAY(int64_t))

@@ -42,6 +42,7 @@ set(BUILT_IN_FUNCTIONS
 	BuiltInFunction/Log10.cpp
 	BuiltInFunction/Max.cpp
 	BuiltInFunction/Min.cpp
+	BuiltInFunction/Mod.cpp
 	BuiltInFunction/Ndims.cpp
 	BuiltInFunction/Ones.cpp
 	BuiltInFunction/Product.cpp

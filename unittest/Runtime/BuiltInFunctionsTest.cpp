@@ -1205,6 +1205,58 @@ TEST(Runtime, min_f64_f64)	 // NOLINT
 	}
 }
 
+TEST(Runtime, mod_i1_i1)	 // NOLINT
+{
+  auto modFn = [](bool dividend, bool divisor) -> bool {
+    return NAME_MANGLED(mod, bool, bool, bool)(dividend, divisor);
+  };
+
+  EXPECT_EQ(modFn(false, false), false);
+  EXPECT_EQ(modFn(false, true), false);
+  EXPECT_EQ(modFn(true, false), true);
+  EXPECT_EQ(modFn(true, true), false);
+}
+
+TEST(Runtime, mod_i32_i32)	 // NOLINT
+{
+  auto modFn = [](int32_t dividend, int32_t divisor) -> int32_t {
+    return NAME_MANGLED(mod, int32_t, int32_t, int32_t)(dividend, divisor);
+  };
+
+  EXPECT_EQ(modFn(6, 3), 0);
+  EXPECT_EQ(modFn(8, 3), 2);
+}
+
+TEST(Runtime, mod_i64_i64)	 // NOLINT
+{
+  auto modFn = [](int64_t dividend, int64_t divisor) -> int64_t {
+    return NAME_MANGLED(mod, int64_t, int64_t, int64_t)(dividend, divisor);
+  };
+
+  EXPECT_EQ(modFn(6, 3), 0);
+  EXPECT_EQ(modFn(8, 3), 2);
+}
+
+TEST(Runtime, mod_f32_f32)	 // NOLINT
+{
+  auto modFn = [](float dividend, float divisor) -> float {
+    return NAME_MANGLED(mod, float, float, float)(dividend, divisor);
+  };
+
+  EXPECT_FLOAT_EQ(modFn(6, 3), 0);
+  EXPECT_FLOAT_EQ(modFn(8.5, 3), 2.5);
+}
+
+TEST(Runtime, mod_f64_f64)	 // NOLINT
+{
+  auto modFn = [](double dividend, double divisor) -> double {
+    return NAME_MANGLED(mod, double, double, double)(dividend, divisor);
+  };
+
+  EXPECT_DOUBLE_EQ(modFn(6, 3), 0);
+  EXPECT_DOUBLE_EQ(modFn(8.5, 3), 2.5);
+}
+
 TEST(Runtime, ones_i1)	 // NOLINT
 {
 	std::array<bool, 4> data = { false, false, false, false };
