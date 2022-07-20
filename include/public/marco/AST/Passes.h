@@ -9,6 +9,7 @@
 #include "marco/AST/Passes/StructuralConstantPropagationPass.h"
 #include "marco/AST/Passes/TypeInferencePass.h"
 #include "marco/AST/Passes/InliningPass.h"
+#include "marco/AST/Passes/RaggedFlatteningPass.h"
 #include "marco/AST/Passes/TypeCheckingPass.h"
 #include "marco/AST/PassManager.h"
 

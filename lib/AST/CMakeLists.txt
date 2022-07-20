@@ -64,6 +64,7 @@ set(PASSES
 	Passes/PassManager.cpp
 	Passes/SemanticAnalysisPass.cpp
 	Passes/StructuralConstantPropagationPass.cpp
+	Passes/RaggedFlatteningPass.cpp
 	Passes/TypeCheckingPass.cpp
 	Passes/TypeInferencePass.cpp)
 

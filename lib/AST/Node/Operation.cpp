@@ -278,7 +278,8 @@ namespace marco::ast
 
   void Operation::removeArg(size_t index)
   {
-    args.pop_back();
+    assert(!args.empty() && index<args.size() && "invalid index");
+    args.erase(args.begin()+index);
   }
 
   llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj)

@@ -199,6 +199,7 @@ namespace marco::frontend
     diagnostic::DiagnosticEngine diagnostics(std::make_unique<diagnostic::Printer>());
 
     marco::ast::PassManager frontendPassManager;
+    frontendPassManager.addPass(ast::createRaggedFlatteningPass(diagnostics));
     frontendPassManager.addPass(ast::createTypeInferencePass(diagnostics));
     frontendPassManager.addPass(ast::createTypeCheckingPass(diagnostics));
     frontendPassManager.addPass(ast::createSemanticAnalysisPass(diagnostics));

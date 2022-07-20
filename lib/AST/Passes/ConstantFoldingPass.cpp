@@ -1003,6 +1003,10 @@ namespace marco::ast
       if (!run<Expression>(*induction->getEnd())) {
         return false;
       }
+      
+      if (!run<Expression>(*induction->getStep())) {
+        return true;
+      }
     }
 
     if (!run(*forEquation.getEquation())) {
@@ -1020,7 +1024,11 @@ namespace marco::ast
       return false;
     }
 
-    if (!run<Expression>(*induction.getBegin())) {
+    if (!run<Expression>(*induction.getEnd())) {
+      return true;
+    }
+
+    if (!run<Expression>(*induction.getStep())) {
       return true;
     }
 
