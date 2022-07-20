@@ -134,6 +134,24 @@ func.func @test_atan2() -> () {
     return
 }
 
+// CHECK{LITERAL}: [-3.000000e+00, 4.000000e+00]
+
+func.func @test_ceil() -> () {
+    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+
+    %0 = modelica.constant #modelica.real<-3.14> : !modelica.real
+    %c0 = modelica.constant 0 : index
+    modelica.store %array[%c0], %0 : !modelica.array<2x!modelica.real>
+
+    %1 = modelica.constant #modelica.real<3.14> : !modelica.real
+    %c1 = modelica.constant 1 : index
+    modelica.store %array[%c1], %1 : !modelica.array<2x!modelica.real>
+
+    %result = modelica.ceil %array : !modelica.array<2x!modelica.real> -> !modelica.array<2x!modelica.real>
+    modelica.print %result : !modelica.array<2x!modelica.real>
+    return
+}
+
 // CHECK{LITERAL}: [8.660254e-01, 7.071068e-01]
 
 func.func @test_cos() -> () {
@@ -384,6 +402,7 @@ func.func @main() -> () {
     call @test_asin() : () -> ()
     call @test_atan() : () -> ()
     call @test_atan2() : () -> ()
+    call @test_ceil() : () -> ()
     call @test_cos() : () -> ()
     call @test_cosh() : () -> ()
     call @test_exp() : () -> ()

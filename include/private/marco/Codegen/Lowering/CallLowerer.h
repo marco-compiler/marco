@@ -23,6 +23,7 @@ namespace marco::codegen::lowering
       Results asin(const ast::Call& call);
       Results atan(const ast::Call& call);
       Results atan2(const ast::Call& call);
+      Results ceil(const ast::Call& call);
       Results cos(const ast::Call& call);
       Results cosh(const ast::Call& call);
       Results der(const ast::Call& call);

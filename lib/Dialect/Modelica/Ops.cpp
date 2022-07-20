@@ -2016,6 +2016,73 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // CeilOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult CeilOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, getScalarIntegerLikeValue(operand));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::ceil(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
+  void CeilOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
+  mlir::ValueRange CeilOp::getArgs()
+  {
+    return mlir::ValueRange(getOperation()->getOperands());
+  }
+
+  unsigned int CeilOp::getArgExpectedRank(unsigned int argIndex)
+  {
+    return 0;
+  }
+
+  mlir::ValueRange CeilOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+  {
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
+
+    if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
+      newResultType = arrayType.getElementType();
+    }
+
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
+
+    if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
+      newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+    }
+
+    auto op = builder.create<CeilOp>(getLoc(), newResultType, newOperand);
+    return op->getResults();
+  }
+
+  //===----------------------------------------------------------------------===//
   // CosOp
   //===----------------------------------------------------------------------===//
 

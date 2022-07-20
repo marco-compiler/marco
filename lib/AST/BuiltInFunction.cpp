@@ -4,6 +4,7 @@
 #include "marco/AST/BuiltInFunction/Asin.h"
 #include "marco/AST/BuiltInFunction/Atan.h"
 #include "marco/AST/BuiltInFunction/Atan2.h"
+#include "marco/AST/BuiltInFunction/Ceil.h"
 #include "marco/AST/BuiltInFunction/Cos.h"
 #include "marco/AST/BuiltInFunction/Cosh.h"
 #include "marco/AST/BuiltInFunction/Der.h"
@@ -59,6 +60,7 @@ namespace marco::ast
     result.push_back(std::make_unique<AsinFunction>());
     result.push_back(std::make_unique<AtanFunction>());
     result.push_back(std::make_unique<Atan2Function>());
+    result.push_back(std::make_unique<CeilFunction>());
     result.push_back(std::make_unique<CosFunction>());
     result.push_back(std::make_unique<CoshFunction>());
     result.push_back(std::make_unique<DerFunction>());

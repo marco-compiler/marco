@@ -31,6 +31,7 @@ set(BUILT_IN_FUNCTIONS
 	BuiltInFunction/Asin.cpp
 	BuiltInFunction/Atan.cpp
 	BuiltInFunction/Atan2.cpp
+	BuiltInFunction/Ceil.cpp
 	BuiltInFunction/Cos.cpp
 	BuiltInFunction/Cosh.cpp
 	BuiltInFunction/Der.cpp

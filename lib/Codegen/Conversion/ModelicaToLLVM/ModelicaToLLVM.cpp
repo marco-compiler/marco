@@ -3454,6 +3454,63 @@ namespace
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
     }
   };
+  
+  struct CeilOpCastPattern : public ModelicaOpRewritePattern<CeilOp>
+  {
+    using ModelicaOpRewritePattern<CeilOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(CeilOp op) const override
+    {
+      mlir::Type operandType = op.getOperand().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(operandType == resultType);
+    }
+
+    void rewrite(CeilOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      mlir::Value result = rewriter.create<CeilOp>(loc, op.getOperand().getType(), op.getOperand());
+      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+    }
+  };
+
+  struct CeilOpLowering : public ModelicaOpConversionPattern<CeilOp>
+  {
+    using ModelicaOpConversionPattern<CeilOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(CeilOp op) const override
+    {
+      mlir::Type operandType = op.getOperand().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(operandType == resultType);
+    }
+
+    void rewrite(CeilOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 1> newOperands;
+      llvm::SmallVector<std::string, 1> mangledArgsTypes;
+
+      // Operand
+      assert(op.getOperand().getType().isa<RealType>());
+      newOperands.push_back(adaptor.getOperand());
+      mangledArgsTypes.push_back(getMangledType(op.getOperand().getType()));
+
+      // Create the call to the runtime library
+      assert(op.getResult().getType().isa<RealType>());
+      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      auto mangledResultType = getMangledType(op.getResult().getType());
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          getMangler()->getMangledFunction("ceil", mangledResultType, mangledArgsTypes),
+          resultType, newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+    }
+  };
 
   struct CosOpCastPattern : public ModelicaOpRewritePattern<CosOp>
   {
@@ -5445,6 +5502,7 @@ static void populateModelicaToLLVMPatterns(
       AsinOpCastPattern,
       AtanOpCastPattern,
       Atan2OpCastPattern,
+      CeilOpCastPattern,
       CosOpCastPattern,
       CoshOpCastPattern,
       ExpOpCastPattern,
@@ -5476,6 +5534,7 @@ static void populateModelicaToLLVMPatterns(
       AsinOpLowering,
       AtanOpLowering,
       Atan2OpLowering,
+      CeilOpLowering,
       CosOpLowering,
       CoshOpLowering,
       DiagonalOpLowering,

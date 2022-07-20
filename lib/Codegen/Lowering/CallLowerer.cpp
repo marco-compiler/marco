@@ -111,6 +111,19 @@ namespace marco::codegen::lowering
     return Reference::ssa(&builder(), result);
   }
 
+  Results CallLowerer::ceil(const Call& call)
+  {
+    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ceil");
+    assert(call.argumentsCount() == 1);
+
+    auto location = loc(call.getLocation());
+
+    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Type resultType = lower(call.getType());
+    mlir::Value result = builder().create<CeilOp>(location, resultType, operand);
+    return Reference::ssa(&builder(), result);
+  }
+
   Results CallLowerer::cos(const Call& call)
   {
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "cos");

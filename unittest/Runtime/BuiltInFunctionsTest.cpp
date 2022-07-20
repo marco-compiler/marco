@@ -171,6 +171,57 @@ TEST(Runtime, atan2_f64)
 	EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
 }
 
+
+TEST(Runtime, ceil_i1)	 // NOLINT
+{
+  auto ceilFn = [](bool value) -> bool {
+    return NAME_MANGLED(ceil, bool, bool)(value);
+  };
+
+  EXPECT_EQ(ceilFn(false), false);
+  EXPECT_EQ(ceilFn(true), true);
+}
+
+TEST(Runtime, ceil_i32)	 // NOLINT
+{
+  auto ceilFn = [](int32_t value) -> int32_t {
+    return NAME_MANGLED(ceil, int32_t, int32_t)(value);
+  };
+
+  EXPECT_EQ(ceilFn(-3), -3);
+  EXPECT_EQ(ceilFn(3), 3);
+}
+
+TEST(Runtime, ceil_i64)	 // NOLINT
+{
+  auto ceilFn = [](int64_t value) -> int64_t {
+    return NAME_MANGLED(ceil, int64_t, int64_t)(value);
+  };
+
+  EXPECT_EQ(ceilFn(-3), -3);
+  EXPECT_EQ(ceilFn(3), 3);
+}
+
+TEST(Runtime, ceil_f32)	 // NOLINT
+{
+  auto ceilFn = [](float value) -> float {
+    return NAME_MANGLED(ceil, float, float)(value);
+  };
+
+  EXPECT_NEAR(ceilFn(-3.14), -3, 0.000001);
+  EXPECT_NEAR(ceilFn(3.14), 4, 0.000001);
+}
+
+TEST(Runtime, ceil_f64)	 // NOLINT
+{
+  auto ceilFn = [](double value) -> double {
+    return NAME_MANGLED(ceil, double, double)(value);
+  };
+
+  EXPECT_NEAR(ceilFn(-3.14), -3, 0.000001);
+  EXPECT_NEAR(ceilFn(3.14), 4, 0.000001);
+}
+
 TEST(Runtime, cos_f32)
 {
   auto cosFn = [](float value) -> float {

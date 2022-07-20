@@ -123,6 +123,44 @@ RUNTIME_FUNC_DEF(atan2, float, float, float)
 RUNTIME_FUNC_DEF(atan2, double, double, double)
 
 //===----------------------------------------------------------------------===//
+// ceil
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  bool ceil_i1(bool value)
+  {
+    return value;
+  }
+
+  int32_t ceil_i32(int32_t value)
+  {
+    return value;
+  }
+
+  int64_t ceil_i64(int64_t value)
+  {
+    return value;
+  }
+
+  float ceil_f32(float value)
+  {
+    return std::ceil(value);
+  }
+
+  double ceil_f64(double value)
+  {
+    return std::ceil(value);
+  }
+}
+
+RUNTIME_FUNC_DEF(ceil, bool, bool)
+RUNTIME_FUNC_DEF(ceil, int32_t, int32_t)
+RUNTIME_FUNC_DEF(ceil, int64_t, int64_t)
+RUNTIME_FUNC_DEF(ceil, float, float)
+RUNTIME_FUNC_DEF(ceil, double, double)
+
+//===----------------------------------------------------------------------===//
 // cos
 //===----------------------------------------------------------------------===//
 

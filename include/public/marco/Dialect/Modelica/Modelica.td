@@ -1369,6 +1369,33 @@ def Modelica_Atan2Op : Modelica_Op<"atan2",
     }];
 }
 
+def Modelica_CeilOp : Modelica_Op<"ceil",
+  [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  DeclareOpInterfaceMethods<VectorizableOpInterface>]>
+{
+  let summary = "Ceil function.";
+
+  let description = [{
+    The function takes an operand x and returns the smallest integer not less than x.
+
+    Example:
+
+        ```mlir
+        %x = ... : !modelica.real
+        %0 = modelica.ceil %x : !modelica.real -> !modelica.real
+        ```
+  }];
+
+  let arguments = (ins AnyType:$operand);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+    $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+  }];
+
+  let hasFolder = 1;
+}
+
 def Modelica_CosOp : Modelica_Op<"cos",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
@@ -1485,7 +1512,7 @@ def Modelica_FloorOp : Modelica_Op<"floor",
   let summary = "Floor function.";
 
   let description = [{
-    The function takes an operand x and returns the largest integer not greater than x
+    The function takes an operand x and returns the largest integer not greater than x.
 
     Example:
 

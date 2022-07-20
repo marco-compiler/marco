@@ -23,6 +23,12 @@ RUNTIME_FUNC_DECL(atan, double, double)
 RUNTIME_FUNC_DECL(atan2, float, float, float)
 RUNTIME_FUNC_DECL(atan2, double, double, double)
 
+RUNTIME_FUNC_DECL(ceil, bool, bool)
+RUNTIME_FUNC_DECL(ceil, int32_t, int32_t)
+RUNTIME_FUNC_DECL(ceil, int64_t, int64_t)
+RUNTIME_FUNC_DECL(ceil, float, float)
+RUNTIME_FUNC_DECL(ceil, double, double)
+
 RUNTIME_FUNC_DECL(cos, float, float)
 RUNTIME_FUNC_DECL(cos, double, double)
 

@@ -43,6 +43,7 @@ namespace marco::codegen::lowering
       .Case("asin", &CallLowerer::asin)
       .Case("atan", &CallLowerer::atan)
       .Case("atan2", &CallLowerer::atan2)
+      .Case("ceil", &CallLowerer::ceil)
       .Case("cos", &CallLowerer::cos)
       .Case("cosh", &CallLowerer::cosh)
       .Case("der", &CallLowerer::der)
