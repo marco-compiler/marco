@@ -86,6 +86,12 @@ RUNTIME_FUNC_DECL(identity, void, ARRAY(int64_t))
 RUNTIME_FUNC_DECL(identity, void, ARRAY(float))
 RUNTIME_FUNC_DECL(identity, void, ARRAY(double))
 
+RUNTIME_FUNC_DECL(integer, bool, bool)
+RUNTIME_FUNC_DECL(integer, int32_t, int32_t)
+RUNTIME_FUNC_DECL(integer, int64_t, int64_t)
+RUNTIME_FUNC_DECL(integer, float, float)
+RUNTIME_FUNC_DECL(integer, double, double)
+
 RUNTIME_FUNC_DECL(linspace, void, ARRAY(bool), float, float)
 RUNTIME_FUNC_DECL(linspace, void, ARRAY(bool), double, double)
 RUNTIME_FUNC_DECL(linspace, void, ARRAY(int32_t), float, float)

@@ -31,6 +31,7 @@ namespace marco::codegen::lowering
       Results exp(const ast::Call& call);
       Results floor(const ast::Call& call);
       Results identity(const ast::Call& call);
+      Results integer(const ast::Call& call);
       Results linspace(const ast::Call& call);
       Results log(const ast::Call& call);
       Results log10(const ast::Call& call);

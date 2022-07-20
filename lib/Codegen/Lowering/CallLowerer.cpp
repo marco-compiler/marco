@@ -215,6 +215,19 @@ namespace marco::codegen::lowering
     return Reference::ssa(&builder(), result);
   }
 
+  Results CallLowerer::integer(const Call& call)
+  {
+    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "integer");
+    assert(call.argumentsCount() == 1);
+
+    auto location = loc(call.getLocation());
+
+    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Type resultType = lower(call.getType());
+    mlir::Value result = builder().create<IntegerOp>(location, resultType, operand);
+    return Reference::ssa(&builder(), result);
+  }
+
   Results CallLowerer::linspace(const Call& call)
   {
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "linspace");

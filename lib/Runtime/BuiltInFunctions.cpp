@@ -403,6 +403,44 @@ RUNTIME_FUNC_DEF(identity, void, ARRAY(float))
 RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
+// integer
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  bool integer_i1(bool value)
+  {
+    return value;
+  }
+
+  int32_t integer_i32(int32_t value)
+  {
+    return value;
+  }
+
+  int64_t integer_i64(int64_t value)
+  {
+    return value;
+  }
+
+  float integer_f32(float value)
+  {
+    return std::floor(value);
+  }
+
+  double integer_f64(double value)
+  {
+    return std::floor(value);
+  }
+}
+
+RUNTIME_FUNC_DEF(integer, bool, bool)
+RUNTIME_FUNC_DEF(integer, int32_t, int32_t)
+RUNTIME_FUNC_DEF(integer, int64_t, int64_t)
+RUNTIME_FUNC_DEF(integer, float, float)
+RUNTIME_FUNC_DEF(integer, double, double)
+
+//===----------------------------------------------------------------------===//
 // linspace
 //===----------------------------------------------------------------------===//
 

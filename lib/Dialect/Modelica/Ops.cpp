@@ -3217,6 +3217,73 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // IntegerOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult IntegerOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto operand = operands[0];
+
+    if (!operand) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(operand)) {
+      if (isScalarIntegerLike(operand)) {
+        return getAttr(resultType, getScalarIntegerLikeValue(operand));
+      }
+
+      if (isScalarFloatLike(operand)) {
+        return getAttr(resultType, std::floor(getScalarFloatLikeValue(operand)));
+      }
+    }
+
+    return {};
+  }
+
+  void IntegerOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    if (getOperand().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), getOperand(), mlir::SideEffects::DefaultResource::get());
+    }
+
+    if (getResult().getType().isa<ArrayType>()) {
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+    }
+  }
+
+  mlir::ValueRange IntegerOp::getArgs()
+  {
+    return mlir::ValueRange(getOperation()->getOperands());
+  }
+
+  unsigned int IntegerOp::getArgExpectedRank(unsigned int argIndex)
+  {
+    return 0;
+  }
+
+  mlir::ValueRange IntegerOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+  {
+    mlir::Type newResultType = getResult().getType().cast<ArrayType>().slice(indexes.size());
+
+    if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
+      newResultType = arrayType.getElementType();
+    }
+
+    mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), getOperand(), indexes);
+
+    if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0) {
+      newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+    }
+
+    auto op = builder.create<FloorOp>(getLoc(), newResultType, newOperand);
+    return op->getResults();
+  }
+
+  //===----------------------------------------------------------------------===//
   // LinspaceOp
   //===----------------------------------------------------------------------===//
 

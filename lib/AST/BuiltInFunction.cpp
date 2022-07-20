@@ -12,6 +12,7 @@
 #include "marco/AST/BuiltInFunction/Exp.h"
 #include "marco/AST/BuiltInFunction/Floor.h"
 #include "marco/AST/BuiltInFunction/Identity.h"
+#include "marco/AST/BuiltInFunction/Integer.h"
 #include "marco/AST/BuiltInFunction/Linspace.h"
 #include "marco/AST/BuiltInFunction/Log.h"
 #include "marco/AST/BuiltInFunction/Log10.h"
@@ -68,6 +69,7 @@ namespace marco::ast
     result.push_back(std::make_unique<ExpFunction>());
     result.push_back(std::make_unique<FloorFunction>());
     result.push_back(std::make_unique<IdentityFunction>());
+    result.push_back(std::make_unique<IntegerFunction>());
     result.push_back(std::make_unique<LinspaceFunction>());
     result.push_back(std::make_unique<LogFunction>());
     result.push_back(std::make_unique<Log10Function>());

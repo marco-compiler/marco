@@ -1557,6 +1557,33 @@ def Modelica_IdentityOp : Modelica_Op<"identity",
     }];
 }
 
+def Modelica_IntegerOp : Modelica_Op<"integer",
+  [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+  DeclareOpInterfaceMethods<VectorizableOpInterface>]>
+{
+  let summary = "Integer function.";
+
+  let description = [{
+    The function takes an operand x and returns the largest integer not greater than x.
+
+    Example:
+
+        ```mlir
+        %x = ... : !modelica.real
+        %0 = modelica.integer %x : !modelica.real -> !modelica.int
+        ```
+  }];
+
+  let arguments = (ins AnyType:$operand);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+    $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+  }];
+
+  let hasFolder = 1;
+}
+
 def Modelica_LinspaceOp : Modelica_Op<"linspace",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {

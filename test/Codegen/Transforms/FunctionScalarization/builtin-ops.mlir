@@ -232,6 +232,24 @@ func.func @test_floor() -> () {
     return
 }
 
+// CHECK{LITERAL}: [-4.000000e+00, 3.000000e+00]
+
+func.func @test_integer() -> () {
+    %array = modelica.alloca : !modelica.array<2x!modelica.real>
+
+    %0 = modelica.constant #modelica.real<-3.14> : !modelica.real
+    %c0 = modelica.constant 0 : index
+    modelica.store %array[%c0], %0 : !modelica.array<2x!modelica.real>
+
+    %1 = modelica.constant #modelica.real<3.14> : !modelica.real
+    %c1 = modelica.constant 1 : index
+    modelica.store %array[%c1], %1 : !modelica.array<2x!modelica.real>
+
+    %result = modelica.integer %array : !modelica.array<2x!modelica.real> -> !modelica.array<2x!modelica.real>
+    modelica.print %result : !modelica.array<2x!modelica.real>
+    return
+}
+
 // CHECK{LITERAL}: [-2.000000e+00, 0.000000e+00, 2.000000e+00]
 
 func.func @test_log() -> () {
@@ -407,6 +425,7 @@ func.func @main() -> () {
     call @test_cosh() : () -> ()
     call @test_exp() : () -> ()
     call @test_floor() : () -> ()
+    call @test_integer() : () -> ()
     call @test_log() : () -> ()
     call @test_log10() : () -> ()
     call @test_sign() : () -> ()
