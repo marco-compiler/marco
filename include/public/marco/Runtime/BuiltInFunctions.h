@@ -151,6 +151,12 @@ RUNTIME_FUNC_DECL(product, int64_t, ARRAY(int64_t))
 RUNTIME_FUNC_DECL(product, float, ARRAY(float))
 RUNTIME_FUNC_DECL(product, double, ARRAY(double))
 
+RUNTIME_FUNC_DECL(rem, bool, bool, bool)
+RUNTIME_FUNC_DECL(rem, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(rem, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DECL(rem, float, float, float)
+RUNTIME_FUNC_DECL(rem, double, double, double)
+
 RUNTIME_FUNC_DECL(sign, int32_t, bool)
 RUNTIME_FUNC_DECL(sign, int32_t, int32_t)
 RUNTIME_FUNC_DECL(sign, int32_t, int64_t)

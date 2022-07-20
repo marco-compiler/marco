@@ -1742,7 +1742,8 @@ def Modelica_ModOp : Modelica_Op<"mod", []>
     let summary = "Get the modulus of a division of two numbers.";
 
     let description = [{
-        Get the modulus of a division of two numbers.
+        The operation takes two arguments `x` and `y` and return the integer
+        modulus of `x / y`, i.e., `mod(x, y) = x - floor(x / y) * y`.
 
         Example:
 
@@ -1753,11 +1754,11 @@ def Modelica_ModOp : Modelica_Op<"mod", []>
         ```
     }];
 
-    let arguments = (ins AnyType:$dividend, AnyType:$divisor);
+    let arguments = (ins AnyType:$x, AnyType:$y);
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $dividend `,` $divisor attr-dict `:` `(` qualified(type($dividend)) `,` qualified(type($divisor)) `)` `->` qualified(type($result))
+        $x `,` $y attr-dict `:` `(` qualified(type($x)) `,` qualified(type($y)) `)` `->` qualified(type($result))
     }];
 
     let hasFolder = 1;
@@ -1837,6 +1838,33 @@ def Modelica_ProductOp : Modelica_Op<"product", []>
     let assemblyFormat = [{
         $array attr-dict `:` qualified(type($array)) `->` qualified(type($result))
     }];
+}
+
+def Modelica_RemOp : Modelica_Op<"rem", []>
+{
+    let summary = "Get the modulus of a division of two numbers.";
+
+    let description = [{
+        The operation takes two arguments `x` and `y` and return the integer
+        remainder of `x / y`, such that `div(x,y) * y + rem(x, y) = x`.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.real
+        %1 = ... : !modelica.real
+        %2 = modelica.rem %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
+        ```
+    }];
+
+    let arguments = (ins AnyType:$x, AnyType:$y);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $x `,` $y attr-dict `:` `(` qualified(type($x)) `,` qualified(type($y)) `)` `->` qualified(type($result))
+    }];
+
+    let hasFolder = 1;
 }
 
 def Modelica_SignOp : Modelica_Op<"sign",

@@ -61,6 +61,7 @@ namespace marco::codegen::lowering
       .Case("ndims", &CallLowerer::ndims)
       .Case("ones", &CallLowerer::ones)
       .Case("product", &CallLowerer::product)
+      .Case("rem", &CallLowerer::rem)
       .Case("sign", &CallLowerer::sign)
       .Case("sin", &CallLowerer::sin)
       .Case("sinh", &CallLowerer::sinh)

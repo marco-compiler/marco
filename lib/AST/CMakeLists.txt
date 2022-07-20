@@ -49,6 +49,7 @@ set(BUILT_IN_FUNCTIONS
 	BuiltInFunction/Ndims.cpp
 	BuiltInFunction/Ones.cpp
 	BuiltInFunction/Product.cpp
+	BuiltInFunction/Rem.cpp
 	BuiltInFunction/Sign.cpp
 	BuiltInFunction/Sin.cpp
 	BuiltInFunction/Sinh.cpp

@@ -41,6 +41,7 @@ namespace marco::codegen::lowering
       Results ndims(const ast::Call& call);
       Results ones(const ast::Call& call);
       Results product(const ast::Call& call);
+      Results rem(const ast::Call& call);
       Results sign(const ast::Call& call);
       Results sin(const ast::Call& call);
       Results sinh(const ast::Call& call);

@@ -22,6 +22,7 @@
 #include "marco/AST/BuiltInFunction/Ndims.h"
 #include "marco/AST/BuiltInFunction/Ones.h"
 #include "marco/AST/BuiltInFunction/Product.h"
+#include "marco/AST/BuiltInFunction/Rem.h"
 #include "marco/AST/BuiltInFunction/Sign.h"
 #include "marco/AST/BuiltInFunction/Sin.h"
 #include "marco/AST/BuiltInFunction/Sinh.h"
@@ -79,6 +80,7 @@ namespace marco::ast
     result.push_back(std::make_unique<NdimsFunction>());
     result.push_back(std::make_unique<OnesFunction>());
     result.push_back(std::make_unique<ProductFunction>());
+    result.push_back(std::make_unique<RemFunction>());
     result.push_back(std::make_unique<SignFunction>());
     result.push_back(std::make_unique<SinFunction>());
     result.push_back(std::make_unique<SinhFunction>());

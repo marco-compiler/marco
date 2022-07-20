@@ -821,6 +821,51 @@ RUNTIME_FUNC_DEF(product, float, ARRAY(float))
 RUNTIME_FUNC_DEF(product, double, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
+// rem
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  bool rem_i1(bool x, bool y)
+  {
+    assert(y);
+
+
+    if (y) {
+      return false;
+    }
+
+    return x;
+  }
+
+  int32_t rem_i32(int32_t x, int32_t y)
+  {
+    return x % y;
+  }
+
+  int64_t rem_i64(int64_t x, int64_t y)
+  {
+    return x % y;
+  }
+
+  float rem_f32(float x, float y)
+  {
+    return std::fmod(x, y);
+  }
+
+  double rem_f64(double x, double y)
+  {
+    return std::fmod(x, y);
+  }
+}
+
+RUNTIME_FUNC_DEF(rem, bool, bool, bool)
+RUNTIME_FUNC_DEF(rem, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(rem, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(rem, float, float, float)
+RUNTIME_FUNC_DEF(rem, double, double, double)
+
+//===----------------------------------------------------------------------===//
 // sign
 //===----------------------------------------------------------------------===//
 

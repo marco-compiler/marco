@@ -4485,19 +4485,19 @@ namespace
 
     mlir::LogicalResult match(ModOp op) const override
     {
-      mlir::Type dividendType = op.getDividend().getType();
-      mlir::Type divisorType = op.getDivisor().getType();
+      mlir::Type xType = op.getX().getType();
+      mlir::Type yType = op.getY().getType();
       mlir::Type resultType = op.getResult().getType();
 
       return mlir::LogicalResult::success(
-          dividendType != divisorType || dividendType != resultType);
+          xType != yType || xType != resultType);
     }
 
     void rewrite(ModOp op, mlir::PatternRewriter& rewriter) const override
     {
       auto loc = op.getLoc();
       llvm::SmallVector<mlir::Value, 2> castedValues;
-      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getDividend(), op.getDivisor() }), castedValues);
+      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getX(), op.getY() }), castedValues);
       assert(castedValues[0].getType() == castedValues[1].getType());
       mlir::Value result = rewriter.create<ModOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
       rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
@@ -4510,12 +4510,12 @@ namespace
 
     mlir::LogicalResult match(ModOp op) const override
     {
-      mlir::Type dividendType = op.getDividend().getType();
-      mlir::Type divisorType = op.getDivisor().getType();
+      mlir::Type xType = op.getX().getType();
+      mlir::Type yType = op.getY().getType();
       mlir::Type resultType = op.getResult().getType();
 
       return mlir::LogicalResult::success(
-          dividendType == divisorType && dividendType == resultType);
+          xType == yType && xType == resultType);
     }
 
     void rewrite(ModOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
@@ -4523,15 +4523,15 @@ namespace
       llvm::SmallVector<mlir::Value, 2> newOperands;
       llvm::SmallVector<std::string, 2> mangledArgsTypes;
 
-      assert(op.getDividend().getType() == op.getDivisor().getType());
+      assert(op.getX().getType() == op.getY().getType());
 
       // Dividend
-      newOperands.push_back(adaptor.getDividend());
-      mangledArgsTypes.push_back(getMangledType(op.getDividend().getType()));
+      newOperands.push_back(adaptor.getX());
+      mangledArgsTypes.push_back(getMangledType(op.getX().getType()));
 
       // Divisor
-      newOperands.push_back(adaptor.getDivisor());
-      mangledArgsTypes.push_back(getMangledType(op.getDivisor().getType()));
+      newOperands.push_back(adaptor.getY());
+      mangledArgsTypes.push_back(getMangledType(op.getY().getType()));
 
       // Create the call to the runtime library
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
@@ -4611,6 +4611,74 @@ namespace
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
           getMangler()->getMangledFunction("product", mangledResultType, mangledArgsTypes),
+          resultType, newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+    }
+  };
+
+  struct RemOpCastPattern : public ModelicaOpRewritePattern<RemOp>
+  {
+    using ModelicaOpRewritePattern<RemOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(RemOp op) const override
+    {
+      mlir::Type xType = op.getX().getType();
+      mlir::Type yType = op.getY().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(
+          xType != yType || xType != resultType);
+    }
+
+    void rewrite(RemOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      llvm::SmallVector<mlir::Value, 2> castedValues;
+      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getX(), op.getY() }), castedValues);
+      assert(castedValues[0].getType() == castedValues[1].getType());
+      mlir::Value result = rewriter.create<RemOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
+      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+    }
+  };
+
+  struct RemOpLowering : public ModelicaOpConversionPattern<RemOp>
+  {
+    using ModelicaOpConversionPattern<RemOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(RemOp op) const override
+    {
+      mlir::Type xType = op.getX().getType();
+      mlir::Type yType = op.getY().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(
+          xType == yType && xType == resultType);
+    }
+
+    void rewrite(RemOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 2> newOperands;
+      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+
+      assert(op.getX().getType() == op.getY().getType());
+
+      // 'x' value
+      newOperands.push_back(adaptor.getX());
+      mangledArgsTypes.push_back(getMangledType(op.getX().getType()));
+
+      // 'y' value
+      newOperands.push_back(adaptor.getY());
+      mangledArgsTypes.push_back(getMangledType(op.getY().getType()));
+
+      // Create the call to the runtime library
+      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      auto mangledResultType = getMangledType(op.getResult().getType());
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          getMangler()->getMangledFunction("rem", mangledResultType, mangledArgsTypes),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
@@ -5576,6 +5644,7 @@ static void populateModelicaToLLVMPatterns(
       ModOpCastPattern,
       NDimsOpLowering,
       ProductOpCastPattern,
+      RemOpCastPattern,
       SignOpCastPattern,
       SinOpCastPattern,
       SinhOpCastPattern,
@@ -5610,6 +5679,7 @@ static void populateModelicaToLLVMPatterns(
       MinOpScalarsLowering,
       ModOpLowering,
       ProductOpLowering,
+      RemOpLowering,
       SignOpLowering,
       SignOpLowering,
       SinOpLowering,

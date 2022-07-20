@@ -1438,9 +1438,7 @@ TEST(Runtime, mod_i1_i1)	 // NOLINT
     return NAME_MANGLED(mod, bool, bool, bool)(x, y);
   };
 
-  EXPECT_EQ(modFn(false, false), false);
   EXPECT_EQ(modFn(false, true), false);
-  EXPECT_EQ(modFn(true, false), true);
   EXPECT_EQ(modFn(true, true), false);
 }
 
@@ -1612,6 +1610,66 @@ TEST(Runtime, product_af64)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 	auto result = NAME_MANGLED(product, double, ARRAY(double))(&unsized);
 	EXPECT_DOUBLE_EQ(result, (double) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+}
+
+TEST(Runtime, rem_i1_i1)	 // NOLINT
+{
+  auto modFn = [](bool x, bool y) -> bool {
+    return NAME_MANGLED(rem, bool, bool, bool)(x, y);
+  };
+
+  EXPECT_EQ(modFn(false, true), false);
+  EXPECT_EQ(modFn(true, true), false);
+}
+
+TEST(Runtime, rem_i32_i32)	 // NOLINT
+{
+  auto modFn = [](int32_t x, int32_t y) -> int32_t {
+    return NAME_MANGLED(rem, int32_t, int32_t, int32_t)(x, y);
+  };
+
+  EXPECT_EQ(modFn(6, 3), 0);
+  EXPECT_EQ(modFn(8, 3), 2);
+  EXPECT_EQ(modFn(10, -3), 1);
+  EXPECT_EQ(modFn(-10, 3), -1);
+}
+
+TEST(Runtime, rem_i64_i64)	 // NOLINT
+{
+  auto modFn = [](int64_t x, int64_t y) -> int64_t {
+    return NAME_MANGLED(rem, int64_t, int64_t, int64_t)(x, y);
+  };
+
+  EXPECT_EQ(modFn(6, 3), 0);
+  EXPECT_EQ(modFn(8, 3), 2);
+  EXPECT_EQ(modFn(10, -3), 1);
+  EXPECT_EQ(modFn(-10, 3), -1);
+}
+
+TEST(Runtime, rem_f32_f32)	 // NOLINT
+{
+  auto modFn = [](float x, float y) -> float {
+    return NAME_MANGLED(rem, float, float, float)(x, y);
+  };
+
+  EXPECT_NEAR(modFn(6, 3), 0, 0.000001);
+  EXPECT_NEAR(modFn(8.5, 3), 2.5, 0.000001);
+  EXPECT_NEAR(modFn(3, 1.4), 0.2, 0.000001);
+  EXPECT_NEAR(modFn(-3, 1.4), -0.2, 0.000001);
+  EXPECT_NEAR(modFn(3, -1.4), 0.2, 0.000001);
+}
+
+TEST(Runtime, rem_f64_f64)	 // NOLINT
+{
+  auto modFn = [](double x, double y) -> double {
+    return NAME_MANGLED(rem, double, double, double)(x, y);
+  };
+
+  EXPECT_NEAR(modFn(6, 3), 0, 0.000001);
+  EXPECT_NEAR(modFn(8.5, 3), 2.5, 0.000001);
+  EXPECT_NEAR(modFn(3, 1.4), 0.2, 0.000001);
+  EXPECT_NEAR(modFn(-3, 1.4), -0.2, 0.000001);
+  EXPECT_NEAR(modFn(3, -1.4), 0.2, 0.000001);
 }
 
 TEST(Runtime, sign_i1)	 // NOLINT
