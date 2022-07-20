@@ -277,6 +277,47 @@ RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
 
 //===----------------------------------------------------------------------===//
+// div
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  bool div_i1(bool x, bool y)
+  {
+    assert(y && "Division by zero");
+    return x;
+
+    return x;
+  }
+
+  int32_t div_i32(int32_t x, int32_t y)
+  {
+    return x / y;
+  }
+
+  int64_t div_i64(int64_t x, int64_t y)
+  {
+    return x / y;
+  }
+
+  float div_f32(float x, float y)
+  {
+    return std::trunc(x / y);
+  }
+
+  double div_f64(double x, double y)
+  {
+    return std::trunc(x / y);
+  }
+}
+
+RUNTIME_FUNC_DEF(div, bool, bool, bool)
+RUNTIME_FUNC_DEF(div, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(div, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(div, float, float, float)
+RUNTIME_FUNC_DEF(div, double, double, double)
+
+//===----------------------------------------------------------------------===//
 // exp
 //===----------------------------------------------------------------------===//
 
@@ -710,6 +751,8 @@ namespace
 {
   bool mod_i1(bool x, bool y)
   {
+    assert(y && "Division by zero");
+
     if (y) {
       return false;
     }
@@ -828,8 +871,7 @@ namespace
 {
   bool rem_i1(bool x, bool y)
   {
-    assert(y);
-
+    assert(y && "Division by zero");
 
     if (y) {
       return false;

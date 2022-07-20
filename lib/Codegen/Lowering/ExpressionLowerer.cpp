@@ -48,6 +48,7 @@ namespace marco::codegen::lowering
       .Case("cosh", &CallLowerer::cosh)
       .Case("der", &CallLowerer::der)
       .Case("diagonal", &CallLowerer::diagonal)
+      .Case("div", &CallLowerer::div)
       .Case("exp", &CallLowerer::exp)
       .Case("floor", &CallLowerer::floor)
       .Case("identity", &CallLowerer::identity)

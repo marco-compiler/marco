@@ -176,6 +176,21 @@ namespace marco::codegen::lowering
     return Reference::ssa(&builder(), result);
   }
 
+  Results CallLowerer::div(const Call& call)
+  {
+    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "div");
+    assert(call.argumentsCount() == 2);
+
+    auto location = loc(call.getLocation());
+
+    mlir::Value dividend = *lower(*call.getArg(0))[0];
+    mlir::Value divisor = *lower(*call.getArg(1))[0];
+
+    mlir::Type resultType = lower(call.getType());
+    mlir::Value result = builder().create<DivTruncOp>(location, resultType, dividend, divisor);
+    return Reference::ssa(&builder(), result);
+  }
+
   Results CallLowerer::exp(const Call& call)
   {
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "exp");

@@ -3690,6 +3690,74 @@ namespace
     }
   };
 
+  struct DivTruncOpCastPattern : public ModelicaOpRewritePattern<DivTruncOp>
+  {
+    using ModelicaOpRewritePattern<DivTruncOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(DivTruncOp op) const override
+    {
+      mlir::Type xType = op.getX().getType();
+      mlir::Type yType = op.getY().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(
+          xType != yType || xType != resultType);
+    }
+
+    void rewrite(DivTruncOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      llvm::SmallVector<mlir::Value, 2> castedValues;
+      castToMostGenericType(rewriter, llvm::makeArrayRef({ op.getX(), op.getY() }), castedValues);
+      assert(castedValues[0].getType() == castedValues[1].getType());
+      mlir::Value result = rewriter.create<DivTruncOp>(loc, castedValues[0].getType(), castedValues[0], castedValues[1]);
+      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+    }
+  };
+
+  struct DivTruncOpLowering : public ModelicaOpConversionPattern<DivTruncOp>
+  {
+    using ModelicaOpConversionPattern<DivTruncOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(DivTruncOp op) const override
+    {
+      mlir::Type xType = op.getX().getType();
+      mlir::Type yType = op.getY().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(
+          xType == yType && xType == resultType);
+    }
+
+    void rewrite(DivTruncOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 2> newOperands;
+      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+
+      assert(op.getX().getType() == op.getY().getType());
+
+      // Dividend
+      newOperands.push_back(adaptor.getX());
+      mangledArgsTypes.push_back(getMangledType(op.getX().getType()));
+
+      // Divisor
+      newOperands.push_back(adaptor.getY());
+      mangledArgsTypes.push_back(getMangledType(op.getY().getType()));
+
+      // Create the call to the runtime library
+      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      auto mangledResultType = getMangledType(op.getResult().getType());
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          getMangler()->getMangledFunction("div", mangledResultType, mangledArgsTypes),
+          resultType, newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+    }
+  };
+
   struct ExpOpCastPattern : public ModelicaOpRewritePattern<ExpOp>
   {
     using ModelicaOpRewritePattern<ExpOp>::ModelicaOpRewritePattern;
@@ -5630,6 +5698,7 @@ static void populateModelicaToLLVMPatterns(
       CeilOpCastPattern,
       CosOpCastPattern,
       CoshOpCastPattern,
+      DivTruncOpCastPattern,
       ExpOpCastPattern,
       FloorOpCastPattern,
       IdentityOpCastPattern,
@@ -5665,6 +5734,7 @@ static void populateModelicaToLLVMPatterns(
       CosOpLowering,
       CoshOpLowering,
       DiagonalOpLowering,
+      DivTruncOpLowering,
       ExpOpLowering,
       FloorOpLowering,
       IdentityOpLowering,

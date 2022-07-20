@@ -795,6 +795,66 @@ TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
   }
 }
 
+TEST(Runtime, div_i1_i1)	 // NOLINT
+{
+  auto divFn = [](bool x, bool y) -> bool {
+    return NAME_MANGLED(div, bool, bool, bool)(x, y);
+  };
+
+  EXPECT_EQ(divFn(false, true), false);
+  EXPECT_EQ(divFn(true, true), true);
+}
+
+TEST(Runtime, div_i32_i32)	 // NOLINT
+{
+  auto divFn = [](int32_t x, int32_t y) -> int32_t {
+    return NAME_MANGLED(div, int32_t, int32_t, int32_t)(x, y);
+  };
+
+  EXPECT_EQ(divFn(6, 3), 2);
+  EXPECT_EQ(divFn(8, 3), 2);
+  EXPECT_EQ(divFn(10, -3), -3);
+  EXPECT_EQ(divFn(-10, 3), -3);
+}
+
+TEST(Runtime, div_i64_i64)	 // NOLINT
+{
+  auto divFn = [](int64_t x, int64_t y) -> int64_t {
+    return NAME_MANGLED(div, int64_t, int64_t, int64_t)(x, y);
+  };
+
+  EXPECT_EQ(divFn(6, 3), 2);
+  EXPECT_EQ(divFn(8, 3), 2);
+  EXPECT_EQ(divFn(10, -3), -3);
+  EXPECT_EQ(divFn(-10, 3), -3);
+}
+
+TEST(Runtime, div_f32_f32)	 // NOLINT
+{
+  auto divFn = [](float x, float y) -> float {
+    return NAME_MANGLED(div, float, float, float)(x, y);
+  };
+
+  EXPECT_NEAR(divFn(6, 3), 2, 0.000001);
+  EXPECT_NEAR(divFn(8.5, 3), 2, 0.000001);
+  EXPECT_NEAR(divFn(3, 1.4), 2, 0.000001);
+  EXPECT_NEAR(divFn(-3, 1.4), -2, 0.000001);
+  EXPECT_NEAR(divFn(3, -1.4), -2, 0.000001);
+}
+
+TEST(Runtime, div_f64_f64)	 // NOLINT
+{
+  auto divFn = [](double x, double y) -> double {
+    return NAME_MANGLED(div, double, double, double)(x, y);
+  };
+
+  EXPECT_NEAR(divFn(6, 3), 2, 0.000001);
+  EXPECT_NEAR(divFn(8.5, 3), 2, 0.000001);
+  EXPECT_NEAR(divFn(3, 1.4), 2, 0.000001);
+  EXPECT_NEAR(divFn(-3, 1.4), -2, 0.000001);
+  EXPECT_NEAR(divFn(3, -1.4), -2, 0.000001);
+}
+
 TEST(Runtime, exp_f32)	 // NOLINT
 {
   auto expFn = [](float exponent) -> float {

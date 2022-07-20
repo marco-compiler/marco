@@ -2709,6 +2709,50 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // DivTruncOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::OpFoldResult DivTruncOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+  {
+    auto x = operands[0];
+    auto y = operands[1];
+
+    if (!x || !y) {
+      return {};
+    }
+
+    auto resultType = getResult().getType();
+
+    if (isScalar(x) && isScalar(y)) {
+      if (isScalarIntegerLike(x) && isScalarIntegerLike(y)) {
+        auto xValue = getScalarIntegerLikeValue(x);
+        auto yValue = getScalarIntegerLikeValue(y);
+        return getAttr(resultType, xValue / yValue);
+      }
+
+      if (isScalarFloatLike(x) && isScalarFloatLike(y)) {
+        auto xValue = getScalarFloatLikeValue(x);
+        auto yValue = getScalarFloatLikeValue(y);
+        return getAttr(resultType, std::trunc(xValue / yValue));
+      }
+
+      if (isScalarIntegerLike(x) && isScalarFloatLike(y)) {
+        auto xValue = getScalarIntegerLikeValue(x);
+        auto yValue = getScalarFloatLikeValue(y);
+        return getAttr(resultType, std::trunc(xValue / yValue));
+      }
+
+      if (isScalarFloatLike(x) && isScalarIntegerLike(y)) {
+        auto xValue = getScalarFloatLikeValue(x);
+        auto yValue = getScalarIntegerLikeValue(y);
+        return getAttr(resultType, std::trunc(xValue / yValue));
+      }
+    }
+
+    return {};
+  }
+
+  //===----------------------------------------------------------------------===//
   // SelectOp
   //===----------------------------------------------------------------------===//
 

@@ -1477,6 +1477,33 @@ def Modelica_DiagonalOp : Modelica_Op<"diagonal",
     }];
 }
 
+def Modelica_DivTruncOp : Modelica_Op<"div_trunc", []>
+{
+    let summary = "Get the integer part of a quotient.";
+
+    let description = [{
+        The operation takes two arguments `x` and `y` and returns
+        the algebraic quotient `x / y` with any fractional part discarded.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = ... : !modelica.int
+        %2 = modelica.div_trunc %0, %1 : (!modelica.int, !modelica.int) -> !modelica.int
+        ```
+    }];
+
+    let arguments = (ins AnyType:$x, AnyType:$y);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $x `,` $y attr-dict `:` `(` qualified(type($x)) `,` qualified(type($y)) `)` `->` qualified(type($result))
+    }];
+
+    let hasFolder = 1;
+}
+
 def Modelica_ExpOp : Modelica_Op<"exp",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
     DeclareOpInterfaceMethods<VectorizableOpInterface>,
@@ -1742,7 +1769,7 @@ def Modelica_ModOp : Modelica_Op<"mod", []>
     let summary = "Get the modulus of a division of two numbers.";
 
     let description = [{
-        The operation takes two arguments `x` and `y` and return the integer
+        The operation takes two arguments `x` and `y` and returns the integer
         modulus of `x / y`, i.e., `mod(x, y) = x - floor(x / y) * y`.
 
         Example:
@@ -1845,7 +1872,7 @@ def Modelica_RemOp : Modelica_Op<"rem", []>
     let summary = "Get the modulus of a division of two numbers.";
 
     let description = [{
-        The operation takes two arguments `x` and `y` and return the integer
+        The operation takes two arguments `x` and `y` and returns the integer
         remainder of `x / y`, such that `div(x,y) * y + rem(x, y) = x`.
 
         Example:

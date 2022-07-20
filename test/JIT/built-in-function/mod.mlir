@@ -44,7 +44,7 @@ func.func @test_integers() -> () {
     return
 }
 
-// CHECK: 0.000000e+00
+// CHECK-NEXT: 0.000000e+00
 // CHECK-NEXT: 2.500000e+00
 
 func.func @test_reals() -> () {
@@ -78,7 +78,7 @@ func.func @test_reals() -> () {
     return
 }
 
-// CHECK: 0.000000e+00
+// CHECK-NEXT: 0.000000e+00
 // CHECK-NEXT: 2.500000e+00
 
 func.func @test_realInteger() -> () {
@@ -112,7 +112,7 @@ func.func @test_realInteger() -> () {
     return
 }
 
-// CHECK: 0.000000e+00
+// CHECK-NEXT: 0.000000e+00
 // CHECK-NEXT: 2.500000e+00
 
 func.func @test_integerReal() -> () {

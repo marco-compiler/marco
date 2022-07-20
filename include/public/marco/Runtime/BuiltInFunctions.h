@@ -65,6 +65,12 @@ RUNTIME_FUNC_DECL(diagonal, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DECL(diagonal, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DECL(diagonal, void, ARRAY(double), ARRAY(double))
 
+RUNTIME_FUNC_DECL(div, bool, bool, bool)
+RUNTIME_FUNC_DECL(div, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(div, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DECL(div, float, float, float)
+RUNTIME_FUNC_DECL(div, double, double, double)
+
 RUNTIME_FUNC_DECL(exp, float, float)
 RUNTIME_FUNC_DECL(exp, double, double)
 

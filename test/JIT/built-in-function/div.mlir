@@ -10,7 +10,7 @@
 // RUN:     -shared-libs=%runtime_lib               \
 // RUN: | FileCheck %s
 
-// CHECK: 0
+// CHECK: 2
 // CHECK-NEXT: 2
 
 func.func @test_integers() -> () {
@@ -37,15 +37,15 @@ func.func @test_integers() -> () {
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.int>
       %yi = modelica.load %y[%i] : !modelica.array<?x!modelica.int>
-      %result = modelica.rem %xi, %yi : (!modelica.int, !modelica.int) -> !modelica.int
+      %result = modelica.div_trunc %xi, %yi : (!modelica.int, !modelica.int) -> !modelica.int
       modelica.print %result : !modelica.int
     }
 
     return
 }
 
-// CHECK-NEXT: 0.000000e+00
-// CHECK-NEXT: 2.500000e+00
+// CHECK-NEXT: 2.000000e+00
+// CHECK-NEXT: 2.000000e+00
 
 func.func @test_reals() -> () {
     %size = arith.constant 2 : index
@@ -71,15 +71,15 @@ func.func @test_reals() -> () {
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.real>
       %yi = modelica.load %y[%i] : !modelica.array<?x!modelica.real>
-      %result = modelica.rem %xi, %yi : (!modelica.real, !modelica.real) -> !modelica.real
+      %result = modelica.div_trunc %xi, %yi : (!modelica.real, !modelica.real) -> !modelica.real
       modelica.print %result : !modelica.real
     }
 
     return
 }
 
-// CHECK-NEXT: 0.000000e+00
-// CHECK-NEXT: 2.500000e+00
+// CHECK-NEXT: 2.000000e+00
+// CHECK-NEXT: 2.000000e+00
 
 func.func @test_realInteger() -> () {
     %size = arith.constant 2 : index
@@ -105,15 +105,15 @@ func.func @test_realInteger() -> () {
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.real>
       %yi = modelica.load %y[%i] : !modelica.array<?x!modelica.int>
-      %result = modelica.rem %xi, %yi : (!modelica.real, !modelica.int) -> !modelica.real
+      %result = modelica.div_trunc %xi, %yi : (!modelica.real, !modelica.int) -> !modelica.real
       modelica.print %result : !modelica.real
     }
 
     return
 }
 
-// CHECK-NEXT: 0.000000e+00
-// CHECK-NEXT: 2.500000e+00
+// CHECK-NEXT: 2.000000e+00
+// CHECK-NEXT: 2.000000e+00
 
 func.func @test_integerReal() -> () {
     %size = arith.constant 2 : index
@@ -139,7 +139,7 @@ func.func @test_integerReal() -> () {
     scf.for %i = %lb to %size step %step {
       %xi = modelica.load %x[%i] : !modelica.array<?x!modelica.int>
       %yi = modelica.load %y[%i] : !modelica.array<?x!modelica.real>
-      %result = modelica.rem %xi, %yi : (!modelica.int, !modelica.real) -> !modelica.real
+      %result = modelica.div_trunc %xi, %yi : (!modelica.int, !modelica.real) -> !modelica.real
       modelica.print %result : !modelica.real
     }
 
