@@ -768,6 +768,56 @@ TEST(Runtime, exp_f64)	 // NOLINT
 	EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
 }
 
+TEST(Runtime, floor_i1)	 // NOLINT
+{
+  auto floorFn = [](bool value) -> bool {
+    return NAME_MANGLED(floor, bool, bool)(value);
+  };
+
+  EXPECT_EQ(floorFn(false), false);
+  EXPECT_EQ(floorFn(true), true);
+}
+
+TEST(Runtime, floor_i32)	 // NOLINT
+{
+  auto floorFn = [](int32_t value) -> int32_t {
+    return NAME_MANGLED(floor, int32_t, int32_t)(value);
+  };
+
+  EXPECT_EQ(floorFn(-3), -3);
+  EXPECT_EQ(floorFn(3), 3);
+}
+
+TEST(Runtime, floor_i64)	 // NOLINT
+{
+  auto floorFn = [](int64_t value) -> int64_t {
+    return NAME_MANGLED(floor, int64_t, int64_t)(value);
+  };
+
+  EXPECT_EQ(floorFn(-3), -3);
+  EXPECT_EQ(floorFn(3), 3);
+}
+
+TEST(Runtime, floor_f32)	 // NOLINT
+{
+  auto floorFn = [](float value) -> float {
+    return NAME_MANGLED(floor, float, float)(value);
+  };
+
+  EXPECT_NEAR(floorFn(-3.14), -4, 0.000001);
+  EXPECT_NEAR(floorFn(3.14), 3, 0.000001);
+}
+
+TEST(Runtime, floor_f64)	 // NOLINT
+{
+  auto floorFn = [](double value) -> double {
+    return NAME_MANGLED(floor, double, double)(value);
+  };
+
+  EXPECT_NEAR(floorFn(-3.14), -4, 0.000001);
+  EXPECT_NEAR(floorFn(3.14), 3, 0.000001);
+}
+
 TEST(Runtime, fill_i1)	 // NOLINT
 {
 	std::array<bool, 3> data = { false, false, false };

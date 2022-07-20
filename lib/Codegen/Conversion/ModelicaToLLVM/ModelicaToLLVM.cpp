@@ -3694,6 +3694,63 @@ namespace
     }
   };
 
+  struct FloorOpCastPattern : public ModelicaOpRewritePattern<FloorOp>
+  {
+    using ModelicaOpRewritePattern<FloorOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(FloorOp op) const override
+    {
+      mlir::Type operandType = op.getOperand().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(operandType == resultType);
+    }
+
+    void rewrite(FloorOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      mlir::Value result = rewriter.create<FloorOp>(loc, op.getOperand().getType(), op.getOperand());
+      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+    }
+  };
+
+  struct FloorOpLowering : public ModelicaOpConversionPattern<FloorOp>
+  {
+    using ModelicaOpConversionPattern<FloorOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(FloorOp op) const override
+    {
+      mlir::Type operandType = op.getOperand().getType();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(operandType == resultType);
+    }
+
+    void rewrite(FloorOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 1> newOperands;
+      llvm::SmallVector<std::string, 1> mangledArgsTypes;
+
+      // Operand
+      assert(op.getOperand().getType().isa<RealType>());
+      newOperands.push_back(adaptor.getOperand());
+      mangledArgsTypes.push_back(getMangledType(op.getOperand().getType()));
+
+      // Create the call to the runtime library
+      assert(op.getResult().getType().isa<RealType>());
+      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      auto mangledResultType = getMangledType(op.getResult().getType());
+
+      auto callee = getOrDeclareFunction(
+          rewriter,
+          op->getParentOfType<mlir::ModuleOp>(),
+          getMangler()->getMangledFunction("floor", mangledResultType, mangledArgsTypes),
+          resultType, newOperands);
+
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+    }
+  };
+
   struct IdentityOpCastPattern : public ModelicaOpRewritePattern<IdentityOp>
   {
     using ModelicaOpRewritePattern<IdentityOp>::ModelicaOpRewritePattern;
@@ -5391,6 +5448,7 @@ static void populateModelicaToLLVMPatterns(
       CosOpCastPattern,
       CoshOpCastPattern,
       ExpOpCastPattern,
+      FloorOpCastPattern,
       IdentityOpCastPattern,
       LinspaceOpCastPattern,
       LogOpCastPattern,
@@ -5422,6 +5480,7 @@ static void populateModelicaToLLVMPatterns(
       CoshOpLowering,
       DiagonalOpLowering,
       ExpOpLowering,
+      FloorOpLowering,
       IdentityOpLowering,
       LinspaceOpLowering,
       LogOpLowering,

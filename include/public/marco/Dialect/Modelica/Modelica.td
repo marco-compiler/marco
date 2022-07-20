@@ -1478,6 +1478,33 @@ def Modelica_ExpOp : Modelica_Op<"exp",
     let hasFolder = 1;
 }
 
+def Modelica_FloorOp : Modelica_Op<"floor",
+   [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+   DeclareOpInterfaceMethods<VectorizableOpInterface>]>
+{
+  let summary = "Floor function.";
+
+  let description = [{
+    The function takes an operand x and returns the largest integer not greater than x
+
+    Example:
+
+        ```mlir
+        %x = ... : !modelica.real
+        %0 = modelica.floor %x : !modelica.real -> !modelica.real
+        ```
+  }];
+
+  let arguments = (ins AnyType:$operand);
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = [{
+    $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+  }];
+
+  let hasFolder = 1;
+}
+
 def Modelica_IdentityOp : Modelica_Op<"identity",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {

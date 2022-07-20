@@ -48,6 +48,7 @@ namespace marco::codegen::lowering
       .Case("der", &CallLowerer::der)
       .Case("diagonal", &CallLowerer::diagonal)
       .Case("exp", &CallLowerer::exp)
+      .Case("floor", &CallLowerer::floor)
       .Case("identity", &CallLowerer::identity)
       .Case("linspace", &CallLowerer::linspace)
       .Case("log", &CallLowerer::log)

@@ -176,6 +176,19 @@ namespace marco::codegen::lowering
     return Reference::ssa(&builder(), result);
   }
 
+  Results CallLowerer::floor(const Call& call)
+  {
+    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "floor");
+    assert(call.argumentsCount() == 1);
+
+    auto location = loc(call.getLocation());
+
+    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Type resultType = lower(call.getType());
+    mlir::Value result = builder().create<FloorOp>(location, resultType, operand);
+    return Reference::ssa(&builder(), result);
+  }
+
   Results CallLowerer::identity(const Call& call)
   {
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "identity");

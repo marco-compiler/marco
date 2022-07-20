@@ -9,6 +9,7 @@
 #include "marco/AST/BuiltInFunction/Der.h"
 #include "marco/AST/BuiltInFunction/Diagonal.h"
 #include "marco/AST/BuiltInFunction/Exp.h"
+#include "marco/AST/BuiltInFunction/Floor.h"
 #include "marco/AST/BuiltInFunction/Identity.h"
 #include "marco/AST/BuiltInFunction/Linspace.h"
 #include "marco/AST/BuiltInFunction/Log.h"
@@ -63,6 +64,7 @@ namespace marco::ast
     result.push_back(std::make_unique<DerFunction>());
     result.push_back(std::make_unique<DiagonalFunction>());
     result.push_back(std::make_unique<ExpFunction>());
+    result.push_back(std::make_unique<FloorFunction>());
     result.push_back(std::make_unique<IdentityFunction>());
     result.push_back(std::make_unique<LinspaceFunction>());
     result.push_back(std::make_unique<LogFunction>());

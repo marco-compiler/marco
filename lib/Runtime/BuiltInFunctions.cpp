@@ -285,6 +285,44 @@ RUNTIME_FUNC_DEF(fill, void, ARRAY(float), float)
 RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
 
 //===----------------------------------------------------------------------===//
+// floor
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  bool floor_i1(bool value)
+  {
+    return value;
+  }
+
+  int32_t floor_i32(int32_t value)
+  {
+    return value;
+  }
+
+  int64_t floor_i64(int64_t value)
+  {
+    return value;
+  }
+
+  float floor_f32(float value)
+  {
+    return std::floor(value);
+  }
+
+  double floor_f64(double value)
+  {
+    return std::floor(value);
+  }
+}
+
+RUNTIME_FUNC_DEF(floor, bool, bool)
+RUNTIME_FUNC_DEF(floor, int32_t, int32_t)
+RUNTIME_FUNC_DEF(floor, int64_t, int64_t)
+RUNTIME_FUNC_DEF(floor, float, float)
+RUNTIME_FUNC_DEF(floor, double, double)
+
+//===----------------------------------------------------------------------===//
 // identity
 //===----------------------------------------------------------------------===//
 

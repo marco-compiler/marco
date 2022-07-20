@@ -36,6 +36,7 @@ set(BUILT_IN_FUNCTIONS
 	BuiltInFunction/Der.cpp
 	BuiltInFunction/Diagonal.cpp
 	BuiltInFunction/Exp.cpp
+	BuiltInFunction/Floor.cpp
 	BuiltInFunction/Identity.cpp
 	BuiltInFunction/Linspace.cpp
 	BuiltInFunction/Log.cpp
