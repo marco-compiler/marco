@@ -108,7 +108,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::eq, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
 
       } else if (operandsType.isa<mlir::FloatType>()) {
@@ -116,7 +121,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OEQ, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
       }
 
@@ -155,7 +165,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::ne, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
 
       } else if (operandsType.isa<mlir::FloatType>()) {
@@ -163,7 +178,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::ONE, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
       }
 
@@ -202,7 +222,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::sgt, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
 
       } else if (operandsType.isa<mlir::FloatType>()) {
@@ -210,7 +235,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OGT, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
       }
 
@@ -249,7 +279,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::sge, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
 
       } else if (operandsType.isa<mlir::FloatType>()) {
@@ -257,7 +292,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OGE, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
       }
 
@@ -296,7 +336,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::slt, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
 
       } else if (operandsType.isa<mlir::FloatType>()) {
@@ -304,7 +349,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OLT, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
       }
 
@@ -343,7 +393,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpIPredicate::sle, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
 
       } else if (operandsType.isa<mlir::FloatType>()) {
@@ -351,7 +406,12 @@ namespace
             loc, rewriter.getIntegerType(1), mlir::arith::CmpFPredicate::OLE, adaptor.getLhs(), adaptor.getRhs());
 
         result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(result.getContext()), result);
-        rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+
+        if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+          result = rewriter.create<CastOp>(loc, resultType, result);
+        }
+
+        rewriter.replaceOp(op, result);
         return mlir::success();
       }
 
@@ -366,6 +426,76 @@ namespace
 
 namespace
 {
+  struct NotOpIntegerLowering : public ModelicaOpConversionPattern<NotOp>
+  {
+    using ModelicaOpConversionPattern<NotOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(NotOp op) const override
+    {
+      mlir::Type operandType = op.getOperand().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(operandType).isa<mlir::IntegerType>());
+    }
+
+    void rewrite(NotOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getOperand().getType()));
+
+      mlir::Value result = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::eq,
+          adaptor.getOperand(), zero);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
+    }
+  };
+
+  struct NotOpFloatLowering : public ModelicaOpConversionPattern<NotOp>
+  {
+    using ModelicaOpConversionPattern<NotOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(NotOp op) const override
+    {
+      mlir::Type operandType = op.getOperand().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(operandType).isa<mlir::FloatType>());
+    }
+
+    void rewrite(NotOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getOperand().getType()));
+
+      mlir::Value result = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::OEQ,
+          adaptor.getOperand(), zero);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
+    }
+  };
+
   struct NotOpLowering : public ModelicaOpConversionPattern<NotOp>
   {
     using ModelicaOpConversionPattern<NotOp>::ModelicaOpConversionPattern;
@@ -384,8 +514,12 @@ namespace
       mlir::Value trueValue = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getBoolAttr(true));
       mlir::Value result = rewriter.create<mlir::arith::XOrIOp>(loc, trueValue, adaptor.getOperand());
       result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
 
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
       return mlir::success();
     }
   };
@@ -497,29 +631,195 @@ namespace
     }
   };
 
-  struct AndOpLowering : public ModelicaOpConversionPattern<AndOp>
+  struct AndOpIntegersLowering : public ModelicaOpConversionPattern<AndOp>
   {
     using ModelicaOpConversionPattern<AndOp>::ModelicaOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(AndOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult match(AndOp op) const override
     {
-      auto loc = op->getLoc();
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
 
-      // Check if the operands are compatible
-      if (!op.getLhs().getType().isa<BooleanType>()) {
-        return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a Boolean");
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::IntegerType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::IntegerType>());
+    }
+
+    void rewrite(AndOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::AndIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
       }
 
-      if (!op.getRhs().getType().isa<BooleanType>()) {
-        return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a Boolean");
+      rewriter.replaceOp(op, result);
+    }
+  };
+
+  struct AndOpFloatsLowering : public ModelicaOpConversionPattern<AndOp>
+  {
+    using ModelicaOpConversionPattern<AndOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(AndOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::FloatType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::FloatType>());
+    }
+
+    void rewrite(AndOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::AndIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
       }
 
-      // Compute the result
-      mlir::Value result = rewriter.create<mlir::arith::AndIOp>(loc, adaptor.getLhs(), adaptor.getRhs());
-      result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+      rewriter.replaceOp(op, result);
+    }
+  };
 
-      return mlir::success();
+  struct AndOpIntegerFloatLowering : public ModelicaOpConversionPattern<AndOp>
+  {
+    using ModelicaOpConversionPattern<AndOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(AndOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::IntegerType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::FloatType>());
+    }
+
+    void rewrite(AndOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::AndIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
+    }
+  };
+
+  struct AndOpFloatIntegerLowering : public ModelicaOpConversionPattern<AndOp>
+  {
+    using ModelicaOpConversionPattern<AndOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(AndOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::FloatType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::IntegerType>());
+    }
+
+    void rewrite(AndOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::AndIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
     }
   };
 
@@ -543,29 +843,195 @@ namespace
     }
   };
 
-  struct OrOpLowering : public ModelicaOpConversionPattern<OrOp>
+  struct OrOpIntegersLowering : public ModelicaOpConversionPattern<OrOp>
   {
     using ModelicaOpConversionPattern<OrOp>::ModelicaOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(OrOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult match(OrOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::IntegerType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::IntegerType>());
+    }
+
+    void rewrite(OrOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
       auto loc = op.getLoc();
 
-      // Check if the operands are compatible
-      if (!op.getLhs().getType().isa<BooleanType>()) {
-        return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a Boolean");
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::OrIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
       }
 
-      if (!op.getRhs().getType().isa<BooleanType>()) {
-        return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a Boolean");
+      rewriter.replaceOp(op, result);
+    }
+  };
+
+  struct OrOpFloatsLowering : public ModelicaOpConversionPattern<OrOp>
+  {
+    using ModelicaOpConversionPattern<OrOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(OrOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::FloatType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::FloatType>());
+    }
+
+    void rewrite(OrOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::OrIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
       }
 
-      // Compute the result
-      mlir::Value result = rewriter.create<mlir::arith::OrIOp>(loc, adaptor.getLhs(), adaptor.getRhs());
-      result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+      rewriter.replaceOp(op, result);
+    }
+  };
 
-      return mlir::success();
+  struct OrOpIntegerFloatLowering : public ModelicaOpConversionPattern<OrOp>
+  {
+    using ModelicaOpConversionPattern<OrOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(OrOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::IntegerType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::FloatType>());
+    }
+
+    void rewrite(OrOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::OrIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
+    }
+  };
+
+  struct OrOpFloatIntegerLowering : public ModelicaOpConversionPattern<OrOp>
+  {
+    using ModelicaOpConversionPattern<OrOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(OrOp op) const override
+    {
+      mlir::Type lhsType = op.getLhs().getType();
+      mlir::Type rhsType = op.getRhs().getType();
+
+      return mlir::LogicalResult::success(
+          getTypeConverter()->convertType(lhsType).isa<mlir::FloatType>() &&
+          getTypeConverter()->convertType(rhsType).isa<mlir::IntegerType>());
+    }
+
+    void rewrite(OrOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Value lhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getLhs().getType()));
+
+      mlir::Value lhs = rewriter.create<mlir::arith::CmpFOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpFPredicate::ONE,
+          adaptor.getLhs(), lhsZero);
+
+      mlir::Value rhsZero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(adaptor.getRhs().getType()));
+
+      mlir::Value rhs = rewriter.create<mlir::arith::CmpIOp>(
+          loc, rewriter.getIntegerType(1),
+          mlir::arith::CmpIPredicate::ne,
+          adaptor.getRhs(), rhsZero);
+
+      mlir::Value result = rewriter.create<mlir::arith::OrIOp>(
+          loc, rewriter.getIntegerType(1), lhs, rhs);
+
+      result = getTypeConverter()->materializeSourceConversion(
+          rewriter, loc, BooleanType::get(op->getContext()), result);
+
+      if (auto resultType = op.getResult().getType(); result.getType() != resultType) {
+        result = rewriter.create<CastOp>(loc, resultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
     }
   };
 
@@ -589,7 +1055,6 @@ namespace
     }
   };
 }
-
 
 //===----------------------------------------------------------------------===//
 // Math operations
@@ -2521,9 +2986,16 @@ static void populateModelicaToArithPatterns(
       OrOpArrayLowering>(context, options);
 
   patterns.insert<
-      NotOpLowering,
-      AndOpLowering,
-      OrOpLowering>(context, typeConverter, options);
+      NotOpIntegerLowering,
+      NotOpFloatLowering,
+      AndOpIntegersLowering,
+      AndOpFloatsLowering,
+      AndOpIntegerFloatLowering,
+      AndOpFloatIntegerLowering,
+      OrOpIntegersLowering,
+      OrOpFloatsLowering,
+      OrOpIntegerFloatLowering,
+      OrOpFloatIntegerLowering>(context, typeConverter, options);
 
   // Math operations
   patterns.insert<

@@ -68,8 +68,12 @@ namespace marco::codegen
     }
 
     for (const auto& [value, type] : llvm::zip(values, types)) {
-      mlir::Value castedValue = builder.create<CastOp>(value.getLoc(), type, value);
-      castedValues.push_back(castedValue);
+      if (value.getType() != type) {
+        mlir::Value castedValue = builder.create<CastOp>(value.getLoc(), type, value);
+        castedValues.push_back(castedValue);
+      } else {
+        castedValues.push_back(value);
+      }
     }
 
     return types[0];
