@@ -313,6 +313,14 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createModelicaToCFPass(modelicaToCFOptions));
 
+    // Modelica to Arith conversion
+    codegen::ModelicaToArithOptions modelicaToArithOptions;
+    modelicaToArithOptions.bitWidth = codegenOptions.bitWidth;
+    modelicaToArithOptions.assertions = codegenOptions.assertions;
+    modelicaToArithOptions.dataLayout = dataLayout;
+
+    passManager.addPass(codegen::createModelicaToArithPass(modelicaToArithOptions));
+
     // Modelica to LLVM conversion
     codegen::ModelicaToLLVMOptions modelicaToLLVMOptions;
     modelicaToLLVMOptions.assertions = codegenOptions.assertions;

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --convert-modelica-to-llvm | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --convert-modelica-to-arith | FileCheck %s
 
 // CHECK-LABEL: @singleResult
 // CHECK-DAG:   %[[condition:.*]] = arith.constant true

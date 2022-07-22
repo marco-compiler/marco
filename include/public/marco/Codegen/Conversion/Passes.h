@@ -4,6 +4,7 @@
 // Just a convenience header file to include the conversion passes
 
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
+#include "marco/Codegen/Conversion/ModelicaToArith/ModelicaToArith.h"
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 

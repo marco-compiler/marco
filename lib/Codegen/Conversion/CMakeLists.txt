@@ -1,4 +1,5 @@
 add_subdirectory(IDAToLLVM)
 add_subdirectory(ModelicaCommon)
+add_subdirectory(ModelicaToArith)
 add_subdirectory(ModelicaToCF)
 add_subdirectory(ModelicaToLLVM)

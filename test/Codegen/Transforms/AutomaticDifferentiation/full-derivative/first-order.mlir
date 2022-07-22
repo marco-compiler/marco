@@ -1,6 +1,7 @@
 // RUN: modelica-opt %s                             \
 // RUN:     --auto-diff                             \
-// RUN:     --convert-modelica-to-cf               \
+// RUN:     --convert-modelica-to-cf                \
+// RUN:     --convert-modelica-to-arith             \
 // RUN:     --convert-modelica-to-llvm              \
 // RUN:     --convert-scf-to-cf                     \
 // RUN:     --convert-func-to-llvm                  \

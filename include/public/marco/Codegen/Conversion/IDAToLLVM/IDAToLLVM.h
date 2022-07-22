@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_CONVERSION_IDA_IDATOLLVM_H
-#define MARCO_CODEGEN_CONVERSION_IDA_IDATOLLVM_H
+#ifndef MARCO_CODEGEN_CONVERSION_IDATOLLVM_IDATOLLVM_H
+#define MARCO_CODEGEN_CONVERSION_IDATOLLVM_IDATOLLVM_H
 
 #include "mlir/Pass/Pass.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
@@ -24,4 +24,4 @@ namespace marco::codegen
       IDAToLLVMOptions options = IDAToLLVMOptions::getDefaultOptions());
 }
 
-#endif // MARCO_CODEGEN_CONVERSION_IDA_IDATOLLVM_H
+#endif // MARCO_CODEGEN_CONVERSION_IDATOLLVM_IDATOLLVM_H

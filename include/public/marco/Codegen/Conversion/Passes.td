@@ -4,7 +4,7 @@
 include "mlir/Pass/PassBase.td"
 
 //===----------------------------------------------------------------------===//
-// IDA
+// IDA to LLVM
 //===----------------------------------------------------------------------===//
 
 def IDAToLLVM : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
@@ -17,6 +17,28 @@ def IDAToLLVM : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
   let constructor = "marco::codegen::createIDAToLLVMPass()";
 
   let dependentDialects = [
+    "mlir::LLVM::LLVMDialect"
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica to Arith
+//===----------------------------------------------------------------------===//
+
+def ModelicaToArith : Pass<"convert-modelica-to-arith", "mlir::ModuleOp"> {
+  let summary = "Modelica: conversion to Arith dialect";
+
+  let description = [{
+    // TODO
+  }];
+
+  let constructor = "marco::codegen::createModelicaToArithPass()";
+
+  let dependentDialects = [
+    "mlir::modelica::ModelicaDialect",
+    "mlir::arith::ArithmeticDialect",
+    "mlir::cf::ControlFlowDialect",
+    "mlir::scf::SCFDialect",
     "mlir::LLVM::LLVMDialect"
   ];
 }
@@ -44,8 +66,12 @@ def ModelicaToLLVM : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
   ];
 }
 
+//===----------------------------------------------------------------------===//
+// Modelica to CF
+//===----------------------------------------------------------------------===//
+
 def ModelicaToCF : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
-  let summary = "Modelica: convert to CFG";
+  let summary = "Modelica: convert to CF";
 
   let description = [{
     // TODO
