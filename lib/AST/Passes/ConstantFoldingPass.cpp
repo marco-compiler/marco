@@ -861,6 +861,57 @@ namespace marco::ast
   }
 
   template<>
+  bool ConstantFoldingPass::processOp<OperationKind::subscription>(Expression& expression)
+  {
+    auto numOfErrors = diagnostics()->numOfErrors();
+
+    auto* operation = expression.get<Operation>();
+    assert(operation->size()>=2);
+
+    for(auto &arg : operation->getArguments()){
+      if (!run<Expression>(*arg)) {
+        return false;
+      }
+    }
+
+    auto lhs = operation->getArg(0);
+
+    if(auto array = lhs->dyn_get<Array>()){
+    
+      // check if it is possible to apply a constant folding on the array
+      // since static array are usually used in ragged loop
+      auto firstSubscript = operation->getArg(1);
+
+      if (auto p = firstSubscript->dyn_get<Constant>()) {
+
+        int index = p->as<BuiltInType::Integer>() - 1;// -1 since modelica uses 1-indexed array
+        assert(index >= 0 && (size_t) index < array->size());
+
+        if (operation->size() == 2) {
+          // if it's just one subscript, substitute the operation with the correct array value
+          expression = *(*array)[index];
+          return numOfErrors == diagnostics()->numOfErrors();;
+        } else {
+          // otherwise generate a new operation with the new expression and the remaining subscripts
+          llvm::SmallVector<std::unique_ptr<Expression>, 2> args;
+          args.emplace_back(std::move((*array)[index]));
+
+          auto subscripts_expr = operation->getArguments().slice(2);
+          for (auto& s : subscripts_expr) {
+            args.emplace_back(std::move(s));
+          }
+          expression = *Expression::operation(operation->getLocation(), operation->getType().subscript(1), OperationKind::subscription, args);
+
+          // visit it to folding it recursively (this way multidimensional constant array are correctly handled)
+          return processOp<OperationKind::subscription>(expression);
+        }
+      }
+    }
+   
+    return numOfErrors == diagnostics()->numOfErrors();
+  }
+
+  template<>
   bool ConstantFoldingPass::run<Operation>(Expression& expression)
   {
     auto* operation = expression.get<Operation>();
@@ -936,7 +987,7 @@ namespace marco::ast
         return true;
 
       case OperationKind::subscription:
-        return true;
+        return processOp<OperationKind::subscription>(expression);
 
       case OperationKind::subtract:
         return processOp<OperationKind::subtract>(expression);

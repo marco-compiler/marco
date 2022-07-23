@@ -23,6 +23,8 @@ namespace marco::ast
       bool run(Class& cls);
 
       bool run(ForEquation& forEquation);
+      
+      bool run(Equation& equation);
 
       bool run(Member& member);
 

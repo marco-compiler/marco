@@ -58,6 +58,12 @@ namespace marco::ast
     }
 
     for (auto& equationsBlock : model->getEquationsBlocks()) {
+      for (auto& equation : equationsBlock->getEquations()) {
+        if (!run(*equation)) {
+          return false;
+        }
+      }
+
       for (auto& forEquation : equationsBlock->getForEquations()) {
         if (!run(*forEquation)) {
           return false;
@@ -66,6 +72,12 @@ namespace marco::ast
     }
 
     for (auto& equationsBlock : model->getInitialEquationsBlocks()) {
+      for (auto& equation : equationsBlock->getEquations()) {
+        if (!run(*equation)) {
+          return false;
+        }
+      }
+
       for (auto& forEquation : equationsBlock->getForEquations()) {
         if (!run(*forEquation)) {
           return false;
@@ -96,6 +108,19 @@ namespace marco::ast
     return false;
   }
 
+  bool StructuralConstantPropagationPass::run(Equation& equation)
+  {
+      if (!run<Expression>(*equation.getLhsExpression())) {
+        return false;
+      }
+
+      if (!run<Expression>(*equation.getRhsExpression())) {
+        return false;
+      }
+
+      return true;
+  }
+
   bool StructuralConstantPropagationPass::run(ForEquation& forEquation)
   {
     for (auto& ind : forEquation.getInductions()) {
@@ -118,6 +143,11 @@ namespace marco::ast
         llvm::errs() << "Can't compute end index\n";
         return false;
       }
+
+    }
+
+    if (!run(*forEquation.getEquation())) {
+      return false;
     }
 
     return true;
