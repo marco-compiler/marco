@@ -100,6 +100,27 @@ TEST(VariableFilter, arrayWithLowerAndUpperBound)
 	EXPECT_EQ(ranges[0].getUpperBound(), 3);
 }
 
+TEST(VariableFilter, raggedArrayWithLowerAndUpperBound)
+{
+	std::string str = "x.y[1:3,2:5]";
+	auto vf = VariableFilter::fromString(str);
+	ASSERT_FALSE(!vf);
+
+	EXPECT_TRUE(vf->isEnabled());
+
+	auto filters = vf->getVariableInfo("x.y[1]", 1);
+  ASSERT_EQ(filters.size(), 1);
+
+	EXPECT_TRUE(filters[0].isVisible());
+
+	auto ranges = filters[0].getRanges();
+	EXPECT_EQ(ranges.size(), 1);
+	EXPECT_TRUE(ranges[0].hasLowerBound());
+	EXPECT_EQ(ranges[0].getLowerBound(), 2);
+	EXPECT_TRUE(ranges[0].hasUpperBound());
+	EXPECT_EQ(ranges[0].getUpperBound(), 5);
+}
+
 TEST(VariableFilter, multipleVariables)
 {
 	std::string str = "x;y[1:3]";

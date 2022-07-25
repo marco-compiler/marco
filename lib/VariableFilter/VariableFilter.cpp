@@ -87,20 +87,38 @@ namespace marco
     regex.push_back(newRegex.str());
   }
 
-  std::vector<Filter> VariableFilter::getVariableInfo(llvm::StringRef name, unsigned int expectedRank) const
+  std::tuple<llvm::StringRef,llvm::SmallVector<long,2>> removeSubscript(llvm::StringRef name)
+  {
+    auto it = name.find('[');
+    if ( it != std::string::npos ){
+      llvm::SmallVector<long,2> subscripts;
+      llvm::SmallVector<llvm::StringRef,2> subscripts_strings;
+
+      auto s = name.substr(it+1,name.size()-1);
+      s.split(subscripts_strings,"][");
+
+      for(auto s:subscripts_strings){
+        subscripts.push_back(std::stoi(s.str()));
+      }
+      return {name.take_front(it),subscripts};
+    }
+    return {name,{}};
+  }
+
+  std::vector<Filter> VariableFilter::getVariableInfo(llvm::StringRef id, unsigned int expectedRank) const
   {
     std::vector<Filter> filters;
 
     bool visibility = !isEnabled();
 
+    auto [name,subscripts] = removeSubscript(id);
+
     if (matchesRegex(name)) {
-      std::vector<Range> ranges;
       visibility = true;
     }
 
     if (auto trackersIt = variables.find(name); trackersIt != variables.end()) {
       for (const auto& tracker : trackersIt->second) {
-        visibility = true;
 
         std::vector<Range> ranges;
 
@@ -108,9 +126,30 @@ namespace marco
         // then only keep an amount of ranges equal to the rank.
 
         auto trackerRanges = tracker.getRanges();
-        unsigned int amount = expectedRank < trackerRanges.size() ? expectedRank : trackerRanges.size();
-        auto it = trackerRanges.begin();
-        ranges.insert(ranges.begin(), it, it + amount);
+        unsigned int offset = subscripts.size();
+        unsigned int amount = std::min(expectedRank , (unsigned int)trackerRanges.size() - offset);
+        auto it = trackerRanges.begin() + offset;
+        
+        if(it!=trackerRanges.end() && amount>0)
+          ranges.insert(ranges.begin(), it, it + amount);
+
+        bool filteredOut = false;
+
+        for(size_t i = 0; i < std::min(trackerRanges.size(),subscripts.size()); ++i){
+          auto &range = trackerRanges[i];
+          auto &val = subscripts[i];
+
+          if ( (range.hasLowerBound() && val<range.getLowerBound()) ||
+               (range.hasUpperBound() && val>range.getUpperBound()) )
+          {
+            filteredOut = true;
+            break;
+          }
+        }
+        if(filteredOut)
+          continue;
+
+        visibility = true;
 
         // If the requested rank is higher than the one known by the variable filter,
         // then set the remaining ranges as unbounded.
