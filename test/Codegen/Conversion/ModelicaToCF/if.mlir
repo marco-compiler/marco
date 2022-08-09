@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
-// CHECK:       func @foo(%arg0: i64) -> i64 {
+// CHECK:       modelica.raw_function @foo(%arg0: i64) -> i64 {
 // CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_else:.*]]
 // CHECK-NEXT:  ^[[if_then]]:
 // CHECK:           modelica.constant #modelica.int<1>
@@ -13,7 +13,7 @@
 // CHECK-NEXT:  ^[[if_out]]:
 // CHECK-NEXT:      br ^[[out:.*]]
 // CHECK-NEXT:  ^[[out]]:
-// CHECK:           return
+// CHECK:           modelica.raw_return
 // CHECK-NEXT:  }
 
 modelica.function @foo : (!modelica.int) -> (!modelica.int) {

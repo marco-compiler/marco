@@ -6,6 +6,7 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToArith/ModelicaToArith.h"
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
+#include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToMemRef/ModelicaToMemRef.h"
 

@@ -2856,8 +2856,6 @@ static void populateModelicaToLLVMPatterns(
       PrintOpLowering>(context, typeConverter, options);
 }
 
-#include "llvm/Support/Debug.h"
-
 namespace
 {
   class ModelicaToLLVMConversionPass : public ModelicaToLLVMBase<ModelicaToLLVMConversionPass>
@@ -2966,8 +2964,6 @@ namespace
         //mlir::populateMemRefToLLVMConversionPatterns(llvmTypeConverter, patterns);
 
         //populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
-
-        llvm::DebugFlag = true;
 
         mlir::OpBuilder builder(&getContext());
         return applyPartialConversion(module, target, std::move(patterns));

@@ -16,7 +16,7 @@ class Modelica_Type<string name, list<Trait> traits = [], string baseCppClass = 
     let mnemonic = ?;
 }
 
-def BooleanType : Modelica_Type<"Boolean"> {
+def BooleanType : Modelica_Type<"Boolean", [MemRefElementTypeInterface]> {
     let summary = "Boolean type";
     let mnemonic = "bool";
 
@@ -25,7 +25,7 @@ def BooleanType : Modelica_Type<"Boolean"> {
     }];
 }
 
-def IntegerType : Modelica_Type<"Integer"> {
+def IntegerType : Modelica_Type<"Integer", [MemRefElementTypeInterface]> {
     let summary = "Integer type";
     let mnemonic = "int";
 
@@ -34,7 +34,7 @@ def IntegerType : Modelica_Type<"Integer"> {
     }];
 }
 
-def RealType : Modelica_Type<"Real"> {
+def RealType : Modelica_Type<"Real", [MemRefElementTypeInterface]> {
     let summary = "Real type";
     let mnemonic = "real";
 
@@ -44,7 +44,7 @@ def RealType : Modelica_Type<"Real"> {
 }
 
 def ArrayType : Modelica_Type<"Array",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>, ShapedTypeInterface],
+    [DeclareTypeInterfaceMethods<SubElementTypeInterface>, ShapedTypeInterface, MemRefElementTypeInterface],
     "BaseArrayType"> {
     let summary = "Array type";
 

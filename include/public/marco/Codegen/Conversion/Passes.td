@@ -61,7 +61,26 @@ def ModelicaToCF : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
     "mlir::cf::ControlFlowDialect",
     "mlir::func::FuncDialect",
     "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect"
+    "mlir::LLVM::LLVMDialect",
+    "mlir::memref::MemRefDialect"
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica to Func
+//===----------------------------------------------------------------------===//
+
+def ModelicaToFunc : Pass<"convert-modelica-to-func", "mlir::ModuleOp"> {
+  let summary = "Modelica: conversion to Func dialect";
+
+  let description = [{
+    // TODO
+  }];
+
+  let constructor = "marco::codegen::createModelicaToFuncPass()";
+
+  let dependentDialects = [
+    "mlir::func::FuncDialect"
   ];
 }
 

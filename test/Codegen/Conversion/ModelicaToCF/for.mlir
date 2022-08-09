@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
-// CHECK:      func @foo() {
+// CHECK:      modelica.raw_function @foo() {
 // CHECK:           br ^[[for_condition:.*]]
 // CHECK-NEXT: ^[[for_condition]]:
 // CHECK:           cond_br %{{.*}}, ^[[for_body:.*]], ^[[for_out:.*]]
@@ -11,7 +11,7 @@
 // CHECK-NEXT: ^[[for_out]]:
 // CHECK:           br ^[[out:.*]]
 // CHECK-NEXT: ^[[out]]:
-// CHECK:           return
+// CHECK:           modelica.raw_return
 // CHECK-NEXT: }
 
 modelica.function @foo : () -> () {
