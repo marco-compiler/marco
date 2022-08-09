@@ -18,12 +18,15 @@ def Modelica_Dialect : Dialect {
     let cppNamespace = "::mlir::modelica";
     let hasConstantMaterializer = 1;
     let useDefaultAttributePrinterParser = 1;
-    let useDefaultTypePrinterParser = 1;
+    let useDefaultTypePrinterParser = 0;
     let emitAccessorPrefix = kEmitAccessorPrefix_Prefixed;
 
     let extraClassDeclaration = [{
         void registerTypes();
         void registerAttributes();
+
+        mlir::Type parseType(mlir::DialectAsmParser& parser) const override;
+        void printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const override;
     }];
 }
 

@@ -1,8 +1,8 @@
 #ifndef MARCO_RUNTIME_PRINT_H
 #define MARCO_RUNTIME_PRINT_H
 
-#include "marco/Runtime/ArrayDescriptor.h"
 #include "marco/Runtime/Mangling.h"
+#include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cstdint>
 
 #ifdef MARCO_CLI

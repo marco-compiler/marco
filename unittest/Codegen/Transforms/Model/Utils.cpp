@@ -23,7 +23,7 @@ namespace marco::codegen::test
       if (auto arrayType = type.dyn_cast<ArrayType>()) {
         varArrayTypes.push_back(arrayType);
       } else {
-        varArrayTypes.push_back(ArrayType::get(builder.getContext(), type, llvm::None));
+        varArrayTypes.push_back(ArrayType::get(llvm::None, type));
       }
 
       varLocations.push_back(builder.getUnknownLoc());

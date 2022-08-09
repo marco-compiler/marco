@@ -1,5 +1,6 @@
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaToMemRef/ModelicaToMemRef.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Codegen/ArrayDescriptor.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
@@ -11,8 +12,11 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
+
+#include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 
 #include "marco/Codegen/Conversion/PassDetail.h"
 
@@ -44,7 +48,13 @@ static void iterateArray(
   mlir::scf::buildLoopNest(builder, loc, lowerBounds, upperBounds, steps, callback);
 }
 
-static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::Type result, llvm::ArrayRef<mlir::Type> args)
+/// Get or declare an LLVM function inside the module.
+static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
+    mlir::OpBuilder& builder,
+    mlir::ModuleOp module,
+    llvm::StringRef name,
+    mlir::Type result,
+    llvm::ArrayRef<mlir::Type> args)
 {
 	if (auto funcOp = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
     return funcOp;
@@ -56,6 +66,7 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mli
   return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, mlir::LLVM::LLVMFunctionType::get(result, args));
 }
 
+/// Get or declare an LLVM function inside the module.
 static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::Type result, mlir::ValueRange args)
 {
   llvm::SmallVector<mlir::Type, 3> argsTypes;
@@ -304,368 +315,6 @@ namespace
       }
 
       return rewriter.notifyMatchFailure(op, "Unknown cast");
-    }
-  };
-
-  struct ArrayCastOpLowering : public ModelicaOpConversionPattern<ArrayCastOp>
-  {
-    using ModelicaOpConversionPattern<ArrayCastOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(ArrayCastOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-      mlir::Type sourceType = op.getSource().getType();
-      auto resultType = op.getResult().getType();
-
-      if (!sourceType.isa<ArrayType>()) {
-        return rewriter.notifyMatchFailure(op, "Source is not an array");
-      }
-
-      auto sourceArrayType = sourceType.cast<ArrayType>();
-      ArrayDescriptor sourceDescriptor(this->getTypeConverter(), adaptor.getSource());
-
-      if (!resultType.isa<ArrayType>()) {
-        return rewriter.notifyMatchFailure(op, "Result is not an array");
-      }
-
-      auto resultArrayType = resultType.cast<ArrayType>();
-
-      if (sourceArrayType.getRank() != resultArrayType.getRank()) {
-        return rewriter.notifyMatchFailure(op, "The destination array type has a different rank");
-      }
-
-      for (const auto& dimension : resultArrayType.getShape()) {
-        if (dimension != ArrayType::kDynamicSize) {
-          return rewriter.notifyMatchFailure(op, "The destination array type has some fixed dimensions");
-        }
-      }
-
-      ArrayDescriptor resultDescriptor = ArrayDescriptor::undef(
-          rewriter, getTypeConverter(), loc, getTypeConverter()->convertType(resultType));
-
-      resultDescriptor.setPtr(rewriter, loc, sourceDescriptor.getPtr(rewriter, loc));
-      resultDescriptor.setRank(rewriter, loc, sourceDescriptor.getRank(rewriter, loc));
-
-      for (unsigned int i = 0; i < sourceArrayType.getRank(); ++i) {
-        resultDescriptor.setSize(rewriter, loc, i, sourceDescriptor.getSize(rewriter, loc, i));
-      }
-
-      mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, *resultDescriptor);
-      rewriter.replaceOp(op, result);
-      return mlir::success();
-    }
-  };
-}
-
-//===----------------------------------------------------------------------===//
-// Array operations
-//===----------------------------------------------------------------------===//
-
-namespace
-{
-  template<typename FromOp>
-  struct AllocLikeOpLowering : public ModelicaOpConversionPattern<FromOp>
-  {
-    public:
-    using ModelicaOpConversionPattern<FromOp>::ModelicaOpConversionPattern;
-    using OpAdaptor = typename ModelicaOpConversionPattern<FromOp>::OpAdaptor;
-
-    protected:
-    virtual ArrayType getResultType(FromOp op) const = 0;
-    virtual mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, FromOp op, mlir::Value sizeBytes) const = 0;
-
-    public:
-    mlir::LogicalResult matchAndRewrite(FromOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-      auto arrayType = getResultType(op);
-      mlir::Type indexType = this->getTypeConverter()->convertType(rewriter.getIndexType());
-
-      // Create the descriptor
-      auto descriptor = ArrayDescriptor::undef(
-          rewriter, this->getTypeConverter(), loc,
-          this->getTypeConverter()->convertType(arrayType));
-
-      mlir::Type sizeType = descriptor.getSizeType();
-
-      // Save the rank into the descriptor
-      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(
-          loc, descriptor.getRankType(), rewriter.getIntegerAttr(descriptor.getRankType(), arrayType.getRank()));
-
-      descriptor.setRank(rewriter, loc, rank);
-
-      // Determine the total size of the array in bytes
-      auto shape = arrayType.getShape();
-      llvm::SmallVector<mlir::Value, 3> sizes;
-
-      // Multi-dimensional arrays must be flattened into a 1-dimensional one.
-      // For example, v[s1][s2][s3] becomes v[s1 * s2 * s3] and the access rule
-      // is such that v[i][j][k] = v[(i * s1 + j) * s2 + k].
-
-      mlir::Value totalSize = rewriter.create<mlir::LLVM::ConstantOp>(loc, sizeType, rewriter.getIntegerAttr(sizeType, 1));
-
-      for (size_t i = 0, dynamicDimensions = 0, end = shape.size(); i < end; ++i) {
-        long dimension = shape[i];
-
-        if (dimension == ArrayType::kDynamicSize) {
-          mlir::Value size = adaptor.getOperands()[dynamicDimensions++];
-          sizes.push_back(size);
-        } else {
-          mlir::Value size = rewriter.create<mlir::LLVM::ConstantOp>(loc, sizeType, rewriter.getIntegerAttr(sizeType, dimension));
-          sizes.push_back(size);
-        }
-
-        totalSize = rewriter.create<mlir::LLVM::MulOp>(loc, sizeType, totalSize, sizes[i]);
-      }
-
-      // Determine the buffer size in bytes
-      mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(
-          this->getTypeConverter()->convertType(arrayType.getElementType()));
-
-      mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
-      mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, nullPtr, totalSize);
-      mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, indexType, gepPtr);
-
-      // Allocate the underlying buffer and store the pointer into the descriptor
-      mlir::Value buffer = allocateBuffer(rewriter, loc, op, sizeBytes);
-      descriptor.setPtr(rewriter, loc, buffer);
-
-      // Store the sizes into the descriptor
-      for (auto size : llvm::enumerate(sizes)) {
-        descriptor.setSize(rewriter, loc, size.index(), size.value());
-      }
-
-      rewriter.replaceOp(op, *descriptor);
-      return mlir::success();
-    }
-  };
-
-  class AllocaOpLowering : public AllocLikeOpLowering<AllocaOp>
-  {
-    using AllocLikeOpLowering<AllocaOp>::AllocLikeOpLowering;
-
-    ArrayType getResultType(AllocaOp op) const override
-    {
-      return op.getArrayType();
-    }
-
-    mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, AllocaOp op, mlir::Value sizeBytes) const override
-    {
-      mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(
-          getTypeConverter()->convertType(op.getArrayType().getElementType()));
-
-      return rewriter.create<mlir::LLVM::AllocaOp>(loc, bufferPtrType, sizeBytes, op->getAttrs());
-    }
-  };
-
-  class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
-  {
-    using AllocLikeOpLowering<AllocOp>::AllocLikeOpLowering;
-
-    ArrayType getResultType(AllocOp op) const override
-    {
-      return op.getArrayType();
-    }
-
-    mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, AllocOp op, mlir::Value sizeBytes) const override
-    {
-      // Insert the "malloc" declaration if it is not already present in the module
-      auto heapAllocFunc = lookupOrCreateHeapAllocFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
-
-      // Allocate the buffer
-      mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(
-          getTypeConverter()->convertType(op.getArrayType().getElementType()));
-
-      auto results = createLLVMCall(rewriter, loc, heapAllocFunc, sizeBytes, getVoidPtrType());
-      return rewriter.create<mlir::LLVM::BitcastOp>(loc, bufferPtrType, results[0]);
-    }
-
-    mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const
-    {
-      std::string name = "_MheapAlloc_pvoid_i64";
-
-      if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
-        return foo;
-      }
-
-      mlir::PatternRewriter::InsertionGuard insertGuard(builder);
-      builder.setInsertionPointToStart(module.getBody());
-      auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidPtrType(), builder.getI64Type());
-      return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
-    }
-  };
-
-  class FreeOpLowering : public ModelicaOpConversionPattern<FreeOp>
-  {
-    using ModelicaOpConversionPattern<FreeOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(FreeOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-
-      // Insert the "free" declaration if it is not already present in the module
-      auto freeFunc = lookupOrCreateHeapFreeFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
-
-      // Extract the buffer address and call the "free" function
-      ArrayDescriptor descriptor(getTypeConverter(), adaptor.getArray());
-      mlir::Value address = descriptor.getPtr(rewriter, loc);
-      mlir::Value casted = rewriter.create<mlir::LLVM::BitcastOp>(loc, getVoidPtrType(), address);
-      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, freeFunc, casted);
-
-      return mlir::success();
-    }
-
-    mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const
-    {
-      std::string name = "_MheapFree_void_pvoid";
-
-      if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
-        return foo;
-      }
-
-      mlir::PatternRewriter::InsertionGuard insertGuard(builder);
-      builder.setInsertionPointToStart(module.getBody());
-      auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidType(), getVoidPtrType());
-      return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
-    }
-  };
-
-  class DimOpLowering : public ModelicaOpConversionPattern<DimOp>
-  {
-    using ModelicaOpConversionPattern<DimOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(DimOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-
-      // The actual size of each dimension is stored in the memory description
-      // structure.
-      ArrayDescriptor descriptor(this->getTypeConverter(), adaptor.getArray());
-      mlir::Value size = descriptor.getSize(rewriter, loc, adaptor.getDimension());
-
-      rewriter.replaceOp(op, size);
-      return mlir::success();
-    }
-  };
-
-  class SubscriptOpLowering : public ModelicaOpConversionPattern<SubscriptionOp>
-  {
-    using ModelicaOpConversionPattern<SubscriptionOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(SubscriptionOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-
-      auto sourceArrayType = op.getSourceArrayType();
-      auto resultArrayType = op.getResultArrayType();
-
-      ArrayDescriptor sourceDescriptor(getTypeConverter(), adaptor.getSource());
-
-      ArrayDescriptor result = ArrayDescriptor::undef(
-          rewriter, getTypeConverter(), loc,
-          getTypeConverter()->convertType(resultArrayType));
-
-      mlir::Value index = adaptor.getIndices()[0];
-
-      for (size_t i = 1, e = sourceArrayType.getRank(); i < e; ++i) {
-        mlir::Value size = sourceDescriptor.getSize(rewriter, loc, i);
-        index = rewriter.create<mlir::LLVM::MulOp>(loc, getTypeConverter()->getIndexType(), index, size);
-
-        if (i < adaptor.getIndices().size()) {
-          mlir::Value offset = adaptor.getIndices()[i];
-          index = rewriter.create<mlir::LLVM::AddOp>(loc, getTypeConverter()->getIndexType(), index, offset);
-        }
-      }
-
-      mlir::Value base = sourceDescriptor.getPtr(rewriter, loc);
-      mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, base.getType(), base, index);
-      result.setPtr(rewriter, loc, ptr);
-
-      mlir::Type rankType = result.getRankType();
-      mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, rankType, rewriter.getIntegerAttr(rankType, resultArrayType.getRank()));
-      result.setRank(rewriter, loc, rank);
-
-      for (size_t i = sourceArrayType.getRank() - resultArrayType.getRank(), e = sourceArrayType.getRank(), j = 0; i < e; ++i, ++j) {
-        result.setSize(rewriter, loc, j, sourceDescriptor.getSize(rewriter, loc, i));
-      }
-
-      rewriter.replaceOp(op, *result);
-      return mlir::success();
-    }
-  };
-
-  class LoadOpLowering : public ModelicaOpConversionPattern<LoadOp>
-  {
-    using ModelicaOpConversionPattern<LoadOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(LoadOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-      auto indexes = adaptor.getIndices();
-
-      assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
-
-      // Determine the address into which the value has to be stored.
-      ArrayDescriptor descriptor(getTypeConverter(), adaptor.getArray());
-      auto indexType = getTypeConverter()->convertType(rewriter.getIndexType());
-
-      auto indexFn = [&]() -> mlir::Value {
-        if (indexes.empty()) {
-          return rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
-        }
-
-        return indexes[0];
-      };
-
-      mlir::Value index = indexFn();
-
-      for (size_t i = 1, e = indexes.size(); i < e; ++i) {
-        mlir::Value size = descriptor.getSize(rewriter, loc, i);
-        index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
-        index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, indexes[i]);
-      }
-
-      mlir::Value base = descriptor.getPtr(rewriter, loc);
-      mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, base.getType(), base, index);
-
-      // Load the value
-      rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(op, ptr);
-
-      return mlir::success();
-    }
-  };
-
-  class StoreOpLowering : public ModelicaOpConversionPattern<StoreOp>
-  {
-    using ModelicaOpConversionPattern<StoreOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(StoreOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-      auto indexes = adaptor.getIndices();
-
-      assert(op.getArrayType().getRank() == indexes.size() && "Wrong indexes amount");
-
-      // Determine the address into which the value has to be stored.
-      ArrayDescriptor memoryDescriptor(this->getTypeConverter(), adaptor.getArray());
-
-      mlir::Value index = indexes.empty()
-          ? rewriter.create<mlir::LLVM::ConstantOp>(loc, getTypeConverter()->getIndexType(), rewriter.getIndexAttr(0))
-          : indexes[0];
-
-      for (size_t i = 1, e = indexes.size(); i < e; ++i) {
-        mlir::Value size = memoryDescriptor.getSize(rewriter, loc, i);
-        index = rewriter.create<mlir::LLVM::MulOp>(loc, getTypeConverter()->getIndexType(), index, size);
-        index = rewriter.create<mlir::LLVM::AddOp>(loc, getTypeConverter()->getIndexType(), index, indexes[i]);
-      }
-
-      mlir::Value base = memoryDescriptor.getPtr(rewriter, loc);
-      mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, base.getType(), base, index);
-
-      // Store the value
-      rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, adaptor.getValue(), ptr);
-
-      return mlir::success();
     }
   };
 }
@@ -2700,7 +2349,7 @@ namespace
 
       if (options.assertions) {
         // Check if the matrix is a square one
-        if (!op.getMatrix().getType().cast<ArrayType>().hasConstantShape()) {
+        if (!op.getMatrix().getType().cast<ArrayType>().hasStaticShape()) {
           mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
           mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
           mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
@@ -2718,7 +2367,7 @@ namespace
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
-      if (!resultType.hasConstantShape()) {
+      if (!resultType.hasStaticShape()) {
         for (const auto& dimension : llvm::enumerate(resultType.getShape())) {
           if (dimension.value() == ArrayType::kDynamicSize) {
             mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(dimension.index()));
@@ -2888,7 +2537,7 @@ namespace
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
-      if (!resultType.hasConstantShape()) {
+      if (!resultType.hasStaticShape()) {
         mlir::Value sourceMatrix = getTypeConverter()->materializeSourceConversion(
             rewriter, op.getMatrix().getLoc(), op.getMatrix().getType(), adaptor.getMatrix());
 
@@ -2904,12 +2553,19 @@ namespace
       }
 
       mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
-      newOperands.push_back(convertToUnsizedArray(rewriter, materializeTargetConversion(rewriter, result)));
+      result = rewriter.create<ArrayCastOp>(loc, UnrankedArrayType::get(resultType.getElementType(), resultType.getMemorySpace()), result);
+      newOperands.push_back(materializeTargetConversion(rewriter, result));
       mangledArgsTypes.push_back(getMangledType(resultType));
 
       // Matrix
       assert(op.getMatrix().getType().isa<ArrayType>());
-      newOperands.push_back(convertToUnsizedArray(rewriter, adaptor.getMatrix()));
+
+      mlir::Value matrix = adaptor.getMatrix();
+      matrix = getTypeConverter()->materializeSourceConversion(rewriter, loc, op.getMatrix().getType(), matrix);
+      matrix = rewriter.create<ArrayCastOp>(loc, UnrankedArrayType::get(resultType.getElementType(), resultType.getMemorySpace()), matrix);
+      matrix = materializeTargetConversion(rewriter, matrix);
+      newOperands.push_back(matrix);
+
       mangledArgsTypes.push_back(getMangledType(op.getMatrix().getType()));
 
       // Create the call to the runtime library
@@ -3103,24 +2759,13 @@ namespace
 static void populateModelicaToLLVMPatterns(
 		mlir::RewritePatternSet& patterns,
 		mlir::MLIRContext* context,
-		mlir::modelica::TypeConverter& typeConverter,
+		mlir::LLVMTypeConverter& typeConverter,
 		ModelicaToLLVMOptions options)
 {
   // Cast operations
   patterns.insert<
       CastOpIntegerLowering,
-      CastOpFloatLowering,
-      ArrayCastOpLowering>(context, typeConverter, options);
-
-  // Array operations
-  patterns.insert<
-      AllocaOpLowering,
-      AllocOpLowering,
-      FreeOpLowering,
-      DimOpLowering,
-      SubscriptOpLowering,
-      LoadOpLowering,
-      StoreOpLowering>(context, typeConverter, options);
+      CastOpFloatLowering>(context, typeConverter, options);
 
   // Math operations
   patterns.insert<
@@ -3211,6 +2856,8 @@ static void populateModelicaToLLVMPatterns(
       PrintOpLowering>(context, typeConverter, options);
 }
 
+#include "llvm/Support/Debug.h"
+
 namespace
 {
   class ModelicaToLLVMConversionPass : public ModelicaToLLVMBase<ModelicaToLLVMConversionPass>
@@ -3235,18 +2882,7 @@ namespace
         auto module = getOperation();
         mlir::ConversionTarget target(getContext());
 
-        target.addIllegalOp<
-            CastOp,
-            ArrayCastOp>();
-
-        target.addIllegalOp<
-            AllocaOp,
-            AllocOp,
-            FreeOp,
-            DimOp,
-            SubscriptionOp,
-            LoadOp,
-            StoreOp>();
+        target.addIllegalOp<CastOp>();
 
         target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
           return !isNumeric(op.getBase());
@@ -3296,23 +2932,49 @@ namespace
             ArrayFillOp,
             PrintOp>();
 
+        // Some operations, once converted, do create operations operating on
+        // arrays, such as allocations or copies.
+        //target.addIllegalOp<AllocOp, AllocaOp, LoadOp, FreeOp, DimOp>();
+
+        //target.addIllegalDialect<mlir::memref::MemRefDialect>();
+
         target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
           return true;
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
         llvmLoweringOptions.dataLayout = options.dataLayout;
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
+        mlir::modelica::LLVMTypeConverter llvmTypeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
-        populateModelicaToLLVMPatterns(patterns, &getContext(), typeConverter, options);
-        populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
 
+        // TODO PROVARE A SETTARE UN TYPE CONVERTER CHE CONVERTE ARRAY IN MEMREF.
+        // DEVE COMUNQUE ESSERE UN LLVMTYPECONVERTER. POI NEL PATTERN FACCIO CAST A UNRANKEDMEMREF, E POI TARGET MATERIALIZATION
+
+        populateModelicaToLLVMPatterns(patterns, &getContext(), llvmTypeConverter, options);
+
+        /*
+        ModelicaToMemRefOptions modelicaToMemRefOptions;
+        modelicaToMemRefOptions.bitWidth = options.bitWidth;
+        modelicaToMemRefOptions.assertions = options.assertions;
+        modelicaToMemRefOptions.dataLayout = options.dataLayout;
+
+        mlir::modelica::TypeConverter baseTypeConverter(options.bitWidth);
+        */
+        //populateModelicaToMemRefPatterns(patterns, &getContext(), baseTypeConverter, modelicaToMemRefOptions);
+
+        //mlir::populateMemRefToLLVMConversionPatterns(llvmTypeConverter, patterns);
+
+        //populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
+
+        llvm::DebugFlag = true;
+
+        mlir::OpBuilder builder(&getContext());
         return applyPartialConversion(module, target, std::move(patterns));
       }
 
-      private:
-        ModelicaToLLVMOptions options;
+    private:
+      ModelicaToLLVMOptions options;
   };
 }
 

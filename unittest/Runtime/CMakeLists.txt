@@ -1,5 +1,4 @@
 set(SOURCES
-    ArrayDescriptorTest.cpp
     BuiltInFunctionsTest.cpp
     MathTest.cpp
     UtilityFunctionsTest.cpp)

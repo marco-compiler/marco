@@ -7,6 +7,7 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
+/*
 TEST(IterationSpace, squareSpaceToIndexSet)
 {
   std::vector<std::pair<ContiguousRange, IterationSpace*>> subDimensions;
@@ -104,3 +105,4 @@ TEST(IterationSpace, raggedSpaceToIndexSet)
 
   EXPECT_EQ(actual, expected);
 }
+*/

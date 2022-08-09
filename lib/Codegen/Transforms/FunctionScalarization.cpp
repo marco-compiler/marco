@@ -2,7 +2,7 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Conversion/Passes.h"
 
 #include "marco/Codegen/Transforms/PassDetail.h"
@@ -130,9 +130,8 @@ static mlir::LogicalResult scalarizeVectorizableOp(
     }
 
     auto arrayType = ArrayType::get(
-        resultType.getContext(),
-        resultType.cast<ArrayType>().getElementType(),
-        shape);
+        shape,
+        resultType.cast<ArrayType>().getElementType());
 
     mlir::Value array =  builder.create<AllocOp>(loc, arrayType, dynamicDimensions);
     results.push_back(array);

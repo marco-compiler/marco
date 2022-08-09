@@ -26,7 +26,7 @@ namespace
         for (const mlir::bufferization::BufferPlacementAllocs::AllocEntry& entry : allocs) {
           mlir::Value alloc = std::get<0>(entry);
 
-          if (auto arrayType = alloc.getType().dyn_cast<ArrayType>(); arrayType && !arrayType.hasConstantShape()) {
+          if (auto arrayType = alloc.getType().dyn_cast<ArrayType>(); arrayType && !arrayType.hasStaticShape()) {
             bool isStored = llvm::any_of(alloc.getUsers(), [&](const auto& op) {
               if (auto memberStoreOp = mlir::dyn_cast<MemberStoreOp>(op)) {
                 return memberStoreOp.getValue() == alloc;

@@ -2,6 +2,7 @@
 #define MARCO_DIALECTS_MODELICA_MODELICAATTRIBUTES_H
 
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/Support/StorageUniquer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
@@ -101,6 +102,7 @@ namespace mlir::modelica
 
   llvm::hash_code hash_value(const InverseFunctionsMap& map);
 
+  /*
   class Shape
   {
     public:
@@ -177,6 +179,7 @@ namespace mlir::modelica
   };
 
   llvm::hash_code hash_value(const IterationSpace& iterationSpace);
+   */
 }
 
 #define GET_ATTRDEF_CLASSES

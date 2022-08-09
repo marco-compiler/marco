@@ -43,7 +43,7 @@ namespace marco::codegen::lowering
       mlir::Type type = lower(member->getType());
 
       if (!type.isa<ArrayType>()) {
-        type = ArrayType::get(builder().getContext(), type, llvm::None);
+        type = ArrayType::get(llvm::None, type);
       }
 
       variableTypes.push_back(type);

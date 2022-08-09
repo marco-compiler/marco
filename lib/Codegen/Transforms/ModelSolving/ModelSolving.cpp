@@ -12,7 +12,7 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -149,7 +149,7 @@ static void collectDerivedVariablesIndices(
     IndexSet derivedIndices;
 
     if (auto arrayType = value.getType().dyn_cast<ArrayType>()) {
-      assert(arrayType.hasConstantShape());
+      assert(arrayType.hasStaticShape());
       std::vector<Range> ranges;
 
       for (const auto& dimension : arrayType.getShape()) {
@@ -318,8 +318,8 @@ static mlir::LogicalResult createDerivatives(
     auto memberCreateOp = variable.getDefiningOp<MemberCreateOp>();
     auto variableMemberType = memberCreateOp.getMemberType();
 
-    auto derType = ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), variableMemberType.getShape());
-    assert(derType.hasConstantShape());
+    auto derType = ArrayType::get(variableMemberType.getShape(), RealType::get(builder.getContext()));
+    assert(derType.hasStaticShape());
 
     auto derivedVariableIndices = derivedIndices.find(argNumber);
     assert(derivedVariableIndices != derivedIndices.end());

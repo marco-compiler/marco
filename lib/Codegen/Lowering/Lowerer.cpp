@@ -89,7 +89,7 @@ namespace marco::codegen::lowering
           }
         }
 
-        return ArrayType::get(builder().getContext(), baseType, shape);
+        return ArrayType::get(shape, baseType);
       }
 
       return baseType;

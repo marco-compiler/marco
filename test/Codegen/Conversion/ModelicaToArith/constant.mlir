@@ -1,5 +1,15 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-arith | FileCheck %s
 
+// CHECK-LABEL: @boolean
+// CHECK: arith.constant true
+
+func.func @boolean() {
+    %0 = modelica.constant #modelica.bool<true>
+    func.return
+}
+
+// -----
+
 // CHECK-LABEL: @integer
 // CHECK: arith.constant 0 : i64
 

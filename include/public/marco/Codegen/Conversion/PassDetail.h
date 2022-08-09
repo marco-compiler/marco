@@ -30,6 +30,10 @@ namespace mlir
     class LLVMDialect;
   }
 
+  namespace memref {
+    class MemRefDialect;
+  }
+
   namespace scf {
     class SCFDialect;
   }

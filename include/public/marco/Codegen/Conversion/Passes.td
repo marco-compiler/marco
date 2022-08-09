@@ -8,7 +8,7 @@ include "mlir/Pass/PassBase.td"
 //===----------------------------------------------------------------------===//
 
 def IDAToLLVM : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
-  let summary = "IDA: conversion to Std + LLVM dialect";
+  let summary = "IDA: conversion to LLVM dialect";
 
   let description = [{
     // TODO
@@ -44,34 +44,11 @@ def ModelicaToArith : Pass<"convert-modelica-to-arith", "mlir::ModuleOp"> {
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica to LLVM
-//===----------------------------------------------------------------------===//
-
-def ModelicaToLLVM : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
-  let summary = "Modelica: conversion to std + scf + llvm dialects";
-
-  let description = [{
-    // TODO
-  }];
-
-  let constructor = "marco::codegen::createModelicaToLLVMPass()";
-
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::func::FuncDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect"
-  ];
-}
-
-//===----------------------------------------------------------------------===//
 // Modelica to CF
 //===----------------------------------------------------------------------===//
 
 def ModelicaToCF : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
-  let summary = "Modelica: convert to CF";
+  let summary = "Modelica: conversion to CF dialect";
 
   let description = [{
     // TODO
@@ -85,6 +62,54 @@ def ModelicaToCF : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
     "mlir::func::FuncDialect",
     "mlir::scf::SCFDialect",
     "mlir::LLVM::LLVMDialect"
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica to LLVM
+//===----------------------------------------------------------------------===//
+
+def ModelicaToLLVM : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
+  let summary = "Modelica: conversion to LLVM dialect";
+
+  let description = [{
+    // TODO
+  }];
+
+  let constructor = "marco::codegen::createModelicaToLLVMPass()";
+
+  let dependentDialects = [
+    "mlir::modelica::ModelicaDialect",
+    "mlir::arith::ArithmeticDialect",
+    "mlir::cf::ControlFlowDialect",
+    "mlir::func::FuncDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::LLVM::LLVMDialect",
+    "mlir::memref::MemRefDialect"
+  ];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica to MemRef
+//===----------------------------------------------------------------------===//
+
+def ModelicaToMemRef : Pass<"convert-modelica-to-memref", "mlir::ModuleOp"> {
+  let summary = "Modelica: conversion to MemRef dialect";
+
+  let description = [{
+    // TODO
+  }];
+
+  let constructor = "marco::codegen::createModelicaToMemRefPass()";
+
+  let dependentDialects = [
+    "mlir::modelica::ModelicaDialect",
+    "mlir::arith::ArithmeticDialect",
+    "mlir::cf::ControlFlowDialect",
+    "mlir::func::FuncDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::LLVM::LLVMDialect",
+    "mlir::memref::MemRefDialect"
   ];
 }
 

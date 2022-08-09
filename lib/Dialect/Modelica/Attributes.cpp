@@ -334,6 +334,7 @@ namespace mlir::modelica
     printer << "derivative" << "<\"" << getName() << "\", " << getOrder() << ">";
   }
 
+  /*
   //===----------------------------------------------------------------------===//
   // IterationSpaceAttr
   //===----------------------------------------------------------------------===//
@@ -398,6 +399,7 @@ namespace mlir::modelica
       subDimensions_(std::move(subDimensions))
   {
   }
+  */
 
   /*
   IterationSpace::~IterationSpace()
@@ -421,6 +423,7 @@ namespace mlir::modelica
   }
    */
 
+  /*
   bool IterationSpace::operator==(const IterationSpace& other) const
   {
     if (iterationRange_ != other.iterationRange_) {
@@ -508,4 +511,5 @@ namespace mlir::modelica
     // TODO
     printer << "iteration_space";
   }
+  */
 }

@@ -3,7 +3,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Codegen/Utils.h"
 #include "mlir/IR/AffineMap.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include <queue>
 
@@ -265,7 +265,7 @@ namespace marco::codegen
 
       mlir::Value variable = variables[managedVariable.argNumber];
       auto arrayType = variable.getType().cast<ArrayType>();
-      assert(arrayType.hasConstantShape());
+      assert(arrayType.hasStaticShape());
 
       std::vector<int64_t> dimensions;
 
@@ -334,7 +334,7 @@ namespace marco::codegen
       if (managedVariable.value().type == IDAVariableType::DERIVATIVE) {
         mlir::Value derVar = variables[managedVariable.value().argNumber];
         auto arrayType = derVar.getType().cast<ArrayType>();
-        assert(arrayType.hasConstantShape());
+        assert(arrayType.hasStaticShape());
 
         std::vector<int64_t> dimensions;
 
@@ -402,7 +402,7 @@ namespace marco::codegen
         functionName,
         RealType::get(builder.getContext()),
         variableArrayType,
-        std::max((unsigned int) 1, variableArrayType.getRank()));
+        std::max(static_cast<int64_t>(1), variableArrayType.getRank()));
 
     mlir::Block* entryBlock = getterOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -436,7 +436,7 @@ namespace marco::codegen
         functionName,
         variableArrayType,
         variableArrayType.getElementType(),
-        std::max((unsigned int) 1, variableArrayType.getRank()));
+        std::max(static_cast<int64_t>(1), variableArrayType.getRank()));
 
     mlir::Block* entryBlock = setterOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -824,7 +824,7 @@ namespace marco::codegen
     auto timeMember = builder.create<MemberCreateOp>(
         partialDerTemplate.getLoc(),
         "time",
-        MemberType::get(builder.getContext(), RealType::get(builder.getContext()), llvm::None, false, IOProperty::input),
+        MemberType::get(llvm::None, RealType::get(builder.getContext()), false, IOProperty::input),
         llvm::None);
 
     mlir::Value time = builder.create<MemberLoadOp>(timeMember.getLoc(), timeMember);
@@ -1053,7 +1053,7 @@ namespace marco::codegen
       auto varIndex = var.value().cast<mlir::BlockArgument>().getArgNumber();
 
       if (auto arrayType = var.value().getType().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
-        assert(arrayType.hasConstantShape());
+        assert(arrayType.hasStaticShape());
 
         auto array = builder.create<AllocOp>(
             loc,

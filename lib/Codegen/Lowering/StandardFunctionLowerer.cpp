@@ -149,7 +149,7 @@ namespace marco::codegen::lowering
       // If all the dynamic dimensions have an expression to determine their
       // values, then the member can be instantiated from the beginning.
 
-      bool initialized = expressionsCount == arrayType.getDynamicDimensionsCount();
+      bool initialized = expressionsCount == arrayType.getNumDynamicDims();
 
       if (initialized) {
         for (const auto& dimension : member.getType().getDimensions()) {

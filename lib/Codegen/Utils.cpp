@@ -1,7 +1,7 @@
 #include "marco/Codegen/Utils.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -106,6 +106,7 @@ namespace marco::codegen
         });
   }
 
+  /*
   modeling::IndexSet getIndexSet(mlir::modelica::IterationSpace iterationSpace)
   {
     IndexSet current;
@@ -148,4 +149,5 @@ namespace marco::codegen
 
     return result;
   }
+   */
 }

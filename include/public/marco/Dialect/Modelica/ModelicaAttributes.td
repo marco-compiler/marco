@@ -4,17 +4,18 @@
 include "marco/Dialect/Modelica/ModelicaDialect.td"
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
+include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 // Modelica attribute definitions
 //===----------------------------------------------------------------------===//
 
-class Modelica_Attr<string name, string attrMnemonic>
-    : AttrDef<Modelica_Dialect, name> {
+class Modelica_Attr<string name, string attrMnemonic, list<Trait> traits = []>
+    : AttrDef<Modelica_Dialect, name, traits> {
     let mnemonic = attrMnemonic;
 }
 
-def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
+def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool", [TypedAttrInterface]> {
     let summary = "Modelica's Boolean attribute";
 
     let description = [{
@@ -32,11 +33,10 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool"> {
         }]>
     ];
 
-    let typeBuilder = "$_type";
     let hasCustomAssemblyFormat = 1;
 }
 
-def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
+def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int", [TypedAttrInterface]> {
     let summary = "Modelica's Integer attribute";
 
     let description = [{
@@ -54,11 +54,10 @@ def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int"> {
         }]>
     ];
 
-    let typeBuilder = "$_type";
     let hasCustomAssemblyFormat = 1;
 }
 
-def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
+def Modelica_RealAttr : Modelica_Attr<"Real", "real", [TypedAttrInterface]> {
     let summary = "Modelica's Real attribute";
 
     let description = [{
@@ -76,15 +75,14 @@ def Modelica_RealAttr : Modelica_Attr<"Real", "real"> {
         }]>
     ];
 
-    let typeBuilder = "$_type";
     let hasCustomAssemblyFormat = 1;
 }
 
 def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {
-    let summary = "Modelica's Real attribute";
+    let summary = "TODO";
 
     let description = [{
-        Type representing Modelica's Real.
+        TODO.
     }];
 
     let parameters = (ins SelfAllocationParameter<"InverseFunctionsMap", "Inverse functions map">:$inverseFunctionsMap);
@@ -100,25 +98,13 @@ def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivativ
 }
 
 def Modelica_DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {
-    let summary = "Modelica's Real attribute";
-
-    let description = [{
-        Type representing Modelica's Real.
-    }];
-
-    let parameters = (ins StringRefParameter<"Derived function name">:$name, "unsigned int":$order);
-
-    let hasCustomAssemblyFormat = 1;
-}
-
-def Modelica_IterationSpaceAttr : Modelica_Attr<"IterationSpace", "iteration_space"> {
     let summary = "TODO";
 
     let description = [{
-        // TODO
+        TODO
     }];
 
-    let parameters = (ins SelfAllocationParameter<"IterationSpace", "Iteration space">:$value);
+    let parameters = (ins StringRefParameter<"Derived function name">:$name, "unsigned int":$order);
 
     let hasCustomAssemblyFormat = 1;
 }

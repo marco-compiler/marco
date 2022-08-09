@@ -398,7 +398,7 @@ namespace marco::codegen
 
         if (auto arrayType = argType.dyn_cast<ArrayType>()) {
           // TODO dynamic sizes
-          assert(arrayType.hasConstantShape());
+          assert(arrayType.hasStaticShape());
 
           mlir::Value array = builder.create<AllocOp>(loc, arrayType, llvm::None);
           args.push_back(array);

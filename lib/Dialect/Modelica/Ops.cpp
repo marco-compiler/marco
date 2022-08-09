@@ -4,6 +4,8 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/FunctionImplementation.h"
+#include "llvm/ADT/MapVector.h"
 #include <cmath>
 
 using namespace ::mlir::modelica;
@@ -41,7 +43,11 @@ static bool isScalar(mlir::Attribute attribute)
     return false;
   }
 
-  return isScalar(attribute.getType());
+  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+    return isScalar(typedAttr.getType());
+  }
+
+  return false;
 }
 
 static bool isScalarIntegerLike(mlir::Type type)
@@ -59,7 +65,11 @@ static bool isScalarIntegerLike(mlir::Attribute attribute)
     return false;
   }
 
-  return isScalarIntegerLike(attribute.getType());
+  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+    return isScalarIntegerLike(typedAttr.getType());
+  }
+
+  return false;
 }
 
 static bool isScalarFloatLike(mlir::Type type)
@@ -77,7 +87,11 @@ static bool isScalarFloatLike(mlir::Attribute attribute)
     return false;
   }
 
-  return isScalarFloatLike(attribute.getType());
+  if (auto typedAttr = attribute.dyn_cast<mlir::TypedAttr>()) {
+    return isScalarFloatLike(typedAttr.getType());
+  }
+
+  return false;
 }
 
 static long getScalarIntegerLikeValue(mlir::Attribute attribute)
@@ -313,6 +327,187 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // RawFunctionOp
+  //===----------------------------------------------------------------------===//
+
+  RawFunctionOp RawFunctionOp::create(
+      mlir::Location location,
+      llvm::StringRef name,
+      mlir::FunctionType type,
+      llvm::ArrayRef<mlir::NamedAttribute> attrs)
+  {
+    mlir::OpBuilder builder(location->getContext());
+    mlir::OperationState state(location, getOperationName());
+    RawFunctionOp::build(builder, state, name, type, attrs);
+    return mlir::cast<RawFunctionOp>(mlir::Operation::create(state));
+  }
+
+  RawFunctionOp RawFunctionOp::create(
+      mlir::Location location,
+      llvm::StringRef name,
+      mlir::FunctionType type,
+      mlir::Operation::dialect_attr_range attrs)
+  {
+    llvm::SmallVector<mlir::NamedAttribute, 8> attrRef(attrs);
+    return create(location, name, type, llvm::makeArrayRef(attrRef));
+  }
+
+  RawFunctionOp RawFunctionOp::create(
+      mlir::Location location,
+      llvm::StringRef name,
+      mlir::FunctionType type,
+      llvm::ArrayRef<mlir::NamedAttribute> attrs,
+      llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
+  {
+    RawFunctionOp func = create(location, name, type, attrs);
+    func.setAllArgAttrs(argAttrs);
+    return func;
+  }
+
+  void RawFunctionOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name,
+      mlir::FunctionType type,
+      llvm::ArrayRef<mlir::NamedAttribute> attrs,
+      llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
+  {
+    state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
+    state.addAttribute(mlir::FunctionOpInterface::getTypeAttrName(), mlir::TypeAttr::get(type));
+    state.attributes.append(attrs.begin(), attrs.end());
+    state.addRegion();
+
+    if (argAttrs.empty()) {
+      return;
+    }
+
+    assert(type.getNumInputs() == argAttrs.size());
+    mlir::function_interface_impl::addArgAndResultAttrs(builder, state, argAttrs, llvm::None);
+  }
+
+  mlir::ParseResult RawFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
+    auto buildFuncType = [](mlir::Builder& builder, llvm::ArrayRef<mlir::Type> argTypes, llvm::ArrayRef<mlir::Type> results, mlir::function_interface_impl::VariadicFlag, std::string&) {
+      return builder.getFunctionType(argTypes, results);
+    };
+
+    return mlir::function_interface_impl::parseFunctionOp(parser, result, false, buildFuncType);
+  }
+
+  void RawFunctionOp::print(OpAsmPrinter &p) {
+    mlir::function_interface_impl::printFunctionOp(p, *this, false);
+  }
+
+  /// Clone the internal blocks from this function into dest and all attributes
+  /// from this function to dest.
+  void RawFunctionOp::cloneInto(RawFunctionOp dest, mlir::BlockAndValueMapping& mapper) {
+    // Add the attributes of this function to dest.
+    llvm::MapVector<mlir::StringAttr, mlir::Attribute> newAttrMap;
+
+    for (const auto &attr : dest->getAttrs()) {
+      newAttrMap.insert({attr.getName(), attr.getValue()});
+    }
+
+    for (const auto &attr : (*this)->getAttrs()) {
+      newAttrMap.insert({attr.getName(), attr.getValue()});
+    }
+
+    auto newAttrs = llvm::to_vector(llvm::map_range(
+        newAttrMap, [](std::pair<StringAttr, Attribute> attrPair) {
+          return NamedAttribute(attrPair.first, attrPair.second);
+        }));
+
+    dest->setAttrs(mlir::DictionaryAttr::get(getContext(), newAttrs));
+
+    // Clone the body.
+    getBody().cloneInto(&dest.getBody(), mapper);
+  }
+
+  /// Create a deep copy of this function and all of its blocks, remapping
+  /// any operands that use values outside of the function using the map that is
+  /// provided (leaving them alone if no entry is present). Replaces references
+  /// to cloned sub-values with the corresponding value that is copied, and adds
+  /// those mappings to the mapper.
+  RawFunctionOp RawFunctionOp::clone(mlir::BlockAndValueMapping& mapper) {
+    // Create the new function.
+    RawFunctionOp newFunc = cast<RawFunctionOp>(getOperation()->cloneWithoutRegions());
+
+    // If the function has a body, then the user might be deleting arguments to
+    // the function by specifying them in the mapper. If so, we don't add the
+    // argument to the input type vector.
+    if (!isExternal()) {
+      mlir::FunctionType oldType = getFunctionType();
+
+      unsigned oldNumArgs = oldType.getNumInputs();
+      llvm::SmallVector<Type, 4> newInputs;
+      newInputs.reserve(oldNumArgs);
+
+      for (unsigned i = 0; i != oldNumArgs; ++i) {
+        if (!mapper.contains(getArgument(i))) {
+          newInputs.push_back(oldType.getInput(i));
+        }
+      }
+
+      // If any of the arguments were dropped, update the type and drop any
+      // necessary argument attributes.
+      if (newInputs.size() != oldNumArgs) {
+        newFunc.setType(mlir::FunctionType::get(oldType.getContext(), newInputs, oldType.getResults()));
+
+        if (ArrayAttr argAttrs = getAllArgAttrs()) {
+          SmallVector<Attribute> newArgAttrs;
+          newArgAttrs.reserve(newInputs.size());
+
+          for (unsigned i = 0; i != oldNumArgs; ++i) {
+            if (!mapper.contains(getArgument(i))) {
+              newArgAttrs.push_back(argAttrs[i]);
+            }
+          }
+
+          newFunc.setAllArgAttrs(newArgAttrs);
+        }
+      }
+    }
+
+    // Clone the current function into the new one and return it.
+    cloneInto(newFunc, mapper);
+    return newFunc;
+  }
+
+  RawFunctionOp RawFunctionOp::clone()
+  {
+    mlir::BlockAndValueMapping mapper;
+    return clone(mapper);
+  }
+
+  //===----------------------------------------------------------------------===//
+  // RawReturnOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::LogicalResult RawReturnOp::verify() {
+    auto function = cast<RawFunctionOp>((*this)->getParentOp());
+
+    // The operand number and types must match the function signature
+    const auto& results = function.getFunctionType().getResults();
+
+    if (getNumOperands() != results.size()) {
+      return emitOpError("has ")
+          << getNumOperands() << " operands, but enclosing function (@"
+          << function.getName() << ") returns " << results.size();
+    }
+
+    for (unsigned i = 0, e = results.size(); i != e; ++i) {
+      if (getOperand(i).getType() != results[i]) {
+        return emitError() << "type of return operand " << i << " ("
+                           << getOperand(i).getType()
+                           << ") doesn't match function result type ("
+                           << results[i] << ")"
+                           << " in function @" << function.getName();
+      }
+    }
+
+    return mlir::success();
+  }
+
+  //===----------------------------------------------------------------------===//
   // EquationOp
   //===----------------------------------------------------------------------===//
 
@@ -536,7 +731,7 @@ namespace mlir::modelica
     }
 
     result.attributes.append("value", value);
-    result.addTypes(value.getType());
+    result.addTypes(value.cast<mlir::TypedAttr>().getType());
 
     return mlir::success();
   }
@@ -1078,7 +1273,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult AllocaOp::verify()
   {
-    auto dynamicDimensionsAmount = getArrayType().getDynamicDimensionsCount();
+    auto dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
     auto valuesAmount = getDynamicSizes().size();
 
     if (dynamicDimensionsAmount != valuesAmount) {
@@ -1119,7 +1314,7 @@ namespace mlir::modelica
 
   mlir::LogicalResult AllocOp::verify()
   {
-    auto dynamicDimensionsAmount = getArrayType().getDynamicDimensionsCount();
+    auto dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
     auto valuesAmount = getDynamicSizes().size();
 
     if (dynamicDimensionsAmount != valuesAmount) {
@@ -5672,7 +5867,7 @@ namespace mlir::modelica
   {
     printer << " " << getSource() << "[" << getIndices() << "]";
     printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " : " << getResult().getType();
+    printer << " : " << getSource().getType();
   }
 
   mlir::LogicalResult SubscriptionOp::verify()

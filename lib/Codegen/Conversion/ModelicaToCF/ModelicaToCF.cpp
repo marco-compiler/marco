@@ -1,12 +1,12 @@
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Utils.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinOps.h"
 #include <set>
 #include <stack>
@@ -68,7 +68,7 @@ static mlir::LogicalResult convertArgument(mlir::OpBuilder& builder, MemberCreat
     // Only true input members are allowed to have dynamic dimensions.
     // The output values that have been promoted to input arguments must have
     // a static shape in order to cover possible reassignments.
-    assert(op.isInput() || op.getMemberType().toArrayType().hasConstantShape());
+    assert(op.isInput() || op.getMemberType().toArrayType().hasStaticShape());
 
     return std::make_pair<LoadReplacer, StoreReplacer>(
         [&replacement](MemberLoadOp loadOp) -> mlir::LogicalResult {
@@ -124,7 +124,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(
       builder.setInsertionPoint(op);
 
       mlir::Value reference = builder.create<AllocaOp>(
-          loc, ArrayType::get(builder.getContext(), unwrappedType, llvm::None), llvm::None);
+          loc, ArrayType::get(llvm::None, unwrappedType), llvm::None);
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
           [&builder, reference](MemberLoadOp loadOp) -> mlir::LogicalResult {
@@ -145,12 +145,12 @@ static mlir::LogicalResult convertResultOrProtectedVar(
 
     // If we are in the array case, then it may be not sufficient to
     // allocate just the buffer. Instead, if the array has dynamic sizes
-    // and they are not initialized, then we need to also allocate a
+    // and those are not initialized, then we need to also allocate a
     // pointer to that buffer, so that we can eventually reassign it if
     // the dimensions change.
 
     auto arrayType = unwrappedType.cast<ArrayType>();
-    bool hasStaticSize = op.getDynamicSizes().size() == arrayType.getDynamicDimensionsCount();
+    bool hasStaticSize = op.getDynamicSizes().size() == arrayType.getNumDynamicDims();
 
     if (hasStaticSize) {
       builder.setInsertionPoint(op);
@@ -192,7 +192,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(
 
     mlir::Value fakeArray = builder.create<AllocOp>(
         loc,
-        ArrayType::get(builder.getContext(), arrayType.getElementType(), shape),
+        ArrayType::get(shape, arrayType.getElementType()),
         llvm::None);
 
     fakeArray = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(fakeArray.getType()), fakeArray);
@@ -302,7 +302,7 @@ static mlir::LogicalResult convertCall(
       // The result has been promoted to argument
       assert(resultType.value().isa<ArrayType>());
       auto resultArrayType = resultType.value().cast<ArrayType>();
-      assert(resultArrayType.hasConstantShape());
+      assert(resultArrayType.hasStaticShape());
 
       // Allocate the array inside the caller body
       mlir::Value array = builder.create<AllocOp>(callOp.getLoc(), resultArrayType, llvm::None);
@@ -964,28 +964,14 @@ namespace
   {
     public:
       ModelicaToCFPass(ModelicaToCFOptions options)
-          : options(std::move(options))
+        : options(std::move(options))
       {
       }
 
       void runOnOperation() override
       {
-        auto module = getOperation();
-
-        /*
-        // When converting to CFG, the original Modelica functions are erased. Thus we need to
-        // keep track of the names of the functions that should be inlined.
-        llvm::SmallVector<std::string, 3> inlinableFunctionNames;
-
-        for (auto function : module.getBody()->getOps<FunctionOp>()) {
-          if (function.shouldBeInlined()) {
-            inlinableFunctionNames.push_back(function.name().str());
-          }
-        }
-         */
-
         if (mlir::failed(convertModelicaToCFG())) {
-          mlir::emitError(module.getLoc(), "Error in converting the Modelica operations to CFG");
+          mlir::emitError(getOperation().getLoc(), "Error in converting Modelica to CF");
           return signalPassFailure();
         }
       }
@@ -997,8 +983,8 @@ namespace
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
         llvmLoweringOptions.dataLayout = options.dataLayout;
+        mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
 
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
         CFGLowerer lowerer(typeConverter, options.outputArraysPromotion);
 
         for (auto function : llvm::make_early_inc_range(module.getBody()->getOps<FunctionOp>())) {

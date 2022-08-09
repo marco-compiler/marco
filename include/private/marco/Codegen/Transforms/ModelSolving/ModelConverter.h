@@ -7,6 +7,7 @@
 #include "marco/Codegen/Transforms/ModelSolving.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/ADT/StringRef.h"
 #include <map>
 #include <set>

@@ -10,7 +10,7 @@ namespace marco::codegen
   TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
     : mlir::LLVMTypeConverter(context, options)
   {
-    typeConverters.push_back(std::make_unique<mlir::modelica::TypeConverter>(context, options, bitWidth));
+    typeConverters.push_back(std::make_unique<mlir::modelica::TypeConverter>(bitWidth));
     typeConverters.push_back(std::make_unique<mlir::ida::TypeConverter>(context, options));
 
     addConversion([&](mlir::Type type) -> mlir::Type {

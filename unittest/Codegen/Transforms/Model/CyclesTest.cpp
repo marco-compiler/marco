@@ -120,7 +120,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   auto loc = builder.getUnknownLoc();
 
   auto realType = RealType::get(builder.getContext());
-  auto arrayType = ArrayType::get(builder.getContext(), realType, { 4 });
+  auto arrayType = ArrayType::get({ 4 }, realType);
   llvm::SmallVector<mlir::Type, 3> types(3, arrayType);
 
   auto model = createModel(builder, types);

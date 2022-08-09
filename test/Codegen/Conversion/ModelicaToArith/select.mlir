@@ -5,14 +5,15 @@
 // CHECK-DAG:   %[[trueValue:.*]] = arith.constant 0
 // CHECK-DAG:   %[[falseValue:.*]] = arith.constant 1
 // CHECK:       %[[result:.*]] = arith.select %[[condition]], %[[trueValue]], %[[falseValue]]
-// CHECK:       return %[[result]]
+// CHECK:       %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]]
+// CHECK:       return %[[result_cast]]
 
-func.func @singleResult() -> i64 {
-    %condition = arith.constant true
-    %trueValue = arith.constant 0 : i64
-    %falseValue = arith.constant 1 : i64
-    %select = modelica.select (%condition : i1), (%trueValue : i64), (%falseValue : i64) -> i64
-    func.return %select : i64
+func.func @singleResult() -> !modelica.int {
+    %condition = modelica.constant #modelica.bool<true>
+    %trueValue = modelica.constant #modelica.int<0>
+    %falseValue = modelica.constant #modelica.int<1>
+    %select = modelica.select (%condition : !modelica.bool), (%trueValue : !modelica.int), (%falseValue : !modelica.int) -> !modelica.int
+    func.return %select : !modelica.int
 }
 
 // -----
@@ -26,15 +27,16 @@ func.func @singleResult() -> i64 {
 // CHECK:       %[[select0:.*]] = arith.select %[[condition]], %[[trueValue0]], %[[falseValue0]]
 // CHECK:       %[[select1:.*]] = arith.select %[[condition]], %[[trueValue1]], %[[falseValue1]]
 // CHECK:       %[[result:.*]] = arith.addi %[[select0]], %[[select1]]
-// CHECK:       return %[[result]]
+// CHECK:       %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]]
+// CHECK:       return %[[result_cast]]
 
-func.func @multipleResults() -> i64 {
-    %condition = arith.constant true
-    %trueValue0 = arith.constant 0 : i64
-    %trueValue1 = arith.constant 1 : i64
-    %falseValue0 = arith.constant 2 : i64
-    %falseValue1 = arith.constant 3 : i64
-    %select:2 = modelica.select (%condition : i1), (%trueValue0, %trueValue1 : i64, i64), (%falseValue0, %falseValue1 : i64, i64) -> (i64, i64)
-    %result = arith.addi %select#0, %select#1 : i64
-    func.return %result : i64
+func.func @multipleResults() -> !modelica.int {
+    %condition = modelica.constant #modelica.bool<true>
+    %trueValue0 = modelica.constant #modelica.int<0>
+    %trueValue1 = modelica.constant #modelica.int<1>
+    %falseValue0 = modelica.constant #modelica.int<2>
+    %falseValue1 = modelica.constant #modelica.int<3>
+    %select:2 = modelica.select (%condition : !modelica.bool), (%trueValue0, %trueValue1 : !modelica.int, !modelica.int), (%falseValue0, %falseValue1 : !modelica.int, !modelica.int) -> (!modelica.int, !modelica.int)
+    %result = modelica.add %select#0, %select#1 : (!modelica.int, !modelica.int) -> !modelica.int
+    func.return %result : !modelica.int
 }

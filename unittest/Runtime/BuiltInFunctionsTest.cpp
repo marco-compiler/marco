@@ -4,8 +4,7 @@
 #include <cmath>
 #include <numeric>
 
-template<typename T, unsigned int N> using ArraySizes =
-		std::array<typename ArrayDescriptor<T, N>::dimension_t, N>;
+#include "Utils.h"
 
 TEST(Runtime, abs_i1)
 {
@@ -67,13 +66,13 @@ TEST(Runtime, acos_f32)
     return NAME_MANGLED(acos, float, float)(value);
   };
 
-	EXPECT_NEAR(acosFn(1), 0, 0.000001);
-	EXPECT_NEAR(acosFn(0.866025403403), M_PI / 6, 0.000001);
-	EXPECT_NEAR(acosFn(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(acosFn(0), M_PI / 2, 0.000001);
-	EXPECT_NEAR(acosFn(-0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(acosFn(-0.866025403), M_PI * 5 / 6, 0.000001);
-	EXPECT_NEAR(acosFn(-1), M_PI, 0.000001);
+  EXPECT_NEAR(acosFn(1), 0, 0.000001);
+  EXPECT_NEAR(acosFn(0.866025403403), M_PI / 6, 0.000001);
+  EXPECT_NEAR(acosFn(0.707106781), M_PI / 4, 0.000001);
+  EXPECT_NEAR(acosFn(0), M_PI / 2, 0.000001);
+  EXPECT_NEAR(acosFn(-0.707106781), M_PI * 3 / 4, 0.000001);
+  EXPECT_NEAR(acosFn(-0.866025403), M_PI * 5 / 6, 0.000001);
+  EXPECT_NEAR(acosFn(-1), M_PI, 0.000001);
 }
 
 TEST(Runtime, acos_f64)
@@ -82,13 +81,13 @@ TEST(Runtime, acos_f64)
     return NAME_MANGLED(acos, double, double)(value);
   };
 
-	EXPECT_NEAR(acosFn(1), 0, 0.00001);
-	EXPECT_NEAR(acosFn(0.866025403), M_PI / 6, 0.000001);
-	EXPECT_NEAR(acosFn(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(acosFn(0), M_PI / 2, 0.000001);
-	EXPECT_NEAR(acosFn(-0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(acosFn(-0.866025403), M_PI * 5 / 6, 0.000001);
-	EXPECT_NEAR(acosFn(-1), M_PI, 0.000001);
+  EXPECT_NEAR(acosFn(1), 0, 0.00001);
+  EXPECT_NEAR(acosFn(0.866025403), M_PI / 6, 0.000001);
+  EXPECT_NEAR(acosFn(0.707106781), M_PI / 4, 0.000001);
+  EXPECT_NEAR(acosFn(0), M_PI / 2, 0.000001);
+  EXPECT_NEAR(acosFn(-0.707106781), M_PI * 3 / 4, 0.000001);
+  EXPECT_NEAR(acosFn(-0.866025403), M_PI * 5 / 6, 0.000001);
+  EXPECT_NEAR(acosFn(-1), M_PI, 0.000001);
 }
 
 TEST(Runtime, asin_f32)
@@ -97,13 +96,13 @@ TEST(Runtime, asin_f32)
     return NAME_MANGLED(asin, float, float)(value);
   };
 
-	EXPECT_NEAR(asinFn(1), M_PI / 2, 0.000001);
-	EXPECT_NEAR(asinFn(0.866025403), M_PI / 3, 0.000001);
-	EXPECT_NEAR(asinFn(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(asinFn(0), 0, 0.000001);
-	EXPECT_NEAR(asinFn(-0.707106781), -1 * M_PI / 4, 0.000001);
-	EXPECT_NEAR(asinFn(-0.866025403), -1 * M_PI / 3, 0.000001);
-	EXPECT_NEAR(asinFn(-1), -1 * M_PI / 2, 0.000001);
+  EXPECT_NEAR(asinFn(1), M_PI / 2, 0.000001);
+  EXPECT_NEAR(asinFn(0.866025403), M_PI / 3, 0.000001);
+  EXPECT_NEAR(asinFn(0.707106781), M_PI / 4, 0.000001);
+  EXPECT_NEAR(asinFn(0), 0, 0.000001);
+  EXPECT_NEAR(asinFn(-0.707106781), -1 * M_PI / 4, 0.000001);
+  EXPECT_NEAR(asinFn(-0.866025403), -1 * M_PI / 3, 0.000001);
+  EXPECT_NEAR(asinFn(-1), -1 * M_PI / 2, 0.000001);
 }
 
 TEST(Runtime, asin_f64)
@@ -112,13 +111,13 @@ TEST(Runtime, asin_f64)
     return NAME_MANGLED(asin, double, double)(value);
   };
 
-	EXPECT_NEAR(asinFn(1), M_PI / 2, 0.000001);
-	EXPECT_NEAR(asinFn(0.866025403), M_PI / 3, 0.000001);
-	EXPECT_NEAR(asinFn(0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(asinFn(0), 0, 0.000001);
-	EXPECT_NEAR(asinFn(-0.707106781), -1 * M_PI / 4, 0.000001);
-	EXPECT_NEAR(asinFn(-0.866025403), -1 * M_PI / 3, 0.000001);
-	EXPECT_NEAR(asinFn(-1), -1 * M_PI / 2, 0.000001);
+  EXPECT_NEAR(asinFn(1), M_PI / 2, 0.000001);
+  EXPECT_NEAR(asinFn(0.866025403), M_PI / 3, 0.000001);
+  EXPECT_NEAR(asinFn(0.707106781), M_PI / 4, 0.000001);
+  EXPECT_NEAR(asinFn(0), 0, 0.000001);
+  EXPECT_NEAR(asinFn(-0.707106781), -1 * M_PI / 4, 0.000001);
+  EXPECT_NEAR(asinFn(-0.866025403), -1 * M_PI / 3, 0.000001);
+  EXPECT_NEAR(asinFn(-1), -1 * M_PI / 2, 0.000001);
 }
 
 TEST(Runtime, atan_f32)
@@ -127,11 +126,11 @@ TEST(Runtime, atan_f32)
     return NAME_MANGLED(atan, float, float)(value);
   };
 
-	EXPECT_NEAR(atanFn(1), M_PI / 4, 0.000001);
-	EXPECT_NEAR(atanFn(0.577350269), M_PI / 6, 0.000001);
-	EXPECT_NEAR(atanFn(0), 0, 0.000001);
-	EXPECT_NEAR(atanFn(-0.577350269), -1 * M_PI / 6, 0.000001);
-	EXPECT_NEAR(atanFn(-1), -1 * M_PI / 4, 0.000001);
+  EXPECT_NEAR(atanFn(1), M_PI / 4, 0.000001);
+  EXPECT_NEAR(atanFn(0.577350269), M_PI / 6, 0.000001);
+  EXPECT_NEAR(atanFn(0), 0, 0.000001);
+  EXPECT_NEAR(atanFn(-0.577350269), -1 * M_PI / 6, 0.000001);
+  EXPECT_NEAR(atanFn(-1), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan_f64)
@@ -140,11 +139,11 @@ TEST(Runtime, atan_f64)
     return NAME_MANGLED(atan, double, double)(value);
   };
 
-	EXPECT_NEAR(atanFn(1), M_PI / 4, 0.000001);
-	EXPECT_NEAR(atanFn(0.577350269), M_PI / 6, 0.000001);
-	EXPECT_NEAR(atanFn(0), 0, 0.0000001);
-	EXPECT_NEAR(atanFn(-0.577350269), -1 * M_PI / 6, 0.000001);
-	EXPECT_NEAR(atanFn(-1), -1 * M_PI / 4, 0.000001);
+  EXPECT_NEAR(atanFn(1), M_PI / 4, 0.000001);
+  EXPECT_NEAR(atanFn(0.577350269), M_PI / 6, 0.000001);
+  EXPECT_NEAR(atanFn(0), 0, 0.0000001);
+  EXPECT_NEAR(atanFn(-0.577350269), -1 * M_PI / 6, 0.000001);
+  EXPECT_NEAR(atanFn(-1), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan2_f32)
@@ -153,10 +152,10 @@ TEST(Runtime, atan2_f32)
     return NAME_MANGLED(atan2, float, float, float)(y, x);
   };
 
-	EXPECT_NEAR(atan2Fn(0.707106781, 0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(atan2Fn(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(atan2Fn(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(0.707106781, 0.707106781), M_PI / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan2_f64)
@@ -165,14 +164,13 @@ TEST(Runtime, atan2_f64)
     return NAME_MANGLED(atan2, double, double, double)(y, x);
   };
 
-	EXPECT_NEAR(atan2Fn(0.707106781, 0.707106781), M_PI / 4, 0.000001);
-	EXPECT_NEAR(atan2Fn(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(atan2Fn(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
-	EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(0.707106781, 0.707106781), M_PI / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(0.707106781, -0.707106781), M_PI * 3 / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(-0.707106781, -0.707106781), -1 * M_PI * 3 / 4, 0.000001);
+  EXPECT_NEAR(atan2Fn(-0.707106781, 0.707106781), -1 * M_PI / 4, 0.000001);
 }
 
-
-TEST(Runtime, ceil_i1)	 // NOLINT
+TEST(Runtime, ceil_i1)
 {
   auto ceilFn = [](bool value) -> bool {
     return NAME_MANGLED(ceil, bool, bool)(value);
@@ -182,7 +180,7 @@ TEST(Runtime, ceil_i1)	 // NOLINT
   EXPECT_EQ(ceilFn(true), true);
 }
 
-TEST(Runtime, ceil_i32)	 // NOLINT
+TEST(Runtime, ceil_i32)
 {
   auto ceilFn = [](int32_t value) -> int32_t {
     return NAME_MANGLED(ceil, int32_t, int32_t)(value);
@@ -192,7 +190,7 @@ TEST(Runtime, ceil_i32)	 // NOLINT
   EXPECT_EQ(ceilFn(3), 3);
 }
 
-TEST(Runtime, ceil_i64)	 // NOLINT
+TEST(Runtime, ceil_i64)
 {
   auto ceilFn = [](int64_t value) -> int64_t {
     return NAME_MANGLED(ceil, int64_t, int64_t)(value);
@@ -202,7 +200,7 @@ TEST(Runtime, ceil_i64)	 // NOLINT
   EXPECT_EQ(ceilFn(3), 3);
 }
 
-TEST(Runtime, ceil_f32)	 // NOLINT
+TEST(Runtime, ceil_f32)
 {
   auto ceilFn = [](float value) -> float {
     return NAME_MANGLED(ceil, float, float)(value);
@@ -212,7 +210,7 @@ TEST(Runtime, ceil_f32)	 // NOLINT
   EXPECT_NEAR(ceilFn(3.14), 4, 0.000001);
 }
 
-TEST(Runtime, ceil_f64)	 // NOLINT
+TEST(Runtime, ceil_f64)
 {
   auto ceilFn = [](double value) -> double {
     return NAME_MANGLED(ceil, double, double)(value);
@@ -229,11 +227,11 @@ TEST(Runtime, cos_f32)
   };
 
   EXPECT_NEAR(cosFn(0), 1, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
-	EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
+  EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
 }
 
 TEST(Runtime, cos_f64)
@@ -242,12 +240,12 @@ TEST(Runtime, cos_f64)
     return NAME_MANGLED(cos, double, double)(value);
   };
 
-	EXPECT_NEAR(cosFn(0), 1, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
-	EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
-	EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
+  EXPECT_NEAR(cosFn(0), 1, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
+  EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
+  EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
 }
 
 TEST(Runtime, cosh_f32)
@@ -256,8 +254,8 @@ TEST(Runtime, cosh_f32)
     return NAME_MANGLED(cosh, float, float)(value);
   };
 
-	EXPECT_NEAR(coshFn(0), 1, 0.000001);
-	EXPECT_NEAR(coshFn(1), 1.543080634, 0.000001);
+  EXPECT_NEAR(coshFn(0), 1, 0.000001);
+  EXPECT_NEAR(coshFn(1), 1.543080634, 0.000001);
 }
 
 TEST(Runtime, cosh_f64)
@@ -266,536 +264,661 @@ TEST(Runtime, cosh_f64)
     return NAME_MANGLED(cosh, double, double)(value);
   };
 
-	EXPECT_NEAR(coshFn(0), 1, 0.000001);
-	EXPECT_NEAR(coshFn(1), 1.543080634, 0.000001);
+  EXPECT_NEAR(coshFn(0), 1, 0.000001);
+  EXPECT_NEAR(coshFn(1), 1.543080634, 0.000001);
 }
 
 TEST(Runtime, diagonalSquareMatrix_i1_i1)
 {
-	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
-	ArraySizes<bool, 2> destinationSizes = { 3, 3 };
+  std::array<bool, 9> destinationValues = { false, true, true, true, false, true, true, true, false };
+  std::array<bool, 3> sourceValues = { true, true, true };
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<bool, 3> values = { true, true, true };
-	ArrayDescriptor<bool, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(bool))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : false);
-    }
-  }
+  EXPECT_EQ(destination[0][0], true);
+  EXPECT_EQ(destination[0][1], false);
+  EXPECT_EQ(destination[0][2], false);
+
+  EXPECT_EQ(destination[1][0], false);
+  EXPECT_EQ(destination[1][1], true);
+  EXPECT_EQ(destination[1][2], false);
+
+  EXPECT_EQ(destination[2][0], false);
+  EXPECT_EQ(destination[2][1], false);
+  EXPECT_EQ(destination[2][2], true);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i1_i32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i1_i32)
 {
-	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
-	ArraySizes<bool, 2> destinationSizes = { 3, 3 };
+  std::array<bool, 9> destinationValues = { false, true, true, true, false, true, true, true, false };
+  std::array<int32_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int32_t, 3> values = { 2, 2, 2 };
-	ArrayDescriptor<int32_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int32_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int32_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
-    }
-  }
+  EXPECT_EQ(destination[0][0], true);
+  EXPECT_EQ(destination[0][1], false);
+  EXPECT_EQ(destination[0][2], false);
+
+  EXPECT_EQ(destination[1][0], false);
+  EXPECT_EQ(destination[1][1], true);
+  EXPECT_EQ(destination[1][2], false);
+
+  EXPECT_EQ(destination[2][0], false);
+  EXPECT_EQ(destination[2][1], false);
+  EXPECT_EQ(destination[2][2], true);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i1_i64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i1_i64)
 {
-	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
-	ArraySizes<bool, 2> destinationSizes = { 3, 3 };
+  std::array<bool, 9> destinationValues = { false, true, true, true, false, true, true, true, false };
+  std::array<int64_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int64_t, 3> values = { 2, 2, 2 };
-	ArrayDescriptor<int64_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int64_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int64_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
-    }
-  }
+  EXPECT_EQ(destination[0][0], true);
+  EXPECT_EQ(destination[0][1], false);
+  EXPECT_EQ(destination[0][2], false);
+
+  EXPECT_EQ(destination[1][0], false);
+  EXPECT_EQ(destination[1][1], true);
+  EXPECT_EQ(destination[1][2], false);
+
+  EXPECT_EQ(destination[2][0], false);
+  EXPECT_EQ(destination[2][1], false);
+  EXPECT_EQ(destination[2][2], true);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i1_f32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i1_f32)
 {
-	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
-	ArraySizes<bool, 2> destinationSizes = { 3, 3 };
+  std::array<bool, 9> destinationValues = { false, true, true, true, false, true, true, true, false };
+  std::array<float, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<float, 3> values = { 2, 2, 2 };
-	ArrayDescriptor<float, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(float))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
-    }
-  }
+  EXPECT_EQ(destination[0][0], true);
+  EXPECT_EQ(destination[0][1], false);
+  EXPECT_EQ(destination[0][2], false);
+
+  EXPECT_EQ(destination[1][0], false);
+  EXPECT_EQ(destination[1][1], true);
+  EXPECT_EQ(destination[1][2], false);
+
+  EXPECT_EQ(destination[2][0], false);
+  EXPECT_EQ(destination[2][1], false);
+  EXPECT_EQ(destination[2][2], true);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i1_f64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i1_f64)
 {
-	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
-	ArraySizes<bool, 2> destinationSizes = { 3, 3 };
+  std::array<bool, 9> destinationValues = { false, true, true, true, false, true, true, true, false };
+  std::array<double, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<double, 3> values = { 2, 2, 2 };
-	ArrayDescriptor<double, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(double))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
-    }
-  }
+  EXPECT_EQ(destination[0][0], true);
+  EXPECT_EQ(destination[0][1], false);
+  EXPECT_EQ(destination[0][2], false);
+
+  EXPECT_EQ(destination[1][0], false);
+  EXPECT_EQ(destination[1][1], true);
+  EXPECT_EQ(destination[1][2], false);
+
+  EXPECT_EQ(destination[2][0], false);
+  EXPECT_EQ(destination[2][1], false);
+  EXPECT_EQ(destination[2][2], true);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i32_i1)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i32_i1)
 {
-	std::array<int32_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int32_t, 2> destinationSizes = { 3, 3 };
+  std::array<int32_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<bool, 3> sourceValues = { true, true, true };
 
-	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<bool, 3> values = { true, true, true };
-	ArrayDescriptor<bool, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(bool))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 1);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 1);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i32_i32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i32_i32)
 {
-	std::array<int, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int32_t, 2> destinationSizes = { 3, 3 };
+  std::array<int32_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int32_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int32_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int32_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int32_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(int32_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i32_i64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i32_i64)
 {
-	std::array<int32_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int32_t, 2> destinationSizes = { 3, 3 };
+  std::array<int32_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int64_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int64_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int64_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int64_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(int64_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i32_f32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i32_f32)
 {
-	std::array<int32_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int32_t, 2> destinationSizes = { 3, 3 };
+  std::array<int32_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<float, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<float, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(float))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i32_f64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i32_f64)
 {
-	std::array<int32_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int32_t, 2> destinationSizes = { 3, 3 };
+  std::array<int32_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<double, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<double, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<double, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(double))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int32_t), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i64_i1)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i64_i1)
 {
-	std::array<int64_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int64_t, 2> destinationSizes = { 3, 3 };
+  std::array<int64_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<bool, 3> sourceValues = { true, true, true };
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<bool, 3> values = { true, true, true };
-	ArrayDescriptor<bool, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(bool))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 1);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 1);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i64_i32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i64_i32)
 {
-	std::array<int64_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int64_t, 2> destinationSizes = { 3, 3 };
+  std::array<int64_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int32_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int32_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int32_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int32_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(int32_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i64_i64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i64_i64)
 {
-	std::array<int64_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int64_t, 2> destinationSizes = { 3, 3 };
+  std::array<int64_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int64_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int64_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int64_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int64_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(int64_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i64_f32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i64_f32)
 {
-	std::array<int64_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int64_t, 2> destinationSizes = { 3, 3 };
+  std::array<int64_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<float, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<float, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(float))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_i64_f64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_i64_f64)
 {
-	std::array<int64_t, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int64_t, 2> destinationSizes = { 3, 3 };
+  std::array<int64_t, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<double, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<double, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<double, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(double))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(int64_t), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_EQ(destination[0][0], 1);
+  EXPECT_EQ(destination[0][1], 0);
+  EXPECT_EQ(destination[0][2], 0);
+
+  EXPECT_EQ(destination[1][0], 0);
+  EXPECT_EQ(destination[1][1], 2);
+  EXPECT_EQ(destination[1][2], 0);
+
+  EXPECT_EQ(destination[2][0], 0);
+  EXPECT_EQ(destination[2][1], 0);
+  EXPECT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f32_i1)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f32_i1)
 {
-	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<float, 2> destinationSizes = { 3, 3 };
+  std::array<float, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<bool, 3> sourceValues = { true, true, true };
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<bool, 3> values = { true, true, true };
-	ArrayDescriptor<bool, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(bool))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], 1);
+  EXPECT_FLOAT_EQ(destination[0][1], 0);
+  EXPECT_FLOAT_EQ(destination[0][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[1][0], 0);
+  EXPECT_FLOAT_EQ(destination[1][1], 1);
+  EXPECT_FLOAT_EQ(destination[1][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[2][0], 0);
+  EXPECT_FLOAT_EQ(destination[2][1], 0);
+  EXPECT_FLOAT_EQ(destination[2][2], 1);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f32_i32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f32_i32)
 {
-	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<float, 2> destinationSizes = { 3, 3 };
+  std::array<float, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int32_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int32_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int32_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int32_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int32_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], 1);
+  EXPECT_FLOAT_EQ(destination[0][1], 0);
+  EXPECT_FLOAT_EQ(destination[0][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[1][0], 0);
+  EXPECT_FLOAT_EQ(destination[1][1], 2);
+  EXPECT_FLOAT_EQ(destination[1][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[2][0], 0);
+  EXPECT_FLOAT_EQ(destination[2][1], 0);
+  EXPECT_FLOAT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f32_i64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f32_i64)
 {
-	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<float, 2> destinationSizes = { 3, 3 };
+  std::array<float, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int64_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int64_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int64_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int64_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int64_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], 1);
+  EXPECT_FLOAT_EQ(destination[0][1], 0);
+  EXPECT_FLOAT_EQ(destination[0][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[1][0], 0);
+  EXPECT_FLOAT_EQ(destination[1][1], 2);
+  EXPECT_FLOAT_EQ(destination[1][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[2][0], 0);
+  EXPECT_FLOAT_EQ(destination[2][1], 0);
+  EXPECT_FLOAT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f32_f32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f32_f32)
 {
-	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<float, 2> destinationSizes = { 3, 3 };
+  std::array<float, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<float, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<float, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(float))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], 1);
+  EXPECT_FLOAT_EQ(destination[0][1], 0);
+  EXPECT_FLOAT_EQ(destination[0][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[1][0], 0);
+  EXPECT_FLOAT_EQ(destination[1][1], 2);
+  EXPECT_FLOAT_EQ(destination[1][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[2][0], 0);
+  EXPECT_FLOAT_EQ(destination[2][1], 0);
+  EXPECT_FLOAT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f32_f64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f32_f64)
 {
-	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<float, 2> destinationSizes = { 3, 3 };
+  std::array<float, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<double, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<double, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<double, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(double))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_FLOAT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], 1);
+  EXPECT_FLOAT_EQ(destination[0][1], 0);
+  EXPECT_FLOAT_EQ(destination[0][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[1][0], 0);
+  EXPECT_FLOAT_EQ(destination[1][1], 2);
+  EXPECT_FLOAT_EQ(destination[1][2], 0);
+
+  EXPECT_FLOAT_EQ(destination[2][0], 0);
+  EXPECT_FLOAT_EQ(destination[2][1], 0);
+  EXPECT_FLOAT_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f64_i1)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f64_i1)
 {
-	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<double, 2> destinationSizes = { 3, 3 };
+  std::array<double, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<bool, 3> sourceValues = { true, true, true };
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<bool, 3> values = { true, true, true };
-	ArrayDescriptor<bool, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(bool))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], 1);
+  EXPECT_DOUBLE_EQ(destination[0][1], 0);
+  EXPECT_DOUBLE_EQ(destination[0][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[1][0], 0);
+  EXPECT_DOUBLE_EQ(destination[1][1], 1);
+  EXPECT_DOUBLE_EQ(destination[1][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[2][0], 0);
+  EXPECT_DOUBLE_EQ(destination[2][1], 0);
+  EXPECT_DOUBLE_EQ(destination[2][2], 1);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f64_i32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f64_i32)
 {
-	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<double, 2> destinationSizes = { 3, 3 };
+  std::array<double, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int32_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int32_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int32_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int32_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int32_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], 1);
+  EXPECT_DOUBLE_EQ(destination[0][1], 0);
+  EXPECT_DOUBLE_EQ(destination[0][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[1][0], 0);
+  EXPECT_DOUBLE_EQ(destination[1][1], 2);
+  EXPECT_DOUBLE_EQ(destination[1][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[2][0], 0);
+  EXPECT_DOUBLE_EQ(destination[2][1], 0);
+  EXPECT_DOUBLE_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f64_i64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f64_i64)
 {
-	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<double, 2> destinationSizes = { 3, 3 };
+  std::array<double, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<int64_t, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<int64_t, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<int64_t, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<int64_t> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int64_t))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], 1);
+  EXPECT_DOUBLE_EQ(destination[0][1], 0);
+  EXPECT_DOUBLE_EQ(destination[0][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[1][0], 0);
+  EXPECT_DOUBLE_EQ(destination[1][1], 2);
+  EXPECT_DOUBLE_EQ(destination[1][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[2][0], 0);
+  EXPECT_DOUBLE_EQ(destination[2][1], 0);
+  EXPECT_DOUBLE_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f64_f32)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f64_f32)
 {
-	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<double, 2> destinationSizes = { 3, 3 };
+  std::array<double, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<float, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<float, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(float))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], 1);
+  EXPECT_DOUBLE_EQ(destination[0][1], 0);
+  EXPECT_DOUBLE_EQ(destination[0][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[1][0], 0);
+  EXPECT_DOUBLE_EQ(destination[1][1], 2);
+  EXPECT_DOUBLE_EQ(destination[1][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[2][0], 0);
+  EXPECT_DOUBLE_EQ(destination[2][1], 0);
+  EXPECT_DOUBLE_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
+TEST(Runtime, diagonalSquareMatrix_f64_f64)
 {
-	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<double, 2> destinationSizes = { 3, 3 };
+  std::array<double, 9> destinationValues = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+  std::array<double, 3> sourceValues = { 1, 2, 3 };
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	std::array<double, 3> values = { 1, 2, 3 };
-	ArrayDescriptor<double, 1> valuesDescriptor(values);
-	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+  auto source = getMemRef(sourceValues);
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(double))(&unsizedDestination, &unsizedValues);
+  NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < destinationSizes[0]; ++i) {
-    for (size_t j = 0; j < destinationSizes[1]; j++) {
-      EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], 1);
+  EXPECT_DOUBLE_EQ(destination[0][1], 0);
+  EXPECT_DOUBLE_EQ(destination[0][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[1][0], 0);
+  EXPECT_DOUBLE_EQ(destination[1][1], 2);
+  EXPECT_DOUBLE_EQ(destination[1][2], 0);
+
+  EXPECT_DOUBLE_EQ(destination[2][0], 0);
+  EXPECT_DOUBLE_EQ(destination[2][1], 0);
+  EXPECT_DOUBLE_EQ(destination[2][2], 3);
 }
 
-TEST(Runtime, div_i1_i1)	 // NOLINT
+TEST(Runtime, div_i1_i1)
 {
   auto divFn = [](bool x, bool y) -> bool {
     return NAME_MANGLED(div, bool, bool, bool)(x, y);
@@ -805,7 +928,7 @@ TEST(Runtime, div_i1_i1)	 // NOLINT
   EXPECT_EQ(divFn(true, true), true);
 }
 
-TEST(Runtime, div_i32_i32)	 // NOLINT
+TEST(Runtime, div_i32_i32)
 {
   auto divFn = [](int32_t x, int32_t y) -> int32_t {
     return NAME_MANGLED(div, int32_t, int32_t, int32_t)(x, y);
@@ -817,7 +940,7 @@ TEST(Runtime, div_i32_i32)	 // NOLINT
   EXPECT_EQ(divFn(-10, 3), -3);
 }
 
-TEST(Runtime, div_i64_i64)	 // NOLINT
+TEST(Runtime, div_i64_i64)
 {
   auto divFn = [](int64_t x, int64_t y) -> int64_t {
     return NAME_MANGLED(div, int64_t, int64_t, int64_t)(x, y);
@@ -829,7 +952,7 @@ TEST(Runtime, div_i64_i64)	 // NOLINT
   EXPECT_EQ(divFn(-10, 3), -3);
 }
 
-TEST(Runtime, div_f32_f32)	 // NOLINT
+TEST(Runtime, div_f32_f32)
 {
   auto divFn = [](float x, float y) -> float {
     return NAME_MANGLED(div, float, float, float)(x, y);
@@ -842,7 +965,7 @@ TEST(Runtime, div_f32_f32)	 // NOLINT
   EXPECT_NEAR(divFn(3, -1.4), -2, 0.000001);
 }
 
-TEST(Runtime, div_f64_f64)	 // NOLINT
+TEST(Runtime, div_f64_f64)
 {
   auto divFn = [](double x, double y) -> double {
     return NAME_MANGLED(div, double, double, double)(x, y);
@@ -855,101 +978,106 @@ TEST(Runtime, div_f64_f64)	 // NOLINT
   EXPECT_NEAR(divFn(3, -1.4), -2, 0.000001);
 }
 
-TEST(Runtime, exp_f32)	 // NOLINT
+TEST(Runtime, exp_f32)
 {
   auto expFn = [](float exponent) -> float {
     return NAME_MANGLED(exp, float, float)(exponent);
   };
 
-	EXPECT_NEAR(expFn(0), 1, 0.000001);
-	EXPECT_NEAR(expFn(1), 2.718281, 0.000001);
-	EXPECT_NEAR(expFn(2), 7.389056, 0.000001);
-	EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
+  EXPECT_NEAR(expFn(0), 1, 0.000001);
+  EXPECT_NEAR(expFn(1), 2.718281, 0.000001);
+  EXPECT_NEAR(expFn(2), 7.389056, 0.000001);
+  EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
 }
 
-TEST(Runtime, exp_f64)	 // NOLINT
+TEST(Runtime, exp_f64)
 {
   auto expFn = [](double exponent) -> double {
     return NAME_MANGLED(exp, double, double)(exponent);
   };
 
-	EXPECT_NEAR(expFn(0), 1, 0.000001);
-	EXPECT_NEAR(expFn(1), 2.718281, 0.000001);
-	EXPECT_NEAR(expFn(2), 7.389056, 0.000001);
-	EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
+  EXPECT_NEAR(expFn(0), 1, 0.000001);
+  EXPECT_NEAR(expFn(1), 2.718281, 0.000001);
+  EXPECT_NEAR(expFn(2), 7.389056, 0.000001);
+  EXPECT_NEAR(expFn(-2), 0.135335, 0.000001);
 }
 
-TEST(Runtime, fill_i1)	 // NOLINT
+TEST(Runtime, fill_i1)
 {
-	std::array<bool, 3> data = { false, false, false };
-	ArrayDescriptor<bool, 1> descriptor(data);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+	std::array<bool, 3> values = { false, false, false };
+  bool value = true;
 
-	bool value = true;
-	NAME_MANGLED(fill, void, ARRAY(bool), bool)(&unsized, value);
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
-    return element == value;
-  }));
+  NAME_MANGLED(fill, void, ARRAY(bool), bool)(&unrankedArray, value);
+
+  EXPECT_EQ(array[0], value);
+  EXPECT_EQ(array[1], value);
+  EXPECT_EQ(array[2], value);
 }
 
-TEST(Runtime, fill_i32)	 // NOLINT
+TEST(Runtime, fill_i32)
 {
-	std::array<int32_t, 3> data = { 0, 0, 0 };
-	ArrayDescriptor<int32_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+	std::array<int32_t, 3> values = { 0, 0, 0 };
+  int32_t value = 1;
 
-	int value = 1;
-	NAME_MANGLED(fill, void, ARRAY(int32_t), int32_t)(&unsized, value);
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
-    return element == value;
-  }));
+  NAME_MANGLED(fill, void, ARRAY(int32_t), int32_t)(&unrankedArray, value);
+
+  EXPECT_EQ(array[0], value);
+  EXPECT_EQ(array[1], value);
+  EXPECT_EQ(array[2], value);
 }
 
-TEST(Runtime, fill_i64)	 // NOLINT
+TEST(Runtime, fill_i64)
 {
-	std::array<int64_t, 3> data = { 0, 0, 0 };
-	ArrayDescriptor<int64_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+	std::array<int64_t, 3> values = { 0, 0, 0 };
+  int64_t value = 1;
 
-	long value = 1;
-	NAME_MANGLED(fill, void, ARRAY(int64_t), int64_t)(&unsized, value);
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
-    return element == value;
-  }));
+  NAME_MANGLED(fill, void, ARRAY(int64_t), int64_t)(&unrankedArray, value);
+
+  EXPECT_EQ(array[0], value);
+  EXPECT_EQ(array[1], value);
+  EXPECT_EQ(array[2], value);
 }
 
-TEST(Runtime, fill_f32)	 // NOLINT
+TEST(Runtime, fill_f32)
 {
-	std::array<float, 3> data = { 0, 0, 0 };
-	ArrayDescriptor<float, 1> descriptor(data);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+	std::array<float, 3> values = { 0, 0, 0 };
+  float value = 1;
 
-	float value = 1;
-	NAME_MANGLED(fill, void, ARRAY(float), float)(&unsized, value);
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
-    return element == value;
-  }));
+  NAME_MANGLED(fill, void, ARRAY(float), float)(&unrankedArray, value);
+
+  EXPECT_FLOAT_EQ(array[0], value);
+  EXPECT_FLOAT_EQ(array[1], value);
+  EXPECT_FLOAT_EQ(array[2], value);
 }
 
-TEST(Runtime, fill_f64)	 // NOLINT
+TEST(Runtime, fill_f64)
 {
-	std::array<double, 3> data = { 0, 0, 0 };
-	ArrayDescriptor<double, 1> descriptor(data);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+	std::array<double, 3> values = { 0, 0, 0 };
+  double value = 1;
 
-	double value = 1;
-	NAME_MANGLED(fill, void, ARRAY(double), double)(&unsized, value);
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-  EXPECT_TRUE(llvm::all_of(data, [&](const auto& element) {
-    return element == value;
-  }));
+  NAME_MANGLED(fill, void, ARRAY(double), double)(&unrankedArray, value);
+
+  EXPECT_DOUBLE_EQ(array[0], value);
+  EXPECT_DOUBLE_EQ(array[1], value);
+  EXPECT_DOUBLE_EQ(array[2], value);
 }
 
-TEST(Runtime, floor_i1)	 // NOLINT
+TEST(Runtime, floor_i1)
 {
   auto floorFn = [](bool value) -> bool {
     return NAME_MANGLED(floor, bool, bool)(value);
@@ -959,7 +1087,7 @@ TEST(Runtime, floor_i1)	 // NOLINT
   EXPECT_EQ(floorFn(true), true);
 }
 
-TEST(Runtime, floor_i32)	 // NOLINT
+TEST(Runtime, floor_i32)
 {
   auto floorFn = [](int32_t value) -> int32_t {
     return NAME_MANGLED(floor, int32_t, int32_t)(value);
@@ -969,7 +1097,7 @@ TEST(Runtime, floor_i32)	 // NOLINT
   EXPECT_EQ(floorFn(3), 3);
 }
 
-TEST(Runtime, floor_i64)	 // NOLINT
+TEST(Runtime, floor_i64)
 {
   auto floorFn = [](int64_t value) -> int64_t {
     return NAME_MANGLED(floor, int64_t, int64_t)(value);
@@ -979,7 +1107,7 @@ TEST(Runtime, floor_i64)	 // NOLINT
   EXPECT_EQ(floorFn(3), 3);
 }
 
-TEST(Runtime, floor_f32)	 // NOLINT
+TEST(Runtime, floor_f32)
 {
   auto floorFn = [](float value) -> float {
     return NAME_MANGLED(floor, float, float)(value);
@@ -989,7 +1117,7 @@ TEST(Runtime, floor_f32)	 // NOLINT
   EXPECT_NEAR(floorFn(3.14), 3, 0.000001);
 }
 
-TEST(Runtime, floor_f64)	 // NOLINT
+TEST(Runtime, floor_f64)
 {
   auto floorFn = [](double value) -> double {
     return NAME_MANGLED(floor, double, double)(value);
@@ -999,92 +1127,117 @@ TEST(Runtime, floor_f64)	 // NOLINT
   EXPECT_NEAR(floorFn(3.14), 3, 0.000001);
 }
 
-TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
+TEST(Runtime, identitySquareMatrix_i1)
 {
-	std::array<bool, 9> data = { false, true, true, true, false, true, true, true, false };
-	ArraySizes<bool, 2> sizes = { 3, 3 };
+  std::array<bool, 9> values = { false, true, true, true, false, true, true, true, false };
 
-	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+  auto array = getMemRef<bool, 2>(values.data(), { 3, 3 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(identity, void, ARRAY(bool))(&unsized);
+  NAME_MANGLED(identity, void, ARRAY(bool))(&unrankedArray);
 
-	for (size_t i = 0; i < sizes[0]; ++i) {
-    for (size_t j = 0; j < sizes[1]; j++) {
-      EXPECT_EQ(data[3 * i + j], i == j);
-    }
-  }
+  EXPECT_EQ(array[0][0], true);
+  EXPECT_EQ(array[0][1], false);
+  EXPECT_EQ(array[0][2], false);
+
+  EXPECT_EQ(array[1][0], false);
+  EXPECT_EQ(array[1][1], true);
+  EXPECT_EQ(array[1][2], false);
+
+  EXPECT_EQ(array[2][0], false);
+  EXPECT_EQ(array[2][1], false);
+  EXPECT_EQ(array[2][2], true);
 }
 
-TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
+TEST(Runtime, identitySquareMatrix_i32)
 {
-	std::array<int32_t, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int32_t, 2> sizes = { 3, 3 };
+  std::array<int32_t, 9> values = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 
-	ArrayDescriptor<int32_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+  auto array = getMemRef<int32_t, 2>(values.data(), { 3, 3 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(identity, void, ARRAY(int32_t))(&unsized);
+  NAME_MANGLED(identity, void, ARRAY(int32_t))(&unrankedArray);
 
-	for (size_t i = 0; i < sizes[0]; ++i) {
-    for (size_t j = 0; j < sizes[1]; j++) {
-      EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
-    }
-  }
+  EXPECT_EQ(array[0][0], 1);
+  EXPECT_EQ(array[0][1], 0);
+  EXPECT_EQ(array[0][2], 0);
+
+  EXPECT_EQ(array[1][0], 0);
+  EXPECT_EQ(array[1][1], 1);
+  EXPECT_EQ(array[1][2], 0);
+
+  EXPECT_EQ(array[2][0], 0);
+  EXPECT_EQ(array[2][1], 0);
+  EXPECT_EQ(array[2][2], 1);
 }
 
-TEST(Runtime, identitySquareMatrix_i64)	 // NOLINT
+TEST(Runtime, identitySquareMatrix_i64)
 {
-	std::array<int64_t, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<int64_t, 2> sizes = { 3, 3 };
+  std::array<int64_t, 9> values = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 
-	ArrayDescriptor<int64_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+  auto array = getMemRef<int64_t, 2>(values.data(), { 3, 3 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(identity, void, ARRAY(int64_t))(&unsized);
+  NAME_MANGLED(identity, void, ARRAY(int64_t))(&unrankedArray);
 
-	for (size_t i = 0; i < sizes[0]; ++i) {
-    for (size_t j = 0; j < sizes[1]; j++) {
-      EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
-    }
-  }
+  EXPECT_EQ(array[0][0], 1);
+  EXPECT_EQ(array[0][1], 0);
+  EXPECT_EQ(array[0][2], 0);
+
+  EXPECT_EQ(array[1][0], 0);
+  EXPECT_EQ(array[1][1], 1);
+  EXPECT_EQ(array[1][2], 0);
+
+  EXPECT_EQ(array[2][0], 0);
+  EXPECT_EQ(array[2][1], 0);
+  EXPECT_EQ(array[2][2], 1);
 }
 
-TEST(Runtime, identitySquareMatrix_f32)	 // NOLINT
+TEST(Runtime, identitySquareMatrix_f32)
 {
-	std::array<float, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<float, 2> sizes = { 3, 3 };
+  std::array<float, 9> values = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 
-	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+  auto array = getMemRef<float, 2>(values.data(), { 3, 3 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(identity, void, ARRAY(float))(&unsized);
+  NAME_MANGLED(identity, void, ARRAY(float))(&unrankedArray);
 
-	for (size_t i = 0; i < sizes[0]; ++i) {
-    for (size_t j = 0; j < sizes[1]; j++) {
-      EXPECT_FLOAT_EQ(data[3 * i + j], i == j ? 1 : 0);
-    }
-  }
+  EXPECT_FLOAT_EQ(array[0][0], 1);
+  EXPECT_FLOAT_EQ(array[0][1], 0);
+  EXPECT_FLOAT_EQ(array[0][2], 0);
+
+  EXPECT_FLOAT_EQ(array[1][0], 0);
+  EXPECT_FLOAT_EQ(array[1][1], 1);
+  EXPECT_FLOAT_EQ(array[1][2], 0);
+
+  EXPECT_FLOAT_EQ(array[2][0], 0);
+  EXPECT_FLOAT_EQ(array[2][1], 0);
+  EXPECT_FLOAT_EQ(array[2][2], 1);
 }
 
-TEST(Runtime, identitySquareMatrix_f64)	 // NOLINT
+TEST(Runtime, identitySquareMatrix_f64)
 {
-	std::array<double, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
-	ArraySizes<double, 2> sizes = { 3, 3 };
+  std::array<double, 9> values = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 
-	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+  auto array = getMemRef<double, 2>(values.data(), { 3, 3 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(identity, void, ARRAY(double))(&unsized);
+  NAME_MANGLED(identity, void, ARRAY(double))(&unrankedArray);
 
-	for (size_t i = 0; i < sizes[0]; ++i) {
-    for (size_t j = 0; j < sizes[1]; j++) {
-      EXPECT_DOUBLE_EQ(data[3 * i + j], i == j ? 1 : 0);
-    }
-  }
+  EXPECT_DOUBLE_EQ(array[0][0], 1);
+  EXPECT_DOUBLE_EQ(array[0][1], 0);
+  EXPECT_DOUBLE_EQ(array[0][2], 0);
+
+  EXPECT_DOUBLE_EQ(array[1][0], 0);
+  EXPECT_DOUBLE_EQ(array[1][1], 1);
+  EXPECT_DOUBLE_EQ(array[1][2], 0);
+
+  EXPECT_DOUBLE_EQ(array[2][0], 0);
+  EXPECT_DOUBLE_EQ(array[2][1], 0);
+  EXPECT_DOUBLE_EQ(array[2][2], 1);
 }
 
-TEST(Runtime, integer_i1)	 // NOLINT
+TEST(Runtime, integer_i1)
 {
   auto integerFn = [](bool value) -> bool {
     return NAME_MANGLED(integer, bool, bool)(value);
@@ -1094,7 +1247,7 @@ TEST(Runtime, integer_i1)	 // NOLINT
   EXPECT_EQ(integerFn(true), true);
 }
 
-TEST(Runtime, integer_i32)	 // NOLINT
+TEST(Runtime, integer_i32)
 {
   auto integerFn = [](int32_t value) -> int32_t {
     return NAME_MANGLED(integer, int32_t, int32_t)(value);
@@ -1104,7 +1257,7 @@ TEST(Runtime, integer_i32)	 // NOLINT
   EXPECT_EQ(integerFn(3), 3);
 }
 
-TEST(Runtime, integer_i64)	 // NOLINT
+TEST(Runtime, integer_i64)
 {
   auto integerFn = [](int64_t value) -> int64_t {
     return NAME_MANGLED(integer, int64_t, int64_t)(value);
@@ -1114,7 +1267,7 @@ TEST(Runtime, integer_i64)	 // NOLINT
   EXPECT_EQ(integerFn(3), 3);
 }
 
-TEST(Runtime, integer_f32)	 // NOLINT
+TEST(Runtime, integer_f32)
 {
   auto integerFn = [](float value) -> float {
     return NAME_MANGLED(integer, float, float)(value);
@@ -1124,7 +1277,7 @@ TEST(Runtime, integer_f32)	 // NOLINT
   EXPECT_NEAR(integerFn(3.14), 3, 0.000001);
 }
 
-TEST(Runtime, integer_f64)	 // NOLINT
+TEST(Runtime, integer_f64)
 {
   auto integerFn = [](double value) -> double {
     return NAME_MANGLED(integer, double, double)(value);
@@ -1134,365 +1287,402 @@ TEST(Runtime, integer_f64)	 // NOLINT
   EXPECT_NEAR(integerFn(3.14), 3, 0.000001);
 }
 
-TEST(Runtime, linspace_i1)	 // NOLINT
+TEST(Runtime, linspace_i1)
 {
-	std::array<bool, 4> data = { true, false, false, false };
-	ArrayDescriptor<bool, 1> descriptor(data);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+  std::array<bool, 4> data = { true, false, false, false };
 
-	double start = 0;
-	double end = 1;
+  auto array = getMemRef(data);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(linspace, void, ARRAY(bool), double, double)(&unsized, start, end);
+  double start = 0;
+  double end = 1;
 
-	for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(data[i], (start + i * (end - start) / (data.size() - 1)) > 0);
+  NAME_MANGLED(linspace, void, ARRAY(bool), double, double)(&unrankedArray, start, end);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(array[i], (start + i * (end - start) / (data.size() - 1)) > 0);
   }
 }
 
-TEST(Runtime, linspace_i32)	 // NOLINT
+TEST(Runtime, linspace_i32)
 {
-	std::array<int32_t, 4> data = { -1, -1, -1, -1 };
-	ArrayDescriptor<int32_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+  std::array<int32_t, 4> data = { -1, -1, -1, -1 };
 
-	double start = 0;
-	double end = 2;
+  auto array = getMemRef(data);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(linspace, void, ARRAY(int32_t), double, double)(&unsized, start, end);
+  double start = 0;
+  double end = 2;
 
-	for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(data[i], (int32_t) (start + i * (end - start) / (data.size() - 1)));
+  NAME_MANGLED(linspace, void, ARRAY(int32_t), double, double)(&unrankedArray, start, end);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(array[i], static_cast<int32_t>((start + i * (end - start) / (data.size() - 1))));
   }
 }
 
-TEST(Runtime, linspace_i64)	 // NOLINT
+TEST(Runtime, linspace_i64)
 {
-	std::array<int64_t, 4> data = { -1, -1, -1, -1 };
-	ArrayDescriptor<int64_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+  std::array<int64_t, 4> data = { -1, -1, -1, -1 };
 
-	double start = 0;
-	double end = 2;
+  auto array = getMemRef(data);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(linspace, void, ARRAY(int64_t), double, double)(&unsized, start, end);
+  double start = 0;
+  double end = 2;
 
-	for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(data[i], (int64_t) (start + i * (end - start) / (data.size() - 1)));
+  NAME_MANGLED(linspace, void, ARRAY(int64_t), double, double)(&unrankedArray, start, end);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(array[i], static_cast<int64_t>((start + i * (end - start) / (data.size() - 1))));
   }
 }
 
-TEST(Runtime, linspace_f32)	 // NOLINT
+TEST(Runtime, linspace_f32)
 {
-	std::array<float, 4> data = { -1, -1, -1, -1 };
-	ArrayDescriptor<float, 1> descriptor(data);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+  std::array<float, 4> data = { -1, -1, -1, -1 };
 
-	double start = 0;
-	double end = 2;
+  auto array = getMemRef(data);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(linspace, void, ARRAY(float), double, double)(&unsized, start, end);
+  double start = 0;
+  double end = 2;
 
-	for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_FLOAT_EQ(data[i], start + i * (end - start) / (data.size() - 1));
+  NAME_MANGLED(linspace, void, ARRAY(float), double, double)(&unrankedArray, start, end);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_FLOAT_EQ(array[i], start + i * (end - start) / (data.size() - 1));
   }
 }
 
-TEST(Runtime, linspace_f64)	 // NOLINT
+TEST(Runtime, linspace_f64)
 {
-	std::array<double, 4> data = { -1, -1, -1, -1 };
-	ArrayDescriptor<double, 1> descriptor(data);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+  std::array<double, 4> data = { -1, -1, -1, -1 };
 
-	double start = 0;
-	double end = 2;
+  auto array = getMemRef(data);
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(linspace, void, ARRAY(double), double, double)(&unsized, start, end);
+  double start = 0;
+  double end = 2;
 
-	for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_FLOAT_EQ(data[i], start + i * (end - start) / (data.size() - 1));
+  NAME_MANGLED(linspace, void, ARRAY(double), double, double)(&unrankedArray, start, end);
+
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_FLOAT_EQ(array[i], start + i * (end - start) / (data.size() - 1));
   }
 }
 
-TEST(Runtime, log_f32)	 // NOLINT
+TEST(Runtime, log_f32)
 {
   auto logFn = [](float value) -> float {
     return NAME_MANGLED(log, float, float)(value);
   };
 
-	EXPECT_NEAR(logFn(1), 0, 0.000001);
-	EXPECT_NEAR(logFn(2.718281828), 1, 0.000001);
-	EXPECT_NEAR(logFn(7.389056099), 2, 0.000001);
-	EXPECT_NEAR(logFn(0.367879441), -1, 0.000001);
+  EXPECT_NEAR(logFn(1), 0, 0.000001);
+  EXPECT_NEAR(logFn(2.718281828), 1, 0.000001);
+  EXPECT_NEAR(logFn(7.389056099), 2, 0.000001);
+  EXPECT_NEAR(logFn(0.367879441), -1, 0.000001);
 }
 
-TEST(Runtime, log_f64)	 // NOLINT
+TEST(Runtime, log_f64)
 {
   auto logFn = [](double value) -> double {
     return NAME_MANGLED(log, double, double)(value);
   };
 
-	EXPECT_NEAR(logFn(1), 0, 0.000001);
-	EXPECT_NEAR(logFn(2.718281828), 1, 0.000001);
-	EXPECT_NEAR(logFn(7.389056099), 2, 0.000001);
-	EXPECT_NEAR(logFn(0.367879441), -1, 0.000001);
+  EXPECT_NEAR(logFn(1), 0, 0.000001);
+  EXPECT_NEAR(logFn(2.718281828), 1, 0.000001);
+  EXPECT_NEAR(logFn(7.389056099), 2, 0.000001);
+  EXPECT_NEAR(logFn(0.367879441), -1, 0.000001);
 }
 
-TEST(Runtime, log10_f32)	 // NOLINT
+TEST(Runtime, log10_f32)
 {
   auto log10Fn = [](float value) -> float {
     return NAME_MANGLED(log10, float, float)(value);
   };
 
-	EXPECT_NEAR(log10Fn(1), 0, 0.000001);
-	EXPECT_NEAR(log10Fn(10), 1, 0.000001);
-	EXPECT_NEAR(log10Fn(100), 2, 0.000001);
-	EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
+  EXPECT_NEAR(log10Fn(1), 0, 0.000001);
+  EXPECT_NEAR(log10Fn(10), 1, 0.000001);
+  EXPECT_NEAR(log10Fn(100), 2, 0.000001);
+  EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
 }
 
-TEST(Runtime, log10_f64)	 // NOLINT
+TEST(Runtime, log10_f64)
 {
   auto log10Fn = [](double value) -> double {
     return NAME_MANGLED(log10, double, double)(value);
   };
 
-	EXPECT_NEAR(log10Fn(1), 0, 0.000001);
-	EXPECT_NEAR(log10Fn(10), 1, 0.000001);
-	EXPECT_NEAR(log10Fn(100), 2, 0.000001);
-	EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
+  EXPECT_NEAR(log10Fn(1), 0, 0.000001);
+  EXPECT_NEAR(log10Fn(10), 1, 0.000001);
+  EXPECT_NEAR(log10Fn(100), 2, 0.000001);
+  EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
 }
 
-TEST(Runtime, max_ai1)	 // NOLINT
+TEST(Runtime, max_ai1)
 {
-	std::array<bool, 4> data = { false, true, true, false };
-	ArraySizes<bool, 2> sizes = { 2, 2 };
+  std::array<bool, 4> values = { false, true, true, false };
 
-	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+  auto array = getMemRef<bool, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(max, bool, ARRAY(bool))(&unsized);
-	EXPECT_EQ(result, *std::max_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(max, bool, ARRAY(bool))(&unrankedArray);
+
+  EXPECT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_ai32)	 // NOLINT
+TEST(Runtime, max_ai32)
 {
-	std::array<int32_t, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<int32_t, 2> sizes = { 2, 2 };
+  std::array<int32_t, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<int32_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+  auto array = getMemRef<int32_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(max, int32_t, ARRAY(int32_t))(&unsized);
-	EXPECT_EQ(result, *std::max_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(max, int32_t, ARRAY(int32_t))(&unrankedArray);
+
+  EXPECT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_ai64)	 // NOLINT
+TEST(Runtime, max_ai64)
 {
-	std::array<int64_t, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<int64_t, 2> sizes = { 2, 2 };
+  std::array<int64_t, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<int64_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+  auto array = getMemRef<int64_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(max, int64_t, ARRAY(int64_t))(&unsized);
-	EXPECT_EQ(result, *std::max_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(max, int64_t, ARRAY(int64_t))(&unrankedArray);
+
+  EXPECT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_af32)	 // NOLINT
+TEST(Runtime, max_af32)
 {
-	std::array<float, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<float, 2> sizes = { 2, 2 };
+  std::array<float, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+  auto array = getMemRef<float, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(max, float, ARRAY(float))(&unsized);
-	EXPECT_FLOAT_EQ(result, *std::max_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(max, float, ARRAY(float))(&unrankedArray);
+
+  EXPECT_FLOAT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_af64)	 // NOLINT
+TEST(Runtime, max_af64)
 {
-	std::array<double, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<double, 2> sizes = { 2, 2 };
+  std::array<double, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+  auto array = getMemRef<double, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(max, double, ARRAY(double))(&unsized);
-	EXPECT_DOUBLE_EQ(result, *std::max_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(max, double, ARRAY(double))(&unrankedArray);
+
+  EXPECT_DOUBLE_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_i1_i1)	 // NOLINT
+TEST(Runtime, max_i1_i1)
 {
-	std::array<bool, 4> x = { false, false, true, true };
-	std::array<bool, 4> y = { false, true, false, true };
+  std::array<bool, 4> x = { false, false, true, true };
+  std::array<bool, 4> y = { false, true, false, true };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(max, bool, bool, bool)(x, y);
-		ASSERT_EQ(result, std::max(x, y));
-	}
+  auto maxFn = [](bool x, bool y) -> bool {
+    return NAME_MANGLED(max, bool, bool, bool)(x, y);
+  };
+
+  EXPECT_EQ(maxFn(x[0], y[0]), false);
+  EXPECT_EQ(maxFn(x[1], y[1]), true);
+  EXPECT_EQ(maxFn(x[2], y[2]), true);
+  EXPECT_EQ(maxFn(x[3], y[3]), true);
 }
 
-TEST(Runtime, max_i32_i32)	 // NOLINT
+TEST(Runtime, max_i32_i32)
 {
-	std::array<int32_t, 3> x = { 0, 1, 2 };
-	std::array<int32_t, 4> y = { 0, 2, 1 };
+  std::array<int32_t, 3> x = { 0, 1, 2 };
+  std::array<int32_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(max, int32_t, int32_t, int32_t)(x, y);
-		ASSERT_EQ(result, std::max(x, y));
-	}
+  auto maxFn = [](int32_t x, int32_t y) -> int32_t {
+    return NAME_MANGLED(max, int32_t, int32_t, int32_t)(x, y);
+  };
+
+  EXPECT_EQ(maxFn(x[0], y[0]), 0);
+  EXPECT_EQ(maxFn(x[1], y[1]), 2);
+  EXPECT_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, max_i64_i64)	 // NOLINT
+TEST(Runtime, max_i64_i64)
 {
-	std::array<int64_t, 3> x = { 0, 1, 2 };
-	std::array<int64_t, 4> y = { 0, 2, 1 };
+  std::array<int64_t, 3> x = { 0, 1, 2 };
+  std::array<int64_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(max, int64_t, int64_t, int64_t)(x, y);
-		ASSERT_EQ(result, std::max(x, y));
-	}
+  auto maxFn = [](int64_t x, int64_t y) -> int64_t {
+    return NAME_MANGLED(max, int64_t, int64_t, int64_t)(x, y);
+  };
+
+  EXPECT_EQ(maxFn(x[0], y[0]), 0);
+  EXPECT_EQ(maxFn(x[1], y[1]), 2);
+  EXPECT_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, max_f32_f32)	 // NOLINT
+TEST(Runtime, max_f32_f32)
 {
-	std::array<float, 3> x = { 0, 1, 2 };
-	std::array<float, 4> y = { 0, 2, 1 };
+  std::array<float, 3> x = { 0, 1, 2 };
+  std::array<float, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(max, float, float, float)(x, y);
-		ASSERT_EQ(result, std::max(x, y));
-	}
+  auto maxFn = [](float x, float y) -> float {
+    return NAME_MANGLED(max, float, float, float)(x, y);
+  };
+
+  EXPECT_FLOAT_EQ(maxFn(x[0], y[0]), 0);
+  EXPECT_FLOAT_EQ(maxFn(x[1], y[1]), 2);
+  EXPECT_FLOAT_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, max_f64_f64)	 // NOLINT
+TEST(Runtime, max_f64_f64)
 {
-	std::array<double, 3> x = { 0, 1, 2 };
-	std::array<double, 4> y = { 0, 2, 1 };
+  std::array<double, 3> x = { 0, 1, 2 };
+  std::array<double, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(max, double, double, double)(x, y);
-		ASSERT_EQ(result, std::max(x, y));
-	}
+  auto maxFn = [](double x, double y) -> double {
+    return NAME_MANGLED(max, double, double, double)(x, y);
+  };
+
+  EXPECT_DOUBLE_EQ(maxFn(x[0], y[0]), 0);
+  EXPECT_DOUBLE_EQ(maxFn(x[1], y[1]), 2);
+  EXPECT_DOUBLE_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, min_ai1)	 // NOLINT
+TEST(Runtime, min_ai1)
 {
-	std::array<bool, 4> data = { false, true, true, false };
-	ArraySizes<bool, 2> sizes = { 2, 2 };
+  std::array<bool, 4> values = { false, true, true, false };
 
-	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+  auto array = getMemRef<bool, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(min, bool, ARRAY(bool))(&unsized);
-	EXPECT_EQ(result, *std::min_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(min, bool, ARRAY(bool))(&unrankedArray);
+
+  EXPECT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_ai32)	 // NOLINT
+TEST(Runtime, min_ai32)
 {
-	std::array<int32_t, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<int32_t, 2> sizes = { 2, 2 };
+  std::array<int32_t, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<int32_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+  auto array = getMemRef<int32_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(min, int32_t, ARRAY(int32_t))(&unsized);
-	EXPECT_EQ(result, *std::min_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(min, int32_t, ARRAY(int32_t))(&unrankedArray);
+
+  EXPECT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_ai64)	 // NOLINT
+TEST(Runtime, min_ai64)
 {
-	std::array<int64_t, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<int64_t, 2> sizes = { 2, 2 };
+  std::array<int64_t, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<int64_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+  auto array = getMemRef<int64_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(min, int64_t, ARRAY(int64_t))(&unsized);
-	EXPECT_EQ(result, *std::min_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(min, int64_t, ARRAY(int64_t))(&unrankedArray);
+
+  EXPECT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_af32)	 // NOLINT
+TEST(Runtime, min_af32)
 {
-	std::array<float, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<float, 2> sizes = { 2, 2 };
+  std::array<float, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+  auto array = getMemRef<float, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(min, float, ARRAY(float))(&unsized);
-	EXPECT_FLOAT_EQ(result, *std::min_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(min, float, ARRAY(float))(&unrankedArray);
+
+  EXPECT_FLOAT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_af64)	 // NOLINT
+TEST(Runtime, min_af64)
 {
-	std::array<double, 4> data = { 5, 0, -3, 2 };
-	ArraySizes<double, 2> sizes = { 2, 2 };
+  std::array<double, 4> values = { 5, 0, -3, 2 };
 
-	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+  auto array = getMemRef<double, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	auto result = NAME_MANGLED(min, double, ARRAY(double))(&unsized);
-	EXPECT_DOUBLE_EQ(result, *std::min_element(data.begin(), data.end()));
+  auto result = NAME_MANGLED(min, double, ARRAY(double))(&unrankedArray);
+
+  EXPECT_DOUBLE_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_i1_i1)	 // NOLINT
+TEST(Runtime, min_i1_i1)
 {
-	std::array<bool, 4> x = { false, false, true, true };
-	std::array<bool, 4> y = { false, true, false, true };
+  std::array<bool, 4> x = { false, false, true, true };
+  std::array<bool, 4> y = { false, true, false, true };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(min, bool, bool, bool)(x, y);
-		ASSERT_EQ(result, std::min(x, y));
-	}
+  auto minFn = [](bool x, bool y) -> bool {
+    return NAME_MANGLED(min, bool, bool, bool)(x, y);
+  };
+
+  EXPECT_EQ(minFn(x[0], y[0]), false);
+  EXPECT_EQ(minFn(x[1], y[1]), false);
+  EXPECT_EQ(minFn(x[2], y[2]), false);
+  EXPECT_EQ(minFn(x[3], y[3]), true);
 }
 
-TEST(Runtime, min_i32_i32)	 // NOLINT
+TEST(Runtime, min_i32_i32)
 {
-	std::array<int32_t, 3> x = { 0, 1, 2 };
-	std::array<int32_t, 4> y = { 0, 2, 1 };
+  std::array<int32_t, 3> x = { 0, 1, 2 };
+  std::array<int32_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(min, int32_t, int32_t, int32_t)(x, y);
-		ASSERT_EQ(result, std::min(x, y));
-	}
+  auto minFn = [](int32_t x, int32_t y) -> int32_t {
+    return NAME_MANGLED(min, int32_t, int32_t, int32_t)(x, y);
+  };
+
+  EXPECT_EQ(minFn(x[0], y[0]), 0);
+  EXPECT_EQ(minFn(x[1], y[1]), 1);
+  EXPECT_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, min_i64_i64)	 // NOLINT
+TEST(Runtime, min_i64_i64)
 {
-	std::array<int64_t, 3> x = { 0, 1, 2 };
-	std::array<int64_t, 4> y = { 0, 2, 1 };
+  std::array<int64_t, 3> x = { 0, 1, 2 };
+  std::array<int64_t, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(min, int64_t, int64_t, int64_t)(x, y);
-		ASSERT_EQ(result, std::min(x, y));
-	}
+  auto minFn = [](int64_t x, int64_t y) -> int64_t {
+    return NAME_MANGLED(min, int64_t, int64_t, int64_t)(x, y);
+  };
+
+  EXPECT_EQ(minFn(x[0], y[0]), 0);
+  EXPECT_EQ(minFn(x[1], y[1]), 1);
+  EXPECT_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, min_f32_f32)	 // NOLINT
+TEST(Runtime, min_f32_f32)
 {
-	std::array<float, 3> x = { 0, 1, 2 };
-	std::array<float, 4> y = { 0, 2, 1 };
+  std::array<float, 3> x = { 0, 1, 2 };
+  std::array<float, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(min, float, float, float)(x, y);
-		ASSERT_EQ(result, std::min(x, y));
-	}
+  auto minFn = [](float x, float y) -> float {
+    return NAME_MANGLED(min, float, float, float)(x, y);
+  };
+
+  EXPECT_FLOAT_EQ(minFn(x[0], y[0]), 0);
+  EXPECT_FLOAT_EQ(minFn(x[1], y[1]), 1);
+  EXPECT_FLOAT_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, min_f64_f64)	 // NOLINT
+TEST(Runtime, min_f64_f64)
 {
-	std::array<double, 3> x = { 0, 1, 2 };
-	std::array<double, 4> y = { 0, 2, 1 };
+  std::array<double, 3> x = { 0, 1, 2 };
+  std::array<double, 4> y = { 0, 2, 1 };
 
-	for (const auto& [x, y] : llvm::zip(x, y)) {
-		auto result = NAME_MANGLED(min, double, double, double)(x, y);
-		ASSERT_EQ(result, std::min(x, y));
-	}
+  auto minFn = [](double x, double y) -> double {
+    return NAME_MANGLED(min, double, double, double)(x, y);
+  };
+
+  EXPECT_DOUBLE_EQ(minFn(x[0], y[0]), 0);
+  EXPECT_DOUBLE_EQ(minFn(x[1], y[1]), 1);
+  EXPECT_DOUBLE_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, mod_i1_i1)	 // NOLINT
+TEST(Runtime, mod_i1_i1)
 {
   auto modFn = [](bool x, bool y) -> bool {
     return NAME_MANGLED(mod, bool, bool, bool)(x, y);
@@ -1502,7 +1692,7 @@ TEST(Runtime, mod_i1_i1)	 // NOLINT
   EXPECT_EQ(modFn(true, true), false);
 }
 
-TEST(Runtime, mod_i32_i32)	 // NOLINT
+TEST(Runtime, mod_i32_i32)
 {
   auto modFn = [](int32_t x, int32_t y) -> int32_t {
     return NAME_MANGLED(mod, int32_t, int32_t, int32_t)(x, y);
@@ -1514,7 +1704,7 @@ TEST(Runtime, mod_i32_i32)	 // NOLINT
   EXPECT_EQ(modFn(-10, 3), 2);
 }
 
-TEST(Runtime, mod_i64_i64)	 // NOLINT
+TEST(Runtime, mod_i64_i64)
 {
   auto modFn = [](int64_t x, int64_t y) -> int64_t {
     return NAME_MANGLED(mod, int64_t, int64_t, int64_t)(x, y);
@@ -1526,7 +1716,7 @@ TEST(Runtime, mod_i64_i64)	 // NOLINT
   EXPECT_EQ(modFn(-10, 3), 2);
 }
 
-TEST(Runtime, mod_f32_f32)	 // NOLINT
+TEST(Runtime, mod_f32_f32)
 {
   auto modFn = [](float x, float y) -> float {
     return NAME_MANGLED(mod, float, float, float)(x, y);
@@ -1539,7 +1729,7 @@ TEST(Runtime, mod_f32_f32)	 // NOLINT
   EXPECT_NEAR(modFn(3, -1.4), -1.2, 0.000001);
 }
 
-TEST(Runtime, mod_f64_f64)	 // NOLINT
+TEST(Runtime, mod_f64_f64)
 {
   auto modFn = [](double x, double y) -> double {
     return NAME_MANGLED(mod, double, double, double)(x, y);
@@ -1552,127 +1742,142 @@ TEST(Runtime, mod_f64_f64)	 // NOLINT
   EXPECT_NEAR(modFn(3, -1.4), -1.2, 0.000001);
 }
 
-TEST(Runtime, ones_i1)	 // NOLINT
+TEST(Runtime, ones_i1)
 {
-	std::array<bool, 4> data = { false, false, false, false };
-	ArraySizes<bool, 2> sizes = { 2, 2 };
+  std::array<bool, 4> values = { false, false, false, false };
 
-	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+  auto array = getMemRef<bool, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(ones, void, ARRAY(bool))(&unsized);
+  NAME_MANGLED(ones, void, ARRAY(bool))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == true;
-  }));
+  EXPECT_EQ(array[0][0], true);
+  EXPECT_EQ(array[0][1], true);
+  EXPECT_EQ(array[1][0], true);
+  EXPECT_EQ(array[1][1], true);
 }
 
-TEST(Runtime, ones_i32)	 // NOLINT
+TEST(Runtime, ones_i32)
 {
-	std::array<int32_t, 4> data = { 0, 0, 0, 0 };
-	ArraySizes<int32_t, 2> sizes = { 2, 2 };
+  std::array<int32_t, 4> values = { 0, 0, 0, 0 };
 
-	ArrayDescriptor<int32_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+  auto array = getMemRef<int32_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(ones, void, ARRAY(int32_t))(&unsized);
+  NAME_MANGLED(ones, void, ARRAY(int32_t))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 1;
-  }));
+  EXPECT_EQ(array[0][0], 1);
+  EXPECT_EQ(array[0][1], 1);
+  EXPECT_EQ(array[1][0], 1);
+  EXPECT_EQ(array[1][1], 1);
 }
 
-TEST(Runtime, ones_i64)	 // NOLINT
+TEST(Runtime, ones_i64)
 {
-	std::array<int64_t, 4> data = { 0, 0, 0, 0 };
-	ArraySizes<int64_t, 2> sizes = { 2, 2 };
+  std::array<int64_t, 4> values = { 0, 0, 0, 0 };
 
-	ArrayDescriptor<int64_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+  auto array = getMemRef<int64_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(ones, void, ARRAY(int64_t))(&unsized);
+  NAME_MANGLED(ones, void, ARRAY(int64_t))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 1;
-  }));
+  EXPECT_EQ(array[0][0], 1);
+  EXPECT_EQ(array[0][1], 1);
+  EXPECT_EQ(array[1][0], 1);
+  EXPECT_EQ(array[1][1], 1);
 }
 
-TEST(Runtime, ones_f32)	 // NOLINT
+TEST(Runtime, ones_f32)
 {
-	std::array<float, 4> data = { 0, 0, 0, 0 };
-	ArraySizes<float, 2> sizes = { 2, 2 };
+  std::array<float, 4> values = { 0, 0, 0, 0 };
 
-	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+  auto array = getMemRef<float, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(ones, void, ARRAY(float))(&unsized);
+  NAME_MANGLED(ones, void, ARRAY(float))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 1;
-  }));
+  EXPECT_FLOAT_EQ(array[0][0], 1);
+  EXPECT_FLOAT_EQ(array[0][1], 1);
+  EXPECT_FLOAT_EQ(array[1][0], 1);
+  EXPECT_FLOAT_EQ(array[1][1], 1);
 }
 
-TEST(Runtime, ones_f64)	 // NOLINT
+TEST(Runtime, ones_f64)
 {
-	std::array<double, 4> data = { 0, 0, 0, 0 };
-	ArraySizes<double, 2> sizes = { 2, 2 };
+  std::array<double, 4> values = { 0, 0, 0, 0 };
 
-	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+  auto array = getMemRef<double, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(ones, void, ARRAY(double))(&unsized);
+  NAME_MANGLED(ones, void, ARRAY(double))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 1;
-  }));
+  EXPECT_DOUBLE_EQ(array[0][0], 1);
+  EXPECT_DOUBLE_EQ(array[0][1], 1);
+  EXPECT_DOUBLE_EQ(array[1][0], 1);
+  EXPECT_DOUBLE_EQ(array[1][1], 1);
 }
 
-TEST(Runtime, product_ai1)	 // NOLINT
+TEST(Runtime, product_ai1)
 {
-	std::array<bool, 3> data = { false, true, true };
-	ArrayDescriptor<bool, 1> descriptor(data);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
-	auto result = NAME_MANGLED(product, bool, ARRAY(bool))(&unsized);
-	EXPECT_EQ(result, (bool) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+  std::array<bool, 3> values = { false, true, true };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(product, bool, ARRAY(bool))(&unrankedArray);
+
+  EXPECT_EQ(result, static_cast<bool>(std::accumulate(values.begin(), values.end(), 1, std::multiplies<>())));
 }
 
-TEST(Runtime, product_ai32)	 // NOLINT
+TEST(Runtime, product_ai32)
 {
-	std::array<int32_t, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<int32_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
-	auto result = NAME_MANGLED(product, int32_t, ARRAY(int32_t))(&unsized);
-	EXPECT_EQ(result, (int) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+  std::array<int32_t, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(product, int32_t, ARRAY(int32_t))(&unrankedArray);
+
+  EXPECT_EQ(result, static_cast<int32_t>(std::accumulate(values.begin(), values.end(), 1, std::multiplies<>())));
 }
 
-TEST(Runtime, product_ai64)	 // NOLINT
+TEST(Runtime, product_ai64)
 {
-	std::array<int64_t, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<int64_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
-	auto result = NAME_MANGLED(product, int64_t, ARRAY(int64_t))(&unsized);
-	EXPECT_EQ(result, (long) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+  std::array<int64_t, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(product, int64_t, ARRAY(int64_t))(&unrankedArray);
+
+  EXPECT_EQ(result, static_cast<int64_t>(std::accumulate(values.begin(), values.end(), 1, std::multiplies<>())));
 }
 
-TEST(Runtime, product_af32)	 // NOLINT
+TEST(Runtime, product_af32)
 {
-	std::array<float, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> descriptor(data);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
-	auto result = NAME_MANGLED(product, float, ARRAY(float))(&unsized);
-	EXPECT_FLOAT_EQ(result, (float) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+  std::array<float, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(product, float, ARRAY(float))(&unrankedArray);
+
+  EXPECT_FLOAT_EQ(result, static_cast<float>(std::accumulate(values.begin(), values.end(), 1, std::multiplies<>())));
 }
 
-TEST(Runtime, product_af64)	 // NOLINT
+TEST(Runtime, product_af64)
 {
-	std::array<double, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<double, 1> descriptor(data);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
-	auto result = NAME_MANGLED(product, double, ARRAY(double))(&unsized);
-	EXPECT_DOUBLE_EQ(result, (double) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+  std::array<double, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(product, double, ARRAY(double))(&unrankedArray);
+
+  EXPECT_DOUBLE_EQ(result, static_cast<double>(std::accumulate(values.begin(), values.end(), 1, std::multiplies<>())));
 }
 
-TEST(Runtime, rem_i1_i1)	 // NOLINT
+TEST(Runtime, rem_i1_i1)
 {
   auto modFn = [](bool x, bool y) -> bool {
     return NAME_MANGLED(rem, bool, bool, bool)(x, y);
@@ -1682,7 +1887,7 @@ TEST(Runtime, rem_i1_i1)	 // NOLINT
   EXPECT_EQ(modFn(true, true), false);
 }
 
-TEST(Runtime, rem_i32_i32)	 // NOLINT
+TEST(Runtime, rem_i32_i32)
 {
   auto modFn = [](int32_t x, int32_t y) -> int32_t {
     return NAME_MANGLED(rem, int32_t, int32_t, int32_t)(x, y);
@@ -1694,7 +1899,7 @@ TEST(Runtime, rem_i32_i32)	 // NOLINT
   EXPECT_EQ(modFn(-10, 3), -1);
 }
 
-TEST(Runtime, rem_i64_i64)	 // NOLINT
+TEST(Runtime, rem_i64_i64)
 {
   auto modFn = [](int64_t x, int64_t y) -> int64_t {
     return NAME_MANGLED(rem, int64_t, int64_t, int64_t)(x, y);
@@ -1706,7 +1911,7 @@ TEST(Runtime, rem_i64_i64)	 // NOLINT
   EXPECT_EQ(modFn(-10, 3), -1);
 }
 
-TEST(Runtime, rem_f32_f32)	 // NOLINT
+TEST(Runtime, rem_f32_f32)
 {
   auto modFn = [](float x, float y) -> float {
     return NAME_MANGLED(rem, float, float, float)(x, y);
@@ -1719,7 +1924,7 @@ TEST(Runtime, rem_f32_f32)	 // NOLINT
   EXPECT_NEAR(modFn(3, -1.4), 0.2, 0.000001);
 }
 
-TEST(Runtime, rem_f64_f64)	 // NOLINT
+TEST(Runtime, rem_f64_f64)
 {
   auto modFn = [](double x, double y) -> double {
     return NAME_MANGLED(rem, double, double, double)(x, y);
@@ -1732,7 +1937,7 @@ TEST(Runtime, rem_f64_f64)	 // NOLINT
   EXPECT_NEAR(modFn(3, -1.4), 0.2, 0.000001);
 }
 
-TEST(Runtime, sign_i1)	 // NOLINT
+TEST(Runtime, sign_i1)
 {
   auto signI32Fn = [](bool value) -> int32_t {
     return NAME_MANGLED(sign, int32_t, bool)(value);
@@ -1742,14 +1947,14 @@ TEST(Runtime, sign_i1)	 // NOLINT
     return NAME_MANGLED(sign, int64_t, bool)(value);
   };
 
-	EXPECT_EQ(signI32Fn(false), 0);
-	EXPECT_EQ(signI64Fn(false), 0);
+  EXPECT_EQ(signI32Fn(false), 0);
+  EXPECT_EQ(signI64Fn(false), 0);
 
-	EXPECT_EQ(signI32Fn(true), 1);
-	EXPECT_EQ(signI64Fn(true), 1);
+  EXPECT_EQ(signI32Fn(true), 1);
+  EXPECT_EQ(signI64Fn(true), 1);
 }
 
-TEST(Runtime, sign_i32)	 // NOLINT
+TEST(Runtime, sign_i32)
 {
   auto signI32Fn = [](int32_t value) -> int32_t {
     return NAME_MANGLED(sign, int32_t, int32_t)(value);
@@ -1759,17 +1964,17 @@ TEST(Runtime, sign_i32)	 // NOLINT
     return NAME_MANGLED(sign, int64_t, int32_t)(value);
   };
 
-	EXPECT_EQ(signI32Fn(-2), -1);
-	EXPECT_EQ(signI64Fn(-2), -1);
+  EXPECT_EQ(signI32Fn(-2), -1);
+  EXPECT_EQ(signI64Fn(-2), -1);
 
-	EXPECT_EQ(signI32Fn(0), 0);
-	EXPECT_EQ(signI64Fn(0), 0);
+  EXPECT_EQ(signI32Fn(0), 0);
+  EXPECT_EQ(signI64Fn(0), 0);
 
-	EXPECT_EQ(signI32Fn(2), 1);
-	EXPECT_EQ(signI64Fn(2), 1);
+  EXPECT_EQ(signI32Fn(2), 1);
+  EXPECT_EQ(signI64Fn(2), 1);
 }
 
-TEST(Runtime, sign_i64)	 // NOLINT
+TEST(Runtime, sign_i64)
 {
   auto signI32Fn = [](int64_t value) -> int32_t {
     return NAME_MANGLED(sign, int32_t, int64_t)(value);
@@ -1779,17 +1984,17 @@ TEST(Runtime, sign_i64)	 // NOLINT
     return NAME_MANGLED(sign, int64_t, int64_t)(value);
   };
 
-	EXPECT_EQ(signI32Fn(-2), -1);
-	EXPECT_EQ(signI64Fn(-2), -1);
+  EXPECT_EQ(signI32Fn(-2), -1);
+  EXPECT_EQ(signI64Fn(-2), -1);
 
-	EXPECT_EQ(signI32Fn(0), 0);
-	EXPECT_EQ(signI64Fn(0), 0);
+  EXPECT_EQ(signI32Fn(0), 0);
+  EXPECT_EQ(signI64Fn(0), 0);
 
-	EXPECT_EQ(signI32Fn(2), 1);
-	EXPECT_EQ(signI64Fn(2), 1);
+  EXPECT_EQ(signI32Fn(2), 1);
+  EXPECT_EQ(signI64Fn(2), 1);
 }
 
-TEST(Runtime, sign_f32)	 // NOLINT
+TEST(Runtime, sign_f32)
 {
   auto signI32Fn = [](float value) -> int32_t {
     return NAME_MANGLED(sign, int32_t, float)(value);
@@ -1799,17 +2004,17 @@ TEST(Runtime, sign_f32)	 // NOLINT
     return NAME_MANGLED(sign, int64_t, float)(value);
   };
 
-	EXPECT_EQ(signI32Fn(-2), -1);
-	EXPECT_EQ(signI64Fn(-2), -1);
+  EXPECT_EQ(signI32Fn(-2), -1);
+  EXPECT_EQ(signI64Fn(-2), -1);
 
-	EXPECT_EQ(signI32Fn(0), 0);
-	EXPECT_EQ(signI64Fn(0), 0);
+  EXPECT_EQ(signI32Fn(0), 0);
+  EXPECT_EQ(signI64Fn(0), 0);
 
-	EXPECT_EQ(signI32Fn(2), 1);
-	EXPECT_EQ(signI64Fn(2), 1);
+  EXPECT_EQ(signI32Fn(2), 1);
+  EXPECT_EQ(signI64Fn(2), 1);
 }
 
-TEST(Runtime, sign_f64)	 // NOLINT
+TEST(Runtime, sign_f64)
 {
   auto signI32Fn = [](double value) -> int32_t {
     return NAME_MANGLED(sign, int32_t, double)(value);
@@ -1819,1275 +2024,1392 @@ TEST(Runtime, sign_f64)	 // NOLINT
     return NAME_MANGLED(sign, int64_t, double)(value);
   };
 
-	EXPECT_EQ(signI32Fn(-2), -1);
-	EXPECT_EQ(signI64Fn(-2), -1);
+  EXPECT_EQ(signI32Fn(-2), -1);
+  EXPECT_EQ(signI64Fn(-2), -1);
 
-	EXPECT_EQ(signI32Fn(0), 0);
-	EXPECT_EQ(signI64Fn(0), 0);
+  EXPECT_EQ(signI32Fn(0), 0);
+  EXPECT_EQ(signI64Fn(0), 0);
 
-	EXPECT_EQ(signI32Fn(2), 1);
-	EXPECT_EQ(signI64Fn(2), 1);
+  EXPECT_EQ(signI32Fn(2), 1);
+  EXPECT_EQ(signI64Fn(2), 1);
 }
 
-TEST(Runtime, sin_f32)	 // NOLINT
+TEST(Runtime, sin_f32)
 {
   auto sinFn = [](float value) -> float {
     return NAME_MANGLED(sin, float, float)(value);
   };
 
-	EXPECT_NEAR(sinFn(0), 0, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
-	EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
+  EXPECT_NEAR(sinFn(0), 0, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
+  EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
 }
 
-TEST(Runtime, sin_f64)	 // NOLINT
+TEST(Runtime, sin_f64)
 {
   auto sinFn = [](double value) -> double {
     return NAME_MANGLED(sin, double, double)(value);
   };
 
-	EXPECT_NEAR(sinFn(0), 0, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
-	EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
-	EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
+  EXPECT_NEAR(sinFn(0), 0, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
+  EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
+  EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
 }
 
-TEST(Runtime, sqrt_f32)	 // NOLINT
+TEST(Runtime, sqrt_f32)
 {
   auto sqrtFn = [](float value) -> float {
     return NAME_MANGLED(sqrt, float, float)(value);
   };
 
-	EXPECT_FLOAT_EQ(sqrtFn(0), 0);
-	EXPECT_FLOAT_EQ(sqrtFn(1), 1);
-	EXPECT_FLOAT_EQ(sqrtFn(4), 2);
+  EXPECT_FLOAT_EQ(sqrtFn(0), 0);
+  EXPECT_FLOAT_EQ(sqrtFn(1), 1);
+  EXPECT_FLOAT_EQ(sqrtFn(4), 2);
 }
 
-TEST(Runtime, sqrt_f64)	 // NOLINT
+TEST(Runtime, sqrt_f64)
 {
   auto sqrtFn = [](double value) -> double {
     return NAME_MANGLED(sqrt, double, double)(value);
   };
 
-	EXPECT_DOUBLE_EQ(sqrtFn(0), 0);
-	EXPECT_DOUBLE_EQ(sqrtFn(1), 1);
-	EXPECT_DOUBLE_EQ(sqrtFn(4), 2);
+  EXPECT_DOUBLE_EQ(sqrtFn(0), 0);
+  EXPECT_DOUBLE_EQ(sqrtFn(1), 1);
+  EXPECT_DOUBLE_EQ(sqrtFn(4), 2);
 }
 
-TEST(Runtime, sinh_f32)	 // NOLINT
+TEST(Runtime, sinh_f32)
 {
   auto sinhFn = [](float value) -> float {
     return NAME_MANGLED(sinh, float, float)(value);
   };
 
-	EXPECT_NEAR(sinhFn(0), 0, 0.000001);
-	EXPECT_NEAR(sinhFn(1), 1.175201193, 0.000001);
+  EXPECT_NEAR(sinhFn(0), 0, 0.000001);
+  EXPECT_NEAR(sinhFn(1), 1.175201193, 0.000001);
 }
 
-TEST(Runtime, sinh_f64)	 // NOLINT
+TEST(Runtime, sinh_f64)
 {
   auto sinhFn = [](double value) -> double {
     return NAME_MANGLED(sinh, double, double)(value);
   };
 
-	EXPECT_NEAR(sinhFn(0), 0, 0.000001);
-	EXPECT_NEAR(sinhFn(1), 1.175201193, 0.000001);
+  EXPECT_NEAR(sinhFn(0), 0, 0.000001);
+  EXPECT_NEAR(sinhFn(1), 1.175201193, 0.000001);
 }
 
-TEST(Runtime, sum_ai1)	 // NOLINT
+TEST(Runtime, sum_ai1)
 {
-	std::array<bool, 3> data = { false, true, true };
-	ArrayDescriptor<bool, 1> descriptor(data);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
-	auto result = NAME_MANGLED(sum, bool, ARRAY(bool))(&unsized);
-	EXPECT_EQ(result, (bool) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+  std::array<bool, 3> values = { false, true, true };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(sum, bool, ARRAY(bool))(&unrankedArray);
+
+  EXPECT_EQ(result, static_cast<bool>(std::accumulate(values.begin(), values.end(), 0, std::plus<>())));
 }
 
-TEST(Runtime, sum_ai32)	 // NOLINT
+TEST(Runtime, sum_ai32)
 {
-	std::array<int32_t, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<int32_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
-	auto result = NAME_MANGLED(sum, int32_t, ARRAY(int32_t))(&unsized);
-	EXPECT_EQ(result, (int32_t) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+  std::array<int32_t, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(sum, int32_t, ARRAY(int32_t))(&unrankedArray);
+
+  EXPECT_EQ(result, (int32_t) std::accumulate(values.begin(), values.end(), 0, std::plus<>()));
 }
 
-TEST(Runtime, sum_ai64)	 // NOLINT
+TEST(Runtime, sum_ai64)
 {
-	std::array<int64_t, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<int64_t, 1> descriptor(data);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
-	auto result = NAME_MANGLED(sum, int64_t, ARRAY(int64_t))(&unsized);
-	EXPECT_EQ(result, (int64_t) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+  std::array<int64_t, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(sum, int64_t, ARRAY(int64_t))(&unrankedArray);
+
+  EXPECT_EQ(result, (int64_t) std::accumulate(values.begin(), values.end(), 0, std::plus<>()));
 }
 
-TEST(Runtime, sum_af32)	 // NOLINT
+TEST(Runtime, sum_af32)
 {
-	std::array<float, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> descriptor(data);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
-	auto result = NAME_MANGLED(sum, float, ARRAY(float))(&unsized);
-	EXPECT_FLOAT_EQ(result, (float) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+  std::array<float, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(sum, float, ARRAY(float))(&unrankedArray);
+
+  EXPECT_FLOAT_EQ(result, (float) std::accumulate(values.begin(), values.end(), 0, std::plus<>()));
 }
 
-TEST(Runtime, sum_af64)	 // NOLINT
+TEST(Runtime, sum_af64)
 {
-	std::array<double, 3> data = { 1, 2, 3 };
-	ArrayDescriptor<double, 1> descriptor(data);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
-	auto result = NAME_MANGLED(sum, double, ARRAY(double))(&unsized);
-	EXPECT_DOUBLE_EQ(result, (double) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+  std::array<double, 3> values = { 1, 2, 3 };
+
+  auto array = getMemRef(values);
+  auto unrankedArray = getUnrankedMemRef(array);
+
+  auto result = NAME_MANGLED(sum, double, ARRAY(double))(&unrankedArray);
+
+  EXPECT_DOUBLE_EQ(result, (double) std::accumulate(values.begin(), values.end(), 0, std::plus<>()));
 }
 
-TEST(Runtime, symmetric_ai1_ai1)	 // NOLINT
+TEST(Runtime, symmetric_ai1_ai1)
 {
-	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
-	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+  std::array<bool, 9> sourceValues = { true, false, true, true, false, true, true, false, true };
+  std::array<bool, 9> destinationValues = { true, false, true, true, false, true, true, false, true };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<bool>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai1_ai32)	 // NOLINT
+TEST(Runtime, symmetric_ai1_ai32)
 {
-	std::array<int32_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+  std::array<int32_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> destinationValues = { true, false, true, true, false, true, true, false, true };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<bool>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai1_ai64)	 // NOLINT
+TEST(Runtime, symmetric_ai1_ai64)
 {
-	std::array<int64_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+  std::array<int64_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> destinationValues = { true, false, true, true, false, true, true, false, true };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<bool>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai1_af32)	 // NOLINT
+TEST(Runtime, symmetric_ai1_af32)
 {
-	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+  std::array<float, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> destinationValues = { true, false, true, true, false, true, true, false, true };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<bool>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai1_af64)	 // NOLINT
+TEST(Runtime, symmetric_ai1_af64)
 {
-	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+  std::array<double, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> destinationValues = { true, false, true, true, false, true, true, false, true };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<bool>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai32_ai1)	 // NOLINT
+TEST(Runtime, symmetric_ai32_ai1)
 {
-	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
-	std::array<int32_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> sourceValues = { true, false, true, true, false, true, true, false, true };
+  std::array<int32_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int32_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai32_ai32)	 // NOLINT
+TEST(Runtime, symmetric_ai32_ai32)
 {
-	std::array<int32_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int32_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int32_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai32_ai64)	 // NOLINT
+TEST(Runtime, symmetric_ai32_ai64)
 {
-	std::array<int64_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int32_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int32_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai32_af32)	 // NOLINT
+TEST(Runtime, symmetric_ai32_af32)
 {
-	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int32_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<float, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int32_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai32_af64)	 // NOLINT
+TEST(Runtime, symmetric_ai32_af64)
 {
-	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int32_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<double, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int32_t), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int32_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai64_ai1)	 // NOLINT
+TEST(Runtime, symmetric_ai64_ai1)
 {
-	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
-	std::array<int64_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> sourceValues = { true, false, true, true, false, true, true, false, true };
+  std::array<int64_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int64_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai64_ai32)	 // NOLINT
+TEST(Runtime, symmetric_ai64_ai32)
 {
-	std::array<int32_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int64_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int32_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int64_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai64_ai64)	 // NOLINT
+TEST(Runtime, symmetric_ai64_ai64)
 {
-	std::array<int64_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int64_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int64_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai64_af32)	 // NOLINT
+TEST(Runtime, symmetric_ai64_af32)
 {
-	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int64_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<float, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int64_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_ai64_af64)	 // NOLINT
+TEST(Runtime, symmetric_ai64_af64)
 {
-	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<int64_t, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<double, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(int64_t), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (int64_t) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<int64_t>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af32_ai1)	 // NOLINT
+TEST(Runtime, symmetric_af32_ai1)
 {
-	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
-	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> sourceValues = { true, false, true, true, false, true, true, false, true };
+  std::array<float, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<float>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af32_ai32)	 // NOLINT
+TEST(Runtime, symmetric_af32_ai32)
 {
-	std::array<int32_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<float, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<float>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af32_ai64)	 // NOLINT
+TEST(Runtime, symmetric_af32_ai64)
 {
-	std::array<int64_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<float, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<float>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af32_af32)	 // NOLINT
+TEST(Runtime, symmetric_af32_af32)
 {
-	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<float, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<float, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<float>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af32_af64)	 // NOLINT
+TEST(Runtime, symmetric_af32_af64)
 {
-	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<double, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<float, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<float>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<float>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af64_ai1)	 // NOLINT
+TEST(Runtime, symmetric_af64_ai1)
 {
-	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
-	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<bool, 9> sourceValues = { true, false, true, true, false, true, true, false, true };
+  std::array<double, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<double>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af64_ai32)	 // NOLINT
+TEST(Runtime, symmetric_af64_ai32)
 {
-	std::array<int32_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int32_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<double, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<double>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af64_ai64)	 // NOLINT
+TEST(Runtime, symmetric_af64_ai64)
 {
-	std::array<int64_t, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<int64_t, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<double, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<double>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af64_af32)	 // NOLINT
+TEST(Runtime, symmetric_af64_af32)
 {
-	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<float, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<double, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<double>(source[2][2]));
 }
 
-TEST(Runtime, symmetric_af64_af64)	 // NOLINT
+TEST(Runtime, symmetric_af64_af64)
 {
-	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
-	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+  std::array<double, 9> sourceValues = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+  std::array<double, 9> destinationValues = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 3, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 3 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[0][2], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_EQ(destination[1][2], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<double>(source[1][2]));
+  EXPECT_EQ(destination[2][2], static_cast<double>(source[2][2]));
 }
 
-TEST(Runtime, tan_f32)	 // NOLINT
+TEST(Runtime, tan_f32)
 {
-	std::array<float, 5> data = { 0, M_PI / 6, M_PI / 4, M_PI, 2 * M_PI };
+  std::array<float, 5> data = { 0, M_PI / 6, M_PI / 4, M_PI, 2 * M_PI };
 
   auto tanFn = [](float value) -> float {
     return NAME_MANGLED(tan, float, float)(value);
   };
 
-	EXPECT_NEAR(tanFn(data[0]), 0, 0.000001);
-	EXPECT_NEAR(tanFn(data[1]), 0.577350269, 0.000001);
-	EXPECT_NEAR(tanFn(data[2]), 1, 0.000001);
-	EXPECT_NEAR(tanFn(data[3]), 0, 0.000001);
-	EXPECT_NEAR(tanFn(data[4]), 0, 0.000001);
+  EXPECT_NEAR(tanFn(data[0]), 0, 0.000001);
+  EXPECT_NEAR(tanFn(data[1]), 0.577350269, 0.000001);
+  EXPECT_NEAR(tanFn(data[2]), 1, 0.000001);
+  EXPECT_NEAR(tanFn(data[3]), 0, 0.000001);
+  EXPECT_NEAR(tanFn(data[4]), 0, 0.000001);
 }
 
-TEST(Runtime, tan_f64)	 // NOLINT
+TEST(Runtime, tan_f64)
 {
-	std::array<double, 5> data = { 0, M_PI / 6, M_PI / 4, M_PI, 2 * M_PI };
+  std::array<double, 5> data = { 0, M_PI / 6, M_PI / 4, M_PI, 2 * M_PI };
 
   auto tanFn = [](double value) -> double {
     return NAME_MANGLED(tan, double, double)(value);
   };
 
-	EXPECT_NEAR(tanFn(data[0]), 0, 0.000000001);
-	EXPECT_NEAR(tanFn(data[1]), 0.577350269, 0.000000001);
-	EXPECT_NEAR(tanFn(data[2]), 1, 0.000000001);
-	EXPECT_NEAR(tanFn(data[3]), 0, 0.000000001);
-	EXPECT_NEAR(tanFn(data[4]), 0, 0.000000001);
+  EXPECT_NEAR(tanFn(data[0]), 0, 0.000000001);
+  EXPECT_NEAR(tanFn(data[1]), 0.577350269, 0.000000001);
+  EXPECT_NEAR(tanFn(data[2]), 1, 0.000000001);
+  EXPECT_NEAR(tanFn(data[3]), 0, 0.000000001);
+  EXPECT_NEAR(tanFn(data[4]), 0, 0.000000001);
 }
 
-TEST(Runtime, tanh_f32)	 // NOLINT
+TEST(Runtime, tanh_f32)
 {
   auto tanhFn = [](float value) -> float {
     return NAME_MANGLED(tanh, float, float)(value);
   };
 
-	EXPECT_NEAR(tanhFn(0), 0, 0.000001);
-	EXPECT_NEAR(tanhFn(1), 0.761594155, 0.000001);
+  EXPECT_NEAR(tanhFn(0), 0, 0.000001);
+  EXPECT_NEAR(tanhFn(1), 0.761594155, 0.000001);
 }
 
-TEST(Runtime, tanh_f64)	 // NOLINT
+TEST(Runtime, tanh_f64)
 {
   auto tanhFn = [](double value) -> double {
     return NAME_MANGLED(tanh, double, double)(value);
   };
 
-	EXPECT_NEAR(tanhFn(0), 0, 0.000001);
-	EXPECT_NEAR(tanhFn(1), 0.761594155, 0.000001);
+  EXPECT_NEAR(tanhFn(0), 0, 0.000001);
+  EXPECT_NEAR(tanhFn(1), 0.761594155, 0.000001);
 }
 
-TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
+TEST(Runtime, transpose_ai1_ai1)
 {
-	std::array<bool, 6> source = { false, false, false, true, true, true };
-	std::array<bool, 6> destination = { true, false, true, false, true, false };
+  std::array<bool, 6> sourceValues = { false, false, false, true, true, true };
+  std::array<bool, 6> destinationValues = { true, false, true, false, true, false };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai1_ai32)	 // NOLINT
+TEST(Runtime, transpose_ai1_ai32)
 {
-	std::array<int32_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<bool, 6> destination = { true, false, true, false, true, false };
+  std::array<int32_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<bool, 6> destinationValues = { true, false, true, false, true, false };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai1_ai64)	 // NOLINT
+TEST(Runtime, transpose_ai1_ai64)
 {
-	std::array<int64_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<bool, 6> destination = { true, false, true, false, true, false };
+  std::array<int64_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<bool, 6> destinationValues = { true, false, true, false, true, false };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai1_af32)	 // NOLINT
+TEST(Runtime, transpose_ai1_af32)
 {
-	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<bool, 6> destination = { true, false, true, false, true, false };
+  std::array<float, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<bool, 6> destinationValues = { true, false, true, false, true, false };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai1_af64)	 // NOLINT
+TEST(Runtime, transpose_ai1_af64)
 {
-	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<bool, 6> destination = { true, false, true, false, true, false };
+  std::array<double, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<bool, 6> destinationValues = { true, false, true, false, true, false };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<bool, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<bool>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<bool>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<bool>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<bool>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<bool>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<bool>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai32_ai1)	 // NOLINT
+TEST(Runtime, transpose_ai32_ai1)
 {
-	std::array<bool, 6> source = { false, false, false, true, true, true };
-	std::array<int32_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<bool, 6> sourceValues = { false, false, false, true, true, true };
+  std::array<int32_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
-			EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai32_ai32)	 // NOLINT
+TEST(Runtime, transpose_ai32_ai32)
 {
-	std::array<int32_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int32_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int32_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int32_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai32_ai64)	 // NOLINT
+TEST(Runtime, transpose_ai32_ai64)
 {
-	std::array<int64_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int32_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int64_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int32_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai32_af32)	 // NOLINT
+TEST(Runtime, transpose_ai32_af32)
 {
-	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int32_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<float, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int32_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int32_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai32_af64)	 // NOLINT
+TEST(Runtime, transpose_ai32_af64)
 {
-	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int32_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<double, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int32_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int32_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int32_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int32_t), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int32_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int32_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int32_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int32_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int32_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int32_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int32_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai64_ai1)	 // NOLINT
+TEST(Runtime, transpose_ai64_ai1)
 {
-	std::array<bool, 6> source = { false, false, false, true, true, true };
-	std::array<int64_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<bool, 6> sourceValues = { false, false, false, true, true, true };
+  std::array<int64_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai64_ai32)	 // NOLINT
+TEST(Runtime, transpose_ai64_ai32)
 {
-	std::array<int32_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int64_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int32_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int64_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai64_ai64)	 // NOLINT
+TEST(Runtime, transpose_ai64_ai64)
 {
-	std::array<int64_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int64_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int64_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int64_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai64_af32)	 // NOLINT
+TEST(Runtime, transpose_ai64_af32)
 {
-	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int64_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<float, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int64_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_ai64_af64)	 // NOLINT
+TEST(Runtime, transpose_ai64_af64)
 {
-	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<int64_t, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<double, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<int64_t, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<int64_t, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<int64_t> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<int64_t, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(int64_t), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (int64_t) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_EQ(destination[0][0], static_cast<int64_t>(source[0][0]));
+  EXPECT_EQ(destination[0][1], static_cast<int64_t>(source[1][0]));
+  EXPECT_EQ(destination[1][0], static_cast<int64_t>(source[0][1]));
+  EXPECT_EQ(destination[1][1], static_cast<int64_t>(source[1][1]));
+  EXPECT_EQ(destination[2][0], static_cast<int64_t>(source[0][2]));
+  EXPECT_EQ(destination[2][1], static_cast<int64_t>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af32_ai1)	 // NOLINT
+TEST(Runtime, transpose_af32_ai1)
 {
-	std::array<bool, 6> source = { false, false, false, true, true, true };
-	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<bool, 6> sourceValues = { false, false, false, true, true, true };
+  std::array<float, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_FLOAT_EQ(destination[0][1], static_cast<float>(source[1][0]));
+  EXPECT_FLOAT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_FLOAT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_FLOAT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_FLOAT_EQ(destination[2][1], static_cast<float>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af32_ai32)	 // NOLINT
+TEST(Runtime, transpose_af32_ai32)
 {
-	std::array<int32_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int32_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<float, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_FLOAT_EQ(destination[0][1], static_cast<float>(source[1][0]));
+  EXPECT_FLOAT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_FLOAT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_FLOAT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_FLOAT_EQ(destination[2][1], static_cast<float>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af32_ai64)	 // NOLINT
+TEST(Runtime, transpose_af32_ai64)
 {
-	std::array<int64_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int64_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<float, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_FLOAT_EQ(destination[0][1], static_cast<float>(source[1][0]));
+  EXPECT_FLOAT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_FLOAT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_FLOAT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_FLOAT_EQ(destination[2][1], static_cast<float>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af32_af32)	 // NOLINT
+TEST(Runtime, transpose_af32_af32)
 {
-	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<float, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<float, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_FLOAT_EQ(destination[0][1], static_cast<float>(source[1][0]));
+  EXPECT_FLOAT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_FLOAT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_FLOAT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_FLOAT_EQ(destination[2][1], static_cast<float>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af32_af64)	 // NOLINT
+TEST(Runtime, transpose_af32_af64)
 {
-	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<double, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<float, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<float, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_FLOAT_EQ(destination[0][0], static_cast<float>(source[0][0]));
+  EXPECT_FLOAT_EQ(destination[0][1], static_cast<float>(source[1][0]));
+  EXPECT_FLOAT_EQ(destination[1][0], static_cast<float>(source[0][1]));
+  EXPECT_FLOAT_EQ(destination[1][1], static_cast<float>(source[1][1]));
+  EXPECT_FLOAT_EQ(destination[2][0], static_cast<float>(source[0][2]));
+  EXPECT_FLOAT_EQ(destination[2][1], static_cast<float>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af64_ai1)	 // NOLINT
+TEST(Runtime, transpose_af64_ai1)
 {
-	std::array<bool, 6> source = { false, false, false, true, true, true };
-	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<bool, 6> sourceValues = { false, false, false, true, true, true };
+  std::array<double, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<bool, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(bool))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(bool))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_DOUBLE_EQ(destination[0][1], static_cast<double>(source[1][0]));
+  EXPECT_DOUBLE_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_DOUBLE_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_DOUBLE_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_DOUBLE_EQ(destination[2][1], static_cast<double>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af64_ai32)	 // NOLINT
+TEST(Runtime, transpose_af64_ai32)
 {
-	std::array<int32_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int32_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<double, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int32_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int32_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int32_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int32_t))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int32_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_DOUBLE_EQ(destination[0][1], static_cast<double>(source[1][0]));
+  EXPECT_DOUBLE_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_DOUBLE_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_DOUBLE_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_DOUBLE_EQ(destination[2][1], static_cast<double>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af64_ai64)	 // NOLINT
+TEST(Runtime, transpose_af64_ai64)
 {
-	std::array<int64_t, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<int64_t, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<double, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<int64_t, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<int64_t> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<int64_t, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int64_t))(&unsizedDestination, &unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int64_t))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_DOUBLE_EQ(destination[0][1], static_cast<double>(source[1][0]));
+  EXPECT_DOUBLE_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_DOUBLE_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_DOUBLE_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_DOUBLE_EQ(destination[2][1], static_cast<double>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af64_af32)	 // NOLINT
+TEST(Runtime, transpose_af64_af32)
 {
-	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<float, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<double, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<float, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(float))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(float))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_DOUBLE_EQ(destination[0][1], static_cast<double>(source[1][0]));
+  EXPECT_DOUBLE_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_DOUBLE_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_DOUBLE_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_DOUBLE_EQ(destination[2][1], static_cast<double>(source[1][2]));
 }
 
-TEST(Runtime, transpose_af64_af64)	 // NOLINT
+TEST(Runtime, transpose_af64_af64)
 {
-	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
-	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+  std::array<double, 6> sourceValues = { 0, 0, 0, 1, 1, 1 };
+  std::array<double, 6> destinationValues = { 1, 0, 1, 0, 1, 0 };
 
-	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
-	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+  auto source = getMemRef<double, 2>(sourceValues.data(), { 2, 3 });
+  auto unrankedSource = getUnrankedMemRef(source);
 
-	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
-	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+  auto destination = getMemRef<double, 2>(destinationValues.data(), { 3, 2 });
+  auto unrankedDestination = getUnrankedMemRef(destination);
 
-	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(double))(&unsizedDestination, &unsizedSource);
+  NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(double))(&unrankedDestination, &unrankedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i) {
-    for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j) {
-      EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
-    }
-  }
+  EXPECT_DOUBLE_EQ(destination[0][0], static_cast<double>(source[0][0]));
+  EXPECT_DOUBLE_EQ(destination[0][1], static_cast<double>(source[1][0]));
+  EXPECT_DOUBLE_EQ(destination[1][0], static_cast<double>(source[0][1]));
+  EXPECT_DOUBLE_EQ(destination[1][1], static_cast<double>(source[1][1]));
+  EXPECT_DOUBLE_EQ(destination[2][0], static_cast<double>(source[0][2]));
+  EXPECT_DOUBLE_EQ(destination[2][1], static_cast<double>(source[1][2]));
 }
 
-TEST(Runtime, zeros_i1)	 // NOLINT
+TEST(Runtime, zeros_i1)
 {
-	std::array<bool, 4> data = { true, true, true, true };
-	ArraySizes<bool, 2> sizes = { 2, 2 };
+  std::array<bool, 4> values = { true, true, true, true };
 
-	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<bool> unsized(descriptor);
+  auto array = getMemRef<bool, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(zeros, void, ARRAY(bool))(&unsized);
+  NAME_MANGLED(zeros, void, ARRAY(bool))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == false;
-  }));
+  EXPECT_EQ(array[0][0], false);
+  EXPECT_EQ(array[0][1], false);
+  EXPECT_EQ(array[1][0], false);
+  EXPECT_EQ(array[1][1], false);
 }
 
-TEST(Runtime, zeros_i32)	 // NOLINT
+TEST(Runtime, zeros_i32)
 {
-	std::array<int32_t, 4> data = { 1, 1, 1, 1 };
-	ArraySizes<int32_t, 2> sizes = { 2, 2 };
+  std::array<int32_t, 4> values = { 1, 1, 1, 1 };
 
-	ArrayDescriptor<int32_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int32_t> unsized(descriptor);
+  auto array = getMemRef<int32_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(zeros, void, ARRAY(int32_t))(&unsized);
+  NAME_MANGLED(zeros, void, ARRAY(int32_t))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 0;
-  }));
+  EXPECT_EQ(array[0][0], 0);
+  EXPECT_EQ(array[0][1], 0);
+  EXPECT_EQ(array[1][0], 0);
+  EXPECT_EQ(array[1][1], 0);
 }
 
-TEST(Runtime, zeros_i64)	 // NOLINT
+TEST(Runtime, zeros_i64)
 {
-	std::array<int64_t, 4> data = { 1, 1, 1, 1 };
-	ArraySizes<int64_t, 2> sizes = { 2, 2 };
+  std::array<int64_t, 4> values = { 1, 1, 1, 1 };
 
-	ArrayDescriptor<int64_t, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<int64_t> unsized(descriptor);
+  auto array = getMemRef<int64_t, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(zeros, void, ARRAY(int64_t))(&unsized);
+  NAME_MANGLED(zeros, void, ARRAY(int64_t))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 0;
-  }));
+  EXPECT_EQ(array[0][0], 0);
+  EXPECT_EQ(array[0][1], 0);
+  EXPECT_EQ(array[1][0], 0);
+  EXPECT_EQ(array[1][1], 0);
 }
 
-TEST(Runtime, zeros_f32)	 // NOLINT
+TEST(Runtime, zeros_f32)
 {
-	std::array<float, 4> data = { 1, 1, 1, 1 };
-	ArraySizes<float, 2> sizes = { 2, 2 };
+  std::array<float, 4> values = { 1, 1, 1, 1 };
 
-	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<float> unsized(descriptor);
+  auto array = getMemRef<float, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(zeros, void, ARRAY(float))(&unsized);
+  NAME_MANGLED(zeros, void, ARRAY(float))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 0;
-  }));
+  EXPECT_FLOAT_EQ(array[0][0], 0);
+  EXPECT_FLOAT_EQ(array[0][1], 0);
+  EXPECT_FLOAT_EQ(array[1][0], 0);
+  EXPECT_FLOAT_EQ(array[1][1], 0);
 }
 
-TEST(Runtime, zeros_f64)	 // NOLINT
+TEST(Runtime, zeros_f64)
 {
-	std::array<double, 4> data = { 1, 1, 1, 1 };
-	ArraySizes<double, 2> sizes = { 2, 2 };
+  std::array<double, 4> values = { 1, 1, 1, 1 };
 
-	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
-	UnsizedArrayDescriptor<double> unsized(descriptor);
+  auto array = getMemRef<double, 2>(values.data(), { 2, 2 });
+  auto unrankedArray = getUnrankedMemRef(array);
 
-	NAME_MANGLED(zeros, void, ARRAY(double))(&unsized);
+  NAME_MANGLED(zeros, void, ARRAY(double))(&unrankedArray);
 
-  EXPECT_TRUE(llvm::all_of(data, [](const auto& element) {
-    return element == 0;
-  }));
+  EXPECT_DOUBLE_EQ(array[0][0], 0);
+  EXPECT_DOUBLE_EQ(array[0][1], 0);
+  EXPECT_DOUBLE_EQ(array[1][0], 0);
+  EXPECT_DOUBLE_EQ(array[1][1], 0);
 }

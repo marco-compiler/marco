@@ -2,9 +2,11 @@
 #include "marco/Dialect/Modelica/Types.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/BuiltinDialect.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace ::mlir::modelica;
+using namespace ::mlir::modelica::detail;
 
 //===----------------------------------------------------------------------===//
 // Tablegen type definitions
@@ -28,99 +30,279 @@ namespace mlir::modelica
   }
 }
 
-//===----------------------------------------------------------------------===//
-// Modelica Types
-//===----------------------------------------------------------------------===//
-
 namespace mlir::modelica
 {
-  /*
-  bool ModelicaType::classof(mlir::Type type)
+  mlir::Type ModelicaDialect::parseType(mlir::DialectAsmParser& parser) const
   {
-    return llvm::isa<ModelicaDialect>(type.getDialect());
-  }
-   */
-}
+    llvm::StringRef typeTag;
+    mlir::Type genType;
 
-namespace mlir::modelica
-{
+    mlir::OptionalParseResult parseResult = generatedTypeParser(parser, &typeTag, genType);
+
+    if (parseResult.hasValue()) {
+      return genType;
+    }
+
+    if (typeTag == "array") {
+      bool isUnranked;
+      llvm::SmallVector<int64_t, 3> dimensions;
+
+      if (parser.parseLess()) {
+        return mlir::Type();
+      }
+
+      if (mlir::succeeded(parser.parseOptionalStar())) {
+        isUnranked = true;
+
+        if (parser.parseXInDimensionList()) {
+          return mlir::Type();
+        }
+      } else {
+        isUnranked = false;
+
+        if (parser.parseDimensionList(dimensions)) {
+          return mlir::Type();
+        }
+      }
+
+      Type elementType;
+      mlir::Attribute memorySpace;
+
+      if (parser.parseType(elementType)) {
+        return mlir::Type();
+      }
+
+      if (mlir::succeeded(parser.parseOptionalComma())) {
+        if (parser.parseAttribute(memorySpace)) {
+          return mlir::Type();
+        }
+      }
+
+      if (isUnranked) {
+        return UnrankedArrayType::get(elementType, memorySpace);
+      }
+
+      return ArrayType::get(dimensions, elementType, memorySpace);
+    }
+
+    if (typeTag == "member") {
+      if (parser.parseLess()) {
+        return mlir::Type();
+      }
+
+      llvm::SmallVector<int64_t, 3> dimensions;
+
+      if (parser.parseDimensionList(dimensions)) {
+        return mlir::Type();
+      }
+
+      Type elementType;
+
+      if (parser.parseType(elementType)) {
+        return mlir::Type();
+      }
+
+      bool isConstant = false;
+      IOProperty ioProperty = IOProperty::none;
+
+      while (mlir::succeeded(parser.parseOptionalComma())) {
+        if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
+          isConstant = true;
+        } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
+          ioProperty = IOProperty::input;
+        } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
+          ioProperty = IOProperty::output;
+        }
+      }
+
+      if (parser.parseGreater()) {
+        return mlir::Type();
+      }
+
+      return MemberType::get(dimensions, elementType, isConstant, ioProperty);
+    }
+
+    llvm_unreachable("Unexpected 'Modelica' type kind");
+    return mlir::Type();
+  }
+
+  void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const
+  {
+    if (mlir::succeeded(generatedTypePrinter(type, printer))) {
+      return;
+    }
+
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      printer << "array<";
+
+      for (const auto& dimension : arrayType.getShape()) {
+        printer << (dimension == ArrayType::kDynamicSize ? "?" : std::to_string(dimension)) << "x";
+      }
+
+      printer << arrayType.getElementType() << ">";
+      return;
+    }
+
+    if (auto unrankedArrayType = type.dyn_cast<UnrankedArrayType>()) {
+      printer << "array<*x" << unrankedArrayType.getElementType() << ">";
+      return;
+    }
+
+    if (auto memberType = type.dyn_cast<MemberType>()) {
+      printer << "member<";
+
+      for (const auto& dimension : memberType.getShape()) {
+        printer << (dimension == MemberType::kDynamicSize ? "?" : std::to_string(dimension)) << "x";
+      }
+
+      printer << memberType.getElementType();
+
+      if (memberType.isConstant()) {
+        printer << ", constant";
+      }
+
+      if (memberType.isInput()) {
+        printer << ", input";
+      } else if (memberType.isOutput()) {
+        printer << ", output";
+      }
+
+      printer << ">";
+      return;
+    }
+
+    llvm_unreachable("Unexpected 'Modelica' type kind");
+  }
+
+  //===----------------------------------------------------------------------===//
+  // BaseArrayType
+  //===----------------------------------------------------------------------===//
+
+  bool BaseArrayType::classof(mlir::Type type)
+  {
+    return type.isa<ArrayType, UnrankedArrayType>();
+  }
+
+  BaseArrayType::operator mlir::ShapedType() const
+  {
+    return cast<mlir::ShapedType>();
+  }
+
+  bool BaseArrayType::isValidElementType(mlir::Type type)
+  {
+    return type.isIndex() || type.isa<BooleanType, IntegerType, RealType>();
+  }
+
+  mlir::Type BaseArrayType::getElementType() const
+  {
+    return llvm::TypeSwitch<BaseArrayType, mlir::Type>(*this)
+        .Case<ArrayType, UnrankedArrayType>(
+            [](auto type) {
+              return type.getElementType();
+            });
+  }
+
+  bool BaseArrayType::hasRank() const
+  {
+    return !isa<UnrankedArrayType>();
+  }
+
+  llvm::ArrayRef<int64_t> BaseArrayType::getShape() const
+  {
+    return cast<ArrayType>().getShape();
+  }
+
+  mlir::Attribute BaseArrayType::getMemorySpace() const
+  {
+    if (auto rankedArrayTy = dyn_cast<ArrayType>()) {
+      return rankedArrayTy.getMemorySpace();
+    }
+
+    return cast<UnrankedArrayType>().getMemorySpace();
+  }
+
+  BaseArrayType BaseArrayType::cloneWith(llvm::Optional<llvm::ArrayRef<int64_t>> shape, mlir::Type elementType) const
+  {
+    if (isa<UnrankedArrayType>()) {
+      if (!shape) {
+        return UnrankedArrayType::get(elementType, getMemorySpace());
+      }
+
+      ArrayType::Builder builder(*shape, elementType);
+      builder.setMemorySpace(getMemorySpace());
+      return builder;
+    }
+
+    ArrayType::Builder builder(cast<ArrayType>());
+
+    if (shape) {
+      builder.setShape(*shape);
+    }
+
+    builder.setElementType(elementType);
+    return builder;
+  }
+
   //===----------------------------------------------------------------------===//
   // ArrayType
   //===----------------------------------------------------------------------===//
 
-  mlir::Type ArrayType::parse(mlir::AsmParser& parser)
+  ArrayType ArrayType::get(llvm::ArrayRef<int64_t> shape, mlir::Type elementType, mlir::Attribute memorySpace)
   {
-    if (parser.parseLess()) {
-      return mlir::Type();
+    // Drop default memory space value and replace it with empty attribute.
+    memorySpace = skipDefaultMemorySpace(memorySpace);
+
+    return Base::get(elementType.getContext(), shape, elementType, memorySpace);
+  }
+
+  ArrayType ArrayType::getChecked(
+      llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
+      llvm::ArrayRef<int64_t> shape,
+      mlir::Type elementType,
+      mlir::Attribute memorySpace)
+  {
+    // Drop default memory space value and replace it with empty attribute.
+    memorySpace = skipDefaultMemorySpace(memorySpace);
+
+    return Base::getChecked(emitErrorFn, elementType.getContext(), shape, elementType, memorySpace);
+  }
+
+  mlir::LogicalResult ArrayType::verify(
+      llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+      llvm::ArrayRef<int64_t> shape,
+      mlir::Type elementType,
+      mlir::Attribute memorySpace)
+  {
+    if (!BaseArrayType::isValidElementType(elementType)) {
+      return emitError() << "invalid array element type";
     }
 
-    llvm::SmallVector<int64_t, 3> dimensions;
-
-    if (parser.parseDimensionList(dimensions)) {
-      return mlir::Type();
-    }
-
-    Type elementType;
-
-    if (parser.parseType(elementType) ||
-        parser.parseGreater()) {
-      return mlir::Type();
-    }
-
-    llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
-    return ArrayType::get(parser.getContext(), elementType, castedDims);
-  }
-
-  void ArrayType::print(mlir::AsmPrinter& printer) const
-  {
-    printer << "<";
-
-    for (const auto& dimension : getShape()) {
-      printer << (dimension == ArrayType::kDynamicSize ? "?" : std::to_string(dimension)) << "x";
-    }
-
-    printer << getElementType() << ">";
-  }
-
-  unsigned int ArrayType::getRank() const
-  {
-    return getShape().size();
-  }
-
-  unsigned int ArrayType::getConstantDimensionsCount() const
-  {
-    return llvm::count_if(getShape(), [](const auto& dimension) {
-      return dimension > 0;
-    });
-  }
-
-  unsigned int ArrayType::getDynamicDimensionsCount() const
-  {
-    return llvm::count_if(getShape(), [](const auto& dimension) {
-      return dimension == -1;
-    });
-  }
-
-  long ArrayType::getFlatSize() const
-  {
-    long result = 1;
-
-    for (long size : getShape()) {
-      if (size == ArrayType::kDynamicSize) {
-        return ArrayType::kDynamicSize;
+    // Negative sizes are not allowed except for `-1` that means dynamic size.
+    for (const auto& size : shape) {
+      if (size < 0 && size != ArrayType::kDynamicSize) {
+        return emitError() << "invalid array size";
       }
-
-      result *= size;
     }
 
-    return result;
+    if (!isSupportedMemorySpace(memorySpace)) {
+      return emitError() << "unsupported memory space Attribute";
+    }
+
+    return mlir::success();
   }
 
-  bool ArrayType::hasConstantShape() const
+  void ArrayType::walkImmediateSubElements(
+      llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
+      llvm::function_ref<void(mlir::Type)> walkTypesFn) const
   {
-    return llvm::all_of(getShape(), [](long size) {
-      return size != ArrayType::kDynamicSize;
-    });
+    walkTypesFn(getElementType());
+  }
+
+  mlir::Type ArrayType::replaceImmediateSubElements(
+      llvm::ArrayRef<mlir::Attribute> replAttrs,
+      llvm::ArrayRef<mlir::Type> replTypes) const
+  {
+    return get(getShape(), replTypes.front(), replAttrs.front());
   }
 
   bool ArrayType::isScalar() const
@@ -138,119 +320,174 @@ namespace mlir::modelica
       resultShape.push_back(shape[i]);
     }
 
-    return ArrayType::get(getContext(), getElementType(), resultShape);
+    return ArrayType::get(resultShape, getElementType());
   }
 
   ArrayType ArrayType::toElementType(mlir::Type elementType) const
   {
-    return ArrayType::get(getContext(), elementType, getShape());
+    return ArrayType::get(getShape(), elementType);
   }
 
   bool ArrayType::canBeOnStack() const
   {
-    return hasConstantShape();
+    return hasStaticShape();
+  }
+
+  //===----------------------------------------------------------------------===//
+  // UnrankedArrayType
+  //===----------------------------------------------------------------------===//
+
+  mlir::LogicalResult UnrankedArrayType::verify(
+      llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+      mlir::Type elementType,
+      mlir::Attribute memorySpace)
+  {
+    if (!BaseArrayType::isValidElementType(elementType)) {
+      return emitError() << "invalid array element type";
+    }
+
+    if (!isSupportedMemorySpace(memorySpace)) {
+      return emitError() << "unsupported memory space Attribute";
+    }
+
+    return mlir::success();
+  }
+
+  void UnrankedArrayType::walkImmediateSubElements(
+      llvm::function_ref<void(Attribute)> walkAttrsFn,
+      llvm::function_ref<void(Type)> walkTypesFn) const
+  {
+    walkTypesFn(getElementType());
+  }
+
+  mlir::Type UnrankedArrayType::replaceImmediateSubElements(
+      llvm::ArrayRef<mlir::Attribute> replAttrs,
+      llvm::ArrayRef<mlir::Type> replTypes) const
+  {
+    return get(replTypes.front(), replAttrs.front());
   }
 
   //===----------------------------------------------------------------------===//
   // MemberType
   //===----------------------------------------------------------------------===//
 
-  mlir::Type MemberType::parse(mlir::AsmParser& parser)
+  MemberType MemberType::get(
+      llvm::ArrayRef<int64_t> shape,
+      mlir::Type elementType,
+      bool isConstant,
+      IOProperty ioProperty,
+      mlir::Attribute memorySpace)
   {
-    if (parser.parseLess()) {
-      return mlir::Type();
+    // Drop default memory space value and replace it with empty attribute.
+    memorySpace = skipDefaultMemorySpace(memorySpace);
+
+    return Base::get(elementType.getContext(), shape, elementType, isConstant, ioProperty, memorySpace);
+  }
+
+  MemberType MemberType::getChecked(
+      llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
+      llvm::ArrayRef<int64_t> shape,
+      mlir::Type elementType,
+      bool isConstant,
+      IOProperty ioProperty,
+      mlir::Attribute memorySpace)
+  {
+    // Drop default memory space value and replace it with empty attribute.
+    memorySpace = skipDefaultMemorySpace(memorySpace);
+
+    return Base::get(elementType.getContext(), shape, elementType, isConstant, ioProperty, memorySpace);
+  }
+
+  mlir::LogicalResult MemberType::verify(
+      llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
+      llvm::ArrayRef<int64_t> shape,
+      mlir::Type elementType,
+      bool isConstant,
+      IOProperty ioProperty,
+      mlir::Attribute memorySpace)
+  {
+    if (!isValidElementType(elementType)) {
+      return emitError() << "invalid member element type";
     }
 
-    llvm::SmallVector<int64_t, 3> dimensions;
-
-    if (parser.parseDimensionList(dimensions)) {
-      return mlir::Type();
-    }
-
-    Type elementType;
-
-    if (parser.parseType(elementType)) {
-      return mlir::Type();
-    }
-
-    bool isConstant = false;
-    IOProperty ioProperty = IOProperty::none;
-
-    while (mlir::succeeded(parser.parseOptionalComma())) {
-      if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
-        isConstant = true;
-      } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
-        ioProperty = IOProperty::input;
-      } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
-        ioProperty = IOProperty::output;
+    // Negative sizes are not allowed except for `-1` that means dynamic size.
+    for (const auto& size : shape) {
+      if (size < 0 && size != MemberType::kDynamicSize) {
+        return emitError() << "invalid member size";
       }
     }
 
-    if (parser.parseGreater()) {
-      return mlir::Type();
+    if (!isSupportedMemorySpace(memorySpace)) {
+      return emitError() << "unsupported memory space Attribute";
     }
 
-    llvm::SmallVector<long, 3> castedDimensions(dimensions.begin(), dimensions.end());
-    return MemberType::get(parser.getContext(), elementType, castedDimensions, isConstant, ioProperty);
+    return mlir::success();
   }
 
-  void MemberType::print(mlir::AsmPrinter& printer) const
+  void MemberType::walkImmediateSubElements(
+      llvm::function_ref<void(Attribute)> walkAttrsFn,
+      llvm::function_ref<void(Type)> walkTypesFn) const
   {
-    printer << "<";
-
-    for (const auto& dimension : getShape()) {
-      printer << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
-    }
-
-    printer << getElementType();
-
-    if (isConstant()) {
-      printer << ", constant";
-    }
-
-    if (isInput()) {
-      printer << ", input";
-    } else if (isOutput()) {
-      printer << ", output";
-    }
-
-    printer << ">";
+    walkTypesFn(getElementType());
   }
 
-  unsigned int MemberType::getRank() const
+  mlir::Type MemberType::replaceImmediateSubElements(
+      llvm::ArrayRef<mlir::Attribute> replAttrs,
+      llvm::ArrayRef<mlir::Type> replTypes) const
   {
-    return getShape().size();
+    return get(getShape(), replTypes.front(), getConstantProperty(), getVisibilityProperty(), replAttrs.front());
+  }
+
+  bool MemberType::hasRank() const
+  {
+    return !getShape().empty();
+  }
+
+  mlir::ShapedType MemberType::cloneWith(llvm::Optional<llvm::ArrayRef<int64_t>> shape, mlir::Type elementType) const
+  {
+    MemberType::Builder builder(*shape, elementType);
+    builder.setConstantProperty(getConstantProperty());
+    builder.setVisibilityProperty(getVisibilityProperty());
+    builder.setMemorySpace(getMemorySpace());
+    return builder;
+  }
+
+  bool MemberType::isValidElementType(mlir::Type type)
+  {
+    return type.isIndex() || type.isa<BooleanType, IntegerType, RealType>();
   }
 
   MemberType MemberType::wrap(mlir::Type type, bool isConstant, IOProperty ioProperty)
   {
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
-      return MemberType::get(type.getContext(), arrayType.getElementType(), arrayType.getShape(), isConstant, ioProperty);
+      return MemberType::get(
+          arrayType.getShape(),
+          arrayType.getElementType(),
+          isConstant,
+          ioProperty,
+          arrayType.getMemorySpace());
     }
 
-    return MemberType::get(type.getContext(), type, llvm::None, isConstant, ioProperty);
+    return MemberType::get(llvm::None, type, isConstant, ioProperty);
   }
 
   ArrayType MemberType::toArrayType() const
   {
-    return ArrayType::get(
-        getContext(),
-        getElementType(),
-        getShape());
+    return ArrayType::get(getShape(), getElementType(), getMemorySpace());
   }
 
   mlir::Type MemberType::unwrap() const
   {
-    if (getRank() == 0) {
-      return getElementType();
+    if (hasRank()) {
+      return toArrayType();
     }
 
-    return toArrayType();
+    return getElementType();
   }
 
-  MemberType MemberType::withShape(llvm::ArrayRef<long> shape) const
+  MemberType MemberType::withShape(llvm::ArrayRef<int64_t> shape) const
   {
-    return MemberType::get(getContext(), getElementType(), shape, isConstant(), getVisibilityProperty());
+    return MemberType::get(shape, getElementType(), isConstant(), getVisibilityProperty());
   }
 
   MemberType MemberType::withType(mlir::Type type) const
@@ -260,6 +497,40 @@ namespace mlir::modelica
 
   MemberType MemberType::withIOProperty(IOProperty ioProperty) const
   {
-    return MemberType::get(getContext(), getElementType(), getShape(), isConstant(), ioProperty);
+    return MemberType::get(getShape(), getElementType(), isConstant(), ioProperty);
+  }
+}
+
+namespace mlir::modelica::detail
+{
+  bool isSupportedMemorySpace(mlir::Attribute memorySpace)
+  {
+    // Empty attribute is allowed as default memory space.
+    if (!memorySpace) {
+      return true;
+    }
+
+    // Supported built-in attributes.
+    if (memorySpace.isa<mlir::IntegerAttr, mlir::StringAttr, mlir::DictionaryAttr>()) {
+      return true;
+    }
+
+    // Allow custom dialect attributes.
+    if (!isa<mlir::BuiltinDialect>(memorySpace.getDialect())) {
+      return true;
+    }
+
+    return false;
+  }
+
+  mlir::Attribute skipDefaultMemorySpace(mlir::Attribute memorySpace)
+  {
+    mlir::IntegerAttr intMemorySpace = memorySpace.dyn_cast_or_null<mlir::IntegerAttr>();
+
+    if (intMemorySpace && intMemorySpace.getValue() == 0) {
+      return nullptr;
+    }
+
+    return memorySpace;
   }
 }

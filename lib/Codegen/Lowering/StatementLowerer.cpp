@@ -80,7 +80,7 @@ namespace marco::codegen::lowering
     const auto& induction = statement.getInduction();
 
     mlir::Value inductionVar = builder().create<AllocaOp>(
-        location, ArrayType::get(builder().getContext(), builder().getIndexType(), llvm::None), llvm::None);
+        location, ArrayType::get(llvm::None, builder().getIndexType()), llvm::None);
 
     mlir::Value lowerBound = *lower(*induction->getBegin())[0];
     lowerBound = builder().create<CastOp>(lowerBound.getLoc(), builder().getIndexType(), lowerBound);

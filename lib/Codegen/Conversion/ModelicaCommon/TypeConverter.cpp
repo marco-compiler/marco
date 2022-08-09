@@ -4,8 +4,8 @@ using namespace ::mlir::modelica;
 
 namespace mlir::modelica
 {
-  TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
-      : mlir::LLVMTypeConverter(context, options), bitWidth(bitWidth)
+  TypeConverter::TypeConverter(unsigned int bitWidth)
+    : bitWidth(bitWidth)
   {
     addConversion([&](BooleanType type) {
       return convertBooleanType(type);
@@ -23,57 +23,53 @@ namespace mlir::modelica
       return convertArrayType(type);
     });
 
-    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return integerTypeTargetMaterialization(builder, resultType, inputs, loc);
+    addConversion([&](UnrankedArrayType type) {
+      return convertUnrankedArrayType(type);
     });
 
-    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::FloatType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return floatTypeTargetMaterialization(builder, resultType, inputs, loc);
+    addConversion([&](mlir::IndexType type) {
+      return type;
     });
 
-    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return llvmStructTypeTargetMaterialization(builder, resultType, inputs, loc);
+    addTargetMaterialization([&](mlir::OpBuilder& builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+      if (inputs.size() != 1) {
+        return llvm::None;
+      }
+
+      return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs).getResult(0);
     });
 
-    addSourceMaterialization([&](mlir::OpBuilder& builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return booleanTypeSourceMaterialization(builder, resultType, inputs, loc);
-    });
+    addSourceMaterialization([&](mlir::OpBuilder& builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+      if (inputs.size() != 1) {
+        return llvm::None;
+      }
 
-    addSourceMaterialization([&](mlir::OpBuilder& builder, IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return integerTypeSourceMaterialization(builder, resultType, inputs, loc);
-    });
-
-    addSourceMaterialization([&](mlir::OpBuilder& builder, RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return realTypeSourceMaterialization(builder, resultType, inputs, loc);
-    });
-
-    addSourceMaterialization([&](mlir::OpBuilder& builder, ArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-      return arrayTypeSourceMaterialization(builder, resultType, inputs, loc);
+      return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs).getResult(0);
     });
   }
 
   mlir::Type TypeConverter::convertBooleanType(BooleanType type)
   {
-    return mlir::IntegerType::get(&getContext(), 1);
+    return mlir::IntegerType::get(type.getContext(), 1);
   }
 
   mlir::Type TypeConverter::convertIntegerType(IntegerType type)
   {
-    return mlir::IntegerType::get(&getContext(), bitWidth);
+    return mlir::IntegerType::get(type.getContext(), bitWidth);
   }
 
   mlir::Type TypeConverter::convertRealType(RealType type)
   {
     if (bitWidth == 16) {
-      return convertType(mlir::Float16Type::get(&getContext()));
+      return mlir::Float16Type::get(type.getContext());
     }
 
     if (bitWidth == 32) {
-      return convertType(mlir::Float32Type::get(&getContext()));
+      return mlir::Float32Type::get(type.getContext());
     }
 
     if (bitWidth == 64) {
-      return convertType(mlir::Float64Type::get(&getContext()));
+      return mlir::Float64Type::get(type.getContext());
     }
 
     llvm_unreachable("Unsupported bit-width for real type");
@@ -82,152 +78,14 @@ namespace mlir::modelica
 
   mlir::Type TypeConverter::convertArrayType(ArrayType type)
   {
-    auto types = getArrayDescriptorFields(type);
-    return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
+    auto shape = type.getShape();
+    auto elementType = convertType(type.getElementType());
+    return mlir::MemRefType::get(shape, elementType);
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::integerTypeTargetMaterialization(
-      mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
+  mlir::Type TypeConverter::convertUnrankedArrayType(UnrankedArrayType type)
   {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    // Also the BooleanType is admitted, because in MLIR it is represented by the i1 type.
-    if (!inputs[0].getType().isa<BooleanType>() && !inputs[0].getType().isa<IntegerType>()) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::floatTypeTargetMaterialization(
-      mlir::OpBuilder& builder, mlir::FloatType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (!inputs[0].getType().isa<RealType>()) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::llvmStructTypeTargetMaterialization(
-      mlir::OpBuilder& builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (!inputs[0].getType().isa<ArrayType>()) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::booleanTypeSourceMaterialization(
-      mlir::OpBuilder& builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != 1) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::integerTypeSourceMaterialization(
-      mlir::OpBuilder& builder, IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != bitWidth) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::realTypeSourceMaterialization(
-      mlir::OpBuilder& builder, RealType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    if (!inputs[0].getType().isa<mlir::FloatType>() || inputs[0].getType().getIntOrFloatBitWidth() != bitWidth) {
-      return llvm::None;
-    }
-
-    return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-  }
-
-  llvm::Optional<mlir::Value> TypeConverter::arrayTypeSourceMaterialization(
-      mlir::OpBuilder& builder, ArrayType resultType, mlir::ValueRange inputs, mlir::Location loc) const
-  {
-    if (inputs.size() != 1) {
-      return llvm::None;
-    }
-
-    auto isZeroDimensionalPointer = [](mlir::Type type) -> bool {
-      if (auto structType = type.dyn_cast<mlir::LLVM::LLVMStructType>()) {
-        if (auto types = structType.getBody(); types.size() == 2) {
-          if (types[0].isa<mlir::LLVM::LLVMPointerType>() && types[1].isa<mlir::IntegerType>()) {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    };
-
-    auto isMultiDimensionalPointer = [](mlir::Type type) -> bool {
-      if (auto structType = type.dyn_cast<mlir::LLVM::LLVMStructType>()) {
-        if (auto types = structType.getBody(); types.size() == 3) {
-          if (types[0].isa<mlir::LLVM::LLVMPointerType>() &&
-              types[1].isa<mlir::IntegerType>() &&
-              types[2].isa<mlir::LLVM::LLVMArrayType>() &&
-              types[2].cast<mlir::LLVM::LLVMArrayType>().getElementType().isa<mlir::IntegerType>()) {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    };
-
-    if (isZeroDimensionalPointer(inputs[0].getType()) || isMultiDimensionalPointer(inputs[0].getType())) {
-      return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-    }
-
-    return llvm::None;
-  }
-
-  llvm::SmallVector<mlir::Type, 3> TypeConverter::getArrayDescriptorFields(ArrayType type)
-  {
-    mlir::Type elementType = type.getElementType();
-    elementType = convertType(elementType);
-
-    auto ptrType = mlir::LLVM::LLVMPointerType::get(elementType);
-    auto indexType = getIndexType();
-    llvm::SmallVector<mlir::Type, 3> results = { ptrType, indexType };
-
-    auto rank = type.getRank();
-
-    if (rank == 0) {
-      return results;
-    }
-
-    results.insert(results.end(), 1, mlir::LLVM::LLVMArrayType::get(indexType, rank));
-    return results;
+    auto elementType = convertType(type.getElementType());
+    return mlir::UnrankedMemRefType::get(elementType, type.getMemorySpace());
   }
 }

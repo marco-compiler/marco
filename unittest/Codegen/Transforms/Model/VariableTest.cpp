@@ -34,7 +34,7 @@ TEST(ArrayVariable, dimensions)
   shape.push_back(5);
 
   auto baseType = RealType::get(builder.getContext());
-  auto arrayType = ArrayType::get(builder.getContext(), baseType, shape);
+  auto arrayType = ArrayType::get(shape, baseType);
   auto model = createModel(builder, arrayType);
   auto variables = mapVariables(model);
 

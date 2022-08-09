@@ -5,11 +5,13 @@ include "marco/Dialect/Modelica/ModelicaAttributes.td"
 include "marco/Dialect/Modelica/ModelicaDialect.td"
 include "marco/Dialect/Modelica/ModelicaInterfaces.td"
 include "marco/Dialect/Modelica/ModelicaTypes.td"
-include "mlir/Interfaces/CallInterfaces.td"
-include "mlir/Interfaces/SideEffectInterfaces.td"
-include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/FunctionInterfaces.td"
 include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/Interfaces/ViewLikeInterface.td"
 
 //===----------------------------------------------------------------------===//
 // Type constraints
@@ -625,7 +627,7 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
 
     let builders = [
         OpBuilder<(ins "Attribute":$value), [{
-            build($_builder, $_state, value.getType(), value);
+            build($_builder, $_state, value.cast<mlir::TypedAttr>().getType(), value);
         }]>
     ];
 
@@ -2569,6 +2571,143 @@ def Modelica_FunctionOp : Modelica_Op<"function",
             return false;
         }
     }];
+}
+
+def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
+    [IsolatedFromAbove,
+    AutomaticAllocationScope,
+    Symbol,
+    FunctionOpInterface,
+    CallableOpInterface]>
+{
+    let summary = "Modelica raw function.";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<StrAttr>:$sym_visibility);
+
+    let regions = (region AnyRegion:$body);
+
+    let builders = [
+        OpBuilder<(ins
+            "llvm::StringRef":$name, "mlir::FunctionType":$type,
+            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
+    ];
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        bool shouldBeInlined();
+
+        static RawFunctionOp create(
+            mlir::Location location, llvm::StringRef name,
+            mlir::FunctionType type,
+            llvm::ArrayRef<mlir::NamedAttribute> attrs = {});
+
+        static RawFunctionOp create(
+            mlir::Location location, llvm::StringRef name,
+            mlir::FunctionType type,
+            mlir::Operation::dialect_attr_range attrs);
+
+        static RawFunctionOp create(
+            mlir::Location location, llvm::StringRef name,
+            mlir::FunctionType type,
+            llvm::ArrayRef<mlir::NamedAttribute> attrs,
+            llvm::ArrayRef<mlir::DictionaryAttr> argAttrs);
+
+        /// Create a deep copy of this function and all of its blocks, remapping any
+        /// operands that use values outside of the function using the map that is
+        /// provided (leaving them alone if no entry is present). If the mapper
+        /// contains entries for function arguments, these arguments are not
+        /// included in the new function. Replaces references to cloned sub-values
+        /// with the corresponding value that is copied, and adds those mappings to
+        /// the mapper.
+        RawFunctionOp clone(mlir::BlockAndValueMapping &mapper);
+        RawFunctionOp clone();
+
+        /// Clone the internal blocks and attributes from this function into dest.
+        /// Any cloned blocks are appended to the back of dest. This function
+        /// asserts that the attributes of the current function and dest are
+        /// compatible.
+        void cloneInto(RawFunctionOp dest, mlir::BlockAndValueMapping &mapper);
+
+        //===------------------------------------------------------------------===//
+        // CallableOpInterface
+        //===------------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This may
+        /// return null in the case of an external callable object, e.g. an external
+        /// function.
+        mlir::Region* getCallableRegion() {
+            return isExternal() ? nullptr : &getBody();
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults() {
+            return getFunctionType().getResults();
+        }
+
+        //===------------------------------------------------------------------===//
+        // FunctionOpInterface Methods
+        //===------------------------------------------------------------------===//
+
+        /// Returns the argument types of this function.
+        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
+
+        /// Returns the result types of this function.
+        llvm::ArrayRef<mlir::Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
+
+        //===------------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===------------------------------------------------------------------===//
+
+        bool isDeclaration() {
+            return isExternal();
+        }
+    }];
+}
+
+def RawReturnOp : Modelica_Op<"raw_return",
+    [NoSideEffect,
+    HasParent<"RawFunctionOp">,
+    ReturnLike, Terminator]> {
+  let summary = "Function return operation";
+
+  let description = [{
+    The `modelica.return` operation represents a return operation within a raw
+    function. The operation takes variable number of operands and produces no
+    results. The operand number and types must match the signature of the
+    function that contains the operation.
+
+    Example:
+
+    ```mlir
+    modelica.raw_func @foo() : (!modelica.int, !modelica.real) {
+      ...
+      modelica.raw_return %0, %1 : !modelica.int, !modelica.real
+    }
+    ```
+  }];
+
+  let arguments = (ins Variadic<AnyType>:$operands);
+
+  let builders = [OpBuilder<(ins), [{
+    build($_builder, $_state, llvm::None);
+  }]>];
+
+  let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
+  let hasVerifier = 1;
 }
 
 def Modelica_CallOp : Modelica_Op<"call",

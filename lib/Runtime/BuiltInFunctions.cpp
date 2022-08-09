@@ -1,4 +1,5 @@
 #include "marco/Runtime/BuiltInFunctions.h"
+#include "marco/Runtime/Utils.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -211,37 +212,43 @@ namespace
   ///
   /// @tparam T 					destination matrix type
   /// @tparam U 					source values type
-  /// @param destination destination matrix
+  /// @param destination  destination matrix
   /// @param values 			source values
   template<typename T, typename U>
-  void diagonal_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* values)
+  void diagonal_void(UnrankedMemRefType<T>* destination, UnrankedMemRefType<U>* values)
   {
+    DynamicMemRefType dynamicDestination(*destination);
+
     // Check that the array is square-like (all the dimensions have the same
     // size). Note that the implementation is generalized to n-D dimensions,
     // while the "identity" Modelica function is defined only for 2-D arrays.
     // Still, the implementation complexity would be the same.
 
-    assert(destination->hasSameSizes());
+    assert(std::all_of(dynamicDestination.sizes, dynamicDestination.sizes + dynamicDestination.rank, [&](int64_t dimension) {
+      return dimension == dynamicDestination.sizes[0];
+    }));
 
     // Check that the sizes of the matrix dimensions match with the amount of
     // values to be set.
+    assert(dynamicDestination.rank > 0);
 
-    assert(destination->getRank() > 0);
-    assert(values->getRank() == 1);
-    assert(destination->getDimension(0) == values->getDimension(0));
+    assert(values->rank == 1);
+    auto valuesDesc = static_cast<StridedMemRefType<U, 1>*>(values->descriptor);
+
+    assert(dynamicDestination.sizes[0] == valuesDesc->sizes[0]);
 
     // Directly use the iterators, as we need to determine the current indexes
     // so that we can place a 1 if the access is on the matrix diagonal.
 
-    for (auto it = destination->begin(), end = destination->end(); it != end; ++it) {
-      auto indexes = it.getCurrentIndexes();
-      assert(!indexes.empty());
+    for (auto it = std::begin(dynamicDestination), end = std::end(dynamicDestination); it != end; ++it) {
+      auto indices = it.getIndices();
+      assert(!indices.empty());
 
-      bool isIdentityAccess = std::all_of(indexes.begin(), indexes.end(), [&indexes](const auto& i) {
-        return i == indexes[0];
+      bool isIdentityAccess = std::all_of(indices.begin(), indices.end(), [&indices](const auto& i) {
+        return i == indices[0];
       });
 
-      *it = isIdentityAccess ? values->get(indexes[0]) : 0;
+      *it = isIdentityAccess ? (*valuesDesc)[indices[0]] : 0;
     }
   }
 }
@@ -349,10 +356,12 @@ namespace
   /// @param array  array to be populated
   /// @param value  value to be set
   template<typename T>
-  void fill_void(UnsizedArrayDescriptor<T>* array, T value)
+  void fill_void(UnrankedMemRefType<T>* array, T value)
   {
-    for (auto& element : *array) {
-      element = value;
+    DynamicMemRefType dynamicArray(*array);
+
+    for (auto it = std::begin(dynamicArray), end = std::end(dynamicArray); it != end; ++it) {
+      *it = value;
     }
   }
 }
@@ -409,27 +418,31 @@ namespace
 {
   /// Set a multi-dimensional array to an identity like matrix.
   ///
-  /// @tparam T 	   data type
-  /// @param array  array to be populated
+  /// @tparam T 	    data type
+  /// @param array    array to be populated
   template<typename T>
-  void identity_void(UnsizedArrayDescriptor<T>* array)
+  void identity_void(UnrankedMemRefType<T>* array)
   {
+    DynamicMemRefType dynamicArray(*array);
+
     // Check that the array is square-like (all the dimensions have the same
     // size). Note that the implementation is generalized to n-D dimensions,
     // while the "identity" Modelica function is defined only for 2-D arrays.
     // Still, the implementation complexity would be the same.
 
-    assert(array->hasSameSizes());
+    assert(std::all_of(dynamicArray.sizes, dynamicArray.sizes + dynamicArray.rank, [&](int64_t dimension) {
+      return dimension == dynamicArray.sizes[0];
+    }));
 
     // Directly use the iterators, as we need to determine the current indexes
     // so that we can place a 1 if the access is on the matrix diagonal.
 
-    for (auto it = array->begin(), end = array->end(); it != end; ++it) {
-      auto indexes = it.getCurrentIndexes();
-      assert(!indexes.empty());
+    for (auto it = std::begin(dynamicArray), end = std::end(dynamicArray); it != end; ++it) {
+      const auto& indices = it.getIndices();
+      assert(!indices.empty());
 
-      bool isIdentityAccess = std::all_of(indexes.begin(), indexes.end(), [&indexes](const auto& i) {
-        return i == indexes[0];
+      bool isIdentityAccess = std::all_of(indices.begin(), indices.end(), [&indices](const auto& i) {
+        return i == indices[0];
       });
 
       *it = isIdentityAccess ? 1 : 0;
@@ -492,18 +505,18 @@ namespace
   /// @tparam T 		 data type
   /// @param array  array to be populated
   /// @param start  start value
-  /// @param end 	 end value
+  /// @param end 	    end value
   template<typename T>
-  void linspace_void(UnsizedArrayDescriptor<T>* array, double start, double end)
+  void linspace_void(UnrankedMemRefType<T>* array, double start, double end)
   {
-    using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
-    assert(array->getRank() == 1);
+    assert(array->rank == 1);
+    auto arrayDesc = static_cast<StridedMemRefType<T, 1>*>(array->descriptor);
 
-    auto n = array->getDimension(0);
+    auto n = arrayDesc->sizes[0];
     double step = (end - start) / ((double) n - 1);
 
-    for (dimension_t i = 0; i < n; ++i) {
-      array->get(i) = start + static_cast<double>(i) * step;
+    for (int64_t i = 0; i < n; ++i) {
+      (*arrayDesc)[i] = start + static_cast<double>(i) * step;
     }
   }
 }
@@ -570,34 +583,37 @@ RUNTIME_FUNC_DEF(log10, double, double)
 namespace
 {
   template<typename T>
-  T max(UnsizedArrayDescriptor<T>* array)
+  T max(UnrankedMemRefType<T>* array)
   {
-    return *std::max_element(array->begin(), array->end());
+    DynamicMemRefType dynamicArray(*array);
+    return *std::max_element(std::begin(dynamicArray), std::end(dynamicArray));
   }
 
-  bool max_i1(UnsizedArrayDescriptor<bool>* array)
+  bool max_i1(UnrankedMemRefType<bool>* array)
   {
-    return std::any_of(array->begin(), array->end(), [](const bool& value) {
+    DynamicMemRefType dynamicArray(*array);
+
+    return std::any_of(std::begin(dynamicArray), std::end(dynamicArray), [](const bool& value) {
       return value;
     });
   }
 
-  int32_t max_i32(UnsizedArrayDescriptor<int32_t>* array)
+  int32_t max_i32(UnrankedMemRefType<int32_t>* array)
+  {
+    return ::max(array );
+  }
+
+  int32_t max_i64(UnrankedMemRefType<int64_t>* array)
   {
     return ::max(array);
   }
 
-  int32_t max_i64(UnsizedArrayDescriptor<int64_t>* array)
+  float max_f32(UnrankedMemRefType<float>* array)
   {
     return ::max(array);
   }
 
-  float max_f32(UnsizedArrayDescriptor<float>* array)
-  {
-    return ::max(array);
-  }
-
-  double max_f64(UnsizedArrayDescriptor<double>* array)
+  double max_f64(UnrankedMemRefType<double>* array)
   {
     return ::max(array);
   }
@@ -660,34 +676,37 @@ RUNTIME_FUNC_DEF(max, double, double, double)
 namespace
 {
   template<typename T>
-  T min(UnsizedArrayDescriptor<T>* array)
+  T min(UnrankedMemRefType<T>* array)
   {
-    return *std::min_element(array->begin(), array->end());
+    DynamicMemRefType dynamicArray(*array);
+    return *std::min_element(std::begin(dynamicArray), std::end(dynamicArray));
   }
 
-  bool min_i1(UnsizedArrayDescriptor<bool>* array)
+  bool min_i1(UnrankedMemRefType<bool>* array)
   {
-    return std::all_of(array->begin(), array->end(), [](const bool& value) {
+    DynamicMemRefType dynamicArray(*array);
+
+    return std::all_of(std::begin(dynamicArray), std::end(dynamicArray), [](const bool& value) {
       return value;
     });
   }
 
-  int32_t min_i32(UnsizedArrayDescriptor<int32_t>* array)
+  int32_t min_i32(UnrankedMemRefType<int32_t>* array)
   {
     return ::min(array);
   }
 
-  int32_t min_i64(UnsizedArrayDescriptor<int64_t>* array)
+  int32_t min_i64(UnrankedMemRefType<int64_t>* array)
   {
     return ::min(array);
   }
 
-  float min_f32(UnsizedArrayDescriptor<float>* array)
+  float min_f32(UnrankedMemRefType<float>* array)
   {
     return ::min(array);
   }
 
-  double min_f64(UnsizedArrayDescriptor<double>* array)
+  double min_f64(UnrankedMemRefType<double>* array)
   {
     return ::min(array);
   }
@@ -793,15 +812,17 @@ RUNTIME_FUNC_DEF(mod, double, double, double)
 
 namespace
 {
-  /// Set all the elements of an array to ones.
+  /// Set all the elements of an array to zero.
   ///
   /// @tparam T data type
   /// @param array   array to be populated
   template<typename T>
-  void ones_void(UnsizedArrayDescriptor<T>* array)
+  void ones_void(UnrankedMemRefType<T>* array)
   {
-    for (auto& element : *array) {
-      element = 1;
+    DynamicMemRefType dynamicArray(*array);
+
+    for (auto it = std::begin(dynamicArray), end = std::end(dynamicArray); it != end; ++it) {
+      *it = 1;
     }
   }
 }
@@ -824,34 +845,37 @@ namespace
   /// @param array  array
   /// @return product of all the values
   template<typename T>
-  T product(UnsizedArrayDescriptor<T>* array)
+  T product(UnrankedMemRefType<T>* array)
   {
-    return std::accumulate(array->begin(), array->end(), static_cast<T>(1), std::multiplies<T>());
+    DynamicMemRefType dynamicArray(*array);
+    return std::accumulate(std::begin(dynamicArray), std::end(dynamicArray), static_cast<T>(1), std::multiplies<T>());
   }
 
-  bool product_i1(UnsizedArrayDescriptor<bool>* array)
+  bool product_i1(UnrankedMemRefType<bool>* array)
   {
-    return std::all_of(array->begin(), array->end(), [](const bool& value) {
+    DynamicMemRefType dynamicArray(*array);
+
+    return std::all_of(std::begin(dynamicArray), std::end(dynamicArray), [](const bool& value) {
       return value;
     });
   }
 
-  int32_t product_i32(UnsizedArrayDescriptor<int32_t>* array)
+  int32_t product_i32(UnrankedMemRefType<int32_t>* array)
   {
     return ::product(array);
   }
 
-  int64_t product_i64(UnsizedArrayDescriptor<int64_t>* array)
+  int64_t product_i64(UnrankedMemRefType<int64_t>* array)
   {
     return ::product(array);
   }
 
-  float product_f32(UnsizedArrayDescriptor<float>* array)
+  float product_f32(UnrankedMemRefType<float>* array)
   {
     return ::product(array);
   }
 
-  double product_f64(UnsizedArrayDescriptor<double>* array)
+  double product_f64(UnrankedMemRefType<double>* array)
   {
     return ::product(array);
   }
@@ -1043,34 +1067,37 @@ namespace
   /// @param array  array
   /// @return sum of all the values
   template<typename T>
-  T sum(UnsizedArrayDescriptor<T>* array)
+  T sum(UnrankedMemRefType<T>* array)
   {
-    return std::accumulate(array->begin(), array->end(), static_cast<T>(0), std::plus<T>());
+    DynamicMemRefType dynamicArray(*array);
+    return std::accumulate(std::begin(dynamicArray), std::end(dynamicArray), static_cast<T>(0), std::plus<T>());
   }
 
-  bool sum_i1(UnsizedArrayDescriptor<bool>* array)
+  bool sum_i1(UnrankedMemRefType<bool>* array)
   {
-    return std::any_of(array->begin(), array->end(), [](const bool& value) {
+    DynamicMemRefType dynamicArray(*array);
+
+    return std::any_of(std::begin(dynamicArray), std::end(dynamicArray), [](const bool& value) {
       return value;
     });
   }
 
-  int32_t sum_i32(UnsizedArrayDescriptor<int32_t>* array)
+  int32_t sum_i32(UnrankedMemRefType<int32_t>* array)
   {
     return ::sum(array);
   }
 
-  int64_t sum_i64(UnsizedArrayDescriptor<int64_t>* array)
+  int64_t sum_i64(UnrankedMemRefType<int64_t>* array)
   {
     return ::sum(array);
   }
 
-  float sum_f32(UnsizedArrayDescriptor<float>* array)
+  float sum_f32(UnrankedMemRefType<float>* array)
   {
     return ::sum(array);
   }
 
-  double sum_f64(UnsizedArrayDescriptor<double>* array)
+  double sum_f64(UnrankedMemRefType<double>* array)
   {
     return ::sum(array);
   }
@@ -1096,29 +1123,39 @@ namespace
   /// @param destination	 destination matrix
   /// @param source				 source matrix
   template<typename Destination, typename Source>
-  void symmetric_void(UnsizedArrayDescriptor<Destination>* destination, UnsizedArrayDescriptor<Source>* source)
+  void symmetric_void(UnrankedMemRefType<Destination>* destination, UnrankedMemRefType<Source>* source)
   {
-    using dimension_t = typename UnsizedArrayDescriptor<Destination>::dimension_t;
-
     // The two arrays must have exactly two dimensions
-    assert(destination->getRank() == 2);
-    assert(source->getRank() == 2);
+    assert(destination->rank == 2);
+    assert(source->rank == 2);
 
-    // The two matrixes must have the same dimensions
-    assert(destination->getDimension(0) == source->getDimension(0));
-    assert(destination->getDimension(1) == source->getDimension(1));
+    auto destinationMatrix = static_cast<StridedMemRefType<Destination, 2>*>(destination->descriptor);
+    auto sourceMatrix = static_cast<StridedMemRefType<Source, 2>*>(source->descriptor);
 
-    auto size = destination->getDimension(0);
+    // The two matrices must have the same dimensions
+    assert(destinationMatrix->sizes[0] == sourceMatrix->sizes[0]);
+    assert(destinationMatrix->sizes[1] == sourceMatrix->sizes[1]);
+
+    auto size = destinationMatrix->sizes[0];
 
     // Manually iterate on the dimensions, so that we can explore just half
     // of the source matrix.
 
-    for (dimension_t i = 0; i < size; ++i) {
-      for (dimension_t j = i; j < size; ++j) {
-        destination->set({ i, j }, source->get({ i, j }));
+    std::array<int64_t, 2> indices;
+    std::array<int64_t, 2> transposedIndices;
+
+    for (int64_t i = 0; i < size; ++i) {
+      indices[0] = i;
+      transposedIndices[1] = i;
+
+      for (int64_t j = i; j < size; ++j) {
+        indices[1] = j;
+        transposedIndices[0] = j;
+
+        (*destinationMatrix)[indices] = (*sourceMatrix)[indices];
 
         if (i != j) {
-          destination->set({j, i}, source->get({ i, j }));
+          (*destinationMatrix)[transposedIndices] = (*sourceMatrix)[indices];
         }
       }
     }
@@ -1204,36 +1241,37 @@ namespace
   /// Transpose a matrix.
   ///
   /// @tparam Destination destination type
-  /// @tparam Source 		 source type
+  /// @tparam Source 		  source type
   /// @param destination  destination matrix
-  /// @param source  		 source matrix
+  /// @param source  		  source matrix
   template<typename Destination, typename Source>
-  void transpose_void(UnsizedArrayDescriptor<Destination>* destination, UnsizedArrayDescriptor<Source>* source)
+  void transpose_void(UnrankedMemRefType<Destination>* destination, UnrankedMemRefType<Source>* source)
   {
-    using dimension_t = typename UnsizedArrayDescriptor<Source>::dimension_t;
-
     // The two arrays must have exactly two dimensions
-    assert(destination->getRank() == 2);
-    assert(source->getRank() == 2);
+    assert(destination->rank == 2);
+    assert(source->rank == 2);
 
-    // The two matrixes must have transposed dimensions
-    assert(destination->getDimension(0) == source->getDimension(1));
-    assert(destination->getDimension(1) == source->getDimension(0));
+    auto destinationMatrix = static_cast<StridedMemRefType<Destination, 2>*>(destination->descriptor);
+    auto sourceMatrix = static_cast<StridedMemRefType<Source, 2>*>(source->descriptor);
+
+    // The two matrices must have transposed dimensions
+    assert(destinationMatrix->sizes[0] == sourceMatrix->sizes[1]);
+    assert(destinationMatrix->sizes[1] == sourceMatrix->sizes[0]);
 
     // Directly use the iterators, as we need to determine the current
     // indexes and transpose them to access the other matrix.
 
-    for (auto it = source->begin(), end = source->end(); it != end; ++it) {
-      auto indexes = it.getCurrentIndexes();
+    for (auto it = sourceMatrix->begin(), end = sourceMatrix->end(); it != end; ++it) {
+      const auto& indexes = it.getIndices();
       assert(indexes.size() == 2);
 
-      std::vector<dimension_t> transposedIndexes;
+      std::vector<int64_t> transposedIndexes;
 
       for (auto revIt = indexes.rbegin(), revEnd = indexes.rend(); revIt != revEnd; ++revIt) {
         transposedIndexes.push_back(*revIt);
       }
 
-      destination->set(transposedIndexes, *it);
+      (*destinationMatrix)[transposedIndexes] = *it;
     }
   }
 }
@@ -1279,10 +1317,12 @@ namespace
   /// @tparam T data type
   /// @param array   array to be populated
   template<typename T>
-  void zeros_void(UnsizedArrayDescriptor<T>* array)
+  void zeros_void(UnrankedMemRefType<T>* array)
   {
-    for (auto& element : *array) {
-      element = 0;
+    DynamicMemRefType dynamicArray(*array);
+
+    for (auto it = std::begin(dynamicArray), end = std::end(dynamicArray); it != end; ++it) {
+      *it = 0;
     }
   }
 }

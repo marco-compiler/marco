@@ -1,6 +1,5 @@
 #include "marco/Runtime/Math.h"
 #include "gtest/gtest.h"
-#include "llvm/ADT/STLExtras.h"
 
 TEST(Runtime, pow_i1_i1_i1)
 {

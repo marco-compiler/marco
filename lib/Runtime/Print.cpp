@@ -1,4 +1,5 @@
 #include "marco/Runtime/Print.h"
+#include "marco/Runtime/Utils.h"
 #include <iomanip>
 #include <iostream>
 
@@ -155,15 +156,17 @@ RUNTIME_FUNC_DEF(print, void, double)
 namespace
 {
   template<typename T>
-  void print_void(UnsizedArrayDescriptor<T>* array)
+  void print_void(UnrankedMemRefType<T>* array)
   {
-    std::cout << std::scientific << *array << std::endl;
+    DynamicMemRefType memRef(*array);
+    std::cout << std::scientific << memRef << std::endl;
   }
 
   template<>
-  void print_void<bool>(UnsizedArrayDescriptor<bool>* array)
+  void print_void<bool>(UnrankedMemRefType<bool>* array)
   {
-    std::cout << std::boolalpha << *array << std::endl;
+    DynamicMemRefType memRef(*array);
+    std::cout << std::boolalpha << memRef << std::endl;
   }
 }
 

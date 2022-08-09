@@ -99,8 +99,8 @@ TEST(LoopEquation, explicitLoops_iterationRanges)
   mlir::Location loc = builder.getUnknownLoc();
 
   llvm::SmallVector<mlir::Type, 2> types;
-  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 6 }));
-  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 6 }));
+  types.push_back(ArrayType::get({ 3, 6 }, RealType::get(builder.getContext())));
+  types.push_back(ArrayType::get({ 3, 6 }, RealType::get(builder.getContext())));
 
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
@@ -157,8 +157,8 @@ TEST(LoopEquation, explicitLoops_accesses)
   mlir::Location loc = builder.getUnknownLoc();
 
   llvm::SmallVector<mlir::Type, 2> types;
-  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 4, 5 }));
-  types.push_back(ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 6 }));
+  types.push_back(ArrayType::get({ 4, 5 }, RealType::get(builder.getContext())));
+  types.push_back(ArrayType::get({ 6 }, RealType::get(builder.getContext())));
 
   auto model = createModel(builder, types);
   auto variables = mapVariables(model);
@@ -214,7 +214,7 @@ TEST(LoopEquation, implicitLoops_iterationRanges)
   mlir::OpBuilder builder(&context);
 
   llvm::SmallVector<mlir::Type, 2> types;
-  auto arrayType = ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 5 });
+  auto arrayType = ArrayType::get({ 3, 5 }, RealType::get(builder.getContext()));
   types.push_back(arrayType);
   types.push_back(arrayType);
 
@@ -252,7 +252,7 @@ TEST(LoopEquation, implicitLoops_accesses)
   mlir::OpBuilder builder(&context);
 
   llvm::SmallVector<mlir::Type, 2> types;
-  auto arrayType = ArrayType::get(builder.getContext(), RealType::get(builder.getContext()), { 3, 4 });
+  auto arrayType = ArrayType::get({ 3, 4 }, RealType::get(builder.getContext()));
   types.push_back(arrayType);
   types.push_back(arrayType);
 

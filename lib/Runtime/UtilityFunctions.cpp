@@ -1,7 +1,9 @@
 #include "marco/Runtime/UtilityFunctions.h"
+#include "marco/Runtime/Utils.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <numeric>
 
 //===----------------------------------------------------------------------===//
 // clone
@@ -16,28 +18,35 @@ namespace
   /// @param destination  destination array
   /// @param values 			source values
   template<typename T, typename U>
-  void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<U>* source)
+  void clone_void(UnrankedMemRefType<T>* destination, UnrankedMemRefType<U>* source)
   {
-    assert(source->getNumElements() == destination->getNumElements());
+    DynamicMemRefType dynamicSource(*source);
+    DynamicMemRefType dynamicDestination(*destination);
 
-    auto sourceIt = source->begin();
-    auto destinationIt = destination->begin();
+    // Check that the two arrays have the same number of elements
+    [[maybe_unused]] int64_t sourceFlatSize = std::accumulate(
+        dynamicSource.sizes,
+        dynamicSource.sizes + dynamicSource.rank,
+        static_cast<int64_t>(1),
+        std::multiplies<int64_t>());
 
-    for (size_t i = 0, e = source->getNumElements(); i < e; ++i) {
+    [[maybe_unused]] int64_t destinationFlatSize = std::accumulate(
+        dynamicDestination.sizes,
+        dynamicDestination.sizes + dynamicDestination.rank,
+        static_cast<int64_t>(1),
+        std::multiplies<int64_t>());
+
+    assert(sourceFlatSize == destinationFlatSize);
+
+    auto sourceIt = std::begin(dynamicSource);
+    auto destinationIt = std::begin(dynamicDestination);
+
+    for (size_t i = 0, e = sourceFlatSize; i < e; ++i) {
       *destinationIt = *sourceIt;
 
       ++sourceIt;
       ++destinationIt;
     }
-  }
-
-  // Optimization for arrays with the same type
-  template<typename T>
-  void clone_void(UnsizedArrayDescriptor<T>* destination, UnsizedArrayDescriptor<T>* source)
-  {
-    auto destinationSize = destination->getNumElements();
-    assert(source->getNumElements() == destinationSize);
-    memcpy(destination->getData(), source->getData(), destinationSize * sizeof(T));
   }
 }
 

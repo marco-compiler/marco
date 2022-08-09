@@ -5,7 +5,8 @@
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 #include "marco/Codegen/Conversion/PassDetail.h"
@@ -45,8 +46,8 @@ namespace
   class ModelicaOpRewritePattern : public mlir::OpRewritePattern<Op>
   {
     public:
-      ModelicaOpRewritePattern(mlir::MLIRContext* ctx, ModelicaToArithOptions options)
-          : mlir::OpRewritePattern<Op>(ctx),
+      ModelicaOpRewritePattern(mlir::MLIRContext* context, ModelicaToArithOptions options)
+          : mlir::OpRewritePattern<Op>(context),
             options(std::move(options))
       {
       }
@@ -57,11 +58,11 @@ namespace
 
   /// Generic conversion pattern that provides some utility functions.
   template<typename Op>
-  class ModelicaOpConversionPattern : public mlir::ConvertOpToLLVMPattern<Op>
+  class ModelicaOpConversionPattern : public mlir::OpConversionPattern<Op>
   {
     public:
-      ModelicaOpConversionPattern(mlir::MLIRContext* ctx, mlir::LLVMTypeConverter& typeConverter, ModelicaToArithOptions options)
-          : mlir::ConvertOpToLLVMPattern<Op>(typeConverter, 1),
+      ModelicaOpConversionPattern(mlir::MLIRContext* context, mlir::TypeConverter& typeConverter, ModelicaToArithOptions options)
+          : mlir::OpConversionPattern<Op>(typeConverter, context),
             options(std::move(options))
       {
       }
@@ -1077,7 +1078,7 @@ namespace
     private:
     mlir::Attribute convertAttribute(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Attribute attribute) const
     {
-      if (attribute.getType().isa<mlir::IndexType>()) {
+      if (attribute.cast<mlir::TypedAttr>().getType().isa<mlir::IndexType>()) {
         return attribute;
       }
 
@@ -2959,7 +2960,7 @@ namespace
 static void populateModelicaToArithPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::MLIRContext* context,
-    mlir::modelica::TypeConverter& typeConverter,
+    mlir::TypeConverter& typeConverter,
     ModelicaToArithOptions options)
 {
   // Comparison operations
@@ -3106,8 +3107,7 @@ namespace
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout = options.dataLayout;
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
+        TypeConverter typeConverter(options.bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
         populateModelicaToArithPatterns(patterns, &getContext(), typeConverter, options);

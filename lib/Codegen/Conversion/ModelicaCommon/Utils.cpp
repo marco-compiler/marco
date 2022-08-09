@@ -60,7 +60,7 @@ namespace marco::codegen
       if (type.isa<ArrayType>()) {
         auto arrayType = type.cast<ArrayType>();
         auto shape = arrayType.getShape();
-        types.emplace_back(ArrayType::get(arrayType.getContext(), resultBaseType, shape));
+        types.emplace_back(ArrayType::get(shape, resultBaseType));
       }
       else {
         types.emplace_back(resultBaseType);

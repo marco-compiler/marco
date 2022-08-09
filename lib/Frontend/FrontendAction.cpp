@@ -328,6 +328,17 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createModelicaToLLVMPass(modelicaToLLVMOptions));
 
+    // Modelica to MemRef conversion.
+    // It is done after the LLVM conversion, because some built-in operations may
+    // lead to allocations when converted to calls to the runtime library.
+
+    codegen::ModelicaToMemRefOptions modelicaToMemRefOptions;
+    modelicaToMemRefOptions.bitWidth = codegenOptions.bitWidth;
+    modelicaToMemRefOptions.assertions = codegenOptions.assertions;
+    modelicaToMemRefOptions.dataLayout = dataLayout;
+
+    passManager.addPass(codegen::createModelicaToMemRefPass(modelicaToMemRefOptions));
+
     // IDA to LLVM conversion
     codegen::IDAToLLVMOptions idaToLLVMOptions;
     idaToLLVMOptions.dataLayout = dataLayout;
@@ -338,6 +349,7 @@ namespace marco::frontend
       passManager.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToOpenMPPass());
     }
 
+    passManager.addPass(mlir::createMemRefToLLVMPass());
     passManager.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
 

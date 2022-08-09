@@ -1,6 +1,5 @@
 #include "marco/Runtime/IDA.h"
 #include "marco/Runtime/IDAImpl.h"
-#include "marco/Runtime/ArrayDescriptor.h"
 #include "marco/Runtime/MemoryManagement.h"
 #include <cassert>
 #include <climits>

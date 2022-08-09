@@ -3,7 +3,7 @@
 #include "marco/Codegen/Runtime.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 
 using namespace ::marco;
@@ -87,7 +87,7 @@ namespace
     IndexSet result;
 
     auto arrayType = variableType.cast<ArrayType>();
-    assert(arrayType.hasConstantShape());
+    assert(arrayType.hasStaticShape());
 
     for (const auto& filter : filters) {
       if (!filter.isVisible()) {
@@ -946,7 +946,7 @@ namespace marco::codegen
     for (auto& op : modelOp.getVarsRegion().getOps()) {
       if (auto memberCreateOp = mlir::dyn_cast<MemberCreateOp>(op)) {
         auto arrayType = memberCreateOp.getMemberType().toArrayType();
-        assert(arrayType.hasConstantShape());
+        assert(arrayType.hasStaticShape());
 
         std::vector<mlir::Value> dynamicDimensions;
 

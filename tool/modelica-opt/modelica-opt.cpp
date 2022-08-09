@@ -29,6 +29,7 @@ int main(int argc, char* argv[])
   mlir::registerCSEPass();
   mlir::registerConvertArithmeticToLLVMPass();
   mlir::registerConvertFuncToLLVMPass();
+  mlir::registerConvertMemRefToLLVMPass();
   mlir::registerSCFToControlFlowPass();
   mlir::registerConvertControlFlowToLLVMPass();
   mlir::registerReconcileUnrealizedCastsPass();
