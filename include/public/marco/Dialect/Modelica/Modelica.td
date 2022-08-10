@@ -2740,17 +2740,22 @@ def Modelica_CallOp : Modelica_Op<"call",
     }];
 
     let builders = [
-        OpBuilder<(ins "FunctionOp":$callee, CArg<"ValueRange", "{}">:$args), [{
+        OpBuilder<(ins "FunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
             $_state.addOperands(args);
             $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
             $_state.addTypes(callee.getFunctionType().getResults());
         }]>,
-        OpBuilder<(ins "SymbolRefAttr":$callee, "TypeRange":$results, CArg<"ValueRange", "{}">:$args), [{
+        OpBuilder<(ins "RawFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
+            $_state.addOperands(args);
+            $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
+            $_state.addTypes(callee.getFunctionType().getResults());
+        }]>,
+        OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::TypeRange":$results, CArg<"mlir::ValueRange", "{}">:$args), [{
             $_state.addOperands(args);
             $_state.addAttribute("callee", callee);
             $_state.addTypes(results);
         }]>,
-        OpBuilder<(ins "StringRef":$callee, "TypeRange":$results, CArg<"ValueRange", "{}">:$args), [{
+        OpBuilder<(ins "llvm::StringRef":$callee, "mlir::TypeRange":$results, CArg<"mlir::ValueRange", "{}">:$args), [{
             build($_builder, $_state, SymbolRefAttr::get($_builder.getContext(), callee), results, args);
         }]>
     ];
@@ -2760,7 +2765,7 @@ def Modelica_CallOp : Modelica_Op<"call",
         // CallOpInterface
         //===------------------------------------------------------------------===//
 
-        FunctionType getCalleeType();
+        mlir::FunctionType getCalleeType();
 
         /// Get the argument operands to the called function.
         operand_range getArgOperands() {
@@ -2776,7 +2781,7 @@ def Modelica_CallOp : Modelica_Op<"call",
         }
 
         /// Return the callee of this operation.
-        CallInterfaceCallable getCallableForCallee() {
+        mlir::CallInterfaceCallable getCallableForCallee() {
             return (*this)->getAttrOfType<SymbolRefAttr>("callee");
         }
     }];

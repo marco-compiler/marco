@@ -282,18 +282,6 @@ namespace marco::frontend
     // Insert explicit casts where needed
     passManager.addPass(codegen::createExplicitCastInsertionPass());
 
-    if (codegenOptions.inlining) {
-      // Inline the functions with the 'inline' annotation
-
-      // The inlining pass is incompatible with the new Modelica dialect, as functions
-      // input members are now declared within the body and not in the entry region
-      // signature. Moreover, input members have now "member" type, thus not matching
-      // arguments of the function call. A new intermediate (internal) dialect between
-      // Modelica and std is needed, in order to define a std-like function with
-      // additional attributes (such as the inlining one).
-      //passManager.addPass(mlir::createInlinerPass());
-    }
-
     passManager.addPass(mlir::createCanonicalizerPass());
 
     if (codegenOptions.cse) {
@@ -312,6 +300,11 @@ namespace marco::frontend
     modelicaToCFOptions.dataLayout = dataLayout;
 
     passManager.addPass(codegen::createModelicaToCFPass(modelicaToCFOptions));
+
+    if (codegenOptions.inlining) {
+      // Inline the functions with the 'inline' annotation
+      passManager.addPass(mlir::createInlinerPass());
+    }
 
     // Modelica to Arith conversion
     codegen::ModelicaToArithOptions modelicaToArithOptions;

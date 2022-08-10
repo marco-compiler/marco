@@ -385,7 +385,8 @@ namespace mlir::modelica
     mlir::function_interface_impl::addArgAndResultAttrs(builder, state, argAttrs, llvm::None);
   }
 
-  mlir::ParseResult RawFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result) {
+  mlir::ParseResult RawFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
     auto buildFuncType = [](mlir::Builder& builder, llvm::ArrayRef<mlir::Type> argTypes, llvm::ArrayRef<mlir::Type> results, mlir::function_interface_impl::VariadicFlag, std::string&) {
       return builder.getFunctionType(argTypes, results);
     };
@@ -393,13 +394,25 @@ namespace mlir::modelica
     return mlir::function_interface_impl::parseFunctionOp(parser, result, false, buildFuncType);
   }
 
-  void RawFunctionOp::print(OpAsmPrinter &p) {
+  void RawFunctionOp::print(OpAsmPrinter &p)
+  {
     mlir::function_interface_impl::printFunctionOp(p, *this, false);
+  }
+
+  bool RawFunctionOp::shouldBeInlined()
+  {
+    if (!getOperation()->hasAttrOfType<mlir::BoolAttr>("inline")) {
+      return false;
+    }
+
+    auto inlineAttribute = getOperation()->getAttrOfType<mlir::BoolAttr>("inline");
+    return inlineAttribute.getValue();
   }
 
   /// Clone the internal blocks from this function into dest and all attributes
   /// from this function to dest.
-  void RawFunctionOp::cloneInto(RawFunctionOp dest, mlir::BlockAndValueMapping& mapper) {
+  void RawFunctionOp::cloneInto(RawFunctionOp dest, mlir::BlockAndValueMapping& mapper)
+  {
     // Add the attributes of this function to dest.
     llvm::MapVector<mlir::StringAttr, mlir::Attribute> newAttrMap;
 
@@ -427,7 +440,8 @@ namespace mlir::modelica
   /// provided (leaving them alone if no entry is present). Replaces references
   /// to cloned sub-values with the corresponding value that is copied, and adds
   /// those mappings to the mapper.
-  RawFunctionOp RawFunctionOp::clone(mlir::BlockAndValueMapping& mapper) {
+  RawFunctionOp RawFunctionOp::clone(mlir::BlockAndValueMapping& mapper)
+  {
     // Create the new function.
     RawFunctionOp newFunc = cast<RawFunctionOp>(getOperation()->cloneWithoutRegions());
 

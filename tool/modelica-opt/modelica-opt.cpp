@@ -30,6 +30,7 @@ int main(int argc, char* argv[])
   mlir::registerConvertArithmeticToLLVMPass();
   mlir::registerConvertFuncToLLVMPass();
   mlir::registerConvertMemRefToLLVMPass();
+  mlir::registerInlinerPass();
   mlir::registerSCFToControlFlowPass();
   mlir::registerConvertControlFlowToLLVMPass();
   mlir::registerReconcileUnrealizedCastsPass();
