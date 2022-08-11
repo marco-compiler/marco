@@ -136,7 +136,12 @@ static mlir::LogicalResult convertResultOrProtectedVar(
           },
           [&builder, reference, unwrappedType](MemberStoreOp storeOp) -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
-            mlir::Value value = builder.create<CastOp>(storeOp.getLoc(), unwrappedType, storeOp.getValue());
+            mlir::Value value = storeOp.getValue();
+
+            if (value.getType() != unwrappedType) {
+              value = builder.create<CastOp>(storeOp.getLoc(), unwrappedType, storeOp.getValue());
+            }
+
             builder.create<StoreOp>(storeOp.getLoc(), value, reference, llvm::None);
             storeOp.erase();
             return mlir::success();

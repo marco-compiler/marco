@@ -156,7 +156,13 @@ namespace mlir::modelica
   {
     printer << " ";
     printer.printSymbolName(getSymName());
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), {"sym_name"});
+
+    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
+        mlir::SymbolTable::getSymbolAttrName()
+    };
+
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), elidedAttrs);
+
     printer << " ";
     printer.printRegion(getVarsRegion());
 
@@ -255,7 +261,14 @@ namespace mlir::modelica
     printer << " ";
     printer.printSymbolName(getSymName());
     printer << " : " << getFunctionType();
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), { "sym_name", "function_type" });
+
+    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
+        mlir::SymbolTable::getSymbolAttrName(),
+        mlir::function_interface_impl::getTypeAttrName()
+    };
+
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), elidedAttrs);
+
     printer << " ";
     printer.printRegion(getBody());
   }
@@ -519,6 +532,103 @@ namespace mlir::modelica
     }
 
     return mlir::success();
+  }
+
+  //===----------------------------------------------------------------------===//
+  // RuntimeFunctionOp
+  //===----------------------------------------------------------------------===//
+
+  void RuntimeFunctionOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name,
+      mlir::FunctionType type,
+      llvm::ArrayRef<mlir::NamedAttribute> attrs,
+      llvm::ArrayRef<mlir::DictionaryAttr> argAttrs)
+  {
+    state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
+    state.addAttribute(mlir::FunctionOpInterface::getTypeAttrName(), mlir::TypeAttr::get(type));
+    state.addAttribute(mlir::SymbolTable::getVisibilityAttrName(), builder.getStringAttr("private"));
+    state.attributes.append(attrs.begin(), attrs.end());
+
+    if (argAttrs.empty()) {
+      return;
+    }
+
+    assert(type.getNumInputs() == argAttrs.size());
+    mlir::function_interface_impl::addArgAndResultAttrs(builder, state, argAttrs, llvm::None);
+  }
+
+  mlir::ParseResult RuntimeFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto& builder = parser.getBuilder();
+    mlir::StringAttr nameAttr;
+
+    if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes)) {
+      return mlir::failure();
+    }
+
+    mlir::Type functionType;
+
+    if (parser.parseColon() ||
+        parser.parseType(functionType)) {
+      return mlir::failure();
+    }
+
+    /*
+    llvm::SmallVector<mlir::Type, 3> argsTypes;
+    llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+    if (parser.parseColon() ||
+        parser.parseLParen()) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(parser.parseOptionalRParen())) {
+      if (parser.parseTypeList(argsTypes) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.parseArrow() ||
+        parser.parseLParen()) {
+      return mlir::failure();
+    }
+
+    if (mlir::failed(parser.parseOptionalRParen())) {
+      if (parser.parseTypeList(resultsTypes) ||
+          parser.parseRParen()) {
+        return mlir::failure();
+      }
+    }
+
+    auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
+     */
+
+    result.attributes.append(mlir::function_interface_impl::getTypeAttrName(), mlir::TypeAttr::get(functionType));
+    result.attributes.append(mlir::SymbolTable::getVisibilityAttrName(), builder.getStringAttr("private"));
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void RuntimeFunctionOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer.printSymbolName(getSymName());
+
+    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
+        mlir::SymbolTable::getSymbolAttrName(),
+        mlir::SymbolTable::getVisibilityAttrName(),
+        mlir::function_interface_impl::getTypeAttrName()
+    };
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
+    printer << " : " << getFunctionType();
   }
 
   //===----------------------------------------------------------------------===//
@@ -859,7 +969,13 @@ namespace mlir::modelica
   {
     printer << " ";
     printer.printSymbolName(getSymName());
-    printer.printOptionalAttrDict(getOperation()->getAttrs(), { "sym_name" });
+
+    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
+        mlir::SymbolTable::getSymbolAttrName()
+    };
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
+
     printer << getDynamicSizes();
     printer << " : " << getResult().getType();
   }
@@ -1382,7 +1498,12 @@ namespace mlir::modelica
   void DerFunctionOp::print(mlir::OpAsmPrinter& printer)
   {
     printer.printSymbolName(getSymName());
-    printer.printOptionalAttrDict(getOperation()->getAttrs(), { "sym_name" });
+
+    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
+        mlir::SymbolTable::getSymbolAttrName()
+    };
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
   }
 
   mlir::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults()

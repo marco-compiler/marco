@@ -1420,73 +1420,73 @@ TEST(Runtime, log10_f64)
   EXPECT_NEAR(log10Fn(0.1), -1, 0.000001);
 }
 
-TEST(Runtime, max_ai1)
+TEST(Runtime, maxArray_ai1)
 {
   std::array<bool, 4> values = { false, true, true, false };
 
   auto array = getMemRef<bool, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(max, bool, ARRAY(bool))(&unrankedArray);
+  auto result = NAME_MANGLED(maxArray, bool, ARRAY(bool))(&unrankedArray);
 
   EXPECT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_ai32)
+TEST(Runtime, maxArray_ai32)
 {
   std::array<int32_t, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<int32_t, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(max, int32_t, ARRAY(int32_t))(&unrankedArray);
+  auto result = NAME_MANGLED(maxArray, int32_t, ARRAY(int32_t))(&unrankedArray);
 
   EXPECT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_ai64)
+TEST(Runtime, maxArray_ai64)
 {
   std::array<int64_t, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<int64_t, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(max, int64_t, ARRAY(int64_t))(&unrankedArray);
+  auto result = NAME_MANGLED(maxArray, int64_t, ARRAY(int64_t))(&unrankedArray);
 
   EXPECT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_af32)
+TEST(Runtime, maxArray_af32)
 {
   std::array<float, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<float, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(max, float, ARRAY(float))(&unrankedArray);
+  auto result = NAME_MANGLED(maxArray, float, ARRAY(float))(&unrankedArray);
 
   EXPECT_FLOAT_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_af64)
+TEST(Runtime, maxArray_af64)
 {
   std::array<double, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<double, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(max, double, ARRAY(double))(&unrankedArray);
+  auto result = NAME_MANGLED(maxArray, double, ARRAY(double))(&unrankedArray);
 
   EXPECT_DOUBLE_EQ(result, *std::max_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, max_i1_i1)
+TEST(Runtime, maxScalars_i1_i1)
 {
   std::array<bool, 4> x = { false, false, true, true };
   std::array<bool, 4> y = { false, true, false, true };
 
   auto maxFn = [](bool x, bool y) -> bool {
-    return NAME_MANGLED(max, bool, bool, bool)(x, y);
+    return NAME_MANGLED(maxScalars, bool, bool, bool)(x, y);
   };
 
   EXPECT_EQ(maxFn(x[0], y[0]), false);
@@ -1495,13 +1495,13 @@ TEST(Runtime, max_i1_i1)
   EXPECT_EQ(maxFn(x[3], y[3]), true);
 }
 
-TEST(Runtime, max_i32_i32)
+TEST(Runtime, maxScalars_i32_i32)
 {
   std::array<int32_t, 3> x = { 0, 1, 2 };
   std::array<int32_t, 4> y = { 0, 2, 1 };
 
   auto maxFn = [](int32_t x, int32_t y) -> int32_t {
-    return NAME_MANGLED(max, int32_t, int32_t, int32_t)(x, y);
+    return NAME_MANGLED(maxScalars, int32_t, int32_t, int32_t)(x, y);
   };
 
   EXPECT_EQ(maxFn(x[0], y[0]), 0);
@@ -1509,13 +1509,13 @@ TEST(Runtime, max_i32_i32)
   EXPECT_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, max_i64_i64)
+TEST(Runtime, maxScalars_i64_i64)
 {
   std::array<int64_t, 3> x = { 0, 1, 2 };
   std::array<int64_t, 4> y = { 0, 2, 1 };
 
   auto maxFn = [](int64_t x, int64_t y) -> int64_t {
-    return NAME_MANGLED(max, int64_t, int64_t, int64_t)(x, y);
+    return NAME_MANGLED(maxScalars, int64_t, int64_t, int64_t)(x, y);
   };
 
   EXPECT_EQ(maxFn(x[0], y[0]), 0);
@@ -1523,13 +1523,13 @@ TEST(Runtime, max_i64_i64)
   EXPECT_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, max_f32_f32)
+TEST(Runtime, maxScalars_f32_f32)
 {
   std::array<float, 3> x = { 0, 1, 2 };
   std::array<float, 4> y = { 0, 2, 1 };
 
   auto maxFn = [](float x, float y) -> float {
-    return NAME_MANGLED(max, float, float, float)(x, y);
+    return NAME_MANGLED(maxScalars, float, float, float)(x, y);
   };
 
   EXPECT_FLOAT_EQ(maxFn(x[0], y[0]), 0);
@@ -1537,13 +1537,13 @@ TEST(Runtime, max_f32_f32)
   EXPECT_FLOAT_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, max_f64_f64)
+TEST(Runtime, maxScalars_f64_f64)
 {
   std::array<double, 3> x = { 0, 1, 2 };
   std::array<double, 4> y = { 0, 2, 1 };
 
   auto maxFn = [](double x, double y) -> double {
-    return NAME_MANGLED(max, double, double, double)(x, y);
+    return NAME_MANGLED(maxScalars, double, double, double)(x, y);
   };
 
   EXPECT_DOUBLE_EQ(maxFn(x[0], y[0]), 0);
@@ -1551,73 +1551,73 @@ TEST(Runtime, max_f64_f64)
   EXPECT_DOUBLE_EQ(maxFn(x[2], y[2]), 2);
 }
 
-TEST(Runtime, min_ai1)
+TEST(Runtime, minArray_ai1)
 {
   std::array<bool, 4> values = { false, true, true, false };
 
   auto array = getMemRef<bool, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(min, bool, ARRAY(bool))(&unrankedArray);
+  auto result = NAME_MANGLED(minArray, bool, ARRAY(bool))(&unrankedArray);
 
   EXPECT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_ai32)
+TEST(Runtime, minArray_ai32)
 {
   std::array<int32_t, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<int32_t, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(min, int32_t, ARRAY(int32_t))(&unrankedArray);
+  auto result = NAME_MANGLED(minArray, int32_t, ARRAY(int32_t))(&unrankedArray);
 
   EXPECT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_ai64)
+TEST(Runtime, minArray_ai64)
 {
   std::array<int64_t, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<int64_t, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(min, int64_t, ARRAY(int64_t))(&unrankedArray);
+  auto result = NAME_MANGLED(minArray, int64_t, ARRAY(int64_t))(&unrankedArray);
 
   EXPECT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_af32)
+TEST(Runtime, minArray_af32)
 {
   std::array<float, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<float, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(min, float, ARRAY(float))(&unrankedArray);
+  auto result = NAME_MANGLED(minArray, float, ARRAY(float))(&unrankedArray);
 
   EXPECT_FLOAT_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_af64)
+TEST(Runtime, minArray_af64)
 {
   std::array<double, 4> values = { 5, 0, -3, 2 };
 
   auto array = getMemRef<double, 2>(values.data(), { 2, 2 });
   auto unrankedArray = getUnrankedMemRef(array);
 
-  auto result = NAME_MANGLED(min, double, ARRAY(double))(&unrankedArray);
+  auto result = NAME_MANGLED(minArray, double, ARRAY(double))(&unrankedArray);
 
   EXPECT_DOUBLE_EQ(result, *std::min_element(values.begin(), values.end()));
 }
 
-TEST(Runtime, min_i1_i1)
+TEST(Runtime, minScalars_i1_i1)
 {
   std::array<bool, 4> x = { false, false, true, true };
   std::array<bool, 4> y = { false, true, false, true };
 
   auto minFn = [](bool x, bool y) -> bool {
-    return NAME_MANGLED(min, bool, bool, bool)(x, y);
+    return NAME_MANGLED(minScalars, bool, bool, bool)(x, y);
   };
 
   EXPECT_EQ(minFn(x[0], y[0]), false);
@@ -1626,13 +1626,13 @@ TEST(Runtime, min_i1_i1)
   EXPECT_EQ(minFn(x[3], y[3]), true);
 }
 
-TEST(Runtime, min_i32_i32)
+TEST(Runtime, minScalars_i32_i32)
 {
   std::array<int32_t, 3> x = { 0, 1, 2 };
   std::array<int32_t, 4> y = { 0, 2, 1 };
 
   auto minFn = [](int32_t x, int32_t y) -> int32_t {
-    return NAME_MANGLED(min, int32_t, int32_t, int32_t)(x, y);
+    return NAME_MANGLED(minScalars, int32_t, int32_t, int32_t)(x, y);
   };
 
   EXPECT_EQ(minFn(x[0], y[0]), 0);
@@ -1640,13 +1640,13 @@ TEST(Runtime, min_i32_i32)
   EXPECT_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, min_i64_i64)
+TEST(Runtime, minScalars_i64_i64)
 {
   std::array<int64_t, 3> x = { 0, 1, 2 };
   std::array<int64_t, 4> y = { 0, 2, 1 };
 
   auto minFn = [](int64_t x, int64_t y) -> int64_t {
-    return NAME_MANGLED(min, int64_t, int64_t, int64_t)(x, y);
+    return NAME_MANGLED(minScalars, int64_t, int64_t, int64_t)(x, y);
   };
 
   EXPECT_EQ(minFn(x[0], y[0]), 0);
@@ -1654,13 +1654,13 @@ TEST(Runtime, min_i64_i64)
   EXPECT_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, min_f32_f32)
+TEST(Runtime, minScalars_f32_f32)
 {
   std::array<float, 3> x = { 0, 1, 2 };
   std::array<float, 4> y = { 0, 2, 1 };
 
   auto minFn = [](float x, float y) -> float {
-    return NAME_MANGLED(min, float, float, float)(x, y);
+    return NAME_MANGLED(minScalars, float, float, float)(x, y);
   };
 
   EXPECT_FLOAT_EQ(minFn(x[0], y[0]), 0);
@@ -1668,13 +1668,13 @@ TEST(Runtime, min_f32_f32)
   EXPECT_FLOAT_EQ(minFn(x[2], y[2]), 1);
 }
 
-TEST(Runtime, min_f64_f64)
+TEST(Runtime, minScalars_f64_f64)
 {
   std::array<double, 3> x = { 0, 1, 2 };
   std::array<double, 4> y = { 0, 2, 1 };
 
   auto minFn = [](double x, double y) -> double {
-    return NAME_MANGLED(min, double, double, double)(x, y);
+    return NAME_MANGLED(minScalars, double, double, double)(x, y);
   };
 
   EXPECT_DOUBLE_EQ(minFn(x[0], y[0]), 0);

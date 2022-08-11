@@ -577,19 +577,19 @@ RUNTIME_FUNC_DEF(log10, float, float)
 RUNTIME_FUNC_DEF(log10, double, double)
 
 //===----------------------------------------------------------------------===//
-// max
+// maxArray
 //===----------------------------------------------------------------------===//
 
 namespace
 {
   template<typename T>
-  T max(UnrankedMemRefType<T>* array)
+  T maxArray(UnrankedMemRefType<T>* array)
   {
     DynamicMemRefType dynamicArray(*array);
     return *std::max_element(std::begin(dynamicArray), std::end(dynamicArray));
   }
 
-  bool max_i1(UnrankedMemRefType<bool>* array)
+  bool maxArray_i1(UnrankedMemRefType<bool>* array)
   {
     DynamicMemRefType dynamicArray(*array);
 
@@ -598,91 +598,91 @@ namespace
     });
   }
 
-  int32_t max_i32(UnrankedMemRefType<int32_t>* array)
+  int32_t maxArray_i32(UnrankedMemRefType<int32_t>* array)
   {
-    return ::max(array );
+    return ::maxArray(array );
   }
 
-  int32_t max_i64(UnrankedMemRefType<int64_t>* array)
+  int32_t maxArray_i64(UnrankedMemRefType<int64_t>* array)
   {
-    return ::max(array);
+    return ::maxArray(array);
   }
 
-  float max_f32(UnrankedMemRefType<float>* array)
+  float maxArray_f32(UnrankedMemRefType<float>* array)
   {
-    return ::max(array);
+    return ::maxArray(array);
   }
 
-  double max_f64(UnrankedMemRefType<double>* array)
+  double maxArray_f64(UnrankedMemRefType<double>* array)
   {
-    return ::max(array);
+    return ::maxArray(array);
   }
 }
 
-RUNTIME_FUNC_DEF(max, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(max, int32_t, ARRAY(int32_t))
-RUNTIME_FUNC_DEF(max, int64_t, ARRAY(int64_t))
-RUNTIME_FUNC_DEF(max, float, ARRAY(float))
-RUNTIME_FUNC_DEF(max, double, ARRAY(double))
+RUNTIME_FUNC_DEF(maxArray, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(maxArray, int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(maxArray, int64_t, ARRAY(int64_t))
+RUNTIME_FUNC_DEF(maxArray, float, ARRAY(float))
+RUNTIME_FUNC_DEF(maxArray, double, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
-// max
+// maxScalars
 //===----------------------------------------------------------------------===//
 
 namespace
 {
   template<typename T>
-  T max(T x, T y)
+  T maxScalars(T x, T y)
   {
     return std::max(x, y);
   }
 
-  bool max_i1(bool x, bool y)
+  bool maxScalars_i1(bool x, bool y)
   {
     return x || y;
   }
 
-  int32_t max_i32(int32_t x, int32_t y)
+  int32_t maxScalars_i32(int32_t x, int32_t y)
   {
-    return max(x, y);
+    return ::maxScalars(x, y);
   }
 
-  int64_t max_i64(int64_t x, int64_t y)
+  int64_t maxScalars_i64(int64_t x, int64_t y)
   {
-    return ::max(x, y);
+    return ::maxScalars(x, y);
   }
 
-  float max_f32(float x, float y)
+  float maxScalars_f32(float x, float y)
   {
-    return ::max(x, y);
+    return ::maxScalars(x, y);
   }
 
-  double max_f64(double x, double y)
+  double maxScalars_f64(double x, double y)
   {
-    return ::max(x, y);
+    return ::maxScalars(x, y);
   }
 }
 
-RUNTIME_FUNC_DEF(max, bool, bool, bool)
-RUNTIME_FUNC_DEF(max, int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DEF(max, int64_t, int64_t, int64_t)
-RUNTIME_FUNC_DEF(max, float, float, float)
-RUNTIME_FUNC_DEF(max, double, double, double)
+RUNTIME_FUNC_DEF(maxScalars, bool, bool, bool)
+RUNTIME_FUNC_DEF(maxScalars, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(maxScalars, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(maxScalars, float, float, float)
+RUNTIME_FUNC_DEF(maxScalars, double, double, double)
 
 //===----------------------------------------------------------------------===//
-// min
+// minArray
 //===----------------------------------------------------------------------===//
 
 namespace
 {
   template<typename T>
-  T min(UnrankedMemRefType<T>* array)
+  T minArray(UnrankedMemRefType<T>* array)
   {
     DynamicMemRefType dynamicArray(*array);
     return *std::min_element(std::begin(dynamicArray), std::end(dynamicArray));
   }
 
-  bool min_i1(UnrankedMemRefType<bool>* array)
+  bool minArray_i1(UnrankedMemRefType<bool>* array)
   {
     DynamicMemRefType dynamicArray(*array);
 
@@ -691,76 +691,76 @@ namespace
     });
   }
 
-  int32_t min_i32(UnrankedMemRefType<int32_t>* array)
+  int32_t minArray_i32(UnrankedMemRefType<int32_t>* array)
   {
-    return ::min(array);
+    return ::minArray(array);
   }
 
-  int32_t min_i64(UnrankedMemRefType<int64_t>* array)
+  int32_t minArray_i64(UnrankedMemRefType<int64_t>* array)
   {
-    return ::min(array);
+    return ::minArray(array);
   }
 
-  float min_f32(UnrankedMemRefType<float>* array)
+  float minArray_f32(UnrankedMemRefType<float>* array)
   {
-    return ::min(array);
+    return ::minArray(array);
   }
 
-  double min_f64(UnrankedMemRefType<double>* array)
+  double minArray_f64(UnrankedMemRefType<double>* array)
   {
-    return ::min(array);
+    return ::minArray(array);
   }
 }
 
-RUNTIME_FUNC_DEF(min, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(min, int32_t, ARRAY(int32_t))
-RUNTIME_FUNC_DEF(min, int64_t, ARRAY(int64_t))
-RUNTIME_FUNC_DEF(min, float, ARRAY(float))
-RUNTIME_FUNC_DEF(min, double, ARRAY(double))
+RUNTIME_FUNC_DEF(minArray, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(minArray, int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(minArray, int64_t, ARRAY(int64_t))
+RUNTIME_FUNC_DEF(minArray, float, ARRAY(float))
+RUNTIME_FUNC_DEF(minArray, double, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
-// min
+// minScalars
 //===----------------------------------------------------------------------===//
 
 namespace
 {
   template<typename T>
-  T min(T x, T y)
+  T minScalars(T x, T y)
   {
     return std::min(x, y);
   }
 
-  bool min_i1(bool x, bool y)
+  bool minScalars_i1(bool x, bool y)
   {
     return x && y;
   }
 
-  int32_t min_i32(int32_t x, int32_t y)
+  int32_t minScalars_i32(int32_t x, int32_t y)
   {
-    return ::min(x, y);
+    return ::minScalars(x, y);
   }
 
-  int64_t min_i64(int64_t x, int64_t y)
+  int64_t minScalars_i64(int64_t x, int64_t y)
   {
-    return ::min(x, y);
+    return ::minScalars(x, y);
   }
 
-  float min_f32(float x, float y)
+  float minScalars_f32(float x, float y)
   {
-    return ::min(x, y);
+    return ::minScalars(x, y);
   }
 
-  double min_f64(double x, double y)
+  double minScalars_f64(double x, double y)
   {
-    return ::min(x, y);
+    return ::minScalars(x, y);
   }
 }
 
-RUNTIME_FUNC_DEF(min, bool, bool, bool)
-RUNTIME_FUNC_DEF(min, int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DEF(min, int64_t, int64_t, int64_t)
-RUNTIME_FUNC_DEF(min, float, float, float)
-RUNTIME_FUNC_DEF(min, double, double, double)
+RUNTIME_FUNC_DEF(minScalars, bool, bool, bool)
+RUNTIME_FUNC_DEF(minScalars, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(minScalars, int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(minScalars, float, float, float)
+RUNTIME_FUNC_DEF(minScalars, double, double, double)
 
 //===----------------------------------------------------------------------===//
 // mod

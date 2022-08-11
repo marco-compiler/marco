@@ -8,6 +8,7 @@ namespace marco::codegen
   struct ModelicaToFuncOptions
   {
     unsigned int bitWidth = 64;
+    bool assertions = true;
 
     static const ModelicaToFuncOptions& getDefaultOptions();
   };

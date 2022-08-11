@@ -2710,6 +2710,71 @@ def RawReturnOp : Modelica_Op<"raw_return",
   let hasVerifier = 1;
 }
 
+def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
+    [Symbol, CallableOpInterface]>
+{
+    let summary = "Modelica runtime function.";
+
+    let description = [{
+        A Modelica function that is implemented into the runtime library.
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttrOf<FunctionType>:$function_type,
+        OptionalAttr<StrAttr>:$sym_visibility);
+
+    let builders = [
+        OpBuilder<(ins
+            "llvm::StringRef":$name, "mlir::FunctionType":$type,
+            CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+            CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
+    ];
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        //===------------------------------------------------------------------===//
+        // CallableOpInterface
+        //===------------------------------------------------------------------===//
+
+        /// Returns the region on the current operation that is callable. This may
+        /// return null in the case of an external callable object, e.g. an external
+        /// function.
+        mlir::Region* getCallableRegion() {
+            return nullptr;
+        }
+
+        /// Returns the results types that the callable region produces when
+        /// executed.
+        llvm::ArrayRef<mlir::Type> getCallableResults() {
+            return getFunctionType().getResults();
+        }
+
+        //===------------------------------------------------------------------===//
+        // FunctionOpInterface Methods
+        //===------------------------------------------------------------------===//
+
+        /// Returns the argument types of this function.
+        llvm::ArrayRef<mlir::Type> getArgumentTypes() {
+            return getFunctionType().getInputs();
+        }
+
+        /// Returns the result types of this function.
+        llvm::ArrayRef<mlir::Type> getResultTypes() {
+            return getFunctionType().getResults();
+        }
+
+        //===------------------------------------------------------------------===//
+        // SymbolOpInterface Methods
+        //===------------------------------------------------------------------===//
+
+        bool isDeclaration() {
+            return true;
+        }
+    }];
+}
+
 def Modelica_CallOp : Modelica_Op<"call",
     [CallOpInterface,
     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
@@ -2746,6 +2811,11 @@ def Modelica_CallOp : Modelica_Op<"call",
             $_state.addTypes(callee.getFunctionType().getResults());
         }]>,
         OpBuilder<(ins "RawFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
+            $_state.addOperands(args);
+            $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
+            $_state.addTypes(callee.getFunctionType().getResults());
+        }]>,
+        OpBuilder<(ins "RuntimeFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
             $_state.addOperands(args);
             $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
             $_state.addTypes(callee.getFunctionType().getResults());

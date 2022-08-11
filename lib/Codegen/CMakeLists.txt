@@ -12,7 +12,6 @@ set(SOURCES
     Lowering/Results.cpp
     Lowering/StandardFunctionLowerer.cpp
     Lowering/StatementLowerer.cpp
-    ArrayDescriptor.cpp
     Bridge.cpp
     Reference.cpp
     Runtime.cpp

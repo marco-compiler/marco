@@ -80,7 +80,11 @@ def ModelicaToFunc : Pass<"convert-modelica-to-func", "mlir::ModuleOp"> {
   let constructor = "marco::codegen::createModelicaToFuncPass()";
 
   let dependentDialects = [
-    "mlir::func::FuncDialect"
+    "mlir::arith::ArithmeticDialect",
+    "mlir::cf::ControlFlowDialect",
+    "mlir::func::FuncDialect",
+    "mlir::modelica::ModelicaDialect",
+    "mlir::memref::MemRefDialect"
   ];
 }
 
@@ -124,10 +128,7 @@ def ModelicaToMemRef : Pass<"convert-modelica-to-memref", "mlir::ModuleOp"> {
   let dependentDialects = [
     "mlir::modelica::ModelicaDialect",
     "mlir::arith::ArithmeticDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::func::FuncDialect",
     "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect",
     "mlir::memref::MemRefDialect"
   ];
 }

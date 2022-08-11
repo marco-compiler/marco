@@ -7,7 +7,7 @@ modelica.raw_function @foo(%arg0: !modelica.bool) -> !modelica.bool {
 // CHECK-LABEL: @test
 // CHECK-SAME:  (%[[arg0:.*]]: !modelica.bool) -> !modelica.bool
 // CHECK:       %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.bool to i1
-// CHECK:       %[[result:.*]] = call @boolean(%[[arg0_casted]]) : (i1) -> i1
+// CHECK:       %[[result:.*]] = call @foo(%[[arg0_casted]]) : (i1) -> i1
 // CHECK:       %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : i1 to !modelica.bool
 // CHECK:       return %[[result_casted]]
 
@@ -25,7 +25,7 @@ modelica.raw_function @foo(%arg0: !modelica.int) -> !modelica.int {
 // CHECK-LABEL: @test
 // CHECK-SAME:  (%[[arg0:.*]]: !modelica.int) -> !modelica.int
 // CHECK:       %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.int to i64
-// CHECK:       %[[result:.*]] = call @boolean(%[[arg0_casted]]) : (i64) -> i64
+// CHECK:       %[[result:.*]] = call @foo(%[[arg0_casted]]) : (i64) -> i64
 // CHECK:       %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : i64 to !modelica.int
 // CHECK:       return %[[result_casted]]
 
@@ -43,7 +43,7 @@ modelica.raw_function @foo(%arg0: !modelica.real) -> !modelica.real {
 // CHECK-LABEL: @test
 // CHECK-SAME:  (%[[arg0:.*]]: !modelica.real) -> !modelica.real
 // CHECK:       %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.real to f64
-// CHECK:       %[[result:.*]] = call @boolean(%[[arg0_casted]]) : (f64) -> f64
+// CHECK:       %[[result:.*]] = call @foo(%[[arg0_casted]]) : (f64) -> f64
 // CHECK:       %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : f64 to !modelica.real
 // CHECK:       return %[[result_casted]]
 
@@ -61,7 +61,7 @@ modelica.raw_function @foo(%arg0: !modelica.array<5x3x!modelica.int>) -> !modeli
 // CHECK-LABEL: @test
 // CHECK-SAME:  (%[[arg0:.*]]: !modelica.array<5x3x!modelica.int>) -> !modelica.array<5x3x!modelica.int>
 // CHECK:       %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.array<5x3x!modelica.int> to memref<5x3xi64>
-// CHECK:       %[[result:.*]] = call @boolean(%[[arg0_casted]]) : (memref<5x3xi64>) -> memref<5x3xi64>
+// CHECK:       %[[result:.*]] = call @foo(%[[arg0_casted]]) : (memref<5x3xi64>) -> memref<5x3xi64>
 // CHECK:       %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : memref<5x3xi64> to !modelica.array<5x3x!modelica.int>
 // CHECK:       return %[[result_casted]]
 
