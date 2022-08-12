@@ -82,6 +82,10 @@ class MemberOf<list<Type> allowedTypes> :
 
 def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
+// Simulation data type
+def ModelicaSimData : Type<CPred<"$_self.isa<::mlir::modelica::SimDataType>()">,
+                                 "sim_data", "::mlir::modelica::SimDataType">;
+
 //===----------------------------------------------------------------------===//
 // Modelica operation definitions
 //===----------------------------------------------------------------------===//
@@ -2580,7 +2584,7 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
     FunctionOpInterface,
     CallableOpInterface]>
 {
-    let summary = "Modelica raw function.";
+    let summary = "Raw function.";
 
     let description = [{
         TODO
@@ -2681,8 +2685,9 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
 def RawReturnOp : Modelica_Op<"raw_return",
     [NoSideEffect,
     HasParent<"RawFunctionOp">,
-    ReturnLike, Terminator]> {
-  let summary = "Function return operation";
+    ReturnLike, Terminator]>
+{
+  let summary = "Raw function return operation.";
 
   let description = [{
     The `modelica.return` operation represents a return operation within a raw
@@ -2713,7 +2718,7 @@ def RawReturnOp : Modelica_Op<"raw_return",
 def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
     [Symbol, CallableOpInterface]>
 {
-    let summary = "Modelica runtime function.";
+    let summary = "Runtime function.";
 
     let description = [{
         A Modelica function that is implemented into the runtime library.
@@ -2856,6 +2861,8 @@ def Modelica_CallOp : Modelica_Op<"call",
         }
     }];
 }
+
+
 
 def Modelica_AssignmentOp : Modelica_Op<"assignment",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
@@ -3107,6 +3114,28 @@ def Modelica_YieldOp : Modelica_Op<"yield",
 //===----------------------------------------------------------------------===//
 // Utility operations
 //===----------------------------------------------------------------------===//
+
+def Modelica_SimDataAllocOp : Modelica_Op<"sim_data_alloc">
+{
+    let summary = "Allocate the simulation data";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins);
+    let results = (outs ModelicaSimData:$simData);
+
+    let assemblyFormat = [{
+        attr-dict `:` qualified(type($simData))
+    }];
+
+    let builders = [
+        OpBuilder<(ins "SimDataType":$simDataType), [{
+            $_state.types.push_back(simDataType);
+        }]>
+    ];
+}
 
 def Modelica_CastOp : Modelica_Op<"cast",
     [DeclareOpInterfaceMethods<DerivableOpInterface>]>

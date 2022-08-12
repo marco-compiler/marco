@@ -1035,6 +1035,7 @@ namespace marco::codegen
     // Create the runtime data structure
     builder.setInsertionPointToEnd(bodyBlock);
 
+    // TODO
     auto runtimeDataStructType = getRuntimeDataStructType(
         builder.getContext(), modelOp.getBodyRegion().getArgumentTypes());
 

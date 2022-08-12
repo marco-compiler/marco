@@ -20,31 +20,6 @@
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static void iterateArray(
-    mlir::OpBuilder& builder,
-    mlir::Location loc,
-    mlir::Value array,
-    std::function<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)> callback)
-{
-  assert(array.getType().isa<ArrayType>());
-  auto arrayType = array.getType().cast<ArrayType>();
-
-  mlir::Value zero = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(0));
-  mlir::Value one = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(1));
-
-  llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayType.getRank(), zero);
-  llvm::SmallVector<mlir::Value, 3> upperBounds;
-  llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
-
-  for (unsigned int i = 0, e = arrayType.getRank(); i < e; ++i) {
-    mlir::Value dim = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(i));
-    upperBounds.push_back(builder.create<DimOp>(loc, array, dim));
-  }
-
-  // Create nested loops in order to iterate on each dimension of the array
-  mlir::scf::buildLoopNest(builder, loc, lowerBounds, upperBounds, steps, callback);
-}
-
 namespace
 {
   /// Generic rewrite pattern that provides some utility functions.
@@ -340,57 +315,6 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
-// Various operations
-//===----------------------------------------------------------------------===//
-
-namespace
-{
-  struct AssignmentOpScalarLowering : public ModelicaOpRewritePattern<AssignmentOp>
-  {
-    using ModelicaOpRewritePattern<AssignmentOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-
-      if (!isNumeric(op.getValue())) {
-        return rewriter.notifyMatchFailure(op, "Source value has not a numeric type");
-      }
-
-      auto destinationBaseType = op.getDestination().getType().cast<ArrayType>().getElementType();
-      mlir::Value value = rewriter.create<CastOp>(loc, destinationBaseType, op.getValue());
-      rewriter.replaceOpWithNewOp<StoreOp>(op, value, op.getDestination(), llvm::None);
-
-      return mlir::success();
-    }
-  };
-
-  struct AssignmentOpArrayLowering : public ModelicaOpRewritePattern<AssignmentOp>
-  {
-    using ModelicaOpRewritePattern<AssignmentOp>::ModelicaOpRewritePattern;
-
-    mlir::LogicalResult matchAndRewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const override
-    {
-      auto loc = op->getLoc();
-
-      if (!op.getValue().getType().isa<ArrayType>()) {
-        return rewriter.notifyMatchFailure(op, "Source value is not an array");
-      }
-
-      iterateArray(rewriter, op.getLoc(), op.getValue(),
-                   [&](mlir::OpBuilder& nestedBuilder, mlir::Location, mlir::ValueRange position) {
-                     mlir::Value value = rewriter.create<LoadOp>(loc, op.getValue(), position);
-                     value = rewriter.create<CastOp>(value.getLoc(), op.getDestination().getType().cast<ArrayType>().getElementType(), value);
-                     rewriter.create<StoreOp>(loc, value, op.getDestination(), position);
-                   });
-
-      rewriter.eraseOp(op);
-      return mlir::success();
-    }
-  };
-}
-
 static void populateModelicaToLLVMPatterns(
 		mlir::RewritePatternSet& patterns,
 		mlir::MLIRContext* context,
@@ -404,12 +328,8 @@ static void populateModelicaToLLVMPatterns(
 
   // Runtime functions operations
   patterns.insert<
-      CallOpLowering, RuntimeFunctionOpLowering>(context, typeConverter, options);
-
-  // Various operations
-  patterns.insert<
-      AssignmentOpScalarLowering,
-      AssignmentOpArrayLowering>(context, options);
+      CallOpLowering,
+      RuntimeFunctionOpLowering>(context, typeConverter, options);
 }
 
 namespace
@@ -428,8 +348,6 @@ namespace
           mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations");
           return signalPassFailure();
         }
-
-        getOperation().dump();
       }
 
     private:
@@ -440,7 +358,6 @@ namespace
 
         target.addIllegalOp<
             CastOp,
-            AssignmentOp,
             RuntimeFunctionOp>();
 
         target.addDynamicallyLegalOp<CallOp>([](CallOp op) {

@@ -311,6 +311,10 @@ static mlir::LogicalResult convertCall(
     }
   }
 
+  for (const auto& arg : callOp.getArgs()) {
+    args.push_back(arg);
+  }
+
   auto newCallOp = builder.create<CallOp>(
       callOp.getLoc(), callOp.getCallee(), resultTypes, args);
 
@@ -355,16 +359,16 @@ static mlir::LogicalResult convertToRawFunction(
   llvm::SmallVector<mlir::Type, 3> argTypes;
   llvm::SmallVector<mlir::Type, 3> resultTypes;
 
-  for (const auto& type : functionOp.getArgumentTypes()) {
-    argTypes.push_back(type);
-  }
-
   for (const auto& type : llvm::enumerate(functionOp.getResultTypes())) {
     if (promotedResults.find(type.index()) != promotedResults.end()) {
       argTypes.push_back(type.value());
     } else {
       resultTypes.push_back(type.value());
     }
+  }
+
+  for (const auto& type : functionOp.getArgumentTypes()) {
+    argTypes.push_back(type);
   }
 
   auto functionType = builder.getFunctionType(argTypes, resultTypes);
@@ -466,36 +470,26 @@ static mlir::LogicalResult convertToRawFunction(
 
   builder.create<RawReturnOp>(rawFunctionOp.getLoc(), results);
 
-  // Convert the input arguments back to the original types, so that they can be used
-  // by the cloned operations.
-  mlir::BlockAndValueMapping argumentsMapping;
-
+  // Convert the member operations
   builder.setInsertionPointToStart(&rawFunctionOp.getBody().front());
 
-  for (const auto& argument : rawFunctionOp.getArguments()) {
-    argumentsMapping.map(argument, argument);
-  }
-
-  // Convert the member operations
   for (auto& member : llvm::enumerate(inputMembers)) {
     auto mappedMember = mapping.lookup(member.value().getResult()).getDefiningOp<MemberCreateOp>();
 
-    mlir::Value replacement = rawFunctionOp.getArgument(member.index());
-    replacement = argumentsMapping.lookup(replacement);
+    mlir::Value replacement = rawFunctionOp.getArgument(promotedResults.size() + member.index());
 
     if (auto res = convertArgument(builder, mappedMember, replacement); mlir::failed(res)) {
       return res;
     }
   }
 
-  size_t movedResultArgumentPosition = inputMembers.size();
+  size_t movedResultArgumentPosition = 0;
 
   for (auto& member : llvm::enumerate(outputMembers)) {
     auto mappedMember = mapping.lookup(member.value().getResult()).getDefiningOp<MemberCreateOp>();
 
     if (auto index = member.index(); promotedResults.find(index) != promotedResults.end()) {
       mlir::Value replacement = rawFunctionOp.getArgument(movedResultArgumentPosition);
-      replacement = argumentsMapping.lookup(replacement);
 
       if (auto res = convertArgument(builder, mappedMember, replacement); mlir::failed(res)) {
         return res;

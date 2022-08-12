@@ -59,6 +59,98 @@ namespace
     }
   };
 
+  struct AssignmentOpScalarCastPattern : public ModelicaOpRewritePattern<AssignmentOp>
+  {
+    using ModelicaOpRewritePattern<AssignmentOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(AssignmentOp op) const override
+    {
+      if (!isNumeric(op.getValue())) {
+        return mlir::failure();
+      }
+
+      mlir::Type valueType = op.getValue().getType();
+      mlir::Type elementType = op.getDestination().getType().cast<ArrayType>().getElementType();
+
+      return mlir::LogicalResult::success(valueType != elementType);
+    }
+
+    void rewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+
+      mlir::Type elementType = op.getDestination().getType().cast<ArrayType>().getElementType();
+      mlir::Value value = rewriter.create<CastOp>(loc, elementType, op.getValue());
+
+      rewriter.replaceOpWithNewOp<AssignmentOp>(op, op.getDestination(), value);
+    }
+  };
+
+  struct AssignmentOpScalarLowering : public ModelicaOpConversionPattern<AssignmentOp>
+  {
+    using ModelicaOpConversionPattern<AssignmentOp>::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(AssignmentOp op) const override
+    {
+      if (!isNumeric(op.getValue())) {
+        return mlir::failure();
+      }
+
+      mlir::Type valueType = op.getValue().getType();
+      mlir::Type elementType = op.getDestination().getType().cast<ArrayType>().getElementType();
+
+      return mlir::LogicalResult::success(valueType == elementType);
+    }
+
+    void rewrite(AssignmentOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, adaptor.getValue(), adaptor.getDestination());
+    }
+  };
+
+  struct AssignmentOpArrayLowering : public ModelicaOpRewritePattern<AssignmentOp>
+  {
+    using ModelicaOpRewritePattern<AssignmentOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op->getLoc();
+
+      if (!op.getValue().getType().isa<ArrayType>()) {
+        return rewriter.notifyMatchFailure(op, "Source value is not an array");
+      }
+
+      mlir::Value destination = op.getDestination();
+
+      assert(destination.getType().isa<ArrayType>());
+      auto arrayType = destination.getType().cast<ArrayType>();
+
+      mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+      mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
+
+      llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayType.getRank(), zero);
+      llvm::SmallVector<mlir::Value, 3> upperBounds;
+      llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
+
+      for (unsigned int i = 0, e = arrayType.getRank(); i < e; ++i) {
+        mlir::Value dim = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(i));
+        upperBounds.push_back(rewriter.create<DimOp>(loc, destination, dim));
+      }
+
+      // Create nested loops in order to iterate on each dimension of the array
+      mlir::scf::buildLoopNest(
+          rewriter, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder, mlir::Location, mlir::ValueRange position) {
+            mlir::Value value = rewriter.create<LoadOp>(loc, op.getValue(), position);
+            value = rewriter.create<CastOp>(value.getLoc(), op.getDestination().getType().cast<ArrayType>().getElementType(), value);
+            rewriter.create<StoreOp>(loc, value, op.getDestination(), position);
+          });
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+  };
+
   class AllocaOpLowering : public ModelicaOpConversionPattern<AllocaOp>
   {
     using ModelicaOpConversionPattern<AllocaOp>::ModelicaOpConversionPattern;
@@ -146,11 +238,16 @@ namespace
           adaptor.getSource().getType().cast<mlir::MemRefType>(),
           offsets, sizes, strides);
 
-      rewriter.replaceOpWithNewOp<mlir::memref::SubViewOp>(
-          op,
+      mlir::Value result = rewriter.create<mlir::memref::SubViewOp>(
+          loc,
           resultType.cast<mlir::MemRefType>(),
           adaptor.getSource(),
           offsets, sizes, strides);
+
+      rewriter.replaceOpWithNewOp<mlir::memref::CastOp>(
+          op,
+          getTypeConverter()->convertType(op.getResult().getType()),
+          result);
 
       return mlir::success();
     }
@@ -291,7 +388,9 @@ namespace
         auto module = getOperation();
         mlir::ConversionTarget target(getContext());
 
-        target.addIllegalOp<ArrayCastOp>();
+        target.addIllegalOp<
+            ArrayCastOp,
+            AssignmentOp>();
 
         target.addIllegalOp<
             AllocaOp,
@@ -343,6 +442,13 @@ namespace marco::codegen
   {
     patterns.insert<
         ArrayCastOpLowering>(context, typeConverter, options);
+
+    patterns.insert<
+        AssignmentOpScalarCastPattern,
+        AssignmentOpArrayLowering>(context, options);
+
+    patterns.insert<
+        AssignmentOpScalarLowering>(context, typeConverter, options);
 
     patterns.insert<
         AllocaOpLowering,

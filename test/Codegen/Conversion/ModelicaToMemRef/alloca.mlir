@@ -1,6 +1,18 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-memref | FileCheck %s
 
-// CHECK-LABEL: @fixedSiz
+// CHECK-LABEL: @emptyShape
+// CHECK: %[[memref:.*]] = memref.alloca() : memref<i64>
+// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[memref]] : memref<i64> to !modelica.array<!modelica.int>
+// CHECK: return %[[result]]
+
+func.func @emptyShape() -> !modelica.array<!modelica.int> {
+    %0 = modelica.alloca : !modelica.array<!modelica.int>
+    func.return %0 : !modelica.array<!modelica.int>
+}
+
+// -----
+
+// CHECK-LABEL: @fixedSize
 // CHECK: %[[memref:.*]] = memref.alloca() : memref<5x3xi64>
 // CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[memref]] : memref<5x3xi64> to !modelica.array<5x3x!modelica.int>
 // CHECK: return %[[result]]

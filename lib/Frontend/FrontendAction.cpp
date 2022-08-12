@@ -314,23 +314,27 @@ namespace marco::frontend
 
     passManager.addPass(codegen::createModelicaToArithPass(modelicaToArithOptions));
 
-    // Modelica to LLVM conversion
-    codegen::ModelicaToLLVMOptions modelicaToLLVMOptions;
-    modelicaToLLVMOptions.assertions = codegenOptions.assertions;
-    modelicaToLLVMOptions.dataLayout = dataLayout;
+    // Modelica to Func conversion
+    codegen::ModelicaToFuncOptions modelicaToFuncOptions;
+    modelicaToFuncOptions.bitWidth = codegenOptions.bitWidth;
+    modelicaToFuncOptions.assertions = codegenOptions.assertions;
 
-    passManager.addPass(codegen::createModelicaToLLVMPass(modelicaToLLVMOptions));
+    passManager.addPass(codegen::createModelicaToFuncPass(modelicaToFuncOptions));
 
-    // Modelica to MemRef conversion.
-    // It is done after the LLVM conversion, because some built-in operations may
-    // lead to allocations when converted to calls to the runtime library.
-
+    // Modelica to MemRef conversion
     codegen::ModelicaToMemRefOptions modelicaToMemRefOptions;
     modelicaToMemRefOptions.bitWidth = codegenOptions.bitWidth;
     modelicaToMemRefOptions.assertions = codegenOptions.assertions;
     modelicaToMemRefOptions.dataLayout = dataLayout;
 
     passManager.addPass(codegen::createModelicaToMemRefPass(modelicaToMemRefOptions));
+
+    // Modelica to LLVM conversion
+    codegen::ModelicaToLLVMOptions modelicaToLLVMOptions;
+    modelicaToLLVMOptions.assertions = codegenOptions.assertions;
+    modelicaToLLVMOptions.dataLayout = dataLayout;
+
+    passManager.addPass(codegen::createModelicaToLLVMPass(modelicaToLLVMOptions));
 
     // IDA to LLVM conversion
     codegen::IDAToLLVMOptions idaToLLVMOptions;
@@ -342,14 +346,15 @@ namespace marco::frontend
       passManager.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToOpenMPPass());
     }
 
-    passManager.addPass(mlir::createMemRefToLLVMPass());
     passManager.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
+    passManager.addPass(mlir::createMemRefToLLVMPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
 
     mlir::LowerToLLVMOptions funcToLLVMOptions(&ci.getMLIRContext());
     funcToLLVMOptions.dataLayout = dataLayout;
     passManager.addPass(mlir::createConvertFuncToLLVMPass(funcToLLVMOptions));
 
+    passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
     passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
 
     if (!codegenOptions.debug) {

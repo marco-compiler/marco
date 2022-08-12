@@ -16,7 +16,7 @@ class Modelica_Type<string name, list<Trait> traits = [], string baseCppClass = 
     let mnemonic = ?;
 }
 
-def BooleanType : Modelica_Type<"Boolean", [MemRefElementTypeInterface]> {
+def BooleanType : Modelica_Type<"Boolean"> {
     let summary = "Boolean type";
     let mnemonic = "bool";
 
@@ -25,7 +25,7 @@ def BooleanType : Modelica_Type<"Boolean", [MemRefElementTypeInterface]> {
     }];
 }
 
-def IntegerType : Modelica_Type<"Integer", [MemRefElementTypeInterface]> {
+def IntegerType : Modelica_Type<"Integer"> {
     let summary = "Integer type";
     let mnemonic = "int";
 
@@ -34,7 +34,7 @@ def IntegerType : Modelica_Type<"Integer", [MemRefElementTypeInterface]> {
     }];
 }
 
-def RealType : Modelica_Type<"Real", [MemRefElementTypeInterface]> {
+def RealType : Modelica_Type<"Real"> {
     let summary = "Real type";
     let mnemonic = "real";
 
@@ -44,7 +44,7 @@ def RealType : Modelica_Type<"Real", [MemRefElementTypeInterface]> {
 }
 
 def ArrayType : Modelica_Type<"Array",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>, ShapedTypeInterface, MemRefElementTypeInterface],
+    [DeclareTypeInterfaceMethods<SubElementTypeInterface>, ShapedTypeInterface],
     "BaseArrayType"> {
     let summary = "Array type";
 
@@ -204,6 +204,29 @@ def MemberType : Modelica_Type<"Member",
         MemberType withType(mlir::Type type) const;
         MemberType withIOProperty(IOProperty ioProperty) const;
     }];
+
+    let genVerifyDecl = 1;
+}
+
+def SimDataType : Modelica_Type<"SimData"> {
+    let summary = "Simulation data type";
+
+    let description = [{
+        Simulation data type.
+    }];
+
+    let parameters = (ins
+        "llvm::ArrayRef<mlir::Type>":$body,
+        "mlir::Attribute":$memorySpace
+    );
+
+    let skipDefaultBuilders = 1;
+
+    let builders = [
+        TypeBuilder<(ins
+            "llvm::ArrayRef<mlir::Type>":$body,
+            CArg<"Attribute", "{}">:$memorySpace)>
+    ];
 
     let genVerifyDecl = 1;
 }

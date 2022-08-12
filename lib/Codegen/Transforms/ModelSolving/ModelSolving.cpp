@@ -807,6 +807,8 @@ namespace
           return signalPassFailure();
         }
 
+        auto module = models[0]->getParentOfType<mlir::ModuleOp>();
+
         // Erase the model operation, which has been converted to algorithmic code
         models[0].erase();
 

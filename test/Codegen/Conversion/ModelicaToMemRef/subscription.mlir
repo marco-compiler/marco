@@ -7,8 +7,9 @@
 // CHECK: %[[c3:.*]] = arith.constant 3 : index
 // CHECK: %[[c2:.*]] = arith.constant 2 : index
 // CHECK: %[[subview:.*]] = memref.subview %[[memref]][%[[c3]], %[[c2]], 0, 0, 0] [1, 1, 4, 3, 2] [1, 1, 1, 1, 1] : memref<6x5x4x3x2xi64> to memref<4x3x2xi64, #map>
-// CHECK: %[[result:.*]] = builtin.unrealized_conversion_cast %[[subview]] : memref<4x3x2xi64, #map> to !modelica.array<4x3x2x!modelica.int>
-// CHECK: return %[[result]] : !modelica.array<4x3x2x!modelica.int>
+// CHECK: %[[result:.*]] = memref.cast %[[subview]] : memref<4x3x2xi64, #map> to memref<4x3x2xi64>
+// CHECK: %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]] : memref<4x3x2xi64> to !modelica.array<4x3x2x!modelica.int>
+// CHECK: return %[[result_cast]] : !modelica.array<4x3x2x!modelica.int>
 
 func.func @foo(%arg0: !modelica.array<6x5x4x3x2x!modelica.int>) -> !modelica.array<4x3x2x!modelica.int> {
     %0 = arith.constant 3 : index

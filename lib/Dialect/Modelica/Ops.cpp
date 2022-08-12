@@ -575,37 +575,6 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
-    /*
-    llvm::SmallVector<mlir::Type, 3> argsTypes;
-    llvm::SmallVector<mlir::Type, 3> resultsTypes;
-
-    if (parser.parseColon() ||
-        parser.parseLParen()) {
-      return mlir::failure();
-    }
-
-    if (mlir::failed(parser.parseOptionalRParen())) {
-      if (parser.parseTypeList(argsTypes) ||
-          parser.parseRParen()) {
-        return mlir::failure();
-      }
-    }
-
-    if (parser.parseArrow() ||
-        parser.parseLParen()) {
-      return mlir::failure();
-    }
-
-    if (mlir::failed(parser.parseOptionalRParen())) {
-      if (parser.parseTypeList(resultsTypes) ||
-          parser.parseRParen()) {
-        return mlir::failure();
-      }
-    }
-
-    auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
-     */
-
     result.attributes.append(mlir::function_interface_impl::getTypeAttrName(), mlir::TypeAttr::get(functionType));
     result.attributes.append(mlir::SymbolTable::getVisibilityAttrName(), builder.getStringAttr("private"));
 

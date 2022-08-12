@@ -93,6 +93,8 @@ namespace marco::codegen
       /// Allocate some data on the heap.
       mlir::Value alloc(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Location loc, mlir::Type type) const;
 
+
+
       mlir::LLVM::LLVMStructType getRuntimeDataStructType(
           mlir::MLIRContext* context, mlir::TypeRange varTypes) const;
 

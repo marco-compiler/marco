@@ -1,15 +1,19 @@
-// RUN: modelica-opt %s                             \
-// RUN:     --scalarize                             \
-// RUN:     --convert-modelica-to-cf                \
-// RUN:     --convert-modelica-to-arith             \
-// RUN:     --convert-modelica-to-llvm              \
-// RUN:     --convert-scf-to-cf                     \
-// RUN:     --convert-func-to-llvm                  \
-// RUN:     --convert-cf-to-llvm                    \
-// RUN:     --reconcile-unrealized-casts            \
-// RUN: | mlir-cpu-runner                           \
-// RUN:     -e main -entry-point-result=void -O0    \
-// RUN:     -shared-libs=%runtime_lib               \
+// RUN: modelica-opt %s                                 \
+// RUN:     --scalarize                                 \
+// RUN:     --convert-modelica-to-cf                    \
+// RUN:     --convert-modelica-to-arith                 \
+// RUN:     --convert-modelica-to-func                  \
+// RUN:     --convert-modelica-to-memref                \
+// RUN:     --convert-modelica-to-llvm                  \
+// RUN:     --convert-arith-to-llvm                     \
+// RUN:     --convert-memref-to-llvm                    \
+// RUN:     --convert-scf-to-cf                         \
+// RUN:     --convert-func-to-llvm                      \
+// RUN:     --convert-cf-to-llvm                        \
+// RUN:     --reconcile-unrealized-casts                \
+// RUN: | mlir-cpu-runner                               \
+// RUN:     -e main -entry-point-result=void -O0        \
+// RUN:     -shared-libs=%runtime_lib                   \
 // RUN: | FileCheck %s
 
 // CHECK{LITERAL}: [0.000000e+00, 1.000000e+00, 2.000000e+00]
