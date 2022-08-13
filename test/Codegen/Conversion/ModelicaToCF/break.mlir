@@ -1,17 +1,40 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
 
 // CHECK:       modelica.raw_function @foo() {
-// CHECK:           br ^[[while_condition:.*]]
-// CHECK:       ^[[while_condition]]:
-// CHECK:           cond_br %{{.*}}, ^[[while_body:.*]], ^[[while_out:.*]]
+// CHECK:           cf.br ^[[while_condition:.*]]
+// CHECK-NEXT:  ^[[while_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[while_body:.*]], ^[[while_out:.*]]
 // CHECK-NEXT:  ^[[while_body:.*]]:
-// CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
-// CHECK-NEXT:  ^[[if_then]]:
-// CHECK:           br ^[[while_out]]
-// CHECK-NEXT:  ^[[if_out]]:
-// CHECK:           br ^[[while_condition]]
+// CHECK:           cf.br ^[[while_out:.*]]
 // CHECK-NEXT:  ^[[while_out]]:
-// CHECK:           br ^[[out:.*]]
+// CHECK:           cf.br ^[[out:.*]]
+// CHECK-NEXT:  ^[[out]]:
+// CHECK:           modelica.raw_return
+// CHECK-NEXT:  }
+
+modelica.function @foo : () -> () {
+    modelica.while {
+        %0 = modelica.constant #modelica.bool<true>
+        modelica.condition (%0 : !modelica.bool)
+    } do {
+        modelica.break
+    }
+}
+
+// -----
+
+// CHECK:       modelica.raw_function @foo() {
+// CHECK:           cf.br ^[[while_condition:.*]]
+// CHECK-NEXT:  ^[[while_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[while_body:.*]], ^[[while_out:.*]]
+// CHECK-NEXT:  ^[[while_body:.*]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
+// CHECK-NEXT:  ^[[if_then]]:
+// CHECK:           cf.br ^[[while_out]]
+// CHECK-NEXT:  ^[[if_out]]:
+// CHECK:           cf.br ^[[while_condition]]
+// CHECK-NEXT:  ^[[while_out]]:
+// CHECK:           cf.br ^[[out:.*]]
 // CHECK-NEXT:  ^[[out]]:
 // CHECK:           modelica.raw_return
 // CHECK-NEXT:  }
@@ -32,23 +55,23 @@ modelica.function @foo : () -> () {
 // -----
 
 // CHECK:       modelica.raw_function @foo() {
-// CHECK:           br ^[[while_1_condition:.*]]
-// CHECK:       ^[[while_1_condition]]:
-// CHECK:           cond_br %{{.*}}, ^[[while_1_body:.*]], ^[[while_1_out:.*]]
+// CHECK:           cf.br ^[[while_1_condition:.*]]
+// CHECK-NEXT:  ^[[while_1_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[while_1_body:.*]], ^[[while_1_out:.*]]
 // CHECK-NEXT:  ^[[while_1_body]]:
-// CHECK:           br ^[[while_2_condition:.*]]
-// CHECK:       ^[[while_2_condition]]:
-// CHECK:           cond_br %{{.*}}, ^[[while_2_body:.*]], ^[[while_2_out:.*]]
+// CHECK:           cf.br ^[[while_2_condition:.*]]
+// CHECK-NEXT:  ^[[while_2_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[while_2_body:.*]], ^[[while_2_out:.*]]
 // CHECK-NEXT:  ^[[while_2_body]]:
-// CHECK:           br ^[[while_2_out]]
-// CHECK-NEXT:  ^[[while_2_out]]:
-// CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
+// CHECK:           cf.cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
 // CHECK-NEXT:  ^[[if_then]]:
-// CHECK:           br ^[[while_1_out]]
+// CHECK:           cf.br ^[[while_2_out]]
 // CHECK-NEXT:  ^[[if_out]]:
-// CHECK:           br ^[[while_1_condition]]
+// CHECK:           cf.br ^[[while_2_condition]]
+// CHECK-NEXT:  ^[[while_2_out]]:
+// CHECK:           cf.br ^[[while_1_condition]]
 // CHECK-NEXT:  ^[[while_1_out]]:
-// CHECK:           br ^[[out:.*]]
+// CHECK:           cf.br ^[[out:.*]]
 // CHECK-NEXT:  ^[[out]]:
 // CHECK:           modelica.raw_return
 // CHECK-NEXT:  }
@@ -62,13 +85,11 @@ modelica.function @foo : () -> () {
             %0 = modelica.constant #modelica.bool<true>
             modelica.condition (%0 : !modelica.bool)
         } do {
-            modelica.break
-        }
+            %0 = modelica.constant #modelica.bool<true>
 
-        %0 = modelica.constant #modelica.bool<true>
-
-        modelica.if (%0 : !modelica.bool) {
-            modelica.break
+            modelica.if (%0 : !modelica.bool) {
+                modelica.break
+            }
         }
     }
 }
@@ -76,41 +97,66 @@ modelica.function @foo : () -> () {
 // -----
 
 // CHECK:       modelica.raw_function @foo() {
-// CHECK:           br ^[[while_condition:.*]]
-// CHECK:       ^[[while_condition]]:
-// CHECK:           cond_br %{{.*}}, ^[[while_body:.*]], ^[[while_out:.*]]
-// CHECK-NEXT:  ^[[while_body]]:
-// CHECK:           br ^[[for_condition:.*]]
+// CHECK:           cf.br ^[[for_condition:.*]]
 // CHECK-NEXT:  ^[[for_condition]]:
-// CHECK:           cond_br %{{.*}}, ^[[for_body:.*]], ^[[for_out:.*]]
+// CHECK:           cf.cond_br %{{.*}}, ^[[for_body:.*]], ^[[for_out:.*]]
 // CHECK-NEXT:  ^[[for_body]]:
-// CHECK:           cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
-// CHECK-NEXT:  ^[[if_then]]:
-// CHECK:           br ^[[for_out]]
-// CHECK-NEXT:  ^[[if_out]]:
-// CHECK:           br ^[[for_step:.*]]
-// CHECK-NEXT:  ^[[for_step]]:
-// CHECK:           br ^[[for_condition]]
+// CHECK:           cf.br ^[[for_out:.*]]
 // CHECK-NEXT:  ^[[for_out]]:
-// CHECK:           br ^[[while_condition]]
+// CHECK:           cf.br ^[[out:.*]]
+// CHECK-NEXT:  ^[[out]]:
+// CHECK:           modelica.raw_return
+// CHECK-NEXT:  }
+
+modelica.function @foo : () -> () {
+    modelica.for condition {
+        %0 = modelica.constant #modelica.bool<true>
+        modelica.condition (%0 : !modelica.bool)
+    } body {
+        modelica.break
+    } step {
+        modelica.yield
+    }
+}
+
+// -----
+
+// CHECK:       modelica.raw_function @foo() {
+// CHECK:           cf.br ^[[while_condition:.*]]
+// CHECK-NEXT:  ^[[while_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[while_body:.*]], ^[[while_out:.*]]
+// CHECK-NEXT:  ^[[while_body]]:
+// CHECK:           cf.br ^[[for_condition:.*]]
+// CHECK-NEXT:  ^[[for_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[for_body:.*]], ^[[for_out:.*]]
+// CHECK-NEXT:  ^[[for_body]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
+// CHECK-NEXT:  ^[[if_then]]:
+// CHECK:           cf.br ^[[for_out]]
+// CHECK-NEXT:  ^[[if_out]]:
+// CHECK:           cf.br ^[[for_step:.*]]
+// CHECK-NEXT:  ^[[for_step]]:
+// CHECK:           cf.br ^[[for_condition]]
+// CHECK-NEXT:  ^[[for_out]]:
+// CHECK:           cf.br ^[[while_condition]]
 // CHECK-NEXT:  ^[[while_out]]:
-// CHECK-NEXT:      br ^[[out:.*]]
+// CHECK-NEXT:      cf.br ^[[out:.*]]
 // CHECK-NEXT:  ^[[out]]:
 // CHECK:           modelica.raw_return
 // CHECK-NEXT:  }
 
 modelica.function @foo : () -> () {
     modelica.while {
-        %3 = modelica.constant #modelica.bool<true>
-        modelica.condition (%3 : !modelica.bool)
+        %0 = modelica.constant #modelica.bool<true>
+        modelica.condition (%0 : !modelica.bool)
     } do {
         modelica.for condition {
-            %3 = modelica.constant #modelica.bool<true>
-            modelica.condition (%3 : !modelica.bool)
+            %0 = modelica.constant #modelica.bool<true>
+            modelica.condition (%0 : !modelica.bool)
         } body {
-            %3 = modelica.constant #modelica.bool<true>
+            %0 = modelica.constant #modelica.bool<true>
 
-            modelica.if (%3 : !modelica.bool) {
+            modelica.if (%0 : !modelica.bool) {
                 modelica.break
             }
 
@@ -118,5 +164,59 @@ modelica.function @foo : () -> () {
         } step {
             modelica.yield
         }
+    }
+}
+
+// -----
+
+// CHECK:       modelica.raw_function @foo() {
+// CHECK:           cf.br ^[[for_1_condition:.*]]
+// CHECK-NEXT:  ^[[for_1_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[for_1_body:.*]], ^[[for_1_out:.*]]
+// CHECK-NEXT:  ^[[for_1_body]]:
+// CHECK:           cf.br ^[[for_2_condition:.*]]
+// CHECK-NEXT:  ^[[for_2_condition]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[for_2_body:.*]], ^[[for_2_out:.*]]
+// CHECK-NEXT:  ^[[for_2_body]]:
+// CHECK:           cf.cond_br %{{.*}}, ^[[if_then:.*]], ^[[if_out:.*]]
+// CHECK-NEXT:  ^[[if_then]]:
+// CHECK:           cf.br ^[[for_2_out]]
+// CHECK-NEXT:  ^[[if_out]]:
+// CHECK:           cf.br ^[[for_2_step:.*]]
+// CHECK-NEXT:  ^[[for_2_step]]:
+// CHECK:           cf.br ^[[for_2_condition]]
+// CHECK-NEXT:  ^[[for_2_out]]:
+// CHECK:           cf.br ^[[for_1_step:.*]]
+// CHECK-NEXT:  ^[[for_1_step]]:
+// CHECK:           cf.br ^[[for_1_condition]]
+// CHECK-NEXT:  ^[[for_1_out]]:
+// CHECK:           cf.br ^[[out:.*]]
+// CHECK-NEXT:  ^[[out]]:
+// CHECK:           modelica.raw_return
+// CHECK-NEXT:  }
+
+modelica.function @foo : () -> () {
+    modelica.for condition {
+        %0 = modelica.constant #modelica.bool<true>
+        modelica.condition (%0 : !modelica.bool)
+    } body {
+        modelica.for condition {
+            %0 = modelica.constant #modelica.bool<true>
+            modelica.condition (%0 : !modelica.bool)
+        } body {
+            %0 = modelica.constant #modelica.bool<true>
+
+            modelica.if (%0 : !modelica.bool) {
+                modelica.break
+            }
+
+            modelica.yield
+        } step {
+            modelica.yield
+        }
+
+        modelica.yield
+    } step {
+        modelica.yield
     }
 }
