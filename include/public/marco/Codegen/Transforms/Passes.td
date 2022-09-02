@@ -4,155 +4,173 @@
 include "mlir/Pass/PassBase.td"
 include "mlir/Rewrite/PassUtil.td"
 
-def ArrayDeallocation : Pass<"array-deallocation", "mlir::ModuleOp"> {
-  let summary = "Automatic array deallocation";
+def ArrayDeallocationPass : Pass<"array-deallocation", "mlir::ModuleOp"> {
+    let summary = "Automatic array deallocation";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createArrayDeallocationPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-  ];
+    let constructor = "mlir::modelica::createArrayDeallocationPass()";
 }
 
-def AutomaticDifferentiation : Pass<"auto-diff", "mlir::ModuleOp"> {
-  let summary = "Automatic differentiation of functions";
+def AutomaticDifferentiationPass : Pass<"auto-diff", "mlir::ModuleOp"> {
+    let summary = "Automatic differentiation of functions";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createAutomaticDifferentiationPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect"
-  ];
+    let constructor = "mlir::modelica::createAutomaticDifferentiationPass()";
 }
 
-def ExplicitCastInsertion : Pass<"explicit-cast-insertion", "mlir::ModuleOp"> {
-  let summary = "Explicit cast insertion";
+def ExplicitCastInsertionPass : Pass<"explicit-cast-insertion", "mlir::ModuleOp"> {
+    let summary = "Explicit cast insertion";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createExplicitCastInsertionPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::scf::SCFDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::scf::SCFDialect"
-  ];
+    let constructor = "mlir::modelica::createExplicitCastInsertionPass()";
 }
 
-def FunctionScalarization : Pass<"scalarize", "mlir::ModuleOp"> {
-  let summary = "Scalarize";
+def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp"> {
+    let summary = "Scalarize";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createFunctionScalarizationPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::scf::SCFDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::scf::SCFDialect"
-  ];
+    let options = [
+        Option<"assertions", "assertions", "bool", "true",
+               "Enable the runtime assertions">,
+    ];
+
+  let constructor = "mlir::modelica::createFunctionScalarizationPass()";
 }
 
-def ModelSolving : Pass<"solve-model", "mlir::ModuleOp"> {
-  let summary = "Solve the model";
+def ModelSolvingPass : Pass<"solve-model", "mlir::ModuleOp"> {
+    let summary = "Solve the model";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let dependentDialects = [
-    "mlir::arith::ArithmeticDialect",
-    "mlir::func::FuncDialect",
-    "mlir::ida::IDADialect",
-    "mlir::modelica::ModelicaDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect"
-  ];
+    let dependentDialects = [
+        "mlir::arith::ArithmeticDialect",
+        "mlir::func::FuncDialect",
+        "mlir::ida::IDADialect",
+        "mlir::modelica::ModelicaDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
 
-  let constructor = "marco::codegen::createAutomaticDifferentiationPass()";
+    let options = [
+        Option<"startTime", "start-time", "double", "0",
+               "Set the simulation start time">,
+        Option<"endTime", "end-time", "double", "1",
+               "Set the simulation end time">,
+        Option<"timeStep", "time-step", "double", "0.1",
+               "Set the simulation time step">,
+        Option<"emitMain", "emit-main", "bool", "true",
+               "Generate the main function of the simulation">,
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">
+    ];
+
+    let constructor = "mlir::modelica::createModelSolvingPass()";
 }
 
-def Matching : Pass<"matching", "mlir::ModuleOp"> {
-  let summary = "Perform the matching on the model";
+def MatchingTestPass : Pass<"matching", "mlir::ModuleOp"> {
+    let summary = "Perform the matching on the model";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createMatchingPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect"
-  ];
+    let constructor = "mlir::modelica::createMatchingTestPass()";
 }
 
-def Scheduling : Pass<"scheduling", "mlir::ModuleOp"> {
-  let summary = "Perform the scheduling on the model";
+def SchedulingTestPass : Pass<"scheduling", "mlir::ModuleOp"> {
+    let summary = "Perform the scheduling on the model";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createSchedulingPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect"
-  ];
+    let constructor = "mlir::modelica::createSchedulingTestPass()";
 }
 
 def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp"> {
-  let summary = "Distribute the negation operations";
+    let summary = "Distribute the negation operations";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createNegateOpDistributionPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect"
-  ];
+    let constructor = "mlir::modelica::createNegateOpDistributionPass()";
 }
 
 def MulOpDistributionPass : Pass<"distribute-mul", "mlir::ModuleOp"> {
-  let summary = "Distribute the multiplication operations";
+    let summary = "Distribute the multiplication operations";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createMulOpDistributionPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect"
-  ];
+    let constructor = "mlir::modelica::createMulOpDistributionPass()";
 }
 
 def DivOpDistributionPass : Pass<"distribute-div", "mlir::ModuleOp"> {
-  let summary = "Distribute the division operations";
+    let summary = "Distribute the division operations";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createDivOpDistributionPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect"
-  ];
+    let constructor = "mlir::modelica::createDivOpDistributionPass()";
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_PASSES_TD

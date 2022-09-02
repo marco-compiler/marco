@@ -3,134 +3,184 @@
 
 include "mlir/Pass/PassBase.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // IDA to LLVM
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-def IDAToLLVM : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
-  let summary = "IDA: conversion to LLVM dialect";
+def IDAToLLVMConversionPass : Pass<"convert-ida-to-llvm", "mlir::ModuleOp"> {
+    let summary = "IDA: conversion to LLVM dialect";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createIDAToLLVMPass()";
+    let dependentDialects = [
+        "mlir::LLVM::LLVMDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::LLVM::LLVMDialect"
-  ];
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createIDAToLLVMConversionPass()";
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica to Arith
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-def ModelicaToArith : Pass<"convert-modelica-to-arith", "mlir::ModuleOp"> {
-  let summary = "Modelica: conversion to Arith dialect";
+def ModelicaToArithConversionPass : Pass<"convert-modelica-to-arith", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to Arith dialect";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createModelicaToArithPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect"
-  ];
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"assertions", "assertions", "bool", "true",
+               "Enable the runtime assertions">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createModelicaToArithConversionPass()";
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica to CF
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-def ModelicaToCF : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
-  let summary = "Modelica: conversion to CF dialect";
+def ModelicaToCFConversionPass : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to CF dialect";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createModelicaToCFPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::func::FuncDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::LLVM::LLVMDialect",
+        "mlir::memref::MemRefDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::func::FuncDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect",
-    "mlir::memref::MemRefDialect"
-  ];
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"outputArraysPromotion", "output-arrays-promotion", "bool",
+               "true", "Promote the output static arrays to arguments">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createModelicaToCFConversionPass()";
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica to Func
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-def ModelicaToFunc : Pass<"convert-modelica-to-func", "mlir::ModuleOp"> {
-  let summary = "Modelica: conversion to Func dialect";
+def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to Func dialect";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createModelicaToFuncPass()";
+    let dependentDialects = [
+        "mlir::arith::ArithmeticDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::func::FuncDialect",
+        "mlir::modelica::ModelicaDialect",
+        "mlir::memref::MemRefDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::arith::ArithmeticDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::func::FuncDialect",
-    "mlir::modelica::ModelicaDialect",
-    "mlir::memref::MemRefDialect"
-  ];
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"assertions", "assertions", "bool", "true",
+               "Enable the runtime assertions">
+    ];
+
+    let constructor = "mlir::createModelicaToFuncConversionPass()";
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica to LLVM
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-def ModelicaToLLVM : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
-  let summary = "Modelica: conversion to LLVM dialect";
+def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to LLVM dialect";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createModelicaToLLVMPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::func::FuncDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::LLVM::LLVMDialect",
+        "mlir::memref::MemRefDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect",
-    "mlir::cf::ControlFlowDialect",
-    "mlir::func::FuncDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::LLVM::LLVMDialect",
-    "mlir::memref::MemRefDialect"
-  ];
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"assertions", "assertions", "bool", "true",
+               "Enable the runtime assertions">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createModelicaToLLVMConversionPass()";
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica to MemRef
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-def ModelicaToMemRef : Pass<"convert-modelica-to-memref", "mlir::ModuleOp"> {
-  let summary = "Modelica: conversion to MemRef dialect";
+def ModelicaToMemRefConversionPass : Pass<"convert-modelica-to-memref", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to MemRef dialect";
 
-  let description = [{
-    // TODO
-  }];
+    let description = [{
+        // TODO
+    }];
 
-  let constructor = "marco::codegen::createModelicaToMemRefPass()";
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::memref::MemRefDialect"
+    ];
 
-  let dependentDialects = [
-    "mlir::modelica::ModelicaDialect",
-    "mlir::arith::ArithmeticDialect",
-    "mlir::scf::SCFDialect",
-    "mlir::memref::MemRefDialect"
-  ];
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"assertions", "assertions", "bool", "true",
+               "Enable the runtime assertions">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">
+    ];
+
+    let constructor = "mlir::createModelicaToMemRefConversionPass()";
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD

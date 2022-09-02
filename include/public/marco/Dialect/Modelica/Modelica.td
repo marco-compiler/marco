@@ -277,7 +277,7 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
     }];
 }
 
-def Modelica_DimOp : Modelica_Op<"dim", []>
+def Modelica_DimOp : Modelica_Op<"dim", [NoSideEffect]>
 {
     let summary = "Get the size of an array dimension.";
 

@@ -8,7 +8,11 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 
-#include "marco/Codegen/Conversion/PassDetail.h"
+namespace mlir
+{
+#define GEN_PASS_DEF_IDATOLLVMCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+}
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -282,7 +286,7 @@ namespace
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(module, getIndexType());
-      mlir::Value equationRangesOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value equationRangesOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, sizeBytes).getResult();
       mlir::Value equationRangesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, equationRangesOpaquePtr);
 
       newOperands.push_back(equationRangesPtr);
@@ -316,7 +320,7 @@ namespace
 
       // Deallocate the ranges array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(module);
-      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, equationRangesOpaquePtr);
+      rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, equationRangesOpaquePtr);
 
       return mlir::success();
     }
@@ -350,7 +354,7 @@ namespace
       mlir::Value variableGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, variablePtrType, variableNullPtr, one);
       mlir::Value variableSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), variableGepPtr);
 
-      mlir::Value variableOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, variableSizeBytes, getVoidPtrType())[0];
+      mlir::Value variableOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, variableSizeBytes).getResult();
       mlir::Value variablePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, variablePtrType, variableOpaquePtr);
       rewriter.create<mlir::LLVM::StoreOp>(loc, adaptor.getVariable(), variablePtr);
 
@@ -365,7 +369,7 @@ namespace
       mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, nullPtr, numOfElements);
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
-      mlir::Value arrayDimensionsOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value arrayDimensionsOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, sizeBytes).getResult();
       mlir::Value arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsOpaquePtr);
 
       newOperands.push_back(arrayDimensionsPtr);
@@ -409,7 +413,7 @@ namespace
 
       // Deallocate the dimensions array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(module);
-      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, arrayDimensionsOpaquePtr);
+      rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, arrayDimensionsOpaquePtr);
 
       return mlir::success();
     }
@@ -444,7 +448,7 @@ namespace
       mlir::Value variableGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, variablePtrType, variableNullPtr, variableOneOffset);
       mlir::Value variableSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), variableGepPtr);
 
-      mlir::Value variableOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, variableSizeBytes, getVoidPtrType())[0];
+      mlir::Value variableOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, variableSizeBytes).getResult();
       mlir::Value variablePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, variablePtrType, variableOpaquePtr);
       rewriter.create<mlir::LLVM::StoreOp>(loc, adaptor.getVariable(), variablePtr);
 
@@ -459,7 +463,7 @@ namespace
       mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, nullPtr, numOfElements);
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
-      mlir::Value arrayDimensionsOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value arrayDimensionsOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, sizeBytes).getResult();
       mlir::Value arrayDimensionsPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, arrayDimensionsOpaquePtr);
 
       newOperands.push_back(arrayDimensionsPtr);
@@ -503,7 +507,7 @@ namespace
 
       // Deallocate the dimensions array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(module);
-      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, arrayDimensionsOpaquePtr);
+      rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, arrayDimensionsOpaquePtr);
 
       return mlir::success();
     }
@@ -541,7 +545,7 @@ namespace
       mlir::Value derivativeGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, derivativePtrType, derivativeNullPtr, derivativeOneOffset);
       mlir::Value derivativeSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), derivativeGepPtr);
 
-      mlir::Value derivativeOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, derivativeSizeBytes, getVoidPtrType())[0];
+      mlir::Value derivativeOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, derivativeSizeBytes).getResult();
       mlir::Value derivativePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, derivativePtrType, derivativeOpaquePtr);
       rewriter.create<mlir::LLVM::StoreOp>(loc, adaptor.getDerivative(), derivativePtr);
 
@@ -791,7 +795,7 @@ namespace
       mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
 
       auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
-      mlir::Value accessesOpaquePtr = mlir::LLVM::createLLVMCall(rewriter, loc, heapAllocFn, sizeBytes, getVoidPtrType())[0];
+      mlir::Value accessesOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, sizeBytes).getResult();
       mlir::Value accessesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, accessesOpaquePtr);
 
       newOperands.push_back(accessesPtr);
@@ -818,7 +822,7 @@ namespace
 
       // Deallocate the accesses array
       auto heapFreeFn = lookupOrCreateHeapFreeFn(op->getParentOfType<mlir::ModuleOp>());
-      mlir::LLVM::createLLVMCall(rewriter, loc, heapFreeFn, accessesOpaquePtr);
+      rewriter.create<mlir::LLVM::CallOp>(loc, heapFreeFn, accessesOpaquePtr);
 
       return mlir::success();
     }
@@ -1273,13 +1277,10 @@ static void populateIDAConversionPatterns(
 
 namespace marco::codegen
 {
-  class IDAToLLVMConversionPass : public IDAToLLVMBase<IDAToLLVMConversionPass>
+  class IDAToLLVMConversionPass : public mlir::impl::IDAToLLVMConversionPassBase<IDAToLLVMConversionPass>
   {
     public:
-      IDAToLLVMConversionPass(IDAToLLVMOptions options)
-          : options(std::move(options))
-      {
-      }
+      using IDAToLLVMConversionPassBase::IDAToLLVMConversionPassBase;
 
       void runOnOperation() override
       {
@@ -1322,7 +1323,7 @@ namespace marco::codegen
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
         mlir::RewritePatternSet patterns(&getContext());
-        populateIDAFunctionLikeOpsConversionPatterns(patterns, typeConverter, 64);
+        populateIDAFunctionLikeOpsConversionPatterns(patterns, typeConverter, bitWidth);
 
         if (auto status = applyPartialConversion(module, target, std::move(patterns)); mlir::failed(status)) {
           return status;
@@ -1344,7 +1345,7 @@ namespace marco::codegen
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout = options.dataLayout;
+        llvmLoweringOptions.dataLayout.reset(dataLayout);
 
         TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
@@ -1357,9 +1358,6 @@ namespace marco::codegen
 
         return mlir::success();
       }
-
-    private:
-      IDAToLLVMOptions options;
   };
 }
 
@@ -1661,19 +1659,8 @@ namespace
   };
 }
 
-namespace marco::codegen
+namespace mlir
 {
-  const IDAToLLVMOptions& IDAToLLVMOptions::getDefaultOptions()
-  {
-    static IDAToLLVMOptions options;
-    return options;
-  }
-
-  std::unique_ptr<mlir::Pass> createIDAToLLVMPass(IDAToLLVMOptions options)
-  {
-    return std::make_unique<IDAToLLVMConversionPass>(std::move(options));
-  }
-
   void populateIDAStructuralTypeConversionsAndLegality(
       mlir::LLVMTypeConverter& typeConverter,
       mlir::RewritePatternSet& patterns,
@@ -1783,5 +1770,15 @@ namespace marco::codegen
 
       return true;
     });
+  }
+
+  std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass()
+  {
+    return std::make_unique<IDAToLLVMConversionPass>();
+  }
+
+  std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass(const IDAToLLVMConversionPassOptions& options)
+  {
+    return std::make_unique<IDAToLLVMConversionPass>(options);
   }
 }

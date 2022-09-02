@@ -15,7 +15,11 @@
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-#include "marco/Codegen/Conversion/PassDetail.h"
+namespace mlir
+{
+#define GEN_PASS_DEF_MODELICATOLLVMCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+}
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -27,14 +31,7 @@ namespace
   class ModelicaOpRewritePattern : public mlir::OpRewritePattern<Op>
   {
     public:
-      ModelicaOpRewritePattern(mlir::MLIRContext* ctx, ModelicaToLLVMOptions options)
-          : mlir::OpRewritePattern<Op>(ctx),
-            options(std::move(options))
-      {
-      }
-    
-    protected:
-      ModelicaToLLVMOptions options;
+      using mlir::OpRewritePattern<Op>::OpRewritePattern;
   };
 
   /// Generic conversion pattern that provides some utility functions.
@@ -42,11 +39,7 @@ namespace
   class ModelicaOpConversionPattern : public mlir::ConvertOpToLLVMPattern<Op>
   {
     public:
-      ModelicaOpConversionPattern(mlir::MLIRContext* ctx, mlir::LLVMTypeConverter& typeConverter, ModelicaToLLVMOptions options)
-          : mlir::ConvertOpToLLVMPattern<Op>(typeConverter, 1),
-            options(std::move(options))
-      {
-      }
+      using mlir::ConvertOpToLLVMPattern<Op>::ConvertOpToLLVMPattern;
 
       mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Value value) const
       {
@@ -60,9 +53,6 @@ namespace
           value = materializeTargetConversion(builder, value);
         }
       }
-
-    protected:
-      ModelicaToLLVMOptions options;
   };
 }
 
@@ -317,30 +307,25 @@ namespace
 
 static void populateModelicaToLLVMPatterns(
 		mlir::RewritePatternSet& patterns,
-		mlir::MLIRContext* context,
-		mlir::LLVMTypeConverter& typeConverter,
-		ModelicaToLLVMOptions options)
+		mlir::LLVMTypeConverter& typeConverter)
 {
   // Cast operations
   patterns.insert<
       CastOpIntegerLowering,
-      CastOpFloatLowering>(context, typeConverter, options);
+      CastOpFloatLowering>(typeConverter);
 
   // Runtime functions operations
   patterns.insert<
       CallOpLowering,
-      RuntimeFunctionOpLowering>(context, typeConverter, options);
+      RuntimeFunctionOpLowering>(typeConverter);
 }
 
 namespace
 {
-  class ModelicaToLLVMConversionPass : public ModelicaToLLVMBase<ModelicaToLLVMConversionPass>
+  class ModelicaToLLVMConversionPass : public mlir::impl::ModelicaToLLVMConversionPassBase<ModelicaToLLVMConversionPass>
   {
     public:
-      ModelicaToLLVMConversionPass(ModelicaToLLVMOptions options)
-          : options(std::move(options))
-      {
-      }
+      using ModelicaToLLVMConversionPassBase::ModelicaToLLVMConversionPassBase;
 
       void runOnOperation() override
       {
@@ -371,31 +356,27 @@ namespace
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout = options.dataLayout;
-        mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
+        llvmLoweringOptions.dataLayout.reset(dataLayout);
+        mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
 
-        populateModelicaToLLVMPatterns(patterns, &getContext(), typeConverter, options);
+        populateModelicaToLLVMPatterns(patterns, typeConverter);
         populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
 
         return applyPartialConversion(module, target, std::move(patterns));
       }
-
-    private:
-      ModelicaToLLVMOptions options;
   };
 }
 
-namespace marco::codegen
+namespace mlir
 {
-  const ModelicaToLLVMOptions& ModelicaToLLVMOptions::getDefaultOptions()
+  std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass()
   {
-    static ModelicaToLLVMOptions options;
-    return options;
+    return std::make_unique<ModelicaToLLVMConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToLLVMPass(ModelicaToLLVMOptions options)
+  std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass(const ModelicaToLLVMConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToLLVMConversionPass>(options);
   }

@@ -5,9 +5,12 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Conversion/Passes.h"
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_FUNCTIONSCALARIZATIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 static unsigned int getVectorizationRank(VectorizableOpInterface op)
@@ -201,13 +204,10 @@ static mlir::LogicalResult scalarizeVectorizableOp(
 
 namespace
 {
-  class FunctionScalarizationPass : public FunctionScalarizationBase<FunctionScalarizationPass>
+  class FunctionScalarizationPass : public impl::FunctionScalarizationPassBase<FunctionScalarizationPass>
   {
     public:
-      FunctionScalarizationPass(FunctionScalarizationOptions options)
-          : options(std::move(options))
-      {
-      }
+      using FunctionScalarizationPassBase::FunctionScalarizationPassBase;
 
       void runOnOperation() override
       {
@@ -226,20 +226,22 @@ namespace
         });
 
         for (auto& op : vectorizedOps) {
-          if (auto res = scalarizeVectorizableOp(builder, op.first, op.second, options.assertions); mlir::failed(res)) {
+          if (auto res = scalarizeVectorizableOp(builder, op.first, op.second, assertions); mlir::failed(res)) {
             return signalPassFailure();
           }
         }
       }
-
-    private:
-      FunctionScalarizationOptions options;
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(FunctionScalarizationOptions options)
+  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass()
+  {
+    return std::make_unique<FunctionScalarizationPass>();
+  }
+
+  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(const FunctionScalarizationPassOptions& options)
   {
     return std::make_unique<FunctionScalarizationPass>(options);
   }

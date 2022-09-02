@@ -1,6 +1,8 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-arith | FileCheck %s
 
-// CHECK-LABEL: @singleResult
+// Single result
+
+// CHECK-LABEL: @foo
 // CHECK-DAG:   %[[condition:.*]] = arith.constant true
 // CHECK-DAG:   %[[trueValue:.*]] = arith.constant 0
 // CHECK-DAG:   %[[falseValue:.*]] = arith.constant 1
@@ -8,7 +10,7 @@
 // CHECK:       %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]]
 // CHECK:       return %[[result_cast]]
 
-func.func @singleResult() -> !modelica.int {
+func.func @foo() -> !modelica.int {
     %condition = modelica.constant #modelica.bool<true>
     %trueValue = modelica.constant #modelica.int<0>
     %falseValue = modelica.constant #modelica.int<1>
@@ -18,7 +20,9 @@ func.func @singleResult() -> !modelica.int {
 
 // -----
 
-// CHECK-LABEL: @multipleResults
+// Multiple results
+
+// CHECK-LABEL: @foo
 // CHECK-DAG:   %[[condition:.*]] = arith.constant true
 // CHECK-DAG:   %[[trueValue0:.*]] = arith.constant 0
 // CHECK-DAG:   %[[trueValue1:.*]] = arith.constant 1
@@ -30,7 +34,7 @@ func.func @singleResult() -> !modelica.int {
 // CHECK:       %[[result_cast:.*]] = builtin.unrealized_conversion_cast %[[result]]
 // CHECK:       return %[[result_cast]]
 
-func.func @multipleResults() -> !modelica.int {
+func.func @foo() -> !modelica.int {
     %condition = modelica.constant #modelica.bool<true>
     %trueValue0 = modelica.constant #modelica.int<0>
     %trueValue1 = modelica.constant #modelica.int<1>

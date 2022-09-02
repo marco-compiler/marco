@@ -5,7 +5,11 @@
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include <set>
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_SCHEDULINGTESTPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -28,9 +32,11 @@ static mlir::Operation* getEquationRoot(EquationInterface equation)
 
 namespace
 {
-  class SchedulingPass : public SchedulingBase<SchedulingPass>
+  class SchedulingTestPass : public mlir::modelica::impl::SchedulingTestPassBase<SchedulingTestPass>
   {
     public:
+      using SchedulingTestPassBase::SchedulingTestPassBase;
+
       void runOnOperation() override
       {
         mlir::OpBuilder builder(getOperation());
@@ -47,6 +53,7 @@ namespace
         }
       }
 
+    private:
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<MatchedEquation> matchedModel(modelOp);
@@ -189,10 +196,10 @@ namespace
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass> createSchedulingPass()
+  std::unique_ptr<mlir::Pass> createSchedulingTestPass()
   {
-    return std::make_unique<SchedulingPass>();
+    return std::make_unique<SchedulingTestPass>();
   }
 }

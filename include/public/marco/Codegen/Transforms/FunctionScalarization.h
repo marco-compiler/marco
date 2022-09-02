@@ -1,22 +1,16 @@
-#ifndef MARCO_CODEN_TRANSFORMS_FUNCTIONSCALARIZATION_H
-#define MARCO_CODEN_TRANSFORMS_FUNCTIONSCALARIZATION_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_FUNCTIONSCALARIZATION_H
+#define MARCO_CODEGEN_TRANSFORMS_FUNCTIONSCALARIZATION_H
 
 #include "mlir/Pass/Pass.h"
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-	struct FunctionScalarizationOptions
-	{
-		bool assertions = true;
+#define GEN_PASS_DECL_FUNCTIONSCALARIZATIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
 
-		static const FunctionScalarizationOptions& getDefaultOptions() {
-			static FunctionScalarizationOptions options;
-			return options;
-		}
-	};
+  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass();
 
-	std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(
-      FunctionScalarizationOptions options = FunctionScalarizationOptions::getDefaultOptions());
+  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(const FunctionScalarizationPassOptions& options);
 }
 
-#endif // MARCO_CODEN_TRANSFORMS_FUNCTIONSCALARIZATION_H
+#endif // MARCO_CODEGEN_TRANSFORMS_FUNCTIONSCALARIZATION_H

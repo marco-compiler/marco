@@ -17,7 +17,7 @@ namespace marco::codegen
     return isNumeric(value.getType());
   }
 
-  mlir::Type castToMostGenericType(
+  void castToMostGenericType(
       mlir::OpBuilder& builder,
       mlir::ValueRange values,
       llvm::SmallVectorImpl<mlir::Value>& castedValues)
@@ -75,8 +75,6 @@ namespace marco::codegen
         castedValues.push_back(value);
       }
     }
-
-    return types[0];
   }
 
   std::vector<mlir::Value> getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value array)

@@ -256,31 +256,33 @@ namespace marco::frontend
     // Create the pass manager and populate it with the appropriate transformations
     mlir::PassManager passManager(&ci.getMLIRContext());
 
-    passManager.addPass(codegen::createAutomaticDifferentiationPass());
+    passManager.addPass(mlir::modelica::createAutomaticDifferentiationPass());
 
     // Model solving
-    codegen::ModelSolvingOptions modelSolvingOptions;
+    mlir::modelica::ModelSolvingPassOptions modelSolvingOptions;
 
     modelSolvingOptions.startTime = simulationOptions.startTime;
     modelSolvingOptions.endTime = simulationOptions.endTime;
     modelSolvingOptions.timeStep = simulationOptions.timeStep;
 
     modelSolvingOptions.emitMain = codegenOptions.generateMain;
-    modelSolvingOptions.variableFilter = &ci.getFrontendOptions().variableFilter;
 
-    modelSolvingOptions.solver = simulationOptions.solver;
+    marco::codegen::IDAOptions idaOptions;
+    idaOptions.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
 
-    modelSolvingOptions.ida.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
-
-    passManager.addPass(codegen::createModelSolvingPass(modelSolvingOptions));
+    passManager.addPass(mlir::modelica::createModelSolvingPass(
+        modelSolvingOptions,
+        &ci.getFrontendOptions().variableFilter,
+        simulationOptions.solver,
+        idaOptions));
 
     // Functions scalarization pass
-    codegen::FunctionScalarizationOptions functionScalarizationOptions;
+    mlir::modelica::FunctionScalarizationPassOptions functionScalarizationOptions;
     functionScalarizationOptions.assertions = codegenOptions.assertions;
-    passManager.addPass(codegen::createFunctionScalarizationPass(functionScalarizationOptions));
+    passManager.addPass(mlir::modelica::createFunctionScalarizationPass(functionScalarizationOptions));
 
     // Insert explicit casts where needed
-    passManager.addPass(codegen::createExplicitCastInsertionPass());
+    passManager.addPass(mlir::modelica::createExplicitCastInsertionPass());
 
     passManager.addPass(mlir::createCanonicalizerPass());
 
@@ -290,16 +292,15 @@ namespace marco::frontend
     }
 
     // Place the deallocation instructions for the arrays
-    passManager.addPass(codegen::createArrayDeallocationPass());
+    passManager.addPass(mlir::modelica::createArrayDeallocationPass());
 
     // Modelica to CF conversion
-    codegen::ModelicaToCFOptions modelicaToCFOptions;
+    mlir::ModelicaToCFConversionPassOptions modelicaToCFOptions;
     modelicaToCFOptions.bitWidth = codegenOptions.bitWidth;
     modelicaToCFOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
-    modelicaToCFOptions.inlining = codegenOptions.inlining;
-    modelicaToCFOptions.dataLayout = dataLayout;
+    modelicaToCFOptions.dataLayout = dataLayoutString;
 
-    passManager.addPass(codegen::createModelicaToCFPass(modelicaToCFOptions));
+    passManager.addPass(mlir::createModelicaToCFConversionPass(modelicaToCFOptions));
 
     if (codegenOptions.inlining) {
       // Inline the functions with the 'inline' annotation
@@ -307,39 +308,39 @@ namespace marco::frontend
     }
 
     // Modelica to Arith conversion
-    codegen::ModelicaToArithOptions modelicaToArithOptions;
+    mlir::ModelicaToArithConversionPassOptions modelicaToArithOptions;
     modelicaToArithOptions.bitWidth = codegenOptions.bitWidth;
     modelicaToArithOptions.assertions = codegenOptions.assertions;
-    modelicaToArithOptions.dataLayout = dataLayout;
+    modelicaToArithOptions.dataLayout = dataLayoutString;
 
-    passManager.addPass(codegen::createModelicaToArithPass(modelicaToArithOptions));
+    passManager.addPass(mlir::createModelicaToArithConversionPass(modelicaToArithOptions));
 
     // Modelica to Func conversion
-    codegen::ModelicaToFuncOptions modelicaToFuncOptions;
+    mlir::ModelicaToFuncConversionPassOptions modelicaToFuncOptions;
     modelicaToFuncOptions.bitWidth = codegenOptions.bitWidth;
     modelicaToFuncOptions.assertions = codegenOptions.assertions;
 
-    passManager.addPass(codegen::createModelicaToFuncPass(modelicaToFuncOptions));
+    passManager.addPass(mlir::createModelicaToFuncConversionPass(modelicaToFuncOptions));
 
     // Modelica to MemRef conversion
-    codegen::ModelicaToMemRefOptions modelicaToMemRefOptions;
+    mlir::ModelicaToMemRefConversionPassOptions modelicaToMemRefOptions;
     modelicaToMemRefOptions.bitWidth = codegenOptions.bitWidth;
     modelicaToMemRefOptions.assertions = codegenOptions.assertions;
-    modelicaToMemRefOptions.dataLayout = dataLayout;
+    modelicaToMemRefOptions.dataLayout = dataLayoutString;
 
-    passManager.addPass(codegen::createModelicaToMemRefPass(modelicaToMemRefOptions));
+    passManager.addPass(mlir::createModelicaToMemRefConversionPass(modelicaToMemRefOptions));
 
     // Modelica to LLVM conversion
-    codegen::ModelicaToLLVMOptions modelicaToLLVMOptions;
+    mlir::ModelicaToLLVMConversionPassOptions modelicaToLLVMOptions;
     modelicaToLLVMOptions.assertions = codegenOptions.assertions;
-    modelicaToLLVMOptions.dataLayout = dataLayout;
+    modelicaToLLVMOptions.dataLayout = dataLayoutString;
 
-    passManager.addPass(codegen::createModelicaToLLVMPass(modelicaToLLVMOptions));
+    passManager.addPass(mlir::createModelicaToLLVMConversionPass(modelicaToLLVMOptions));
 
     // IDA to LLVM conversion
-    codegen::IDAToLLVMOptions idaToLLVMOptions;
-    idaToLLVMOptions.dataLayout = dataLayout;
-    passManager.addPass(codegen::createIDAToLLVMPass());
+    mlir::IDAToLLVMConversionPassOptions idaToLLVMOptions;
+    idaToLLVMOptions.dataLayout = dataLayoutString;
+    passManager.addPass(mlir::createIDAToLLVMConversionPass());
 
     if (codegenOptions.omp) {
       // Use OpenMP for parallel loops

@@ -142,7 +142,7 @@ namespace marco::codegen
     assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
 
     mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(
-        loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
+        loc, structTypes[position], structValue, position);
 
     return getTypeConverter()->materializeSourceConversion(builder, loc, type, var);
   }
@@ -174,7 +174,7 @@ namespace marco::codegen
         instance.getLoc(),
         runtimeData,
         materializeTargetConversion(builder, instance),
-        builder.getIndexArrayAttr(idaInstancePosition));
+        idaInstancePosition);
   }
 
   mlir::Value IDASolver::setIDAVariable(
@@ -186,7 +186,7 @@ namespace marco::codegen
         variable.getLoc(),
         runtimeData,
         materializeTargetConversion(builder, variable),
-        builder.getIndexArrayAttr(position + variablesOffset));
+        position + variablesOffset);
   }
 
   mlir::LogicalResult IDASolver::processInitFunction(
@@ -943,7 +943,9 @@ namespace marco::codegen
         // on a scalar value.
 
         if (loadOp.getArray().getType().cast<ArrayType>().isScalar()) {
-          if (auto memberLoadOp = mapping.lookup(loadOp.getArray()).getDefiningOp<MemberLoadOp>()) {
+          mlir::Value mapped = mapping.lookup(mlir::Value(loadOp.getArray()));
+
+          if (auto memberLoadOp = mapped.getDefiningOp<MemberLoadOp>()) {
             mapping.map(loadOp.getResult(), memberLoadOp.getResult());
             continue;
           }

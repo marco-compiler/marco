@@ -4,20 +4,14 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/IR/DataLayout.h"
 
-namespace marco::codegen
+namespace mlir
 {
-	struct ModelicaToLLVMOptions
-	{
-    unsigned int bitWidth = 64;
-		bool assertions = true;
+#define GEN_PASS_DECL_MODELICATOLLVMCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
 
-    llvm::DataLayout dataLayout = llvm::DataLayout("");
+  std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass();
 
-		static const ModelicaToLLVMOptions& getDefaultOptions();
-	};
-
-	std::unique_ptr<mlir::Pass> createModelicaToLLVMPass(
-      ModelicaToLLVMOptions options = ModelicaToLLVMOptions::getDefaultOptions());
+  std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass(const ModelicaToLLVMConversionPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_MODELICATOLLVM_MODELICATOLLVM_H

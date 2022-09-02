@@ -4,9 +4,12 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/STLExtras.h"
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_EXPLICITCASTINSERTIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace
@@ -155,18 +158,13 @@ namespace
         return conditionType.isa<BooleanType>();
       });
     }
-
-    /*
-    bool isDynamicallyLegal(mlir::Operation* op) const override
-    {
-      return false;
-    }
-     */
   };
 
-  class ExplicitCastInsertionPass: public ExplicitCastInsertionBase<ExplicitCastInsertionPass>
+  class ExplicitCastInsertionPass: public impl::ExplicitCastInsertionPassBase<ExplicitCastInsertionPass>
   {
     public:
+      using ExplicitCastInsertionPassBase::ExplicitCastInsertionPassBase;
+
       void runOnOperation() override
       {
         auto module = getOperation();
@@ -186,7 +184,7 @@ namespace
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass()
   {

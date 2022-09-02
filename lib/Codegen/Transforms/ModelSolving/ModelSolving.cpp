@@ -22,7 +22,11 @@
 #include <memory>
 #include <queue>
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_MODELSOLVINGPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -636,13 +640,25 @@ namespace
   /// Model solving pass.
   /// Its objective is to convert a descriptive (and thus not sequential) model into an
   /// algorithmic one and to create the functions to be called during the simulation.
-  class ModelSolvingPass: public ModelSolvingBase<ModelSolvingPass>
+  class ModelSolvingPass: public mlir::modelica::impl::ModelSolvingPassBase<ModelSolvingPass>
   {
     public:
-      ModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
-          : options(std::move(options)),
-            bitWidth(std::move(bitWidth))
+      ModelSolvingPass() : ModelSolvingPassBase()
       {
+        variableFilter = new VariableFilter();
+        ownVariableFilter = true;
+      }
+
+      ModelSolvingPass(const ModelSolvingPassOptions& options, VariableFilter* variableFilter, Solver solver, IDAOptions idaOptions)
+          : ModelSolvingPassBase(options), variableFilter(variableFilter), ownVariableFilter(false), solver(solver), idaOptions(idaOptions)
+      {
+      }
+
+      ~ModelSolvingPass()
+      {
+        if (ownVariableFilter) {
+          delete variableFilter;
+        }
       }
 
       void runOnOperation() override
@@ -775,7 +791,7 @@ namespace
         // Create the simulation functions
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
         marco::codegen::TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-        ModelConverter modelConverter(options, typeConverter);
+        ModelConverter modelConverter(typeConverter, variableFilter, solver, startTime, endTime, timeStep, idaOptions);
 
         if (mlir::failed(modelConverter.createGetModelNameFunction(builder, models[0]))) {
           models[0].emitError("Could not create the '" + ModelConverter::getModelNameFunctionName + "' function");
@@ -792,7 +808,7 @@ namespace
           return signalPassFailure();
         }
 
-        if (options.emitMain) {
+        if (emitMain) {
           if (mlir::failed(modelConverter.createMainFunction(builder, models[0]))) {
             models[0].emitError("Could not create the '" + ModelConverter::mainFunctionName + "' function");
             return signalPassFailure();
@@ -806,8 +822,6 @@ namespace
         if (mlir::failed(modelConverter.convertMainModel(builder, scheduledModel))) {
           return signalPassFailure();
         }
-
-        auto module = models[0]->getParentOfType<mlir::ModuleOp>();
 
         // Erase the model operation, which has been converted to algorithmic code
         models[0].erase();
@@ -1356,7 +1370,7 @@ namespace
 
         // Resolve the algebraic loops
         if (auto res = solveCycles(matchedModel, builder); mlir::failed(res)) {
-          if (options.solver != Solver::ida) {
+          if (solver != Solver::ida) {
             // Check if the selected solver can deal with cycles. If not, fail.
             return res;
           }
@@ -1408,7 +1422,7 @@ namespace
 
         // Resolve the algebraic loops
         if (auto res = solveCycles(matchedModel, builder); mlir::failed(res)) {
-          if (options.solver != Solver::ida) {
+          if (solver != Solver::ida) {
             // Check if the selected solver can deal with cycles. If not, fail.
             return res;
           }
@@ -1462,15 +1476,26 @@ namespace
       }
 
     private:
-      ModelSolvingOptions options;
-      unsigned int bitWidth;
+      VariableFilter* variableFilter;
+      bool ownVariableFilter;
+      Solver solver;
+      IDAOptions idaOptions;
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass> createModelSolvingPass(ModelSolvingOptions options, unsigned int bitWidth)
+  std::unique_ptr<mlir::Pass> createModelSolvingPass()
   {
-    return std::make_unique<ModelSolvingPass>(options, bitWidth);
+    return std::make_unique<ModelSolvingPass>();
+  }
+
+  std::unique_ptr<mlir::Pass> createModelSolvingPass(
+      const ModelSolvingPassOptions& options,
+      VariableFilter* variableFilter,
+      marco::codegen::Solver solver,
+      marco::codegen::IDAOptions idaOptions)
+  {
+    return std::make_unique<ModelSolvingPass>(options, variableFilter, solver, idaOptions);
   }
 }

@@ -1,11 +1,14 @@
-#ifndef MARCO_CODEN_TRANSFORMS_EXPLICITCASTINSERTION_H
-#define MARCO_CODEN_TRANSFORMS_EXPLICITCASTINSERTION_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_EXPLICITCASTINSERTION_H
+#define MARCO_CODEGEN_TRANSFORMS_EXPLICITCASTINSERTION_H
 
 #include "mlir/Pass/Pass.h"
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-	std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
+#define GEN_PASS_DECL_EXPLICITCASTINSERTIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+
+  std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
 }
 
-#endif // MARCO_CODEN_TRANSFORMS_EXPLICITCASTINSERTION_H
+#endif // MARCO_CODEGEN_TRANSFORMS_EXPLICITCASTINSERTION_H

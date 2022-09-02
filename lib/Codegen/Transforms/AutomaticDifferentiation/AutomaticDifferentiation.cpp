@@ -6,7 +6,11 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/ADT/STLExtras.h"
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_AUTOMATICDIFFERENTIATIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -104,9 +108,11 @@ namespace marco::codegen
 
 namespace
 {
-  class AutomaticDifferentiationPass : public AutomaticDifferentiationBase<AutomaticDifferentiationPass>
+  class AutomaticDifferentiationPass : public impl::AutomaticDifferentiationPassBase<AutomaticDifferentiationPass>
   {
     public:
+      using AutomaticDifferentiationPassBase::AutomaticDifferentiationPassBase;
+
       void runOnOperation() override
       {
         if (mlir::failed(createFullDerFunctions())) {
@@ -125,6 +131,7 @@ namespace
         }
       }
 
+    private:
       mlir::LogicalResult createFullDerFunctions()
       {
         auto module = getOperation();
@@ -247,7 +254,7 @@ namespace
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass()
   {

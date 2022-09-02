@@ -52,7 +52,14 @@ namespace marco::codegen
       };
 
     public:
-      ModelConverter(ModelSolvingOptions options, mlir::LLVMTypeConverter& typeConverter);
+      ModelConverter(
+        mlir::LLVMTypeConverter& typeConverter,
+        VariableFilter* variableFilter,
+        Solver solver,
+        double startTime,
+        double endTime,
+        double timeStep,
+        IDAOptions idaOptions);
 
       /// Create the function to be called to retrieve the name of the compiled model.
       mlir::LogicalResult createGetModelNameFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
@@ -92,8 +99,6 @@ namespace marco::codegen
 
       /// Allocate some data on the heap.
       mlir::Value alloc(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Location loc, mlir::Type type) const;
-
-
 
       mlir::LLVM::LLVMStructType getRuntimeDataStructType(
           mlir::MLIRContext* context, mlir::TypeRange varTypes) const;
@@ -278,8 +283,13 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model) const;
 
     private:
-      ModelSolvingOptions options;
       mlir::LLVMTypeConverter* typeConverter;
+      VariableFilter* variableFilter;
+      Solver solver;
+      double startTime;
+      double endTime;
+      double timeStep;
+      IDAOptions idaOptions;
   };
 }
 

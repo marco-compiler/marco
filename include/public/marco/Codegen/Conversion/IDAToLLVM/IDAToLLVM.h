@@ -6,22 +6,19 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/IR/DataLayout.h"
 
-namespace marco::codegen
+namespace mlir
 {
-  struct IDAToLLVMOptions
-  {
-    llvm::DataLayout dataLayout = llvm::DataLayout("");
-
-    static const IDAToLLVMOptions& getDefaultOptions();
-  };
+#define GEN_PASS_DECL_IDATOLLVMCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
 
   void populateIDAStructuralTypeConversionsAndLegality(
       mlir::LLVMTypeConverter& typeConverter,
       mlir::RewritePatternSet& patterns,
       mlir::ConversionTarget& target);
 
-  std::unique_ptr<mlir::Pass> createIDAToLLVMPass(
-      IDAToLLVMOptions options = IDAToLLVMOptions::getDefaultOptions());
+  std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
+
+  std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass(const IDAToLLVMConversionPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_IDATOLLVM_IDATOLLVM_H

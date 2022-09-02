@@ -2,7 +2,7 @@
 
 // CHECK-DEFAULT-LABEL: [Simulation]
 // CHECK-DEFAULT: End time
-// CHECK-DEFAULT-SAME: 1.000000e+01
+// CHECK-DEFAULT-SAME: 1.000000e+00
 
 // RUN: marco-driver --init-only --end-time=2 | FileCheck %s --check-prefix="CHECK-CUSTOM"
 

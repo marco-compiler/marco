@@ -10,7 +10,11 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-#include "marco/Codegen/Conversion/PassDetail.h"
+namespace mlir
+{
+#define GEN_PASS_DEF_MODELICATOFUNCCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+}
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -57,15 +61,7 @@ namespace
   template<typename Op>
   class ModelicaOpRewritePattern : public mlir::OpRewritePattern<Op>
   {
-    public:
-      ModelicaOpRewritePattern(mlir::MLIRContext* ctx, ModelicaToFuncOptions options)
-          : mlir::OpRewritePattern<Op>(ctx),
-            options(std::move(options))
-      {
-      }
-
-    protected:
-      ModelicaToFuncOptions options;
+    using mlir::OpRewritePattern<Op>::OpRewritePattern;
   };
 
   /// Generic conversion pattern that provides some utility functions.
@@ -73,12 +69,9 @@ namespace
   class ModelicaOpConversionPattern : public mlir::OpConversionPattern<Op>
   {
     public:
-      ModelicaOpConversionPattern(mlir::MLIRContext* context, mlir::TypeConverter& typeConverter, ModelicaToFuncOptions options)
-          : mlir::OpConversionPattern<Op>(typeConverter, context),
-            options(std::move(options))
-      {
-      }
+      using mlir::OpConversionPattern<Op>::OpConversionPattern;
 
+    protected:
       mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value) const
       {
         mlir::Type type = this->getTypeConverter()->convertType(value.getType());
@@ -92,7 +85,6 @@ namespace
         }
       }
 
-    protected:
       mlir::Value convertToUnrankedMemRef(
         mlir::OpBuilder& builder, mlir::Location loc, mlir::Value memRef) const
       {
@@ -106,9 +98,6 @@ namespace
 
         return unrankedMemRef;
       }
-
-    protected:
-      ModelicaToFuncOptions options;
   };
 }
 
@@ -118,9 +107,9 @@ namespace
 
 namespace
 {
-  struct RawFunctionOpLowering : public mlir::OpConversionPattern<RawFunctionOp>
+  struct RawFunctionOpLowering : public ModelicaOpConversionPattern<RawFunctionOp>
   {
-    using mlir::OpConversionPattern<RawFunctionOp>::OpConversionPattern;
+    using ModelicaOpConversionPattern<RawFunctionOp>::ModelicaOpConversionPattern;
 
     mlir::LogicalResult matchAndRewrite(RawFunctionOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
@@ -2095,75 +2084,83 @@ namespace
     }
   };
 
-  struct SymmetricOpLowering : public ModelicaOpConversionPattern<SymmetricOp>
+  class SymmetricOpLowering : public ModelicaOpConversionPattern<SymmetricOp>
   {
-    using ModelicaOpConversionPattern<SymmetricOp>::ModelicaOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(SymmetricOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-
-      mlir::Value sourceMatrixValue = nullptr;
-
-      auto sourceMatrixFn = [&]() -> mlir::Value {
-        if (sourceMatrixValue == nullptr) {
-          sourceMatrixValue = getTypeConverter()->materializeSourceConversion(
-              rewriter, op.getMatrix().getLoc(), op.getMatrix().getType(), adaptor.getMatrix());
-        }
-
-        return sourceMatrixValue;
-      };
-
-      if (options.assertions) {
-        // Check if the matrix is a square one
-        if (!op.getMatrix().getType().cast<ArrayType>().hasStaticShape()) {
-          mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
-          mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
-          mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, loc, rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
-          mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, loc, rewriter.create<DimOp>(loc, sourceMatrixFn(), zero));
-          mlir::Value condition = rewriter.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
-          rewriter.create<mlir::cf::AssertOp>(loc, condition, rewriter.getStringAttr("Base matrix is not squared"));
-        }
+    public:
+      SymmetricOpLowering(mlir::TypeConverter& typeConverter, mlir::MLIRContext* context, bool assertions)
+          : ModelicaOpConversionPattern(typeConverter, context),
+            assertions(assertions)
+      {
       }
 
-      llvm::SmallVector<mlir::Value, 2> newOperands;
+      mlir::LogicalResult matchAndRewrite(SymmetricOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        auto loc = op.getLoc();
 
-      // Result
-      auto resultType = op.getResult().getType().cast<ArrayType>();
-      assert(resultType.getRank() == 2);
-      llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+        mlir::Value sourceMatrixValue = nullptr;
 
-      if (!resultType.hasStaticShape()) {
-        for (const auto& dimension : llvm::enumerate(resultType.getShape())) {
-          if (dimension.value() == ArrayType::kDynamicSize) {
-            mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(dimension.index()));
-            dynamicDimensions.push_back(rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
+        auto sourceMatrixFn = [&]() -> mlir::Value {
+          if (sourceMatrixValue == nullptr) {
+            sourceMatrixValue = getTypeConverter()->materializeSourceConversion(
+                rewriter, op.getMatrix().getLoc(), op.getMatrix().getType(), adaptor.getMatrix());
+          }
+
+          return sourceMatrixValue;
+        };
+
+        if (assertions) {
+          // Check if the matrix is a square one
+          if (!op.getMatrix().getType().cast<ArrayType>().hasStaticShape()) {
+            mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+            mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
+            mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, loc, rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
+            mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, loc, rewriter.create<DimOp>(loc, sourceMatrixFn(), zero));
+            mlir::Value condition = rewriter.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
+            rewriter.create<mlir::cf::AssertOp>(loc, condition, rewriter.getStringAttr("Base matrix is not squared"));
           }
         }
+
+        llvm::SmallVector<mlir::Value, 2> newOperands;
+
+        // Result
+        auto resultType = op.getResult().getType().cast<ArrayType>();
+        assert(resultType.getRank() == 2);
+        llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+
+        if (!resultType.hasStaticShape()) {
+          for (const auto& dimension : llvm::enumerate(resultType.getShape())) {
+            if (dimension.value() == ArrayType::kDynamicSize) {
+              mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(dimension.index()));
+              dynamicDimensions.push_back(rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
+            }
+          }
+        }
+
+        mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
+        result = materializeTargetConversion(rewriter, loc, result);
+        result = convertToUnrankedMemRef(rewriter, loc, result);
+
+        newOperands.push_back(result);
+
+        // Matrix
+        mlir::Value matrix = adaptor.getMatrix();
+        matrix = convertToUnrankedMemRef(rewriter, loc, matrix);
+
+        newOperands.push_back(matrix);
+
+        // Create the call to the runtime library
+        auto callee = getOrDeclareRuntimeFunction(
+            rewriter,
+            op->getParentOfType<mlir::ModuleOp>(),
+            "symmetric",
+            llvm::None, newOperands);
+
+        rewriter.create<CallOp>(loc, callee, newOperands);
+        return mlir::success();
       }
 
-      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
-      result = materializeTargetConversion(rewriter, loc, result);
-      result = convertToUnrankedMemRef(rewriter, loc, result);
-
-      newOperands.push_back(result);
-
-      // Matrix
-      mlir::Value matrix = adaptor.getMatrix();
-      matrix = convertToUnrankedMemRef(rewriter, loc, matrix);
-
-      newOperands.push_back(matrix);
-
-      // Create the call to the runtime library
-      auto callee = getOrDeclareRuntimeFunction(
-          rewriter,
-          op->getParentOfType<mlir::ModuleOp>(),
-          "symmetric",
-          llvm::None, newOperands);
-
-      rewriter.create<CallOp>(loc, callee, newOperands);
-      return mlir::success();
-    }
+    private:
+      bool assertions;
   };
 
   struct TanOpCastPattern : public ModelicaOpRewritePattern<TanOp>
@@ -2489,7 +2486,7 @@ static void populateModelicaToFuncPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::MLIRContext* context,
     mlir::TypeConverter& typeConverter,
-    ModelicaToFuncOptions options)
+    bool assertions)
 {
   // Func operations
   patterns.insert<
@@ -2499,7 +2496,7 @@ static void populateModelicaToFuncPatterns(
 
   // Math operations
   patterns.insert<
-      PowOpLowering>(context, typeConverter, options);
+      PowOpLowering>(typeConverter, context, assertions);
 
   // Built-in functions
   patterns.insert<
@@ -2534,7 +2531,7 @@ static void populateModelicaToFuncPatterns(
       SumOpCastPattern,
       TanOpCastPattern,
       TanhOpCastPattern,
-      ZerosOpCastPattern>(context, options);
+      ZerosOpCastPattern>(context);
 
   patterns.insert<
       AbsOpLowering,
@@ -2567,28 +2564,29 @@ static void populateModelicaToFuncPatterns(
       SinOpLowering,
       SinhOpLowering,
       SqrtOpLowering,
-      SumOpLowering,
-      SymmetricOpLowering,
+      SumOpLowering>(typeConverter, context);
+
+  patterns.insert<
+      SymmetricOpLowering>(typeConverter, context, assertions);
+
+  patterns.insert<
       TanOpLowering,
       TanhOpLowering,
       TransposeOpLowering,
-      ZerosOpLowering>(context, typeConverter, options);
+      ZerosOpLowering>(typeConverter, context);
 
   // Utility operations
   patterns.insert<
       ArrayFillOpLowering,
-      PrintOpLowering>(context, typeConverter, options);
+      PrintOpLowering>(typeConverter, context);
 }
 
 namespace
 {
-  class ModelicaToFuncConversionPass : public ModelicaToFuncBase<ModelicaToFuncConversionPass>
+  class ModelicaToFuncConversionPass : public mlir::impl::ModelicaToFuncConversionPassBase<ModelicaToFuncConversionPass>
   {
     public:
-      ModelicaToFuncConversionPass(ModelicaToFuncOptions options)
-          : options(std::move(options))
-      {
-      }
+      using ModelicaToFuncConversionPassBase::ModelicaToFuncConversionPassBase;
 
       void runOnOperation() override
       {
@@ -2663,28 +2661,24 @@ namespace
             ArrayFillOp,
             PrintOp>();
 
-        mlir::modelica::TypeConverter typeConverter(options.bitWidth);
+        mlir::modelica::TypeConverter typeConverter(bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
-        populateModelicaToFuncPatterns(patterns, &getContext(), typeConverter, options);
+        populateModelicaToFuncPatterns(patterns, &getContext(), typeConverter, assertions);
 
         return applyPartialConversion(module, target, std::move(patterns));
       }
-
-      private:
-        ModelicaToFuncOptions options;
     };
 }
 
-namespace marco::codegen
+namespace mlir
 {
-  const ModelicaToFuncOptions& ModelicaToFuncOptions::getDefaultOptions()
+  std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass()
   {
-    static ModelicaToFuncOptions options;
-    return options;
+    return std::make_unique<ModelicaToFuncConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToFuncPass(ModelicaToFuncOptions options)
+  std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass(const ModelicaToFuncConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToFuncConversionPass>(options);
   }

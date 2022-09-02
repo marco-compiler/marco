@@ -8,23 +8,19 @@ namespace marco::frontend
 {
   struct IDAOptions
   {
-    double relativeTolerance;
-    double absoluteTolerance;
-    bool equidistantTimeGrid;
+    bool equidistantTimeGrid = false;
   };
 
   struct SimulationOptions
   {
-    std::string modelName;
+    std::string modelName = "";
 
-    double startTime;
-    double endTime;
-    double timeStep;
+    double startTime = 0;
+    double endTime = 1;
+    double timeStep = 0.1;
 
-    marco::codegen::Solver solver;
+    marco::codegen::Solver solver = marco::codegen::Solver::forwardEuler;
     IDAOptions ida;
-
-    SimulationOptions();
   };
 }
 

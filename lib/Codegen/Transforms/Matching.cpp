@@ -5,7 +5,11 @@
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include <set>
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_MATCHINGTESTPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -14,9 +18,11 @@ using namespace ::mlir::modelica;
 
 namespace
 {
-  class MatchingPass : public MatchingBase<MatchingPass>
+  class MatchingTestPass : public mlir::modelica::impl::MatchingTestPassBase<MatchingTestPass>
   {
     public:
+      using MatchingTestPassBase::MatchingTestPassBase;
+
       void runOnOperation() override
       {
         mlir::OpBuilder builder(getOperation());
@@ -33,6 +39,7 @@ namespace
         }
       }
 
+    private:
       mlir::LogicalResult processModel(mlir::OpBuilder& builder, ModelOp modelOp) const
       {
         Model<Equation> model(modelOp);
@@ -97,10 +104,10 @@ namespace
     };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass> createMatchingPass()
+  std::unique_ptr<mlir::Pass> createMatchingTestPass()
   {
-    return std::make_unique<MatchingPass>();
+    return std::make_unique<MatchingTestPass>();
   }
 }

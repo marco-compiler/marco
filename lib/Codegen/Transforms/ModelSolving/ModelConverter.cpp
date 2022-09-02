@@ -122,9 +122,21 @@ namespace
 
 namespace marco::codegen
 {
-  ModelConverter::ModelConverter(ModelSolvingOptions options, mlir::LLVMTypeConverter& typeConverter)
-      : options(std::move(options)),
-        typeConverter(&typeConverter)
+  ModelConverter::ModelConverter(
+      mlir::LLVMTypeConverter& typeConverter,
+      VariableFilter* variableFilter,
+      Solver solver,
+      double startTime,
+      double endTime,
+      double timeStep,
+      IDAOptions idaOptions)
+      : typeConverter(&typeConverter),
+        variableFilter(variableFilter),
+        solver(solver),
+        startTime(startTime),
+        endTime(endTime),
+        timeStep(timeStep),
+        idaOptions(idaOptions)
   {
   }
 
@@ -135,8 +147,8 @@ namespace marco::codegen
 
     DerivativesMap emptyDerivativesMap;
 
-    auto ida = std::make_unique<IDASolver>(typeConverter, emptyDerivativesMap, options.ida, 0, 0, options.timeStep);
-    ida->setEnabled(options.solver == Solver::ida);
+    auto ida = std::make_unique<IDASolver>(typeConverter, emptyDerivativesMap, idaOptions, 0, 0, timeStep);
+    ida->setEnabled(solver == Solver::ida);
 
     ConversionInfo conversionInfo;
 
@@ -222,8 +234,8 @@ namespace marco::codegen
     // Determine the external solvers to be used
     ExternalSolvers solvers;
 
-    auto ida = std::make_unique<IDASolver>(typeConverter, model.getDerivativesMap(), options.ida, options.startTime, options.endTime, options.timeStep);
-    ida->setEnabled(options.solver == Solver::ida);
+    auto ida = std::make_unique<IDASolver>(typeConverter, model.getDerivativesMap(), idaOptions, startTime, endTime, timeStep);
+    ida->setEnabled(solver == Solver::ida);
 
     ConversionInfo conversionInfo;
 
@@ -388,7 +400,7 @@ namespace marco::codegen
 
     mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(loc, ptrType, nullPtr, one);
     mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, typeConverter->getIndexType(), gepPtr);
-    mlir::Value resultOpaquePtr = createLLVMCall(builder, loc, heapAllocFunc, sizeBytes, getVoidPtrType())[0];
+    mlir::Value resultOpaquePtr = builder.create<mlir::LLVM::CallOp>(loc, heapAllocFunc, sizeBytes).getResult();
 
     // Cast the allocated memory pointer to a pointer of the original type
     return builder.create<mlir::LLVM::BitcastOp>(loc, ptrType, resultOpaquePtr);
@@ -442,7 +454,7 @@ namespace marco::codegen
     auto runFunction = getOrInsertFunction(
         builder, module, runFunctionName, mlir::LLVM::LLVMFunctionType::get(resultType, argsTypes));
 
-    mlir::Value returnValue = builder.create<mlir::LLVM::CallOp>(loc, runFunction, mainFunction.getArguments()).getResult(0);
+    mlir::Value returnValue = builder.create<mlir::LLVM::CallOp>(loc, runFunction, mainFunction.getArguments()).getResult();
 
     // Create the return statement
     builder.create<mlir::func::ReturnOp>(loc, returnValue);
@@ -510,7 +522,7 @@ namespace marco::codegen
     auto structTypes = structType.getBody();
     assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
 
-    mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
+    mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, position);
     return typeConverter->materializeSourceConversion(builder, loc, type, var);
   }
 
@@ -535,7 +547,7 @@ namespace marco::codegen
 
       mlir::Value externalSolverDataPtr = alloc(builder, module, loc, solver.value()->getRuntimeDataType(builder.getContext()));
       externalSolverDataPtrs.push_back(externalSolverDataPtr);
-      externalSolversData = builder.create<mlir::LLVM::InsertValueOp>(loc, externalSolversData, externalSolverDataPtr, builder.getIndexArrayAttr(solver.index()));
+      externalSolversData = builder.create<mlir::LLVM::InsertValueOp>(loc, externalSolversData, externalSolverDataPtr, solver.index());
     }
 
     builder.create<mlir::LLVM::StoreOp>(loc, externalSolversData, externalSolversDataPtr);
@@ -654,7 +666,7 @@ namespace marco::codegen
     runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(
         loc, runtimeDataStruct,
         createExternalSolvers(builder, module, loc, externalSolvers),
-        builder.getIndexArrayAttr(externalSolversPosition));
+        externalSolversPosition);
 
     // Initialize the external solvers
     mlir::Value externalSolversOpaquePtr = extractValue(builder, runtimeDataStruct, getVoidPtrType(), externalSolversPosition);
@@ -752,12 +764,12 @@ namespace marco::codegen
       }
 
       solverDataPtr = builder.create<mlir::LLVM::BitcastOp>(solverDataPtr.getLoc(), getVoidPtrType(), solverDataPtr);
-      mlir::LLVM::createLLVMCall(builder, solverDataPtr.getLoc(), freeFunc, solverDataPtr);
+      builder.create<mlir::LLVM::CallOp>(solverDataPtr.getLoc(), freeFunc, solverDataPtr);
     }
 
     // Deallocate the structure containing all the solvers
     externalSolversPtr = builder.create<mlir::LLVM::BitcastOp>(externalSolversPtr.getLoc(), getVoidPtrType(), externalSolversPtr);
-    mlir::LLVM::createLLVMCall(builder, externalSolversPtr.getLoc(), freeFunc, externalSolversPtr);
+    builder.create<mlir::LLVM::CallOp>(externalSolversPtr.getLoc(), freeFunc, externalSolversPtr);
 
     return mlir::success();
   }
@@ -1042,15 +1054,15 @@ namespace marco::codegen
     mlir::Value runtimeDataStructValue = builder.create<mlir::LLVM::UndefOp>(loc, runtimeDataStructType);
 
     // Set the start time
-    mlir::Value startTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.startTime));
-    startTime = typeConverter->materializeTargetConversion(builder, loc, runtimeDataStructType.getBody()[timeVariablePosition], startTime);
-    runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, startTime, builder.getIndexArrayAttr(1));
+    mlir::Value startTimeValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), startTime));
+    startTimeValue = typeConverter->materializeTargetConversion(builder, loc, runtimeDataStructType.getBody()[timeVariablePosition], startTimeValue);
+    runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, startTimeValue, 1);
 
     // Add the model variables
     for (const auto& var : llvm::enumerate(structVariables)) {
       mlir::Type convertedType = typeConverter->convertType(var.value().getType());
       mlir::Value convertedVar = typeConverter->materializeTargetConversion(builder, loc, convertedType, var.value());
-      runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, convertedVar, builder.getIndexArrayAttr(var.index() + 2));
+      runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStructValue, convertedVar, var.index() + 2);
     }
 
     // Allocate the main runtime data structure
@@ -1406,13 +1418,13 @@ namespace marco::codegen
       }
     }
 
-    if (options.solver == Solver::forwardEuler) {
+    if (solver == Solver::forwardEuler) {
       // Update the state variables by applying the forward Euler method
       builder.setInsertionPoint(returnOp);
-      mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.timeStep));
+      mlir::Value timeStepValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), timeStep));
 
       auto apply = [&](mlir::OpBuilder& nestedBuilder, mlir::Value scalarState, mlir::Value scalarDerivative) -> mlir::Value {
-        mlir::Value result = builder.create<MulOp>(scalarDerivative.getLoc(), scalarDerivative.getType(), scalarDerivative, timeStep);
+        mlir::Value result = builder.create<MulOp>(scalarDerivative.getLoc(), scalarDerivative.getType(), scalarDerivative, timeStepValue);
         result = builder.create<AddOp>(scalarDerivative.getLoc(), scalarState.getType(), scalarState, result);
         return result;
       };
@@ -1522,27 +1534,27 @@ namespace marco::codegen
     mlir::Value increasedTime = externalSolvers.getCurrentTime(builder, externalSolverDataPtrs);
 
     if (!increasedTime) {
-      mlir::Value timeStep = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.timeStep));
+      mlir::Value timeStepValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), timeStep));
       mlir::Value currentTime = extractValue(builder, runtimeDataStruct, RealType::get(builder.getContext()), timeVariablePosition);
-      increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+      increasedTime = builder.create<AddOp>(loc, currentTime.getType(), currentTime, timeStepValue);
     }
 
     // Store the increased time into the runtime data structure
     increasedTime = typeConverter->materializeTargetConversion(builder, loc, runtimeDataStructType.getBody()[timeVariablePosition], increasedTime);
-    runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStruct, increasedTime, builder.getIndexArrayAttr(timeVariablePosition));
+    runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(loc, runtimeDataStruct, increasedTime, timeVariablePosition);
 
     mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(runtimeDataStruct.getType());
     mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, function.getArgument(0));
     builder.create<mlir::LLVM::StoreOp>(loc, runtimeDataStruct, structPtr);
 
     // Check if the current time is less than the end time
-    mlir::Value endTime = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), options.endTime));
+    mlir::Value endTimeValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), endTime));
     mlir::Value epsilon = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 10e-06));
-    endTime = builder.create<SubOp>(loc, endTime.getType(), endTime, epsilon);
+    endTimeValue = builder.create<SubOp>(loc, endTimeValue.getType(), endTimeValue, epsilon);
 
-    endTime = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(endTime.getType()), endTime);
+    endTimeValue = typeConverter->materializeTargetConversion(builder, loc, typeConverter->convertType(endTimeValue.getType()), endTimeValue);
 
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(loc, mlir::arith::CmpFPredicate::OLT, increasedTime, endTime);
+    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(loc, mlir::arith::CmpFPredicate::OLT, increasedTime, endTimeValue);
     builder.create<mlir::func::ReturnOp>(loc, condition);
 
     return mlir::success();
@@ -1700,7 +1712,7 @@ namespace marco::codegen
     mlir::Value indexNullPtr = builder.create<mlir::LLVM::NullOp>(loc, indexPtrType);
     mlir::Value indicesGepPtr = builder.create<mlir::LLVM::GEPOp>(loc, indexPtrType, indexNullPtr, rank);
     mlir::Value indicesSizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(loc, builder.getI64Type(), indicesGepPtr);
-    mlir::Value indicesOpaquePtr = builder.create<mlir::LLVM::CallOp>(loc, heapAllocFn, indicesSizeBytes).getResult(0);
+    mlir::Value indicesOpaquePtr = builder.create<mlir::LLVM::CallOp>(loc, heapAllocFn, indicesSizeBytes).getResult();
     mlir::Value indicesPtr = builder.create<mlir::LLVM::BitcastOp>(loc, indexPtrType, indicesOpaquePtr);
     args.push_back(indicesPtr);
 
@@ -1967,7 +1979,7 @@ namespace marco::codegen
         rank = arrayType.getRank();
       }
 
-      auto filters = options.variableFilter->getVariableInfo(name, rank);
+      auto filters = variableFilter->getVariableInfo(name, rank);
       IndexSet filteredIndices = getFilteredIndices(variableTypes[position], filters);
 
       if (filteredIndices.empty()) {
@@ -1999,7 +2011,7 @@ namespace marco::codegen
         rank = arrayType.getRank();
       }
 
-      auto filters = options.variableFilter->getVariableDerInfo(name, rank);
+      auto filters = variableFilter->getVariableDerInfo(name, rank);
       IndexSet filteredIndices = getFilteredIndices(variableTypes[derPosition], filters);
       filteredIndices -= derivativesMap.getDerivedIndices(varPosition);
 

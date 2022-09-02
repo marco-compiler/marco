@@ -1,9 +1,15 @@
 #include "marco/Codegen/Transforms/OpDistribution.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "mlir/IR/BuiltinOps.h"
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_NEGATEOPDISTRIBUTIONPASS
+#define GEN_PASS_DEF_MULOPDISTRIBUTIONPASS
+#define GEN_PASS_DEF_DIVOPDISTRIBUTIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace
@@ -33,7 +39,7 @@ namespace
       }
   };
 
-  class NegateOpDistributionPass : public NegateOpDistributionPassBase<NegateOpDistributionPass>, DistributionPass<NegateOp>
+  class NegateOpDistributionPass : public mlir::modelica::impl::NegateOpDistributionPassBase<NegateOpDistributionPass>, DistributionPass<NegateOp>
   {
     void runOnOperation() override
     {
@@ -41,7 +47,7 @@ namespace
     }
   };
 
-  class MulOpDistributionPass : public MulOpDistributionPassBase<MulOpDistributionPass>, DistributionPass<MulOp>
+  class MulOpDistributionPass : public mlir::modelica::impl::MulOpDistributionPassBase<MulOpDistributionPass>, DistributionPass<MulOp>
   {
     void runOnOperation() override
     {
@@ -49,7 +55,7 @@ namespace
     }
   };
 
-  class DivOpDistributionPass : public DivOpDistributionPassBase<DivOpDistributionPass>, DistributionPass<DivOp>
+  class DivOpDistributionPass : public mlir::modelica::impl::DivOpDistributionPassBase<DivOpDistributionPass>, DistributionPass<DivOp>
   {
     void runOnOperation() override
     {
@@ -58,7 +64,7 @@ namespace
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
   std::unique_ptr<mlir::Pass> createNegateOpDistributionPass()
   {

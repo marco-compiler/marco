@@ -3,8 +3,13 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace marco::codegen
+namespace mlir::modelica
 {
+#define GEN_PASS_DECL_NEGATEOPDISTRIBUTIONPASS
+#define GEN_PASS_DECL_MULOPDISTRIBUTIONPASS
+#define GEN_PASS_DECL_DIVOPDISTRIBUTIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+
   std::unique_ptr<mlir::Pass> createNegateOpDistributionPass();
 
   std::unique_ptr<mlir::Pass> createMulOpDistributionPass();

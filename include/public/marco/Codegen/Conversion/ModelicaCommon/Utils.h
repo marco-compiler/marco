@@ -10,7 +10,7 @@ namespace marco::codegen
 
   bool isNumeric(mlir::Value value);
 
-  mlir::Type castToMostGenericType(
+  void castToMostGenericType(
       mlir::OpBuilder& builder,
       mlir::ValueRange values,
       llvm::SmallVectorImpl<mlir::Value>& castedValues);

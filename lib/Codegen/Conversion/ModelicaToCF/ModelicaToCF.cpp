@@ -12,7 +12,11 @@
 #include <set>
 #include <stack>
 
-#include "marco/Codegen/Conversion/PassDetail.h"
+namespace mlir
+{
+#define GEN_PASS_DEF_MODELICATOCFCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+}
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -905,13 +909,10 @@ mlir::LogicalResult CFGLowerer::recurse(
 
 namespace
 {
-  class ModelicaToCFPass : public ModelicaToCFBase<ModelicaToCFPass>
+  class ModelicaToCFConversionPass : public mlir::impl::ModelicaToCFConversionPassBase<ModelicaToCFConversionPass>
   {
     public:
-      ModelicaToCFPass(ModelicaToCFOptions options)
-        : options(std::move(options))
-      {
-      }
+      using ModelicaToCFConversionPassBase::ModelicaToCFConversionPassBase;
 
       void runOnOperation() override
       {
@@ -927,10 +928,10 @@ namespace
         mlir::OpBuilder builder(module);
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout = options.dataLayout;
-        mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, options.bitWidth);
+        llvmLoweringOptions.dataLayout.reset(dataLayout);
+        mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
-        CFGLowerer lowerer(typeConverter, options.outputArraysPromotion);
+        CFGLowerer lowerer(typeConverter, outputArraysPromotion);
 
         for (auto function : llvm::make_early_inc_range(module.getBody()->getOps<FunctionOp>())) {
           if (auto status = lowerer.run(builder, function); mlir::failed(status)) {
@@ -940,22 +941,18 @@ namespace
 
         return mlir::success();
       }
-
-    private:
-      ModelicaToCFOptions options;
   };
 }
 
-namespace marco::codegen
+namespace mlir
 {
-  const ModelicaToCFOptions& ModelicaToCFOptions::getDefaultOptions()
+  std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass()
   {
-    static ModelicaToCFOptions options;
-    return options;
+    return std::make_unique<ModelicaToCFConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToCFPass(ModelicaToCFOptions options)
+  std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass(const ModelicaToCFConversionPassOptions& options)
   {
-    return std::make_unique<ModelicaToCFPass>(std::move(options));
+    return std::make_unique<ModelicaToCFConversionPass>(options);
   }
 }

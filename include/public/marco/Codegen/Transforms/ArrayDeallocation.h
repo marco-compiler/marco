@@ -1,11 +1,14 @@
-#ifndef MARCO_TRANSFORMS_ARRAYDEALLOCATIONPASS_H
-#define MARCO_TRANSFORMS_ARRAYDEALLOCATIONPASS_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_ARRAYDEALLOCATION_H
+#define MARCO_CODEGEN_TRANSFORMS_ARRAYDEALLOCATION_H
 
 #include "mlir/Pass/Pass.h"
 
-namespace marco::codegen
+namespace mlir::modelica
 {
+#define GEN_PASS_DECL_ARRAYDEALLOCATIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+
   std::unique_ptr<mlir::Pass> createArrayDeallocationPass();
 }
 
-#endif // MARCO_TRANSFORMS_ARRAYDEALLOCATIONPASS_H
+#endif // MARCO_CODEGEN_TRANSFORMS_ARRAYDEALLOCATION_H

@@ -4,21 +4,14 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/IR/DataLayout.h"
 
-namespace marco::codegen
+namespace mlir
 {
-  struct ModelicaToCFOptions
-  {
-    unsigned int bitWidth = 64;
-    bool outputArraysPromotion = true;
-    bool inlining = true;
+#define GEN_PASS_DECL_MODELICATOCFCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
 
-    llvm::DataLayout dataLayout = llvm::DataLayout("");
+  std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass();
 
-    static const ModelicaToCFOptions& getDefaultOptions();
-  };
-
-	std::unique_ptr<mlir::Pass> createModelicaToCFPass(
-      ModelicaToCFOptions options = ModelicaToCFOptions::getDefaultOptions());
+  std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass(const ModelicaToCFConversionPassOptions& options);
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_MODELICATOCF_MODELICATOCF_H

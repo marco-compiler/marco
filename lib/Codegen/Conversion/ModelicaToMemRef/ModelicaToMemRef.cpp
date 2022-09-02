@@ -7,7 +7,11 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/DialectConversion.h"
 
-#include "marco/Codegen/Conversion/PassDetail.h"
+namespace mlir
+{
+#define GEN_PASS_DEF_MODELICATOMEMREFCONVERSIONPASS
+#include "marco/Codegen/Conversion/Passes.h.inc"
+}
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -19,14 +23,7 @@ namespace
   class ModelicaOpRewritePattern : public mlir::OpRewritePattern<Op>
   {
     public:
-      ModelicaOpRewritePattern(mlir::MLIRContext* ctx, ModelicaToMemRefOptions options)
-          : mlir::OpRewritePattern<Op>(ctx),
-            options(std::move(options))
-      {
-      }
-
-    protected:
-      ModelicaToMemRefOptions options;
+      using mlir::OpRewritePattern<Op>::OpRewritePattern;
   };
 
   /// Generic conversion pattern that provides some utility functions.
@@ -34,14 +31,7 @@ namespace
   class ModelicaOpConversionPattern : public mlir::OpConversionPattern<Op>
   {
     public:
-      ModelicaOpConversionPattern(mlir::MLIRContext* context, mlir::TypeConverter& typeConverter, ModelicaToMemRefOptions options)
-          : mlir::OpConversionPattern<Op>(typeConverter, context),
-            options(std::move(options))
-      {
-      }
-
-    protected:
-      ModelicaToMemRefOptions options;
+      using mlir::OpConversionPattern<Op>::OpConversionPattern;
   };
 }
 
@@ -364,15 +354,42 @@ namespace
   };
 }
 
+static void populateModelicaToMemRefPatterns(
+    mlir::RewritePatternSet& patterns,
+    mlir::MLIRContext* context,
+    mlir::TypeConverter& typeConverter)
+{
+  patterns.insert<
+      ArrayCastOpLowering>(typeConverter, context);
+
+  patterns.insert<
+      AssignmentOpScalarCastPattern,
+      AssignmentOpArrayLowering>(context);
+
+  patterns.insert<
+      AssignmentOpScalarLowering>(typeConverter, context);
+
+  patterns.insert<
+      AllocaOpLowering,
+      AllocOpLowering,
+      FreeOpLowering,
+      DimOpLowering,
+      SubscriptionOpLowering,
+      LoadOpLowering,
+      StoreOpLowering>(typeConverter, context);
+
+  patterns.insert<
+      NDimsOpLowering,
+      SizeOpDimensionLowering,
+      SizeOpArrayLowering>(context);
+}
+
 namespace
 {
-  class ModelicaToMemRefConversionPass : public ModelicaToMemRefBase<ModelicaToMemRefConversionPass>
+  class ModelicaToMemRefConversionPass : public mlir::impl::ModelicaToMemRefConversionPassBase<ModelicaToMemRefConversionPass>
   {
     public:
-      ModelicaToMemRefConversionPass(ModelicaToMemRefOptions options)
-          : options(std::move(options))
-      {
-      }
+      using ModelicaToMemRefConversionPassBase::ModelicaToMemRefConversionPassBase;
 
       void runOnOperation() override
       {
@@ -409,63 +426,28 @@ namespace
           return true;
         });
 
-        TypeConverter typeConverter(options.bitWidth);
+        TypeConverter typeConverter(bitWidth);
 
         typeConverter.addConversion([](mlir::IndexType type) {
           return type;
         });
 
         mlir::RewritePatternSet patterns(&getContext());
-        populateModelicaToMemRefPatterns(patterns, &getContext(), typeConverter, options);
+        populateModelicaToMemRefPatterns(patterns, &getContext(), typeConverter);
 
         return applyPartialConversion(module, target, std::move(patterns));
       }
-
-    private:
-      ModelicaToMemRefOptions options;
   };
 }
 
-namespace marco::codegen
+namespace mlir
 {
-  const ModelicaToMemRefOptions& ModelicaToMemRefOptions::getDefaultOptions()
+  std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass()
   {
-    static ModelicaToMemRefOptions options;
-    return options;
+    return std::make_unique<ModelicaToMemRefConversionPass>();
   }
 
-  void populateModelicaToMemRefPatterns(
-      mlir::RewritePatternSet& patterns,
-      mlir::MLIRContext* context,
-      mlir::TypeConverter& typeConverter,
-      ModelicaToMemRefOptions options)
-  {
-    patterns.insert<
-        ArrayCastOpLowering>(context, typeConverter, options);
-
-    patterns.insert<
-        AssignmentOpScalarCastPattern,
-        AssignmentOpArrayLowering>(context, options);
-
-    patterns.insert<
-        AssignmentOpScalarLowering>(context, typeConverter, options);
-
-    patterns.insert<
-        AllocaOpLowering,
-        AllocOpLowering,
-        FreeOpLowering,
-        DimOpLowering,
-        SubscriptionOpLowering,
-        LoadOpLowering,
-        StoreOpLowering>(context, typeConverter, options);
-
-    patterns.insert<
-        NDimsOpLowering,
-        SizeOpDimensionLowering,
-        SizeOpArrayLowering>(context, options);
-  }
-
-  std::unique_ptr<mlir::Pass> createModelicaToMemRefPass(ModelicaToMemRefOptions options)
+  std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass(const ModelicaToMemRefConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToMemRefConversionPass>(options);
   }

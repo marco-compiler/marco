@@ -1,39 +1,36 @@
-#ifndef MARCO_CODEN_TRANSFORMS_MODELSOLVING_H
-#define MARCO_CODEN_TRANSFORMS_MODELSOLVING_H
+#ifndef MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_H
+#define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_H
 
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDAOptions.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Pass/Pass.h"
 
-namespace marco::codegen
+namespace marco
 {
-  enum class Solver
+  class VariableFilter;
+
+  namespace codegen
   {
-    forwardEuler,
-    ida
-  };
-
-  struct ModelSolvingOptions
-  {
-    double startTime = 0;
-    double endTime = 10;
-    double timeStep = 0.1;
-
-    bool emitMain = true;
-    marco::VariableFilter* variableFilter = nullptr;
-
-    Solver solver = Solver::forwardEuler;
-    IDAOptions ida;
-
-    static const ModelSolvingOptions& getDefaultOptions() {
-      static ModelSolvingOptions options;
-      return options;
-    }
-  };
-
-	std::unique_ptr<mlir::Pass> createModelSolvingPass(
-      ModelSolvingOptions options = ModelSolvingOptions::getDefaultOptions(),
-			unsigned int bitWidth = 64);
+    enum class Solver
+    {
+      forwardEuler,
+      ida
+    };
+  }
 }
 
-#endif // MARCO_CODEN_TRANSFORMS_MODELSOLVING_H
+namespace mlir::modelica
+{
+#define GEN_PASS_DECL_MODELSOLVINGPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+
+  std::unique_ptr<mlir::Pass> createModelSolvingPass();
+
+  std::unique_ptr<mlir::Pass> createModelSolvingPass(
+      const ModelSolvingPassOptions& options,
+      marco::VariableFilter* variableFilter,
+      marco::codegen::Solver solver,
+      marco::codegen::IDAOptions idaOptions);
+}
+
+#endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_H

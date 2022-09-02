@@ -5,7 +5,11 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "marco/Codegen/Transforms/PassDetail.h"
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_ARRAYDEALLOCATIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
@@ -103,9 +107,11 @@ namespace
       mlir::PostDominanceInfo postDominators;
   };
 
-  class ArrayDeallocationPass : public ArrayDeallocationBase<ArrayDeallocationPass>
+  class ArrayDeallocationPass : public mlir::modelica::impl::ArrayDeallocationPassBase<ArrayDeallocationPass>
   {
     public:
+      using ArrayDeallocationPassBase::ArrayDeallocationPassBase;
+
       void runOnOperation() override
       {
         getOperation().walk([](mlir::func::FuncOp op) {
@@ -125,9 +131,9 @@ namespace
   };
 }
 
-namespace marco::codegen
+namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass>createArrayDeallocationPass()
+  std::unique_ptr<mlir::Pass> createArrayDeallocationPass()
   {
     return std::make_unique<ArrayDeallocationPass>();
   }
