@@ -19,7 +19,7 @@ The install path is optional, but it strongly recommended setting it to a custom
 ```bash
 git clone https://github.com/llvm/llvm-project.git
 cd llvm-project
-git checkout cfeacec833f25cfb3ea52eec4e0a9930e3194d3f
+git checkout ad66bc42b0c377b1bff9841fc4715a17ca947222
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install_path -DLLVM_INSTALL_UTILS=True -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;libcxx;libcxxabi;mlir;openmp" ../llvm
 make install
