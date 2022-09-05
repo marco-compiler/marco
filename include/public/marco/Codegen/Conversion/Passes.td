@@ -183,4 +183,29 @@ def ModelicaToMemRefConversionPass : Pass<"convert-modelica-to-memref", "mlir::M
     let constructor = "mlir::createModelicaToMemRefConversionPass()";
 }
 
+//===---------------------------------------------------------------------===//
+// Modelica to Vector
+//===---------------------------------------------------------------------===//
+
+def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::ModuleOp"> {
+    let summary = "Modelica: conversion to Vector dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect",
+        "mlir::vector::VectorDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+    ];
+
+    let constructor = "mlir::createModelicaToVectorConversionPass()";
+}
+
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD

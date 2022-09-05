@@ -7,6 +7,7 @@
 #include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToMemRef/ModelicaToMemRef.h"
+#include "marco/Codegen/Conversion/ModelicaToVector/ModelicaToVector.h"
 
 namespace marco::codegen
 {
