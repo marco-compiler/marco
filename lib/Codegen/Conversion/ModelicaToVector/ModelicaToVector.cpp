@@ -276,6 +276,96 @@ namespace
 }
 
 //===----------------------------------------------------------------------===//
+// ProductOp
+//===----------------------------------------------------------------------===//
+
+namespace
+{
+  struct ProductOpCastPattern : public ModelicaOpRewritePattern<ProductOp>
+  {
+    using ModelicaOpRewritePattern::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(ProductOp op) const override
+    {
+      auto arrayType = op.getArray().getType().cast<ArrayType>();
+      mlir::Type resultType = op.getResult().getType();
+
+      return mlir::LogicalResult::success(arrayType.getElementType() != resultType);
+    }
+
+    void rewrite(ProductOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      auto resultType = op.getArray().getType().cast<ArrayType>().getElementType();
+      mlir::Value result = rewriter.create<ProductOp>(loc, resultType, op.getArray());
+      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+    }
+  };
+
+  template<typename... ElementType>
+  struct ProductOpLowering : public ModelicaOpConversionPattern<ProductOp>
+  {
+    public:
+      using ModelicaOpConversionPattern::ModelicaOpConversionPattern;
+
+      mlir::LogicalResult matchAndRewrite(ProductOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      {
+        mlir::Type elementType = adaptor.getArray().getType().template cast<mlir::MemRefType>().getElementType();
+        mlir::Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+        if (elementType != resultType || !mlir::isa<ElementType...>(resultType)) {
+          return mlir::failure();
+        }
+
+        auto loc = op.getLoc();
+        mlir::Value array = readVector(rewriter, loc, adaptor.getArray());
+        mlir::Value acc = createAccumulator(rewriter, loc, resultType);
+
+        int64_t rank = array.getType().template cast<mlir::VectorType>().getRank();
+
+        if (rank == 1) {
+          rewriter.template replaceOpWithNewOp<mlir::vector::ReductionOp>(
+              op, mlir::vector::CombiningKind::MUL, array, acc);
+        } else {
+          llvm::SmallVector<bool, 2> reductionMask(rank, true);
+
+          rewriter.template replaceOpWithNewOp<mlir::vector::MultiDimReductionOp>(
+              op, array, acc, reductionMask, mlir::vector::CombiningKind::MUL);
+        }
+
+        return mlir::success();
+      }
+
+    protected:
+      virtual mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const = 0;
+  };
+
+  struct ProductOpIntegerLikeLowering : public ProductOpLowering<mlir::IndexType, mlir::IntegerType>
+  {
+    public:
+      using ProductOpLowering::ProductOpLowering;
+
+    protected:
+      mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const override
+      {
+        return builder.create<mlir::arith::ConstantOp>(loc, builder.getIntegerAttr(type, 1));
+      }
+  };
+
+  struct ProductOpFloatLowering : public ProductOpLowering<mlir::FloatType>
+  {
+    public:
+      using ProductOpLowering::ProductOpLowering;
+
+    protected:
+      mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const override
+      {
+        return builder.create<mlir::arith::ConstantOp>(loc, builder.getFloatAttr(type, 1));
+      }
+  };
+}
+
+//===----------------------------------------------------------------------===//
 // TransposeOp
 //===----------------------------------------------------------------------===//
 
@@ -323,6 +413,13 @@ static void populateModelicaToVectorPatterns(
   patterns.insert<
       SumOpIntegerLikeLowering,
       SumOpFloatLowering>(typeConverter, context);
+
+  patterns.insert<
+      ProductOpCastPattern>(context);
+
+  patterns.insert<
+      ProductOpIntegerLikeLowering,
+      ProductOpFloatLowering>(typeConverter, context);
 
   patterns.insert<
       TransposeOpLowering>(typeConverter, context);
@@ -406,6 +503,7 @@ namespace
         });
 
         target.addIllegalOp<SumOp>();
+        target.addIllegalOp<ProductOp>();
 
         TypeConverter typeConverter(bitWidth);
 
