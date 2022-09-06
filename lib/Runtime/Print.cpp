@@ -64,17 +64,19 @@ namespace
   #define PROFILER_STRING_STOP ::profiler().stringValues.start()
 
 #else
-  #define PROFILER_BOOL_START static_assert(true)
-  #define PROFILER_BOOL_STOP static_assert(true)
+  #define PROFILER_DO_NOTHING static_assert(true)
 
-  #define PROFILER_INT_START static_assert(true)
-  #define PROFILER_INT_STOP static_assert(true)
+  #define PROFILER_BOOL_START PROFILER_DO_NOTHING
+  #define PROFILER_BOOL_STOP PROFILER_DO_NOTHING
 
-  #define PROFILER_FLOAT_START static_assert(true)
-  #define PROFILER_FLOAT_STOP static_assert(true)
+  #define PROFILER_INT_START PROFILER_DO_NOTHING
+  #define PROFILER_INT_STOP PROFILER_DO_NOTHING
 
-  #define PROFILER_STRING_START static_assert(true)
-  #define PROFILER_STRING_STOP static_assert(true)
+  #define PROFILER_FLOAT_START PROFILER_DO_NOTHING
+  #define PROFILER_FLOAT_STOP PROFILER_DO_NOTHING
+
+  #define PROFILER_STRING_START PROFILER_DO_NOTHING
+  #define PROFILER_STRING_STOP PROFILER_DO_NOTHING
 #endif
 
 //===----------------------------------------------------------------------===//

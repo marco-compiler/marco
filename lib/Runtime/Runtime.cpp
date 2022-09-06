@@ -9,6 +9,7 @@ using namespace ::marco::runtime;
 extern "C"
 {
   void* getModelName();
+  int64_t getNumOfVariables();
 
   void* init();
 
@@ -102,23 +103,25 @@ namespace
   #define PROFILER_PRINTING_STOP ::profiler().printing.stop()
 
 #else
-  #define PROFILER_ARG_START static_assert(true)
-  #define PROFILER_ARG_STOP static_assert(true)
+  #define PROFILER_DO_NOTHING static_assert(true)
 
-  #define PROFILER_INIT_START static_assert(true)
-  #define PROFILER_INIT_STOP static_assert(true)
+  #define PROFILER_ARG_START PROFILER_DO_NOTHING
+  #define PROFILER_ARG_STOP PROFILER_DO_NOTHING
 
-  #define PROFILER_IC_START static_assert(true)
-  #define PROFILER_IC_STOP static_assert(true)
+  #define PROFILER_INIT_START PROFILER_DO_NOTHING
+  #define PROFILER_INIT_STOP PROFILER_DO_NOTHING
 
-  #define PROFILER_NONSTATEVAR_START static_assert(true)
-  #define PROFILER_NONSTATEVAR_STOP static_assert(true)
+  #define PROFILER_IC_START PROFILER_DO_NOTHING
+  #define PROFILER_IC_STOP PROFILER_DO_NOTHING
 
-  #define PROFILER_STATEVAR_START static_assert(true)
-  #define PROFILER_STATEVAR_STOP static_assert(true)
+  #define PROFILER_NONSTATEVAR_START PROFILER_DO_NOTHING
+  #define PROFILER_NONSTATEVAR_STOP PROFILER_DO_NOTHING
 
-  #define PROFILER_PRINTING_START static_assert(true)
-  #define PROFILER_PRINTING_STOP static_assert(true)
+  #define PROFILER_STATEVAR_START PROFILER_DO_NOTHING
+  #define PROFILER_STATEVAR_STOP PROFILER_DO_NOTHING
+
+  #define PROFILER_PRINTING_START PROFILER_DO_NOTHING
+  #define PROFILER_PRINTING_STOP PROFILER_DO_NOTHING
 #endif
 
 namespace
