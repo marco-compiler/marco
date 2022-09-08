@@ -20,11 +20,13 @@ set(SOURCES
     ModelSolving/ScalarVariable.cpp
     ModelSolving/Scheduling.cpp
     ModelSolving/TypeConverter.cpp
+    ModelSolving/Utils.cpp
     ModelSolving/Variable.cpp
     ArrayDeallocation.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp
+    ModelLegalization.cpp
     OpDistribution.cpp
     Scheduling.cpp)
 
