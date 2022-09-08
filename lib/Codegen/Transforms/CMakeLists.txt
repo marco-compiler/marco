@@ -26,6 +26,7 @@ set(SOURCES
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp
+    MatchingTest.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
     Scheduling.cpp)

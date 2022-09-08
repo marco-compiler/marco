@@ -121,6 +121,26 @@ def ModelSolvingPass : Pass<"solve-model", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createModelSolvingPass()";
 }
 
+def MatchingPass : Pass<"matching-new", "mlir::ModuleOp"> {
+    let summary = "Perform the matching process on a model";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithmeticDialect"
+    ];
+
+    let options = [
+        Option<"modelName", "model-name", "std::string", "",
+               "Set the model onto which perform the matching">
+    ];
+
+    let constructor = "mlir::modelica::createMatchingPass()";
+}
+
 def MatchingTestPass : Pass<"matching", "mlir::ModuleOp"> {
     let summary = "Perform the matching on the model";
 

@@ -258,6 +258,14 @@ namespace marco::frontend
 
     passManager.addPass(mlir::modelica::createAutomaticDifferentiationPass());
 
+    /*
+    // Matching
+    mlir::modelica::MatchingPassOptions matchingOptions;
+    matchingOptions.modelName = simulationOptions.modelName;
+
+    passManager.addPass(mlir::modelica::createMatchingPass(matchingOptions));
+    */
+
     // Model solving
     mlir::modelica::ModelSolvingPassOptions modelSolvingOptions;
 

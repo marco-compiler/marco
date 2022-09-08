@@ -2,11 +2,19 @@
 #define MARCO_CODEGEN_TRANSFORMS_MATCHING_H
 
 #include "mlir/Pass/Pass.h"
+#include <string>
 
 namespace mlir::modelica
 {
+#define GEN_PASS_DECL_MATCHINGPASS
 #define GEN_PASS_DECL_MATCHINGTESTPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
+
+  /// Create a pass performing the matching process on a model.
+  std::unique_ptr<mlir::Pass> createMatchingPass();
+
+  /// Create a pass performing the matching process on a model.
+  std::unique_ptr<mlir::Pass> createMatchingPass(const MatchingPassOptions& options);
 
   /// Create a pass performing the matching process on a model.
   /// The pass is intended to be used only for debugging purpose.
