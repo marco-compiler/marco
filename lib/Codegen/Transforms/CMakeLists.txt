@@ -29,7 +29,8 @@ set(SOURCES
     MatchingTest.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
-    Scheduling.cpp)
+    Scheduling.cpp
+    SchedulingTest.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

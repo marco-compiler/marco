@@ -1,5 +1,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/Utils.h"
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "llvm/ADT/StringSwitch.h"
+#include <set>
 
 using namespace marco::codegen;
 using namespace marco::modeling;
@@ -101,9 +103,49 @@ static EquationPath getMatchedPath(mlir::Attribute attr)
   return EquationPath(EquationPath::RIGHT, pathIndices);
 }
 
+static mlir::Attribute getSchedulingDirectionAttr(
+    mlir::OpBuilder& builder,
+    scheduling::Direction direction)
+{
+  if (direction == scheduling::Direction::None) {
+    return builder.getStringAttr("none");
+  }
+
+  if (direction == scheduling::Direction::Forward) {
+    return builder.getStringAttr("forward");
+  }
+
+  if (direction == scheduling::Direction::Backward) {
+    return builder.getStringAttr("backward");
+  }
+
+  if (direction == scheduling::Direction::Constant) {
+    return builder.getStringAttr("constant");
+  }
+
+  if (direction == scheduling::Direction::Mixed) {
+    return builder.getStringAttr("mixed");
+  }
+
+  return builder.getStringAttr("unknown");
+}
+
+static scheduling::Direction getSchedulingDirection(mlir::Attribute attr)
+{
+  llvm::StringRef str = attr.cast<mlir::StringAttr>().getValue();
+
+  return llvm::StringSwitch<scheduling::Direction>(str)
+      .Case("none", scheduling::Direction::None)
+      .Case("forward", scheduling::Direction::Forward)
+      .Case("backward", scheduling::Direction::Backward)
+      .Case("constant", scheduling::Direction::Constant)
+      .Case("mixed", scheduling::Direction::Mixed)
+      .Default(scheduling::Direction::Unknown);
+}
+
 namespace marco::codegen
 {
-  DerivativesMap getDerivativesMap(mlir::modelica::ModelOp modelOp)
+  DerivativesMap readDerivativesMap(mlir::modelica::ModelOp modelOp)
   {
     DerivativesMap derivativesMap;
     auto derivativesAttr = modelOp->getAttrOfType<mlir::ArrayAttr>("derivatives");
@@ -143,7 +185,7 @@ namespace marco::codegen
     return derivativesMap;
   }
 
-  void setDerivativesMap(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap)
+  void writeDerivativesMap(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap)
   {
     mlir::MLIRContext* context = modelOp.getContext();
 
@@ -233,5 +275,100 @@ namespace marco::codegen
 
     result.setVariables(model.getVariables());
     result.setEquations(equations);
+  }
+
+  void writeSchedulingAttributes(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model)
+  {
+    llvm::SmallVector<mlir::Attribute, 3> schedulingAttrs;
+
+    for (const auto& equationsBlock : llvm::enumerate(model.getScheduledBlocks())) {
+      for (const auto& equation : *equationsBlock.value()) {
+        equation->getOperation()->removeAttr("schedule");
+      }
+    }
+
+    for (const auto& equationsBlock : llvm::enumerate(model.getScheduledBlocks())) {
+      for (const auto& equation : *equationsBlock.value()) {
+        std::vector<mlir::Attribute> schedules;
+
+        if (auto schedulesAttr = equation->getOperation()->getAttrOfType<mlir::ArrayAttr>("schedule")) {
+          for (const auto& schedule : schedulesAttr) {
+            schedules.push_back(schedule);
+          }
+        }
+
+        std::vector<mlir::NamedAttribute> namedAttrs;
+
+        namedAttrs.emplace_back(
+            builder.getStringAttr("block"),
+            builder.getI64IntegerAttr(equationsBlock.index()));
+
+        namedAttrs.emplace_back(
+            builder.getStringAttr("cycle"),
+            builder.getBoolAttr(equationsBlock.value()->hasCycle()));
+
+        namedAttrs.emplace_back(
+            builder.getStringAttr("indices"),
+            getIndexSetAttr(builder, equation->getIterationRanges()));
+
+        namedAttrs.emplace_back(
+            builder.getStringAttr("direction"),
+            getSchedulingDirectionAttr(builder, equation->getSchedulingDirection()));
+
+        mlir::Attribute newSchedulesAttr = builder.getArrayAttr(schedules);
+        equation->getOperation()->setAttr("schedule", newSchedulesAttr);
+      }
+    }
+  }
+
+  void readSchedulingAttributes(const Model<MatchedEquation>& model, Model<ScheduledEquationsBlock>& result)
+  {
+    ScheduledEquationsBlocks scheduledEquationsBlocks;
+
+    llvm::SmallVector<std::unique_ptr<ScheduledEquation>> scheduledEquations;
+    llvm::DenseMap<int64_t, llvm::DenseSet<size_t>> blocks;
+    llvm::DenseMap<int64_t, bool> cycles;
+
+    for (const auto& equation : model.getEquations()) {
+      if (auto scheduleAttr = equation->getOperation()->getAttrOfType<mlir::DictionaryAttr>("schedule")) {
+        int64_t blockId = scheduleAttr.getAs<mlir::IntegerAttr>("block").getInt();
+        IndexSet indices = getIndexSet(scheduleAttr.get("indices"));
+        scheduling::Direction direction = getSchedulingDirection(scheduleAttr.get("direction"));
+
+        auto matchedEquation = std::make_unique<MatchedEquation>(
+            equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath());
+
+        auto scheduledEquation = std::make_unique<ScheduledEquation>(
+                std::move(matchedEquation), indices, direction);
+
+        scheduledEquations.push_back(std::move(scheduledEquation));
+        blocks[blockId].insert(scheduledEquations.size() - 1);
+
+        bool cycle = scheduleAttr.getAs<mlir::BoolAttr>("cycle").getValue();
+        cycles[blockId] = cycle;
+      }
+    }
+
+    std::vector<int64_t> orderedBlocksIds;
+
+    for (const auto& block : blocks) {
+      orderedBlocksIds.push_back(block.getFirst());
+    }
+
+    llvm::sort(orderedBlocksIds);
+
+    for (const auto& blockId : orderedBlocksIds) {
+      Equations<ScheduledEquation> equations;
+
+      for (const auto& equationIndex : blocks[blockId]) {
+        equations.push_back(std::move(scheduledEquations[equationIndex]));
+      }
+
+      auto scheduledEquationsBlock = std::make_unique<ScheduledEquationsBlock>(equations, cycles[blockId]);
+      scheduledEquationsBlocks.append(std::move(scheduledEquationsBlock));
+    }
+
+    result.setVariables(model.getVariables());
+    result.setScheduledBlocks(scheduledEquationsBlocks);
   }
 }

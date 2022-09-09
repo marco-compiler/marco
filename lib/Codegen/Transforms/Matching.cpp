@@ -15,7 +15,7 @@ using namespace ::marco::codegen;
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
-static mlir::LogicalResult matchInitialModel(
+static mlir::LogicalResult matchInitialConditionsModel(
     mlir::OpBuilder& builder,
     Model<MatchedEquation>& matchedModel,
     const Model<Equation>& model)
@@ -62,31 +62,31 @@ static mlir::LogicalResult matchMainModel(
 
 static mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
-  Model<Equation> initialModel(modelOp);
+  Model<Equation> initialConditionsModel(modelOp);
   Model<Equation> mainModel(modelOp);
 
   // Retrieve the derivatives map computed by the legalization pass
-  DerivativesMap derivativesMap = getDerivativesMap(modelOp);
-  initialModel.setDerivativesMap(derivativesMap);
+  DerivativesMap derivativesMap = readDerivativesMap(modelOp);
+  initialConditionsModel.setDerivativesMap(derivativesMap);
   mainModel.setDerivativesMap(derivativesMap);
 
   // Discover variables and equations belonging to the 'initial' model
-  initialModel.setVariables(discoverVariables(initialModel.getOperation()));
-  initialModel.setEquations(discoverInitialEquations(initialModel.getOperation(), initialModel.getVariables()));
+  initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
+  initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
 
   // Discover variables and equations belonging to the 'main' model
   mainModel.setVariables(discoverVariables(mainModel.getOperation()));
   mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
 
-  // Solve the initial conditions problem
-  Model<MatchedEquation> matchedInitialModel(initialModel.getOperation());
+  // Compute the matched 'initial' model
+  Model<MatchedEquation> matchedInitialConditionsModel(initialConditionsModel.getOperation());
 
-  if (auto res = matchInitialModel(builder, matchedInitialModel, initialModel); mlir::failed(res)) {
-    initialModel.getOperation().emitError("Matching failed for the 'initial' model");
+  if (auto res = matchInitialConditionsModel(builder, matchedInitialConditionsModel, initialConditionsModel); mlir::failed(res)) {
+    initialConditionsModel.getOperation().emitError("Matching failed for the 'initial conditions' model");
     return res;
   }
 
-  // Solve the main model
+  // Compute the matched 'main' model
   Model<MatchedEquation> matchedMainModel(mainModel.getOperation());
 
   if (auto res = matchMainModel(builder, matchedMainModel, mainModel); mlir::failed(res)) {
@@ -94,7 +94,7 @@ static mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp mode
     return res;
   }
 
-  writeMatchingAttributes(builder, matchedInitialModel);
+  writeMatchingAttributes(builder, matchedInitialConditionsModel);
   writeMatchingAttributes(builder, matchedMainModel);
 
   return mlir::success();
@@ -105,26 +105,26 @@ namespace
   class MatchingPass : public mlir::modelica::impl::MatchingPassBase<MatchingPass>
   {
     public:
-    using MatchingPassBase::MatchingPassBase;
+      using MatchingPassBase::MatchingPassBase;
 
-    void runOnOperation() override
-    {
-      mlir::OpBuilder builder(getOperation());
-      llvm::SmallVector<ModelOp, 1> modelOps;
+      void runOnOperation() override
+      {
+        mlir::OpBuilder builder(getOperation());
+        llvm::SmallVector<ModelOp, 1> modelOps;
 
-      getOperation()->walk([&](ModelOp modelOp) {
-        if (modelOp.getSymName() == modelName) {
-          modelOps.push_back(modelOp);
-        }
-      });
+        getOperation()->walk([&](ModelOp modelOp) {
+          if (modelOp.getSymName() == modelName) {
+            modelOps.push_back(modelOp);
+          }
+        });
 
-      for (const auto& modelOp : modelOps) {
-        if (mlir::failed(processModelOp(builder, modelOp))) {
-          return signalPassFailure();
+        for (const auto& modelOp : modelOps) {
+          if (mlir::failed(processModelOp(builder, modelOp))) {
+            return signalPassFailure();
+          }
         }
       }
-    }
-  };
+    };
 }
 
 namespace mlir::modelica

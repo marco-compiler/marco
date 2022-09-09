@@ -129,8 +129,7 @@ def MatchingPass : Pass<"matching-new", "mlir::ModuleOp"> {
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect"
+        "mlir::modelica::ModelicaDialect"
     ];
 
     let options = [
@@ -154,6 +153,25 @@ def MatchingTestPass : Pass<"matching", "mlir::ModuleOp"> {
     ];
 
     let constructor = "mlir::modelica::createMatchingTestPass()";
+}
+
+def SchedulingPass : Pass<"scheduling-new", "mlir::ModuleOp"> {
+    let summary = "Perform the scheduling process on a matched model";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let options = [
+        Option<"modelName", "model-name", "std::string", "",
+               "Set the model onto which perform the scheduling">
+    ];
+
+    let constructor = "mlir::modelica::createSchedulingPass()";
 }
 
 def SchedulingTestPass : Pass<"scheduling", "mlir::ModuleOp"> {

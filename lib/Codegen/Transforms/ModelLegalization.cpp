@@ -623,7 +623,7 @@ namespace
           return res;
         }
 
-        setDerivativesMap(modelOp, derivativesMap);
+        writeDerivativesMap(builder, modelOp, derivativesMap);
 
         return mlir::success();
       }

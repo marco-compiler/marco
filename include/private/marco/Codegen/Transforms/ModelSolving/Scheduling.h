@@ -276,6 +276,11 @@ namespace marco::codegen
           scheduledBlocks.push_back(std::move(block));
         }
 
+        void resize(size_t size)
+        {
+          scheduledBlocks.resize(size);
+        }
+
         /// @name Iterators
         /// {
 
@@ -405,6 +410,11 @@ namespace marco::codegen
       void append(std::unique_ptr<ScheduledEquationsBlock> block)
       {
         impl->append(std::move(block));
+      }
+
+      void resize(size_t size)
+      {
+        impl->resize(size);
       }
 
       iterator begin()
