@@ -2,21 +2,13 @@
 #define MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_H
 
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDAOptions.h"
+#include "marco/Codegen/Transforms/ModelSolving/Solver.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Pass/Pass.h"
 
 namespace marco
 {
   class VariableFilter;
-
-  namespace codegen
-  {
-    enum class Solver
-    {
-      forwardEuler,
-      ida
-    };
-  }
 }
 
 namespace mlir::modelica

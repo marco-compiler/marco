@@ -43,9 +43,9 @@ namespace marco::frontend
 
     std::string solver;
 
-    if (simulationOptions.solver == codegen::Solver::forwardEuler) {
+    if (simulationOptions.solver.getKind() == codegen::Solver::Kind::forwardEuler) {
       solver = "Forward Euler";
-    } else if (simulationOptions.solver == codegen::Solver::ida) {
+    } else if (simulationOptions.solver.getKind() == codegen::Solver::Kind::ida) {
       solver = "IDA";
     }
 

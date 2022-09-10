@@ -19,10 +19,12 @@ set(SOURCES
     ModelSolving/ScalarEquation.cpp
     ModelSolving/ScalarVariable.cpp
     ModelSolving/Scheduling.cpp
+    ModelSolving/Solver.cpp
     ModelSolving/TypeConverter.cpp
     ModelSolving/Utils.cpp
     ModelSolving/Variable.cpp
     ArrayDeallocation.cpp
+    CyclesSolving.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp

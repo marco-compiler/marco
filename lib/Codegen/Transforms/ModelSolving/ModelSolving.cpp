@@ -1370,7 +1370,7 @@ namespace
 
         // Resolve the algebraic loops
         if (auto res = solveCycles(matchedModel, builder); mlir::failed(res)) {
-          if (solver != Solver::ida) {
+          if (solver.getKind() != Solver::Kind::ida) {
             // Check if the selected solver can deal with cycles. If not, fail.
             return res;
           }
@@ -1422,7 +1422,7 @@ namespace
 
         // Resolve the algebraic loops
         if (auto res = solveCycles(matchedModel, builder); mlir::failed(res)) {
-          if (solver != Solver::ida) {
+          if (solver.getKind() != Solver::Kind::ida) {
             // Check if the selected solver can deal with cycles. If not, fail.
             return res;
           }

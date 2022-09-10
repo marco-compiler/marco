@@ -148,7 +148,7 @@ namespace marco::codegen
     DerivativesMap emptyDerivativesMap;
 
     auto ida = std::make_unique<IDASolver>(typeConverter, emptyDerivativesMap, idaOptions, 0, 0, timeStep);
-    ida->setEnabled(solver == Solver::ida);
+    ida->setEnabled(solver.getKind() == Solver::Kind::ida);
 
     ConversionInfo conversionInfo;
 
@@ -235,7 +235,7 @@ namespace marco::codegen
     ExternalSolvers solvers;
 
     auto ida = std::make_unique<IDASolver>(typeConverter, model.getDerivativesMap(), idaOptions, startTime, endTime, timeStep);
-    ida->setEnabled(solver == Solver::ida);
+    ida->setEnabled(solver.getKind() == Solver::Kind::ida);
 
     ConversionInfo conversionInfo;
 
@@ -1418,7 +1418,7 @@ namespace marco::codegen
       }
     }
 
-    if (solver == Solver::forwardEuler) {
+    if (solver.getKind() == Solver::Kind::forwardEuler) {
       // Update the state variables by applying the forward Euler method
       builder.setInsertionPoint(returnOp);
       mlir::Value timeStepValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), timeStep));

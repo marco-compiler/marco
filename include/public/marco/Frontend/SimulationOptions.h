@@ -19,7 +19,7 @@ namespace marco::frontend
     double endTime = 1;
     double timeStep = 0.1;
 
-    marco::codegen::Solver solver = marco::codegen::Solver::forwardEuler;
+    marco::codegen::Solver solver = "forwardEuler";
     IDAOptions ida;
   };
 }

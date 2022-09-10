@@ -155,6 +155,27 @@ def MatchingTestPass : Pass<"matching", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createMatchingTestPass()";
 }
 
+def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
+    let summary = "Solve the cycles of matched model";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let options = [
+        Option<"modelName", "model-name", "std::string", "",
+               "Set the model whose cycles hs to be solved">,
+        Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
+               "Set the model whose cycles hs to be solved">,
+    ];
+
+    let constructor = "mlir::modelica::createCyclesSolvingPass()";
+}
+
 def SchedulingPass : Pass<"scheduling-new", "mlir::ModuleOp"> {
     let summary = "Perform the scheduling process on a matched model";
 
