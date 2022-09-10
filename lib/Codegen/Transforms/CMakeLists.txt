@@ -31,6 +31,7 @@ set(SOURCES
     MatchingTest.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
+    ScheduledModelToSimulation.cpp
     Scheduling.cpp
     SchedulingTest.cpp)
 

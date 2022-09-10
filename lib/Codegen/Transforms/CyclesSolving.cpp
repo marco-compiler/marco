@@ -41,13 +41,13 @@ namespace
         }
       }
 
-      private:
-        mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp);
+    private:
+      mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp);
 
-        mlir::LogicalResult solveCycles(mlir::OpBuilder& builder, Model<MatchedEquation>& model);
+      mlir::LogicalResult solveCycles(mlir::OpBuilder& builder, Model<MatchedEquation>& model);
 
-        mlir::LogicalResult splitEquations(mlir::OpBuilder& builder, Model<MatchedEquation>& model);
-    };
+      mlir::LogicalResult splitEquations(mlir::OpBuilder& builder, Model<MatchedEquation>& model);
+  };
 }
 
 mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)

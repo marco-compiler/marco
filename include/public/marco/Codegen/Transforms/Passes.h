@@ -10,6 +10,7 @@
 #include "marco/Codegen/Transforms/Matching.h"
 #include "marco/Codegen/Transforms/ModelLegalization.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
+#include "marco/Codegen/Transforms/ScheduledModelToSimulation.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
 
 namespace marco::codegen

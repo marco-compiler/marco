@@ -210,6 +210,35 @@ def SchedulingTestPass : Pass<"scheduling", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createSchedulingTestPass()";
 }
 
+def ConvertScheduledModelToSimulationPass : Pass<"convert-scheduled-model-to-simulation", "mlir::ModuleOp"> {
+    let summary = "Create a simulation from a scheduled model";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let options = [
+        Option<"modelName", "model-name", "std::string", "",
+               "Set the model from which generate the simulation">,
+        Option<"startTime", "start-time", "double", "0",
+               "Set the simulation start time">,
+        Option<"endTime", "end-time", "double", "1",
+               "Set the simulation end time">,
+        Option<"timeStep", "time-step", "double", "0.1",
+               "Set the simulation time step">,
+        Option<"emitMain", "emit-main", "bool", "true",
+               "Generate the main function of the simulation">,
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">
+    ];
+
+    let constructor = "mlir::modelica::createConvertScheduledModelToSimulationPass()";
+}
+
 def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp"> {
     let summary = "Distribute the negation operations";
 

@@ -250,6 +250,8 @@ namespace marco::codegen
           builder.getStringAttr("indices"),
           getIndexSetAttr(builder, equation->getIterationRanges()));
 
+      matches.push_back(builder.getDictionaryAttr(namedAttrs));
+
       mlir::Attribute newMatchesAttr = builder.getArrayAttr(matches);
       equation->getOperation()->setAttr("match", newMatchesAttr);
     }
@@ -269,6 +271,7 @@ namespace marco::codegen
           auto path = getMatchedPath(dict.get("path"));
 
           auto matchedEquation = std::make_unique<MatchedEquation>(equation->clone(), indices, path);
+          equations.add(std::move(matchedEquation));
         }
       }
     }
@@ -314,6 +317,8 @@ namespace marco::codegen
         namedAttrs.emplace_back(
             builder.getStringAttr("direction"),
             getSchedulingDirectionAttr(builder, equation->getSchedulingDirection()));
+
+        schedules.push_back(builder.getDictionaryAttr(namedAttrs));
 
         mlir::Attribute newSchedulesAttr = builder.getArrayAttr(schedules);
         equation->getOperation()->setAttr("schedule", newSchedulesAttr);
