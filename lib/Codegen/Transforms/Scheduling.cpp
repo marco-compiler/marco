@@ -14,53 +14,6 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
-{
-  Model<Equation> initialConditionsModel(modelOp);
-  Model<Equation> mainModel(modelOp);
-
-  // Retrieve the derivatives map computed by the legalization pass
-  DerivativesMap derivativesMap = readDerivativesMap(modelOp);
-  initialConditionsModel.setDerivativesMap(derivativesMap);
-  mainModel.setDerivativesMap(derivativesMap);
-
-  // Discover variables and equations belonging to the 'initial' model
-  initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
-  initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
-
-  // Discover variables and equations belonging to the 'main' model
-  mainModel.setVariables(discoverVariables(mainModel.getOperation()));
-  mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
-
-  // Obtain the matched models
-  Model<MatchedEquation> matchedInitialConditionsModel(modelOp);
-  Model<MatchedEquation> matchedMainModel(modelOp);
-
-  readMatchingAttributes(initialConditionsModel, matchedInitialConditionsModel);
-  readMatchingAttributes(mainModel, matchedMainModel);
-
-  // Compute the scheduled 'initial' model
-  Model<ScheduledEquationsBlock> scheduledInitialConditionsModel(initialConditionsModel.getOperation());
-
-  if (auto res = schedule(scheduledInitialConditionsModel, matchedInitialConditionsModel); mlir::failed(res)) {
-    initialConditionsModel.getOperation().emitError("Scheduling failed for the 'initial conditions' model");
-    return res;
-  }
-
-  // Compute the scheduled 'main' model
-  Model<ScheduledEquationsBlock> scheduledMainModel(mainModel.getOperation());
-
-  if (auto res = schedule(scheduledMainModel, matchedMainModel); mlir::failed(res)) {
-    mainModel.getOperation().emitError("Scheduling failed for the 'main' model");
-    return res;
-  }
-
-  writeSchedulingAttributes(builder, scheduledInitialConditionsModel);
-  writeSchedulingAttributes(builder, scheduledMainModel);
-
-  return mlir::success();
-}
-
 namespace
 {
   class SchedulingPass : public mlir::modelica::impl::SchedulingPassBase<SchedulingPass>
@@ -85,7 +38,70 @@ namespace
           }
         }
       }
+
+    private:
+      mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp);
   };
+}
+
+mlir::LogicalResult SchedulingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
+{
+  Model<Equation> initialConditionsModel(modelOp);
+  Model<Equation> mainModel(modelOp);
+
+  // Retrieve the derivatives map computed by the legalization pass
+  DerivativesMap derivativesMap;
+
+  if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
+    return res;
+  }
+
+  initialConditionsModel.setDerivativesMap(derivativesMap);
+  mainModel.setDerivativesMap(derivativesMap);
+
+  // Discover variables and equations belonging to the 'initial' model
+  initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
+  initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
+
+  // Discover variables and equations belonging to the 'main' model
+  mainModel.setVariables(discoverVariables(mainModel.getOperation()));
+  mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
+
+  // Obtain the matched models
+  Model<MatchedEquation> matchedInitialConditionsModel(modelOp);
+  Model<MatchedEquation> matchedMainModel(modelOp);
+
+  if (auto res = readMatchingAttributes(initialConditionsModel, matchedInitialConditionsModel); mlir::failed(res)) {
+    return res;
+  }
+
+  if (auto res = readMatchingAttributes(mainModel, matchedMainModel); mlir::failed(res)) {
+    return res;
+  }
+
+  // Compute the scheduled 'initial' model
+  Model<ScheduledEquationsBlock> scheduledInitialConditionsModel(initialConditionsModel.getOperation());
+
+  if (auto res = schedule(scheduledInitialConditionsModel, matchedInitialConditionsModel); mlir::failed(res)) {
+    initialConditionsModel.getOperation().emitError("Scheduling failed for the 'initial conditions' model");
+    return res;
+  }
+
+  // Compute the scheduled 'main' model
+  Model<ScheduledEquationsBlock> scheduledMainModel(mainModel.getOperation());
+
+  if (auto res = schedule(scheduledMainModel, matchedMainModel); mlir::failed(res)) {
+    mainModel.getOperation().emitError("Scheduling failed for the 'main' model");
+    return res;
+  }
+
+  ModelSolvingIROptions irOptions;
+  irOptions.mergeAndSortRanges = mergeAndSortRanges;
+
+  writeSchedulingAttributes(builder, scheduledInitialConditionsModel, irOptions);
+  writeSchedulingAttributes(builder, scheduledMainModel, irOptions);
+
+  return mlir::success();
 }
 
 namespace mlir::modelica

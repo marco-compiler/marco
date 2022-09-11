@@ -219,7 +219,12 @@ mlir::LogicalResult ConvertScheduledModelToSimulationPass::processModelOp(mlir::
   Model<Equation> mainModel(modelOp);
 
   // Retrieve the derivatives map computed by the legalization pass
-  DerivativesMap derivativesMap = readDerivativesMap(modelOp);
+  DerivativesMap derivativesMap;
+
+  if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
+    return res;
+  }
+
   initialConditionsModel.setDerivativesMap(derivativesMap);
   mainModel.setDerivativesMap(derivativesMap);
 

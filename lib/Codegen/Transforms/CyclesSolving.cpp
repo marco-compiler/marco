@@ -56,7 +56,12 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
   Model<Equation> mainModel(modelOp);
 
   // Retrieve the derivatives map computed by the legalization pass
-  DerivativesMap derivativesMap = readDerivativesMap(modelOp);
+  DerivativesMap derivativesMap;
+
+  if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
+    return res;
+  }
+
   initialConditionsModel.setDerivativesMap(derivativesMap);
   mainModel.setDerivativesMap(derivativesMap);
 
@@ -72,10 +77,13 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
   Model<MatchedEquation> matchedInitialConditionsModel(modelOp);
   Model<MatchedEquation> matchedMainModel(modelOp);
 
-  readMatchingAttributes(initialConditionsModel, matchedInitialConditionsModel);
-  readMatchingAttributes(mainModel, matchedMainModel);
+  if (auto res = readMatchingAttributes(initialConditionsModel, matchedInitialConditionsModel); mlir::failed(res)) {
+    return res;
+  }
 
-  // Solve the cycles
+  if (auto res = readMatchingAttributes(mainModel, matchedMainModel); mlir::failed(res)) {
+    return res;
+  }
 
   // Solve the cycles in the 'initial conditions' model
   if (auto res = solveCycles(builder, matchedInitialConditionsModel); mlir::failed(res)) {
@@ -87,8 +95,11 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
     return res;
   }
 
-  writeMatchingAttributes(builder, matchedInitialConditionsModel);
-  writeMatchingAttributes(builder, matchedMainModel);
+  ModelSolvingIROptions irOptions;
+  irOptions.mergeAndSortRanges = mergeAndSortRanges;
+
+  writeMatchingAttributes(builder, matchedInitialConditionsModel, irOptions);
+  writeMatchingAttributes(builder, matchedMainModel, irOptions);
 
   return mlir::success();
 }

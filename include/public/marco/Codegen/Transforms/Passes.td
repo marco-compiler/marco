@@ -84,6 +84,8 @@ def ModelLegalizationPass : Pass<"legalize-model", "mlir::ModuleOp"> {
     let options = [
         Option<"modelName", "model-name", "std::string", "",
                "Set the model to be processed">,
+        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
+               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createModelLegalizationPass()";
@@ -134,7 +136,9 @@ def MatchingPass : Pass<"matching-new", "mlir::ModuleOp"> {
 
     let options = [
         Option<"modelName", "model-name", "std::string", "",
-               "Set the model onto which perform the matching">
+               "Set the model onto which perform the matching">,
+        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
+               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createMatchingPass()";
@@ -171,6 +175,8 @@ def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
                "Set the model whose cycles hs to be solved">,
         Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
                "Set the model whose cycles hs to be solved">,
+        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
+               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createCyclesSolvingPass()";
@@ -189,7 +195,9 @@ def SchedulingPass : Pass<"scheduling-new", "mlir::ModuleOp"> {
 
     let options = [
         Option<"modelName", "model-name", "std::string", "",
-               "Set the model onto which perform the scheduling">
+               "Set the model onto which perform the scheduling">,
+        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
+               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createSchedulingPass()";

@@ -60,13 +60,48 @@ static mlir::LogicalResult matchMainModel(
   return match(matchedModel, model, matchableIndicesFn);
 }
 
-static mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
+namespace
+{
+  class MatchingPass : public mlir::modelica::impl::MatchingPassBase<MatchingPass>
+  {
+    public:
+      using MatchingPassBase::MatchingPassBase;
+
+      void runOnOperation() override
+      {
+        mlir::OpBuilder builder(getOperation());
+        llvm::SmallVector<ModelOp, 1> modelOps;
+
+        getOperation()->walk([&](ModelOp modelOp) {
+          if (modelOp.getSymName() == modelName) {
+            modelOps.push_back(modelOp);
+          }
+        });
+
+        for (const auto& modelOp : modelOps) {
+          if (mlir::failed(processModelOp(builder, modelOp))) {
+            return signalPassFailure();
+          }
+        }
+      }
+
+    private:
+      mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp modelOp);
+  };
+}
+
+mlir::LogicalResult MatchingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
   Model<Equation> initialConditionsModel(modelOp);
   Model<Equation> mainModel(modelOp);
 
   // Retrieve the derivatives map computed by the legalization pass
-  DerivativesMap derivativesMap = readDerivativesMap(modelOp);
+  DerivativesMap derivativesMap;
+
+  if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
+    return res;
+  }
+
   initialConditionsModel.setDerivativesMap(derivativesMap);
   mainModel.setDerivativesMap(derivativesMap);
 
@@ -94,37 +129,13 @@ static mlir::LogicalResult processModelOp(mlir::OpBuilder& builder, ModelOp mode
     return res;
   }
 
-  writeMatchingAttributes(builder, matchedInitialConditionsModel);
-  writeMatchingAttributes(builder, matchedMainModel);
+  ModelSolvingIROptions irOptions;
+  irOptions.mergeAndSortRanges = mergeAndSortRanges;
+
+  writeMatchingAttributes(builder, matchedInitialConditionsModel, irOptions);
+  writeMatchingAttributes(builder, matchedMainModel, irOptions);
 
   return mlir::success();
-}
-
-namespace
-{
-  class MatchingPass : public mlir::modelica::impl::MatchingPassBase<MatchingPass>
-  {
-    public:
-      using MatchingPassBase::MatchingPassBase;
-
-      void runOnOperation() override
-      {
-        mlir::OpBuilder builder(getOperation());
-        llvm::SmallVector<ModelOp, 1> modelOps;
-
-        getOperation()->walk([&](ModelOp modelOp) {
-          if (modelOp.getSymName() == modelName) {
-            modelOps.push_back(modelOp);
-          }
-        });
-
-        for (const auto& modelOp : modelOps) {
-          if (mlir::failed(processModelOp(builder, modelOp))) {
-            return signalPassFailure();
-          }
-        }
-      }
-    };
 }
 
 namespace mlir::modelica

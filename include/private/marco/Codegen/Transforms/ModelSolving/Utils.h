@@ -9,17 +9,38 @@
 
 namespace marco::codegen
 {
-  DerivativesMap readDerivativesMap(mlir::modelica::ModelOp modelOp);
+  struct ModelSolvingIROptions
+  {
+    bool mergeAndSortRanges = false;
+  };
 
-  void writeDerivativesMap(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap);
+  void writeDerivativesMap(
+      mlir::OpBuilder& builder,
+      mlir::modelica::ModelOp modelOp,
+      const DerivativesMap& derivativesMap,
+      const ModelSolvingIROptions& irOptions);
 
-  void writeMatchingAttributes(mlir::OpBuilder& builder, const Model<MatchedEquation>& model);
+  mlir::LogicalResult readDerivativesMap(
+      mlir::modelica::ModelOp modelOp,
+      DerivativesMap& derivativesMap);
 
-  void readMatchingAttributes(const Model<Equation>& model, Model<MatchedEquation>& result);
+  void writeMatchingAttributes(
+      mlir::OpBuilder& builder,
+      const Model<MatchedEquation>& model,
+      const ModelSolvingIROptions& irOptions);
 
-  void writeSchedulingAttributes(mlir::OpBuilder& builder, const Model<ScheduledEquationsBlock>& model);
+  mlir::LogicalResult readMatchingAttributes(
+      const Model<Equation>& model,
+      Model<MatchedEquation>& result);
 
-  void readSchedulingAttributes(const Model<MatchedEquation>& model, Model<ScheduledEquationsBlock>& result);
+  void writeSchedulingAttributes
+      (mlir::OpBuilder& builder,
+       const Model<ScheduledEquationsBlock>& model,
+       const ModelSolvingIROptions& irOptions);
+
+  mlir::LogicalResult readSchedulingAttributes(
+      const Model<MatchedEquation>& model,
+      Model<ScheduledEquationsBlock>& result);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_UTILS_H

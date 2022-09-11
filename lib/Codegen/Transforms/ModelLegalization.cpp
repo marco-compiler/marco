@@ -623,7 +623,10 @@ namespace
           return res;
         }
 
-        writeDerivativesMap(builder, modelOp, derivativesMap);
+        ModelSolvingIROptions irOptions;
+        irOptions.mergeAndSortRanges = mergeAndSortRanges;
+
+        writeDerivativesMap(builder, modelOp, derivativesMap, irOptions);
 
         return mlir::success();
       }
