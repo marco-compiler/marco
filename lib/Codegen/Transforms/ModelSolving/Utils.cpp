@@ -357,7 +357,7 @@ namespace marco::codegen
 
   void writeMatchingAttributes(
       mlir::OpBuilder& builder,
-      const Model<MatchedEquation>& model,
+      Model<MatchedEquation>& model,
       const ModelSolvingIROptions& irOptions)
   {
     llvm::SmallVector<mlir::Attribute> matchingAttrs;
@@ -389,6 +389,49 @@ namespace marco::codegen
 
       mlir::Attribute newMatchesAttr = builder.getArrayAttr(matches);
       equation->getOperation()->setAttr("match", newMatchesAttr);
+    }
+
+    if (irOptions.singleMatchAttr) {
+      Equations<MatchedEquation> newEquations;
+      llvm::DenseSet<Equation*> splitEquations;
+
+      for (const auto& equation : model.getEquations()) {
+        if (llvm::find_if(splitEquations, [&](Equation* eq) {
+              return eq->getOperation() == equation->getOperation();
+            }) != splitEquations.end()) {
+          continue;
+        }
+
+        auto matchArrayAttr = equation->getOperation()->getAttrOfType<mlir::ArrayAttr>("match");
+
+        if (!matchArrayAttr || matchArrayAttr.size() <= 1) {
+          newEquations.add(std::make_unique<MatchedEquation>(*equation));
+          continue;
+        }
+
+        for (const auto& matchAttr : matchArrayAttr) {
+          EquationInterface clone = equation->cloneIR();
+          clone->setAttr("match", builder.getArrayAttr(matchAttr));
+
+          auto newEquation = Equation::build(clone, equation->getVariables());
+
+          auto newMatchedEquation = std::make_unique<MatchedEquation>(
+              std::move(newEquation),
+              equation->getIterationRanges(),
+              equation->getWrite().getPath());
+
+          newEquations.add(std::move(newMatchedEquation));
+        }
+
+        splitEquations.insert(equation.get());
+      }
+
+      // Now that the equations have been cloned, we can erase the original ones.
+      for (const auto& equation : splitEquations) {
+        equation->eraseIR();
+      }
+
+      model.setEquations(newEquations);
     }
   }
 
@@ -432,9 +475,10 @@ namespace marco::codegen
 
   void writeSchedulingAttributes(
       mlir::OpBuilder& builder,
-      const Model<ScheduledEquationsBlock>& model,
+      Model<ScheduledEquationsBlock>& model,
       const ModelSolvingIROptions& irOptions)
   {
+    mlir::OpBuilder::InsertionGuard guard(builder);
     llvm::SmallVector<mlir::Attribute> schedulingAttrs;
 
     for (const auto& equationsBlock : llvm::enumerate(model.getScheduledBlocks())) {

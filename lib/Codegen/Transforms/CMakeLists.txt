@@ -28,12 +28,10 @@ set(SOURCES
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp
-    MatchingTest.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
     ScheduledModelToSimulation.cpp
-    Scheduling.cpp
-    SchedulingTest.cpp)
+    Scheduling.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 

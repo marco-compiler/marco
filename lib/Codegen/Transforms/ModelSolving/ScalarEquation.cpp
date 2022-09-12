@@ -31,7 +31,11 @@ namespace marco::codegen
     EquationInterface equationOp = getOperation();
     mlir::OpBuilder builder(equationOp);
     builder.setInsertionPointAfter(equationOp);
-    return mlir::cast<EquationInterface>(builder.clone(*equationOp.getOperation()));
+
+    mlir::Operation* clone = builder.clone(*equationOp.getOperation());
+    clone->setAttrs(equationOp->getAttrDictionary());
+
+    return mlir::cast<EquationInterface>(clone);
   }
 
   void ScalarEquation::eraseIR()

@@ -599,6 +599,10 @@ namespace
         // initialize them to zero.
         DerivativesMap derivativesMap;
 
+        if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
+          return res;
+        }
+
         if (auto res = createDerivatives(builder, modelOp, derivativesMap, derivedIndices); mlir::failed(res)) {
           return res;
         }
@@ -624,7 +628,7 @@ namespace
         }
 
         ModelSolvingIROptions irOptions;
-        irOptions.mergeAndSortRanges = mergeAndSortRanges;
+        irOptions.mergeAndSortRanges = debugView;
 
         writeDerivativesMap(builder, modelOp, derivativesMap, irOptions);
 
@@ -927,6 +931,8 @@ namespace
 
           // Create the initial equation and clone the original equation body
           auto initialEquationOp = builder.create<InitialEquationOp>(equationOp.getLoc());
+          initialEquationOp->setAttrs(equationOp->getAttrDictionary());
+
           assert(initialEquationOp.getBodyRegion().empty());
           mlir::Block* bodyBlock = builder.createBlock(&initialEquationOp.getBodyRegion());
           builder.setInsertionPointToStart(bodyBlock);
@@ -1041,9 +1047,9 @@ namespace
         std::vector<EquationInterface> equations;
 
         // Collect all the equations inside the region
-        for (auto op : modelOp.getBodyRegion().getOps<EquationInterface>()) {
+        modelOp.walk([&](EquationInterface op) {
           equations.push_back(op);
-        }
+        });
 
         mlir::BlockAndValueMapping mapping;
 
@@ -1059,10 +1065,24 @@ namespace
             parent = parent->getParentOfType<ForEquationOp>();
           }
 
+          if (parents.empty()) {
+            builder.setInsertionPointAfter(equation);
+          } else {
+            builder.setInsertionPointAfter(parents.back());
+          }
+
           // Clone them starting from the outermost one
           for (size_t i = 0, e = parents.size(); i < e; ++i) {
-            auto clonedParent = mlir::cast<ForEquationOp>(builder.clone(*parents[e - i - 1].getOperation(), mapping));
-            builder.setInsertionPointToEnd(clonedParent.bodyBlock());
+            ForEquationOp oldParent = parents[e - i - 1];
+
+            auto newParent = builder.create<ForEquationOp>(
+                oldParent.getLoc(),
+                oldParent.getFromAttr().getInt(),
+                oldParent.getToAttr().getInt(),
+                oldParent.getStepAttr().getInt());
+
+            mapping.map(oldParent.induction(), newParent.induction());
+            builder.setInsertionPointToStart(newParent.bodyBlock());
           }
 
           builder.clone(*equation.getOperation(), mapping);

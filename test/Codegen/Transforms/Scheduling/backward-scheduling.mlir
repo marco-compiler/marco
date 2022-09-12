@@ -1,7 +1,7 @@
-// RUN: modelica-opt %s --split-input-file --scheduling | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="schedule{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
 
-// CHECK{LITERAL}: {id = 1 : i64, scheduled_direction = "forward", scheduled_indices = [[0, 0]]}
-// CHECK{LITERAL}: {id = 0 : i64, scheduled_direction = "backward", scheduled_indices = [[0, 1]]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 1]]], path = ["L"]}], schedule = [{block = 1 : i64, cycle = false, direction = "backward", indices = [[[0, 1]]]}]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}], schedule = [{block = 0 : i64, cycle = false, direction = "forward", indices = [[[0, 0]]]}]}
 
 modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
@@ -9,7 +9,7 @@ modelica.model @Test {
 } body {
 ^bb0(%arg0: !modelica.array<3x!modelica.int>):
     modelica.for_equation %arg1 = 0 to 1 {
-        modelica.equation attributes {id = 0} {
+        modelica.equation attributes {id = 0, match = [{indices=[[[0, 1]]], path = ["L"]}]} {
             %0 = modelica.load %arg0[%arg1] : !modelica.array<3x!modelica.int>
             %1 = modelica.constant 1 : index
             %2 = modelica.add %arg1, %1 : (index, index) -> index
@@ -20,7 +20,7 @@ modelica.model @Test {
         }
     }
 
-    modelica.equation attributes {id = 1} {
+    modelica.equation attributes {id = 1, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
         %0 = modelica.constant 2 : index
         %1 = modelica.load %arg0[%0] : !modelica.array<3x!modelica.int>
         %2 = modelica.constant #modelica.int<0>

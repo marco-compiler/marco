@@ -1,8 +1,12 @@
-// RUN: modelica-opt %s --split-input-file --matching | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="match{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
 
-// CHECK-DAG{LITERAL}: {id = 0 : i64, matched_indices = [[0, 0]], matched_path = ["L"]}
-// CHECK-DAG{LITERAL}: {id = 1 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
-// CHECK-DAG{LITERAL}: {id = 2 : i64, matched_indices = [[0, 0]], matched_path = ["R"]}
+// x = 0;
+// x = y;
+// y = z;
+
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["R"]}]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 2 : i64, match = [{indices = [[[0, 0]]], path = ["R"]}]}
 
 modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<!modelica.int>

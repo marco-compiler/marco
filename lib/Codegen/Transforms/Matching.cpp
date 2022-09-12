@@ -49,15 +49,71 @@ static mlir::LogicalResult matchMainModel(
 
     auto argNumber = variable.getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-    // Remove the derived indices
-    if (auto derivativesMap = matchedModel.getDerivativesMap(); derivativesMap.hasDerivative(argNumber)) {
-      matchableIndices -= matchedModel.getDerivativesMap().getDerivedIndices(argNumber);
+    // Remove the derived indices.
+    const DerivativesMap& derivativesMap = matchedModel.getDerivativesMap();
+
+    if (derivativesMap.hasDerivative(argNumber)) {
+      matchableIndices -= derivativesMap.getDerivedIndices(argNumber);
     }
 
     return matchableIndices;
   };
 
   return match(matchedModel, model, matchableIndicesFn);
+}
+
+static void splitIndices(mlir::OpBuilder& builder, Model<MatchedEquation>& model)
+{
+  Equations<MatchedEquation> equations;
+
+  for (const auto& equation : model.getEquations()) {
+    auto write = equation->getWrite();
+    auto iterationRanges = equation->getIterationRanges();
+    auto writtenIndices = write.getAccessFunction().map(iterationRanges);
+
+    IndexSet result;
+
+    for (const auto& access : equation->getAccesses()) {
+      if (access.getPath() == write.getPath()) {
+        continue;
+      }
+
+      if (access.getVariable() != write.getVariable()) {
+        continue;
+      }
+
+      auto accessedIndices = access.getAccessFunction().map(iterationRanges);
+
+      if (!accessedIndices.overlaps(writtenIndices)) {
+        continue;
+      }
+
+      result += write.getAccessFunction().inverseMap(
+          IndexSet(accessedIndices.intersect(writtenIndices)),
+          IndexSet(iterationRanges));
+    }
+
+    for (const auto& range : llvm::make_range(result.rangesBegin(), result.rangesEnd())) {
+      auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+
+      auto matchedClone = std::make_unique<MatchedEquation>(
+          std::move(clone), IndexSet(range), write.getPath());
+
+      equations.add(std::move(matchedClone));
+    }
+
+    auto values = (IndexSet(iterationRanges) - result);
+    for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd()) ) {
+      auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+
+      auto matchedClone = std::make_unique<MatchedEquation>(
+          std::move(clone), IndexSet(range), write.getPath());
+
+      equations.add(std::move(matchedClone));
+    }
+  }
+
+  model.setEquations(equations);
 }
 
 namespace
@@ -92,48 +148,64 @@ namespace
 
 mlir::LogicalResult MatchingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
-  Model<Equation> initialConditionsModel(modelOp);
-  Model<Equation> mainModel(modelOp);
+  // The options to be used when printing the IR.
+  ModelSolvingIROptions irOptions;
+  irOptions.mergeAndSortRanges = debugView;
+  irOptions.singleMatchAttr = debugView;
+  irOptions.singleScheduleAttr = debugView;
 
-  // Retrieve the derivatives map computed by the legalization pass
+  // Retrieve the derivatives map computed by the legalization pass.
   DerivativesMap derivativesMap;
 
   if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
     return res;
   }
 
-  initialConditionsModel.setDerivativesMap(derivativesMap);
-  mainModel.setDerivativesMap(derivativesMap);
+  if (processICModel) {
+    Model<Equation> initialConditionsModel(modelOp);
+    initialConditionsModel.setDerivativesMap(derivativesMap);
 
-  // Discover variables and equations belonging to the 'initial' model
-  initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
-  initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
+    // Discover variables and equations belonging to the 'initial conditions' model.
+    initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
+    initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
 
-  // Discover variables and equations belonging to the 'main' model
-  mainModel.setVariables(discoverVariables(mainModel.getOperation()));
-  mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
+    // Compute the matched 'initial conditions' model.
+    Model<MatchedEquation> matchedInitialConditionsModel(initialConditionsModel.getOperation());
+    matchedInitialConditionsModel.setDerivativesMap(initialConditionsModel.getDerivativesMap());
 
-  // Compute the matched 'initial' model
-  Model<MatchedEquation> matchedInitialConditionsModel(initialConditionsModel.getOperation());
+    if (auto res = matchInitialConditionsModel(builder, matchedInitialConditionsModel, initialConditionsModel); mlir::failed(res)) {
+      initialConditionsModel.getOperation().emitError("Matching failed for the 'initial conditions' model");
+      return res;
+    }
 
-  if (auto res = matchInitialConditionsModel(builder, matchedInitialConditionsModel, initialConditionsModel); mlir::failed(res)) {
-    initialConditionsModel.getOperation().emitError("Matching failed for the 'initial conditions' model");
-    return res;
+    splitIndices(builder, matchedInitialConditionsModel);
+
+    // Write the match information in form of attributes.
+    writeMatchingAttributes(builder, matchedInitialConditionsModel, irOptions);
   }
 
-  // Compute the matched 'main' model
-  Model<MatchedEquation> matchedMainModel(mainModel.getOperation());
+  if (processMainModel) {
+    Model<Equation> mainModel(modelOp);
+    mainModel.setDerivativesMap(derivativesMap);
 
-  if (auto res = matchMainModel(builder, matchedMainModel, mainModel); mlir::failed(res)) {
-    mainModel.getOperation().emitError("Matching failed for the 'main' model");
-    return res;
+    // Discover variables and equations belonging to the 'main' model.
+    mainModel.setVariables(discoverVariables(mainModel.getOperation()));
+    mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
+
+    // Compute the matched 'main' model.
+    Model<MatchedEquation> matchedMainModel(mainModel.getOperation());
+    matchedMainModel.setDerivativesMap(mainModel.getDerivativesMap());
+
+    if (auto res = matchMainModel(builder, matchedMainModel, mainModel); mlir::failed(res)) {
+      mainModel.getOperation().emitError("Matching failed for the 'main' model");
+      return res;
+    }
+
+    splitIndices(builder, matchedMainModel);
+
+    // Write the match information in form of attributes.
+    writeMatchingAttributes(builder, matchedMainModel, irOptions);
   }
-
-  ModelSolvingIROptions irOptions;
-  irOptions.mergeAndSortRanges = mergeAndSortRanges;
-
-  writeMatchingAttributes(builder, matchedInitialConditionsModel, irOptions);
-  writeMatchingAttributes(builder, matchedMainModel, irOptions);
 
   return mlir::success();
 }

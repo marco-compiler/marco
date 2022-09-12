@@ -84,8 +84,8 @@ def ModelLegalizationPass : Pass<"legalize-model", "mlir::ModuleOp"> {
     let options = [
         Option<"modelName", "model-name", "std::string", "",
                "Set the model to be processed">,
-        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
-               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
+        Option<"debugView", "debug-view", "bool", "false",
+               "Generate a more organized IR for better testing(warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createModelLegalizationPass()";
@@ -123,7 +123,7 @@ def ModelSolvingPass : Pass<"solve-model", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createModelSolvingPass()";
 }
 
-def MatchingPass : Pass<"matching-new", "mlir::ModuleOp"> {
+def MatchingPass : Pass<"match", "mlir::ModuleOp"> {
     let summary = "Perform the matching process on a model";
 
     let description = [{
@@ -137,26 +137,15 @@ def MatchingPass : Pass<"matching-new", "mlir::ModuleOp"> {
     let options = [
         Option<"modelName", "model-name", "std::string", "",
                "Set the model onto which perform the matching">,
-        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
-               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
+        Option<"processICModel", "process-ic-model", "bool", "true",
+               "Process the 'initial conditions' model">,
+        Option<"processMainModel", "process-main-model", "bool", "true",
+               "Process the 'main' model">,
+        Option<"debugView", "debug-view", "bool", "false",
+               "Generate a more organized IR for better testing(warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createMatchingPass()";
-}
-
-def MatchingTestPass : Pass<"matching", "mlir::ModuleOp"> {
-    let summary = "Perform the matching on the model";
-
-    let description = [{
-        // TODO
-    }];
-
-    let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect"
-    ];
-
-    let constructor = "mlir::modelica::createMatchingTestPass()";
 }
 
 def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
@@ -175,14 +164,18 @@ def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
                "Set the model whose cycles hs to be solved">,
         Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
                "Set the model whose cycles hs to be solved">,
-        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
-               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
+        Option<"processICModel", "process-ic-model", "bool", "true",
+               "Process the 'initial conditions' model">,
+        Option<"processMainModel", "process-main-model", "bool", "true",
+               "Process the 'main' model">,
+        Option<"debugView", "debug-view", "bool", "false",
+               "Generate a more organized IR for better testing(warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createCyclesSolvingPass()";
 }
 
-def SchedulingPass : Pass<"scheduling-new", "mlir::ModuleOp"> {
+def SchedulingPass : Pass<"schedule", "mlir::ModuleOp"> {
     let summary = "Perform the scheduling process on a matched model";
 
     let description = [{
@@ -196,26 +189,15 @@ def SchedulingPass : Pass<"scheduling-new", "mlir::ModuleOp"> {
     let options = [
         Option<"modelName", "model-name", "std::string", "",
                "Set the model onto which perform the scheduling">,
-        Option<"mergeAndSortRanges", "merge-and-sort-ranges", "bool", "false",
-               "Merge and sort the ranges for better visualization (warning: highly inefficient)">
+        Option<"processICModel", "process-ic-model", "bool", "true",
+               "Process the 'initial conditions' model">,
+        Option<"processMainModel", "process-main-model", "bool", "true",
+               "Process the 'main' model">,
+        Option<"debugView", "debug-view", "bool", "false",
+               "Generate a more organized IR for better testing(warning: highly inefficient)">
     ];
 
     let constructor = "mlir::modelica::createSchedulingPass()";
-}
-
-def SchedulingTestPass : Pass<"scheduling", "mlir::ModuleOp"> {
-    let summary = "Perform the scheduling on the model";
-
-    let description = [{
-        // TODO
-    }];
-
-    let dependentDialects = [
-        "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect"
-    ];
-
-    let constructor = "mlir::modelica::createSchedulingTestPass()";
 }
 
 def ConvertScheduledModelToSimulationPass : Pass<"convert-scheduled-model-to-simulation", "mlir::ModuleOp"> {

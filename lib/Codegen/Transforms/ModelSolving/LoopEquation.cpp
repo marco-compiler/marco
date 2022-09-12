@@ -78,7 +78,10 @@ namespace marco::codegen
       mapping.map(it->induction(), loop.induction());
     }
 
-    return mlir::cast<EquationInterface>(builder.clone(*equationOp.getOperation(), mapping));
+    mlir::Operation* clone = builder.clone(*equationOp.getOperation(), mapping);
+    clone->setAttrs(equationOp->getAttrDictionary());
+
+    return mlir::cast<EquationInterface>(clone);
   }
 
   void LoopEquation::eraseIR()

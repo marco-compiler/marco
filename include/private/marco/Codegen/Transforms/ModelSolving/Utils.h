@@ -12,6 +12,8 @@ namespace marco::codegen
   struct ModelSolvingIROptions
   {
     bool mergeAndSortRanges = false;
+    bool singleMatchAttr = false;
+    bool singleScheduleAttr = false;
   };
 
   void writeDerivativesMap(
@@ -26,7 +28,7 @@ namespace marco::codegen
 
   void writeMatchingAttributes(
       mlir::OpBuilder& builder,
-      const Model<MatchedEquation>& model,
+      Model<MatchedEquation>& model,
       const ModelSolvingIROptions& irOptions);
 
   mlir::LogicalResult readMatchingAttributes(
@@ -35,7 +37,7 @@ namespace marco::codegen
 
   void writeSchedulingAttributes
       (mlir::OpBuilder& builder,
-       const Model<ScheduledEquationsBlock>& model,
+       Model<ScheduledEquationsBlock>& model,
        const ModelSolvingIROptions& irOptions);
 
   mlir::LogicalResult readSchedulingAttributes(
