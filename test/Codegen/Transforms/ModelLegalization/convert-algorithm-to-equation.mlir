@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="legalize-model{model-name=Test}" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="legalize-model{model-name=Test debug-view=true}" | FileCheck %s
 
 // CHECK:       @Test
 // CHECK:       ^bb0(%[[x:.*]]: !modelica.array<!modelica.int>, %[[y:.*]]: !modelica.array<!modelica.int>):
@@ -16,8 +16,8 @@
 
 // CHECK:       @Test_algorithm_0
 // CHECK-SAME:  (!modelica.int) -> !modelica.int
-// CHECK-DAG:   %[[output:.*]] = modelica.member_create @{{.*}} : !modelica.member<!modelica.int, output>
 // CHECK-DAG:   %[[input:.*]] = modelica.member_create @{{.*}} : !modelica.member<!modelica.int, input>
+// CHECK-DAG:   %[[output:.*]] = modelica.member_create @{{.*}} : !modelica.member<!modelica.int, output>
 // CHECK:       %[[output_start:.*]] = modelica.constant #modelica.int<[[start_value]]>
 // CHECK:       modelica.member_store %[[output]], %[[output_start]]
 // CHECK:       %[[input_value:.*]] = modelica.member_load %[[input]]
@@ -36,5 +36,44 @@ modelica.model @Test {
     modelica.algorithm {
         %0 = modelica.load %arg0[] : !modelica.array<!modelica.int>
         modelica.store %arg1[], %0 : !modelica.array<!modelica.int>
+    }
+}
+
+// -----
+
+// Derivative inside algorithm
+
+// CHECK:       @Test
+// CHECK:       ^bb0(%[[x:.*]]: !modelica.array<!modelica.real>, %[[der_x:.*]]: !modelica.array<!modelica.real>):
+
+// CHECK:       modelica.equation {
+// CHECK-DAG:       %[[x_load:.*]] = modelica.load %[[x]][]
+// CHECK-DAG:       %[[der_x_load:.*]] = modelica.load %[[der_x]][]
+// CHECK:           %[[res:.*]] = modelica.call @Test_algorithm_0(%[[der_x_load]]) : (!modelica.real) -> !modelica.real
+// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x_load]]
+// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
+// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK-NEXT:  }
+
+// CHECK:       @Test_algorithm_0
+// CHECK-SAME:  (!modelica.real) -> !modelica.real
+// CHECK-DAG:   %[[input:.*]] = modelica.member_create @{{.*}} : !modelica.member<!modelica.real, input>
+// CHECK-DAG:   %[[output:.*]] = modelica.member_create @{{.*}} : !modelica.member<!modelica.real, output>
+// CHECK:       %[[input_value:.*]] = modelica.member_load %[[input]]
+// CHECK:       modelica.member_store %[[output]], %[[input_value]]
+
+modelica.model @Test {
+    %0 = modelica.member_create @x : !modelica.member<!modelica.real>
+    modelica.yield %0 : !modelica.member<!modelica.real>
+} body {
+^bb0(%arg0: !modelica.array<!modelica.real>):
+    modelica.start (%arg0 : !modelica.array<!modelica.real>) {each = false, fixed = false} {
+        %0 = modelica.constant #modelica.real<57.0> : !modelica.real
+        modelica.yield %0 : !modelica.real
+    }
+    modelica.algorithm {
+        %0 = modelica.load %arg0[] : !modelica.array<!modelica.real>
+        %1 = modelica.der %0 : !modelica.real -> !modelica.real
+        modelica.store %arg0[], %1 : !modelica.array<!modelica.real>
     }
 }
