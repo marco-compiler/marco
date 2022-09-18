@@ -252,6 +252,26 @@ namespace marco::codegen
     return equation->cloneIRAndExplicitate(builder, getIterationRanges(), getWrite().getPath());
   }
 
+  mlir::LogicalResult MatchedEquation::getCoefficients(mlir::OpBuilder& builder,
+                                              std::vector<double>& vector,
+                                              double& constantTerm) const
+  {
+    return equation->getCoefficients(builder, vector, constantTerm);
+  }
+
+  void MatchedEquation::replaceSides(
+      mlir::OpBuilder builder,
+      mlir::Value lhs,
+      mlir::Value rhs) const
+  {
+    return equation->replaceSides(builder, lhs, rhs);
+  }
+
+  void MatchedEquation::setDefaultMatchedPath()
+  {
+    matchedPath = EquationPath(EquationPath::LEFT);
+  }
+
   mlir::LogicalResult match(
       Model<MatchedEquation>& result,
       const Model<Equation>& model,

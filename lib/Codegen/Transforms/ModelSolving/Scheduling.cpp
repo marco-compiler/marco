@@ -180,6 +180,21 @@ namespace marco::codegen
     return equation->cloneIRAndExplicitate(builder, getIterationRanges());
   }
 
+  mlir::LogicalResult ScheduledEquation::getCoefficients(mlir::OpBuilder& builder,
+                                                       std::vector<double>& vector,
+                                                       double& constantTerm) const
+  {
+    return equation->getCoefficients(builder, vector, constantTerm);
+  }
+
+  void ScheduledEquation::replaceSides(
+      mlir::OpBuilder builder,
+      mlir::Value lhs,
+      mlir::Value rhs) const
+  {
+    return equation->replaceSides(builder, lhs, rhs);
+  }
+
   mlir::LogicalResult schedule(
       Model<ScheduledEquationsBlock>& result, const Model<MatchedEquation>& model)
   {
