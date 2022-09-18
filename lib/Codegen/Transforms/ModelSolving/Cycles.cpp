@@ -1,5 +1,6 @@
 #include "marco/Codegen/Transforms/ModelSolving/Cycles.h"
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSubstitutionSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/CyclesCramerSolver.h"
 #include "marco/Modeling/Cycles.h"
 
 using namespace ::marco::codegen;
@@ -96,6 +97,12 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   return allCyclesSolved;
 }
 
+static bool solveWithCramer(Model<MatchedEquation>& model, mlir::OpBuilder& builder)
+{
+  CramerSolver solver(builder);
+  return solver.solve(model);
+}
+
 namespace marco::codegen
 {
   mlir::LogicalResult solveCycles(
@@ -116,6 +123,15 @@ namespace marco::codegen
     });
 
     if (solveBySubstitution(model, builder, false)) {
+      return mlir::success();
+    }
+
+    // Retry with Cramer
+    LLVM_DEBUG({
+      llvm::dbgs() << "Solving cycles with Cramer.\n";
+    });
+
+    if (solveWithCramer(model, builder)) {
       return mlir::success();
     }
 

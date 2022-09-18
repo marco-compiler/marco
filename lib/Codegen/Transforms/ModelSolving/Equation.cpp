@@ -37,6 +37,28 @@ static long getIntFromAttribute(mlir::Attribute attribute)
   return 0;
 }
 
+static double getDoubleFromAttribute(mlir::Attribute attribute)
+{
+  if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>()) {
+    return indexAttr.getInt();
+  }
+
+  if (auto booleanAttr = attribute.dyn_cast<BooleanAttr>()) {
+    return booleanAttr.getValue() ? 1 : 0;
+  }
+
+  if (auto integerAttr = attribute.dyn_cast<IntegerAttr>()) {
+    return integerAttr.getValue().getSExtValue();
+  }
+
+  if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+    return realAttr.getValue().convertToDouble();
+  }
+
+  llvm_unreachable("Unknown attribute type");
+  return 0;
+}
+
 static mlir::Attribute getIntegerAttribute(mlir::OpBuilder& builder, mlir::Type type, int value)
 {
   if (type.isa<BooleanType>()) {
@@ -1362,5 +1384,245 @@ namespace marco::codegen
     builder.setInsertionPointToEnd(&function.getBody().back());
     builder.create<mlir::func::ReturnOp>(loc);
     return function;
+  }
+
+  double Equation::getDoubleFromConstantValue(
+      mlir::Value value) const
+  {
+    mlir::Operation* op = value.getDefiningOp();
+
+    if(getVariables().isReferenceAccess(value)) {
+      return 1;
+    }
+
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
+      return getDoubleFromAttribute(constantOp.getValue());
+    }
+
+    if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
+      return -getDoubleFromConstantValue(negateOp.getOperand());
+    }
+
+    if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
+      auto lhs = getDoubleFromConstantValue(mulOp.getLhs());
+      auto rhs = getDoubleFromConstantValue(mulOp.getRhs());
+
+      return lhs*rhs;
+    }
+
+    if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
+      auto lhs = getDoubleFromConstantValue(divOp.getLhs());
+      auto rhs = getDoubleFromConstantValue(divOp.getRhs());
+
+      return lhs/rhs;
+    }
+
+    llvm_unreachable("Operation not supported.");
+  }
+
+  /// Check that there are no non linear functions operating on variables and no
+  /// variables on the right hand side of a division operation
+  /// @value The value to be checked for linearity
+  mlir::LogicalResult Equation::checkLinearity(mlir::Value value) const
+  {
+    mlir::Operation* op = value.getDefiningOp();
+
+    if(getVariables().isReferenceAccess(value)) {
+      return mlir::success();
+    }
+
+    if (auto constantOp = mlir::dyn_cast<ConstantOp>(op)) {
+      return mlir::success();
+    }
+
+    if (auto negateOp = mlir::dyn_cast<NegateOp>(op)) {
+      return checkLinearity(negateOp.getOperand());
+    }
+
+    if (auto mulOp = mlir::dyn_cast<MulOp>(op)) {
+      auto lhs = checkLinearity(mulOp.getLhs());
+      auto rhs = checkLinearity(mulOp.getRhs());
+
+      return mlir::failure(mlir::failed(lhs) || mlir::failed(rhs));
+    }
+
+    if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
+      auto lhs = checkLinearity(divOp.getLhs());
+      auto rhs = checkLinearity(divOp.getRhs());
+
+      std::vector<Access> accesses;
+      searchAccesses(accesses, divOp.getRhs(), EquationPath::LEFT);
+      if(!accesses.empty())
+        return mlir::failure();
+
+      return lhs;
+    }
+
+    if (auto sinOp = mlir::dyn_cast<SinOp>(op)) {
+      std::vector<Access> accesses;
+      searchAccesses(accesses, sinOp.getOperand(), EquationPath::LEFT);
+      if(accesses.empty())
+        return mlir::success();
+      return mlir::failure();
+    }
+
+    if (auto cosOp = mlir::dyn_cast<CosOp>(op)) {
+      std::vector<Access> accesses;
+      searchAccesses(accesses, cosOp.getOperand(), EquationPath::LEFT);
+      if(accesses.empty())
+        return mlir::success();
+      return mlir::failure();
+    }
+
+    if (auto tanOp = mlir::dyn_cast<TanOp>(op)) {
+      std::vector<Access> accesses;
+      searchAccesses(accesses, tanOp.getOperand(), EquationPath::LEFT);
+      if(accesses.empty())
+        return mlir::success();
+      return mlir::failure();
+    }
+
+    llvm_unreachable("Unsupported operand for linearity check.");
+
+  }
+
+  mlir::LogicalResult BaseEquation::getCoefficients(mlir::OpBuilder& builder,
+                                                    std::vector<double>& vector,
+                                                    double& constantTerm) const
+  {
+    std::vector<mlir::Value> lhsSummedValues;
+    std::vector<mlir::Value> rhsSummedValues;
+
+    auto convertToSumsFn = [&](std::function<mlir::Value()> root) -> mlir::LogicalResult {
+      if (auto res = removeSubtractions(builder, root().getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = distributeMulAndDivOps(builder, root().getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = pushNegateOps(builder, root().getDefiningOp()); mlir::failed(res)) {
+        return res;
+      }
+
+      return mlir::success();
+    };
+
+    {
+      auto rootFn = [&]() -> mlir::Value {
+        return getTerminator().getLhsValues()[0];
+      };
+
+      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = collectSummedValues(lhsSummedValues, rootFn()); mlir::failed(res)) {
+        return res;
+      }
+    }
+
+    {
+      auto rootFn = [&]() -> mlir::Value {
+        return getTerminator().getRhsValues()[0];
+      };
+
+      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
+        return res;
+      }
+
+      if (auto res = collectSummedValues(rhsSummedValues, rootFn()); mlir::failed(res)) {
+        return res;
+      }
+    }
+
+    // Initialize the constant term to zero.
+    constantTerm = 0;
+
+    // Initialize the coefficient vector to zero.
+    vector.resize(getVariables().size());
+    for(auto val : vector) {
+      val = 0;
+    }
+
+    for(auto value : rhsSummedValues) {
+      // Check that the value is linear, and if it is, wether it is a constant
+      // or a coefficient of a variable.
+      std::vector<Access> accesses;
+      EquationPath path(EquationPath::LEFT);
+      searchAccesses(accesses, value, path);
+
+      auto numberOfVariables = accesses.size();
+
+      if(numberOfVariables > 1) {
+        // The value is not linear
+        return mlir::failure();
+      }
+
+      if(numberOfVariables == 0) {
+        // The value is constant
+        constantTerm += getDoubleFromConstantValue(value);
+      } else {
+        if(mlir::failed(checkLinearity(value)))
+          return mlir::failure();
+        // The value may be linear: extract the coefficient
+        auto access = accesses[0];
+        auto variable = access.getVariable();
+        auto argument = variable->getValue().cast<mlir::BlockArgument>();
+
+        vector[argument.getArgNumber()] -= getDoubleFromConstantValue(value);
+      }
+    }
+
+    for(auto value : lhsSummedValues) {
+      // Check that the value is linear, and if it is, wether it is a constant
+      // or a coefficient of a variable.
+      std::vector<Access> accesses;
+      EquationPath path(EquationPath::LEFT);
+      searchAccesses(accesses, value, path);
+
+      auto numberOfVariables = accesses.size();
+
+      if(numberOfVariables > 1) {
+        // The value is not linear
+        return mlir::failure();
+      }
+
+      if(numberOfVariables == 0) {
+        // The value is constant
+        constantTerm -= getDoubleFromConstantValue(value);
+      } else {
+        if(mlir::failed(checkLinearity(value)))
+          return mlir::failure();
+        // The value may be linear: extract the coefficient
+        auto access = accesses[0];
+        auto variable = access.getVariable();
+        auto argument = variable->getValue().cast<mlir::BlockArgument>();
+
+        vector[argument.getArgNumber()] += getDoubleFromConstantValue(value);
+      }
+    }
+
+    return mlir::success();
+  }
+
+  void BaseEquation::replaceSides(
+      mlir::OpBuilder builder,
+      mlir::Value lhs,
+      mlir::Value rhs) const
+  {
+    auto terminator = getTerminator();
+    mlir::Location loc = terminator->getLoc();
+
+    auto lhsOp = builder.create<EquationSideOp>(loc, lhs);
+    auto oldLhsOp = terminator.getLhs().getDefiningOp();
+    oldLhsOp->replaceAllUsesWith(lhsOp);
+    oldLhsOp->erase();
+
+    auto rhsOp = builder.create<EquationSideOp>(loc, rhs);
+    auto oldRhsOp = terminator.getRhs().getDefiningOp();
+    oldRhsOp->replaceAllUsesWith(rhsOp);
+    oldRhsOp->erase();
   }
 }

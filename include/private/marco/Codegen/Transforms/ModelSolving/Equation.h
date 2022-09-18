@@ -98,6 +98,15 @@ namespace marco::codegen
           mlir::ValueRange vars,
           ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
 
+      virtual mlir::LogicalResult getCoefficients(mlir::OpBuilder& builder,
+                                          std::vector<double>& vector,
+                                          double& constantTerm) const = 0;
+
+      virtual void replaceSides(
+          mlir::OpBuilder builder,
+          mlir::Value lhs,
+          mlir::Value rhs) const = 0;
+
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;
 
@@ -125,6 +134,10 @@ namespace marco::codegen
           EquationPath path) const;
 
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
+
+      mlir::LogicalResult checkLinearity(mlir::Value value) const;
+
+      double getDoubleFromConstantValue(mlir::Value value) const;
   };
 
   /// Mark an equation as temporary and delete the underlying IR when the guard goes out of scope.
