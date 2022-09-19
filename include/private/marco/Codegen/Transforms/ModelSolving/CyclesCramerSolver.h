@@ -115,10 +115,11 @@ namespace marco::codegen {
 
   /// Get the matrix model and constant vector
   /// @equations Cloned and explicitated equations
-  bool getModelMatrixAndVector(SquareMatrix matrix,
-                               double* constantVector,
-                               Equations<MatchedEquation> equations,
-                               mlir::OpBuilder& builder)
+  bool getModelMatrixAndVector(
+      SquareMatrix matrix,
+      double* constantVector,
+      Equations<MatchedEquation> equations,
+      mlir::OpBuilder& builder)
   {
 
     assert(equations.size() > 0);

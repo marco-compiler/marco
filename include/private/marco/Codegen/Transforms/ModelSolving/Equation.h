@@ -98,9 +98,10 @@ namespace marco::codegen
           mlir::ValueRange vars,
           ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
 
-      virtual mlir::LogicalResult getCoefficients(mlir::OpBuilder& builder,
-                                          std::vector<double>& vector,
-                                          double& constantTerm) const = 0;
+      virtual mlir::LogicalResult getCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<double>& vector,
+          double& constantTerm) const = 0;
 
       virtual void replaceSides(
           mlir::OpBuilder builder,

@@ -1448,7 +1448,6 @@ namespace marco::codegen
 
     if (auto divOp = mlir::dyn_cast<DivOp>(op)) {
       auto lhs = checkLinearity(divOp.getLhs());
-      auto rhs = checkLinearity(divOp.getRhs());
 
       std::vector<Access> accesses;
       searchAccesses(accesses, divOp.getRhs(), EquationPath::LEFT);
