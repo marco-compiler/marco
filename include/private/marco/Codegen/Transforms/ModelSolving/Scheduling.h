@@ -87,9 +87,10 @@ namespace marco::codegen
           mlir::ValueRange vars,
           modeling::scheduling::Direction iterationDirection) const override;
 
-      mlir::LogicalResult getCoefficients(mlir::OpBuilder& builder,
-                                                  std::vector<double>& vector,
-                                                  double& constantTerm) const override;
+      mlir::LogicalResult getCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<double>& vector,
+          double& constantTerm) const override;
 
       void replaceSides(
           mlir::OpBuilder builder,
