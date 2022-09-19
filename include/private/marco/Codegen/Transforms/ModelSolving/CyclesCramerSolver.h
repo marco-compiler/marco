@@ -10,6 +10,10 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen {
 
+  /// SquareMatrix implements a square matrix that can be accessed using the
+  /// parentheses operators.
+  /// @size The number of rows and columns.
+  /// @storage The array that contains the matrix values.
   class SquareMatrix
   {
   private:
@@ -27,16 +31,19 @@ namespace marco::codegen {
       return size;
     }
 
+    /// Modify matrix elements with parentheses operator
     double& operator()(size_t row, size_t col)
     {
       return storage[row*size + col];
     }
 
+    /// Access matrix elements with parentheses operator
     double operator()(size_t row, size_t col) const
     {
       return storage[row*size + col];
     }
 
+    /// Print the matrix contents to stderr.
     void dump()
     {
       std::cerr << "Matrix: \n";
@@ -51,6 +58,12 @@ namespace marco::codegen {
       std::cerr << "\n" << std::flush;
     }
 
+    /// The out matrix will contain the elements of the submatrix, minus the row
+    /// and the column specified.
+    /// \param out Output matrix.
+    /// \param row Row to remove.
+    /// \param col Column to remove.
+    /// \return The out matrix.
     SquareMatrix subMatrix(SquareMatrix out, size_t row, size_t col)
     {
       for (size_t i = 0; i < size; i++)
@@ -70,6 +83,15 @@ namespace marco::codegen {
       return out;
     }
 
+    /// Substitute the column of the matrix indicated with the column number
+    /// with the one specified by the col pointer, and return it in the out
+    /// matrix given as input.
+    /// \param out The matrix that will contain the result.
+    /// \param colNumber The index of the matrix column we want to substitute.
+    /// \param col The pointer to the vector that we want to substitute to the
+    /// matrix column.
+    /// \return The matrix obtained by substituting the given column in the
+    /// current matrix at the specified column index
     SquareMatrix substituteColumn(SquareMatrix out, size_t colNumber, double* col)
     {
       assert(colNumber < size && out.getSize() == size);
@@ -87,6 +109,8 @@ namespace marco::codegen {
       return out;
     }
 
+    /// Compute the determinant of the matrix
+    /// \return The determinant of the matrix
     double det()
     {
       double determinant = 0;
@@ -113,8 +137,13 @@ namespace marco::codegen {
     }
   };
 
-  /// Get the matrix model and constant vector
-  /// @equations Cloned and explicitated equations
+  /// Get the matrix of the coefficients of the model and the constant vector
+  /// \param matrix The matrix that will contain the model system coefficients.
+  /// \param constantVector The vector that will contain the constant terms of
+  /// the model equations.
+  /// \param equations Cloned equations.
+  /// \param builder The MLIR buillder.
+  /// \return true if successful, false otherwise.
   bool getModelMatrixAndVector(
       SquareMatrix matrix,
       double* constantVector,
@@ -122,16 +151,15 @@ namespace marco::codegen {
       mlir::OpBuilder& builder)
   {
 
+    /// Get the filtered variables from one of the equations
     assert(equations.size() > 0);
     Variables variables = equations[0]->getVariables();
-
     assert(variables.size() == equations.size());
 
-    bool check = true;
-
-
+    /// For each equation, get the coefficients of the variables and the
+    /// constant term, and save them respectively in the system matrix and
+    /// constant term vector.
     for(size_t i = 0; i < equations.size(); ++i) {
-
       auto equation = equations[i].get();
       auto vector = std::vector<double>();
       double constantTerm;
@@ -149,7 +177,6 @@ namespace marco::codegen {
       }
 
       constantVector[i] = constantTerm;
-
     }
 
     return true;
@@ -164,14 +191,17 @@ namespace marco::codegen {
     {
     }
 
+    /// Solve the system of equations contained in the model using the Cramer
+    /// method, if such model is linear in the variables.
+    /// \param model The model containing the system of linear equations.
+    /// \return true if successful, false otherwise.
     bool solve(Model<MatchedEquation>& model)
     {
       bool res = false;
 
-      size_t numberOfScalarEquations = 0;
-
+      /// Clone the system equations so that we can operate on them without
+      /// disrupting the rest of the compilation process.
       Equations<MatchedEquation> clones;
-
       for (const auto& equation : model.getEquations()) {
         auto clone = equation->clone();
 
@@ -183,25 +213,38 @@ namespace marco::codegen {
         clones.add(std::move(matchedClone));
       }
 
+      /// Get the number of scalar equations in the system, which should be
+      /// equal to the number of filtered variables.
+      size_t numberOfScalarEquations = 0;
       for (const auto& equation : clones) {
         numberOfScalarEquations += equation->getIterationRanges().flatSize();
       }
 
+      /// Create the matrix to contain the coefficients of the system's
+      /// equations and the vector to contain the constant terms.
       double storage[numberOfScalarEquations*numberOfScalarEquations];
       auto matrix = SquareMatrix(storage, numberOfScalarEquations);
       double constantVector[numberOfScalarEquations];
 
+      /// Populate system coefficient matrix and constant term vector.
       res = getModelMatrixAndVector(matrix, constantVector, clones, builder);
 
       if(res) {
         double solutionVector[numberOfScalarEquations];
 
+        /// Create a temporary matrix to contain the matrices we are going to
+        /// derive from the original one, by substituting the constant term
+        /// vector to each of its columns.
         double tempStorage[numberOfScalarEquations*numberOfScalarEquations];
         auto temp = SquareMatrix(tempStorage, numberOfScalarEquations);
-        double detA = matrix.det();
 
+        /// Check that the system matrix is non singular
+        double detA = matrix.det();
         if(detA == 0) return false;
 
+        /// Compute the determinant of each one of the matrices obtained by
+        /// substituting the constant term vector to each one of the matrix
+        /// columns, and divide them by the determinant of the system matrix.
         for (size_t i = 0; i < numberOfScalarEquations; i++)
         {
           matrix.substituteColumn(temp, i, constantVector);
@@ -209,6 +252,10 @@ namespace marco::codegen {
           solutionVector[i] = tempDet/detA;
         }
 
+        /// Set the results computed as the right side of the cloned equations,
+        /// and the matched variables as the left side. Set the cloned equations
+        /// as the model equations.
+        //TODO: delete useless modelica instructions
         for(const auto& equation : clones) {
           auto variable = equation->getWrite().getVariable();
           auto argument = variable->getValue().cast<mlir::BlockArgument>();

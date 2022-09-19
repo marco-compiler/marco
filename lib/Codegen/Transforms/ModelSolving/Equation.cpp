@@ -1485,9 +1485,10 @@ namespace marco::codegen
 
   }
 
-  mlir::LogicalResult BaseEquation::getCoefficients(mlir::OpBuilder& builder,
-                                                    std::vector<double>& vector,
-                                                    double& constantTerm) const
+  mlir::LogicalResult BaseEquation::getCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<double>& vector,
+      double& constantTerm) const
   {
     std::vector<mlir::Value> lhsSummedValues;
     std::vector<mlir::Value> rhsSummedValues;
