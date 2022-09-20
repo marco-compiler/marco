@@ -48,6 +48,29 @@ namespace
   };
 }
 
+template<typename EquationType>
+static void eraseOldEquations(const Model<MatchedEquation>& model)
+{
+  llvm::DenseSet<mlir::Operation*> toBeKept;
+
+  for (const auto& equation : model.getEquations()) {
+    toBeKept.insert(equation->getOperation().getOperation());
+  }
+
+  llvm::DenseSet<mlir::Operation*> toBeErased;
+
+  model.getOperation().template walk([&](EquationType equationOp) {
+    if (mlir::Operation* op = equationOp.getOperation(); !toBeKept.contains(op)) {
+      toBeErased.insert(op);
+    }
+  });
+
+  for (mlir::Operation* op : toBeErased) {
+    auto equation = Equation::build(mlir::cast<EquationInterface>(op), model.getVariables());
+    equation->eraseIR();
+  }
+}
+
 mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
   // The options to be used when printing the IR.
@@ -55,6 +78,8 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
   irOptions.mergeAndSortRanges = debugView;
   irOptions.singleMatchAttr = debugView;
   irOptions.singleScheduleAttr = debugView;
+
+  modelOp.dump();
 
   if (processICModel) {
     // Obtain the matched model.
@@ -73,6 +98,8 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
     if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
       return res;
     }
+
+    eraseOldEquations<InitialEquationOp>(matchedModel);
 
     // Write the match information in form of attributes.
     writeMatchingAttributes(builder, matchedModel, irOptions);
@@ -95,6 +122,8 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
     if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
       return res;
     }
+
+    eraseOldEquations<EquationOp>(matchedModel);
 
     // Write the match information in form of attributes.
     writeMatchingAttributes(builder, matchedModel, irOptions);

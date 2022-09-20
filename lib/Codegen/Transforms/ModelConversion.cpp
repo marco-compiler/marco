@@ -1021,7 +1021,6 @@ namespace marco::codegen
           auto templateFunction = getEquationTemplateFn(equation.get());
 
           if (templateFunction == nullptr) {
-            model.getOperation().dump();
             equation->getOperation().emitError("The equation can't be made explicit");
             equation->getOperation().dump();
             return mlir::failure();

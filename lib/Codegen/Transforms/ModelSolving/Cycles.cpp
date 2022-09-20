@@ -12,7 +12,7 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   bool allCyclesSolved;
 
   // The list of equations among which the cycles have to be searched
-  std::vector<MatchedEquation*> toBeProcessed;
+  llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
   // The first iteration will use all the equations of the model
   for (const auto& equation : model.getEquations()) {
@@ -20,8 +20,8 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   }
 
   Equations<MatchedEquation> solution;
-  std::vector<std::unique_ptr<MatchedEquation>> newEquations;
-  std::vector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
+  llvm::SmallVector<std::unique_ptr<MatchedEquation>> newEquations;
+  llvm::SmallVector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
 
   do {
     // Get all the cycles within the system of equations
@@ -88,24 +88,6 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
 
   for (auto& unsolvedEquation : unsolvedEquations) {
     solution.add(std::move(unsolvedEquation));
-  }
-
-  // Erase the original operations that are not part of the model anymore.
-  llvm::DenseSet<mlir::Operation*> newEquationOps;
-
-  for (const auto& equation : solution) {
-    newEquationOps.insert(equation->getOperation().getOperation());
-  }
-
-  llvm::DenseSet<mlir::Operation*> erased;
-
-  for (auto& equation : model.getEquations()) {
-    mlir::Operation* op = equation->getOperation().getOperation();
-
-    if (!newEquationOps.contains(op) && !erased.contains(op)) {
-      equation->eraseIR();
-      erased.insert(op);
-    }
   }
 
   // Set the new equations of the model
