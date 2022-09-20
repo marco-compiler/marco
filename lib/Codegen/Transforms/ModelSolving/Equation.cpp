@@ -1417,6 +1417,7 @@ namespace marco::codegen
       return lhs/rhs;
     }
 
+    value.dump();
     llvm_unreachable("Operation not supported.");
   }
 
@@ -1608,11 +1609,14 @@ namespace marco::codegen
   }
 
   void BaseEquation::replaceSides(
-      mlir::OpBuilder builder,
+      mlir::OpBuilder& builder,
       mlir::Value lhs,
       mlir::Value rhs) const
   {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
     auto terminator = getTerminator();
+    builder.setInsertionPoint(terminator);
     mlir::Location loc = terminator->getLoc();
 
     auto lhsOp = builder.create<EquationSideOp>(loc, lhs);

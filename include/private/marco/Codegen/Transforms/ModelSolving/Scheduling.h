@@ -93,7 +93,7 @@ namespace marco::codegen
           double& constantTerm) const override;
 
       void replaceSides(
-          mlir::OpBuilder builder,
+          mlir::OpBuilder& builder,
           mlir::Value lhs,
           mlir::Value rhs) const override;
 

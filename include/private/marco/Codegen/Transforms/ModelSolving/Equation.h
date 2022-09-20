@@ -104,7 +104,7 @@ namespace marco::codegen
           double& constantTerm) const = 0;
 
       virtual void replaceSides(
-          mlir::OpBuilder builder,
+          mlir::OpBuilder& builder,
           mlir::Value lhs,
           mlir::Value rhs) const = 0;
 

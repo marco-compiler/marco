@@ -188,7 +188,7 @@ namespace marco::codegen
   }
 
   void ScheduledEquation::replaceSides(
-      mlir::OpBuilder builder,
+      mlir::OpBuilder& builder,
       mlir::Value lhs,
       mlir::Value rhs) const
   {
