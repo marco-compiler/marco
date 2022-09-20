@@ -273,7 +273,7 @@ namespace marco::codegen {
                             solutionVector[argument.getArgNumber()]));
 
           equation->replaceSides(builder, lhs, rhs.getResult());
-          equation->setDefaultMatchedPath();
+          equation->setPath(EquationPath::LEFT);
 
         }
 

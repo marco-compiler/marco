@@ -215,16 +215,16 @@ namespace marco::codegen
   }
 
   void MatchedEquation::replaceSides(
-      mlir::OpBuilder builder,
+      mlir::OpBuilder& builder,
       mlir::Value lhs,
       mlir::Value rhs) const
   {
     return equation->replaceSides(builder, lhs, rhs);
   }
 
-  void MatchedEquation::setDefaultMatchedPath()
+  void MatchedEquation::setPath(EquationPath path)
   {
-    matchedPath = EquationPath(EquationPath::LEFT);
+    matchedPath = std::move(path);
   }
 
   mlir::LogicalResult match(
