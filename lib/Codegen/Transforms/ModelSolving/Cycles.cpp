@@ -90,6 +90,24 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
     solution.add(std::move(unsolvedEquation));
   }
 
+  // Erase the original operations that are not part of the model anymore.
+  llvm::DenseSet<mlir::Operation*> newEquationOps;
+
+  for (const auto& equation : solution) {
+    newEquationOps.insert(equation->getOperation().getOperation());
+  }
+
+  llvm::DenseSet<mlir::Operation*> erased;
+
+  for (auto& equation : model.getEquations()) {
+    mlir::Operation* op = equation->getOperation().getOperation();
+
+    if (!newEquationOps.contains(op) && !erased.contains(op)) {
+      equation->eraseIR();
+      erased.insert(op);
+    }
+  }
+
   // Set the new equations of the model
   model.setEquations(solution);
 

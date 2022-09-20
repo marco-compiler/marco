@@ -79,7 +79,7 @@ namespace marco::codegen::lowering
       auto baseType = lower(obj);
 
       if (!type.isScalar()) {
-        llvm::SmallVector<long, 3> shape;
+        llvm::SmallVector<int64_t, 3> shape;
 
         for (const auto& dimension : type.getDimensions()) {
           if (dimension.isDynamic()) {

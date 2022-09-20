@@ -571,13 +571,13 @@ namespace marco::modeling
 
         const EdgeDescriptor& getEdge() const
         {
-          assert(edge.hasValue());
+          assert(edge.has_value());
           return *edge;
         }
 
         const MCIM& getMappedFlow() const
         {
-          assert(mappedFlow.hasValue());
+          assert(mappedFlow.has_value());
           return *mappedFlow;
         }
 

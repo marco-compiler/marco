@@ -39,7 +39,7 @@ namespace mlir::modelica
 
     mlir::OptionalParseResult parseResult = generatedTypeParser(parser, &typeTag, genType);
 
-    if (parseResult.hasValue()) {
+    if (parseResult.has_value()) {
       return genType;
     }
 
@@ -314,7 +314,7 @@ namespace mlir::modelica
   {
     auto shape = getShape();
     assert(subscriptsAmount <= shape.size() && "Too many subscriptions");
-    llvm::SmallVector<long, 3> resultShape;
+    llvm::SmallVector<int64_t, 3> resultShape;
 
     for (size_t i = subscriptsAmount, e = shape.size(); i < e; ++i) {
       resultShape.push_back(shape[i]);

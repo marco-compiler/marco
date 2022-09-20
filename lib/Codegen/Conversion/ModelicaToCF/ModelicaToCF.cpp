@@ -197,7 +197,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     // We need to allocate a fake buffer in order to allow the first free
     // operation to operate on a valid memory area.
 
-    llvm::SmallVector<long, 3> shape(arrayType.getRank(), 0);
+    llvm::SmallVector<int64_t, 3> shape(arrayType.getRank(), 0);
 
     mlir::Value fakeArray = builder.create<AllocOp>(
         loc,

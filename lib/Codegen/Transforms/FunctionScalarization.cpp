@@ -117,7 +117,7 @@ static mlir::LogicalResult scalarizeVectorizableOp(
 
   for (const auto& resultType : op->getResultTypes()) {
     assert(resultType.isa<ArrayType>());
-    llvm::SmallVector<long, 3> shape;
+    llvm::SmallVector<int64_t, 3> shape;
     llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
     for (const auto& dimension : llvm::enumerate(resultType.cast<ArrayType>().getShape())) {

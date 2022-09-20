@@ -91,14 +91,10 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
       return res;
     }
 
-    modelOp.dump();
-
     // Solve the cycles in the 'main' model
     if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
       return res;
     }
-
-    modelOp.dump();
 
     // Write the match information in form of attributes.
     writeMatchingAttributes(builder, matchedModel, irOptions);
