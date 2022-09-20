@@ -304,7 +304,7 @@ namespace marco::codegen
       auto clone = solution.getEquation()->clone();
 
       matchedEquations.add(std::make_unique<MatchedEquation>(
-          std::move(clone), IndexSet(solution.getIndexes()), solution.getAccess()));
+          std::move(clone), solution.getIndexes(), solution.getAccess()));
     }
 
     result.setVariables(model.getVariables());

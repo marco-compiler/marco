@@ -1,15 +1,154 @@
-#include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
+#include "marco/Codegen/Transforms/ModelConversion.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/DerivativesMap.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDASolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
+#include "marco/Codegen/Transforms/ModelSolving/Utils.h"
 #include "marco/Codegen/Runtime.h"
+#include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+
+namespace mlir::modelica
+{
+#define GEN_PASS_DEF_MODELCONVERSIONPASS
+#include "marco/Codegen/Transforms/Passes.h.inc"
+}
 
 using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
+
+namespace
+{
+  struct FuncOpTypesPattern : public mlir::OpConversionPattern<mlir::func::FuncOp>
+  {
+    using mlir::OpConversionPattern<mlir::func::FuncOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(mlir::func::FuncOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Type, 3> resultTypes;
+      llvm::SmallVector<mlir::Type, 3> argTypes;
+
+      for (const auto& type : op.getFunctionType().getResults()) {
+        resultTypes.push_back(getTypeConverter()->convertType(type));
+      }
+
+      for (const auto& type : op.getFunctionType().getInputs()) {
+        argTypes.push_back(getTypeConverter()->convertType(type));
+      }
+
+      auto functionType = rewriter.getFunctionType(argTypes, resultTypes);
+      auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(op, op.getSymName(), functionType);
+
+      mlir::Block* entryBlock = newOp.addEntryBlock();
+      rewriter.setInsertionPointToStart(entryBlock);
+
+      mlir::BlockAndValueMapping mapping;
+
+      // Clone the blocks structure
+      for (auto& block : llvm::enumerate(op.getBody())) {
+        if (block.index() == 0) {
+          mapping.map(&block.value(), entryBlock);
+        } else {
+          std::vector<mlir::Location> argLocations;
+
+          for (const auto& arg : block.value().getArguments()) {
+            argLocations.push_back(arg.getLoc());
+          }
+
+          auto signatureConversion = typeConverter->convertBlockSignature(&block.value());
+
+          if (!signatureConversion) {
+            return mlir::failure();
+          }
+
+          mlir::Block* clonedBlock = rewriter.createBlock(
+              &newOp.getBody(),
+              newOp.getBody().end(),
+              signatureConversion->getConvertedTypes(),
+              argLocations);
+
+          mapping.map(&block.value(), clonedBlock);
+        }
+      }
+
+      for (auto& block : op.getBody().getBlocks()) {
+        mlir::Block* clonedBlock = mapping.lookup(&block);
+        rewriter.setInsertionPointToStart(clonedBlock);
+
+        // Cast the block arguments
+        for (const auto& [original, cloned] : llvm::zip(block.getArguments(), clonedBlock->getArguments())) {
+          mlir::Value arg = typeConverter->materializeSourceConversion(
+              rewriter, cloned.getLoc(), original.getType(), cloned);
+
+          mapping.map(original, arg);
+        }
+
+        // Clone the operations
+        for (auto& bodyOp : block.getOperations()) {
+          if (auto returnOp = mlir::dyn_cast<mlir::func::ReturnOp>(bodyOp)) {
+            std::vector<mlir::Value> returnValues;
+
+            for (auto returnValue : returnOp.operands()) {
+              returnValues.push_back(getTypeConverter()->materializeTargetConversion(
+                  rewriter, returnOp.getLoc(),
+                  getTypeConverter()->convertType(returnValue.getType()),
+                  mapping.lookup(returnValue)));
+            }
+
+            rewriter.create<mlir::func::ReturnOp>(returnOp.getLoc(), returnValues);
+          } else {
+            rewriter.clone(bodyOp, mapping);
+          }
+        }
+      }
+
+      return mlir::success();
+    }
+  };
+
+  struct CallOpTypesPattern : public mlir::OpConversionPattern<mlir::func::CallOp>
+  {
+    using mlir::OpConversionPattern<mlir::func::CallOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(mlir::func::CallOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      llvm::SmallVector<mlir::Value, 3> values;
+
+      for (const auto& operand : op.operands()) {
+        values.push_back(getTypeConverter()->materializeTargetConversion(
+            rewriter, operand.getLoc(), getTypeConverter()->convertType(operand.getType()), operand));
+      }
+
+      llvm::SmallVector<mlir::Type, 3> resultTypes;
+
+      for (const auto& type : op.getResults().getTypes()) {
+        resultTypes.push_back(getTypeConverter()->convertType(type));
+      }
+
+      auto newOp = rewriter.create<mlir::func::CallOp>(op.getLoc(), op.getCallee(), resultTypes, values);
+
+      llvm::SmallVector<mlir::Value, 3> results;
+
+      for (const auto& [oldResult, newResult] : llvm::zip(op.getResults(), newOp.getResults())) {
+        if (oldResult.getType() != newResult.getType()) {
+          results.push_back(getTypeConverter()->materializeSourceConversion(
+              rewriter, newResult.getLoc(), oldResult.getType(), newResult));
+        } else {
+          results.push_back(newResult);
+        }
+      }
+
+      rewriter.replaceOp(op, results);
+      return mlir::success();
+    }
+  };
+}
 
 namespace
 {
@@ -34,8 +173,8 @@ namespace
       modeling::scheduling::Direction schedulingDirection;
   };
 
-  /// Get the MLIR function with the given name, or declare it inside the module if not present.
-  mlir::LLVM::LLVMFuncOp getOrInsertFunction(
+  /// Get the LLVM function with the given name, or declare it inside the module if not present.
+  mlir::LLVM::LLVMFuncOp getOrCreateLLVMFunctionDecl(
       mlir::OpBuilder& builder,
       mlir::ModuleOp module,
       llvm::StringRef name,
@@ -124,14 +263,14 @@ namespace marco::codegen
 {
   ModelConverter::ModelConverter(
       mlir::LLVMTypeConverter& typeConverter,
-      VariableFilter* variableFilter,
+      VariableFilter& variablesFilter,
       Solver solver,
       double startTime,
       double endTime,
       double timeStep,
       IDAOptions idaOptions)
       : typeConverter(&typeConverter),
-        variableFilter(variableFilter),
+        variablesFilter(&variablesFilter),
         solver(solver),
         startTime(startTime),
         endTime(endTime),
@@ -416,13 +555,13 @@ namespace marco::codegen
     auto module = modelOp->getParentOfType<mlir::ModuleOp>();
     builder.setInsertionPointToEnd(module.getBody());
 
-    mlir::Type resultType = getVoidPtrType();
-    auto function = builder.create<mlir::func::FuncOp>(loc, getModelNameFunctionName, builder.getFunctionType(llvm::None, resultType));
+    auto functionType = builder.getFunctionType(llvm::None, getVoidPtrType());
+    auto function = builder.create<mlir::func::FuncOp>(loc, getModelNameFunctionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    mlir::Value name = getOrCreateGlobalString(loc, builder, "modelName", modelOp.getSymName(), module);
+    mlir::Value name = getOrCreateGlobalString(builder, loc, module, "modelName", modelOp.getSymName());
     builder.create<mlir::func::ReturnOp>(loc, name);
 
     return mlir::success();
@@ -443,7 +582,8 @@ namespace marco::codegen
     argsTypes.push_back(builder.getI32Type());
     argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMPointerType::get(builder.getIntegerType(8))));
 
-    auto mainFunction = builder.create<mlir::func::FuncOp>(loc, mainFunctionName, builder.getFunctionType(argsTypes, resultType));
+    auto functionType = builder.getFunctionType(argsTypes, resultType);
+    auto mainFunction = builder.create<mlir::func::FuncOp>(loc, mainFunctionName, functionType);
 
     auto* entryBlock = mainFunction.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -451,7 +591,7 @@ namespace marco::codegen
     // Call the function to start the simulation.
     // Its definition lives within the runtime library.
 
-    auto runFunction = getOrInsertFunction(
+    auto runFunction = getOrCreateLLVMFunctionDecl(
         builder, module, runFunctionName, mlir::LLVM::LLVMFunctionType::get(resultType, argsTypes));
 
     mlir::Value returnValue = builder.create<mlir::LLVM::CallOp>(loc, runFunction, mainFunction.getArguments()).getResult();
@@ -646,9 +786,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, functionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, functionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -721,9 +860,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, functionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, functionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -795,9 +933,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, calcICFunctionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, calcICFunctionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -1101,9 +1238,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, deinitFunctionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, deinitFunctionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -1165,7 +1301,7 @@ namespace marco::codegen
 
     auto valuesFn = [&](marco::modeling::scheduling::Direction iterationDirection, Range range) -> std::tuple<mlir::Value, mlir::Value, mlir::Value> {
       assert(iterationDirection == marco::modeling::scheduling::Direction::Forward ||
-          iterationDirection == marco::modeling::scheduling::Direction::Backward);
+             iterationDirection == marco::modeling::scheduling::Direction::Backward);
 
       if (iterationDirection == marco::modeling::scheduling::Direction::Forward) {
         mlir::Value begin = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(range.getBegin()));
@@ -1219,9 +1355,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, updateNonStateVariablesFunctionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, updateNonStateVariablesFunctionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -1366,9 +1501,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, updateStateVariablesFunctionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, updateStateVariablesFunctionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -1488,9 +1622,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, incrementTimeFunctionName,
-        builder.getFunctionType(getVoidPtrType(), builder.getI1Type()));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), builder.getI1Type());
+    auto function = builder.create<mlir::func::FuncOp>(loc, incrementTimeFunctionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -1569,7 +1702,7 @@ namespace marco::codegen
     // Get or declare the external function
     auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
     auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, llvm::None);
-    auto function = getOrInsertFunction(builder, module, functionName, llvmFnType);
+    auto function = getOrCreateLLVMFunctionDecl(builder, module, functionName, llvmFnType);
 
     // Call it
     builder.create<mlir::LLVM::CallOp>(function.getLoc(), function, llvm::None);
@@ -1584,18 +1717,18 @@ namespace marco::codegen
     // Get or declare the external function
     auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
     auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, llvm::None);
-    auto function = getOrInsertFunction(builder, module, functionName, llvmFnType);
+    auto function = getOrCreateLLVMFunctionDecl(builder, module, functionName, llvmFnType);
 
     // Call it
     builder.create<mlir::LLVM::CallOp>(function.getLoc(), function, llvm::None);
   }
 
   mlir::Value ModelConverter::getOrCreateGlobalString(
-      mlir::Location loc,
       mlir::OpBuilder& builder,
+      mlir::Location loc,
+      mlir::ModuleOp module,
       mlir::StringRef name,
-      mlir::StringRef value,
-      mlir::ModuleOp module) const
+      mlir::StringRef value) const
   {
     // Create the global at the entry of the module
     mlir::LLVM::GlobalOp global;
@@ -1643,7 +1776,7 @@ namespace marco::codegen
 
     auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
     auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, argTypes);
-    return getOrInsertFunction(builder, module, functionName, llvmFnType);
+    return getOrCreateLLVMFunctionDecl(builder, module, functionName, llvmFnType);
   }
 
   void ModelConverter::printVariableName(
@@ -1784,7 +1917,7 @@ namespace marco::codegen
       std::string symbolName = "var" + std::to_string(processedValues);
       llvm::SmallString<10> terminatedName(name);
       terminatedName.append("\0");
-      mlir::Value symbol = getOrCreateGlobalString(loc, builder, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1), module);
+      mlir::Value symbol = getOrCreateGlobalString(builder, loc, module, symbolName, llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1));
 
       bool shouldPrintSeparator = processedValues != 0;
       printVariableName(builder, module, symbol, value, filteredIndices, shouldPrintSeparator);
@@ -1886,7 +2019,7 @@ namespace marco::codegen
     auto voidType = mlir::LLVM::LLVMVoidType::get(builder.getContext());
     auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(voidType, argTypes);
     auto functionName = mangling.getMangledFunction("print_csv", mangling.getVoidType(), mangledArgTypes);
-    auto function = getOrInsertFunction(builder, module, functionName, llvmFnType);
+    auto function = getOrCreateLLVMFunctionDecl(builder, module, functionName, llvmFnType);
 
     builder.create<mlir::LLVM::CallOp>(function.getLoc(), function, value);
   }
@@ -1922,9 +2055,8 @@ namespace marco::codegen
     // Create the function inside the parent module
     builder.setInsertionPointToEnd(module.getBody());
 
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, functionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+    auto functionType = builder.getFunctionType(getVoidPtrType(), llvm::None);
+    auto function = builder.create<mlir::func::FuncOp>(loc, functionName, functionType);
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -1979,7 +2111,7 @@ namespace marco::codegen
         rank = arrayType.getRank();
       }
 
-      auto filters = variableFilter->getVariableInfo(name, rank);
+      auto filters = variablesFilter->getVariableInfo(name, rank);
       IndexSet filteredIndices = getFilteredIndices(variableTypes[position], filters);
 
       if (filteredIndices.empty()) {
@@ -2011,7 +2143,7 @@ namespace marco::codegen
         rank = arrayType.getRank();
       }
 
-      auto filters = variableFilter->getVariableDerInfo(name, rank);
+      auto filters = variablesFilter->getVariableDerInfo(name, rank);
       IndexSet filteredIndices = getFilteredIndices(variableTypes[derPosition], filters);
       filteredIndices -= derivativesMap.getDerivedIndices(varPosition);
 
@@ -2036,5 +2168,217 @@ namespace marco::codegen
 
     builder.create<mlir::func::ReturnOp>(loc);
     return mlir::success();
+  }
+}
+
+namespace
+{
+  class ModelConversionPass : public mlir::modelica::impl::ModelConversionPassBase<ModelConversionPass>
+  {
+    public:
+      using ModelConversionPassBase::ModelConversionPassBase;
+
+      void runOnOperation() override
+      {
+        if (mlir::failed(createSimulationHooks())) {
+          mlir::emitError(getOperation().getLoc(), "Can't create the simulation hooks");
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(convertFuncOps())) {
+          return signalPassFailure();
+        }
+      }
+
+    private:
+      mlir::LogicalResult createSimulationHooks();
+
+      mlir::LogicalResult convertFuncOps();
+  };
+}
+
+mlir::LogicalResult ModelConversionPass::createSimulationHooks()
+{
+  mlir::ModuleOp module = getOperation();
+  std::vector<ModelOp> modelOps;
+
+  module.walk([&](ModelOp modelOp) {
+    modelOps.push_back(modelOp);
+  });
+
+  assert(llvm::count_if(modelOps, [&](ModelOp modelOp) {
+           return modelOp.getSymName() == model;
+         }) <= 1 && "More than one model matches the requested model name, but only one can be converted into a simulation");
+
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+  // Modelica types converter
+  mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
+  // Add the conversions for the IDA types
+  mlir::ida::LLVMTypeConverter idaTypeConverter(&getContext(), llvmLoweringOptions);
+
+  typeConverter.addConversion([&](mlir::ida::InstanceType type) {
+    return idaTypeConverter.convertType(type);
+  });
+
+  typeConverter.addConversion([&](mlir::ida::VariableType type) {
+    return idaTypeConverter.convertType(type);
+  });
+
+  typeConverter.addConversion([&](mlir::ida::EquationType type) {
+    return idaTypeConverter.convertType(type);
+  });
+
+  for (auto& modelOp : modelOps) {
+    if (modelOp.getSymName() != model) {
+      modelOp.erase();
+      continue;
+    }
+
+    auto expectedVariablesFilter = VariableFilter::fromString(variablesFilter);
+    std::unique_ptr<VariableFilter> variablesFilterInstance;
+
+    if (!expectedVariablesFilter) {
+      modelOp.emitWarning("Invalid variable filter string. No filtering will take place");
+      variablesFilterInstance = std::make_unique<VariableFilter>();
+    } else {
+      variablesFilterInstance = std::make_unique<VariableFilter>(std::move(*expectedVariablesFilter));
+    }
+
+    IDAOptions idaOptions;
+    idaOptions.equidistantTimeGrid = idaEquidistantTimeGrid;
+
+    ModelConverter modelConverter(typeConverter, *variablesFilterInstance, solver, startTime, endTime, timeStep, idaOptions);
+
+    mlir::OpBuilder builder(modelOp);
+
+    // Parse the derivatives map.
+    DerivativesMap derivativesMap;
+
+    if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
+      return res;
+    }
+
+    if (processICModel) {
+      // Obtain the scheduled model.
+      Model<ScheduledEquationsBlock> model(modelOp);
+      model.setVariables(discoverVariables(modelOp));
+      model.setDerivativesMap(derivativesMap);
+
+      auto equationsFilter = [](EquationInterface op) {
+        return mlir::isa<InitialEquationOp>(op);
+      };
+
+      if (auto res = readSchedulingAttributes(model, equationsFilter); mlir::failed(res)) {
+        return res;
+      }
+
+      // Create the simulation functions.
+      if (auto res = modelConverter.convertInitialModel(builder, model); mlir::failed(res)) {
+        return res;
+      }
+    }
+
+    if (processMainModel) {
+      // Obtain the scheduled model.
+      Model<ScheduledEquationsBlock> model(modelOp);
+      model.setVariables(discoverVariables(modelOp));
+      model.setDerivativesMap(derivativesMap);
+
+      auto equationsFilter = [](EquationInterface op) {
+        return mlir::isa<EquationOp>(op);
+      };
+
+      if (auto res = readSchedulingAttributes(model, equationsFilter); mlir::failed(res)) {
+        return res;
+      }
+
+      // Create the simulation functions.
+      if (auto res = modelConverter.convertMainModel(builder, model); mlir::failed(res)) {
+        return res;
+      }
+    }
+
+    if (auto res = modelConverter.createGetModelNameFunction(builder, modelOp); mlir::failed(res)) {
+      modelOp.emitError("Could not create the '" + ModelConverter::getModelNameFunctionName + "' function");
+      return res;
+    }
+
+    if (auto res = modelConverter.createInitFunction(builder, modelOp); mlir::failed(res)) {
+      modelOp.emitError("Could not create the '" + ModelConverter::initFunctionName + "' function");
+      return res;
+    }
+
+    if (auto res = modelConverter.createDeinitFunction(builder, modelOp); mlir::failed(res)) {
+      modelOp.emitError("Could not create the '" + ModelConverter::deinitFunctionName + "' function");
+      return res;
+    }
+
+    if (emitSimulationMainFunction) {
+      if (auto res = modelConverter.createMainFunction(builder, modelOp); mlir::failed(res)) {
+        modelOp.emitError("Could not create the '" + ModelConverter::mainFunctionName + "' function");
+        return res;
+      }
+    }
+
+    // Erase the model operation, which has been converted to algorithmic code
+    modelOp.erase();
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult ModelConversionPass::convertFuncOps()
+{
+  mlir::ConversionTarget target(getContext());
+
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+  mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
+  target.addDynamicallyLegalOp<mlir::func::FuncOp>([&](mlir::func::FuncOp op) {
+    return typeConverter.isSignatureLegal(op.getFunctionType());
+  });
+
+  target.addDynamicallyLegalOp<mlir::func::CallOp>([&](mlir::func::CallOp op) {
+    for (const auto& type : op.operands().getTypes()) {
+      if (!typeConverter.isLegal(type)) {
+        return false;
+      }
+    }
+
+    for (const auto& type : op.getResults().getTypes()) {
+      if (!typeConverter.isLegal(type)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.insert<FuncOpTypesPattern>(typeConverter, &getContext());
+  patterns.insert<CallOpTypesPattern>(typeConverter, &getContext());
+
+  return applyPartialConversion(getOperation(), target, std::move(patterns));
+}
+
+namespace mlir::modelica
+{
+  std::unique_ptr<mlir::Pass> createModelConversionPass()
+  {
+    return std::make_unique<ModelConversionPass>();
+  }
+
+  std::unique_ptr<mlir::Pass> createModelConversionPass(const ModelConversionPassOptions& options)
+  {
+    return std::make_unique<ModelConversionPass>(options);
   }
 }

@@ -805,7 +805,7 @@ namespace marco::modeling
         MatchingSolution(
             EquationProperty equation,
             VariableProperty variable,
-            MultidimensionalRange indexes,
+            IndexSet indexes,
             AccessProperty access)
             : equation(std::move(equation)),
               variable(std::move(variable)),
@@ -834,7 +834,7 @@ namespace marco::modeling
           return access;
         }
 
-        const MultidimensionalRange& getIndexes() const
+        const IndexSet& getIndexes() const
         {
           return indexes;
         }
@@ -842,7 +842,7 @@ namespace marco::modeling
       private:
         EquationProperty equation;
         VariableProperty variable;
-        MultidimensionalRange indexes;
+        IndexSet indexes;
         AccessProperty access;
     };
   }
@@ -1301,15 +1301,11 @@ namespace marco::modeling
               auto variableDescriptor =
                   edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;
 
-              IndexSet allIndexes = matched.flattenColumns();
-
-              for (const auto& groupedIndexes : llvm::make_range(allIndexes.rangesBegin(), allIndexes.rangesEnd())) {
-                result.emplace_back(
-                    getEquation(equationDescriptor).getProperty(),
-                    getVariable(variableDescriptor).getProperty(),
-                    groupedIndexes,
-                    edge.getAccessProperty());
-              }
+              result.emplace_back(
+                  getEquation(equationDescriptor).getProperty(),
+                  getVariable(variableDescriptor).getProperty(),
+                  matched.flattenColumns(),
+                  edge.getAccessProperty());
             }
           }
         }

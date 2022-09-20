@@ -50,44 +50,58 @@ namespace
 
 mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
+  // The options to be used when printing the IR.
+  ModelSolvingIROptions irOptions;
+  irOptions.mergeAndSortRanges = debugView;
+  irOptions.singleMatchAttr = debugView;
+  irOptions.singleScheduleAttr = debugView;
+
   if (processICModel) {
-    Model<Equation> initialConditionsModel(modelOp);
-
-    // Discover variables and equations belonging to the 'initial conditions' model.
-    initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
-    initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
-
     // Obtain the matched model.
-    Model<MatchedEquation> matchedInitialConditionsModel(modelOp);
+    Model<MatchedEquation> matchedModel(modelOp);
+    matchedModel.setVariables(discoverVariables(modelOp));
 
-    if (auto res = readMatchingAttributes(initialConditionsModel, matchedInitialConditionsModel); mlir::failed(res)) {
+    auto equationsFilter = [](EquationInterface op) {
+      return mlir::isa<InitialEquationOp>(op);
+    };
+
+    if (auto res = readMatchingAttributes(matchedModel, equationsFilter); mlir::failed(res)) {
       return res;
     }
 
     // Solve the cycles in the 'initial conditions' model.
-    if (auto res = solveCycles(builder, matchedInitialConditionsModel); mlir::failed(res)) {
+    if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
       return res;
     }
+
+    // Write the match information in form of attributes.
+    writeMatchingAttributes(builder, matchedModel, irOptions);
   }
 
   if (processMainModel) {
-    Model<Equation> mainModel(modelOp);
-
-    // Discover variables and equations belonging to the 'main' model.
-    mainModel.setVariables(discoverVariables(mainModel.getOperation()));
-    mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
-
     // Obtain the matched model.
-    Model<MatchedEquation> matchedMainModel(modelOp);
+    Model<MatchedEquation> matchedModel(modelOp);
+    matchedModel.setVariables(discoverVariables(modelOp));
 
-    if (auto res = readMatchingAttributes(mainModel, matchedMainModel); mlir::failed(res)) {
+    auto equationsFilter = [](EquationInterface op) {
+      return mlir::isa<EquationOp>(op);
+    };
+
+    if (auto res = readMatchingAttributes(matchedModel, equationsFilter); mlir::failed(res)) {
       return res;
     }
+
+    modelOp.dump();
 
     // Solve the cycles in the 'main' model
-    if (auto res = solveCycles(builder, matchedMainModel); mlir::failed(res)) {
+    if (auto res = solveCycles(builder, matchedModel); mlir::failed(res)) {
       return res;
     }
+
+    modelOp.dump();
+
+    // Write the match information in form of attributes.
+    writeMatchingAttributes(builder, matchedModel, irOptions);
   }
 
   return mlir::success();

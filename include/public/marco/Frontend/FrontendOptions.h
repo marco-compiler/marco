@@ -123,7 +123,7 @@ namespace marco::frontend
     std::string omcPath = "";
     std::vector<std::string> omcCustomArgs;
 
-    VariableFilter variableFilter;
+    std::string variablesFilter;
 
     // Return the appropriate input kind for a file extension
     static InputKind getInputKindForExtension(llvm::StringRef extension);

@@ -3,9 +3,11 @@
 
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/ExternalSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/ExternalSolvers/IDAOptions.h"
 #include "marco/Codegen/Transforms/ModelSolving/Scheduling.h"
-#include "marco/Codegen/Transforms/ModelSolving.h"
+#include "marco/Codegen/Transforms/ModelSolving/Solver.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/VariableFilter/VariableFilter.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/ADT/StringRef.h"
@@ -53,13 +55,13 @@ namespace marco::codegen
 
     public:
       ModelConverter(
-        mlir::LLVMTypeConverter& typeConverter,
-        VariableFilter* variableFilter,
-        Solver solver,
-        double startTime,
-        double endTime,
-        double timeStep,
-        IDAOptions idaOptions);
+          mlir::LLVMTypeConverter& typeConverter,
+          VariableFilter& variablesFilter,
+          Solver solver,
+          double startTime,
+          double endTime,
+          double timeStep,
+          IDAOptions idaOptions);
 
       /// Create the function to be called to retrieve the name of the compiled model.
       mlir::LogicalResult createGetModelNameFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
@@ -213,11 +215,11 @@ namespace marco::codegen
       void printNewline(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
 
       mlir::Value getOrCreateGlobalString(
-          mlir::Location loc,
           mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::ModuleOp module,
           mlir::StringRef name,
-          mlir::StringRef value,
-          mlir::ModuleOp module) const;
+          mlir::StringRef value) const;
 
       mlir::LLVM::LLVMFuncOp getOrInsertPrintNameFunction(
           mlir::OpBuilder& builder,
@@ -284,7 +286,7 @@ namespace marco::codegen
 
     private:
       mlir::LLVMTypeConverter* typeConverter;
-      VariableFilter* variableFilter;
+      VariableFilter* variablesFilter;
       Solver solver;
       double startTime;
       double endTime;

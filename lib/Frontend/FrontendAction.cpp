@@ -12,6 +12,7 @@
 #include "mlir/Conversion/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
@@ -258,31 +259,45 @@ namespace marco::frontend
 
     passManager.addPass(mlir::modelica::createAutomaticDifferentiationPass());
 
-    /*
+    // Model legalization
+    mlir::modelica::ModelLegalizationPassOptions modelLegalizationOptions;
+    modelLegalizationOptions.modelName = simulationOptions.modelName;
+
+    passManager.addPass(mlir::modelica::createModelLegalizationPass(modelLegalizationOptions));
+
     // Matching
     mlir::modelica::MatchingPassOptions matchingOptions;
     matchingOptions.modelName = simulationOptions.modelName;
 
     passManager.addPass(mlir::modelica::createMatchingPass(matchingOptions));
-    */
 
-    // Model solving
-    mlir::modelica::ModelSolvingPassOptions modelSolvingOptions;
+    // Cycles solving
+    mlir::modelica::CyclesSolvingPassOptions cyclesSolvingOptions;
+    cyclesSolvingOptions.modelName = simulationOptions.modelName;
+    cyclesSolvingOptions.solver = simulationOptions.solver;
 
-    modelSolvingOptions.startTime = simulationOptions.startTime;
-    modelSolvingOptions.endTime = simulationOptions.endTime;
-    modelSolvingOptions.timeStep = simulationOptions.timeStep;
+    passManager.addPass(mlir::modelica::createCyclesSolvingPass(cyclesSolvingOptions));
 
-    modelSolvingOptions.emitMain = codegenOptions.generateMain;
+    // Scheduling
+    mlir::modelica::SchedulingPassOptions schedulingOptions;
+    schedulingOptions.modelName = simulationOptions.modelName;
 
-    marco::codegen::IDAOptions idaOptions;
-    idaOptions.equidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
+    passManager.addPass(mlir::modelica::createSchedulingPass(schedulingOptions));
 
-    passManager.addPass(mlir::modelica::createModelSolvingPass(
-        modelSolvingOptions,
-        &ci.getFrontendOptions().variableFilter,
-        simulationOptions.solver,
-        idaOptions));
+    // Model conversion
+    mlir::modelica::ModelConversionPassOptions modelConversionOptions;
+    modelConversionOptions.bitWidth = codegenOptions.bitWidth;
+    modelConversionOptions.dataLayout = dataLayoutString;
+    modelConversionOptions.model = simulationOptions.modelName;
+    modelConversionOptions.solver = simulationOptions.solver;
+    modelConversionOptions.startTime = simulationOptions.startTime;
+    modelConversionOptions.endTime = simulationOptions.endTime;
+    modelConversionOptions.timeStep = simulationOptions.timeStep;
+    modelConversionOptions.emitSimulationMainFunction = codegenOptions.generateMain;
+    modelConversionOptions.variablesFilter = ci.getFrontendOptions().variablesFilter;
+    modelConversionOptions.idaEquidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
+
+    passManager.addPass(mlir::modelica::createModelConversionPass(modelConversionOptions));
 
     // Functions scalarization pass
     mlir::modelica::FunctionScalarizationPassOptions functionScalarizationOptions;
@@ -365,6 +380,7 @@ namespace marco::frontend
 
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
     passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
+    passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
 
     if (!codegenOptions.debug) {
       // Remove the debug information if a non-debuggable executable has been requested

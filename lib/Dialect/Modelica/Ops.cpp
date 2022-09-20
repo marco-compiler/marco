@@ -184,11 +184,9 @@ namespace mlir::modelica
   SmallVector<StringRef> ModelOp::variableNames()
   {
     SmallVector<StringRef> result;
-    auto terminator = mlir::cast<YieldOp>(getVarsRegion().back().getTerminator());
 
-    for (const auto& variable : terminator.getValues()) {
-      auto name = variable.getDefiningOp<MemberCreateOp>().getSymName();
-      result.push_back(name);
+    for (MemberCreateOp member : getVarsRegion().getOps<MemberCreateOp>()) {
+      result.push_back(member.getSymName());
     }
 
     return result;

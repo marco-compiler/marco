@@ -13,8 +13,6 @@ set(SOURCES
     ModelSolving/LoopEquation.cpp
     ModelSolving/Matching.cpp
     ModelSolving/Model.cpp
-    ModelSolving/ModelConverter.cpp
-    ModelSolving/ModelSolving.cpp
     ModelSolving/Path.cpp
     ModelSolving/ScalarEquation.cpp
     ModelSolving/ScalarVariable.cpp
@@ -28,9 +26,9 @@ set(SOURCES
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp
+    ModelConversion.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
-    ScheduledModelToSimulation.cpp
     Scheduling.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
