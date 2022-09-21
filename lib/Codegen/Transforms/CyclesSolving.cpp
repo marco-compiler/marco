@@ -79,8 +79,6 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
   irOptions.singleMatchAttr = debugView;
   irOptions.singleScheduleAttr = debugView;
 
-  modelOp.dump();
-
   if (processICModel) {
     // Obtain the matched model.
     Model<MatchedEquation> matchedModel(modelOp);

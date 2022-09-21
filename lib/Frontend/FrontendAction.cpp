@@ -185,7 +185,7 @@ namespace marco::frontend
     parser::Parser parser(diagnostics, sourceFile);
     auto cls = parser.parseRoot();
 
-    if (!cls.hasValue()) {
+    if (!cls.has_value()) {
       ci.getDiagnostics().emitFatalError<GenericStringMessage>("AST generation failed");
       return false;
     }
@@ -231,141 +231,50 @@ namespace marco::frontend
   bool FrontendAction::runDialectConversion()
   {
     CompilerInstance& ci = instance();
-    auto& codegenOptions = ci.getCodegenOptions();
-    auto& simulationOptions = ci.getSimulationOptions();
 
     // Set the target triple inside the MLIR module
     instance().getMLIRModule()->setAttr(
         mlir::LLVM::LLVMDialect::getTargetTripleAttrName(),
-        mlir::StringAttr::get(&instance().getMLIRContext(), codegenOptions.target));
+        mlir::StringAttr::get(&instance().getMLIRContext(), ci.getCodegenOptions().target));
 
     // Set the data layout inside the MLIR module
-    auto* targetMachine = ci.getTargetMachine();
-
-    if (!targetMachine) {
-      return false;
-    }
-
-    const llvm::DataLayout& dataLayout = targetMachine->createDataLayout();
-    std::string dataLayoutString = dataLayout.getStringRepresentation();
-    assert(dataLayoutString != "" && "Expecting a valid target data layout");
-
     instance().getMLIRModule()->setAttr(
         mlir::LLVM::LLVMDialect::getDataLayoutAttrName(),
-        mlir::StringAttr::get(&instance().getMLIRContext(), dataLayoutString));
+        mlir::StringAttr::get(&instance().getMLIRContext(), getDataLayoutString()));
 
     // Create the pass manager and populate it with the appropriate transformations
     mlir::PassManager passManager(&ci.getMLIRContext());
 
-    passManager.addPass(mlir::modelica::createAutomaticDifferentiationPass());
-
-    // Model legalization
-    mlir::modelica::ModelLegalizationPassOptions modelLegalizationOptions;
-    modelLegalizationOptions.modelName = simulationOptions.modelName;
-
-    passManager.addPass(mlir::modelica::createModelLegalizationPass(modelLegalizationOptions));
-
-    // Matching
-    mlir::modelica::MatchingPassOptions matchingOptions;
-    matchingOptions.modelName = simulationOptions.modelName;
-
-    passManager.addPass(mlir::modelica::createMatchingPass(matchingOptions));
-
-    // Cycles solving
-    mlir::modelica::CyclesSolvingPassOptions cyclesSolvingOptions;
-    cyclesSolvingOptions.modelName = simulationOptions.modelName;
-    cyclesSolvingOptions.solver = simulationOptions.solver;
-
-    passManager.addPass(mlir::modelica::createCyclesSolvingPass(cyclesSolvingOptions));
-
-    // Scheduling
-    mlir::modelica::SchedulingPassOptions schedulingOptions;
-    schedulingOptions.modelName = simulationOptions.modelName;
-
-    passManager.addPass(mlir::modelica::createSchedulingPass(schedulingOptions));
-
-    // Model conversion
-    mlir::modelica::ModelConversionPassOptions modelConversionOptions;
-    modelConversionOptions.bitWidth = codegenOptions.bitWidth;
-    modelConversionOptions.dataLayout = dataLayoutString;
-    modelConversionOptions.model = simulationOptions.modelName;
-    modelConversionOptions.solver = simulationOptions.solver;
-    modelConversionOptions.startTime = simulationOptions.startTime;
-    modelConversionOptions.endTime = simulationOptions.endTime;
-    modelConversionOptions.timeStep = simulationOptions.timeStep;
-    modelConversionOptions.emitSimulationMainFunction = codegenOptions.generateMain;
-    modelConversionOptions.variablesFilter = ci.getFrontendOptions().variablesFilter;
-    modelConversionOptions.idaEquidistantTimeGrid = simulationOptions.ida.equidistantTimeGrid;
-
-    passManager.addPass(mlir::modelica::createModelConversionPass(modelConversionOptions));
-
-    // Functions scalarization pass
-    mlir::modelica::FunctionScalarizationPassOptions functionScalarizationOptions;
-    functionScalarizationOptions.assertions = codegenOptions.assertions;
-    passManager.addPass(mlir::modelica::createFunctionScalarizationPass(functionScalarizationOptions));
-
-    // Insert explicit casts where needed
-    passManager.addPass(mlir::modelica::createExplicitCastInsertionPass());
-
+    passManager.addPass(createAutomaticDifferentiationPass());
+    passManager.addPass(createModelLegalizationPass());
+    passManager.addPass(createMatchingPass());
+    passManager.addPass(createCyclesSolvingPass());
+    passManager.addPass(createSchedulingPass());
+    passManager.addPass(createModelConversionPass());
+    passManager.addPass(createFunctionScalarizationPass());
+    passManager.addPass(createExplicitCastInsertionPass());
     passManager.addPass(mlir::createCanonicalizerPass());
 
-    if (codegenOptions.cse) {
+    if (ci.getCodegenOptions().cse) {
       passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
       passManager.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
     }
 
-    // Place the deallocation instructions for the arrays
     passManager.addPass(mlir::modelica::createArrayDeallocationPass());
+    passManager.addPass(createModelicaToCFConversionPass());
 
-    // Modelica to CF conversion
-    mlir::ModelicaToCFConversionPassOptions modelicaToCFOptions;
-    modelicaToCFOptions.bitWidth = codegenOptions.bitWidth;
-    modelicaToCFOptions.outputArraysPromotion = codegenOptions.outputArraysPromotion;
-    modelicaToCFOptions.dataLayout = dataLayoutString;
-
-    passManager.addPass(mlir::createModelicaToCFConversionPass(modelicaToCFOptions));
-
-    if (codegenOptions.inlining) {
+    if (ci.getCodegenOptions().inlining) {
       // Inline the functions with the 'inline' annotation
       passManager.addPass(mlir::createInlinerPass());
     }
 
-    // Modelica to Arith conversion
-    mlir::ModelicaToArithConversionPassOptions modelicaToArithOptions;
-    modelicaToArithOptions.bitWidth = codegenOptions.bitWidth;
-    modelicaToArithOptions.assertions = codegenOptions.assertions;
-    modelicaToArithOptions.dataLayout = dataLayoutString;
+    passManager.addPass(createModelicaToArithConversionPass());
+    passManager.addPass(createModelicaToFuncConversionPass());
+    passManager.addPass(createModelicaToMemRefConversionPass());
+    passManager.addPass(createModelicaToLLVMConversionPass());
+    passManager.addPass(createIDAToLLVMConversionPass());
 
-    passManager.addPass(mlir::createModelicaToArithConversionPass(modelicaToArithOptions));
-
-    // Modelica to Func conversion
-    mlir::ModelicaToFuncConversionPassOptions modelicaToFuncOptions;
-    modelicaToFuncOptions.bitWidth = codegenOptions.bitWidth;
-    modelicaToFuncOptions.assertions = codegenOptions.assertions;
-
-    passManager.addPass(mlir::createModelicaToFuncConversionPass(modelicaToFuncOptions));
-
-    // Modelica to MemRef conversion
-    mlir::ModelicaToMemRefConversionPassOptions modelicaToMemRefOptions;
-    modelicaToMemRefOptions.bitWidth = codegenOptions.bitWidth;
-    modelicaToMemRefOptions.assertions = codegenOptions.assertions;
-    modelicaToMemRefOptions.dataLayout = dataLayoutString;
-
-    passManager.addPass(mlir::createModelicaToMemRefConversionPass(modelicaToMemRefOptions));
-
-    // Modelica to LLVM conversion
-    mlir::ModelicaToLLVMConversionPassOptions modelicaToLLVMOptions;
-    modelicaToLLVMOptions.assertions = codegenOptions.assertions;
-    modelicaToLLVMOptions.dataLayout = dataLayoutString;
-
-    passManager.addPass(mlir::createModelicaToLLVMConversionPass(modelicaToLLVMOptions));
-
-    // IDA to LLVM conversion
-    mlir::IDAToLLVMConversionPassOptions idaToLLVMOptions;
-    idaToLLVMOptions.dataLayout = dataLayoutString;
-    passManager.addPass(mlir::createIDAToLLVMConversionPass());
-
-    if (codegenOptions.omp) {
+    if (ci.getCodegenOptions().omp) {
       // Use OpenMP for parallel loops
       passManager.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToOpenMPPass());
     }
@@ -374,15 +283,13 @@ namespace marco::frontend
     passManager.addPass(mlir::createMemRefToLLVMPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
 
-    mlir::LowerToLLVMOptions funcToLLVMOptions(&ci.getMLIRContext());
-    funcToLLVMOptions.dataLayout = dataLayout;
-    passManager.addPass(mlir::createConvertFuncToLLVMPass(funcToLLVMOptions));
+    passManager.addPass(createFuncToLLVMConversionPass());
 
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
     passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
     passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
 
-    if (!codegenOptions.debug) {
+    if (!ci.getCodegenOptions().debug) {
       // Remove the debug information if a non-debuggable executable has been requested
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
@@ -433,5 +340,178 @@ namespace marco::frontend
 
     instance().setLLVMModule(std::move(llvmModule));
     return true;
+  }
+
+  llvm::DataLayout FrontendAction::getDataLayout()
+  {
+    CompilerInstance& ci = instance();
+
+    auto* targetMachine = ci.getTargetMachine();
+    assert(targetMachine && "Can't instantiate the target machine");
+
+    return targetMachine->createDataLayout();
+  }
+
+  std::string FrontendAction::getDataLayoutString()
+  {
+    std::string dataLayoutString = getDataLayout().getStringRepresentation();
+    assert(dataLayoutString != "" && "Expecting a valid target data layout");
+
+    return dataLayoutString;
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createAutomaticDifferentiationPass()
+  {
+    return mlir::modelica::createAutomaticDifferentiationPass();
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelLegalizationPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::ModelLegalizationPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createModelLegalizationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createMatchingPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::MatchingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createMatchingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createCyclesSolvingPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::CyclesSolvingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+    options.solver = ci.getSimulationOptions().solver;
+
+    return mlir::modelica::createCyclesSolvingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createSchedulingPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::SchedulingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createSchedulingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::ModelConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.dataLayout = getDataLayoutString();
+    options.model = ci.getSimulationOptions().modelName;
+    options.solver = ci.getSimulationOptions().solver;
+    options.startTime = ci.getSimulationOptions().startTime;
+    options.endTime = ci.getSimulationOptions().endTime;
+    options.timeStep = ci.getSimulationOptions().timeStep;
+    options.emitSimulationMainFunction = ci.getCodegenOptions().generateMain;
+    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+    options.idaEquidistantTimeGrid = ci.getSimulationOptions().ida.equidistantTimeGrid;
+
+    return mlir::modelica::createModelConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createFunctionScalarizationPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::FunctionScalarizationPassOptions options;
+    options.assertions = ci.getCodegenOptions().assertions;
+    return mlir::modelica::createFunctionScalarizationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createExplicitCastInsertionPass()
+  {
+    return mlir::modelica::createExplicitCastInsertionPass();
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToCFConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::ModelicaToCFConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.outputArraysPromotion = ci.getCodegenOptions().outputArraysPromotion;
+    options.dataLayout = getDataLayoutString();
+
+    return mlir::createModelicaToCFConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToArithConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::ModelicaToArithConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.assertions = ci.getCodegenOptions().assertions;
+    options.dataLayout = getDataLayoutString();
+
+    return mlir::createModelicaToArithConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToFuncConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::ModelicaToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.assertions = ci.getCodegenOptions().assertions;
+
+    return mlir::createModelicaToFuncConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToMemRefConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::ModelicaToMemRefConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.assertions = ci.getCodegenOptions().assertions;
+    options.dataLayout = getDataLayoutString();
+
+    return mlir::createModelicaToMemRefConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToLLVMConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::ModelicaToLLVMConversionPassOptions options;
+    options.assertions = ci.getCodegenOptions().assertions;
+    options.dataLayout = getDataLayoutString();
+
+    return mlir::createModelicaToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createIDAToLLVMConversionPass()
+  {
+    mlir::IDAToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayoutString();
+
+    return mlir::createIDAToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createFuncToLLVMConversionPass()
+  {
+    CompilerInstance& ci = instance();
+
+    mlir::LowerToLLVMOptions options(&ci.getMLIRContext());
+    options.dataLayout = getDataLayout();
+
+    return mlir::createConvertFuncToLLVMPass(options);
   }
 }
