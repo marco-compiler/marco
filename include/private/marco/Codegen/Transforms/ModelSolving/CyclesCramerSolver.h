@@ -154,26 +154,25 @@ namespace marco::codegen {
     /// Get the filtered variables from one of the equations
     assert(equations.size() > 0);
     Variables variables = equations[0]->getVariables();
-    assert(variables.size() == equations.size());
 
     /// For each equation, get the coefficients of the variables and the
     /// constant term, and save them respectively in the system matrix and
     /// constant term vector.
     for(size_t i = 0; i < equations.size(); ++i) {
       auto equation = equations[i].get();
-      auto vector = std::vector<double>();
+      auto coefficients = std::vector<double>();
       double constantTerm;
 
-      auto res = equation->getCoefficients(builder, vector, constantTerm);
+      coefficients.resize(equations.size());
+
+      auto res = equation->getCoefficients(builder, coefficients, constantTerm);
 
       if(mlir::failed(res)) {
         return false;
       }
 
-      assert(vector.size() == variables.size());
-
-      for(size_t j = 0; j < variables.size(); ++j) {
-        matrix(i, j) = vector[j];
+      for(size_t j = 0; j < equations.size(); ++j) {
+        matrix(i, j) = coefficients[j];
       }
 
       constantVector[i] = constantTerm;
@@ -201,8 +200,12 @@ namespace marco::codegen {
 
       /// Clone the system equations so that we can operate on them without
       /// disrupting the rest of the compilation process.
+      Equations<MatchedEquation> equations;
       Equations<MatchedEquation> clones;
-      for (const auto& equation : model.getEquations()) {
+
+      equations = model.getEquations();
+
+      for (const auto& equation : equations) {
         auto clone = equation->clone();
 
         auto matchedClone = std::make_unique<MatchedEquation>(
@@ -257,24 +260,16 @@ namespace marco::codegen {
         /// as the model equations.
         //TODO: delete useless modelica instructions
         for(const auto& equation : clones) {
-          auto variable = equation->getWrite().getVariable();
+
+          auto access = equation->getWrite();
+          auto& path = access.getPath();
+          auto variable = access.getVariable();
           auto argument = variable->getValue().cast<mlir::BlockArgument>();
+          auto offset = equation->getFlatAccessIndex(access, variable->getIndices());
 
-          auto terminator =
-              mlir::cast<EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
+          double constant = solutionVector[argument.getArgNumber() + offset];
 
-          builder.setInsertionPoint(terminator);
-
-          auto lhs = equation->getValueAtPath(equation->getWrite().getPath());
-
-          auto rhs = builder.create<ConstantOp>(
-              model.getOperation().getLoc(),
-              RealAttr::get(builder.getContext(),
-                            solutionVector[argument.getArgNumber()]));
-
-          equation->replaceSides(builder, lhs, rhs.getResult());
-          equation->setPath(EquationPath::LEFT);
-
+          equation->setMatchSolution(builder, constant);
         }
 
         model.setEquations(clones);

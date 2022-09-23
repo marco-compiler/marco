@@ -101,12 +101,12 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
 
   llvm::SmallVector<mlir::Operation*, 3> constants;
 
+  // Operations with two operands may not get any of the two operands folded if
+  // the first that we try to fold is not foldable, if we keep the break.
   for (auto *op : llvm::reverse(ops)) {
-    if (mlir::failed(helper.tryToFold(op, [&](mlir::Operation* constant) {
+    helper.tryToFold(op, [&](mlir::Operation* constant) {
           constants.push_back(constant);
-        }))) {
-      break;
-    }
+        });
   }
 
   for (auto* op : llvm::reverse(constants)) {
@@ -290,6 +290,24 @@ static mlir::LogicalResult collectSummedValues(std::vector<mlir::Value>& result,
   result.push_back(root);
   return mlir::success();
 }
+
+// Convert the expression to a sum of values.
+static mlir::LogicalResult convertToSumsFn(mlir::OpBuilder& builder, std::function<mlir::Value()> root)
+{
+  if (auto res = removeSubtractions(builder, root().getDefiningOp()); mlir::failed(res)) {
+    return res;
+  }
+
+  if (auto res = distributeMulAndDivOps(builder, root().getDefiningOp()); mlir::failed(res)) {
+    return res;
+  }
+
+  if (auto res = pushNegateOps(builder, root().getDefiningOp()); mlir::failed(res)) {
+    return res;
+  }
+
+  return mlir::success();
+};
 
 namespace marco::codegen
 {
@@ -903,53 +921,16 @@ namespace marco::codegen
       }
     }
 
-    // Convert the expression to a sum of values.
-    auto convertToSumsFn = [&](std::function<mlir::Value()> root) -> mlir::LogicalResult {
-      if (auto res = removeSubtractions(builder, root().getDefiningOp()); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = distributeMulAndDivOps(builder, root().getDefiningOp()); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = pushNegateOps(builder, root().getDefiningOp()); mlir::failed(res)) {
-        return res;
-      }
-
-      return mlir::success();
-    };
-
     std::vector<mlir::Value> lhsSummedValues;
     std::vector<mlir::Value> rhsSummedValues;
 
-    if (lhsHasAccess) {
-      auto rootFn = [&]() -> mlir::Value {
-        return getTerminator().getLhsValues()[0];
-      };
+    if(auto res = convertAndCollectSide(builder,lhsSummedValues, EquationPath::LEFT);
+        mlir::failed(res))
+      return res;
 
-      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = collectSummedValues(lhsSummedValues, rootFn()); mlir::failed(res)) {
-        return res;
-      }
-    }
-
-    if (rhsHasAccess) {
-      auto rootFn = [&]() -> mlir::Value {
-        return getTerminator().getRhsValues()[0];
-      };
-
-      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = collectSummedValues(rhsSummedValues, rootFn()); mlir::failed(res)) {
-        return res;
-      }
-    }
+    if(auto res = convertAndCollectSide(builder,rhsSummedValues, EquationPath::RIGHT);
+        mlir::failed(res))
+      return res;
 
     auto containsAccessFn = [&](mlir::Value value, const Access& access, EquationPath::EquationSide side) -> bool {
       EquationPath path(side);
@@ -1153,6 +1134,8 @@ namespace marco::codegen
       const IndexSet& variableIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
+
+    builder.setInsertionPoint(getTerminator());
 
     if (getVariables().isReferenceAccess(value)) {
       std::vector<Access> accesses;
@@ -1486,124 +1469,186 @@ namespace marco::codegen
 
   }
 
+  static ConstantOp foldIfNotConstantOp(EquationInterface equationInterface, mlir::Value value)
+  {
+    auto res = mlir::dyn_cast_or_null<ConstantOp>(value.getDefiningOp());
+    if(res == nullptr)
+    {
+      foldValue(equationInterface, value);
+      res = mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
+    }
+    return res;
+  }
+
+  size_t BaseEquation::getFlatAccessIndex(
+      const Access& access,
+      const ::marco::modeling::IndexSet& rangeSet) const
+  {
+    size_t res = 0;
+
+    auto variableRange = *rangeSet.rangesBegin();
+    auto accessFunction = access.getAccessFunction();
+    auto rank = variableRange.rank();
+
+    //TODO manage cases where subscription is not perfect
+    assert(accessFunction.size() == rank);
+
+    size_t totalSize = 1;
+    for(size_t i = 0; i < rank; ++i)
+    {
+      auto dimensionAccess = accessFunction[i];
+      auto rangeSize = variableRange[i].size();
+
+      if(dimensionAccess.isConstantAccess())
+      {
+        res += accessFunction[i].getPosition()*totalSize;
+        totalSize *= rangeSize;
+      }
+      //TODO manage non constant access
+    }
+
+    return res;
+  }
+
+  mlir::LogicalResult BaseEquation::getSideCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<double>& coefficients,
+      double& constantTerm,
+      std::vector<mlir::Value> values,
+      EquationPath::EquationSide side) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    for(auto value : values) {
+      // Check that the value is linear, and if it is, wether it is a constant
+      // or a coefficient of a variable.
+      std::vector<Access> accesses;
+      EquationPath path(EquationPath::LEFT);
+      searchAccesses(accesses, value, path);
+
+      auto numberOfVariables = accesses.size();
+
+      if(numberOfVariables > 1) {
+        // The value is not linear
+        return mlir::failure();
+      }
+
+      if(numberOfVariables == 0) {
+        // The value is constant
+        auto res = mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
+        if(side == EquationPath::LEFT)
+          constantTerm -= getDoubleFromAttribute(res.getValue());
+        else
+          constantTerm += getDoubleFromAttribute(res.getValue());
+
+      } else {
+        if(mlir::failed(checkLinearity(value)))
+          return mlir::failure();
+        // The value may be linear: extract the coefficient
+        auto access = accesses[0];
+        auto accessFunction = access.getAccessFunction();
+        auto variable = access.getVariable();
+        auto variableIndices = variable->getIndices();
+        auto argument = variable->getValue().cast<mlir::BlockArgument>();
+        auto equationIndices = IndexSet();
+
+        value.dump();
+        equationOp->dump();
+
+        auto coefficient = getMultiplyingFactor(
+            builder, equationIndices, value,
+            variable->getValue(),
+            IndexSet(access.getAccessFunction().map(equationIndices)));
+
+/*auto op = coefficient.second.getDefiningOp();
+
+        auto res = mlir::dyn_cast<ConstantOp>(op);
+
+        if(side == EquationPath::LEFT)
+          coefficients[argument.getArgNumber()] += getDoubleFromAttribute(res.getValue());
+        else
+          coefficients[argument.getArgNumber()] -= getDoubleFromAttribute(res.getValue());*/
+        std::cerr << "Folded value: \n" << getDoubleFromConstantValue(value) << "\n" << std::flush;
+
+        auto offset = getFlatAccessIndex(access, variableIndices);
+
+        std::cerr << "Offset: " << offset << "\n" << std::flush;
+
+        if(side == EquationPath::LEFT)
+          coefficients[argument.getArgNumber() + offset] += getDoubleFromConstantValue(value);
+        else
+          coefficients[argument.getArgNumber() + offset] -= getDoubleFromConstantValue(value);
+      }
+    }
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult BaseEquation::convertAndCollectSide(
+      mlir::OpBuilder& builder,
+      std::vector<mlir::Value>& output,
+      EquationPath::EquationSide side) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    auto rootFn = [&]() -> mlir::Value {
+      if(side == EquationPath::LEFT)
+        return getTerminator().getLhsValues()[0];
+      else
+        return getTerminator().getRhsValues()[0];
+    };
+
+    if (auto res = convertToSumsFn(builder, rootFn); mlir::failed(res)) {
+      return res;
+    }
+
+    if (auto res = collectSummedValues(output, rootFn()); mlir::failed(res)) {
+      return res;
+    }
+
+    return mlir::success();
+  }
+
   mlir::LogicalResult BaseEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<double>& vector,
+      std::vector<double>& coefficients,
       double& constantTerm) const
   {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    foldValue(getOperation(), getTerminator().getLhsValues()[0]);
+    foldValue(getOperation(), getTerminator().getRhsValues()[0]);
+
     std::vector<mlir::Value> lhsSummedValues;
     std::vector<mlir::Value> rhsSummedValues;
 
-    auto convertToSumsFn = [&](std::function<mlir::Value()> root) -> mlir::LogicalResult {
-      if (auto res = removeSubtractions(builder, root().getDefiningOp()); mlir::failed(res)) {
-        return res;
-      }
+    if(auto res = convertAndCollectSide(builder,lhsSummedValues, EquationPath::LEFT);
+        mlir::failed(res))
+      return res;
 
-      if (auto res = distributeMulAndDivOps(builder, root().getDefiningOp()); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = pushNegateOps(builder, root().getDefiningOp()); mlir::failed(res)) {
-        return res;
-      }
-
-      return mlir::success();
-    };
-
-    {
-      auto rootFn = [&]() -> mlir::Value {
-        return getTerminator().getLhsValues()[0];
-      };
-
-      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = collectSummedValues(lhsSummedValues, rootFn()); mlir::failed(res)) {
-        return res;
-      }
-    }
-
-    {
-      auto rootFn = [&]() -> mlir::Value {
-        return getTerminator().getRhsValues()[0];
-      };
-
-      if (auto res = convertToSumsFn(rootFn); mlir::failed(res)) {
-        return res;
-      }
-
-      if (auto res = collectSummedValues(rhsSummedValues, rootFn()); mlir::failed(res)) {
-        return res;
-      }
-    }
+    if(auto res = convertAndCollectSide(builder,rhsSummedValues, EquationPath::RIGHT);
+        mlir::failed(res))
+      return res;
 
     // Initialize the constant term to zero.
     constantTerm = 0;
 
     // Initialize the coefficient vector to zero.
-    vector.resize(getVariables().size());
-    for(auto val : vector) {
+    for(auto val : coefficients) {
       val = 0;
     }
 
-    for(auto value : rhsSummedValues) {
-      // Check that the value is linear, and if it is, wether it is a constant
-      // or a coefficient of a variable.
-      std::vector<Access> accesses;
-      EquationPath path(EquationPath::LEFT);
-      searchAccesses(accesses, value, path);
+    if(auto res = getSideCoefficients(
+            builder, coefficients, constantTerm, lhsSummedValues,
+            EquationPath::LEFT);
+        mlir::failed(res))
+      return mlir::failure();
 
-      auto numberOfVariables = accesses.size();
-
-      if(numberOfVariables > 1) {
-        // The value is not linear
-        return mlir::failure();
-      }
-
-      if(numberOfVariables == 0) {
-        // The value is constant
-        constantTerm += getDoubleFromConstantValue(value);
-      } else {
-        if(mlir::failed(checkLinearity(value)))
-          return mlir::failure();
-        // The value may be linear: extract the coefficient
-        auto access = accesses[0];
-        auto variable = access.getVariable();
-        auto argument = variable->getValue().cast<mlir::BlockArgument>();
-
-        vector[argument.getArgNumber()] -= getDoubleFromConstantValue(value);
-      }
-    }
-
-    for(auto value : lhsSummedValues) {
-      // Check that the value is linear, and if it is, wether it is a constant
-      // or a coefficient of a variable.
-      std::vector<Access> accesses;
-      EquationPath path(EquationPath::LEFT);
-      searchAccesses(accesses, value, path);
-
-      auto numberOfVariables = accesses.size();
-
-      if(numberOfVariables > 1) {
-        // The value is not linear
-        return mlir::failure();
-      }
-
-      if(numberOfVariables == 0) {
-        // The value is constant
-        constantTerm -= getDoubleFromConstantValue(value);
-      } else {
-        if(mlir::failed(checkLinearity(value)))
-          return mlir::failure();
-        // The value may be linear: extract the coefficient
-        auto access = accesses[0];
-        auto variable = access.getVariable();
-        auto argument = variable->getValue().cast<mlir::BlockArgument>();
-
-        vector[argument.getArgNumber()] += getDoubleFromConstantValue(value);
-      }
-    }
+    if(auto res = getSideCoefficients(
+            builder, coefficients, constantTerm, rhsSummedValues,
+            EquationPath::RIGHT);
+        mlir::failed(res))
+      return mlir::failure();
 
     return mlir::success();
   }
