@@ -180,11 +180,30 @@ namespace marco::codegen
     return equation->cloneIRAndExplicitate(builder, getIterationRanges());
   }
 
-  mlir::LogicalResult ScheduledEquation::getCoefficients(mlir::OpBuilder& builder,
-                                                       std::vector<double>& vector,
-                                                       double& constantTerm) const
+  mlir::LogicalResult ScheduledEquation::getCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<double>& vector,
+      double& constantTerm) const
   {
     return equation->getCoefficients(builder, vector, constantTerm);
+  }
+
+  mlir::LogicalResult ScheduledEquation::getSideCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<double>& coefficients,
+      double& constantTerm,
+      std::vector<mlir::Value> values,
+      EquationPath::EquationSide side) const
+  {
+    return equation->getSideCoefficients(builder, coefficients, constantTerm, values, side);
+  }
+
+  mlir::LogicalResult ScheduledEquation::convertAndCollectSide(
+      mlir::OpBuilder& builder,
+      std::vector<mlir::Value>& output,
+      EquationPath::EquationSide side) const
+  {
+    return equation->convertAndCollectSide(builder, output, side);
   }
 
   void ScheduledEquation::replaceSides(
@@ -193,6 +212,13 @@ namespace marco::codegen
       mlir::Value rhs) const
   {
     return equation->replaceSides(builder, lhs, rhs);
+  }
+
+  size_t ScheduledEquation::getFlatAccessIndex(
+      const Access& access,
+      const ::marco::modeling::IndexSet& variableRange) const
+  {
+    return equation->getFlatAccessIndex(access, variableRange);
   }
 
   mlir::LogicalResult schedule(

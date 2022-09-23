@@ -47,15 +47,31 @@ namespace marco::codegen
           mlir::ValueRange vars,
           ::marco::modeling::scheduling::Direction iterationDirection) const override;
 
-      virtual mlir::LogicalResult getCoefficients(
+      mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<double>& vector,
+          std::vector<double>& coefficients,
           double& constantTerm) const override;
 
-      virtual void replaceSides(
+      mlir::LogicalResult getSideCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<double>& coefficients,
+          double& constantTerm,
+          std::vector<mlir::Value> values,
+          EquationPath::EquationSide side) const override;
+
+      mlir::LogicalResult convertAndCollectSide(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& output,
+          EquationPath::EquationSide side) const override;
+
+      void replaceSides(
           mlir::OpBuilder& builder,
           mlir::Value lhs,
           mlir::Value rhs) const override;
+
+      size_t getFlatAccessIndex(
+          const Access& access,
+          const ::marco::modeling::IndexSet& variableRange) const override;
 
     protected:
       mlir::modelica::EquationSidesOp getTerminator() const;

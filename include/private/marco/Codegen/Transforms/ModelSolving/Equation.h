@@ -100,13 +100,29 @@ namespace marco::codegen
 
       virtual mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<double>& vector,
+          std::vector<double>& coefficients,
           double& constantTerm) const = 0;
+
+      virtual mlir::LogicalResult getSideCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<double>& coefficients,
+          double& constantTerm,
+          std::vector<mlir::Value> values,
+          EquationPath::EquationSide side) const = 0;
+
+      virtual mlir::LogicalResult convertAndCollectSide(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& output,
+          EquationPath::EquationSide side) const = 0;
 
       virtual void replaceSides(
           mlir::OpBuilder& builder,
           mlir::Value lhs,
           mlir::Value rhs) const = 0;
+
+      virtual size_t getFlatAccessIndex(
+          const Access& access,
+          const ::marco::modeling::IndexSet& variableRange) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;

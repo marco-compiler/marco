@@ -84,13 +84,33 @@ namespace marco::codegen
 
       mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<double>& vector,
+          std::vector<double>& coefficients,
           double& constantTerm) const override;
+
+      mlir::LogicalResult getSideCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<double>& coefficients,
+          double& constantTerm,
+          std::vector<mlir::Value> values,
+          EquationPath::EquationSide side) const override;
+
+      mlir::LogicalResult convertAndCollectSide(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& output,
+          EquationPath::EquationSide side) const override;
 
       void replaceSides(
           mlir::OpBuilder& builder,
           mlir::Value lhs,
           mlir::Value rhs) const override;
+
+      size_t getFlatAccessIndex(
+          const Access& access,
+          const ::marco::modeling::IndexSet& variableRange) const override;
+
+      void setMatchSolution(
+          mlir::OpBuilder& builder,
+          const double constant);
 
       void setPath(EquationPath path);
 
