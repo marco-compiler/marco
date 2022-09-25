@@ -179,6 +179,7 @@ def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
         "mlir::modelica::ModelicaDialect",
         "mlir::ida::IDADialect",
         "mlir::arith::ArithmeticDialect",
+        "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
         "mlir::scf::SCFDialect",
         "mlir::LLVM::LLVMDialect"

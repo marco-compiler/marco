@@ -2,9 +2,9 @@
 // RUN: ./%basename_t --precision=6 | FileCheck %s
 
 // CHECK: "time","x","y[1]","y[2]"
-// CHECK-NEXT: 0.000000,2,4,6
-// CHECK-NEXT: 0.100000,2,4,6
-// CHECK-NEXT: 0.200000,2,4,6
+// CHECK-NEXT: 0.000000,2.000000,4.000000,6.000000
+// CHECK-NEXT: 0.100000,2.000000,4.000000,6.000000
+// CHECK-NEXT: 0.200000,2.000000,4.000000,6.000000
 
 function bar
     input Integer x;

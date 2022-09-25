@@ -25,6 +25,15 @@ namespace marco::codegen
     public:
       // Name for the functions of the simulation
       static constexpr llvm::StringLiteral getModelNameFunctionName = "getModelName";
+      static constexpr llvm::StringLiteral getNumOfVariablesFunctionName = "getNumOfVariables";
+      static constexpr llvm::StringLiteral getVariableNameFunctionName = "getVariableName";
+      static constexpr llvm::StringLiteral getVariableRankFunctionName = "getVariableRank";
+      static constexpr llvm::StringLiteral getVariableNumOfPrintableRangesFunctionName = "getVariableNumOfPrintableRanges";
+      static constexpr llvm::StringLiteral getVariablePrintableRangeBeginFunctionName = "getVariablePrintableRangeBegin";
+      static constexpr llvm::StringLiteral getVariablePrintableRangeEndFunctionName = "getVariablePrintableRangeEnd";
+      static constexpr llvm::StringLiteral getVariableValueFunctionName = "getVariableValue";
+      static constexpr llvm::StringLiteral getDerivativeFunctionName = "getDerivative";
+      static constexpr llvm::StringLiteral getCurrentTimeFunctionName = "getCurrentTime";
       static constexpr llvm::StringLiteral mainFunctionName = "main";
       static constexpr llvm::StringLiteral initFunctionName = "init";
       static constexpr llvm::StringLiteral initICSolversFunctionName = "initICSolvers";
@@ -63,8 +72,45 @@ namespace marco::codegen
           double timeStep,
           IDAOptions idaOptions);
 
-      /// Create the function to be called to retrieve the name of the compiled model.
+      /// Create the function to be called to retrieve the name of the
+      /// compiled model.
       mlir::LogicalResult createGetModelNameFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the function to be called to retrieve the number of variables
+      /// of the compiled model.
+      mlir::LogicalResult createGetNumOfVariablesFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the function to be called to retrieve the name of variables of
+      /// the compiled model.
+      mlir::LogicalResult createGetVariableNameFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the function to be called to retrieve the name of variables of
+      /// the compiled model.
+      mlir::LogicalResult createGetVariableRankFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the function to be called to retrieve the number of printable
+      /// indices ranges for a given variable.
+      mlir::LogicalResult createGetVariableNumOfPrintableRangesFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap) const;
+
+      /// Create the function to be called to retrieve the begin index of a
+      /// printable range for a given variable and dimension.
+      mlir::LogicalResult createGetVariablePrintableRangeBeginFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap) const;
+
+      /// Create the function to be called to retrieve the end index of a
+      /// printable range for a given variable and dimension.
+      mlir::LogicalResult createGetVariablePrintableRangeEndFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap) const;
+
+      /// Create the function to be called to retrieve the value of a scalar
+      /// variable.
+      mlir::LogicalResult createGetVariableValueFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the function to be called to retrieve the index of the
+      /// derivative of a variable.
+      mlir::LogicalResult createGetDerivativeFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp, const DerivativesMap& derivativesMap) const;
+
+      /// Create the function to be called to retrieve the current time of the
+      /// simulation.
+      mlir::LogicalResult createGetCurrentTimeFunction(mlir::OpBuilder& builder, mlir::modelica::ModelOp modelOp) const;
 
       /// Create the initialization function that allocates the variables and
       /// stores them into an appropriate data structure to be passed to the other
@@ -208,12 +254,6 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model,
           ExternalSolvers& externalSolvers) const;
 
-      /// Create the instructions to print a value separator.
-      void printSeparator(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
-
-      /// Create the instructions to print a newline character.
-      void printNewline(mlir::OpBuilder& builder, mlir::ModuleOp module) const;
-
       mlir::Value getOrCreateGlobalString(
           mlir::OpBuilder& builder,
           mlir::Location loc,
@@ -221,68 +261,35 @@ namespace marco::codegen
           mlir::StringRef name,
           mlir::StringRef value) const;
 
-      mlir::LLVM::LLVMFuncOp getOrInsertPrintNameFunction(
+      mlir::LogicalResult createGetVariablePrintableRangeBoundariesFunction(
           mlir::OpBuilder& builder,
-          mlir::ModuleOp module) const;
-
-      void printVariableName(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Value name,
-          mlir::Value value,
-          const modeling::IndexSet& filteredIndices,
-          bool shouldPreprendSeparator = true) const;
-
-      void printScalarVariableName(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Value name,
-          bool shouldPrependSeparator) const;
-
-      void printArrayVariableName(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Value name,
-          mlir::Value value,
-          const modeling::IndexSet& filteredIndices,
-          bool shouldPrependSeparator) const;
-
-      void printVariable(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Value var,
-          const modeling::IndexSet& filteredIndices,
-          bool shouldPrependSeparator = true) const;
-
-      void printScalarVariable(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Value var,
-          bool shouldPrependSeparator = true) const;
-
-      void printArrayVariable(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          mlir::Value var,
-          const modeling::IndexSet& filteredIndices,
-          bool shouldPrependSeparator = true) const;
-
-      void printElement(mlir::OpBuilder& builder, mlir::ModuleOp module, mlir::Value value) const;
-
-      mlir::LogicalResult createPrintFunctionBody(
-          mlir::OpBuilder& builder,
-          mlir::ModuleOp module,
-          const Model<ScheduledEquationsBlock>& model,
+          mlir::modelica::ModelOp modelOp,
+          const DerivativesMap& derivativesMap,
           llvm::StringRef functionName,
-          std::function<mlir::LogicalResult(llvm::StringRef, mlir::Value, const modeling::IndexSet&, mlir::ModuleOp, size_t)> elementCallback) const;
+          std::function<int64_t(const modeling::Range&)> boundaryGetterCallback) const;
 
-      mlir::LogicalResult createPrintHeaderFunction(
+      mlir::LogicalResult createGetPrintableIndexSetBoundariesFunction(
           mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model) const;
+          mlir::Location loc,
+          mlir::ModuleOp module,
+          llvm::StringRef functionName,
+          const modeling::IndexSet& indexSet,
+          std::function<int64_t(const modeling::Range&)> boundaryGetterCallback) const;
 
-      mlir::LogicalResult createPrintFunction(
+      mlir::LogicalResult createGetPrintableMultidimensionalRangeBoundariesFunction(
           mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model) const;
+          mlir::Location loc,
+          mlir::ModuleOp module,
+          llvm::StringRef functionName,
+          const modeling::MultidimensionalRange& ranges,
+          std::function<int64_t(const modeling::Range&)> boundaryGetterCallback) const;
+
+      mlir::func::FuncOp createScalarVariableGetter(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::ModuleOp module,
+          llvm::StringRef functionName,
+          mlir::modelica::ArrayType arrayType) const;
 
     private:
       mlir::LLVMTypeConverter* typeConverter;
