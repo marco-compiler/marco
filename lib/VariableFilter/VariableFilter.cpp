@@ -1,13 +1,24 @@
 #include "marco/VariableFilter/VariableFilter.h"
+#include "marco/Diagnostic/Printer.h"
 #include "marco/VariableFilter/Parser.h"
 #include "marco/VariableFilter/Token.h"
-#include "marco/Utils/LogMessage.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Regex.h"
 #include <map>
 
 using namespace ::marco;
 using namespace ::marco::vf;
+
+namespace
+{
+  class NullPrinter : public diagnostic::Printer
+  {
+    llvm::raw_ostream& getOutputStream() override
+    {
+      return llvm::nulls();
+    }
+  };
+}
 
 namespace marco
 {
@@ -156,14 +167,25 @@ namespace marco
     });
   }
 
-  llvm::Expected<VariableFilter> VariableFilter::fromString(llvm::StringRef str)
+  llvm::Optional<VariableFilter> VariableFilter::fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics)
   {
     VariableFilter vf;
     auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
-    Parser parser(vf, sourceFile);
 
-    if (auto error = parser.run()) {
-      return std::move(error);
+    diagnostic::DiagnosticEngine* actualDiagnostics = diagnostics;
+
+    if (actualDiagnostics == nullptr) {
+      actualDiagnostics = new diagnostic::DiagnosticEngine(std::make_unique<NullPrinter>());
+    }
+
+    Parser parser(vf, actualDiagnostics, sourceFile);
+
+    if (!parser.run()) {
+      if (diagnostics == nullptr) {
+        delete actualDiagnostics;
+      }
+
+      return llvm::None;
     }
 
     return vf;

@@ -346,7 +346,7 @@ namespace marco::modeling
         {
         }
 
-        explicit PtrProperty(Property property) : property(std::make_shared<Property>(std::move(property)))
+        explicit PtrProperty(Property property) : property(std::make_unique<Property>(std::move(property)))
         {
         }
 
@@ -368,18 +368,18 @@ namespace marco::modeling
         }
 
       private:
-        // TODO convert to unique_ptr?
-        std::shared_ptr<Property> property;
+        std::unique_ptr<Property> property;
     };
 
     /// A weakly connected directed graph with only one entry point.
-    /// In other words, a directed graph that has an undirected path between any pair
-    /// of vertices and has only one node with no predecessors.
-    /// This is needed to work with the LLVM graph iterators, because a non-connected
-    /// graph would lead to a visit of only the sub-graph containing the entry node.
+    /// In other words, a directed graph that has an undirected path between
+    /// any pair of vertices and has only one node with no predecessors.
+    /// This is needed to work with the LLVM graph iterators, because a
+    /// non-connected graph would lead to a visit of only the sub-graph
+    /// containing the entry node.
     /// The single entry point also ensure the visit of all the nodes.
-    /// The entry point is hidden from iteration upon vertices and can be accessed
-    /// only by means of its dedicated getter.
+    /// The entry point is hidden from iteration upon vertices and can be
+    /// accessed only by means of its dedicated getter.
     template<typename VP, typename EP = EmptyEdgeProperty>
     class SingleEntryWeaklyConnectedDigraph
     {
@@ -398,7 +398,8 @@ namespace marco::modeling
         using IncidentEdgeIterator = typename Graph::IncidentEdgeIterator;
         using LinkedVerticesIterator = typename Graph::LinkedVerticesIterator;
 
-        SingleEntryWeaklyConnectedDigraph() : entryNode(graph.addVertex(PtrProperty<VertexProperty>()))
+        SingleEntryWeaklyConnectedDigraph()
+            : entryNode(graph.addVertex(PtrProperty<VertexProperty>()))
         {
         }
 
@@ -627,8 +628,9 @@ namespace marco::modeling
 
 namespace llvm
 {
-  // We specialize the LLVM's graph traits in order leverage the algorithms that are
-  // defined inside LLVM itself. This way we don't have to implement them from scratch.
+  // We specialize the LLVM's graph traits in order leverage the algorithms
+  // that are defined inside LLVM itself. This way we don't have to implement
+  // them from scratch.
   template<typename VertexProperty>
   struct GraphTraits<marco::modeling::internal::dependency::SingleEntryWeaklyConnectedDigraph<VertexProperty>>
   {
@@ -698,8 +700,9 @@ namespace marco::modeling::internal
       using Variable = internal::dependency::VariableWrapper<VariableProperty>;
       using Equation = internal::dependency::VectorEquation<EquationProperty>;
 
-      // In order to search for SCCs we need to provide an entry point to the graph and the graph itself must
-      // not be disjoint. We achieve this by creating a fake entry point that is connected to all the nodes.
+      // In order to search for SCCs we need to provide an entry point to the
+      // graph and the graph itself must not be disjoint. We achieve this by
+      // creating a fake entry point that is connected to all the nodes.
       using Graph = internal::dependency::SingleEntryWeaklyConnectedDigraph<Equation>;
 
       using EquationDescriptor = typename Graph::VertexDescriptor;
@@ -718,13 +721,15 @@ namespace marco::modeling::internal
           graph.addVertex(Equation(equationProperty));
         }
 
-        // Determine which equation writes into which variable, together with the accessed indexes.
+        // Determine which equation writes into which variable, together with
+        // the accessed indexes.
         auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
         auto writes = getWritesMap(vertices.begin(), vertices.end());
 
-        // Now that the writes are known, we can explore the reads in order to determine the dependencies among
-        // the equations. An equation e1 depends on another equation e2 if e1 reads (a part) of a variable that is
-        // written by e2.
+        // Now that the writes are known, we can explore the reads in order to
+        // determine the dependencies among the equations. An equation e1
+        // depends on another equation e2 if e1 reads (a part) of a variable
+        // that is written by e2.
 
         for (const auto& equationDescriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
           const Equation& equation = graph[equationDescriptor];
@@ -782,7 +787,8 @@ namespace marco::modeling::internal
         return result;
       }
 
-      /// Map each array variable to the equations that write into some of its scalar positions.
+      /// Map each array variable to the equations that write into some of its
+      /// scalar positions.
       ///
       /// @param equationsBegin  beginning of the equations list
       /// @param equationsEnd    ending of the equations list
@@ -821,7 +827,8 @@ namespace marco::modeling::internal
 
       SCCDependencyGraph(llvm::ArrayRef<SCC> SCCs)
       {
-        // Internalize the SCCs and keep track of the parent-children relationships
+        // Internalize the SCCs and keep track of the parent-children
+        // relationships.
         llvm::DenseMap<ElementRef, SCCDescriptor> parentSCC;
 
         for (const auto& scc : SCCs) {
@@ -892,10 +899,11 @@ namespace marco::modeling::internal
   namespace dependency
   {
     /// An equation defined on a single (multidimensional) index.
-    /// Differently from the vector equation, this does not have dedicated traits. This is because the class
-    /// itself is made for internal usage and all the needed information by applying the vector equation traits
-    /// on the equation property. In other words, this class is used just to restrict the indexes upon a vector
-    /// equation iterates.
+    /// Differently from the vector equation, this does not have dedicated
+    /// traits. This is because the class itself is made for internal usage
+    /// and all the needed information by applying the vector equation traits
+    /// on the equation property. In other words, this class is used just to
+    /// restrict the indexes upon a vector equation iterates.
     template<typename EquationProperty>
     class ScalarEquation
     {
@@ -950,8 +958,8 @@ namespace marco::modeling::internal
 
       SVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
-        // Add the equations to the graph, while keeping track of which scalar equation
-        // writes into each scalar variable.
+        // Add the equations to the graph, while keeping track of which scalar
+        // equation writes into each scalar variable.
         WritesMap writes;
 
         for (const auto& equationProperty: equations) {
@@ -1003,8 +1011,8 @@ namespace marco::modeling::internal
 
       /// }
 
-      /// Perform a post-order visit of the dependency graph
-      /// and get the ordered scalar equation descriptors.
+      /// Perform a post-order visit of the dependency graph and get the
+      /// ordered scalar equation descriptors.
       std::vector<ScalarEquationDescriptor> postOrder() const
       {
         std::vector<ScalarEquationDescriptor> result;

@@ -1,5 +1,5 @@
-#ifndef MARCO_PARSER_LEXER_H
-#define MARCO_PARSER_LEXER_H
+#ifndef MARCO_PARSER_MODELICASTATEMACHINE_H
+#define MARCO_PARSER_MODELICASTATEMACHINE_H
 
 #include "marco/Diagnostic/Location.h"
 #include "marco/Parser/Lexer.h"
@@ -133,4 +133,4 @@ namespace marco::parser
   };
 }
 
-#endif // MARCO_PARSER_LEXER_H
+#endif // MARCO_PARSER_MODELICASTATEMACHINE_H

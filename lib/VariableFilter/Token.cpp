@@ -10,7 +10,7 @@ namespace marco::vf
   {
     switch (token)
     {
-      case Token::BeginOfFile:
+      case Token::Begin:
         return "Begin";
       case Token::EndOfFile:
         return "EOF";

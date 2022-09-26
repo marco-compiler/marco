@@ -30,7 +30,6 @@ marco_add_library(codegen
     marco::ast
     marco::modeling
     marco::variableFilter
-    marco::utils
     ${MLIR_LIBS})
 
 add_subdirectory(Conversion)

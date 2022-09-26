@@ -1,5 +1,5 @@
-#ifndef MARCO_LEXER_LEXER_H
-#define MARCO_LEXER_LEXER_H
+#ifndef MARCO_PARSER_LEXER_H
+#define MARCO_PARSER_LEXER_H
 
 #include "marco/Diagnostic/Location.h"
 #include "llvm/ADT/StringRef.h"
@@ -127,4 +127,4 @@ namespace marco
   };
 }
 
-#endif // MARCO_LEXER_LEXER_H
+#endif // MARCO_PARSER_LEXER_H

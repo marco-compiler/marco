@@ -14,7 +14,7 @@ using namespace ::marco::parser;
 
 #define TRY(outVar, expression)       \
 	auto outVar = expression;           \
-	if (!outVar.hasValue()) {           \
+	if (!outVar.has_value()) {           \
     return llvm::None;                \
   }                                   \
   static_assert(true)
@@ -454,7 +454,7 @@ namespace marco::parser
     if (accept<Token::LPar>()) {
       TRY(destinations, parseOutputExpressionList());
       loc.end = lexer.getTokenPosition().end;
-      auto destinationsTuple = Expression::tuple(loc, Type::unknown(), std::move(destinations.getValue()));
+      auto destinationsTuple = Expression::tuple(loc, Type::unknown(), std::move(destinations.value()));
 
       EXPECT(Token::RPar);
       EXPECT(Token::AssignmentOperator);
@@ -732,7 +732,7 @@ namespace marco::parser
 
     auto op = parseRelationalOperator();
 
-    if (!op.hasValue()) {
+    if (!op.has_value()) {
       return std::move(*lhs);
     }
 
@@ -740,7 +740,7 @@ namespace marco::parser
     loc.end = (*rhs)->getLocation().end;
 
     return Expression::operation(
-        std::move(loc), Type::unknown(), op.getValue(),
+        std::move(loc), Type::unknown(), op.value(),
         llvm::makeArrayRef({ std::move(*lhs), std::move(*rhs) }));
   }
 
@@ -974,7 +974,7 @@ namespace marco::parser
 
     if (current == Token::LSquare) {
       TRY(arraySubscripts, parseArraySubscripts());
-      loc.end = arraySubscripts.getValue().getLocation().end;
+      loc.end = arraySubscripts.value().getLocation().end;
 
       std::vector<std::unique_ptr<Expression>> args;
       args.push_back(std::move(result));
@@ -1001,7 +1001,7 @@ namespace marco::parser
 
     if (current == Token::LSquare) {
       TRY(arraySubscripts, parseArraySubscripts());
-      loc.end = arraySubscripts.getValue().getLocation().end;
+      loc.end = arraySubscripts.value().getLocation().end;
 
       std::vector<std::unique_ptr<Expression>> args;
       args.push_back(std::move(result));

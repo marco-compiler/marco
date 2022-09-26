@@ -71,7 +71,7 @@ namespace
 
       auto movedResults = op.getMovedResults();
 
-      if (movedResults.hasValue()) {
+      if (movedResults.has_value()) {
         rewriter.replaceOpWithNewOp<CallOp>(op, op.getResultTypes(), op.getCallee(), args, rewriter.getI64IntegerAttr(movedResults->getSExtValue()));
       } else {
         rewriter.replaceOpWithNewOp<CallOp>(op, op.getCallee(), op.getResultTypes(), args);

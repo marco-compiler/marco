@@ -362,7 +362,7 @@ namespace marco::codegen
   {
     auto variable = findVariable(value);
 
-    if (variable.hasValue()) {
+    if (variable.has_value()) {
       std::vector<DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());
       mlir::Type type = value.getType();
 
@@ -782,7 +782,7 @@ namespace marco::codegen
         expectedRank = originalArrayType.getRank();
       }
 
-      if (mappedReplacementArrayType.getRank() > expectedRank) {
+      if (static_cast<size_t>(mappedReplacementArrayType.getRank()) > expectedRank) {
         auto originalIndexes = collectSubscriptionIndexes(valueToBeReplaced);
         size_t rankDifference = mappedReplacementArrayType.getRank() - expectedRank;
         std::vector<mlir::Value> additionalIndexes;

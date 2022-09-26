@@ -356,7 +356,7 @@ namespace marco::codegen::lowering
     mlir::Type resultType = lower(call.getType());
 
     // The number of operands is equal to the rank of the resulting array
-    assert(call.argumentsCount() == resultType.cast<ArrayType>().getRank());
+    assert(call.argumentsCount() == static_cast<size_t>(resultType.cast<ArrayType>().getRank()));
 
     std::vector<mlir::Value> dimensions;
 
@@ -553,7 +553,7 @@ namespace marco::codegen::lowering
     mlir::Type resultType = lower(call.getType());
 
     // The number of operands is equal to the rank of the resulting array
-    assert(call.argumentsCount() == resultType.cast<ArrayType>().getRank());
+    assert(call.argumentsCount() == static_cast<size_t>(resultType.cast<ArrayType>().getRank()));
 
     std::vector<mlir::Value> dimensions;
 

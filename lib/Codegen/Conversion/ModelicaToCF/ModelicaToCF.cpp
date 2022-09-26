@@ -159,7 +159,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     // the dimensions change.
 
     auto arrayType = unwrappedType.cast<ArrayType>();
-    bool hasStaticSize = op.getDynamicSizes().size() == arrayType.getNumDynamicDims();
+    bool hasStaticSize = op.getDynamicSizes().size() == static_cast<size_t>(arrayType.getNumDynamicDims());
 
     if (hasStaticSize) {
       builder.setInsertionPoint(op);

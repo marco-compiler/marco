@@ -141,11 +141,11 @@ namespace marco::modeling
 
   bool AccessFunction::operator==(const AccessFunction& other) const
   {
-    if (size() != other.size()) {
+    if (functions.size() != other.functions.size()) {
       return false;
     }
 
-    for (const auto& [first, second] : llvm::zip(*this, other)) {
+    for (const auto& [first, second] : llvm::zip(functions, other.functions)) {
       if (first != second) {
         return false;
       }
@@ -156,11 +156,11 @@ namespace marco::modeling
 
   bool AccessFunction::operator!=(const AccessFunction& other) const
   {
-    if (size() != other.size()) {
+    if (functions.size() != other.functions.size()) {
       return true;
     }
 
-    for (const auto& [first, second] : llvm::zip(*this, other)) {
+    for (const auto& [first, second] : llvm::zip(functions, other.functions)) {
       if (first != second) {
         return true;
       }
@@ -179,7 +179,7 @@ namespace marco::modeling
   {
     llvm::SmallVector<DimensionAccess, 3> accesses;
 
-    for (const auto& function : other.functions) {
+    for (const DimensionAccess& function : other.functions) {
       accesses.push_back(combine(function));
     }
 
@@ -195,7 +195,7 @@ namespace marco::modeling
     unsigned int inductionVariableIndex = other.getInductionVariableIndex();
     assert(inductionVariableIndex < functions.size());
 
-    const auto& mapped = functions[inductionVariableIndex];
+    const DimensionAccess& mapped = functions[inductionVariableIndex];
 
     if (mapped.isConstantAccess()) {
       return DimensionAccess::constant(mapped.getPosition() + other.getOffset());
@@ -221,8 +221,8 @@ namespace marco::modeling
 
   bool AccessFunction::isIdentity() const
   {
-    for (size_t i = 0; i < size(); ++i) {
-      const auto& function = functions[i];
+    for (size_t i = 0, e = functions.size(); i < e; ++i) {
+      const DimensionAccess& function = functions[i];
 
       if (function.isConstantAccess()) {
         return false;
@@ -242,13 +242,14 @@ namespace marco::modeling
 
   bool AccessFunction::isInvertible() const
   {
-    llvm::SmallVector<bool, 3> usedDimensions(size(), false);
+    size_t rank = functions.size();
+    llvm::SmallVector<bool, 3> usedDimensions(rank, false);
 
-    for (const auto& function : functions) {
+    for (const DimensionAccess& function : functions) {
       if (!function.isConstantAccess()) {
-        auto inductionVar = function.getInductionVariableIndex();
+        unsigned int inductionVar = function.getInductionVariableIndex();
 
-        if (inductionVar >= usedDimensions.size()) {
+        if (inductionVar >= rank) {
           return false;
         }
 
@@ -256,7 +257,7 @@ namespace marco::modeling
       }
     }
 
-    return llvm::all_of(usedDimensions, [](const auto& used) {
+    return llvm::all_of(usedDimensions, [](bool used) {
       return used;
     });
   }
@@ -264,14 +265,15 @@ namespace marco::modeling
   AccessFunction AccessFunction::inverse() const
   {
     assert(isInvertible());
+    size_t rank = functions.size();
 
     std::vector<DimensionAccess> remapped;
-    remapped.reserve(functions.size());
+    remapped.reserve(rank);
 
     std::vector<size_t> positionsMap;
-    positionsMap.resize(functions.size());
+    positionsMap.resize(rank);
 
-    for (size_t i = 0; i < functions.size(); ++i) {
+    for (size_t i = 0; i < rank; ++i) {
       auto inductionVar = functions[i].getInductionVariableIndex();
       remapped.push_back(DimensionAccess::relative(i, -1 * functions[i].getOffset()));
       positionsMap[inductionVar] = i;
@@ -290,7 +292,7 @@ namespace marco::modeling
   {
     std::vector<Point::data_type> results;
 
-    for (const auto& function: functions) {
+    for (const DimensionAccess& function: functions) {
       results.push_back(function(equationIndexes));
     }
 
@@ -301,7 +303,7 @@ namespace marco::modeling
   {
     std::vector<Range> ranges;
 
-    for (const auto& function : functions) {
+    for (const DimensionAccess& function : functions) {
       ranges.push_back(function(range));
     }
 
@@ -312,7 +314,7 @@ namespace marco::modeling
   {
     IndexSet result;
 
-    for (const auto& range : llvm::make_range(indexes.rangesBegin(), indexes.rangesEnd())) {
+    for (const MultidimensionalRange& range : llvm::make_range(indexes.rangesBegin(), indexes.rangesEnd())) {
       result += map(range);
     }
 
@@ -332,21 +334,22 @@ namespace marco::modeling
   IndexSet AccessFunction::inverseMap(const IndexSet& indices, const IndexSet& parentIndexes) const
   {
     if (isInvertible() && !indices.empty() && !parentIndexes.empty() && indices.rank() == parentIndexes.rank()) {
-      auto mapped = inverseMap(indices);
+      IndexSet mapped = inverseMap(indices);
       assert(map(mapped).contains(indices));
       return mapped;
     }
 
-    // If the access function is not invertible, then not all the iteration variables are
-    // used. This loss of information don't allow to reconstruct the equation ranges that
-    // leads to the dependency loop. Thus, we need to iterate on all the original equation
-    // points and determine which of them lead to a loop. This is highly expensive but also
+    // If the access function is not invertible, then not all the iteration
+    // variables are used. This loss of information doesn't allow to
+    // reconstruct the equation ranges that leads to the dependency loop. Thus,
+    // we need to iterate on all the original equation points and determine
+    // which of them lead to a loop. This is highly expensive but also
     // inevitable, and confined only to very few cases within real scenarios.
 
     IndexSet result;
 
     for (const auto& range: llvm::make_range(parentIndexes.rangesBegin(), parentIndexes.rangesEnd())) {
-      for (const auto& point: range) {
+      for (const Point& point: range) {
         if (indices.contains(map(point))) {
           result += point;
         }

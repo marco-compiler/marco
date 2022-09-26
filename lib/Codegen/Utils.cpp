@@ -105,49 +105,4 @@ namespace marco::codegen
           nestedBuilder.create<StoreOp>(loc, value, destination, indices);
         });
   }
-
-  /*
-  modeling::IndexSet getIndexSet(mlir::modelica::IterationSpace iterationSpace)
-  {
-    IndexSet current;
-
-    if (auto iterationRange = iterationSpace.getIterationRange(); iterationRange.step() == 1) {
-      current += MultidimensionalRange(Range(iterationRange.from(), iterationRange.to() + 1));
-    } else {
-      for (auto index = iterationRange.from(); index < iterationRange.to(); index += iterationRange.step()) {
-        current += Point(index);
-      }
-    }
-
-    if (!iterationSpace.hasSubDimensions()) {
-      return current;
-    }
-
-    modeling::IndexSet result;
-
-    for (const auto& subDimension : iterationSpace) {
-      auto extension = current.intersect(MultidimensionalRange(Range(
-          subDimension.first.from(), subDimension.first.to() + 1)));
-
-      auto indexSet = getIndexSet(*subDimension.second);
-      for (const auto& childRange : llvm::make_range(indexSet.rangesBegin(), indexSet.rangesEnd())) {
-        for (const auto& parentRange : llvm::make_range(extension.rangesBegin(), extension.rangesEnd())) {
-          std::vector<Range> extended;
-
-          for (size_t i = 0; i < parentRange.rank(); ++i) {
-            extended.push_back(parentRange[i]);
-          }
-
-          for (size_t i = 0; i < childRange.rank(); ++i) {
-            extended.push_back(childRange[i]);
-          }
-
-          result += MultidimensionalRange(extended);
-        }
-      }
-    }
-
-    return result;
-  }
-   */
 }

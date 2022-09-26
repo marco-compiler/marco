@@ -82,10 +82,6 @@ class MemberOf<list<Type> allowedTypes> :
 
 def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
-// Simulation data type
-def ModelicaSimData : Type<CPred<"$_self.isa<::mlir::modelica::SimDataType>()">,
-                                 "sim_data", "::mlir::modelica::SimDataType">;
-
 //===----------------------------------------------------------------------===//
 // Modelica operation definitions
 //===----------------------------------------------------------------------===//
@@ -3114,28 +3110,6 @@ def Modelica_YieldOp : Modelica_Op<"yield",
 //===----------------------------------------------------------------------===//
 // Utility operations
 //===----------------------------------------------------------------------===//
-
-def Modelica_SimDataAllocOp : Modelica_Op<"sim_data_alloc">
-{
-    let summary = "Allocate the simulation data";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins);
-    let results = (outs ModelicaSimData:$simData);
-
-    let assemblyFormat = [{
-        attr-dict `:` qualified(type($simData))
-    }];
-
-    let builders = [
-        OpBuilder<(ins "SimDataType":$simDataType), [{
-            $_state.types.push_back(simDataType);
-        }]>
-    ];
-}
 
 def Modelica_CastOp : Modelica_Op<"cast",
     [DeclareOpInterfaceMethods<DerivableOpInterface>]>

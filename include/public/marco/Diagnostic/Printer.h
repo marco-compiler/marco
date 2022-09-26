@@ -9,9 +9,9 @@ namespace marco::diagnostic
   class Printer
   {
     public:
-      llvm::raw_ostream::Colors diagnosticLevelToColor(marco::diagnostic::Level level) const;
+      virtual llvm::raw_ostream::Colors diagnosticLevelToColor(marco::diagnostic::Level level) const;
 
-      llvm::raw_ostream& getOutputStream();
+      virtual llvm::raw_ostream& getOutputStream();
   };
 
   class PrinterInstance

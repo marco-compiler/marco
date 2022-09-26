@@ -499,45 +499,6 @@ namespace mlir::modelica
   {
     return MemberType::get(getShape(), getElementType(), isConstant(), ioProperty);
   }
-
-  //===----------------------------------------------------------------------===//
-  // SimDataType
-  //===----------------------------------------------------------------------===//
-
-  SimDataType SimDataType::get(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Type> body,
-      mlir::Attribute memorySpace)
-  {
-    // Drop default memory space value and replace it with empty attribute.
-    memorySpace = skipDefaultMemorySpace(memorySpace);
-
-    return Base::get(context, body, memorySpace);
-  }
-
-  SimDataType SimDataType::getChecked(
-      llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Type> body,
-      mlir::Attribute memorySpace)
-  {
-    // Drop default memory space value and replace it with empty attribute.
-    memorySpace = skipDefaultMemorySpace(memorySpace);
-
-    return Base::get(context, body, memorySpace);
-  }
-
-  mlir::LogicalResult SimDataType::verify(
-      llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-      llvm::ArrayRef<mlir::Type> body,
-      mlir::Attribute memorySpace)
-  {
-    if (!isSupportedMemorySpace(memorySpace)) {
-      return emitError() << "unsupported memory space Attribute";
-    }
-
-    return mlir::success();
-  }
 }
 
 namespace mlir::modelica::detail

@@ -13,7 +13,7 @@ namespace marco::vf
   enum class Token
   {
     // Control tokens
-    BeginOfFile,
+    Begin,
     EndOfFile,
     Error,
     None,

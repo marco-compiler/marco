@@ -19,7 +19,6 @@ namespace marco::vf
       : state(State::Normal),
         current('\0'),
         next(first),
-        currentToken(Token::BeginOfFile),
         lastIdentifier(""),
         lastRegex(""),
         currentPosition(SourcePosition(file, 1, 0)),
@@ -35,11 +34,6 @@ namespace marco::vf
     symbols[':'] = Token::Colons;
     symbols['$'] = Token::Dollar;
     keywordMap["der"] = Token::DerKeyword;
-  }
-
-  Token LexerStateMachine::getCurrent() const
-  {
-    return currentToken;
   }
 
   const std::string& LexerStateMachine::getLastIdentifier() const

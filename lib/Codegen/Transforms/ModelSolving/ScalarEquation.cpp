@@ -130,7 +130,7 @@ namespace marco::codegen
             createIterationLoops(
                 builder, loc, beginIndexes, endIndexes, steps, iterationDirection,
                 [&](mlir::OpBuilder& nestedBuilder, mlir::ValueRange indices) {
-                  assert(mappedLhs.getType().cast<ArrayType>().getRank() == indices.size());
+                  assert(static_cast<size_t>(mappedLhs.getType().cast<ArrayType>().getRank()) == indices.size());
                   mlir::Value rhsValue = nestedBuilder.create<LoadOp>(loc, mappedRhs, indices);
                   rhsValue = nestedBuilder.create<CastOp>(loc, mappedLhsArrayType.getElementType(), rhsValue);
                   nestedBuilder.create<StoreOp>(loc, rhsValue, mappedLhs, indices);

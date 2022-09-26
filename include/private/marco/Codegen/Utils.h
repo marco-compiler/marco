@@ -15,8 +15,6 @@ namespace marco::codegen
   std::string getUniqueSymbolName(mlir::ModuleOp module, std::function<std::string()> tryFn);
 
   void copyArray(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value source, mlir::Value destination);
-
-  //modeling::IndexSet getIndexSet(mlir::modelica::IterationSpace iterationSpace);
 }
 
 #endif // MARCO_CODEGEN_UTILS_H

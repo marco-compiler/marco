@@ -304,4 +304,80 @@ namespace marco::modeling
     stream << "]";
     return stream;
   }
+
+  MultidimensionalRange::Iterator::Iterator(
+      llvm::ArrayRef<Range> ranges,
+      std::function<Range::const_iterator(const Range&)> initFunction)
+  {
+    for (const auto& range: ranges) {
+      beginIterators.push_back(range.begin());
+      auto it = initFunction(range);
+      currentIterators.push_back(it);
+      endIterators.push_back(range.end());
+      indices.push_back(*it);
+    }
+
+    assert(ranges.size() == beginIterators.size());
+    assert(ranges.size() == currentIterators.size());
+    assert(ranges.size() == endIterators.size());
+    assert(ranges.size() == indices.size());
+  }
+
+  bool MultidimensionalRange::Iterator::operator==(const Iterator& it) const
+  {
+    return currentIterators == it.currentIterators;
+  }
+
+  bool MultidimensionalRange::Iterator::operator!=(const Iterator& it) const
+  {
+    return currentIterators != it.currentIterators;
+  }
+
+  MultidimensionalRange::Iterator& MultidimensionalRange::Iterator::operator++()
+  {
+    fetchNext();
+    return *this;
+  }
+
+  MultidimensionalRange::Iterator MultidimensionalRange::Iterator::operator++(int)
+  {
+    auto temp = *this;
+    fetchNext();
+    return temp;
+  }
+
+  MultidimensionalRange::Iterator::value_type MultidimensionalRange::Iterator::operator*() const
+  {
+    return Point(indices);
+  }
+
+  void MultidimensionalRange::Iterator::fetchNext()
+  {
+    size_t size = indices.size();
+
+    auto findIndex = [&]() -> std::pair<bool, size_t> {
+      for (size_t i = 0, e = size; i < e; ++i) {
+        size_t pos = e - i - 1;
+
+        if (++currentIterators[pos] != endIterators[pos]) {
+          return std::make_pair(true, pos);
+        }
+      }
+
+      return std::make_pair(false, 0);
+    };
+
+    std::pair<bool, size_t> index = findIndex();
+
+    if (index.first) {
+      size_t pos = index.second;
+
+      indices[pos] = *currentIterators[pos];
+
+      for (size_t i = pos + 1; i < size; ++i) {
+        currentIterators[i] = beginIterators[i];
+        indices[i] = *currentIterators[i];
+      }
+    }
+  }
 }

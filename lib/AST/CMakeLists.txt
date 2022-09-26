@@ -86,7 +86,6 @@ marco_add_library(ast
 
 	LINK_LIBS
 	PUBLIC marco::diagnostic
-	PRIVATE marco::utils
 	PUBLIC boost
 
 	LINK_COMPONENTS

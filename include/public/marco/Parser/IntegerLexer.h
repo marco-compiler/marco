@@ -1,5 +1,5 @@
-#ifndef MARCO_LEXER_INTEGERLEXER_H
-#define MARCO_LEXER_INTEGERLEXER_H
+#ifndef MARCO_PARSER_INTEGERLEXER_H
+#define MARCO_PARSER_INTEGERLEXER_H
 
 namespace marco
 {
@@ -42,4 +42,4 @@ namespace marco
   };
 }
 
-#endif // MARCO_LEXER_INTEGERLEXER_H
+#endif // MARCO_PARSER_INTEGERLEXER_H

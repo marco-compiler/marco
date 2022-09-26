@@ -208,27 +208,4 @@ def MemberType : Modelica_Type<"Member",
     let genVerifyDecl = 1;
 }
 
-def SimDataType : Modelica_Type<"SimData"> {
-    let summary = "Simulation data type";
-
-    let description = [{
-        Simulation data type.
-    }];
-
-    let parameters = (ins
-        "llvm::ArrayRef<mlir::Type>":$body,
-        "mlir::Attribute":$memorySpace
-    );
-
-    let skipDefaultBuilders = 1;
-
-    let builders = [
-        TypeBuilder<(ins
-            "llvm::ArrayRef<mlir::Type>":$body,
-            CArg<"Attribute", "{}">:$memorySpace)>
-    ];
-
-    let genVerifyDecl = 1;
-}
-
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD

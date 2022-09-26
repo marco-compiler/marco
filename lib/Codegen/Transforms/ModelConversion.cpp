@@ -235,7 +235,7 @@ namespace
       }
 
       auto filterRanges = filter.getRanges();
-      assert(filterRanges.size() == arrayType.getRank());
+      assert(filterRanges.size() == static_cast<size_t>(arrayType.getRank()));
 
       std::vector<Range> ranges;
 
@@ -1917,7 +1917,6 @@ namespace marco::codegen
     // Create the runtime data structure
     builder.setInsertionPointToEnd(bodyBlock);
 
-    // TODO
     auto runtimeDataStructType = getRuntimeDataStructType(
         builder.getContext(), modelOp.getBodyRegion().getArgumentTypes());
 

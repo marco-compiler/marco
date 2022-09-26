@@ -10,7 +10,6 @@ add_subdirectory(Runtime)
 # Also the modeling library is designed to be independent.
 add_subdirectory(Modeling)
 
-add_subdirectory(Utils)
 add_subdirectory(VariableFilter)
 add_subdirectory(Diagnostic)
 add_subdirectory(AST)

@@ -16,7 +16,7 @@ TEST(Parser, rawValue_true)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseBoolValue();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), true);
 
@@ -36,7 +36,7 @@ TEST(Parser, rawValue_false)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseBoolValue();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), false);
 
@@ -56,7 +56,7 @@ TEST(Parser, rawValue_integer)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseIntValue();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), 12345);
 
@@ -76,7 +76,7 @@ TEST(Parser, rawValue_float)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseFloatValue();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_DOUBLE_EQ(node->getValue(), 1.23);
 
@@ -96,7 +96,7 @@ TEST(Parser, rawValue_string)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseString();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getValue(), "test");
 
@@ -116,7 +116,7 @@ TEST(Parser, identifier)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseIdentifier();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ(node->getLocation().begin.line, 1);
   EXPECT_EQ(node->getLocation().begin.column, 1);
@@ -136,7 +136,7 @@ TEST(Parser, algorithm_emptyBody)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAlgorithmSection();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -161,7 +161,7 @@ TEST(Parser, model)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseClassDefinition();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -187,7 +187,7 @@ TEST(Parser, standardFunction)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseClassDefinition();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -212,7 +212,7 @@ TEST(Parser, partialDerFunction)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseClassDefinition();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -241,7 +241,7 @@ TEST(Parser, algorithm_statementsCount)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAlgorithmSection();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -261,7 +261,7 @@ TEST(Parser, equation)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseEquation();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -287,7 +287,7 @@ TEST(Parser, statement_assignment)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_TRUE((*node)->isa<AssignmentStatement>());
 
@@ -318,7 +318,7 @@ TEST(Parser, statement_assignmentWithMultipleDestinations)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -347,7 +347,7 @@ TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -380,7 +380,7 @@ TEST(Parser, statement_if)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -409,7 +409,7 @@ TEST(Parser, statement_ifElse)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -443,7 +443,7 @@ TEST(Parser, statement_ifElseIfElse)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -472,7 +472,7 @@ TEST(Parser, statement_for)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -498,7 +498,7 @@ TEST(Parser, statement_while)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -521,7 +521,7 @@ TEST(Parser, statement_break)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -541,7 +541,7 @@ TEST(Parser, statement_return)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseStatement();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -561,7 +561,7 @@ TEST(Parser, expression_constant)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -582,7 +582,7 @@ TEST(Parser, expression_not)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -603,7 +603,7 @@ TEST(Parser, expression_and)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -624,7 +624,7 @@ TEST(Parser, expression_or)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -645,7 +645,7 @@ TEST(Parser, expression_equal)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -666,7 +666,7 @@ TEST(Parser, expression_notEqual)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -687,7 +687,7 @@ TEST(Parser, expression_less)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -708,7 +708,7 @@ TEST(Parser, expression_lessEqual)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -729,7 +729,7 @@ TEST(Parser, expression_greater)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -750,7 +750,7 @@ TEST(Parser, expression_greaterEqual)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -771,7 +771,7 @@ TEST(Parser, expression_addition)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -792,7 +792,7 @@ TEST(Parser, expression_additionElementWise)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -813,7 +813,7 @@ TEST(Parser, expression_subtraction)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -834,7 +834,7 @@ TEST(Parser, expression_subtractionElementWise)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -855,7 +855,7 @@ TEST(Parser, expression_multiplication)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -876,7 +876,7 @@ TEST(Parser, expression_multiplicationElementWise)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -897,7 +897,7 @@ TEST(Parser, expression_division)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -918,7 +918,7 @@ TEST(Parser, expression_divisionElementWise)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -939,7 +939,7 @@ TEST(Parser, expression_additionAndMultiplication)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -977,7 +977,7 @@ TEST(Parser, expression_multiplicationAndAddition)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1017,7 +1017,7 @@ TEST(Parser, expression_multiplicationAndDivision)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1057,7 +1057,7 @@ TEST(Parser, expression_divisionAndMultiplication)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1097,7 +1097,7 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1137,7 +1137,7 @@ TEST(Parser, expression_pow)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1158,7 +1158,7 @@ TEST(Parser, expression_powElementWise)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1179,7 +1179,7 @@ TEST(Parser, expression_tuple_empty)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1200,7 +1200,7 @@ TEST(Parser, expression_componentReference)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1221,7 +1221,7 @@ TEST(Parser, expression_array)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1258,7 +1258,7 @@ TEST(Parser, expression_subscription)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1291,7 +1291,7 @@ TEST(Parser, expression_subscriptionOfInlineArray)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1318,7 +1318,7 @@ TEST(Parser, expression_subscriptionOfFunctionCall)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1345,7 +1345,7 @@ TEST(Parser, expression_functionCall_noArgs)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1372,7 +1372,7 @@ TEST(Parser, expression_functionCall_withArgs)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseExpression();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1408,7 +1408,7 @@ TEST(Parser, annotation_inlineTrue)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAnnotation();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1428,7 +1428,7 @@ TEST(Parser, annotation_inlineFalse)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAnnotation();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1448,7 +1448,7 @@ TEST(Parser, annotation_inverseFunction)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAnnotation();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1480,7 +1480,7 @@ TEST(Parser, annotation_functionDerivativeWithOrder)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAnnotation();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
@@ -1503,7 +1503,7 @@ TEST(Parser, annotation_functionDerivativeWithoutOrder)
   Parser parser(diagnostics, sourceFile);
 
   auto node = parser.parseAnnotation();
-  ASSERT_TRUE(node.hasValue());
+  ASSERT_TRUE(node.has_value());
 
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);

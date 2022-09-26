@@ -5,63 +5,40 @@
 
 namespace marco::modeling
 {
-  namespace impl
-  {
-    template<typename ValueType>
-    class RangeIterator
-    {
-      public:
-        using iterator_category = std::input_iterator_tag;
-        using value_type = ValueType;
-        using difference_type = std::ptrdiff_t;
-        using pointer = ValueType*;
-        using reference = ValueType&;
-
-        RangeIterator(ValueType begin, ValueType end) : current(begin), end(end)
-        {
-          assert(begin <= end);
-        }
-
-        bool operator==(const RangeIterator& it) const
-        {
-          return current == it.current && end == it.end;
-        }
-
-        bool operator!=(const RangeIterator& it) const
-        {
-          return current != it.current || end != it.end;
-        }
-
-        RangeIterator& operator++()
-        {
-          current = std::min(current + 1, end);
-          return *this;
-        }
-
-        RangeIterator operator++(int)
-        {
-          auto temp = *this;
-          current = std::min(current + 1, end);
-          return temp;
-        }
-
-        value_type operator*()
-        {
-          return current;
-        }
-
-      private:
-        ValueType current;
-        ValueType end;
-    };
-  }
-
   /// 1-D half-open range [a,b).
   class Range
   {
     public:
       using data_type = Point::data_type;
-      using const_iterator = impl::RangeIterator<data_type>;
+
+    private:
+      class Iterator
+      {
+        public:
+          using iterator_category = std::input_iterator_tag;
+          using value_type = data_type;
+          using difference_type = std::ptrdiff_t;
+          using pointer = data_type*;
+          using reference = data_type&;
+
+          Iterator(data_type begin, data_type end);
+
+          bool operator==(const Iterator& other) const;
+          bool operator!=(const Iterator& other) const;
+
+          Iterator& operator++();
+
+          Iterator operator++(int);
+
+          value_type operator*();
+
+        private:
+          data_type current;
+          data_type end;
+      };
+
+    public:
+      using const_iterator = Iterator;
 
       Range(data_type begin, data_type end);
 
@@ -77,20 +54,23 @@ namespace marco::modeling
 
       bool operator>(const Range& other) const;
 
-      // TODO remove
       data_type getBegin() const;
 
-      // TODO remove
       data_type getEnd() const;
 
       size_t size() const;
 
+      /// Check if the range contains a point.
       bool contains(data_type value) const;
 
+      /// Check if the range contains all the points of another range.
       bool contains(const Range& other) const;
 
+      /// Check if the range has some points in common with another one.
       bool overlaps(const Range& other) const;
 
+      /// Get the intersection with another range.
+      /// The ranges must overlap.
       Range intersect(const Range& other) const;
 
       /// Check whether the range can be merged with another one.
@@ -106,13 +86,18 @@ namespace marco::modeling
       /// and does not touch the borders.
       std::vector<Range> subtract(const Range& other) const;
 
+      //// @name Iterators for the contained points
+      /// {
+
       const_iterator begin() const;
 
       const_iterator end() const;
 
+      /// }
+
     private:
-      data_type _begin;
-      data_type _end;
+      data_type begin_;
+      data_type end_;
   };
 
   std::ostream& operator<<(std::ostream& stream, const Range& obj);

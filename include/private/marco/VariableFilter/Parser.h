@@ -1,34 +1,35 @@
 #ifndef MARCO_VARIABLEFILTER_PARSER_H
 #define MARCO_VARIABLEFILTER_PARSER_H
 
+#include "marco/Diagnostic/Diagnostic.h"
 #include "marco/VariableFilter/AST.h"
 #include "marco/VariableFilter/LexerStateMachine.h"
 #include "marco/VariableFilter/VariableFilter.h"
 #include "marco/Diagnostic/Location.h"
 #include "marco/Parser/Lexer.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Error.h"
+#include "llvm/ADT/Optional.h"
 
 namespace marco::vf
 {
   class Parser
   {
     public:
-      Parser(VariableFilter& vf, std::shared_ptr<SourceFile> file);
+      Parser(VariableFilter& vf, diagnostic::DiagnosticEngine* diagnostics, std::shared_ptr<SourceFile> file);
 
-      llvm::Error run();
+      bool run();
 
-      llvm::Error token();
+      bool token();
 
-      llvm::Expected<DerivativeExpression> der();
+      llvm::Optional<DerivativeExpression> der();
 
-      llvm::Expected<RegexExpression> regex();
+      llvm::Optional<RegexExpression> regex();
 
-      llvm::Expected<VariableExpression> identifier();
+      llvm::Optional<VariableExpression> identifier();
 
-      llvm::Expected<ArrayExpression> array(VariableExpression variable);
+      llvm::Optional<ArrayExpression> array(VariableExpression variable);
 
-      llvm::Expected<Range> arrayRange();
+      llvm::Optional<Range> arrayRange();
 
     private:
       /// Read the next token.
@@ -51,10 +52,9 @@ namespace marco::vf
         return false;
       }
 
-      llvm::Expected<bool> expect(Token t);
-
     private:
       VariableFilter* vf;
+      diagnostic::DiagnosticEngine* diagnostics;
       Lexer<LexerStateMachine> lexer;
       Token current;
   };

@@ -38,14 +38,14 @@ namespace marco::ast
   Modification::Modification(const Modification& other)
     : ASTNode(other)
   {
-    if (other.classModification.hasValue()) {
-      classModification = other.classModification.getValue()->clone();
+    if (other.classModification.has_value()) {
+      classModification = other.classModification.value()->clone();
     } else {
       classModification = llvm::None;
     }
 
-    if (other.expression.hasValue()) {
-      expression = other.expression.getValue()->clone();
+    if (other.expression.has_value()) {
+      expression = other.expression.value()->clone();
     } else {
       expression = llvm::None;
     }
@@ -77,16 +77,16 @@ namespace marco::ast
   {
     os.indent(indents) << "modification:\n";
 
-    if (classModification.hasValue())
+    if (classModification.has_value())
       (*classModification)->dump(os, indents + 1);
 
-    if (expression.hasValue())
+    if (expression.has_value())
       (*expression)->dump(os, indents + 1);
   }
 
   bool Modification::hasClassModification() const
   {
-    return classModification.hasValue();
+    return classModification.has_value();
   }
 
   ClassModification* Modification::getClassModification()
@@ -103,7 +103,7 @@ namespace marco::ast
 
   bool Modification::hasExpression() const
   {
-    return expression.hasValue();
+    return expression.has_value();
   }
 
   Expression* Modification::getExpression()
@@ -403,8 +403,8 @@ namespace marco::ast
         final(other.final),
         name(other.name)
   {
-    if (other.modification.hasValue()) {
-      modification = other.modification.getValue()->clone();
+    if (other.modification.has_value()) {
+      modification = other.modification.value()->clone();
     } else {
       modification = llvm::None;
     }
@@ -448,7 +448,7 @@ namespace marco::ast
 
     os.indent(indents + 1) << "name: " << name << "\n";
 
-    if (modification.hasValue()) {
+    if (modification.has_value()) {
       (*modification)->dump(os, indents + 1);
     }
   }
@@ -470,7 +470,7 @@ namespace marco::ast
 
   bool ElementModification::hasModification() const
   {
-    return modification.hasValue();
+    return modification.has_value();
   }
 
   Modification* ElementModification::getModification()

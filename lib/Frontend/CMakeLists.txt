@@ -25,7 +25,6 @@ marco_add_library(frontend
     marco::parser
     marco::codegen
     marco::variableFilter
-    marco::utils
     MARCOFrontendOptions
 
     LINK_LIBS
@@ -33,7 +32,6 @@ marco_add_library(frontend
     PUBLIC marco::parser
     PRIVATE marco::codegen
     PRIVATE marco::variableFilter
-    PRIVATE marco::utils
     PRIVATE ${MLIR_LIBS}
 
     LINK_COMPONENTS
