@@ -100,13 +100,13 @@ namespace marco::codegen
 
       virtual mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<double>& coefficients,
-          double& constantTerm) const = 0;
+          std::vector<mlir::Attribute>& coefficients,
+          mlir::Attribute& constantTerm) const = 0;
 
       virtual mlir::LogicalResult getSideCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<double>& coefficients,
-          double& constantTerm,
+          std::vector<mlir::Attribute>& coefficients,
+          mlir::Attribute& constantTerm,
           std::vector<mlir::Value> values,
           EquationPath::EquationSide side) const = 0;
 
