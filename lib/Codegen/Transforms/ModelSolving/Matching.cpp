@@ -209,16 +209,16 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<double>& vector,
-      double& constantTerm) const
+      std::vector<mlir::Attribute>& vector,
+      mlir::Attribute& constantTerm) const
   {
     return equation->getCoefficients(builder, vector, constantTerm);
   }
 
   mlir::LogicalResult MatchedEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<double>& coefficients,
-      double& constantTerm,
+      std::vector<mlir::Attribute>& coefficients,
+      mlir::Attribute& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side) const
   {
@@ -255,7 +255,7 @@ namespace marco::codegen
 
   void MatchedEquation::setMatchSolution(
       mlir::OpBuilder& builder,
-      const double constant)
+      const mlir::Attribute constant)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -270,9 +270,7 @@ namespace marco::codegen
     builder.setInsertionPoint(terminator);
 
     auto rhs = builder.create<ConstantOp>(
-        equation->getOperation().getLoc(),
-        RealAttr::get(builder.getContext(),
-                      constant));
+        equation->getOperation().getLoc(), constant);
 
     equation->replaceSides(builder, lhs, rhs.getResult());
     matchedPath = EquationPath::LEFT;

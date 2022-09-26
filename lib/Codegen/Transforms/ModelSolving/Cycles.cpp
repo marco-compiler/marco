@@ -8,19 +8,21 @@ using namespace ::marco::modeling;
 
 #define DEBUG_TYPE "CyclesSolving"
 
-static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles)
+static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles,
+                                Equations<MatchedEquation>& solution)
 {
   bool allCyclesSolved;
+  auto equations = secondaryCycles ? model.getEquations() : solution;
 
   // The list of equations among which the cycles have to be searched
   std::vector<MatchedEquation*> toBeProcessed;
 
   // The first iteration will use all the equations of the model
-  for (const auto& equation : model.getEquations()) {
+  for (const auto& equation : equations) {
     toBeProcessed.push_back(equation.get());
   }
 
-  Equations<MatchedEquation> solution;
+
   std::vector<std::unique_ptr<MatchedEquation>> newEquations;
   std::vector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
 
@@ -91,9 +93,6 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
     solution.add(std::move(unsolvedEquation));
   }
 
-  // Set the new equations of the model
-  model.setEquations(solution);
-
   return allCyclesSolved;
 }
 
@@ -108,12 +107,16 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
+    Equations<MatchedEquation> solution;
+
     // Try an aggressive method first
     LLVM_DEBUG({
        llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
     });
 
-    if (solveBySubstitution(model, builder, true)) {
+    if (solveBySubstitution(model, builder, true, solution)) {
+      // Set the new equations of the model
+      model.setEquations(solution);
       return mlir::success();
     }
 
@@ -122,7 +125,9 @@ namespace marco::codegen
       llvm::dbgs() << "Solving cycles by substitution, without secondary cycles.\n";
     });
 
-    if (solveBySubstitution(model, builder, false)) {
+    if (solveBySubstitution(model, builder, false, solution)) {
+      // Set the new equations of the model
+      model.setEquations(solution);
       return mlir::success();
     }
 

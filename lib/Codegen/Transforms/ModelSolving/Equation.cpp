@@ -99,19 +99,28 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
     }
   }
 
+  std::cerr << "OPERATIONS\n";
+  for(auto op : ops)
+    op->dump();
+
   llvm::SmallVector<mlir::Operation*, 3> constants;
 
-  // Operations with two operands may not get any of the two operands folded if
-  // the first that we try to fold is not foldable, if we keep the break.
   for (auto *op : llvm::reverse(ops)) {
     helper.tryToFold(op, [&](mlir::Operation* constant) {
           constants.push_back(constant);
         });
   }
 
+  std::cerr << "CONSTANTS\n";
+  for(auto con : constants)
+    con->dump();
+
   for (auto* op : llvm::reverse(constants)) {
     op->moveBefore(equationOp.bodyBlock(), equationOp.bodyBlock()->begin());
   }
+
+  std::cerr << "EQUATIONOP\n";
+  equationOp->dump();
 }
 
 static bool isZeroAttr(mlir::Attribute attribute)
@@ -1168,7 +1177,7 @@ namespace marco::codegen
         return std::make_pair(operand.first, nullptr);
       }
 
-      mlir::Value result = builder.create<NegateOp>(
+      mlir::Value result = builder.createOrFold<NegateOp>(
           negateOp.getLoc(), negateOp.getResult().getType(), operand.second);
 
       return std::make_pair(operand.first, result);
@@ -1400,7 +1409,6 @@ namespace marco::codegen
       return lhs/rhs;
     }
 
-    value.dump();
     llvm_unreachable("Operation not supported.");
   }
 
@@ -1469,15 +1477,20 @@ namespace marco::codegen
 
   }
 
-  static ConstantOp foldIfNotConstantOp(EquationInterface equationInterface, mlir::Value value)
+  static ConstantOp foldIfNotConstantOp(EquationInterface equationOp, mlir::Value value)
   {
-    auto res = mlir::dyn_cast_or_null<ConstantOp>(value.getDefiningOp());
-    if(res == nullptr)
-    {
-      foldValue(equationInterface, value);
-      res = mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
+    auto r = mlir::isa<ConstantOp>(value.getDefiningOp());
+    value.dump();
+
+    if(!r) {
+      std::cerr << "NOT CONSTANT!\n" << std::flush;
+      std::cerr << "VALUE BEFORE:\n" << std::flush;
+      value.dump();
+      foldValue(equationOp, value);
+      std::cerr << "VALUE AFTER:\n" << std::flush;
+      value.dump();
     }
-    return res;
+    return mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
   }
 
   size_t BaseEquation::getFlatAccessIndex(
@@ -1512,13 +1525,23 @@ namespace marco::codegen
 
   mlir::LogicalResult BaseEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<double>& coefficients,
-      double& constantTerm,
+      std::vector<mlir::Attribute>& coefficients,
+      mlir::Attribute& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
+    auto terminator = getTerminator();
+    builder.setInsertionPoint(terminator);
 
+    std::vector<mlir::Value> coefficientValues(coefficients.size());
+    mlir::Location loc = equationOp->getLoc();
+    mlir::Type type = RealAttr::get(builder.getContext(), 0).getType();
+
+    for(auto [el, val] : llvm::zip(coefficients, coefficientValues))
+      val = builder.create<ConstantOp>(loc, el);
+
+    mlir::Value constantTermValue = builder.create<ConstantOp>(loc, constantTerm);
     for(auto value : values) {
       // Check that the value is linear, and if it is, wether it is a constant
       // or a coefficient of a variable.
@@ -1535,12 +1558,15 @@ namespace marco::codegen
 
       if(numberOfVariables == 0) {
         // The value is constant
-        auto res = mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
-        if(side == EquationPath::LEFT)
-          constantTerm -= getDoubleFromAttribute(res.getValue());
-        else
-          constantTerm += getDoubleFromAttribute(res.getValue());
+        mlir::Value result;
+        auto valueValue = mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
 
+        if(side == EquationPath::LEFT)
+          constantTermValue = builder.createOrFold<SubOp>(
+              loc, type, constantTermValue, valueValue);
+        else
+          constantTermValue = builder.createOrFold<AddOp>(
+              loc, type, constantTermValue, valueValue);
       } else {
         if(mlir::failed(checkLinearity(value)))
           return mlir::failure();
@@ -1552,34 +1578,34 @@ namespace marco::codegen
         auto argument = variable->getValue().cast<mlir::BlockArgument>();
         auto equationIndices = IndexSet();
 
-        value.dump();
-        equationOp->dump();
-
         auto coefficient = getMultiplyingFactor(
             builder, equationIndices, value,
             variable->getValue(),
             IndexSet(access.getAccessFunction().map(equationIndices)));
 
-/*auto op = coefficient.second.getDefiningOp();
-
-        auto res = mlir::dyn_cast<ConstantOp>(op);
-
-        if(side == EquationPath::LEFT)
-          coefficients[argument.getArgNumber()] += getDoubleFromAttribute(res.getValue());
-        else
-          coefficients[argument.getArgNumber()] -= getDoubleFromAttribute(res.getValue());*/
-        std::cerr << "Folded value: \n" << getDoubleFromConstantValue(value) << "\n" << std::flush;
 
         auto offset = getFlatAccessIndex(access, variableIndices);
 
-        std::cerr << "Offset: " << offset << "\n" << std::flush;
-
         if(side == EquationPath::LEFT)
-          coefficients[argument.getArgNumber() + offset] += getDoubleFromConstantValue(value);
+          coefficientValues[argument.getArgNumber() + offset] = builder.createOrFold<AddOp>(
+              loc, type, coefficientValues[argument.getArgNumber() + offset], coefficient.second);
         else
-          coefficients[argument.getArgNumber() + offset] -= getDoubleFromConstantValue(value);
+          coefficientValues[argument.getArgNumber() + offset] = builder.createOrFold<SubOp>(
+              loc, type, coefficientValues[argument.getArgNumber() + offset], coefficient.second);
       }
     }
+    std::cerr << "VALUES:\n";
+    for(auto el : coefficientValues)
+    {
+      el.dump();
+    }
+
+    equationOp->dump();
+
+    constantTerm = foldIfNotConstantOp(equationOp, constantTermValue).getValue();
+
+    for(auto [el, val] : llvm::zip(coefficients, coefficientValues))
+      el = foldIfNotConstantOp(equationOp, val).getValue();
 
     return mlir::success();
   }
@@ -1611,13 +1637,10 @@ namespace marco::codegen
 
   mlir::LogicalResult BaseEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<double>& coefficients,
-      double& constantTerm) const
+      std::vector<mlir::Attribute>& coefficients,
+      mlir::Attribute& constantTerm) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-
-    foldValue(getOperation(), getTerminator().getLhsValues()[0]);
-    foldValue(getOperation(), getTerminator().getRhsValues()[0]);
 
     std::vector<mlir::Value> lhsSummedValues;
     std::vector<mlir::Value> rhsSummedValues;
@@ -1631,12 +1654,16 @@ namespace marco::codegen
       return res;
 
     // Initialize the constant term to zero.
-    constantTerm = 0;
+    constantTerm = RealAttr::get(builder.getContext(), 0);
 
     // Initialize the coefficient vector to zero.
-    for(auto val : coefficients) {
-      val = 0;
+    for(auto& val : coefficients) {
+      val = RealAttr::get(builder.getContext(), 0);
     }
+
+    constantTerm = RealAttr::get(builder.getContext(), 0);
+    for(auto el : coefficients)
+      el = RealAttr::get(builder.getContext(), 0);
 
     if(auto res = getSideCoefficients(
             builder, coefficients, constantTerm, lhsSummedValues,
