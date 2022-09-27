@@ -22,11 +22,13 @@ namespace marco::codegen {
 
   public:
 
-    SquareMatrix(std::vector<mlir::Attribute>& storage, size_t size) : size(size), storage(storage)
+    SquareMatrix(
+      std::vector<mlir::Attribute>& storage,
+      size_t size) : size(size), storage(storage)
     {
     }
 
-    size_t getSize()
+    size_t getSize() const
     {
       return size;
     }
@@ -74,7 +76,8 @@ namespace marco::codegen {
           {
             if(j != col)
             {
-              out(i < row ? i : i - 1, j < col ? j : j - 1) = (*this)(i, j);
+              out(i < row ? i : i - 1, j < col ? j : j - 1) =
+                  (*this)(i, j);
             }
           }
         }
@@ -92,7 +95,10 @@ namespace marco::codegen {
     /// matrix column.
     /// \return The matrix obtained by substituting the given column in the
     /// current matrix at the specified column index
-    SquareMatrix substituteColumn(SquareMatrix out, size_t colNumber, std::vector<mlir::Attribute>& col)
+    SquareMatrix substituteColumn(
+        SquareMatrix out,
+        size_t colNumber,
+        std::vector<mlir::Attribute>& col)
     {
       assert(colNumber < size && out.getSize() == size);
       for (size_t i = 0; i < size; i++)
@@ -113,10 +119,7 @@ namespace marco::codegen {
     /// \return The determinant of the matrix
     mlir::Attribute det(mlir::OpBuilder& builder)
     {
-      //TODO How do I decide the type?
       mlir::OpBuilder::InsertionGuard guard(builder);
-
-      auto type = RealAttr::get(builder.getContext(), 0).getType();
 
       SquareMatrix matrix = (*this);
       mlir::Value determinant;
@@ -139,20 +142,26 @@ namespace marco::codegen {
             loc, matrix(1,1));
 
         auto ad = builder.createOrFold<MulOp>(
-            loc, type, a, d);
+            loc,
+            getMostGenericType(a.getType(), d.getType()), a, d);
         auto bc = builder.createOrFold<MulOp>(
-            loc, type, b, c);
+            loc,
+            getMostGenericType(b.getType(), c.getType()), b, c);
 
         determinant = builder.createOrFold<SubOp>(
-            loc, type, ad, bc);
+            loc,
+            getMostGenericType(ad.getType(), bc.getType()), ad, bc);
       }
       else if (size > 2) {
         int sign = 1;
         int subMatrixSize = size - 1;
 
-        auto zeroAttr = RealAttr::get(builder.getContext(), 0);
-        auto subMatrixStorage = std::vector<mlir::Attribute>(subMatrixSize*subMatrixSize, zeroAttr);
-        SquareMatrix out = SquareMatrix(subMatrixStorage, subMatrixSize);
+        auto zeroAttr = RealAttr::get(
+            builder.getContext(), 0);
+        auto subMatrixStorage = std::vector<mlir::Attribute>(
+            subMatrixSize*subMatrixSize, zeroAttr);
+        SquareMatrix out = SquareMatrix(
+            subMatrixStorage, subMatrixSize);
 
         determinant = builder.create<ConstantOp>(
             loc, zeroAttr);
@@ -165,14 +174,20 @@ namespace marco::codegen {
               loc, subMatrix(out, 0, i).det(builder));
 
           mlir::Value product = builder.createOrFold<MulOp>(
-              loc, type, scalarDet, matrixDet);
+              loc,
+              getMostGenericType(scalarDet.getType(),
+                                 matrixDet.getType()),
+              scalarDet, matrixDet);
 
           if(sign == -1)
             product = builder.createOrFold<NegateOp>(
-                loc, type, product);
+                loc, product.getType(), product);
 
           determinant = builder.createOrFold<AddOp>(
-              loc, type, determinant, product);
+              loc,
+              getMostGenericType(determinant.getType(),
+                                 product.getType()),
+              determinant, product);
 
           sign = -sign;
         }
@@ -180,7 +195,8 @@ namespace marco::codegen {
 
       // The determinant should be completely folded into a constant since we
       // are operating only with constants.
-      auto cast = mlir::dyn_cast<ConstantOp>(determinant.getDefiningOp());
+      auto cast = mlir::dyn_cast<ConstantOp>(
+          determinant.getDefiningOp());
 
       return cast.getValue();
     }
@@ -214,7 +230,8 @@ namespace marco::codegen {
 
       coefficients.resize(equations.size());
 
-      auto res = equation->getCoefficients(builder, coefficients, constantTerm);
+      auto res = equation->getCoefficients(
+          builder, coefficients, constantTerm);
 
       if(mlir::failed(res)) {
         return false;
@@ -247,7 +264,6 @@ namespace marco::codegen {
     {
       mlir::OpBuilder::InsertionGuard guard(builder);
       auto loc = builder.getUnknownLoc();
-      auto type = RealAttr::get(builder.getContext(), 0).getType();
 
       bool res = false;
 
@@ -282,10 +298,12 @@ namespace marco::codegen {
       storage.resize(numberOfScalarEquations*numberOfScalarEquations);
 
       auto matrix = SquareMatrix(storage, numberOfScalarEquations);
-      auto constantVector = std::vector<mlir::Attribute>(numberOfScalarEquations);
+      auto constantVector = std::vector<mlir::Attribute>(
+          numberOfScalarEquations);
 
       /// Populate system coefficient matrix and constant term vector.
-      res = getModelMatrixAndVector(matrix, constantVector, clones, builder);
+      res = getModelMatrixAndVector(
+          matrix, constantVector, clones, builder);
 
       if(res) {
         auto solutionVector = std::vector<mlir::Attribute>();
@@ -295,7 +313,8 @@ namespace marco::codegen {
         /// derive from the original one, by substituting the constant term
         /// vector to each of its columns.
         auto tempStorage = std::vector<mlir::Attribute>();
-        tempStorage.resize(numberOfScalarEquations*numberOfScalarEquations);
+        tempStorage.resize(
+            numberOfScalarEquations*numberOfScalarEquations);
         auto temp = SquareMatrix(tempStorage, numberOfScalarEquations);
 
         /// Check that the system matrix is non singular
@@ -317,11 +336,14 @@ namespace marco::codegen {
           auto detAOp = builder.create<ConstantOp>(
               loc, detA);
 
+          //TODO determine the type of a divop
           auto div = builder.createOrFold<DivOp>(
-              loc, type, tempDetOp, detAOp);
+              loc,
+              RealAttr::get(builder.getContext(), 0).getType(),
+              tempDetOp, detAOp);
 
-          //TODO fold if not already done
-          auto divCast = mlir::dyn_cast<ConstantOp>(div.getDefiningOp());
+          auto divCast = mlir::dyn_cast<ConstantOp>(
+              div.getDefiningOp());
 
           solutionVector[i] = divCast.getValue();
         }
@@ -329,16 +351,18 @@ namespace marco::codegen {
         /// Set the results computed as the right side of the cloned equations,
         /// and the matched variables as the left side. Set the cloned equations
         /// as the model equations.
-        //TODO: delete useless modelica instructions
         for(const auto& equation : clones) {
 
           auto access = equation->getWrite();
           auto& path = access.getPath();
           auto variable = access.getVariable();
-          auto argument = variable->getValue().cast<mlir::BlockArgument>();
-          auto offset = equation->getFlatAccessIndex(access, variable->getIndices());
+          auto argument =
+              variable->getValue().cast<mlir::BlockArgument>();
+          auto offset = equation->getFlatAccessIndex(
+              access, variable->getIndices());
 
-          mlir::Attribute constant = solutionVector[argument.getArgNumber() + offset];
+          mlir::Attribute constant =
+              solutionVector[argument.getArgNumber() + offset];
 
           equation->setMatchSolution(builder, constant);
         }
