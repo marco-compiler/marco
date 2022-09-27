@@ -143,6 +143,27 @@ def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createCyclesSolvingPass()";
 }
 
+def ConstantFoldingPass : Pass<"constant-folding", "mlir::ModuleOp"> {
+  let summary = "Fold the constants of the model";
+
+  let description = [{
+      // TODO
+  }];
+
+  let dependentDialects = [
+    "mlir::modelica::ModelicaDialect"
+  ];
+
+  let options = [
+    Option<"modelName", "model-name", "std::string", "",
+           "Set the model whose cycles hs to be solved">,
+    Option<"debugView", "debug-view", "bool", "false",
+           "Generate a more organized IR for better testing (warning: highly inefficient)">
+  ];
+
+  let constructor = "mlir::modelica::createConstantFoldingPass()";
+}
+
 def SchedulingPass : Pass<"schedule", "mlir::ModuleOp"> {
     let summary = "Perform the scheduling process on a matched model";
 

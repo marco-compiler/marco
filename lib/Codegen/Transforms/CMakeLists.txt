@@ -23,6 +23,7 @@ set(SOURCES
     ModelSolving/Variable.cpp
     ArrayDeallocation.cpp
     CyclesSolving.cpp
+    ConstantFolding.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp

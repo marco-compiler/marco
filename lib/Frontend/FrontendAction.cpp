@@ -245,6 +245,7 @@ namespace marco::frontend
     // Create the pass manager and populate it with the appropriate transformations
     mlir::PassManager passManager(&ci.getMLIRContext());
 
+    passManager.addPass(createConstantFoldingPass());
     passManager.addPass(createAutomaticDifferentiationPass());
     passManager.addPass(createModelLegalizationPass());
     passManager.addPass(createMatchingPass());
@@ -394,6 +395,16 @@ namespace marco::frontend
     options.solver = ci.getSimulationOptions().solver;
 
     return mlir::modelica::createCyclesSolvingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createConstantFoldingPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::ConstantFoldingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createConstantFoldingPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createSchedulingPass()
