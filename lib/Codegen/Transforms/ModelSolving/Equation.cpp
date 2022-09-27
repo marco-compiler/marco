@@ -1509,12 +1509,13 @@ namespace marco::codegen
 
     std::vector<mlir::Value> coefficientValues(coefficients.size());
     mlir::Location loc = equationOp->getLoc();
-    mlir::Type type = RealAttr::get(builder.getContext(), 0).getType();
 
-    for(auto [el, val] : llvm::zip(coefficients, coefficientValues))
+    for(auto [el, val] :
+         llvm::zip(coefficients, coefficientValues))
       val = builder.create<ConstantOp>(loc, el);
 
-    mlir::Value constantTermValue = builder.create<ConstantOp>(loc, constantTerm);
+    mlir::Value constantTermValue =
+        builder.create<ConstantOp>(loc, constantTerm);
     for(auto value : values) {
       // Check that the value is linear, and if it is, wether it is a constant
       // or a coefficient of a variable.
@@ -1532,14 +1533,21 @@ namespace marco::codegen
       if(numberOfVariables == 0) {
         // The value is constant
         mlir::Value result;
-        auto valueValue = mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
+        auto valueValue = mlir::dyn_cast<ConstantOp>(
+            value.getDefiningOp());
 
         if(side == EquationPath::LEFT)
           constantTermValue = builder.createOrFold<SubOp>(
-              loc, type, constantTermValue, valueValue);
+              loc,
+              getMostGenericType(constantTermValue.getType(),
+                                 valueValue.getType()),
+              constantTermValue, valueValue);
         else
           constantTermValue = builder.createOrFold<AddOp>(
-              loc, type, constantTermValue, valueValue);
+              loc,
+              getMostGenericType(constantTermValue.getType(),
+                                 valueValue.getType()),
+              constantTermValue, valueValue);
       } else {
         if(mlir::failed(checkLinearity(value)))
           return mlir::failure();
@@ -1548,30 +1556,46 @@ namespace marco::codegen
         auto accessFunction = access.getAccessFunction();
         auto variable = access.getVariable();
         auto variableIndices = variable->getIndices();
-        auto argument = variable->getValue().cast<mlir::BlockArgument>();
+        auto argument =
+            variable->getValue().cast<mlir::BlockArgument>();
         auto equationIndices = IndexSet();
 
         auto coefficient = getMultiplyingFactor(
             builder, equationIndices, value,
             variable->getValue(),
-            IndexSet(access.getAccessFunction().map(equationIndices)));
+            IndexSet(access.getAccessFunction().map(
+                equationIndices)));
 
 
         auto offset = getFlatAccessIndex(access, variableIndices);
 
         if(side == EquationPath::LEFT)
-          coefficientValues[argument.getArgNumber() + offset] = builder.createOrFold<AddOp>(
-              loc, type, coefficientValues[argument.getArgNumber() + offset], coefficient.second);
+          coefficientValues[argument.getArgNumber() + offset] =
+              builder.createOrFold<AddOp>(
+              loc,
+                  getMostGenericType(
+                      coefficientValues[argument.getArgNumber() + offset].getType(),
+                      coefficient.second.getType()),
+                  coefficientValues[argument.getArgNumber() + offset],
+                  coefficient.second);
         else
-          coefficientValues[argument.getArgNumber() + offset] = builder.createOrFold<SubOp>(
-              loc, type, coefficientValues[argument.getArgNumber() + offset], coefficient.second);
+          coefficientValues[argument.getArgNumber() + offset] =
+              builder.createOrFold<SubOp>(
+              loc,
+              getMostGenericType(
+                  coefficientValues[argument.getArgNumber() + offset].getType(),
+                  coefficient.second.getType()),
+              coefficientValues[argument.getArgNumber() + offset],
+                  coefficient.second);
       }
     }
 
-    constantTerm = mlir::dyn_cast<ConstantOp>(constantTermValue.getDefiningOp()).getValue();
+    constantTerm = mlir::dyn_cast<ConstantOp>(
+                       constantTermValue.getDefiningOp()).getValue();
     constantTermValue.getDefiningOp()->erase();
 
-    for(auto [el, val] : llvm::zip(coefficients, coefficientValues))
+    for(auto [el, val] :
+         llvm::zip(coefficients, coefficientValues))
     {
       el = mlir::dyn_cast<ConstantOp>(val.getDefiningOp()).getValue();
       val.getDefiningOp()->erase();

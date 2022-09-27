@@ -865,13 +865,15 @@ namespace
         llvm::SmallVector<mlir::Operation*, 3> constants;
 
         for (auto *op : llvm::reverse(ops)) {
-          helper.tryToFold(op, [&](mlir::Operation* constant) {
+          helper.tryToFold(op,[&](
+                                   mlir::Operation* constant) {
             constants.push_back(constant);
           });
         }
 
         for (auto* op : llvm::reverse(constants)) {
-          op->moveBefore(equationOp.bodyBlock(), equationOp.bodyBlock()->begin());
+          op->moveBefore(equationOp.bodyBlock(),
+                         equationOp.bodyBlock()->begin());
         }
       }
 
