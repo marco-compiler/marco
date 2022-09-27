@@ -184,11 +184,9 @@ namespace mlir::modelica
   SmallVector<StringRef> ModelOp::variableNames()
   {
     SmallVector<StringRef> result;
-    auto terminator = mlir::cast<YieldOp>(getVarsRegion().back().getTerminator());
 
-    for (const auto& variable : terminator.getValues()) {
-      auto name = variable.getDefiningOp<MemberCreateOp>().getSymName();
-      result.push_back(name);
+    for (MemberCreateOp member : getVarsRegion().getOps<MemberCreateOp>()) {
+      result.push_back(member.getSymName());
     }
 
     return result;
@@ -1356,6 +1354,7 @@ namespace mlir::modelica
     builder.create<AssignmentOp>(loc, derivedDestination, derivedSource);
     return llvm::None;
   }
+
   void AssignmentOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
   {
 
@@ -1375,7 +1374,7 @@ namespace mlir::modelica
     auto dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
     auto valuesAmount = getDynamicSizes().size();
 
-    if (dynamicDimensionsAmount != valuesAmount) {
+    if (static_cast<size_t>(dynamicDimensionsAmount) != valuesAmount) {
       return emitOpError(
           "incorrect number of values for dynamic dimensions (expected " +
           std::to_string(dynamicDimensionsAmount) + ", got " +
@@ -1416,7 +1415,7 @@ namespace mlir::modelica
     auto dynamicDimensionsAmount = getArrayType().getNumDynamicDims();
     auto valuesAmount = getDynamicSizes().size();
 
-    if (dynamicDimensionsAmount != valuesAmount) {
+    if (static_cast<size_t>(dynamicDimensionsAmount) != valuesAmount) {
       return emitOpError(
           "incorrect number of values for dynamic dimensions (expected " +
           std::to_string(dynamicDimensionsAmount) + ", got " +
@@ -3645,7 +3644,7 @@ namespace mlir::modelica
     auto indicesAmount = getIndices().size();
     auto rank = getArrayType().getRank();
 
-    if (indicesAmount != rank) {
+    if (indicesAmount != static_cast<size_t>(rank)) {
       return emitOpError(
           "incorrect number of indices for load (expected " +
           std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");
@@ -5524,7 +5523,7 @@ namespace mlir::modelica
     auto indicesAmount = getIndices().size();
     auto rank = getArrayType().getRank();
 
-    if (indicesAmount != rank) {
+    if (indicesAmount != static_cast<size_t>(rank)) {
       return emitOpError(
           "incorrect number of indices for store (expected " +
           std::to_string(rank) + ", got " + std::to_string(indicesAmount) + ")");

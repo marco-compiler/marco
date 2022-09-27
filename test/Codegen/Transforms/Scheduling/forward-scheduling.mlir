@@ -1,7 +1,7 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="schedule{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
 
-// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}], schedule = [{block = 0 : i64, cycle = false, direction = "forward", indices = [[[0, 0]]]}]}
-// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[1, 2]]], path = ["L"]}], schedule = [{block = 1 : i64, cycle = false, direction = "forward", indices = [[[1, 2]]]}]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}], schedule = [{block = 0 : i64, cycle = false, direction = "forward", indices = [[[0, 0]]], path = ["L"]}]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[1, 2]]], path = ["L"]}], schedule = [{block = 1 : i64, cycle = false, direction = "forward", indices = [[[1, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
     %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>

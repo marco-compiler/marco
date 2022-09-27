@@ -1,8 +1,11 @@
 #ifndef MARCO_FRONTEND_FRONTENDACTION_H
 #define MARCO_FRONTEND_FRONTENDACTION_H
 
-#include "llvm/Support/Error.h"
 #include "marco/Frontend/FrontendOptions.h"
+#include "mlir/Pass/Pass.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/Support/Error.h"
+#include <memory>
 
 namespace marco::frontend
 {
@@ -24,6 +27,12 @@ namespace marco::frontend
         return *instance_;
       }
 
+      const CompilerInstance& instance() const
+      {
+        assert(instance_ != nullptr && "Compiler instance not registered");
+        return *instance_;
+      }
+
       void setCompilerInstance(CompilerInstance* value)
       {
         instance_ = value;
@@ -40,6 +49,26 @@ namespace marco::frontend
       bool runASTConversion();
       bool runDialectConversion();
       bool runLLVMIRGeneration();
+
+    private:
+      llvm::DataLayout getDataLayout();
+      std::string getDataLayoutString();
+
+      std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass();
+      std::unique_ptr<mlir::Pass> createModelLegalizationPass();
+      std::unique_ptr<mlir::Pass> createMatchingPass();
+      std::unique_ptr<mlir::Pass> createCyclesSolvingPass();
+      std::unique_ptr<mlir::Pass> createSchedulingPass();
+      std::unique_ptr<mlir::Pass> createModelConversionPass();
+      std::unique_ptr<mlir::Pass> createFunctionScalarizationPass();
+      std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
+      std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass();
+      std::unique_ptr<mlir::Pass> createModelicaToArithConversionPass();
+      std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass();
+      std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass();
+      std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass();
 
     private:
       CompilerInstance* instance_;

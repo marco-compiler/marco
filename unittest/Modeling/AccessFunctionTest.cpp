@@ -59,6 +59,16 @@ TEST(RelativeDimensionAccess, mapRange) {
   EXPECT_EQ(mapped.getEnd(), 5);
 }
 
+TEST(DimensionAccess, equality) {
+  EXPECT_EQ(DimensionAccess::constant(0), DimensionAccess::constant(0));
+  EXPECT_NE(DimensionAccess::constant(0), DimensionAccess::constant(1));
+
+  EXPECT_EQ(DimensionAccess::relative(1, 3), DimensionAccess::relative(1, 3));
+  EXPECT_NE(DimensionAccess::relative(1, 3), DimensionAccess::relative(1, 2));
+
+  EXPECT_NE(DimensionAccess::constant(1), DimensionAccess::relative(1, 1));
+}
+
 TEST(AccessFunction, creation) {
   AccessFunction access({
     DimensionAccess::relative(0, 1),
@@ -66,6 +76,68 @@ TEST(AccessFunction, creation) {
   });
 
   EXPECT_EQ(access.size(), 2);
+}
+
+TEST(AccessFunction, equality) {
+  AccessFunction first({
+      DimensionAccess::relative(0, 1),
+      DimensionAccess::constant(3)
+  });
+
+  AccessFunction second({
+      DimensionAccess::relative(0, 1),
+      DimensionAccess::constant(3)
+  });
+
+  EXPECT_EQ(first, second);
+}
+
+TEST(AccessFunction, isIdentity) {
+  // [i0]
+  AccessFunction identity1D(DimensionAccess::relative(0, 0));
+  EXPECT_TRUE(identity1D.isIdentity());
+
+  // [i0][i1]
+  AccessFunction identity2D({
+      DimensionAccess::relative(0, 0),
+      DimensionAccess::relative(1, 0)
+  });
+
+  EXPECT_TRUE(identity2D.isIdentity());
+
+  // [0]
+  AccessFunction constant1D(DimensionAccess::constant(0));
+  EXPECT_FALSE(constant1D.isIdentity());
+
+  // [i0][i1 + 1]
+  AccessFunction relativeWithOffset({
+      DimensionAccess::relative(0, 0),
+      DimensionAccess::relative(1, 1)
+  });
+
+  EXPECT_FALSE(relativeWithOffset.isIdentity());
+
+  // [i0][0]
+  AccessFunction identityWithConstant({
+      DimensionAccess::relative(0, 0),
+      DimensionAccess::constant(0)
+  });
+
+  EXPECT_FALSE(identityWithConstant.isIdentity());
+}
+
+TEST(AccessFunction, identity) {
+  AccessFunction identity1D = AccessFunction::identity(1);
+  EXPECT_EQ(identity1D.size(), 1);
+  EXPECT_TRUE(identity1D.isIdentity());
+
+  AccessFunction identity2D = AccessFunction::identity(2);
+  EXPECT_EQ(identity2D.size(), 2);
+  EXPECT_TRUE(identity2D.isIdentity());
+
+  AccessFunction identity3D = AccessFunction::identity(3);
+  EXPECT_EQ(identity3D.size(), 3);
+  EXPECT_TRUE(identity3D.isIdentity());
 }
 
 TEST(AccessFunction, mapPoint) {

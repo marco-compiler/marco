@@ -3,7 +3,7 @@
 namespace marco::modeling
 {
   Range::Range(Range::data_type begin, Range::data_type end)
-      : _begin(begin), _end(end)
+      : begin_(begin), end_(end)
   {
     assert(begin < end && "Range is not well-formed");
   }
@@ -48,12 +48,12 @@ namespace marco::modeling
 
   Range::data_type Range::getBegin() const
   {
-    return _begin;
+    return begin_;
   }
 
   Range::data_type Range::getEnd() const
   {
-    return _end;
+    return end_;
   }
 
   size_t Range::size() const
@@ -68,12 +68,14 @@ namespace marco::modeling
 
   bool Range::contains(const Range& other) const
   {
-    return getBegin() <= other.getBegin() && getEnd() >= other.getEnd();
+    return getBegin() <= other.getBegin() &&
+        getEnd() >= other.getEnd();
   }
 
   bool Range::overlaps(const Range& other) const
   {
-    return (getBegin() <= other.getEnd() - 1) && (getEnd() - 1 >= other.getBegin());
+    return (getBegin() <= other.getEnd() - 1) &&
+        (getEnd() - 1 >= other.getBegin());
   }
 
   Range Range::intersect(const Range& other) const
@@ -97,7 +99,9 @@ namespace marco::modeling
 
   bool Range::canBeMerged(const Range& other) const
   {
-    return getBegin() == other.getEnd() || getEnd() == other.getBegin() || overlaps(other);
+    return getBegin() == other.getEnd() ||
+        getEnd() == other.getBegin() ||
+        overlaps(other);
   }
 
   Range Range::merge(const Range& other) const
@@ -105,7 +109,9 @@ namespace marco::modeling
     assert(canBeMerged(other));
 
     if (overlaps(other)) {
-      return Range(std::min(getBegin(), other.getBegin()), std::max(getEnd(), other.getEnd()));
+      Point::data_type begin = std::min(getBegin(), other.getBegin());
+      Point::data_type end = std::max(getEnd(), other.getEnd());
+      return Range(begin, end);
     }
 
     if (getBegin() == other.getEnd()) {
@@ -153,5 +159,39 @@ namespace marco::modeling
   std::ostream& operator<<(std::ostream& stream, const Range& obj)
   {
     return stream << "[" << obj.getBegin() << "," << obj.getEnd() << ")";
+  }
+
+  Range::Iterator::Iterator(Point::data_type begin, Point::data_type end)
+      : current(begin), end(end)
+  {
+    assert(begin <= end);
+  }
+
+  bool Range::Iterator::operator==(const Range::Iterator& other) const
+  {
+    return current == other.current && end == other.end;
+  }
+
+  bool Range::Iterator::operator!=(const Range::Iterator& other) const
+  {
+    return current != other.current || end != other.end;
+  }
+
+  Range::Iterator& Range::Iterator::operator++()
+  {
+    current = std::min(current + 1, end);
+    return *this;
+  }
+
+  Range::Iterator Range::Iterator::operator++(int)
+  {
+    auto temp = *this;
+    current = std::min(current + 1, end);
+    return temp;
+  }
+
+  Range::Iterator::value_type Range::Iterator::operator*()
+  {
+    return current;
   }
 }

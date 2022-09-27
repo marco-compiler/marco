@@ -11,10 +11,10 @@
 namespace mlir::ida
 {
   // We inherit from the LLVMTypeConverter in order to retrieve the converted MLIR index type.
-  class TypeConverter : public mlir::LLVMTypeConverter
+  class LLVMTypeConverter : public mlir::LLVMTypeConverter
   {
     public:
-      TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options);
+      LLVMTypeConverter(mlir::MLIRContext* context, const mlir::LowerToLLVMOptions& options);
 
       mlir::Type convertInstanceType(InstanceType type);
       mlir::Type convertVariableType(VariableType type);

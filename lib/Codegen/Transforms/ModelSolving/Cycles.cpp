@@ -15,13 +15,12 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   auto equations = secondaryCycles ? model.getEquations() : solution;
 
   // The list of equations among which the cycles have to be searched
-  std::vector<MatchedEquation*> toBeProcessed;
+  llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
   // The first iteration will use all the equations of the model
   for (const auto& equation : equations) {
     toBeProcessed.push_back(equation.get());
   }
-
 
   std::vector<std::unique_ptr<MatchedEquation>> newEquations;
   std::vector<std::unique_ptr<MatchedEquation>> unsolvedEquations;

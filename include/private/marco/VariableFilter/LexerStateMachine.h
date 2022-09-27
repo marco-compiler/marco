@@ -48,21 +48,6 @@ namespace marco::vf
 
       LexerStateMachine(std::shared_ptr<SourceFile> file, char first);
 
-      /// Returns the last seen token, or 'Begin' if none was seen.
-      Token getCurrent() const;
-
-      size_t getCurrentLine() const;
-
-      size_t getCurrentColumn() const;
-
-      size_t getTokenStartLine() const;
-
-      size_t getTokenStartColumn() const;
-
-      size_t getTokenEndLine() const;
-
-      size_t getTokenEndColumn() const;
-
       /// Returns the last seen identifier, or the one being built if the machine
       /// is in the process of recognizing one.
       const std::string& getLastIdentifier() const;
@@ -113,9 +98,10 @@ namespace marco::vf
 
     private:
       State state;
+
       char current;
       char next;
-      Token currentToken;
+
       std::string lastIdentifier;
       IntegerLexer<10> lastNum;
       std::string lastRegex;

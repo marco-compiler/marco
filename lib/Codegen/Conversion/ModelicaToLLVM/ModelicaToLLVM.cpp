@@ -21,6 +21,7 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
+using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
@@ -336,37 +337,40 @@ namespace
       }
 
     private:
-      mlir::LogicalResult convertOperations()
-      {
-        auto module = getOperation();
-        mlir::ConversionTarget target(getContext());
-
-        target.addIllegalOp<
-            CastOp,
-            RuntimeFunctionOp>();
-
-        target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
-          auto module = op->getParentOfType<mlir::ModuleOp>();
-          auto callee = module.lookupSymbol(op.getCallee());
-          return !mlir::isa<RuntimeFunctionOp>(callee);
-        });
-
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
-
-        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout.reset(dataLayout);
-        mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-
-        mlir::RewritePatternSet patterns(&getContext());
-
-        populateModelicaToLLVMPatterns(patterns, typeConverter);
-        populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
-
-        return applyPartialConversion(module, target, std::move(patterns));
-      }
+      mlir::LogicalResult convertOperations();
   };
+}
+
+mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  target.addIllegalOp<
+      DerOp,
+      CastOp,
+      RuntimeFunctionOp>();
+
+  target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+    auto callee = module.lookupSymbol(op.getCallee());
+    return !mlir::isa<RuntimeFunctionOp>(callee);
+  });
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+  mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  populateModelicaToLLVMPatterns(patterns, typeConverter);
+  populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
+
+  return applyPartialConversion(module, target, std::move(patterns));
 }
 
 namespace mlir

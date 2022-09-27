@@ -1,5 +1,5 @@
-#ifndef MARCO_PARSER_ERROR_H
-#define MARCO_PARSER_ERROR_H
+#ifndef MARCO_PARSER_MESSAGE_H
+#define MARCO_PARSER_MESSAGE_H
 
 #include "marco/Diagnostic/Diagnostic.h"
 #include "marco/Parser/Token.h"
@@ -37,4 +37,4 @@ namespace marco::parser
   };
 }
 
-#endif // MARCO_PARSER_ERROR_H
+#endif // MARCO_PARSER_MESSAGE_H

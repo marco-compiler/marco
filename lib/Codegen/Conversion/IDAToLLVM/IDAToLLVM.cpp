@@ -1,5 +1,5 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
-#include "marco/Codegen/Conversion/IDAToLLVM/TypeConverter.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
@@ -66,9 +66,9 @@ namespace
       {
       }
 
-      mlir::ida::TypeConverter& typeConverter() const
+      mlir::ida::LLVMTypeConverter& typeConverter() const
       {
-        return *static_cast<mlir::ida::TypeConverter*>(this->getTypeConverter());
+        return *static_cast<mlir::ida::LLVMTypeConverter*>(this->getTypeConverter());
       }
 
       mlir::Type convertType(mlir::Type type) const
@@ -1240,7 +1240,7 @@ namespace
 
 static void populateIDAFunctionLikeOpsConversionPatterns(
     mlir::RewritePatternSet& patterns,
-    mlir::ida::TypeConverter& typeConverter,
+    mlir::ida::LLVMTypeConverter& typeConverter,
     unsigned int bitWidth)
 {
   patterns.insert<
@@ -1253,7 +1253,7 @@ static void populateIDAFunctionLikeOpsConversionPatterns(
 
 static void populateIDAConversionPatterns(
     mlir::RewritePatternSet& patterns,
-    mlir::ida::TypeConverter& typeConverter,
+    mlir::ida::LLVMTypeConverter& typeConverter,
     unsigned int bitWidth)
 {
   patterns.insert<
@@ -1320,7 +1320,7 @@ namespace marco::codegen
         });
 
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+        LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
         mlir::RewritePatternSet patterns(&getContext());
         populateIDAFunctionLikeOpsConversionPatterns(patterns, typeConverter, bitWidth);
@@ -1347,7 +1347,7 @@ namespace marco::codegen
         mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
         llvmLoweringOptions.dataLayout.reset(dataLayout);
 
-        TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+        LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
         mlir::RewritePatternSet patterns(&getContext());
         populateIDAConversionPatterns(patterns, typeConverter, 64);

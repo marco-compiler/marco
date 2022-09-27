@@ -28,7 +28,7 @@ TEST(ArrayVariable, dimensions)
   context.loadDialect<ModelicaDialect>();
   mlir::OpBuilder builder(&context);
 
-  llvm::SmallVector<long, 3> shape;
+  llvm::SmallVector<int64_t, 3> shape;
   shape.push_back(3);
   shape.push_back(4);
   shape.push_back(5);

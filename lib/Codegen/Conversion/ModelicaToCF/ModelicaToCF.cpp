@@ -159,7 +159,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     // the dimensions change.
 
     auto arrayType = unwrappedType.cast<ArrayType>();
-    bool hasStaticSize = op.getDynamicSizes().size() == arrayType.getNumDynamicDims();
+    bool hasStaticSize = op.getDynamicSizes().size() == static_cast<size_t>(arrayType.getNumDynamicDims());
 
     if (hasStaticSize) {
       builder.setInsertionPoint(op);
@@ -197,7 +197,7 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     // We need to allocate a fake buffer in order to allow the first free
     // operation to operate on a valid memory area.
 
-    llvm::SmallVector<long, 3> shape(arrayType.getRank(), 0);
+    llvm::SmallVector<int64_t, 3> shape(arrayType.getRank(), 0);
 
     mlir::Value fakeArray = builder.create<AllocOp>(
         loc,

@@ -612,7 +612,7 @@ namespace marco::ast
 
       llvm::Optional<BuiltInType> mostGenericType = resultType ? getMostGenericBuiltInType(resultType->get<BuiltInType>(), elementType.get<BuiltInType>()) : elementType.get<BuiltInType>();
       
-      assert(mostGenericType.hasValue() && "array elements types are incompatible");
+      assert(mostGenericType.has_value() && "array elements types are incompatible");
 
       resultType = *mostGenericType;
       auto rank = elementType.dimensionsCount();
@@ -669,7 +669,7 @@ namespace marco::ast
       auto& builtInFunction = builtInFunctions[functionName];
       auto resultType = builtInFunction->resultType(call->getArgs());
 
-      if (!resultType.hasValue()) {
+      if (!resultType.has_value()) {
         diagnostics()->emitError<UnknownSymbolMessage>(function->getLocation(), functionName);
         return numOfErrors == diagnostics()->numOfErrors();
       }
@@ -711,7 +711,7 @@ namespace marco::ast
 
       auto functionType = functionTypeResolver(functionName);
 
-      if (!functionType.hasValue()) {
+      if (!functionType.has_value()) {
         diagnostics()->emitError<UnknownSymbolMessage>(function->getLocation(), functionName);
         return numOfErrors == diagnostics()->numOfErrors();
       }
@@ -1796,8 +1796,8 @@ namespace marco::ast
     auto name = reference->getName();
 
     if (symbolTable.count(name) == 0) {
-      if (auto type = builtInReferenceType(*reference); type.hasValue()) {
-        expression.setType(type.getValue());
+      if (auto type = builtInReferenceType(*reference); type.has_value()) {
+        expression.setType(type.value());
         return numOfErrors == diagnostics()->numOfErrors();
       }
 

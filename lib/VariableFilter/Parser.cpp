@@ -5,29 +5,35 @@
 using namespace ::marco;
 using namespace ::marco::vf;
 
-#define EXPECT(Token)							\
-	if (auto e = expect(Token); !e)	\
-	return e.takeError()
+#define EXPECT(Token)                                                                           \
+	if (!accept<Token>()) {                                                                       \
+	  diagnostics->emitError<UnexpectedTokenMessage>(lexer.getTokenPosition(), current, Token);   \
+    return llvm::None;                                                                          \
+  }                                                                                             \
+  static_assert(true)
 
-#define TRY(outVar, expression)		\
-	auto outVar = expression;				\
-	if (!outVar)										\
-	return outVar.takeError()
+#define TRY(outVar, expression)       \
+	auto outVar = expression;           \
+	if (!outVar.has_value()) {          \
+    return llvm::None;                \
+  }                                   \
+  static_assert(true)
 
 namespace marco::vf
 {
-  Parser::Parser(VariableFilter& vf, std::shared_ptr<SourceFile> file)
+  Parser::Parser(VariableFilter& vf, diagnostic::DiagnosticEngine* diagnostics, std::shared_ptr<SourceFile> file)
       : vf(&vf),
+        diagnostics(diagnostics),
         lexer(file),
         current(lexer.scan())
   {
   }
 
-  llvm::Error Parser::run()
+  bool Parser::run()
   {
     // In case of empty string
     if (current == Token::EndOfFile) {
-      return llvm::Error::success();
+      return true;
     }
 
     // Consume consecutive semicolons
@@ -35,56 +41,76 @@ namespace marco::vf
 
     // Check if we reached the end of the string
     if (current == Token::EndOfFile) {
-      return llvm::Error::success();
+      return true;
     }
 
-    if (auto error = token()) {
-      return error;
+    if (!token()) {
+      return false;
     }
 
     while (accept<Token::Semicolons>()) {
       // For strings ending with a semicolon
       if (current == Token::EndOfFile) {
-        return llvm::Error::success();
+        return true;
       }
 
       if (current != Token::Semicolons) {
-        if (auto error = token()) {
-          return error;
+        if (!token()) {
+          return false;
         }
       }
     }
 
-    return llvm::Error::success();
+    return true;
   }
 
-  llvm::Error Parser::token()
+  bool Parser::token()
   {
     if (current == Token::DerKeyword) {
-      TRY(derNode, der());
+      auto derNode = der();
+
+      if (!derNode.has_value()) {
+        return false;
+      }
+
       Tracker tracker(derNode->getDerivedVariable().getIdentifier());
       vf->addDerivative(tracker);
-      return llvm::Error::success();
+      return true;
+
     } else if (current == Token::Regex) {
-      TRY(regexNode, regex());
+      auto regexNode = regex();
+
+      if (!regexNode.has_value()) {
+        return false;
+      }
+
       vf->addRegexString(regexNode->getRegex());
-      return llvm::Error::success();
+      return true;
     }
 
-    TRY(variableNode, identifier());
+    auto variableNode = identifier();
+
+    if (!variableNode.has_value()) {
+      return false;
+    }
 
     if (current == Token::LSquare) {
-      TRY(arrayNode, array(*variableNode));
+      auto arrayNode = array(*variableNode);
+
+      if (!arrayNode.has_value()) {
+        return false;
+      }
+
       Tracker tracker(arrayNode->getVariable().getIdentifier(), arrayNode->getRanges());
       vf->addVariable(tracker);
-      return llvm::Error::success();
+      return true;
     }
 
     vf->addVariable(Tracker(variableNode->getIdentifier()));
-    return llvm::Error::success();
+    return true;
   }
 
-  llvm::Expected<DerivativeExpression> Parser::der()
+  llvm::Optional<DerivativeExpression> Parser::der()
   {
     EXPECT(Token::DerKeyword);
     EXPECT(Token::LPar);
@@ -94,33 +120,35 @@ namespace marco::vf
     return DerivativeExpression(variable);
   }
 
-  llvm::Expected<RegexExpression> Parser::regex()
+  llvm::Optional<RegexExpression> Parser::regex()
   {
     auto loc = lexer.getTokenPosition();
     RegexExpression node(lexer.getLastRegex());
     EXPECT(Token::Regex);
 
     if (node.getRegex().empty()) {
-      return llvm::make_error<EmptyRegex>(loc);
+      diagnostics->emitError<EmptyRegexMessage>(loc);
+      return llvm::None;
     }
 
     llvm::Regex regexObj(node.getRegex());
 
     if (!regexObj.isValid()) {
-      return llvm::make_error<InvalidRegex>(loc);
+      diagnostics->emitError<InvalidRegexMessage>(loc);
+      return llvm::None;
     }
 
     return node;
   }
 
-  llvm::Expected<VariableExpression> Parser::identifier()
+  llvm::Optional<VariableExpression> Parser::identifier()
   {
     VariableExpression node(lexer.getLastIdentifier());
     EXPECT(Token::Ident);
     return node;
   }
 
-  llvm::Expected<ArrayExpression> Parser::array(VariableExpression variable)
+  llvm::Optional<ArrayExpression> Parser::array(VariableExpression variable)
   {
     EXPECT(Token::LSquare);
 
@@ -137,9 +165,9 @@ namespace marco::vf
     return ArrayExpression(variable, ranges);
   }
 
-  llvm::Expected<Range> Parser::arrayRange()
+  llvm::Optional<Range> Parser::arrayRange()
   {
-    auto getIndex = [&]() -> llvm::Expected<int> {
+    auto getIndex = [&]() -> llvm::Optional<int> {
       if (accept<Token::Dollar>()) {
         return Range::kUnbounded;
       }
@@ -170,15 +198,5 @@ namespace marco::vf
     }
 
     return false;
-  }
-
-  llvm::Expected<bool> Parser::expect(Token t)
-  {
-    if (accept(t)) {
-      return true;
-    }
-
-    auto loc = lexer.getTokenPosition();
-    return llvm::make_error<UnexpectedToken>(loc, current);
   }
 }

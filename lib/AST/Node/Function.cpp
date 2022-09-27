@@ -206,8 +206,8 @@ namespace marco::ast
       this->algorithms.push_back(algorithm->clone());
     }
 
-    if (annotation.hasValue()) {
-      this->annotation = annotation.getValue()->clone();
+    if (annotation.has_value()) {
+      this->annotation = annotation.value()->clone();
     } else {
       this->annotation = llvm::None;
     }
@@ -225,8 +225,8 @@ namespace marco::ast
       this->algorithms.push_back(algorithm->clone());
     }
 
-    if (other.annotation.hasValue()) {
-      annotation = other.annotation.getValue()->clone();
+    if (other.annotation.has_value()) {
+      annotation = other.annotation.value()->clone();
     } else {
       annotation = llvm::None;
     }
@@ -365,19 +365,19 @@ namespace marco::ast
 
   bool StandardFunction::hasAnnotation() const
   {
-    return annotation.hasValue();
+    return annotation.has_value();
   }
 
   Annotation* StandardFunction::getAnnotation()
   {
-    assert(annotation.hasValue());
-    return annotation.getValue().get();
+    assert(annotation.has_value());
+    return annotation.value().get();
   }
 
   const Annotation* StandardFunction::getAnnotation() const
   {
-    assert(annotation.hasValue());
-    return annotation.getValue().get();
+    assert(annotation.has_value());
+    return annotation.value().get();
   }
 
   bool StandardFunction::shouldBeInlined() const

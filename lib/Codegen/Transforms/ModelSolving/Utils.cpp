@@ -435,12 +435,22 @@ namespace marco::codegen
     }
   }
 
-  mlir::LogicalResult readMatchingAttributes(const Model<Equation>& model, Model<MatchedEquation>& result)
+  mlir::LogicalResult readMatchingAttributes(
+      Model<MatchedEquation>& result,
+      std::function<bool(EquationInterface)> equationsFilter)
   {
     Equations<MatchedEquation> equations;
 
-    for (const auto& equation : model.getEquations()) {
-      EquationInterface equationInt = equation->getOperation();
+    llvm::DenseSet<EquationInterface> equationInterfaceOps;
+
+    result.getOperation()->walk([&](EquationInterface op) {
+      if (equationsFilter(op)) {
+        equationInterfaceOps.insert(op.getOperation());
+      }
+    });
+
+    for (const auto& equationIntOp : equationInterfaceOps) {
+      auto equationInt = mlir::cast<EquationInterface>(equationIntOp);
       mlir::Attribute matchAttr = equationInt->getAttr("match");
 
       if (!matchAttr) {
@@ -462,14 +472,13 @@ namespace marco::codegen
           return mlir::failure();
         }
 
-        auto matchedEquation = std::make_unique<MatchedEquation>(equation->clone(), *indices, *path);
+        auto equation = Equation::build(equationInt, result.getVariables());
+        auto matchedEquation = std::make_unique<MatchedEquation>(std::move(equation), *indices, *path);
         equations.add(std::move(matchedEquation));
       }
     }
 
-    result.setVariables(model.getVariables());
     result.setEquations(equations);
-
     return mlir::success();
   }
 
@@ -508,6 +517,10 @@ namespace marco::codegen
             builder.getBoolAttr(equationsBlock.value()->hasCycle()));
 
         namedAttrs.emplace_back(
+            builder.getStringAttr("path"),
+            getMatchedPathAttr(builder, equation->getWrite().getPath()));
+
+        namedAttrs.emplace_back(
             builder.getStringAttr("indices"),
             getIndexSetAttr(builder, equation->getIterationRanges(), irOptions.mergeAndSortRanges));
 
@@ -523,61 +536,81 @@ namespace marco::codegen
     }
   }
 
-  mlir::LogicalResult readSchedulingAttributes(const Model<MatchedEquation>& model, Model<ScheduledEquationsBlock>& result)
+  mlir::LogicalResult readSchedulingAttributes(
+      Model<ScheduledEquationsBlock>& result,
+      std::function<bool(EquationInterface)> equationsFilter)
   {
+    llvm::DenseSet<mlir::Operation*> equationInterfaceOps;
+
+    result.getOperation()->walk([&](EquationInterface op) {
+      if (equationsFilter(op)) {
+        equationInterfaceOps.insert(op.getOperation());
+      }
+    });
+
     ScheduledEquationsBlocks scheduledEquationsBlocks;
 
     llvm::SmallVector<std::unique_ptr<ScheduledEquation>> scheduledEquations;
     llvm::DenseMap<int64_t, llvm::DenseSet<size_t>> blocks;
     llvm::DenseMap<int64_t, bool> cycles;
 
-    for (const auto& equation : model.getEquations()) {
-      mlir::Attribute scheduleAttr = equation->getOperation()->getAttr("schedule");
+    for (const auto& equationIntOp : equationInterfaceOps) {
+      auto equationInt = mlir::cast<EquationInterface>(equationIntOp);
+      mlir::Attribute scheduleAttr = equationInt->getAttr("schedule");
 
       if (!scheduleAttr) {
         continue;
       }
 
-      auto dict = scheduleAttr.dyn_cast<mlir::DictionaryAttr>();
+      auto scheduleArrayAttr = scheduleAttr.dyn_cast<mlir::ArrayAttr>();
 
-      if (!dict) {
+      if (!scheduleArrayAttr) {
         return mlir::failure();
       }
 
-      // Block ID.
-      auto blockAttr = dict.getAs<mlir::IntegerAttr>("block");
+      for (auto schedule : scheduleArrayAttr) {
+        auto dict = schedule.dyn_cast<mlir::DictionaryAttr>();
 
-      if (!blockAttr) {
-        return mlir::failure();
+        if (!dict) {
+          return mlir::failure();
+        }
+
+        // Block ID.
+        auto blockAttr = dict.getAs<mlir::IntegerAttr>("block");
+
+        if (!blockAttr) {
+          return mlir::failure();
+        }
+
+        int64_t blockId = blockAttr.getInt();
+
+        // Path
+        llvm::Optional<EquationPath> path = getMatchedPathFromAttr(dict.get("path"));
+
+        // Scheduled indices and direction.
+        llvm::Optional<IndexSet> indices = getIndexSetFromAttr(dict.get("indices"));
+        llvm::Optional<scheduling::Direction> direction = getSchedulingDirectionFromAttr(dict.get("direction"));
+
+        if (!path || !indices || !direction) {
+          return mlir::failure();
+        }
+
+        auto equation = Equation::build(equationInt, result.getVariables());
+        auto matchedEquation = std::make_unique<MatchedEquation>(std::move(equation), *indices, *path);
+        auto scheduledEquation = std::make_unique<ScheduledEquation>(std::move(matchedEquation), *indices, *direction);
+
+        scheduledEquations.push_back(std::move(scheduledEquation));
+        blocks[blockId].insert(scheduledEquations.size() - 1);
+
+        // Cycle property for the block
+        auto cycleAttr = dict.getAs<mlir::BoolAttr>("cycle");
+
+        if (!cycleAttr) {
+          return mlir::failure();
+        }
+
+        cycles[blockId] = cycleAttr.getValue();
       }
-
-      int64_t blockId = blockAttr.getInt();
-
-      // Scheduled indices and direction.
-      llvm::Optional<IndexSet> indices = getIndexSetFromAttr(dict.get("indices"));
-      llvm::Optional<scheduling::Direction> direction = getSchedulingDirectionFromAttr(dict.get("direction"));
-
-      if (!indices || !direction) {
-        return mlir::failure();
-      }
-
-      auto matchedEquation = std::make_unique<MatchedEquation>(
-          equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath());
-
-      auto scheduledEquation = std::make_unique<ScheduledEquation>(
-              std::move(matchedEquation), *indices, *direction);
-
-      scheduledEquations.push_back(std::move(scheduledEquation));
-      blocks[blockId].insert(scheduledEquations.size() - 1);
-
-      // Cycle property for the block
-      auto cycleAttr = dict.getAs<mlir::BoolAttr>("cycle");
-
-      if (!cycleAttr) {
-        return mlir::failure();
-      }
-
-      cycles[blockId] = cycleAttr.getValue();
     }
 
     // Reorder the blocks by their ID.
@@ -601,9 +634,7 @@ namespace marco::codegen
       scheduledEquationsBlocks.append(std::move(scheduledEquationsBlock));
     }
 
-    result.setVariables(model.getVariables());
     result.setScheduledBlocks(scheduledEquationsBlocks);
-
     return mlir::success();
   }
 }

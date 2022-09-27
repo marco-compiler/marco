@@ -11,7 +11,6 @@ namespace mlir::modelica
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace
@@ -115,9 +114,9 @@ namespace
       void runOnOperation() override
       {
         getOperation().walk([](mlir::func::FuncOp op) {
-          if (op.getSymName() != ModelConverter::initFunctionName &&
-              op.getSymName() != ModelConverter::initICSolversFunctionName &&
-              op.getSymName() != ModelConverter::initMainSolversFunctionName) {
+          if (op.getSymName() != marco::codegen::ModelConverter::initFunctionName &&
+              op.getSymName() != marco::codegen::ModelConverter::initICSolversFunctionName &&
+              op.getSymName() != marco::codegen::ModelConverter::initMainSolversFunctionName) {
             ArrayDeallocation deallocation(op);
             deallocation.deallocate();
           }

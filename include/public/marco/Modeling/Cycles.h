@@ -1,5 +1,5 @@
-#ifndef MARCO_MODELING_SCC_H
-#define MARCO_MODELING_SCC_H
+#ifndef MARCO_MODELING_CYCLES_H
+#define MARCO_MODELING_CYCLES_H
 
 #include "marco/Diagnostic/TreeOStream.h"
 #include "marco/Modeling/AccessFunction.h"
@@ -541,4 +541,4 @@ namespace marco::modeling
   };
 }
 
-#endif // MARCO_MODELING_SCC_H
+#endif // MARCO_MODELING_CYCLES_H

@@ -339,7 +339,7 @@ namespace marco::codegen
                   createIterationLoops(
                       nestedExplicitBuilder, loc, beginIndexes, endIndexes, steps, iterationDirection,
                       [&](mlir::OpBuilder& nestedImplicitBuilder, mlir::ValueRange implicitIndices) {
-                        assert(mappedLhs.getType().cast<ArrayType>().getRank() == implicitIndices.size());
+                        assert(static_cast<size_t>(mappedLhs.getType().cast<ArrayType>().getRank()) == implicitIndices.size());
                         mlir::Value rhsValue = nestedImplicitBuilder.create<LoadOp>(loc, mappedRhs, implicitIndices);
                         rhsValue = nestedImplicitBuilder.create<CastOp>(loc, mappedLhsArrayType.getElementType(), rhsValue);
                         nestedImplicitBuilder.create<StoreOp>(loc, rhsValue, mappedLhs, implicitIndices);
@@ -417,7 +417,7 @@ namespace marco::codegen
     auto terminator = mlir::cast<EquationSidesOp>(getOperation().bodyBlock()->getTerminator());
 
     if (auto arrayType = terminator.getLhsValues()[0].getType().dyn_cast<ArrayType>()) {
-      for (size_t i = 0; i < arrayType.getRank(); ++i, ++counter) {
+      for (size_t i = 0, e = arrayType.getRank(); i < e; ++i, ++counter) {
         result.emplace_back(0, arrayType.getShape()[i]);
       }
     }

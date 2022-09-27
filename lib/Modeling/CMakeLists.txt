@@ -17,9 +17,6 @@ set(SOURCES
 marco_add_library(modeling
     ${SOURCES}
 
-    LINK_LIBS
-    PRIVATE marco::utils
-
     LINK_COMPONENTS
     Core
     Support)

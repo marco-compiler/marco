@@ -4,7 +4,7 @@ using namespace ::mlir::modelica;
 
 namespace mlir::modelica
 {
-  LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
+  LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext* context, const mlir::LowerToLLVMOptions& options, unsigned int bitWidth)
     : mlir::LLVMTypeConverter(context, options), typeConverter(bitWidth)
   {
     addConversion([&](BooleanType type) {

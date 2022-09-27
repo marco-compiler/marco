@@ -162,49 +162,49 @@ mlir::LogicalResult MatchingPass::processModelOp(mlir::OpBuilder& builder, Model
   }
 
   if (processICModel) {
-    Model<Equation> initialConditionsModel(modelOp);
-    initialConditionsModel.setDerivativesMap(derivativesMap);
+    Model<Equation> model(modelOp);
+    model.setDerivativesMap(derivativesMap);
 
     // Discover variables and equations belonging to the 'initial conditions' model.
-    initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
-    initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
+    model.setVariables(discoverVariables(model.getOperation()));
+    model.setEquations(discoverInitialEquations(model.getOperation(), model.getVariables()));
 
     // Compute the matched 'initial conditions' model.
-    Model<MatchedEquation> matchedInitialConditionsModel(initialConditionsModel.getOperation());
-    matchedInitialConditionsModel.setDerivativesMap(initialConditionsModel.getDerivativesMap());
+    Model<MatchedEquation> matchedModel(model.getOperation());
+    matchedModel.setDerivativesMap(model.getDerivativesMap());
 
-    if (auto res = matchInitialConditionsModel(builder, matchedInitialConditionsModel, initialConditionsModel); mlir::failed(res)) {
-      initialConditionsModel.getOperation().emitError("Matching failed for the 'initial conditions' model");
+    if (auto res = matchInitialConditionsModel(builder, matchedModel, model); mlir::failed(res)) {
+      model.getOperation().emitError("Matching failed for the 'initial conditions' model");
       return res;
     }
 
-    splitIndices(builder, matchedInitialConditionsModel);
+    splitIndices(builder, matchedModel);
 
     // Write the match information in form of attributes.
-    writeMatchingAttributes(builder, matchedInitialConditionsModel, irOptions);
+    writeMatchingAttributes(builder, matchedModel, irOptions);
   }
 
   if (processMainModel) {
-    Model<Equation> mainModel(modelOp);
-    mainModel.setDerivativesMap(derivativesMap);
+    Model<Equation> model(modelOp);
+    model.setDerivativesMap(derivativesMap);
 
     // Discover variables and equations belonging to the 'main' model.
-    mainModel.setVariables(discoverVariables(mainModel.getOperation()));
-    mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
+    model.setVariables(discoverVariables(model.getOperation()));
+    model.setEquations(discoverEquations(model.getOperation(), model.getVariables()));
 
     // Compute the matched 'main' model.
-    Model<MatchedEquation> matchedMainModel(mainModel.getOperation());
-    matchedMainModel.setDerivativesMap(mainModel.getDerivativesMap());
+    Model<MatchedEquation> matchedModel(model.getOperation());
+    matchedModel.setDerivativesMap(model.getDerivativesMap());
 
-    if (auto res = matchMainModel(builder, matchedMainModel, mainModel); mlir::failed(res)) {
-      mainModel.getOperation().emitError("Matching failed for the 'main' model");
+    if (auto res = matchMainModel(builder, matchedModel, model); mlir::failed(res)) {
+      model.getOperation().emitError("Matching failed for the 'main' model");
       return res;
     }
 
-    splitIndices(builder, matchedMainModel);
+    splitIndices(builder, matchedModel);
 
     // Write the match information in form of attributes.
-    writeMatchingAttributes(builder, matchedMainModel, irOptions);
+    writeMatchingAttributes(builder, matchedModel, irOptions);
   }
 
   return mlir::success();

@@ -39,7 +39,7 @@ namespace mlir::modelica
 
     mlir::OptionalParseResult parseResult = generatedTypeParser(parser, &typeTag, genType);
 
-    if (parseResult.hasValue()) {
+    if (parseResult.has_value()) {
       return genType;
     }
 
@@ -314,7 +314,7 @@ namespace mlir::modelica
   {
     auto shape = getShape();
     assert(subscriptsAmount <= shape.size() && "Too many subscriptions");
-    llvm::SmallVector<long, 3> resultShape;
+    llvm::SmallVector<int64_t, 3> resultShape;
 
     for (size_t i = subscriptsAmount, e = shape.size(); i < e; ++i) {
       resultShape.push_back(shape[i]);
@@ -498,45 +498,6 @@ namespace mlir::modelica
   MemberType MemberType::withIOProperty(IOProperty ioProperty) const
   {
     return MemberType::get(getShape(), getElementType(), isConstant(), ioProperty);
-  }
-
-  //===----------------------------------------------------------------------===//
-  // SimDataType
-  //===----------------------------------------------------------------------===//
-
-  SimDataType SimDataType::get(
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Type> body,
-      mlir::Attribute memorySpace)
-  {
-    // Drop default memory space value and replace it with empty attribute.
-    memorySpace = skipDefaultMemorySpace(memorySpace);
-
-    return Base::get(context, body, memorySpace);
-  }
-
-  SimDataType SimDataType::getChecked(
-      llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
-      mlir::MLIRContext* context,
-      llvm::ArrayRef<mlir::Type> body,
-      mlir::Attribute memorySpace)
-  {
-    // Drop default memory space value and replace it with empty attribute.
-    memorySpace = skipDefaultMemorySpace(memorySpace);
-
-    return Base::get(context, body, memorySpace);
-  }
-
-  mlir::LogicalResult SimDataType::verify(
-      llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-      llvm::ArrayRef<mlir::Type> body,
-      mlir::Attribute memorySpace)
-  {
-    if (!isSupportedMemorySpace(memorySpace)) {
-      return emitError() << "unsupported memory space Attribute";
-    }
-
-    return mlir::success();
   }
 }
 

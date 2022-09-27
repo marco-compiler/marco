@@ -15,7 +15,6 @@ marco_add_library(variableFilter
     LINK_LIBS
     marco::diagnostic
     marco::parser
-    marco::utils
 
     LINK_COMPONENTS
     Core

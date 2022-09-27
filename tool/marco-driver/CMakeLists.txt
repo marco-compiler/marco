@@ -7,10 +7,6 @@ marco_add_tool(marco-driver ${SOURCES})
 target_link_libraries(marco-driver
     PRIVATE marco::frontend)
 
-clang_target_link_libraries(marco-driver
-    PRIVATE
-    clangDriver)
-
 install(TARGETS marco-driver RUNTIME DESTINATION bin)
 
 # This shell script will only work in a POSIX shell.

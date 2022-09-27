@@ -1,8 +1,8 @@
-#include "marco/Codegen/Conversion/IDAToLLVM/TypeConverter.h"
+#include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
 
 namespace mlir::ida
 {
-  TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options)
+  LLVMTypeConverter::LLVMTypeConverter(mlir::MLIRContext* context, const mlir::LowerToLLVMOptions& options)
       : mlir::LLVMTypeConverter(context, options)
   {
     addConversion([&](InstanceType type) {
@@ -38,23 +38,23 @@ namespace mlir::ida
     });
   }
 
-  mlir::Type TypeConverter::convertInstanceType(InstanceType type)
+  mlir::Type LLVMTypeConverter::convertInstanceType(InstanceType type)
   {
     auto integerType = convertType(mlir::IntegerType::get(type.getContext(), 8));
     return mlir::LLVM::LLVMPointerType::get(integerType);
   }
 
-  mlir::Type TypeConverter::convertVariableType(VariableType type)
+  mlir::Type LLVMTypeConverter::convertVariableType(VariableType type)
   {
     return mlir::IntegerType::get(type.getContext(), 64);
   }
 
-  mlir::Type TypeConverter::convertEquationType(EquationType type)
+  mlir::Type LLVMTypeConverter::convertEquationType(EquationType type)
   {
     return mlir::IntegerType::get(type.getContext(), 64);
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::opaquePointerTypeTargetMaterialization(
+  llvm::Optional<mlir::Value> LLVMTypeConverter::opaquePointerTypeTargetMaterialization(
       mlir::OpBuilder& builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {
     if (inputs.size() != 1) {
@@ -74,7 +74,7 @@ namespace mlir::ida
     return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::integerTypeTargetMaterialization(
+  llvm::Optional<mlir::Value> LLVMTypeConverter::integerTypeTargetMaterialization(
       mlir::OpBuilder& builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {
     if (inputs.size() != 1) {
@@ -88,7 +88,7 @@ namespace mlir::ida
     return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::instanceTypeSourceMaterialization(
+  llvm::Optional<mlir::Value> LLVMTypeConverter::instanceTypeSourceMaterialization(
       mlir::OpBuilder& builder, InstanceType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {
     if (inputs.size() != 1) {
@@ -110,7 +110,7 @@ namespace mlir::ida
     return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::variableTypeSourceMaterialization(
+  llvm::Optional<mlir::Value> LLVMTypeConverter::variableTypeSourceMaterialization(
       mlir::OpBuilder& builder, VariableType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {
     if (inputs.size() != 1) {
@@ -124,7 +124,7 @@ namespace mlir::ida
     return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
   }
 
-  llvm::Optional<mlir::Value> TypeConverter::equationTypeSourceMaterialization(
+  llvm::Optional<mlir::Value> LLVMTypeConverter::equationTypeSourceMaterialization(
       mlir::OpBuilder& builder, EquationType resultType, mlir::ValueRange inputs, mlir::Location loc) const
   {
     if (inputs.size() != 1) {

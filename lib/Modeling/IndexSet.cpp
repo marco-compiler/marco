@@ -8,7 +8,7 @@ using namespace ::marco::modeling;
 
 namespace
 {
-  /// A node of the R-Tree
+  /// A node of the R-Tree.
   struct Node
   {
     Node(Node* parent, MultidimensionalRange boundary);

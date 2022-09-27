@@ -32,8 +32,8 @@ namespace marco::codegen
       const ModelSolvingIROptions& irOptions);
 
   mlir::LogicalResult readMatchingAttributes(
-      const Model<Equation>& model,
-      Model<MatchedEquation>& result);
+      Model<MatchedEquation>& result,
+      std::function<bool(mlir::modelica::EquationInterface)> equationsFilter);
 
   void writeSchedulingAttributes
       (mlir::OpBuilder& builder,
@@ -41,8 +41,8 @@ namespace marco::codegen
        const ModelSolvingIROptions& irOptions);
 
   mlir::LogicalResult readSchedulingAttributes(
-      const Model<MatchedEquation>& model,
-      Model<ScheduledEquationsBlock>& result);
+      Model<ScheduledEquationsBlock>& result,
+      std::function<bool(mlir::modelica::EquationInterface)> equationsFilter);
 }
 
 #endif // MARCO_CODEGEN_TRANSFORMS_MODELSOLVING_UTILS_H

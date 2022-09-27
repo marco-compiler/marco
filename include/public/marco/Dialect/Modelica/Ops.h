@@ -1,5 +1,5 @@
-#ifndef MARCO_DIALECTS_MODELICA_MODELICAOPS_H
-#define MARCO_DIALECTS_MODELICA_MODELICAOPS_H
+#ifndef MARCO_DIALECTS_MODELICA_OPS_H
+#define MARCO_DIALECTS_MODELICA_OPS_H
 
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
@@ -18,4 +18,4 @@
 #define GET_OP_CLASSES
 #include "marco/Dialect/Modelica/Modelica.h.inc"
 
-#endif // MARCO_DIALECTS_MODELICA_MODELICAOPS_H
+#endif // MARCO_DIALECTS_MODELICA_OPS_H

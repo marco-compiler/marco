@@ -1,5 +1,5 @@
-#ifndef MARCO_LEXER_FLOATLEXER_H
-#define MARCO_LEXER_FLOATLEXER_H
+#ifndef MARCO_PARSER_FLOATLEXER_H
+#define MARCO_PARSER_FLOATLEXER_H
 
 #include "marco/Parser/IntegerLexer.h"
 #include <cmath>
@@ -99,4 +99,4 @@ namespace marco
   };
 }
 
-#endif // MARCO_LEXER_FLOATLEXER_H
+#endif // MARCO_PARSER_FLOATLEXER_H

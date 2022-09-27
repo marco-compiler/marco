@@ -1,6 +1,7 @@
 #ifndef MARCO_VARIABLEFILTER_VARIABLEFILTER_H
 #define MARCO_VARIABLEFILTER_VARIABLEFILTER_H
 
+#include "marco/Diagnostic/Diagnostic.h"
 #include "marco/VariableFilter/Filter.h"
 #include "marco/VariableFilter/Tracker.h"
 #include "llvm/ADT/StringMap.h"
@@ -18,7 +19,7 @@ namespace marco
       using Tracker = vf::Tracker;
       using Filter = vf::Filter;
 
-      static llvm::Expected<VariableFilter> fromString(llvm::StringRef str);
+      static llvm::Optional<VariableFilter> fromString(llvm::StringRef str, diagnostic::DiagnosticEngine* diagnostics = nullptr);
 
       void dump() const;
 

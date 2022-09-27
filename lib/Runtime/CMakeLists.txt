@@ -9,6 +9,7 @@ set(SHARED_SOURCES
 
 set(STATIC_SOURCES
 	${SHARED_SOURCES}
+	Printer/CSV.cpp
 	CLI.cpp
 	Runtime.cpp)
 

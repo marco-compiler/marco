@@ -187,15 +187,7 @@ static void parseFrontendArgs(
   options.omcBypass = args.hasArg(options::OPT_omc_bypass);
 
   if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_filter)) {
-    llvm::StringRef value = arg->getValue();
-    auto variableFilter = VariableFilter::fromString(value);
-
-    if (!variableFilter) {
-      diagnostics.emitWarning<GenericStringMessage>(
-          "Invalid variable filter string. No filtering will take place");
-    } else {
-      options.variableFilter = *variableFilter;
-    }
+    options.variablesFilter = arg->getValue();
   }
 }
 

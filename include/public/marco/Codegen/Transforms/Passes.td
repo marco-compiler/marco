@@ -91,38 +91,6 @@ def ModelLegalizationPass : Pass<"legalize-model", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createModelLegalizationPass()";
 }
 
-def ModelSolvingPass : Pass<"solve-model", "mlir::ModuleOp"> {
-    let summary = "Solve the model";
-
-    let description = [{
-        // TODO
-    }];
-
-    let dependentDialects = [
-        "mlir::arith::ArithmeticDialect",
-        "mlir::func::FuncDialect",
-        "mlir::ida::IDADialect",
-        "mlir::modelica::ModelicaDialect",
-        "mlir::scf::SCFDialect",
-        "mlir::LLVM::LLVMDialect"
-    ];
-
-    let options = [
-        Option<"startTime", "start-time", "double", "0",
-               "Set the simulation start time">,
-        Option<"endTime", "end-time", "double", "1",
-               "Set the simulation end time">,
-        Option<"timeStep", "time-step", "double", "0.1",
-               "Set the simulation time step">,
-        Option<"emitMain", "emit-main", "bool", "true",
-               "Generate the main function of the simulation">,
-        Option<"bitWidth", "bitWidth", "unsigned int", "64",
-               "Specify the bit-width for the simulation data">
-    ];
-
-    let constructor = "mlir::modelica::createModelSolvingPass()";
-}
-
 def MatchingPass : Pass<"match", "mlir::ModuleOp"> {
     let summary = "Perform the matching process on a model";
 
@@ -163,7 +131,7 @@ def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
         Option<"modelName", "model-name", "std::string", "",
                "Set the model whose cycles hs to be solved">,
         Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
-               "Set the model whose cycles hs to be solved">,
+               "Set the solver to be used for the simulation">,
         Option<"processICModel", "process-ic-model", "bool", "true",
                "Process the 'initial conditions' model">,
         Option<"processMainModel", "process-main-model", "bool", "true",
@@ -200,33 +168,51 @@ def SchedulingPass : Pass<"schedule", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createSchedulingPass()";
 }
 
-def ConvertScheduledModelToSimulationPass : Pass<"convert-scheduled-model-to-simulation", "mlir::ModuleOp"> {
-    let summary = "Create a simulation from a scheduled model";
+def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
+    let summary = "TODO";
 
     let description = [{
         // TODO
     }];
 
     let dependentDialects = [
-        "mlir::modelica::ModelicaDialect"
+        "mlir::modelica::ModelicaDialect",
+        "mlir::ida::IDADialect",
+        "mlir::arith::ArithmeticDialect",
+        "mlir::cf::ControlFlowDialect",
+        "mlir::func::FuncDialect",
+        "mlir::scf::SCFDialect",
+        "mlir::LLVM::LLVMDialect"
     ];
 
     let options = [
-        Option<"modelName", "model-name", "std::string", "",
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">,
+        Option<"model", "model", "std::string", "",
                "Set the model from which generate the simulation">,
+        Option<"processICModel", "process-ic-model", "bool", "true",
+               "Enable the processing of the 'initial conditions' model">,
+        Option<"processMainModel", "process-main-model", "bool", "true",
+               "Enable the processing of the 'main' model">,
         Option<"startTime", "start-time", "double", "0",
                "Set the simulation start time">,
         Option<"endTime", "end-time", "double", "1",
                "Set the simulation end time">,
         Option<"timeStep", "time-step", "double", "0.1",
                "Set the simulation time step">,
-        Option<"emitMain", "emit-main", "bool", "true",
-               "Generate the main function of the simulation">,
-        Option<"bitWidth", "bitWidth", "unsigned int", "64",
-               "Specify the bit-width for the simulation data">
+        Option<"emitSimulationMainFunction", "emit-simulation-main-function", "bool", "true",
+               "Emit the 'main' function of the simulation">,
+        Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
+               "Set a print filter for the variables of the simulation">,
+        Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
+               "Set a the solver to be used for the simulation">,
+        Option<"idaEquidistantTimeGrid", "ida-equidistant-time-grid", "bool", "false",
+               "Set the IDA solver to use an equidistant time grid">
     ];
 
-    let constructor = "mlir::modelica::createConvertScheduledModelToSimulationPass()";
+    let constructor = "mlir::modelica::createModelConversionPass()";
 }
 
 def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp"> {
