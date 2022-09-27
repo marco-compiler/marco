@@ -99,10 +99,6 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
     }
   }
 
-  std::cerr << "OPERATIONS\n";
-  for(auto op : ops)
-    op->dump();
-
   llvm::SmallVector<mlir::Operation*, 3> constants;
 
   for (auto *op : llvm::reverse(ops)) {
@@ -111,16 +107,9 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
         });
   }
 
-  std::cerr << "CONSTANTS\n";
-  for(auto con : constants)
-    con->dump();
-
   for (auto* op : llvm::reverse(constants)) {
     op->moveBefore(equationOp.bodyBlock(), equationOp.bodyBlock()->begin());
   }
-
-  std::cerr << "EQUATIONOP\n";
-  equationOp->dump();
 }
 
 static bool isZeroAttr(mlir::Attribute attribute)
@@ -1191,7 +1180,7 @@ namespace marco::codegen
         return std::make_pair(0, nullptr);
       }
 
-      mlir::Value result = builder.create<MulOp>(
+      mlir::Value result = builder.createOrFold<MulOp>(
           mulOp.getLoc(), mulOp.getResult().getType(), lhs.second, rhs.second);
 
       return std::make_pair(lhs.first + rhs.first, result);
@@ -1228,7 +1217,7 @@ namespace marco::codegen
         return std::make_pair(dividend.first, nullptr);
       }
 
-      mlir::Value result = builder.create<DivOp>(
+      mlir::Value result = builder.createOrFold<DivOp>(
           divOp.getLoc(), divOp.getResult().getType(), dividend.second, divOp.getRhs());
 
       return std::make_pair(dividend.first, result);
@@ -1477,22 +1466,6 @@ namespace marco::codegen
 
   }
 
-  static ConstantOp foldIfNotConstantOp(EquationInterface equationOp, mlir::Value value)
-  {
-    auto r = mlir::isa<ConstantOp>(value.getDefiningOp());
-    value.dump();
-
-    if(!r) {
-      std::cerr << "NOT CONSTANT!\n" << std::flush;
-      std::cerr << "VALUE BEFORE:\n" << std::flush;
-      value.dump();
-      foldValue(equationOp, value);
-      std::cerr << "VALUE AFTER:\n" << std::flush;
-      value.dump();
-    }
-    return mlir::dyn_cast<ConstantOp>(value.getDefiningOp());
-  }
-
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
       const ::marco::modeling::IndexSet& rangeSet) const
@@ -1594,18 +1567,15 @@ namespace marco::codegen
               loc, type, coefficientValues[argument.getArgNumber() + offset], coefficient.second);
       }
     }
-    std::cerr << "VALUES:\n";
-    for(auto el : coefficientValues)
-    {
-      el.dump();
-    }
 
-    equationOp->dump();
-
-    constantTerm = foldIfNotConstantOp(equationOp, constantTermValue).getValue();
+    constantTerm = mlir::dyn_cast<ConstantOp>(constantTermValue.getDefiningOp()).getValue();
+    constantTermValue.getDefiningOp()->erase();
 
     for(auto [el, val] : llvm::zip(coefficients, coefficientValues))
-      el = foldIfNotConstantOp(equationOp, val).getValue();
+    {
+      el = mlir::dyn_cast<ConstantOp>(val.getDefiningOp()).getValue();
+      val.getDefiningOp()->erase();
+    }
 
     return mlir::success();
   }

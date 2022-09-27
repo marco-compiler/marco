@@ -16,6 +16,7 @@
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cassert>
 #include <map>
@@ -676,6 +677,11 @@ namespace
 
         mlir::OpBuilder builder(models[0]);
 
+        // Fold the foldable operations
+        if (mlir::failed(foldOps(builder, models[0]))) {
+          return signalPassFailure();
+        }
+
         // Add a 'start' value of zero for the variables for which an explicit
         // 'start' value has not been provided.
 
@@ -833,6 +839,70 @@ namespace
       }
 
     private:
+      static void foldValue(EquationInterface equationOp, mlir::Value value)
+      {
+        mlir::OperationFolder helper(value.getContext());
+        std::stack<mlir::Operation*> visitStack;
+        llvm::SmallVector<mlir::Operation*, 3> ops;
+
+        if (auto definingOp = value.getDefiningOp()) {
+          visitStack.push(definingOp);
+        }
+
+        while (!visitStack.empty()) {
+          auto op = visitStack.top();
+          visitStack.pop();
+
+          ops.push_back(op);
+
+          for (const auto& operand : op->getOperands()) {
+            if (auto definingOp = operand.getDefiningOp()) {
+              visitStack.push(definingOp);
+            }
+          }
+        }
+
+        llvm::SmallVector<mlir::Operation*, 3> constants;
+
+        for (auto *op : llvm::reverse(ops)) {
+          helper.tryToFold(op, [&](mlir::Operation* constant) {
+            constants.push_back(constant);
+          });
+        }
+
+        for (auto* op : llvm::reverse(constants)) {
+          op->moveBefore(equationOp.bodyBlock(), equationOp.bodyBlock()->begin());
+        }
+      }
+
+      mlir::LogicalResult foldOps(mlir::OpBuilder& builder, ModelOp modelOp)
+      {
+        mlir::OpBuilder::InsertionGuard guard(builder);
+        mlir::OperationFolder helper(builder.getContext());
+        std::vector<EquationOp> equationOps;
+
+        modelOp.getBodyRegion().walk([&](EquationOp equationOp) {
+          equationOps.push_back(equationOp);
+        });
+
+        for(auto& equationOp : equationOps)
+        {
+          auto terminator = mlir::cast<EquationSidesOp>(
+              equationOp.bodyBlock()->getTerminator());
+
+          auto lhsValues = terminator.getLhsValues();
+          auto rhsValues = terminator.getRhsValues();
+
+          for(auto value : lhsValues)
+            foldValue(equationOp, value);
+
+          for(auto value : rhsValues)
+            foldValue(equationOp, value);
+        }
+
+        return mlir::success();
+      }
+
       mlir::LogicalResult addMissingStartOps(mlir::OpBuilder& builder, ModelOp modelOp)
       {
         std::vector<bool> startOpExistence(modelOp.getBodyRegion().getNumArguments(), false);

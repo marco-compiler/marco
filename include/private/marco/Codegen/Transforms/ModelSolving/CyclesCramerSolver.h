@@ -216,9 +216,6 @@ namespace marco::codegen {
 
       auto res = equation->getCoefficients(builder, coefficients, constantTerm);
 
-      std::cerr << "CONSTANT TERM:\n";
-      constantTerm.dump();
-
       if(mlir::failed(res)) {
         return false;
       }
@@ -311,9 +308,7 @@ namespace marco::codegen {
         for (size_t i = 0; i < numberOfScalarEquations; i++)
         {
           matrix.substituteColumn(temp, i, constantVector);
-          for(auto col : constantVector)
-            col.dump();
-          temp.dump();
+
           auto tempDet = temp.det(builder);
 
           auto tempDetOp = builder.create<ConstantOp>(
@@ -350,6 +345,8 @@ namespace marco::codegen {
 
         model.setEquations(clones);
       }
+
+      model.getOperation().dump();
       return res;
     }
   };
