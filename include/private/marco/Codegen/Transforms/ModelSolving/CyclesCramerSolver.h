@@ -336,7 +336,7 @@ namespace marco::codegen {
           auto detAOp = builder.create<ConstantOp>(
               loc, detA);
 
-          //TODO determine the type of a divop
+          //TODO determine the type of a DivOp
           auto div = builder.createOrFold<DivOp>(
               loc,
               RealAttr::get(builder.getContext(), 0).getType(),
