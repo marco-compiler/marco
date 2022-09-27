@@ -58,6 +58,7 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createModelLegalizationPass();
       std::unique_ptr<mlir::Pass> createMatchingPass();
       std::unique_ptr<mlir::Pass> createCyclesSolvingPass();
+      std::unique_ptr<mlir::Pass> createConstantFoldingPass();
       std::unique_ptr<mlir::Pass> createSchedulingPass();
       std::unique_ptr<mlir::Pass> createModelConversionPass();
       std::unique_ptr<mlir::Pass> createFunctionScalarizationPass();
