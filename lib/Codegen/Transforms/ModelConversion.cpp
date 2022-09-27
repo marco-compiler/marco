@@ -880,6 +880,10 @@ namespace marco::codegen
       return getFilteredIndices(arrayType, filters);
     };
 
+    std::map<unsigned int, std::map<MultidimensionalRange, mlir::func::FuncOp>> rangeBoundaryFuncOps;
+    std::string baseRangeFunctionName = functionName.str() + "_range";
+    size_t rangesCounter = 0;
+
     for (const auto& name : llvm::enumerate(names)) {
       size_t i = name.index();
       builder.setInsertionPointToStart(caseBlocks[i]);
@@ -887,7 +891,7 @@ namespace marco::codegen
       std::string calleeName = functionName.str() + "_var" + std::to_string(i);
       IndexSet indices = filteredIndicesFn(i, name.value());
 
-      if (auto res = createGetPrintableIndexSetBoundariesFunction(builder, loc, module, calleeName, indices, boundaryGetterCallback); mlir::failed(res)) {
+      if (auto res = createGetPrintableIndexSetBoundariesFunction(builder, loc, module, calleeName, indices, boundaryGetterCallback, rangeBoundaryFuncOps, baseRangeFunctionName, rangesCounter); mlir::failed(res)) {
         return res;
       }
 
@@ -911,7 +915,10 @@ namespace marco::codegen
       mlir::ModuleOp module,
       llvm::StringRef functionName,
       const IndexSet& indexSet,
-      std::function<int64_t(const modeling::Range&)> boundaryGetterCallback) const
+      std::function<int64_t(const modeling::Range&)> boundaryGetterCallback,
+      std::map<unsigned int, std::map<MultidimensionalRange, mlir::func::FuncOp>>& rangeBoundaryFuncOps,
+      llvm::StringRef baseRangeFunctionName,
+      size_t& rangeFunctionsCounter) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -962,13 +969,15 @@ namespace marco::codegen
       size_t i = range.index();
       builder.setInsertionPointToStart(caseBlocks[i]);
 
-      std::string calleeName = functionName.str() + "_range" + std::to_string(i);
+      mlir::func::FuncOp callee = rangeBoundaryFuncOps[range.value().rank()][range.value()];
 
-      if (auto res = createGetPrintableMultidimensionalRangeBoundariesFunction(builder, loc, module, calleeName, range.value(), boundaryGetterCallback); mlir::failed(res)) {
-        return res;
+      if (!callee) {
+        std::string calleeName = baseRangeFunctionName.str() + "_" + std::to_string(rangeFunctionsCounter++);
+        callee = createGetPrintableMultidimensionalRangeBoundariesFunction(builder, loc, module, calleeName, range.value(), boundaryGetterCallback);
+        rangeBoundaryFuncOps[range.value().rank()][range.value()] = callee;
       }
 
-      mlir::Value result = builder.create<mlir::func::CallOp>(loc, calleeName, builder.getI64Type(), function.getArgument(1)).getResult(0);
+      mlir::Value result = builder.create<mlir::func::CallOp>(loc, callee, function.getArgument(1)).getResult(0);
       builder.create<mlir::cf::BranchOp>(loc, returnBlock, result);
     }
 
@@ -979,7 +988,7 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult ModelConverter::createGetPrintableMultidimensionalRangeBoundariesFunction(
+  mlir::func::FuncOp ModelConverter::createGetPrintableMultidimensionalRangeBoundariesFunction(
       mlir::OpBuilder& builder,
       mlir::Location loc,
       mlir::ModuleOp module,
@@ -1034,7 +1043,7 @@ namespace marco::codegen
     builder.setInsertionPointToStart(returnBlock);
     builder.create<mlir::func::ReturnOp>(loc, returnBlock->getArgument(0));
 
-    return mlir::success();
+    return function;
   }
 
   mlir::LogicalResult ModelConverter::createGetVariableValueFunction(

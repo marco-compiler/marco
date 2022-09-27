@@ -274,9 +274,12 @@ namespace marco::codegen
           mlir::ModuleOp module,
           llvm::StringRef functionName,
           const modeling::IndexSet& indexSet,
-          std::function<int64_t(const modeling::Range&)> boundaryGetterCallback) const;
+          std::function<int64_t(const modeling::Range&)> boundaryGetterCallback,
+          std::map<unsigned int, std::map<modeling::MultidimensionalRange, mlir::func::FuncOp>>& rangeBoundaryFuncOps,
+          llvm::StringRef baseRangeFunctionName,
+          size_t& rangeFunctionsCounter) const;
 
-      mlir::LogicalResult createGetPrintableMultidimensionalRangeBoundariesFunction(
+      mlir::func::FuncOp createGetPrintableMultidimensionalRangeBoundariesFunction(
           mlir::OpBuilder& builder,
           mlir::Location loc,
           mlir::ModuleOp module,
