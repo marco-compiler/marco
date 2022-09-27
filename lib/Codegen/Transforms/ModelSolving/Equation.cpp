@@ -1438,32 +1438,7 @@ namespace marco::codegen
       return lhs;
     }
 
-    if (auto sinOp = mlir::dyn_cast<SinOp>(op)) {
-      std::vector<Access> accesses;
-      searchAccesses(accesses, sinOp.getOperand(), EquationPath::LEFT);
-      if(accesses.empty())
-        return mlir::success();
-      return mlir::failure();
-    }
-
-    if (auto cosOp = mlir::dyn_cast<CosOp>(op)) {
-      std::vector<Access> accesses;
-      searchAccesses(accesses, cosOp.getOperand(), EquationPath::LEFT);
-      if(accesses.empty())
-        return mlir::success();
-      return mlir::failure();
-    }
-
-    if (auto tanOp = mlir::dyn_cast<TanOp>(op)) {
-      std::vector<Access> accesses;
-      searchAccesses(accesses, tanOp.getOperand(), EquationPath::LEFT);
-      if(accesses.empty())
-        return mlir::success();
-      return mlir::failure();
-    }
-
-    llvm_unreachable("Unsupported operand for linearity check.");
-
+    return mlir::failure();
   }
 
   size_t BaseEquation::getFlatAccessIndex(
@@ -1516,6 +1491,7 @@ namespace marco::codegen
 
     mlir::Value constantTermValue =
         builder.create<ConstantOp>(loc, constantTerm);
+
     for(auto value : values) {
       // Check that the value is linear, and if it is, wether it is a constant
       // or a coefficient of a variable.
@@ -1567,26 +1543,23 @@ namespace marco::codegen
                 equationIndices)));
 
 
-        auto offset = getFlatAccessIndex(access, variableIndices);
+        auto offset =
+            getFlatAccessIndex(access, variableIndices);
+
+        auto& lhs =
+            coefficientValues[argument.getArgNumber() + offset];
+
+        auto rhs = coefficient.second;
+
+        auto type =
+            getMostGenericType(lhs.getType(), rhs.getType());
 
         if(side == EquationPath::LEFT)
-          coefficientValues[argument.getArgNumber() + offset] =
-              builder.createOrFold<AddOp>(
-              loc,
-                  getMostGenericType(
-                      coefficientValues[argument.getArgNumber() + offset].getType(),
-                      coefficient.second.getType()),
-                  coefficientValues[argument.getArgNumber() + offset],
-                  coefficient.second);
+          lhs = builder.createOrFold<AddOp>(
+              loc, type, lhs, rhs);
         else
-          coefficientValues[argument.getArgNumber() + offset] =
-              builder.createOrFold<SubOp>(
-              loc,
-              getMostGenericType(
-                  coefficientValues[argument.getArgNumber() + offset].getType(),
-                  coefficient.second.getType()),
-              coefficientValues[argument.getArgNumber() + offset],
-                  coefficient.second);
+          lhs = builder.createOrFold<SubOp>(
+              loc, type, lhs, rhs);
       }
     }
 
