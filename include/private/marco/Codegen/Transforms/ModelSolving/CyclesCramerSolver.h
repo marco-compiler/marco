@@ -70,12 +70,9 @@ namespace marco::codegen {
     {
       for (size_t i = 0; i < size; i++)
       {
-        if(i != row)
-        {
-          for (size_t j = 0; j < size; j++)
-          {
-            if(j != col)
-            {
+        if(i != row) {
+          for (size_t j = 0; j < size; j++) {
+            if(j != col) {
               out(i < row ? i : i - 1, j < col ? j : j - 1) =
                   (*this)(i, j);
             }
@@ -101,10 +98,8 @@ namespace marco::codegen {
         std::vector<mlir::Attribute>& col)
     {
       assert(colNumber < size && out.getSize() == size);
-      for (size_t i = 0; i < size; i++)
-      {
-        for (size_t j = 0; j < size; j++)
-        {
+      for (size_t i = 0; i < size; i++) {
+        for (size_t j = 0; j < size; j++) {
           if(j != colNumber)
             out(i,j) = (*this)(i,j);
           else
@@ -166,7 +161,7 @@ namespace marco::codegen {
         determinant = builder.create<ConstantOp>(
             loc, zeroAttr);
 
-        for (volatile int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
           auto scalarDet = builder.create<ConstantOp>(
               loc, matrix(0,i));
 
