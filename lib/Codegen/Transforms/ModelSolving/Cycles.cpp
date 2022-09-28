@@ -8,22 +8,21 @@ using namespace ::marco::modeling;
 
 #define DEBUG_TYPE "CyclesSolving"
 
-static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles,
-                                Equations<MatchedEquation>& solution)
+static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles)
 {
   bool allCyclesSolved;
-  auto equations = secondaryCycles ? model.getEquations() : solution;
 
   // The list of equations among which the cycles have to be searched
   llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
   // The first iteration will use all the equations of the model
-  for (const auto& equation : equations) {
+  for (const auto& equation : model.getEquations()) {
     toBeProcessed.push_back(equation.get());
   }
 
-  std::vector<std::unique_ptr<MatchedEquation>> newEquations;
-  std::vector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
+  Equations<MatchedEquation> solution;
+  llvm::SmallVector<std::unique_ptr<MatchedEquation>> newEquations;
+  llvm::SmallVector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
 
   do {
     // Get all the cycles within the system of equations
@@ -92,6 +91,9 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
     solution.add(std::move(unsolvedEquation));
   }
 
+  // Set the new equations of the model
+  model.setEquations(solution);
+
   return allCyclesSolved;
 }
 
@@ -106,16 +108,12 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
-    Equations<MatchedEquation> solution;
-
     // Try an aggressive method first
     LLVM_DEBUG({
-       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
+      llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
     });
 
-    if (solveBySubstitution(model, builder, true, solution)) {
-      // Set the new equations of the model
-      model.setEquations(solution);
+    if (solveBySubstitution(model, builder, true)) {
       return mlir::success();
     }
 
@@ -124,9 +122,7 @@ namespace marco::codegen
       llvm::dbgs() << "Solving cycles by substitution, without secondary cycles.\n";
     });
 
-    if (solveBySubstitution(model, builder, false, solution)) {
-      // Set the new equations of the model
-      model.setEquations(solution);
+    if (solveBySubstitution(model, builder, false)) {
       return mlir::success();
     }
 
