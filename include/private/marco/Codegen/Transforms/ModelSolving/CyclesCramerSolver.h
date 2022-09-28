@@ -370,7 +370,6 @@ namespace marco::codegen {
         model.setEquations(clones);
       }
 
-      model.getOperation().dump();
       return res;
     }
   };
