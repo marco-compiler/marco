@@ -110,7 +110,7 @@ namespace marco::codegen
   {
     // Try an aggressive method first
     LLVM_DEBUG({
-       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
+      llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
     });
 
     if (solveBySubstitution(model, builder, true)) {
