@@ -182,16 +182,16 @@ namespace marco::codegen
 
   mlir::LogicalResult ScheduledEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Attribute>& vector,
-      mlir::Attribute& constantTerm) const
+      std::vector<mlir::Value>& vector,
+      mlir::Value& constantTerm) const
   {
     return equation->getCoefficients(builder, vector, constantTerm);
   }
 
   mlir::LogicalResult ScheduledEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Attribute>& coefficients,
-      mlir::Attribute& constantTerm,
+      std::vector<mlir::Value>& coefficients,
+      mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side) const
   {
