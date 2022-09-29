@@ -1441,12 +1441,20 @@ namespace marco::codegen
     return mlir::failure();
   }
 
+  /// Get the flattened access to the variable. This is used to get a unique
+  /// identifier for an access to a non scalar variable. The rangeSet contains
+  /// the information about the structure of the variable.
+  /// \param access The access to the variable.
+  /// \param rangeSet This value contains the information about the structure
+  ///                 of the multidimensional variable.
+  /// \return The unique identifier for the input access.
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
       const ::marco::modeling::IndexSet& rangeSet) const
   {
     size_t res = 0;
 
+    /// Since the variables have only one multidimensional range, take it.
     auto variableRange = *rangeSet.rangesBegin();
     auto accessFunction = access.getAccessFunction();
     auto rank = variableRange.rank();
@@ -1454,6 +1462,7 @@ namespace marco::codegen
     //TODO manage cases where subscription is not perfect
     assert(accessFunction.size() == rank);
 
+    /// Compute a unique identifier for the specified access.
     size_t totalSize = 1;
     for(size_t i = 0; i < rank; ++i)
     {
@@ -1471,10 +1480,20 @@ namespace marco::codegen
     return res;
   }
 
+  /// Starting from a previously computed array of coefficients and a constant
+  /// term, this function computes the coefficients to the equation variables
+  /// for one side of the equation.
+  /// \param builder The builder.
+  /// \param coefficients The coefficients' starting values
+  /// \param constantTerm The constant term's starting value
+  /// \param values Array containing the values that summed make up one side of
+  ///               the equation.
+  /// \param side The side of the equation being considered.
+  /// \return Wether the coefficient extraction is successful or not.
   mlir::LogicalResult BaseEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Attribute>& coefficients,
-      mlir::Attribute& constantTerm,
+      std::vector<mlir::Value>& coefficients,
+      mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side) const
   {
@@ -1482,19 +1501,15 @@ namespace marco::codegen
     auto terminator = getTerminator();
     builder.setInsertionPoint(terminator);
 
-    std::vector<mlir::Value> coefficientValues(coefficients.size());
+    std::cerr << "VALUES:\n";
+    for (auto val : values)
+      val.dump();
+
     mlir::Location loc = equationOp->getLoc();
 
-    for(auto [el, val] :
-         llvm::zip(coefficients, coefficientValues))
-      val = builder.create<ConstantOp>(loc, el);
-
-    mlir::Value constantTermValue =
-        builder.create<ConstantOp>(loc, constantTerm);
-
-    for(auto value : values) {
-      // Check that the value is linear, and if it is, wether it is a constant
-      // or a coefficient of a variable.
+    for(auto value : coefficients) {
+      /// Check that the value is linear, and if it is, wether it is a constant
+      /// or a coefficient of a variable.
       std::vector<Access> accesses;
       EquationPath path(EquationPath::LEFT);
       searchAccesses(accesses, value, path);
@@ -1502,32 +1517,42 @@ namespace marco::codegen
       auto numberOfVariables = accesses.size();
 
       if(numberOfVariables > 1) {
-        // The value is not linear
+        std::cerr << "NON LINEAR\n\n\n";
+        // The value is not linear, fail.
         return mlir::failure();
       }
 
       if(numberOfVariables == 0) {
-        // The value is constant
+        std::cerr << "CONSTANT\n\n\n";
+        /// The value is constant.
+        /// Subtract (or add, if on right side) that value to the constant term
         mlir::Value result;
-        auto valueValue = mlir::dyn_cast<ConstantOp>(
-            value.getDefiningOp());
 
         if(side == EquationPath::LEFT)
-          constantTermValue = builder.createOrFold<SubOp>(
+          constantTerm = builder.createOrFold<SubOp>(
               loc,
-              getMostGenericType(constantTermValue.getType(),
-                                 valueValue.getType()),
-              constantTermValue, valueValue);
+              getMostGenericType(constantTerm.getType(),
+                                 value.getType()),
+              constantTerm, value);
         else
-          constantTermValue = builder.createOrFold<AddOp>(
+          constantTerm = builder.createOrFold<AddOp>(
               loc,
-              getMostGenericType(constantTermValue.getType(),
-                                 valueValue.getType()),
-              constantTermValue, valueValue);
+              getMostGenericType(constantTerm.getType(),
+                                 value.getType()),
+              constantTerm, value);
       } else {
+
+        std::cerr << "LINEAR\n\n\n";
+        /// The value may be linear.
+        /// Check that the value is linear (no variables as rhs of divisions,
+        /// no functions of variables).
         if(mlir::failed(checkLinearity(value)))
           return mlir::failure();
-        // The value may be linear: extract the coefficient
+
+        /// There is only one access, so we extract from it the access function,
+        /// the variable and its indices.
+        /// The value of the variable casted as block argument will allow us to
+        /// get its argument number, so that we can sort it.
         auto access = accesses[0];
         auto accessFunction = access.getAccessFunction();
         auto variable = access.getVariable();
@@ -1536,6 +1561,8 @@ namespace marco::codegen
             variable->getValue().cast<mlir::BlockArgument>();
         auto equationIndices = IndexSet();
 
+        /// Get the multiplying factor of the variable: essentially remove the
+        /// variable from the value.
         auto coefficient = getMultiplyingFactor(
             builder, equationIndices, value,
             variable->getValue(),
@@ -1543,17 +1570,30 @@ namespace marco::codegen
                 equationIndices)));
 
 
+        /// Compute the offset to access the variable. This may be different
+        /// from zero in array variables.
         auto offset =
             getFlatAccessIndex(access, variableIndices);
 
-        auto& lhs =
-            coefficientValues[argument.getArgNumber() + offset];
+        //TODO take into account the width of each variable flattened
 
+        /// Set the left hand side to the previously computed (if any) factors
+        /// of the variables.
+        /// This is done because this function is called once for each of the
+        /// two sides of the equation.
+        auto& lhs =
+            values[argument.getArgNumber() + offset];
+
+        /// Set the right hand side to the multiplying factor of the variable.
         auto rhs = coefficient.second;
+        std::cerr << "RIGHT HAND SIDE\n";
+        rhs.dump();
 
         auto type =
             getMostGenericType(lhs.getType(), rhs.getType());
 
+        /// Add or subtract depending on wether we are considering the left or
+        /// right side of the equation.
         if(side == EquationPath::LEFT)
           lhs = builder.createOrFold<AddOp>(
               loc, type, lhs, rhs);
@@ -1563,20 +1603,16 @@ namespace marco::codegen
       }
     }
 
-    constantTerm = mlir::dyn_cast<ConstantOp>(
-                       constantTermValue.getDefiningOp()).getValue();
-    constantTermValue.getDefiningOp()->erase();
-
-    for(auto [el, val] :
-         llvm::zip(coefficients, coefficientValues))
-    {
-      el = mlir::dyn_cast<ConstantOp>(val.getDefiningOp()).getValue();
-      val.getDefiningOp()->erase();
-    }
-
     return mlir::success();
   }
 
+  /// Take one side of the equation and convert it to a sum of terms. Collect
+  /// those terms inside the output array.
+  /// \param builder The builder.
+  /// \param output The array that will contain the terms that summed up
+  ///               constitutes the specified equation side.
+  /// \param side The equation side to be considered.
+  /// \return Wether the value collection was successful or not.
   mlir::LogicalResult BaseEquation::convertAndCollectSide(
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& output,
@@ -1602,12 +1638,20 @@ namespace marco::codegen
     return mlir::success();
   }
 
+  /// Populate the coefficients array and the constant term.
+  /// \param builder The builder.
+  /// \param coefficients The array of coefficients to be populated.
+  /// \param constantTerm The constant term to be computed.
+  /// \return Wether the values were computed successfully or not.
   mlir::LogicalResult BaseEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Attribute>& coefficients,
-      mlir::Attribute& constantTerm) const
+      std::vector<mlir::Value>& coefficients,
+      mlir::Value& constantTerm) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
+
+    /// Convert the equation to sum of values, then collect such values in an
+    /// array.
 
     std::vector<mlir::Value> lhsSummedValues;
     std::vector<mlir::Value> rhsSummedValues;
@@ -1620,18 +1664,16 @@ namespace marco::codegen
         mlir::failed(res))
       return res;
 
-    // Initialize the constant term to zero.
-    constantTerm = RealAttr::get(builder.getContext(), 0);
-
-    // Initialize the coefficient vector to zero.
+    /// Initialize constant term and coefficient vector to zero.
+    auto loc = equationOp->getLoc();
+    auto zeroAttr = RealAttr::get(builder.getContext(), 0);
+    constantTerm = builder.create<ConstantOp>(loc, zeroAttr);
     for(auto& val : coefficients) {
-      val = RealAttr::get(builder.getContext(), 0);
+      val = builder.create<ConstantOp>(loc, zeroAttr);
     }
 
-    constantTerm = RealAttr::get(builder.getContext(), 0);
-    for(auto el : coefficients)
-      el = RealAttr::get(builder.getContext(), 0);
-
+    /// Get the coefficients of variables and the constant term from the two
+    /// sides of the equation.
     if(auto res = getSideCoefficients(
             builder, coefficients, constantTerm, lhsSummedValues,
             EquationPath::LEFT);
