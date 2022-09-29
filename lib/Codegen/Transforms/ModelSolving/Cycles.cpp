@@ -99,6 +99,15 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
 
 static bool solveWithCramer(Model<MatchedEquation>& model, mlir::OpBuilder& builder)
 {
+  //extract coefficients and constant terms from equations
+  //collect them into the system matrix and constant term vector
+
+  //for each eq in equations
+  //  set insertion point to beginning of eq
+  //  clone the system matrix inside of eq
+  //  clone the constant vector inside of eq
+  //  compute the solution with cramer
+
   CramerSolver solver(builder);
   return solver.solve(model);
 }
