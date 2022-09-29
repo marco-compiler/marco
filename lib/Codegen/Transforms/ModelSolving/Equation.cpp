@@ -1133,8 +1133,6 @@ namespace marco::codegen
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    builder.setInsertionPoint(getTerminator());
-
     if (getVariables().isReferenceAccess(value)) {
       std::vector<Access> accesses;
       EquationPath path(EquationPath::LEFT);
@@ -1507,6 +1505,9 @@ namespace marco::codegen
 
     mlir::Location loc = equationOp->getLoc();
 
+    auto modelOp = getOperation()->getParentOfType<ModelOp>();
+    auto model = modelOp.getOperation();
+
     for(auto value : values) {
       /// Check that the value is linear, and if it is, wether it is a constant
       /// or a coefficient of a variable.
@@ -1557,6 +1558,11 @@ namespace marco::codegen
             variable->getValue().cast<mlir::BlockArgument>();
         auto equationIndices = IndexSet();
 
+        /// Insert the operations at the beginning of the equation operation.
+        builder.setInsertionPoint(
+            getOperation().bodyBlock(),
+            getOperation().bodyBlock()->begin());
+
         /// Get the multiplying factor of the variable: essentially remove the
         /// variable from the value.
         auto coefficient = getMultiplyingFactor(
@@ -1564,7 +1570,6 @@ namespace marco::codegen
             variable->getValue(),
             IndexSet(access.getAccessFunction().map(
                 equationIndices)));
-
 
         /// Compute the offset to access the variable. This may be different
         /// from zero in array variables.
