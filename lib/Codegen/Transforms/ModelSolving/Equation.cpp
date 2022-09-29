@@ -1507,7 +1507,7 @@ namespace marco::codegen
 
     mlir::Location loc = equationOp->getLoc();
 
-    for(auto value : coefficients) {
+    for(auto value : values) {
       /// Check that the value is linear, and if it is, wether it is a constant
       /// or a coefficient of a variable.
       std::vector<Access> accesses;
@@ -1517,13 +1517,11 @@ namespace marco::codegen
       auto numberOfVariables = accesses.size();
 
       if(numberOfVariables > 1) {
-        std::cerr << "NON LINEAR\n\n\n";
         // The value is not linear, fail.
         return mlir::failure();
       }
 
       if(numberOfVariables == 0) {
-        std::cerr << "CONSTANT\n\n\n";
         /// The value is constant.
         /// Subtract (or add, if on right side) that value to the constant term
         mlir::Value result;
@@ -1541,8 +1539,6 @@ namespace marco::codegen
                                  value.getType()),
               constantTerm, value);
       } else {
-
-        std::cerr << "LINEAR\n\n\n";
         /// The value may be linear.
         /// Check that the value is linear (no variables as rhs of divisions,
         /// no functions of variables).
@@ -1581,13 +1577,11 @@ namespace marco::codegen
         /// of the variables.
         /// This is done because this function is called once for each of the
         /// two sides of the equation.
-        auto& lhs =
-            values[argument.getArgNumber() + offset];
+        mlir::Value& lhs =
+            coefficients[argument.getArgNumber() + offset];
 
         /// Set the right hand side to the multiplying factor of the variable.
         auto rhs = coefficient.second;
-        std::cerr << "RIGHT HAND SIDE\n";
-        rhs.dump();
 
         auto type =
             getMostGenericType(lhs.getType(), rhs.getType());
