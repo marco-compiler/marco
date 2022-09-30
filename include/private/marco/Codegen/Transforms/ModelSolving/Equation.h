@@ -124,7 +124,8 @@ namespace marco::codegen
 
       virtual size_t getFlatAccessIndex(
           const Access& access,
-          const ::marco::modeling::IndexSet& variableRange) const = 0;
+          const ::marco::modeling::IndexSet& equationIndices,
+          const ::marco::modeling::IndexSet& variableIndices) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;

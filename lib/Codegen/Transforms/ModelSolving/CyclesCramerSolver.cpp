@@ -252,7 +252,9 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
 
       /// Get flat access index, unique identifier of a scalar (ized) variable.
       auto offset = equation->getFlatAccessIndex(
-          access, variable->getIndices());
+          access,
+          equation->getIterationRanges(),
+          variable->getIndices());
 
       auto base = getSizeUntilVariable(
           argument.getArgNumber(), variableSizes);

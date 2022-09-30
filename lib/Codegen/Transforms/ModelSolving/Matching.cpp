@@ -298,9 +298,10 @@ namespace marco::codegen
 
   size_t MatchedEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& variableRange) const
+      const ::marco::modeling::IndexSet& equationIndices,
+      const ::marco::modeling::IndexSet& variableIndices) const
   {
-    return equation->getFlatAccessIndex(access, variableRange);
+    return equation->getFlatAccessIndex(access, equationIndices, variableIndices);
   }
 
   void MatchedEquation::setPath(EquationPath path)

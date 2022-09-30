@@ -113,7 +113,8 @@ namespace marco::codegen
 
       size_t getFlatAccessIndex(
           const Access& access,
-          const ::marco::modeling::IndexSet& variableRange) const override;
+          const ::marco::modeling::IndexSet& equationIndices,
+          const ::marco::modeling::IndexSet& variableIndices) const override;
 
       /// }
       /// @name Modified methods
