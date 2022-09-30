@@ -1443,17 +1443,18 @@ namespace marco::codegen
   /// identifier for an access to a non scalar variable. The rangeSet contains
   /// the information about the structure of the variable.
   /// \param access The access to the variable.
-  /// \param rangeSet This value contains the information about the structure
+  /// \param variableIndices This value contains the information about the structure
   ///                 of the multidimensional variable.
   /// \return The unique identifier for the input access.
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& rangeSet) const
+      const ::marco::modeling::IndexSet& equationIndices,
+      const ::marco::modeling::IndexSet& variableIndices) const
   {
     size_t res = 0;
 
     /// Since the variables have only one multidimensional range, take it.
-    auto variableRange = *rangeSet.rangesBegin();
+    auto variableRange = *variableIndices.rangesBegin();
     auto accessFunction = access.getAccessFunction();
     auto rank = variableRange.rank();
 
@@ -1570,7 +1571,7 @@ namespace marco::codegen
         /// Compute the offset to access the variable. This may be different
         /// from zero in array variables.
         auto offset =
-            getFlatAccessIndex(access, variableIndices);
+            getFlatAccessIndex(access, equationIndices, variableIndices);
 
         //TODO take into account the width of each variable flattened
 
