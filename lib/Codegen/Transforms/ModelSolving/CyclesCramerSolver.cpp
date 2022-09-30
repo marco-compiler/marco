@@ -211,9 +211,6 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
   res = getModelMatrixAndVector(
       matrix, constantVector, clones, builder);
 
-  std::cerr << "MATRIX:\n";
-  matrix.dump();
-
   /// Populate an array containing the flat size of each possibly non scalar
   /// variable. This allows us to identify uniquely each equation and its
   /// matched variable.

@@ -210,9 +210,18 @@ namespace marco::codegen
   mlir::LogicalResult MatchedEquation::getCoefficients(
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& vector,
+      mlir::Value& constantTerm,
+      const modeling::IndexSet& equationIndices) const
+  {
+    return equation->getCoefficients(builder, vector, constantTerm, equationIndices);
+  }
+
+  mlir::LogicalResult MatchedEquation::getCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<mlir::Value>& vector,
       mlir::Value& constantTerm) const
   {
-    return equation->getCoefficients(builder, vector, constantTerm);
+    return equation->getCoefficients(builder, vector, constantTerm, matchedIndexes);
   }
 
   mlir::LogicalResult MatchedEquation::getSideCoefficients(
@@ -220,9 +229,10 @@ namespace marco::codegen
       std::vector<mlir::Value>& coefficients,
       mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
-      EquationPath::EquationSide side) const
+      EquationPath::EquationSide side,
+      const modeling::IndexSet& equationIndices) const
   {
-    return equation->getSideCoefficients(builder, coefficients, constantTerm, values, side);
+    return equation->getSideCoefficients(builder, coefficients, constantTerm, values, side, equationIndices);
   }
 
   mlir::LogicalResult MatchedEquation::convertAndCollectSide(

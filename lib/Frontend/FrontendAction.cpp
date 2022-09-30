@@ -245,7 +245,6 @@ namespace marco::frontend
     // Create the pass manager and populate it with the appropriate transformations
     mlir::PassManager passManager(&ci.getMLIRContext());
 
-    passManager.addPass(createConstantFoldingPass());
     passManager.addPass(createAutomaticDifferentiationPass());
     passManager.addPass(createModelLegalizationPass());
     passManager.addPass(createMatchingPass());
