@@ -101,14 +101,16 @@ namespace marco::codegen
       virtual mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
           std::vector<mlir::Value>& coefficients,
-          mlir::Value& constantTerm) const = 0;
+          mlir::Value& constantTerm,
+          const modeling::IndexSet& equationIndices) const = 0;
 
       virtual mlir::LogicalResult getSideCoefficients(
           mlir::OpBuilder& builder,
           std::vector<mlir::Value>& coefficients,
           mlir::Value& constantTerm,
           std::vector<mlir::Value> values,
-          EquationPath::EquationSide side) const = 0;
+          EquationPath::EquationSide side,
+          const modeling::IndexSet& equationIndices) const = 0;
 
       virtual mlir::LogicalResult convertAndCollectSide(
           mlir::OpBuilder& builder,

@@ -1493,15 +1493,12 @@ namespace marco::codegen
       std::vector<mlir::Value>& coefficients,
       mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
-      EquationPath::EquationSide side) const
+      EquationPath::EquationSide side,
+      const IndexSet& equationIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto terminator = getTerminator();
     builder.setInsertionPoint(terminator);
-
-    std::cerr << "VALUES:\n";
-    for (auto val : values)
-      val.dump();
 
     mlir::Location loc = equationOp->getLoc();
 
@@ -1556,7 +1553,6 @@ namespace marco::codegen
         auto variableIndices = variable->getIndices();
         auto argument =
             variable->getValue().cast<mlir::BlockArgument>();
-        auto equationIndices = IndexSet();
 
         /// Insert the operations at the beginning of the equation operation.
         builder.setInsertionPoint(
@@ -1645,7 +1641,8 @@ namespace marco::codegen
   mlir::LogicalResult BaseEquation::getCoefficients(
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& coefficients,
-      mlir::Value& constantTerm) const
+      mlir::Value& constantTerm,
+      const IndexSet& equationIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -1675,13 +1672,13 @@ namespace marco::codegen
     /// sides of the equation.
     if(auto res = getSideCoefficients(
             builder, coefficients, constantTerm, lhsSummedValues,
-            EquationPath::LEFT);
+            EquationPath::LEFT, equationIndices);
         mlir::failed(res))
       return mlir::failure();
 
     if(auto res = getSideCoefficients(
             builder, coefficients, constantTerm, rhsSummedValues,
-            EquationPath::RIGHT);
+            EquationPath::RIGHT, equationIndices);
         mlir::failed(res))
       return mlir::failure();
 
