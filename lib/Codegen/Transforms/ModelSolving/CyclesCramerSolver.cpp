@@ -83,8 +83,8 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
 
   else if(size == 2) {
     /// The matrix is 2x2, the determinant is ad - bc where the matrix is:
-    ///   a b
-    ///   c d
+    //    a b
+    //    c d
     auto a = matrix(0,0);
     auto b = matrix(0,1);
     auto c = matrix(1,0);
@@ -156,6 +156,14 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
   return determinant;
 }
 
+//extract coefficients and constant terms from equations
+//collect them into the system matrix and constant term vector
+
+//for each eq in equations
+//  set insertion point to beginning of eq
+//  clone the system matrix inside of eq
+//  clone the constant vector inside of eq
+//  compute the solution with cramer
 CramerSolver::CramerSolver(mlir::OpBuilder& builder) : builder(builder)
 {
 }
@@ -194,12 +202,10 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
 
   /// Create the matrix to contain the coefficients of the system's
   /// equations and the vector to contain the constant terms.
-  auto storage = std::vector<mlir::Value>();
-  storage.resize(numberOfScalarEquations*numberOfScalarEquations);
-
+  auto storageSize = numberOfScalarEquations*numberOfScalarEquations;
+  auto storage = std::vector<mlir::Value>(storageSize);
   auto matrix = SquareMatrix(storage, numberOfScalarEquations);
-  auto constantVector = std::vector<mlir::Value>(
-      numberOfScalarEquations);
+  auto constantVector = std::vector<mlir::Value>(numberOfScalarEquations);
 
   /// Populate system coefficient matrix and constant term vector.
   res = getModelMatrixAndVector(
@@ -208,29 +214,57 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
   std::cerr << "MATRIX:\n";
   matrix.dump();
 
+  /// Populate an array containing the flat size of each possibly non scalar
+  /// variable. This allows us to identify uniquely each equation and its
+  /// matched variable.
+  Variables variables = equations[0]->getVariables();
+  std::vector<size_t> variableSizes(variables.size());
+  getVariablesFlatSize(variableSizes, variables);
+
   if(res) {
-    auto solutionVector = std::vector<mlir::Value>();
-    solutionVector.resize(numberOfScalarEquations);
+    for(auto& equation : clones) {
+      mlir::OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPoint(
+          equation->getOperation().bodyBlock(),
+          equation->getOperation().bodyBlock()->begin());
+      /// Allocate a new coefficient matrix and constant vector to contain the
+      /// cloned ones.
+      auto cloneStorage = std::vector<mlir::Value>(storageSize);
+      auto clonedMatrix = SquareMatrix(cloneStorage, numberOfScalarEquations);
+      auto clonedVector = std::vector<mlir::Value>(numberOfScalarEquations);
 
-    /// Create a temporary matrix to contain the matrices we are going to
-    /// derive from the original one, by substituting the constant term
-    /// vector to each of its columns.
-    auto tempStorage = std::vector<mlir::Value>();
-    tempStorage.resize(
-        numberOfScalarEquations*numberOfScalarEquations);
-    auto temp = SquareMatrix(tempStorage, numberOfScalarEquations);
+      clone(builder, clonedMatrix, matrix);
 
-    /// Compute the determinant of the system matrix.
-    /// Check that the system matrix is non singular.
-    //TODO
-    mlir::Value determinant = matrix.det(builder);
+      /// Create a temporary matrix to contain the matrices we are going to
+      /// derive from the original one, by substituting the constant term
+      /// vector to each of its columns.
+      auto tempStorage = std::vector<mlir::Value>();
+      tempStorage.resize(
+          numberOfScalarEquations*numberOfScalarEquations);
+      auto temp = SquareMatrix(tempStorage, numberOfScalarEquations);
 
-    /// Compute the determinant of each one of the matrices obtained by
-    /// substituting the constant term vector to each one of the matrix
-    /// columns, and divide them by the determinant of the system matrix.
-    for (size_t i = 0; i < numberOfScalarEquations; i++)
-    {
-      matrix.substituteColumn(temp, i, constantVector);
+      /// Compute the determinant of the system matrix.
+      mlir::Value determinant = clonedMatrix.det(builder);
+
+      /// Get path, variable and argument number.
+      auto access = equation->getWrite();
+      auto& path = access.getPath();
+      auto variable = access.getVariable();
+      auto argument =
+          variable->getValue().cast<mlir::BlockArgument>();
+
+      /// Get flat access index, unique identifier of a scalar (ized) variable.
+      auto offset = equation->getFlatAccessIndex(
+          access, variable->getIndices());
+
+      auto base = getSizeUntilVariable(
+          argument.getArgNumber(), variableSizes);
+
+      /// Compute the determinant of each one of the matrices obtained by
+      /// substituting the constant term vector to each one of the matrix
+      /// columns, and divide them by the determinant of the system matrix.
+      clonedMatrix.substituteColumn(
+          temp, base + offset, constantVector);
 
       auto tempDet = temp.det(builder);
 
@@ -240,29 +274,13 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
           RealAttr::get(builder.getContext(), 0).getType(),
           tempDet, determinant);
 
-      solutionVector[i] = div;
+      /// Set the results computed as the right side of the cloned equations,
+      /// and the matched variables as the left side. Set the cloned equations
+      /// as the model equations.
+
+      equation->setMatchSolution(builder, div);
+      model.setEquations(clones);
     }
-
-    /// Set the results computed as the right side of the cloned equations,
-    /// and the matched variables as the left side. Set the cloned equations
-    /// as the model equations.
-    for(const auto& equation : clones) {
-
-      auto access = equation->getWrite();
-      auto& path = access.getPath();
-      auto variable = access.getVariable();
-      auto argument =
-          variable->getValue().cast<mlir::BlockArgument>();
-      auto offset = equation->getFlatAccessIndex(
-          access, variable->getIndices());
-
-      mlir::Value result =
-          solutionVector[argument.getArgNumber() + offset];
-
-      equation->setMatchSolution(builder, result);
-    }
-
-    model.setEquations(clones);
   }
 
   return res;
@@ -304,4 +322,77 @@ bool CramerSolver::getModelMatrixAndVector(
   }
 
   return true;
+}
+
+mlir::Value CramerSolver::cloneValueAndDependencies(
+    mlir::OpBuilder& builder,
+    mlir::Value value)
+{
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
+  std::stack<mlir::Operation*> visitStack;
+  llvm::SmallVector<mlir::Operation*, 3> ops;
+
+  /// Push the defining operation of the input value on the stack.
+  if (auto definingOp = value.getDefiningOp()) {
+    visitStack.push(definingOp);
+  }
+
+  /// Until the stack is empty pop it, add the operand to the list, get its
+  /// operands (if any) and push them on the stack.
+  while (!visitStack.empty()) {
+    auto op = visitStack.top();
+    visitStack.pop();
+
+    ops.push_back(op);
+
+    for (const auto& operand : op->getOperands()) {
+      if (auto definingOp = operand.getDefiningOp()) {
+        visitStack.push(definingOp);
+      }
+    }
+  }
+
+  size_t i;
+  for (i = 0; i < ops.size(); ++i)
+    builder.clone(*ops[i]);
+
+  auto op = ops[i-1];
+  auto results = op->getResults();
+  assert(results.size() == 1);
+  mlir::Value result = results[0];
+  return result;
+}
+
+void CramerSolver::clone(mlir::OpBuilder& builder, SquareMatrix out, SquareMatrix in)
+{
+  auto size = in.getSize();
+  for (size_t i = 0; i < size; ++i) {
+    for (int j = 0; j < size; ++j) {
+      out(i,j) = cloneValueAndDependencies(builder, in(i,j));
+    }
+  }
+}
+
+void CramerSolver::getVariablesFlatSize(
+    std::vector<size_t>& variableSizes,
+    Variables variables)
+{
+  for (int i = 0; i < variables.size(); ++i) {
+    auto indices = *variables[i]->getIndices().rangesBegin();
+    variableSizes[i] = indices.flatSize();
+  }
+}
+
+size_t CramerSolver::getSizeUntilVariable(
+    size_t index,
+    std::vector<size_t>& variableSizes)
+{
+  assert(index <= variableSizes.size());
+
+  size_t res = 0;
+  for (size_t i = 0; i < index; ++i) {
+    res += variableSizes[i];
+  }
+  return res;
 }
