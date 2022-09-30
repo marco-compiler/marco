@@ -1439,56 +1439,35 @@ namespace marco::codegen
     return mlir::failure();
   }
 
-  /// Get the flattened access to the variable. This is used to get a unique
-  /// identifier for an access to a non scalar variable. The rangeSet contains
-  /// the information about the structure of the variable.
-  /// \param access The access to the variable.
-  /// \param variableIndices This value contains the information about the structure
-  ///                 of the multidimensional variable.
-  /// \return The unique identifier for the input access.
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
       const ::marco::modeling::IndexSet& equationIndices,
       const ::marco::modeling::IndexSet& variableIndices) const
   {
-    size_t res = 0;
-
     /// Since the variables have only one multidimensional range, take it.
-    auto variableRange = *variableIndices.rangesBegin();
     auto accessFunction = access.getAccessFunction();
-    auto rank = variableRange.rank();
+    auto mappedIndices = *accessFunction.map(equationIndices).begin();
+    auto variableDimensions = *variableIndices.rangesBegin();
+    auto rank = variableDimensions.rank();
 
     //TODO manage cases where subscription is not perfect
     assert(accessFunction.size() == rank);
 
     /// Compute a unique identifier for the specified access.
-    size_t totalSize = 1;
-    for(size_t i = 0; i < rank; ++i)
+    // Example:
+    // Variable dimensions: [5,3,8]
+    // Mapped indices: [2,1,4]
+    // Index: 2*3*8 + 1*8 + 4 = (2*3 + 1)*8 + 4
+    size_t tot = mappedIndices[0];
+    for(size_t i = 1; i < rank; ++i)
     {
-      auto dimensionAccess = accessFunction[i];
-      auto rangeSize = variableRange[i].size();
-
-      if(dimensionAccess.isConstantAccess())
-      {
-        res += accessFunction[i].getPosition()*totalSize;
-        totalSize *= rangeSize;
-      }
-      //TODO manage non constant access
+      tot *= variableDimensions[i].size();
+      tot += mappedIndices[i];
     }
 
-    return res;
+    return tot;
   }
 
-  /// Starting from a previously computed array of coefficients and a constant
-  /// term, this function computes the coefficients to the equation variables
-  /// for one side of the equation.
-  /// \param builder The builder.
-  /// \param coefficients The coefficients' starting values
-  /// \param constantTerm The constant term's starting value
-  /// \param values Array containing the values that summed make up one side of
-  ///               the equation.
-  /// \param side The side of the equation being considered.
-  /// \return Wether the coefficient extraction is successful or not.
   mlir::LogicalResult BaseEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& coefficients,
@@ -1602,13 +1581,6 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  /// Take one side of the equation and convert it to a sum of terms. Collect
-  /// those terms inside the output array.
-  /// \param builder The builder.
-  /// \param output The array that will contain the terms that summed up
-  ///               constitutes the specified equation side.
-  /// \param side The equation side to be considered.
-  /// \return Wether the value collection was successful or not.
   mlir::LogicalResult BaseEquation::convertAndCollectSide(
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& output,
@@ -1634,11 +1606,6 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  /// Populate the coefficients array and the constant term.
-  /// \param builder The builder.
-  /// \param coefficients The array of coefficients to be populated.
-  /// \param constantTerm The constant term to be computed.
-  /// \return Wether the values were computed successfully or not.
   mlir::LogicalResult BaseEquation::getCoefficients(
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& coefficients,
