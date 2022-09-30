@@ -95,5 +95,37 @@ namespace marco::codegen {
         std::vector<mlir::Value>& constantVector,
         Equations<MatchedEquation> equations,
         mlir::OpBuilder& builder);
+
+    /// Given a matrix as input clone its values and fill with them the output one.
+    /// \param builder The builder.
+    /// \param out The output matrix that will contain the cloned values.
+    /// \param in The input matrix, to be cloned.
+    static void clone(
+        mlir::OpBuilder& builder,
+        SquareMatrix out, SquareMatrix in);
+
+    /// Given a value clone its defining operation and the ones on which it depends.
+    /// Requires the insertion point to be set to a meaningful location.
+    /// \param builder The builder.
+    /// \param value The input value to be cloned.
+    /// \return The cloned value.
+    static mlir::Value cloneValueAndDependencies(
+        mlir::OpBuilder& builder,
+        mlir::Value value);
+
+    /// Given a set of variables compute their flat sizes.
+    /// \param variableSizes Array to be filled with the size of each variable.
+    /// \param variables Set of variables.
+    static void getVariablesFlatSize(
+        std::vector<size_t>& variableSizes,
+        Variables variables);
+
+    /// Get the value of the summed variable sizes until before the specified index.
+    /// \param index Index of the variable to stop summing sizes.
+    /// \param variableSizes Array containing the size of each variable.
+    /// \return Sum of sizes before specified variable index.
+    static size_t getSizeUntilVariable(
+        size_t index,
+        std::vector<size_t>& variableSizes);
   };
 }
