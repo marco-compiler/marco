@@ -9,7 +9,7 @@ modelica.model @Test attributes {derivatives = []} {
   modelica.yield %0, %1, %2 : !modelica.member<!modelica.real>, !modelica.member<!modelica.real>, !modelica.member<!modelica.real>
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.real>, %arg1: !modelica.array<!modelica.real>, %arg2: !modelica.array<!modelica.real>):
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index]}]} {
+  modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index]}]} {
     %0 = modelica.constant #modelica.int<0> : !modelica.int
     %1 = modelica.cos %0 : !modelica.int -> !modelica.real
     %2 = modelica.load %arg1[] : !modelica.array<!modelica.real>
@@ -26,7 +26,7 @@ modelica.model @Test attributes {derivatives = []} {
     %13 = modelica.equation_side %11 : tuple<!modelica.real>
     modelica.equation_sides %12, %13 : tuple<!modelica.real>, tuple<!modelica.real>
   }
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 1 : index, 0 : index]}]} {
+  modelica.equation attributes {id = 1, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 1 : index, 0 : index]}]} {
     %0 = modelica.constant #modelica.int<0> : !modelica.int
     %1 = modelica.cos %0 : !modelica.int -> !modelica.real
     %2 = modelica.load %arg1[] : !modelica.array<!modelica.real>
@@ -43,7 +43,7 @@ modelica.model @Test attributes {derivatives = []} {
     %13 = modelica.equation_side %11 : tuple<!modelica.real>
     modelica.equation_sides %12, %13 : tuple<!modelica.real>, tuple<!modelica.real>
   }
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 1 : index]}]} {
+  modelica.equation attributes {id = 2, match = [{indices = [[[0, 0]]], path = ["L", 1 : index]}]} {
     %0 = modelica.constant #modelica.int<0> : !modelica.int
     %1 = modelica.cos %0 : !modelica.int -> !modelica.real
     %2 = modelica.load %arg1[] : !modelica.array<!modelica.real>
