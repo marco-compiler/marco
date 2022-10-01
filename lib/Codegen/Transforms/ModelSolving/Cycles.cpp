@@ -67,6 +67,11 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
       }
     }
 
+    // Take the unsolved equations of the current cycle before erasing the
+    // unsolved equations array, to avoid deleting unsolved equations of the
+    // previous round.
+    auto currentUnsolvedEquations = solver.getUnsolvedEquations();
+
     // Create the list of equations to be processed in the next iteration
     toBeProcessed.clear();
     newEquations.clear();
@@ -79,7 +84,7 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
       }
     }
 
-    for (auto& equation : solver.getUnsolvedEquations()) {
+    for (auto& equation : currentUnsolvedEquations) {
       auto& movedEquation = unsolvedEquations.emplace_back(std::move(equation));
       toBeProcessed.push_back(movedEquation.get());
     }
