@@ -1486,7 +1486,7 @@ namespace marco::codegen
     auto model = modelOp.getOperation();
 
     for(auto value : values) {
-      /// Check that the value is linear, and if it is, wether it is a constant
+      /// Check that the value is linear, and if it is, whether it is a constant
       /// or a coefficient of a variable.
       std::vector<Access> accesses;
       EquationPath path(EquationPath::LEFT);
@@ -1567,7 +1567,7 @@ namespace marco::codegen
         auto type =
             getMostGenericType(lhs.getType(), rhs.getType());
 
-        /// Add or subtract depending on wether we are considering the left or
+        /// Add or subtract depending on whether we are considering the left or
         /// right side of the equation.
         if(side == EquationPath::LEFT)
           lhs = builder.createOrFold<AddOp>(

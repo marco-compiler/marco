@@ -103,7 +103,7 @@ namespace marco::codegen
       /// \param coefficients The array of coefficients to be populated.
       /// \param constantTerm The constant term to be computed.
       /// \param equationIndices The indices of the equation
-      /// \return Wether the values were computed successfully or not.
+      /// \return Whether the values were computed successfully or not.
       virtual mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
           std::vector<mlir::Value>& coefficients,
@@ -120,7 +120,7 @@ namespace marco::codegen
       ///               the equation.
       /// \param side The side of the equation being considered.
       /// \param equationIndices The indices of the equation
-      /// \return Wether the coefficient extraction is successful or not.
+      /// \return Whether the coefficient extraction is successful or not.
       virtual mlir::LogicalResult getSideCoefficients(
           mlir::OpBuilder& builder,
           std::vector<mlir::Value>& coefficients,
@@ -135,7 +135,7 @@ namespace marco::codegen
       /// \param output The array that will contain the terms that summed up
       ///               constitutes the specified equation side.
       /// \param side The equation side to be considered.
-      /// \return Wether the value collection was successful or not.
+      /// \return Whether the value collection was successful or not.
       virtual mlir::LogicalResult convertAndCollectSide(
           mlir::OpBuilder& builder,
           std::vector<mlir::Value>& output,
