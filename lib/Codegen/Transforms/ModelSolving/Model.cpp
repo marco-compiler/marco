@@ -8,13 +8,13 @@ namespace marco::codegen
 {
   Variables discoverVariables(ModelOp modelOp)
   {
-    Variables result;
+    llvm::SmallVector<std::unique_ptr<Variable>> variables;
 
-    for (const auto& variable : modelOp.getBodyRegion().getArguments()) {
-      result.add(Variable::build(variable));
+    for (const auto& variable : llvm::enumerate(modelOp.getBodyRegion().getArguments())) {
+      variables.push_back(Variable::build(variable.value()));
     }
 
-    return result;
+    return Variables(variables);
   }
 
   Equations<Equation> discoverInitialEquations(mlir::modelica::ModelOp modelOp, const Variables& variables)

@@ -45,9 +45,7 @@ namespace marco::codegen
       using iterator = typename Container::iterator;
       using const_iterator = typename Container::const_iterator;
 
-      Variables();
-
-      void add(std::unique_ptr<Variable> variable);
+      Variables(llvm::ArrayRef<std::unique_ptr<Variable>> variables = llvm::None);
 
       size_t size() const;
 
@@ -63,9 +61,9 @@ namespace marco::codegen
 
       const_iterator end() const;
 
-      mlir::ValueRange getValues() const;
+      void getValues(llvm::SmallVectorImpl<mlir::Value>& result) const;
 
-      mlir::TypeRange getTypes() const;
+      void getTypes(llvm::SmallVectorImpl<mlir::Type>& result) const;
 
       bool isVariable(mlir::Value value) const;
 

@@ -64,23 +64,17 @@ namespace marco::codegen
   class Variables::Impl
   {
     public:
-      void add(std::unique_ptr<Variable> variable)
+      Impl(llvm::ArrayRef<std::unique_ptr<Variable>> variables)
       {
-        values.push_back(variable->getValue().cast<mlir::BlockArgument>());
-
-        llvm::sort(values, [](const auto& x, const auto& y) {
-          auto xArgNumber = x.template cast<mlir::BlockArgument>().getArgNumber();
-          auto yArgNumber = y.template cast<mlir::BlockArgument>().getArgNumber();
-          return xArgNumber < yArgNumber;
-        });
-
-        types.clear();
-
-        for (const auto& value : values) {
-          types.push_back(value.getType());
+        for (const auto& variable : variables) {
+          this->variables.push_back(variable->clone());
         }
 
-        variables.push_back(std::move(variable));
+        llvm::sort(this->variables, [](const auto& x, const auto& y) {
+          auto xArgNumber = x->getValue().template cast<mlir::BlockArgument>().getArgNumber();
+          auto yArgNumber = y->getValue().template cast<mlir::BlockArgument>().getArgNumber();
+          return xArgNumber < yArgNumber;
+        });
       }
 
       size_t size() const
@@ -124,29 +118,27 @@ namespace marco::codegen
         return variables.end();
       }
 
-      mlir::ValueRange getValues() const
+      void getValues(llvm::SmallVectorImpl<mlir::Value>& result) const
       {
-        return values;
+        for (const auto& variable : variables) {
+          result.push_back(variable->getValue());
+        }
       }
 
-      mlir::TypeRange getTypes() const
+      void getTypes(llvm::SmallVectorImpl<mlir::Type>& result) const
       {
-        return types;
+        for (const auto& variable : variables) {
+          result.push_back(variable->getValue().getType());
+        }
       }
 
     private:
       Variables::Container variables;
-      std::vector<mlir::Value> values;
-      std::vector<mlir::Type> types;
   };
 
-  Variables::Variables() : impl(std::make_shared<Impl>())
+  Variables::Variables(llvm::ArrayRef<std::unique_ptr<Variable>> variables)
+      : impl(std::make_shared<Impl>(variables))
   {
-  }
-
-  void Variables::add(std::unique_ptr<Variable> variable)
-  {
-    impl->add(std::move(variable));
   }
 
   size_t Variables::size() const
@@ -184,14 +176,14 @@ namespace marco::codegen
     return impl->end();
   }
 
-  mlir::ValueRange Variables::getValues() const
+  void Variables::getValues(llvm::SmallVectorImpl<mlir::Value>& result) const
   {
-    return impl->getValues();
+    impl->getValues(result);
   }
 
-  mlir::TypeRange Variables::getTypes() const
+  void Variables::getTypes(llvm::SmallVectorImpl<mlir::Type>& result) const
   {
-    return impl->getTypes();
+    impl->getTypes(result);
   }
 
   bool Variables::isVariable(mlir::Value value) const

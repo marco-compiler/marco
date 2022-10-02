@@ -23,6 +23,11 @@ namespace marco::modeling::internal
       public:
         using Property = P;
 
+        VertexDescriptor()
+            : graph(nullptr), value(nullptr)
+        {
+        }
+
         VertexDescriptor(const Graph* graph, Property* value)
             : graph(std::move(graph)),
               value(std::move(value))

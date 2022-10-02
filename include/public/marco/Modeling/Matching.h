@@ -905,7 +905,7 @@ namespace marco::modeling
 
       bool hasVariable(typename Variable::Id id) const
       {
-        return hasVertex<Variable>(id);
+        return variablesMap.find(id) != variablesMap.end();
       }
 
       bool isVariable(VertexDescriptor vertex) const
@@ -915,9 +915,9 @@ namespace marco::modeling
 
       VertexDescriptor getVariableVertex(typename Variable::Id id) const
       {
-        auto search = findVertex<Variable>(id);
-        assert(search.first && "Variable not found");
-        return *search.second;
+        auto it = variablesMap.find(id);
+        assert(it != variablesMap.end() && "Variable not found");
+        return it->second;
       }
 
       VariableProperty& getVariable(typename Variable::Id id)
@@ -967,13 +967,15 @@ namespace marco::modeling
       void addVariable(VariableProperty property)
       {
         Variable variable(std::move(property));
-        assert(!hasVariable(variable.getId()) && "Already existing variable");
-        graph.addVertex(std::move(variable));
+        auto id = variable.getId();
+        assert(!hasVariable(id) && "Already existing variable");
+        VertexDescriptor variableDescriptor = graph.addVertex(std::move(variable));
+        variablesMap[id] = variableDescriptor;
       }
 
       bool hasEquation(typename Equation::Id id) const
       {
-        return hasVertex<Equation>(id);
+        return equationsMap.find(id) != equationsMap.end();
       }
 
       bool isEquation(VertexDescriptor vertex) const
@@ -983,9 +985,9 @@ namespace marco::modeling
 
       VertexDescriptor getEquationVertex(typename Equation::Id id) const
       {
-        auto search = findVertex<Equation>(id);
-        assert(search.first && "Equation not found");
-        return *search.second;
+        auto it = equationsMap.find(id);
+        assert(it != equationsMap.end() && "Equation not found");
+        return it->second;
       }
 
       EquationProperty& getEquation(typename Equation::Id id)
@@ -1035,7 +1037,8 @@ namespace marco::modeling
       void addEquation(EquationProperty property)
       {
         Equation eq(std::move(property));
-        assert(!hasEquation(eq.getId()) && "Already existing equation");
+        auto id = eq.getId();
+        assert(!hasEquation(id) && "Already existing equation");
 
         // Insert the equation into the graph and get a reference to the new vertex
         auto equationDescriptor = graph.addVertex(std::move(eq));
@@ -1057,6 +1060,8 @@ namespace marco::modeling
             graph.addEdge(equationDescriptor, variableDescriptor, edge);
           }
         }
+
+        equationsMap[id] = equationDescriptor;
       }
 
       /// Get the total amount of scalar variables inside the graph.
@@ -1314,31 +1319,6 @@ namespace marco::modeling
       }
 
     private:
-      template<typename T>
-      bool hasVertex(typename T::Id id) const
-      {
-        return findVertex<T>(id).first;
-      }
-
-      template<typename T>
-      std::pair<bool, VertexIterator> findVertex(typename T::Id id) const
-      {
-        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
-
-        auto it = std::find_if(
-            vertices.begin(), vertices.end(), [&](const VertexDescriptor& v) {
-              const auto& vertex = graph[v];
-
-              if (!std::holds_alternative<T>(vertex)) {
-                return false;
-              }
-
-              return std::get<T>(vertex).getId() == id;
-            });
-
-        return std::make_pair(it != vertices.end(), it);
-      }
-
       size_t getVertexVisibilityDegree(VertexDescriptor vertex) const
       {
         auto edges = llvm::make_range(visibleEdgesBegin(vertex), visibleEdgesEnd(vertex));
@@ -1618,7 +1598,10 @@ namespace marco::modeling
         }
       }
 
+    private:
       Graph graph;
+      std::map<typename Variable::Id, VertexDescriptor> variablesMap;
+      std::map<typename Equation::Id, VertexDescriptor> equationsMap;
   };
 }
 

@@ -597,7 +597,8 @@ namespace marco::codegen
     // The accesses to non-IDA variables have been replaced. Now we can proceed to create the
     // residual and jacobian functions.
 
-    auto equationVariables = model.getVariables().getValues();
+    llvm::SmallVector<mlir::Value> equationVariables;
+    model.getVariables().getValues(equationVariables);
 
     size_t residualFunctionsCounter = 0;
     size_t jacobianFunctionsCounter = 0;

@@ -6,6 +6,24 @@ using namespace ::marco::codegen;
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
+static Variables getFilteredVariables(
+    const Variables& variables,
+    std::function<IndexSet(const Variable&)> filterFn)
+{
+  llvm::SmallVector<std::unique_ptr<Variable>> filteredVariables;
+
+  for (const auto& variable : variables) {
+    auto indices = filterFn(*variable);
+
+    for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+      auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
+      filteredVariables.push_back(std::move(filteredVariable));
+    }
+  }
+
+  return Variables(filteredVariables);
+}
+
 namespace marco::codegen
 {
   MatchedEquation::MatchedEquation(
@@ -228,17 +246,7 @@ namespace marco::codegen
     // determined (state variables depend on their derivatives, while
     // constants have a fixed value).
 
-    Variables filteredVariables;
-
-    for (const auto& variable : allVariables) {
-      auto matchableIndices = matchableIndicesFn(*variable);
-
-      for (const auto& range : llvm::make_range(matchableIndices.rangesBegin(), matchableIndices.rangesEnd())) {
-        auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
-        filteredVariables.add(std::move(filteredVariable));
-      }
-    }
-
+    Variables filteredVariables = getFilteredVariables(allVariables, matchableIndicesFn);
     Equations<Equation> filteredEquations;
 
     for (const auto& equation : model.getEquations()) {

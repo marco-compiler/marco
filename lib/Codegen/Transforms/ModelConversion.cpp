@@ -420,6 +420,9 @@ namespace marco::codegen
 
       // Add the differential equations (i.e. the ones matched with a derivative) to the set
       // of equations managed by IDA, together with their written variables.
+      llvm::SmallVector<mlir::Value> variablesValues;
+      model.getVariables().getValues(variablesValues);
+
       for (const auto& scheduledBlock : model.getScheduledBlocks()) {
         for (auto& scheduledEquation : *scheduledBlock) {
           auto var = scheduledEquation->getWrite().getVariable();
@@ -427,7 +430,7 @@ namespace marco::codegen
 
           if (derivativesMap.isDerivative(argNumber)) {
             // State variable
-            ida->addVariable(model.getVariables().getValues()[derivativesMap.getDerivedVariable(argNumber)]);
+            ida->addVariable(variablesValues[derivativesMap.getDerivedVariable(argNumber)]);
 
             // Derivative
             ida->addVariable(var->getValue());
