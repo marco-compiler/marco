@@ -23,7 +23,7 @@ TEST(ScheduledEquation, inductionVariables)
   types.push_back(RealType::get(builder.getContext()));
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   std::vector<std::pair<long, long>> equationRanges;
   equationRanges.emplace_back(2, 7);

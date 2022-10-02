@@ -29,7 +29,7 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
   llvm::SmallVector<mlir::Type, 3> types(3, realType);
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto eq1 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
     mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0));
@@ -124,7 +124,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   llvm::SmallVector<mlir::Type, 3> types(3, arrayType);
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   std::vector<std::pair<long, long>> eq1_ranges;
   eq1_ranges.emplace_back(1, 4);
@@ -234,7 +234,7 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
   llvm::SmallVector<mlir::Type, 3> types(3, realType);
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto eq1 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
     mlir::Value lhs = nested.create<AddOp>(
@@ -315,7 +315,7 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
   llvm::SmallVector<mlir::Type, 3> types(3, realType);
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto eq1 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
     mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0));

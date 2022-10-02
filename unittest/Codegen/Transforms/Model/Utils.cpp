@@ -49,17 +49,6 @@ namespace marco::codegen::test
     return modelOp;
   }
 
-  Variables mapVariables(ModelOp model)
-  {
-    llvm::SmallVector<std::unique_ptr<Variable>> variables;
-
-    for (const auto& variable : model.getBodyRegion().getArguments()) {
-      variables.push_back(Variable::build(variable));
-    }
-
-    return Variables(variables);
-  }
-
   mlir::modelica::EquationOp createEquation(
       mlir::OpBuilder& builder,
       mlir::modelica::ModelOp model,

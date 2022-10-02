@@ -34,10 +34,11 @@ namespace marco::codegen
   };
 
   /// Container for the variables of the model.
-  /// It uses a shared_ptr in order to allow to easily share the same set of variables among different
-  /// equations without the need of copying all of them each time.
-  /// Each variable is also stored as a unique_ptr so that we can assume its address not to change due
-  /// to the resizing of its container.
+  /// It uses a shared_ptr in order to allow to easily share the same set of
+  /// variables among different equations without the need of copying all of
+  /// them each time.
+  /// Each variable is also stored as a unique_ptr so that we can assume its
+  /// address not to change due to the resizing of its container.
   class Variables
   {
     public:
@@ -45,13 +46,27 @@ namespace marco::codegen
       using iterator = typename Container::iterator;
       using const_iterator = typename Container::const_iterator;
 
-      Variables(llvm::ArrayRef<std::unique_ptr<Variable>> variables = llvm::None);
+      Variables();
 
       size_t size() const;
 
+      /// Get a variable at a given index.
       std::unique_ptr<Variable>& operator[](size_t index);
 
+      /// Get a variable at a given index.
       const std::unique_ptr<Variable>& operator[](size_t index) const;
+
+      /// Get a variable at a given index.
+      /// Thread-safe version of operator[].
+      std::unique_ptr<Variable>& get(size_t index);
+
+      /// Get a variable at a given index.
+      /// Thread-safe version of operator[].
+      const std::unique_ptr<Variable>& get(size_t index) const;
+
+      void resize(size_t newSize);
+
+      void add(std::unique_ptr<Variable> variable);
 
       iterator begin();
 
@@ -60,10 +75,6 @@ namespace marco::codegen
       iterator end();
 
       const_iterator end() const;
-
-      void getValues(llvm::SmallVectorImpl<mlir::Value>& result) const;
-
-      void getTypes(llvm::SmallVectorImpl<mlir::Type>& result) const;
 
       bool isVariable(mlir::Value value) const;
 

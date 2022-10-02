@@ -64,19 +64,6 @@ namespace marco::codegen
   class Variables::Impl
   {
     public:
-      Impl(llvm::ArrayRef<std::unique_ptr<Variable>> variables)
-      {
-        for (const auto& variable : variables) {
-          this->variables.push_back(variable->clone());
-        }
-
-        llvm::sort(this->variables, [](const auto& x, const auto& y) {
-          auto xArgNumber = x->getValue().template cast<mlir::BlockArgument>().getArgNumber();
-          auto yArgNumber = y->getValue().template cast<mlir::BlockArgument>().getArgNumber();
-          return xArgNumber < yArgNumber;
-        });
-      }
-
       size_t size() const
       {
         return variables.size();
@@ -86,7 +73,6 @@ namespace marco::codegen
       {
         assert(index < size());
         auto& result = variables[index];
-        assert(result->getValue().cast<mlir::BlockArgument>().getArgNumber() == index);
         return result;
       }
 
@@ -94,8 +80,17 @@ namespace marco::codegen
       {
         assert(index < size());
         const auto& result = variables[index];
-        assert(result->getValue().cast<mlir::BlockArgument>().getArgNumber() == index);
         return result;
+      }
+
+      void resize(size_t newSize)
+      {
+        variables.resize(newSize);
+      }
+
+      void add(std::unique_ptr<Variable> variable)
+      {
+        variables.push_back(std::move(variable));
       }
 
       Variables::iterator begin()
@@ -118,26 +113,12 @@ namespace marco::codegen
         return variables.end();
       }
 
-      void getValues(llvm::SmallVectorImpl<mlir::Value>& result) const
-      {
-        for (const auto& variable : variables) {
-          result.push_back(variable->getValue());
-        }
-      }
-
-      void getTypes(llvm::SmallVectorImpl<mlir::Type>& result) const
-      {
-        for (const auto& variable : variables) {
-          result.push_back(variable->getValue().getType());
-        }
-      }
-
     private:
       Variables::Container variables;
   };
 
-  Variables::Variables(llvm::ArrayRef<std::unique_ptr<Variable>> variables)
-      : impl(std::make_shared<Impl>(variables))
+  Variables::Variables()
+      : impl(std::make_shared<Impl>())
   {
   }
 
@@ -154,6 +135,16 @@ namespace marco::codegen
   const std::unique_ptr<Variable>& Variables::operator[](size_t index) const
   {
     return (*impl)[index];
+  }
+
+  void Variables::resize(size_t newSize)
+  {
+    impl->resize(newSize);
+  }
+
+  void Variables::add(std::unique_ptr<Variable> variable)
+  {
+    impl->add(std::move(variable));
   }
 
   Variables::iterator Variables::begin()
@@ -174,16 +165,6 @@ namespace marco::codegen
   Variables::const_iterator Variables::end() const
   {
     return impl->end();
-  }
-
-  void Variables::getValues(llvm::SmallVectorImpl<mlir::Value>& result) const
-  {
-    impl->getValues(result);
-  }
-
-  void Variables::getTypes(llvm::SmallVectorImpl<mlir::Type>& result) const
-  {
-    impl->getTypes(result);
   }
 
   bool Variables::isVariable(mlir::Value value) const

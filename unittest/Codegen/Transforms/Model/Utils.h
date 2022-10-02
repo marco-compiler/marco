@@ -46,9 +46,6 @@ namespace marco::codegen::test
   /// Create a model with variables of given types.
   mlir::modelica::ModelOp createModel(mlir::OpBuilder& builder, mlir::TypeRange varTypes);
 
-  /// Map the variables of a model.
-  Variables mapVariables(mlir::modelica::ModelOp model);
-
   /// Create an equation with with a certain body and optional iteration ranges.
   /// The callback function is used to create the body of the equation. When called,
   /// the insertion point of the nested builder is already set to the beginning of

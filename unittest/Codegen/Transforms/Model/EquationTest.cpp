@@ -24,7 +24,7 @@ TEST(ScalarEquation, iterationRanges)
   types.push_back(RealType::get(builder.getContext()));
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
     mlir::Value loadX = nested.create<LoadOp>(builder.getUnknownLoc(), model.getBodyRegion().getArgument(0));
@@ -59,7 +59,7 @@ TEST(ScalarEquation, accesses)
   types.push_back(RealType::get(builder.getContext()));
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
     mlir::Value loadX = nested.create<LoadOp>(builder.getUnknownLoc(), model.getBodyRegion().getArgument(0));
@@ -103,7 +103,7 @@ TEST(LoopEquation, explicitLoops_iterationRanges)
   types.push_back(ArrayType::get({ 3, 6 }, RealType::get(builder.getContext())));
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   std::vector<std::pair<long, long>> equationRanges;
   equationRanges.emplace_back(1, 2);
@@ -161,7 +161,7 @@ TEST(LoopEquation, explicitLoops_accesses)
   types.push_back(ArrayType::get({ 6 }, RealType::get(builder.getContext())));
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   std::vector<std::pair<long, long>> equationRanges;
   equationRanges.emplace_back(2, 5);
@@ -219,7 +219,7 @@ TEST(LoopEquation, implicitLoops_iterationRanges)
   types.push_back(arrayType);
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
     mlir::Value lhs = model.getBodyRegion().getArgument(0);
@@ -257,7 +257,7 @@ TEST(LoopEquation, implicitLoops_accesses)
   types.push_back(arrayType);
 
   auto model = createModel(builder, types);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
     mlir::Value lhs = model.getBodyRegion().getArgument(0);

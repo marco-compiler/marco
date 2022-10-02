@@ -15,7 +15,7 @@ TEST(ScalarVariable, dimensions)
 
   auto type = RealType::get(builder.getContext());
   auto model = createModel(builder, type);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   EXPECT_EQ(variables.size(), 1);
   EXPECT_EQ(variables[0]->getRank(), 1);
@@ -36,7 +36,7 @@ TEST(ArrayVariable, dimensions)
   auto baseType = RealType::get(builder.getContext());
   auto arrayType = ArrayType::get(shape, baseType);
   auto model = createModel(builder, arrayType);
-  auto variables = mapVariables(model);
+  auto variables = discoverVariables(model);
 
   EXPECT_EQ(variables.size(), 1);
   EXPECT_EQ(variables[0]->getRank(), 3);

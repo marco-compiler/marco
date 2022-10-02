@@ -1,6 +1,8 @@
 #include "marco/Codegen/Transforms/ModelSolving/Matching.h"
 #include "marco/Codegen/Transforms/ModelSolving/FilteredVariable.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "llvm/Support/ThreadPool.h"
+#include <mutex>
 
 using namespace ::marco::codegen;
 using namespace ::marco::modeling;
@@ -10,18 +12,43 @@ static Variables getFilteredVariables(
     const Variables& variables,
     std::function<IndexSet(const Variable&)> filterFn)
 {
-  llvm::SmallVector<std::unique_ptr<Variable>> filteredVariables;
+  size_t numOfVariables = variables.size();
+  Variables filteredVariables;
 
-  for (const auto& variable : variables) {
-    auto indices = filterFn(*variable);
+  // Parallelize the creation of the variables.
+  llvm::ThreadPool threadPool;
+  std::mutex mutex;
 
-    for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-      auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
-      filteredVariables.push_back(std::move(filteredVariable));
+  // Function to filter a chunk of variables.
+  // 'from' index is included, 'to' index is excluded.
+  auto mapFn = [&](size_t from, size_t to) {
+    for (size_t i = from; i < to; ++i) {
+      const std::unique_ptr<Variable>& variable = variables[i];
+      IndexSet indices = filterFn(*variable);
+
+      for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+        auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
+
+        std::unique_lock lock(mutex);
+        filteredVariables.add(std::move(filteredVariable));
+      }
     }
+  };
+
+  // Shard the work among multiple threads.
+  unsigned int numOfThreads = threadPool.getThreadCount();
+  size_t chunkSize = (numOfVariables + numOfThreads - 1) / numOfThreads;
+
+  for (unsigned int i = 0; i < numOfThreads; ++i) {
+    size_t from = i * chunkSize;
+    size_t to = std::min(numOfVariables, (i + 1) * chunkSize);
+    threadPool.async(mapFn, from, to);
   }
 
-  return Variables(filteredVariables);
+  // Wait for all the tasks to finish.
+  threadPool.wait();
+
+  return filteredVariables;
 }
 
 namespace marco::codegen

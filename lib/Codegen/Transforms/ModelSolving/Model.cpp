@@ -1,4 +1,6 @@
 #include "marco/Codegen/Transforms/ModelSolving/Model.h"
+#include "llvm/Support/ThreadPool.h"
+#include <mutex>
 
 using namespace ::marco;
 using namespace ::marco::codegen;
@@ -8,13 +10,43 @@ namespace marco::codegen
 {
   Variables discoverVariables(ModelOp modelOp)
   {
-    llvm::SmallVector<std::unique_ptr<Variable>> variables;
+    Variables variables;
 
-    for (const auto& variable : llvm::enumerate(modelOp.getBodyRegion().getArguments())) {
-      variables.push_back(Variable::build(variable.value()));
+    mlir::ValueRange args = modelOp.getBodyRegion().getArguments();
+    size_t numOfVariables = args.size();
+    variables.resize(numOfVariables);
+
+    // Parallelize the variables mapping.
+    llvm::ThreadPool threadPool;
+
+    // Function to map a chunk of variables.
+    // 'from' index is included, 'to' index is excluded.
+    auto mapFn = [&](size_t from, size_t to) {
+      for (size_t i = from; i < to; ++i) {
+        // No need for mutex locking, because the required space has already
+        // been allocated and the accessed indices are independent by design.
+        variables[i] = Variable::build(args[i]);
+      }
+    };
+
+    // Shard the work among multiple threads.
+    unsigned int numOfThreads = threadPool.getThreadCount();
+    size_t chunkSize = (numOfVariables + numOfThreads - 1) / numOfThreads;
+
+    for (unsigned int i = 0; i < numOfThreads; ++i) {
+      size_t from = i * chunkSize;
+      size_t to = std::min(numOfVariables, (i + 1) * chunkSize);
+      threadPool.async(mapFn, from, to);
     }
 
-    return Variables(variables);
+    // Wait for all the tasks to finish.
+    threadPool.wait();
+
+    assert(llvm::none_of(variables, [](const std::unique_ptr<Variable>& variable) {
+             return variable == nullptr;
+           }) && "Not all variables have been mapped");
+
+    return variables;
   }
 
   Equations<Equation> discoverInitialEquations(mlir::modelica::ModelOp modelOp, const Variables& variables)
