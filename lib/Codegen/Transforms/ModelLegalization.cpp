@@ -6,6 +6,7 @@
 #include "marco/Codegen/Utils.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/Support/ThreadPool.h"
 
 namespace mlir::modelica
 {
@@ -91,68 +92,6 @@ namespace
       return builder.create<InitialEquationOp>(loc);
     }
   };
-}
-
-static void collectDerivedVariablesIndices(
-    std::map<unsigned int, IndexSet>& derivedIndices,
-    const Equations<Equation>& equations)
-{
-  for (const auto& equation : equations) {
-    auto accesses = equation->getAccesses();
-
-    equation->getOperation().walk([&](DerOp derOp) {
-      auto it = llvm::find_if(accesses, [&](const auto& access) {
-        auto value = equation->getValueAtPath(access.getPath());
-        return value == derOp.getOperand();
-      });
-
-      assert(it != accesses.end());
-      const auto& access = *it;
-      auto indices = access.getAccessFunction().map(equation->getIterationRanges());
-      auto argNumber = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
-      derivedIndices[argNumber] += indices;
-    });
-  }
-}
-
-static void collectDerivedVariablesIndices(
-    std::map<unsigned int, IndexSet>& derivedIndices,
-    AlgorithmOp algorithmOp)
-{
-  algorithmOp.walk([&](DerOp derOp) {
-    mlir::Value value = derOp.getOperand();
-
-    while (!value.isa<mlir::BlockArgument>()) {
-      mlir::Operation* definingOp = value.getDefiningOp();
-
-      if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
-        value = loadOp.getArray();
-      } else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
-        value = subscriptionOp.getSource();
-      } else {
-        break;
-      }
-    }
-
-    assert(value.isa<mlir::BlockArgument>());
-    IndexSet indices;
-
-    if (auto arrayType = value.getType().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
-      assert(arrayType.hasStaticShape());
-      std::vector<Range> ranges;
-
-      for (const auto& dimension : arrayType.getShape()) {
-        ranges.emplace_back(0, dimension);
-      }
-
-      indices += MultidimensionalRange(ranges);
-    } else {
-      indices += Point(0);
-    }
-
-    auto varNumber = value.cast<mlir::BlockArgument>().getArgNumber();
-    derivedIndices[varNumber] += indices;
-  });
 }
 
 /// Determine if an array is read or written.
@@ -515,48 +454,47 @@ static mlir::LogicalResult removeDerOps(
 
 namespace
 {
-  class ModelLegalizationPass : public mlir::modelica::impl::ModelLegalizationPassBase<ModelLegalizationPass>
+  class ModelLegalization
   {
     public:
-      using ModelLegalizationPassBase::ModelLegalizationPassBase;
-
-      void runOnOperation() override
+      ModelLegalization(ModelOp modelOp, bool debugView)
+        : modelOp(modelOp), debugView(debugView)
       {
-        mlir::OpBuilder builder(getOperation());
-        llvm::SmallVector<ModelOp, 1> modelOps;
-
-        getOperation()->walk([&](ModelOp modelOp) {
-          if (modelOp.getSymName() == modelName) {
-            modelOps.push_back(modelOp);
-          }
-        });
-
-        for (const auto& modelOp : modelOps) {
-          if (mlir::failed(processModel(modelOp))) {
-            return signalPassFailure();
-          }
-        }
       }
 
+      mlir::LogicalResult run();
+
     private:
-      mlir::LogicalResult processModel(ModelOp modelOp);
+      void collectDerivedVariablesIndices(
+        std::map<unsigned int, IndexSet>& derivedIndices,
+        const Equations<Equation>& equations);
 
-      mlir::LogicalResult addMissingStartOps(mlir::OpBuilder& builder, ModelOp modelOp);
+      void collectDerivedVariablesIndices(
+          std::map<unsigned int, IndexSet>& derivedIndices,
+          llvm::ArrayRef<AlgorithmOp> algorithmOps);
 
-      mlir::LogicalResult convertAlgorithmsIntoEquations(mlir::OpBuilder& builder, ModelOp modelOp);
+      mlir::LogicalResult addMissingStartOps(mlir::OpBuilder& builder);
+
+      mlir::LogicalResult convertAlgorithmsIntoEquations(mlir::OpBuilder& builder);
 
       /// For each EquationOp, create an InitialEquationOp with the same body
-      mlir::LogicalResult cloneEquationsAsInitialEquations(mlir::OpBuilder& builder, ModelOp modelOp);
+      mlir::LogicalResult cloneEquationsAsInitialEquations(mlir::OpBuilder& builder);
 
-      mlir::LogicalResult convertFixedStartOps(mlir::OpBuilder& builder, ModelOp modelOp);
+      mlir::LogicalResult convertFixedStartOps(mlir::OpBuilder& builder);
 
-      mlir::LogicalResult convertEquationsWithMultipleValues(ModelOp modelOp);
+      mlir::LogicalResult convertEquationsWithMultipleValues();
 
-      mlir::LogicalResult convertToSingleEquationBody(ModelOp modelOp);
+      mlir::LogicalResult convertToSingleEquationBody();
+
+    private:
+      ModelOp modelOp;
+      bool debugView;
+
+      llvm::ThreadPool threadPool;
   };
 }
 
-mlir::LogicalResult ModelLegalizationPass::processModel(ModelOp modelOp)
+mlir::LogicalResult ModelLegalization::run()
 {
   mlir::OpBuilder builder(modelOp);
 
@@ -578,14 +516,13 @@ mlir::LogicalResult ModelLegalizationPass::processModel(ModelOp modelOp)
   // Add a 'start' value of zero for the variables for which an explicit
   // 'start' value has not been provided.
 
-  if (auto res = addMissingStartOps(builder, modelOp); mlir::failed(res)) {
+  if (auto res = addMissingStartOps(builder); mlir::failed(res)) {
     return res;
   }
 
   // Create the initial equations given by the start values having also
   // the fixed attribute set to 'true'.
-
-  if (auto res = convertFixedStartOps(builder, modelOp); mlir::failed(res)) {
+  if (auto res = convertFixedStartOps(builder); mlir::failed(res)) {
     return res;
   }
 
@@ -594,9 +531,13 @@ mlir::LogicalResult ModelLegalizationPass::processModel(ModelOp modelOp)
   collectDerivedVariablesIndices(derivedIndices, mainModel.getEquations());
 
   // Discover the derivatives inside the algorithms
+  llvm::SmallVector<AlgorithmOp> algorithmOps;
+
   modelOp.walk([&](AlgorithmOp algorithmOp) {
-    collectDerivedVariablesIndices(derivedIndices, algorithmOp);
+    algorithmOps.push_back(algorithmOp);
   });
+
+  collectDerivedVariablesIndices(derivedIndices, algorithmOps);
 
   // Create the variables for the derivatives, together with the initial equations needed to
   // initialize them to zero.
@@ -621,23 +562,24 @@ mlir::LogicalResult ModelLegalizationPass::processModel(ModelOp modelOp)
   }
 
   // Convert the algorithms into equations.
-  if (auto res = convertAlgorithmsIntoEquations(builder, modelOp); mlir::failed(res)) {
+
+  if (auto res = convertAlgorithmsIntoEquations(builder); mlir::failed(res)) {
     return res;
   }
 
   // Clone the equations as initial equations, in order to use them when
   // computing the initial values of the variables.
 
-  if (auto res = cloneEquationsAsInitialEquations(builder, modelOp); mlir::failed(res)) {
+  if (auto res = cloneEquationsAsInitialEquations(builder); mlir::failed(res)) {
     return res;
   }
 
-  if (auto res = convertEquationsWithMultipleValues(modelOp); mlir::failed(res)) {
+  if (auto res = convertEquationsWithMultipleValues(); mlir::failed(res)) {
     return res;
   }
 
   // Split the loops containing more than one operation within their bodies
-  if (auto res = convertToSingleEquationBody(modelOp); mlir::failed(res)) {
+  if (auto res = convertToSingleEquationBody(); mlir::failed(res)) {
     return res;
   }
 
@@ -660,7 +602,118 @@ mlir::LogicalResult ModelLegalizationPass::processModel(ModelOp modelOp)
   return mlir::success();
 }
 
-mlir::LogicalResult ModelLegalizationPass::addMissingStartOps(mlir::OpBuilder& builder, ModelOp modelOp)
+void ModelLegalization::collectDerivedVariablesIndices(
+    std::map<unsigned int, IndexSet>& derivedIndices,
+    const Equations<Equation>& equations)
+{
+  std::mutex mutex;
+
+  // Function to process a chunk of equations.
+  auto walkFn = [&](size_t from, size_t to) {
+    for (size_t i = from; i < to; ++i) {
+      const std::unique_ptr<Equation>& equation = equations[i];
+      auto accesses = equation->getAccesses();
+
+      equation->getOperation().walk([&](DerOp derOp) {
+        auto it = llvm::find_if(accesses, [&](const auto& access) {
+          auto value = equation->getValueAtPath(access.getPath());
+          return value == derOp.getOperand();
+        });
+
+        assert(it != accesses.end());
+        const auto& access = *it;
+        auto indices = access.getAccessFunction().map(equation->getIterationRanges());
+        auto argNumber = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+
+        std::unique_lock lock(mutex);
+        derivedIndices[argNumber] += indices;
+      });
+    }
+  };
+
+  // Shard the work among multiple threads.
+  size_t numOfEquations = equations.size();
+  unsigned int numOfThreads = threadPool.getThreadCount();
+  size_t chunkSize = (numOfEquations + numOfThreads - 1) / numOfThreads;
+  llvm::ThreadPoolTaskGroup tasks(threadPool);
+
+  for (unsigned int i = 0; i < numOfThreads; ++i) {
+    size_t from = i * chunkSize;
+    size_t to = std::min(numOfEquations, (i + 1) * chunkSize);
+    tasks.async(walkFn, from, to);
+  }
+
+  // Wait for all the tasks to finish.
+  tasks.wait();
+}
+
+void ModelLegalization::collectDerivedVariablesIndices(
+    std::map<unsigned int, IndexSet>& derivedIndices,
+    llvm::ArrayRef<AlgorithmOp> algorithmOps)
+{
+  std::mutex mutex;
+
+  // Function to process a chunk of algorithms.
+  auto walkFn = [&](size_t from, size_t to) {
+    for (size_t i = from; i < to; ++i) {
+      AlgorithmOp algorithmOp = algorithmOps[i];
+
+      algorithmOp.walk([&](DerOp derOp) {
+        mlir::Value value = derOp.getOperand();
+
+        while (!value.isa<mlir::BlockArgument>()) {
+          mlir::Operation* definingOp = value.getDefiningOp();
+
+          if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
+            value = loadOp.getArray();
+          } else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(definingOp)) {
+            value = subscriptionOp.getSource();
+          } else {
+            break;
+          }
+        }
+
+        assert(value.isa<mlir::BlockArgument>());
+        IndexSet indices;
+
+        if (auto arrayType = value.getType().dyn_cast<ArrayType>(); arrayType && !arrayType.isScalar()) {
+          assert(arrayType.hasStaticShape());
+          std::vector<Range> ranges;
+
+          for (const auto& dimension : arrayType.getShape()) {
+            ranges.emplace_back(0, dimension);
+          }
+
+          indices += MultidimensionalRange(ranges);
+        } else {
+          indices += Point(0);
+        }
+
+        auto varNumber = value.cast<mlir::BlockArgument>().getArgNumber();
+
+        std::unique_lock lock(mutex);
+        derivedIndices[varNumber] += indices;
+      });
+    }
+  };
+
+  // Shard the work among multiple threads.
+  size_t numOfAlgorithms = algorithmOps.size();
+  unsigned int numOfThreads = threadPool.getThreadCount();
+  size_t chunkSize = (numOfAlgorithms + numOfThreads - 1) / numOfThreads;
+  llvm::ThreadPoolTaskGroup tasks(threadPool);
+
+  for (unsigned int i = 0; i < numOfThreads; ++i) {
+    size_t from = i * chunkSize;
+    size_t to = std::min(numOfAlgorithms, (i + 1) * chunkSize);
+    tasks.async(walkFn, from, to);
+  }
+
+  // Wait for all the tasks to finish.
+  tasks.wait();
+}
+
+mlir::LogicalResult ModelLegalization::addMissingStartOps(mlir::OpBuilder& builder)
 {
   std::vector<bool> startOpExistence(modelOp.getBodyRegion().getNumArguments(), false);
 
@@ -700,7 +753,7 @@ mlir::LogicalResult ModelLegalizationPass::addMissingStartOps(mlir::OpBuilder& b
   return mlir::success();
 }
 
-mlir::LogicalResult ModelLegalizationPass::convertAlgorithmsIntoEquations(mlir::OpBuilder& builder, ModelOp modelOp)
+mlir::LogicalResult ModelLegalization::convertAlgorithmsIntoEquations(mlir::OpBuilder& builder)
 {
   auto module = modelOp->getParentOfType<mlir::ModuleOp>();
 
@@ -935,7 +988,7 @@ mlir::LogicalResult ModelLegalizationPass::convertAlgorithmsIntoEquations(mlir::
   return mlir::success();
 }
 
-mlir::LogicalResult ModelLegalizationPass::cloneEquationsAsInitialEquations(mlir::OpBuilder& builder, ModelOp modelOp)
+mlir::LogicalResult ModelLegalization::cloneEquationsAsInitialEquations(mlir::OpBuilder& builder)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -969,7 +1022,7 @@ mlir::LogicalResult ModelLegalizationPass::cloneEquationsAsInitialEquations(mlir
   return mlir::success();
 }
 
-mlir::LogicalResult ModelLegalizationPass::convertFixedStartOps(mlir::OpBuilder& builder, ModelOp modelOp)
+mlir::LogicalResult ModelLegalization::convertFixedStartOps(mlir::OpBuilder& builder)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -1040,9 +1093,9 @@ mlir::LogicalResult ModelLegalizationPass::convertFixedStartOps(mlir::OpBuilder&
   return mlir::success();
 }
 
-mlir::LogicalResult ModelLegalizationPass::convertEquationsWithMultipleValues(ModelOp modelOp)
+mlir::LogicalResult ModelLegalization::convertEquationsWithMultipleValues()
 {
-  mlir::ConversionTarget target(getContext());
+  mlir::ConversionTarget target(*modelOp.getContext());
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
@@ -1058,14 +1111,14 @@ mlir::LogicalResult ModelLegalizationPass::convertEquationsWithMultipleValues(Mo
     return terminator.getLhsValues().size() == 1 && terminator.getRhsValues().size() == 1;
   });
 
-  mlir::RewritePatternSet patterns(&getContext());
-  patterns.insert<EquationOpMultipleValuesPattern>(&getContext());
-  patterns.insert<InitialEquationOpMultipleValuesPattern>(&getContext());
+  mlir::RewritePatternSet patterns(modelOp.getContext());
+  patterns.insert<EquationOpMultipleValuesPattern>(modelOp.getContext());
+  patterns.insert<InitialEquationOpMultipleValuesPattern>(modelOp.getContext());
 
   return applyPartialConversion(modelOp, target, std::move(patterns));
 }
 
-mlir::LogicalResult ModelLegalizationPass::convertToSingleEquationBody(ModelOp modelOp)
+mlir::LogicalResult ModelLegalization::convertToSingleEquationBody()
 {
   mlir::OpBuilder builder(modelOp);
   std::vector<EquationInterface> equations;
@@ -1125,6 +1178,35 @@ mlir::LogicalResult ModelLegalizationPass::convertToSingleEquationBody(ModelOp m
   }
 
   return mlir::success();
+}
+
+namespace
+{
+  class ModelLegalizationPass : public mlir::modelica::impl::ModelLegalizationPassBase<ModelLegalizationPass>
+  {
+    public:
+      using ModelLegalizationPassBase::ModelLegalizationPassBase;
+
+      void runOnOperation() override
+      {
+        mlir::OpBuilder builder(getOperation());
+        llvm::SmallVector<ModelOp, 1> modelOps;
+
+        getOperation()->walk([&](ModelOp modelOp) {
+          if (modelOp.getSymName() == modelName) {
+            modelOps.push_back(modelOp);
+          }
+        });
+
+        for (const auto& modelOp : modelOps) {
+          ModelLegalization instance(modelOp, debugView);
+
+          if (mlir::failed(instance.run())) {
+            return signalPassFailure();
+          }
+        }
+      }
+  };
 }
 
 namespace mlir::modelica
