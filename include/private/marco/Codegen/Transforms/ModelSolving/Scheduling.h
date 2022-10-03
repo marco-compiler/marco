@@ -89,14 +89,14 @@ namespace marco::codegen
 
       mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<mlir::Attribute>& coefficients,
-          mlir::Attribute& constantTerm,
+          std::vector<mlir::Value>& coefficients,
+          mlir::Value& constantTerm,
           const modeling::IndexSet& equationIndices) const override;
 
       mlir::LogicalResult getSideCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<mlir::Attribute>& coefficients,
-          mlir::Attribute& constantTerm,
+          std::vector<mlir::Value>& coefficients,
+          mlir::Value& constantTerm,
           std::vector<mlir::Value> values,
           EquationPath::EquationSide side,
           const modeling::IndexSet& equationIndices) const override;
@@ -111,9 +111,13 @@ namespace marco::codegen
           mlir::Value lhs,
           mlir::Value rhs) const override;
 
+      size_t getSizeUntilVariable(
+          size_t index) const override;
+
       size_t getFlatAccessIndex(
           const Access& access,
-          const ::marco::modeling::IndexSet& equationIndices) const override;
+          const ::marco::modeling::IndexSet& equationIndices,
+          const ::marco::modeling::IndexSet& variableIndices) const override;
 
       /// }
       /// @name Modified methods

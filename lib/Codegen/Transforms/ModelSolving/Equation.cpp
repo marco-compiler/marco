@@ -1439,24 +1439,36 @@ namespace marco::codegen
     return mlir::failure();
   }
 
+  size_t BaseEquation::getSizeUntilVariable(
+      size_t index) const
+  {
+    /// Populate an array containing the flat size of each possibly non scalar
+    /// variable. This allows us to identify uniquely each equation and its
+    /// matched variable.
+    std::vector<size_t> variableSizes(variables.size());
+    for (int i = 0; i < variables.size(); ++i) {
+      auto indices = *variables[i]->getIndices().rangesBegin();
+      variableSizes[i] = indices.flatSize();
+    }
+
+    assert(index <= variableSizes.size());
+    size_t res = 0;
+    for (size_t i = 0; i < index; ++i) {
+      res += variableSizes[i];
+    }
+    return res;
+  }
+
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& equationIndices) const
+      const ::marco::modeling::IndexSet& equationIndices,
+      const ::marco::modeling::IndexSet& variableIndices) const
   {
     /// Since the variables have only one multidimensional range, take it.
-    auto variable = access.getVariable();
-    auto variableIndices = variable->getIndices();
     auto accessFunction = access.getAccessFunction();
     auto mappedIndices = *accessFunction.map(equationIndices).begin();
     auto variableDimensions = *variableIndices.rangesBegin();
     auto rank = variableDimensions.rank();
-    auto index = variable->getValue().cast<mlir::BlockArgument>().getArgNumber();
-
-    assert(index <= variables.size());
-    size_t base = 0;
-    for (size_t i = 0; i < index; ++i) {
-      base += (*variables[i]->getIndices().rangesBegin()).flatSize();
-    }
 
     assert(accessFunction.size() == rank);
 
@@ -1465,36 +1477,31 @@ namespace marco::codegen
     // Variable dimensions: [5,3,8]
     // Mapped indices: [2,1,4]
     // Index: 2*3*8 + 1*8 + 4 = (2*3 + 1)*8 + 4
-    size_t offset = mappedIndices[0];
+    size_t tot = mappedIndices[0];
     for(size_t i = 1; i < rank; ++i)
     {
-      offset *= variableDimensions[i].size();
-      offset += mappedIndices[i];
+      tot *= variableDimensions[i].size();
+      tot += mappedIndices[i];
     }
 
-    return base + offset;
+    return tot;
   }
 
   mlir::LogicalResult BaseEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Attribute>& coefficients,
-      mlir::Attribute& constantTerm,
+      std::vector<mlir::Value>& coefficients,
+      mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side,
       const IndexSet& equationIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    mlir::Location loc = equationOp->getLoc();
-    size_t flatSize = 0;
-    for (const auto& var : variables)
-      flatSize += var->getIndices().flatSize();
+    auto terminator = getTerminator();
 
-    /// Materialize the attributes
-    std::vector<mlir::Value> coefficientValues(flatSize);
-    mlir::Value constantValue;
-    for (size_t i = 0; i < flatSize; ++i)
-      coefficientValues[i] = builder.create<ConstantOp>(loc, coefficients[i]);
-    constantValue = builder.create<ConstantOp>(loc, constantTerm);
+    mlir::Location loc = equationOp->getLoc();
+
+    auto modelOp = getOperation()->getParentOfType<ModelOp>();
+    auto model = modelOp.getOperation();
 
     for(auto value : values) {
       /// Check that the value is linear, and if it is, whether it is a constant
@@ -1516,17 +1523,17 @@ namespace marco::codegen
         mlir::Value result;
 
         if(side == EquationPath::LEFT)
-          constantValue = builder.createOrFold<SubOp>(
+          constantTerm = builder.createOrFold<SubOp>(
               loc,
-              getMostGenericType(constantValue.getType(),
+              getMostGenericType(constantTerm.getType(),
                                  value.getType()),
-              constantValue, value);
+              constantTerm, value);
         else
-          constantValue = builder.createOrFold<AddOp>(
+          constantTerm = builder.createOrFold<AddOp>(
               loc,
-              getMostGenericType(constantValue.getType(),
+              getMostGenericType(constantTerm.getType(),
                                  value.getType()),
-              constantValue, value);
+              constantTerm, value);
       } else {
         /// The value may be linear.
         /// Check that the value is linear (no variables as rhs of divisions,
@@ -1555,7 +1562,9 @@ namespace marco::codegen
 
         /// Compute the offset to access the variable. This may be different
         /// from zero in array variables.
-        auto index = getFlatAccessIndex(access, equationIndices);
+        auto base = getSizeUntilVariable(argument.getArgNumber());
+        auto offset =
+            getFlatAccessIndex(access, equationIndices, variableIndices);
 
         //TODO take into account the width of each variable flattened
 
@@ -1563,9 +1572,7 @@ namespace marco::codegen
         /// of the variables.
         /// This is done because this function is called once for each of the
         /// two sides of the equation.
-        std::cerr << "INDEX: " << index << "\n";
-        coefficientValues[index].dump();
-        mlir::Value& lhs = coefficientValues[index];
+        mlir::Value& lhs = coefficients[base + offset];
 
         /// Set the right hand side to the multiplying factor of the variable.
         auto rhs = coefficient.second;
@@ -1582,11 +1589,6 @@ namespace marco::codegen
               loc, type, lhs, rhs);
       }
     }
-    /// Dematerialize the computed values.
-    for (size_t i = 0; i < flatSize; ++i)
-      coefficients[i] = mlir::dyn_cast<ConstantOp>(coefficientValues[i].getDefiningOp()).getValue();
-
-    constantTerm = mlir::dyn_cast<ConstantOp>(constantValue.getDefiningOp()).getValue();
 
     return mlir::success();
   }
@@ -1618,13 +1620,13 @@ namespace marco::codegen
 
   mlir::LogicalResult BaseEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Attribute>& coefficients,
-      mlir::Attribute& constantTerm,
+      std::vector<mlir::Value>& coefficients,
+      mlir::Value& constantTerm,
       const IndexSet& equationIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    /// Insert the operations at the end of the equation operation.
+    /// Insert the operations at the beginning of the equation operation.
     builder.setInsertionPoint(getTerminator());
 
     /// Convert the equation to sum of values, then collect such values in an
@@ -1642,9 +1644,11 @@ namespace marco::codegen
       return res;
 
     /// Initialize constant term and coefficient vector to zero.
-    constantTerm = RealAttr::get(builder.getContext(), 0);
+    auto loc = equationOp->getLoc();
+    auto zeroAttr = RealAttr::get(builder.getContext(), 0);
+    constantTerm = builder.create<ConstantOp>(loc, zeroAttr);
     for(auto& val : coefficients) {
-      val = RealAttr::get(builder.getContext(), 0);
+      val = builder.create<ConstantOp>(loc, zeroAttr);
     }
 
     /// Get the coefficients of variables and the constant term from the two
