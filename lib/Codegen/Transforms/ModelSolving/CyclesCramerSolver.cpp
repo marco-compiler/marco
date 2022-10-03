@@ -2,6 +2,8 @@
 
 using namespace ::marco::codegen;
 
+#define DEBUG_TYPE "CyclesSolving"
+
 SquareMatrix::SquareMatrix(
     std::vector<mlir::Value>& storage,
     size_t size) : size(size), storage(storage)
@@ -23,16 +25,22 @@ mlir::Value SquareMatrix::operator()(size_t row, size_t col) const
   return storage[row*size + col];
 }
 
-void SquareMatrix::dump()
+void SquareMatrix::print(llvm::raw_ostream &os)
 {
   std::cerr << "Matrix size: " << getSize() << "\n";
   for (size_t i = 0; i < size; i++) {
     for (size_t j = 0; j < size; j++) {
-      (*this)(i,j).dump();
+      (*this)(i,j).print(os);
     }
-    std::cerr << "\n";
+    os << "\n";
   }
-  std::cerr << "\n" << std::flush;
+  os << "\n";
+  os.flush();
+}
+
+void SquareMatrix::dump()
+{
+  print(llvm::dbgs());
 }
 
 SquareMatrix SquareMatrix::subMatrix(SquareMatrix out, size_t row, size_t col)
@@ -207,16 +215,24 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
   auto matrix = SquareMatrix(storage, numberOfScalarEquations);
   auto constantVector = std::vector<mlir::Value>(numberOfScalarEquations);
 
+  LLVM_DEBUG({
+    llvm::dbgs() << "Populating the model matrix and constant vector.\n";
+  });
   /// Populate system coefficient matrix and constant term vector.
   res = getModelMatrixAndVector(
       matrix, constantVector, clones, builder);
 
-  /// Populate an array containing the flat size of each possibly non scalar
-  /// variable. This allows us to identify uniquely each equation and its
-  /// matched variable.
-  Variables variables = equations[0]->getVariables();
-  std::vector<size_t> variableSizes(variables.size());
-  getVariablesFlatSize(variableSizes, variables);
+  LLVM_DEBUG({
+    llvm::dbgs() << "COEFFICIENT MATRIX: \n";
+    matrix.dump();
+    llvm::dbgs() << "CONSTANT VECTOR: \n";
+    for(auto el : constantVector)
+      el.dump();
+
+    llvm::dbgs() << "MODEL OPERATION:\n";
+    for (const auto& equation : model.getEquations())
+      equation->dumpIR();
+  });
 
   if(res) {
     for(auto& equation : clones) {
@@ -256,8 +272,7 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
           equation->getIterationRanges(),
           variable->getIndices());
 
-      auto base = getSizeUntilVariable(
-          argument.getArgNumber(), variableSizes);
+      auto base = equation->getSizeUntilVariable(argument.getArgNumber());
 
       /// Compute the determinant of each one of the matrices obtained by
       /// substituting the constant term vector to each one of the matrix
@@ -306,8 +321,14 @@ bool CramerSolver::getModelMatrixAndVector(
 
     coefficients.resize(equations.size());
 
+    std::cerr << "BEFORE INIT:\n";
+    equation->getOperation()->dump();
+
     auto res = equation->getCoefficients(
         builder, coefficients, constantTerm);
+
+    std::cerr << "AFTER INIT:\n";
+    equation->getOperation()->dump();
 
     if(mlir::failed(res)) {
       return false;
@@ -371,27 +392,4 @@ void CramerSolver::clone(mlir::OpBuilder& builder, SquareMatrix out, SquareMatri
       out(i,j) = cloneValueAndDependencies(builder, in(i,j));
     }
   }
-}
-
-void CramerSolver::getVariablesFlatSize(
-    std::vector<size_t>& variableSizes,
-    Variables variables)
-{
-  for (int i = 0; i < variables.size(); ++i) {
-    auto indices = *variables[i]->getIndices().rangesBegin();
-    variableSizes[i] = indices.flatSize();
-  }
-}
-
-size_t CramerSolver::getSizeUntilVariable(
-    size_t index,
-    std::vector<size_t>& variableSizes)
-{
-  assert(index <= variableSizes.size());
-
-  size_t res = 0;
-  for (size_t i = 0; i < index; ++i) {
-    res += variableSizes[i];
-  }
-  return res;
 }
