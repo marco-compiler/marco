@@ -111,6 +111,9 @@ namespace marco::codegen
           mlir::Value lhs,
           mlir::Value rhs) const override;
 
+      size_t getSizeUntilVariable(
+          size_t index) const override;
+
       size_t getFlatAccessIndex(
           const Access& access,
           const ::marco::modeling::IndexSet& equationIndices,

@@ -216,6 +216,12 @@ namespace marco::codegen
     return equation->replaceSides(builder, lhs, rhs);
   }
 
+  size_t ScheduledEquation::getSizeUntilVariable(
+      size_t index) const
+  {
+    return equation->getSizeUntilVariable(index);
+  }
+
   size_t ScheduledEquation::getFlatAccessIndex(
       const Access& access,
       const ::marco::modeling::IndexSet& equationIndices,

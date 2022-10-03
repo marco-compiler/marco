@@ -1439,6 +1439,26 @@ namespace marco::codegen
     return mlir::failure();
   }
 
+  size_t BaseEquation::getSizeUntilVariable(
+      size_t index) const
+  {
+    /// Populate an array containing the flat size of each possibly non scalar
+    /// variable. This allows us to identify uniquely each equation and its
+    /// matched variable.
+    std::vector<size_t> variableSizes(variables.size());
+    for (int i = 0; i < variables.size(); ++i) {
+      auto indices = *variables[i]->getIndices().rangesBegin();
+      variableSizes[i] = indices.flatSize();
+    }
+
+    assert(index <= variableSizes.size());
+    size_t res = 0;
+    for (size_t i = 0; i < index; ++i) {
+      res += variableSizes[i];
+    }
+    return res;
+  }
+
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
       const ::marco::modeling::IndexSet& equationIndices,
@@ -1450,7 +1470,6 @@ namespace marco::codegen
     auto variableDimensions = *variableIndices.rangesBegin();
     auto rank = variableDimensions.rank();
 
-    //TODO manage cases where subscription is not perfect
     assert(accessFunction.size() == rank);
 
     /// Compute a unique identifier for the specified access.
@@ -1478,7 +1497,6 @@ namespace marco::codegen
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto terminator = getTerminator();
-    builder.setInsertionPoint(terminator);
 
     mlir::Location loc = equationOp->getLoc();
 
@@ -1534,11 +1552,6 @@ namespace marco::codegen
         auto argument =
             variable->getValue().cast<mlir::BlockArgument>();
 
-        /// Insert the operations at the beginning of the equation operation.
-        builder.setInsertionPoint(
-            getOperation().bodyBlock(),
-            getOperation().bodyBlock()->begin());
-
         /// Get the multiplying factor of the variable: essentially remove the
         /// variable from the value.
         auto coefficient = getMultiplyingFactor(
@@ -1549,6 +1562,7 @@ namespace marco::codegen
 
         /// Compute the offset to access the variable. This may be different
         /// from zero in array variables.
+        auto base = getSizeUntilVariable(argument.getArgNumber());
         auto offset =
             getFlatAccessIndex(access, equationIndices, variableIndices);
 
@@ -1558,14 +1572,12 @@ namespace marco::codegen
         /// of the variables.
         /// This is done because this function is called once for each of the
         /// two sides of the equation.
-        mlir::Value& lhs =
-            coefficients[argument.getArgNumber() + offset];
+        mlir::Value& lhs = coefficients[base + offset];
 
         /// Set the right hand side to the multiplying factor of the variable.
         auto rhs = coefficient.second;
 
-        auto type =
-            getMostGenericType(lhs.getType(), rhs.getType());
+        auto type = getMostGenericType(lhs.getType(), rhs.getType());
 
         /// Add or subtract depending on whether we are considering the left or
         /// right side of the equation.
@@ -1613,6 +1625,11 @@ namespace marco::codegen
       const IndexSet& equationIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
+
+    /// Insert the operations at the beginning of the equation operation.
+    builder.setInsertionPoint(
+        getOperation().bodyBlock(),
+        getOperation().bodyBlock()->begin());
 
     /// Convert the equation to sum of values, then collect such values in an
     /// array.

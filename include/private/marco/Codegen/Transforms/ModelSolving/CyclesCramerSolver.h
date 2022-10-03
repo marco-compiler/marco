@@ -39,7 +39,11 @@ namespace marco::codegen {
     /// Access matrix elements with parentheses operator
     mlir::Value operator()(size_t row, size_t col) const;
 
-    /// Print the matrix contents to error stream.
+    /// Print the matrix contents to the specified stream.
+    /// \param stream Stream to dump the matrix on.
+    void print(llvm::raw_ostream &os);
+
+    /// Print the matrix contents to the specified stream.
     void dump();
 
     /// The out matrix will contain the elements of the submatrix, minus the row
