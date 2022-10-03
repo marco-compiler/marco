@@ -6,6 +6,57 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
+namespace
+{
+  template<typename EquationOpKind>
+  inline Equations<Equation> discoverEqs(mlir::modelica::ModelOp modelOp, const Variables& variables)
+  {
+    // Collect the operations to be mapped.
+    llvm::SmallVector<EquationOpKind> ops;
+
+    modelOp.getBodyRegion().walk([&](EquationOpKind op) {
+      ops.push_back(op);
+    });
+
+    size_t numOfEquations = ops.size();
+
+    // Map the equations.
+    Equations<Equation> equations;
+    equations.resize(numOfEquations);
+
+    llvm::ThreadPool threadPool;
+
+    // Function to map a chunk of equations.
+    // 'from' index is included, 'to' index is excluded.
+    auto mapFn = [&](size_t from, size_t to) {
+      for (size_t i = from; i < to; ++i) {
+        // No need for mutex locking, because the required space has already
+        // been allocated and the accessed indices are independent by design.
+        equations[i] = Equation::build(ops[i], variables);
+      }
+    };
+
+    // Shard the work among multiple threads.
+    unsigned int numOfThreads = threadPool.getThreadCount();
+    size_t chunkSize = (numOfEquations + numOfThreads - 1) / numOfThreads;
+
+    for (unsigned int i = 0; i < numOfThreads; ++i) {
+      size_t from = i * chunkSize;
+      size_t to = std::min(numOfEquations, (i + 1) * chunkSize);
+      threadPool.async(mapFn, from, to);
+    }
+
+    // Wait for all the tasks to finish.
+    threadPool.wait();
+
+    assert(llvm::none_of(equations, [](const std::unique_ptr<Equation>& equation) {
+             return equation == nullptr;
+           }) && "Not all equations have been mapped");
+
+    return equations;
+  }
+}
+
 namespace marco::codegen
 {
   Variables discoverVariables(ModelOp modelOp)
@@ -51,24 +102,12 @@ namespace marco::codegen
 
   Equations<Equation> discoverInitialEquations(mlir::modelica::ModelOp modelOp, const Variables& variables)
   {
-    Equations<Equation> result;
-
-    modelOp.getBodyRegion().walk([&](InitialEquationOp equationOp) {
-      result.add(Equation::build(equationOp, variables));
-    });
-
-    return result;
+    return discoverEqs<InitialEquationOp>(modelOp, variables);
   }
 
   Equations<Equation> discoverEquations(mlir::modelica::ModelOp modelOp, const Variables& variables)
   {
-    Equations<Equation> result;
-
-    modelOp.getBodyRegion().walk([&](EquationOp equationOp) {
-      result.add(Equation::build(equationOp, variables));
-    });
-
-    return result;
+    return discoverEqs<EquationOp>(modelOp, variables);
   }
 
   namespace impl

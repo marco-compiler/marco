@@ -50,19 +50,9 @@ namespace marco::codegen
 
       size_t size() const;
 
-      /// Get a variable at a given index.
       std::unique_ptr<Variable>& operator[](size_t index);
 
-      /// Get a variable at a given index.
       const std::unique_ptr<Variable>& operator[](size_t index) const;
-
-      /// Get a variable at a given index.
-      /// Thread-safe version of operator[].
-      std::unique_ptr<Variable>& get(size_t index);
-
-      /// Get a variable at a given index.
-      /// Thread-safe version of operator[].
-      const std::unique_ptr<Variable>& get(size_t index) const;
 
       void resize(size_t newSize);
 

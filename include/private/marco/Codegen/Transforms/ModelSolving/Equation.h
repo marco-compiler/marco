@@ -143,139 +143,94 @@ namespace marco::codegen
 
   namespace impl
   {
-    // This class must be specialized for the type that is used as container of the equations.
-    template<
-        typename EquationType,
-        template<typename... Args> class Container>
-    struct EquationsTrait
-    {
-      // Elements to provide:
-      //
-      // static void add(Container<std::unique_ptr<EquationType>>& container, std::unique_ptr<EquationType> equation);
-      // static size_t size(const Container<std::unique_ptr<EquationType>>& container);
-      // static std::unique_ptr<EquationType>& get(Container<std::unique_ptr<EquationType>>& container, size_t index);
-      // static const std::unique_ptr<EquationType>& get(const Container<std::unique_ptr<EquationType>>& container, size_t index);
-    };
-
-    /// Implementation of the equations container.
-    /// The actual container can be specified by means of the template parameter.
-    template<
-        typename EquationType,
-        template<typename... Args> class Container>
-    class BaseEquations
+    class EquationsBase
     {
       public:
-        using iterator = typename Container<std::unique_ptr<EquationType>>::iterator;
-        using const_iterator = typename Container<std::unique_ptr<EquationType>>::const_iterator;
-
-      private:
-        using Trait = EquationsTrait<EquationType, std::vector>;
-
-      public:
-        void add(std::unique_ptr<EquationType> equation)
-        {
-          Trait::add(equations, std::move(equation));
-        }
-
-        size_t size() const
-        {
-          return Trait::size(equations);
-        }
-
-        std::unique_ptr<EquationType>& operator[](size_t index)
-        {
-          assert(index < size());
-          return Trait::get(equations, index);
-        }
-
-        const std::unique_ptr<EquationType>& operator[](size_t index) const
-        {
-          assert(index < size());
-          return Trait::get(equations, index);
-        }
-
-        BaseEquations::iterator begin()
-        {
-          using std::begin;
-          return begin(equations);
-        }
-
-        BaseEquations::const_iterator begin() const
-        {
-          using std::begin;
-          return begin(equations);
-        }
-
-        BaseEquations::iterator end()
-        {
-          using std::end;
-          return end(equations);
-        }
-
-        BaseEquations::const_iterator end() const
-        {
-          using std::end;
-          return end(equations);
-        }
+        virtual ~EquationsBase() = default;
 
         /// For each equation, set the variables it should consider while determining the accesses.
-        void setVariables(Variables variables)
-        {
-          for (auto& equation : *this) {
-            equation->setVariables(variables);
-          }
-        }
-
-      private:
-        Container<std::unique_ptr<EquationType>> equations;
+        virtual void setVariables(Variables variables) = 0;
     };
 
     template<
         typename EquationType,
         template<typename... Args> class Container = std::vector>
-    class Equations : public BaseEquations<EquationType, Container>
+    class Equations
     {
-      public:
-        using iterator = typename BaseEquations<EquationType, std::vector>::iterator;
-        using const_iterator = typename BaseEquations<EquationType, std::vector>::const_iterator;
     };
 
     /// Specialization of the equations container with std::vector as container.
-    template<typename EquationType>
-    class Equations<EquationType, std::vector> : public BaseEquations<EquationType, std::vector>
+    template<typename ElementType>
+    class Equations<ElementType, std::vector> : public EquationsBase
     {
+      private:
+        using Container = std::vector<std::unique_ptr<ElementType>>;
+
       public:
-        using iterator = typename BaseEquations<EquationType, std::vector>::iterator;
-        using const_iterator = typename BaseEquations<EquationType, std::vector>::const_iterator;
-    };
+        using iterator = typename Container::iterator;
+        using const_iterator = typename Container::const_iterator;
 
-    template<typename EquationType>
-    class EquationsTrait<EquationType, std::vector>
-    {
-      public:
-        static void add(
-            std::vector<std::unique_ptr<EquationType>>& container,
-            std::unique_ptr<EquationType> equation)
+        size_t size() const
         {
-          container.push_back(std::move(equation));
+          return values.size();
         }
 
-        static size_t size(const std::vector<std::unique_ptr<EquationType>>& container)
+        std::unique_ptr<ElementType>& operator[](size_t index)
         {
-          return container.size();
+          assert(index < size());
+          return values[index];
         }
 
-        static std::unique_ptr<EquationType>& get(
-            std::vector<std::unique_ptr<EquationType>>& container, size_t index)
+        const std::unique_ptr<ElementType>& operator[](size_t index) const
         {
-          return container[index];
+          assert(index < size());
+          return values[index];
         }
 
-        static const std::unique_ptr<EquationType>& get(
-            const std::vector<std::unique_ptr<EquationType>>& container, size_t index)
+        void resize(size_t newSize)
         {
-          return container[index];
+          values.resize(newSize);
         }
+
+        void add(std::unique_ptr<ElementType> value)
+        {
+          values.push_back(std::move(value));
+        }
+
+        /// @name Iterators
+        /// {
+
+        iterator begin()
+        {
+          return values.begin();
+        }
+
+        const_iterator begin() const
+        {
+          return values.begin();
+        }
+
+        iterator end()
+        {
+          return values.end();
+        }
+
+        const_iterator end() const
+        {
+          return values.end();
+        }
+
+        /// }
+
+        void setVariables(Variables variables) override
+        {
+          for (std::unique_ptr<ElementType>& value : values) {
+            value->setVariables(variables);
+          }
+        }
+
+      private:
+        std::vector<std::unique_ptr<ElementType>> values;
     };
   }
 
@@ -283,11 +238,11 @@ namespace marco::codegen
   /// The container has value semantics. In fact, the implementation consists in a shared pointer and a copy
   /// of the container would refer to the same set of equations.
   /// The template parameter is used to control which type of equations it should contain.
-  template<typename EquationType = Equation>
+  template<typename ElementType = Equation>
   class Equations
   {
     private:
-      using Impl = impl::Equations<EquationType>;
+      using Impl = impl::Equations<ElementType>;
 
     public:
       using iterator = typename Impl::iterator;
@@ -300,24 +255,29 @@ namespace marco::codegen
       /// @name Forwarded methods
       /// {
 
-      void add(std::unique_ptr<EquationType> equation)
-      {
-        impl->add(std::move(equation));
-      }
-
       size_t size() const
       {
         return impl->size();
       }
 
-      std::unique_ptr<EquationType>& operator[](size_t index)
+      std::unique_ptr<ElementType>& operator[](size_t index)
       {
         return (*impl)[index];
       }
 
-      const std::unique_ptr<EquationType>& operator[](size_t index) const
+      const std::unique_ptr<ElementType>& operator[](size_t index) const
       {
         return (*impl)[index];
+      }
+
+      void add(std::unique_ptr<ElementType> equation)
+      {
+        impl->add(std::move(equation));
+      }
+
+      void resize(size_t newSize)
+      {
+        impl->resize(newSize);
       }
 
       iterator begin()
