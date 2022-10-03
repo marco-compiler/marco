@@ -27,10 +27,12 @@ mlir::Value SquareMatrix::operator()(size_t row, size_t col) const
 
 void SquareMatrix::print(llvm::raw_ostream &os)
 {
-  std::cerr << "Matrix size: " << getSize() << "\n";
+  os << "MATRIX SIZE: " << size << "\n";
   for (size_t i = 0; i < size; i++) {
+    os << "LINE #" << i << "\n";
     for (size_t j = 0; j < size; j++) {
       (*this)(i,j).print(os);
+      os << "\n";
     }
     os << "\n";
   }
@@ -237,9 +239,7 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
   if(res) {
     for(auto& equation : clones) {
       mlir::OpBuilder::InsertionGuard guard(builder);
-      builder.setInsertionPoint(
-          equation->getOperation().bodyBlock(),
-          equation->getOperation().bodyBlock()->begin());
+      builder.setInsertionPoint(equation->getOperation().bodyBlock()->getTerminator());
       /// Allocate a new coefficient matrix and constant vector to contain the
       /// cloned ones.
       auto cloneStorage = std::vector<mlir::Value>(storageSize);
@@ -293,8 +293,13 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
       /// as the model equations.
 
       equation->setMatchSolution(builder, div);
-      model.setEquations(clones);
     }
+    LLVM_DEBUG({
+        llvm::dbgs() << "MODEL: \n";
+        model.getOperation()->dump();
+    });
+
+    model.setEquations(clones);
   }
 
   return res;
