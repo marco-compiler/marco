@@ -1627,9 +1627,7 @@ namespace marco::codegen
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     /// Insert the operations at the beginning of the equation operation.
-    builder.setInsertionPoint(
-        getOperation().bodyBlock(),
-        getOperation().bodyBlock()->begin());
+    builder.setInsertionPoint(getTerminator());
 
     /// Convert the equation to sum of values, then collect such values in an
     /// array.
