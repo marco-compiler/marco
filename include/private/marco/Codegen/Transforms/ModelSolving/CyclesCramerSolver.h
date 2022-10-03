@@ -18,7 +18,7 @@ namespace marco::codegen {
   {
   private:
     size_t size;
-    std::vector<mlir::Value>& storage;
+    std::vector<mlir::Attribute>& storage;
 
   public:
 
@@ -27,17 +27,17 @@ namespace marco::codegen {
     /// Should be of size n*n.
     /// \param size Matrix size n.
     SquareMatrix(
-      std::vector<mlir::Value>& storage,
+      std::vector<mlir::Attribute>& storage,
       size_t size);
 
     /// Returns the matrix size n, where the matrix storage is n*n
     size_t getSize() const;
 
     /// Modify matrix elements with parentheses operator
-    mlir::Value& operator()(size_t row, size_t col);
+    mlir::Attribute& operator()(size_t row, size_t col);
 
     /// Access matrix elements with parentheses operator
-    mlir::Value operator()(size_t row, size_t col) const;
+    mlir::Attribute operator()(size_t row, size_t col) const;
 
     /// Print the matrix contents to the specified stream.
     /// \param stream Stream to dump the matrix on.
@@ -66,11 +66,11 @@ namespace marco::codegen {
     SquareMatrix substituteColumn(
         SquareMatrix out,
         size_t colNumber,
-        std::vector<mlir::Value>& col);
+        std::vector<mlir::Attribute>& col);
 
     /// Compute the determinant of the matrix
     /// \return The determinant of the matrix
-    mlir::Value det(mlir::OpBuilder& builder);
+    mlir::Attribute det(mlir::OpBuilder& builder);
   };
 
   class CramerSolver
@@ -96,26 +96,9 @@ namespace marco::codegen {
     /// \return true if successful, false otherwise.
     static bool getModelMatrixAndVector(
         SquareMatrix matrix,
-        std::vector<mlir::Value>& constantVector,
+        std::vector<mlir::Attribute>& constantVector,
         Equations<MatchedEquation> equations,
         mlir::OpBuilder& builder);
-
-    /// Given a matrix as input clone its values and fill with them the output one.
-    /// \param builder The builder.
-    /// \param out The output matrix that will contain the cloned values.
-    /// \param in The input matrix, to be cloned.
-    static void clone(
-        mlir::OpBuilder& builder,
-        SquareMatrix out, SquareMatrix in);
-
-    /// Given a value clone its defining operation and the ones on which it depends.
-    /// Requires the insertion point to be set to a meaningful location.
-    /// \param builder The builder.
-    /// \param value The input value to be cloned.
-    /// \return The cloned value.
-    static mlir::Value cloneValueAndDependencies(
-        mlir::OpBuilder& builder,
-        mlir::Value value);
 
     /// Given a set of variables compute their flat sizes.
     /// \param variableSizes Array to be filled with the size of each variable.

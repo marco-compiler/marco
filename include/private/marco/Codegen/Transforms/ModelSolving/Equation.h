@@ -106,8 +106,8 @@ namespace marco::codegen
       /// \return Whether the values were computed successfully or not.
       virtual mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<mlir::Value>& coefficients,
-          mlir::Value& constantTerm,
+          std::vector<mlir::Attribute>& coefficients,
+          mlir::Attribute& constantTerm,
           const modeling::IndexSet& equationIndices) const = 0;
 
       /// Starting from a previously computed array of coefficients and a constant
@@ -123,8 +123,8 @@ namespace marco::codegen
       /// \return Whether the coefficient extraction is successful or not.
       virtual mlir::LogicalResult getSideCoefficients(
           mlir::OpBuilder& builder,
-          std::vector<mlir::Value>& coefficients,
-          mlir::Value& constantTerm,
+          std::vector<mlir::Attribute>& coefficients,
+          mlir::Attribute& constantTerm,
           std::vector<mlir::Value> values,
           EquationPath::EquationSide side,
           const modeling::IndexSet& equationIndices) const = 0;
@@ -151,26 +151,16 @@ namespace marco::codegen
           mlir::Value lhs,
           mlir::Value rhs) const = 0;
 
-      /// Returns the flattened size of the system matrix until the specified
-      /// variable, summing all the flat sizes of the variables preceding it.
-      /// \param index The index of the variable to stop the sum
-      /// \return The flattened size of the system matrix until the variable
-      /// corresponding to the specified index.
-      virtual size_t getSizeUntilVariable(
-          size_t index) const = 0;
-
       /// Get the flattened access to the variable. This is used to get a unique
       /// identifier for an access to a non scalar variable. The rangeSet contains
       /// the information about the structure of the variable.
       /// \param access The access to the variable.
       /// \param equationIndices The indices of the equation.
-      /// \param variableIndices This value contains the information about the structure
       ///                 of the multidimensional variable.
       /// \return The unique identifier for the input access.
       virtual size_t getFlatAccessIndex(
           const Access& access,
-          const ::marco::modeling::IndexSet& equationIndices,
-          const ::marco::modeling::IndexSet& variableIndices) const = 0;
+          const ::marco::modeling::IndexSet& equationIndices) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;
