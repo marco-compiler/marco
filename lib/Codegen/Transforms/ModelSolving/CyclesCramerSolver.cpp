@@ -5,7 +5,7 @@ using namespace ::marco::codegen;
 #define DEBUG_TYPE "CyclesSolving"
 
 SquareMatrix::SquareMatrix(
-    std::vector<mlir::Value>& storage,
+    std::vector<mlir::Attribute>& storage,
     size_t size) : size(size), storage(storage)
 {
 }
@@ -15,12 +15,12 @@ size_t SquareMatrix::getSize() const
   return size;
 }
 
-mlir::Value& SquareMatrix::operator()(size_t row, size_t col)
+mlir::Attribute& SquareMatrix::operator()(size_t row, size_t col)
 {
   return storage[row*size + col];
 }
 
-mlir::Value SquareMatrix::operator()(size_t row, size_t col) const
+mlir::Attribute SquareMatrix::operator()(size_t row, size_t col) const
 {
   return storage[row*size + col];
 }
@@ -47,8 +47,7 @@ void SquareMatrix::dump()
 
 SquareMatrix SquareMatrix::subMatrix(SquareMatrix out, size_t row, size_t col)
 {
-  for (size_t i = 0; i < size; i++)
-  {
+  for (size_t i = 0; i < size; i++) {
     if(i != row) {
       for (size_t j = 0; j < size; j++) {
         if(j != col) {
@@ -64,7 +63,7 @@ SquareMatrix SquareMatrix::subMatrix(SquareMatrix out, size_t row, size_t col)
 SquareMatrix SquareMatrix::substituteColumn(
     SquareMatrix out,
     size_t colNumber,
-    std::vector<mlir::Value>& col)
+    std::vector<mlir::Attribute>& col)
 {
   assert(colNumber < size && out.getSize() == size);
   for (size_t i = 0; i < size; i++) {
@@ -78,12 +77,12 @@ SquareMatrix SquareMatrix::substituteColumn(
   return out;
 }
 
-mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
+mlir::Attribute SquareMatrix::det(mlir::OpBuilder& builder)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
   SquareMatrix matrix = (*this);
-  mlir::Value determinant;
+  mlir::Attribute determinant;
   mlir::Location loc = builder.getUnknownLoc();
 
 
@@ -95,10 +94,11 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
     /// The matrix is 2x2, the determinant is ad - bc where the matrix is:
     //    a b
     //    c d
-    auto a = matrix(0,0);
-    auto b = matrix(0,1);
-    auto c = matrix(1,0);
-    auto d = matrix(1,1);
+
+    auto a = builder.create<ConstantOp>(loc, matrix(0,0));
+    auto b = builder.create<ConstantOp>(loc, matrix(0,1));
+    auto c = builder.create<ConstantOp>(loc, matrix(1,0));
+    auto d = builder.create<ConstantOp>(loc, matrix(1,1));
 
     auto ad = builder.createOrFold<MulOp>(
         loc,
@@ -107,9 +107,11 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
         loc,
         getMostGenericType(b.getType(), c.getType()), b, c);
 
-    determinant = builder.createOrFold<SubOp>(
+    auto subOp = builder.createOrFold<SubOp>(
         loc,
         getMostGenericType(ad.getType(), bc.getType()), ad, bc);
+
+    determinant = mlir::dyn_cast<ConstantOp>(subOp.getDefiningOp()).getValue();
   }
   else if (size > 2) {
     /// The matrix is 3x3 or greater. Compute the determinant by taking the
@@ -123,7 +125,7 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
     size_t subMatrixSize = size - 1;
 
     /// Create the matrix that will hold the n submatrices.
-    auto subMatrixStorage = std::vector<mlir::Value>(
+    auto subMatrixStorage = std::vector<mlir::Attribute>(
         subMatrixSize*subMatrixSize);
     SquareMatrix out = SquareMatrix(
         subMatrixStorage, subMatrixSize);
@@ -131,14 +133,13 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
     /// Initialize the determinant to zero.
     auto zeroAttr = RealAttr::get(
         builder.getContext(), 0);
-    determinant = builder.create<ConstantOp>(
+    mlir::Value tot = builder.create<ConstantOp>(
         loc, zeroAttr);
 
     /// For each scalar element of the first row of the matrix:
     for (size_t i = 0; i < size; i++) {
-      auto scalarDet = matrix(0,i);
-
-      auto matrixDet = subMatrix(out, 0, i).det(builder);
+      auto scalarDet = builder.create<ConstantOp>(loc, matrix(0,i));
+      auto matrixDet = builder.create<ConstantOp>(loc, subMatrix(out, 0, i).det(builder));
 
       /// Multiply the scalar element with the submatrix determinant.
       mlir::Value product = builder.createOrFold<MulOp>(
@@ -153,13 +154,14 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
             loc, product.getType(), product);
 
       /// Add the result to the rest of the determinant.
-      determinant = builder.createOrFold<AddOp>(
+      tot = builder.createOrFold<AddOp>(
           loc,
-          getMostGenericType(determinant.getType(),
+          getMostGenericType(tot.getType(),
                              product.getType()),
-          determinant, product);
+          tot, product);
 
       sign = -sign;
+      determinant = mlir::dyn_cast<ConstantOp>(tot.getDefiningOp()).getValue();
     }
   }
 
@@ -213,9 +215,9 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
   /// Create the matrix to contain the coefficients of the system's
   /// equations and the vector to contain the constant terms.
   auto storageSize = numberOfScalarEquations*numberOfScalarEquations;
-  auto storage = std::vector<mlir::Value>(storageSize);
+  auto storage = std::vector<mlir::Attribute>(storageSize);
   auto matrix = SquareMatrix(storage, numberOfScalarEquations);
-  auto constantVector = std::vector<mlir::Value>(numberOfScalarEquations);
+  auto constantVector = std::vector<mlir::Attribute>(numberOfScalarEquations);
 
   LLVM_DEBUG({
     llvm::dbgs() << "Populating the model matrix and constant vector.\n";
@@ -231,54 +233,36 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
     for(auto el : constantVector)
       el.dump();
 
-    llvm::dbgs() << "MODEL OPERATION:\n";
-    for (const auto& equation : model.getEquations())
-      equation->dumpIR();
+    model.getOperation().dump();
   });
 
   if(res) {
     for(auto& equation : clones) {
-      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::OpBuilder::InsertionGuard equationGuard(builder);
       builder.setInsertionPoint(equation->getOperation().bodyBlock()->getTerminator());
-      /// Allocate a new coefficient matrix and constant vector to contain the
-      /// cloned ones.
-      auto cloneStorage = std::vector<mlir::Value>(storageSize);
-      auto clonedMatrix = SquareMatrix(cloneStorage, numberOfScalarEquations);
-      auto clonedVector = std::vector<mlir::Value>(numberOfScalarEquations);
-
-      clone(builder, clonedMatrix, matrix);
 
       /// Create a temporary matrix to contain the matrices we are going to
       /// derive from the original one, by substituting the constant term
       /// vector to each of its columns.
-      auto tempStorage = std::vector<mlir::Value>();
-      tempStorage.resize(
-          numberOfScalarEquations*numberOfScalarEquations);
+      auto tempStorage = std::vector<mlir::Attribute>(numberOfScalarEquations*numberOfScalarEquations);
       auto temp = SquareMatrix(tempStorage, numberOfScalarEquations);
 
       /// Compute the determinant of the system matrix.
-      mlir::Value determinant = clonedMatrix.det(builder);
+      mlir::Attribute determinant = matrix.det(builder);
 
-      /// Get path, variable and argument number.
+      /// Get path, variable and argument.
       auto access = equation->getWrite();
       auto& path = access.getPath();
-      auto variable = access.getVariable();
-      auto argument =
-          variable->getValue().cast<mlir::BlockArgument>();
 
       /// Get flat access index, unique identifier of a scalar (ized) variable.
-      auto offset = equation->getFlatAccessIndex(
-          access,
-          equation->getIterationRanges(),
-          variable->getIndices());
-
-      auto base = equation->getSizeUntilVariable(argument.getArgNumber());
+      auto index = equation->getFlatAccessIndex(
+          access,equation->getIterationRanges());
 
       /// Compute the determinant of each one of the matrices obtained by
       /// substituting the constant term vector to each one of the matrix
       /// columns, and divide them by the determinant of the system matrix.
-      clonedMatrix.substituteColumn(
-          temp, base + offset, constantVector);
+      matrix.substituteColumn(
+          temp, index, constantVector);
 
       auto tempDet = temp.det(builder);
 
@@ -286,7 +270,8 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
       auto div = builder.createOrFold<DivOp>(
           loc,
           RealAttr::get(builder.getContext(), 0).getType(),
-          tempDet, determinant);
+          builder.create<ConstantOp>(loc, tempDet),
+          builder.create<ConstantOp>(loc, determinant));
 
       /// Set the results computed as the right side of the cloned equations,
       /// and the matched variables as the left side. Set the cloned equations
@@ -307,7 +292,7 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
 
 bool CramerSolver::getModelMatrixAndVector(
     SquareMatrix matrix,
-    std::vector<mlir::Value>& constantVector,
+    std::vector<mlir::Attribute>& constantVector,
     Equations<MatchedEquation> equations,
     mlir::OpBuilder& builder)
 {
@@ -321,19 +306,13 @@ bool CramerSolver::getModelMatrixAndVector(
   /// constant term vector.
   for(size_t i = 0; i < equations.size(); ++i) {
     auto equation = equations[i].get();
-    auto coefficients = std::vector<mlir::Value>();
-    mlir::Value constantTerm;
+    auto coefficients = std::vector<mlir::Attribute>();
+    mlir::Attribute constantTerm;
 
     coefficients.resize(equations.size());
 
-    std::cerr << "BEFORE INIT:\n";
-    equation->getOperation()->dump();
-
     auto res = equation->getCoefficients(
         builder, coefficients, constantTerm);
-
-    std::cerr << "AFTER INIT:\n";
-    equation->getOperation()->dump();
 
     if(mlir::failed(res)) {
       return false;
@@ -347,54 +326,4 @@ bool CramerSolver::getModelMatrixAndVector(
   }
 
   return true;
-}
-
-mlir::Value CramerSolver::cloneValueAndDependencies(
-    mlir::OpBuilder& builder,
-    mlir::Value value)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-
-  std::stack<mlir::Operation*> visitStack;
-  llvm::SmallVector<mlir::Operation*, 3> ops;
-
-  /// Push the defining operation of the input value on the stack.
-  if (auto definingOp = value.getDefiningOp()) {
-    visitStack.push(definingOp);
-  }
-
-  /// Until the stack is empty pop it, add the operand to the list, get its
-  /// operands (if any) and push them on the stack.
-  while (!visitStack.empty()) {
-    auto op = visitStack.top();
-    visitStack.pop();
-
-    ops.push_back(op);
-
-    for (const auto& operand : op->getOperands()) {
-      if (auto definingOp = operand.getDefiningOp()) {
-        visitStack.push(definingOp);
-      }
-    }
-  }
-
-  size_t i;
-  for (i = 0; i < ops.size(); ++i)
-    builder.clone(*ops[i]);
-
-  auto op = ops[i-1];
-  auto results = op->getResults();
-  assert(results.size() == 1);
-  mlir::Value result = results[0];
-  return result;
-}
-
-void CramerSolver::clone(mlir::OpBuilder& builder, SquareMatrix out, SquareMatrix in)
-{
-  auto size = in.getSize();
-  for (size_t i = 0; i < size; ++i) {
-    for (int j = 0; j < size; ++j) {
-      out(i,j) = cloneValueAndDependencies(builder, in(i,j));
-    }
-  }
 }

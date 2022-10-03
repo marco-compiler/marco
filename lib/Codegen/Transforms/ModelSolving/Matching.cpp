@@ -254,8 +254,8 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Value>& vector,
-      mlir::Value& constantTerm,
+      std::vector<mlir::Attribute>& vector,
+      mlir::Attribute& constantTerm,
       const modeling::IndexSet& equationIndices) const
   {
     return equation->getCoefficients(builder, vector, constantTerm, equationIndices);
@@ -263,16 +263,16 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Value>& vector,
-      mlir::Value& constantTerm) const
+      std::vector<mlir::Attribute>& vector,
+      mlir::Attribute& constantTerm) const
   {
     return equation->getCoefficients(builder, vector, constantTerm, matchedIndexes);
   }
 
   mlir::LogicalResult MatchedEquation::getSideCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Value>& coefficients,
-      mlir::Value& constantTerm,
+      std::vector<mlir::Attribute>& coefficients,
+      mlir::Attribute& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side,
       const modeling::IndexSet& equationIndices) const
@@ -296,18 +296,11 @@ namespace marco::codegen
     return equation->replaceSides(builder, lhs, rhs);
   }
 
-  size_t MatchedEquation::getSizeUntilVariable(
-      size_t index) const
-  {
-    return equation->getSizeUntilVariable(index);
-  }
-
   size_t MatchedEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& equationIndices,
-      const ::marco::modeling::IndexSet& variableIndices) const
+      const ::marco::modeling::IndexSet& equationIndices) const
   {
-    return equation->getFlatAccessIndex(access, equationIndices, variableIndices);
+    return equation->getFlatAccessIndex(access, equationIndices);
   }
 
   void MatchedEquation::setPath(EquationPath path)
