@@ -1469,6 +1469,12 @@ namespace marco::codegen
     auto mappedIndices = *accessFunction.map(equationIndices).begin();
     auto variableDimensions = *variableIndices.rangesBegin();
     auto rank = variableDimensions.rank();
+    auto index = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+
+    size_t base = 0;
+    for (size_t i = 0; i < index; ++i) {
+      base += (*variables[i]->getIndices().rangesBegin()).flatSize();
+    }
 
     assert(accessFunction.size() == rank);
 
@@ -1477,14 +1483,14 @@ namespace marco::codegen
     // Variable dimensions: [5,3,8]
     // Mapped indices: [2,1,4]
     // Index: 2*3*8 + 1*8 + 4 = (2*3 + 1)*8 + 4
-    size_t tot = mappedIndices[0];
+    size_t offset = mappedIndices[0];
     for(size_t i = 1; i < rank; ++i)
     {
-      tot *= variableDimensions[i].size();
-      tot += mappedIndices[i];
+      offset *= variableDimensions[i].size();
+      offset += mappedIndices[i];
     }
 
-    return tot;
+    return base + offset;
   }
 
   mlir::LogicalResult BaseEquation::getSideCoefficients(
@@ -1562,9 +1568,7 @@ namespace marco::codegen
 
         /// Compute the offset to access the variable. This may be different
         /// from zero in array variables.
-        auto base = getSizeUntilVariable(argument.getArgNumber());
-        auto offset =
-            getFlatAccessIndex(access, equationIndices, variableIndices);
+        auto index = getFlatAccessIndex(access, equationIndices, variableIndices);
 
         //TODO take into account the width of each variable flattened
 
@@ -1572,7 +1576,7 @@ namespace marco::codegen
         /// of the variables.
         /// This is done because this function is called once for each of the
         /// two sides of the equation.
-        mlir::Value& lhs = coefficients[base + offset];
+        mlir::Value& lhs = coefficients[index];
 
         /// Set the right hand side to the multiplying factor of the variable.
         auto rhs = coefficient.second;

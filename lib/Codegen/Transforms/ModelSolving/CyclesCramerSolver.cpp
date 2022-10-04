@@ -272,13 +272,11 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
           equation->getIterationRanges(),
           variable->getIndices());
 
-      auto base = equation->getSizeUntilVariable(argument.getArgNumber());
-
       /// Compute the determinant of each one of the matrices obtained by
       /// substituting the constant term vector to each one of the matrix
       /// columns, and divide them by the determinant of the system matrix.
       clonedMatrix.substituteColumn(
-          temp, base + offset, clonedVector);
+          temp, index, clonedVector);
 
       auto tempDet = temp.det(builder);
 
