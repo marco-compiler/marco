@@ -231,6 +231,11 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
 
   /// Compute the mapping between the flat index and the local index.
   /// The map is sorted by key, in this case the flat index.
+  // e.g.:
+  // index flat    flat index
+  // 0     1       0    1
+  // 1     0    -> 1    0
+  // 2     2       2    2
   std::vector<size_t> flatSizes;
   std::map<size_t, size_t> flatMap;
   for (size_t i = 0; i < clones.size(); ++i) {
@@ -241,13 +246,17 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
 
   /// Compute the mapping between the local index and the continuous index.
   /// The continuous index is sorted as the flat index but has no jumps.
+  // e.g.:
+  // flat  index   index continuous
+  // 0     1       0     1
+  // 1     0    -> 1     0
+  // 2     2       2     2
   std::map<size_t, size_t> continuousMap;
   size_t counter = 0;
   for (auto it = flatMap.begin(); it != flatMap.end(); ++it) {
     continuousMap.emplace((*it).second, counter);
     ++counter;
   }
-
 
   if(res) {
     for(size_t i = 0; i < clones.size(); ++i) {
@@ -283,9 +292,6 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
       /// Get path, variable and argument number.
       auto access = equation->getWrite();
       auto& path = access.getPath();
-
-      /// Get flat access index, unique identifier of a scalar (ized) variable.
-      auto index = flatMap[equation->getFlatAccessIndex()];
 
       /// Compute the determinant of each one of the matrices obtained by
       /// substituting the constant term vector to each one of the matrix

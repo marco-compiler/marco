@@ -129,21 +129,6 @@ namespace marco::codegen {
         mlir::Value value,
         mlir::BlockAndValueMapping& mapping);
 
-    /// Given a set of variables compute their flat sizes.
-    /// \param variableSizes Array to be filled with the size of each variable.
-    /// \param variables Set of variables.
-    static void getVariablesFlatSize(
-        std::vector<size_t>& variableSizes,
-        Variables variables);
-
-    /// Get the value of the summed variable sizes until before the specified index.
-    /// \param index Index of the variable to stop summing sizes.
-    /// \param variableSizes Array containing the size of each variable.
-    /// \return Sum of sizes before specified variable index.
-    static size_t getSizeUntilVariable(
-        size_t index,
-        std::vector<size_t>& variableSizes);
-
     Equations<MatchedEquation> getSolution() const;
   };
 }
