@@ -151,14 +151,6 @@ namespace marco::codegen
           mlir::Value lhs,
           mlir::Value rhs) const = 0;
 
-      /// Returns the flattened size of the system matrix until the specified
-      /// variable, summing all the flat sizes of the variables preceding it.
-      /// \param index The index of the variable to stop the sum
-      /// \return The flattened size of the system matrix until the variable
-      /// corresponding to the specified index.
-      virtual size_t getSizeUntilVariable(
-          size_t index) const = 0;
-
       /// Get the flattened access to the variable. This is used to get a unique
       /// identifier for an access to a non scalar variable. The rangeSet contains
       /// the information about the structure of the variable.
@@ -169,8 +161,7 @@ namespace marco::codegen
       /// \return The unique identifier for the input access.
       virtual size_t getFlatAccessIndex(
           const Access& access,
-          const ::marco::modeling::IndexSet& equationIndices,
-          const ::marco::modeling::IndexSet& variableIndices) const = 0;
+          const ::marco::modeling::IndexSet& equationIndices) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;

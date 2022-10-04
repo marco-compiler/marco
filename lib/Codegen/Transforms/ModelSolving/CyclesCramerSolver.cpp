@@ -229,8 +229,29 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
       el.dump();
   });
 
+  /// Compute the mapping between the flat index and the local index.
+  /// The map is sorted by key, in this case the flat index.
+  std::vector<size_t> flatSizes;
+  std::map<size_t, size_t> flatMap;
+  for (size_t i = 0; i < clones.size(); ++i) {
+    auto index = clones[i]->getFlatAccessIndex();
+    flatSizes.push_back(index);
+    flatMap.emplace(index, i);
+  }
+
+  /// Compute the mapping between the local index and the continuous index.
+  /// The continuous index is sorted as the flat index but has no jumps.
+  std::map<size_t, size_t> continuousMap;
+  size_t counter = 0;
+  for (auto it = flatMap.begin(); it != flatMap.end(); ++it) {
+    continuousMap.emplace((*it).second, counter);
+    ++counter;
+  }
+
+
   if(res) {
-    for(auto& equation : clones) {
+    for(size_t i = 0; i < clones.size(); ++i) {
+      auto& equation = clones[i];
       mlir::OpBuilder::InsertionGuard equationGuard(builder);
       builder.setInsertionPoint(equation->getOperation().bodyBlock()->getTerminator());
       /// Allocate a new coefficient matrix and constant vector to contain the
@@ -262,21 +283,15 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
       /// Get path, variable and argument number.
       auto access = equation->getWrite();
       auto& path = access.getPath();
-      auto variable = access.getVariable();
-      auto argument =
-          variable->getValue().cast<mlir::BlockArgument>();
 
       /// Get flat access index, unique identifier of a scalar (ized) variable.
-      auto offset = equation->getFlatAccessIndex(
-          access,
-          equation->getIterationRanges(),
-          variable->getIndices());
+      auto index = flatMap[equation->getFlatAccessIndex()];
 
       /// Compute the determinant of each one of the matrices obtained by
       /// substituting the constant term vector to each one of the matrix
       /// columns, and divide them by the determinant of the system matrix.
       clonedMatrix.substituteColumn(
-          temp, index, clonedVector);
+          temp, continuousMap[i], clonedVector);
 
       auto tempDet = temp.det(builder);
 
@@ -391,7 +406,7 @@ void CramerSolver::cloneCoefficientMatrix(
 {
   auto size = in.getSize();
   for (size_t i = 0; i < size; ++i) {
-    for (int j = 0; j < size; ++j) {
+    for (size_t j = 0; j < size; ++j) {
       out(i,j) = cloneValueAndDependencies(builder, in(i,j), mapping);
     }
   }
@@ -403,8 +418,7 @@ void CramerSolver::cloneConstantVector(
     std::vector<mlir::Value>& in,
     mlir::BlockAndValueMapping& mapping)
 {
-  auto size = in.size();
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i < in.size(); ++i) {
       out[i] = cloneValueAndDependencies(builder, in[i], mapping);
   }
 }

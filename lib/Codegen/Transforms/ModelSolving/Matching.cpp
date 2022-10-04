@@ -296,18 +296,16 @@ namespace marco::codegen
     return equation->replaceSides(builder, lhs, rhs);
   }
 
-  size_t MatchedEquation::getSizeUntilVariable(
-      size_t index) const
-  {
-    return equation->getSizeUntilVariable(index);
-  }
-
   size_t MatchedEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& equationIndices,
-      const ::marco::modeling::IndexSet& variableIndices) const
+      const ::marco::modeling::IndexSet& equationIndices) const
   {
-    return equation->getFlatAccessIndex(access, equationIndices, variableIndices);
+    return equation->getFlatAccessIndex(access, equationIndices);
+  }
+
+  size_t MatchedEquation::getFlatAccessIndex() const
+  {
+    return equation->getFlatAccessIndex(getWrite(), matchedIndexes);
   }
 
   void MatchedEquation::setPath(EquationPath path)

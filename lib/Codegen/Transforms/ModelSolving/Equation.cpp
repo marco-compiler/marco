@@ -1439,37 +1439,18 @@ namespace marco::codegen
     return mlir::failure();
   }
 
-  size_t BaseEquation::getSizeUntilVariable(
-      size_t index) const
-  {
-    /// Populate an array containing the flat size of each possibly non scalar
-    /// variable. This allows us to identify uniquely each equation and its
-    /// matched variable.
-    std::vector<size_t> variableSizes(variables.size());
-    for (int i = 0; i < variables.size(); ++i) {
-      auto indices = *variables[i]->getIndices().rangesBegin();
-      variableSizes[i] = indices.flatSize();
-    }
-
-    assert(index <= variableSizes.size());
-    size_t res = 0;
-    for (size_t i = 0; i < index; ++i) {
-      res += variableSizes[i];
-    }
-    return res;
-  }
-
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& equationIndices,
-      const ::marco::modeling::IndexSet& variableIndices) const
+      const ::marco::modeling::IndexSet& equationIndices) const
   {
     /// Since the variables have only one multidimensional range, take it.
     auto accessFunction = access.getAccessFunction();
     auto mappedIndices = *accessFunction.map(equationIndices).begin();
+    auto variable = access.getVariable();
+    auto variableIndices = variable->getIndices();
     auto variableDimensions = *variableIndices.rangesBegin();
     auto rank = variableDimensions.rank();
-    auto index = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+    auto index = variable->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
     size_t base = 0;
     for (size_t i = 0; i < index; ++i) {
@@ -1568,7 +1549,7 @@ namespace marco::codegen
 
         /// Compute the offset to access the variable. This may be different
         /// from zero in array variables.
-        auto index = getFlatAccessIndex(access, equationIndices, variableIndices);
+        auto index = getFlatAccessIndex(access, equationIndices);
 
         //TODO take into account the width of each variable flattened
 
