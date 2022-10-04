@@ -230,15 +230,11 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
     llvm::dbgs() << "CONSTANT VECTOR: \n";
     for(auto el : constantVector)
       el.dump();
-
-    llvm::dbgs() << "MODEL OPERATION:\n";
-    for (const auto& equation : model.getEquations())
-      equation->dumpIR();
   });
 
   if(res) {
     for(auto& equation : clones) {
-      mlir::OpBuilder::InsertionGuard guard(builder);
+      mlir::OpBuilder::InsertionGuard equationGuard(builder);
       builder.setInsertionPoint(equation->getOperation().bodyBlock()->getTerminator());
       /// Allocate a new coefficient matrix and constant vector to contain the
       /// cloned ones.
@@ -246,7 +242,14 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
       auto clonedMatrix = SquareMatrix(cloneStorage, numberOfScalarEquations);
       auto clonedVector = std::vector<mlir::Value>(numberOfScalarEquations);
 
-      clone(builder, clonedMatrix, matrix);
+      mlir::BlockAndValueMapping mapping;
+      for (const auto& variable : equation->getVariables()) {
+        auto variableValue = variable->getValue();
+        mapping.map(variableValue, variableValue);
+      }
+
+      cloneCoefficientMatrix(builder, clonedMatrix, matrix, mapping);
+      cloneConstantVector(builder, clonedVector, constantVector, mapping);
 
       /// Create a temporary matrix to contain the matrices we are going to
       /// derive from the original one, by substituting the constant term
@@ -278,7 +281,7 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
       /// substituting the constant term vector to each one of the matrix
       /// columns, and divide them by the determinant of the system matrix.
       clonedMatrix.substituteColumn(
-          temp, base + offset, constantVector);
+          temp, base + offset, clonedVector);
 
       auto tempDet = temp.det(builder);
 
@@ -294,10 +297,6 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
 
       equation->setMatchSolution(builder, div);
     }
-    LLVM_DEBUG({
-        llvm::dbgs() << "MODEL: \n";
-        model.getOperation()->dump();
-    });
 
     model.setEquations(clones);
   }
@@ -326,14 +325,8 @@ bool CramerSolver::getModelMatrixAndVector(
 
     coefficients.resize(equations.size());
 
-    std::cerr << "BEFORE INIT:\n";
-    equation->getOperation()->dump();
-
     auto res = equation->getCoefficients(
         builder, coefficients, constantTerm);
-
-    std::cerr << "AFTER INIT:\n";
-    equation->getOperation()->dump();
 
     if(mlir::failed(res)) {
       return false;
@@ -351,50 +344,73 @@ bool CramerSolver::getModelMatrixAndVector(
 
 mlir::Value CramerSolver::cloneValueAndDependencies(
     mlir::OpBuilder& builder,
-    mlir::Value value)
+    mlir::Value value,
+    mlir::BlockAndValueMapping& mapping)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
-  std::stack<mlir::Operation*> visitStack;
-  llvm::SmallVector<mlir::Operation*, 3> ops;
+  std::stack<mlir::Operation*> cloneStack;
+  std::vector<mlir::Operation*> toBeCloned;
 
   /// Push the defining operation of the input value on the stack.
-  if (auto definingOp = value.getDefiningOp()) {
-    visitStack.push(definingOp);
+  if (auto op = value.getDefiningOp(); op != nullptr) {
+    cloneStack.push(op);
   }
 
   /// Until the stack is empty pop it, add the operand to the list, get its
   /// operands (if any) and push them on the stack.
-  while (!visitStack.empty()) {
-    auto op = visitStack.top();
-    visitStack.pop();
+  while (!cloneStack.empty()) {
+    auto op = cloneStack.top();
+    cloneStack.pop();
 
-    ops.push_back(op);
+    toBeCloned.push_back(op);
 
     for (const auto& operand : op->getOperands()) {
-      if (auto definingOp = operand.getDefiningOp()) {
-        visitStack.push(definingOp);
+      if (auto operandOp = operand.getDefiningOp(); operandOp != nullptr) {
+        cloneStack.push(operandOp);
       }
     }
   }
 
-  size_t i;
-  for (i = 0; i < ops.size(); ++i)
-    builder.clone(*ops[i]);
+  // Clone the operations
+  mlir::Operation* clonedOp = nullptr;
+  for (auto it = toBeCloned.rbegin(); it != toBeCloned.rend(); ++it) {
+    mlir::Operation* op = *it;
+    op->dump();
+    clonedOp = builder.clone(*op, mapping);
+    clonedOp->dump();
+  }
 
-  auto op = ops[i-1];
+  assert(clonedOp != nullptr);
+  auto op = clonedOp;
   auto results = op->getResults();
   assert(results.size() == 1);
   mlir::Value result = results[0];
   return result;
 }
 
-void CramerSolver::clone(mlir::OpBuilder& builder, SquareMatrix out, SquareMatrix in)
+void CramerSolver::cloneCoefficientMatrix(
+    mlir::OpBuilder& builder,
+    SquareMatrix out,
+    SquareMatrix in,
+    mlir::BlockAndValueMapping& mapping)
 {
   auto size = in.getSize();
   for (size_t i = 0; i < size; ++i) {
     for (int j = 0; j < size; ++j) {
-      out(i,j) = cloneValueAndDependencies(builder, in(i,j));
+      out(i,j) = cloneValueAndDependencies(builder, in(i,j), mapping);
     }
+  }
+}
+
+void CramerSolver::cloneConstantVector(
+    mlir::OpBuilder& builder,
+    std::vector<mlir::Value>& out,
+    std::vector<mlir::Value>& in,
+    mlir::BlockAndValueMapping& mapping)
+{
+  auto size = in.size();
+  for (size_t i = 0; i < size; ++i) {
+      out[i] = cloneValueAndDependencies(builder, in[i], mapping);
   }
 }

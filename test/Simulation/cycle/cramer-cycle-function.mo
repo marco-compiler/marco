@@ -11,7 +11,7 @@ model Model
     Real y;
     Real z;
 equation
-    x + y/cos(0) + z = 1/cos(0);
-    x + y/cos(0) - z = 2/cos(0);
-    x - y/cos(0) + z = 3/cos(0);
+    x + y + z = 1;
+    x + y - z = 2;
+    x - y + z = 3;
 end Model;

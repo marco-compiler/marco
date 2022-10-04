@@ -10,55 +10,40 @@ modelica.model @Test attributes {derivatives = []} {
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.real>, %arg1: !modelica.array<!modelica.real>, %arg2: !modelica.array<!modelica.real>):
   modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index]}]} {
-    %0 = modelica.constant #modelica.int<0> : !modelica.int
-    %1 = modelica.cos %0 : !modelica.int -> !modelica.real
-    %2 = modelica.load %arg1[] : !modelica.array<!modelica.real>
-    %3 = modelica.div %2, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-    %4 = modelica.load %arg0[] : !modelica.array<!modelica.real>
-    %5 = modelica.add %4, %3 : (!modelica.real, !modelica.real) -> !modelica.real
-    %6 = modelica.load %arg2[] : !modelica.array<!modelica.real>
-    %7 = modelica.add %5, %6 : (!modelica.real, !modelica.real) -> !modelica.real
-    %8 = modelica.constant #modelica.int<1> : !modelica.int
-    %9 = modelica.constant #modelica.int<0> : !modelica.int
-    %10 = modelica.cos %9 : !modelica.int -> !modelica.real
-    %11 = modelica.div %8, %10 : (!modelica.int, !modelica.real) -> !modelica.real
-    %12 = modelica.equation_side %7 : tuple<!modelica.real>
-    %13 = modelica.equation_side %11 : tuple<!modelica.real>
-    modelica.equation_sides %12, %13 : tuple<!modelica.real>, tuple<!modelica.real>
+    %0 = modelica.load %arg1[] : !modelica.array<!modelica.real>
+    %1 = modelica.load %arg0[] : !modelica.array<!modelica.real>
+    %2 = modelica.add %1, %0 : (!modelica.real, !modelica.real) -> !modelica.real
+    %3 = modelica.load %arg2[] : !modelica.array<!modelica.real>
+    %4 = modelica.add %2, %3 : (!modelica.real, !modelica.real) -> !modelica.real
+    %5 = modelica.constant #modelica.int<1> : !modelica.int
+    %6 = modelica.constant #modelica.int<0> : !modelica.int
+    %7 = modelica.cos %6 : !modelica.int -> !modelica.real
+    %8 = modelica.div %5, %7 : (!modelica.int, !modelica.real) -> !modelica.real
+    %9 = modelica.equation_side %4 : tuple<!modelica.real>
+    %10 = modelica.equation_side %8 : tuple<!modelica.real>
+    modelica.equation_sides %9, %10 : tuple<!modelica.real>, tuple<!modelica.real>
   }
-  modelica.equation attributes {id = 1, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 1 : index, 0 : index]}]} {
-    %0 = modelica.constant #modelica.int<0> : !modelica.int
-    %1 = modelica.cos %0 : !modelica.int -> !modelica.real
-    %2 = modelica.load %arg1[] : !modelica.array<!modelica.real>
-    %3 = modelica.div %2, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-    %4 = modelica.load %arg0[] : !modelica.array<!modelica.real>
-    %5 = modelica.add %4, %3 : (!modelica.real, !modelica.real) -> !modelica.real
-    %6 = modelica.load %arg2[] : !modelica.array<!modelica.real>
-    %7 = modelica.sub %5, %6 : (!modelica.real, !modelica.real) -> !modelica.real
-    %8 = modelica.constant #modelica.int<2> : !modelica.int
-    %9 = modelica.constant #modelica.int<0> : !modelica.int
-    %10 = modelica.cos %9 : !modelica.int -> !modelica.real
-    %11 = modelica.div %8, %10 : (!modelica.int, !modelica.real) -> !modelica.real
-    %12 = modelica.equation_side %7 : tuple<!modelica.real>
-    %13 = modelica.equation_side %11 : tuple<!modelica.real>
-    modelica.equation_sides %12, %13 : tuple<!modelica.real>, tuple<!modelica.real>
+  modelica.equation attributes {id = 1, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 1 : index]}]} {
+    %0 = modelica.load %arg1[] : !modelica.array<!modelica.real>
+    %1 = modelica.load %arg0[] : !modelica.array<!modelica.real>
+    %2 = modelica.add %1, %0 : (!modelica.real, !modelica.real) -> !modelica.real
+    %3 = modelica.load %arg2[] : !modelica.array<!modelica.real>
+    %4 = modelica.sub %2, %3 : (!modelica.real, !modelica.real) -> !modelica.real
+    %5 = modelica.constant #modelica.int<2> : !modelica.int
+    %6 = modelica.equation_side %4 : tuple<!modelica.real>
+    %7 = modelica.equation_side %5 : tuple<!modelica.int>
+    modelica.equation_sides %6, %7 : tuple<!modelica.real>, tuple<!modelica.int>
   }
   modelica.equation attributes {id = 2, match = [{indices = [[[0, 0]]], path = ["L", 1 : index]}]} {
-    %0 = modelica.constant #modelica.int<0> : !modelica.int
-    %1 = modelica.cos %0 : !modelica.int -> !modelica.real
-    %2 = modelica.load %arg1[] : !modelica.array<!modelica.real>
-    %3 = modelica.div %2, %1 : (!modelica.real, !modelica.real) -> !modelica.real
-    %4 = modelica.load %arg0[] : !modelica.array<!modelica.real>
-    %5 = modelica.sub %4, %3 : (!modelica.real, !modelica.real) -> !modelica.real
-    %6 = modelica.load %arg2[] : !modelica.array<!modelica.real>
-    %7 = modelica.add %5, %6 : (!modelica.real, !modelica.real) -> !modelica.real
-    %8 = modelica.constant #modelica.int<3> : !modelica.int
-    %9 = modelica.constant #modelica.int<0> : !modelica.int
-    %10 = modelica.cos %9 : !modelica.int -> !modelica.real
-    %11 = modelica.div %8, %10 : (!modelica.int, !modelica.real) -> !modelica.real
-    %12 = modelica.equation_side %7 : tuple<!modelica.real>
-    %13 = modelica.equation_side %11 : tuple<!modelica.real>
-    modelica.equation_sides %12, %13 : tuple<!modelica.real>, tuple<!modelica.real>
+    %0 = modelica.load %arg1[] : !modelica.array<!modelica.real>
+    %1 = modelica.load %arg0[] : !modelica.array<!modelica.real>
+    %2 = modelica.sub %1, %0 : (!modelica.real, !modelica.real) -> !modelica.real
+    %3 = modelica.load %arg2[] : !modelica.array<!modelica.real>
+    %4 = modelica.add %2, %3 : (!modelica.real, !modelica.real) -> !modelica.real
+    %5 = modelica.constant #modelica.int<3> : !modelica.int
+    %6 = modelica.equation_side %4 : tuple<!modelica.real>
+    %7 = modelica.equation_side %5 : tuple<!modelica.int>
+    modelica.equation_sides %6, %7 : tuple<!modelica.real>, tuple<!modelica.int>
   }
   modelica.start (%arg0 : !modelica.array<!modelica.real>) {each = false, fixed = false} {
     %0 = modelica.constant #modelica.real<0.000000e+00> : !modelica.real

@@ -104,9 +104,19 @@ namespace marco::codegen {
     /// \param builder The builder.
     /// \param out The output matrix that will contain the cloned values.
     /// \param in The input matrix, to be cloned.
-    static void clone(
+    static void cloneCoefficientMatrix(
         mlir::OpBuilder& builder,
-        SquareMatrix out, SquareMatrix in);
+        SquareMatrix out, SquareMatrix in,
+        mlir::BlockAndValueMapping& mapping);
+
+    /// Given a vector as input clone its values and fill with them the output one.
+    /// \param builder The builder.
+    /// \param out The output vector that will contain the cloned values.
+    /// \param in The input vector, to be cloned.
+    static void cloneConstantVector(
+        mlir::OpBuilder& builder,
+        std::vector<mlir::Value>& out, std::vector<mlir::Value>& in,
+        mlir::BlockAndValueMapping& mapping);
 
     /// Given a value clone its defining operation and the ones on which it depends.
     /// Requires the insertion point to be set to a meaningful location.
@@ -115,7 +125,8 @@ namespace marco::codegen {
     /// \return The cloned value.
     static mlir::Value cloneValueAndDependencies(
         mlir::OpBuilder& builder,
-        mlir::Value value);
+        mlir::Value value,
+        mlir::BlockAndValueMapping& mapping);
 
     /// Given a set of variables compute their flat sizes.
     /// \param variableSizes Array to be filled with the size of each variable.

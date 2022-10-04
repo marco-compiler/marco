@@ -73,6 +73,7 @@ static void eraseOldEquations(const Model<MatchedEquation>& model)
 
 mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
+  modelOp.dump();
   // The options to be used when printing the IR.
   ModelSolvingIROptions irOptions;
   irOptions.mergeAndSortRanges = debugView;
@@ -127,6 +128,7 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
     writeMatchingAttributes(builder, matchedModel, irOptions);
   }
 
+  modelOp.dump();
   return mlir::success();
 }
 
