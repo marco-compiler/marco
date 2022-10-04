@@ -77,15 +77,16 @@ namespace marco::codegen {
   {
   private:
     mlir::OpBuilder& builder;
+    Equations<MatchedEquation> solution;
   public:
     /// The Solver class constructor.
     CramerSolver(mlir::OpBuilder& builder);
 
-    /// Solve the system of equations contained in the model using the Cramer
+    /// Solve the system of equations given using the Cramer
     /// method, if such model is linear in the variables.
-    /// \param model The model containing the system of linear equations.
+    /// \param equations The system of linear equations.
     /// \return true if successful, false otherwise.
-    bool solve(Model<MatchedEquation>& model);
+    bool solve(Equations<MatchedEquation> equations);
 
     /// Get the matrix of the coefficients of the model and the constant vector
     /// \param matrix The matrix that will contain the model system coefficients.
@@ -142,5 +143,7 @@ namespace marco::codegen {
     static size_t getSizeUntilVariable(
         size_t index,
         std::vector<size_t>& variableSizes);
+
+    Equations<MatchedEquation> getSolution() const;
   };
 }

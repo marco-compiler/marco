@@ -114,7 +114,10 @@ static bool solveWithCramer(Model<MatchedEquation>& model, mlir::OpBuilder& buil
   //  compute the solution with cramer
 
   CramerSolver solver(builder);
-  return solver.solve(model);
+  auto res = solver.solve(model.getEquations());
+  model.setEquations(solver.getSolution());
+  return res;
+
 }
 
 namespace marco::codegen

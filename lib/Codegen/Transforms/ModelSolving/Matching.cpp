@@ -323,7 +323,6 @@ namespace marco::codegen
 
     auto access = getWrite();
     auto& path = access.getPath();
-    auto variable = access.getVariable();
     auto lhs = equation->getValueAtPath(path);
 
     auto terminator =

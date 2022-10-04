@@ -178,7 +178,7 @@ CramerSolver::CramerSolver(mlir::OpBuilder& builder) : builder(builder)
 {
 }
 
-bool CramerSolver::solve(Model<MatchedEquation>& model)
+bool CramerSolver::solve(Equations<MatchedEquation> equations)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto loc = builder.getUnknownLoc();
@@ -187,10 +187,7 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
 
   /// Clone the system equations so that we can operate on them without
   /// disrupting the rest of the compilation process.
-  Equations<MatchedEquation> equations;
   Equations<MatchedEquation> clones;
-
-  equations = model.getEquations();
 
   for (const auto& equation : equations) {
     auto clone = equation->clone();
@@ -297,9 +294,10 @@ bool CramerSolver::solve(Model<MatchedEquation>& model)
 
       equation->setMatchSolution(builder, div);
     }
-
-    model.setEquations(clones);
   }
+
+  for (auto& equation : clones)
+    solution.add(std::move(equation));
 
   return res;
 }
@@ -376,9 +374,7 @@ mlir::Value CramerSolver::cloneValueAndDependencies(
   mlir::Operation* clonedOp = nullptr;
   for (auto it = toBeCloned.rbegin(); it != toBeCloned.rend(); ++it) {
     mlir::Operation* op = *it;
-    op->dump();
     clonedOp = builder.clone(*op, mapping);
-    clonedOp->dump();
   }
 
   assert(clonedOp != nullptr);
@@ -413,4 +409,9 @@ void CramerSolver::cloneConstantVector(
   for (size_t i = 0; i < size; ++i) {
       out[i] = cloneValueAndDependencies(builder, in[i], mapping);
   }
+}
+
+Equations<MatchedEquation> CramerSolver::getSolution() const
+{
+  return solution;
 }
