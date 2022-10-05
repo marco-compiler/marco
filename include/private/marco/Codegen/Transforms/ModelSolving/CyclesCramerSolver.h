@@ -78,15 +78,24 @@ namespace marco::codegen {
   private:
     mlir::OpBuilder& builder;
     Equations<MatchedEquation> solution;
+    Equations<MatchedEquation> unsolved;
   public:
     /// The Solver class constructor.
     CramerSolver(mlir::OpBuilder& builder);
 
+    //extract coefficients and constant terms from equations
+    //collect them into the system matrix and constant term vector
+
+    //for each eq in equations
+    //  set insertion point to beginning of eq
+    //  clone the system matrix inside of eq
+    //  clone the constant vector inside of eq
+    //  compute the solution with cramer
     /// Solve the system of equations given using the Cramer
     /// method, if such model is linear in the variables.
     /// \param equations The system of linear equations.
     /// \return true if successful, false otherwise.
-    bool solve(Equations<MatchedEquation> equations);
+    bool solve(std::vector<MatchedEquation>& equations);
 
     /// Get the matrix of the coefficients of the model and the constant vector
     /// \param matrix The matrix that will contain the model system coefficients.
@@ -129,6 +138,8 @@ namespace marco::codegen {
         mlir::Value value,
         mlir::BlockAndValueMapping& mapping);
 
+    bool hasUnsolvedCycles() const;
     Equations<MatchedEquation> getSolution() const;
+    Equations<MatchedEquation> getUnsolvedEquations() const;
   };
 }

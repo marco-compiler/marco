@@ -1443,7 +1443,6 @@ namespace marco::codegen
       const Access& access,
       const ::marco::modeling::IndexSet& equationIndices) const
   {
-    /// Since the variables have only one multidimensional range, take it.
     auto accessFunction = access.getAccessFunction();
     auto mappedIndices = *accessFunction.map(equationIndices).begin();
     auto variable = access.getVariable();

@@ -178,7 +178,7 @@ CramerSolver::CramerSolver(mlir::OpBuilder& builder) : builder(builder)
 {
 }
 
-bool CramerSolver::solve(Equations<MatchedEquation> equations)
+bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto loc = builder.getUnknownLoc();
@@ -190,29 +190,29 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
   Equations<MatchedEquation> clones;
 
   for (const auto& equation : equations) {
-    auto clone = equation->clone();
+    auto clone = equation.clone();
 
     auto matchedClone = std::make_unique<MatchedEquation>(
         std::move(clone),
-        equation->getIterationRanges(),
-        equation->getWrite().getPath());
+        equation.getIterationRanges(),
+        equation.getWrite().getPath());
 
     clones.add(std::move(matchedClone));
   }
 
   /// Get the number of scalar equations in the system, which should be
   /// equal to the number of filtered variables.
-  size_t numberOfScalarEquations = 0;
+  size_t systemSize = 0;
   for (const auto& equation : clones) {
-    numberOfScalarEquations += equation->getIterationRanges().flatSize();
+    systemSize += equation->getIterationRanges().flatSize();
   }
 
   /// Create the matrix to contain the coefficients of the system's
   /// equations and the vector to contain the constant terms.
-  auto storageSize = numberOfScalarEquations*numberOfScalarEquations;
+  auto storageSize = systemSize * systemSize;
   auto storage = std::vector<mlir::Value>(storageSize);
-  auto matrix = SquareMatrix(storage, numberOfScalarEquations);
-  auto constantVector = std::vector<mlir::Value>(numberOfScalarEquations);
+  auto matrix = SquareMatrix(storage, systemSize);
+  auto constantVector = std::vector<mlir::Value>(systemSize);
 
   LLVM_DEBUG({
     llvm::dbgs() << "Populating the model matrix and constant vector.\n";
@@ -266,8 +266,8 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
       /// Allocate a new coefficient matrix and constant vector to contain the
       /// cloned ones.
       auto cloneStorage = std::vector<mlir::Value>(storageSize);
-      auto clonedMatrix = SquareMatrix(cloneStorage, numberOfScalarEquations);
-      auto clonedVector = std::vector<mlir::Value>(numberOfScalarEquations);
+      auto clonedMatrix = SquareMatrix(cloneStorage, systemSize);
+      auto clonedVector = std::vector<mlir::Value>(systemSize);
 
       mlir::BlockAndValueMapping mapping;
       for (const auto& variable : equation->getVariables()) {
@@ -283,8 +283,8 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
       /// vector to each of its columns.
       auto tempStorage = std::vector<mlir::Value>();
       tempStorage.resize(
-          numberOfScalarEquations*numberOfScalarEquations);
-      auto temp = SquareMatrix(tempStorage, numberOfScalarEquations);
+          systemSize * systemSize);
+      auto temp = SquareMatrix(tempStorage, systemSize);
 
       /// Compute the determinant of the system matrix.
       mlir::Value determinant = clonedMatrix.det(builder);
@@ -313,10 +313,15 @@ bool CramerSolver::solve(Equations<MatchedEquation> equations)
 
       equation->setMatchSolution(builder, div);
     }
-  }
 
-  for (auto& equation : clones)
-    solution.add(std::move(equation));
+    for (auto& equation : clones) {
+      solution.add(std::move(equation));
+    }
+  } else {
+    for (auto& equation : clones) {
+      unsolved.add(std::move(equation));
+    }
+  }
 
   return res;
 }
@@ -327,16 +332,15 @@ bool CramerSolver::getModelMatrixAndVector(
     Equations<MatchedEquation> equations,
     mlir::OpBuilder& builder)
 {
-
-  /// Get the filtered variables from one of the equations
-  assert(equations.size() > 0);
-  Variables variables = equations[0]->getVariables();
-
   /// For each equation, get the coefficients of the variables and the
   /// constant term, and save them respectively in the system matrix and
   /// constant term vector.
   for(size_t i = 0; i < equations.size(); ++i) {
     auto equation = equations[i].get();
+/*    for (const auto& range : *equation->getIterationRanges().rangesBegin()) {
+
+    }*/
+
     auto coefficients = std::vector<mlir::Value>();
     mlir::Value constantTerm;
 
@@ -429,7 +433,17 @@ void CramerSolver::cloneConstantVector(
   }
 }
 
+bool CramerSolver::hasUnsolvedCycles() const
+{
+  return unsolved.size() != 0;
+}
+
 Equations<MatchedEquation> CramerSolver::getSolution() const
 {
   return solution;
+}
+
+Equations<MatchedEquation> CramerSolver::getUnsolvedEquations() const
+{
+  return unsolved;
 }

@@ -102,22 +102,125 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   return allCyclesSolved;
 }
 
-static bool solveWithCramer(Model<MatchedEquation>& model, mlir::OpBuilder& builder)
+static bool solveWithCramer(
+    Model<MatchedEquation>& model,
+    mlir::OpBuilder& builder,
+    bool secondaryCycles)
 {
-  //extract coefficients and constant terms from equations
-  //collect them into the system matrix and constant term vector
+  bool allCyclesSolved;
 
-  //for each eq in equations
-  //  set insertion point to beginning of eq
-  //  clone the system matrix inside of eq
-  //  clone the constant vector inside of eq
-  //  compute the solution with cramer
+  // The list of equations among which the cycles have to be searched
+  llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
-  CramerSolver solver(builder);
-  auto res = solver.solve(model.getEquations());
-  model.setEquations(solver.getSolution());
-  return res;
+  // The first iteration will use all the equations of the model
+  for (const auto& equation : model.getEquations()) {
+    toBeProcessed.push_back(equation.get());
+  }
 
+  Equations<MatchedEquation> solution;
+  llvm::SmallVector<std::unique_ptr<MatchedEquation>> newEquations;
+  llvm::SmallVector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
+
+  do {
+    // Get all the cycles within the system of equations
+    CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(toBeProcessed, secondaryCycles);
+    auto cycles = cyclesFinder.getEquationsCycles();
+
+    // Get all sets of cycles
+    std::vector<std::pair<decltype(cyclesFinder)::Cycle, std::set<MatchedEquation*>>> cycleGroups;
+    std::set<std::set<MatchedEquation*>> cycleGroupSet;
+    for (const auto& cycle : cycles) {
+      // Extract the system of equations
+      std::set<MatchedEquation*> inputSet;
+      inputSet.insert(cycle.getEquation());
+      for (const auto& it : cycle) {
+        auto destinations = it.getDestinations();
+        for (const auto& dest : destinations) {
+          inputSet.insert(dest.getNode().getEquation());
+        }
+      }
+      auto [it, inserted] = cycleGroupSet.insert(inputSet);
+      if (inserted) {
+        cycleGroups.emplace_back(cycle, inputSet);
+      }
+    }
+
+    // Solve the cycles one by one
+    CramerSolver solver(builder);
+
+    for (const auto& [cycle, set] : cycleGroups) {
+      IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
+
+      for (const auto& interval : cycle) {
+        indexesWithoutCycles -= interval.getRange();
+      }
+
+      std::vector<MatchedEquation> input;
+      for (const auto eq : set) {
+        input.push_back(*eq);
+      }
+
+      // Solve the system of equations
+      solver.solve(input);
+
+      // Add the indices that do not present any loop
+      for (const auto& range : llvm::make_range(indexesWithoutCycles.rangesBegin(), indexesWithoutCycles.rangesEnd())) {
+        auto clonedEquation = Equation::build(
+            cycle.getEquation()->getOperation(),
+            cycle.getEquation()->getVariables());
+
+        solution.add(std::make_unique<MatchedEquation>(
+            std::move(clonedEquation), IndexSet(range), cycle.getEquation()->getWrite().getPath()));
+      }
+    }
+
+    //TODO substitute the new equations into the ones to be processed
+
+    // Add the equations which had no cycle for any index.
+    // To do this, map the equations with cycles for a faster lookup.
+    std::set<const MatchedEquation*> equationsWithCycles;
+
+    for (const auto& cycle : cycles) {
+      equationsWithCycles.insert(cycle.getEquation());
+    }
+
+    for (auto& equation : toBeProcessed) {
+      if (equationsWithCycles.find(equation) == equationsWithCycles.end()) {
+        solution.add(std::make_unique<MatchedEquation>(
+            equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
+      }
+    }
+
+    auto currentUnsolvedEquations = solver.getUnsolvedEquations();
+
+    // Create the list of equations to be processed in the next iteration
+    toBeProcessed.clear();
+    newEquations.clear();
+    unsolvedEquations.clear();
+
+    if (auto currentSolution = solver.getSolution(); currentSolution.size() != 0) {
+      for (auto& equation : currentSolution) {
+        auto& movedEquation = newEquations.emplace_back(std::move(equation));
+        toBeProcessed.push_back(movedEquation.get());
+      }
+    }
+
+    for (auto& equation : currentUnsolvedEquations) {
+      auto& movedEquation = unsolvedEquations.emplace_back(std::move(equation));
+      toBeProcessed.push_back(movedEquation.get());
+    }
+
+    allCyclesSolved = !solver.hasUnsolvedCycles();
+  } while (!newEquations.empty());
+
+  for (auto& unsolvedEquation : unsolvedEquations) {
+    solution.add(std::move(unsolvedEquation));
+  }
+
+  // Set the new equations of the model
+  model.setEquations(solution);
+
+  return allCyclesSolved;
 }
 
 namespace marco::codegen
@@ -125,6 +228,7 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
+    model.getOperation()->dump();
     // Try an aggressive method first
     LLVM_DEBUG({
       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
@@ -148,7 +252,7 @@ namespace marco::codegen
       llvm::dbgs() << "Solving cycles with Cramer.\n";
     });
 
-    if (solveWithCramer(model, builder)) {
+    if (solveWithCramer(model, builder, true)) {
       return mlir::success();
     }
 
