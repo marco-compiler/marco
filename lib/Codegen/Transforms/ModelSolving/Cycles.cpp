@@ -194,17 +194,16 @@ static bool solveWithCramer(
     }
 
     auto currentUnsolvedEquations = solver.getUnsolvedEquations();
+    auto currentSolution = solver.getSolution();
 
     // Create the list of equations to be processed in the next iteration
     toBeProcessed.clear();
     newEquations.clear();
     unsolvedEquations.clear();
 
-    if (auto currentSolution = solver.getSolution(); currentSolution.size() != 0) {
-      for (auto& equation : currentSolution) {
-        auto& movedEquation = newEquations.emplace_back(std::move(equation));
-        toBeProcessed.push_back(movedEquation.get());
-      }
+    for (auto& equation : currentSolution) {
+      auto& movedEquation = newEquations.emplace_back(std::move(equation));
+      toBeProcessed.push_back(movedEquation.get());
     }
 
     for (auto& equation : currentUnsolvedEquations) {

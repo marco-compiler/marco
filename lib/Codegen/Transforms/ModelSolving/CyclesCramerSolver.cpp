@@ -258,9 +258,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       // Create a temporary matrix to contain the matrices we are going to
       // derive from the original one, by substituting the constant term
       // vector to each of its columns.
-      auto tempStorage = std::vector<mlir::Value>();
-      tempStorage.resize(
-          subsystemSize * subsystemSize);
+      auto tempStorage = std::vector<mlir::Value>(subsystemSize * subsystemSize);
       auto temp = SquareMatrix(tempStorage, subsystemSize);
 
       // Compute the determinant of the system matrix.
@@ -295,8 +293,50 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       solution.add(std::move(equation));
     }
   } else {
-    for (auto& equation : clones) {
-      unsolved.add(std::move(equation));
+    // Replace the newly found equations (if any) in the unsolved equations
+    for (auto& unsolvedEq : clones) {
+      auto accesses = unsolvedEq->getAccesses();
+
+      auto cloned = Equation::build(
+          unsolvedEq->cloneIR(), unsolvedEq->getVariables());
+
+      auto matchedCloned = std::make_unique<MatchedEquation>(
+          std::move(cloned),
+          unsolvedEq->getIterationRanges(),
+          unsolvedEq->getWrite().getPath());
+
+      bool replaced = false;
+
+      for (const auto& newEq : solution) {
+        auto newAccess = newEq->getWrite();
+
+        for (const auto& acc : accesses) {
+          if (acc.getVariable() == newAccess.getVariable() &&
+              acc.getAccessFunction() == newAccess.getAccessFunction()) {
+
+            auto res = newEq->replaceInto(
+                builder,
+                newEq->getIterationRanges(),
+                *matchedCloned,
+                acc.getAccessFunction(),
+                acc.getPath());
+
+            if (mlir::failed(res)) {
+              return false;
+            }
+
+            replaced = true;
+          }
+        }
+
+      }
+
+      if (replaced) {
+        unsolved.add(std::move(matchedCloned));
+      } else {
+        matchedCloned->eraseIR();
+        unsolved.add(std::move(unsolvedEq));
+      }
     }
   }
 
