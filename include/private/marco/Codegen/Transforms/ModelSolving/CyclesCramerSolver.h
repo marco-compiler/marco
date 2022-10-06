@@ -79,9 +79,10 @@ namespace marco::codegen {
     mlir::OpBuilder& builder;
     Equations<MatchedEquation> solution;
     Equations<MatchedEquation> unsolved;
+    size_t systemSize;
   public:
     /// The Solver class constructor.
-    CramerSolver(mlir::OpBuilder& builder);
+    CramerSolver(mlir::OpBuilder& builder, size_t systemSize);
 
     //extract coefficients and constant terms from equations
     //collect them into the system matrix and constant term vector
@@ -102,13 +103,13 @@ namespace marco::codegen {
     /// \param constantVector The vector that will contain the constant terms of
     /// the model equations.
     /// \param equations Cloned equations.
-    /// \param builder The MLIR buillder.
+    /// \param subsystemSize Number of scalar equations of the system considered
     /// \return true if successful, false otherwise.
-    static bool getModelMatrixAndVector(
+    bool getModelMatrixAndVector(
         SquareMatrix matrix,
         std::vector<mlir::Value>& constantVector,
         Equations<MatchedEquation> equations,
-        mlir::OpBuilder& builder);
+        size_t subsystemSize);
 
     /// Given a matrix as input clone its values and fill with them the output one.
     /// \param builder The builder.

@@ -156,8 +156,6 @@ namespace marco::codegen
       /// the information about the structure of the variable.
       /// \param access The access to the variable.
       /// \param equationIndices The indices of the equation.
-      /// \param variableIndices This value contains the information about the structure
-      ///                 of the multidimensional variable.
       /// \return The unique identifier for the input access.
       virtual size_t getFlatAccessIndex(
           const Access& access,
@@ -191,6 +189,10 @@ namespace marco::codegen
 
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
 
+      /// Check that there are no non linear functions operating on variables and no
+      /// variables on the right hand side of a division operation
+      /// \param value The value to be checked for linearity
+      /// \returns True if value is linear, false otherwise
       mlir::LogicalResult checkLinearity(mlir::Value value) const;
 
       double getDoubleFromConstantValue(mlir::Value value) const;

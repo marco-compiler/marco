@@ -113,8 +113,10 @@ static bool solveWithCramer(
   llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
   // The first iteration will use all the equations of the model
+  size_t systemSize = 0;
   for (const auto& equation : model.getEquations()) {
     toBeProcessed.push_back(equation.get());
+    systemSize += equation->getIterationRanges().flatSize();
   }
 
   Equations<MatchedEquation> solution;
@@ -146,7 +148,7 @@ static bool solveWithCramer(
     }
 
     // Solve the cycles one by one
-    CramerSolver solver(builder);
+    CramerSolver solver(builder, systemSize);
 
     for (const auto& [cycle, set] : cycleGroups) {
       IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
@@ -174,7 +176,7 @@ static bool solveWithCramer(
       }
     }
 
-    //TODO substitute the new equations into the ones to be processed
+    //TODO substitute the new equations into the ones to be processed (type 3)
 
     // Add the equations which had no cycle for any index.
     // To do this, map the equations with cycles for a faster lookup.
@@ -228,7 +230,6 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
-    model.getOperation()->dump();
     // Try an aggressive method first
     LLVM_DEBUG({
       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
