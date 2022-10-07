@@ -314,14 +314,14 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
           if (acc.getVariable() == newAccess.getVariable() &&
               acc.getAccessFunction() == newAccess.getAccessFunction()) {
 
-            auto res = newEq->replaceInto(
+            auto replacedResult = newEq->replaceInto(
                 builder,
                 newEq->getIterationRanges(),
                 *matchedCloned,
                 acc.getAccessFunction(),
                 acc.getPath());
 
-            if (mlir::failed(res)) {
+            if (mlir::failed(replacedResult)) {
               return false;
             }
 

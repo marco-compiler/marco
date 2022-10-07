@@ -14,10 +14,10 @@ model Model
     Real y;
     Real z;
 equation
-    x + y + z = 1;
-    x + y - z = 2;
-    x - y + z = 3;
-    a + b + c + x = 1;
+    a + b + c = 1;
     a + b - c = 2;
     a - b + c = 3;
+    x + y + z + b - 2*c = 1;
+    x + y - z = 2;
+    x - y + z = 3;
 end Model;

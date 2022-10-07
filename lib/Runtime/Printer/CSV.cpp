@@ -146,6 +146,8 @@ namespace marco::runtime
       if (rank == 0) {
         // Print the scalar variable.
         double value = getVariableValue(data, var, nullptr);
+        if (value == 0)
+          value = 0;
 
         PRINT_PROFILER_STRING_START;
         std::cout << ',';
@@ -162,6 +164,8 @@ namespace marco::runtime
 
           for (auto it = beginIt; it != endIt; ++it) {
             double value = getVariableValue(data, var, *it);
+            if (value == 0)
+              value = 0;
 
             PRINT_PROFILER_STRING_START;
             std::cout << ',';

@@ -7,10 +7,13 @@
 // CHECK-NEXT: 0.200000,-1.000000,2.000000,-1.000000
 
 model Model
-    Real[3] x;
+    Real[7] x;
 equation
-    for i in 1:2 loop
-        x[i] + x[i+1] = 1;
+    for i in 1:3 loop
+        x[i] + x[i+1] + x[i+2] - x[i+3] + x[i+4] = 1;
     end for;
-    x[1] + x[2] + x[3] = 0;
+    x[1] + x[2] + x[6] + x[7] = 1;
+    x[1] + x[2] + x[6] - x[7] = 2;
+    x[1] + x[2] - x[6] + x[7] = 3;
+    x[1] - x[2] + x[6] + x[7] = 4;
 end Model;
