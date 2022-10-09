@@ -10,6 +10,7 @@
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SCCIterator.h"
+#include "llvm/Support/ThreadPool.h"
 #include <list>
 #include <stack>
 
@@ -370,28 +371,46 @@ namespace marco::modeling
 
       std::vector<Cycle> getEquationsCycles() const
       {
+        llvm::ThreadPool threadPool;
+        unsigned int numOfThreads = threadPool.getThreadCount();
+
         std::vector<Cycle> result;
+        std::mutex resultMutex;
+
         auto SCCs = vectorDependencyGraph.getSCCs();
+        size_t numOfSCCs = SCCs.size();
+        std::atomic_size_t currentSCC = 0;
 
-        for (const auto& scc: SCCs) {
-          auto writes = vectorDependencyGraph.getWritesMap(scc.begin(), scc.end());
+        auto processFn = [&]() {
+          size_t i = currentSCC++;
 
-          if (!scc.hasCycle()) {
-            continue;
-          }
+          while (i < numOfSCCs) {
+            const auto& scc = SCCs[i];
+            auto writes = vectorDependencyGraph.getWritesMap(scc.begin(), scc.end());
 
-          for (const auto& equationDescriptor : scc) {
-            auto cycles = getEquationCyclicDependencies(writes, equationDescriptor);
-            FilteredEquation dependencies(vectorDependencyGraph, equationDescriptor);
+            if (scc.hasCycle()) {
+              for (const EquationDescriptor& equationDescriptor : scc) {
+                auto cycles = getEquationCyclicDependencies(writes, equationDescriptor);
+                FilteredEquation dependencies(vectorDependencyGraph, equationDescriptor);
 
-            for (const auto& cycle : cycles) {
-              dependencies.addCyclicDependency(cycle);
+                for (const auto& cycle : cycles) {
+                  dependencies.addCyclicDependency(cycle);
+                }
+
+                std::lock_guard lockGuard(resultMutex);
+                result.push_back(std::move(dependencies));
+              }
             }
 
-            result.push_back(std::move(dependencies));
+            i = currentSCC++;
           }
+        };
+
+        for (unsigned int i = 0; i < numOfThreads; ++i) {
+          threadPool.async(processFn);
         }
 
+        threadPool.wait();
         return result;
       }
 
