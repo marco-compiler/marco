@@ -1438,22 +1438,17 @@ namespace marco::codegen
 
   size_t BaseEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& equationIndices) const
+      const Point equationIndex) const
   {
-    auto accessFunction = access.getAccessFunction();
-    auto mappedIndices = *accessFunction.map(equationIndices).begin();
-    auto variable = access.getVariable();
-    auto variableIndices = variable->getIndices();
-    auto variableDimensions = *variableIndices.rangesBegin();
+    auto mappedIndices = *access.getAccessFunction().map(IndexSet(equationIndex)).begin();
+    auto variableDimensions = *access.getVariable()->getIndices().rangesBegin();
     auto rank = variableDimensions.rank();
-    auto index = variable->getValue().cast<mlir::BlockArgument>().getArgNumber();
+    auto index = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
     size_t base = 0;
     for (size_t i = 0; i < index; ++i) {
       base += (*variables[i]->getIndices().rangesBegin()).flatSize();
     }
-
-    assert(accessFunction.size() == rank);
 
     // Compute a unique identifier for the specified access.
     // Example:
@@ -1476,7 +1471,7 @@ namespace marco::codegen
       mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side,
-      const IndexSet& equationIndices) const
+      Point equationIndex) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
     auto terminator = getTerminator();
@@ -1537,6 +1532,7 @@ namespace marco::codegen
 
         // Get the multiplying factor of the variable: essentially remove the
         // variable from the value.
+        auto equationIndices = IndexSet(equationIndex);
         auto coefficient = getMultiplyingFactor(
             builder, equationIndices, value,
             variable->getValue(),
@@ -1545,7 +1541,7 @@ namespace marco::codegen
 
         // Compute the offset to access the variable. This may be different
         // from zero in array variables.
-        auto index = getFlatAccessIndex(access, equationIndices);
+        auto index = getFlatAccessIndex(access, equationIndex);
 
         // Set the left hand side to the previously computed (if any) factors
         // of the variables.
@@ -1601,7 +1597,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& coefficients,
       mlir::Value& constantTerm,
-      const IndexSet& equationIndices) const
+      ::marco::modeling::Point equationIndex) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -1634,13 +1630,13 @@ namespace marco::codegen
     // sides of the equation.
     if(auto res = getSideCoefficients(
             builder, coefficients, constantTerm, lhsSummedValues,
-            EquationPath::LEFT, equationIndices);
+            EquationPath::LEFT, equationIndex);
         mlir::failed(res))
       return mlir::failure();
 
     if(auto res = getSideCoefficients(
             builder, coefficients, constantTerm, rhsSummedValues,
-            EquationPath::RIGHT, equationIndices);
+            EquationPath::RIGHT, equationIndex);
         mlir::failed(res))
       return mlir::failure();
 

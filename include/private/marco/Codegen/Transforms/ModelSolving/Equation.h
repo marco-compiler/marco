@@ -102,13 +102,13 @@ namespace marco::codegen
       /// \param builder The builder.
       /// \param coefficients The array of coefficients to be populated.
       /// \param constantTerm The constant term to be computed.
-      /// \param equationIndices The indices of the equation
+      /// \param equationIndex The index of the equation
       /// \return Whether the values were computed successfully or not.
       virtual mlir::LogicalResult getCoefficients(
           mlir::OpBuilder& builder,
           std::vector<mlir::Value>& coefficients,
           mlir::Value& constantTerm,
-          const modeling::IndexSet& equationIndices) const = 0;
+          ::marco::modeling::Point equationIndex) const = 0;
 
       /// Starting from a previously computed array of coefficients and a constant
       /// term, this function computes the coefficients to the equation variables
@@ -119,7 +119,7 @@ namespace marco::codegen
       /// \param values Array containing the values that summed make up one side of
       ///               the equation.
       /// \param side The side of the equation being considered.
-      /// \param equationIndices The indices of the equation
+      /// \param equationIndex The index of the equation
       /// \return Whether the coefficient extraction is successful or not.
       virtual mlir::LogicalResult getSideCoefficients(
           mlir::OpBuilder& builder,
@@ -127,7 +127,7 @@ namespace marco::codegen
           mlir::Value& constantTerm,
           std::vector<mlir::Value> values,
           EquationPath::EquationSide side,
-          const modeling::IndexSet& equationIndices) const = 0;
+          ::marco::modeling::Point equationIndex) const = 0;
 
       /// Take one side of the equation and convert it to a sum of terms. Collect
       /// those terms inside the output array.
@@ -159,7 +159,7 @@ namespace marco::codegen
       /// \return The unique identifier for the input access.
       virtual size_t getFlatAccessIndex(
           const Access& access,
-          const ::marco::modeling::IndexSet& equationIndices) const = 0;
+          ::marco::modeling::Point equationIndex) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;

@@ -7,7 +7,7 @@ modelica.model @Test attributes {derivatives = []} {
   modelica.yield %0 : !modelica.member<7x!modelica.real>
 } body {
 ^bb0(%arg0: !modelica.array<7x!modelica.real>):
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index, 1 : index]}]} {
+  modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index, 1 : index]}]} {
     %0 = modelica.constant #modelica.int<1> : !modelica.int
     %1 = modelica.constant 1 : index
     %2 = modelica.constant -1 : index
@@ -31,7 +31,7 @@ modelica.model @Test attributes {derivatives = []} {
     %20 = modelica.equation_side %0 : tuple<!modelica.int>
     modelica.equation_sides %19, %20 : tuple<!modelica.real>, tuple<!modelica.int>
   }
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index, 0 : index]}]} {
+  modelica.equation attributes {id = 1, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 0 : index, 0 : index]}]} {
     %0 = modelica.constant #modelica.int<2> : !modelica.int
     %1 = modelica.constant 1 : index
     %2 = modelica.constant -1 : index
@@ -55,7 +55,7 @@ modelica.model @Test attributes {derivatives = []} {
     %20 = modelica.equation_side %0 : tuple<!modelica.int>
     modelica.equation_sides %19, %20 : tuple<!modelica.real>, tuple<!modelica.int>
   }
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 1 : index]}]} {
+  modelica.equation attributes {id = 2, match = [{indices = [[[0, 0]]], path = ["L", 0 : index, 1 : index]}]} {
     %0 = modelica.constant #modelica.int<3> : !modelica.int
     %1 = modelica.constant 1 : index
     %2 = modelica.constant -1 : index
@@ -79,7 +79,7 @@ modelica.model @Test attributes {derivatives = []} {
     %20 = modelica.equation_side %0 : tuple<!modelica.int>
     modelica.equation_sides %19, %20 : tuple<!modelica.real>, tuple<!modelica.int>
   }
-  modelica.equation attributes {match = [{indices = [[[0, 0]]], path = ["L", 1 : index]}]} {
+  modelica.equation attributes {id = 3, match = [{indices = [[[0, 0]]], path = ["L", 1 : index]}]} {
     %0 = modelica.constant #modelica.int<4> : !modelica.int
     %1 = modelica.constant 1 : index
     %2 = modelica.constant -1 : index
@@ -104,7 +104,7 @@ modelica.model @Test attributes {derivatives = []} {
     modelica.equation_sides %19, %20 : tuple<!modelica.real>, tuple<!modelica.int>
   }
   modelica.for_equation %arg1 = 1 to 3 {
-    modelica.equation attributes {match = [{indices = [[[2, 3]]], path = ["L", 0 : index, 0 : index, 0 : index, 1 : index]}, {indices = [[[1, 1]]], path = ["L", 1 : index]}]} {
+    modelica.equation attributes {id = 4, match = [{indices = [[[2, 3]]], path = ["L", 0 : index, 0 : index, 0 : index, 1 : index]}, {indices = [[[1, 1]]], path = ["L", 1 : index]}]} {
       %0 = modelica.constant #modelica.int<1> : !modelica.int
       %1 = modelica.constant -1 : index
       %2 = modelica.constant 1 : index

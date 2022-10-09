@@ -184,9 +184,9 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       std::vector<mlir::Value>& vector,
       mlir::Value& constantTerm,
-      const modeling::IndexSet& equationIndices) const
+      ::marco::modeling::Point equationIndex) const
   {
-    return equation->getCoefficients(builder, vector, constantTerm, equationIndices);
+    return equation->getCoefficients(builder, vector, constantTerm, equationIndex);
   }
 
   mlir::LogicalResult ScheduledEquation::getSideCoefficients(
@@ -195,9 +195,9 @@ namespace marco::codegen
       mlir::Value& constantTerm,
       std::vector<mlir::Value> values,
       EquationPath::EquationSide side,
-      const modeling::IndexSet& equationIndices) const
+      ::marco::modeling::Point equationIndex) const
   {
-    return equation->getSideCoefficients(builder, coefficients, constantTerm, values, side, equationIndices);
+    return equation->getSideCoefficients(builder, coefficients, constantTerm, values, side, equationIndex);
   }
 
   mlir::LogicalResult ScheduledEquation::convertAndCollectSide(
@@ -218,9 +218,9 @@ namespace marco::codegen
 
   size_t ScheduledEquation::getFlatAccessIndex(
       const Access& access,
-      const ::marco::modeling::IndexSet& equationIndices) const
+      const ::marco::modeling::Point equationIndex) const
   {
-    return equation->getFlatAccessIndex(access, equationIndices);
+    return equation->getFlatAccessIndex(access, equationIndex);
   }
 
   mlir::LogicalResult schedule(
