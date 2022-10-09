@@ -632,16 +632,19 @@ namespace llvm
   // that are defined inside LLVM itself. This way we don't have to implement
   // them from scratch.
   template<typename VertexProperty>
-  struct GraphTraits<marco::modeling::internal::dependency::SingleEntryWeaklyConnectedDigraph<VertexProperty>>
+  struct GraphTraits<const marco::modeling::internal::dependency::SingleEntryWeaklyConnectedDigraph<VertexProperty>*>
   {
-    using Graph = marco::modeling::internal::dependency::SingleEntryWeaklyConnectedDigraph<VertexProperty>;
+    // The LLVM traits require the class specified as Graph to be copyable.
+    // We use its address to overcome this limitation.
+    using Graph = const marco::modeling::internal::dependency::SingleEntryWeaklyConnectedDigraph<VertexProperty>;
+    using GraphPtr = Graph*;
 
     using NodeRef = typename Graph::VertexDescriptor;
     using ChildIteratorType = typename Graph::LinkedVerticesIterator;
 
-    static NodeRef getEntryNode(const Graph& graph)
+    static NodeRef getEntryNode(const GraphPtr& graph)
     {
-      return graph.getEntryNode();
+      return graph->getEntryNode();
     }
 
     static ChildIteratorType child_begin(NodeRef node)
@@ -656,14 +659,14 @@ namespace llvm
 
     using nodes_iterator = typename Graph::VertexIterator;
 
-    static nodes_iterator nodes_begin(Graph* graph)
+    static nodes_iterator nodes_begin(GraphPtr* graph)
     {
-      return graph->verticesBegin();
+      return (*graph)->verticesBegin();
     }
 
-    static nodes_iterator nodes_end(Graph* graph)
+    static nodes_iterator nodes_end(GraphPtr* graph)
     {
-      return graph->verticesEnd();
+      return (*graph)->verticesEnd();
     }
 
     using EdgeRef = typename Graph::EdgeDescriptor;
@@ -684,9 +687,9 @@ namespace llvm
       return edge.to;
     }
 
-    static size_t size(Graph* graph)
+    static size_t size(GraphPtr* graph)
     {
-      return graph->size();
+      return (*graph)->size();
     }
   };
 }
@@ -717,13 +720,14 @@ namespace marco::modeling::internal
       VVarDependencyGraph(llvm::ArrayRef<EquationProperty> equations)
       {
         // Add the equations to the graph
-        for (const auto& equationProperty: equations) {
+        for (const EquationProperty& equationProperty : equations) {
           graph.addVertex(Equation(equationProperty));
         }
 
+        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
+
         // Determine which equation writes into which variable, together with
         // the accessed indexes.
-        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
         auto writes = getWritesMap(vertices.begin(), vertices.end());
 
         // Now that the writes are known, we can explore the reads in order to
@@ -731,17 +735,16 @@ namespace marco::modeling::internal
         // depends on another equation e2 if e1 reads (a part) of a variable
         // that is written by e2.
 
-        for (const auto& equationDescriptor : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
+        for (const EquationDescriptor& equationDescriptor : vertices) {
           const Equation& equation = graph[equationDescriptor];
+          std::vector<Access> reads = equation.getReads();
 
-          auto reads = equation.getReads();
-
-          for (const Access& read: reads) {
-            auto readIndexes = read.getAccessFunction().map(equation.getIterationRanges());
+          for (const Access& read : reads) {
+            IndexSet readIndexes = read.getAccessFunction().map(equation.getIterationRanges());
             auto writeInfos = writes.equal_range(read.getVariable());
 
-            for (const auto&[variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
-              const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+            for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
+              const IndexSet& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
               if (writtenIndexes.overlaps(readIndexes)) {
                 graph.addEdge(equationDescriptor, writeInfo.getEquation());
@@ -771,7 +774,7 @@ namespace marco::modeling::internal
       {
         std::vector<SCC> result;
 
-        for (auto scc = llvm::scc_begin(graph), end = llvm::scc_end(graph); scc != end; ++scc) {
+        for (auto scc = llvm::scc_begin(&graph), end = llvm::scc_end(&graph); scc != end; ++scc) {
           std::vector<EquationDescriptor> equations;
 
           for (const auto& equation: *scc) {
@@ -882,7 +885,7 @@ namespace marco::modeling::internal
         std::vector<SCCDescriptor> result;
         std::set<SCCDescriptor> set;
 
-        for (SCCDescriptor scc : llvm::post_order_ext(graph, set)) {
+        for (SCCDescriptor scc : llvm::post_order_ext(&graph, set)) {
           // Ignore the entry node
           if (scc != graph.getEntryNode()) {
             result.push_back(scc);
@@ -1018,7 +1021,7 @@ namespace marco::modeling::internal
         std::vector<ScalarEquationDescriptor> result;
         std::set<ScalarEquationDescriptor> set;
 
-        for (ScalarEquationDescriptor equation : llvm::post_order_ext(graph, set)) {
+        for (ScalarEquationDescriptor equation : llvm::post_order_ext(&graph, set)) {
           // Ignore the entry node
           if (equation != graph.getEntryNode()) {
             result.push_back(equation);

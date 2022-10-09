@@ -119,6 +119,32 @@ class Edge
     int value;
 };
 
+TEST(DirectedGraph, moveConstructor)
+{
+  DirectedGraph<Vertex, Edge> first;
+  auto x = first.addVertex(Vertex("x"));
+  auto y = first.addVertex(Vertex("y"));
+  first.addEdge(x, y, Edge("e"));
+
+  DirectedGraph<Vertex, Edge> second(std::move(first));
+  EXPECT_EQ(second.verticesCount(), 2);
+  EXPECT_EQ(second.edgesCount(), 1);
+}
+
+TEST(DirectedGraph, moveAssignmentOperator)
+{
+  DirectedGraph<Vertex, Edge> first;
+  auto x = first.addVertex(Vertex("x"));
+  auto y = first.addVertex(Vertex("y"));
+  first.addEdge(x, y, Edge("e"));
+
+  DirectedGraph<Vertex, Edge> second;
+  second = std::move(first);
+
+  EXPECT_EQ(second.verticesCount(), 2);
+  EXPECT_EQ(second.edgesCount(), 1);
+}
+
 TEST(DirectedGraph, addVertex)
 {
   DirectedGraph<Vertex, Edge> graph;
@@ -331,4 +357,17 @@ TEST(DirectedGraph, filteredEdges)
       UnorderedElementsAre(UnwrappedEdge(x, y, e1),
           UnwrappedEdge(x, z, e3),
           UnwrappedEdge(y, z, e4)));
+}
+
+TEST(DirectedGraph, clone)
+{
+  DirectedGraph<Vertex, Edge> first;
+  auto x = first.addVertex(Vertex("x"));
+  auto y = first.addVertex(Vertex("y"));
+  first.addEdge(x, y, Edge("e"));
+
+  DirectedGraph<Vertex, Edge> second = first.clone();
+
+  EXPECT_EQ(second.verticesCount(), first.verticesCount());
+  EXPECT_EQ(second.edgesCount(), first.edgesCount());
 }

@@ -12,9 +12,12 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/ThreadPool.h"
+#include <atomic>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <numeric>
 #include <type_traits>
 #include <variant>
@@ -366,7 +369,6 @@ namespace marco::modeling
         EquationProperty property;
 
         // Whether the node is visible or has been erased
-        // TODO: move to graph
         bool visible;
     };
 
@@ -465,7 +467,6 @@ namespace marco::modeling
         MCIM incidenceMatrix;
         MCIM matchMatrix;
 
-        // TODO: move to graph
         bool visible;
     };
 
@@ -882,9 +883,29 @@ namespace marco::modeling
 
       using Dumpable::dump;
 
+      MatchingGraph() = default;
+
+      MatchingGraph(const MatchingGraph& other) = delete;
+
+      MatchingGraph(MatchingGraph&& other)
+      {
+        std::lock_guard lockGuard(other.mutex);
+
+        graph = std::move(other.graph);
+        variablesMap = std::move(other.variablesMap);
+        equationsMap = std::move(other.equationsMap);
+      }
+
+      ~MatchingGraph() = default;
+
+      MatchingGraph& operator=(const MatchingGraph& other) = delete;
+
+      MatchingGraph& operator=(MatchingGraph&& other) = default;
+
       void dump(std::ostream& stream) const override
       {
         using namespace marco::utils;
+        std::lock_guard lockGuard(mutex);
 
         TreeOStream os(stream);
         os << "Matching graph\n";
@@ -905,172 +926,145 @@ namespace marco::modeling
 
       bool hasVariable(typename Variable::Id id) const
       {
-        return variablesMap.find(id) != variablesMap.end();
-      }
-
-      bool isVariable(VertexDescriptor vertex) const
-      {
-        return std::holds_alternative<Variable>(graph[vertex]);
-      }
-
-      VertexDescriptor getVariableVertex(typename Variable::Id id) const
-      {
-        auto it = variablesMap.find(id);
-        assert(it != variablesMap.end() && "Variable not found");
-        return it->second;
+        std::lock_guard lockGuard(mutex);
+        return hasVariableWithId(id);
       }
 
       VariableProperty& getVariable(typename Variable::Id id)
       {
-        auto vertex = getVariableVertex(id);
-        return std::get<Variable>(graph[vertex]).getProperty();
+        std::lock_guard lockGuard(mutex);
+        return getVariablePropertyFromId(id);
       }
 
       const VariableProperty& getVariable(typename Variable::Id id) const
       {
-        auto vertex = getVariableVertex(id);
-        return std::get<Variable>(graph[vertex]).getProperty();
+        std::lock_guard lockGuard(mutex);
+        return getVariablePropertyFromId(id);
       }
 
       Variable& getVariable(VertexDescriptor descriptor)
       {
-        auto& vertex = graph[descriptor];
-        assert(std::holds_alternative<Variable>(vertex));
-        return std::get<Variable>(vertex);
+        std::lock_guard lockGuard(mutex);
+        return getVariableFromDescriptor(descriptor);
       }
 
       const Variable& getVariable(VertexDescriptor descriptor) const
       {
-        auto& vertex = graph[descriptor];
-        assert(std::holds_alternative<Variable>(vertex));
-        return std::get<Variable>(vertex);
+        std::lock_guard lockGuard(mutex);
+        return getVariableFromDescriptor(descriptor);
       }
 
       VariableIterator variablesBegin() const
       {
-        auto filter = [](const Vertex& vertex) -> bool {
-          return std::holds_alternative<Variable>(vertex);
-        };
-
-        return graph.verticesBegin(filter);
+        std::lock_guard lockGuard(mutex);
+        return getVariablesBeginIt();
       }
 
       VariableIterator variablesEnd() const
       {
-        auto filter = [](const Vertex& vertex) -> bool {
-          return std::holds_alternative<Variable>(vertex);
-        };
-
-        return graph.verticesEnd(filter);
+        std::lock_guard lockGuard(mutex);
+        return getVariablesEndIt();
       }
 
       void addVariable(VariableProperty property)
       {
+        std::lock_guard lockGuard(mutex);
+
         Variable variable(std::move(property));
         auto id = variable.getId();
-        assert(!hasVariable(id) && "Already existing variable");
+        assert(!hasVariableWithId(id) && "Already existing variable");
         VertexDescriptor variableDescriptor = graph.addVertex(std::move(variable));
         variablesMap[id] = variableDescriptor;
       }
 
       bool hasEquation(typename Equation::Id id) const
       {
-        return equationsMap.find(id) != equationsMap.end();
-      }
-
-      bool isEquation(VertexDescriptor vertex) const
-      {
-        return std::holds_alternative<Equation>(graph[vertex]);
-      }
-
-      VertexDescriptor getEquationVertex(typename Equation::Id id) const
-      {
-        auto it = equationsMap.find(id);
-        assert(it != equationsMap.end() && "Equation not found");
-        return it->second;
+        std::lock_guard lockGuard(mutex);
+        return hasEquationWithId(id);
       }
 
       EquationProperty& getEquation(typename Equation::Id id)
       {
-        auto vertex = getEquationVertex(id);
-        return std::get<Equation>(graph[vertex]).getProperty();
+        std::lock_guard lockGuard(mutex);
+        return getEquationPropertyFromId(id);
       }
 
       const EquationProperty& getEquation(typename Equation::Id id) const
       {
-        auto vertex = getEquationVertex(id);
-        return std::get<Equation>(graph[vertex]).getProperty();
+        std::lock_guard lockGuard(mutex);
+        return getEquationPropertyFromId(id);
       }
 
       Equation& getEquation(VertexDescriptor descriptor)
       {
-        auto& vertex = graph[descriptor];
-        assert(std::holds_alternative<Equation>(vertex));
-        return std::get<Equation>(vertex);
+        std::lock_guard lockGuard(mutex);
+        return getEquationFromDescriptor(descriptor);
       }
 
       const Equation& getEquation(VertexDescriptor descriptor) const
       {
-        auto& vertex = graph[descriptor];
-        assert(std::holds_alternative<Equation>(vertex));
-        return std::get<Equation>(vertex);
+        std::lock_guard lockGuard(mutex);
+        return getEquationFromDescriptor(descriptor);
       }
 
       EquationIterator equationsBegin() const
       {
-        auto filter = [](const Vertex& vertex) -> bool {
-          return std::holds_alternative<Equation>(vertex);
-        };
-
-        return graph.verticesBegin(filter);
+        std::lock_guard lockGuard(mutex);
+        return getEquationsBeginIt();
       }
 
       EquationIterator equationsEnd() const
       {
-        auto filter = [](const Vertex& vertex) -> bool {
-          return std::holds_alternative<Equation>(vertex);
-        };
-
-        return graph.verticesEnd(filter);
+        std::lock_guard lockGuard(mutex);
+        return getEquationsEndIt();
       }
 
       void addEquation(EquationProperty property)
       {
         Equation eq(std::move(property));
-        auto id = eq.getId();
-        assert(!hasEquation(id) && "Already existing equation");
+        [[maybe_unused]] auto id = eq.getId();
+
+        std::unique_lock lockGuard(mutex);
+        assert(!hasEquationWithId(id) && "Already existing equation");
 
         // Insert the equation into the graph and get a reference to the new vertex
-        auto equationDescriptor = graph.addVertex(std::move(eq));
-        Equation& equation = getEquation(equationDescriptor);
-
-        auto accesses = equation.getVariableAccesses();
+        VertexDescriptor equationDescriptor = graph.addVertex(std::move(eq));
+        equationsMap[id] = equationDescriptor;
+        Equation& equation = getEquationFromDescriptor(equationDescriptor);
+        lockGuard.unlock();
 
         // The equation may access multiple variables or even multiple indexes
         // of the same variable. Add an edge to the graph for each of those
         // accesses.
 
-        for (const auto& access : accesses) {
-          auto variableDescriptor = getVariableVertex(access.getVariable());
-          Variable& variable = getVariable(variableDescriptor);
+        for (const auto& access : equation.getVariableAccesses()) {
+          lockGuard.lock();
+          VertexDescriptor variableDescriptor = getVariableDescriptorFromId(access.getVariable());
+          Variable& variable = getVariableFromDescriptor(variableDescriptor);
+          lockGuard.unlock();
 
-          auto indices = variable.getIndices();
-          for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+          IndexSet indices = variable.getIndices();
+
+          for (const MultidimensionalRange& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
             Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), IndexSet(range), access);
+
+            lockGuard.lock();
             graph.addEdge(equationDescriptor, variableDescriptor, edge);
+            lockGuard.unlock();
           }
         }
-
-        equationsMap[id] = equationDescriptor;
       }
 
       /// Get the total amount of scalar variables inside the graph.
       size_t getNumberOfScalarVariables() const
       {
+        std::lock_guard lockGuard(mutex);
         size_t result = 0;
 
-        for (auto variableDescriptor : llvm::make_range(variablesBegin(), variablesEnd())) {
-          result += getVariable(variableDescriptor).flatSize();
+        auto variables = llvm::make_range(getVariablesBeginIt(), getVariablesEndIt());
+
+        for (VertexDescriptor variableDescriptor : variables) {
+          result += getVariableFromDescriptor(variableDescriptor).flatSize();
         }
 
         return result;
@@ -1081,43 +1075,28 @@ namespace marco::modeling
       /// the loops defining them.
       size_t getNumberOfScalarEquations() const
       {
+        std::lock_guard lockGuard(mutex);
         size_t result = 0;
 
-        for (auto equationDescriptor : llvm::make_range(equationsBegin(), equationsEnd())) {
-          result += getEquation(equationDescriptor).flatSize();
+        auto equations = llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
+
+        for (VertexDescriptor equationDescriptor : equations) {
+          result += getEquationFromDescriptor(equationDescriptor).flatSize();
         }
 
         return result;
       }
 
-      bool allNodesMatched() const
-      {
-        auto vertices = llvm::make_range(graph.verticesBegin(), graph.verticesEnd());
-
-        auto allComponentsMatchedFn = [](const auto& obj) {
-          return obj.allComponentsMatched();
-        };
-
-        return llvm::all_of(
-            vertices, [&](const auto& descriptor) {
-              return std::visit(allComponentsMatchedFn, graph[descriptor]);
-            });
-      }
-
+      // Warning: highly inefficient, use for testing purposes only.
       bool hasEdge(typename Equation::Id equationId, typename Variable::Id variableId) const
       {
+        std::lock_guard lockGuard(mutex);
+
         if (findEdge<Equation, Variable>(equationId, variableId).first) {
           return true;
         }
 
         return findEdge<Variable, Equation>(variableId, equationId).first;
-      }
-
-      EdgeDescriptor getFirstOutVisibleEdge(VertexDescriptor vertex) const
-      {
-        auto edges = llvm::make_range(visibleEdgesBegin(vertex), visibleEdgesEnd(vertex));
-        assert(edges.begin() != edges.end() && "Vertex doesn't belong to any edge");
-        return *edges.begin();
       }
 
       /// Apply the simplification algorithm in order to perform all
@@ -1127,29 +1106,48 @@ namespace marco::modeling
       /// @return true if the simplification algorithm didn't find any inconsistency
       bool simplify()
       {
+        std::lock_guard lockGuard(mutex);
+
         // Vertices that are candidate for the first simplification phase.
         // They are the ones having only one incident edge.
         std::list<VertexDescriptor> candidates;
 
-        // Determine the initial set of vertices with exactly one incident edge
-        for (VertexDescriptor vertex : llvm::make_range(graph.verticesBegin(), graph.verticesEnd())) {
-          auto incidentEdges = getVertexVisibilityDegree(vertex);
-
-          if (incidentEdges == 0) {
-            return false;
-          }
-
-          if (incidentEdges == 1) {
-            candidates.push_back(vertex);
-          }
+        if (!collectSimplifiableNodes(candidates)) {
+          return false;
         }
 
+        // Check that the list of simplifiable nodes does not contain
+        // duplicates.
+        assert(llvm::all_of(candidates, [&](const VertexDescriptor& vertex) {
+                 return llvm::count(candidates, vertex) == 1;
+               }) && "Duplicates found in the list of simplifiable nodes");
+
         // Iterate on the candidate vertices and apply the simplification algorithm
+        auto isVisibleFn = [](const auto& obj) -> bool {
+          return obj.isVisible();
+        };
+
+        auto allComponentsMatchedFn = [](const auto& vertex) -> bool {
+          return vertex.allComponentsMatched();
+        };
+
         while (!candidates.empty()) {
           VertexDescriptor v1 = candidates.front();
           candidates.pop_front();
 
-          auto edgeDescriptor = getFirstOutVisibleEdge(v1);
+          if (const auto& v = graph[v1]; !std::visit(isVisibleFn, v)) {
+            // The current node, which initially had one and only one incident
+            // edge, has been removed more by simplifications performed in the
+            // previous iterations. We could just remove the vertex while the
+            // edge was removed, but that would have required iterating over
+            // the whole candidates list, thus worsening the overall complexity
+            // of the algorithm.
+
+            assert(std::visit(allComponentsMatchedFn, v));
+            continue;
+          }
+
+          EdgeDescriptor edgeDescriptor = getFirstOutVisibleEdge(v1);
           Edge& edge = graph[edgeDescriptor];
 
           VertexDescriptor v2 = edgeDescriptor.from == v1 ? edgeDescriptor.to : edgeDescriptor.from;
@@ -1160,8 +1158,8 @@ namespace marco::modeling
           assert(u.getVariableRanges().isSingleMultidimensionalRange());
 
           auto matchOptions = internal::solveLocalMatchingProblem(
-              u.getEquationRanges().minContainingRange(),//todo remove .minContainingRange()
-              u.getVariableRanges().minContainingRange(),//todo remove .minContainingRange()
+              *u.getEquationRanges().rangesBegin(),
+              *u.getVariableRanges().rangesBegin(),
               edge.getAccessFunction());
 
           // The simplification steps is executed only in case of a single
@@ -1172,34 +1170,30 @@ namespace marco::modeling
           if (matchOptions.size() == 1) {
             const MCIM& match = matchOptions[0];
 
-            Variable& variable = isVariable(v1) ? getVariable(v1) : getVariable(v2);
-            Equation& equation = isEquation(v1) ? getEquation(v1) : getEquation(v2);
+            Variable& variable = isVariable(v1) ? getVariableFromDescriptor(v1) : getVariableFromDescriptor(v2);
+            Equation& equation = isEquation(v1) ? getEquationFromDescriptor(v1) : getEquationFromDescriptor(v2);
 
-            auto proposedVariableMatch = match.flattenRows();
-            auto proposedEquationMatch = match.flattenColumns();
+            IndexSet proposedVariableMatch = match.flattenRows();
+            IndexSet proposedEquationMatch = match.flattenColumns();
 
             MCIM reducedMatch = match.filterColumns(proposedVariableMatch - variable.getMatched());
             reducedMatch = reducedMatch.filterRows(proposedEquationMatch - equation.getMatched());
 
             edge.addMatch(reducedMatch);
 
-            auto reducedVariableMatch = reducedMatch.flattenRows();
-            auto reducedEquationMatch = reducedMatch.flattenColumns();
+            IndexSet reducedVariableMatch = reducedMatch.flattenRows();
+            IndexSet reducedEquationMatch = reducedMatch.flattenColumns();
 
             variable.addMatch(reducedVariableMatch);
             equation.addMatch(reducedEquationMatch);
 
-            auto allComponentsMatchedVisitor = [](const auto& vertex) -> bool {
-              return vertex.allComponentsMatched();
-            };
-
-            if (!std::visit(allComponentsMatchedVisitor, graph[v1])) {
+            if (!std::visit(allComponentsMatchedFn, graph[v1])) {
               return false;
             }
 
-            bool shouldRemoveOppositeNode = std::visit(allComponentsMatchedVisitor, graph[v2]);
+            bool shouldRemoveOppositeNode = std::visit(allComponentsMatchedFn, graph[v2]);
 
-            // Remove the edge and the current candidate vertex
+            // Remove the edge and the current candidate vertex.
             remove(edgeDescriptor);
             remove(v1);
 
@@ -1214,53 +1208,42 @@ namespace marco::modeling
               // v2 is removed because fully matched.
               // v3 and v4 become new candidates for the simplification pass.
 
-              for (auto e : llvm::make_range(graph.outgoingEdgesBegin(v2), graph.outgoingEdgesEnd(v2))) {
+              for (EdgeDescriptor e : llvm::make_range(graph.outgoingEdgesBegin(v2), graph.outgoingEdgesEnd(v2))) {
                 remove(e);
 
                 VertexDescriptor v = e.from == v2 ? e.to : e.from;
 
-                // TODO: remove visibility filter once the visibility is moved to the base graph
-                auto isOtherVertexVisibleFn = [](const auto& obj) -> bool {
-                  return obj.isVisible();
-                };
-
-                if (!std::visit(isOtherVertexVisibleFn, graph[v])) {
+                if (!std::visit(isVisibleFn, graph[v])) {
                   continue;
                 }
 
-                auto visibilityDegree = getVertexVisibilityDegree(v);
+                size_t visibilityDegree = getVertexVisibilityDegree(v);
 
                 if (visibilityDegree == 0) {
                   // Chained simplifications may have led the 'v' vertex
                   // without any edge. In that case, it must have been fully
                   // matched during the process.
 
-                  if (!std::visit(allComponentsMatchedVisitor, graph[v])) {
+                  if (!std::visit(allComponentsMatchedFn, graph[v])) {
                     return false;
                   }
 
                   // 'v' will also be present for sure in the candidates list.
                   // However, being fully matched and having no outgoing edge,
                   // we now must remove it.
-                  candidates.remove_if([&](auto vertex) {
-                    return vertex == v;
-                  });
+                  remove(v);
                 } else if (visibilityDegree == 1) {
                   candidates.push_back(v);
                 }
               }
 
-              // Remove the v2 vertex and remove it from the candidates
+              // Remove the v2 vertex.
               remove(v2);
-
-              candidates.remove_if([&](auto v) {
-                return v == v2;
-              });
             } else {
               // When an edge is removed but one of its vertices survives, we must
               // check if the remaining vertex has an obliged match.
 
-              auto visibilityDegree = getVertexVisibilityDegree(v2);
+              size_t visibilityDegree = getVertexVisibilityDegree(v2);
 
               if (visibilityDegree == 1) {
                 candidates.push_back(v2);
@@ -1277,6 +1260,8 @@ namespace marco::modeling
       /// @return true if the matching algorithm managed to fully match all the nodes
       bool match()
       {
+        std::lock_guard lockGuard(mutex);
+
         if (allNodesMatched()) {
           return true;
         }
@@ -1289,17 +1274,24 @@ namespace marco::modeling
           complete = allNodesMatched();
         } while (success && !complete);
 
+
         return success;
       }
 
       /// Get the solution of the matching problem.
       std::vector<MatchingSolution> getMatch() const
       {
+        std::lock_guard lockGuard(mutex);
+
         assert(allNodesMatched() && "Not all the nodes have been fully matched");
         std::vector<MatchingSolution> result;
 
-        for (auto equationDescriptor : llvm::make_range(equationsBegin(), equationsEnd())) {
-          for (auto edgeDescriptor : llvm::make_range(edgesBegin(equationDescriptor), edgesEnd(equationDescriptor))) {
+        auto equations = llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
+
+        for (VertexDescriptor equationDescriptor : equations) {
+          auto edges = llvm::make_range(edgesBegin(equationDescriptor), edgesEnd(equationDescriptor));
+
+          for (auto edgeDescriptor : edges) {
             const Edge& edge = graph[edgeDescriptor];
 
             if (const auto& matched = edge.getMatched(); !matched.empty()) {
@@ -1307,8 +1299,8 @@ namespace marco::modeling
                   edgeDescriptor.from == equationDescriptor ? edgeDescriptor.to : edgeDescriptor.from;
 
               result.emplace_back(
-                  getEquation(equationDescriptor).getProperty(),
-                  getVariable(variableDescriptor).getProperty(),
+                  getEquationFromDescriptor(equationDescriptor).getProperty(),
+                  getVariableFromDescriptor(variableDescriptor).getProperty(),
                   matched.flattenColumns(),
                   edge.getAccessProperty());
             }
@@ -1319,6 +1311,184 @@ namespace marco::modeling
       }
 
     private:
+      /// Check if a variable with a given ID exists.
+      bool hasVariableWithId(typename Variable::Id id) const
+      {
+        return variablesMap.find(id) != variablesMap.end();
+      }
+
+      bool isVariable(VertexDescriptor vertex) const
+      {
+        return std::holds_alternative<Variable>(graph[vertex]);
+      }
+
+      VertexDescriptor getVariableDescriptorFromId(typename Variable::Id id) const
+      {
+        auto it = variablesMap.find(id);
+        assert(it != variablesMap.end() && "Variable not found");
+        return it->second;
+      }
+
+      VariableProperty& getVariablePropertyFromId(typename Variable::Id id)
+      {
+        VertexDescriptor vertex = getVariableDescriptorFromId(id);
+        return std::get<Variable>(graph[vertex]).getProperty();
+      }
+
+      const VariableProperty& getVariablePropertyFromId(typename Variable::Id id) const
+      {
+        VertexDescriptor vertex = getVariableDescriptorFromId(id);
+        return std::get<Variable>(graph[vertex]).getProperty();
+      }
+
+      Variable& getVariableFromDescriptor(VertexDescriptor descriptor)
+      {
+        auto& vertex = graph[descriptor];
+        assert(std::holds_alternative<Variable>(vertex));
+        return std::get<Variable>(vertex);
+      }
+
+      const Variable& getVariableFromDescriptor(VertexDescriptor descriptor) const
+      {
+        auto& vertex = graph[descriptor];
+        assert(std::holds_alternative<Variable>(vertex));
+        return std::get<Variable>(vertex);
+      }
+
+      /// Check if an equation with a given ID exists.
+      bool hasEquationWithId(typename Equation::Id id) const
+      {
+        return equationsMap.find(id) != equationsMap.end();
+      }
+
+      bool isEquation(VertexDescriptor vertex) const
+      {
+        return std::holds_alternative<Equation>(graph[vertex]);
+      }
+
+      VertexDescriptor getEquationDescriptorFromId(typename Equation::Id id) const
+      {
+        auto it = equationsMap.find(id);
+        assert(it != equationsMap.end() && "Equation not found");
+        return it->second;
+      }
+
+      EquationProperty& getEquationPropertyFromId(typename Equation::Id id)
+      {
+        VertexDescriptor vertex = getEquationDescriptorFromId(id);
+        return std::get<Equation>(graph[vertex]).getProperty();
+      }
+
+      const EquationProperty& getEquationPropertyFromId(typename Equation::Id id) const
+      {
+        VertexDescriptor vertex = getEquationDescriptorFromId(id);
+        return std::get<Equation>(graph[vertex]).getProperty();
+      }
+
+      Equation& getEquationFromDescriptor(VertexDescriptor descriptor)
+      {
+        auto& vertex = graph[descriptor];
+        assert(std::holds_alternative<Equation>(vertex));
+        return std::get<Equation>(vertex);
+      }
+
+      const Equation& getEquationFromDescriptor(VertexDescriptor descriptor) const
+      {
+        auto& vertex = graph[descriptor];
+        assert(std::holds_alternative<Equation>(vertex));
+        return std::get<Equation>(vertex);
+      }
+
+      /// Get the begin iterator for the variables of the graph.
+      VariableIterator getVariablesBeginIt() const
+      {
+        auto filter = [](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Variable>(vertex);
+        };
+
+        return graph.verticesBegin(filter);
+      }
+
+      /// Get the end iterator for the variables of the graph.
+      VariableIterator getVariablesEndIt() const
+      {
+        auto filter = [](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Variable>(vertex);
+        };
+
+        return graph.verticesEnd(filter);
+      }
+
+      /// Get the begin iterator for the equations of the graph.
+      EquationIterator getEquationsBeginIt() const
+      {
+        auto filter = [](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Equation>(vertex);
+        };
+
+        return graph.verticesBegin(filter);
+      }
+
+      /// Get the end iterator for the equations of the graph.
+      EquationIterator getEquationsEndIt() const
+      {
+        auto filter = [](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Equation>(vertex);
+        };
+
+        return graph.verticesEnd(filter);
+      }
+
+      /// Check if all the scalar variables and equations have been matched.
+      bool allNodesMatched() const
+      {
+        std::atomic_bool allMatched = true;
+        llvm::ThreadPool threadPool;
+
+        auto allComponentsMatchedFn = [](const auto& obj) {
+          return obj.allComponentsMatched();
+        };
+
+        auto checkFn = [&](VertexIterator beginIt, VertexIterator endIt) {
+          for (VertexDescriptor vertex : llvm::make_range(beginIt, endIt)) {
+            if (!allMatched) {
+              break;
+            }
+
+            if (!std::visit(allComponentsMatchedFn, graph[vertex])) {
+              allMatched = false;
+            }
+          }
+        };
+
+        VertexIterator currentIt = graph.verticesBegin();
+        VertexIterator endIt = graph.verticesEnd();
+
+        size_t numOfVertices = std::distance(currentIt, endIt);
+
+        unsigned int numOfThreads = threadPool.getThreadCount();
+        size_t chunkSize = (numOfVertices + numOfThreads - 1) / numOfThreads;
+        size_t remaining = numOfVertices;
+
+        std::vector<VertexIterator> fromIts;
+        std::vector<VertexIterator> toIts;
+
+        for (unsigned int i = 0; i < numOfThreads; ++i) {
+          if (currentIt != endIt) {
+            VertexIterator from = currentIt;
+            size_t step = std::min(remaining, chunkSize);
+            VertexIterator to = std::next(from, step);
+            currentIt = to;
+            remaining -= step;
+
+            threadPool.async(checkFn, from, to);
+          }
+        }
+
+        threadPool.wait();
+        return allMatched;
+      }
+
       size_t getVertexVisibilityDegree(VertexDescriptor vertex) const
       {
         auto edges = llvm::make_range(visibleEdgesBegin(vertex), visibleEdgesEnd(vertex));
@@ -1333,6 +1503,7 @@ namespace marco::modeling
             }, graph[vertex]);
       }
 
+      // Warning: highly inefficient, use for testing purposes only.
       template<typename From, typename To>
       std::pair<bool, EdgeIterator> findEdge(typename From::Id from, typename To::Id to) const
       {
@@ -1381,9 +1552,81 @@ namespace marco::modeling
         return graph.outgoingEdgesEnd(vertex, filter);
       }
 
+      EdgeDescriptor getFirstOutVisibleEdge(VertexDescriptor vertex) const
+      {
+        auto edges = llvm::make_range(visibleEdgesBegin(vertex), visibleEdgesEnd(vertex));
+        assert(edges.begin() != edges.end() && "Vertex doesn't belong to any edge");
+        return *edges.begin();
+      }
+
       void remove(EdgeDescriptor edge)
       {
         graph[edge].setVisibility(false);
+      }
+
+      /// Collect the list of vertices with exactly one incident edge.
+      /// The function returns 'false' if there exist a node with no incident
+      /// edges (which would make the matching process to fail in aby case).
+      bool collectSimplifiableNodes(std::list<VertexDescriptor>& nodes) const
+      {
+        std::atomic_bool consistent = true;
+        llvm::ThreadPool threadPool;
+
+        std::mutex resultMutex;
+
+        auto collectFn = [&](VertexIterator from, VertexIterator to) {
+          // Create a temporary list to reduce the synchronization overhead.
+          std::list<VertexDescriptor> threadResults;
+
+          for (VertexDescriptor vertex : llvm::make_range(from, to)) {
+            if (!consistent) {
+              break;
+            }
+
+            size_t incidentEdges = getVertexVisibilityDegree(vertex);
+
+            if (incidentEdges == 0) {
+              consistent = false;
+              break;
+            }
+
+            if (incidentEdges == 1) {
+              threadResults.push_back(vertex);
+            }
+          }
+
+          if (consistent) {
+            // Move the collected vertices into the results list.
+            // The operation is performed in constant time, being the elements
+            // contained in a list.
+            std::lock_guard resultLockGuard(resultMutex);
+            nodes.splice(nodes.end(), threadResults);
+          }
+        };
+
+        VertexIterator currentIt = graph.verticesBegin();
+        VertexIterator endIt = graph.verticesEnd();
+
+        size_t numOfVertices = std::distance(currentIt, endIt);
+
+        unsigned int numOfThreads = threadPool.getThreadCount();
+        size_t chunkSize = (numOfVertices + numOfThreads - 1) / numOfThreads;
+        size_t remaining = numOfVertices;
+
+        for (unsigned int i = 0; i < numOfThreads; ++i) {
+          if (currentIt != endIt) {
+            VertexIterator from = currentIt;
+            size_t step = std::min(remaining, chunkSize);
+            VertexIterator to = std::next(from, step);
+            currentIt = to;
+            remaining -= step;
+
+            threadPool.async(collectFn, from, to);
+          }
+        }
+
+        threadPool.wait();
+        return consistent;
       }
 
       bool matchIteration()
@@ -1411,17 +1654,17 @@ namespace marco::modeling
         Frontier frontier;
 
         // Calculation of the initial frontier
-        auto equations = llvm::make_range(equationsBegin(), equationsEnd());
+        auto equations = llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
 
-        for (auto equationDescriptor : equations) {
-          const Equation& equation = getEquation(equationDescriptor);
+        for (VertexDescriptor equationDescriptor : equations) {
+          const Equation& equation = getEquationFromDescriptor(equationDescriptor);
 
           if (auto unmatchedEquations = equation.getUnmatched(); !unmatchedEquations.empty()) {
             frontier.emplace(BFSStep(graph, equationDescriptor, std::move(unmatchedEquations)));
           }
         }
 
-        std::sort(frontier.begin(), frontier.end(), sortHeuristic);
+        llvm::sort(frontier, sortHeuristic);
 
         // Breadth-first search
         Frontier newFrontier;
@@ -1443,7 +1686,7 @@ namespace marco::modeling
                 internal::LocalMatchingSolutions solutions = internal::solveLocalMatchingProblem(filteredMatrix);
 
                 for (auto solution : solutions) {
-                  Variable var = getVariable(edgeDescriptor.to);
+                  Variable var = getVariableFromDescriptor(edgeDescriptor.to);
                   auto unmatchedScalarVariables = var.getUnmatched();
                   auto matched = solution.filterColumns(unmatchedScalarVariables);
 
@@ -1469,10 +1712,10 @@ namespace marco::modeling
           frontier.clear();
           frontier.swap(newFrontier);
 
-          std::sort(frontier.begin(), frontier.end(), sortHeuristic);
+          llvm::sort(frontier, sortHeuristic);
         }
 
-        std::sort(foundPaths.begin(), foundPaths.end(), sortHeuristic);
+        llvm::sort(foundPaths, sortHeuristic);
 
         // For each traversed node, keep track of the indexes that have already
         // been traversed by some augmenting path. A new candidate path can be
@@ -1600,8 +1843,13 @@ namespace marco::modeling
 
     private:
       Graph graph;
+
+      // Maps user for faster lookups.
       std::map<typename Variable::Id, VertexDescriptor> variablesMap;
       std::map<typename Equation::Id, VertexDescriptor> equationsMap;
+
+      // Multithreading.
+      mutable std::mutex mutex;
   };
 }
 

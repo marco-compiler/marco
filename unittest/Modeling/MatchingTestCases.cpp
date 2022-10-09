@@ -22,7 +22,7 @@ namespace marco::modeling::matching::test
     eq2.addVariableAccess(Access(x, DimensionAccess::constant(2)));
     graph.addEquation(eq2);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase2()
@@ -42,7 +42,7 @@ namespace marco::modeling::matching::test
     eq2.addVariableAccess(Access(x, DimensionAccess::relative(0, 0)));
     graph.addEquation(eq2);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase3()
@@ -111,7 +111,7 @@ namespace marco::modeling::matching::test
     eq7.addVariableAccess(Access(f, DimensionAccess::relative(0, 0)));
     graph.addEquation(eq7);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase4()
@@ -164,7 +164,7 @@ namespace marco::modeling::matching::test
     eq6.addVariableAccess(Access(f, DimensionAccess::constant(5)));
     graph.addEquation(eq6);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase5()
@@ -204,7 +204,7 @@ namespace marco::modeling::matching::test
     eq4.addVariableAccess(Access(x, DimensionAccess::constant(4)));
     graph.addEquation(eq4);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase6()
@@ -229,7 +229,7 @@ namespace marco::modeling::matching::test
     eq2.addVariableAccess(Access(y, DimensionAccess::constant(1)));
     graph.addEquation(eq2);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase7()
@@ -268,7 +268,7 @@ namespace marco::modeling::matching::test
     eq4.addVariableAccess(Access(z, DimensionAccess::constant(0)));
     graph.addEquation(eq4);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase8()
@@ -304,7 +304,7 @@ namespace marco::modeling::matching::test
     eq4.addVariableAccess(Access(y, DimensionAccess::relative(0, 0)));
     graph.addEquation(eq4);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase9()
@@ -368,7 +368,7 @@ namespace marco::modeling::matching::test
     eq6.addVariableAccess(Access(x, DimensionAccess::constant(4)));
     graph.addEquation(eq6);
 
-    return graph;
+    return std::move(graph);
   }
 
   MatchingGraph<Variable, Equation> testCase10()
@@ -399,7 +399,7 @@ namespace marco::modeling::matching::test
     eq3.addVariableAccess(Access(y, DimensionAccess::constant(1)));
     graph.addEquation(eq3);
 
-    return graph;
+    return std::move(graph);
   }
 }
 
