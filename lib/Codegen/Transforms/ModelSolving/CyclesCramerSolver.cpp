@@ -18,11 +18,13 @@ size_t SquareMatrix::getSize() const
 
 mlir::Value& SquareMatrix::operator()(size_t row, size_t col)
 {
+  assert(row*size + col < storage.size());
   return storage[row*size + col];
 }
 
 mlir::Value SquareMatrix::operator()(size_t row, size_t col) const
 {
+  assert(row*size + col < storage.size());
   return storage[row*size + col];
 }
 
@@ -205,6 +207,14 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
     subsystemSize += equation->getIterationRanges().flatSize();
   }
 
+  // Get the list of flat access indices
+  std::map<size_t, std::pair<MatchedEquation*, Point>> flatMap;
+  for (const auto& equation : clones) {
+    for (const auto& point : equation->getIterationRanges()) {
+      flatMap.emplace(equation->getFlatAccessIndex(point), std::pair(equation.get(), point));
+    }
+  }
+
   // Create the matrix to contain the coefficients of the system's
   // equations and the vector to contain the constant terms.
   auto storageSize = subsystemSize * subsystemSize;
@@ -215,9 +225,10 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
   LLVM_DEBUG({
     llvm::dbgs() << "Populating the model matrix and constant vector.\n";
   });
+
   // Populate system coefficient matrix and constant term vector.
   res = getModelMatrixAndVector(
-      matrix, constantVector, clones, subsystemSize);
+      matrix, constantVector, clones, subsystemSize, flatMap);
 
   LLVM_DEBUG({
     llvm::dbgs() << "COEFFICIENT MATRIX: \n";
@@ -226,10 +237,11 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
     for(auto el : constantVector)
       el.dump();
   });
-
+//todo shuffling after getmatrix
   if(res) {
-    for(size_t i = 0; i < clones.size(); ++i) {
-      auto& equation = clones[i];
+    size_t subsystemEquationIndex = 0;
+    for (const auto& [index, pair] : flatMap) {
+      auto& equation = pair.first;
       mlir::OpBuilder::InsertionGuard equationGuard(builder);
       builder.setInsertionPoint(equation->getOperation().bodyBlock()->getTerminator());
       // Allocate a new coefficient matrix and constant vector to contain the
@@ -256,7 +268,6 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       // Compute the determinant of the system matrix.
       mlir::Value determinant = clonedMatrix.det(builder);
 
-      // Get path, variable and argument number.
       auto access = equation->getWrite();
       auto& path = access.getPath();
 
@@ -264,7 +275,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       // substituting the constant term vector to each one of the matrix
       // columns, and divide them by the determinant of the system matrix.
       clonedMatrix.substituteColumn(
-          temp, i, clonedVector);
+          temp, subsystemEquationIndex, clonedVector);
 
       auto tempDet = temp.det(builder);
 
@@ -278,7 +289,9 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       // and the matched variables as the left side. Set the cloned equations
       // as the model equations.
 
+      //todo take the point into account (pair.second)
       equation->setMatchSolution(builder, div);
+      ++subsystemEquationIndex;
     }
 
     for (auto& equation : clones) {
@@ -322,7 +335,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
       for (const auto& [readingAccess, writingEquation] : readWriteMatch) {
         auto iterationRanges = writingEquation->getIterationRanges();
-        for(auto range : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd()))
+        for(const auto& range : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd()))
         {
           auto res = writingEquation->replaceInto(
               builder, IndexSet(range), *clone,
@@ -356,45 +369,16 @@ bool CramerSolver::getModelMatrixAndVector(
     SquareMatrix matrix,
     std::vector<mlir::Value>& constantVector,
     Equations<MatchedEquation> equations,
-    size_t subsystemSize)
+    size_t subsystemSize,
+    const std::map<size_t, std::pair<MatchedEquation*, Point>>& flatMap)
 {
-  // Get the list of flat access indices
-  std::vector<size_t> subsystemFlatAccesses(subsystemSize);
-  std::map<size_t, std::pair<MatchedEquation*, Point::data_type>> flatMap;
-  size_t numberOfScalarEquations = 0;
-  for (const auto& equation : equations) {
-    for (const auto& ranges : equation->getIterationRanges()) {
-      for (const auto& point : ranges) {
-        flatMap.emplace(equation->getFlatAccessIndex(point), std::pair(equation.get(), point));
-        subsystemFlatAccesses[numberOfScalarEquations] = equation->getFlatAccessIndex(point);
-        ++numberOfScalarEquations;
-      }
-    }
-  }
+  // Scan the accesses of each equation for missing matches
+  for (const auto& [index, pair] : flatMap) {
+    const auto& equation = pair.first;
+    const auto& point = pair.second;
 
-  // Get the set of matched variables for this system of equations
-  std::vector<IndexSet> writes;
-  for (const auto& equation : equations) {
-    writes.push_back(equation->getWrite().getAccessFunction().map(equation->getIterationRanges()));
-  }
-
-  // If an equation has an access outside the matched set, then there are not
-  // enough equations, and the system cannot be solved
-  for (const auto& equation : equations) {
-    auto readAccesses = equation->getReads();
-
-    equation->dumpIR();
-    // Check that there are no accesses on unmatched variables.
-    for (const auto& readAccess : readAccesses) {
-      auto readIndices = readAccess.getAccessFunction().map(equation->getIterationRanges());
-      bool found = false;
-      for (const auto& write : writes) {
-        if (write.overlaps(readIndices)) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
+    for (const auto& readAccess : equation->getReads()) {
+      if (flatMap.count(equation->getFlatAccessIndex(readAccess, point)) == 0) {
         return false;
       }
     }
@@ -403,36 +387,29 @@ bool CramerSolver::getModelMatrixAndVector(
   // For each equation, get the coefficients of the variables and the
   // constant term, and save them respectively in the system matrix and
   // constant term vector.
-  size_t equationIndex = 0;
-  for (const auto& equation : equations) {
-    for (const auto& multidimensionalRange : equation->getIterationRanges()) {
-      // Full system size for coefficients vector, as expected by getCoefficients
-      auto coefficients = std::vector<mlir::Value>(systemSize);
-      mlir::Value constantTerm;
+  size_t subsystemEquationIndex = 0;
+  for (const auto& [index, pair] : flatMap) {
+    const auto& point = pair.second;
+    const auto& equation = pair.first;
 
-
-      // Collect the coefficients and the constant term
-      auto res = equation->getCoefficients(builder, coefficients, constantTerm, multidimensionalRange);
-
-      if(mlir::failed(res)) {
-        return false;
-      }
-
-      // Copy the useful coefficients inside the matrix and constant vector
-      size_t subsystemVariableIndex = 0;
-      for (size_t variableIndex = 0; variableIndex < systemSize; ++variableIndex) {
-        if (std::find(subsystemFlatAccesses.begin(), subsystemFlatAccesses.end(), variableIndex) != subsystemFlatAccesses.end()) {
-          matrix(equationIndex, subsystemVariableIndex) = coefficients[variableIndex];
-          ++subsystemVariableIndex;
-        }
-      }
-
-      assert(subsystemVariableIndex == subsystemSize);
-
-      constantVector[equationIndex] = constantTerm;
-      ++equationIndex;
+    // Collect the coefficients and the constant term
+    auto coefficients = std::vector<mlir::Value>(systemSize);
+    mlir::Value constantTerm;
+    if(mlir::failed(equation->getCoefficients(builder, coefficients, constantTerm, point))) {
+      return false;
     }
 
+    // Copy the useful coefficients inside the matrix and constant vector
+    size_t subsystemVariableIndex = 0;
+    for (const auto& [variableIndex, _] : flatMap) {
+      coefficients[variableIndex].dump();
+      matrix(subsystemEquationIndex, subsystemVariableIndex) = coefficients[variableIndex];
+      matrix.dump();
+      ++subsystemVariableIndex;
+    }
+    assert(subsystemVariableIndex == subsystemSize);
+    constantVector[subsystemEquationIndex] = constantTerm;
+    ++subsystemEquationIndex;
   }
 
   return true;

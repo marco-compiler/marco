@@ -109,7 +109,8 @@ namespace marco::codegen {
         SquareMatrix matrix,
         std::vector<mlir::Value>& constantVector,
         Equations<MatchedEquation> equations,
-        size_t subsystemSize);
+        size_t subsystemSize,
+        const std::map<size_t, std::pair<MatchedEquation*, ::marco::modeling::Point>>& flatMap);
 
     /// Given a matrix as input clone its values and fill with them the output one.
     /// \param builder The builder.
