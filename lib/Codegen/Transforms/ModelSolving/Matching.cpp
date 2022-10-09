@@ -2,6 +2,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/FilteredVariable.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "llvm/Support/ThreadPool.h"
+#include <atomic>
 #include <mutex>
 
 using namespace ::marco::codegen;
@@ -9,6 +10,7 @@ using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
 static Variables getFilteredVariables(
+    llvm::ThreadPool& threadPool,
     const Variables& variables,
     std::function<IndexSet(const Variable&)> filterFn)
 {
@@ -16,7 +18,6 @@ static Variables getFilteredVariables(
   Variables filteredVariables;
 
   // Parallelize the creation of the variables.
-  llvm::ThreadPool threadPool;
   std::mutex mutex;
 
   // Function to filter a chunk of variables.
@@ -36,19 +37,78 @@ static Variables getFilteredVariables(
   };
 
   // Shard the work among multiple threads.
+  llvm::ThreadPoolTaskGroup tasks(threadPool);
   unsigned int numOfThreads = threadPool.getThreadCount();
   size_t chunkSize = (numOfVariables + numOfThreads - 1) / numOfThreads;
 
   for (unsigned int i = 0; i < numOfThreads; ++i) {
     size_t from = i * chunkSize;
     size_t to = std::min(numOfVariables, (i + 1) * chunkSize);
-    threadPool.async(mapFn, from, to);
+    tasks.async(mapFn, from, to);
   }
 
   // Wait for all the tasks to finish.
-  threadPool.wait();
+  tasks.wait();
 
   return filteredVariables;
+}
+
+static void addVariablesToGraph(
+    llvm::ThreadPool& threadPool,
+    MatchingGraph<Variable*, Equation*>& graph,
+    Variables& variables)
+{
+  unsigned int numOfThreads = threadPool.getThreadCount();
+  std::atomic_size_t variablesCounter = 0;
+  size_t numOfVariables = variables.size();
+
+  auto addFn = [&]() {
+    size_t i = variablesCounter++;
+
+    while (i < numOfVariables) {
+      const std::unique_ptr<Variable>& variable = variables[i];
+      graph.addVariable(variable.get());
+
+      i = variablesCounter++;
+    }
+  };
+
+  llvm::ThreadPoolTaskGroup tasks(threadPool);
+
+  for (unsigned int i = 0; i < numOfThreads; ++i) {
+    tasks.async(addFn);
+  }
+
+  tasks.wait();
+}
+
+static void addEquationsToGraph(
+    llvm::ThreadPool& threadPool,
+    MatchingGraph<Variable*, Equation*>& graph,
+    Equations<Equation>& equations)
+{
+  unsigned int numOfThreads = threadPool.getThreadCount();
+  std::atomic_size_t equationsCounter = 0;
+  size_t numOfEquations = equations.size();
+
+  auto addFn = [&]() {
+    size_t i = equationsCounter++;
+
+    while (i < numOfEquations) {
+      const std::unique_ptr<Equation>& equation = equations[i];
+      graph.addEquation(equation.get());
+
+      i = equationsCounter++;
+    }
+  };
+
+  llvm::ThreadPoolTaskGroup tasks(threadPool);
+
+  for (unsigned int i = 0; i < numOfThreads; ++i) {
+    tasks.async(addFn);
+  }
+
+  tasks.wait();
 }
 
 namespace marco::codegen
@@ -257,23 +317,16 @@ namespace marco::codegen
       const Model<Equation>& model,
       std::function<IndexSet(const Variable&)> matchableIndicesFn)
   {
+    llvm::ThreadPool threadPool;
+
     Variables allVariables = model.getVariables();
-
-    // Map the variables by their argument number for a faster lookup
-    std::vector<mlir::BlockArgument> variablesByPosition;
-    variablesByPosition.resize(allVariables.size());
-
-    for (const auto& variable : allVariables) {
-      auto argument = variable->getValue().cast<mlir::BlockArgument>();
-      variablesByPosition[argument.getArgNumber()] = argument;
-    }
 
     // Filter the variables. State and constant ones must not in fact
     // take part into the matching process as their values are already
     // determined (state variables depend on their derivatives, while
     // constants have a fixed value).
 
-    Variables filteredVariables = getFilteredVariables(allVariables, matchableIndicesFn);
+    Variables filteredVariables = getFilteredVariables(threadPool, allVariables, matchableIndicesFn);
     Equations<Equation> filteredEquations;
 
     for (const auto& equation : model.getEquations()) {
@@ -282,21 +335,12 @@ namespace marco::codegen
       filteredEquations.add(std::move(clone));
     }
 
-    Model<Equation> filteredModel(model.getOperation());
-    filteredModel.setVariables(filteredVariables);
-    filteredModel.setEquations(filteredEquations);
-
     // Create the matching graph. We use the pointers to the real nodes in order
     // to speed up the copies.
     MatchingGraph<Variable*, Equation*> matchingGraph;
 
-    for (const auto& variable : filteredModel.getVariables()) {
-      matchingGraph.addVariable(variable.get());
-    }
-
-    for (const auto& equation : filteredModel.getEquations()) {
-      matchingGraph.addEquation(equation.get());
-    }
+    addVariablesToGraph(threadPool, matchingGraph, filteredVariables);
+    addEquationsToGraph(threadPool, matchingGraph, filteredEquations);
 
     auto numberOfScalarEquations = matchingGraph.getNumberOfScalarEquations();
     auto numberOfScalarVariables = matchingGraph.getNumberOfScalarVariables();
