@@ -157,9 +157,8 @@ namespace mlir::modelica
     printer << " ";
     printer.printSymbolName(getSymName());
 
-    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
-        mlir::SymbolTable::getSymbolAttrName()
-    };
+    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
 
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), elidedAttrs);
 
@@ -260,10 +259,9 @@ namespace mlir::modelica
     printer.printSymbolName(getSymName());
     printer << " : " << getFunctionType();
 
-    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
-        mlir::SymbolTable::getSymbolAttrName(),
-        mlir::function_interface_impl::getTypeAttrName()
-    };
+    llvm::SmallVector<llvm::StringRef, 2> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
+    elidedAttrs.push_back(mlir::function_interface_impl::getTypeAttrName());
 
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs(), elidedAttrs);
 
@@ -588,11 +586,10 @@ namespace mlir::modelica
     printer << " ";
     printer.printSymbolName(getSymName());
 
-    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
-        mlir::SymbolTable::getSymbolAttrName(),
-        mlir::SymbolTable::getVisibilityAttrName(),
-        mlir::function_interface_impl::getTypeAttrName()
-    };
+    llvm::SmallVector<llvm::StringRef, 3> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
+    elidedAttrs.push_back(mlir::SymbolTable::getVisibilityAttrName());
+    elidedAttrs.push_back(mlir::function_interface_impl::getTypeAttrName());
 
     printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
     printer << " : " << getFunctionType();
@@ -937,9 +934,8 @@ namespace mlir::modelica
     printer << " ";
     printer.printSymbolName(getSymName());
 
-    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
-        mlir::SymbolTable::getSymbolAttrName()
-    };
+    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
 
     printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
 
@@ -1467,9 +1463,8 @@ namespace mlir::modelica
   {
     printer.printSymbolName(getSymName());
 
-    llvm::ArrayRef<llvm::StringRef> elidedAttrs = {
-        mlir::SymbolTable::getSymbolAttrName()
-    };
+    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
 
     printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
   }
