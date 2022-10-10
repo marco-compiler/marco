@@ -62,58 +62,85 @@ static mlir::LogicalResult matchMainModel(
   return match(matchedModel, model, matchableIndicesFn);
 }
 
-static void splitIndices(mlir::OpBuilder& builder, Model<MatchedEquation>& model)
+static void splitIndices(llvm::ThreadPool& threadPool, Model<MatchedEquation>& model)
 {
-  Equations<MatchedEquation> equations;
+  Equations<MatchedEquation> oldEquations = model.getEquations();
 
-  for (const auto& equation : model.getEquations()) {
-    auto write = equation->getWrite();
-    auto iterationRanges = equation->getIterationRanges();
-    auto writtenIndices = write.getAccessFunction().map(iterationRanges);
+  Equations<MatchedEquation> newEquations;
+  std::mutex mutex;
 
-    IndexSet result;
+  size_t numOfEquations = oldEquations.size();
+  std::atomic_size_t currentEquation = 0;
 
-    for (const auto& access : equation->getAccesses()) {
-      if (access.getPath() == write.getPath()) {
-        continue;
+  auto mapFn = [&]() {
+    size_t i = currentEquation++;
+
+    while (i < numOfEquations) {
+      const std::unique_ptr<MatchedEquation>& equation = oldEquations[i];
+      auto write = equation->getWrite();
+      auto iterationRanges = equation->getIterationRanges();
+      auto writtenIndices = write.getAccessFunction().map(iterationRanges);
+
+      IndexSet result;
+
+      for (const auto& access : equation->getAccesses()) {
+        if (access.getPath() == write.getPath()) {
+          continue;
+        }
+
+        if (access.getVariable() != write.getVariable()) {
+          continue;
+        }
+
+        auto accessedIndices = access.getAccessFunction().map(iterationRanges);
+
+        if (!accessedIndices.overlaps(writtenIndices)) {
+          continue;
+        }
+
+        result += write.getAccessFunction().inverseMap(
+            IndexSet(accessedIndices.intersect(writtenIndices)),
+            IndexSet(iterationRanges));
       }
 
-      if (access.getVariable() != write.getVariable()) {
-        continue;
+      for (const auto& range : llvm::make_range(result.rangesBegin(), result.rangesEnd())) {
+        auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+
+        auto matchedClone = std::make_unique<MatchedEquation>(
+            std::move(clone), IndexSet(range), write.getPath());
+
+        std::lock_guard lockGuard(mutex);
+        newEquations.add(std::move(matchedClone));
       }
 
-      auto accessedIndices = access.getAccessFunction().map(iterationRanges);
+      auto values = (IndexSet(iterationRanges) - result);
 
-      if (!accessedIndices.overlaps(writtenIndices)) {
-        continue;
+      for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd()) ) {
+        auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+
+        auto matchedClone = std::make_unique<MatchedEquation>(
+            std::move(clone), IndexSet(range), write.getPath());
+
+        std::lock_guard lockGuard(mutex);
+        newEquations.add(std::move(matchedClone));
       }
 
-      result += write.getAccessFunction().inverseMap(
-          IndexSet(accessedIndices.intersect(writtenIndices)),
-          IndexSet(iterationRanges));
+      i = currentEquation++;
     }
+  };
 
-    for (const auto& range : llvm::make_range(result.rangesBegin(), result.rangesEnd())) {
-      auto clone = Equation::build(equation->getOperation(), equation->getVariables());
+  // Shard the work among multiple threads.
+  llvm::ThreadPoolTaskGroup tasks(threadPool);
+  unsigned int numOfThreads = threadPool.getThreadCount();
 
-      auto matchedClone = std::make_unique<MatchedEquation>(
-          std::move(clone), IndexSet(range), write.getPath());
-
-      equations.add(std::move(matchedClone));
-    }
-
-    auto values = (IndexSet(iterationRanges) - result);
-    for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd()) ) {
-      auto clone = Equation::build(equation->getOperation(), equation->getVariables());
-
-      auto matchedClone = std::make_unique<MatchedEquation>(
-          std::move(clone), IndexSet(range), write.getPath());
-
-      equations.add(std::move(matchedClone));
-    }
+  for (unsigned int i = 0; i < numOfThreads; ++i) {
+    tasks.async(mapFn);
   }
 
-  model.setEquations(equations);
+  // Wait for all the threads to terminate.
+  tasks.wait();
+
+  model.setEquations(newEquations);
 }
 
 namespace
@@ -148,6 +175,8 @@ namespace
 
 mlir::LogicalResult MatchingPass::processModelOp(mlir::OpBuilder& builder, ModelOp modelOp)
 {
+  llvm::ThreadPool threadPool;
+
   // The options to be used when printing the IR.
   ModelSolvingIROptions irOptions;
   irOptions.mergeAndSortRanges = debugView;
@@ -178,7 +207,7 @@ mlir::LogicalResult MatchingPass::processModelOp(mlir::OpBuilder& builder, Model
       return res;
     }
 
-    splitIndices(builder, matchedModel);
+    splitIndices(threadPool, matchedModel);
 
     // Write the match information in form of attributes.
     writeMatchingAttributes(builder, matchedModel, irOptions);
@@ -201,7 +230,7 @@ mlir::LogicalResult MatchingPass::processModelOp(mlir::OpBuilder& builder, Model
       return res;
     }
 
-    splitIndices(builder, matchedModel);
+    splitIndices(threadPool, matchedModel);
 
     // Write the match information in form of attributes.
     writeMatchingAttributes(builder, matchedModel, irOptions);
