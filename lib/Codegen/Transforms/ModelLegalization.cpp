@@ -722,7 +722,6 @@ void ModelLegalization::collectDerivedVariablesIndices(
 
   // Shard the work among multiple threads.
   unsigned int numOfThreads = threadPool.getThreadCount();
-  size_t chunkSize = (numOfAlgorithms + numOfThreads - 1) / numOfThreads;
   llvm::ThreadPoolTaskGroup tasks(threadPool);
 
   for (unsigned int i = 0; i < numOfThreads; ++i) {

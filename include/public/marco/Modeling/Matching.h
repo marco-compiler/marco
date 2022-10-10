@@ -191,7 +191,6 @@ namespace marco::modeling
           VariableProperty property;
 
           // Whether the node is visible or has been erased
-          // TODO: move to graph
           bool visible;
       };
 
@@ -1136,7 +1135,7 @@ namespace marco::modeling
           VertexDescriptor v1 = candidates.front();
           candidates.pop_front();
 
-          if (const auto& v = graph[v1]; !std::visit(isVisibleFn, v)) {
+          if (const Vertex& v = graph[v1]; !std::visit(isVisibleFn, v)) {
             // The current node, which initially had one and only one incident
             // edge, has been removed more by simplifications performed in the
             // previous iterations. We could just remove the vertex while the
@@ -1293,7 +1292,7 @@ namespace marco::modeling
         for (VertexDescriptor equationDescriptor : equations) {
           auto edges = llvm::make_range(edgesBegin(equationDescriptor), edgesEnd(equationDescriptor));
 
-          for (auto edgeDescriptor : edges) {
+          for (EdgeDescriptor edgeDescriptor : edges) {
             const Edge& edge = graph[edgeDescriptor];
 
             if (const auto& matched = edge.getMatched(); !matched.empty()) {
@@ -1345,14 +1344,14 @@ namespace marco::modeling
 
       Variable& getVariableFromDescriptor(VertexDescriptor descriptor)
       {
-        auto& vertex = graph[descriptor];
+        Vertex& vertex = graph[descriptor];
         assert(std::holds_alternative<Variable>(vertex));
         return std::get<Variable>(vertex);
       }
 
       const Variable& getVariableFromDescriptor(VertexDescriptor descriptor) const
       {
-        auto& vertex = graph[descriptor];
+        const Vertex& vertex = graph[descriptor];
         assert(std::holds_alternative<Variable>(vertex));
         return std::get<Variable>(vertex);
       }
@@ -1389,14 +1388,14 @@ namespace marco::modeling
 
       Equation& getEquationFromDescriptor(VertexDescriptor descriptor)
       {
-        auto& vertex = graph[descriptor];
+        Vertex& vertex = graph[descriptor];
         assert(std::holds_alternative<Equation>(vertex));
         return std::get<Equation>(vertex);
       }
 
       const Equation& getEquationFromDescriptor(VertexDescriptor descriptor) const
       {
-        auto& vertex = graph[descriptor];
+        const Vertex& vertex = graph[descriptor];
         assert(std::holds_alternative<Equation>(vertex));
         return std::get<Equation>(vertex);
       }
@@ -1440,6 +1439,13 @@ namespace marco::modeling
 
         return graph.verticesEnd(filter);
       }
+
+      /// Check if all the scalar variables and equations have been matched.
+      bool allNodesMatched() const
+      {
+        llvm::ThreadPool threadPool;
+        return allNodesMatched(threadPool);
+      };
 
       /// Check if all the scalar variables and equations have been matched.
       bool allNodesMatched(llvm::ThreadPool& threadPool) const
@@ -1509,10 +1515,10 @@ namespace marco::modeling
       {
         auto edges = llvm::make_range(graph.edgesBegin(), graph.edgesEnd());
 
-        auto it = std::find_if(
+        EdgeIterator it = std::find_if(
             edges.begin(), edges.end(), [&](const EdgeDescriptor& e) {
-              auto& source = graph[e.from];
-              auto& target = graph[e.to];
+              const Vertex& source = graph[e.from];
+              const Vertex& target = graph[e.to];
 
               if (!std::holds_alternative<From>(source) || !std::holds_alternative<To>(target)) {
                 return false;
@@ -1673,7 +1679,7 @@ namespace marco::modeling
 
         while (!frontier.empty() && foundPaths.empty()) {
           for (const BFSStep& step : frontier) {
-            auto vertexDescriptor = step.getNode();
+            const VertexDescriptor& vertexDescriptor = step.getNode();
 
             for (EdgeDescriptor edgeDescriptor : llvm::make_range(edgesBegin(vertexDescriptor), edgesEnd(vertexDescriptor))) {
               assert(edgeDescriptor.from == vertexDescriptor);
@@ -1804,7 +1810,7 @@ namespace marco::modeling
         // about the vertices to be updated later.
 
         for (auto& flow : path) {
-          auto& edge = graph[flow.edge];
+          Edge& edge = graph[flow.edge];
 
           VertexDescriptor from = flow.source;
           VertexDescriptor to = flow.edge.from == from ? flow.edge.to : flow.edge.from;
