@@ -633,23 +633,25 @@ void ModelLegalization::collectDerivedVariablesIndices(
 {
   std::mutex mutex;
 
+  size_t numOfEquations = equations.size();
+  std::atomic_size_t currentEquation = 0;
+
   // Function to process a chunk of equations.
-  auto mapFn = [&](size_t from, size_t to) {
-    for (size_t i = from; i < to; ++i) {
+  auto mapFn = [&]() {
+    size_t i = currentEquation++;
+
+    while (i < numOfEquations) {
       ::collectDerivedVariablesIndices(derivedIndices, equations[i], mutex);
+      i = currentEquation++;
     }
   };
 
   // Shard the work among multiple threads.
-  size_t numOfEquations = equations.size();
   unsigned int numOfThreads = threadPool.getThreadCount();
-  size_t chunkSize = (numOfEquations + numOfThreads - 1) / numOfThreads;
   llvm::ThreadPoolTaskGroup tasks(threadPool);
 
   for (unsigned int i = 0; i < numOfThreads; ++i) {
-    size_t from = i * chunkSize;
-    size_t to = std::min(numOfEquations, (i + 1) * chunkSize);
-    tasks.async(mapFn, from, to);
+    tasks.async(mapFn);
   }
 
   // Wait for all the tasks to finish.
@@ -705,23 +707,26 @@ void ModelLegalization::collectDerivedVariablesIndices(
 {
   std::mutex mutex;
 
+  size_t numOfAlgorithms = algorithmOps.size();
+  std::atomic_size_t currentAlgorithm = 0;
+
   // Function to process a chunk of algorithms.
-  auto mapFn = [&](size_t from, size_t to) {
-    for (size_t i = from; i < to; ++i) {
+  auto mapFn = [&]() {
+    size_t i = currentAlgorithm++;
+
+    while (i < numOfAlgorithms) {
       ::collectDerivedVariablesIndices(derivedIndices, algorithmOps[i], mutex);
+      i = currentAlgorithm++;
     }
   };
 
   // Shard the work among multiple threads.
-  size_t numOfAlgorithms = algorithmOps.size();
   unsigned int numOfThreads = threadPool.getThreadCount();
   size_t chunkSize = (numOfAlgorithms + numOfThreads - 1) / numOfThreads;
   llvm::ThreadPoolTaskGroup tasks(threadPool);
 
   for (unsigned int i = 0; i < numOfThreads; ++i) {
-    size_t from = i * chunkSize;
-    size_t to = std::min(numOfAlgorithms, (i + 1) * chunkSize);
-    tasks.async(mapFn, from, to);
+    tasks.async(mapFn);
   }
 
   // Wait for all the tasks to finish.
