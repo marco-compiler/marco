@@ -1107,12 +1107,13 @@ namespace marco::modeling
       bool simplify()
       {
         std::lock_guard lockGuard(mutex);
+        llvm::ThreadPool threadPool;
 
         // Vertices that are candidate for the first simplification phase.
         // They are the ones having only one incident edge.
         std::list<VertexDescriptor> candidates;
 
-        if (!collectSimplifiableNodes(candidates)) {
+        if (!collectSimplifiableNodes(threadPool, candidates)) {
           return false;
         }
 
@@ -1261,8 +1262,9 @@ namespace marco::modeling
       bool match()
       {
         std::lock_guard lockGuard(mutex);
+        llvm::ThreadPool threadPool;
 
-        if (allNodesMatched()) {
+        if (allNodesMatched(threadPool)) {
           return true;
         }
 
@@ -1271,7 +1273,7 @@ namespace marco::modeling
 
         do {
           success = matchIteration();
-          complete = allNodesMatched();
+          complete = allNodesMatched(threadPool);
         } while (success && !complete);
 
 
@@ -1440,10 +1442,9 @@ namespace marco::modeling
       }
 
       /// Check if all the scalar variables and equations have been matched.
-      bool allNodesMatched() const
+      bool allNodesMatched(llvm::ThreadPool& threadPool) const
       {
         std::atomic_bool allMatched = true;
-        llvm::ThreadPool threadPool;
 
         auto allComponentsMatchedFn = [](const auto& obj) {
           return obj.allComponentsMatched();
@@ -1470,8 +1471,7 @@ namespace marco::modeling
         size_t chunkSize = (numOfVertices + numOfThreads - 1) / numOfThreads;
         size_t remaining = numOfVertices;
 
-        std::vector<VertexIterator> fromIts;
-        std::vector<VertexIterator> toIts;
+        llvm::ThreadPoolTaskGroup tasks(threadPool);
 
         for (unsigned int i = 0; i < numOfThreads; ++i) {
           if (currentIt != endIt) {
@@ -1481,11 +1481,11 @@ namespace marco::modeling
             currentIt = to;
             remaining -= step;
 
-            threadPool.async(checkFn, from, to);
+            tasks.async(checkFn, from, to);
           }
         }
 
-        threadPool.wait();
+        tasks.wait();
         return allMatched;
       }
 
@@ -1567,10 +1567,9 @@ namespace marco::modeling
       /// Collect the list of vertices with exactly one incident edge.
       /// The function returns 'false' if there exist a node with no incident
       /// edges (which would make the matching process to fail in aby case).
-      bool collectSimplifiableNodes(std::list<VertexDescriptor>& nodes) const
+      bool collectSimplifiableNodes(llvm::ThreadPool& threadPool, std::list<VertexDescriptor>& nodes) const
       {
         std::atomic_bool consistent = true;
-        llvm::ThreadPool threadPool;
 
         std::mutex resultMutex;
 
@@ -1613,6 +1612,8 @@ namespace marco::modeling
         size_t chunkSize = (numOfVertices + numOfThreads - 1) / numOfThreads;
         size_t remaining = numOfVertices;
 
+        llvm::ThreadPoolTaskGroup tasks(threadPool);
+
         for (unsigned int i = 0; i < numOfThreads; ++i) {
           if (currentIt != endIt) {
             VertexIterator from = currentIt;
@@ -1621,11 +1622,11 @@ namespace marco::modeling
             currentIt = to;
             remaining -= step;
 
-            threadPool.async(collectFn, from, to);
+            tasks.async(collectFn, from, to);
           }
         }
 
-        threadPool.wait();
+        tasks.wait();
         return consistent;
       }
 
