@@ -27,8 +27,8 @@ namespace marco::modeling
       public:
         using Direction = ::marco::modeling::scheduling::Direction;
 
-        ScheduledEquation(EquationProperty property, IndexSet indexes, Direction direction)
-            : property(std::move(property)), indexes(std::move(indexes)), direction(direction)
+        ScheduledEquation(EquationProperty property, IndexSet indices, Direction direction)
+            : property(std::move(property)), indices(std::move(indices)), direction(direction)
         {
         }
 
@@ -39,7 +39,7 @@ namespace marco::modeling
 
         const IndexSet& getIndexes() const
         {
-          return indexes;
+          return indices;
         }
 
         Direction getIterationDirection() const
@@ -49,7 +49,7 @@ namespace marco::modeling
 
       private:
         EquationProperty property;
-        IndexSet indexes;
+        IndexSet indices;
         Direction direction;
     };
 
@@ -148,11 +148,12 @@ namespace marco::modeling
     };
   }
 
-  /// The scheduler allows to sort the equations in such a way that each scalar variable is determined
-  /// before being accessed.
-  /// The scheduling algorithm assumes that all the algebraic loops have already been resolved and the
-  /// only possible kind of loop is the one given by an equation depending on itself (for example,
-  /// x[i] = f(x[i - 1]), with i belonging to a range wider than one).
+  /// The scheduler allows to sort the equations in such a way that each scalar
+  /// variable is determined before being accessed.
+  /// The scheduling algorithm assumes that all the algebraic loops have
+  /// already been resolved and the only possible kind of loop is the one given
+  /// by an equation depending on itself (for example, x[i] = f(x[i - 1]), with
+  /// i belonging to a range wider than one).
   template<typename VariableProperty, typename EquationProperty>
   class Scheduler
   {
@@ -171,9 +172,12 @@ namespace marco::modeling
       {
         std::vector<ScheduledSCC> result;
 
-        VectorDependencyGraph vectorDependencyGraph(equations);
-        auto SCCs = vectorDependencyGraph.getSCCs();
-        SCCDependencyGraph sccDependencyGraph(SCCs);
+        VectorDependencyGraph vectorDependencyGraph;
+        vectorDependencyGraph.addEquations(equations);
+
+        SCCDependencyGraph sccDependencyGraph;
+        sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
+
         auto scheduledSCCs = sccDependencyGraph.postOrder();
 
         for (const auto& sccDescriptor : scheduledSCCs) {
@@ -206,14 +210,16 @@ namespace marco::modeling
               continue;
             }
 
-            // Mixed accesses detected. Scheduling is possible only on the scalar equations.
+            // Mixed accesses detected. Scheduling is possible only on the
+            // scalar equations.
             std::vector<EquationProperty> equationProperties;
 
             for (const auto& equationDescriptor : scc) {
               equationProperties.push_back(scc.getGraph()[equationDescriptor].getProperty());
             }
 
-            ScalarDependencyGraph scalarDependencyGraph(equationProperties);
+            ScalarDependencyGraph scalarDependencyGraph;
+            scalarDependencyGraph.addEquations(equationProperties);
 
             for (const auto& equationDescriptor : scalarDependencyGraph.postOrder()) {
               const auto& scalarEquation = scalarDependencyGraph[equationDescriptor];
@@ -226,8 +232,9 @@ namespace marco::modeling
               result.emplace_back(std::move(scheduledEquation));
             }
           } else {
-            // A strong connected component can be scheduled with respect to other SCCs,
-            // but the equations composing it are cyclic and thus can't be scheduled.
+            // A strong connected component can be scheduled with respect to
+            // other SCCs, but the equations composing it are cyclic and thus
+            // can't be scheduled.
             std::vector<ScheduledEquation> SCC;
 
             for (const auto& equationDescriptor : scc) {
@@ -247,8 +254,9 @@ namespace marco::modeling
       }
 
     private:
-      /// Given a SSC containing only one equation that may depend on itself, determine the access direction
-      /// with respect to the variable that is written by the equation.
+      /// Given a SSC containing only one equation that may depend on itself,
+      /// determine the access direction with respect to the variable that is
+      /// written by the equation.
       ///
       /// @param scc  SCC to be examined (consisting of only one equation with a loop on itself)
       /// @return access direction
@@ -269,7 +277,7 @@ namespace marco::modeling
         const auto& write = equation.getWrite();
         const auto& writtenVariable = write.getVariable();
         const AccessFunction& writeAccessFunction = write.getAccessFunction();
-        IndexSet writtenIndexes(writeAccessFunction.map(equationRange));
+        IndexSet writtenIndices(writeAccessFunction.map(equationRange));
 
         auto direction = scheduling::Direction::Unknown;
 
@@ -283,9 +291,9 @@ namespace marco::modeling
           }
 
           const AccessFunction& readAccessFunction = read.getAccessFunction();
-          IndexSet readIndexes(readAccessFunction.map(equationRange));
+          IndexSet readIndices(readAccessFunction.map(equationRange));
 
-          if (!readIndexes.overlaps(writtenIndexes)) {
+          if (!readIndices.overlaps(writtenIndices)) {
             continue;
           }
 
@@ -311,12 +319,13 @@ namespace marco::modeling
       }
 
       /// Get the access direction of an access function.
-      /// For example, an access consisting in [i0 + 1][i1 + 2] has a forward direction, meaning that
-      /// it requires variables that will be defined later in the loop execution. A [i0 - 1][i1 -2]
-      /// access function has a backward direction and a [i0 + 1][i1 - 2] has a mixed one.
-      /// The indexes of the above induction variables refer to the order in which the induction
-      /// variables have been defined, meaning that i0 is the outer-most induction, i1 the second
-      /// outer-most one, etc.
+      /// For example, an access consisting in [i0 + 1][i1 + 2] has a forward
+      /// direction, meaning that it requires variables that will be defined
+      /// later in the loop execution. A [i0 - 1][i1 -2] access function has a
+      /// backward direction and a [i0 + 1][i1 - 2] has a mixed one.
+      /// The indices of the above induction variables refer to the order in
+      /// which the induction variables have been defined, meaning that i0 is
+      /// the outer-most induction, i1 the second outer-most one, etc.
       ///
       /// @param accessFunction access function to be analyzed
       /// @return access direction
@@ -332,7 +341,7 @@ namespace marco::modeling
             dimensionDirection = scheduling::Direction::Constant;
           } else {
             if (dimensionAccess.value().getInductionVariableIndex() != dimensionAccess.index()) {
-              // If the iteration indexes are out of order, then some accesses will refer to future
+              // If the iteration indices are out of order, then some accesses will refer to future
               // written variables and others to past written ones.
               return scheduling::Direction::Mixed;
             }

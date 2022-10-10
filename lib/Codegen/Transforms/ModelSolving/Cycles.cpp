@@ -25,7 +25,8 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
 
   do {
     // Get all the cycles within the system of equations
-    CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(toBeProcessed, secondaryCycles);
+    CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(secondaryCycles);
+    cyclesFinder.addEquations(toBeProcessed);
     auto cycles = cyclesFinder.getEquationsCycles();
 
     // Solve the cycles one by one

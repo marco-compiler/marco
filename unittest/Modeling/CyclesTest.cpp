@@ -263,7 +263,13 @@ TEST(Cycles, oneStepCycle) {
 
   EXPECT_CALL(eq2, reads()).WillRepeatedly(Return(eq2r));
 
-  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2 }, false);
+  llvm::SmallVector<Equation*> equations;
+  equations.push_back(&eq1);
+  equations.push_back(&eq2);
+
+  CyclesFinder<Variable*, Equation*> graph(false);
+  graph.addEquations(equations);
+
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(2));
@@ -345,7 +351,14 @@ TEST(SCC, twoStepsCycle) {
 
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
-  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 }, false);
+  llvm::SmallVector<Equation*> equations;
+  equations.push_back(&eq1);
+  equations.push_back(&eq2);
+  equations.push_back(&eq3);
+
+  CyclesFinder<Variable*, Equation*> graph(false);
+  graph.addEquations(equations);
+
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(3));
@@ -436,7 +449,14 @@ TEST(SCC, oneStepCycleWithMultipleReads) {
 
   EXPECT_CALL(eq3, reads()).WillRepeatedly(Return(eq3r));
 
-  CyclesFinder<Variable*, Equation*> graph({ &eq1, &eq2, &eq3 }, false);
+  llvm::SmallVector<Equation*> equations;
+  equations.push_back(&eq1);
+  equations.push_back(&eq2);
+  equations.push_back(&eq3);
+
+  CyclesFinder<Variable*, Equation*> graph(false);
+  graph.addEquations(equations);
+
   auto cycles = graph.getEquationsCycles();
 
   EXPECT_THAT(cycles, testing::SizeIs(3));

@@ -75,7 +75,9 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
   equations.push_back(eq2_matched.get());
   equations.push_back(eq3_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  cyclesFinder.addEquations(equations);
+
   auto cycles = cyclesFinder.getEquationsCycles();
   EXPECT_EQ(cycles.size(), 3);
 
@@ -198,7 +200,9 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   equations.push_back(eq3_matched.get());
   equations.push_back(eq4_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  cyclesFinder.addEquations(equations);
+
   auto cycles = cyclesFinder.getEquationsCycles();
   EXPECT_EQ(cycles.size(), 4);
 
@@ -279,7 +283,9 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
   equations.push_back(eq2_matched.get());
   equations.push_back(eq3_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  cyclesFinder.addEquations(equations);
+
   auto cycles = cyclesFinder.getEquationsCycles();
   EXPECT_EQ(cycles.size(), 3);
 
@@ -370,7 +376,9 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
   equations.push_back(eq2_matched.get());
   equations.push_back(eq3_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(equations);
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  cyclesFinder.addEquations(equations);
+
   auto cycles = cyclesFinder.getEquationsCycles();
   EXPECT_EQ(cycles.size(), 3);
 

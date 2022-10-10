@@ -364,9 +364,14 @@ namespace marco::modeling
       using FilteredEquation = internal::scc::FilteredEquation<DependencyGraph, EquationDescriptor, Equation, Access>;
       using Cycle = FilteredEquation;
 
-      CyclesFinder(llvm::ArrayRef<EquationProperty> equations, bool includeSecondaryCycles = true)
-        : vectorDependencyGraph(equations), includeSecondaryCycles(std::move(includeSecondaryCycles))
+      CyclesFinder(bool includeSecondaryCycles = true)
+        : includeSecondaryCycles(includeSecondaryCycles)
       {
+      }
+
+      void addEquations(llvm::ArrayRef<EquationProperty> equations)
+      {
+        vectorDependencyGraph.addEquations(equations);
       }
 
       std::vector<Cycle> getEquationsCycles() const
