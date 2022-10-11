@@ -257,7 +257,6 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
 
   // Check if the template equation already exists.
   if (auto it = equationTemplatesMap.find(requestedTemplate); it != equationTemplatesMap.end()) {
-    const auto& result = it->second;
     return it->second;
   }
 

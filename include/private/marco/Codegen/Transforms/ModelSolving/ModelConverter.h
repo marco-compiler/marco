@@ -54,6 +54,7 @@ namespace marco::codegen
       static constexpr size_t timeVariablePosition = 1;
       static constexpr size_t variablesOffset = 2;
 
+    public:
       struct ConversionInfo
       {
         std::set<std::unique_ptr<Equation>> explicitEquations;
@@ -233,7 +234,6 @@ namespace marco::codegen
           const ScheduledEquation& equation,
           llvm::StringRef equationFunctionName,
           mlir::func::FuncOp templateFunction,
-          std::multimap<mlir::func::FuncOp, mlir::func::CallOp>& equationTemplateCalls,
           mlir::TypeRange varsTypes) const;
 
       mlir::LogicalResult createUpdateNonStateVariablesFunction(
