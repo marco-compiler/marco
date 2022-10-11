@@ -77,6 +77,7 @@ namespace marco::codegen {
   {
   private:
     mlir::OpBuilder& builder;
+    std::map<size_t, std::unique_ptr<MatchedEquation>> solutionMap;
     Equations<MatchedEquation> solution;
     Equations<MatchedEquation> unsolved;
     size_t systemSize;
