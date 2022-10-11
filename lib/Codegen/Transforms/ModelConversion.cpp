@@ -166,12 +166,26 @@ namespace
       }
 
       bool operator<(const EquationTemplateInfo& other) const {
-        return equation < other.equation && schedulingDirection < other.schedulingDirection;
+        if (schedulingDirection != other.schedulingDirection) {
+          return true;
+        }
+
+        return equation < other.equation;
       }
 
     private:
       mlir::Operation* equation;
       modeling::scheduling::Direction schedulingDirection;
+  };
+
+  struct EquationTemplate
+  {
+    mlir::func::FuncOp funcOp;
+
+    // Positions of the used variables. Index 0 is used for the time variable,
+    // so the variables have an offset of 1 with respect to the ones declared
+    // in the ModelOp.
+    std::vector<unsigned int> usedVariables;
   };
 
   /// Get the LLVM function with the given name, or declare it inside the module if not present.
@@ -188,38 +202,6 @@ namespace
     mlir::OpBuilder::InsertionGuard guard(builder);
     builder.setInsertionPointToStart(module.getBody());
     return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
-  }
-
-  /// Remove the unused arguments of a function and also update the function calls
-  /// to reflect the function signature change.
-  template<typename CallIt>
-  void removeUnusedArguments(
-      mlir::func::FuncOp function, CallIt callsBegin, CallIt callsEnd)
-  {
-    llvm::BitVector removedArgs(function.getNumArguments(), false);
-
-    // Determine the unused arguments
-    for (const auto& arg : function.getArguments()) {
-      if (arg.getUsers().empty()) {
-        removedArgs[arg.getArgNumber()] = true;
-      }
-    }
-
-    if (!removedArgs.empty()) {
-      // Erase the unused function arguments
-      function.eraseArguments(removedArgs);
-
-      // Update the function calls
-      for (auto callIt = callsBegin; callIt != callsEnd; ++callIt) {
-        mlir::func::CallOp call = callIt->second;
-
-        for (size_t i = 0, e = removedArgs.size(); i < e; ++i) {
-          if (removedArgs[e - i - 1]) {
-            call->eraseOperand(e - i - 1);
-          }
-        }
-      }
-    }
   }
 
   IndexSet getFilteredIndices(mlir::Type variableType, llvm::ArrayRef<VariableFilter::Filter> filters)
@@ -258,6 +240,86 @@ namespace
 
     return result;
   }
+}
+
+/// Get or create the template equation function for a scheduled equation.
+static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
+    mlir::OpBuilder& builder,
+    ModelOp modelOp,
+    const ScheduledEquation* equation,
+    const ModelConverter::ConversionInfo& conversionInfo,
+    std::map<EquationTemplateInfo, EquationTemplate>& equationTemplatesMap,
+    llvm::StringRef functionNamePrefix,
+    size_t& equationTemplateCounter)
+{
+  EquationInterface equationInt = equation->getOperation();
+  EquationTemplateInfo requestedTemplate(equationInt, equation->getSchedulingDirection());
+
+  // Check if the template equation already exists.
+  if (auto it = equationTemplatesMap.find(requestedTemplate); it != equationTemplatesMap.end()) {
+    const auto& result = it->second;
+    return it->second;
+  }
+
+  // If not, create it.
+  mlir::Location loc = equationInt.getLoc();
+
+  // Name of the function.
+  std::string functionName = functionNamePrefix.str() + std::to_string(equationTemplateCounter++);
+
+  auto explicitEquation = llvm::find_if(conversionInfo.explicitEquationsMap, [&](const auto& equationPtr) {
+    return equationPtr.first == equation;
+  });
+
+  if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
+    // The equation can't be made explicit and is not passed to any external solver
+    return llvm::None;
+  }
+
+  // Create the equation template function
+  mlir::func::FuncOp function = explicitEquation->second->createTemplateFunction(
+      builder, functionName,
+      modelOp.getBodyRegion().getArguments(),
+      equation->getSchedulingDirection());
+
+  size_t timeArgumentIndex = equation->getNumOfIterationVars() * 3;
+
+  function.insertArgument(
+      timeArgumentIndex,
+      RealType::get(builder.getContext()),
+      builder.getDictionaryAttr(llvm::None),
+      loc);
+
+  function.walk([&](TimeOp timeOp) {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPoint(timeOp);
+    timeOp.replaceAllUsesWith(function.getArgument(timeArgumentIndex));
+    timeOp.erase();
+  });
+
+  // Determine the used variables.
+  unsigned int numOfArguments = function.getNumArguments();
+  std::vector<unsigned int> usedVariables;
+  llvm::BitVector argsToBeErased(function.getNumArguments(), false);
+
+  for (unsigned int i = timeArgumentIndex; i < numOfArguments; ++i) {
+    mlir::Value arg = function.getArgument(i);
+
+    if (arg.use_empty()) {
+      argsToBeErased[i] = true;
+    } else {
+      usedVariables.push_back(i - timeArgumentIndex);
+    }
+  }
+
+  if (!argsToBeErased.empty()) {
+    // Erase the unused variables.
+    function.eraseArguments(argsToBeErased);
+  }
+
+  EquationTemplate result{function, usedVariables};
+  equationTemplatesMap[requestedTemplate] = result;
+  return result;
 }
 
 namespace marco::codegen
@@ -1688,70 +1750,21 @@ namespace marco::codegen
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
-    llvm::SmallVector<mlir::Value, 3> vars;
+    llvm::SmallVector<mlir::Value> allVariables;
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
-    vars.push_back(time);
+    allVariables.push_back(time);
 
     for (const auto& varType : llvm::enumerate(modelOp.getBodyRegion().getArgumentTypes())) {
       mlir::Value var = extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset);
-      vars.push_back(var);
+      allVariables.push_back(var);
     }
 
     // Convert the equations into algorithmic code
     size_t equationTemplateCounter = 0;
     size_t equationCounter = 0;
 
-    std::map<EquationTemplateInfo, mlir::func::FuncOp> equationTemplatesMap;
-    std::set<mlir::func::FuncOp> equationTemplateFunctions;
-    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationTemplateCalls;
-    std::set<mlir::func::FuncOp> equationFunctions;
-    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationCalls;
-
-    // Get or create the template equation function for a scheduled equation
-    auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::func::FuncOp {
-      EquationTemplateInfo requestedTemplate(equation->getOperation(), equation->getSchedulingDirection());
-      auto it = equationTemplatesMap.find(requestedTemplate);
-
-      if (it != equationTemplatesMap.end()) {
-        return it->second;
-      }
-
-      std::string templateFunctionName = "initial_eq_template_" + std::to_string(equationTemplateCounter);
-      ++equationTemplateCounter;
-
-      auto explicitEquation = llvm::find_if(conversionInfo.explicitEquationsMap, [&](const auto& equationPtr) {
-        return equationPtr.first == equation;
-      });
-
-      if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
-        // The equation can't be made explicit and is not passed to any external solver
-        return nullptr;
-      }
-
-      // Create the equation template function
-      auto templateFunction = explicitEquation->second->createTemplateFunction(
-          builder, templateFunctionName,
-          modelOp.getBodyRegion().getArguments(),
-          equation->getSchedulingDirection());
-
-      auto timeArgumentIndex = equation->getNumOfIterationVars() * 3;
-
-      templateFunction.insertArgument(
-          timeArgumentIndex,
-          RealType::get(builder.getContext()),
-          builder.getDictionaryAttr(llvm::None),
-          equation->getOperation().getLoc());
-
-      templateFunction.walk([&](TimeOp timeOp) {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPoint(timeOp);
-        timeOp.replaceAllUsesWith(templateFunction.getArgument(timeArgumentIndex));
-        timeOp.erase();
-      });
-
-      return templateFunction;
-    };
+    std::map<EquationTemplateInfo, EquationTemplate> equationTemplatesMap;
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
@@ -1761,47 +1774,42 @@ namespace marco::codegen
 
         } else {
           // The equation is handled by MARCO
-          auto templateFunction = getEquationTemplateFn(equation.get());
+          auto templateFunction = getOrCreateEquationTemplateFunction(
+              builder, modelOp, equation.get(), conversionInfo,
+              equationTemplatesMap, "initial_eq_template_", equationTemplateCounter);
 
-          if (templateFunction == nullptr) {
+          if (!templateFunction.has_value()) {
             equation->getOperation().emitError("The equation can't be made explicit");
             equation->getOperation().dump();
             return mlir::failure();
           }
-
-          equationTemplateFunctions.insert(templateFunction);
 
           // Create the function that calls the template.
           // This function dictates the indices the template will work with.
           std::string equationFunctionName = "initial_eq_" + std::to_string(equationCounter);
           ++equationCounter;
 
+          // Collect the variables to be passed to the instantiated template function.
+          std::vector<mlir::Value> usedVariables;
+          std::vector<mlir::Type> usedVariablesTypes;
+
+          for (unsigned int position : templateFunction->usedVariables) {
+            usedVariables.push_back(allVariables[position]);
+            usedVariablesTypes.push_back(allVariables[position].getType());
+          }
+
+          // Create the instantiated template function.
           auto equationFunction = createEquationFunction(
-              builder, *equation, equationFunctionName, templateFunction,
-              equationTemplateCalls,
-              modelOp.getBodyRegion().getArgumentTypes());
+              builder, *equation, equationFunctionName,
+              templateFunction->funcOp, usedVariablesTypes);
 
-          equationFunctions.insert(equationFunction);
-
-          // Create the call to the instantiated template function
-          auto equationCall = builder.create<mlir::func::CallOp>(loc, equationFunction, vars);
-          equationCalls.emplace(equationFunction, equationCall);
+          // Create the call to the instantiated template function.
+          builder.create<mlir::func::CallOp>(loc, equationFunction, usedVariables);
         }
       }
     }
 
     builder.create<mlir::func::ReturnOp>(loc);
-
-    // Remove the unused function arguments
-    for (const auto& equationTemplateFunction : equationTemplateFunctions) {
-      auto calls = equationTemplateCalls.equal_range(equationTemplateFunction);
-      removeUnusedArguments(equationTemplateFunction, calls.first, calls.second);
-    }
-
-    for (const auto& equationFunction : equationFunctions) {
-      auto calls = equationCalls.equal_range(equationFunction);
-      removeUnusedArguments(equationFunction, calls.first, calls.second);
-    }
 
     return mlir::success();
   }
@@ -2015,7 +2023,6 @@ namespace marco::codegen
       const ScheduledEquation& equation,
       llvm::StringRef equationFunctionName,
       mlir::func::FuncOp templateFunction,
-      std::multimap<mlir::func::FuncOp, mlir::func::CallOp>& equationTemplateCalls,
       mlir::TypeRange varsTypes) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -2024,18 +2031,10 @@ namespace marco::codegen
     auto module = equation.getOperation()->getParentOfType<mlir::ModuleOp>();
     builder.setInsertionPointToEnd(module.getBody());
 
-    // Function arguments ('time' + variables)
-    llvm::SmallVector<mlir::Type, 3> argsTypes;
-    //argsTypes.push_back(typeConverter->convertType(RealType::get(builder.getContext())));
-    argsTypes.push_back(typeConverter->convertType(RealType::get(builder.getContext())));
-
-    for (const auto& type : varsTypes) {
-      //argsTypes.push_back(typeConverter->convertType(type));
-      argsTypes.push_back(type);
-    }
-
     // Function type. The equation doesn't need to return any value.
-    auto functionType = builder.getFunctionType(argsTypes, llvm::None);
+    // Initially we consider all the variables as to be passed to the function.
+    // We will then remove the unused ones.
+    auto functionType = builder.getFunctionType(varsTypes, llvm::None);
 
     auto function = builder.create<mlir::func::FuncOp>(loc, equationFunctionName, functionType);
     auto* entryBlock = function.addEntryBlock();
@@ -2077,8 +2076,7 @@ namespace marco::codegen
     args.insert(args.end(), vars.begin(), vars.end());
 
     // Call the equation template function
-    auto templateFunctionCall = builder.create<mlir::func::CallOp>(loc, templateFunction, args);
-    equationTemplateCalls.emplace(templateFunction, templateFunctionCall);
+    builder.create<mlir::func::CallOp>(loc, templateFunction, args);
 
     builder.create<mlir::func::ReturnOp>(loc);
     return function;
@@ -2109,72 +2107,21 @@ namespace marco::codegen
 
     mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), runtimeDataStructType);
 
-    llvm::SmallVector<mlir::Value, 3> vars;
+    llvm::SmallVector<mlir::Value> allVariables;
 
     mlir::Value time = extractValue(builder, structValue, RealType::get(builder.getContext()), timeVariablePosition);
-    //time = typeConverter->materializeTargetConversion(builder, time.getLoc(), typeConverter->convertType(time.getType()), time);
-    vars.push_back(time);
+    allVariables.push_back(time);
 
     for (const auto& varType : llvm::enumerate(modelOp.getBodyRegion().getArgumentTypes())) {
       mlir::Value var = extractValue(builder, structValue, varType.value(), varType.index() + variablesOffset);
-      //var = typeConverter->materializeTargetConversion(builder, var.getLoc(), typeConverter->convertType(var.getType()), var);
-      vars.push_back(var);
+      allVariables.push_back(var);
     }
 
     // Convert the equations into algorithmic code
     size_t equationTemplateCounter = 0;
     size_t equationCounter = 0;
 
-    std::map<EquationTemplateInfo, mlir::func::FuncOp> equationTemplatesMap;
-    std::set<mlir::func::FuncOp> equationTemplateFunctions;
-    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationTemplateCalls;
-    std::set<mlir::func::FuncOp> equationFunctions;
-    std::multimap<mlir::func::FuncOp, mlir::func::CallOp> equationCalls;
-
-    // Get or create the template equation function for a scheduled equation
-    auto getEquationTemplateFn = [&](const ScheduledEquation* equation) -> mlir::func::FuncOp {
-      EquationTemplateInfo requestedTemplate(equation->getOperation(), equation->getSchedulingDirection());
-      auto it = equationTemplatesMap.find(requestedTemplate);
-
-      if (it != equationTemplatesMap.end()) {
-        return it->second;
-      }
-
-      std::string templateFunctionName = "eq_template_" + std::to_string(equationTemplateCounter);
-      ++equationTemplateCounter;
-
-      auto explicitEquation = llvm::find_if(conversionInfo.explicitEquationsMap, [&](const auto& equationPtr) {
-        return equationPtr.first == equation;
-      });
-
-      if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
-        // The equation can't be made explicit and is not passed to any external solver
-        return nullptr;
-      }
-
-      // Create the equation template function
-      auto templateFunction = explicitEquation->second->createTemplateFunction(
-          builder, templateFunctionName,
-          modelOp.getBodyRegion().getArguments(),
-          equation->getSchedulingDirection());
-
-      auto timeArgumentIndex = equation->getNumOfIterationVars() * 3;
-
-      templateFunction.insertArgument(
-          timeArgumentIndex,
-          RealType::get(builder.getContext()),
-          builder.getDictionaryAttr(llvm::None),
-          explicitEquation->second->getOperation().getLoc());
-
-      templateFunction.walk([&](TimeOp timeOp) {
-        mlir::OpBuilder::InsertionGuard guard(builder);
-        builder.setInsertionPoint(timeOp);
-        timeOp.replaceAllUsesWith(templateFunction.getArgument(timeArgumentIndex));
-        timeOp.erase();
-      });
-
-      return templateFunction;
-    };
+    std::map<EquationTemplateInfo, EquationTemplate> equationTemplatesMap;
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
@@ -2184,47 +2131,41 @@ namespace marco::codegen
 
         } else {
           // The equation is handled by MARCO
-          auto templateFunction = getEquationTemplateFn(equation.get());
+          auto templateFunction = getOrCreateEquationTemplateFunction(
+              builder, modelOp, equation.get(), conversionInfo,
+              equationTemplatesMap, "eq_template_", equationTemplateCounter);
 
-          if (templateFunction == nullptr) {
+          if (!templateFunction.has_value()) {
             equation->getOperation().emitError("The equation can't be made explicit");
             equation->getOperation().dump();
             return mlir::failure();
           }
-
-          equationTemplateFunctions.insert(templateFunction);
 
           // Create the function that calls the template.
           // This function dictates the indices the template will work with.
           std::string equationFunctionName = "eq_" + std::to_string(equationCounter);
           ++equationCounter;
 
-          auto equationFunction = createEquationFunction(
-              builder, *equation, equationFunctionName, templateFunction,
-              equationTemplateCalls,
-              modelOp.getBodyRegion().getArgumentTypes());
+          // Collect the variables to be passed to the instantiated template function.
+          std::vector<mlir::Value> usedVariables;
+          std::vector<mlir::Type> usedVariablesTypes;
 
-          equationFunctions.insert(equationFunction);
+          for (unsigned int position : templateFunction->usedVariables) {
+            usedVariables.push_back(allVariables[position]);
+            usedVariablesTypes.push_back(allVariables[position].getType());
+          }
+
+          auto equationFunction = createEquationFunction(
+              builder, *equation, equationFunctionName,
+              templateFunction->funcOp, usedVariablesTypes);
 
           // Create the call to the instantiated template function
-          auto equationCall = builder.create<mlir::func::CallOp>(loc, equationFunction, vars);
-          equationCalls.emplace(equationFunction, equationCall);
+          builder.create<mlir::func::CallOp>(loc, equationFunction, usedVariables);
         }
       }
     }
 
     builder.create<mlir::func::ReturnOp>(loc);
-
-    // Remove the unused function arguments
-    for (const auto& equationTemplateFunction : equationTemplateFunctions) {
-      auto calls = equationTemplateCalls.equal_range(equationTemplateFunction);
-      removeUnusedArguments(equationTemplateFunction, calls.first, calls.second);
-    }
-
-    for (const auto& equationFunction : equationFunctions) {
-      auto calls = equationCalls.equal_range(equationFunction);
-      removeUnusedArguments(equationFunction, calls.first, calls.second);
-    }
 
     return mlir::success();
   }
