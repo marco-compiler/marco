@@ -102,9 +102,11 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
   llvm::SmallVector<mlir::Operation*, 3> constants;
 
   for (auto *op : llvm::reverse(ops)) {
-    helper.tryToFold(op, [&](mlir::Operation* constant) {
+    if (mlir::failed(helper.tryToFold(op, [&](mlir::Operation* constant) {
           constants.push_back(constant);
-        });
+        }))) {
+      break;
+    }
   }
 
   for (auto* op : llvm::reverse(constants)) {
@@ -1498,7 +1500,6 @@ namespace marco::codegen
       if(numberOfVariables == 0) {
         // The value is constant.
         // Subtract (or add, if on right side) that value to the constant term
-        mlir::Value result;
 
         if(side == EquationPath::LEFT)
           constantTerm = builder.createOrFold<SubOp>(

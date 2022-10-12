@@ -160,6 +160,8 @@ static bool solveWithCramer(
       std::vector<MatchedEquation> input;
       for (const auto eq : set) {
         input.push_back(*eq);
+        std::cerr << "ITERATION RANGES: " << eq->getIterationRanges() << "\n";
+        eq->dumpIR();
       }
 
       // Solve the system of equations
@@ -175,8 +177,6 @@ static bool solveWithCramer(
             std::move(clonedEquation), IndexSet(range), cycle.getEquation()->getWrite().getPath()));
       }
     }
-
-    //TODO substitute the new equations into the ones to be processed (type 3)
 
     // Add the equations which had no cycle for any index.
     // To do this, map the equations with cycles for a faster lookup.
@@ -214,6 +214,26 @@ static bool solveWithCramer(
     allCyclesSolved = !solver.hasUnsolvedCycles();
   } while (!newEquations.empty());
 
+  // Try to solve the full system
+  if(!allCyclesSolved) {
+    CramerSolver solver(builder, systemSize);
+
+    std::vector<MatchedEquation> input;
+    for (const auto& eq : model.getEquations()) {
+      input.push_back(*eq);
+    }
+    allCyclesSolved = solver.solve(input);
+
+    unsolvedEquations.clear();
+    for (auto& equation : solver.getUnsolvedEquations()) {
+      unsolvedEquations.emplace_back(std::move(equation));
+    }
+
+    for (auto& equation : solver.getSolution()) {
+      solution.add(std::move(equation));
+    }
+  }
+
   for (auto& unsolvedEquation : unsolvedEquations) {
     solution.add(std::move(unsolvedEquation));
   }
@@ -229,7 +249,7 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
-/*    // Try an aggressive method first
+    // Try an aggressive method first
     LLVM_DEBUG({
       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
     });
@@ -245,11 +265,11 @@ namespace marco::codegen
 
     if (solveBySubstitution(model, builder, false)) {
       return mlir::success();
-    }*/
+    }
 
     // Retry with Cramer
     LLVM_DEBUG({
-      llvm::dbgs() << "Solving cycles with Cramer.\n";
+      llvm::dbgs() << "Solving cycles with Cramer, with secondary cycles\n";
     });
 
     if (solveWithCramer(model, builder, true)) {

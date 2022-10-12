@@ -1,6 +1,16 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="solve-cycles{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
 
-// CHECK-DAG{LITERAL}: modelica.equation_sides %16, %17 : tuple<!modelica.array<!modelica.real>>, tuple<!modelica.real>
+// CHECK: %[[#VAR:]] = modelica.load %arg0[] : !modelica.array<!modelica.real>
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
+
+// CHECK: %[[#VAR:]] = modelica.load %arg1[] : !modelica.array<!modelica.real>
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
+
+// CHECK: %[[#VAR:]] = modelica.load %arg2[] : !modelica.array<!modelica.real>
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
 
 modelica.model @Test attributes {derivatives = []} {
   %0 = modelica.member_create @x : !modelica.member<!modelica.real>

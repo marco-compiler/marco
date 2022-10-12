@@ -1,6 +1,34 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="solve-cycles{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
 
-// CHECK-DAG{LITERAL}: modelica.equation_sides %16, %17 : tuple<!modelica.array<!modelica.real>>, tuple<!modelica.real>
+// CHECK: %[[#VAR:]] = modelica.load %arg0[] : !modelica.array<!modelica.real>
+// CHECK: %[[#VAL:]] = modelica.constant #modelica.real<2.500000e+00> : !modelica.real
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: %[[#LHS:]] = modelica.equation_side %[[#VAL:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
+
+// CHECK: %[[#VAR:]] = modelica.load %arg1[] : !modelica.array<!modelica.real>
+// CHECK: %[[#VAL:]] = modelica.constant #modelica.real<-1.000000e+00> : !modelica.real
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: %[[#LHS:]] = modelica.equation_side %[[#VAL:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
+
+// CHECK: %[[#VAR:]] = modelica.load %arg2[] : !modelica.array<!modelica.real>
+// CHECK: %[[#VAL:]] = modelica.constant #modelica.real<-5.000000e-01> : !modelica.real
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: %[[#LHS:]] = modelica.equation_side %[[#VAL:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
+
+// CHECK: %[[#VAR:]] = modelica.load %arg3[] : !modelica.array<!modelica.real>
+// CHECK: %[[#VAL:]] = modelica.constant #modelica.real<1.000000e+00> : !modelica.real
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: %[[#LHS:]] = modelica.equation_side %[[#VAL:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
+
+// CHECK: %[[#VAR:]] = modelica.load %arg4[] : !modelica.array<!modelica.real>
+// CHECK: %[[#VAL:]] = modelica.constant #modelica.real<0.000000e+00> : !modelica.real
+// CHECK: %[[#RHS:]] = modelica.equation_side %[[#VAR:]] : tuple<!modelica.real>
+// CHECK: %[[#LHS:]] = modelica.equation_side %[[#VAL:]] : tuple<!modelica.real>
+// CHECK: modelica.equation_sides %[[#RHS]], %[[#LHS:]] : tuple<!modelica.real>, tuple<!modelica.real>
 
 modelica.model @Test attributes {derivatives = []} {
   %0 = modelica.member_create @x : !modelica.member<!modelica.real>

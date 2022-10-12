@@ -84,7 +84,6 @@ SquareMatrix SquareMatrix::substituteColumn(
 mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
-
   SquareMatrix matrix = (*this);
   mlir::Value determinant;
   mlir::Location loc = builder.getUnknownLoc();
@@ -289,9 +288,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 
       equation->setMatchSolution(builder, div);
       ++subsystemEquationIndex;
-    }
 
-    for (const auto& [index, pair] : flatMap) {
       solutionMap.emplace(index, std::make_unique<MatchedEquation>(pair.first->clone(),
                                                                    modeling::IndexSet(pair.second),
                                                                    pair.first->getWrite().getPath()));
@@ -302,11 +299,10 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
     // Replace the newly found equations (if any) in the unsolved equations
     for (const auto& [_, readingPair] : flatMap) {
       auto readingEquation = readingPair.first;
-      auto readingPoint = readingPair.second;
 
       auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
       for (const auto& readingAccess : readingEquation->getReads()) {
-        auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, readingPoint);
+        auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, *readingEquation->getIterationRanges().begin());
 
         if (solutionMap.count(readingIndex) != 0) {
           if (mlir::failed(solutionMap.at(readingIndex)->replaceInto(
@@ -408,9 +404,8 @@ mlir::Value CramerSolver::cloneValueAndDependencies(
 
   // Clone the operations
   mlir::Operation* clonedOp = nullptr;
-  for (auto it = toBeCloned.rbegin(); it != toBeCloned.rend(); ++it) {
-    mlir::Operation* op = *it;
-    clonedOp = builder.clone(*op, mapping);
+  for (auto opToClone : llvm::reverse(toBeCloned)) {
+    clonedOp = builder.clone(*opToClone, mapping);
   }
 
   assert(clonedOp != nullptr);
