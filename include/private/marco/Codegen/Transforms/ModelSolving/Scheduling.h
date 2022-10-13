@@ -82,10 +82,11 @@ namespace marco::codegen
           const EquationPath& destinationPath) const override;
 
       mlir::func::FuncOp createTemplateFunction(
+          llvm::ThreadPool& threadPool,
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars,
-          modeling::scheduling::Direction iterationDirection) const override;
+          modeling::scheduling::Direction iterationDirection,
+          std::vector<unsigned int>& usedVariables) const override;
 
       /// }
       /// @name Modified methods

@@ -202,12 +202,13 @@ namespace marco::codegen
   }
 
   mlir::func::FuncOp MatchedEquation::createTemplateFunction(
+      llvm::ThreadPool& threadPool,
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars,
-      ::marco::modeling::scheduling::Direction iterationDirection) const
+      ::marco::modeling::scheduling::Direction iterationDirection,
+      std::vector<unsigned int>& usedVariables) const
   {
-    return equation->createTemplateFunction(builder, functionName, vars, iterationDirection);
+    return equation->createTemplateFunction(threadPool, builder, functionName, iterationDirection, usedVariables);
   }
 
   mlir::Value MatchedEquation::getValueAtPath(const EquationPath& path) const

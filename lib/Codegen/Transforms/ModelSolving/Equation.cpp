@@ -8,6 +8,8 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/ThreadPool.h"
+#include <mutex>
 #include <numeric>
 
 using namespace ::marco;
@@ -1300,28 +1302,67 @@ namespace marco::codegen
   }
 
   mlir::func::FuncOp BaseEquation::createTemplateFunction(
+      llvm::ThreadPool& threadPool,
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
-      mlir::ValueRange vars,
-      ::marco::modeling::scheduling::Direction iterationDirection) const
+      ::marco::modeling::scheduling::Direction iterationDirection,
+      std::vector<unsigned int>& usedVariables) const
   {
     auto equation = getOperation();
 
     auto loc = getOperation()->getLoc();
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    auto module = equation->getParentOfType<mlir::ModuleOp>();
+    auto modelOp = equation->getParentOfType<ModelOp>();
+    auto module = modelOp->getParentOfType<mlir::ModuleOp>();
     builder.setInsertionPointToEnd(module.getBody());
 
+    // Determine the variables that are used by the equation.
+    auto accesses = getAccesses();
+    size_t numOfAccesses = accesses.size();
+
+    llvm::DenseSet<unsigned int> usedVariablesSet;
+    std::mutex accesesMutex;
+
+    llvm::ThreadPoolTaskGroup tasks(threadPool);
+    unsigned int numOfThreads = threadPool.getThreadCount();
+    size_t chunkSize = (numOfAccesses + numOfThreads - 1) / numOfThreads;
+
+    auto accessMapFn = [&](size_t from, size_t to) {
+      for (size_t i = from; i < to; ++i) {
+        const auto& access = accesses[i];
+        auto arg = access.getVariable()->getValue().cast<mlir::BlockArgument>();
+        unsigned int argNumber = arg.getArgNumber();
+
+        std::lock_guard lockGuard(accesesMutex);
+        usedVariablesSet.insert(argNumber);
+      }
+    };
+
+    for (unsigned int i = 0, e = threadPool.getThreadCount(); i < e; ++i) {
+      size_t from = std::min(numOfAccesses, i * chunkSize);
+      size_t to = std::min(numOfAccesses, (i + 1) * chunkSize);
+
+      if (from < to) {
+        tasks.async(accessMapFn, from, to);
+      }
+    }
+
+    tasks.wait();
+
+    usedVariables.insert(usedVariables.end(), usedVariablesSet.begin(), usedVariablesSet.end());
+    llvm::sort(usedVariables);
+
+    // Determine the arguments of the function.
     llvm::SmallVector<mlir::Type, 6> argsTypes;
 
-    // For each iteration variable we need to specify three value: the lower bound, the upper bound
-    // and the iteration step.
+    // For each iteration variable we need to specify three value: the lower
+    // bound, the upper bound and the iteration step.
     argsTypes.append(3 * getNumOfIterationVars(), builder.getIndexType());
 
     // Add the variables to the function signature
-    for (const auto& type : vars.getTypes()) {
-      argsTypes.push_back(type);
+    for (unsigned int usedVariable : usedVariables) {
+      argsTypes.push_back(modelOp.getBodyRegion().getArgument(usedVariable).getType());
     }
 
     // Create the "template" function and its entry block
@@ -1332,14 +1373,12 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     mlir::BlockAndValueMapping mapping;
-
-    // Cast the variables to their original types, so that the body of the equation
-    // can be cloned seamlessly.
     size_t varsOffset = getNumOfIterationVars() * 3;
 
-    for (size_t i = 0, e = vars.size(); i < e; ++i) {
-      mlir::Value variable = function.getArgument(i + varsOffset);
-      mapping.map(vars[i], variable);
+    for (size_t i = 0, e = usedVariables.size(); i < e; ++i) {
+      mlir::Value from = modelOp.getBodyRegion().getArgument(usedVariables[i]);
+      mlir::Value to = function.getArgument(i + varsOffset);
+      mapping.map(from, to);
     }
 
     // Create the iteration loops
@@ -1354,8 +1393,8 @@ namespace marco::codegen
     }
 
     // Delegate the body creation to the actual equation implementation
-    if (auto status = createTemplateFunctionBody(
-        builder, mapping, lowerBounds, upperBounds, steps, iterationDirection); mlir::failed(status)) {
+    if (auto res = createTemplateFunctionBody(
+        builder, mapping, lowerBounds, upperBounds, steps, iterationDirection); mlir::failed(res)) {
       return nullptr;
     }
 

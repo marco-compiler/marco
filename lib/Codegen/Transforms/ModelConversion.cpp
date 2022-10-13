@@ -182,9 +182,7 @@ namespace
   {
     mlir::func::FuncOp funcOp;
 
-    // Positions of the used variables. Index 0 is used for the time variable,
-    // so the variables have an offset of 1 with respect to the ones declared
-    // in the ModelOp.
+    // Positions of the used variables.
     std::vector<unsigned int> usedVariables;
   };
 
@@ -244,6 +242,7 @@ namespace
 
 /// Get or create the template equation function for a scheduled equation.
 static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
+    llvm::ThreadPool& threadPool,
     mlir::OpBuilder& builder,
     ModelOp modelOp,
     const ScheduledEquation* equation,
@@ -276,10 +275,12 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   }
 
   // Create the equation template function
+  std::vector<unsigned int> usedVariables;
+
   mlir::func::FuncOp function = explicitEquation->second->createTemplateFunction(
-      builder, functionName,
-      modelOp.getBodyRegion().getArguments(),
-      equation->getSchedulingDirection());
+      threadPool, builder, functionName,
+      equation->getSchedulingDirection(),
+      usedVariables);
 
   size_t timeArgumentIndex = equation->getNumOfIterationVars() * 3;
 
@@ -296,25 +297,9 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
     timeOp.erase();
   });
 
-  // Determine the used variables.
-  unsigned int numOfArguments = function.getNumArguments();
-  std::vector<unsigned int> usedVariables;
-  llvm::BitVector argsToBeErased(function.getNumArguments(), false);
-
-  for (unsigned int i = timeArgumentIndex; i < numOfArguments; ++i) {
-    mlir::Value arg = function.getArgument(i);
-
-    if (arg.use_empty()) {
-      argsToBeErased[i] = true;
-    } else {
-      usedVariables.push_back(i - timeArgumentIndex);
-    }
-  }
-
-  if (!argsToBeErased.empty()) {
-    // Erase the unused variables.
-    function.eraseArguments(argsToBeErased);
-  }
+  //builder.setInsertionPointAfter(function);
+  //auto clone = mlir::cast<mlir::func::FuncOp>(builder.clone(*function.getOperation()));
+  //function.erase();
 
   EquationTemplate result{function, usedVariables};
   equationTemplatesMap[requestedTemplate] = result;
@@ -1764,6 +1749,7 @@ namespace marco::codegen
     size_t equationCounter = 0;
 
     std::map<EquationTemplateInfo, EquationTemplate> equationTemplatesMap;
+    llvm::ThreadPool threadPool;
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
@@ -1774,7 +1760,7 @@ namespace marco::codegen
         } else {
           // The equation is handled by MARCO
           auto templateFunction = getOrCreateEquationTemplateFunction(
-              builder, modelOp, equation.get(), conversionInfo,
+              threadPool, builder, modelOp, equation.get(), conversionInfo,
               equationTemplatesMap, "initial_eq_template_", equationTemplateCounter);
 
           if (!templateFunction.has_value()) {
@@ -1792,9 +1778,12 @@ namespace marco::codegen
           std::vector<mlir::Value> usedVariables;
           std::vector<mlir::Type> usedVariablesTypes;
 
+          usedVariables.push_back(allVariables[0]);
+          usedVariablesTypes.push_back(allVariables[0].getType());
+
           for (unsigned int position : templateFunction->usedVariables) {
-            usedVariables.push_back(allVariables[position]);
-            usedVariablesTypes.push_back(allVariables[position].getType());
+            usedVariables.push_back(allVariables[position + 1]);
+            usedVariablesTypes.push_back(allVariables[position + 1].getType());
           }
 
           // Create the instantiated template function.
@@ -2121,6 +2110,7 @@ namespace marco::codegen
     size_t equationCounter = 0;
 
     std::map<EquationTemplateInfo, EquationTemplate> equationTemplatesMap;
+    llvm::ThreadPool threadPool;
 
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
@@ -2131,7 +2121,7 @@ namespace marco::codegen
         } else {
           // The equation is handled by MARCO
           auto templateFunction = getOrCreateEquationTemplateFunction(
-              builder, modelOp, equation.get(), conversionInfo,
+              threadPool, builder, modelOp, equation.get(), conversionInfo,
               equationTemplatesMap, "eq_template_", equationTemplateCounter);
 
           if (!templateFunction.has_value()) {
@@ -2149,9 +2139,12 @@ namespace marco::codegen
           std::vector<mlir::Value> usedVariables;
           std::vector<mlir::Type> usedVariablesTypes;
 
+          usedVariables.push_back(allVariables[0]);
+          usedVariablesTypes.push_back(allVariables[0].getType());
+
           for (unsigned int position : templateFunction->usedVariables) {
-            usedVariables.push_back(allVariables[position]);
-            usedVariablesTypes.push_back(allVariables[position].getType());
+            usedVariables.push_back(allVariables[position + 1]);
+            usedVariablesTypes.push_back(allVariables[position + 1].getType());
           }
 
           auto equationFunction = createEquationFunction(

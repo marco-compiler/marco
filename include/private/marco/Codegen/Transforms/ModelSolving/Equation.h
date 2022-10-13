@@ -93,10 +93,11 @@ namespace marco::codegen
           const EquationPath& destinationPath) const = 0;
 
       virtual mlir::func::FuncOp createTemplateFunction(
+          llvm::ThreadPool& threadPool,
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
-          mlir::ValueRange vars,
-          ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
+          ::marco::modeling::scheduling::Direction iterationDirection,
+          std::vector<unsigned int>& usedVariables) const = 0;
 
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;
