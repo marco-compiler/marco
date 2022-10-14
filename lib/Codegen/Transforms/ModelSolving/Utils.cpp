@@ -480,52 +480,105 @@ namespace marco::codegen
       model.setEquations(newEquations);
     }
   }
+}
 
+static mlir::LogicalResult readMatchingAttribute(
+    EquationInterface equationInt,
+    mlir::Attribute matchAttr,
+    Variables variables,
+    std::vector<std::unique_ptr<MatchedEquation>>& equations)
+{
+  auto matchArrayAttr = matchAttr.dyn_cast<mlir::ArrayAttr>();
+
+  if (!matchArrayAttr) {
+    return mlir::failure();
+  }
+
+  for (mlir::Attribute match : matchArrayAttr) {
+    auto dict = match.cast<mlir::DictionaryAttr>();
+    llvm::Optional<IndexSet> indices = getIndexSetFromAttr(dict.get("indices"));
+    llvm::Optional<EquationPath> path = getMatchedPathFromAttr(dict.get("path"));
+
+    if (!indices || !path) {
+      return mlir::failure();
+    }
+
+    auto equation = Equation::build(equationInt, variables);
+    auto matchedEquation = std::make_unique<MatchedEquation>(std::move(equation), *indices, *path);
+    equations.push_back(std::move(matchedEquation));
+  }
+
+  return mlir::success();
+}
+
+namespace marco::codegen
+{
   mlir::LogicalResult readMatchingAttributes(
       Model<MatchedEquation>& result,
       std::function<bool(EquationInterface)> equationsFilter)
   {
-    Equations<MatchedEquation> equations;
+    std::atomic_bool success = true;
 
-    llvm::DenseSet<EquationInterface> equationInterfaceOps;
+    Equations<MatchedEquation> equations;
+    std::mutex equationsMutex;
+
+    // Collect the operations among which the matched equations should be
+    // searched.
+    llvm::SmallVector<EquationInterface> equationInterfaceOps;
 
     result.getOperation()->walk([&](EquationInterface op) {
       if (equationsFilter(op)) {
-        equationInterfaceOps.insert(op.getOperation());
+        equationInterfaceOps.push_back(op.getOperation());
       }
     });
 
-    for (const auto& equationIntOp : equationInterfaceOps) {
-      auto equationInt = mlir::cast<EquationInterface>(equationIntOp);
-      mlir::Attribute matchAttr = equationInt->getAttr("match");
+    // Function to be applied to each chunk.
+    auto mapFn = [&](size_t from, size_t to) {
+      std::vector<std::unique_ptr<MatchedEquation>> matchedEquations;
 
-      if (!matchAttr) {
-        continue;
-      }
+      for (size_t i = from; i < to; ++i) {
+        EquationInterface equationInt = equationInterfaceOps[i];
+        mlir::Attribute matchAttr = equationInt->getAttr("match");
 
-      auto matchArrayAttr = matchAttr.dyn_cast<mlir::ArrayAttr>();
-
-      if (!matchArrayAttr) {
-        return mlir::failure();
-      }
-
-      for (const auto& match : matchArrayAttr) {
-        auto dict = match.cast<mlir::DictionaryAttr>();
-        llvm::Optional<IndexSet> indices = getIndexSetFromAttr(dict.get("indices"));
-        llvm::Optional<EquationPath> path = getMatchedPathFromAttr(dict.get("path"));
-
-        if (!indices || !path) {
-          return mlir::failure();
+        if (!matchAttr) {
+          break;
         }
 
-        auto equation = Equation::build(equationInt, result.getVariables());
-        auto matchedEquation = std::make_unique<MatchedEquation>(std::move(equation), *indices, *path);
-        equations.add(std::move(matchedEquation));
+        if (mlir::failed(readMatchingAttribute(equationInt, matchAttr, result.getVariables(), matchedEquations))) {
+          success = false;
+          break;
+        }
+      }
+
+      if (success) {
+        std::lock_guard lockGuard(equationsMutex);
+
+        for (auto& matchedEquation : matchedEquations) {
+          equations.add(std::move(matchedEquation));
+        }
+      }
+    };
+
+    // Shard the work among multiple threads.
+    llvm::ThreadPool threadPool;
+
+    size_t numOfEquationInts = equationInterfaceOps.size();
+    unsigned int numOfThreads = 1;
+    size_t chunkSize = (numOfEquationInts + numOfThreads - 1) / numOfThreads;
+
+    for (unsigned int i = 0; i < numOfThreads; ++i) {
+      size_t from = std::min(numOfEquationInts, i * chunkSize);
+      size_t to = std::min(numOfEquationInts, (i + 1) * chunkSize);
+
+      if (from < to) {
+        threadPool.async(mapFn, from, to);
       }
     }
 
+    threadPool.wait();
+
     result.setEquations(equations);
-    return mlir::success();
+    return mlir::LogicalResult::success(success);
   }
 
   void writeSchedulingAttributes(
