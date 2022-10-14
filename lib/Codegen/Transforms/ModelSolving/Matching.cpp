@@ -27,8 +27,9 @@ static Variables getFilteredVariables(
       const std::unique_ptr<Variable>& variable = variables[i];
       IndexSet indices = filterFn(*variable);
 
-      for (const auto& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-        auto filteredVariable = std::make_unique<FilteredVariable>(variable->clone(), IndexSet(range));
+      if (!indices.empty()) {
+        auto filteredVariable = std::make_unique<FilteredVariable>(
+            variable->clone(), std::move(indices));
 
         std::unique_lock lock(mutex);
         filteredVariables.add(std::move(filteredVariable));
@@ -42,9 +43,12 @@ static Variables getFilteredVariables(
   size_t chunkSize = (numOfVariables + numOfThreads - 1) / numOfThreads;
 
   for (unsigned int i = 0; i < numOfThreads; ++i) {
-    size_t from = i * chunkSize;
+    size_t from = std::min(numOfVariables, i * chunkSize);
     size_t to = std::min(numOfVariables, (i + 1) * chunkSize);
-    tasks.async(mapFn, from, to);
+
+    if (from < to) {
+      tasks.async(mapFn, from, to);
+    }
   }
 
   // Wait for all the tasks to finish.

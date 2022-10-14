@@ -69,13 +69,6 @@ namespace marco::codegen
         return variables.size();
       }
 
-      std::unique_ptr<Variable>& operator[](size_t index)
-      {
-        assert(index < size());
-        auto& result = variables[index];
-        return result;
-      }
-
       const std::unique_ptr<Variable>& operator[](size_t index) const
       {
         assert(index < size());
@@ -83,14 +76,25 @@ namespace marco::codegen
         return result;
       }
 
-      void resize(size_t newSize)
-      {
-        variables.resize(newSize);
-      }
-
       void add(std::unique_ptr<Variable> variable)
       {
+        mlir::Value value = variable->getValue();
+        unsigned int argNumber = value.cast<mlir::BlockArgument>().getArgNumber();
+        assert(positionsMap.find(argNumber) == positionsMap.end() && "Variable already added");
+
         variables.push_back(std::move(variable));
+        positionsMap[argNumber] = variables.size() - 1;
+      }
+
+      llvm::Optional<Variable*> findVariable(mlir::Value value) const
+      {
+        unsigned int argNumber = value.cast<mlir::BlockArgument>().getArgNumber();
+
+        if (auto it = positionsMap.find(argNumber); it != positionsMap.end()) {
+          return variables[it->second].get();
+        }
+
+        return llvm::None;
       }
 
       Variables::iterator begin()
@@ -115,6 +119,7 @@ namespace marco::codegen
 
     private:
       Variables::Container variables;
+      std::map<unsigned int, size_t> positionsMap;
   };
 
   Variables::Variables()
@@ -127,19 +132,9 @@ namespace marco::codegen
     return impl->size();
   }
 
-  std::unique_ptr<Variable>& Variables::operator[](size_t index)
-  {
-    return (*impl)[index];
-  }
-
   const std::unique_ptr<Variable>& Variables::operator[](size_t index) const
   {
     return (*impl)[index];
-  }
-
-  void Variables::resize(size_t newSize)
-  {
-    impl->resize(newSize);
   }
 
   void Variables::add(std::unique_ptr<Variable> variable)
@@ -193,5 +188,10 @@ namespace marco::codegen
     }
 
     return false;
+  }
+
+  llvm::Optional<Variable*> Variables::findVariable(mlir::Value value) const
+  {
+    return impl->findVariable(value);
   }
 }

@@ -292,17 +292,7 @@ namespace marco::codegen
   llvm::Optional<Variable*> Equation::findVariable(mlir::Value value) const
   {
     assert(value.isa<mlir::BlockArgument>());
-    auto variables = getVariables();
-
-    auto it = llvm::find_if(variables, [&](const std::unique_ptr<Variable>& variable) {
-      return *variable == value;
-    });
-
-    if (it == variables.end()) {
-      return llvm::None;
-    }
-
-    return (*it).get();
+    return getVariables().findVariable(value);
   }
 
   void Equation::searchAccesses(
@@ -362,7 +352,7 @@ namespace marco::codegen
       std::vector<DimensionAccess>& dimensionsAccesses,
       EquationPath path) const
   {
-    auto variable = findVariable(value);
+    llvm::Optional<Variable*> variable = findVariable(value);
 
     if (variable.has_value()) {
       std::vector<DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());

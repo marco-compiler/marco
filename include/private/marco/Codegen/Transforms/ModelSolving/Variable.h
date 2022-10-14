@@ -50,11 +50,7 @@ namespace marco::codegen
 
       size_t size() const;
 
-      std::unique_ptr<Variable>& operator[](size_t index);
-
       const std::unique_ptr<Variable>& operator[](size_t index) const;
-
-      void resize(size_t newSize);
 
       void add(std::unique_ptr<Variable> variable);
 
@@ -69,6 +65,8 @@ namespace marco::codegen
       bool isVariable(mlir::Value value) const;
 
       bool isReferenceAccess(mlir::Value value) const;
+
+      llvm::Optional<Variable*> findVariable(mlir::Value value) const;
 
     private:
       class Impl;

@@ -62,10 +62,10 @@ namespace marco::codegen
   Variables discoverVariables(ModelOp modelOp)
   {
     Variables variables;
+    std::mutex mutex;
 
     mlir::ValueRange args = modelOp.getBodyRegion().getArguments();
     size_t numOfVariables = args.size();
-    variables.resize(numOfVariables);
 
     // Parallelize the variables mapping.
     llvm::ThreadPool threadPool;
@@ -74,9 +74,8 @@ namespace marco::codegen
     // 'from' index is included, 'to' index is excluded.
     auto mapFn = [&](size_t from, size_t to) {
       for (size_t i = from; i < to; ++i) {
-        // No need for mutex locking, because the required space has already
-        // been allocated and the accessed indices are independent by design.
-        variables[i] = Variable::build(args[i]);
+        std::lock_guard lockGuard(mutex);
+        variables.add(Variable::build(args[i]));
       }
     };
 
