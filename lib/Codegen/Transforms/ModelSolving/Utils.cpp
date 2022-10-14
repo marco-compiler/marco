@@ -282,13 +282,65 @@ namespace marco::codegen
 
     modelOp->setAttr("derivatives", builder.getArrayAttr(derivativeAttrs));
   }
+}
 
+static mlir::LogicalResult readDerivativesMapEntry(
+    llvm::DenseMap<llvm::StringRef, size_t>& namesMap,
+    mlir::Attribute mapEntry,
+    size_t& varIndex,
+    size_t& derIndex,
+    IndexSet& derivedIndices)
+{
+  auto dict = mapEntry.dyn_cast<mlir::DictionaryAttr>();
+
+  if (!dict) {
+    return mlir::failure();
+  }
+
+  auto variableAttr = dict.getAs<mlir::SymbolRefAttr>("variable");
+  auto derivativeAttr = dict.getAs<mlir::SymbolRefAttr>("derivative");
+
+  if (!variableAttr || !derivativeAttr) {
+    return mlir::failure();
+  }
+
+  if (mlir::Attribute indicesAttr = dict.get("indices")) {
+    // Array variable.
+    auto indicesArrayAttr = indicesAttr.dyn_cast<mlir::ArrayAttr>();
+
+    if (!indicesArrayAttr) {
+      return mlir::failure();
+    }
+
+    for (mlir::Attribute rangeAttr : indicesArrayAttr) {
+      llvm::Optional<MultidimensionalRange> range = getRangeFromAttr(rangeAttr);
+
+      if (!range) {
+        return mlir::failure();
+      }
+
+      derivedIndices += *range;
+    }
+  } else {
+    // Scalar variable.
+    derivedIndices += Point(0);
+  }
+
+  varIndex = namesMap[variableAttr.getLeafReference().getValue()];
+  derIndex = namesMap[derivativeAttr.getLeafReference().getValue()];
+
+  return mlir::success();
+}
+
+namespace marco::codegen
+{
   mlir::LogicalResult readDerivativesMap(mlir::modelica::ModelOp modelOp, DerivativesMap& derivativesMap)
   {
     mlir::Attribute derivativesAttr = modelOp->getAttr("derivatives");
 
     if (!derivativesAttr) {
-      // No derivatives specified. Technically not a real error (even though it probably is).
+      // No derivatives specified.
+      // Technically not a real error (even though it probably is).
       return mlir::success();
     }
 
@@ -306,53 +358,47 @@ namespace marco::codegen
       namesMap[name.value()] = name.index();
     }
 
-    // Parse the mappings.
-    for (const mlir::Attribute& mapEntry : derivativesArrayAttr) {
-      auto dict = mapEntry.dyn_cast<mlir::DictionaryAttr>();
+    std::atomic_bool success = true;
+    std::mutex mutex;
 
-      if (!dict) {
-        return mlir::failure();
-      }
+    // Function to parse a chunk of entries.
+    auto mapFn = [&](size_t from, size_t to) {
+      for (size_t i = from; success && i < to; ++i) {
+        mlir::Attribute mapEntry = derivativesArrayAttr[i];
 
-      auto variableAttr = dict.getAs<mlir::SymbolRefAttr>("variable");
-      auto derivativeAttr = dict.getAs<mlir::SymbolRefAttr>("derivative");
+        size_t varIndex;
+        size_t derIndex;
+        IndexSet derivedIndices;
 
-      if (!variableAttr || !derivativeAttr) {
-        return mlir::failure();
-      }
-
-      IndexSet indices;
-
-      if (auto indicesAttr = dict.get("indices")) {
-        // Array variable.
-        auto indicesArrayAttr = indicesAttr.dyn_cast<mlir::ArrayAttr>();
-
-        if (!indicesArrayAttr) {
-          return mlir::failure();
+        if (mlir::failed(readDerivativesMapEntry(namesMap, mapEntry, varIndex, derIndex, derivedIndices))) {
+          success = false;
+          break;
         }
 
-        for (const auto& rangeAttr : indicesArrayAttr) {
-          llvm::Optional<MultidimensionalRange> range = getRangeFromAttr(rangeAttr);
-
-          if (!range) {
-            return mlir::failure();
-          }
-
-          indices += *range;
-        }
-      } else {
-        // Scalar variable.
-        indices += Point(0);
+        std::lock_guard lockGuard(mutex);
+        derivativesMap.setDerivative(varIndex, derIndex);
+        derivativesMap.setDerivedIndices(varIndex, std::move(derivedIndices));
       }
+    };
 
-      auto varIndex = namesMap[variableAttr.getLeafReference().getValue()];
-      auto derIndex = namesMap[derivativeAttr.getLeafReference().getValue()];
+    // Shard the work among multiple threads.
+    llvm::ThreadPool threadPool;
 
-      derivativesMap.setDerivative(varIndex, derIndex);
-      derivativesMap.setDerivedIndices(varIndex, indices);
+    size_t numOfEntries = derivativesArrayAttr.size();
+    unsigned int numOfThreads = 1;
+    size_t chunkSize = (numOfEntries + numOfThreads - 1) / numOfThreads;
+
+    for (unsigned int i = 0; i < numOfThreads; ++i) {
+      size_t from = std::min(numOfEntries, i * chunkSize);
+      size_t to = std::min(numOfEntries, (i + 1) * chunkSize);
+
+      if (from < to) {
+        threadPool.async(mapFn, from, to);
+      }
     }
 
-    return mlir::success();
+    threadPool.wait();
+    return mlir::LogicalResult::success(success);
   }
 
   void writeMatchingAttributes(
