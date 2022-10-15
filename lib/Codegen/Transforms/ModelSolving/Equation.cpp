@@ -1166,7 +1166,7 @@ namespace marco::codegen
         return std::make_pair(operand.first, nullptr);
       }
 
-      mlir::Value result = builder.createOrFold<NegateOp>(
+      mlir::Value result = builder.create<NegateOp>(
           negateOp.getLoc(), negateOp.getResult().getType(), operand.second);
 
       return std::make_pair(operand.first, result);
@@ -1180,7 +1180,7 @@ namespace marco::codegen
         return std::make_pair(0, nullptr);
       }
 
-      mlir::Value result = builder.createOrFold<MulOp>(
+      mlir::Value result = builder.create<MulOp>(
           mulOp.getLoc(), mulOp.getResult().getType(), lhs.second, rhs.second);
 
       return std::make_pair(lhs.first + rhs.first, result);
@@ -1217,7 +1217,7 @@ namespace marco::codegen
         return std::make_pair(dividend.first, nullptr);
       }
 
-      mlir::Value result = builder.createOrFold<DivOp>(
+      mlir::Value result = builder.create<DivOp>(
           divOp.getLoc(), divOp.getResult().getType(), dividend.second, divOp.getRhs());
 
       return std::make_pair(dividend.first, result);
@@ -1502,13 +1502,13 @@ namespace marco::codegen
         // Subtract (or add, if on right side) that value to the constant term
 
         if(side == EquationPath::LEFT)
-          constantTerm = builder.createOrFold<SubOp>(
+          constantTerm = builder.create<SubOp>(
               loc,
               getMostGenericType(constantTerm.getType(),
                                  value.getType()),
               constantTerm, value);
         else
-          constantTerm = builder.createOrFold<AddOp>(
+          constantTerm = builder.create<AddOp>(
               loc,
               getMostGenericType(constantTerm.getType(),
                                  value.getType()),
@@ -1558,10 +1558,10 @@ namespace marco::codegen
         // Add or subtract depending on whether we are considering the left or
         // right side of the equation.
         if(side == EquationPath::LEFT)
-          lhs = builder.createOrFold<AddOp>(
+          lhs = builder.create<AddOp>(
               loc, type, lhs, rhs);
         else
-          lhs = builder.createOrFold<SubOp>(
+          lhs = builder.create<SubOp>(
               loc, type, lhs, rhs);
       }
     }

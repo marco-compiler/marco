@@ -102,14 +102,14 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
     auto c = matrix(1,0);
     auto d = matrix(1,1);
 
-    auto ad = builder.createOrFold<MulOp>(
+    auto ad = builder.create<MulOp>(
         loc,
         getMostGenericType(a.getType(), d.getType()), a, d);
-    auto bc = builder.createOrFold<MulOp>(
+    auto bc = builder.create<MulOp>(
         loc,
         getMostGenericType(b.getType(), c.getType()), b, c);
 
-    determinant = builder.createOrFold<SubOp>(
+    determinant = builder.create<SubOp>(
         loc,
         getMostGenericType(ad.getType(), bc.getType()), ad, bc);
   }
@@ -143,7 +143,7 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
       auto matrixDet = subMatrix(out, 0, i).det(builder);
 
       // Multiply the scalar element with the submatrix determinant.
-      mlir::Value product = builder.createOrFold<MulOp>(
+      mlir::Value product = builder.create<MulOp>(
           loc,
           getMostGenericType(scalarDet.getType(),
                              matrixDet.getType()),
@@ -151,11 +151,11 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
 
       // If in odd position, negate the value.
       if(sign == -1)
-        product = builder.createOrFold<NegateOp>(
+        product = builder.create<NegateOp>(
             loc, product.getType(), product);
 
       // Add the result to the rest of the determinant.
-      determinant = builder.createOrFold<AddOp>(
+      determinant = builder.create<AddOp>(
           loc,
           getMostGenericType(determinant.getType(),
                              product.getType()),
@@ -277,7 +277,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       auto tempDet = temp.det(builder);
 
       //TODO determine the type of a DivOp
-      auto div = builder.createOrFold<DivOp>(
+      auto div = builder.create<DivOp>(
           equation->getOperation()->getLoc(),
           RealAttr::get(builder.getContext(), 0).getType(),
           tempDet, determinant);

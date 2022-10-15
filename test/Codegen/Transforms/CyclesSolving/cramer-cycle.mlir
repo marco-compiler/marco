@@ -1,28 +1,26 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="solve-cycles{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="solve-cycles{model-name=Test process-ic-model=false debug-view=true},canonicalize" | FileCheck %s
+
+// CHECK-DAG: %[[#X:]] = modelica.constant #modelica.real<2.500000e+00> : !modelica.real
+// CHECK-DAG: %[[#Y:]] = modelica.constant #modelica.real<-1.000000e+00> : !modelica.real
+// CHECK-DAG: %[[#Z:]] = modelica.constant #modelica.real<-5.000000e-01> : !modelica.real
 
 // CHECK{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
-// CHECK: %[[#VAR:]] = modelica.load %arg0[] : !modelica.array<!modelica.real>
-// CHECK-DAG: %[[#LHS:]] = modelica.equation_side %[[#VAR]] : tuple<!modelica.real>
-// CHECK-DAG: %[[#LHS-1]] = modelica.constant #modelica.real<2.500000e+00> : !modelica.real
-// CHECK-NEXT: %[[#LHS+1]] = modelica.equation_side %[[#LHS-1]] : tuple<!modelica.real>
-// CHECK-NEXT: modelica.equation_sides %[[#LHS]], %[[#LHS+1]] : tuple<!modelica.real>, tuple<!modelica.real>
-// CHECK: }
+// CHECK-NEXT: %[[#VAR:]] = modelica.load %arg0[] : !modelica.array<!modelica.real>
+// CHECK-NEXT: %[[#LHS:]] = modelica.equation_side %[[#VAR]] : tuple<!modelica.real>
+// CHECK-NEXT: %[[#RHS:]] = modelica.equation_side %[[#X]] : tuple<!modelica.real>
+// CHECK-NEXT: modelica.equation_sides %[[#LHS]], %[[#RHS]] : tuple<!modelica.real>, tuple<!modelica.real>
 
 // CHECK{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
-// CHECK: %[[#VAR:]] = modelica.load %arg1[] : !modelica.array<!modelica.real>
-// CHECK-DAG: %[[#LHS:]] = modelica.equation_side %[[#VAR]] : tuple<!modelica.real>
-// CHECK-DAG: %[[#LHS-1]] = modelica.constant #modelica.real<-1.000000e+00> : !modelica.real
-// CHECK-NEXT: %[[#LHS+1]] = modelica.equation_side %[[#LHS-1]] : tuple<!modelica.real>
-// CHECK-NEXT: modelica.equation_sides %[[#LHS]], %[[#LHS+1]] : tuple<!modelica.real>, tuple<!modelica.real>
-// CHECK: }
+// CHECK-NEXT: %[[#VAR:]] = modelica.load %arg1[] : !modelica.array<!modelica.real>
+// CHECK-NEXT: %[[#LHS:]] = modelica.equation_side %[[#VAR]] : tuple<!modelica.real>
+// CHECK-NEXT: %[[#RHS:]] = modelica.equation_side %[[#Y]] : tuple<!modelica.real>
+// CHECK-NEXT: modelica.equation_sides %[[#LHS]], %[[#RHS]] : tuple<!modelica.real>, tuple<!modelica.real>
 
 // CHECK{LITERAL}: modelica.equation attributes {id = 2 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
-// CHECK: %[[#VAR:]] = modelica.load %arg2[] : !modelica.array<!modelica.real>
-// CHECK-DAG: %[[#LHS:]] = modelica.equation_side %[[#VAR]] : tuple<!modelica.real>
-// CHECK-DAG: %[[#LHS-1]] = modelica.constant #modelica.real<-5.000000e-01> : !modelica.real
-// CHECK-NEXT: %[[#LHS+1]] = modelica.equation_side %[[#LHS-1]] : tuple<!modelica.real>
-// CHECK-NEXT: modelica.equation_sides %[[#LHS]], %[[#LHS+1]] : tuple<!modelica.real>, tuple<!modelica.real>
-// CHECK: }
+// CHECK-NEXT: %[[#VAR:]] = modelica.load %arg2[] : !modelica.array<!modelica.real>
+// CHECK-NEXT: %[[#LHS:]] = modelica.equation_side %[[#VAR]] : tuple<!modelica.real>
+// CHECK-NEXT: %[[#RHS:]] = modelica.equation_side %[[#Z]] : tuple<!modelica.real>
+// CHECK-NEXT: modelica.equation_sides %[[#LHS]], %[[#RHS]] : tuple<!modelica.real>, tuple<!modelica.real>
 
 modelica.model @Test attributes {derivatives = []} {
   %0 = modelica.member_create @x : !modelica.member<!modelica.real>

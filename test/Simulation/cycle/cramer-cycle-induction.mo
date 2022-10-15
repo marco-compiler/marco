@@ -9,11 +9,11 @@
 model Model
     Real[7] x;
 equation
+    x[1] + x[2] + x[6] - x[7] = 2;
+    x[1] + x[2] + x[6] + x[7] = 1;
+    x[1] + x[2] - x[6] + x[7] = 3;
+    x[1] - x[2] + x[6] + x[7] = 4;
     for i in 1:3 loop
         x[i] + x[i+1] + x[i+2] - x[i+3] + x[i+4] = 1;
     end for;
-    x[1] + x[2] + x[6] + x[7] = 1;
-    x[1] + x[2] + x[6] - x[7] = 2;
-    x[1] + x[2] - x[6] + x[7] = 3;
-    x[1] - x[2] + x[6] + x[7] = 4;
 end Model;

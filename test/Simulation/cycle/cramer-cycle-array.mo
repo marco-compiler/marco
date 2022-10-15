@@ -9,8 +9,8 @@
 model Model
     Real[4] x;
 equation
-    x[1] + x[2] + x[3] + x[4] = 1;
     x[1] + x[2] + x[3] - x[4] = 2;
     x[1] + x[2] - x[3] + x[4] = 3;
+    x[1] + x[2] + x[3] + x[4] = 1;
     x[1] - x[2] + x[3] + x[4] = 4;
 end Model;
