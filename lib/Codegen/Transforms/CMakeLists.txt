@@ -8,6 +8,7 @@ set(SOURCES
     ModelSolving/ArrayVariable.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
+    ModelSolving/CyclesCramerSolver.cpp
     ModelSolving/DerivativesMap.cpp
     ModelSolving/Equation.cpp
     ModelSolving/FilteredVariable.cpp

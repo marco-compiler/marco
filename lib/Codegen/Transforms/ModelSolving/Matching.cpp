@@ -317,6 +317,79 @@ namespace marco::codegen
     return equation->cloneIRAndExplicitate(builder, getIterationRanges(), getWrite().getPath());
   }
 
+  mlir::LogicalResult MatchedEquation::getCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<mlir::Value>& vector,
+      mlir::Value& constantTerm,
+      ::marco::modeling::Point equationIndex) const
+  {
+    return equation->getCoefficients(builder, vector, constantTerm, equationIndex);
+  }
+
+  mlir::LogicalResult MatchedEquation::getSideCoefficients(
+      mlir::OpBuilder& builder,
+      std::vector<mlir::Value>& coefficients,
+      mlir::Value& constantTerm,
+      std::vector<mlir::Value> values,
+      EquationPath::EquationSide side,
+      ::marco::modeling::Point equationIndex) const
+  {
+    return equation->getSideCoefficients(builder, coefficients, constantTerm, values, side, equationIndex);
+  }
+
+  mlir::LogicalResult MatchedEquation::convertAndCollectSide(
+      mlir::OpBuilder& builder,
+      std::vector<mlir::Value>& output,
+      EquationPath::EquationSide side) const
+  {
+    return equation->convertAndCollectSide(builder, output, side);
+  }
+
+  void MatchedEquation::replaceSides(
+      mlir::OpBuilder& builder,
+      mlir::Value lhs,
+      mlir::Value rhs) const
+  {
+    return equation->replaceSides(builder, lhs, rhs);
+  }
+
+  size_t MatchedEquation::getFlatAccessIndex(
+      const Access& access,
+      const ::marco::modeling::Point equationIndex) const
+  {
+    return equation->getFlatAccessIndex(access, equationIndex);
+  }
+
+  size_t MatchedEquation::getFlatAccessIndex(
+      const Point equationIndex) const
+  {
+    return equation->getFlatAccessIndex(getWrite(), equationIndex);
+  }
+
+  void MatchedEquation::setPath(EquationPath path)
+  {
+    matchedPath = std::move(path);
+  }
+
+  void MatchedEquation::setMatchSolution(
+      mlir::OpBuilder& builder,
+      const mlir::Value value)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    auto access = getWrite();
+    auto& path = access.getPath();
+    auto lhs = equation->getValueAtPath(path);
+
+    auto terminator =
+        mlir::cast<EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
+
+    builder.setInsertionPoint(terminator);
+
+    equation->replaceSides(builder, lhs, value);
+    matchedPath = EquationPath::LEFT;
+  }
+
   mlir::LogicalResult match(
       Model<MatchedEquation>& result,
       const Model<Equation>& model,

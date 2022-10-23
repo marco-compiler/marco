@@ -91,6 +91,34 @@ namespace marco::codegen
           mlir::ValueRange steps,
           ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
 
+      mlir::LogicalResult getCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& coefficients,
+          mlir::Value& constantTerm,
+          ::marco::modeling::Point equationIndex) const override;
+
+      mlir::LogicalResult getSideCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& coefficients,
+          mlir::Value& constantTerm,
+          std::vector<mlir::Value> values,
+          EquationPath::EquationSide side,
+          ::marco::modeling::Point equationIndex) const override;
+
+      mlir::LogicalResult convertAndCollectSide(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& output,
+          EquationPath::EquationSide side) const override;
+
+      void replaceSides(
+          mlir::OpBuilder& builder,
+          mlir::Value lhs,
+          mlir::Value rhs) const override;
+
+      size_t getFlatAccessIndex(
+          const Access& access,
+          ::marco::modeling::Point equationIndex) const override;
+
     private:
       mlir::Operation* equationOp;
       Variables variables;

@@ -99,6 +99,69 @@ namespace marco::codegen
           ::marco::modeling::scheduling::Direction iterationDirection,
           std::vector<unsigned int>& usedVariables) const = 0;
 
+      /// Populate the coefficients array and the constant term.
+      /// \param builder The builder.
+      /// \param coefficients The array of coefficients to be populated.
+      /// \param constantTerm The constant term to be computed.
+      /// \param equationIndex The index of the equation
+      /// \return Whether the values were computed successfully or not.
+      virtual mlir::LogicalResult getCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& coefficients,
+          mlir::Value& constantTerm,
+          ::marco::modeling::Point equationIndex) const = 0;
+
+      /// Starting from a previously computed array of coefficients and a constant
+      /// term, this function computes the coefficients to the equation variables
+      /// for one side of the equation.
+      /// \param builder The builder.
+      /// \param coefficients The coefficients' starting values
+      /// \param constantTerm The constant term's starting value
+      /// \param values Array containing the values that summed make up one side of
+      ///               the equation.
+      /// \param side The side of the equation being considered.
+      /// \param equationIndex The index of the equation
+      /// \return Whether the coefficient extraction is successful or not.
+      virtual mlir::LogicalResult getSideCoefficients(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& coefficients,
+          mlir::Value& constantTerm,
+          std::vector<mlir::Value> values,
+          EquationPath::EquationSide side,
+          ::marco::modeling::Point equationIndex) const = 0;
+
+      /// Take one side of the equation and convert it to a sum of terms. Collect
+      /// those terms inside the output array.
+      /// \param builder The builder.
+      /// \param output The array that will contain the terms that summed up
+      ///               constitutes the specified equation side.
+      /// \param side The equation side to be considered.
+      /// \return Whether the value collection was successful or not.
+      virtual mlir::LogicalResult convertAndCollectSide(
+          mlir::OpBuilder& builder,
+          std::vector<mlir::Value>& output,
+          EquationPath::EquationSide side) const = 0;
+
+      /// Replace the left and right hand sides of the equation with the given
+      /// values.
+      /// \param builder
+      /// \param lhs Left hand side
+      /// \param rhs Right hand side
+      virtual void replaceSides(
+          mlir::OpBuilder& builder,
+          mlir::Value lhs,
+          mlir::Value rhs) const = 0;
+
+      /// Get the flattened access to the variable. This is used to get a unique
+      /// identifier for an access to a non scalar variable. The rangeSet contains
+      /// the information about the structure of the variable.
+      /// \param access The access to the variable.
+      /// \param equationIndices The indices of the equation.
+      /// \return The unique identifier for the input access.
+      virtual size_t getFlatAccessIndex(
+          const Access& access,
+          ::marco::modeling::Point equationIndex) const = 0;
+
     protected:
       llvm::Optional<Variable*> findVariable(mlir::Value value) const;
 
@@ -124,6 +187,12 @@ namespace marco::codegen
           mlir::Value value,
           std::vector<::marco::modeling::DimensionAccess>& dimensionsAccesses,
           EquationPath path) const;
+
+      /// Check that there are no non linear functions operating on variables and no
+      /// variables on the right hand side of a division operation
+      /// \param value The value to be checked for linearity
+      /// \returns True if value is linear, false otherwise
+      mlir::LogicalResult checkLinearity(mlir::Value value) const;
 
       std::pair<mlir::Value, long> evaluateDimensionAccess(mlir::Value value) const;
   };
