@@ -439,49 +439,51 @@ namespace marco::codegen
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    // Extract the runtime data structure.
-    mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(
-        builder, function.getArgument(0), modelOp);
+    if (idaInstance->getNumOfEquations() != 0) {
+      // Extract the runtime data structure.
+      mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(
+          builder, function.getArgument(0), modelOp);
 
-    // Allocate the memory for the data of the IDA solver.
-    mlir::Type solverDataType = idaInstance->getSolverDataType(
-        &typeConverter->getContext());
+      // Allocate the memory for the data of the IDA solver.
+      mlir::Type solverDataType = idaInstance->getSolverDataType(
+          &typeConverter->getContext());
 
-    mlir::Value solverDataPtr = alloc(builder, module, loc, solverDataType);
+      mlir::Value solverDataPtr = alloc(builder, module, loc, solverDataType);
 
-    // Create the IDA instance.
-    if (mlir::failed(idaInstance->createInstance(builder, solverDataPtr))) {
-      return mlir::failure();
+      // Create the IDA instance.
+      if (mlir::failed(idaInstance->createInstance(builder, solverDataPtr))) {
+        return mlir::failure();
+      }
+
+      // Configure the IDA instance.
+      llvm::SmallVector<mlir::Value> variables;
+
+      for (const auto& var : llvm::enumerate(modelOp.getBodyRegion().getArguments())) {
+        variables.push_back(extractVariable(
+            builder, runtimeDataStruct, var.value().getType(), var.index()));
+      }
+
+      if (mlir::failed(idaInstance->configure(
+              builder, solverDataPtr, model, variables))) {
+        return mlir::failure();
+      }
+
+      // Store the address of the solver data in the runtime data structure.
+      mlir::Value solverDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(
+          loc, getVoidPtrType(), solverDataPtr);
+
+      runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(
+          loc, runtimeDataStruct, solverDataOpaquePtr, solversDataPosition);
+
+      // Store the new runtime data struct.
+      mlir::Value runtimeDataStructPtr = builder.create<mlir::LLVM::BitcastOp>(
+          loc,
+          mlir::LLVM::LLVMPointerType::get(runtimeDataStruct.getType()),
+          function.getArgument(0));
+
+      builder.create<mlir::LLVM::StoreOp>(
+          loc, runtimeDataStruct, runtimeDataStructPtr);
     }
-
-    // Configure the IDA instance.
-    llvm::SmallVector<mlir::Value> variables;
-
-    for (const auto& var : llvm::enumerate(modelOp.getBodyRegion().getArguments())) {
-      variables.push_back(extractVariable(
-          builder, runtimeDataStruct, var.value().getType(), var.index()));
-    }
-
-    if (mlir::failed(idaInstance->configure(
-            builder, solverDataPtr, model, variables))) {
-      return mlir::failure();
-    }
-
-    // Store the address of the solver data in the runtime data structure.
-    mlir::Value solverDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(
-        loc, getVoidPtrType(), solverDataPtr);
-
-    runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(
-        loc, runtimeDataStruct, solverDataOpaquePtr, solversDataPosition);
-
-    // Store the new runtime data struct.
-    mlir::Value runtimeDataStructPtr = builder.create<mlir::LLVM::BitcastOp>(
-        loc,
-        mlir::LLVM::LLVMPointerType::get(runtimeDataStruct.getType()),
-        function.getArgument(0));
-
-    builder.create<mlir::LLVM::StoreOp>(
-        loc, runtimeDataStruct, runtimeDataStructPtr);
 
     // Terminate the function.
     builder.create<mlir::func::ReturnOp>(loc);
@@ -510,24 +512,26 @@ namespace marco::codegen
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    // Extract the solvers data from the runtime data.
-    mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(
-        builder, function.getArgument(0), modelOp);
+    if (idaInstance->getNumOfEquations() != 0) {
+      // Extract the solvers data from the runtime data.
+      mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(
+          builder, function.getArgument(0), modelOp);
 
-    mlir::Value solversDataPtr = extractSolverDataPtr(
-        builder, runtimeDataStruct,
-        idaInstance->getSolverDataType(builder.getContext()));
+      mlir::Value solversDataPtr = extractSolverDataPtr(
+          builder, runtimeDataStruct,
+          idaInstance->getSolverDataType(builder.getContext()));
 
-    // Deallocate the solver data.
-    if (mlir::failed(idaInstance->deleteInstance(builder, solversDataPtr))) {
-      return mlir::failure();
+      // Deallocate the solver data.
+      if (mlir::failed(idaInstance->deleteInstance(builder, solversDataPtr))) {
+        return mlir::failure();
+      }
+
+      // Deallocate the solvers data.
+      mlir::Value solversDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(
+          loc, getVoidPtrType(), solversDataPtr);
+
+      dealloc(builder, module, loc, solversDataOpaquePtr);
     }
-
-    // Deallocate the solvers data.
-    mlir::Value solversDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(
-        loc, getVoidPtrType(), solversDataPtr);
-
-    dealloc(builder, module, loc, solversDataOpaquePtr);
 
     // Create the return function.
     builder.create<mlir::func::ReturnOp>(loc);
@@ -955,6 +959,11 @@ namespace marco::codegen
   void IDAInstance::addEquation(ScheduledEquation* equation)
   {
     equations.emplace(equation);
+  }
+
+  size_t IDAInstance::getNumOfEquations() const
+  {
+    return equations.size();
   }
 
   mlir::Type IDAInstance::getSolverDataType(mlir::MLIRContext* context) const

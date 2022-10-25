@@ -273,6 +273,10 @@ namespace marco::runtime::ida
     assert(initialized && "The IDA instance has not been initialized yet");
 
     if (scalarEquationsNumber != 0) {
+      for (auto* variable : parameters) {
+        heapFree(variable);
+      }
+
       for (auto* variable : variables) {
         heapFree(variable);
       }

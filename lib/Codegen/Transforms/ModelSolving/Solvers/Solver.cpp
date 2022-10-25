@@ -1,4 +1,5 @@
 #include "marco/Codegen/Transforms/ModelSolving/Solvers/ModelSolver.h"
+#include "marco/Codegen/Runtime.h"
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
@@ -102,7 +103,7 @@ namespace marco::codegen
       mlir::Type type) const
   {
     // Add the function to the module.
-    mlir::LLVM::LLVMFuncOp allocFn = mlir::LLVM::lookupOrCreateGenericAllocFn(
+    mlir::LLVM::LLVMFuncOp allocFn = lookupOrCreateHeapAllocFn(
         module, typeConverter->getIndexType());
 
     // Determine the size (in bytes) of the memory to be allocated.
@@ -135,7 +136,7 @@ namespace marco::codegen
     assert(ptr.getType().isa<mlir::LLVM::LLVMPointerType>());
 
     // Add the function to the module.
-    mlir::LLVM::LLVMFuncOp deallocFn = mlir::LLVM::lookupOrCreateGenericFreeFn(module);
+    mlir::LLVM::LLVMFuncOp deallocFn = lookupOrCreateHeapFreeFn(module);
 
     // Call the function.
     builder.create<mlir::LLVM::CallOp>(loc, deallocFn, ptr);
