@@ -205,13 +205,6 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 option(MARCO_PROFILING "Generate code for runtime profiling." OFF)
 
-if (MARCO_PROFILING)
-	# If the profiling system is enabled, the macro is propagated to the libraries
-	# so that the required code is inserted.
-
-	add_compile_definitions(MARCO_PROFILING)
-endif()
-
 #-------------------------------------------------------------------------------
 # Directory setup
 #-------------------------------------------------------------------------------

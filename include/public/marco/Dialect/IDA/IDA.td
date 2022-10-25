@@ -385,6 +385,34 @@ def IDA_SetDerivativeOp : IDA_Op<"set_derivative",
     }];
 }
 
+def IDA_AddParametricVariableOp : IDA_Op<"add_parametric_variable",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Add a parametric variable.";
+
+    let description = [{
+        The operation is intended to inform IDA about the existence of a
+        read-only variable.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !ida.instance
+        ida.add_algebraic_variable %0, %1: !ida.instance, !mydialect.type
+        ```
+    }];
+
+    let arguments = (ins
+        IDAInstance:$instance,
+        AnyType:$variable);
+
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $instance `,` $variable attr-dict `:` type($instance) `,` type($variable)
+    }];
+}
+
 def IDA_VariableGetterOp : IDA_Op<"variable_getter",
     [IsolatedFromAbove, FunctionOpInterface, AutomaticAllocationScope, Symbol]>
 {

@@ -1,6 +1,5 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/ModelSolving/ModelConverter.h"
 #include "mlir/Dialect/Bufferization/Transforms/BufferUtils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/Passes.h"
@@ -113,15 +112,6 @@ namespace
 
       void runOnOperation() override
       {
-        getOperation().walk([](mlir::func::FuncOp op) {
-          if (op.getSymName() != marco::codegen::ModelConverter::initFunctionName &&
-              op.getSymName() != marco::codegen::ModelConverter::initICSolversFunctionName &&
-              op.getSymName() != marco::codegen::ModelConverter::initMainSolversFunctionName) {
-            ArrayDeallocation deallocation(op);
-            deallocation.deallocate();
-          }
-        });
-
         getOperation().walk([](FunctionOp op) {
           ArrayDeallocation deallocation(op);
           deallocation.deallocate();

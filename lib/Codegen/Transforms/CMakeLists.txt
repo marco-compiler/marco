@@ -1,6 +1,7 @@
 set(SOURCES
-    ModelSolving/ExternalSolvers/ExternalSolver.cpp
-    ModelSolving/ExternalSolvers/IDA.cpp
+    ModelSolving/Solvers/EulerForward.cpp
+    ModelSolving/Solvers/IDA.cpp
+    ModelSolving/Solvers/Solver.cpp
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
     ModelSolving/Access.cpp

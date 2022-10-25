@@ -579,6 +579,52 @@ namespace
     }
   };
 
+  struct AddParametricVariableOpLowering : public IDAOpConversion<AddParametricVariableOp>
+  {
+    using IDAOpConversion<AddParametricVariableOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(AddParametricVariableOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+
+      auto heapAllocFn = lookupOrCreateHeapAllocFn(module, getIndexType());
+
+      RuntimeFunctionsMangling mangling;
+
+      llvm::SmallVector<mlir::Value, 5> newOperands;
+      llvm::SmallVector<std::string, 3> mangledArgsTypes;
+
+      // IDA instance
+      newOperands.push_back(adaptor.getInstance());
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Variable
+      mlir::Type variableType = adaptor.getVariable().getType();
+      mlir::Type variablePtrType = mlir::LLVM::LLVMPointerType::get(variableType);
+      mlir::Value variableNullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, variablePtrType);
+      mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), 1));
+      mlir::Value variableGepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, variablePtrType, variableNullPtr, one);
+      mlir::Value variableSizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), variableGepPtr);
+
+      mlir::Value variableOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, variableSizeBytes).getResult();
+      mlir::Value variablePtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, variablePtrType, variableOpaquePtr);
+      rewriter.create<mlir::LLVM::StoreOp>(loc, adaptor.getVariable(), variablePtr);
+
+      newOperands.push_back(variableOpaquePtr);
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Create the call to the runtime library
+      auto resultType = getVoidType();
+      auto mangledResultType = mangling.getVoidType();
+      auto functionName = mangling.getMangledFunction("idaAddParametricVariable", mangledResultType, mangledArgsTypes);
+      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+
+      return mlir::success();
+    }
+  };
+
   struct VariableGetterOpLowering : public IDAOpConversion<VariableGetterOp>
   {
     using IDAOpConversion<VariableGetterOp>::IDAOpConversion;
@@ -1266,6 +1312,7 @@ static void populateIDAConversionPatterns(
       AddAlgebraicVariableOpLowering,
       AddStateVariableOpLowering,
       SetDerivativeOpLowering,
+      AddParametricVariableOpLowering,
       AddVariableAccessOpLowering,
       AddResidualOpLowering,
       AddJacobianOpLowering,
@@ -1406,6 +1453,24 @@ namespace
     mlir::LogicalResult matchAndRewrite(SetDerivativeOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
       auto newOp = mlir::cast<SetDerivativeOp>(rewriter.cloneWithoutRegions(*op.getOperation()));
+      newOp->setOperands(adaptor.getOperands());
+
+      for (auto result : newOp->getResults()) {
+        result.setType(getTypeConverter()->convertType(result.getType()));
+      }
+
+      rewriter.replaceOp(op, newOp->getResults());
+      return mlir::success();
+    }
+  };
+
+  struct AddParametricVariableOpTypes : public mlir::OpConversionPattern<AddParametricVariableOp>
+  {
+    using mlir::OpConversionPattern<AddParametricVariableOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(AddParametricVariableOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto newOp = mlir::cast<AddParametricVariableOp>(rewriter.cloneWithoutRegions(*op.getOperation()));
       newOp->setOperands(adaptor.getOperands());
 
       for (auto result : newOp->getResults()) {
@@ -1681,7 +1746,8 @@ namespace mlir
     patterns.add<
         AddAlgebraicVariableOpTypes,
         AddStateVariableOpTypes,
-        SetDerivativeOpTypes>(typeConverter, patterns.getContext());
+        SetDerivativeOpTypes,
+        AddParametricVariableOpTypes>(typeConverter, patterns.getContext());
 
     patterns.add<ConvertGetCurrentTimeOpTypes>(typeConverter, patterns.getContext());
 
@@ -1700,6 +1766,10 @@ namespace mlir
     });
 
     target.addDynamicallyLegalOp<SetDerivativeOp>([&](mlir::Operation* op) {
+      return typeConverter.isLegal(op);
+    });
+
+    target.addDynamicallyLegalOp<AddParametricVariableOp>([&](mlir::Operation* op) {
       return typeConverter.isLegal(op);
     });
 

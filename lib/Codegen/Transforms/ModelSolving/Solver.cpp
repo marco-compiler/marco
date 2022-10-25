@@ -7,7 +7,7 @@ using namespace marco::codegen;
 static Solver::Kind getKindFromName(llvm::StringRef solverName)
 {
   return llvm::StringSwitch<Solver::Kind>(solverName)
-      .Case("forwardEuler", Solver::Kind::forwardEuler)
+      .Case("forward-euler", Solver::Kind::forwardEuler)
       .Case("ida", Solver::Kind::ida)
       .Default(Solver::Kind::forwardEuler);
 }

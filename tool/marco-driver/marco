@@ -12,6 +12,9 @@ LIBS_PATHS_DEFAULT="@RUNTIME_LIBS_PATHS@"
 
 SIMULATION_LIBS="@SIMULATION_LIBS@"
 
+SOLVER="forward-euler"
+SOLVER_LIB=""
+
 PRINT_HELP="False"
 PRINT_VERSION="False"
 COMPILE_ONLY="False"
@@ -34,6 +37,14 @@ parse_args()
         if [[ "$1" == "-L" ]] ; then
           shift
           LIBS_PATHS+=("$1")
+          shift
+          continue
+        fi
+
+        # Solvers
+        if [[ "$1" == "--solver"* ]] ; then
+          OPTIONS+=("$1")
+          SOLVER="${1:9}"
           shift
           continue
         fi
@@ -135,6 +146,15 @@ main()
     SIMULATION_LIBS_FLAGS+=("-l$i")
   done
 
+  if [[ "$SOLVER" == "forward-euler" ]] ; then
+    SOLVER_LIB="-lMARCORuntimeDriverEulerForward"
+  elif [[ "$SOLVER" == "ida" ]] ; then
+    SOLVER_LIB="-lMARCORuntimeDriverIDA"
+  else
+    echo "Invalid solver"
+    exit 1
+  fi
+
   # Create the object file
   ${SCRIPT_PATH}/marco-driver "${OPTIONS[@]}" "${INPUT_FILES[@]}" -o "$TEMPORARY_DIR/simulation.o"
   resultCode=$?
@@ -152,7 +172,7 @@ main()
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" -L $SCRIPT_PATH/../lib -lMARCORuntime "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}"
+    c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Wl,--start-group -lMARCORuntime -lMARCORuntimePrinterCSV "${SOLVER_LIB}" -Wl,--end-group "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}"
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then

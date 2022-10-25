@@ -3,11 +3,12 @@
 
 #ifdef MARCO_PROFILING
 
-#include "marco/Runtime/Profiling.h"
+#include "marco/Runtime/Profiling/Profiling.h"
+#include "marco/Runtime/Profiling/Timer.h"
 #include <iostream>
 #include <map>
 
-namespace
+namespace marco::runtime::profiling
 {
   class MemoryProfiler : public Profiler
   {
@@ -90,10 +91,13 @@ namespace
       std::map<void*, int64_t> sizes;
       Timer timer;
   };
+}
 
-  MemoryProfiler& profiler()
+namespace
+{
+  marco::runtime::profiling::MemoryProfiler& profiler()
   {
-    static MemoryProfiler obj;
+    static marco::runtime::profiling::MemoryProfiler obj;
     return obj;
   }
 }
@@ -126,6 +130,11 @@ namespace
 
 RUNTIME_FUNC_DEF(heapAlloc, PTR(void), int64_t)
 
+void* _mlir_memref_to_llvm_alloc(int64_t sizeInBytes)
+{
+  return heapAlloc(sizeInBytes);
+}
+
 void heapFree(void* ptr)
 {
   #ifdef MARCO_PROFILING
@@ -151,3 +160,8 @@ namespace
 }
 
 RUNTIME_FUNC_DEF(heapFree, void, PTR(void))
+
+void _mlir_memref_to_llvm_free(void* ptr)
+{
+  heapFree(ptr);
+}
