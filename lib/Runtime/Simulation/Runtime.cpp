@@ -31,7 +31,7 @@ namespace
     std::cout << "Generated with MARCO compiler.\n\n";
 
     std::cout << "OPTIONS:\n";
-    std::cout << "  --help      Display the available options.\n\n";
+    std::cout << "  --help    Display the available options.\n\n";
 
     auto& cli = getCLI();
 

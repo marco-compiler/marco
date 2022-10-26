@@ -10,13 +10,13 @@ namespace marco::runtime::printing
 
   void CommandLineOptions::printCommandLineOptions(std::ostream& os) const
   {
-    os << "  --scientific-notation      Print the values using the scientific notation.\n";
-    os << "  --precision=<value>        Set the number of decimals to be printed.\n";
+    os << "  --scientific-notation    Print the values using the scientific notation." << std::endl;
+    os << "  --precision=<value>      Set the number of decimals to be printed." << std::endl;
   }
 
   void CommandLineOptions::parseCommandLineOptions(const argh::parser& options) const
   {
     printOptions().scientificNotation = options["scientific-notation"];
-    options("precision", printOptions().precision) >> printOptions().precision;
+    options("precision") >> printOptions().precision;
   }
 }
