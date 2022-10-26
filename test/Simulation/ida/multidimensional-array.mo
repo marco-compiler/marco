@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=MultidimensionalArray --end-time=1 --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s
+// RUN: marco --omc-bypass --model=MultidimensionalArray --solver=ida -o %basename_t %s
+// RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x[1,1]","x[1,2]","x[1,3]","x[2,1]","x[2,2]","x[2,3]"
 // CHECK-NEXT: 0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000

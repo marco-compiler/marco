@@ -196,20 +196,12 @@ def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
                "Enable the processing of the 'initial conditions' model">,
         Option<"processMainModel", "process-main-model", "bool", "true",
                "Enable the processing of the 'main' model">,
-        Option<"startTime", "start-time", "double", "0",
-               "Set the simulation start time">,
-        Option<"endTime", "end-time", "double", "1",
-               "Set the simulation end time">,
-        Option<"timeStep", "time-step", "double", "0.1",
-               "Set the simulation time step">,
         Option<"emitSimulationMainFunction", "emit-simulation-main-function", "bool", "true",
                "Emit the 'main' function of the simulation">,
         Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
                "Set a print filter for the variables of the simulation">,
         Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
-               "Set a the solver to be used for the simulation">,
-        Option<"idaEquidistantTimeGrid", "ida-equidistant-time-grid", "bool", "false",
-               "Set the IDA solver to use an equidistant time grid">
+               "Set a the solver to be used for the simulation">
     ];
 
     let constructor = "mlir::modelica::createModelConversionPass()";

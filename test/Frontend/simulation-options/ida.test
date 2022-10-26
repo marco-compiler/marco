@@ -1,9 +1,0 @@
-// RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
-
-// CHECK-DEFAULT-LABEL: [IDA]
-// CHECK-DEFAULT-DAG: Equidistant time grid: false
-
-// RUN: marco-driver --init-only --ida-equidistant-time-grid | FileCheck %s --check-prefix="CHECK-EQUIDISTANT-TIME-GRID"
-
-// CHECK-EQUIDISTANT-TIME-GRID-LABEL: [Simulation]
-// CHECK-EQUIDISTANT-TIME-GRID-DAG: Equidistant time grid: true

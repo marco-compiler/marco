@@ -415,12 +415,8 @@ namespace marco::frontend
     options.dataLayout = getDataLayoutString();
     options.model = ci.getSimulationOptions().modelName;
     options.solver = ci.getSimulationOptions().solver;
-    options.startTime = ci.getSimulationOptions().startTime;
-    options.endTime = ci.getSimulationOptions().endTime;
-    options.timeStep = ci.getSimulationOptions().timeStep;
     options.emitSimulationMainFunction = ci.getCodegenOptions().generateMain;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
-    options.idaEquidistantTimeGrid = ci.getSimulationOptions().ida.equidistantTimeGrid;
 
     return mlir::modelica::createModelConversionPass(options);
   }

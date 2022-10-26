@@ -326,8 +326,13 @@ mlir::LogicalResult ModelConversionPass::createSimulationHooks()
       return mlir::failure();
     }
 
-    if (mlir::failed(modelSolver->createGetCurrentTimeFunction(builder, modelOp))) {
-      modelOp.emitError("Could not create the '" + ModelSolver::getCurrentTimeFunctionName + "' function");
+    if (mlir::failed(modelSolver->createGetTimeFunction(builder, modelOp))) {
+      modelOp.emitError("Could not create the '" + ModelSolver::getTimeFunctionName + "' function");
+      return mlir::failure();
+    }
+
+    if (mlir::failed(modelSolver->createSetTimeFunction(builder, modelOp))) {
+      modelOp.emitError("Could not create the '" + ModelSolver::setTimeFunctionName + "' function");
       return mlir::failure();
     }
 
@@ -363,16 +368,12 @@ std::unique_ptr<ModelSolver> ModelConversionPass::getSolver(
 
   if (solverKind == Solver::Kind::forwardEuler) {
     return std::make_unique<EulerForwardSolver>(
-        typeConverter, variablesFilter, startTime, endTime, timeStep);
+        typeConverter, variablesFilter);
   }
 
   if (solverKind == Solver::Kind::ida) {
-    // TODO IDA options
-    //IDAOptions idaOptions;
-    //idaOptions.equidistantTimeGrid = idaEquidistantTimeGrid;
-
     return std::make_unique<IDASolver>(
-        typeConverter, variablesFilter, startTime, endTime, timeStep, idaEquidistantTimeGrid);
+        typeConverter, variablesFilter);
   }
 
   llvm_unreachable("Unknown solver");

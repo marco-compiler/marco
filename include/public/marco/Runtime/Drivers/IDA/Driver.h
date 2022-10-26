@@ -28,7 +28,7 @@ extern "C"
 
   void updateNonStateVariables(void* data);
   void updateStateVariables(void* data);
-  bool incrementTime(void* data);
+  void incrementTime(void* data);
 }
 
 #endif // MARCO_RUNTIME_DRIVERS_IDA_DRIVER_H

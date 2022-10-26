@@ -21,8 +21,7 @@ extern "C"
   void calcIC(void* data);
 
   void updateNonStateVariables(void* data);
-  void updateStateVariables(void* data);
-  bool incrementTime(void* data);
+  void updateStateVariables(void* data, double timeStep);
 }
 
 #endif // MARCO_RUNTIME_DRIVERS_EULERFORWARD_DRIVER_H

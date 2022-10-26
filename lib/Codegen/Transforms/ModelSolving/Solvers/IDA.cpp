@@ -119,13 +119,8 @@ namespace marco::codegen
 {
   IDASolver::IDASolver(
       mlir::LLVMTypeConverter& typeConverter,
-      VariableFilter& variablesFilter,
-      double startTime,
-      double endTime,
-      double timeStep,
-      bool equidistantTimeGrid)
-      : ModelSolver(typeConverter, variablesFilter, startTime, endTime, timeStep),
-        equidistantTimeGrid(equidistantTimeGrid)
+      VariableFilter& variablesFilter)
+      : ModelSolver(typeConverter, variablesFilter)
   {
   }
 
@@ -136,7 +131,10 @@ namespace marco::codegen
     DerivativesMap emptyDerivativesMap;
 
     auto idaInstance = std::make_unique<IDAInstance>(
-        typeConverter, emptyDerivativesMap, equidistantTimeGrid, 0, 0, timeStep);
+        typeConverter, emptyDerivativesMap);
+
+    idaInstance->setStartTime(0);
+    idaInstance->setEndTime(0);
 
     ConversionInfo conversionInfo;
 
@@ -235,7 +233,7 @@ namespace marco::codegen
     const DerivativesMap& derivativesMap = model.getDerivativesMap();
 
     auto idaInstance = std::make_unique<IDAInstance>(
-        typeConverter, derivativesMap, equidistantTimeGrid, startTime, endTime, timeStep);
+        typeConverter, derivativesMap);
 
     ConversionInfo conversionInfo;
 
@@ -777,7 +775,7 @@ namespace marco::codegen
 
     auto function = builder.create<mlir::func::FuncOp>(
         loc, incrementTimeFunctionName,
-        builder.getFunctionType(getVoidPtrType(), builder.getI1Type()));
+        builder.getFunctionType(getVoidPtrType(), llvm::None));
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
@@ -793,7 +791,7 @@ namespace marco::codegen
     mlir::Value increasedTime = idaInstance->getCurrentTime(
         builder, solverDataPtr, RealType::get(builder.getContext()));
 
-    // Store the increased time into the runtime data structure
+    // Store the increased time into the runtime data structure.
     auto runtimeDataStructType = getRuntimeDataStructType(
         builder.getContext(), modelOp);
 
@@ -804,33 +802,10 @@ namespace marco::codegen
     runtimeData = builder.create<mlir::LLVM::InsertValueOp>(
         loc, runtimeData, increasedTime, timeVariablePosition);
 
-    auto runtimeDataPtrType = mlir::LLVM::LLVMPointerType::get(
-        runtimeDataStructType);
+    setRuntimeData(builder, function.getArgument(0), modelOp, runtimeData);
 
-    mlir::Value runtimeDataPtr = builder.create<mlir::LLVM::BitcastOp>(
-        loc, runtimeDataPtrType, function.getArgument(0));
-
-    builder.create<mlir::LLVM::StoreOp>(loc, runtimeData, runtimeDataPtr);
-
-    // Check if the current time is less than the end time
-    mlir::Value endTimeValue = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), endTime));
-
-    mlir::Value epsilon = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), 10e-06));
-
-    endTimeValue = builder.create<SubOp>(
-        loc, endTimeValue.getType(), endTimeValue, epsilon);
-
-    endTimeValue = typeConverter->materializeTargetConversion(
-        builder, loc,
-        typeConverter->convertType(endTimeValue.getType()),
-        endTimeValue);
-
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OLT, increasedTime, endTimeValue);
-
-    builder.create<mlir::func::ReturnOp>(loc, condition);
+    // Terminate the function.
+    builder.create<mlir::func::ReturnOp>(loc);
 
     return mlir::success();
   }
@@ -844,20 +819,22 @@ namespace marco::codegen
 {
   IDAInstance::IDAInstance(
       mlir::TypeConverter* typeConverter,
-      const DerivativesMap& derivativesMap,
-      bool equidistantTimeGrid,
-      double startTime,
-      double endTime,
-      double timeStep)
+      const DerivativesMap& derivativesMap)
       : typeConverter(typeConverter),
         derivativesMap(&derivativesMap),
-        equidistantTimeGrid(equidistantTimeGrid),
-        startTime(startTime),
-        endTime(endTime),
-        timeStep(timeStep)
+        startTime(llvm::None),
+        endTime(llvm::None)
   {
-    assert(startTime <= endTime);
-    assert(timeStep > 0);
+  }
+
+  void IDAInstance::setStartTime(double time)
+  {
+    startTime = time;
+  }
+
+  void IDAInstance::setEndTime(double time)
+  {
+    endTime = time;
   }
 
   bool IDAInstance::hasVariable(mlir::Value variable) const
@@ -1132,18 +1109,16 @@ namespace marco::codegen
     mlir::Value solverData = loadSolverData(builder, solverDataPtr);
     mlir::Value idaInstance = getIDAInstance(builder, solverData);
 
-    builder.create<mlir::ida::SetStartTimeOp>(
-        idaInstance.getLoc(), idaInstance,
-        builder.getF64FloatAttr(startTime));
-
-    builder.create<mlir::ida::SetEndTimeOp>(
-        idaInstance.getLoc(), idaInstance,
-        builder.getF64FloatAttr(endTime));
-
-    if (equidistantTimeGrid) {
-      builder.create<mlir::ida::SetTimeStepOp>(
+    if (startTime.has_value()) {
+      builder.create<mlir::ida::SetStartTimeOp>(
           idaInstance.getLoc(), idaInstance,
-          builder.getF64FloatAttr(timeStep));
+          builder.getF64FloatAttr(*startTime));
+    }
+
+    if (endTime.has_value()) {
+      builder.create<mlir::ida::SetEndTimeOp>(
+          idaInstance.getLoc(), idaInstance,
+          builder.getF64FloatAttr(*endTime));
     }
 
     // Add the variables to IDA.

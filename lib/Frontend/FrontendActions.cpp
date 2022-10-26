@@ -37,9 +37,6 @@ namespace marco::frontend
     const auto& simulationOptions = ci.getSimulationOptions();
     printCategory(os, "Simulation");
     printOption(os, "Model", simulationOptions.modelName);
-    printOption(os, "Start time", simulationOptions.startTime);
-    printOption(os, "End time", simulationOptions.endTime);
-    printOption(os, "Time step", simulationOptions.timeStep);
 
     std::string solver;
 
@@ -50,11 +47,6 @@ namespace marco::frontend
     }
 
     printOption(os, "Solver", solver);
-    os << "\n";
-
-    // IDA
-    printCategory(os, "IDA");
-    printOption(os, "Equidistant time grid", simulationOptions.ida.equidistantTimeGrid);
     os << "\n";
   }
 

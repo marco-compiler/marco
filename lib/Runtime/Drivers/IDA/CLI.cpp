@@ -1,6 +1,8 @@
 #include "marco/Runtime/Drivers/IDA/CLI.h"
 #include "marco/Runtime/Solvers/IDA/Options.h"
 
+#include <iostream>
+
 namespace marco::runtime::ida
 {
   std::string CommandLineOptions::getTitle() const
@@ -8,8 +10,13 @@ namespace marco::runtime::ida
     return "IDA";
   }
 
-  void CommandLineOptions::printCommandLineOptions(std::ostream& os) const
+  void CommandLineOptions::printCommandLineOptions(
+      std::ostream& os) const
   {
+    os << "  --start-time=<value>                 Set the start time (in seconds)" << std::endl;
+    os << "  --end-time=<value>                   Set the end time (in seconds)" << std::endl;
+    os << "  --time-step=<value>                  Set the time step (in seconds)" << std::endl;
+
     os << "  --ida-relative-tolerance=<value>     Set the relative tolerance" << std::endl;
     os << "  --ida-absolute-tolerance=<value>     Set the absolute tolerance" << std::endl;
     os << "  --ida-max-algebraic-abs-tol=<value>  Set the maximum absolute tolerance allowed for algebraic variables" << std::endl;
@@ -33,13 +40,12 @@ namespace marco::runtime::ida
     os << "  --ida-print-jacobian                 Whether to print the Jacobian matrices while debugging\n";
   }
 
-  void CommandLineOptions::parseCommandLineOptions(const argh::parser& options) const
+  void CommandLineOptions::parseCommandLineOptions(
+      const argh::parser& options) const
   {
-    options("ida-relative-tolerance", getOptions().relativeTolerance) >> getOptions().relativeTolerance;
-    options("ida-absolute-tolerance", getOptions().absoluteTolerance) >> getOptions().absoluteTolerance;
-    options("ida-max-algebraic-abs-tol", getOptions().maxAlgebraicAbsoluteTolerance) >> getOptions().maxAlgebraicAbsoluteTolerance;
-    options("ida-time-scaling-factor-ic", getOptions().timeScalingFactorInit) >> getOptions().timeScalingFactorInit;
-
+    options("start-time", getOptions().startTime) >> getOptions().startTime;
+    options("end-time", getOptions().endTime) >> getOptions().endTime;
+    getOptions().equidistantTimeGrid = static_cast<bool>(options("time-step") >> getOptions().timeStep);
     options("ida-max-steps", getOptions().maxSteps) >> getOptions().maxSteps;
     options("ida-initial-step-size", getOptions().initialStepSize) >> getOptions().initialStepSize;
     options("ida-min-step-size", getOptions().minStepSize) >> getOptions().minStepSize;

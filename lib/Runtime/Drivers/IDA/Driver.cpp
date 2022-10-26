@@ -1,5 +1,6 @@
 #include "marco/Runtime/Drivers/IDA/Driver.h"
 #include "marco/Runtime/Drivers/IDA/CLI.h"
+#include "marco/Runtime/Solvers/IDA/Options.h"
 #include "marco/Runtime/Solvers/IDA/Profiler.h"
 #include "marco/Runtime/Simulation/Profiler.h"
 #include "marco/Runtime/Simulation/Runtime.h"
@@ -18,40 +19,44 @@ namespace marco::runtime
 
   int IDA::run()
   {
+    void* data = getSimulation()->getData();
+
+    // Set the start time.
+    setTime(data, ida::getOptions().startTime);
+
     getSimulation()->getPrinter()->simulationBegin();
-    initICSolvers(getSimulation()->getData());
+    initICSolvers(data);
 
     // Compute the initial conditions.
     IDA_PROFILER_IC_START;
-    calcIC(getSimulation()->getData());
+    calcIC(data);
     IDA_PROFILER_IC_STOP;
 
-    deinitICSolvers(getSimulation()->getData());
+    deinitICSolvers(data);
 
     // Print the initial values.
     getSimulation()->getPrinter()->printValues();
 
-    initMainSolvers(getSimulation()->getData());
-
-    bool continueSimulation;
+    initMainSolvers(data);
 
     do {
       // Compute the next values of the state variables.
       IDA_PROFILER_STEP_START;
-      updateStateVariables(getSimulation()->getData());
+      updateStateVariables(data);
       IDA_PROFILER_STEP_STOP;
 
       // Move to the next step.
       IDA_PROFILER_ALGEBRAIC_VARS_START;
-      continueSimulation = incrementTime(getSimulation()->getData());
-      updateNonStateVariables(getSimulation()->getData());
+      incrementTime(data);
+      updateNonStateVariables(data);
       IDA_PROFILER_ALGEBRAIC_VARS_STOP;
 
       // Print the values.
       getSimulation()->getPrinter()->printValues();
-    } while (continueSimulation);
+    } while (std::abs(getTime(data) - ida::getOptions().endTime) >=
+             ida::getOptions().timeStep);
 
-    deinitMainSolvers(getSimulation()->getData());
+    deinitMainSolvers(data);
     getSimulation()->getPrinter()->simulationEnd();
 
     return 0;

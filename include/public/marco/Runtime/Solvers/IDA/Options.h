@@ -7,6 +7,12 @@ namespace marco::runtime::ida
 {
   struct Options
   {
+    double startTime = 0;
+    double endTime = 10;
+    double timeStep = 0.1;
+
+    bool equidistantTimeGrid = false;
+
     // Relative tolerance is intended as the difference between the values
     // computed through the n-th and the (n+1)-th order BDF method, divided
     // by the absolute value given by the (n+1)-th order BDF method.

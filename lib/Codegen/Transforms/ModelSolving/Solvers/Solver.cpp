@@ -11,22 +11,6 @@ using namespace ::marco::codegen;
 using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
-/// Get the LLVM function with the given name, or declare it inside the module if not present.
-static mlir::LLVM::LLVMFuncOp getOrCreateLLVMFunctionDecl(
-    mlir::OpBuilder& builder,
-    mlir::ModuleOp module,
-    llvm::StringRef name,
-    mlir::LLVM::LLVMFunctionType type)
-{
-  if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
-    return foo;
-  }
-
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPointToStart(module.getBody());
-  return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
-}
-
 static IndexSet getFilteredIndices(
     mlir::Type variableType,
     llvm::ArrayRef<VariableFilter::Filter> filters)
@@ -70,15 +54,9 @@ namespace marco::codegen
 {
   ModelSolver::ModelSolver(
       mlir::LLVMTypeConverter& typeConverter,
-      VariableFilter& variablesFilter,
-      double startTime,
-      double endTime,
-      double timeStep)
+      VariableFilter& variablesFilter)
       : typeConverter(&typeConverter),
-        variablesFilter(&variablesFilter),
-        startTime(startTime),
-        endTime(endTime),
-        timeStep(timeStep)
+        variablesFilter(&variablesFilter)
   {
   }
 
@@ -94,6 +72,21 @@ namespace marco::codegen
     mlir::MLIRContext* context = &typeConverter->getContext();
     mlir::Type i8Type = mlir::IntegerType::get(context, 8);
     return mlir::LLVM::LLVMPointerType::get(i8Type);
+  }
+
+  mlir::LLVM::LLVMFuncOp ModelSolver::getOrDeclareExternalFunction(
+      mlir::OpBuilder& builder,
+      mlir::ModuleOp module,
+      llvm::StringRef name,
+      mlir::LLVM::LLVMFunctionType type) const
+  {
+    if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
+      return foo;
+    }
+
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    builder.setInsertionPointToStart(module.getBody());
+    return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
   }
 
   mlir::Value ModelSolver::alloc(
@@ -180,6 +173,26 @@ namespace marco::codegen
         loc, structPtrType, ptr);
 
     return builder.create<mlir::LLVM::LoadOp>(loc, structPtr);
+  }
+
+  void ModelSolver::setRuntimeData(
+      mlir::OpBuilder& builder,
+      mlir::Value opaquePtr,
+      mlir::modelica::ModelOp modelOp,
+      mlir::Value runtimeData) const
+  {
+    mlir::Location loc = runtimeData.getLoc();
+
+    auto runtimeDataStructPtrType = mlir::LLVM::LLVMPointerType::get(
+        getRuntimeDataStructType(builder.getContext(), modelOp));
+
+    assert(runtimeData.getType() == runtimeDataStructPtrType.getElementType());
+
+    mlir::Value runtimeDataStructPtr = builder.create<mlir::LLVM::BitcastOp>(
+        loc, runtimeDataStructPtrType, opaquePtr);
+
+    builder.create<mlir::LLVM::StoreOp>(
+        loc, runtimeData, runtimeDataStructPtr);
   }
 
   mlir::Value ModelSolver::extractValue(
@@ -1055,7 +1068,7 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult ModelSolver::createGetCurrentTimeFunction(
+  mlir::LogicalResult ModelSolver::createGetTimeFunction(
       mlir::OpBuilder& builder, ModelOp modelOp) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1066,7 +1079,7 @@ namespace marco::codegen
     builder.setInsertionPointToEnd(module.getBody());
 
     auto function = builder.create<mlir::func::FuncOp>(
-        loc, getCurrentTimeFunctionName,
+        loc, getTimeFunctionName,
         builder.getFunctionType(getVoidPtrType(), builder.getF64Type()));
 
     auto* entryBlock = function.addEntryBlock();
@@ -1085,13 +1098,70 @@ namespace marco::codegen
     time = typeConverter->materializeTargetConversion(
         builder, loc, typeConverter->convertType(time.getType()), time);
 
-    if (unsigned int timeBitWidth = time.getType().getIntOrFloatBitWidth(); timeBitWidth < 64) {
-      time = builder.create<mlir::LLVM::FPExtOp>(loc, builder.getF64Type(), time);
+    unsigned int timeBitWidth = time.getType().getIntOrFloatBitWidth();
+
+    if (timeBitWidth < 64) {
+      time = builder.create<mlir::LLVM::FPExtOp>(
+          loc, builder.getF64Type(), time);
     } else if (timeBitWidth > 64) {
-      time = builder.create<mlir::LLVM::FPTruncOp>(loc, builder.getF64Type(), time);
+      time = builder.create<mlir::LLVM::FPTruncOp>(
+          loc, builder.getF64Type(), time);
     }
 
-    builder.create<mlir::LLVM::ReturnOp>(loc, time);
+    builder.create<mlir::func::ReturnOp>(loc, time);
+    return mlir::success();
+  }
+
+  mlir::LogicalResult ModelSolver::createSetTimeFunction(
+      mlir::OpBuilder& builder, ModelOp modelOp) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    mlir::Location loc = modelOp.getLoc();
+
+    // Create the function inside the parent module.
+    auto module = modelOp->getParentOfType<mlir::ModuleOp>();
+    builder.setInsertionPointToEnd(module.getBody());
+
+    llvm::SmallVector<mlir::Type, 2> argTypes;
+    argTypes.push_back(getVoidPtrType());
+    argTypes.push_back(builder.getF64Type());
+
+    auto function = builder.create<mlir::func::FuncOp>(
+        loc, setTimeFunctionName,
+        builder.getFunctionType(argTypes, llvm::None));
+
+    auto* entryBlock = function.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    // Load the runtime data structure.
+    mlir::Value runtimeData = loadDataFromOpaquePtr(
+        builder, function.getArgument(0), modelOp);
+
+    // Set the time inside the data structure.
+    mlir::Value time = function.getArgument(1);
+
+    auto runtimeDataStructType =
+        getRuntimeDataStructType(builder.getContext(), modelOp);
+
+    mlir::Type timeType =
+        runtimeDataStructType.getBody()[timeVariablePosition];
+
+    unsigned int timeBitWidth = timeType.getIntOrFloatBitWidth();
+
+    if (timeBitWidth > 64) {
+      time = builder.create<mlir::LLVM::FPExtOp>(loc, timeType, time);
+    } else if (timeBitWidth < 64) {
+      time = builder.create<mlir::LLVM::FPTruncOp>(loc, timeType, time);
+    }
+
+    runtimeData = builder.create<mlir::LLVM::InsertValueOp>(
+        loc, runtimeData, time, timeVariablePosition);
+
+    setRuntimeData(builder, function.getArgument(0), modelOp, runtimeData);
+
+    // Terminate the function.
+    builder.create<mlir::func::ReturnOp>(loc);
+
     return mlir::success();
   }
 
@@ -1213,18 +1283,6 @@ namespace marco::codegen
     mlir::Value runtimeDataStructValue = builder.create<mlir::LLVM::UndefOp>(
         loc, runtimeDataStructType);
 
-    // Set the start time.
-    mlir::Value startTimeValue = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), startTime));
-
-    startTimeValue = typeConverter->materializeTargetConversion(
-        builder, loc,
-        runtimeDataStructType.getBody()[timeVariablePosition],
-        startTimeValue);
-
-    runtimeDataStructValue = builder.create<mlir::LLVM::InsertValueOp>(
-        loc, runtimeDataStructValue, startTimeValue, timeVariablePosition);
-
     // Add the model variables.
     for (const auto& var : llvm::enumerate(structVariables)) {
       mlir::Type varType = var.value().getType();
@@ -1320,7 +1378,7 @@ namespace marco::codegen
     // Call the function to start the simulation.
     // Its definition lives within the runtime library.
 
-    auto runFunction = getOrCreateLLVMFunctionDecl(
+    auto runFunction = getOrDeclareExternalFunction(
         builder, module, runFunctionName,
         mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
 

@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=Robertson --end-time=400 --time-step=1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s
+// RUN: marco --omc-bypass --model=Robertson --solver=ida -o %basename_t %s
+// RUN: ./%basename_t --end-time=400 --time-step=1 --precision=6 | FileCheck %s
 
 // CHECK: "time","y1","y2","y3"
 // CHECK-NEXT: 0.000000,1.000000,0.000000,0.000000

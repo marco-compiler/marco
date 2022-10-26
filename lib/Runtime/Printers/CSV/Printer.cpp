@@ -134,7 +134,7 @@ static void printValues(const Simulation& simulation)
     std::cout << std::fixed << std::setprecision(options.precision);
   }
 
-  double time = getCurrentTime(simulation.getData());
+  double time = getTime(simulation.getData());
 
   PRINT_PROFILER_FLOAT_START;
   std::cout << time;

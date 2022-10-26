@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=NoEquationsForIDA --end-time=1 --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s --check-prefix="CHECK-EQUIDISTANT"
+// RUN: marco --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t %s
+// RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s --check-prefix="CHECK-EQUIDISTANT"
 
 // CHECK-EQUIDISTANT: "time","x"
 // CHECK-EQUIDISTANT-NEXT: 0.000000,2.000000
@@ -14,8 +14,8 @@
 // CHECK-EQUIDISTANT-NEXT: 0.900000,2.000000
 // CHECK-EQUIDISTANT-NEXT: 1.000000,2.000000
 
-// RUN: marco --omc-bypass --model=NoEquationsForIDA --end-time=1 --time-step=0.1 --solver=ida -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s --check-prefix="CHECK-NO-EQUIDISTANT"
+// RUN: marco --omc-bypass --model=NoEquationsForIDA --solver=ida -o %basename_t %s
+// RUN: ./%basename_t --end-time=1 --precision=6 | FileCheck %s --check-prefix="CHECK-NO-EQUIDISTANT"
 
 // CHECK-NO-EQUIDISTANT: "time","x"
 // CHECK-NO-EQUIDISTANT-NEXT: 0.000000,2.000000

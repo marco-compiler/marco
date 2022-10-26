@@ -246,7 +246,9 @@ namespace marco::runtime::ida
       : initialized(false),
         marcoBitWidth(marcoBitWidth),
         scalarEquationsNumber(scalarEquationsNumber),
-        timeStep(kUndefinedTimeStep)
+        startTime(getOptions().startTime),
+        endTime(getOptions().endTime),
+        timeStep(getOptions().timeStep)
   {
     SUNContext_Create(nullptr, &ctx);
 
@@ -634,15 +636,14 @@ namespace marco::runtime::ida
   bool IDAInstance::step()
   {
     assert(initialized && "The IDA instance has not been initialized yet");
-    bool equidistantTimeGrid = timeStep != kUndefinedTimeStep;
 
     if (scalarEquationsNumber == 0) {
       // IDA has nothing to solve. Just increment the time.
 
-      if (timeStep == kUndefinedTimeStep) {
-        currentTime = endTime;
-      } else {
+      if (getOptions().equidistantTimeGrid) {
         currentTime += timeStep;
+      } else {
+        currentTime = endTime;
       }
 
       return true;
@@ -653,11 +654,11 @@ namespace marco::runtime::ida
 
     auto solveRetVal = IDASolve(
         idaMemory,
-        equidistantTimeGrid ? (currentTime + timeStep) : endTime,
+        getOptions().equidistantTimeGrid ? (currentTime + timeStep) : endTime,
         &currentTime,
         variablesVector,
         derivativesVector,
-        equidistantTimeGrid ? IDA_NORMAL : IDA_ONE_STEP);
+        getOptions().equidistantTimeGrid ? IDA_NORMAL : IDA_ONE_STEP);
 
     IDA_PROFILER_STEP_STOP;
 

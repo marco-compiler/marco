@@ -312,30 +312,6 @@ static void parseSimulationArgs(
     options.modelName = value.str();
   }
 
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_start_time)) {
-    llvm::StringRef value = arg->getValue();
-    llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
-    options.startTime = numericValue.convertToDouble();
-  }
-
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_start_time)) {
-    llvm::StringRef value = arg->getValue();
-    llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
-    options.startTime = numericValue.convertToDouble();
-  }
-
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_end_time)) {
-    llvm::StringRef value = arg->getValue();
-    llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
-    options.endTime = numericValue.convertToDouble();
-  }
-
-  if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_time_step)) {
-    llvm::StringRef value = arg->getValue();
-    llvm::APFloat numericValue(llvm::APFloatBase::IEEEdouble(), value);
-    options.timeStep = numericValue.convertToDouble();
-  }
-
   // Determine the solver to be used
   for (const auto& arg : args.getAllArgValues(options::OPT_solver)) {
     if (arg == "forward-euler") {
@@ -346,9 +322,6 @@ static void parseSimulationArgs(
       diagnostics.emitError<UnknownSolverMessage>(arg);
     }
   }
-
-  // IDA options
-  options.ida.equidistantTimeGrid = args.hasArg(options::OPT_ida_equidistant_time_grid);
 }
 
 namespace marco::frontend

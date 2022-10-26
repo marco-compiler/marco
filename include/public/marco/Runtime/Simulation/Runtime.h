@@ -63,7 +63,10 @@ extern "C"
 extern "C"
 {
   /// Get the current time of the simulation.
-  double getCurrentTime(void* data);
+  double getTime(void* data);
+
+  /// Set the current time of the simulation.
+  void setTime(void* data, double startTime);
 
   /// Get the name of the compiled Modelica model.
   char* getModelName();

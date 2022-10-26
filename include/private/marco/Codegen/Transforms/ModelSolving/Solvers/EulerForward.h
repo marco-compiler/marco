@@ -23,10 +23,7 @@ namespace marco::codegen
 
       EulerForwardSolver(
           mlir::LLVMTypeConverter& typeConverter,
-          VariableFilter& variablesFilter,
-          double startTime,
-          double endTime,
-          double timeStep);
+          VariableFilter& variablesFilter);
 
       mlir::LogicalResult solveICModel(
           mlir::OpBuilder& builder,
@@ -53,11 +50,6 @@ namespace marco::codegen
       /// Create the functions that calculates the values that the state
       /// variables will have in the next iteration.
       mlir::LogicalResult createUpdateStateVariablesFunction(
-          mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model) const;
-
-      /// Create the function to be used to increment the time.
-      mlir::LogicalResult createIncrementTimeFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model) const;
 

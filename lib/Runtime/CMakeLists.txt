@@ -1,4 +1,5 @@
 set(SOLVER_EULERFORWARD
+	Solvers/EulerForward/Options.cpp
 	Solvers/EulerForward/Profiler.cpp)
 
 set(SOLVER_IDA

@@ -308,21 +308,6 @@ def model : Joined<["--"], "model=">,
     Flags<[MC1Option]>,
     HelpText<"Model name">;
 
-def start_time : Joined<["--"], "start-time=">,
-    Group<Simulation_Group>,
-    Flags<[MC1Option]>,
-    HelpText<"Start time of the simulation (in seconds)">;
-
-def end_time : Joined<["--"], "end-time=">,
-    Group<Simulation_Group>,
-    Flags<[MC1Option]>,
-    HelpText<"End time of the simulation (in seconds)">;
-
-def time_step : Joined<["--"], "time-step=">,
-    Group<Simulation_Group>,
-    Flags<[MC1Option]>,
-    HelpText<"Time step of the simulation (in seconds)">;
-
 def filter : Joined<["--"], "variable-filter=">,
     Group<Simulation_Group>,
     Flags<[MC1Option]>,
@@ -332,15 +317,6 @@ def solver : Joined<["--"], "solver=">,
     Group<Simulation_Group>,
     Flags<[MC1Option]>,
     HelpText<"Solver (possible options: forward-euler, ida">;
-
-//===----------------------------------------------------------------------===//
-// IDA options
-//===----------------------------------------------------------------------===//
-
-def ida_equidistant_time_grid : Flag<["--"], "ida-equidistant-time-grid">,
-    Flags<[MC1Option]>,
-    Group<IDA_Group>,
-    HelpText<"Use a fixed time step">;
 
 //===----------------------------------------------------------------------===//
 // Frontend Options - mc1

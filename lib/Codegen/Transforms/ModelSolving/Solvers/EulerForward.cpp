@@ -115,11 +115,8 @@ namespace marco::codegen
 {
   EulerForwardSolver::EulerForwardSolver(
       mlir::LLVMTypeConverter& typeConverter,
-      VariableFilter& variablesFilter,
-      double startTime,
-      double endTime,
-      double timeStep)
-      : ModelSolver(typeConverter, variablesFilter, startTime, endTime, timeStep)
+      VariableFilter& variablesFilter)
+      : ModelSolver(typeConverter, variablesFilter)
   {
   }
 
@@ -218,11 +215,6 @@ namespace marco::codegen
 
     if (mlir::failed(createUpdateStateVariablesFunction(builder, model))) {
       model.getOperation().emitError("Could not create the '" + updateStateVariablesFunctionName + "' function");
-      return mlir::failure();
-    }
-
-    if (mlir::failed(createIncrementTimeFunction(builder, model))) {
-      model.getOperation().emitError("Could not create the '" + incrementTimeFunctionName + "' function");
       return mlir::failure();
     }
 
@@ -417,41 +409,64 @@ namespace marco::codegen
     auto modelOp = model.getOperation();
     mlir::Location loc = modelOp.getLoc();
 
-    auto varTypes = modelOp.getBodyRegion().getArgumentTypes();
-
     // Create the function inside the parent module.
     auto module = modelOp->getParentOfType<mlir::ModuleOp>();
     builder.setInsertionPointToEnd(module.getBody());
 
+    llvm::SmallVector<mlir::Type, 2> argTypes;
+    argTypes.push_back(getVoidPtrType());
+    argTypes.push_back(builder.getF64Type());
+
     auto function = builder.create<mlir::func::FuncOp>(
         loc, updateStateVariablesFunctionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
+        builder.getFunctionType(argTypes, llvm::None));
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
     // Extract the state variables from the opaque pointer.
-    mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), modelOp);
+    mlir::Value structValue = loadDataFromOpaquePtr(
+        builder, function.getArgument(0), modelOp);
 
+    mlir::ValueRange modelVariables = modelOp.getBodyRegion().getArguments();
     std::vector<mlir::Value> variables;
 
-    for (const auto& variable : modelOp.getBodyRegion().getArguments()) {
-      size_t index = variable.getArgNumber();
-
-      mlir::Value var = extractValue(
-          builder, structValue,
-          varTypes[index],
-          index + variablesOffset);
-
-      variables.push_back(var);
+    for (auto variable : llvm::enumerate(modelVariables)) {
+      variables.push_back(extractVariable(
+          builder, structValue, variable.value().getType(), variable.index()));
     }
 
-    // Update the state variables by applying the forward Euler method
-    mlir::Value timeStepValue = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), timeStep));
+    // Update the state variables by applying the forward Euler method.
+    mlir::Value timeStep = function.getArgument(1);
 
-    auto apply = [&](mlir::OpBuilder& nestedBuilder, mlir::Value scalarState, mlir::Value scalarDerivative) -> mlir::Value {
-      mlir::Value result = builder.create<MulOp>(scalarDerivative.getLoc(), scalarDerivative.getType(), scalarDerivative, timeStepValue);
-      result = builder.create<AddOp>(scalarDerivative.getLoc(), scalarState.getType(), scalarState, result);
+    mlir::Type convertedTimeType = typeConverter->convertType(
+        RealType::get(builder.getContext()));
+
+    unsigned int timeBitWidth = convertedTimeType.getIntOrFloatBitWidth();
+    unsigned int timeStepBitWidth = timeStep.getType().getIntOrFloatBitWidth();
+
+    if (timeStepBitWidth < timeBitWidth) {
+      timeStep = builder.create<mlir::LLVM::FPExtOp>(
+          loc, convertedTimeType, timeStep);
+    } else if (timeStepBitWidth > timeBitWidth) {
+      timeStep = builder.create<mlir::LLVM::FPTruncOp>(
+          loc, convertedTimeType, timeStep);
+    }
+
+    timeStep = typeConverter->materializeSourceConversion(
+        builder, loc,
+        RealType::get(builder.getContext()),
+        timeStep);
+
+    auto apply = [&](mlir::OpBuilder& nestedBuilder,
+                     mlir::Value scalarState,
+                     mlir::Value scalarDerivative) -> mlir::Value {
+      mlir::Value result = nestedBuilder.create<MulOp>(
+          loc, scalarDerivative.getType(), scalarDerivative, timeStep);
+
+      result = nestedBuilder.create<AddOp>(
+          loc, scalarState.getType(), scalarState, result);
+
       return result;
     };
 
@@ -465,13 +480,22 @@ namespace marco::codegen
         auto derArgNumber = derivativesMap.getDerivative(varArgNumber);
         mlir::Value derivative = variables[derArgNumber];
 
-        assert(variable.getType().cast<ArrayType>().getShape() == derivative.getType().cast<ArrayType>().getShape());
+        assert(variable.getType().cast<ArrayType>().getShape() ==
+               derivative.getType().cast<ArrayType>().getShape());
 
-        if (auto arrayType = variable.getType().cast<ArrayType>(); arrayType.isScalar()) {
-          mlir::Value scalarState = builder.create<LoadOp>(derivative.getLoc(), variable, llvm::None);
-          mlir::Value scalarDerivative = builder.create<LoadOp>(derivative.getLoc(), derivative, llvm::None);
-          mlir::Value updatedValue = apply(builder, scalarState, scalarDerivative);
-          builder.create<StoreOp>(derivative.getLoc(), updatedValue, variable, llvm::None);
+        auto arrayType = variable.getType().cast<ArrayType>();
+
+        if (arrayType.isScalar()) {
+          mlir::Value scalarState = builder.create<LoadOp>(
+              loc, variable, llvm::None);
+
+          mlir::Value scalarDerivative = builder.create<LoadOp>(
+              loc, derivative, llvm::None);
+
+          mlir::Value updatedValue = apply(
+              builder, scalarState, scalarDerivative);
+
+          builder.create<StoreOp>(loc, updatedValue, variable, llvm::None);
 
         } else {
           // Create the loops to iterate on each scalar variable.
@@ -480,97 +504,42 @@ namespace marco::codegen
           std::vector<mlir::Value> steps;
 
           for (unsigned int i = 0; i < arrayType.getRank(); ++i) {
-            lowerBounds.push_back(builder.create<ConstantOp>(derivative.getLoc(), builder.getIndexAttr(0)));
-            mlir::Value dimension = builder.create<ConstantOp>(derivative.getLoc(), builder.getIndexAttr(i));
-            upperBounds.push_back(builder.create<DimOp>(variable.getLoc(), variable, dimension));
-            steps.push_back(builder.create<ConstantOp>(variable.getLoc(), builder.getIndexAttr(1)));
+            lowerBounds.push_back(builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(0)));
+
+            mlir::Value dimension = builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(i));
+
+            upperBounds.push_back(builder.create<DimOp>(
+                loc, variable, dimension));
+
+            steps.push_back(builder.create<ConstantOp>(
+                loc, builder.getIndexAttr(1)));
           }
 
           mlir::scf::buildLoopNest(
               builder, loc, lowerBounds, upperBounds, steps,
-              [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange indices) {
-                mlir::Value scalarState = nestedBuilder.create<LoadOp>(loc, variable, indices);
-                mlir::Value scalarDerivative = nestedBuilder.create<LoadOp>(loc, derivative, indices);
-                mlir::Value updatedValue = apply(nestedBuilder, scalarState, scalarDerivative);
-                nestedBuilder.create<StoreOp>(loc, updatedValue, variable, indices);
+              [&](mlir::OpBuilder& nestedBuilder,
+                  mlir::Location loc,
+                  mlir::ValueRange indices) {
+                mlir::Value scalarState = nestedBuilder.create<LoadOp>(
+                    loc, variable, indices);
+
+                mlir::Value scalarDerivative = nestedBuilder.create<LoadOp>(
+                    loc, derivative, indices);
+
+                mlir::Value updatedValue = apply(
+                    nestedBuilder, scalarState, scalarDerivative);
+
+                nestedBuilder.create<StoreOp>(
+                    loc, updatedValue, variable, indices);
               });
         }
       }
     }
 
+    // Terminate the function.
     builder.create<mlir::func::ReturnOp>(loc);
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult EulerForwardSolver::createIncrementTimeFunction(
-      mlir::OpBuilder& builder,
-      const Model<ScheduledEquationsBlock>& model) const
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    ModelOp modelOp = model.getOperation();
-    mlir::Location loc = modelOp.getLoc();
-
-    // Create the function inside the parent module.
-    builder.setInsertionPointToEnd(modelOp->getParentOfType<mlir::ModuleOp>().getBody());
-
-    auto functionType = builder.getFunctionType(getVoidPtrType(), builder.getI1Type());
-    auto function = builder.create<mlir::func::FuncOp>(loc, incrementTimeFunctionName, functionType);
-
-    auto* entryBlock = function.addEntryBlock();
-    builder.setInsertionPointToStart(entryBlock);
-
-    // Extract the data from the struct.
-    mlir::Value runtimeDataStruct = loadDataFromOpaquePtr(
-        builder, function.getArgument(0), modelOp);
-
-    mlir::Value timeStepValue = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), timeStep));
-
-    mlir::Value currentTime = extractValue(
-        builder, runtimeDataStruct,
-        RealType::get(builder.getContext()),
-        timeVariablePosition);
-
-    mlir::Value increasedTime = builder.create<AddOp>(
-        loc, currentTime.getType(), currentTime, timeStepValue);
-
-    // Store the increased time into the runtime data structure.
-    increasedTime = typeConverter->materializeTargetConversion(
-        builder, loc,
-        typeConverter->convertType(increasedTime.getType()),
-        increasedTime);
-
-    runtimeDataStruct = builder.create<mlir::LLVM::InsertValueOp>(
-        loc, runtimeDataStruct, increasedTime, timeVariablePosition);
-
-    mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(
-        runtimeDataStruct.getType());
-
-    mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(
-        loc, structPtrType, function.getArgument(0));
-
-    builder.create<mlir::LLVM::StoreOp>(loc, runtimeDataStruct, structPtr);
-
-    // Check if the current time is less than the end time.
-    mlir::Value endTimeValue = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), endTime));
-
-    mlir::Value epsilon = builder.create<ConstantOp>(
-        loc, RealAttr::get(builder.getContext(), 10e-06));
-
-    endTimeValue = builder.create<SubOp>(
-        loc, endTimeValue.getType(), endTimeValue, epsilon);
-
-    endTimeValue = typeConverter->materializeTargetConversion(
-        builder, loc,
-        typeConverter->convertType(endTimeValue.getType()),
-        endTimeValue);
-
-    mlir::Value condition = builder.create<mlir::arith::CmpFOp>(
-        loc, mlir::arith::CmpFPredicate::OLT, increasedTime, endTimeValue);
-
-    builder.create<mlir::func::ReturnOp>(loc, condition);
 
     return mlir::success();
   }

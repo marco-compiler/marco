@@ -18,7 +18,7 @@ using namespace ::marco;
 using namespace ::marco::codegen;
 using namespace ::mlir::ida;
 
-static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
+static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp module,
     mlir::Location loc,
@@ -33,10 +33,11 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
   mlir::PatternRewriter::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(module.getBody());
 
-  return builder.create<mlir::LLVM::LLVMFuncOp>(loc, name, mlir::LLVM::LLVMFunctionType::get(result, args));
+  return builder.create<mlir::LLVM::LLVMFuncOp>(
+      loc, name, mlir::LLVM::LLVMFunctionType::get(result, args));
 }
 
-static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
+static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp module,
     mlir::Location loc,
@@ -50,7 +51,8 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareFunction(
     argsTypes.push_back(type);
   }
 
-  return getOrDeclareFunction(builder, module, loc, name, result, argsTypes);
+  return getOrDeclareLLVMFunction(
+      builder, module, loc, name, result, argsTypes);
 }
 
 namespace
@@ -121,7 +123,7 @@ namespace
       auto resultType = getVoidPtrType();
       auto mangledResultType = mangling.getVoidPointerType();
       auto functionName = mangling.getMangledFunction("idaCreate", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -155,7 +157,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaSetStartTime", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -189,7 +191,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaSetEndTime", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -223,7 +225,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaSetTimeStep", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -252,7 +254,7 @@ namespace
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
       auto mangledResultType = mangling.getFloatingPointType(resultType.getIntOrFloatBitWidth());
       auto functionName = mangling.getMangledFunction("idaGetCurrentTime", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, adaptor.getOperands());
 
       return mlir::success();
@@ -315,7 +317,7 @@ namespace
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
       auto mangledResultType = mangling.getIntegerType(resultType.getIntOrFloatBitWidth());
       auto functionName = mangling.getMangledFunction("idaAddEquation", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       // Deallocate the ranges array
@@ -408,7 +410,7 @@ namespace
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
       auto mangledResultType = mangling.getIntegerType(resultType.getIntOrFloatBitWidth());
       auto functionName = mangling.getMangledFunction("idaAddAlgebraicVariable", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       // Deallocate the dimensions array
@@ -502,7 +504,7 @@ namespace
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
       auto mangledResultType = mangling.getIntegerType(resultType.getIntOrFloatBitWidth());
       auto functionName = mangling.getMangledFunction("idaAddStateVariable", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       // Deallocate the dimensions array
@@ -572,7 +574,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaSetDerivative", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -618,7 +620,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaAddParametricVariable", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -863,7 +865,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaAddVariableAccess", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       // Deallocate the accesses array
@@ -1115,7 +1117,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaAddResidual", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -1160,7 +1162,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaAddJacobian", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -1189,7 +1191,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaInit", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, adaptor.getOperands());
 
       return mlir::success();
@@ -1218,7 +1220,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaStep", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
       return mlir::success();
@@ -1247,7 +1249,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaFree", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, adaptor.getOperands());
 
       return mlir::success();
@@ -1276,7 +1278,7 @@ namespace
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
       auto functionName = mangling.getMangledFunction("idaPrintStatistics", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareFunction(rewriter, module, loc, functionName, resultType, adaptor.getOperands());
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, adaptor.getOperands());
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, adaptor.getOperands());
 
       return mlir::success();

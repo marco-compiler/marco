@@ -60,7 +60,8 @@ namespace marco::runtime::ida
       Container dimensions;
   };
 
-  /// This class is used to iterate on all the possible combination of indices of a variable.
+  /// This class is used to iterate on all the possible combination of indices
+  /// of a variable.
   class VariableIndicesIterator
   {
     public:
@@ -72,9 +73,11 @@ namespace marco::runtime::ida
 
       ~VariableIndicesIterator();
 
-      static VariableIndicesIterator begin(const VariableDimensions& dimensions);
+      static VariableIndicesIterator begin(
+          const VariableDimensions& dimensions);
 
-      static VariableIndicesIterator end(const VariableDimensions& dimensions);
+      static VariableIndicesIterator end(
+          const VariableDimensions& dimensions);
 
       bool operator==(const VariableIndicesIterator& it) const;
 
@@ -132,9 +135,6 @@ namespace marco::runtime::ida
   class IDAInstance
   {
     public:
-      /// Constant used to indicate that no fixed time step has been set.
-      static constexpr realtype kUndefinedTimeStep = -1;
-
       IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber);
 
       ~IDAInstance();
@@ -147,36 +147,59 @@ namespace marco::runtime::ida
       void addParametricVariable(void* variable);
 
       /// Add and initialize a new variable given its array.
-      int64_t addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+      int64_t addAlgebraicVariable(
+          void* variable,
+          int64_t* dimensions,
+          int64_t rank,
+          void* getter,
+          void* setter);
 
-      int64_t addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter);
+      int64_t addStateVariable(
+          void* variable,
+          int64_t* dimensions,
+          int64_t rank,
+          void* getter,
+          void* setter);
 
-      void setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter);
+      void setDerivative(
+          int64_t stateVariable,
+          void* derivative,
+          void* getter,
+          void* setter);
 
       /// Add the dimension of an equation to the IDA user data.
       int64_t addEquation(int64_t* ranges, int64_t rank);
 
-      void addVariableAccess(int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank);
+      void addVariableAccess(
+          int64_t equationIndex,
+          int64_t variableIndex,
+          int64_t* access,
+          int64_t rank);
 
-      /// Add the function pointer that computes the index-th residual function to the
-      /// IDA user data.
-      void addResidualFunction(int64_t equationIndex, void* residualFunction);
+      /// Add the function pointer that computes the index-th residual function
+      /// to the IDA user data.
+      void addResidualFunction(
+          int64_t equationIndex, void* residualFunction);
 
-      /// Add the function pointer that computes the index-th jacobian row to the user
-      /// data.
-      void addJacobianFunction(int64_t equationIndex, int64_t variableIndex, void* jacobianFunction);
+      /// Add the function pointer that computes the index-th Jacobian row to
+      /// the user data.
+      void addJacobianFunction(
+          int64_t equationIndex,
+          int64_t variableIndex,
+          void* jacobianFunction);
 
-      /// Instantiate and initialize all the classes needed by IDA in order to solve
-      /// the given system of equations. It also sets optional simulation parameters
-      /// for IDA. It must be called before the first usage of idaStep() and after a
-      /// call to idaAllocData(). It may fail in case of malformed model.
+      /// Instantiate and initialize all the classes needed by IDA in order to
+      /// solve the given system of equations. It also sets optional simulation
+      /// parameters for IDA. It must be called before the first usage of
+      /// idaStep() and after a call to idaAllocData(). It may fail in case of
+      /// malformed model.
       bool initialize();
 
-      /// Invoke IDA to perform one step of the computation. If a time step is given,
-      /// the output will show the variables in an equidistant time grid based on the
-      /// step time parameter. Otherwise, the output will show the variables at every
-      /// step of the computation. Returns true if the computation was successful,
-      /// false otherwise.
+      /// Invoke IDA to perform one step of the computation. If a time step is
+      /// given, the output will show the variables in an equidistant time grid
+      /// based on the step time parameter. Otherwise, the output will show the
+      /// variables at every step of the computation. Returns true if the
+      /// computation was successful, false otherwise.
       bool step();
 
       /// Returns the time reached by the solver after the last step.
@@ -185,27 +208,35 @@ namespace marco::runtime::ida
       /// Prints statistics regarding the computation of the system.
       void printStatistics() const;
 
-      /// IDAResFn user-defined residual function, passed to IDA through IDAInit.
-      /// It contains how to compute the Residual Function of the system, starting
-      /// from the provided UserData struct, iterating through every equation.
+      /// IDAResFn user-defined residual function, passed to IDA through
+      /// IDAInit. It contains how to compute the Residual Function of the
+      /// system, starting from the provided UserData struct, iterating through
+      /// every equation.
       static int residualFunction(
           realtype time,
           N_Vector variables, N_Vector derivatives, N_Vector residuals,
           void* userData);
 
-      /// IDALsJacFn user-defined Jacobian approximation function, passed to IDA
-      /// through IDASetJacFn. It contains how to compute the Jacobian Matrix of
-      /// the system, starting from the provided UserData struct, iterating through
-      /// every equation and variable. The matrix is represented in CSR format.
+      /// IDALsJacFn user-defined Jacobian approximation function, passed to
+      /// IDA through IDASetJacFn. It contains how to compute the Jacobian
+      /// Matrix of the system, starting from the provided UserData struct,
+      /// iterating through every equation and variable. The matrix is
+      /// represented in CSR format.
       static int jacobianMatrix(
-          realtype time, realtype alpha,
-          N_Vector variables, N_Vector derivatives, N_Vector residuals,
+          realtype time,
+          realtype alpha,
+          N_Vector variables,
+          N_Vector derivatives,
+          N_Vector residuals,
           SUNMatrix jacobianMatrix,
           void* userData,
-          N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+          N_Vector tempv1,
+          N_Vector tempv2,
+          N_Vector tempv3);
 
     private:
-      std::set<DerivativeVariable> computeIndexSet(size_t eq, size_t* eqIndexes) const;
+      std::set<DerivativeVariable> computeIndexSet(
+        size_t eq, size_t* eqIndexes) const;
 
       void computeNNZ();
 
@@ -254,34 +285,36 @@ namespace marco::runtime::ida
 
       int64_t marcoBitWidth;
 
-      // Model size
+      // Model size.
       int64_t scalarEquationsNumber;
       int64_t nonZeroValuesNumber;
 
-      // Equations data
+      // Equations data.
       std::vector<EqDimension> equationDimensions;
       std::vector<void*> residuals;
       std::vector<std::vector<void*>> jacobians;
       std::vector<VarAccessList> variableAccesses;
 
-      // The offset of each array variable inside the flattened variables vector
+      // The offset of each array variable inside the flattened variables
+      // vector.
       std::vector<sunindextype> variableOffsets;
 
-      // The dimensions list of each array variable
+      // The dimensions list of each array variable.
       std::vector<VariableDimensions> variablesDimensions;
       std::vector<VariableDimensions> derivativesDimensions;
 
-      // Simulation times
+      // Simulation times.
       realtype startTime;
       realtype endTime;
       realtype timeStep;
       realtype currentTime;
 
-      // Variables vectors and values
+      // Variables vectors and values.
       N_Vector variablesVector;
       N_Vector derivativesVector;
 
-      // The vector stores whether each scalar variable is an algebraic or a state one.
+      // The vector stores whether each scalar variable is an algebraic or a
+      // state one.
       // 0 = algebraic
       // 1 = state
       N_Vector idVector;
@@ -289,7 +322,7 @@ namespace marco::runtime::ida
       // The tolerance for each scalar variable.
       N_Vector tolerancesVector;
 
-      // IDA classes
+      // IDA classes.
       void* idaMemory;
       SUNMatrix sparseMatrix;
       SUNLinearSolver linearSolver;

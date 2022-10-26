@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=ImplicitEquation --end-time=1 --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s
+// RUN: marco --omc-bypass --model=ImplicitEquation --solver=ida -o %basename_t %s
+// RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x"
 // CHECK-NEXT: 0.000000,1.739204

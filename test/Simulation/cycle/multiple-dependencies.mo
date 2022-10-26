@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=M1 --end-time=0.2 --time-step=0.1 -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s
+// RUN: marco --omc-bypass --model=M1 -o %basename_t %s
+// RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x","y","z"
 // CHECK-NEXT: 0.000000,-3.000000,-17.000000,2.000000

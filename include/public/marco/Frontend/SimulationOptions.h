@@ -6,21 +6,10 @@
 
 namespace marco::frontend
 {
-  struct IDAOptions
-  {
-    bool equidistantTimeGrid = false;
-  };
-
   struct SimulationOptions
   {
     std::string modelName = "";
-
-    double startTime = 0;
-    double endTime = 1;
-    double timeStep = 0.1;
-
     marco::codegen::Solver solver = "forwardEuler";
-    IDAOptions ida;
   };
 }
 

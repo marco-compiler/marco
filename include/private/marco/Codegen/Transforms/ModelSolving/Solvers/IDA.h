@@ -15,9 +15,11 @@ namespace marco::codegen
     public:
       IDAInstance(
           mlir::TypeConverter* typeConverter,
-          const DerivativesMap& derivativesMap,
-          bool equidistantTimeGrid,
-          double startTime, double endTime, double timeStep);
+          const DerivativesMap& derivativesMap);
+
+      void setStartTime(double time);
+
+      void setEndTime(double time);
 
       bool hasVariable(mlir::Value variable) const;
 
@@ -166,11 +168,8 @@ namespace marco::codegen
       mlir::TypeConverter* typeConverter;
       const DerivativesMap* derivativesMap;
 
-      bool equidistantTimeGrid;
-
-      const double startTime;
-      const double endTime;
-      const double timeStep;
+      llvm::Optional<double> startTime;
+      llvm::Optional<double> endTime;
 
       /// The parametric variables of the model that are managed by IDA.
       /// A parametric variable is a variable that is immutable.
@@ -242,11 +241,7 @@ namespace marco::codegen
       };
 
       IDASolver(mlir::LLVMTypeConverter& typeConverter,
-                VariableFilter& variablesFilter,
-                double startTime,
-                double endTime,
-                double timeStep,
-                bool equidistantTimeGrid);
+                VariableFilter& variablesFilter);
 
       mlir::LogicalResult solveICModel(
           mlir::OpBuilder& builder,
@@ -333,9 +328,6 @@ namespace marco::codegen
           llvm::StringRef equationFunctionName,
           mlir::func::FuncOp templateFunction,
           mlir::TypeRange varsTypes) const;
-
-    private:
-      bool equidistantTimeGrid;
   };
 }
 

@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=ArrayVariablesSubstitution --end-time=1 --time-step=0.1 --solver=ida --ida-equidistant-time-grid -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s
+// RUN: marco --omc-bypass --model=ArrayVariablesSubstitution --solver=ida -o %basename_t %s
+// RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","Q[1]","Q[2]","Q[3]","Q[4]","Q[5]","T[1]","T[2]","T[3]","T[4]"
 // CHECK-NEXT: 0.000000,10.000000,0.000000,0.000000,0.000000,10.000000,100.000000,100.000000,100.000000,100.000000

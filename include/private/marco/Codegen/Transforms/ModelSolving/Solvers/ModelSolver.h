@@ -27,7 +27,8 @@ namespace marco::codegen
       static constexpr llvm::StringLiteral getVariablePrintableRangeEndFunctionName = "getVariablePrintableRangeEnd";
       static constexpr llvm::StringLiteral getVariableValueFunctionName = "getVariableValue";
       static constexpr llvm::StringLiteral getDerivativeFunctionName = "getDerivative";
-      static constexpr llvm::StringLiteral getCurrentTimeFunctionName = "getCurrentTime";
+      static constexpr llvm::StringLiteral getTimeFunctionName = "getTime";
+      static constexpr llvm::StringLiteral setTimeFunctionName = "setTime";
       static constexpr llvm::StringLiteral initFunctionName = "init";
       static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
       static constexpr llvm::StringLiteral mainFunctionName = "main";
@@ -41,10 +42,7 @@ namespace marco::codegen
     public:
       ModelSolver(
         mlir::LLVMTypeConverter& typeConverter,
-        VariableFilter& variablesFilter,
-        double startTime,
-        double endTime,
-        double timeStep);
+        VariableFilter& variablesFilter);
 
       virtual ~ModelSolver();
 
@@ -108,7 +106,13 @@ namespace marco::codegen
 
       /// Create the function to be called to retrieve the current time of the
       /// simulation.
-      mlir::LogicalResult createGetCurrentTimeFunction(
+      mlir::LogicalResult createGetTimeFunction(
+          mlir::OpBuilder& builder,
+          mlir::modelica::ModelOp modelOp) const;
+
+      /// Create the function to be called to set the current time of the
+      /// simulation.
+      mlir::LogicalResult createSetTimeFunction(
           mlir::OpBuilder& builder,
           mlir::modelica::ModelOp modelOp) const;
 
@@ -154,6 +158,14 @@ namespace marco::codegen
       /// Get the MLIR type corresponding to void*.
       mlir::Type getVoidPtrType() const;
 
+      /// Get the LLVM function with the given name, or declare it inside the
+      /// module if not present.
+      mlir::LLVM::LLVMFuncOp getOrDeclareExternalFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          llvm::StringRef name,
+          mlir::LLVM::LLVMFunctionType type) const;
+
       /// Create the instructions to allocate some data with a given type.
       mlir::Value alloc(
           mlir::OpBuilder& builder,
@@ -173,12 +185,20 @@ namespace marco::codegen
           mlir::MLIRContext* context,
           mlir::modelica::ModelOp modelOp) const;
 
-      /// Load the data structure from the opaque pointer that is passed around the
-      /// simulation functions.
+      /// Load the data structure from the opaque pointer that is passed around
+      /// the simulation functions.
       mlir::Value loadDataFromOpaquePtr(
           mlir::OpBuilder& builder,
           mlir::Value ptr,
           mlir::modelica::ModelOp modelOp) const;
+
+      /// Store the data structure within the memory addressed by the opaque
+      /// pointer that is passed around the simulation functions.
+      void setRuntimeData(
+          mlir::OpBuilder& builder,
+          mlir::Value opaquePtr,
+          mlir::modelica::ModelOp modelOp,
+          mlir::Value data) const;
 
       /// Extract a value from the data structure shared between the various
       /// simulation functions.
@@ -249,11 +269,6 @@ namespace marco::codegen
 
     private:
       VariableFilter* variablesFilter;
-
-    protected:
-      double startTime;
-      double endTime;
-      double timeStep;
   };
 }
 

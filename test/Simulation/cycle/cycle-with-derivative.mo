@@ -1,5 +1,5 @@
-// RUN: marco --omc-bypass --model=CycleWithDerivative --end-time=0.2 --time-step=0.1 -o %basename_t %s
-// RUN: ./%basename_t --precision=6 | FileCheck %s
+// RUN: marco --omc-bypass --model=CycleWithDerivative -o %basename_t %s
+// RUN: ./%basename_t --end-time=0.2 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x","y"
 // CHECK-NEXT: 0.000000,0.000000,1.000000
