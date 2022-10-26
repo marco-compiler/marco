@@ -33,8 +33,6 @@ namespace marco::codegen
 
       void addEquation(ScheduledEquation* equation);
 
-      size_t getNumOfEquations() const;
-
       mlir::Type getSolverDataType(mlir::MLIRContext* context) const;
 
       mlir::LogicalResult createInstance(

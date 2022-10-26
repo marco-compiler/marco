@@ -252,49 +252,45 @@ namespace marco::runtime::ida
 
     variableOffsets.push_back(0);
 
-    if (scalarEquationsNumber != 0) {
-      // Create and initialize the required N-vectors for the variables.
-      variablesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-      assert(checkAllocation(static_cast<void*>(variablesVector), "N_VNew_Serial"));
+    // Create and initialize the required N-vectors for the variables.
+    variablesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
+    assert(checkAllocation(static_cast<void*>(variablesVector), "N_VNew_Serial"));
 
-      derivativesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-      assert(checkAllocation(static_cast<void*>(derivativesVector), "N_VNew_Serial"));
+    derivativesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
+    assert(checkAllocation(static_cast<void*>(derivativesVector), "N_VNew_Serial"));
 
-      idVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-      assert(checkAllocation(static_cast<void*>(idVector), "N_VNew_Serial"));
+    idVector = N_VNew_Serial(scalarEquationsNumber, ctx);
+    assert(checkAllocation(static_cast<void*>(idVector), "N_VNew_Serial"));
 
-      tolerancesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
-      assert(checkAllocation(static_cast<void*>(tolerancesVector), "N_VNew_Serial"));
-    }
+    tolerancesVector = N_VNew_Serial(scalarEquationsNumber, ctx);
+    assert(checkAllocation(static_cast<void*>(tolerancesVector), "N_VNew_Serial"));
   }
 
   IDAInstance::~IDAInstance()
   {
     assert(initialized && "The IDA instance has not been initialized yet");
 
-    if (scalarEquationsNumber != 0) {
-      for (auto* variable : parameters) {
-        heapFree(variable);
-      }
-
-      for (auto* variable : variables) {
-        heapFree(variable);
-      }
-
-      for (auto* derivative : derivatives) {
-        heapFree(derivative);
-      }
-
-      delete simulationData;
-
-      IDAFree(&idaMemory);
-      SUNLinSolFree(linearSolver);
-      SUNMatDestroy(sparseMatrix);
-      N_VDestroy(variablesVector);
-      N_VDestroy(derivativesVector);
-      N_VDestroy(idVector);
-      N_VDestroy(tolerancesVector);
+    for (auto* variable : parameters) {
+      heapFree(variable);
     }
+
+    for (auto* variable : variables) {
+      heapFree(variable);
+    }
+
+    for (auto* derivative : derivatives) {
+      heapFree(derivative);
+    }
+
+    delete simulationData;
+
+    IDAFree(&idaMemory);
+    SUNLinSolFree(linearSolver);
+    SUNMatDestroy(sparseMatrix);
+    N_VDestroy(variablesVector);
+    N_VDestroy(derivativesVector);
+    N_VDestroy(idVector);
+    N_VDestroy(tolerancesVector);
   }
 
   void IDAInstance::setStartTime(double time)
