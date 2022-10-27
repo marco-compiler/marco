@@ -16,10 +16,13 @@ namespace marco::runtime
   };
 }
 
+//===---------------------------------------------------------------------===//
+// Functions defined inside the module of the compiled model
+//===---------------------------------------------------------------------===//
+
 extern "C"
 {
   void calcIC(void* data);
-
   void updateNonStateVariables(void* data);
   void updateStateVariables(void* data, double timeStep);
 }

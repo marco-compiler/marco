@@ -14,46 +14,38 @@ using namespace ::marco::runtime;
 
 extern "C"
 {
+  /// Initialize the simulation data.
   void* init();
+
+  /// Deinitialize the simulation data.
   void deinit(void* data);
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // CLI
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-namespace
+static void printHelp()
 {
-  void printHelp()
-  {
-    std::cout << "Modelica simulation.\n";
-    std::cout << "Model: " << getModelName() << "\n";
-    std::cout << "Generated with MARCO compiler.\n\n";
+  std::cout << "Modelica simulation.\n";
+  std::cout << "Model: " << getModelName() << "\n";
+  std::cout << "Generated with MARCO compiler.\n\n";
 
-    std::cout << "OPTIONS:\n";
-    std::cout << "  --help    Display the available options.\n\n";
+  std::cout << "OPTIONS:\n";
+  std::cout << "  --help    Display the available options.\n\n";
 
-    auto& cli = getCLI();
+  auto& cli = getCLI();
 
-    for (size_t i = 0; i < cli.size(); ++i) {
-      std::cout << cli[i].getTitle() << "\n";
-      cli[i].printCommandLineOptions(std::cout);
-      std::cout << "\n";
-    }
+  for (size_t i = 0; i < cli.size(); ++i) {
+    std::cout << cli[i].getTitle() << "\n";
+    cli[i].printCommandLineOptions(std::cout);
+    std::cout << "\n";
   }
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Simulation
-//===----------------------------------------------------------------------===//
-
-namespace
-{
-  enum SolverKind {
-    EULER_FORWARD = 0,
-    IDA = 1
-  };
-}
+//===---------------------------------------------------------------------===//
 
 namespace marco::runtime
 {
@@ -128,8 +120,11 @@ namespace
         result.variablesPrintableIndices[var][range].resize(rank);
 
         for (int64_t dim = 0; dim < rank; ++dim) {
-          result.variablesPrintableIndices[var][range][dim].begin = getVariablePrintableRangeBegin(var, range, dim);
-          result.variablesPrintableIndices[var][range][dim].end = getVariablePrintableRangeEnd(var, range, dim);
+          result.variablesPrintableIndices[var][range][dim].begin =
+              getVariablePrintableRangeBegin(var, range, dim);
+
+          result.variablesPrintableIndices[var][range][dim].end =
+              getVariablePrintableRangeEnd(var, range, dim);
         }
       }
 
@@ -167,7 +162,8 @@ namespace
     }
 
     // Determine the print ordering for the variables.
-    std::sort(result.variablesPrintOrder.begin(), result.variablesPrintOrder.end(),
+    std::sort(result.variablesPrintOrder.begin(),
+              result.variablesPrintOrder.end(),
               [&](const int64_t& x, const int64_t& y) -> bool {
                 int64_t xDerOrder = result.derOrders[x];
                 int64_t yDerOrder = result.derOrders[y];
@@ -193,7 +189,8 @@ namespace
                   }
                 }
 
-                return std::string_view(result.variablesNames[first]) < std::string_view(result.variablesNames[second]);
+                return std::string_view(result.variablesNames[first]) <
+                    std::string_view(result.variablesNames[second]);
               });
 
     return result;
@@ -239,13 +236,13 @@ namespace
 
   SIMULATION_PROFILER_ARG_STOP;
 
-  // Initialize the data structure containing the variables.
   SIMULATION_PROFILER_INIT_START;
   void* data = init();
   SIMULATION_PROFILER_INIT_STOP;
 
   simulation.setData(data);
 
+  // Run the simulation.
   int result = driver->run();
 
   deinit(data);

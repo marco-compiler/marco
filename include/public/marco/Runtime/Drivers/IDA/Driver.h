@@ -16,6 +16,10 @@ namespace marco::runtime
   };
 }
 
+//===---------------------------------------------------------------------===//
+// Functions defined inside the module of the compiled model
+//===---------------------------------------------------------------------===//
+
 extern "C"
 {
   void* initICSolvers(void* data);
