@@ -61,6 +61,7 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
   mlir::OperationFolder helper(value.getContext());
   std::stack<mlir::Operation*> visitStack;
   llvm::SmallVector<mlir::Operation*, 3> ops;
+  llvm::DenseSet<mlir::Operation*> processed;
 
   if (auto definingOp = value.getDefiningOp()) {
     visitStack.push(definingOp);
@@ -81,7 +82,13 @@ static void foldValue(EquationInterface equationOp, mlir::Value value)
 
   llvm::SmallVector<mlir::Operation*, 3> constants;
 
-  for (auto *op : llvm::reverse(ops)) {
+  for (mlir::Operation* op : llvm::reverse(ops)) {
+    if (processed.contains(op)) {
+      continue;
+    }
+
+    processed.insert(op);
+
     if (mlir::failed(helper.tryToFold(op, [&](mlir::Operation* constant) {
           constants.push_back(constant);
         }))) {
