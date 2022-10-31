@@ -198,40 +198,6 @@ namespace
     }
   };
 
-  struct SetTimeStepOpLowering : public IDAOpConversion<SetTimeStepOp>
-  {
-    using IDAOpConversion<SetTimeStepOp>::IDAOpConversion;
-
-    mlir::LogicalResult matchAndRewrite(SetTimeStepOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      auto loc = op.getLoc();
-      auto module = op->getParentOfType<mlir::ModuleOp>();
-
-      RuntimeFunctionsMangling mangling;
-
-      llvm::SmallVector<mlir::Value, 2> newOperands;
-      llvm::SmallVector<std::string, 2> mangledArgsTypes;
-
-      // IDA instance
-      newOperands.push_back(adaptor.getInstance());
-      mangledArgsTypes.push_back(mangling.getVoidPointerType());
-
-      // Time step
-      mlir::Value timeStep = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getF64FloatAttr(op.getTimeStep().convertToDouble()));
-      newOperands.push_back(timeStep);
-      mangledArgsTypes.push_back(mangling.getFloatingPointType(timeStep.getType().getIntOrFloatBitWidth()));
-
-      // Create the call to the runtime library
-      auto resultType = getVoidType();
-      auto mangledResultType = mangling.getVoidType();
-      auto functionName = mangling.getMangledFunction("idaSetTimeStep", mangledResultType, mangledArgsTypes);
-      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
-      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
-
-      return mlir::success();
-    }
-  };
-
   struct GetCurrentTimeOpLowering : public IDAOpConversion<GetCurrentTimeOp>
   {
     using IDAOpConversion<GetCurrentTimeOp>::IDAOpConversion;
@@ -1337,7 +1303,6 @@ static void populateIDAConversionPatterns(
       CreateOpLowering,
       SetStartTimeOpLowering,
       SetEndTimeOpLowering,
-      SetTimeStepOpLowering,
       GetCurrentTimeOpLowering,
       AddEquationOpLowering,
       AddAlgebraicVariableOpLowering,

@@ -41,15 +41,6 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
-  // SetTimeStepOp
-  //===----------------------------------------------------------------------===//
-
-  void SetTimeStepOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-  {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-  }
-
-  //===----------------------------------------------------------------------===//
   // GetCurrentTimeOp
   //===----------------------------------------------------------------------===//
 

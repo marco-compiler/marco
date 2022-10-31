@@ -129,35 +129,6 @@ def IDA_SetEndTimeOp : IDA_Op<"set_end_time",
     }];
 }
 
-def IDA_SetTimeStepOp : IDA_Op<"set_time_step",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Set a fixed time step for the simulation.";
-
-    let description = [{
-        The operation enables the equidistant time grid inside
-        IDA and sets the time step to the one provided through
-        the 'timeStep' attribute.
-
-        Example:
-
-        ```mlir
-        %0 = ... : !ida.instance
-        ida.set_time_step %0 { timeStep = 0.1 } : !ida.instance
-        ```
-    }];
-
-    let arguments = (ins
-        IDAInstance:$instance,
-        F64Attr:$timeStep);
-
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $instance attr-dict `:` type($instance)
-    }];
-}
-
 def IDA_GetCurrentTimeOp : IDA_Op<"get_current_time",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
