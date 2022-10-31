@@ -47,6 +47,10 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model,
           mlir::ValueRange variables);
 
+      mlir::LogicalResult performCalcIC(
+          mlir::OpBuilder& builder,
+          mlir::Value solverDataPtr);
+
       mlir::LogicalResult performStep(
           mlir::OpBuilder& builder,
           mlir::Value solverDataPtr);
@@ -225,6 +229,7 @@ namespace marco::codegen
     public:
       static constexpr llvm::StringLiteral initICSolversFunctionName = "initICSolvers";
       static constexpr llvm::StringLiteral deinitICSolversFunctionName = "deinitICSolvers";
+      static constexpr llvm::StringLiteral solveICModelFunctionName = "solveICModel";
       static constexpr llvm::StringLiteral initMainSolversFunctionName = "initMainSolvers";
       static constexpr llvm::StringLiteral deinitMainSolversFunctionName = "deinitMainSolvers";
       static constexpr llvm::StringLiteral calcICFunctionName = "calcIC";
@@ -294,7 +299,16 @@ namespace marco::codegen
           const Model<ScheduledEquationsBlock>& model,
           IDAInstance* idaInstance) const;
 
-      /// Create the function that computes the initial conditions.
+      /// Create the function that computes the initial conditions of the
+      /// "initial conditions model".
+      mlir::LogicalResult createSolveICModelFunction(
+          mlir::OpBuilder& builder,
+          const Model<ScheduledEquationsBlock>& model,
+          const ConversionInfo& conversionInfo,
+          IDAInstance* idaInstance) const;
+
+      /// Create the function that computes the initial conditions of the "main
+      /// model".
       mlir::LogicalResult createCalcICFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,

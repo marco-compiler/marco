@@ -25,6 +25,8 @@ extern "C"
   void* initICSolvers(void* data);
   void* deinitICSolvers(void* data);
 
+  void solveICModel(void* data);
+
   void initMainSolvers(void* data);
   void deinitMainSolvers(void* data);
 

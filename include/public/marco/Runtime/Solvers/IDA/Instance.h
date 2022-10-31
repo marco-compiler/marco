@@ -195,6 +195,11 @@ namespace marco::runtime::ida
       /// malformed model.
       bool initialize();
 
+      /// Invoke IDA to perform the computation of the initial values of the
+      /// variables. Returns true if the computation was successful, false
+      /// otherwise.
+      bool calcIC();
+
       /// Invoke IDA to perform one step of the computation. If a time step is
       /// given, the output will show the variables in an equidistant time grid
       /// based on the step time parameter. Otherwise, the output will show the
@@ -348,6 +353,8 @@ namespace marco::runtime::ida
 RUNTIME_FUNC_DECL(idaCreate, PTR(void), int64_t, int64_t)
 
 RUNTIME_FUNC_DECL(idaInit, void, PTR(void))
+
+RUNTIME_FUNC_DECL(idaCalcIC, void, PTR(void))
 
 RUNTIME_FUNC_DECL(idaStep, void, PTR(void))
 

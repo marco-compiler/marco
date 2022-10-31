@@ -213,8 +213,8 @@ namespace marco::codegen
       return mlir::failure();
     }
 
-    if (mlir::failed(createCalcICFunction(builder, model, conversionInfo, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + calcICFunctionName + "' function");
+    if (mlir::failed(createSolveICModelFunction(builder, model, conversionInfo, idaInstance.get()))) {
+      model.getOperation().emitError("Could not create the '" + solveICModelFunctionName + "' function");
       return mlir::failure();
     }
 
@@ -358,6 +358,11 @@ namespace marco::codegen
 
     if (mlir::failed(createDeinitMainSolversFunction(builder, model, idaInstance.get()))) {
       model.getOperation().emitError("Could not create the '" + deinitMainSolversFunctionName + "' function");
+      return mlir::failure();
+    }
+
+    if (mlir::failed(createCalcICFunction(builder, model, conversionInfo, idaInstance.get()))) {
+      model.getOperation().emitError("Could not create the '" + calcICFunctionName + "' function");
       return mlir::failure();
     }
 
@@ -533,7 +538,7 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult IDASolver::createCalcICFunction(
+  mlir::LogicalResult IDASolver::createSolveICModelFunction(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
       const ConversionInfo& conversionInfo,
@@ -548,7 +553,7 @@ namespace marco::codegen
     builder.setInsertionPointToEnd(module.getBody());
 
     auto function = builder.create<mlir::func::FuncOp>(
-        loc, calcICFunctionName,
+        loc, solveICModelFunctionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
     auto* entryBlock = function.addEntryBlock();
@@ -572,6 +577,15 @@ namespace marco::codegen
           builder, structValue, varType.value(), varType.index());
 
       allVariables.push_back(var);
+    }
+
+    // Instruct IDA to compute the initial values.
+    mlir::Value solverDataPtr = extractSolverDataPtr(
+        builder, structValue,
+        idaInstance->getSolverDataType(builder.getContext()));
+
+    if (mlir::failed(idaInstance->performCalcIC(builder, solverDataPtr))) {
+      return mlir::failure();
     }
 
     // Convert the equations into algorithmic code.
@@ -625,6 +639,61 @@ namespace marco::codegen
           builder.create<mlir::func::CallOp>(loc, equationFunction, usedVariables);
         }
       }
+    }
+
+    builder.create<mlir::func::ReturnOp>(loc);
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult IDASolver::createCalcICFunction(
+      mlir::OpBuilder& builder,
+      const Model<ScheduledEquationsBlock>& model,
+      const ConversionInfo& conversionInfo,
+      IDAInstance* idaInstance) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    ModelOp modelOp = model.getOperation();
+    mlir::Location loc = modelOp.getLoc();
+
+    // Create the function inside the parent module.
+    auto module = modelOp->getParentOfType<mlir::ModuleOp>();
+    builder.setInsertionPointToEnd(module.getBody());
+
+    auto function = builder.create<mlir::func::FuncOp>(
+        loc, calcICFunctionName,
+        builder.getFunctionType(getVoidPtrType(), llvm::None));
+
+    auto* entryBlock = function.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    // Extract the data from the struct.
+    mlir::Value structValue = loadDataFromOpaquePtr(
+        builder, function.getArgument(0), modelOp);
+
+    llvm::SmallVector<mlir::Value> allVariables;
+
+    mlir::Value time = extractValue(
+        builder, structValue,
+        RealType::get(builder.getContext()),
+        timeVariablePosition);
+
+    allVariables.push_back(time);
+
+    for (const auto& varType : llvm::enumerate(modelOp.getBodyRegion().getArgumentTypes())) {
+      mlir::Value var = extractVariable(
+          builder, structValue, varType.value(), varType.index());
+
+      allVariables.push_back(var);
+    }
+
+    // Instruct IDA to compute the initial values.
+    mlir::Value solverDataPtr = extractSolverDataPtr(
+        builder, structValue,
+        idaInstance->getSolverDataType(builder.getContext()));
+
+    if (mlir::failed(idaInstance->performCalcIC(builder, solverDataPtr))) {
+      return mlir::failure();
     }
 
     builder.create<mlir::func::ReturnOp>(loc);
@@ -2137,6 +2206,17 @@ namespace marco::codegen
 
     builder.create<mlir::ida::ReturnOp>(
         jacobianFunction.getLoc(), templateCall.getResult(0));
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult IDAInstance::performCalcIC(
+      mlir::OpBuilder& builder,
+      mlir::Value solverDataPtr)
+  {
+    mlir::Value solverData = loadSolverData(builder, solverDataPtr);
+    mlir::Value idaInstance = getIDAInstance(builder, solverData);
+    builder.create<mlir::ida::CalcICOp>(solverDataPtr.getLoc(), idaInstance);
 
     return mlir::success();
   }

@@ -78,6 +78,16 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
+  // CalcICOp
+  //===----------------------------------------------------------------------===//
+
+  void CalcICOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+  }
+
+  //===----------------------------------------------------------------------===//
   // StepOp
   //===----------------------------------------------------------------------===//
 

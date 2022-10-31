@@ -25,25 +25,22 @@ namespace marco::runtime
     setTime(data, ida::getOptions().startTime);
 
     getSimulation()->getPrinter()->simulationBegin();
+
+    // Process the "initial conditions model".
     initICSolvers(data);
-
-    // Compute the initial conditions.
-    IDA_PROFILER_IC_START;
-    calcIC(data);
-    IDA_PROFILER_IC_STOP;
-
+    solveICModel(data);
     deinitICSolvers(data);
 
     // Print the initial values.
     getSimulation()->getPrinter()->printValues();
 
+    // Process the "main model".
     initMainSolvers(data);
+    calcIC(data);
 
     do {
       // Compute the next values of the state variables.
-      IDA_PROFILER_STEP_START;
       updateStateVariables(data);
-      IDA_PROFILER_STEP_STOP;
 
       // Move to the next step.
       IDA_PROFILER_ALGEBRAIC_VARS_START;
@@ -56,6 +53,7 @@ namespace marco::runtime
     } while (std::abs(getTime(data) - ida::getOptions().endTime) >=
              ida::getOptions().timeStep);
 
+    // Deinitialize the simulation.
     deinitMainSolvers(data);
     getSimulation()->getPrinter()->simulationEnd();
 

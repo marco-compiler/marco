@@ -906,6 +906,30 @@ def IDA_InitOp : IDA_Op<"init",
     }];
 }
 
+def IDA_CalcICOp : IDA_Op<"calc_ic",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Compute the initial values of the variables.";
+
+    let description = [{
+        The operation instructs IDA to compute the initial variables of the
+        variables.
+
+        Example:
+        ```mlir
+        %0 = ... : !ida.instance
+        %1 = ida.calc_ic %0 : !ida.instance
+        ```
+    }];
+
+    let arguments = (ins IDAInstance:$instance);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $instance attr-dict `:` type($instance)
+    }];
+}
+
 def IDA_StepOp : IDA_Op<"step",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {

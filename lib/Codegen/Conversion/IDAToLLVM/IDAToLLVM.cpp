@@ -1198,6 +1198,35 @@ namespace
     }
   };
 
+  struct CalcICOpLowering : public IDAOpConversion<CalcICOp>
+  {
+    using IDAOpConversion<CalcICOp>::IDAOpConversion;
+
+    mlir::LogicalResult matchAndRewrite(CalcICOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      auto loc = op.getLoc();
+      auto module = op->getParentOfType<mlir::ModuleOp>();
+
+      RuntimeFunctionsMangling mangling;
+
+      llvm::SmallVector<mlir::Value, 1> newOperands;
+      llvm::SmallVector<std::string, 1> mangledArgsTypes;
+
+      // IDA instance
+      newOperands.push_back(adaptor.getInstance());
+      mangledArgsTypes.push_back(mangling.getVoidPointerType());
+
+      // Create the call to the runtime library
+      auto resultType = getVoidType();
+      auto mangledResultType = mangling.getVoidType();
+      auto functionName = mangling.getMangledFunction("idaCalcIC", mangledResultType, mangledArgsTypes);
+      auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
+      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+
+      return mlir::success();
+    }
+  };
+
   struct StepOpLowering : public IDAOpConversion<StepOp>
   {
     using IDAOpConversion<StepOp>::IDAOpConversion;
@@ -1319,6 +1348,7 @@ static void populateIDAConversionPatterns(
       AddResidualOpLowering,
       AddJacobianOpLowering,
       InitOpLowering,
+      CalcICOpLowering,
       StepOpLowering,
       FreeOpLowering,
       PrintStatisticsOpLowering>(typeConverter, bitWidth);

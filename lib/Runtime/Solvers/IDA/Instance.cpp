@@ -591,7 +591,16 @@ namespace marco::runtime::ida
       return false;
     }
 
-    // Call IDACalcIC to correct the initial values.
+    return true;
+  }
+
+  bool IDAInstance::calcIC()
+  {
+    if (scalarEquationsNumber == 0) {
+      // IDA has nothing to solve
+      return true;
+    }
+
     realtype firstOutTime = (endTime - startTime) / getOptions().timeScalingFactorInit;
 
     IDA_PROFILER_IC_START;
@@ -1425,6 +1434,15 @@ static void idaInit_void(void* userData)
 }
 
 RUNTIME_FUNC_DEF(idaInit, void, PTR(void))
+
+static void idaCalcIC_void(void* userData)
+{
+  auto* instance = static_cast<IDAInstance*>(userData);
+  [[maybe_unused]] bool result = instance->calcIC();
+  assert(result && "Can't compute the initial values of the variables");
+}
+
+RUNTIME_FUNC_DEF(idaCalcIC, void, PTR(void))
 
 static void idaStep_void(void* userData)
 {
