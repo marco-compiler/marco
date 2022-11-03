@@ -303,7 +303,7 @@ TEST(MultidimensionalRange, rangesIteration)
   EXPECT_EQ(count, 1);
 }
 
-TEST(MultidimensionalRange, indexesIteration)
+TEST(IndexSet, indexesIteration)
 {
   IndexSet range = IndexSet(MultidimensionalRange({
       Range(1, 3),

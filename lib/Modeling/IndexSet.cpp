@@ -739,7 +739,7 @@ namespace marco::modeling
 
     assert(rhs.rank() == allowedRank && "Incompatible rank");
 
-    // We must add only the non-existing points
+    // We must add only the non-existing points.
     std::queue<MultidimensionalRange> nonOverlappingRanges;
 
     if (root == nullptr) {
@@ -756,8 +756,8 @@ namespace marco::modeling
             if (overlaps(diff)) {
               next.push_back(std::move(diff));
             } else {
-              // For safety, also check that all the range we are going to add do belongs
-              // to the original range.
+              // For safety, also check that all the range we are going to add
+              // do belongs to the original range.
               assert(rhs.contains(diff));
               nonOverlappingRanges.push(std::move(diff));
             }
@@ -769,22 +769,22 @@ namespace marco::modeling
     }
 
     while (!nonOverlappingRanges.empty()) {
-      auto& range = nonOverlappingRanges.front();
+      MultidimensionalRange& range = nonOverlappingRanges.front();
 
-      // Check that all the range do not overlap the existing points
+      // Check that all the range do not overlap the existing points.
       assert(!overlaps(range));
 
       if (root == nullptr) {
         root = std::make_unique<Node>(nullptr, range);
         root->add(std::move(range));
       } else {
-        // Find position for the new record
-        auto node = chooseLeaf(range);
+        // Find position for the new record.
+        Node* node = chooseLeaf(range);
 
-        // Add the record to the leaf node
+        // Add the record to the leaf node.
         node->add(std::move(range));
 
-        // Merge the adjacent ranges
+        // Merge the adjacent ranges.
         llvm::sort(node->values);
         merge(node->values);
 
@@ -802,12 +802,9 @@ namespace marco::modeling
               }
 
               for (auto& value : current->values) {
+                assert(value.rank() == rank());
                 nonOverlappingRanges.push(std::move(value));
               }
-            }
-
-            for (const auto& value : node->values) {
-              nonOverlappingRanges.push(value);
             }
 
             auto parent = node->parent;
@@ -826,14 +823,17 @@ namespace marco::modeling
             node = parent;
           }
         } else if (node->fanOut() > maxElements) {
-          // Propagate node splits
+          // Propagate node splits.
           while (node->fanOut() > maxElements) {
             auto newNodes = splitNode(*node);
 
             if (node->isRoot()) {
               // If node split propagation caused the root to split, then
               // create a new root whose children are the two resulting nodes.
-              auto rootBoundary = getMBR(newNodes.first->getBoundary(), newNodes.second->getBoundary());
+
+              auto rootBoundary = getMBR(
+                  newNodes.first->getBoundary(),
+                  newNodes.second->getBoundary());
 
               root = std::make_unique<Node>(nullptr, rootBoundary);
 
@@ -855,11 +855,12 @@ namespace marco::modeling
 
             node->parent->add(std::move(newNodes.second));
 
-            // Propagate changes upward
+            // Propagate changes upward.
             node = node->parent;
           }
         }
 
+        // Fix all the boundaries up to the root.
         while (node != nullptr) {
           node->recalcBoundary();
           node = node->parent;
@@ -868,7 +869,7 @@ namespace marco::modeling
 
       nonOverlappingRanges.pop();
 
-      // Check that all the invariants are respected
+      // Check that all the invariants are respected.
       assert(isValid());
     }
 
