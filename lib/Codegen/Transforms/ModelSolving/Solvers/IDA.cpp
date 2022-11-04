@@ -1708,9 +1708,14 @@ namespace marco::codegen
       return idaAlgebraicVariables[algebraicVariablesLookup[argNumber]];
     };
 
+    // Keep track of the discovered accesses in order to avoid adding the same
+    // access map multiple times for the same variable.
+    llvm::DenseMap<mlir::Value, llvm::DenseSet<mlir::AffineMap>> maps;
+
     for (const Access& access : equation.getAccesses()) {
       mlir::Value variable = access.getVariable()->getValue();
 
+      // Skip parametric variables. They are used only as read-only values.
       if (hasParametricVariable(variable)) {
         continue;
       }
@@ -1738,8 +1743,17 @@ namespace marco::codegen
           accessFunction.size(), 0, expressions, builder.getContext());
 
       assert(idaVariable != nullptr);
-      builder.create<mlir::ida::AddVariableAccessOp>(
-          loc, idaInstance, idaEquation, idaVariable, affineMap);
+      maps[idaVariable].insert(affineMap);
+    }
+
+    // Inform IDA about the discovered accesses.
+    for (const auto& entry : maps) {
+      mlir::Value idaVariable = entry.getFirst();
+
+      for (const auto& map : entry.getSecond()) {
+        builder.create<mlir::ida::AddVariableAccessOp>(
+            loc, idaInstance, idaEquation, idaVariable, map);
+      }
     }
 
     return mlir::success();
