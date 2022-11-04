@@ -3,6 +3,8 @@
 #include <stack>
 #include <queue>
 
+#include <iomanip>
+
 using namespace ::marco;
 using namespace ::marco::modeling;
 
@@ -789,7 +791,9 @@ namespace marco::modeling
         merge(node->values);
 
         if (!node->isRoot() && node->fanOut() < minElements) {
-          while (!node->isRoot() && node->fanOut() < minElements) {
+          while (node != nullptr &&
+                 !node->isRoot() &&
+                 node->fanOut() < minElements) {
             std::stack<Node*> nodes;
             nodes.push(node);
 
@@ -807,9 +811,12 @@ namespace marco::modeling
               }
             }
 
-            auto parent = node->parent;
+            Node* parent = node->parent;
             assert(parent != nullptr);
 
+            // The new children of the parent will be the old ones with the
+            // exception of the current node, which has been collapsed and its
+            // ranges queued for a new insertion.
             std::vector<std::unique_ptr<Node>> newChildren;
 
             for (auto& child : node->parent->children) {
@@ -819,8 +826,17 @@ namespace marco::modeling
             }
 
             parent->children = std::move(newChildren);
-            parent->recalcBoundary();
-            node = parent;
+
+            if (parent->children.empty()) {
+              // If the root has no children, then the tree has to be
+              // reinitialized.
+              assert(parent->isRoot());
+              root = nullptr;
+              node = nullptr;
+            } else {
+              parent->recalcBoundary();
+              node = parent;
+            }
           }
         } else if (node->fanOut() > maxElements) {
           // Propagate node splits.
