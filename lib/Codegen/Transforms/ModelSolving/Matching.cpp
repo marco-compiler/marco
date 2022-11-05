@@ -375,16 +375,9 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       const mlir::Value value)
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-
     auto access = getWrite();
     auto& path = access.getPath();
     auto lhs = equation->getValueAtPath(path);
-
-    auto terminator =
-        mlir::cast<EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
-
-    builder.setInsertionPoint(terminator);
 
     equation->replaceSides(builder, lhs, value);
     matchedPath = EquationPath::LEFT;

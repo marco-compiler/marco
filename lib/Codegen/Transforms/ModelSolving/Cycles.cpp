@@ -68,19 +68,20 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
       }
     }
 
+    auto currentUnsolvedEquations = solver.getUnsolvedEquations();
+    auto currentSolution = solver.getSolution();
+
     // Create the list of equations to be processed in the next iteration
     toBeProcessed.clear();
     newEquations.clear();
     unsolvedEquations.clear();
 
-    if (auto currentSolution = solver.getSolution(); currentSolution.size() != 0) {
-      for (auto& equation : currentSolution) {
-        auto& movedEquation = newEquations.emplace_back(std::move(equation));
-        toBeProcessed.push_back(movedEquation.get());
-      }
+    for (auto& equation : currentSolution) {
+      auto& movedEquation = newEquations.emplace_back(std::move(equation));
+      toBeProcessed.push_back(movedEquation.get());
     }
 
-    for (auto& equation : solver.getUnsolvedEquations()) {
+    for (auto& equation : currentUnsolvedEquations) {
       auto& movedEquation = unsolvedEquations.emplace_back(std::move(equation));
       toBeProcessed.push_back(movedEquation.get());
     }
@@ -157,8 +158,6 @@ static bool solveWithCramer(
       std::vector<MatchedEquation> input;
       for (const auto eq : set) {
         input.push_back(*eq);
-        std::cerr << "ITERATION RANGES: " << eq->getIterationRanges() << "\n";
-        eq->dumpIR();
       }
 
       // Solve the system of equations
@@ -211,7 +210,7 @@ static bool solveWithCramer(
     allCyclesSolved = !solver.hasUnsolvedCycles();
   } while (!newEquations.empty());
 
-  // Try to solve the full system
+  // Try to solve the full system if solving by subsystems didn't work
   if(!allCyclesSolved) {
     CramerSolver solver(builder, systemSize);
 
@@ -239,6 +238,28 @@ static bool solveWithCramer(
   model.setEquations(solution);
 
   return allCyclesSolved;
+}
+
+static bool solveWithCramerMonolithic(
+    Model<MatchedEquation>& model,
+    mlir::OpBuilder& builder,
+    bool secondaryCycles)
+{
+  std::vector<MatchedEquation> input;
+
+  // The first iteration will use all the equations of the model
+  size_t systemSize = 0;
+  for (const auto& equation : model.getEquations()) {
+    input.push_back(*equation);
+    systemSize += equation->getIterationRanges().flatSize();
+  }
+
+  CramerSolver solver(builder, systemSize);
+  if (solver.solve(input)) {
+    model.setEquations(solver.getSolution());
+    return true;
+  }
+  return false;
 }
 
 namespace marco::codegen
@@ -270,6 +291,17 @@ namespace marco::codegen
     });
 
     if (solveWithCramer(model, builder, true)) {
+      return mlir::success();
+    }
+
+    // Retry with Cramer
+    LLVM_DEBUG({
+      llvm::dbgs() << "Solving cycles with Cramer, with secondary cycles\n";
+    });
+
+    if (solveWithCramerMonolithic(model, builder, true)) {
+      std::cerr << "RESULTING MODEL:\n";
+      model.getOperation()->dump();
       return mlir::success();
     }
 

@@ -86,6 +86,7 @@ mlir::Value SquareMatrix::det(mlir::OpBuilder& builder)
   mlir::OpBuilder::InsertionGuard guard(builder);
   SquareMatrix matrix = (*this);
   mlir::Value determinant;
+  //todo add the correct location
   mlir::Location loc = builder.getUnknownLoc();
 
 
@@ -186,6 +187,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 
   // Clone the system equations so that we can operate on them without
   // disrupting the rest of the compilation process.
+  // This set of clones will be used to compute the system matrix.
   Equations<MatchedEquation> clones;
 
   // Get the number of scalar equations in the system
@@ -196,6 +198,8 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 
       auto matchedClone = std::make_unique<MatchedEquation>(
           std::move(clone), IndexSet(range), equation.getWrite().getPath());
+
+      matchedClone->dumpIR();
 
       clones.add(std::move(matchedClone));
       ++subsystemSize;
@@ -238,20 +242,39 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
   if(res) {
     size_t subsystemEquationIndex = 0;
     for (const auto& [index, pair] : flatMap) {
-      auto& equation = pair.first;
+      const auto& equation = pair.first;
+      const auto& point = pair.second;
+      auto loc = equation->getOperation().getLoc();
+
+      // Create a new clone that will contain the system matrix and the one
+      // obtained by substituting the constant vector to the column of the
+      // corresponding index.
+      auto clone = std::make_unique<MatchedEquation>(Equation::build(equation->cloneIR(), equation->getVariables()),
+                                                     modeling::IndexSet(point),
+                                                     EquationPath::LEFT);
+
+      // Erase the body block of the clone, and replace it with an empty one.
+      clone->getOperation().bodyBlock()->erase();
       mlir::OpBuilder::InsertionGuard equationGuard(builder);
-      builder.setInsertionPoint(equation->getOperation().bodyBlock()->getTerminator());
+      mlir::Block* bodyBlock = builder.createBlock(&clone->getOperation().getBodyRegion());
+      builder.setInsertionPointToStart(bodyBlock);
+
+      // First clone the left hand side, which should be the matched value.
+      //todo maybe we should map the variables of the equation to the clone's
+      mlir::BlockAndValueMapping mapping;
+      for (const auto& variable : clone->getVariables()) {
+        auto variableValue = variable->getValue();
+        mapping.map(variableValue, variableValue);
+      }
+
+      clone->dumpIR();
+      const auto& lhs = cloneValueAndDependencies(builder, equation->getValueAtPath(equation->getWrite().getPath()), mapping);
+      clone->dumpIR();
       // Allocate a new coefficient matrix and constant vector to contain the
       // cloned ones.
       auto cloneStorage = std::vector<mlir::Value>(storageSize);
       auto clonedMatrix = SquareMatrix(cloneStorage, subsystemSize);
       auto clonedVector = std::vector<mlir::Value>(subsystemSize);
-
-      mlir::BlockAndValueMapping mapping;
-      for (const auto& variable : equation->getVariables()) {
-        auto variableValue = variable->getValue();
-        mapping.map(variableValue, variableValue);
-      }
 
       cloneCoefficientMatrix(builder, clonedMatrix, matrix, mapping);
       cloneConstantVector(builder, clonedVector, constantVector, mapping);
@@ -263,35 +286,28 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       auto temp = SquareMatrix(tempStorage, subsystemSize);
 
       // Compute the determinant of the system matrix.
-      mlir::Value determinant = clonedMatrix.det(builder);
+      mlir::Value systemDeterminant = clonedMatrix.det(builder);
 
-      auto access = equation->getWrite();
-      auto& path = access.getPath();
+      // Compute the determinant of the substituted matrix
+      clonedMatrix.substituteColumn(temp, subsystemEquationIndex, clonedVector);
+      auto substitutedDeterminant = temp.det(builder);
 
-      // Compute the determinant of each one of the matrices obtained by
-      // substituting the constant term vector to each one of the matrix
-      // columns, and divide them by the determinant of the system matrix.
-      clonedMatrix.substituteColumn(
-          temp, subsystemEquationIndex, clonedVector);
-
-      auto tempDet = temp.det(builder);
-
+      // The right hand side of the equation is equal to the division between
+      // the determinant of the matrix with the constant vector substituting
+      // the corresponding row, and the determinant of the system matrix as
+      // specified by Cramer.
       //TODO determine the type of a DivOp
-      auto div = builder.create<DivOp>(
-          equation->getOperation()->getLoc(),
-          RealAttr::get(builder.getContext(), 0).getType(),
-          tempDet, determinant);
+      mlir::Value rhs = builder.create<DivOp>(loc, RealAttr::get(builder.getContext(), 0).getType(), substitutedDeterminant, systemDeterminant);
 
       // Set the results computed as the right side of the cloned equations,
-      // and the matched variables as the left side. Set the cloned equations
-      // as the model equations.
+      // and the matched variables as the left side.
+      mlir::Value lhsTuple = builder.create<EquationSideOp>(loc, lhs);
+      mlir::Value rhsTuple = builder.create<EquationSideOp>(loc, rhs);
+      builder.create<EquationSidesOp>(loc, lhsTuple, rhsTuple);
 
-      equation->setMatchSolution(builder, div);
       ++subsystemEquationIndex;
 
-      solutionMap.emplace(index, std::make_unique<MatchedEquation>(pair.first->clone(),
-                                                                   modeling::IndexSet(pair.second),
-                                                                   pair.first->getWrite().getPath()));
+      solutionMap.emplace(index, std::move(clone));
     }
   }
   // The coefficients couldn't be determined, try to match writes to reads
@@ -301,6 +317,8 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       auto readingEquation = readingPair.first;
 
       auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
+      TemporaryEquationGuard equationGuard(*clone);
+
       for (const auto& readingAccess : readingEquation->getReads()) {
         auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, *readingEquation->getIterationRanges().begin());
 
@@ -331,7 +349,8 @@ bool CramerSolver::getModelMatrixAndVector(
     size_t subsystemSize,
     const std::map<size_t, std::pair<MatchedEquation*, Point>>& flatMap)
 {
-  // Scan the accesses of each equation for missing matches
+  // Scan the accesses of each equation for missing matches: if the system of
+  // equations is underdetermined fail
   for (const auto& [index, pair] : flatMap) {
     const auto& equation = pair.first;
     const auto& point = pair.second;
@@ -358,7 +377,8 @@ bool CramerSolver::getModelMatrixAndVector(
       return false;
     }
 
-    // Copy the useful coefficients inside the matrix and constant vector
+    // Copy the useful coefficients inside the matrix and constant vector.
+    // Coefficients are returned by getCoefficients in flatAccess order, keep it
     size_t subsystemVariableIndex = 0;
     for (const auto& [variableIndex, _] : flatMap) {
       matrix(subsystemEquationIndex, subsystemVariableIndex) = coefficients[variableIndex];
@@ -377,8 +397,6 @@ mlir::Value CramerSolver::cloneValueAndDependencies(
     mlir::Value value,
     mlir::BlockAndValueMapping& mapping)
 {
-  mlir::OpBuilder::InsertionGuard guard(builder);
-
   std::stack<mlir::Operation*> cloneStack;
   std::vector<mlir::Operation*> toBeCloned;
 
@@ -409,8 +427,7 @@ mlir::Value CramerSolver::cloneValueAndDependencies(
   }
 
   assert(clonedOp != nullptr);
-  auto op = clonedOp;
-  auto results = op->getResults();
+  auto results = clonedOp->getResults();
   assert(results.size() == 1);
   mlir::Value result = results[0];
   return result;
@@ -451,7 +468,8 @@ Equations<MatchedEquation> CramerSolver::getSolution() const
   Equations<MatchedEquation> solution;
   for (const auto& [index, equation] : solutionMap) {
     solution.add(std::make_unique<MatchedEquation>(
-        equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
+        Equation::build(equation->cloneIR(), equation->getVariables()),
+        equation->getIterationRanges(), equation->getWrite().getPath()));
   }
   return solution;
 }

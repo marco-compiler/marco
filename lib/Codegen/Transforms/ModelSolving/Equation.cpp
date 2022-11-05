@@ -1473,9 +1473,6 @@ namespace marco::codegen
       EquationPath::EquationSide side,
       Point equationIndex) const
   {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    auto terminator = getTerminator();
-
     mlir::Location loc = equationOp->getLoc();
 
     auto modelOp = getOperation()->getParentOfType<ModelOp>();
@@ -1648,7 +1645,6 @@ namespace marco::codegen
       mlir::Value rhs) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-
     auto terminator = getTerminator();
     builder.setInsertionPoint(terminator);
     mlir::Location loc = terminator->getLoc();
