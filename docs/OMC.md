@@ -22,11 +22,11 @@ Full set of compiler flags
 --------------------------
 Array based models:
 ```
--f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters --newBackend --showStructuralAnnotations
+-f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations
 ```
 Automatic vectorization of model with many scalar instances of the same components:
 ```
--f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes,evaluateAllParameters --newBackend --showStructuralAnnotations
+-f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations
 ```
 
 
@@ -52,4 +52,7 @@ Explanations
   avoids flattening records in variable declarations.
 - [``--showStructuralAnnotations``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-showstructuralannotations)
   keeps structural annotations in the function definitions, such as ``Inline = true``.
+- [``--vectorizeBindings``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-vectorizebindings)
+  uses iterators to vectorize non-trivial bindings with expressions that involve arrays and scalars when flattened without unrolling arrays.
+  
 
