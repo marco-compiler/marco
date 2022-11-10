@@ -232,17 +232,22 @@ namespace marco::frontend
   {
     CompilerInstance& ci = instance();
 
-    // Set the target triple inside the MLIR module
+    // Set the target triple inside the MLIR module.
     instance().getMLIRModule()->setAttr(
         mlir::LLVM::LLVMDialect::getTargetTripleAttrName(),
-        mlir::StringAttr::get(&instance().getMLIRContext(), ci.getCodegenOptions().target));
+        mlir::StringAttr::get(
+            &instance().getMLIRContext(),
+            ci.getCodegenOptions().target));
 
-    // Set the data layout inside the MLIR module
+    // Set the data layout inside the MLIR module.
     instance().getMLIRModule()->setAttr(
         mlir::LLVM::LLVMDialect::getDataLayoutAttrName(),
-        mlir::StringAttr::get(&instance().getMLIRContext(), getDataLayoutString()));
+        mlir::StringAttr::get(
+            &instance().getMLIRContext(),
+            getDataLayoutString()));
 
-    // Create the pass manager and populate it with the appropriate transformations
+    // Create the pass manager and populate it with the appropriate
+    // transformations.
     mlir::PassManager passManager(&ci.getMLIRContext());
 
     passManager.addPass(createAutomaticDifferentiationPass());
@@ -256,7 +261,9 @@ namespace marco::frontend
     passManager.addPass(mlir::createCanonicalizerPass());
 
     if (ci.getCodegenOptions().cse) {
-      passManager.addNestedPass<mlir::modelica::FunctionOp>(mlir::createCSEPass());
+      passManager.addNestedPass<mlir::modelica::FunctionOp>(
+          mlir::createCSEPass());
+
       passManager.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
     }
 
@@ -264,7 +271,7 @@ namespace marco::frontend
     passManager.addPass(createModelicaToCFConversionPass());
 
     if (ci.getCodegenOptions().inlining) {
-      // Inline the functions with the 'inline' annotation
+      // Inline the functions with the 'inline' annotation.
       passManager.addPass(mlir::createInlinerPass());
     }
 
@@ -276,8 +283,9 @@ namespace marco::frontend
     passManager.addPass(createKINSOLToLLVMConversionPass());
 
     if (ci.getCodegenOptions().omp) {
-      // Use OpenMP for parallel loops
-      passManager.addNestedPass<mlir::func::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+      // Use OpenMP for parallel loops.
+      passManager.addNestedPass<mlir::func::FuncOp>(
+          mlir::createConvertSCFToOpenMPPass());
     }
 
     passManager.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
@@ -291,13 +299,21 @@ namespace marco::frontend
     passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
 
     if (!ci.getCodegenOptions().debug) {
-      // Remove the debug information if a non-debuggable executable has been requested
+      // Remove the debug information if a non-debuggable executable has been
+      // requested.
       passManager.addPass(mlir::createStripDebugInfoPass());
     }
 
-    // Run the conversion
-    if (auto status = passManager.run(ci.getMLIRModule()); mlir::failed(status)) {
-      ci.getDiagnostics().emitFatalError<GenericStringMessage>("Modelica dialect conversion failure");
+    // If requested, print the statistics.
+    if (ci.getFrontendOptions().printStatistics) {
+      passManager.enableTiming();
+      passManager.enableStatistics();
+    }
+
+    // Run the conversion.
+    if (mlir::failed(passManager.run(ci.getMLIRModule()))) {
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+          "Modelica dialect conversion failure");
       return false;
     }
 

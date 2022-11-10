@@ -158,6 +158,7 @@ static void parseFrontendArgs(
   options.outputFile = args.getLastArgValue(options::OPT_o);
   options.showHelp = args.hasArg(options::OPT_help);
   options.showVersion = args.hasArg(options::OPT_version);
+  options.printStatistics = args.hasArg(options::OPT_print_statistics);
 
   // Collect the input files and save them in our instance of FrontendOptions
   std::vector<std::string> inputs = args.getAllArgValues(options::OPT_INPUT);

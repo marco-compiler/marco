@@ -194,6 +194,10 @@ def version : Flag<["--"], "version">,
     HelpText<"Print the compiler version">,
     MarshallingInfoFlag<FrontendOpts<"ShowVersion">>;
 
+def print_statistics : Flag<["--"], "print-statistics">,
+    Flags<[MC1Option]>,
+    HelpText<"Print statistics">;
+
 def o : JoinedOrSeparate<["-"], "o">,
     Flags<[MC1Option]>,
     HelpText<"Write output to <file>">,

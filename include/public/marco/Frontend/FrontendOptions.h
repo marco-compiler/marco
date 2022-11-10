@@ -125,6 +125,9 @@ namespace marco::frontend
 
     std::string variablesFilter;
 
+    // Whether to print statistics when the compilation finishes.
+    bool printStatistics = false;
+
     // Return the appropriate input kind for a file extension
     static InputKind getInputKindForExtension(llvm::StringRef extension);
   };
