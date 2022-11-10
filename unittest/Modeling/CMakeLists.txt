@@ -2,7 +2,8 @@ set(SOURCES
     AccessFunctionTest.cpp
     CyclesTest.cpp
     DirectedGraphTest.cpp
-    IndexSetTest.cpp
+    IndexSetListTest.cpp
+    IndexSetRTreeTest.cpp
     MatchingCommon.cpp
     MatchingGraphTest.cpp
     MatchingTest.cpp

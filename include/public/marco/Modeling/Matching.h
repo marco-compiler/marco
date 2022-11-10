@@ -15,6 +15,7 @@
 #include "llvm/Support/ThreadPool.h"
 #include <atomic>
 #include <iostream>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -1036,16 +1037,19 @@ namespace marco::modeling
         // of the same variable. Add an edge to the graph for each of those
         // accesses.
 
+        IndexSet equationRanges = equation.getIterationRanges();
+
         for (const auto& access : equation.getVariableAccesses()) {
           lockGuard.lock();
           VertexDescriptor variableDescriptor = getVariableDescriptorFromId(access.getVariable());
           Variable& variable = getVariableFromDescriptor(variableDescriptor);
           lockGuard.unlock();
 
-          IndexSet indices = variable.getIndices();
+          IndexSet indices = variable.getIndices().getCanonicalRepresentation();
 
-          for (const MultidimensionalRange& range : llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
-            Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), IndexSet(range), access);
+          for (const MultidimensionalRange& range :
+               llvm::make_range(indices.rangesBegin(), indices.rangesEnd())) {
+            Edge edge(equation.getId(), variable.getId(), equationRanges, IndexSet(range), access);
 
             lockGuard.lock();
             graph.addEdge(equationDescriptor, variableDescriptor, edge);

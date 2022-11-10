@@ -103,6 +103,8 @@ static void splitIndices(llvm::ThreadPool& threadPool, Model<MatchedEquation>& m
             IndexSet(iterationRanges));
       }
 
+      result = result.getCanonicalRepresentation();
+
       for (const auto& range : llvm::make_range(result.rangesBegin(), result.rangesEnd())) {
         auto clone = Equation::build(equation->getOperation(), equation->getVariables());
 
@@ -113,7 +115,7 @@ static void splitIndices(llvm::ThreadPool& threadPool, Model<MatchedEquation>& m
         newEquations.add(std::move(matchedClone));
       }
 
-      auto values = (IndexSet(iterationRanges) - result);
+      IndexSet values = (IndexSet(iterationRanges) - result).getCanonicalRepresentation();
 
       for (const auto& range : llvm::make_range(values.rangesBegin(), values.rangesEnd()) ) {
         auto clone = Equation::build(equation->getOperation(), equation->getVariables());

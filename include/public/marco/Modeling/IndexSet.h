@@ -4,67 +4,24 @@
 #include "marco/Modeling/MultidimensionalRange.h"
 #include "llvm/ADT/ArrayRef.h"
 #include <memory>
-#include <list>
-#include <set>
-#include <variant>
 
 namespace marco::modeling
 {
-   /// Multidimensional Compressed Index Set (MCIS).
-   /// It replaces the multidimensional vectors in order to achieve O(1) scaling.
   class IndexSet
   {
     public:
-      // this iterator class is to iterate MultidimensionalRanges
-      class RangeIterator
-      {
-        public:
-          using iterator_category = std::input_iterator_tag;
-          using value_type = MultidimensionalRange;
-          using difference_type = std::ptrdiff_t;
-          using pointer = const MultidimensionalRange*;
-          using reference = const MultidimensionalRange&;
-
-          class Impl;
-
-          RangeIterator(const RangeIterator& other);
-
-          RangeIterator(RangeIterator&& other);
-
-          ~RangeIterator();
-
-          RangeIterator& operator=(const RangeIterator& other);
-
-          friend void swap(RangeIterator& first, RangeIterator& second);
-
-          static RangeIterator begin(const IndexSet& indexSet);
-
-          static RangeIterator end(const IndexSet& indexSet);
-
-          bool operator==(const RangeIterator& it) const;
-
-          bool operator!=(const RangeIterator& it) const;
-
-          RangeIterator& operator++();
-
-          RangeIterator operator++(int);
-
-          reference operator*() const;
-
-        private:
-          RangeIterator(std::unique_ptr<Impl> impl);
-
-          std::unique_ptr<Impl> impl;
-      };
-
-      // this iterator class is to iterate indexes (points)
       class PointIterator
       {
         public:
+          using iterator_category = std::input_iterator_tag;
           using value_type = Point;
+          using difference_type = std::ptrdiff_t;
+          using pointer = const Point*;
           using reference = const Point&;
 
           class Impl;
+
+          PointIterator(std::unique_ptr<Impl> impl);
 
           PointIterator(const PointIterator& other);
 
@@ -75,10 +32,6 @@ namespace marco::modeling
           PointIterator& operator=(const PointIterator& other);
 
           friend void swap(PointIterator& first, PointIterator& second);
-
-          static PointIterator begin(const IndexSet& indexSet);
-
-          static PointIterator end(const IndexSet& indexSet);
 
           bool operator==(const PointIterator& it) const;
 
@@ -91,13 +44,49 @@ namespace marco::modeling
           value_type operator*() const;
 
         private:
-          PointIterator(std::unique_ptr<Impl> impl);
+          std::unique_ptr<Impl> impl;
+      };
 
+      class RangeIterator
+      {
+        public:
+          using iterator_category = std::input_iterator_tag;
+          using value_type = MultidimensionalRange;
+          using difference_type = std::ptrdiff_t;
+          using pointer = const MultidimensionalRange*;
+          using reference = const MultidimensionalRange&;
+
+          class Impl;
+
+          RangeIterator(std::unique_ptr<Impl> impl);
+
+          RangeIterator(const RangeIterator& other);
+
+          RangeIterator(RangeIterator&& other);
+
+          ~RangeIterator();
+
+          RangeIterator& operator=(const RangeIterator& other);
+
+          friend void swap(RangeIterator& first, RangeIterator& second);
+
+          bool operator==(const RangeIterator& it) const;
+
+          bool operator!=(const RangeIterator& it) const;
+
+          RangeIterator& operator++();
+
+          RangeIterator operator++(int);
+
+          reference operator*() const;
+
+        private:
           std::unique_ptr<Impl> impl;
       };
 
       using const_range_iterator = RangeIterator;
       using const_point_iterator = PointIterator;
+
       class Impl;
 
       IndexSet();
@@ -113,6 +102,8 @@ namespace marco::modeling
       ~IndexSet();
 
       IndexSet& operator=(const IndexSet& other);
+
+      IndexSet& operator=(IndexSet&& other);
 
       friend void swap(IndexSet& first, IndexSet& second);
 
@@ -142,9 +133,13 @@ namespace marco::modeling
 
       IndexSet operator+(const IndexSet& rhs) const;
 
+      IndexSet& operator-=(const Point& rhs);
+
       IndexSet& operator-=(const MultidimensionalRange& rhs);
 
       IndexSet& operator-=(const IndexSet& rhs);
+
+      IndexSet operator-(const Point& rhs) const;
 
       IndexSet operator-(const MultidimensionalRange& rhs) const;
 
@@ -186,9 +181,12 @@ namespace marco::modeling
 
       bool isSingleMultidimensionalRange() const;
 
+      IndexSet getCanonicalRepresentation() const;
+
     private:
       IndexSet(std::unique_ptr<Impl> impl);
 
+    private:
       std::unique_ptr<Impl> impl;
   };
 }

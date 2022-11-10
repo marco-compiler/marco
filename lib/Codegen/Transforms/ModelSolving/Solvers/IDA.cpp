@@ -1450,7 +1450,7 @@ namespace marco::codegen
 
         const auto& write = equation->getWrite();
         auto varPosition = write.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
-        auto writtenIndices = write.getAccessFunction().map(equation->getIterationRanges());
+        IndexSet writtenIndices = write.getAccessFunction().map(equation->getIterationRanges());
         writesMap.emplace(varPosition, std::make_pair(writtenIndices, equation.get()));
       }
     }
@@ -1477,6 +1477,8 @@ namespace marco::codegen
 
     while (!processedEquations.empty()) {
       auto& equation = processedEquations.front();
+      IndexSet equationIndices = equation->getIterationRanges();
+
       bool atLeastOneAccessReplaced = false;
 
       for (const auto& access : equation->getReads()) {
@@ -1498,13 +1500,13 @@ namespace marco::codegen
           break;
         }
 
-        auto readIndices = access.getAccessFunction().map(equation->getIterationRanges());
+        auto readIndices = access.getAccessFunction().map(equationIndices);
         auto varPosition = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
         auto writingEquations = llvm::make_range(writesMap.equal_range(varPosition));
 
         for (const auto& entry : writingEquations) {
           ScheduledEquation* writingEquation = entry.second.second;
-          auto writtenVariableIndices = IndexSet(entry.second.first);
+          const IndexSet& writtenVariableIndices = entry.second.first;
 
           if (!writtenVariableIndices.overlaps(readIndices)) {
             continue;
@@ -1517,23 +1519,28 @@ namespace marco::codegen
           auto explicitWritingEquation = writingEquation->cloneIRAndExplicitate(builder);
           TemporaryEquationGuard guard(*explicitWritingEquation);
 
-          auto iterationRanges = explicitWritingEquation->getIterationRanges(); //todo: check ragged case
+          IndexSet iterationRanges = explicitWritingEquation->getIterationRanges().getCanonicalRepresentation();
 
-          for(auto range : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd())) {
+          for (const MultidimensionalRange& range : llvm::make_range(
+                   iterationRanges.rangesBegin(),
+                   iterationRanges.rangesEnd())) {
             if (mlir::failed(explicitWritingEquation->replaceInto(
-                builder, IndexSet(range), *clone, access.getAccessFunction(), access.getPath()))) {
+                builder, IndexSet(range), *clone,
+                    access.getAccessFunction(), access.getPath()))) {
               return mlir::failure();
             }
           }
 
           // Add the equation with the replaced access
-          auto readAccessIndices = access.getAccessFunction().inverseMap(
-              IndexSet(writtenVariableIndices),
-              IndexSet(equation->getIterationRanges()));
+          IndexSet readAccessIndices = access.getAccessFunction().inverseMap(
+              writtenVariableIndices,
+              IndexSet(equationIndices));
 
-          auto newEquationIndices = readAccessIndices.intersect(equation->getIterationRanges());
+          IndexSet newEquationIndices = readAccessIndices.intersect(equationIndices).getCanonicalRepresentation();
 
-          for (const auto& range : llvm::make_range(newEquationIndices.rangesBegin(), newEquationIndices.rangesEnd())) {
+          for (const MultidimensionalRange& range : llvm::make_range(
+                   newEquationIndices.rangesBegin(),
+                   newEquationIndices.rangesEnd())) {
             auto matchedEquation = std::make_unique<MatchedEquation>(
                 clone->clone(), IndexSet(range), equation->getWrite().getPath());
 
