@@ -1793,7 +1793,7 @@ namespace marco::ast
       return true;
     }
 
-    auto name = reference->getName();
+    auto name = reference->getName().str();
 
     if (symbolTable.count(name) == 0) {
       if (auto type = builtInReferenceType(*reference); type.has_value()) {
@@ -1805,10 +1805,19 @@ namespace marco::ast
       // We need to split the identifier in the single parts and check / iterate them.
 
       if (name.find('.') != std::string::npos) {
-        std::stringstream ss(name.str());
-        std::string item;
+        // using the substrings to search the actual member name
+        // (there is a record member access somewhere)
+        // prioritizing the longest substring:
+        // a.b.c.d  -> will search for the member 'a.b.c.d'
+        //             then 'a.b.c', then 'a.b', then 'a' (or fail)
 
-        getline(ss, item, '.');
+        auto n = name.rfind('.');
+        std::string item = name.substr(0, n);
+
+        while (!symbolTable.count(item)) {
+          n = name.rfind('.', n);
+          item = name.substr(0, n);
+        }
 
         if (symbolTable.count(item)) {
           auto symbol = symbolTable.lookup(item);
@@ -1817,6 +1826,8 @@ namespace marco::ast
           auto loc = expression.getLocation();
           auto new_expression = Expression::reference(loc, member->getType(), item);
           auto t = member->getType();
+
+          std::stringstream ss(name.substr(n+1));
 
           while (member && getline(ss, item, '.')) {
             auto memberName = Expression::reference(loc, makeType<std::string>(), item);

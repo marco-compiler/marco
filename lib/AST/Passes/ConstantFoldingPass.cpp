@@ -906,8 +906,11 @@ namespace marco::ast
           return processOp<OperationKind::subscription>(expression);
         }
       }
+    } else if (lhs->isa<Constant>()) {
+      //e.g. ((1.0)[i])  -> will always be 1.0
+      expression = *lhs;
     }
-   
+
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
