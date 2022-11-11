@@ -86,6 +86,24 @@ namespace marco::ast
     return getMostGenericNumericBuiltInType(x,y);
   }
 
+  llvm::Optional<Type> getMostGenericType(Type x, Type y)
+  {
+    if (x == y) {
+      return x;
+    }
+
+    assert(x.isa<BuiltInType>() && y.isa<BuiltInType>());
+
+    auto a = x.get<BuiltInType>();
+    auto b = y.get<BuiltInType>();
+
+    auto r = getMostGenericBuiltInType(a, b);
+    if (r) {
+      return Type(*r);
+    }
+    return {};
+  }
+
   PackedType::PackedType(llvm::ArrayRef<Type> types)
   {
     for (const auto& type : types) {

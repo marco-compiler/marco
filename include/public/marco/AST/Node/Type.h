@@ -43,6 +43,9 @@ namespace marco::ast
   /// Returns only if the types are compatible.
   llvm::Optional<BuiltInType> getMostGenericBuiltInType(BuiltInType x, BuiltInType y);
 
+  // like getMostGenericBuiltInType, handling also records.
+  llvm::Optional<Type> getMostGenericType(Type x, Type y);
+
   namespace detail
   {
     template<typename T>

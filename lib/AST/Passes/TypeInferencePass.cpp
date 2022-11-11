@@ -610,7 +610,7 @@ namespace marco::ast
 
       auto& elementType = element->getType();
 
-      llvm::Optional<BuiltInType> mostGenericType = resultType ? getMostGenericBuiltInType(resultType->get<BuiltInType>(), elementType.get<BuiltInType>()) : elementType.get<BuiltInType>();
+      llvm::Optional<Type> mostGenericType = resultType ? getMostGenericType(*resultType, elementType) : elementType;
       
       assert(mostGenericType.has_value() && "array elements types are incompatible");
 

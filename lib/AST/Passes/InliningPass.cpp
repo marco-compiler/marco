@@ -50,37 +50,107 @@ bool InlineExpanser::run<StandardFunction>(Class& cls)
 	return true;
 }
 
-static bool explodeMember(Member &member, bool &to_remove, llvm::SmallVectorImpl<std::unique_ptr<Member>>& to_add){
+static bool explodeModification(InlineExpanser& inliner, const Member& member, const Member& recordMember, const Type& newType, std::unique_ptr<Modification>& resultModification)
+{
+  if (!member.hasModification())
+    return true;
 
-	auto &type = member.getType();
+  if (auto* modification = member.getModification(); modification->hasExpression()) {
+    auto init = *modification->getExpression();
 
-	if(type.isa<Record*>() ){
-		const Record* record = type.get<Record*>();
+    if (modification->hasClassModification()) {
+      llvm::outs() << " class modifications are not preserved during record member flattening.";
+    }
 
-		if(record->shouldBeInlined()){
-			to_remove = true;
+    inliner.run<Expression>(init);
 
-			for(const auto &m:(*record))
-			{
-				auto new_type = getFlattenedMemberType(type,m->getType());
+    if (init.getType().isScalar()) {
+      if (init.isa<RecordInstance>()) {
+        auto instance = init.get<RecordInstance>();
 
-				auto new_m = Member::build(
-					member.getLocation(), 
-					(member.getName()+"."+m->getName()).str(),
-					new_type,
-					member.getTypePrefix());
-				bool toRemove=false;
+        //check if the type is the same
+        assert(instance->getType() == member.getType());
 
-				if(!explodeMember(*new_m,toRemove,to_add))
-					return false;
+        auto val = instance->getMemberValue(recordMember.getName());
 
-				if(!toRemove)
+        resultModification = Modification::build(
+            modification->getLocation(),
+            std::make_unique<Expression>(val));
+
+        return true;
+      } else {
+        llvm::errs() << "expected a record instance";
+        return false;
+      }
+    } else if (init.isa<Array>()) {
+      auto* array = init.get<Array>();
+
+      auto type = array->getType();
+
+      llvm::SmallVector<std::unique_ptr<Expression>, 3> values;
+
+      if (type.isa<Record*>() && type.get<Record*>()->shouldBeInlined()) {
+        for (auto& el : *array) {
+          auto instance = el->get<RecordInstance>();
+          auto val = instance->getMemberValue(recordMember.getName());
+          values.emplace_back(std::make_unique<Expression>(val));
+        }
+      }
+
+      auto loc = modification->getLocation();
+
+      resultModification = Modification::build(
+          loc,
+          Expression::array(loc, newType, std::move(values)));
+
+      return true;
+    } else {
+      llvm::errs() << "expected an array of record instances";
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool explodeMember(InlineExpanser& inliner, Member& member, bool& to_remove, llvm::SmallVectorImpl<std::unique_ptr<Member>>& to_add)
+{
+
+  auto& type = member.getType();
+
+  if (type.isa<Record*>()) {
+    const Record* record = type.get<Record*>();
+
+    if (record->shouldBeInlined()) {
+      to_remove = true;
+
+      for (const auto& m : (*record)) {
+        auto new_type = getFlattenedMemberType(type, m->getType());
+        std::unique_ptr<Modification> modification = nullptr;
+
+        if (!explodeModification(inliner, member, *m, new_type, modification))
+          return false;
+
+        auto new_m = Member::build(
+            member.getLocation(),
+            (member.getName() + "." + m->getName()).str(),
+            new_type,
+            member.getTypePrefix(),
+            true,// isPublic
+            std::move(modification));
+
+        bool toRemove = false;
+
+        if (!explodeMember(inliner, *new_m, toRemove, to_add))
+          return false;
+
+        if(!toRemove)
 					to_add.emplace_back(std::move(new_m));
-			}
-		}
-	}
-	
-	return true;
+      }
+    }
+  }
+
+  return true;
 }
 
 template<>
@@ -106,7 +176,7 @@ bool InlineExpanser::run<Model>(Class& cls)
 		auto &member = **it;
 		auto type = member.getType();
 
-		if(!explodeMember(member,to_remove,members_to_add))
+		if(!explodeMember(*this,member,to_remove,members_to_add))
 			return false;
 
 		if(to_remove){
@@ -266,9 +336,20 @@ bool InlineExpanser::run<Expression>(Expression& expression)
 template<>
 bool InlineExpanser::run<Array>(Expression& expression)
 {
-	return true;
-}
+  assert(expression.isa<Array>());
+  auto* array = expression.get<Array>();
 
+  auto type = array->getType();
+
+  if (type.isa<Record*>() && type.get<Record*>()->shouldBeInlined()) {
+    for (auto& el : *array) {
+      if (!run<Expression>(*el))
+        return false;
+    }
+  }
+
+  return true;
+}
 
 template<>
 bool InlineExpanser::run<Call>(Expression& expression)
