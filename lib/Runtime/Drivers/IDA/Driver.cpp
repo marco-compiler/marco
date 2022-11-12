@@ -39,13 +39,16 @@ namespace marco::runtime
     calcIC(data);
 
     do {
-      // Compute the next values of the state variables.
-      updateStateVariables(data);
+      // Compute the next values of the variables belonging to IDA.
+      updateIDAVariables(data);
 
-      // Move to the next step.
       IDA_PROFILER_ALGEBRAIC_VARS_START;
+      // Update the time.
       incrementTime(data);
-      updateNonStateVariables(data);
+
+      // Compute the next values of the variables not belonging to IDA (which
+      // may depend on the IDA variables).
+      updateNonIDAVariables(data);
       IDA_PROFILER_ALGEBRAIC_VARS_STOP;
 
       // Print the values.

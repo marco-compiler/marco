@@ -366,13 +366,13 @@ namespace marco::codegen
       return mlir::failure();
     }
 
-    if (mlir::failed(createUpdateNonStateVariablesFunction(builder, model, conversionInfo, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + updateNonStateVariablesFunctionName + "' function");
+    if (mlir::failed(createUpdateIDAVariablesFunction(builder, model, idaInstance.get()))) {
+      model.getOperation().emitError("Could not create the '" + updateIDAVariablesFunctionName + "' function");
       return mlir::failure();
     }
 
-    if (mlir::failed(createUpdateStateVariablesFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + updateStateVariablesFunctionName + "' function");
+    if (mlir::failed(createUpdateNonIDAVariablesFunction(builder, model, conversionInfo, idaInstance.get()))) {
+      model.getOperation().emitError("Could not create the '" + updateNonIDAVariablesFunctionName + "' function");
       return mlir::failure();
     }
 
@@ -701,7 +701,43 @@ namespace marco::codegen
     return mlir::success();
   }
 
-  mlir::LogicalResult IDASolver::createUpdateNonStateVariablesFunction(
+  mlir::LogicalResult IDASolver::createUpdateIDAVariablesFunction(
+      mlir::OpBuilder& builder,
+      const Model<ScheduledEquationsBlock>& model,
+      IDAInstance* idaInstance) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder);
+    auto modelOp = model.getOperation();
+    auto loc = modelOp.getLoc();
+
+    // Create the function inside the parent module.
+    auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    auto function = builder.create<mlir::func::FuncOp>(
+        loc, updateIDAVariablesFunctionName,
+        builder.getFunctionType(getVoidPtrType(), llvm::None));
+
+    auto* entryBlock = function.addEntryBlock();
+    builder.setInsertionPointToStart(entryBlock);
+
+    mlir::Value structValue = loadDataFromOpaquePtr(
+        builder, function.getArgument(0), modelOp);
+
+    mlir::Value solverDataPtr = extractSolverDataPtr(
+        builder, structValue,
+        idaInstance->getSolverDataType(builder.getContext()));
+
+    if (mlir::failed(idaInstance->performStep(builder, solverDataPtr))) {
+      return mlir::failure();
+    }
+
+    builder.create<mlir::func::ReturnOp>(loc);
+
+    return mlir::success();
+  }
+
+  mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
       const ConversionInfo& conversionInfo,
@@ -716,7 +752,7 @@ namespace marco::codegen
     builder.setInsertionPointToEnd(moduleOp.getBody());
 
     auto function = builder.create<mlir::func::FuncOp>(
-        loc, updateNonStateVariablesFunctionName,
+        loc, updateNonIDAVariablesFunctionName,
         builder.getFunctionType(getVoidPtrType(), llvm::None));
 
     auto* entryBlock = function.addEntryBlock();
@@ -786,42 +822,6 @@ namespace marco::codegen
           builder.create<mlir::func::CallOp>(loc, equationFunction, usedVariables);
         }
       }
-    }
-
-    builder.create<mlir::func::ReturnOp>(loc);
-
-    return mlir::success();
-  }
-
-  mlir::LogicalResult IDASolver::createUpdateStateVariablesFunction(
-      mlir::OpBuilder& builder,
-      const Model<ScheduledEquationsBlock>& model,
-      IDAInstance* idaInstance) const
-  {
-    mlir::OpBuilder::InsertionGuard guard(builder);
-    auto modelOp = model.getOperation();
-    auto loc = modelOp.getLoc();
-
-    // Create the function inside the parent module.
-    auto moduleOp = modelOp->getParentOfType<mlir::ModuleOp>();
-    builder.setInsertionPointToEnd(moduleOp.getBody());
-
-    auto function = builder.create<mlir::func::FuncOp>(
-        loc, updateStateVariablesFunctionName,
-        builder.getFunctionType(getVoidPtrType(), llvm::None));
-
-    auto* entryBlock = function.addEntryBlock();
-    builder.setInsertionPointToStart(entryBlock);
-
-    mlir::Value structValue = loadDataFromOpaquePtr(
-        builder, function.getArgument(0), modelOp);
-
-    mlir::Value solverDataPtr = extractSolverDataPtr(
-        builder, structValue,
-        idaInstance->getSolverDataType(builder.getContext()));
-
-    if (mlir::failed(idaInstance->performStep(builder, solverDataPtr))) {
-      return mlir::failure();
     }
 
     builder.create<mlir::func::ReturnOp>(loc);

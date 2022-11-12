@@ -233,8 +233,8 @@ namespace marco::codegen
       static constexpr llvm::StringLiteral initMainSolversFunctionName = "initMainSolvers";
       static constexpr llvm::StringLiteral deinitMainSolversFunctionName = "deinitMainSolvers";
       static constexpr llvm::StringLiteral calcICFunctionName = "calcIC";
-      static constexpr llvm::StringLiteral updateNonStateVariablesFunctionName = "updateNonStateVariables";
-      static constexpr llvm::StringLiteral updateStateVariablesFunctionName = "updateStateVariables";
+      static constexpr llvm::StringLiteral updateIDAVariablesFunctionName = "updateIDAVariables";
+      static constexpr llvm::StringLiteral updateNonIDAVariablesFunctionName = "updateNonIDAVariables";
       static constexpr llvm::StringLiteral incrementTimeFunctionName = "incrementTime";
 
       struct ConversionInfo
@@ -315,19 +315,19 @@ namespace marco::codegen
           const ConversionInfo& conversionInfo,
           IDAInstance* idaInstance) const;
 
-      /// Create the functions that calculates the values that the non-state
-      /// variables will have in the next iteration.
-      mlir::LogicalResult createUpdateNonStateVariablesFunction(
+      /// Create the functions that calculates the values that the variables
+      /// belonging to IDA will have in the next iteration.
+      mlir::LogicalResult createUpdateIDAVariablesFunction(
+          mlir::OpBuilder& builder,
+          const Model<ScheduledEquationsBlock>& model,
+          IDAInstance* idaInstance) const;
+
+      /// Create the functions that calculates the values that the variables
+      /// not belonging to IDA will have in the next iteration.
+      mlir::LogicalResult createUpdateNonIDAVariablesFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
           const ConversionInfo& conversionInfo,
-          IDAInstance* idaInstance) const;
-
-      /// Create the functions that calculates the values that the state
-      /// variables will have in the next iteration.
-      mlir::LogicalResult createUpdateStateVariablesFunction(
-          mlir::OpBuilder& builder,
-          const Model<ScheduledEquationsBlock>& model,
           IDAInstance* idaInstance) const;
 
       /// Create the function to be used to increment the time.

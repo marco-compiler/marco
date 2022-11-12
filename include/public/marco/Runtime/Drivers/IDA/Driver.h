@@ -32,8 +32,8 @@ extern "C"
 
   void calcIC(void* data);
 
-  void updateNonStateVariables(void* data);
-  void updateStateVariables(void* data);
+  void updateIDAVariables(void* data);
+  void updateNonIDAVariables(void* data);
   void incrementTime(void* data);
 }
 
