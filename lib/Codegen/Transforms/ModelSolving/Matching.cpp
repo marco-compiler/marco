@@ -319,11 +319,11 @@ namespace marco::codegen
 
   mlir::LogicalResult MatchedEquation::getCoefficients(
       mlir::OpBuilder& builder,
-      std::vector<mlir::Value>& vector,
+      std::vector<mlir::Value>& coefficients,
       mlir::Value& constantTerm,
       ::marco::modeling::Point equationIndex) const
   {
-    return equation->getCoefficients(builder, vector, constantTerm, equationIndex);
+    return equation->getCoefficients(builder, coefficients, constantTerm, equationIndex);
   }
 
   mlir::LogicalResult MatchedEquation::getSideCoefficients(

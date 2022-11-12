@@ -67,6 +67,7 @@ static void eraseOldEquations(const Model<MatchedEquation>& model)
 
   for (mlir::Operation* op : toBeErased) {
     auto equation = Equation::build(mlir::cast<EquationInterface>(op), model.getVariables());
+    equation->dumpIR();
     equation->eraseIR();
   }
 }

@@ -267,7 +267,7 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
-    // Try an aggressive method first
+/*    // Try an aggressive method first
     LLVM_DEBUG({
        llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
     });
@@ -283,7 +283,7 @@ namespace marco::codegen
 
     if (solveBySubstitution(model, builder, false)) {
       return mlir::success();
-    }
+    }*/
 
     // Retry with Cramer
     LLVM_DEBUG({

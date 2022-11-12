@@ -193,13 +193,38 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
   // Get the number of scalar equations in the system
   size_t subsystemSize = 0;
   for (const auto& equation : equations) {
+    auto loc = equation.getOperation()->getLoc();
     for (const auto& range : equation.getIterationRanges()) {
       auto clone = Equation::build(equation.cloneIR(), equation.getVariables());
 
+      // TODO check matching to see what kind of default indices get matched to scalar equations
       auto matchedClone = std::make_unique<MatchedEquation>(
           std::move(clone), IndexSet(range), equation.getWrite().getPath());
 
       matchedClone->dumpIR();
+
+      // If the equation has explicit loops, we need to perform additional
+      // computations
+      // TODO create methods in Equation.h for this to avoid duplicating code
+      std::stack<ForEquationOp> loops;
+      auto parent = matchedClone->getOperation()->getParentOfType<ForEquationOp>();
+
+      while (parent != nullptr) {
+        loops.push(parent);
+        parent = parent->getParentOfType<ForEquationOp>();
+      }
+
+      builder.setInsertionPointToStart(matchedClone->getOperation().bodyBlock());
+      while (!loops.empty()) {
+        auto loop = loops.top();
+        auto constant = builder.create<ConstantOp>(loc, builder.getIndexAttr(range[loops.size() - 1]));
+        loop.induction().replaceAllUsesWith(constant);
+
+        matchedClone->getOperation()->moveBefore(loop.getOperation());
+        loops.pop();
+        matchedClone->dumpIR();
+        loop.erase();
+      }
 
       clones.add(std::move(matchedClone));
       ++subsystemSize;
@@ -312,7 +337,8 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
   }
   // The coefficients couldn't be determined, try to match writes to reads
   else {
-    // Replace the newly found equations (if any) in the unsolved equations
+    // Replace the newly found equations (if any) in the unsolved equations.
+    // This assumes that the equations are in scalar form.
     for (const auto& [_, readingPair] : flatMap) {
       auto readingEquation = readingPair.first;
 
@@ -331,6 +357,8 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
         }
       }
 
+      readingEquation->dumpIR();
+      readingEquation->getIterationRanges();
       auto matchedClone = std::make_unique<MatchedEquation>(
           Equation::build(clone->cloneIR(), clone->getVariables()),
           readingEquation->getIterationRanges(),readingEquation->getWrite().getPath());
@@ -350,7 +378,8 @@ bool CramerSolver::getModelMatrixAndVector(
     const std::map<size_t, std::pair<MatchedEquation*, Point>>& flatMap)
 {
   // Scan the accesses of each equation for missing matches: if the system of
-  // equations is underdetermined fail
+  // equations is under-determined fail. This may happen for example when the
+  // subsystem of equations being considered depends on one not yet processed.
   for (const auto& [index, pair] : flatMap) {
     const auto& equation = pair.first;
     const auto& point = pair.second;

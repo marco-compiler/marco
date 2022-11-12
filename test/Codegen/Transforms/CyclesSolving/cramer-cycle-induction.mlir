@@ -138,7 +138,7 @@ modelica.model @Test attributes {derivatives = []} {
     modelica.equation_sides %19, %20 : tuple<!modelica.real>, tuple<!modelica.int>
   }
   modelica.for_equation %arg1 = 1 to 3 {
-    modelica.equation attributes {id = 4, match = [{indices = [[[2, 3]]], path = ["L", 0 : index, 0 : index, 0 : index, 1 : index]}, {indices = [[[1, 1]]], path = ["L", 1 : index]}]} {
+    modelica.equation attributes {id = 4, match = [{indices = [[[1, 3]]], path = ["L", 0 : index, 0 : index, 1 : index]}]} {
       %0 = modelica.constant #modelica.int<1> : !modelica.int
       %1 = modelica.constant -1 : index
       %2 = modelica.constant 1 : index
