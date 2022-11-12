@@ -69,7 +69,7 @@ namespace marco::runtime::ida
 
   VariableIndicesIterator::~VariableIndicesIterator()
   {
-    delete indices;
+    delete[] indices;
   }
 
   VariableIndicesIterator VariableIndicesIterator::begin(const VariableDimensions& dimensions)
