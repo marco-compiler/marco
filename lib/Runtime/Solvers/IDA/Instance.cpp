@@ -661,9 +661,11 @@ namespace marco::runtime::ida
     // Execute one step
     IDA_PROFILER_STEP_START;
 
+    realtype tout = getOptions().equidistantTimeGrid ? (currentTime + timeStep) : endTime;
+
     auto solveRetVal = IDASolve(
         idaMemory,
-        getOptions().equidistantTimeGrid ? (currentTime + timeStep) : endTime,
+        tout,
         &currentTime,
         variablesVector,
         derivativesVector,
@@ -673,10 +675,14 @@ namespace marco::runtime::ida
 
     if (solveRetVal != IDA_SUCCESS) {
       if (solveRetVal == IDA_TSTOP_RETURN) {
-        std::cerr << "IDASolve - IDASolve succeeded by reaching the stop point specified through the optional input function IDASetStopTime" << std::endl;
-      } else if (solveRetVal == IDA_ROOT_RETURN) {
-        std::cerr << "IDASolve - IDASolve succeeded and found one or more roots. In this case, tret is the location of the root. If nrtfn >1" << std::endl;
-      } else if (solveRetVal == IDA_MEM_NULL) {
+        return true;
+      }
+
+      if (solveRetVal == IDA_ROOT_RETURN) {
+        return true;
+      }
+
+      if (solveRetVal == IDA_MEM_NULL) {
         std::cerr << "IDASolve - The ida_mem pointer is NULL" << std::endl;
       } else if (solveRetVal == IDA_ILL_INPUT) {
         std::cerr << "IDASolve - One of the inputs to IDASolve was illegal, or some other input to the solver was either illegal or missing" << std::endl;
