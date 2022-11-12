@@ -10,6 +10,7 @@ namespace marco::frontend
   {
     std::string modelName = "";
     marco::codegen::Solver solver = "forwardEuler";
+    bool IDACleverDAE = true;
   };
 }
 

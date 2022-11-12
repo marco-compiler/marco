@@ -313,7 +313,7 @@ static void parseSimulationArgs(
     options.modelName = value.str();
   }
 
-  // Determine the solver to be used
+  // Determine the solver to be used.
   for (const auto& arg : args.getAllArgValues(options::OPT_solver)) {
     if (arg == "forward-euler") {
       options.solver = codegen::Solver::forwardEuler();
@@ -323,6 +323,12 @@ static void parseSimulationArgs(
       diagnostics.emitError<UnknownSolverMessage>(arg);
     }
   }
+
+  // IDA: clever DAE.
+  options.IDACleverDAE = args.hasFlag(
+      marco::frontend::options::OPT_ida_clever_dae,
+      options::OPT_no_ida_clever_dae,
+      options.IDACleverDAE);
 }
 
 namespace marco::frontend

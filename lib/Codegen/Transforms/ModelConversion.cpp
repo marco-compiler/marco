@@ -389,7 +389,7 @@ std::unique_ptr<ModelSolver> ModelConversionPass::getSolver(
 
   if (solverKind == Solver::Kind::ida) {
     return std::make_unique<IDASolver>(
-        typeConverter, variablesFilter);
+        typeConverter, variablesFilter, IDACleverDAE);
   }
 
   llvm_unreachable("Unknown solver");

@@ -322,6 +322,14 @@ def solver : Joined<["--"], "solver=">,
     Flags<[MC1Option]>,
     HelpText<"Solver (possible options: forward-euler, ida">;
 
+defm ida_clever_dae : BoolOption<"", "ida-clever-dae",
+    CodegenOpts<"IDA">,
+    DefaultTrue,
+    PosFlag<SetTrue, [], "IDA: enable the clever DAE mode">,
+    NegFlag<SetFalse, [], "IDA: use the raw DAE mode (all variables and equations are passed to IDA)">,
+    BothFlags<[MC1Option], "">>,
+    Group<Simulation_Group>;
+
 //===----------------------------------------------------------------------===//
 // Frontend Options - mc1
 //===----------------------------------------------------------------------===//

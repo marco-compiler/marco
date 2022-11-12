@@ -237,16 +237,11 @@ namespace marco::codegen
       static constexpr llvm::StringLiteral updateNonIDAVariablesFunctionName = "updateNonIDAVariables";
       static constexpr llvm::StringLiteral incrementTimeFunctionName = "incrementTime";
 
-      struct ConversionInfo
-      {
-        std::set<std::unique_ptr<Equation>> explicitEquations;
-        std::map<ScheduledEquation*, Equation*> explicitEquationsMap;
-        std::set<ScheduledEquation*> implicitEquations;
-        std::set<ScheduledEquation*> cyclicEquations;
-      };
+      using ExplicitEquationsMap = llvm::DenseMap<ScheduledEquation*, Equation*>;
 
       IDASolver(mlir::LLVMTypeConverter& typeConverter,
-                VariableFilter& variablesFilter);
+                VariableFilter& variablesFilter,
+                bool cleverDAE);
 
       mlir::LogicalResult solveICModel(
           mlir::OpBuilder& builder,
@@ -304,7 +299,7 @@ namespace marco::codegen
       mlir::LogicalResult createSolveICModelFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
-          const ConversionInfo& conversionInfo,
+          const ExplicitEquationsMap& explicitEquationsMap,
           IDAInstance* idaInstance) const;
 
       /// Create the function that computes the initial conditions of the "main
@@ -312,7 +307,6 @@ namespace marco::codegen
       mlir::LogicalResult createCalcICFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
-          const ConversionInfo& conversionInfo,
           IDAInstance* idaInstance) const;
 
       /// Create the functions that calculates the values that the variables
@@ -327,7 +321,7 @@ namespace marco::codegen
       mlir::LogicalResult createUpdateNonIDAVariablesFunction(
           mlir::OpBuilder& builder,
           const Model<ScheduledEquationsBlock>& model,
-          const ConversionInfo& conversionInfo,
+          const ExplicitEquationsMap& explicitEquationsMap,
           IDAInstance* idaInstance) const;
 
       /// Create the function to be used to increment the time.
@@ -342,6 +336,9 @@ namespace marco::codegen
           llvm::StringRef equationFunctionName,
           mlir::func::FuncOp templateFunction,
           mlir::TypeRange varsTypes) const;
+
+    private:
+      bool cleverDAE;
   };
 }
 

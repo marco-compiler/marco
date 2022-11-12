@@ -434,6 +434,7 @@ namespace marco::frontend
     options.solver = ci.getSimulationOptions().solver;
     options.emitSimulationMainFunction = ci.getCodegenOptions().generateMain;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+    options.IDACleverDAE = ci.getSimulationOptions().IDACleverDAE;
 
     return mlir::modelica::createModelConversionPass(options);
   }

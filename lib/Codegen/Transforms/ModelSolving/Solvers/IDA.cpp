@@ -55,16 +55,19 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
     mlir::OpBuilder& builder,
     ModelOp modelOp,
     const ScheduledEquation* equation,
-    const IDASolver::ConversionInfo& conversionInfo,
+    const IDASolver::ExplicitEquationsMap& explicitEquationsMap,
     std::map<EquationTemplateInfo, EquationTemplate>& equationTemplatesMap,
     llvm::StringRef functionNamePrefix,
     size_t& equationTemplateCounter)
 {
   EquationInterface equationInt = equation->getOperation();
-  EquationTemplateInfo requestedTemplate(equationInt, equation->getSchedulingDirection());
+
+  EquationTemplateInfo requestedTemplate(
+      equationInt, equation->getSchedulingDirection());
 
   // Check if the template equation already exists.
-  if (auto it = equationTemplatesMap.find(requestedTemplate); it != equationTemplatesMap.end()) {
+  if (auto it = equationTemplatesMap.find(requestedTemplate);
+      it != equationTemplatesMap.end()) {
     return it->second;
   }
 
@@ -72,13 +75,16 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   mlir::Location loc = equationInt.getLoc();
 
   // Name of the function.
-  std::string functionName = functionNamePrefix.str() + std::to_string(equationTemplateCounter++);
+  std::string functionName = functionNamePrefix.str() +
+      std::to_string(equationTemplateCounter++);
 
-  auto explicitEquation = llvm::find_if(conversionInfo.explicitEquationsMap, [&](const auto& equationPtr) {
-    return equationPtr.first == equation;
-  });
+  auto explicitEquation = llvm::find_if(
+      explicitEquationsMap,
+      [&](const auto& equationPtr) {
+        return equationPtr.first == equation;
+      });
 
-  if (explicitEquation == conversionInfo.explicitEquationsMap.end()) {
+  if (explicitEquation == explicitEquationsMap.end()) {
     // The equation can't be made explicit and is not passed to any external solver
     return llvm::None;
   }
@@ -86,10 +92,11 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   // Create the equation template function
   std::vector<unsigned int> usedVariables;
 
-  mlir::func::FuncOp function = explicitEquation->second->createTemplateFunction(
-      threadPool, builder, functionName,
-      equation->getSchedulingDirection(),
-      usedVariables);
+  mlir::func::FuncOp function =
+      explicitEquation->second->createTemplateFunction(
+          threadPool, builder, functionName,
+          equation->getSchedulingDirection(),
+          usedVariables);
 
   size_t timeArgumentIndex = equation->getNumOfIterationVars() * 3;
 
@@ -108,6 +115,7 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
 
   EquationTemplate result{function, usedVariables};
   equationTemplatesMap[requestedTemplate] = result;
+
   return result;
 }
 
@@ -119,8 +127,10 @@ namespace marco::codegen
 {
   IDASolver::IDASolver(
       mlir::LLVMTypeConverter& typeConverter,
-      VariableFilter& variablesFilter)
-      : ModelSolver(typeConverter, variablesFilter)
+      VariableFilter& variablesFilter,
+      bool cleverDAE)
+      : ModelSolver(typeConverter, variablesFilter),
+        cleverDAE(cleverDAE)
   {
   }
 
@@ -136,90 +146,132 @@ namespace marco::codegen
     idaInstance->setStartTime(0);
     idaInstance->setEndTime(0);
 
-    ConversionInfo conversionInfo;
+    std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
+    ExplicitEquationsMap explicitEquationsMap;
 
-    // Determine which equations can be potentially processed by just making
-    // them explicit with respect to the variable they match.
+    if (cleverDAE) {
+      llvm::DenseSet<ScheduledEquation*> implicitEquations;
+      llvm::DenseSet<ScheduledEquation*> cyclicEquations;
 
-    for (auto& scheduledBlock : model.getScheduledBlocks()) {
-      if (!scheduledBlock->hasCycle()) {
+      // Determine which equations can be potentially processed by just making
+      // them explicit with respect to the variable they match.
+
+      for (auto& scheduledBlock : model.getScheduledBlocks()) {
+        if (!scheduledBlock->hasCycle()) {
+          for (auto& scheduledEquation : *scheduledBlock) {
+            auto explicitClone =
+                scheduledEquation->cloneIRAndExplicitate(builder);
+
+            if (explicitClone == nullptr) {
+              implicitEquations.insert(scheduledEquation.get());
+            } else {
+              auto movedClone =
+                  explicitEquationsStorage.emplace(std::move(explicitClone));
+
+              assert(movedClone.second);
+              explicitEquationsMap[scheduledEquation.get()] =
+                  movedClone.first->get();
+            }
+          }
+        } else {
+          for (const auto& equation : *scheduledBlock) {
+            cyclicEquations.insert(equation.get());
+          }
+        }
+      }
+
+      // Add the implicit equations to the set of equations managed by IDA,
+      // together with their written variables.
+
+      for (ScheduledEquation* implicitEquation : implicitEquations) {
+        idaInstance->addEquation(implicitEquation);
+
+        mlir::Value var = implicitEquation->getWrite().getVariable()->getValue();
+        idaInstance->addAlgebraicVariable(var);
+      }
+
+      // Add the cyclic equations to the set of equations managed by IDA,
+      // together with their written variables.
+
+      for (ScheduledEquation* cyclicEquation : cyclicEquations) {
+        idaInstance->addEquation(cyclicEquation);
+
+        mlir::Value var = cyclicEquation->getWrite().getVariable()->getValue();
+        idaInstance->addAlgebraicVariable(var);
+      }
+
+      // If any of the remaining equations manageable by MARCO does write on a
+      // variable managed by IDA, then the equation must be passed to IDA even
+      // if the scalar variables that are written do not belong to IDA.
+      // Avoiding this would require either memory duplication or a more severe
+      // restructuring of the solving infrastructure, which would have to be
+      // able to split variables and equations according to which runtime
+      // solver manages such variables.
+
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
         for (auto& scheduledEquation : *scheduledBlock) {
-          auto explicitClone = scheduledEquation->cloneIRAndExplicitate(builder);
+          mlir::Value var =
+              scheduledEquation->getWrite().getVariable()->getValue();
 
-          if (explicitClone == nullptr) {
-            conversionInfo.implicitEquations.emplace(scheduledEquation.get());
-          } else {
-            auto& movedClone = *conversionInfo.explicitEquations.emplace(std::move(explicitClone)).first;
-            conversionInfo.explicitEquationsMap[scheduledEquation.get()] = movedClone.get();
+          if (idaInstance->hasVariable(var)) {
+            idaInstance->addEquation(scheduledEquation.get());
           }
         }
-      } else {
+      }
+
+      // Add the used parameters.
+
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
         for (const auto& equation : *scheduledBlock) {
-          conversionInfo.cyclicEquations.emplace(equation.get());
+          for (const Access& access : equation->getAccesses()) {
+            if (auto var = access.getVariable(); var->isConstant()) {
+              idaInstance->addParametricVariable(var->getValue());
+            }
+          }
         }
       }
-    }
+    } else {
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        // Add all the equations and all the written variables.
+        for (const auto& equation : *scheduledBlock) {
+          idaInstance->addEquation(equation.get());
 
-    // Add the implicit equations to the set of equations managed by IDA,
-    // together with their written variables.
+          mlir::Value var = equation->getWrite().getVariable()->getValue();
+          idaInstance->addAlgebraicVariable(var);
 
-    for (const auto& implicitEquation : conversionInfo.implicitEquations) {
-      auto var = implicitEquation->getWrite().getVariable();
-      idaInstance->addAlgebraicVariable(var->getValue());
-      idaInstance->addEquation(implicitEquation);
-    }
-
-    // Add the cyclic equations to the set of equations managed by IDA,
-    // together with their written variables.
-
-    for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
-      auto var = cyclicEquation->getWrite().getVariable();
-      idaInstance->addAlgebraicVariable(var->getValue());
-      idaInstance->addEquation(cyclicEquation);
-    }
-
-    // If any of the remaining equations manageable by MARCO does write on a
-    // variable managed by IDA, then the equation must be passed to IDA even
-    // if the scalar variables that are written do not belong to IDA.
-    // Avoiding this would require either memory duplication or a more severe
-    // restructuring of the solving infrastructure, which would have to be able
-    // to split variables and equations according to which runtime solver
-    // manages such variables.
-
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& scheduledEquation : *scheduledBlock) {
-        auto var = scheduledEquation->getWrite().getVariable();
-
-        if (idaInstance->hasVariable(var->getValue())) {
-          idaInstance->addEquation(scheduledEquation.get());
-        }
-      }
-    }
-
-    // Add the used parameters.
-
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& equation : *scheduledBlock) {
-        for (const Access& access : equation->getAccesses()) {
-          if (access.getVariable()->isConstant()) {
-            idaInstance->addParametricVariable(access.getVariable()->getValue());
+          // Also add the used parameters.
+          for (const Access& access : equation->getAccesses()) {
+            if (auto accessVar = access.getVariable();
+                accessVar->isConstant()) {
+              idaInstance->addParametricVariable(accessVar->getValue());
+            }
           }
         }
       }
     }
 
-    if (mlir::failed(createInitICSolversFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + initICSolversFunctionName + "' function");
+    if (mlir::failed(createInitICSolversFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + initICSolversFunctionName + "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createSolveICModelFunction(builder, model, conversionInfo, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + solveICModelFunctionName + "' function");
+    if (mlir::failed(createSolveICModelFunction(
+            builder, model, explicitEquationsMap, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + solveICModelFunctionName + "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createDeinitICSolversFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + deinitICSolversFunctionName + "' function");
+    if (mlir::failed(createDeinitICSolversFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + deinitICSolversFunctionName +
+          "' function");
+
       return mlir::failure();
     }
 
@@ -235,149 +287,236 @@ namespace marco::codegen
     auto idaInstance = std::make_unique<IDAInstance>(
         typeConverter, derivativesMap);
 
-    ConversionInfo conversionInfo;
+    std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
+    ExplicitEquationsMap explicitEquationsMap;
 
-    // Determine which equations can be potentially processed by MARCO.
-    // Those are the ones that can me bade explicit with respect to the matched
-    // variable and the non-cyclic ones.
+    if (cleverDAE) {
+      llvm::DenseSet<ScheduledEquation*> implicitEquations;
+      llvm::DenseSet<ScheduledEquation*> cyclicEquations;
 
-    for (auto& scheduledBlock : model.getScheduledBlocks()) {
-      if (!scheduledBlock->hasCycle()) {
-        for (auto& scheduledEquation : *scheduledBlock) {
-          auto explicitClone = scheduledEquation->cloneIRAndExplicitate(builder);
+      // Determine which equations can be potentially processed by MARCO.
+      // Those are the ones that can me bade explicit with respect to the
+      // matched variable and the non-cyclic ones.
 
-          if (explicitClone == nullptr) {
-            conversionInfo.implicitEquations.emplace(scheduledEquation.get());
-          } else {
-            auto& movedClone = *conversionInfo.explicitEquations.emplace(std::move(explicitClone)).first;
-            conversionInfo.explicitEquationsMap[scheduledEquation.get()] = movedClone.get();
+      for (auto& scheduledBlock : model.getScheduledBlocks()) {
+        if (!scheduledBlock->hasCycle()) {
+          for (auto& scheduledEquation : *scheduledBlock) {
+            auto explicitClone =
+                scheduledEquation->cloneIRAndExplicitate(builder);
+
+            if (explicitClone == nullptr) {
+              implicitEquations.insert(scheduledEquation.get());
+            } else {
+              auto movedClone =
+                  explicitEquationsStorage.emplace(std::move(explicitClone));
+
+              assert(movedClone.second);
+              explicitEquationsMap[scheduledEquation.get()] =
+                  movedClone.first->get();
+            }
+          }
+        } else {
+          for (const auto& equation : *scheduledBlock) {
+            cyclicEquations.insert(equation.get());
           }
         }
-      } else {
-        for (const auto& equation : *scheduledBlock) {
-          conversionInfo.cyclicEquations.emplace(equation.get());
-        }
-      }
-    }
-
-    // Add the implicit equations to the set of equations managed by IDA,
-    // together with their written variables.
-
-    for (const auto& implicitEquation : conversionInfo.implicitEquations) {
-      mlir::Value var = implicitEquation->getWrite().getVariable()->getValue();
-      unsigned int argNumber = var.cast<mlir::BlockArgument>().getArgNumber();
-
-      if (derivativesMap.isDerivative(argNumber)) {
-        idaInstance->addDerivativeVariable(var);
-      } else if (derivativesMap.hasDerivative(argNumber)) {
-        idaInstance->addStateVariable(var);
-      } else {
-        idaInstance->addAlgebraicVariable(var);
       }
 
-      idaInstance->addEquation(implicitEquation);
-    }
+      // Add the implicit equations to the set of equations managed by IDA,
+      // together with their written variables.
 
-    // Add the cyclic equations to the set of equations managed by IDA,
-    // together with their written variables.
+      for (ScheduledEquation* implicitEquation : implicitEquations) {
+        idaInstance->addEquation(implicitEquation);
 
-    for (const auto& cyclicEquation : conversionInfo.cyclicEquations) {
-      mlir::Value var = cyclicEquation->getWrite().getVariable()->getValue();
-      unsigned int argNumber = var.cast<mlir::BlockArgument>().getArgNumber();
+        mlir::Value var =
+            implicitEquation->getWrite().getVariable()->getValue();
 
-      if (derivativesMap.isDerivative(argNumber)) {
-        idaInstance->addDerivativeVariable(var);
-      } else if (derivativesMap.hasDerivative(argNumber)) {
-        idaInstance->addStateVariable(var);
-      } else {
-        idaInstance->addAlgebraicVariable(var);
-      }
-
-      idaInstance->addEquation(cyclicEquation);
-    }
-
-    // Add the differential equations (i.e. the ones matched with a derivative)
-    // to the set of equations managed by IDA, together with their written
-    // variables.
-
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& scheduledEquation : *scheduledBlock) {
-        const Variable* var = scheduledEquation->getWrite().getVariable();
-        auto argNumber = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
+        unsigned int argNumber =
+            var.cast<mlir::BlockArgument>().getArgNumber();
 
         if (derivativesMap.isDerivative(argNumber)) {
-          // State variable.
-          mlir::Value stateVar = model.getOperation().getBodyRegion().getArgument(
-              derivativesMap.getDerivedVariable(argNumber));
-
-          idaInstance->addStateVariable(stateVar);
-
-          // Derivative variable.
-          idaInstance->addDerivativeVariable(var->getValue());
-
-          idaInstance->addEquation(scheduledEquation.get());
+          idaInstance->addDerivativeVariable(var);
+        } else if (derivativesMap.hasDerivative(argNumber)) {
+          idaInstance->addStateVariable(var);
+        } else {
+          idaInstance->addAlgebraicVariable(var);
         }
       }
-    }
 
-    // If any of the remaining equations manageable by MARCO does write on a
-    // variable managed by IDA, then the equation must be passed to IDA even if
-    // not strictly necessary. Avoiding this would require either memory
-    // duplication or a more severe restructuring of the solving
-    // infrastructure, which would have to be able to split variables and
-    // equations according to which runtime solver manages such variables.
+      // Add the cyclic equations to the set of equations managed by IDA,
+      // together with their written variables.
 
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& scheduledEquation : *scheduledBlock) {
-        auto var = scheduledEquation->getWrite().getVariable();
+      for (ScheduledEquation* cyclicEquation : cyclicEquations) {
+        idaInstance->addEquation(cyclicEquation);
 
-        if (idaInstance->hasVariable(var->getValue())) {
-          idaInstance->addEquation(scheduledEquation.get());
+        mlir::Value var = cyclicEquation->getWrite().getVariable()->getValue();
+
+        unsigned int argNumber =
+            var.cast<mlir::BlockArgument>().getArgNumber();
+
+        if (derivativesMap.isDerivative(argNumber)) {
+          idaInstance->addDerivativeVariable(var);
+        } else if (derivativesMap.hasDerivative(argNumber)) {
+          idaInstance->addStateVariable(var);
+        } else {
+          idaInstance->addAlgebraicVariable(var);
         }
       }
-    }
 
-    // Add the used parameters.
+      // Add the differential equations (i.e. the ones matched with a
+      // derivative) to the set of equations managed by IDA, together with
+      // their written variables.
 
-    for (const auto& scheduledBlock : model.getScheduledBlocks()) {
-      for (auto& equation : *scheduledBlock) {
-        for (const Access& access : equation->getAccesses()) {
-          const Variable* variable = access.getVariable();
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        for (auto& scheduledEquation : *scheduledBlock) {
+          mlir::Value var =
+              scheduledEquation->getWrite().getVariable()->getValue();
 
-          if (variable->isConstant()) {
-            idaInstance->addParametricVariable(variable->getValue());
+          auto argNumber = var.cast<mlir::BlockArgument>().getArgNumber();
+
+          if (derivativesMap.isDerivative(argNumber)) {
+            idaInstance->addEquation(scheduledEquation.get());
+
+            // State variable.
+            mlir::Value stateVar =
+                model.getOperation().getBodyRegion().getArgument(
+                    derivativesMap.getDerivedVariable(argNumber));
+
+            idaInstance->addStateVariable(stateVar);
+
+            // Derivative variable.
+            idaInstance->addDerivativeVariable(var);
+          }
+        }
+      }
+
+      // If any of the remaining equations manageable by MARCO does write on a
+      // variable managed by IDA, then the equation must be passed to IDA even
+      // if not strictly necessary. Avoiding this would require either memory
+      // duplication or a more severe restructuring of the solving
+      // infrastructure, which would have to be able to split variables and
+      // equations according to which runtime solver manages such variables.
+
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        for (auto& scheduledEquation : *scheduledBlock) {
+          mlir::Value var =
+              scheduledEquation->getWrite().getVariable()->getValue();
+
+          if (idaInstance->hasVariable(var)) {
+            idaInstance->addEquation(scheduledEquation.get());
+          }
+        }
+      }
+
+      // Add the used parameters.
+
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        for (auto& equation : *scheduledBlock) {
+          for (const Access& access : equation->getAccesses()) {
+            const Variable* variable = access.getVariable();
+
+            if (variable->isConstant()) {
+              idaInstance->addParametricVariable(variable->getValue());
+            }
+          }
+        }
+      }
+    } else {
+      for (const auto& scheduledBlock : model.getScheduledBlocks()) {
+        // Add all the equations and all the written variables.
+        for (const auto& equation : *scheduledBlock) {
+          idaInstance->addEquation(equation.get());
+
+          mlir::Value var = equation->getWrite().getVariable()->getValue();
+
+          unsigned int argNumber =
+              var.cast<mlir::BlockArgument>().getArgNumber();
+
+          if (derivativesMap.isDerivative(argNumber)) {
+            // State variable.
+            mlir::Value stateVar =
+                model.getOperation().getBodyRegion().getArgument(
+                    derivativesMap.getDerivedVariable(argNumber));
+
+            idaInstance->addStateVariable(stateVar);
+
+            // Derivative variable.
+            idaInstance->addDerivativeVariable(var);
+          } else if (derivativesMap.hasDerivative(argNumber)) {
+            // State variable.
+            idaInstance->addStateVariable(var);
+
+            // Derivative variable.
+            mlir::Value derVar =
+                model.getOperation().getBodyRegion().getArgument(
+                    derivativesMap.getDerivative(argNumber));
+
+            idaInstance->addDerivativeVariable(derVar);
+          } else {
+            idaInstance->addAlgebraicVariable(var);
+          }
+
+          // Also add the used parameters.
+          for (const Access& access : equation->getAccesses()) {
+            if (auto accessVar = access.getVariable();
+                accessVar->isConstant()) {
+              idaInstance->addParametricVariable(accessVar->getValue());
+            }
           }
         }
       }
     }
 
-    if (mlir::failed(createInitMainSolversFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + initMainSolversFunctionName + "' function");
+    if (mlir::failed(createInitMainSolversFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + initMainSolversFunctionName +
+          "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createDeinitMainSolversFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + deinitMainSolversFunctionName + "' function");
+    if (mlir::failed(createDeinitMainSolversFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + deinitMainSolversFunctionName +
+          "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createCalcICFunction(builder, model, conversionInfo, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + calcICFunctionName + "' function");
+    if (mlir::failed(createCalcICFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + calcICFunctionName + "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createUpdateIDAVariablesFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + updateIDAVariablesFunctionName + "' function");
+    if (mlir::failed(createUpdateIDAVariablesFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + updateIDAVariablesFunctionName +
+          "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createUpdateNonIDAVariablesFunction(builder, model, conversionInfo, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + updateNonIDAVariablesFunctionName + "' function");
+    if (mlir::failed(createUpdateNonIDAVariablesFunction(
+            builder, model, explicitEquationsMap, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + updateNonIDAVariablesFunctionName +
+          "' function");
+
       return mlir::failure();
     }
 
-    if (mlir::failed(createIncrementTimeFunction(builder, model, idaInstance.get()))) {
-      model.getOperation().emitError("Could not create the '" + incrementTimeFunctionName + "' function");
+    if (mlir::failed(createIncrementTimeFunction(
+            builder, model, idaInstance.get()))) {
+      model.getOperation().emitError(
+          "Could not create the '" + incrementTimeFunctionName +
+          "' function");
+
       return mlir::failure();
     }
 
@@ -526,7 +665,7 @@ namespace marco::codegen
       return mlir::failure();
     }
 
-    // Deallocate the solvers data.
+    // Deallocate the data of the solvers.
     mlir::Value solversDataOpaquePtr = builder.create<mlir::LLVM::BitcastOp>(
         loc, getVoidPtrType(), solversDataPtr);
 
@@ -541,7 +680,7 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::createSolveICModelFunction(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
-      const ConversionInfo& conversionInfo,
+      const ExplicitEquationsMap& explicitEquationsMap,
       IDAInstance* idaInstance) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -604,7 +743,7 @@ namespace marco::codegen
         } else {
           // The equation is handled by MARCO.
           auto templateFunction = getOrCreateEquationTemplateFunction(
-              threadPool, builder, modelOp, equation.get(), conversionInfo,
+              threadPool, builder, modelOp, equation.get(), explicitEquationsMap,
               equationTemplatesMap, "initial_eq_template_", equationTemplateCounter);
 
           if (!templateFunction.has_value()) {
@@ -649,7 +788,6 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::createCalcICFunction(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
-      const ConversionInfo& conversionInfo,
       IDAInstance* idaInstance) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -740,7 +878,7 @@ namespace marco::codegen
   mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
       mlir::OpBuilder& builder,
       const Model<ScheduledEquationsBlock>& model,
-      const ConversionInfo& conversionInfo,
+      const ExplicitEquationsMap& explicitEquationsMap,
       IDAInstance* idaInstance) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -788,7 +926,7 @@ namespace marco::codegen
         } else {
           // The equation is handled by MARCO
           auto templateFunction = getOrCreateEquationTemplateFunction(
-              threadPool, builder, modelOp, equation.get(), conversionInfo,
+              threadPool, builder, modelOp, equation.get(), explicitEquationsMap,
               equationTemplatesMap, "eq_template_", equationTemplateCounter);
 
           if (!templateFunction.has_value()) {
@@ -2269,7 +2407,6 @@ namespace marco::codegen
     return builder.create<mlir::ida::GetCurrentTimeOp>(
         idaInstance.getLoc(), timeType, idaInstance);
   }
-
 
   std::vector<mlir::Value> IDAInstance::getIDAFunctionArgs() const
   {

@@ -202,7 +202,9 @@ def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
         Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
                "Set a print filter for the variables of the simulation">,
         Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
-               "Set a the solver to be used for the simulation">
+               "Set a the solver to be used for the simulation">,
+        Option<"IDACleverDAE", "ida-clever-dae", "bool", "true",
+               "IDA: enable the clever DAE mode">,
     ];
 
     let constructor = "mlir::modelica::createModelConversionPass()";
