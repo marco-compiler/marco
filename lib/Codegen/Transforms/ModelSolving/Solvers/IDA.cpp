@@ -1630,6 +1630,8 @@ namespace marco::codegen
         // encountering the state variable through the 'alpha' parameter set
         // into the derivative seed.
 
+        assert(algebraicVariables.size() == idaAlgebraicVariables.size());
+
         for (auto [variable, idaVariable] : llvm::zip(algebraicVariables, idaAlgebraicVariables)) {
           std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
             return "ida_jacobianFunction_" +
@@ -1649,6 +1651,8 @@ namespace marco::codegen
               idaVariable,
               jacobianFunctionName);
         }
+
+        assert(stateVariables.size() == idaStateVariables.size());
 
         for (auto [variable, idaVariable] : llvm::zip(stateVariables, idaStateVariables)) {
           std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
@@ -2132,7 +2136,7 @@ namespace marco::codegen
     for (const auto& var : jacobianFunction.getVariables()) {
       if (auto arrayType = var.getType().dyn_cast<ArrayType>();
           arrayType && arrayType.isScalar()) {
-        args.push_back(builder.create<LoadOp>(var.getLoc(), var));
+        args.push_back(builder.create<LoadOp>(loc, var));
       } else {
         args.push_back(var);
       }
@@ -2148,7 +2152,7 @@ namespace marco::codegen
         independentVariable.cast<mlir::BlockArgument>().getArgNumber();
 
     unsigned int oneSeedPosition = independentVarArgNumber;
-    unsigned int alphaSeedPosition = jacobianFunction.getVariables().size();
+    llvm::Optional<unsigned int> alphaSeedPosition = llvm::None;
 
     if (derivativesMap->hasDerivative(independentVarArgNumber)) {
       alphaSeedPosition =
@@ -2166,10 +2170,10 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Value> seedArrays;
 
     // Create the seed values for the variables.
-    for (auto var : llvm::enumerate(mlir::ValueRange(managedVariables))) {
-      auto varIndex = var.value().cast<mlir::BlockArgument>().getArgNumber();
+    for (mlir::Value var : managedVariables) {
+     auto varArgNumber = var.cast<mlir::BlockArgument>().getArgNumber();
 
-      if (auto arrayType = var.value().getType().dyn_cast<ArrayType>();
+      if (auto arrayType = var.getType().dyn_cast<ArrayType>();
           arrayType && !arrayType.isScalar()) {
         assert(arrayType.hasStaticShape());
 
@@ -2183,12 +2187,12 @@ namespace marco::codegen
 
         builder.create<ArrayFillOp>(loc, array, zero);
 
-        if (varIndex == oneSeedPosition) {
+        if (varArgNumber == oneSeedPosition) {
           builder.create<StoreOp>(
               loc, one, array,
               jacobianFunction.getVariableIndices());
 
-        } else if (varIndex == alphaSeedPosition) {
+        } else if (alphaSeedPosition.has_value() && varArgNumber == *alphaSeedPosition) {
           builder.create<StoreOp>(
               loc,
               jacobianFunction.getAlpha(),
@@ -2198,9 +2202,9 @@ namespace marco::codegen
       } else {
         assert(arrayType && arrayType.isScalar());
 
-        if (varIndex == oneSeedPosition) {
+        if (varArgNumber == oneSeedPosition) {
           args.push_back(one);
-        } else if (varIndex == alphaSeedPosition) {
+        } else if (alphaSeedPosition.has_value() && varArgNumber == *alphaSeedPosition) {
           args.push_back(jacobianFunction.getAlpha());
         } else {
           args.push_back(zero);
@@ -2222,11 +2226,10 @@ namespace marco::codegen
 
     // Deallocate the seeds.
     for (auto seed : seedArrays) {
-      builder.create<FreeOp>(jacobianFunction.getLoc(), seed);
+      builder.create<FreeOp>(loc, seed);
     }
 
-    builder.create<mlir::ida::ReturnOp>(
-        jacobianFunction.getLoc(), templateCall.getResult(0));
+    builder.create<mlir::ida::ReturnOp>(loc, templateCall.getResult(0));
 
     return mlir::success();
   }
