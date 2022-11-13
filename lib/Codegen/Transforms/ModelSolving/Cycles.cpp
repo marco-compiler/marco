@@ -8,6 +8,54 @@ using namespace ::marco::modeling;
 
 #define DEBUG_TYPE "CyclesSolving"
 
+static void createScalarClones(Equations<MatchedEquation> clones, mlir::OpBuilder builder, Equations<MatchedEquation> equations) {
+  // Get the number of scalar equations in the system
+  for (const auto& equation : equations) {
+    auto loc = equation->getOperation()->getLoc();
+    for (const auto& range : equation->getIterationRanges()) {
+      auto clone = Equation::build(equation->cloneIR(), equation->getVariables());
+      // Ensure that this clone gets deleted when we are done
+      TemporaryEquationGuard equationGuard(*clone);
+
+      // If the equation has explicit loops, we need to perform additional
+      // computations
+      // TODO create methods in Equation.h for this to avoid duplicating code
+      std::stack<ForEquationOp> loops;
+      auto parent = clone->getOperation()->getParentOfType<ForEquationOp>();
+
+      while (parent != nullptr) {
+        loops.push(parent);
+        parent = parent->getParentOfType<ForEquationOp>();
+      }
+
+      builder.setInsertionPointToStart(clone->getOperation().bodyBlock());
+      while (!loops.empty()) {
+        auto loop = loops.top();
+        auto constant = builder.create<ConstantOp>(loc, builder.getIndexAttr(range[loops.size() - 1]));
+        loop.induction().replaceAllUsesWith(constant);
+
+        clone->getOperation()->moveBefore(loop.getOperation());
+        loops.pop();
+        loop.erase();
+      }
+
+      // Rebuild the clone so that it is now of the correct type, scalar
+      auto scalarClone = Equation::build(clone->cloneIR(), equation->getVariables());
+      clones.add(std::make_unique<MatchedEquation>(std::move(scalarClone), IndexSet(Point(0)), equation->getWrite().getPath()));
+    }
+  }
+}
+
+static void populateFlatMap(std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap, std::vector<MatchedEquation> equations) {
+  auto point = Point(0);
+  for (const auto& equation : equations) {
+    auto flatAccess = equation.getFlatAccessIndex(point);
+    assert(flatMap.count(flatAccess) == 0);
+    flatMap.emplace(flatAccess, std::make_unique<MatchedEquation>(
+                                    Equation::build(equation.cloneIR(), equation.getVariables()), IndexSet(Point(0)), equation.getWrite().getPath()));
+  }
+}
+
 static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles)
 {
   bool allCyclesSolved;
@@ -104,17 +152,22 @@ static bool solveWithCramer(
     mlir::OpBuilder& builder,
     bool secondaryCycles)
 {
+  bool hasNewEquations;
   bool allCyclesSolved;
+
+  Equations<MatchedEquation> clones;
+  createScalarClones(clones, builder, model.getEquations());
 
   // The list of equations among which the cycles have to be searched
   llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
   // The first iteration will use all the equations of the model
-  size_t systemSize = 0;
-  for (const auto& equation : model.getEquations()) {
+  size_t systemSize = clones.size();
+
+  for (const auto& equation : clones) {
     toBeProcessed.push_back(equation.get());
-    systemSize += equation->getIterationRanges().flatSize();
   }
+
 
   Equations<MatchedEquation> solution;
   llvm::SmallVector<std::unique_ptr<MatchedEquation>> newEquations;
@@ -148,6 +201,7 @@ static bool solveWithCramer(
     // Solve the cycles one by one
     CramerSolver solver(builder, systemSize);
 
+    hasNewEquations = false;
     for (const auto& [cycle, set] : cycleGroups) {
       IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
 
@@ -160,8 +214,12 @@ static bool solveWithCramer(
         input.push_back(*eq);
       }
 
+      std::map<size_t, std::unique_ptr<MatchedEquation>> outputMap;
+      populateFlatMap(outputMap, input);
+
       // Solve the system of equations
-      solver.solve(input);
+      solver.solve(outputMap);
+      hasNewEquations = hasNewEquations || solver.hasNewEquations();
 
       // Add the indices that do not present any loop
       for (const auto& range : llvm::make_range(indexesWithoutCycles.rangesBegin(), indexesWithoutCycles.rangesEnd())) {
@@ -208,19 +266,24 @@ static bool solveWithCramer(
     }
 
     allCyclesSolved = !solver.hasUnsolvedCycles();
-  } while (!newEquations.empty());
+  } while (hasNewEquations);
 
   // Try to solve the full system if solving by subsystems didn't work
   if(!allCyclesSolved) {
+    std::cerr << "SOLVING THE FULL SYSTEM\n";
     CramerSolver solver(builder, systemSize);
 
     std::vector<MatchedEquation> input;
-    for (const auto& eq : model.getEquations()) {
+    for (const auto& eq : clones) {
       input.push_back(*eq);
     }
-    allCyclesSolved = solver.solve(input);
+    std::map<size_t, std::unique_ptr<MatchedEquation>> outputMap;
+    populateFlatMap(outputMap, input);
+
+    allCyclesSolved = solver.solve(outputMap);
 
     unsolvedEquations.clear();
+    solution = Equations<MatchedEquation>();
     for (auto& equation : solver.getUnsolvedEquations()) {
       unsolvedEquations.emplace_back(std::move(equation));
     }
@@ -238,28 +301,6 @@ static bool solveWithCramer(
   model.setEquations(solution);
 
   return allCyclesSolved;
-}
-
-static bool solveWithCramerMonolithic(
-    Model<MatchedEquation>& model,
-    mlir::OpBuilder& builder,
-    bool secondaryCycles)
-{
-  std::vector<MatchedEquation> input;
-
-  // The first iteration will use all the equations of the model
-  size_t systemSize = 0;
-  for (const auto& equation : model.getEquations()) {
-    input.push_back(*equation);
-    systemSize += equation->getIterationRanges().flatSize();
-  }
-
-  CramerSolver solver(builder, systemSize);
-  if (solver.solve(input)) {
-    model.setEquations(solver.getSolution());
-    return true;
-  }
-  return false;
 }
 
 namespace marco::codegen
@@ -291,17 +332,6 @@ namespace marco::codegen
     });
 
     if (solveWithCramer(model, builder, true)) {
-      return mlir::success();
-    }
-
-    // Retry with Cramer
-    LLVM_DEBUG({
-      llvm::dbgs() << "Solving cycles with Cramer, with secondary cycles\n";
-    });
-
-    if (solveWithCramerMonolithic(model, builder, true)) {
-      std::cerr << "RESULTING MODEL:\n";
-      model.getOperation()->dump();
       return mlir::success();
     }
 

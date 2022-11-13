@@ -181,66 +181,14 @@ CramerSolver::CramerSolver(mlir::OpBuilder& builder, size_t systemSize) : builde
 {
 }
 
-bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
+bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap)
 {
+  newEquations = false;
+  hasUnsolvedEquations = false;
   mlir::OpBuilder::InsertionGuard guard(builder);
 
-  // Clone the system equations so that we can operate on them without
-  // disrupting the rest of the compilation process.
-  // This set of clones will be used to compute the system matrix.
-  Equations<MatchedEquation> clones;
-
   // Get the number of scalar equations in the system
-  size_t subsystemSize = 0;
-  for (const auto& equation : equations) {
-    auto loc = equation.getOperation()->getLoc();
-    for (const auto& range : equation.getIterationRanges()) {
-      auto clone = Equation::build(equation.cloneIR(), equation.getVariables());
-
-      // TODO check matching to see what kind of default indices get matched to scalar equations
-      auto matchedClone = std::make_unique<MatchedEquation>(
-          std::move(clone), IndexSet(range), equation.getWrite().getPath());
-
-      matchedClone->dumpIR();
-
-      // If the equation has explicit loops, we need to perform additional
-      // computations
-      // TODO create methods in Equation.h for this to avoid duplicating code
-      std::stack<ForEquationOp> loops;
-      auto parent = matchedClone->getOperation()->getParentOfType<ForEquationOp>();
-
-      while (parent != nullptr) {
-        loops.push(parent);
-        parent = parent->getParentOfType<ForEquationOp>();
-      }
-
-      builder.setInsertionPointToStart(matchedClone->getOperation().bodyBlock());
-      while (!loops.empty()) {
-        auto loop = loops.top();
-        auto constant = builder.create<ConstantOp>(loc, builder.getIndexAttr(range[loops.size() - 1]));
-        loop.induction().replaceAllUsesWith(constant);
-
-        matchedClone->getOperation()->moveBefore(loop.getOperation());
-        loops.pop();
-        matchedClone->dumpIR();
-        loop.erase();
-      }
-
-      clones.add(std::move(matchedClone));
-      ++subsystemSize;
-    }
-  }
-
-  // Get the list of flat access indices
-  std::map<size_t, std::pair<MatchedEquation*, ::marco::modeling::Point>> flatMap;
-  for (const auto& equation : clones) {
-    for (const auto& point : equation->getIterationRanges()) {
-      // There shouldn't be equations matched with the same scalar variable
-      assert(flatMap.count(equation->getFlatAccessIndex(point)) == 0);
-      flatMap.emplace(equation->getFlatAccessIndex(point), std::pair(equation.get(), point));
-    }
-  }
-
+  size_t subsystemSize = flatMap.size();
 
   // Create the matrix to contain the coefficients of the system's
   // equations and the vector to contain the constant terms.
@@ -254,7 +202,7 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
   });
 
   // Populate system coefficient matrix and constant term vector.
-  bool res = getModelMatrixAndVector(matrix, constantVector, clones, subsystemSize, flatMap);
+  bool res = getModelMatrixAndVector(matrix, constantVector, subsystemSize, flatMap);
 
   LLVM_DEBUG({
     llvm::dbgs() << "COEFFICIENT MATRIX: \n";
@@ -266,17 +214,13 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 
   if(res) {
     size_t subsystemEquationIndex = 0;
-    for (const auto& [index, pair] : flatMap) {
-      const auto& equation = pair.first;
-      const auto& point = pair.second;
+    for (const auto& [index, equation] : flatMap) {
       auto loc = equation->getOperation().getLoc();
 
       // Create a new clone that will contain the system matrix and the one
       // obtained by substituting the constant vector to the column of the
       // corresponding index.
-      auto clone = std::make_unique<MatchedEquation>(Equation::build(equation->cloneIR(), equation->getVariables()),
-                                                     modeling::IndexSet(point),
-                                                     EquationPath::LEFT);
+      auto clone = std::make_unique<MatchedEquation>(Equation::build(equation->cloneIR(), equation->getVariables()), modeling::IndexSet(Point(0)), EquationPath::LEFT);
 
       // Erase the body block of the clone, and replace it with an empty one.
       clone->getOperation().bodyBlock()->erase();
@@ -285,16 +229,13 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
       builder.setInsertionPointToStart(bodyBlock);
 
       // First clone the left hand side, which should be the matched value.
-      //todo maybe we should map the variables of the equation to the clone's
       mlir::BlockAndValueMapping mapping;
       for (const auto& variable : clone->getVariables()) {
         auto variableValue = variable->getValue();
         mapping.map(variableValue, variableValue);
       }
 
-      clone->dumpIR();
       const auto& lhs = cloneValueAndDependencies(builder, equation->getValueAtPath(equation->getWrite().getPath()), mapping);
-      clone->dumpIR();
       // Allocate a new coefficient matrix and constant vector to contain the
       // cloned ones.
       auto cloneStorage = std::vector<mlir::Value>(storageSize);
@@ -332,15 +273,16 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 
       ++subsystemEquationIndex;
 
-      solutionMap.emplace(index, std::move(clone));
+      solutionMap[index] = std::move(clone);
     }
+    newEquations = true;
   }
   // The coefficients couldn't be determined, try to match writes to reads
   else {
+    hasUnsolvedEquations = true;
     // Replace the newly found equations (if any) in the unsolved equations.
     // This assumes that the equations are in scalar form.
-    for (const auto& [_, readingPair] : flatMap) {
-      auto readingEquation = readingPair.first;
+    for (const auto& [index, readingEquation] : flatMap) {
 
       auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
       TemporaryEquationGuard equationGuard(*clone);
@@ -353,17 +295,17 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
                   builder, solutionMap.at(readingIndex)->getIterationRanges(), *clone,
                   readingAccess.getAccessFunction(), readingAccess.getPath()))) {
             return false;
+          } else {
+            newEquations = true;
           }
         }
       }
 
-      readingEquation->dumpIR();
-      readingEquation->getIterationRanges();
       auto matchedClone = std::make_unique<MatchedEquation>(
           Equation::build(clone->cloneIR(), clone->getVariables()),
           readingEquation->getIterationRanges(),readingEquation->getWrite().getPath());
 
-      unsolved.add(std::move(matchedClone));
+      unsolvedMap[index] = std::move(matchedClone);
     }
   }
 
@@ -373,19 +315,16 @@ bool CramerSolver::solve(std::vector<MatchedEquation>& equations)
 bool CramerSolver::getModelMatrixAndVector(
     SquareMatrix matrix,
     std::vector<mlir::Value>& constantVector,
-    Equations<MatchedEquation> equations,
     size_t subsystemSize,
-    const std::map<size_t, std::pair<MatchedEquation*, Point>>& flatMap)
+    const std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap)
 {
   // Scan the accesses of each equation for missing matches: if the system of
   // equations is under-determined fail. This may happen for example when the
   // subsystem of equations being considered depends on one not yet processed.
-  for (const auto& [index, pair] : flatMap) {
-    const auto& equation = pair.first;
-    const auto& point = pair.second;
+  for (const auto& [index, equation] : flatMap) {
 
     for (const auto& readAccess : equation->getReads()) {
-      if (flatMap.count(equation->getFlatAccessIndex(readAccess, point)) == 0) {
+      if (flatMap.count(equation->getFlatAccessIndex(readAccess, Point(0))) == 0) {
         return false;
       }
     }
@@ -395,14 +334,11 @@ bool CramerSolver::getModelMatrixAndVector(
   // constant term, and save them respectively in the system matrix and
   // constant term vector.
   size_t subsystemEquationIndex = 0;
-  for (const auto& [index, pair] : flatMap) {
-    const auto& point = pair.second;
-    const auto& equation = pair.first;
-
+  for (const auto& [index, equation] : flatMap) {
     // Collect the coefficients and the constant term
     auto coefficients = std::vector<mlir::Value>(systemSize);
     mlir::Value constantTerm;
-    if(mlir::failed(equation->getCoefficients(builder, coefficients, constantTerm, point))) {
+    if(mlir::failed(equation->getCoefficients(builder, coefficients, constantTerm, Point(0)))) {
       return false;
     }
 
@@ -489,7 +425,7 @@ void CramerSolver::cloneConstantVector(
 
 bool CramerSolver::hasUnsolvedCycles() const
 {
-  return unsolved.size() != 0;
+  return hasUnsolvedEquations;
 }
 
 Equations<MatchedEquation> CramerSolver::getSolution() const
@@ -505,5 +441,15 @@ Equations<MatchedEquation> CramerSolver::getSolution() const
 
 Equations<MatchedEquation> CramerSolver::getUnsolvedEquations() const
 {
+  Equations<MatchedEquation> unsolved;
+  for (const auto& [index, equation] : unsolvedMap) {
+    unsolved.add(std::make_unique<MatchedEquation>(
+        Equation::build(equation->cloneIR(), equation->getVariables()),
+        equation->getIterationRanges(), equation->getWrite().getPath()));
+  }
   return unsolved;
+}
+
+bool CramerSolver::hasNewEquations() const {
+  return newEquations;
 }

@@ -78,7 +78,9 @@ namespace marco::codegen {
   private:
     mlir::OpBuilder& builder;
     std::map<const size_t, std::unique_ptr<MatchedEquation>> solutionMap;
-    Equations<MatchedEquation> unsolved;
+    std::map<const size_t, std::unique_ptr<MatchedEquation>> unsolvedMap;
+    bool newEquations;
+    bool hasUnsolvedEquations;
     size_t systemSize;
   public:
     /// The Solver class constructor.
@@ -96,7 +98,7 @@ namespace marco::codegen {
     /// method, if such model is linear in the variables.
     /// \param equations The system of linear equations.
     /// \return true if successful, false otherwise.
-    bool solve(std::vector<MatchedEquation>& equations);
+    bool solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap);
 
     /// Get the matrix of the coefficients of the model and the constant vector
     /// \param matrix The matrix that will contain the model system coefficients.
@@ -108,9 +110,8 @@ namespace marco::codegen {
     bool getModelMatrixAndVector(
         SquareMatrix matrix,
         std::vector<mlir::Value>& constantVector,
-        Equations<MatchedEquation> equations,
         size_t subsystemSize,
-        const std::map<size_t, std::pair<MatchedEquation*, ::marco::modeling::Point>>& flatMap);
+        const std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap);
 
     /// Given a matrix as input clone its values and fill with them the output one.
     /// \param builder The builder.
@@ -143,5 +144,7 @@ namespace marco::codegen {
     bool hasUnsolvedCycles() const;
     Equations<MatchedEquation> getSolution() const;
     Equations<MatchedEquation> getUnsolvedEquations() const;
+
+    bool hasNewEquations() const;
   };
 }
