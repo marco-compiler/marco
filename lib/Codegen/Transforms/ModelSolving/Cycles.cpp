@@ -56,6 +56,50 @@ static void populateFlatMap(std::map<size_t, std::unique_ptr<MatchedEquation>>& 
   }
 }
 
+static void populateFlatMap(std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap, Equations<MatchedEquation> equations) {
+  auto point = Point(0);
+  for (const auto& equation : equations) {
+    auto flatAccess = equation->getFlatAccessIndex(point);
+    assert(flatMap.count(flatAccess) == 0);
+    flatMap.emplace(flatAccess, std::make_unique<MatchedEquation>(
+                                    Equation::build(equation->cloneIR(), equation->getVariables()), IndexSet(Point(0)), equation->getWrite().getPath()));
+  }
+}
+
+static bool replaceSolvedIntoUnsolved(
+    std::map<size_t, std::unique_ptr<MatchedEquation>>& unsolvedMap, mlir::OpBuilder builder, std::map<size_t, std::unique_ptr<MatchedEquation>>& solvedMap) {
+  // Replace the newly found equations (if any) in the unsolved equations.
+  // This assumes that the equations are in scalar form.
+  bool replaced = false;
+  for (const auto& [index, readingEquation] : unsolvedMap) {
+
+    auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
+    TemporaryEquationGuard equationGuard(*clone);
+
+    for (const auto& readingAccess : readingEquation->getReads()) {
+      auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, *readingEquation->getIterationRanges().begin());
+
+      if (solvedMap.count(readingIndex) != 0) {
+        if (mlir::failed(solvedMap.at(readingIndex)->replaceInto(
+                builder, solvedMap.at(readingIndex)->getIterationRanges(), *clone,
+                readingAccess.getAccessFunction(), readingAccess.getPath()))) {
+          std::cerr << "REPLACEMENT ERROR SHOULDN'T HAPPEN\n";
+          return false;
+        } else {
+          replaced = true;
+        }
+      }
+    }
+
+    auto matchedClone = std::make_unique<MatchedEquation>(
+        Equation::build(clone->cloneIR(), clone->getVariables()),
+        readingEquation->getIterationRanges(),readingEquation->getWrite().getPath());
+
+    unsolvedMap[index] = std::move(matchedClone);
+  }
+  return replaced;
+}
+
 static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles)
 {
   bool allCyclesSolved;
@@ -152,7 +196,6 @@ static bool solveWithCramer(
     mlir::OpBuilder& builder,
     bool secondaryCycles)
 {
-  bool hasNewEquations;
   bool allCyclesSolved;
 
   Equations<MatchedEquation> clones;
@@ -170,9 +213,11 @@ static bool solveWithCramer(
 
 
   Equations<MatchedEquation> solution;
-  llvm::SmallVector<std::unique_ptr<MatchedEquation>> newEquations;
-  llvm::SmallVector<std::unique_ptr<MatchedEquation>> unsolvedEquations;
+  std::map<size_t, std::unique_ptr<MatchedEquation>> solutionMap;
+  std::map<size_t, std::unique_ptr<MatchedEquation>> unsolvedMap;
 
+  bool isReplaced;
+  bool isSolved;
   do {
     // Get all the cycles within the system of equations
     CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(secondaryCycles);
@@ -199,16 +244,11 @@ static bool solveWithCramer(
     }
 
     // Solve the cycles one by one
-    CramerSolver solver(builder, systemSize);
 
-    hasNewEquations = false;
+    isReplaced = false;
+    isSolved = false;
+
     for (const auto& [cycle, set] : cycleGroups) {
-      IndexSet indexesWithoutCycles(cycle.getEquation()->getIterationRanges());
-
-      for (const auto& interval : cycle) {
-        indexesWithoutCycles -= interval.getRange();
-      }
-
       std::vector<MatchedEquation> input;
       for (const auto eq : set) {
         input.push_back(*eq);
@@ -218,58 +258,39 @@ static bool solveWithCramer(
       populateFlatMap(outputMap, input);
 
       // Solve the system of equations
-      solver.solve(outputMap);
-      hasNewEquations = hasNewEquations || solver.hasNewEquations();
+      CramerSolver solver(builder, systemSize);
+      isSolved = solver.solve(outputMap) || isSolved;
 
-      // Add the indices that do not present any loop
-      for (const auto& range : llvm::make_range(indexesWithoutCycles.rangesBegin(), indexesWithoutCycles.rangesEnd())) {
-        auto clonedEquation = Equation::build(
-            cycle.getEquation()->getOperation(),
-            cycle.getEquation()->getVariables());
-
-        solution.add(std::make_unique<MatchedEquation>(
-            std::move(clonedEquation), IndexSet(range), cycle.getEquation()->getWrite().getPath()));
+      // Collect the solved equations
+      auto currentSolution = solver.getSolution();
+      populateFlatMap(solutionMap, currentSolution);
+      for (const auto& [index, equation] : solutionMap) {
+        unsolvedMap.erase(index);
       }
+
+      // Collect the unsolved equations
+      populateFlatMap(unsolvedMap, solver.getUnsolvedEquations());
+
+      // Substitute the solved equations into the unsolved ones
+      isReplaced = replaceSolvedIntoUnsolved(unsolvedMap, builder, solutionMap) || isReplaced;
     }
-
-    // Add the equations which had no cycle for any index.
-    // To do this, map the equations with cycles for a faster lookup.
-    std::set<const MatchedEquation*> equationsWithCycles;
-
-    for (const auto& cycle : cycles) {
-      equationsWithCycles.insert(cycle.getEquation());
-    }
-
-    for (auto& equation : toBeProcessed) {
-      if (equationsWithCycles.find(equation) == equationsWithCycles.end()) {
-        solution.add(std::make_unique<MatchedEquation>(
-            equation->clone(), equation->getIterationRanges(), equation->getWrite().getPath()));
-      }
-    }
-
-    auto currentUnsolvedEquations = solver.getUnsolvedEquations();
-    auto currentSolution = solver.getSolution();
 
     // Create the list of equations to be processed in the next iteration
     toBeProcessed.clear();
-    newEquations.clear();
-    unsolvedEquations.clear();
 
-    for (auto& equation : currentSolution) {
-      auto& movedEquation = newEquations.emplace_back(std::move(equation));
-      toBeProcessed.push_back(movedEquation.get());
+    for (auto& [index, equation] : unsolvedMap) {
+      toBeProcessed.push_back(equation.get());
     }
 
-    for (auto& equation : currentUnsolvedEquations) {
-      auto& movedEquation = unsolvedEquations.emplace_back(std::move(equation));
-      toBeProcessed.push_back(movedEquation.get());
-    }
-
-    allCyclesSolved = !solver.hasUnsolvedCycles();
-  } while (hasNewEquations);
+    allCyclesSolved = unsolvedMap.empty();
+  } while (isSolved || isReplaced);
 
   // Try to solve the full system if solving by subsystems didn't work
-  if(!allCyclesSolved) {
+  if(allCyclesSolved) {
+    for (auto& [index, equation] : solutionMap) {
+      solution.add(std::move(equation));
+    }
+  } /*else {
     std::cerr << "SOLVING THE FULL SYSTEM\n";
     CramerSolver solver(builder, systemSize);
 
@@ -291,10 +312,10 @@ static bool solveWithCramer(
     for (auto& equation : solver.getSolution()) {
       solution.add(std::move(equation));
     }
-  }
+  }*/
 
-  for (auto& unsolvedEquation : unsolvedEquations) {
-    solution.add(std::move(unsolvedEquation));
+  for (auto& [index, equation] : unsolvedMap) {
+    solution.add(std::move(equation));
   }
 
   // Set the new equations of the model

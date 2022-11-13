@@ -185,6 +185,7 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
 {
   newEquations = false;
   hasUnsolvedEquations = false;
+  solutionMap.clear();
   mlir::OpBuilder::InsertionGuard guard(builder);
 
   // Get the number of scalar equations in the system
@@ -280,32 +281,10 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
   // The coefficients couldn't be determined, try to match writes to reads
   else {
     hasUnsolvedEquations = true;
-    // Replace the newly found equations (if any) in the unsolved equations.
-    // This assumes that the equations are in scalar form.
-    for (const auto& [index, readingEquation] : flatMap) {
 
-      auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
-      TemporaryEquationGuard equationGuard(*clone);
-
-      for (const auto& readingAccess : readingEquation->getReads()) {
-        auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, *readingEquation->getIterationRanges().begin());
-
-        if (solutionMap.count(readingIndex) != 0) {
-          if (mlir::failed(solutionMap.at(readingIndex)->replaceInto(
-                  builder, solutionMap.at(readingIndex)->getIterationRanges(), *clone,
-                  readingAccess.getAccessFunction(), readingAccess.getPath()))) {
-            return false;
-          } else {
-            newEquations = true;
-          }
-        }
-      }
-
-      auto matchedClone = std::make_unique<MatchedEquation>(
-          Equation::build(clone->cloneIR(), clone->getVariables()),
-          readingEquation->getIterationRanges(),readingEquation->getWrite().getPath());
-
-      unsolvedMap[index] = std::move(matchedClone);
+    for (const auto& [index, equation] : flatMap) {
+      unsolvedMap[index] = std::make_unique<MatchedEquation>(
+          Equation::build(equation->cloneIR(), equation->getVariables()), equation->getIterationRanges(), equation->getWrite().getPath());
     }
   }
 
