@@ -291,20 +291,6 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  void ArrayType::walkImmediateSubElements(
-      llvm::function_ref<void(mlir::Attribute)> walkAttrsFn,
-      llvm::function_ref<void(mlir::Type)> walkTypesFn) const
-  {
-    walkTypesFn(getElementType());
-  }
-
-  mlir::Type ArrayType::replaceImmediateSubElements(
-      llvm::ArrayRef<mlir::Attribute> replAttrs,
-      llvm::ArrayRef<mlir::Type> replTypes) const
-  {
-    return get(getShape(), replTypes.front(), replAttrs.front());
-  }
-
   bool ArrayType::isScalar() const
   {
     return getRank() == 0;
@@ -351,20 +337,6 @@ namespace mlir::modelica
     }
 
     return mlir::success();
-  }
-
-  void UnrankedArrayType::walkImmediateSubElements(
-      llvm::function_ref<void(Attribute)> walkAttrsFn,
-      llvm::function_ref<void(Type)> walkTypesFn) const
-  {
-    walkTypesFn(getElementType());
-  }
-
-  mlir::Type UnrankedArrayType::replaceImmediateSubElements(
-      llvm::ArrayRef<mlir::Attribute> replAttrs,
-      llvm::ArrayRef<mlir::Type> replTypes) const
-  {
-    return get(replTypes.front(), replAttrs.front());
   }
 
   //===----------------------------------------------------------------------===//
@@ -422,20 +394,6 @@ namespace mlir::modelica
     }
 
     return mlir::success();
-  }
-
-  void MemberType::walkImmediateSubElements(
-      llvm::function_ref<void(Attribute)> walkAttrsFn,
-      llvm::function_ref<void(Type)> walkTypesFn) const
-  {
-    walkTypesFn(getElementType());
-  }
-
-  mlir::Type MemberType::replaceImmediateSubElements(
-      llvm::ArrayRef<mlir::Attribute> replAttrs,
-      llvm::ArrayRef<mlir::Type> replTypes) const
-  {
-    return get(getShape(), replTypes.front(), getConstantProperty(), getVisibilityProperty(), replAttrs.front());
   }
 
   bool MemberType::hasRank() const

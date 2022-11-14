@@ -3,7 +3,7 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -2603,7 +2603,7 @@ namespace
         mlir::ConversionTarget target(getContext());
 
         target.addLegalDialect<mlir::BuiltinDialect>();
-        target.addLegalDialect<mlir::arith::ArithmeticDialect>();
+        target.addLegalDialect<mlir::arith::ArithDialect>();
         target.addLegalDialect<mlir::cf::ControlFlowDialect>();
         target.addLegalDialect<mlir::func::FuncDialect>();
         target.addLegalDialect<mlir::memref::MemRefDialect>();

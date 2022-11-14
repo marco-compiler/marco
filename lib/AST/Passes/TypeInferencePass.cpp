@@ -1,5 +1,6 @@
 #include "marco/AST/Passes/TypeInferencePass.h"
 #include "marco/Diagnostic/Printer.h"
+#include <cmath>
 #include <sstream>
 
 using namespace ::marco;

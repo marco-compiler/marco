@@ -553,7 +553,7 @@ def KINSOL_JacobianFunctionOp : KINSOL_Op<"jacobian_function",
 }
 
 def KINSOL_ReturnOp : KINSOL_Op<"return",
-    [NoSideEffect,
+    [NoMemoryEffect,
      ParentOneOf<["VariableGetterOp", "VariableSetterOp", "ResidualFunctionOp", "JacobianFunctionOp"]>,
      ReturnLike, Terminator]>
 {

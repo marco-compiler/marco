@@ -66,7 +66,7 @@ def ModelicaToArithConversionPass : Pass<"convert-modelica-to-arith", "mlir::Mod
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect",
+        "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::scf::SCFDialect",
         "mlir::LLVM::LLVMDialect"
@@ -128,7 +128,7 @@ def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::Modul
     }];
 
     let dependentDialects = [
-        "mlir::arith::ArithmeticDialect",
+        "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
         "mlir::modelica::ModelicaDialect",
@@ -158,7 +158,7 @@ def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::Modul
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect",
+        "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
         "mlir::scf::SCFDialect",
@@ -191,7 +191,7 @@ def ModelicaToMemRefConversionPass : Pass<"convert-modelica-to-memref", "mlir::M
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect",
+        "mlir::arith::ArithDialect",
         "mlir::scf::SCFDialect",
         "mlir::memref::MemRefDialect"
     ];
@@ -221,7 +221,7 @@ def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::M
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::arith::ArithmeticDialect",
+        "mlir::arith::ArithDialect",
         "mlir::vector::VectorDialect"
     ];
 

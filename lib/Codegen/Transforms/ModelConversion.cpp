@@ -8,7 +8,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/Utils.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/VariableFilter/VariableFilter.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"

@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="legalize-model{model-name=Test debug-view=true}" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(legalize-model{model-name=Test debug-view=true})" | FileCheck %s
 
 // CHECK:       @Test
 // CHECK:       ^bb0(%[[x:.*]]: !modelica.array<!modelica.int>, %[[y:.*]]: !modelica.array<!modelica.int>):

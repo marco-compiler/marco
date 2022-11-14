@@ -288,8 +288,8 @@ namespace marco::frontend
           mlir::createConvertSCFToOpenMPPass());
     }
 
-    passManager.addPass(mlir::arith::createConvertArithmeticToLLVMPass());
-    passManager.addPass(mlir::createMemRefToLLVMPass());
+    passManager.addPass(createArithToLLVMConversionPass());
+    passManager.addPass(createMemRefToLLVMConversionPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
 
     passManager.addPass(createFuncToLLVMConversionPass());
@@ -535,5 +535,19 @@ namespace marco::frontend
     options.dataLayout = getDataLayout();
 
     return mlir::createConvertFuncToLLVMPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createArithToLLVMConversionPass()
+  {
+    mlir::ArithToLLVMConversionPassOptions options;
+    return mlir::createArithToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createMemRefToLLVMConversionPass()
+  {
+    mlir::MemRefToLLVMConversionPassOptions options;
+    options.useGenericFunctions = true;
+
+    return mlir::createMemRefToLLVMConversionPass(options);
   }
 }

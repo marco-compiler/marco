@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="legalize-model{model-name=Test}" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(legalize-model{model-name=Test})" | FileCheck %s
 
 // CHECK:       ^bb0(%[[x:.*]]: !modelica.array<!modelica.int>):
 // CHECK:       modelica.initial_equation {

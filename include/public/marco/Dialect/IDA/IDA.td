@@ -760,7 +760,7 @@ def IDA_JacobianFunctionOp : IDA_Op<"jacobian_function",
 }
 
 def IDA_ReturnOp : IDA_Op<"return",
-    [NoSideEffect,
+    [NoMemoryEffect,
      ParentOneOf<["VariableGetterOp", "VariableSetterOp", "ResidualFunctionOp", "JacobianFunctionOp"]>,
      ReturnLike, Terminator]>
 {

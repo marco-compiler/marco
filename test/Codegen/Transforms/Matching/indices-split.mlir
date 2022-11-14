@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="match{model-name=Test process-ic-model=false debug-view=true}" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(match{model-name=Test process-ic-model=false debug-view=true})" | FileCheck %s
 
 // i = 1 to 2
 // x[i - 1] = y[i - 1];

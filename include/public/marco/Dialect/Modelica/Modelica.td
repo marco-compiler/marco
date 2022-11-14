@@ -273,7 +273,7 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
     }];
 }
 
-def Modelica_DimOp : Modelica_Op<"dim", [NoSideEffect]>
+def Modelica_DimOp : Modelica_Op<"dim", [NoMemoryEffect]>
 {
     let summary = "Get the size of an array dimension.";
 
@@ -604,7 +604,7 @@ def Modelica_StartOp : Modelica_Op<"start",
 
 def Modelica_ConstantOp : Modelica_Op<"constant",
     [ConstantLike,
-    NoSideEffect,
+    NoMemoryEffect,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Constant.";
@@ -2679,7 +2679,7 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
 }
 
 def RawReturnOp : Modelica_Op<"raw_return",
-    [NoSideEffect,
+    [NoMemoryEffect,
     HasParent<"RawFunctionOp">,
     ReturnLike, Terminator]>
 {

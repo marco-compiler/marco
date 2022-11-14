@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/ModelSolving/Solvers/EulerForward.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
 using namespace ::marco;

@@ -3,7 +3,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/LoopEquation.h"
 #include "marco/Codegen/Transforms/ModelSolving/ScalarEquation.h"
 #include "marco/Codegen/Utils.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/FoldUtils.h"

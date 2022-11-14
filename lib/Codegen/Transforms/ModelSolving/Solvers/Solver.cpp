@@ -1,7 +1,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/Solvers/ModelSolver.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Modeling/IndexSet.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"

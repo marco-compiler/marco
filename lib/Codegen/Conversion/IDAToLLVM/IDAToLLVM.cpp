@@ -2,7 +2,7 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Transforms/DialectConversion.h"
@@ -1514,7 +1514,7 @@ namespace
 
       mlir::BlockAndValueMapping mapping;
 
-      for (const auto& [original, cloned] : llvm::zip(op.getBody().getArguments(), newOp.getBody().getArguments())) {
+      for (const auto& [original, cloned] : llvm::zip(op.getFunctionBody().getArguments(), newOp.getFunctionBody().getArguments())) {
         mapping.map(original, cloned);
       }
 
@@ -1526,9 +1526,9 @@ namespace
       };
 
       castArgFn(op.getVariable());
-      assert(op.getBody().getBlocks().size() == 1);
+      assert(op.getFunctionBody().getBlocks().size() == 1);
 
-      for (auto& bodyOp : op.getBody().getOps()) {
+      for (auto& bodyOp : op.getFunctionBody().getOps()) {
         if (auto returnOp = mlir::dyn_cast<ReturnOp>(bodyOp)) {
           std::vector<mlir::Value> returnValues;
 
@@ -1566,7 +1566,7 @@ namespace
 
       mlir::BlockAndValueMapping mapping;
 
-      for (const auto& [original, cloned] : llvm::zip(op.getBody().getArguments(), newOp.getBody().getArguments())) {
+      for (const auto& [original, cloned] : llvm::zip(op.getFunctionBody().getArguments(), newOp.getFunctionBody().getArguments())) {
         mapping.map(original, cloned);
       }
 
@@ -1580,9 +1580,9 @@ namespace
       castArgFn(op.getVariable());
       castArgFn(op.getValue());
 
-      assert(op.getBody().getBlocks().size() == 1);
+      assert(op.getFunctionBody().getBlocks().size() == 1);
 
-      for (auto& bodyOp : op.getBody().getOps()) {
+      for (auto& bodyOp : op.getFunctionBody().getOps()) {
         rewriter.clone(bodyOp, mapping);
       }
 
@@ -1614,7 +1614,7 @@ namespace
 
       mlir::BlockAndValueMapping mapping;
 
-      for (const auto& [original, cloned] : llvm::zip(op.getBody().getArguments(), newOp.getBody().getArguments())) {
+      for (const auto& [original, cloned] : llvm::zip(op.getFunctionBody().getArguments(), newOp.getFunctionBody().getArguments())) {
         mapping.map(original, cloned);
       }
 
@@ -1631,9 +1631,9 @@ namespace
         castArgFn(variable);
       }
 
-      assert(op.getBody().getBlocks().size() == 1);
+      assert(op.getFunctionBody().getBlocks().size() == 1);
 
-      for (auto& bodyOp : op.getBody().getOps()) {
+      for (auto& bodyOp : op.getFunctionBody().getOps()) {
         if (auto returnOp = mlir::dyn_cast<ReturnOp>(bodyOp)) {
           std::vector<mlir::Value> returnValues;
 
@@ -1680,7 +1680,7 @@ namespace
 
       mlir::BlockAndValueMapping mapping;
 
-      for (const auto& [original, cloned] : llvm::zip(op.getBody().getArguments(), newOp.getBody().getArguments())) {
+      for (const auto& [original, cloned] : llvm::zip(op.getFunctionBody().getArguments(), newOp.getFunctionBody().getArguments())) {
         mapping.map(original, cloned);
       }
 
@@ -1699,9 +1699,9 @@ namespace
 
       castArgFn(op.getAlpha());
 
-      assert(op.getBody().getBlocks().size() == 1);
+      assert(op.getFunctionBody().getBlocks().size() == 1);
 
-      for (auto& bodyOp : op.getBody().getOps()) {
+      for (auto& bodyOp : op.getFunctionBody().getOps()) {
         if (auto returnOp = mlir::dyn_cast<ReturnOp>(bodyOp)) {
           std::vector<mlir::Value> returnValues;
 

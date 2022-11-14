@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="convert-model{model=Test}" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(convert-model{model=Test})" | FileCheck %s
 
 // Model name getter
 

@@ -29,9 +29,9 @@ int main(int argc, char* argv[])
   // Register some useful MLIR built-in transformations
   mlir::registerCanonicalizerPass();
   mlir::registerCSEPass();
-  mlir::registerConvertArithmeticToLLVMPass();
+  mlir::registerArithToLLVMConversionPass();
   mlir::registerConvertFuncToLLVMPass();
-  mlir::registerConvertMemRefToLLVMPass();
+  mlir::registerMemRefToLLVMConversionPass();
   mlir::registerInlinerPass();
   mlir::registerSCFToControlFlowPass();
   mlir::registerConvertControlFlowToLLVMPass();

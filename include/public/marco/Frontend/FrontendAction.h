@@ -69,7 +69,10 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass();
+
       std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createArithToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createMemRefToLLVMConversionPass();
 
     private:
       CompilerInstance* instance_;

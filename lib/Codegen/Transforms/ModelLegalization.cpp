@@ -4,7 +4,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include "marco/Codegen/Transforms/ModelSolving/Utils.h"
 #include "marco/Codegen/Utils.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/Support/ThreadPool.h"
 

@@ -2,7 +2,7 @@
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Codegen/Utils.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 
 using namespace ::marco;
 using namespace ::marco::codegen;
