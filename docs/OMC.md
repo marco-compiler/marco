@@ -28,7 +28,7 @@ Automatic vectorization of model with many scalar instances of the same componen
 ```
 -f -d=nonfScalarize,mergeComponents,combineSubscripts,printRecordTypes,evaluateAllParameters,vectorizeBindings --newBackend --showStructuralAnnotations
 ```
-
+If one wants the OMC frontend to also do function inlining and flatten record definitions and record equations, add the `--frontendInline` flag and remove the `--newBackend` flag.
 
 These flags should be set in [run-marco.sh](https://github.com/modelica-polimi/marco/blob/5bac719666ea7e050463ef584b74be520ee7e955/run-marco.sh#L99), around line 99.
 
@@ -54,5 +54,7 @@ Explanations
   keeps structural annotations in the function definitions, such as ``Inline = true``.
 - [``--vectorizeBindings``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-vectorizebindings)
   uses iterators to vectorize non-trivial bindings with expressions that involve arrays and scalars when flattened without unrolling arrays.
+- [``--frontendInline``](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/omchelptext.html#omcflag-frontendinline) enable inlining of functions with trivial algorithms assigning the output to an expression.
+  
   
 
