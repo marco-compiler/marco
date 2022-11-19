@@ -1,4 +1,5 @@
 #include "marco/Codegen/Transforms/ModelSolving/CyclesCramerSolver.h"
+#include "mlir/Transforms/FoldUtils.h"
 
 using namespace ::marco::codegen;
 using namespace ::marco::modeling;
@@ -183,8 +184,6 @@ CramerSolver::CramerSolver(mlir::OpBuilder& builder, size_t systemSize) : builde
 
 bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap)
 {
-  newEquations = false;
-  hasUnsolvedEquations = false;
   solutionMap.clear();
   mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -264,7 +263,7 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
       // the corresponding row, and the determinant of the system matrix as
       // specified by Cramer.
       //TODO determine the type of a DivOp
-      mlir::Value rhs = builder.create<DivOp>(loc, RealAttr::get(builder.getContext(), 0).getType(), substitutedDeterminant, systemDeterminant);
+      mlir::Value rhs = builder.create<DivOp>(loc, RealType::get(builder.getContext()), substitutedDeterminant, systemDeterminant);
 
       // Set the results computed as the right side of the cloned equations,
       // and the matched variables as the left side.
@@ -276,12 +275,9 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
 
       solutionMap[index] = std::move(clone);
     }
-    newEquations = true;
   }
   // The coefficients couldn't be determined, try to match writes to reads
   else {
-    hasUnsolvedEquations = true;
-
     for (const auto& [index, equation] : flatMap) {
       unsolvedMap[index] = std::make_unique<MatchedEquation>(
           Equation::build(equation->cloneIR(), equation->getVariables()), equation->getIterationRanges(), equation->getWrite().getPath());
@@ -402,11 +398,6 @@ void CramerSolver::cloneConstantVector(
   }
 }
 
-bool CramerSolver::hasUnsolvedCycles() const
-{
-  return hasUnsolvedEquations;
-}
-
 Equations<MatchedEquation> CramerSolver::getSolution() const
 {
   Equations<MatchedEquation> solution;
@@ -427,8 +418,4 @@ Equations<MatchedEquation> CramerSolver::getUnsolvedEquations() const
         equation->getIterationRanges(), equation->getWrite().getPath()));
   }
   return unsolved;
-}
-
-bool CramerSolver::hasNewEquations() const {
-  return newEquations;
 }

@@ -76,8 +76,9 @@ static bool replaceSolvedIntoUnsolved(
     auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
     TemporaryEquationGuard equationGuard(*clone);
 
+    bool replacedRound = false;
     for (const auto& readingAccess : readingEquation->getReads()) {
-      auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, *readingEquation->getIterationRanges().begin());
+      auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, Point(0));
 
       if (solvedMap.count(readingIndex) != 0) {
         if (mlir::failed(solvedMap.at(readingIndex)->replaceInto(
@@ -86,16 +87,20 @@ static bool replaceSolvedIntoUnsolved(
           std::cerr << "REPLACEMENT ERROR SHOULDN'T HAPPEN\n";
           return false;
         } else {
-          replaced = true;
+          replacedRound = true;
         }
       }
     }
 
-    auto matchedClone = std::make_unique<MatchedEquation>(
-        Equation::build(clone->cloneIR(), clone->getVariables()),
-        readingEquation->getIterationRanges(),readingEquation->getWrite().getPath());
+    if (replacedRound) {
+      auto matchedClone = std::make_unique<MatchedEquation>(
+          Equation::build(clone->cloneIR(), clone->getVariables()),
+          readingEquation->getIterationRanges(),readingEquation->getWrite().getPath());
 
-    unsolvedMap[index] = std::move(matchedClone);
+      unsolvedMap[index] = std::move(matchedClone);
+    }
+
+    replaced = replacedRound || replaced;
   }
   return replaced;
 }

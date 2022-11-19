@@ -79,8 +79,6 @@ namespace marco::codegen {
     mlir::OpBuilder& builder;
     std::map<const size_t, std::unique_ptr<MatchedEquation>> solutionMap;
     std::map<const size_t, std::unique_ptr<MatchedEquation>> unsolvedMap;
-    bool newEquations;
-    bool hasUnsolvedEquations;
     size_t systemSize;
   public:
     /// The Solver class constructor.
@@ -141,10 +139,7 @@ namespace marco::codegen {
         mlir::Value value,
         mlir::BlockAndValueMapping& mapping);
 
-    bool hasUnsolvedCycles() const;
     Equations<MatchedEquation> getSolution() const;
     Equations<MatchedEquation> getUnsolvedEquations() const;
-
-    bool hasNewEquations() const;
   };
 }
