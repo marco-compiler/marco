@@ -8,7 +8,82 @@ using namespace ::marco::modeling;
 
 #define DEBUG_TYPE "CyclesSolving"
 
-static void createScalarClones(Equations<MatchedEquation> clones, mlir::OpBuilder builder, Equations<MatchedEquation> equations) {
+static void eraseValueAndDependencies(
+    mlir::Value value)
+{
+  std::stack<mlir::Operation*> cloneStack;
+  std::vector<mlir::Operation*> toBeErased;
+
+  // Push the defining operation of the input value on the stack.
+  if (auto op = value.getDefiningOp(); op != nullptr) {
+    cloneStack.push(op);
+  }
+
+  // Until the stack is empty pop it, add the operand to the list, get its
+  // operands (if any) and push them on the stack.
+  while (!cloneStack.empty()) {
+    auto op = cloneStack.top();
+    cloneStack.pop();
+
+    toBeErased.push_back(op);
+
+    for (const auto& operand : op->getOperands()) {
+      if (auto operandOp = operand.getDefiningOp(); operandOp != nullptr) {
+        cloneStack.push(operandOp);
+      }
+    }
+  }
+
+  // Erase the operations
+  for (auto opToErase : toBeErased) {
+    opToErase->dump();
+    if(opToErase->getUses().empty())
+      opToErase->erase();
+  }
+}
+
+static mlir::Value cloneValueAndDependencies(
+    mlir::OpBuilder& builder,
+    mlir::Value value,
+    mlir::BlockAndValueMapping& mapping)
+{
+  std::stack<mlir::Operation*> cloneStack;
+  std::vector<mlir::Operation*> toBeCloned;
+
+  // Push the defining operation of the input value on the stack.
+  if (auto op = value.getDefiningOp(); op != nullptr) {
+    cloneStack.push(op);
+  }
+
+  // Until the stack is empty pop it, add the operand to the list, get its
+  // operands (if any) and push them on the stack.
+  while (!cloneStack.empty()) {
+    auto op = cloneStack.top();
+    cloneStack.pop();
+
+    toBeCloned.push_back(op);
+
+    for (const auto& operand : op->getOperands()) {
+      if (auto operandOp = operand.getDefiningOp(); operandOp != nullptr) {
+        cloneStack.push(operandOp);
+      }
+    }
+  }
+
+  // Clone the operations
+  mlir::Operation* clonedOp = nullptr;
+  for (auto opToClone : llvm::reverse(toBeCloned)) {
+    clonedOp = builder.clone(*opToClone, mapping);
+  }
+
+  assert(clonedOp != nullptr);
+  auto results = clonedOp->getResults();
+  assert(results.size() == 1);
+  mlir::Value result = results[0];
+  return result;
+}
+
+static void createScalarClones(Equations<MatchedEquation> clones, mlir::OpBuilder& builder, Equations<MatchedEquation> equations) {
   // Get the number of scalar equations in the system
   for (const auto& equation : equations) {
     auto loc = equation->getOperation()->getLoc();
@@ -67,7 +142,9 @@ static void populateFlatMap(std::map<size_t, std::unique_ptr<MatchedEquation>>& 
 }
 
 static bool replaceSolvedIntoUnsolved(
-    std::map<size_t, std::unique_ptr<MatchedEquation>>& unsolvedMap, mlir::OpBuilder builder, std::map<size_t, std::unique_ptr<MatchedEquation>>& solvedMap) {
+    std::map<size_t, std::unique_ptr<MatchedEquation>>& unsolvedMap, mlir::OpBuilder& builder, std::map<size_t, std::unique_ptr<MatchedEquation>>& solvedMap) {
+  mlir::OpBuilder::InsertionGuard guard(builder);
+
   // Replace the newly found equations (if any) in the unsolved equations.
   // This assumes that the equations are in scalar form.
   bool replaced = false;
@@ -76,19 +153,26 @@ static bool replaceSolvedIntoUnsolved(
     auto clone = Equation::build(readingEquation->cloneIR(), readingEquation->getVariables());
     TemporaryEquationGuard equationGuard(*clone);
 
+    mlir::BlockAndValueMapping mapping;
+    for (const auto& variable : clone->getVariables()) {
+      auto variableValue = variable->getValue();
+      mapping.map(variableValue, variableValue);
+    }
+
     bool replacedRound = false;
+    builder.setInsertionPointToStart(clone->getOperation().bodyBlock());
     for (const auto& readingAccess : readingEquation->getReads()) {
       auto readingIndex = readingEquation->getFlatAccessIndex(readingAccess, Point(0));
 
       if (solvedMap.count(readingIndex) != 0) {
-        if (mlir::failed(solvedMap.at(readingIndex)->replaceInto(
-                builder, solvedMap.at(readingIndex)->getIterationRanges(), *clone,
-                readingAccess.getAccessFunction(), readingAccess.getPath()))) {
-          std::cerr << "REPLACEMENT ERROR SHOULDN'T HAPPEN\n";
-          return false;
-        } else {
-          replacedRound = true;
-        }
+        mlir::Value toBeCloned = solvedMap.at(readingIndex)->getValueAtPath(EquationPath(EquationPath::RIGHT));
+        mlir::Value insertedValue = cloneValueAndDependencies(builder, toBeCloned, mapping);
+
+        mlir::Value toBeReplaced = clone->getValueAtPath(readingAccess.getPath());
+        toBeReplaced.replaceAllUsesWith(insertedValue);
+        eraseValueAndDependencies(toBeReplaced);
+
+        replacedRound = true;
       }
     }
 

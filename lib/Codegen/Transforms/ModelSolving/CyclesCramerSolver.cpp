@@ -185,6 +185,7 @@ CramerSolver::CramerSolver(mlir::OpBuilder& builder, size_t systemSize) : builde
 bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& flatMap)
 {
   solutionMap.clear();
+  unsolvedMap.clear();
   mlir::OpBuilder::InsertionGuard guard(builder);
 
   // Get the number of scalar equations in the system
