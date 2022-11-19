@@ -157,7 +157,7 @@ static void printValues(const Simulation& simulation)
       PRINT_PROFILER_STRING_STOP;
 
       PRINT_PROFILER_FLOAT_START;
-      std::cout << value;
+      std::cout << (value == 0 ? 0 : value);
       PRINT_PROFILER_FLOAT_STOP;
     } else {
       // Print the components of the array variable.
@@ -173,7 +173,7 @@ static void printValues(const Simulation& simulation)
           PRINT_PROFILER_STRING_STOP;
 
           PRINT_PROFILER_FLOAT_START;
-          std::cout << value;
+          std::cout << (value == 0 ? 0 : value);
           PRINT_PROFILER_FLOAT_STOP;
         }
       }
