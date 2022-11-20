@@ -1,4 +1,5 @@
 #include "marco/Codegen/Transforms/ModelSolving/CyclesCramerSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/FoldingUtils.h"
 #include "mlir/Transforms/FoldUtils.h"
 
 using namespace ::marco::codegen;
@@ -33,10 +34,8 @@ void SquareMatrix::print(llvm::raw_ostream &os)
 {
   os << "MATRIX SIZE: " << size << "\n";
   for (size_t i = 0; i < size; i++) {
-    os << "LINE #" << i << "\n";
     for (size_t j = 0; j < size; j++) {
-      (*this)(i,j).print(os);
-      os << "\n";
+      os << recursiveFoldValue((*this)(i,j).getDefiningOp()) << "\t";
     }
     os << "\n";
   }
@@ -206,12 +205,16 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
   bool res = getModelMatrixAndVector(matrix, constantVector, subsystemSize, flatMap);
 
   LLVM_DEBUG({
-    llvm::dbgs() << "COEFFICIENT MATRIX: \n";
-    matrix.dump();
-    llvm::dbgs() << "CONSTANT VECTOR: \n";
-    for(auto el : constantVector)
-      el.dump();
+    if (res) {
+      llvm::dbgs() << "COEFFICIENT MATRIX: \n";
+      matrix.dump();
+      llvm::dbgs() << "CONSTANT VECTOR: \n";
+      for(auto el : constantVector)
+        llvm::dbgs() << recursiveFoldValue(el.getDefiningOp()) << "\t";
+      llvm::dbgs() << "\n";
+    }
   });
+
 
   if(res) {
     size_t subsystemEquationIndex = 0;
@@ -266,6 +269,18 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
       //TODO determine the type of a DivOp
       mlir::Value rhs = builder.create<DivOp>(loc, RealType::get(builder.getContext()), substitutedDeterminant, systemDeterminant);
 
+      LLVM_DEBUG({
+        llvm::dbgs() << "SYSTEM DET:\n";
+        llvm::dbgs() << recursiveFoldValue(systemDeterminant.getDefiningOp());
+        llvm::dbgs() << "\n";
+        llvm::dbgs() << "LOCAL DET:\n";
+        llvm::dbgs() << recursiveFoldValue(substitutedDeterminant.getDefiningOp());
+        llvm::dbgs() << "\n";
+        llvm::dbgs() << "RHS:\n";
+        llvm::dbgs() << recursiveFoldValue(rhs.getDefiningOp());
+        llvm::dbgs() << "\n";
+      });
+
       // Set the results computed as the right side of the cloned equations,
       // and the matched variables as the left side.
       mlir::Value lhsTuple = builder.create<EquationSideOp>(loc, lhs);
@@ -276,6 +291,14 @@ bool CramerSolver::solve(std::map<size_t, std::unique_ptr<MatchedEquation>>& fla
 
       solutionMap[index] = std::move(clone);
     }
+
+    LLVM_DEBUG({
+      llvm::dbgs() << "\nSOLUTIONS:\n";
+      for (const auto& [index, equation] : solutionMap) {
+        EquationSidesOp terminator = mlir::cast<EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
+        llvm::dbgs() << "INDEX " << index << ": " << recursiveFoldValue(terminator.getRhsValues()[0].getDefiningOp()) << "\n";
+      }
+    });
   }
   // The coefficients couldn't be determined, try to match writes to reads
   else {

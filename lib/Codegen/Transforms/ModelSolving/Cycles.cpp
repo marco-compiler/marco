@@ -2,6 +2,7 @@
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSubstitutionSolver.h"
 #include "marco/Codegen/Transforms/ModelSolving/CyclesCramerSolver.h"
 #include "marco/Modeling/Cycles.h"
+#include "marco/Codegen/Transforms/ModelSolving/FoldingUtils.h"
 
 using namespace ::marco::codegen;
 using namespace ::marco::modeling;
@@ -36,7 +37,6 @@ static void eraseValueAndDependencies(
 
   // Erase the operations
   for (auto opToErase : toBeErased) {
-    opToErase->dump();
     if(opToErase->getUses().empty())
       opToErase->erase();
   }
@@ -409,6 +409,14 @@ static bool solveWithCramer(
 
   // Set the new equations of the model
   model.setEquations(solution);
+
+  LLVM_DEBUG({
+    llvm::dbgs() << "\nSOLUTIONS:\n";
+    for (const auto& equation : model.getEquations()) {
+      EquationSidesOp terminator = mlir::cast<EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
+      llvm::dbgs() << "INDEX " << equation->getFlatAccessIndex(Point(0)) << ": " << recursiveFoldValue(terminator.getRhsValues()[0].getDefiningOp()) << "\n";
+    }
+  });
 
   return allCyclesSolved;
 }
