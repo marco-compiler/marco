@@ -4,6 +4,8 @@
 #ifndef MARCO_FOLDINGUTILS_H
 #define MARCO_FOLDINGUTILS_H
 
+using namespace ::mlir::modelica;
+
 static double getDoubleFromAttribute(mlir::Attribute attribute)
 {
   if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>()) {

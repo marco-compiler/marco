@@ -143,6 +143,31 @@ def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createCyclesSolvingPass()";
 }
 
+def DebugCanonicalizerPass : Pass<"debug-canonicalize", "mlir::ModuleOp"> {
+  let summary = "Fold addition, subtraction, multiplication, division and negation";
+
+  let description = [{
+      // TODO
+  }];
+
+  let dependentDialects = [
+    "mlir::modelica::ModelicaDialect"
+  ];
+
+  let options = [
+    Option<"modelName", "model-name", "std::string", "",
+           "Set the model whose cycles hs to be solved">,
+    Option<"processICModel", "process-ic-model", "bool", "true",
+           "Process the 'initial conditions' model">,
+    Option<"processMainModel", "process-main-model", "bool", "true",
+           "Process the 'main' model">,
+    Option<"debugView", "debug-view", "bool", "false",
+           "Generate a more organized IR for better testing(warning: highly inefficient)">
+  ];
+
+  let constructor = "mlir::modelica::createDebugCanonicalizerPass()";
+}
+
 def SchedulingPass : Pass<"schedule", "mlir::ModuleOp"> {
     let summary = "Perform the scheduling process on a matched model";
 

@@ -25,6 +25,7 @@ set(SOURCES
     ModelSolving/Variable.cpp
     ArrayDeallocation.cpp
     CyclesSolving.cpp
+    DebugCanonicalizer.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
     Matching.cpp

@@ -4,6 +4,7 @@
 #include "marco/Codegen/Transforms/ArrayDeallocation.h"
 #include "marco/Codegen/Transforms/AutomaticDifferentiation.h"
 #include "marco/Codegen/Transforms/CyclesSolving.h"
+#include "marco/Codegen/Transforms/DebugCanonicalizer.h"
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Codegen/Transforms/Matching.h"
