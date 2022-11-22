@@ -3,8 +3,9 @@
 ## ThermalChip
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipODE N=4, M=4, P=4 | TBD | TBD | TBD | TBD | TBD | TBD |
-| ThermalChipODE N=16, M=16, P=16 | TBD | TBD | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryODE N=4, M=4, P=4 | 88 | 64 | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryODE N=40, M=40, P=40 | ~65k | ~64k | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryODE N=100, M=100, P=100 | ~1M | ~1M | TBD | TBD | TBD | TBD |
 
 (the idea is to have one small and one large test case)
 
@@ -12,15 +13,17 @@
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipDAE N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
-| ThermalChipDAE N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryDAE N=4, M=4, P=4 | 328 | 64 | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryDAE N=40, M=40, P=40 | ~300k | ~64k | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryDAE N=100, M=100, P=100 | ~5M | ~1M | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipOO N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
-| ThermalChipOO N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryOO N=4, M=4, P=4 |~1k | 64 | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryOO N=40, M=40, P=40 | ~1M | ~64k | TBD | TBD | TBD | TBD |
+| ThermalChipSimpleBoundaryOO N=100, M=100, P=100 | ~16M | ~1M | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
@@ -28,15 +31,17 @@
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipCoolingODE N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
-| ThermalChipCoolingODE N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
+| ThermalChipCoolingSimpleBoundaryODE N=4, M=4, P=4 | 145 | 80 | TBD | TBD | TBD | TBD |
+| ThermalChipCoolingSimpleBoundaryODEODE N=40, M=40, P=40 | ~145k | ~65k | TBD | TBD | TBD | TBD |
+| ThermalChipCoolingSimpleBoundaryODEODE N=100, M=100, P=100 | ~2M | ~1M | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipOO N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
-| ThermalChipOO N=XX, M=XX, P=XX | TBD | TBD | TBD | TBD | TBD | TBD |
+| ThermalChipCoolingSimpleBoundaryOO N=4, M=4, P=4 | ~1K | 80 | TBD | TBD | TBD | TBD |
+| ThermalChipCoolingSimpleBoundaryOO N=40, M=40, P=40 | ~500k | ~65k | TBD | TBD | TBD | TBD |
+| ThermalChipCoolingSimpleBoundaryOO N=100, M=100, P=100 | ~8M | ~1M | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
@@ -44,8 +49,9 @@
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | TBD | TBD | TBD | TBD | TBD | TBD |
-| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | TBD | TBD | TBD | TBD | TBD | TBD |
+| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | TBD | TBD | TBD | TBD |
+| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | TBD | TBD | TBD | TBD |
+| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
@@ -53,23 +59,24 @@
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| PowerGridBaseDAE Ne=2 | TBD | TBD | TBD | TBD | TBD | TBD |
-| PowerGridBaseDAE Ne=100 | TBD | TBD | TBD | TBD | TBD | TBD |
+| PowerGridBaseDAE Ne=2 | 156 | 16 | TBD | TBD | TBD | TBD |
+| PowerGridBaseDAE Ne=100 | ~400k | ~40k | TBD | TBD | TBD | TBD |
+| PowerGridBaseDAE Ne=400 | ~6M | ~640k | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
 
-| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| PowerGridSecondaryDAE Ne=2 | TBD | TBD | TBD | TBD | TBD | TBD |
-| PowerGridSecondaryDAE Ne=100 | TBD | TBD | TBD | TBD | TBD | TBD |
+| PowerGridSecondaryDAE Ne=2 | 158 | 17 | TBD | TBD | TBD | TBD |
+| PowerGridSecondaryDAE Ne=100 | ~400k | ~40k | TBD | TBD | TBD | TBD |
+| PowerGridSecondaryDAE Ne=400 | ~6M | ~640k | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| PowerGridBaseOO Ne=2 | TBD | TBD | TBD | TBD | TBD | TBD |
-| PowerGridBaseOO Ne=100 | TBD | TBD | TBD | TBD | TBD | TBD |
+| PowerGridBaseOO Ne=2 | 364 | 16 | TBD | TBD | TBD | TBD |
+| PowerGridBaseOO Ne=100 | ~800k | ~40k | TBD | TBD | TBD | TBD |
+| PowerGridBaseOO Ne=400 | ~12M | ~600k | TBD | TBD | TBD | TBD |
 
 **Status**: blah blah blah
 
