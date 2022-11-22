@@ -84,8 +84,9 @@
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| Type1 N=1, M=1  | TBD | TBD | TBD | TBD | TBD | TBD |
-| Type1 N=16, M=4 | TBD | TBD | TBD | TBD | TBD | TBD |
+| Type1 N=1, M=1  | ~2k | 4 | TBD | TBD | TBD | TBD |
+| Type1 N=16, M=4 | ~800k | ~1k | TBD | TBD | TBD | TBD |
+| Type1 N=45, M=4 | ~6.4M | ~8k | TBD | TBD | TBD | TBD |
 
 **Status**: Currently trying to get proper flat Modelica output with non-scalarized bindings. 
 Also, the model contains conditional expressions for saturation blocks, so it is necessary to create a variant using smooth saturation functions
