@@ -4940,7 +4940,7 @@ namespace mlir::modelica
 
   mlir::ValueRange PowOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
   {
-    // D[x ^ y] = (x ^ y) * (y' * ln(x) + (y * x') / x)
+    // D[x ^ y] = (x ^ (y - 1)) * (y * x' + x * ln(x) * y')
 
     auto loc = getLoc();
 
@@ -4949,15 +4949,27 @@ namespace mlir::modelica
 
     mlir::Type type = convertToRealType(getResult().getType());
 
-    mlir::Value pow = builder.create<PowOp>(loc, type, getBase(), getExponent());
-    mlir::Value ln = builder.create<LogOp>(loc, type, getBase());
-    mlir::Value firstOperand = builder.create<MulOp>(loc, type, derivedExponent, ln);
-    mlir::Value numerator = builder.create<MulOp>(loc, type, getExponent(), derivedBase);
-    mlir::Value secondOperand = builder.create<DivOp>(loc, type, numerator, getBase());
-    mlir::Value sum = builder.create<AddOp>(loc, type, firstOperand, secondOperand);
-    auto derivedOp = builder.create<MulOp>(loc, type, pow, sum);
+    if (auto constantExponent = getExponent().getDefiningOp<ConstantOp>()) {
+      mlir::Value one = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 1));
+      mlir::Value exponent = builder.createOrFold<SubOp>(loc, getExponent().getType(), getExponent(), one);
+      mlir::Value pow = builder.create<PowOp>(loc, type, getBase(), exponent);
+      auto derivedOp = builder.create<MulOp>(loc, type, pow, derivedBase);
 
-    return derivedOp->getResults();
+      return derivedOp->getResults();
+
+    } else {
+      mlir::Value one = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 1));
+      mlir::Value exponent = builder.create<SubOp>(loc, getExponent().getType(), getExponent(), one);
+      mlir::Value pow = builder.create<PowOp>(loc, type, getBase(),exponent);
+      mlir::Value firstMul = builder.create<MulOp>(loc, type, getExponent(), derivedBase);
+      mlir::Value ln = builder.create<LogOp>(loc, type, getBase());
+      mlir::Value secondMul = builder.create<MulOp>(loc, type, getBase(), ln);
+      mlir::Value thirdMul = builder.create<MulOp>(loc, type, secondMul, derivedExponent);
+      mlir::Value sum = builder.create<AddOp>(loc, type, firstMul, thirdMul);
+      auto derivedOp = builder.create<MulOp>(loc, type, pow, sum);
+
+      return derivedOp->getResults();
+    }
   }
 
   void PowOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
