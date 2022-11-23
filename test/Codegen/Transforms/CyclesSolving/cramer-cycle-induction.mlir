@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="solve-cycles{model-name=Test process-ic-model=false debug-view=true},canonicalize" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(solve-cycles{model-name=Test process-ic-model=false debug-view=true},canonicalize)" | FileCheck %s
 
 // CHECK{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
 // CHECK: %[[#CONST:]] = modelica.constant 0 : index

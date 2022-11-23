@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="solve-cycles{model-name=Test process-ic-model=false debug-view=true},canonicalize" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(solve-cycles{model-name=Test process-ic-model=false debug-view=true},canonicalize)" | FileCheck %s
 
 // CHECK-DAG: %[[#X0:]] = modelica.constant #modelica.real<4.000000e+00> : !modelica.real
 // CHECK-DAG: %[[#X1:]] = modelica.constant #modelica.real<-1.500000e+00> : !modelica.real
