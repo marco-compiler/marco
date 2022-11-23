@@ -1503,7 +1503,8 @@ namespace marco::codegen
                                  value.getType()),
               constantTerm, value);
         else
-          constantTerm = builder.create<AddOp>(
+          //TODO: with just 'builder.create' canonicalization is broken
+          constantTerm = builder.createOrFold<AddOp>(
               loc,
               getMostGenericType(constantTerm.getType(),
                                  value.getType()),
