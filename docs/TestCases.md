@@ -65,7 +65,8 @@
 
 **Status**: blah blah blah
 
-
+| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
 | PowerGridSecondaryDAE Ne=2 | 158 | 17 | TBD | TBD | TBD | TBD |
 | PowerGridSecondaryDAE Ne=100 | ~400k | ~40k | TBD | TBD | TBD | TBD |
 | PowerGridSecondaryDAE Ne=400 | ~6M | ~640k | TBD | TBD | TBD | TBD |
