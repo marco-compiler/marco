@@ -40,7 +40,7 @@ namespace marco::runtime::ida
     realtype absoluteTolerance = 1e-06;
 
     // Arbitrary initial guess made in the 20/12/2021 Modelica Call
-    realtype maxAlgebraicAbsoluteTolerance = 1e-12;
+    realtype maxAlgebraicAbsoluteTolerance = 1e-06;
 
     // Arbitrary initial guess made in the 20/12/2021 Modelica Call
     realtype timeScalingFactorInit = 1e5;
