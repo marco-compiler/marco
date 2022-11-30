@@ -540,13 +540,13 @@ namespace
 {
   float log_f32(float value)
   {
-    assert(value > 0);
+    assert(value >= 0);
     return std::log(value);
   }
 
   double log_f64(double value)
   {
-    assert(value > 0);
+    assert(value >= 0);
     return std::log(value);
   }
 }
@@ -562,13 +562,13 @@ namespace
 {
   float log10_f32(float value)
   {
-    assert(value > 0);
+    assert(value >= 0);
     return std::log10(value);
   }
 
   double log10_f64(double value)
   {
-    assert(value > 0);
+    assert(value >= 0);
     return std::log10(value);
   }
 }
