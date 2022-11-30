@@ -279,6 +279,54 @@ namespace
       newOperands.push_back(rank);
       mangledArgsTypes.push_back(mangling.getIntegerType(rank.getType().getIntOrFloatBitWidth()));
 
+      {
+        // Written variable
+        newOperands.push_back(adaptor.getWrittenVariable());
+        mangledArgsTypes.push_back(mangling.getIntegerType(adaptor.getWrittenVariable().getType().getIntOrFloatBitWidth()));
+
+        // Write access
+        auto dimensionAccesses = op.getWriteAccess().getResults();
+        llvm::SmallVector<mlir::Value, 6> accessValues;
+
+        for (const auto dimensionAccess : dimensionAccesses) {
+          if (dimensionAccess.isa<mlir::AffineConstantExpr>()) {
+            auto constantAccess = dimensionAccess.cast<mlir::AffineConstantExpr>();
+            accessValues.push_back(rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getI64IntegerAttr(-1)));
+            accessValues.push_back(rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getI64IntegerAttr(constantAccess.getValue())));
+          } else if (dimensionAccess.isa<mlir::AffineDimExpr>()) {
+            auto dimension = dimensionAccess.cast<mlir::AffineDimExpr>();
+            accessValues.push_back(rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getI64IntegerAttr(dimension.getPosition())));
+            accessValues.push_back(rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getI64IntegerAttr(0)));
+          } else {
+            auto dynamicAccess = dimensionAccess.cast<mlir::AffineBinaryOpExpr>();
+            auto dimension = dynamicAccess.getLHS().cast<mlir::AffineDimExpr>();
+            auto offset = dynamicAccess.getRHS().cast<mlir::AffineConstantExpr>();
+            accessValues.push_back(rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getI64IntegerAttr(dimension.getPosition())));
+            accessValues.push_back(rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getI64IntegerAttr(offset.getValue())));
+          }
+        }
+
+        mlir::Type dimensionSizeType = getTypeConverter()->convertType(rewriter.getI64Type());
+        mlir::Value numOfElements = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), accessValues.size()));
+        mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(dimensionSizeType);
+        mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
+        mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, nullPtr, numOfElements);
+        mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, getIndexType(), gepPtr);
+
+        auto heapAllocFn = lookupOrCreateHeapAllocFn(op->getParentOfType<mlir::ModuleOp>(), getIndexType());
+        mlir::Value accessesOpaquePtr = rewriter.create<mlir::LLVM::CallOp>(loc, heapAllocFn, sizeBytes).getResult();
+        mlir::Value accessesPtr = rewriter.create<mlir::LLVM::BitcastOp>(loc, elementPtrType, accessesOpaquePtr);
+
+        newOperands.push_back(accessesPtr);
+        mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(dimensionSizeType.getIntOrFloatBitWidth())));
+
+        for (const auto& accessValue : llvm::enumerate(accessValues)) {
+          mlir::Value offset = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), accessValue.index()));
+          mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, accessesPtr.getType(), accessesPtr, offset);
+          rewriter.create<mlir::LLVM::StoreOp>(loc, accessValue.value(), ptr);
+        }
+      }
+
       // Create the call to the runtime library
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
       auto mangledResultType = mangling.getIntegerType(resultType.getIntOrFloatBitWidth());
@@ -815,7 +863,6 @@ namespace
       newOperands.push_back(accessesPtr);
       mangledArgsTypes.push_back(mangling.getPointerType(mangling.getIntegerType(dimensionSizeType.getIntOrFloatBitWidth())));
 
-      // Populate the equation ranges
       for (const auto& accessValue : llvm::enumerate(accessValues)) {
         mlir::Value offset = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIntegerAttr(getTypeConverter()->getIndexType(), accessValue.index()));
         mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, accessesPtr.getType(), accessesPtr, offset);
@@ -1729,7 +1776,7 @@ namespace mlir
       mlir::ConversionTarget& target)
   {
     typeConverter.addConversion([&](InstanceType type) {
-     return type;
+      return type;
     });
 
     typeConverter.addConversion([&](EquationType type) {

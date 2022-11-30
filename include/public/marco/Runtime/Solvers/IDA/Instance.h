@@ -2,21 +2,27 @@
 #define MARCO_RUNTIME_SOLVERS_IDA_INSTANCE_H
 
 #include "marco/Runtime/Mangling.h"
+#include "marco/Runtime/Modeling/MultidimensionalRange.h"
 #include "ida/ida.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_config.h"
 #include "sundials/sundials_types.h"
 #include "sunlinsol/sunlinsol_klu.h"
 #include "sunmatrix/sunmatrix_sparse.h"
+#include <map>
 #include <set>
 #include <vector>
 
 namespace marco::runtime::ida
 {
-  using Access = std::vector<std::pair<sunindextype, sunindextype>>;
+  using Access = std::vector<std::pair<int64_t, int64_t>>;
   using VarAccessList = std::vector<std::pair<sunindextype, Access>>;
 
-  using DerivativeVariable = std::pair<size_t, std::vector<size_t>>;
+  /// A column of the Jacobian matrix.
+  /// The first element represents the array variable with respect to which the
+  /// partial derivative has to be computed. The second element represents the
+  /// indices of the scalar variable.
+  using JacobianColumn = std::pair<size_t, std::vector<int64_t>>;
 
   class VariableIndicesIterator;
 
@@ -24,7 +30,7 @@ namespace marco::runtime::ida
   class VariableDimensions
   {
     private:
-      using Container = std::vector<size_t>;
+      using Container = std::vector<int64_t>;
 
     public:
       using iterator = typename Container::iterator;
@@ -34,8 +40,8 @@ namespace marco::runtime::ida
 
       size_t rank() const;
 
-      size_t& operator[](size_t index);
-      const size_t& operator[](size_t index) const;
+      int64_t& operator[](size_t index);
+      const int64_t& operator[](size_t index) const;
 
       /// @name Dimensions iterators
       /// {
@@ -66,10 +72,10 @@ namespace marco::runtime::ida
   {
     public:
       using iterator_category = std::forward_iterator_tag;
-      using value_type = size_t*;
+      using value_type = const int64_t*;
       using difference_type = std::ptrdiff_t;
-      using pointer = size_t**;
-      using reference = size_t*&;
+      using pointer = const int64_t**;
+      using reference = const int64_t*&;
 
       ~VariableIndicesIterator();
 
@@ -86,7 +92,7 @@ namespace marco::runtime::ida
       VariableIndicesIterator& operator++();
       VariableIndicesIterator operator++(int);
 
-      size_t* operator*() const;
+      const int64_t* operator*() const;
 
     private:
       VariableIndicesIterator(const VariableDimensions& dimensions);
@@ -94,25 +100,23 @@ namespace marco::runtime::ida
       void fetchNext();
 
     private:
-      size_t* indices;
+      int64_t* indices;
       const VariableDimensions* dimensions;
   };
-
-  using EqDimension = std::vector<std::pair<size_t, size_t>>;
 
   /// Signature of variable getter functions.
   /// The 1st argument is an opaque pointer to the variable descriptor.
   /// The 2nd argument is a pointer to the indices list.
   /// The result is the scalar value.
   template<typename FloatType>
-  using VariableGetterFunction = FloatType(*)(void*, size_t*);
+  using VariableGetterFunction = FloatType(*)(void*, const int64_t*);
 
   /// Signature of variable setter functions.
   /// The 1st argument is an opaque pointer to the variable descriptor.
   /// The 2nd argument is the value to be set.
   /// The 3rd argument is a pointer to the indices list.
   template<typename FloatType>
-  using VariableSetterFunction = void(*)(void*, FloatType, size_t*);
+  using VariableSetterFunction = void(*)(void*, FloatType, const int64_t*);
 
   /// Signature of residual functions.
   /// The 1st argument is the current time.
@@ -120,7 +124,7 @@ namespace marco::runtime::ida
   /// The 3rd argument is a pointer to the list of equation indices.
   /// The result is the residual value.
   template<typename FloatType>
-  using ResidualFunction = FloatType(*)(FloatType, void*, size_t*);
+  using ResidualFunction = FloatType(*)(FloatType, void*, const int64_t*);
 
   /// Signature of Jacobian functions.
   /// The 1st argument is the current time.
@@ -130,7 +134,7 @@ namespace marco::runtime::ida
   /// The 5th argument is the 'alpha' value.
   /// The result is the Jacobian value.
   template<typename FloatType>
-  using JacobianFunction = FloatType(*)(FloatType, void*, size_t*, size_t*, FloatType);
+  using JacobianFunction = FloatType(*)(FloatType, void*, const int64_t*, const int64_t*, FloatType);
 
   class IDAInstance
   {
@@ -151,24 +155,28 @@ namespace marco::runtime::ida
           void* variable,
           int64_t* dimensions,
           int64_t rank,
-          void* getter,
-          void* setter);
+          void* getterFunction,
+          void* setterFunction);
 
       int64_t addStateVariable(
           void* variable,
           int64_t* dimensions,
           int64_t rank,
-          void* getter,
-          void* setter);
+          void* getterFunction,
+          void* setterFunction);
 
       void setDerivative(
-          int64_t stateVariable,
+          int64_t idaStateVariable,
           void* derivative,
-          void* getter,
-          void* setter);
+          void* getterFunction,
+          void* setterFunction);
 
-      /// Add the dimension of an equation to the IDA user data.
-      int64_t addEquation(int64_t* ranges, int64_t rank);
+      /// Add the information about an equation the is handled by IDA.
+      int64_t addEquation(
+          int64_t* ranges,
+          int64_t rank,
+          int64_t writtenVariable,
+          int64_t* writtenVariableIndices);
 
       void addVariableAccess(
           int64_t equationIndex,
@@ -240,18 +248,22 @@ namespace marco::runtime::ida
           N_Vector tempv3);
 
     private:
-      std::set<DerivativeVariable> computeIndexSet(
-        size_t eq, size_t* eqIndexes) const;
+      size_t getNumOfVectorizedEquations() const;
+
+      size_t getEquationRank(size_t equation) const;
+
+      std::vector<JacobianColumn> computeIndexSet(
+          size_t eq, int64_t* eqIndexes) const;
 
       void computeNNZ();
 
-      void copyVariablesFromMARCO(N_Vector values);
+      void copyVariablesFromMARCO(
+          N_Vector algebraicAndStateVariablesVector,
+          N_Vector derivativeVariablesVector);
 
-      void copyDerivativesFromMARCO(N_Vector values);
-
-      void copyVariablesIntoMARCO(N_Vector values);
-
-      void copyDerivativesIntoMARCO(N_Vector values);
+      void copyVariablesIntoMARCO(
+          N_Vector algebraicAndStateVariablesVector,
+          N_Vector derivativeVariablesVector);
 
       /// Prints the Jacobian incidence matrix of the system.
       void printIncidenceMatrix() const;
@@ -285,7 +297,10 @@ namespace marco::runtime::ida
       /// }
 
     private:
+      // Sundials context.
       SUNContext ctx;
+
+      // Whether the instance has been inizialized or not.
       bool initialized;
 
       int64_t marcoBitWidth;
@@ -294,10 +309,33 @@ namespace marco::runtime::ida
       int64_t scalarEquationsNumber;
       int64_t nonZeroValuesNumber;
 
-      // Equations data.
-      std::vector<EqDimension> equationDimensions;
-      std::vector<void*> residuals;
-      std::vector<std::vector<void*>> jacobians;
+      // The iteration ranges of the vectorized equations.
+      std::vector<MultidimensionalRange> equationRanges;
+
+      // The array variables written by the equations.
+      // The i-th position contains the information about the variable written
+      // by the i-th equation: the first element is the index of the IDA
+      // variable, while the second represents the ranges of the scalar
+      // variable.
+      std::vector<std::pair<int64_t, Access>> writeAccesses;
+
+      // The order in which the equations must be processed when computing
+      // residuals and jacobians in order to match the order of the variables.
+      // For example, if equation 0 writes to variable 1 and equation 1 writes
+      // to variable 0, then the processing order is equation 1 -> equation 0.
+      std::vector<size_t> equationsProcessingOrder;
+
+      // The residual functions associated with the equations.
+      // The i-th position contains the pointer to the residual function of the
+      // i-th equation.
+      std::vector<void*> residualFunctions;
+
+      // The jacobian functions associated with the equations.
+      // The i-th position contains the list of partial derivative functions of
+      // the i-th equation. The j-th function represents the function to
+      // compute the derivative with respect to the j-th variable.
+      std::vector<std::vector<void*>> jacobianFunctions;
+
       std::vector<VarAccessList> variableAccesses;
 
       // The offset of each array variable inside the flattened variables
@@ -306,7 +344,6 @@ namespace marco::runtime::ida
 
       // The dimensions list of each array variable.
       std::vector<VariableDimensions> variablesDimensions;
-      std::vector<VariableDimensions> derivativesDimensions;
 
       // Simulation times.
       realtype startTime;
@@ -332,15 +369,24 @@ namespace marco::runtime::ida
       SUNMatrix sparseMatrix;
       SUNLinearSolver linearSolver;
 
-      std::vector<void*> parameters;
-      std::vector<void*> variables;
-      std::vector<void*> derivatives;
+      std::vector<void*> parametricVariables;
+      std::vector<void*> algebraicVariables;
+      std::vector<void*> stateVariables;
 
-      std::vector<void*> variablesGetters;
-      std::vector<void*> derivativesGetters;
+      std::vector<void*> algebraicAndStateVariables;
+      std::vector<void*> algebraicAndStateVariablesGetters;
+      std::vector<void*> algebraicAndStateVariablesSetters;
 
-      std::vector<void*> variablesSetters;
-      std::vector<void*> derivativesSetters;
+      std::vector<void*> derivativeVariables;
+      std::vector<void*> derivativeVariablesGetters;
+      std::vector<void*> derivativeVariablesSetters;
+
+      // Mapping from the IDA variable position to algebraic variables
+      // position.
+      std::map<size_t, size_t> algebraicVariablesMapping;
+
+      // Mapping from the IDA variable position to state variables position.
+      std::map<size_t, size_t> stateVariablesMapping;
 
       void** simulationData;
   };
@@ -370,7 +416,7 @@ RUNTIME_FUNC_DECL(idaSetTimeStep, void, PTR(void), double)
 // Equation setters
 //===---------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
+RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t, int64_t, PTR(int64_t))
 
 RUNTIME_FUNC_DECL(idaSetResidual, void, PTR(void), int64_t, PTR(void))
 

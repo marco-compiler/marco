@@ -178,25 +178,29 @@ def IDA_AddEquationOp : IDA_Op<"add_equation",
 
         ```mlir
         %0 = ... : !ida.instance
-        ida.add_equation %0 { equationRanges : [[4,7], [9,13], [1,3]] } : ida.instance -> ida.equation
+        %1 = ... : !ida.variable
+        ida.add_equation %0, %1 { equationRanges : [[4,7], [9,13], [1,3]], writeAccess : affine_map<(d0, d1, d2)[s0] -> (d1, d0 + s0, d2)> } : (!ida.instance, !ida.variable) -> !ida.equation
         ```
     }];
 
     let arguments = (ins
         IDAInstance:$instance,
-        ArrayAttr:$equationRanges);
+        ArrayAttr:$equationRanges,
+        IDAVariable:$writtenVariable,
+        AffineMapAttr:$writeAccess);
 
     let results = (outs IDAEquation:$equation);
 
     let builders = [
-        OpBuilder<(ins "Value":$idaInstance, "ArrayAttr":$equationRanges), [{
+        OpBuilder<(ins "Value":$idaInstance, "ArrayAttr":$equationRanges, "Value":$writtenVariable, "AffineMap":$writeAccess), [{
             auto resultType = ida::EquationType::get($_builder.getContext());
-            build($_builder, $_state, resultType, idaInstance, equationRanges);
+            auto writeAccessAttr = mlir::AffineMapAttr::get(writeAccess);
+            build($_builder, $_state, resultType, idaInstance, equationRanges, writtenVariable, writeAccessAttr);
         }]>
     ];
 
     let assemblyFormat = [{
-        $instance attr-dict `:` type($instance) `->` type($equation)
+        $instance `,` $writtenVariable attr-dict `:` `(` type($instance) `,` type($writtenVariable) `)` `->` type($equation)
     }];
 }
 

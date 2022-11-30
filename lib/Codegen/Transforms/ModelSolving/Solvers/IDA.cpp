@@ -22,7 +22,7 @@ namespace
           EquationInterface equation,
           modeling::scheduling::Direction schedulingDirection)
           : equation(equation.getOperation()),
-          schedulingDirection(schedulingDirection)
+            schedulingDirection(schedulingDirection)
       {
       }
 
@@ -1663,7 +1663,7 @@ namespace marco::codegen
                    iterationRanges.rangesBegin(),
                    iterationRanges.rangesEnd())) {
             if (mlir::failed(explicitWritingEquation->replaceInto(
-                builder, IndexSet(range), *clone,
+                    builder, IndexSet(range), *clone,
                     access.getAccessFunction(), access.getPath()))) {
               return mlir::failure();
             }
@@ -1715,6 +1715,23 @@ namespace marco::codegen
     size_t jacobianFunctionsCounter = 0;
     size_t partialDerTemplatesCounter = 0;
 
+    llvm::DenseMap<unsigned int, mlir::Value> variablesMapping;
+
+    for (const auto& [variable, idaVariable] : llvm::zip(algebraicVariables, idaAlgebraicVariables)) {
+      unsigned int argNumber = variable.cast<mlir::BlockArgument>().getArgNumber();
+      variablesMapping[argNumber] = idaVariable;
+    }
+
+    for (const auto& [variable, idaVariable] : llvm::zip(stateVariables, idaStateVariables)) {
+      unsigned int argNumber = variable.cast<mlir::BlockArgument>().getArgNumber();
+      variablesMapping[argNumber] = idaVariable;
+    }
+
+    for (const auto& [variable, idaVariable] : llvm::zip(derivativeVariables, idaStateVariables)) {
+      unsigned int argNumber = variable.cast<mlir::BlockArgument>().getArgNumber();
+      variablesMapping[argNumber] = idaVariable;
+    }
+
     for (const auto& equation : independentEquations) {
       auto iterationRanges = equation->getIterationRanges(); //todo: check ragged case
 
@@ -1725,10 +1742,14 @@ namespace marco::codegen
           rangesAttr.push_back(builder.getI64ArrayAttr({ ranges[i].getBegin(), ranges[i].getEnd() }));
         }
 
+        auto writtenVarNumber = equation->getWrite().getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
+
         auto idaEquation = builder.create<mlir::ida::AddEquationOp>(
             equation->getOperation().getLoc(),
             idaInstance,
-            builder.getArrayAttr(rangesAttr));
+            builder.getArrayAttr(rangesAttr),
+            variablesMapping[writtenVarNumber],
+            getAccessMap(builder, equation->getWrite().getAccessFunction()));
 
         if (mlir::failed(addVariableAccessesInfoToIDA(
                 builder, solverDataPtr, *equation, idaEquation))) {
@@ -1984,7 +2005,7 @@ namespace marco::codegen
       lhs = builder.create<LoadOp>(lhs.getLoc(), lhs, indices);
 
       assert((lhs.getType().isa<
-          mlir::IndexType, BooleanType, IntegerType, RealType>()));
+              mlir::IndexType, BooleanType, IntegerType, RealType>()));
     }
 
     if (rhs.getType().isa<ArrayType>()) {
@@ -1995,7 +2016,7 @@ namespace marco::codegen
       rhs = builder.create<LoadOp>(rhs.getLoc(), rhs, indices);
 
       assert((rhs.getType().isa<
-          mlir::IndexType, BooleanType, IntegerType, RealType>()));
+              mlir::IndexType, BooleanType, IntegerType, RealType>()));
     }
 
     mlir::Value difference = builder.create<SubOp>(
@@ -2309,7 +2330,7 @@ namespace marco::codegen
 
     // Create the seed values for the variables.
     for (mlir::Value var : managedVariables) {
-     auto varArgNumber = var.cast<mlir::BlockArgument>().getArgNumber();
+      auto varArgNumber = var.cast<mlir::BlockArgument>().getArgNumber();
 
       if (auto arrayType = var.getType().dyn_cast<ArrayType>();
           arrayType && !arrayType.isScalar()) {
@@ -2450,6 +2471,30 @@ namespace marco::codegen
     }
 
     return result;
+  }
+
+  mlir::AffineMap IDAInstance::getAccessMap(
+      mlir::OpBuilder& builder,
+      const AccessFunction& accessFunction) const
+  {
+    std::vector<mlir::AffineExpr> expressions;
+
+    for (const auto& dimensionAccess : accessFunction) {
+      if (dimensionAccess.isConstantAccess()) {
+        expressions.push_back(mlir::getAffineConstantExpr(
+            dimensionAccess.getPosition(), builder.getContext()));
+      } else {
+        auto baseAccess = mlir::getAffineDimExpr(
+            dimensionAccess.getInductionVariableIndex(),
+            builder.getContext());
+
+        auto withOffset = baseAccess + dimensionAccess.getOffset();
+        expressions.push_back(withOffset);
+      }
+    }
+
+    return mlir::AffineMap::get(
+        accessFunction.size(), 0, expressions, builder.getContext());
   }
 
   mlir::func::FuncOp IDASolver::createEquationFunction(

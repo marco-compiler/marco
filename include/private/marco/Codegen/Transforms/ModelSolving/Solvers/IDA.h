@@ -168,6 +168,10 @@ namespace marco::codegen
 
       std::vector<mlir::Value> getIDAFunctionArgs() const;
 
+      mlir::AffineMap getAccessMap(
+          mlir::OpBuilder& builder,
+          const modeling::AccessFunction& accessFunction) const;
+
     private:
       mlir::TypeConverter* typeConverter;
       const DerivativesMap* derivativesMap;

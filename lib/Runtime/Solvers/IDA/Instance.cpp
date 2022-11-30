@@ -2,12 +2,12 @@
 #include "marco/Runtime/Solvers/IDA/Options.h"
 #include "marco/Runtime/Solvers/IDA/Profiler.h"
 #include "marco/Runtime/MemoryManagement.h"
-#include <algorithm>
 #include <cassert>
 #include <functional>
 #include <iostream>
 #include <set>
 
+using namespace ::marco::runtime;
 using namespace ::marco::runtime::ida;
 
 //===---------------------------------------------------------------------===//
@@ -26,12 +26,12 @@ namespace marco::runtime::ida
     return dimensions.size();
   }
 
-  size_t& VariableDimensions::operator[](size_t index)
+  int64_t& VariableDimensions::operator[](size_t index)
   {
     return dimensions[index];
   }
 
-  const size_t& VariableDimensions::operator[](size_t index) const
+  const int64_t& VariableDimensions::operator[](size_t index) const
   {
     return dimensions[index];
   }
@@ -137,14 +137,16 @@ namespace marco::runtime::ida
     return temp;
   }
 
-  size_t* VariableIndicesIterator::operator*() const
+  const int64_t* VariableIndicesIterator::operator*() const
   {
     return indices;
   }
 
-  VariableIndicesIterator::VariableIndicesIterator(const VariableDimensions& dimensions) : dimensions(&dimensions)
+  VariableIndicesIterator::VariableIndicesIterator(
+      const VariableDimensions& dimensions)
+      : dimensions(&dimensions)
   {
-    indices = new size_t[dimensions.rank()];
+    indices = new int64_t[dimensions.rank()];
   }
 
   void VariableIndicesIterator::fetchNext()
@@ -152,11 +154,14 @@ namespace marco::runtime::ida
     size_t rank = dimensions->rank();
     size_t posFromLast = 0;
 
-    assert(std::none_of(dimensions->begin(), dimensions->end(), [](const auto& dimension) {
-      return dimension == 0;
-    }));
+    assert(std::none_of(
+        dimensions->begin(), dimensions->end(),
+        [](const auto& dimension) {
+          return dimension == 0;
+        }));
 
-    while (posFromLast < rank && ++indices[rank - posFromLast - 1] == (*dimensions)[rank - posFromLast - 1]) {
+    while (posFromLast < rank && ++indices[rank - posFromLast - 1] ==
+               (*dimensions)[rank - posFromLast - 1]) {
       ++posFromLast;
     }
 
@@ -169,10 +174,10 @@ namespace marco::runtime::ida
 }
 
 /// Check if SUNDIALS function returned NULL pointer (no memory allocated).
-static bool checkAllocation(void* retval, const char* funcname)
+static bool checkAllocation(void* retval, const char* functionName)
 {
   if (retval == nullptr) {
-    std::cerr << "SUNDIALS_ERROR: " << funcname;
+    std::cerr << "SUNDIALS_ERROR: " << functionName;
     std::cerr << "() failed - returned NULL pointer" << std::endl;
     return false;
   }
@@ -180,18 +185,71 @@ static bool checkAllocation(void* retval, const char* funcname)
   return true;
 }
 
-/// Given an array of indexes and the dimension of an equation, increase the
-/// indexes within the induction bounds of the equation. Return false if the
-/// indexes exceed the equation bounds, which means the computation has finished,
-/// true otherwise.
-static bool updateIndexes(size_t* indexes, const EqDimension& dimension)
+/// Apply an access function to the indices of an equation in order to get the
+/// indices of the accessed scalar variable.
+static std::vector<int64_t> applyAccessFunction(
+    const int64_t* equationIndices, const Access& access)
 {
-  for (size_t i = 0, e = dimension.size(); i < e; ++i) {
-    size_t pos = e - i - 1;
-    ++indexes[pos];
+  std::vector<int64_t> variableIndices;
 
-    if ((size_t) indexes[pos] == dimension[pos].second) {
-      indexes[pos] = dimension[pos].first;
+  for (const auto& dimensionAccess : access) {
+    int64_t inductionVariableIndex = dimensionAccess.first;
+
+    if (dimensionAccess.first == -1) {
+      variableIndices.push_back(dimensionAccess.second);
+    } else {
+      variableIndices.push_back(
+          equationIndices[inductionVariableIndex] + dimensionAccess.second);
+    }
+  }
+
+  return variableIndices;
+}
+
+static std::vector<int64_t> applyAccessFunction(
+    const std::vector<int64_t>& equationIndices, const Access& access)
+{
+  return applyAccessFunction(equationIndices.data(), access);
+}
+
+/// Apply an access function to the ranges of an equation in order to get the
+/// range of indices of the accessed variable.
+static MultidimensionalRange applyAccessFunction(
+    const MultidimensionalRange& equationIndices, const Access& access)
+{
+  MultidimensionalRange ranges;
+
+  for (const auto& dimensionAccess : access) {
+    int64_t inductionVariableIndex = dimensionAccess.first;
+
+    if (inductionVariableIndex == -1) {
+      ranges.push_back({
+          dimensionAccess.second,
+          dimensionAccess.second + 1
+      });
+    } else {
+      ranges.push_back({
+          equationIndices[inductionVariableIndex].begin + dimensionAccess.second,
+          equationIndices[inductionVariableIndex].end + dimensionAccess.second,
+      });
+    }
+  }
+
+  return ranges;
+}
+
+/// Given an array of indices and the dimensions of an equation, increase the
+/// indices within the induction bounds of the equation. Return false if the
+/// indices exceed the equation bounds, which means the computation has finished,
+/// true otherwise.
+static bool advanceIndices(int64_t* indices, const MultidimensionalRange& ranges)
+{
+  for (size_t i = 0, e = ranges.size(); i < e; ++i) {
+    size_t pos = e - i - 1;
+    ++indices[pos];
+
+    if (indices[pos] == ranges[pos].end) {
+      indices[pos] = ranges[pos].begin;
     } else {
       return true;
     }
@@ -200,19 +258,27 @@ static bool updateIndexes(size_t* indexes, const EqDimension& dimension)
   return false;
 }
 
+static bool advanceIndices(
+    std::vector<int64_t>& indices, const MultidimensionalRange& ranges)
+{
+  return advanceIndices(indices.data(), ranges);
+}
+
 /// Given an array of indexes, the dimension of a variable and the type of
 /// access, return the index needed to access the flattened multidimensional
 /// variable.
 static size_t computeOffset(
-    const size_t* indexes, const VariableDimensions& dimensions, const Access& accesses)
+    const int64_t* indices,
+    const VariableDimensions& dimensions,
+    const Access& access)
 {
-  assert(accesses.size() == dimensions.rank());
+  assert(access.size() == dimensions.rank());
   size_t offset = 0;
 
-  for (size_t i = 0; i < accesses.size(); ++i) {
-    int64_t induction = accesses[i].first;
-    size_t accessOffset = induction != -1 ? indexes[induction] : 0;
-    accessOffset += accesses[i].second;
+  for (size_t i = 0; i < access.size(); ++i) {
+    int64_t induction = access[i].first;
+    size_t accessOffset = induction != -1 ? indices[induction] : 0;
+    accessOffset += access[i].second;
 
     offset = offset * dimensions[i] + accessOffset;
   }
@@ -220,20 +286,27 @@ static size_t computeOffset(
   return offset;
 }
 
-
-/// Given the dimension of a variable and the already flattened accesses, return
-/// the index of the flattened multidimensional variable.
-static size_t computeOffset(const VariableDimensions& dimensions, const std::vector<size_t>& accesses)
+/// Get the flat index corresponding to a multidimensional access.
+/// Example:
+///   x[d1][d2][d3]
+///   x[i][j][k] -> x[i * d2 * d3 + j * d3 + k]
+static int64_t getFlatIndex(
+    const VariableDimensions& dimensions, const int64_t* indices)
 {
-  assert(accesses.size() == dimensions.rank());
+  size_t offset = indices[0];
 
-  size_t offset = 0;
-
-  for (size_t i = 0; i < accesses.size(); ++i) {
-    offset = offset * dimensions[i] + accesses[i];
+  for (size_t i = 1, e = dimensions.rank(); i < e; ++i) {
+    offset = offset * dimensions[i] + indices[i];
   }
 
   return offset;
+}
+
+static int64_t getFlatIndex(
+    const VariableDimensions& dimensions, const std::vector<int64_t>& indices)
+{
+  assert(indices.size() == dimensions.rank());
+  return getFlatIndex(dimensions, indices.data());
 }
 
 //===---------------------------------------------------------------------===//
@@ -272,15 +345,19 @@ namespace marco::runtime::ida
   {
     assert(initialized && "The IDA instance has not been initialized yet");
 
-    for (auto* variable : parameters) {
+    for (auto* variable : parametricVariables) {
       heapFree(variable);
     }
 
-    for (auto* variable : variables) {
+    for (auto* variable : algebraicVariables) {
       heapFree(variable);
     }
 
-    for (auto* derivative : derivatives) {
+    for (auto* variable : stateVariables) {
+      heapFree(variable);
+    }
+
+    for (auto* derivative : derivativeVariables) {
       heapFree(derivative);
     }
 
@@ -313,10 +390,15 @@ namespace marco::runtime::ida
 
   void IDAInstance::addParametricVariable(void* variable)
   {
-    parameters.push_back(variable);
+    parametricVariables.push_back(variable);
   }
 
-  int64_t IDAInstance::addAlgebraicVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
+  int64_t IDAInstance::addAlgebraicVariable(
+      void* variable,
+      int64_t* dimensions,
+      int64_t rank,
+      void* getterFunction,
+      void* setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
@@ -335,12 +417,14 @@ namespace marco::runtime::ida
     size_t offset = variableOffsets.back();
     variableOffsets.push_back(offset + flatSize);
 
-    // Initialize derivativeValues, idValues and absoluteTolerances
+    // Initialize derivativeValues, idValues and absoluteTolerances.
     auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
 
-    realtype absTol = std::min(getOptions().maxAlgebraicAbsoluteTolerance, getOptions().absoluteTolerance);
+    realtype absTol = std::min(
+        getOptions().maxAlgebraicAbsoluteTolerance,
+        getOptions().absoluteTolerance);
 
     for (int64_t i = 0; i < flatSize; ++i) {
       derivativeValues[offset + i] = 0;
@@ -348,15 +432,24 @@ namespace marco::runtime::ida
       toleranceValues[offset + i] = absTol;
     }
 
-    variables.push_back(variable);
-    variablesGetters.push_back(getter);
-    variablesSetters.push_back(setter);
+    algebraicVariables.push_back(variable);
+
+    algebraicAndStateVariables.push_back(variable);
+    algebraicAndStateVariablesGetters.push_back(getterFunction);
+    algebraicAndStateVariablesSetters.push_back(setterFunction);
 
     // Return the index of the variable.
-    return variablesDimensions.size() - 1;
+    size_t idaVariable = variablesDimensions.size() - 1;
+    algebraicVariablesMapping[idaVariable] = algebraicVariables.size() - 1;
+    return idaVariable;
   }
 
-  int64_t IDAInstance::addStateVariable(void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
+  int64_t IDAInstance::addStateVariable(
+      void* variable,
+      int64_t* dimensions,
+      int64_t rank,
+      void* getterFunction,
+      void* setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
@@ -372,14 +465,11 @@ namespace marco::runtime::ida
 
     variablesDimensions.push_back(variableDimensions);
 
-    // Each scalar state variable has a scalar derivative
-    derivativesDimensions.push_back(variableDimensions);
-
-    // Store the position to the start of the flattened array
+    // Store the position of the start of the flattened array.
     size_t offset = variableOffsets.back();
     variableOffsets.push_back(offset + flatSize);
 
-    // Initialize the derivatives, the id values and the absolute tolerances
+    // Initialize the derivatives, the id values and the absolute tolerances.
     auto* derivativeValues = N_VGetArrayPointer(derivativesVector);
     auto* idValues = N_VGetArrayPointer(idVector);
     auto* toleranceValues = N_VGetArrayPointer(tolerancesVector);
@@ -390,57 +480,90 @@ namespace marco::runtime::ida
       toleranceValues[offset + i] = getOptions().absoluteTolerance;
     }
 
-    variables.push_back(variable);
-    variablesGetters.push_back(getter);
-    variablesSetters.push_back(setter);
+    stateVariables.push_back(variable);
 
-    derivatives.push_back(nullptr);
-    derivativesGetters.push_back(nullptr);
-    derivativesSetters.push_back(nullptr);
+    algebraicAndStateVariables.push_back(variable);
+    algebraicAndStateVariablesGetters.push_back(getterFunction);
+    algebraicAndStateVariablesSetters.push_back(setterFunction);
 
-    // Return the index of the variable
-    return variablesDimensions.size() - 1;
+    derivativeVariables.push_back(nullptr);
+    derivativeVariablesGetters.push_back(nullptr);
+    derivativeVariablesSetters.push_back(nullptr);
+
+    // Return the position of the IDA variable.
+    size_t idaVariable = variablesDimensions.size() - 1;
+    stateVariablesMapping[idaVariable] = stateVariables.size() - 1;
+    return idaVariable;
   }
 
-  void IDAInstance::setDerivative(int64_t stateVariable, void* derivative, void* getter, void* setter)
+  void IDAInstance::setDerivative(
+      int64_t idaStateVariable,
+      void* derivative,
+      void* getterFunction,
+      void* setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
 
-    assert((size_t) stateVariable < derivatives.size());
-    assert((size_t) stateVariable < derivativesGetters.size());
-    assert((size_t) stateVariable < derivativesSetters.size());
+    assert(stateVariablesMapping.find(idaStateVariable) !=
+           stateVariablesMapping.end());
 
-    derivatives[stateVariable] = derivative;
-    derivativesGetters[stateVariable] = getter;
-    derivativesSetters[stateVariable] = setter;
+    size_t stateVariablePosition = stateVariablesMapping[idaStateVariable];
+
+    assert(stateVariablePosition < derivativeVariables.size());
+    assert(stateVariablePosition < derivativeVariablesGetters.size());
+    assert(stateVariablePosition < derivativeVariablesSetters.size());
+
+    derivativeVariables[stateVariablePosition] = derivative;
+    derivativeVariablesGetters[stateVariablePosition] = getterFunction;
+    derivativeVariablesSetters[stateVariablePosition] = setterFunction;
   }
 
-  int64_t IDAInstance::addEquation(int64_t* ranges, int64_t rank)
+  int64_t IDAInstance::addEquation(
+      int64_t* ranges,
+      int64_t rank,
+      int64_t writtenVariable,
+      int64_t* writeAccess)
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
     // Add the start and end dimensions of the current equation.
-    EqDimension eqDimension = {};
+    MultidimensionalRange eqRanges = {};
 
-    size_t numElements = rank * 2;
-
-    for (size_t i = 0; i < numElements; i += 2) {
-      eqDimension.push_back({ranges[i], ranges[i + 1]});
+    for (size_t i = 0, e = rank * 2; i < e; i += 2) {
+      int64_t begin = ranges[i];
+      int64_t end = ranges[i + 1];
+      eqRanges.push_back({ begin, end });
     }
 
-    equationDimensions.push_back(eqDimension);
+    equationRanges.push_back(eqRanges);
+
+    // Store the information about the written scalar variable.
+    Access access;
+
+    const VariableDimensions& variableDimensions =
+        variablesDimensions[writtenVariable];
+
+    for (int64_t i = 0, e = variableDimensions.rank() * 2; i < e; i += 2) {
+      access.push_back({ writeAccess[i], writeAccess[i + 1] });
+    }
+
+    writeAccesses.emplace_back(writtenVariable, access);
 
     // Return the index of the equation.
-    return equationDimensions.size() - 1;
+    return equationRanges.size() - 1;
   }
 
-  void IDAInstance::addVariableAccess(int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank)
+  void IDAInstance::addVariableAccess(
+      int64_t equationIndex,
+      int64_t variableIndex,
+      int64_t* access,
+      int64_t rank)
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
     assert(equationIndex >= 0);
-    assert((size_t) equationIndex < equationDimensions.size());
+    assert((size_t) equationIndex < equationRanges.size());
     assert(variableIndex >= 0);
     assert((size_t) variableIndex < variablesDimensions.size());
 
@@ -466,29 +589,32 @@ namespace marco::runtime::ida
 
     assert(equationIndex >= 0);
 
-    if (residuals.size() <= (size_t) equationIndex) {
-      residuals.resize(equationIndex + 1);
+    if (residualFunctions.size() <= (size_t) equationIndex) {
+      residualFunctions.resize(equationIndex + 1, nullptr);
     }
 
-    residuals[equationIndex] = residualFunction;
+    residualFunctions[equationIndex] = residualFunction;
   }
 
-  void IDAInstance::addJacobianFunction(int64_t equationIndex, int64_t variableIndex, void* jacobianFunction)
+  void IDAInstance::addJacobianFunction(
+      int64_t equationIndex,
+      int64_t variableIndex,
+      void* jacobianFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
     assert(equationIndex >= 0);
     assert(variableIndex >= 0);
 
-    if (jacobians.size() <= (size_t) equationIndex) {
-      jacobians.resize(equationIndex + 1);
+    if (jacobianFunctions.size() <= (size_t) equationIndex) {
+      jacobianFunctions.resize(equationIndex + 1);
     }
 
-    if (jacobians[equationIndex].size() <= (size_t) variableIndex) {
-      jacobians[equationIndex].resize(variableIndex + 1);
+    if (jacobianFunctions[equationIndex].size() <= (size_t) variableIndex) {
+      jacobianFunctions[equationIndex].resize(variableIndex + 1, nullptr);
     }
 
-    jacobians[equationIndex][variableIndex] = jacobianFunction;
+    jacobianFunctions[equationIndex][variableIndex] = jacobianFunction;
   }
 
   bool IDAInstance::initialize()
@@ -499,42 +625,147 @@ namespace marco::runtime::ida
     currentTime = startTime;
 
     if (scalarEquationsNumber == 0) {
-      // IDA has nothing to solve
+      // IDA has nothing to solve.
       return true;
     }
 
-    size_t numOfParametricVariables = parameters.size();
-    size_t numOfAlgebraicAndStateVariables = variables.size();
-    size_t numOfDerivativeVariables = derivatives.size();
+    size_t numOfParametricVariables = parametricVariables.size();
+    size_t numOfAlgebraicVariables = algebraicVariables.size();
+    size_t numOfStateVariables = stateVariables.size();
+    size_t numOfDerivativeVariables = derivativeVariables.size();
+
+    assert(numOfStateVariables == numOfDerivativeVariables &&
+           "The number of derivative variables doesn't match the number of "
+           "state variables");
 
     size_t numOfVariables = numOfParametricVariables +
-        numOfAlgebraicAndStateVariables +
+        numOfAlgebraicVariables +
+        numOfStateVariables +
         numOfDerivativeVariables;
 
+    // Determine the order in which the equations must be processed when
+    // computing residuals and jacobians.
+    assert(getNumOfVectorizedEquations() == writeAccesses.size());
+    equationsProcessingOrder.resize(getNumOfVectorizedEquations());
+
+    for (size_t i = 0, e = getNumOfVectorizedEquations(); i < e; ++i) {
+      equationsProcessingOrder[i] = i;
+    }
+
+    std::sort(equationsProcessingOrder.begin(), equationsProcessingOrder.end(),
+              [&](size_t firstEquation, size_t secondEquation) {
+                int64_t firstWrittenVariable =
+                    writeAccesses[firstEquation].first;
+
+                int64_t secondWrittenVariable =
+                    writeAccesses[secondEquation].first;
+
+                if (firstWrittenVariable != secondWrittenVariable) {
+                  return firstWrittenVariable < secondWrittenVariable;
+                }
+
+                MultidimensionalRange firstWrittenIndices =
+                    applyAccessFunction(
+                        equationRanges[firstEquation],
+                        writeAccesses[firstEquation].second);
+
+                MultidimensionalRange secondWrittenIndices =
+                    applyAccessFunction(
+                        equationRanges[secondEquation],
+                        writeAccesses[secondEquation].second);
+
+                return firstWrittenIndices < secondWrittenIndices;
+              });
+
+    // Check that all the residual functions have been set.
+    assert(residualFunctions.size() == equationRanges.size());
+
+    assert(std::all_of(
+        residualFunctions.begin(), residualFunctions.end(),
+        [](void* function) {
+          return function != nullptr;
+        }));
+
+    // Check that all the jacobian functions have been set.
+    assert(jacobianFunctions.size() == equationRanges.size());
+
+    assert(std::all_of(
+        jacobianFunctions.begin(), jacobianFunctions.end(),
+        [&](std::vector<void*> functions) {
+          if (functions.size() != algebraicAndStateVariables.size()) {
+            return false;
+          }
+
+          return std::all_of(
+              functions.begin(), functions.end(),
+              [](void* function) {
+                return function != nullptr;
+              });
+        }));
+
+    // Constructor the variables list to be passed to the residual and Jacobian
+    // functions.
     simulationData = new void*[numOfVariables];
+
+    for (size_t i = 0; i < numOfVariables; ++i) {
+      simulationData[i] = nullptr;
+    }
 
     for (size_t i = 0; i < numOfParametricVariables; ++i) {
       size_t pos = i;
-      simulationData[pos] = parameters[i];
+      simulationData[pos] = parametricVariables[i];
     }
 
-    for (size_t i = 0; i < numOfAlgebraicAndStateVariables; ++i) {
+    for (size_t i = 0; i < numOfAlgebraicVariables; ++i) {
       size_t pos = i + numOfParametricVariables;
-      simulationData[pos] = variables[i];
+      simulationData[pos] = algebraicVariables[i];
     }
+
+    for (size_t i = 0; i < numOfStateVariables; ++i) {
+      size_t pos = i + numOfParametricVariables + numOfAlgebraicVariables;
+      simulationData[pos] = stateVariables[i];
+    }
+
+    // Check that all the derivatives have been set.
+    assert(std::none_of(
+               derivativeVariables.begin(), derivativeVariables.end(),
+               [](void* variable) {
+                 return variable == nullptr;
+               }) && "Not all the derivative variables have been set");
+
+    // Check that all the derivatives are unique.
+    assert(std::all_of(
+               derivativeVariables.begin(), derivativeVariables.end(),
+               [&](void* variable) {
+                 size_t count = std::count(
+                     derivativeVariables.begin(),
+                     derivativeVariables.end(),
+                     variable);
+
+                 return count == 1;
+               }) && "The same derivative has been set for multiple state variables");
 
     for (size_t i = 0; i < numOfDerivativeVariables; ++i) {
-      size_t pos = i + numOfParametricVariables + numOfDerivativeVariables;
-      simulationData[pos] = derivatives[i];
+      size_t pos = i + numOfParametricVariables +
+          numOfAlgebraicVariables +
+          numOfStateVariables;
+
+      simulationData[pos] = derivativeVariables[i];
     }
 
-    copyVariablesFromMARCO(variablesVector);
-    copyDerivativesFromMARCO(derivativesVector);
+    assert(std::none_of(
+        simulationData, simulationData + numOfVariables,
+        [](void* variable) {
+          return variable == nullptr;
+        }));
+
+    // Initialize the values of the variables living inside IDA.
+    copyVariablesFromMARCO(variablesVector, derivativesVector);
 
     // Compute the total amount of non-zero values in the Jacobian Matrix.
     computeNNZ();
 
-    // Create and initialize IDA memory.
+    // Create and initialize the memory for IDA.
     idaMemory = IDACreate(ctx);
 
     if (!checkAllocation(idaMemory, "IDACreate")) {
@@ -557,7 +788,8 @@ namespace marco::runtime::ida
         CSR_MAT,
         ctx);
 
-    if (!checkAllocation(static_cast<void*>(sparseMatrix), "SUNSparseMatrix")) {
+    if (!checkAllocation(
+            static_cast<void*>(sparseMatrix), "SUNSparseMatrix")) {
       return false;
     }
 
@@ -693,9 +925,9 @@ namespace marco::runtime::ida
       } else if (solveRetVal == IDA_TOO_MUCH_ACC) {
         std::cerr << "IDASolve - The solver could not satisfy the accuracy demanded by the user for some internal step" << std::endl;
       } else if (solveRetVal == IDA_ERR_FAIL) {
-        std::cerr << "IDASolve - Error test failures occurred too many times (MXNEF = 10) during one internal time step or occurred with |h| = hmin" << std::endl;
+        std::cerr << "IDASolve - Error test failures occurred too many times during one internal time step or occurred with |h| = hmin" << std::endl;
       } else if (solveRetVal == IDA_CONV_FAIL) {
-        std::cerr << "IDASolve - Convergence test failures occurred too many times (MXNCF = 10) during one internal time step or occurred with |h| = hmin" << std::endl;
+        std::cerr << "IDASolve - Convergence test failures occurred too many times during one internal time step or occurred with |h| = hmin" << std::endl;
       } else if (solveRetVal == IDA_LINIT_FAIL) {
         std::cerr << "IDASolve - The linear solver’s initialization function failed" << std::endl;
       } else if (solveRetVal == IDA_LSETUP_FAIL) {
@@ -715,8 +947,7 @@ namespace marco::runtime::ida
       return false;
     }
 
-    copyVariablesIntoMARCO(variablesVector);
-    copyDerivativesIntoMARCO(derivativesVector);
+    copyVariablesIntoMARCO(variablesVector, derivativesVector);
 
     return true;
   }
@@ -726,39 +957,63 @@ namespace marco::runtime::ida
     return currentTime;
   }
 
-  int IDAInstance::residualFunction(realtype time, N_Vector variables, N_Vector derivatives, N_Vector residuals, void* userData)
+  int IDAInstance::residualFunction(
+      realtype time,
+      N_Vector variables,
+      N_Vector derivatives,
+      N_Vector residuals,
+      void* userData)
   {
     realtype* rval = N_VGetArrayPointer(residuals);
     auto* instance = static_cast<IDAInstance*>(userData);
 
-    instance->copyVariablesIntoMARCO(variables);
-    instance->copyDerivativesIntoMARCO(derivatives);
+    instance->copyVariablesIntoMARCO(variables, derivatives);
 
-    // For every vector equation
-    for (size_t eq = 0; eq < instance->equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t equationIndices[instance->equationDimensions[eq].size()];
+    // For every vectorized equation, set the residual values of the variables
+    // it writes into.
 
-      for (size_t i = 0; i < instance->equationDimensions[eq].size(); i++) {
-        equationIndices[i] = instance->equationDimensions[eq][i].first;
+    std::vector<int64_t> equationIndices;
+
+    for (size_t eq : instance->equationsProcessingOrder) {
+      // Initialize the multidimensional interval of the vector equation.
+      equationIndices.resize(instance->equationRanges[eq].size());
+
+      for (size_t i = 0; i < instance->equationRanges[eq].size(); i++) {
+        equationIndices[i] = instance->equationRanges[eq][i].begin;
       }
 
-      // For every scalar equation in the vector equation
-      do {
-        // Compute the i-th residual function
-        if (instance->marcoBitWidth == 32) {
-          auto residualFunction = reinterpret_cast<ResidualFunction<float>>(instance->residuals[eq]);
-          auto residualFunctionResult = residualFunction(time, instance->simulationData, equationIndices);
-          *rval++ = residualFunctionResult;
-        } else {
-          auto residualFunction = reinterpret_cast<ResidualFunction<double>>(instance->residuals[eq]);
-          auto residualFunctionResult = residualFunction(time, instance->simulationData, equationIndices);
-          *rval++ = residualFunctionResult;
-        }
-      } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
-    }
+      int64_t writtenVariable = instance->writeAccesses[eq].first;
+      size_t arrayVariableOffset = instance->variableOffsets[writtenVariable];
 
-    assert(rval == N_VGetArrayPointer(residuals) + instance->scalarEquationsNumber);
+      // For every scalar equation in the vector equation, set the residual
+      // value of the scalar variable it writes into.
+      do {
+        std::vector<int64_t> writtenVariableIndices = applyAccessFunction(
+            equationIndices, instance->writeAccesses[eq].second);
+
+        size_t scalarVariableOffset = getFlatIndex(
+            instance->variablesDimensions[writtenVariable],
+            writtenVariableIndices);
+
+        if (instance->marcoBitWidth == 32) {
+          auto residualFunction = reinterpret_cast<ResidualFunction<float>>(
+              instance->residualFunctions[eq]);
+
+          auto residualFunctionResult = residualFunction(
+              time, instance->simulationData, equationIndices.data());
+
+          *(rval + arrayVariableOffset + scalarVariableOffset) = residualFunctionResult;
+        } else {
+          auto residualFunction = reinterpret_cast<ResidualFunction<double>>(
+              instance->residualFunctions[eq]);
+
+          auto residualFunctionResult = residualFunction(
+              time, instance->simulationData, equationIndices.data());
+
+          *(rval + arrayVariableOffset + scalarVariableOffset) = residualFunctionResult;
+        }
+      } while (advanceIndices(equationIndices, instance->equationRanges[eq]));
+    }
 
     return IDA_SUCCESS;
   }
@@ -770,220 +1025,311 @@ namespace marco::runtime::ida
       void* userData,
       N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
   {
-    sunindextype* rowptrs = SUNSparseMatrix_IndexPointers(jacobianMatrix);
-    sunindextype* colvals = SUNSparseMatrix_IndexValues(jacobianMatrix);
     realtype* jacobian = SUNSparseMatrix_Data(jacobianMatrix);
 
     auto* instance = static_cast<IDAInstance*>(userData);
 
-    instance->copyVariablesIntoMARCO(variables);
-    instance->copyDerivativesIntoMARCO(derivatives);
+    std::vector<std::vector<std::pair<sunindextype, double>>> data;
+    data.resize(instance->scalarEquationsNumber);
 
-    sunindextype nnzElements = 0;
-    *rowptrs++ = nnzElements;
+    instance->copyVariablesIntoMARCO(variables, derivatives);
 
-    // For every vector equation
-    for (size_t eq = 0; eq < instance->equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t equationIndices[instance->equationDimensions[eq].size()];
+    // For every vectorized equation, compute its row within the Jacobian
+    // matrix.
+    std::vector<int64_t> equationIndices;
 
-      for (size_t i = 0; i < instance->equationDimensions[eq].size(); ++i) {
-        equationIndices[i] = instance->equationDimensions[eq][i].first;
+    for (size_t eq : instance->equationsProcessingOrder) {
+      // Initialize the multidimensional interval of the vector equation.
+      size_t equationRank = instance->getEquationRank(eq);
+      equationIndices.resize(equationRank);
+
+      for (size_t i = 0; i < equationRank; ++i) {
+        equationIndices[i] = instance->equationRanges[eq][i].begin;
       }
 
-      // For every scalar equation in the vector equation
+      int64_t equationVariable = instance->writeAccesses[eq].first;
+
+      size_t equationArrayVariableOffset =
+          instance->variableOffsets[equationVariable];
+
+      // For every scalar equation in the vectorized equation.
       do {
+        std::vector<int64_t> equationVariableIndices = applyAccessFunction(
+            equationIndices, instance->writeAccesses[eq].second);
+
+        size_t equationScalarVariableOffset = getFlatIndex(
+            instance->variablesDimensions[equationVariable],
+            equationVariableIndices);
+
+        size_t scalarEquationIndex =
+            equationArrayVariableOffset + equationScalarVariableOffset;
+
         // Compute the column indexes that may be non-zeros
-        std::set<DerivativeVariable> columnIndexesSet = instance->computeIndexSet(eq, equationIndices);
+        std::vector<JacobianColumn> jacobianColumns =
+            instance->computeIndexSet(eq, equationIndices.data());
 
-        nnzElements += columnIndexesSet.size();
-        *rowptrs++ = nnzElements;
+        data[scalarEquationIndex].resize(jacobianColumns.size());
 
-        // For every variable with respect to which every equation must be
-        // partially differentiated
-        for (DerivativeVariable var: columnIndexesSet) {
-          // Compute the i-th Jacobian value
-          size_t* variableIndices = &var.second[0];
+        // For every scalar variable with respect to which the equation must be
+        // partially differentiated.
+        for (size_t i = 0, e = jacobianColumns.size(); i < e; ++i) {
+          const JacobianColumn& column = jacobianColumns[i];
+          const int64_t* variableIndices = column.second.data();
+
+          size_t arrayVariableOffset = instance->variableOffsets[column.first];
+
+          size_t scalarVariableOffset = getFlatIndex(
+              instance->variablesDimensions[column.first],
+              column.second);
 
           if (instance->marcoBitWidth == 32) {
-            auto jacobianFunction = reinterpret_cast<JacobianFunction<float>>(instance->jacobians[eq][var.first]);
-            auto jacobianFunctionResult = jacobianFunction(time, instance->simulationData, equationIndices, variableIndices, alpha);
-            *jacobian++ = jacobianFunctionResult;
+            auto jacobianFunction = reinterpret_cast<JacobianFunction<float>>(
+                instance->jacobianFunctions[eq][column.first]);
+
+            auto jacobianFunctionResult = jacobianFunction(
+                time,
+                instance->simulationData,
+                equationIndices.data(),
+                variableIndices,
+                alpha);
+
+            data[scalarEquationIndex][i].second = jacobianFunctionResult;
           } else {
-            auto jacobianFunction = reinterpret_cast<JacobianFunction<double>>(instance->jacobians[eq][var.first]);
-            auto jacobianFunctionResult = jacobianFunction(time, instance->simulationData, equationIndices, variableIndices, alpha);
-            *jacobian++ = jacobianFunctionResult;
+            auto jacobianFunction = reinterpret_cast<JacobianFunction<double>>(
+                instance->jacobianFunctions[eq][column.first]);
+
+            auto jacobianFunctionResult = jacobianFunction(
+                time,
+                instance->simulationData,
+                equationIndices.data(),
+                variableIndices,
+                alpha);
+
+            data[scalarEquationIndex][i].second = jacobianFunctionResult;
           }
 
-          *colvals++ = instance->variableOffsets[var.first] + computeOffset(instance->variablesDimensions[var.first], var.second);
+          data[scalarEquationIndex][i].first = arrayVariableOffset + scalarVariableOffset;
         }
-      } while (updateIndexes(equationIndices, instance->equationDimensions[eq]));
+      } while (advanceIndices(equationIndices, instance->equationRanges[eq]));
     }
 
-    assert(rowptrs == SUNSparseMatrix_IndexPointers(jacobianMatrix) + instance->scalarEquationsNumber + 1);
-    assert(colvals == SUNSparseMatrix_IndexValues(jacobianMatrix) + instance->nonZeroValuesNumber);
+    sunindextype* rowPtrs = SUNSparseMatrix_IndexPointers(jacobianMatrix);
+    sunindextype* columnIndices = SUNSparseMatrix_IndexValues(jacobianMatrix);
+
+    sunindextype offset = 0;
+    *rowPtrs++ = offset;
+
+    for (const auto& row : data) {
+      offset += row.size();
+      *rowPtrs++ = offset;
+
+      for (const auto& column : row) {
+        *columnIndices++ = column.first;
+        *jacobian++ = column.second;
+      }
+    }
+
+    assert(rowPtrs == SUNSparseMatrix_IndexPointers(jacobianMatrix) + instance->scalarEquationsNumber + 1);
+    assert(columnIndices == SUNSparseMatrix_IndexValues(jacobianMatrix) + instance->nonZeroValuesNumber);
     assert(jacobian == SUNSparseMatrix_Data(jacobianMatrix) + instance->nonZeroValuesNumber);
 
     return IDA_SUCCESS;
   }
 
-  /// Compute the column indexes of the current row of the Jacobian Matrix given
-  /// the current vector equation and an array of indexes.
-  std::set<DerivativeVariable> IDAInstance::computeIndexSet(size_t eq, size_t* eqIndexes) const
+  size_t IDAInstance::getNumOfVectorizedEquations() const
   {
-    std::set<DerivativeVariable> columnIndexesSet;
-
-    for (auto& access : variableAccesses[eq]) {
-      size_t variableIndex = access.first;
-      Access variableAccess = access.second;
-      assert(variableAccess.size() == variablesDimensions[variableIndex].rank());
-
-      DerivativeVariable newEntry = {variableIndex, {}};
-
-      for (size_t i = 0; i < variableAccess.size(); ++i) {
-        int64_t induction = variableAccess[i].first;
-        size_t index = induction != -1 ? eqIndexes[induction] : 0;
-        index += variableAccess[i].second;
-        newEntry.second.push_back(index);
-      }
-
-      columnIndexesSet.insert(newEntry);
-    }
-
-    return columnIndexesSet;
+    return equationRanges.size();
   }
 
-  /// Compute the number of non-zero values in the Jacobian Matrix. Also compute
-  /// the column indexes of all non-zero values in the Jacobian Matrix. This avoids
-  /// the recomputation of such indexes during the Jacobian evaluation.
+  size_t IDAInstance::getEquationRank(size_t equation) const
+  {
+    return equationRanges[equation].size();
+  }
+
+  /// Determine which of the columns of the current Jacobian row has to be
+  /// populated, and with respect to which variable the partial derivative has
+  /// to be performed. The row is determined by the indices of the equation.
+  std::vector<JacobianColumn> IDAInstance::computeIndexSet(
+      size_t eq, int64_t* equationIndices) const
+  {
+    assert(initialized && "The IDA instance has not been initialized yet");
+    std::set<JacobianColumn> uniqueColumns;
+
+    for (const auto& access : variableAccesses[eq]) {
+      sunindextype variableIndex = access.first;
+      Access variableAccess = access.second;
+
+      assert(variableAccess.size() ==
+             variablesDimensions[variableIndex].rank());
+
+      uniqueColumns.insert({
+          variableIndex,
+          applyAccessFunction(equationIndices, variableAccess)
+      });
+    }
+
+    std::vector<JacobianColumn> orderedColumns;
+
+    for (const JacobianColumn& column : uniqueColumns) {
+      orderedColumns.push_back(column);
+    }
+
+    std::sort(orderedColumns.begin(), orderedColumns.end(),
+              [](const JacobianColumn& first, const JacobianColumn& second) {
+                if (first.first != second.first) {
+                  return first.first < second.first;
+                }
+
+                assert(first.second.size() == second.second.size());
+
+                for (int i = 0, e = first.second.size(); i < e; ++i) {
+                  if (first.second[i] < second.second[i]) {
+                    return true;
+                  }
+                }
+
+                return false;
+              });
+
+    return orderedColumns;
+  }
+
+  /// Compute the number of non-zero values in the Jacobian Matrix. Also
+  /// compute the column indexes of all non-zero values in the Jacobian Matrix.
+  /// This allows to avoid the recomputation of such indexes during the
+  /// Jacobian evaluation.
   void IDAInstance::computeNNZ()
   {
+    assert(initialized && "The IDA instance has not been initialized yet");
     nonZeroValuesNumber = 0;
 
-    for (size_t eq = 0; eq < equationDimensions.size(); ++eq) {
-      // Initialize the multidimensional interval of the vector equation
-      size_t indexes[equationDimensions[eq].size()];
+    std::vector<int64_t> equationIndices;
 
-      for (size_t i = 0; i < equationDimensions[eq].size(); ++i) {
-        indexes[i] = equationDimensions[eq][i].first;
+    for (size_t eq = 0; eq < equationRanges.size(); ++eq) {
+      // Initialize the multidimensional interval of the vector equation.
+      size_t equationRank = equationRanges[eq].size();
+      equationIndices.resize(equationRank);
+
+      for (size_t i = 0; i < equationRank; ++i) {
+        const auto& iterationRange = equationRanges[eq][i];
+        size_t beginIndex = iterationRange.begin;
+        equationIndices[i] = beginIndex;
       }
 
-      // For every scalar equation in the vector equation
+      // For every scalar equation in the vector equation.
       do {
         // Compute the column indexes that may be non-zeros
-        nonZeroValuesNumber += computeIndexSet(eq, indexes).size();
-      } while (updateIndexes(indexes, equationDimensions[eq]));
+        nonZeroValuesNumber += computeIndexSet(eq, equationIndices.data()).size();
+      } while (advanceIndices(equationIndices, equationRanges[eq]));
     }
   }
 
-  void IDAInstance::copyVariablesFromMARCO(N_Vector values)
+  void IDAInstance::copyVariablesFromMARCO(
+      N_Vector algebraicAndStateVariablesVector,
+      N_Vector derivativeVariablesVector)
   {
-    assert(variables.size() == variablesDimensions.size());
-    assert(variables.size() == variablesGetters.size());
+    auto* algebraicAndStateVariablesPtr =
+        N_VGetArrayPointer(algebraicAndStateVariablesVector);
 
-    auto* valuesPtr = N_VGetArrayPointer(values);
+    auto* derivativeVariablesPtr =
+        N_VGetArrayPointer(derivativeVariablesVector);
 
-    for (size_t i = 0; i < variables.size(); ++i) {
-      auto* descriptor = variables[i];
+    for (size_t i = 0; i < variablesDimensions.size(); ++i) {
+      size_t arrayVariableOffset = variableOffsets[i];
       const auto& dimensions = variablesDimensions[i];
-      assert(variablesGetters[i] != nullptr);
 
       for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
+        size_t scalarVariableOffset = getFlatIndex(dimensions, *indices);
+        size_t index = arrayVariableOffset + scalarVariableOffset;
+
         if (marcoBitWidth == 32) {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(variablesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
+          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(
+              algebraicAndStateVariablesGetters[i]);
+
+          auto value = static_cast<realtype>(getterFn(algebraicAndStateVariables[i], *indices));
+          algebraicAndStateVariablesPtr[index] = value;
         } else {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(variablesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
+          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(
+              algebraicAndStateVariablesGetters[i]);
+
+          auto value = static_cast<realtype>(getterFn(algebraicAndStateVariables[i], *indices));
+          algebraicAndStateVariablesPtr[index] = value;
         }
 
-        ++valuesPtr;
+        auto derivativeVariablePositionIt = stateVariablesMapping.find(i);
+
+        if (derivativeVariablePositionIt != stateVariablesMapping.end()) {
+          size_t derivativeVariablePos = derivativeVariablePositionIt->second;
+
+          if (marcoBitWidth == 32) {
+            auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(
+                derivativeVariablesGetters[derivativeVariablePos]);
+
+            auto value = static_cast<realtype>(getterFn(derivativeVariables[derivativeVariablePos], *indices));
+            derivativeVariablesPtr[index] = value;
+          } else {
+            auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(
+                derivativeVariablesGetters[derivativeVariablePos]);
+
+            auto value = static_cast<realtype>(getterFn(derivativeVariables[derivativeVariablePos], *indices));
+            derivativeVariablesPtr[index] = value;
+          }
+        }
       }
     }
   }
 
-  void IDAInstance::copyDerivativesFromMARCO(N_Vector values)
+  void IDAInstance::copyVariablesIntoMARCO(
+      N_Vector algebraicAndStateVariablesVector,
+      N_Vector derivativeVariablesVector)
   {
-    assert(derivatives.size() == derivativesDimensions.size());
-    assert(derivatives.size() == derivativesGetters.size());
+    auto* algebraicAndStateVariablesPtr =
+        N_VGetArrayPointer(algebraicAndStateVariablesVector);
 
-    auto* valuesPtr = N_VGetArrayPointer(values);
+    auto* derivativeVariablesPtr =
+        N_VGetArrayPointer(derivativeVariablesVector);
 
-    for (size_t i = 0; i < derivatives.size(); ++i) {
-      auto* descriptor = derivatives[i];
-      const auto& dimensions = derivativesDimensions[i];
-      assert(derivativesGetters[i] != nullptr);
-
-      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
-        if (marcoBitWidth == 32) {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(derivativesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
-        } else {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(derivativesGetters[i]);
-          auto value = static_cast<realtype>(getterFn(descriptor, *indices));
-          *valuesPtr = value;
-        }
-
-        ++valuesPtr;
-      }
-    }
-  }
-
-  void IDAInstance::copyVariablesIntoMARCO(N_Vector values)
-  {
-    assert(variables.size() == variablesDimensions.size());
-    assert(variables.size() == variablesSetters.size());
-
-    auto* valuesPtr = N_VGetArrayPointer(values);
-
-    for (size_t i = 0; i < variables.size(); ++i) {
-      auto* descriptor = variables[i];
+    for (size_t i = 0; i < variablesDimensions.size(); ++i) {
+      size_t arrayVariableOffset = variableOffsets[i];
       const auto& dimensions = variablesDimensions[i];
-      assert(variablesSetters[i] != nullptr);
 
       for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
+        size_t scalarVariableOffset = getFlatIndex(dimensions, *indices);
+        size_t index = arrayVariableOffset + scalarVariableOffset;
+
         if (marcoBitWidth == 32) {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(variablesSetters[i]);
-          auto value = static_cast<float>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
+          auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(
+              algebraicAndStateVariablesSetters[i]);
+
+          auto value = static_cast<float>(algebraicAndStateVariablesPtr[index]);
+          setterFn(algebraicAndStateVariables[i], value, *indices);
         } else {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(variablesSetters[i]);
-          auto value = static_cast<double>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
+          auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(
+              algebraicAndStateVariablesSetters[i]);
+
+          auto value = static_cast<double>(algebraicAndStateVariablesPtr[index]);
+          setterFn(algebraicAndStateVariables[i], value, *indices);
         }
 
-        ++valuesPtr;
-      }
-    }
-  }
+        auto derivativeVariablePositionIt = stateVariablesMapping.find(i);
 
-  void IDAInstance::copyDerivativesIntoMARCO(N_Vector values)
-  {
-    assert(derivatives.size() == derivativesDimensions.size());
-    assert(derivatives.size() == derivativesSetters.size());
+        if (derivativeVariablePositionIt != stateVariablesMapping.end()) {
+          size_t derivativeVariablePos = derivativeVariablePositionIt->second;
 
-    auto* valuesPtr = N_VGetArrayPointer(values);
+          if (marcoBitWidth == 32) {
+            auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(
+                derivativeVariablesSetters[derivativeVariablePos]);
 
-    for (size_t i = 0; i < derivatives.size(); ++i) {
-      auto* descriptor = derivatives[i];
-      const auto& dimensions = derivativesDimensions[i];
-      assert(variablesSetters[i] != nullptr);
+            auto value = static_cast<float>(derivativeVariablesPtr[index]);
+            setterFn(derivativeVariables[derivativeVariablePos], value, *indices);
+          } else {
+            auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(
+                derivativeVariablesSetters[derivativeVariablePos]);
 
-      for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
-        if (marcoBitWidth == 32) {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(derivativesSetters[i]);
-          auto value = static_cast<float>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
-        } else {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(derivativesSetters[i]);
-          auto value = static_cast<double>(*valuesPtr);
-          setterFn(descriptor, value, *indices);
+            auto value = static_cast<double>(derivativeVariablesPtr[index]);
+            setterFn(derivativeVariables[derivativeVariablePos], value, *indices);
+          }
         }
-
-        ++valuesPtr;
       }
     }
   }
@@ -1014,7 +1360,7 @@ namespace marco::runtime::ida
     std::cerr << std::endl << "Final Run Statistics:" << std::endl;
 
     std::cerr << "Number of vector equations       = ";
-    std::cerr << equationDimensions.size() << std::endl;
+    std::cerr << equationRanges.size() << std::endl;
     std::cerr << "Number of scalar equations       = ";
     std::cerr << scalarEquationsNumber << std::endl;
     std::cerr << "Number of non-zero values        = ";
@@ -1038,12 +1384,12 @@ namespace marco::runtime::ida
     std::cerr << std::endl;
 
     // For every vector equation
-    for (size_t eq = 0; eq < equationDimensions.size(); ++eq) {
+    for (size_t eq = 0; eq < equationRanges.size(); ++eq) {
       // Initialize the multidimensional interval of the vector equation
-      size_t indexes[equationDimensions[eq].size()];
+      int64_t indexes[equationRanges[eq].size()];
 
-      for (size_t i = 0; i < equationDimensions[eq].size(); ++i) {
-        indexes[i] = equationDimensions[eq][i].first;
+      for (size_t i = 0; i < equationRanges[eq].size(); ++i) {
+        indexes[i] = equationRanges[eq][i].begin;
       }
 
       // For every scalar equation in the vector equation
@@ -1055,7 +1401,7 @@ namespace marco::runtime::ida
 
         for (auto& access : variableAccesses[eq]) {
           const VariableDimensions& dimensions = variablesDimensions[access.first];
-          sunindextype varOffset = computeOffset(indexes, dimensions, access.second);
+          size_t varOffset = computeOffset(indexes, dimensions, access.second);
           columnIndexesSet.insert(variableOffsets[access.first] + varOffset);
         }
 
@@ -1072,7 +1418,7 @@ namespace marco::runtime::ida
         }
 
         std::cerr << "│" << std::endl;
-      } while (updateIndexes(indexes, equationDimensions[eq]));
+      } while (advanceIndices(indexes, equationRanges[eq]));
     }
   }
 
@@ -1497,13 +1843,18 @@ RUNTIME_FUNC_DEF(idaSetTimeStep, void, PTR(void), double)
 // Equation setters
 //===---------------------------------------------------------------------===//
 
-static int64_t idaAddEquation_i64(void* userData, int64_t* ranges, int64_t rank)
+static int64_t idaAddEquation_i64(
+    void* userData,
+    int64_t* ranges,
+    int64_t rank,
+    int64_t writtenVariable,
+    int64_t* writeAccess)
 {
   auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->addEquation(ranges, rank);
+  return instance->addEquation(ranges, rank, writtenVariable, writeAccess);
 }
 
-RUNTIME_FUNC_DEF(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
+RUNTIME_FUNC_DEF(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t, int64_t, PTR(int64_t))
 
 static void idaSetResidual_void(void* userData, int64_t equationIndex, void* residualFunction)
 {
