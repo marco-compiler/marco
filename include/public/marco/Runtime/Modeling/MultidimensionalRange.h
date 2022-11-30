@@ -13,7 +13,7 @@ namespace marco::runtime
   {
     public:
       using iterator_category = std::forward_iterator_tag;
-      using value_type = size_t*;
+      using value_type = const int64_t*;
       using difference_type = std::ptrdiff_t;
       using pointer = const int64_t**;
       using reference = const int64_t*&;
