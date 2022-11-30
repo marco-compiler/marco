@@ -3,6 +3,15 @@
 
 namespace marco::runtime
 {
+  bool Range::operator<(const Range& other) const
+  {
+    if (begin == other.begin) {
+      return end < other.end;
+    }
+
+    return begin < other.begin;
+  }
+
   RangeIterator::RangeIterator(int64_t begin, int64_t end) : current_(begin), end_(end)
   {
     assert(begin <= end);
