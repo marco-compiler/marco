@@ -458,7 +458,9 @@ namespace marco::runtime::ida
     }
   }
 
-  void IDAInstance::addResidualFunction(int64_t equationIndex, void* residualFunction)
+  void IDAInstance::setResidualFunction(
+      int64_t equationIndex,
+      void* residualFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
@@ -1503,13 +1505,13 @@ static int64_t idaAddEquation_i64(void* userData, int64_t* ranges, int64_t rank)
 
 RUNTIME_FUNC_DEF(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
 
-static void idaAddResidual_void(void* userData, int64_t equationIndex, void* residualFunction)
+static void idaSetResidual_void(void* userData, int64_t equationIndex, void* residualFunction)
 {
   auto* instance = static_cast<IDAInstance*>(userData);
-  instance->addResidualFunction(equationIndex, residualFunction);
+  instance->setResidualFunction(equationIndex, residualFunction);
 }
 
-RUNTIME_FUNC_DEF(idaAddResidual, void, PTR(void), int64_t, PTR(void))
+RUNTIME_FUNC_DEF(idaSetResidual, void, PTR(void), int64_t, PTR(void))
 
 static void idaAddJacobian_void(void* userData, int64_t equationIndex, int64_t variableIndex, void* jacobianFunction)
 {

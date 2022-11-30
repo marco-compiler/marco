@@ -99,10 +99,10 @@ namespace mlir::ida
   }
 
   //===----------------------------------------------------------------------===//
-  // AddResidualOp
+  // SetResidualOp
   //===----------------------------------------------------------------------===//
 
-  void AddResidualOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetResidualOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
   {
     effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
   }

@@ -178,7 +178,7 @@ namespace marco::runtime::ida
 
       /// Add the function pointer that computes the index-th residual function
       /// to the IDA user data.
-      void addResidualFunction(
+      void setResidualFunction(
           int64_t equationIndex, void* residualFunction);
 
       /// Add the function pointer that computes the index-th Jacobian row to
@@ -372,7 +372,7 @@ RUNTIME_FUNC_DECL(idaSetTimeStep, void, PTR(void), double)
 
 RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t)
 
-RUNTIME_FUNC_DECL(idaAddResidual, void, PTR(void), int64_t, PTR(void))
+RUNTIME_FUNC_DECL(idaSetResidual, void, PTR(void), int64_t, PTR(void))
 
 RUNTIME_FUNC_DECL(idaAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
 

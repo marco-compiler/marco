@@ -783,7 +783,7 @@ def IDA_ReturnOp : IDA_Op<"return",
     let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
 }
 
-def IDA_AddResidualOp : IDA_Op<"add_residual",
+def IDA_SetResidualOp : IDA_Op<"set_residual",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Add the residual function of an equation.";
@@ -800,7 +800,7 @@ def IDA_AddResidualOp : IDA_Op<"add_residual",
 
         %0 = ... : !ida.instance
         %1 = ... : !ida.equation
-        ida.add_residual %0, %1 { function : @foo } : !ida.instance, !ida.equation
+        ida.set_residual %0, %1 { function : @foo } : !ida.instance, !ida.equation
         ```
     }];
 

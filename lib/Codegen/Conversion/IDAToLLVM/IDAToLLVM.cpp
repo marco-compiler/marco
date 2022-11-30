@@ -1049,11 +1049,11 @@ namespace
     }
   };
 
-  struct AddResidualOpLowering : public IDAOpConversion<AddResidualOp>
+  struct SetResidualOpLowering : public IDAOpConversion<SetResidualOp>
   {
-    using IDAOpConversion<AddResidualOp>::IDAOpConversion;
+    using IDAOpConversion<SetResidualOp>::IDAOpConversion;
 
-    mlir::LogicalResult matchAndRewrite(AddResidualOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(SetResidualOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
       auto loc = op.getLoc();
       auto module = op->getParentOfType<mlir::ModuleOp>();
@@ -1082,7 +1082,7 @@ namespace
       // Create the call to the runtime library
       auto resultType = getVoidType();
       auto mangledResultType = mangling.getVoidType();
-      auto functionName = mangling.getMangledFunction("idaAddResidual", mangledResultType, mangledArgsTypes);
+      auto functionName = mangling.getMangledFunction("idaSetResidual", mangledResultType, mangledArgsTypes);
       auto callee = getOrDeclareLLVMFunction(rewriter, module, loc, functionName, resultType, newOperands);
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
 
@@ -1310,7 +1310,7 @@ static void populateIDAConversionPatterns(
       SetDerivativeOpLowering,
       AddParametricVariableOpLowering,
       AddVariableAccessOpLowering,
-      AddResidualOpLowering,
+      SetResidualOpLowering,
       AddJacobianOpLowering,
       InitOpLowering,
       CalcICOpLowering,

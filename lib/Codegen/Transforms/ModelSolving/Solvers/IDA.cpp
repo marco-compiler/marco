@@ -1746,7 +1746,7 @@ namespace marco::codegen
           return mlir::failure();
         }
 
-        builder.create<mlir::ida::AddResidualOp>(
+        builder.create<mlir::ida::SetResidualOp>(
             loc, idaInstance, idaEquation, residualFunctionName);
 
         // Create the partial derivative template.
