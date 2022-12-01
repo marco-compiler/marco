@@ -36,6 +36,7 @@ set(STATIC_SOURCES
 	${SHARED_SOURCES}
 	CLI/Category.cpp
 	CLI/CLI.cpp
+	Multithreading/CLI.cpp
 	Simulation/Runtime.cpp)
 
 # Fetch the Argh! project, which is used to handle runtime command-line

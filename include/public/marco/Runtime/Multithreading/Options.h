@@ -7,6 +7,7 @@ namespace marco::runtime::multithreading
 {
   struct MultithreadingOptions
   {
+    bool enableMultithreading = true;
     unsigned int numOfThreads = std::thread::hardware_concurrency();
   };
 

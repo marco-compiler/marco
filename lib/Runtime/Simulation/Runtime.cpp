@@ -1,5 +1,6 @@
 #include "marco/Runtime/Simulation/Runtime.h"
 #include "marco/Runtime/CLI/CLI.h"
+#include "marco/Runtime/Multithreading/CLI.h"
 #include "marco/Runtime/Profiling/Profiling.h"
 #include "marco/Runtime/Simulation/Profiler.h"
 #include "marco/Runtime/Drivers/Driver.h"
@@ -220,6 +221,7 @@ namespace
   SIMULATION_PROFILER_ARG_START;
   auto& cli = getCLI();
 
+  cli += multithreading::getCLIOptions();
   cli += driver->getCLIOptions();
   cli += printer->getCLIOptions();
 

@@ -10,6 +10,10 @@ namespace marco::runtime
       numOfThreads = 1;
     }
 
+    if (!multithreading::multithreadingOptions().enableMultithreading) {
+      numOfThreads = 1;
+    }
+
     for (unsigned int i = 0; i < numOfThreads; ++i) {
       threads.push_back(std::thread(&ThreadPool::threadLoop, this));
     }
