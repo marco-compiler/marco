@@ -11,6 +11,7 @@ LIBS_PATHS=()
 LIBS_PATHS_DEFAULT="@RUNTIME_LIBS_PATHS@"
 
 SIMULATION_LIBS="@SIMULATION_LIBS@"
+EXTRA_LINK_FLAGS="@EXTRA_LINK_FLAGS@"
 
 SOLVER="forward-euler"
 SOLVER_LIB=""
@@ -172,7 +173,7 @@ main()
   fi
 
   if [[ $SHOULD_LINK == "True" ]]; then
-    c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Wl,--start-group -lMARCORuntime -lMARCORuntimeDriverKINSOL -lMARCORuntimePrinterCSV "${SOLVER_LIB}" -Wl,--end-group "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}"
+    c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Wl,--start-group -lMARCORuntime -lMARCORuntimeDriverKINSOL -lMARCORuntimePrinterCSV "${SOLVER_LIB}" -Wl,--end-group "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}" "${EXTRA_LINK_FLAGS}"
     resultCode=$?
 
     if [ $resultCode -ne 0 ]; then

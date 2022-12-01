@@ -20,6 +20,8 @@ set(SHARED_SOURCES
 	Modeling/IndexSet.cpp
 	Modeling/MultidimensionalRange.cpp
 	Modeling/Range.cpp
+	Multithreading/Options.cpp
+	Multithreading/ThreadPool.cpp
 	Profiling/Profiler.cpp
 	Profiling/Profiling.cpp
 	Profiling/Statistics.cpp
@@ -60,8 +62,12 @@ FetchContent_MakeAvailable(argh)
 
 add_custom_target(marco-runtime)
 
+# Find the thread library of the system.
+find_package(Threads REQUIRED)
+
 # Libraries to be linked
 set(LIBS
+	${CMAKE_THREAD_LIBS_INIT}
 	PUBLIC SUNDIALS::KLU
 	PUBLIC SUNDIALS::ida
 	PUBLIC SUNDIALS::kinsol

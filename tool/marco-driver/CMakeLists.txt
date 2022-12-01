@@ -9,11 +9,15 @@ target_link_libraries(marco-driver
 
 install(TARGETS marco-driver RUNTIME DESTINATION bin)
 
+# Required for the runtime library.
+find_package(Threads REQUIRED)
+
 # This shell script will only work in a POSIX shell.
 if (NOT WIN32)
   set(SIMULATION_LIBS "sundials_ida sundials_kinsol sundials_nvecserial sundials_sunlinsolklu klu")
+  set(EXTRA_LINK_FLAGS "${CMAKE_THREAD_LIBS_INIT}")
 
-  # Build version of the driver script
+  # Build version of the driver script.
   set(RUNTIME_LIBS_PATHS ${SUNDIALS_LIBRARY_DIR})
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/marco ${CMAKE_CURRENT_BINARY_DIR}/build/marco @ONLY)
 
@@ -21,7 +25,7 @@ if (NOT WIN32)
       DESTINATION ${MARCO_TOOLS_DIR}
       FILE_PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE)
 
-  # Install version of the driver script
+  # Install version of the driver script.
   if (MARCO_USE_BUILTIN_SUNDIALS)
     set(RUNTIME_LIBS_PATHS "$SCRIPT_PATH/../dependencies/lib")
   endif()
