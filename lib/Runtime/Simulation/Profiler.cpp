@@ -13,6 +13,8 @@ namespace marco::runtime::profiling
 
   void SimulationProfiler::reset()
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     commandLineArgs.reset();
     initialization.reset();
     printing.reset();
@@ -20,6 +22,8 @@ namespace marco::runtime::profiling
 
   void SimulationProfiler::print() const
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     std::cerr << "Time spent on command-line arguments processing: " << commandLineArgs.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on initialization: " << initialization.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on values printing: " << printing.totalElapsedTime() << " ms\n";

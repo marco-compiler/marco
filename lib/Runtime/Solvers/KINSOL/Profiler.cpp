@@ -14,11 +14,13 @@ namespace marco::runtime::profiling
 
   void KINSOLProfiler::reset()
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
     stepsTimer.reset();
   }
 
   void KINSOLProfiler::print() const
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
     std::cerr << "Time spent on KINSOL steps: " << stepsTimer.totalElapsedTime() << " ms\n";
   }
 

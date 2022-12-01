@@ -6,23 +6,32 @@ namespace marco::runtime::profiling
 {
   void Timer::start()
   {
-    start_ = steady_clock::now();
-    running_ = true;
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
+    if (running_++ == 0) {
+      start_ = steady_clock::now();
+    }
   }
 
   void Timer::stop()
   {
-    accumulatedTime_ += elapsed();
-    running_ = false;
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
+    if (--running_ == 0) {
+      accumulatedTime_ += elapsed();
+    }
   }
 
   void Timer::reset()
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
     accumulatedTime_ = duration_values<nanoseconds>::zero();
   }
 
   double Timer::totalElapsedTime() const
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     if (running_) {
       return static_cast<double>((accumulatedTime_ + elapsed()).count()) / 1e6;
     }

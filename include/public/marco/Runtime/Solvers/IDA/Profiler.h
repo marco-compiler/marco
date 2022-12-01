@@ -5,6 +5,7 @@
 
 #include "marco/Runtime/Profiling/Profiler.h"
 #include "marco/Runtime/Profiling/Timer.h"
+#include <mutex>
 
 namespace marco::runtime::profiling
 {
@@ -21,6 +22,8 @@ namespace marco::runtime::profiling
       Timer initialConditionsTimer;
       Timer stepsTimer;
       Timer algebraicVariablesTimer;
+
+      mutable std::mutex mutex;
   };
 
   IDAProfiler& idaProfiler();

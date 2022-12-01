@@ -7,6 +7,7 @@
 #include "marco/Runtime/Profiling/Timer.h"
 #include <iostream>
 #include <map>
+#include <mutex>
 
 namespace marco::runtime::profiling
 {
@@ -20,6 +21,8 @@ namespace marco::runtime::profiling
 
       void reset() override
       {
+        std::lock_guard<std::mutex> lockGuard(mutex);
+
         mallocCalls = 0;
         freeCalls = 0;
         totalHeapMemory = 0;
@@ -30,6 +33,8 @@ namespace marco::runtime::profiling
 
       void print() const override
       {
+        std::lock_guard<std::mutex> lockGuard(mutex);
+
         std::cerr << "Number of 'malloc' invocations: " << mallocCalls << "\n";
         std::cerr << "Number of 'free' invocations: " << freeCalls << "\n";
 
@@ -46,6 +51,8 @@ namespace marco::runtime::profiling
 
       void malloc(void* address, int64_t bytes)
       {
+        std::lock_guard<std::mutex> lockGuard(mutex);
+
         ++mallocCalls;
 
         totalHeapMemory += bytes;
@@ -59,6 +66,8 @@ namespace marco::runtime::profiling
 
       void free(void* address)
       {
+        std::lock_guard<std::mutex> lockGuard(mutex);
+
         ++freeCalls;
 
         if (auto it = sizes.find(address); it != sizes.end()) {
@@ -69,14 +78,17 @@ namespace marco::runtime::profiling
 
       void startTimer()
       {
+        std::lock_guard<std::mutex> lockGuard(mutex);
         timer.start();
       }
 
       void stopTimer()
       {
+        std::lock_guard<std::mutex> lockGuard(mutex);
         timer.stop();
       }
 
+    private:
       double time() const
       {
         return timer.totalElapsedTime();
@@ -90,6 +102,8 @@ namespace marco::runtime::profiling
       int64_t peakHeapMemory;
       std::map<void*, int64_t> sizes;
       Timer timer;
+
+      mutable std::mutex mutex;
   };
 }
 

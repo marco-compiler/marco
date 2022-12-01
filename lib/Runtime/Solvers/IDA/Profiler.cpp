@@ -14,6 +14,8 @@ namespace marco::runtime::profiling
 
   void IDAProfiler::reset()
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     initialConditionsTimer.reset();
     stepsTimer.reset();
     algebraicVariablesTimer.reset();
@@ -21,6 +23,8 @@ namespace marco::runtime::profiling
 
   void IDAProfiler::print() const
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     std::cerr << "Time spent on computing the initial conditions: " << initialConditionsTimer.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on IDA steps: " << stepsTimer.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on computing the algebraic variables: " << algebraicVariablesTimer.totalElapsedTime() << " ms\n";

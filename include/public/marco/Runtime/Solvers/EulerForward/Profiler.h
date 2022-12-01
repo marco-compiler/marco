@@ -5,6 +5,7 @@
 
 #include "marco/Runtime/Profiling/Profiling.h"
 #include "marco/Runtime/Profiling/Timer.h"
+#include <mutex>
 
 namespace marco::runtime::profiling
 {
@@ -21,6 +22,8 @@ namespace marco::runtime::profiling
       Timer initialConditions;
       Timer stateVariables;
       Timer nonStateVariables;
+
+      mutable std::mutex mutex;
   };
 
   EulerForwardProfiler& eulerForwardProfiler();

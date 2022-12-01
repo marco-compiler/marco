@@ -13,6 +13,8 @@ namespace marco::runtime::profiling
 
   void PrintProfiler::reset()
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     booleanValues.reset();
     integerValues.reset();
     floatValues.reset();
@@ -21,10 +23,12 @@ namespace marco::runtime::profiling
 
   void PrintProfiler::print() const
   {
-    std::cerr << "Time spent on printing boolean values: " << booleanValues.totalElapsedTime() << " ms\n";
-    std::cerr << "Time spent on printing integer values: " << integerValues.totalElapsedTime() << " ms\n";
-    std::cerr << "Time spent on printing float values: " << floatValues.totalElapsedTime() << " ms\n";
-    std::cerr << "Time spent on printing strings: " << stringValues.totalElapsedTime() << " ms\n";
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
+    std::cerr << "Time spent on printing boolean values: " << booleanValues.totalElapsedTime() << " ms" << std::endl;
+    std::cerr << "Time spent on printing integer values: " << integerValues.totalElapsedTime() << " ms" << std::endl;
+    std::cerr << "Time spent on printing float values: " << floatValues.totalElapsedTime() << " ms" << std::endl;
+    std::cerr << "Time spent on printing strings: " << stringValues.totalElapsedTime() << " ms" << std::endl;
   }
 
   PrintProfiler& printProfiler()

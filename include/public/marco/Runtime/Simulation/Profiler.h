@@ -5,6 +5,7 @@
 
 #include "marco/Runtime/Profiling/Profiling.h"
 #include "marco/Runtime/Profiling/Timer.h"
+#include <mutex>
 
 namespace marco::runtime::profiling
 {
@@ -21,6 +22,8 @@ namespace marco::runtime::profiling
       Timer commandLineArgs;
       Timer initialization;
       Timer printing;
+
+      mutable std::mutex mutex;
   };
 
   SimulationProfiler& simulationProfiler();

@@ -13,6 +13,8 @@ namespace marco::runtime::profiling
 
   void EulerForwardProfiler::reset()
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     initialConditions.reset();
     nonStateVariables.reset();
     stateVariables.reset();
@@ -20,6 +22,8 @@ namespace marco::runtime::profiling
 
   void EulerForwardProfiler::print() const
   {
+    std::lock_guard<std::mutex> lockGuard(mutex);
+
     std::cerr << "Time spent on initial conditions computation: " << initialConditions.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on state variables computation: " << stateVariables.totalElapsedTime() << " ms\n";
     std::cerr << "Time spent on non-state variables computation: " << nonStateVariables.totalElapsedTime() << " ms\n";
