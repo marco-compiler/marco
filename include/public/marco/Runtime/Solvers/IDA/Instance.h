@@ -3,6 +3,7 @@
 
 #include "marco/Runtime/Mangling.h"
 #include "marco/Runtime/Modeling/MultidimensionalRange.h"
+#include "marco/Runtime/Multithreading/ThreadPool.h"
 #include "ida/ida.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_config.h"
@@ -252,8 +253,8 @@ namespace marco::runtime::ida
 
       size_t getEquationRank(size_t equation) const;
 
-      std::vector<JacobianColumn> computeIndexSet(
-          size_t eq, int64_t* eqIndexes) const;
+      std::vector<JacobianColumn> computeJacobianColumns(
+          size_t eq, const int64_t* eqIndexes) const;
 
       void computeNNZ();
 
@@ -264,6 +265,11 @@ namespace marco::runtime::ida
       void copyVariablesIntoMARCO(
           N_Vector algebraicAndStateVariablesVector,
           N_Vector derivativeVariablesVector);
+
+      void scalarEquationsParallelIteration(
+          std::function<void(
+              size_t equation,
+              const std::vector<int64_t>& equationIndices)> processFn);
 
       /// Prints the Jacobian incidence matrix of the system.
       void printIncidenceMatrix() const;
@@ -366,7 +372,10 @@ namespace marco::runtime::ida
 
       // IDA classes.
       void* idaMemory;
+
       SUNMatrix sparseMatrix;
+      std::vector<std::vector<std::pair<sunindextype, double>>> jacobianMatrixData;
+
       SUNLinearSolver linearSolver;
 
       std::vector<void*> parametricVariables;
@@ -389,6 +398,9 @@ namespace marco::runtime::ida
       std::map<size_t, size_t> stateVariablesMapping;
 
       void** simulationData;
+
+      // Thread pool
+      ThreadPool threadPool;
   };
 }
 
