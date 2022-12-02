@@ -141,7 +141,7 @@ namespace marco::codegen
     DerivativesMap emptyDerivativesMap;
 
     auto idaInstance = std::make_unique<IDAInstance>(
-        typeConverter, emptyDerivativesMap);
+        typeConverter, emptyDerivativesMap, cleverDAE);
 
     idaInstance->setStartTime(0);
     idaInstance->setEndTime(0);
@@ -285,7 +285,7 @@ namespace marco::codegen
     const DerivativesMap& derivativesMap = model.getDerivativesMap();
 
     auto idaInstance = std::make_unique<IDAInstance>(
-        typeConverter, derivativesMap);
+        typeConverter, derivativesMap, cleverDAE);
 
     std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
     ExplicitEquationsMap explicitEquationsMap;
@@ -1026,9 +1026,11 @@ namespace marco::codegen
 {
   IDAInstance::IDAInstance(
       mlir::TypeConverter* typeConverter,
-      const DerivativesMap& derivativesMap)
+      const DerivativesMap& derivativesMap,
+      bool cleverDAE)
       : typeConverter(typeConverter),
         derivativesMap(&derivativesMap),
+        cleverDAE(cleverDAE),
         startTime(llvm::None),
         endTime(llvm::None)
   {
@@ -2286,37 +2288,11 @@ namespace marco::codegen
     builder.setInsertionPointToStart(bodyBlock);
 
     // List of the arguments to be passed to the derivative template function.
-    std::vector<mlir::Value> args;
+    llvm::SmallVector<mlir::Value> args;
 
-    // 'Time' variable.
-    args.push_back(jacobianFunction.getTime());
-
-    // The variables.
-    for (const auto& var : jacobianFunction.getVariables()) {
-      if (auto arrayType = var.getType().dyn_cast<ArrayType>();
-          arrayType && arrayType.isScalar()) {
-        args.push_back(builder.create<LoadOp>(loc, var));
-      } else {
-        args.push_back(var);
-      }
-    }
-
-    // Equation indices.
-    for (auto equationIndex : jacobianFunction.getEquationIndices()) {
-      args.push_back(equationIndex);
-    }
-
-    // Seeds for the automatic differentiation.
-    unsigned int independentVarArgNumber =
-        independentVariable.cast<mlir::BlockArgument>().getArgNumber();
-
-    unsigned int oneSeedPosition = independentVarArgNumber;
-    llvm::Optional<unsigned int> alphaSeedPosition = llvm::None;
-
-    if (derivativesMap->hasDerivative(independentVarArgNumber)) {
-      alphaSeedPosition =
-          derivativesMap->getDerivative(independentVarArgNumber);
-    }
+    // Keep track of the seeds consisting in arrays, so that we can deallocate
+    // when not being used anymore.
+    llvm::SmallVector<mlir::Value> arraySeeds;
 
     mlir::Value zero = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), 0));
@@ -2324,57 +2300,90 @@ namespace marco::codegen
     mlir::Value one = builder.create<ConstantOp>(
         loc, RealAttr::get(builder.getContext(), 1));
 
-    // Keep track of the seeds consisting in arrays, so that we can deallocate
-    // when not being used anymore.
-    llvm::SmallVector<mlir::Value> seedArrays;
+    auto populateArgsFn =
+        [&](unsigned int independentVarArgNumber,
+            llvm::SmallVectorImpl<mlir::Value>& args,
+            llvm::SmallVectorImpl<mlir::Value>& seedArrays) {
+          // 'Time' variable.
+          args.push_back(jacobianFunction.getTime());
 
-    // Create the seed values for the variables.
-    for (mlir::Value var : managedVariables) {
-      auto varArgNumber = var.cast<mlir::BlockArgument>().getArgNumber();
+          // The variables.
+          for (const auto& var : jacobianFunction.getVariables()) {
+            if (auto arrayType = var.getType().dyn_cast<ArrayType>();
+                arrayType && arrayType.isScalar()) {
+              args.push_back(builder.create<LoadOp>(loc, var));
+            } else {
+              args.push_back(var);
+            }
+          }
 
-      if (auto arrayType = var.getType().dyn_cast<ArrayType>();
-          arrayType && !arrayType.isScalar()) {
-        assert(arrayType.hasStaticShape());
+          // Equation indices.
+          for (auto equationIndex : jacobianFunction.getEquationIndices()) {
+            args.push_back(equationIndex);
+          }
 
-        auto array = builder.create<AllocOp>(
-            loc,
-            arrayType.toElementType(RealType::get(builder.getContext())),
-            llvm::None);
+          unsigned int oneSeedPosition = independentVarArgNumber;
+          llvm::Optional<unsigned int> alphaSeedPosition = llvm::None;
 
-        seedArrays.push_back(array);
-        args.push_back(array);
+          if (cleverDAE && derivativesMap->hasDerivative(independentVarArgNumber)) {
+            alphaSeedPosition =
+                derivativesMap->getDerivative(independentVarArgNumber);
+          }
 
-        builder.create<ArrayFillOp>(loc, array, zero);
+          // Create the seed values for the variables.
+          for (mlir::Value var : managedVariables) {
+            auto varArgNumber = var.cast<mlir::BlockArgument>().getArgNumber();
 
-        if (varArgNumber == oneSeedPosition) {
-          builder.create<StoreOp>(
-              loc, one, array,
-              jacobianFunction.getVariableIndices());
+            if (auto arrayType = var.getType().dyn_cast<ArrayType>();
+                arrayType && !arrayType.isScalar()) {
+              assert(arrayType.hasStaticShape());
 
-        } else if (alphaSeedPosition.has_value() && varArgNumber == *alphaSeedPosition) {
-          builder.create<StoreOp>(
-              loc,
-              jacobianFunction.getAlpha(),
-              array,
-              jacobianFunction.getVariableIndices());
-        }
-      } else {
-        assert(arrayType && arrayType.isScalar());
+              auto array = builder.create<AllocOp>(
+                  loc,
+                  arrayType.toElementType(RealType::get(builder.getContext())),
+                  llvm::None);
 
-        if (varArgNumber == oneSeedPosition) {
-          args.push_back(one);
-        } else if (alphaSeedPosition.has_value() && varArgNumber == *alphaSeedPosition) {
-          args.push_back(jacobianFunction.getAlpha());
-        } else {
-          args.push_back(zero);
-        }
-      }
-    }
+              seedArrays.push_back(array);
+              args.push_back(array);
 
-    // Seeds of the equation indices. They are all equal to zero.
-    for (size_t i = 0; i < jacobianFunction.getEquationIndices().size(); ++i) {
-      args.push_back(zero);
-    }
+              builder.create<ArrayFillOp>(loc, array, zero);
+
+              if (varArgNumber == oneSeedPosition) {
+                builder.create<StoreOp>(
+                    loc, one, array,
+                    jacobianFunction.getVariableIndices());
+
+              } else if (alphaSeedPosition.has_value() && varArgNumber == *alphaSeedPosition) {
+                builder.create<StoreOp>(
+                    loc,
+                    jacobianFunction.getAlpha(),
+                    array,
+                    jacobianFunction.getVariableIndices());
+              }
+            } else {
+              assert(arrayType && arrayType.isScalar());
+
+              if (varArgNumber == oneSeedPosition) {
+                args.push_back(one);
+              } else if (alphaSeedPosition.has_value() && varArgNumber == *alphaSeedPosition) {
+                args.push_back(jacobianFunction.getAlpha());
+              } else {
+                args.push_back(zero);
+              }
+            }
+          }
+
+          // Seeds of the equation indices. They are all equal to zero.
+          for (size_t i = 0; i < jacobianFunction.getEquationIndices().size(); ++i) {
+            args.push_back(zero);
+          }
+        };
+
+    // Derivative with respect to the algebraic / state variable.
+    unsigned int independentVarArgNumber =
+        independentVariable.cast<mlir::BlockArgument>().getArgNumber();
+
+    populateArgsFn(independentVarArgNumber, args, arraySeeds);
 
     // Call the derivative template.
     auto templateCall = builder.create<CallOp>(
@@ -2383,12 +2392,41 @@ namespace marco::codegen
         RealType::get(builder.getContext()),
         args);
 
-    // Deallocate the seeds.
-    for (auto seed : seedArrays) {
+    mlir::Value result = templateCall.getResult(0);
+
+    // Deallocate the seeds consisting in arrays.
+    for (mlir::Value seed : arraySeeds) {
       builder.create<FreeOp>(loc, seed);
     }
 
-    builder.create<mlir::ida::ReturnOp>(loc, templateCall.getResult(0));
+    if (!cleverDAE && derivativesMap->hasDerivative(independentVarArgNumber)) {
+      args.clear();
+      arraySeeds.clear();
+
+      populateArgsFn(
+          derivativesMap->getDerivative(independentVarArgNumber),
+          args, arraySeeds);
+
+      auto secondTemplateCall = builder.create<CallOp>(
+          loc,
+          partialDerTemplateName,
+          RealType::get(builder.getContext()),
+          args);
+
+      for (mlir::Value seed : arraySeeds) {
+        builder.create<FreeOp>(loc, seed);
+      }
+
+      mlir::Value secondDerivativeTimesAlpha = builder.create<MulOp>(
+          loc, RealType::get(builder.getContext()),
+          jacobianFunction.getAlpha(), secondTemplateCall.getResult(0));
+
+      result = builder.create<AddOp>(
+          loc, RealType::get(builder.getContext()),
+          result, secondDerivativeTimesAlpha);
+    }
+
+    builder.create<mlir::ida::ReturnOp>(loc, result);
 
     return mlir::success();
   }

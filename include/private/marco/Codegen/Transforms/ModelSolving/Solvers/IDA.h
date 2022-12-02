@@ -14,8 +14,9 @@ namespace marco::codegen
 
     public:
       IDAInstance(
-          mlir::TypeConverter* typeConverter,
-          const DerivativesMap& derivativesMap);
+        mlir::TypeConverter* typeConverter,
+        const DerivativesMap& derivativesMap,
+        bool cleverDAE);
 
       void setStartTime(double time);
 
@@ -175,6 +176,8 @@ namespace marco::codegen
     private:
       mlir::TypeConverter* typeConverter;
       const DerivativesMap* derivativesMap;
+
+      bool cleverDAE;
 
       llvm::Optional<double> startTime;
       llvm::Optional<double> endTime;
