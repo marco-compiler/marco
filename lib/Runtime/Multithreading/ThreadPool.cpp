@@ -70,11 +70,9 @@ namespace marco::runtime
       {
         std::lock_guard<std::mutex> lock(queueMutex);
         --activeThreads;
-
-        if (activeThreads == 0) {
-          completionCondition.notify_all();
-        }
       }
+
+      completionCondition.notify_all();
     }
   }
 
