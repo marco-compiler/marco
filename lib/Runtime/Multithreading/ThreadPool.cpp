@@ -4,7 +4,8 @@
 namespace marco::runtime
 {
   ThreadPool::ThreadPool()
-      : numOfThreads(multithreading::multithreadingOptions().numOfThreads)
+      : numOfThreads(multithreading::multithreadingOptions().numOfThreads),
+        activeThreads(0)
   {
     if (numOfThreads == 0) {
       numOfThreads = 1;
@@ -93,7 +94,7 @@ namespace marco::runtime
 
     completionCondition.wait(
         lockGuard, [&] {
-          return !activeThreads && jobs.empty();
+          return activeThreads == 0 && jobs.empty();
         });
   }
 }
