@@ -3,7 +3,6 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
-#include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -58,9 +57,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Cast operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -161,9 +160,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Runtime functions operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -174,65 +173,43 @@ namespace
       using ModelicaOpConversionPattern<Op>::ModelicaOpConversionPattern;
 
     protected:
-      const RuntimeFunctionsMangling* getMangler() const
-      {
-        return &mangler;
-      }
-
-      std::string getMangledType(mlir::Type type) const
-      {
-        if (auto indexType = type.dyn_cast<mlir::IndexType>()) {
-          return getMangledType(this->getTypeConverter()->convertType(type));
-        }
-
-        if (auto integerType = type.dyn_cast<mlir::IntegerType>()) {
-          return getMangler()->getIntegerType(integerType.getWidth());
-        }
-
-        if (auto floatType = type.dyn_cast<mlir::FloatType>()) {
-          return getMangler()->getFloatingPointType(floatType.getWidth());
-        }
-
-        if (auto memRefType = type.dyn_cast<mlir::UnrankedMemRefType>()) {
-          return getMangler()->getArrayType(getMangledType(memRefType.getElementType()));
-        }
-
-        llvm_unreachable("Unknown type for mangling");
-        return "unknown";
-      }
-
-      mlir::Value promote(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value) const
+      mlir::Value promote(
+        mlir::OpBuilder& builder, mlir::Location loc, mlir::Value value) const
       {
         auto one = builder.create<mlir::LLVM::ConstantOp>(
             loc, this->getIndexType(), builder.getIndexAttr(1));
 
         auto ptrType = mlir::LLVM::LLVMPointerType::get(value.getType());
-        auto allocated = builder.create<mlir::LLVM::AllocaOp>(loc, ptrType, mlir::ValueRange{one});
+
+        auto allocated = builder.create<mlir::LLVM::AllocaOp>(
+            loc, ptrType, mlir::ValueRange{one});
+
         builder.create<mlir::LLVM::StoreOp>(loc, value, allocated);
 
         return allocated;
       }
-
-    private:
-      RuntimeFunctionsMangling mangler;
   };
 
   struct CallOpLowering : public RuntimeOpConversionPattern<CallOp>
   {
     using RuntimeOpConversionPattern<CallOp>::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(CallOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        CallOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
       llvm::SmallVector<mlir::Type, 1> resultTypes;
 
-      if (auto res = getTypeConverter()->convertTypes(op.getResultTypes(), resultTypes); mlir::failed(res)) {
-        return res;
+      if (mlir::failed(getTypeConverter()->convertTypes(
+              op.getResultTypes(), resultTypes))) {
+        return mlir::failure();
       }
 
       llvm::SmallVector<mlir::Value, 3> args;
 
-      for (const auto& arg : adaptor.getArgs()) {
+      for (mlir::Value arg : adaptor.getArgs()) {
         if (arg.getType().isa<mlir::LLVM::LLVMStructType>()) {
           args.push_back(promote(rewriter, loc, arg));
         } else {
@@ -241,68 +218,35 @@ namespace
       }
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-          op, resultTypes, getMangledFunctionName(op), args);
+          op, resultTypes, op.getCallee(), args);
 
       return mlir::success();
     }
-
-    std::string getMangledFunctionName(CallOp op) const
-    {
-      llvm::SmallVector<std::string, 2> mangledArgTypes;
-
-      for (const auto& type : op.getArgs().getTypes()) {
-        mangledArgTypes.push_back(getMangledType(type));
-      }
-
-      auto resultTypes = op.getResultTypes();
-      assert(resultTypes.size() <= 1);
-
-      if (resultTypes.empty()) {
-        return getMangler()->getMangledFunction(
-            op.getCallee(), getMangler()->getVoidType(), mangledArgTypes);
-      }
-
-      return getMangler()->getMangledFunction(
-          op.getCallee(), getMangledType(resultTypes[0]), mangledArgTypes);
-    }
   };
 
-  class RuntimeFunctionOpLowering : public RuntimeOpConversionPattern<RuntimeFunctionOp>
+  class RuntimeFunctionOpLowering
+      : public RuntimeOpConversionPattern<RuntimeFunctionOp>
   {
-    using RuntimeOpConversionPattern<RuntimeFunctionOp>::RuntimeOpConversionPattern;
+    using RuntimeOpConversionPattern<RuntimeFunctionOp>
+        ::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(RuntimeFunctionOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        RuntimeFunctionOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Type functionType;
       bool resultPromoted;
 
-      std::tie(functionType, resultPromoted) = getTypeConverter()->convertFunctionTypeCWrapper(op.getFunctionType());
-      auto mangledName = getMangledFunctionName(op);
+      std::tie(functionType, resultPromoted) =
+          getTypeConverter()->convertFunctionTypeCWrapper(
+              op.getFunctionType());
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::LLVMFuncOp>(
-          op, mangledName, functionType.cast<mlir::LLVM::LLVMFunctionType>());
+          op, op.getSymName(),
+          functionType.cast<mlir::LLVM::LLVMFunctionType>());
 
       return mlir::success();
-    }
-
-    std::string getMangledFunctionName(RuntimeFunctionOp op) const
-    {
-      llvm::SmallVector<std::string, 2> mangledArgTypes;
-
-      for (const auto& type : op.getArgumentTypes()) {
-        mangledArgTypes.push_back(getMangledType(type));
-      }
-
-      auto resultTypes = op.getResultTypes();
-      assert(resultTypes.size() <= 1);
-
-      if (resultTypes.empty()) {
-        return getMangler()->getMangledFunction(
-            op.getSymName(), getMangler()->getVoidType(), mangledArgTypes);
-      }
-
-      return getMangler()->getMangledFunction(
-          op.getSymName(), getMangledType(resultTypes[0]), mangledArgTypes);
     }
   };
 }
@@ -311,12 +255,12 @@ static void populateModelicaToLLVMPatterns(
 		mlir::RewritePatternSet& patterns,
 		mlir::LLVMTypeConverter& typeConverter)
 {
-  // Cast operations
+  // Cast operations.
   patterns.insert<
       CastOpIntegerLowering,
       CastOpFloatLowering>(typeConverter);
 
-  // Runtime functions operations
+  // Runtime functions operations.
   patterns.insert<
       CallOpLowering,
       RuntimeFunctionOpLowering>(typeConverter);
@@ -331,26 +275,34 @@ namespace
 
       void runOnOperation() override
       {
+        if (mlir::failed(convertCallOps())) {
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in converting the Modelica operations");
+
+          return signalPassFailure();
+        }
+
         if (mlir::failed(convertOperations())) {
-          mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations");
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in converting the Modelica operations");
+
           return signalPassFailure();
         }
       }
 
     private:
+      mlir::LogicalResult convertCallOps();
+
       mlir::LogicalResult convertOperations();
   };
 }
 
-mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
+mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
 {
   auto module = getOperation();
   mlir::ConversionTarget target(getContext());
-
-  target.addIllegalOp<
-      DerOp,
-      CastOp,
-      RuntimeFunctionOp>();
 
   target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
     auto module = op->getParentOfType<mlir::ModuleOp>();
@@ -366,11 +318,41 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   llvmLoweringOptions.dataLayout.reset(dataLayout);
   mlir::modelica::LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
-        mlir::RewritePatternSet patterns(&getContext());
+  mlir::RewritePatternSet patterns(&getContext());
+  patterns.insert<CallOpLowering>(typeConverter);
 
-        populateModelicaToLLVMPatterns(patterns, typeConverter);
-        populateIDAStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
-        populateKINSOLStructuralTypeConversionsAndLegality(typeConverter, patterns, target);
+  return applyPartialConversion(module, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  target.addIllegalOp<
+      DerOp,
+      CastOp,
+      RuntimeFunctionOp>();
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+  mlir::modelica::LLVMTypeConverter typeConverter(
+      &getContext(), llvmLoweringOptions, bitWidth);
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  populateModelicaToLLVMPatterns(patterns, typeConverter);
+
+  populateIDAStructuralTypeConversionsAndLegality(
+      typeConverter, patterns, target);
+
+  populateKINSOLStructuralTypeConversionsAndLegality(
+      typeConverter, patterns, target);
 
   return applyPartialConversion(module, target, std::move(patterns));
 }

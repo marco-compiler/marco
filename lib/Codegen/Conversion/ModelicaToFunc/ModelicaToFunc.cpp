@@ -99,6 +99,74 @@ namespace
         return unrankedMemRef;
       }
   };
+
+  template<typename Op>
+  class RuntimeOpConversionPattern : public ModelicaOpConversionPattern<Op>
+  {
+    public:
+      using ModelicaOpConversionPattern<Op>::ModelicaOpConversionPattern;
+
+    protected:
+      const RuntimeFunctionsMangling* getMangler() const
+      {
+        return &mangler;
+      }
+
+      std::string getMangledType(mlir::Type type) const
+      {
+        if (auto indexType = type.dyn_cast<mlir::IndexType>()) {
+          return getMangledType(this->getTypeConverter()->convertType(type));
+        }
+
+        if (auto integerType = type.dyn_cast<mlir::IntegerType>()) {
+          return getMangler()->getIntegerType(integerType.getWidth());
+        }
+
+        if (auto floatType = type.dyn_cast<mlir::FloatType>()) {
+          return getMangler()->getFloatingPointType(floatType.getWidth());
+        }
+
+        if (auto memRefType = type.dyn_cast<mlir::UnrankedMemRefType>()) {
+          return getMangler()->getArrayType(getMangledType(memRefType.getElementType()));
+        }
+
+        llvm_unreachable("Unknown type for mangling");
+        return "unknown";
+      }
+
+      std::string getMangledFunctionName(
+          llvm::StringRef name,
+          mlir::TypeRange resultTypes,
+          mlir::TypeRange argTypes) const
+      {
+        llvm::SmallVector<std::string, 3> mangledArgTypes;
+
+        for (mlir::Type type : argTypes) {
+          mangledArgTypes.push_back(getMangledType(type));
+        }
+
+        assert(resultTypes.size() <= 1);
+
+        if (resultTypes.empty()) {
+          return getMangler()->getMangledFunction(
+              name, getMangler()->getVoidType(), mangledArgTypes);
+        }
+
+        return getMangler()->getMangledFunction(
+            name, getMangledType(resultTypes[0]), mangledArgTypes);
+      }
+
+      std::string getMangledFunctionName(
+          llvm::StringRef name,
+          mlir::TypeRange resultTypes,
+          mlir::ValueRange args) const
+      {
+        return getMangledFunctionName(name, resultTypes, args.getTypes());
+      }
+
+    private:
+      RuntimeFunctionsMangling mangler;
+  };
 }
 
 //===----------------------------------------------------------------------===//
@@ -172,11 +240,14 @@ namespace
 
 namespace
 {
-  struct PowOpLowering: public ModelicaOpConversionPattern<PowOp>
+  struct PowOpLowering: public RuntimeOpConversionPattern<PowOp>
   {
-    using ModelicaOpConversionPattern<PowOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<PowOp>::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(PowOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        PowOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       if (!isNumeric(op.getBase())) {
         return rewriter.notifyMatchFailure(op, "Base is not a scalar");
@@ -184,19 +255,20 @@ namespace
 
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
-      // Base
+      // Base.
       newOperands.push_back(adaptor.getBase());
 
-      // Exponent
+      // Exponent.
       newOperands.push_back(adaptor.getExponent());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "pow",
+          getMangledFunctionName("pow", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -233,9 +305,9 @@ namespace
     }
   };
 
-  struct AbsOpLowering : public ModelicaOpConversionPattern<AbsOp>
+  struct AbsOpLowering : public RuntimeOpConversionPattern<AbsOp>
   {
-    using ModelicaOpConversionPattern<AbsOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<AbsOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(AbsOp op) const override
     {
@@ -245,20 +317,24 @@ namespace
       return mlir::LogicalResult::success(operandType == resultType);
     }
 
-    void rewrite(AbsOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        AbsOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "abs",
+          getMangledFunctionName("abs", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -288,9 +364,9 @@ namespace
     }
   };
 
-  struct AcosOpLowering : public ModelicaOpConversionPattern<AcosOp>
+  struct AcosOpLowering : public RuntimeOpConversionPattern<AcosOp>
   {
-    using ModelicaOpConversionPattern<AcosOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<AcosOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(AcosOp op) const override
     {
@@ -301,22 +377,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(AcosOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        AcosOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "acos",
+          getMangledFunctionName("acos", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -346,9 +427,9 @@ namespace
     }
   };
 
-  struct AsinOpLowering : public ModelicaOpConversionPattern<AsinOp>
+  struct AsinOpLowering : public RuntimeOpConversionPattern<AsinOp>
   {
-    using ModelicaOpConversionPattern<AsinOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<AsinOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(AsinOp op) const override
     {
@@ -359,22 +440,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(AsinOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        AsinOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "asin",
+          getMangledFunctionName("asin", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -404,9 +490,9 @@ namespace
     }
   };
 
-  struct AtanOpLowering : public ModelicaOpConversionPattern<AtanOp>
+  struct AtanOpLowering : public RuntimeOpConversionPattern<AtanOp>
   {
-    using ModelicaOpConversionPattern<AtanOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<AtanOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(AtanOp op) const override
     {
@@ -417,22 +503,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(AtanOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        AtanOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "atan",
+          getMangledFunctionName("atan", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -466,9 +557,9 @@ namespace
     }
   };
 
-  struct Atan2OpLowering : public ModelicaOpConversionPattern<Atan2Op>
+  struct Atan2OpLowering : public RuntimeOpConversionPattern<Atan2Op>
   {
-    using ModelicaOpConversionPattern<Atan2Op>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<Atan2Op>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(Atan2Op op) const override
     {
@@ -477,29 +568,36 @@ namespace
       mlir::Type resultType = op.getResult().getType();
 
       return mlir::LogicalResult::success(
-          yType.isa<RealType>() && xType.isa<RealType>() && resultType.isa<RealType>());
+          yType.isa<RealType>() &&
+          xType.isa<RealType>() &&
+          resultType.isa<RealType>());
     }
 
-    void rewrite(Atan2Op op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        Atan2Op op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
-      // Y
+      // Y.
       assert(op.getY().getType().isa<RealType>());
       newOperands.push_back(adaptor.getY());
 
-      // X
+      // X.
       assert(op.getX().getType().isa<RealType>());
       newOperands.push_back(adaptor.getX());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "atan2",
+          getMangledFunctionName("atan2", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -526,9 +624,9 @@ namespace
     }
   };
 
-  struct CeilOpLowering : public ModelicaOpConversionPattern<CeilOp>
+  struct CeilOpLowering : public RuntimeOpConversionPattern<CeilOp>
   {
-    using ModelicaOpConversionPattern<CeilOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<CeilOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(CeilOp op) const override
     {
@@ -538,22 +636,27 @@ namespace
       return mlir::LogicalResult::success(operandType == resultType);
     }
 
-    void rewrite(CeilOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        CeilOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "ceil",
+          getMangledFunctionName("ceil", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -584,9 +687,9 @@ namespace
     }
   };
 
-  struct CosOpLowering : public ModelicaOpConversionPattern<CosOp>
+  struct CosOpLowering : public RuntimeOpConversionPattern<CosOp>
   {
-    using ModelicaOpConversionPattern<CosOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<CosOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(CosOp op) const override
     {
@@ -597,22 +700,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(CosOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        CosOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "cos",
+          getMangledFunctionName("cos", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -642,9 +750,9 @@ namespace
     }
   };
 
-  struct CoshOpLowering : public ModelicaOpConversionPattern<CoshOp>
+  struct CoshOpLowering : public RuntimeOpConversionPattern<CoshOp>
   {
-    using ModelicaOpConversionPattern<CoshOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<CoshOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(CoshOp op) const override
     {
@@ -655,39 +763,47 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(CoshOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        CoshOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "cosh",
+          getMangledFunctionName("cosh", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
     }
   };
 
-  struct DiagonalOpLowering : public ModelicaOpConversionPattern<DiagonalOp>
+  struct DiagonalOpLowering : public RuntimeOpConversionPattern<DiagonalOp>
   {
-    using ModelicaOpConversionPattern<DiagonalOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<DiagonalOp>::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(DiagonalOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        DiagonalOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
-      // Result
+      // Result.
       auto resultType = op.getResult().getType().cast<ArrayType>();
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
@@ -714,17 +830,17 @@ namespace
 
       newOperands.push_back(result);
 
-      // Values
+      // Values.
       mlir::Value values = adaptor.getValues();
       values = convertToUnrankedMemRef(rewriter, loc, values);
 
       newOperands.push_back(values);
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "diagonal",
+          getMangledFunctionName("diagonal", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);
@@ -762,9 +878,9 @@ namespace
     }
   };
 
-  struct DivTruncOpLowering : public ModelicaOpConversionPattern<DivTruncOp>
+  struct DivTruncOpLowering : public RuntimeOpConversionPattern<DivTruncOp>
   {
-    using ModelicaOpConversionPattern<DivTruncOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<DivTruncOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(DivTruncOp op) const override
     {
@@ -776,25 +892,29 @@ namespace
           xType == yType && xType == resultType);
     }
 
-    void rewrite(DivTruncOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        DivTruncOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
       assert(op.getX().getType() == op.getY().getType());
 
-      // Dividend
+      // Dividend.
       newOperands.push_back(adaptor.getX());
 
-      // Divisor
+      // Divisor.
       newOperands.push_back(adaptor.getY());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "div",
+          getMangledFunctionName("div", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -824,9 +944,9 @@ namespace
     }
   };
 
-  struct ExpOpLowering : public ModelicaOpConversionPattern<ExpOp>
+  struct ExpOpLowering : public RuntimeOpConversionPattern<ExpOp>
   {
-    using ModelicaOpConversionPattern<ExpOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<ExpOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(ExpOp op) const override
     {
@@ -837,22 +957,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(ExpOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        ExpOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Exponent
+      // Exponent.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getExponent());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "exp",
+          getMangledFunctionName("exp", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -879,9 +1004,9 @@ namespace
     }
   };
 
-  struct FloorOpLowering : public ModelicaOpConversionPattern<FloorOp>
+  struct FloorOpLowering : public RuntimeOpConversionPattern<FloorOp>
   {
-    using ModelicaOpConversionPattern<FloorOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<FloorOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(FloorOp op) const override
     {
@@ -891,22 +1016,27 @@ namespace
       return mlir::LogicalResult::success(operandType == resultType);
     }
 
-    void rewrite(FloorOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        FloorOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "floor",
+          getMangledFunctionName("floor", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -931,9 +1061,9 @@ namespace
     }
   };
 
-  struct IdentityOpLowering : public ModelicaOpConversionPattern<IdentityOp>
+  struct IdentityOpLowering : public RuntimeOpConversionPattern<IdentityOp>
   {
-    using ModelicaOpConversionPattern<IdentityOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<IdentityOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(IdentityOp op) const override
     {
@@ -941,13 +1071,16 @@ namespace
       return mlir::LogicalResult::success(sizeType.isa<mlir::IndexType>());
     }
 
-    void rewrite(IdentityOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        IdentityOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Result
+      // Result.
       auto resultType = op.getResult().getType().cast<ArrayType>();
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
@@ -962,17 +1095,19 @@ namespace
         }
       }
 
-      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
+      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(
+          op, resultType, dynamicDimensions);
+
       result = materializeTargetConversion(rewriter, loc, result);
       result = convertToUnrankedMemRef(rewriter, loc, result);
 
       newOperands.push_back(result);
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "identity",
+          getMangledFunctionName("identity", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);
@@ -999,9 +1134,9 @@ namespace
     }
   };
 
-  struct IntegerOpLowering : public ModelicaOpConversionPattern<IntegerOp>
+  struct IntegerOpLowering : public RuntimeOpConversionPattern<IntegerOp>
   {
-    using ModelicaOpConversionPattern<IntegerOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<IntegerOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(IntegerOp op) const override
     {
@@ -1011,22 +1146,27 @@ namespace
       return mlir::LogicalResult::success(operandType == resultType);
     }
 
-    void rewrite(IntegerOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        IntegerOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "integer",
+          getMangledFunctionName("integer", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1075,9 +1215,9 @@ namespace
     }
   };
 
-  struct LinspaceOpLowering : public ModelicaOpConversionPattern<LinspaceOp>
+  struct LinspaceOpLowering : public RuntimeOpConversionPattern<LinspaceOp>
   {
-    using ModelicaOpConversionPattern<LinspaceOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<LinspaceOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(LinspaceOp op) const override
     {
@@ -1086,16 +1226,21 @@ namespace
       mlir::Type amountType = op.getAmount().getType();
 
       return mlir::LogicalResult::success(
-          beginType.isa<RealType>() && endType.isa<RealType>() && amountType.isa<mlir::IndexType>());
+          beginType.isa<RealType>() &&
+          endType.isa<RealType>() &&
+          amountType.isa<mlir::IndexType>());
     }
 
-    void rewrite(LinspaceOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        LinspaceOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 3> newOperands;
 
-      // Result
+      // Result.
       auto resultType = op.getResult().getType().cast<ArrayType>();
       assert(resultType.getRank() == 1);
       llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
@@ -1112,17 +1257,17 @@ namespace
 
       newOperands.push_back(result);
 
-      // Begin value
+      // Begin value.
       newOperands.push_back(adaptor.getBegin());
 
-      // End value
+      // End value.
       newOperands.push_back(adaptor.getEnd());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "linspace",
+          getMangledFunctionName("linspace", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);
@@ -1152,9 +1297,9 @@ namespace
     }
   };
 
-  struct LogOpLowering : public ModelicaOpConversionPattern<LogOp>
+  struct LogOpLowering : public RuntimeOpConversionPattern<LogOp>
   {
-    using ModelicaOpConversionPattern<LogOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<LogOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(LogOp op) const override
     {
@@ -1165,22 +1310,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(LogOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        LogOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "log",
+          getMangledFunctionName("log", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1210,9 +1360,9 @@ namespace
     }
   };
 
-  struct Log10OpLowering : public ModelicaOpConversionPattern<Log10Op>
+  struct Log10OpLowering : public RuntimeOpConversionPattern<Log10Op>
   {
-    using ModelicaOpConversionPattern<Log10Op>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<Log10Op>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(Log10Op op) const override
     {
@@ -1223,22 +1373,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(Log10Op op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        Log10Op op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "log10",
+          getMangledFunctionName("log10", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1274,9 +1429,9 @@ namespace
     }
   };
 
-  struct OnesOpLowering : public ModelicaOpConversionPattern<OnesOp>
+  struct OnesOpLowering : public RuntimeOpConversionPattern<OnesOp>
   {
-    using ModelicaOpConversionPattern<OnesOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<OnesOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(OnesOp op) const override
     {
@@ -1286,13 +1441,16 @@ namespace
           }));
     }
 
-    void rewrite(OnesOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        OnesOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Result
+      // Result.
       auto resultType = op.getResult().getType().cast<ArrayType>();
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
@@ -1310,11 +1468,11 @@ namespace
 
       newOperands.push_back(result);
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "ones",
+          getMangledFunctionName("ones", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);
@@ -1346,9 +1504,9 @@ namespace
     }
   };
 
-  struct MaxOpArrayLowering : public ModelicaOpConversionPattern<MaxOp>
+  struct MaxOpArrayLowering : public RuntimeOpConversionPattern<MaxOp>
   {
-    using ModelicaOpConversionPattern<MaxOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<MaxOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(MaxOp op) const override
     {
@@ -1359,30 +1517,35 @@ namespace
       auto arrayType = op.getFirst().getType().cast<ArrayType>();
       mlir::Type resultType = op.getResult().getType();
 
-      return mlir::LogicalResult::success(arrayType.getElementType() == resultType);
+      return mlir::LogicalResult::success(
+          arrayType.getElementType() == resultType);
     }
 
-    void rewrite(MaxOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        MaxOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
       assert(op.getFirst().getType().isa<ArrayType>());
 
-      // Array
+      // Array.
       mlir::Value array = adaptor.getFirst();
       array = convertToUnrankedMemRef(rewriter, loc, array);
 
       newOperands.push_back(array);
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "maxArray",
+          getMangledFunctionName("maxArray", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1418,9 +1581,9 @@ namespace
     }
   };
 
-  struct MaxOpScalarsLowering : public ModelicaOpConversionPattern<MaxOp>
+  struct MaxOpScalarsLowering : public RuntimeOpConversionPattern<MaxOp>
   {
-    using ModelicaOpConversionPattern<MaxOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<MaxOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(MaxOp op) const override
     {
@@ -1436,25 +1599,29 @@ namespace
           firstValueType == secondValueType && firstValueType == resultType);
     }
 
-    void rewrite(MaxOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        MaxOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
       assert(op.getFirst().getType() == op.getSecond().getType());
 
-      // First value
+      // First value.
       newOperands.push_back(adaptor.getFirst());
 
-      // Second value
+      // Second value.
       newOperands.push_back(adaptor.getSecond());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "maxScalars",
+          getMangledFunctionName("maxScalars", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1486,9 +1653,9 @@ namespace
     }
   };
 
-  struct MinOpArrayLowering : public ModelicaOpConversionPattern<MinOp>
+  struct MinOpArrayLowering : public RuntimeOpConversionPattern<MinOp>
   {
-    using ModelicaOpConversionPattern<MinOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<MinOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(MinOp op) const override
     {
@@ -1502,27 +1669,31 @@ namespace
       return mlir::LogicalResult::success(arrayType.getElementType() == resultType);
     }
 
-    void rewrite(MinOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        MinOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
       assert(op.getFirst().getType().isa<ArrayType>());
 
-      // Array
+      // Array.
       mlir::Value array = adaptor.getFirst();
       array = convertToUnrankedMemRef(rewriter, loc, array);
 
       newOperands.push_back(array);
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "minArray",
+          getMangledFunctionName("minArray", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1558,9 +1729,9 @@ namespace
     }
   };
 
-  struct MinOpScalarsLowering : public ModelicaOpConversionPattern<MinOp>
+  struct MinOpScalarsLowering : public RuntimeOpConversionPattern<MinOp>
   {
-    using ModelicaOpConversionPattern<MinOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<MinOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(MinOp op) const override
     {
@@ -1576,25 +1747,29 @@ namespace
           firstValueType == secondValueType && firstValueType == resultType);
     }
 
-    void rewrite(MinOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        MinOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
       assert(op.getFirst().getType() == op.getSecond().getType());
 
-      // First value
+      // First value.
       newOperands.push_back(adaptor.getFirst());
 
-      // Second value
+      // Second value.
       newOperands.push_back(adaptor.getSecond());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "minScalars",
+          getMangledFunctionName("minScalars", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1631,9 +1806,9 @@ namespace
     }
   };
 
-  struct ModOpLowering : public ModelicaOpConversionPattern<ModOp>
+  struct ModOpLowering : public RuntimeOpConversionPattern<ModOp>
   {
-    using ModelicaOpConversionPattern<ModOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<ModOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(ModOp op) const override
     {
@@ -1645,25 +1820,29 @@ namespace
           xType == yType && xType == resultType);
     }
 
-    void rewrite(ModOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        ModOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
       assert(op.getX().getType() == op.getY().getType());
 
-      // Dividend
+      // Dividend.
       newOperands.push_back(adaptor.getX());
 
-      // Divisor
+      // Divisor.
       newOperands.push_back(adaptor.getY());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "mod",
+          getMangledFunctionName("mod", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1691,37 +1870,42 @@ namespace
     }
   };
 
-  struct ProductOpLowering : public ModelicaOpConversionPattern<ProductOp>
+  struct ProductOpLowering : public RuntimeOpConversionPattern<ProductOp>
   {
-    using ModelicaOpConversionPattern<ProductOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<ProductOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(ProductOp op) const override
     {
       auto arrayType = op.getArray().getType().cast<ArrayType>();
       mlir::Type resultType = op.getResult().getType();
 
-      return mlir::LogicalResult::success(arrayType.getElementType() == resultType);
+      return mlir::LogicalResult::success(
+          arrayType.getElementType() == resultType);
     }
 
-    void rewrite(ProductOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        ProductOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Array
+      // Array.
       mlir::Value array = adaptor.getArray();
       array = convertToUnrankedMemRef(rewriter, loc, array);
 
       newOperands.push_back(array);
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "product",
+          getMangledFunctionName("product", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1758,9 +1942,9 @@ namespace
     }
   };
 
-  struct RemOpLowering : public ModelicaOpConversionPattern<RemOp>
+  struct RemOpLowering : public RuntimeOpConversionPattern<RemOp>
   {
-    using ModelicaOpConversionPattern<RemOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<RemOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(RemOp op) const override
     {
@@ -1772,25 +1956,29 @@ namespace
           xType == yType && xType == resultType);
     }
 
-    void rewrite(RemOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        RemOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
       assert(op.getX().getType() == op.getY().getType());
 
-      // 'x' value
+      // 'x' value.
       newOperands.push_back(adaptor.getX());
 
-      // 'y' value
+      // 'y' value.
       newOperands.push_back(adaptor.getY());
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "rem",
+          getMangledFunctionName("rem", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1821,9 +2009,9 @@ namespace
     }
   };
 
-  struct SignOpLowering : public ModelicaOpConversionPattern<SignOp>
+  struct SignOpLowering : public RuntimeOpConversionPattern<SignOp>
   {
-    using ModelicaOpConversionPattern<SignOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<SignOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(SignOp op) const override
     {
@@ -1831,21 +2019,26 @@ namespace
       return mlir::LogicalResult::success(resultType.isa<IntegerType>());
     }
 
-    void rewrite(SignOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        SignOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<IntegerType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "sign",
+          getMangledFunctionName("sign", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1875,9 +2068,9 @@ namespace
     }
   };
 
-  struct SinOpLowering : public ModelicaOpConversionPattern<SinOp>
+  struct SinOpLowering : public RuntimeOpConversionPattern<SinOp>
   {
-    using ModelicaOpConversionPattern<SinOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<SinOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(SinOp op) const override
     {
@@ -1888,22 +2081,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(SinOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        SinOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "sin",
+          getMangledFunctionName("sin", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1933,9 +2131,9 @@ namespace
     }
   };
 
-  struct SinhOpLowering : public ModelicaOpConversionPattern<SinhOp>
+  struct SinhOpLowering : public RuntimeOpConversionPattern<SinhOp>
   {
-    using ModelicaOpConversionPattern<SinhOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<SinhOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(SinhOp op) const override
     {
@@ -1946,22 +2144,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(SinhOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        SinhOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "sinh",
+          getMangledFunctionName("sinh", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -1991,9 +2194,9 @@ namespace
     }
   };
 
-  struct SqrtOpLowering : public ModelicaOpConversionPattern<SqrtOp>
+  struct SqrtOpLowering : public RuntimeOpConversionPattern<SqrtOp>
   {
-    using ModelicaOpConversionPattern<SqrtOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<SqrtOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(SqrtOp op) const override
     {
@@ -2004,22 +2207,25 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(SqrtOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        SqrtOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
       auto resultType = getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "sqrt",
+          getMangledFunctionName("sqrt", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -2047,112 +2253,147 @@ namespace
     }
   };
 
-  struct SumOpLowering : public ModelicaOpConversionPattern<SumOp>
+  struct SumOpLowering : public RuntimeOpConversionPattern<SumOp>
   {
-    using ModelicaOpConversionPattern<SumOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<SumOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(SumOp op) const override
     {
       auto arrayType = op.getArray().getType().cast<ArrayType>();
       mlir::Type resultType = op.getResult().getType();
 
-      return mlir::LogicalResult::success(arrayType.getElementType() == resultType);
+      return mlir::LogicalResult::success(
+          arrayType.getElementType() == resultType);
     }
 
-    void rewrite(SumOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        SumOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Array
+      // Array.
       mlir::Value array = adaptor.getArray();
       array = convertToUnrankedMemRef(rewriter, loc, array);
 
       newOperands.push_back(array);
 
-      // Create the call to the runtime library
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+      // Create the call to the runtime library.
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "sum",
+          getMangledFunctionName("sum", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
     }
   };
 
-  class SymmetricOpLowering : public ModelicaOpConversionPattern<SymmetricOp>
+  class SymmetricOpLowering : public RuntimeOpConversionPattern<SymmetricOp>
   {
     public:
-      SymmetricOpLowering(mlir::TypeConverter& typeConverter, mlir::MLIRContext* context, bool assertions)
-          : ModelicaOpConversionPattern(typeConverter, context),
+      SymmetricOpLowering(
+        mlir::TypeConverter& typeConverter,
+        mlir::MLIRContext* context,
+        bool assertions)
+          : RuntimeOpConversionPattern(typeConverter, context),
             assertions(assertions)
       {
       }
 
-      mlir::LogicalResult matchAndRewrite(SymmetricOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      mlir::LogicalResult matchAndRewrite(
+          SymmetricOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
       {
-        auto loc = op.getLoc();
+        mlir::Location loc = op.getLoc();
 
         mlir::Value sourceMatrixValue = nullptr;
 
         auto sourceMatrixFn = [&]() -> mlir::Value {
           if (sourceMatrixValue == nullptr) {
-            sourceMatrixValue = getTypeConverter()->materializeSourceConversion(
-                rewriter, op.getMatrix().getLoc(), op.getMatrix().getType(), adaptor.getMatrix());
+            sourceMatrixValue =
+                getTypeConverter()->materializeSourceConversion(
+                    rewriter, op.getMatrix().getLoc(),
+                    op.getMatrix().getType(),
+                    adaptor.getMatrix());
           }
 
           return sourceMatrixValue;
         };
 
         if (assertions) {
-          // Check if the matrix is a square one
+          // Check if the matrix is a square one.
           if (!op.getMatrix().getType().cast<ArrayType>().hasStaticShape()) {
-            mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
-            mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
-            mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, loc, rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
-            mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, loc, rewriter.create<DimOp>(loc, sourceMatrixFn(), zero));
-            mlir::Value condition = rewriter.create<mlir::arith::CmpIOp>(loc, mlir::arith::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
-            rewriter.create<mlir::cf::AssertOp>(loc, condition, rewriter.getStringAttr("Base matrix is not squared"));
+            mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+                loc, rewriter.getIndexAttr(0));
+
+            mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+                loc, rewriter.getIndexAttr(1));
+
+            mlir::Value lhsDimensionSize = materializeTargetConversion(
+                rewriter, loc,
+                rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
+
+            mlir::Value rhsDimensionSize = materializeTargetConversion(
+                rewriter, loc,
+                rewriter.create<DimOp>(loc, sourceMatrixFn(), zero));
+
+            mlir::Value condition = rewriter.create<mlir::arith::CmpIOp>(
+                loc, mlir::arith::CmpIPredicate::eq,
+                lhsDimensionSize, rhsDimensionSize);
+
+            rewriter.create<mlir::cf::AssertOp>(
+                loc, condition,
+                rewriter.getStringAttr("Base matrix is not squared"));
           }
         }
 
         llvm::SmallVector<mlir::Value, 2> newOperands;
 
-        // Result
+        // Result.
         auto resultType = op.getResult().getType().cast<ArrayType>();
         assert(resultType.getRank() == 2);
         llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
         if (!resultType.hasStaticShape()) {
-          for (const auto& dimension : llvm::enumerate(resultType.getShape())) {
+          for (const auto& dimension :
+               llvm::enumerate(resultType.getShape())) {
             if (dimension.value() == ArrayType::kDynamicSize) {
-              mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(dimension.index()));
-              dynamicDimensions.push_back(rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
+              mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+                  loc, rewriter.getIndexAttr(dimension.index()));
+
+              dynamicDimensions.push_back(
+                  rewriter.create<DimOp>(loc, sourceMatrixFn(), one));
             }
           }
         }
 
-        mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
+        mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(
+            op, resultType, dynamicDimensions);
+
         result = materializeTargetConversion(rewriter, loc, result);
         result = convertToUnrankedMemRef(rewriter, loc, result);
 
         newOperands.push_back(result);
 
-        // Matrix
+        // Matrix.
         mlir::Value matrix = adaptor.getMatrix();
         matrix = convertToUnrankedMemRef(rewriter, loc, matrix);
 
         newOperands.push_back(matrix);
 
-        // Create the call to the runtime library
+        // Create the call to the runtime library.
         auto callee = getOrDeclareRuntimeFunction(
             rewriter,
             op->getParentOfType<mlir::ModuleOp>(),
-            "symmetric",
+            getMangledFunctionName("symmetric", llvm::None, newOperands),
             llvm::None, newOperands);
 
         rewriter.create<CallOp>(loc, callee, newOperands);
@@ -2186,9 +2427,9 @@ namespace
     }
   };
 
-  struct TanOpLowering : public ModelicaOpConversionPattern<TanOp>
+  struct TanOpLowering : public RuntimeOpConversionPattern<TanOp>
   {
-    using ModelicaOpConversionPattern<TanOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<TanOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(TanOp op) const override
     {
@@ -2199,22 +2440,27 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(TanOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        TanOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "tan",
+          getMangledFunctionName("tan", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -2244,9 +2490,9 @@ namespace
     }
   };
 
-  struct TanhOpLowering : public ModelicaOpConversionPattern<TanhOp>
+  struct TanhOpLowering : public RuntimeOpConversionPattern<TanhOp>
   {
-    using ModelicaOpConversionPattern<TanhOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<TanhOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(TanhOp op) const override
     {
@@ -2257,65 +2503,83 @@ namespace
           operandType.isa<RealType>() && resultType.isa<RealType>());
     }
 
-    void rewrite(TanhOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        TanhOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       assert(op.getOperand().getType().isa<RealType>());
       newOperands.push_back(adaptor.getOperand());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       assert(op.getResult().getType().isa<RealType>());
-      auto resultType = getTypeConverter()->convertType(op.getResult().getType());
+
+      mlir::Type resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
 
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "tanh",
+          getMangledFunctionName("tanh", resultType, newOperands),
           resultType, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
     }
   };
 
-  struct TransposeOpLowering : public ModelicaOpConversionPattern<TransposeOp>
+  struct TransposeOpLowering : public RuntimeOpConversionPattern<TransposeOp>
   {
-    using ModelicaOpConversionPattern<TransposeOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<TransposeOp>::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(TransposeOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        TransposeOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 2> newOperands;
 
-      // Result
+      // Result.
       auto resultType = op.getResult().getType().cast<ArrayType>();
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
       if (!resultType.hasStaticShape()) {
-        mlir::Value sourceMatrix = getTypeConverter()->materializeSourceConversion(
-            rewriter, op.getMatrix().getLoc(), op.getMatrix().getType(), adaptor.getMatrix());
+        mlir::Value sourceMatrix =
+            getTypeConverter()->materializeSourceConversion(
+                rewriter, op.getMatrix().getLoc(),
+                op.getMatrix().getType(), adaptor.getMatrix());
 
         if (resultType.getShape()[0] == ArrayType::kDynamicSize) {
-          mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
-          dynamicDimensions.push_back(rewriter.create<DimOp>(loc, sourceMatrix, one));
+          mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+              loc, rewriter.getIndexAttr(1));
+
+          dynamicDimensions.push_back(
+              rewriter.create<DimOp>(loc, sourceMatrix, one));
         }
 
         if (resultType.getShape()[1] == ArrayType::kDynamicSize) {
-          mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
-          dynamicDimensions.push_back(rewriter.create<DimOp>(loc, sourceMatrix, zero));
+          mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+              loc, rewriter.getIndexAttr(0));
+
+          dynamicDimensions.push_back(rewriter.create<DimOp>(
+              loc, sourceMatrix, zero));
         }
       }
 
-      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
+      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(
+          op, resultType, dynamicDimensions);
+
       result = materializeTargetConversion(rewriter, loc, result);
       result = convertToUnrankedMemRef(rewriter, loc, result);
 
       newOperands.push_back(result);
 
-      // Matrix
+      // Matrix.
       assert(op.getMatrix().getType().isa<ArrayType>());
 
       mlir::Value matrix = adaptor.getMatrix();
@@ -2323,11 +2587,11 @@ namespace
 
       newOperands.push_back(matrix);
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "transpose",
+          getMangledFunctionName("transpose", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);
@@ -2364,9 +2628,9 @@ namespace
     }
   };
 
-  struct ZerosOpLowering : public ModelicaOpConversionPattern<ZerosOp>
+  struct ZerosOpLowering : public RuntimeOpConversionPattern<ZerosOp>
   {
-    using ModelicaOpConversionPattern<ZerosOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<ZerosOp>::RuntimeOpConversionPattern;
 
     mlir::LogicalResult match(ZerosOp op) const override
     {
@@ -2376,13 +2640,16 @@ namespace
           }));
     }
 
-    void rewrite(ZerosOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    void rewrite(
+        ZerosOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Result
+      // Result.
       auto resultType = op.getResult().getType().cast<ArrayType>();
       assert(resultType.getRank() == 2);
       llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
@@ -2394,17 +2661,19 @@ namespace
         }
       }
 
-      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(op, resultType, dynamicDimensions);
+      mlir::Value result = rewriter.replaceOpWithNewOp<AllocOp>(
+          op, resultType, dynamicDimensions);
+
       result = materializeTargetConversion(rewriter, loc, result);
       result = convertToUnrankedMemRef(rewriter, loc, result);
 
       newOperands.push_back(result);
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "zeros",
+          getMangledFunctionName("zeros", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);
@@ -2418,30 +2687,33 @@ namespace
 
 namespace
 {
-  struct ArrayFillOpLowering : public ModelicaOpConversionPattern<ArrayFillOp>
+  struct ArrayFillOpLowering : public RuntimeOpConversionPattern<ArrayFillOp>
   {
-    using ModelicaOpConversionPattern<ArrayFillOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<ArrayFillOp>::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(ArrayFillOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        ArrayFillOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Array
+      // Array.
       mlir::Value array = adaptor.getArray();
       array = convertToUnrankedMemRef(rewriter, loc, array);
 
       newOperands.push_back(array);
 
-      // Value
+      // Value.
       newOperands.push_back(adaptor.getValue());
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "fill",
+          getMangledFunctionName("fill", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
@@ -2449,17 +2721,20 @@ namespace
     }
   };
 
-  struct PrintOpLowering : public ModelicaOpConversionPattern<PrintOp>
+  struct PrintOpLowering : public RuntimeOpConversionPattern<PrintOp>
   {
-    using ModelicaOpConversionPattern<PrintOp>::ModelicaOpConversionPattern;
+    using RuntimeOpConversionPattern<PrintOp>::RuntimeOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(PrintOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        PrintOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
+      mlir::Location loc = op.getLoc();
 
       llvm::SmallVector<mlir::Value, 1> newOperands;
 
-      // Operand
+      // Operand.
       if (op.getValue().getType().isa<ArrayType>()) {
         mlir::Value array = adaptor.getValue();
         array = convertToUnrankedMemRef(rewriter, loc, array);
@@ -2468,11 +2743,11 @@ namespace
         newOperands.push_back(adaptor.getValue());
       }
 
-      // Create the call to the runtime library
+      // Create the call to the runtime library.
       auto callee = getOrDeclareRuntimeFunction(
           rewriter,
           op->getParentOfType<mlir::ModuleOp>(),
-          "print",
+          getMangledFunctionName("print", llvm::None, newOperands),
           llvm::None, newOperands);
 
       rewriter.create<CallOp>(loc, callee, newOperands);

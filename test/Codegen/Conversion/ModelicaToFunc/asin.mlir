@@ -1,11 +1,11 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-func | FileCheck %s
 
-// CHECK: modelica.runtime_function @asin : (f64) -> f64
+// CHECK: modelica.runtime_function @_Masin_f64_f64 : (f64) -> f64
 
 // CHECK-LABEL: @test
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.real) -> !modelica.real
 // CHECK: %[[arg0_casted:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.real to f64
-// CHECK: %[[result:.*]] = modelica.call @asin(%[[arg0_casted]]) : (f64) -> f64
+// CHECK: %[[result:.*]] = modelica.call @_Masin_f64_f64(%[[arg0_casted]]) : (f64) -> f64
 // CHECK: %[[result_casted:.*]] = builtin.unrealized_conversion_cast %[[result]] : f64 to !modelica.real
 // CHECK: return %[[result_casted]]
 
