@@ -13,9 +13,9 @@ include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Type constraints
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 // Modelica Boolean type
 def ModelicaBoolean : Type<CPred<"$_self.isa<::mlir::modelica::BooleanType>()">,
@@ -97,9 +97,9 @@ class MemberOf<list<Type> allowedTypes> :
 
 def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica operation definitions
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 class Modelica_Op<string mnemonic, list<Trait> traits = []> :
     Op<Modelica_Dialect, mnemonic, traits>;
@@ -122,9 +122,9 @@ class Modelica_BinaryOp<string mnemonic, list<Trait> traits = []> :
   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` qualified(type($result))";
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Array operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def Modelica_AllocaOp : Modelica_Op<"alloca",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
@@ -134,10 +134,10 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
 
     let description = [{
         Allocate an array on the stack.
-        The operation takes a variadic number of arguments, each of one representing
-        the size of a dynamic dimension within the desired array type. Note that
-        the amount of operands must match the number of dynamic dimensions and they
-        all must be of `index` type.
+        The operation takes a variadic number of arguments, each of one representing the
+        size of a dynamic dimension within the desired array type. Note that the amount
+        of operands must match the number of dynamic dimensions and they all must be of
+        `index` type.
 
         Example:
 
@@ -154,6 +154,8 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
         $dynamicSizes attr-dict `:` qualified(type($array))
     }];
 
+    let hasVerifier = 1;
+
     let builders = [
         OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$dynamicSizes), [{
             $_state.types.push_back(arrayType);
@@ -166,8 +168,6 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
             return getArray().getType().cast<ArrayType>();
         }
     }];
-
-    let hasVerifier = 1;
 }
 
 def Modelica_AllocOp : Modelica_Op<"alloc",
@@ -178,10 +178,10 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
 
     let description = [{
         Allocate an array on the heap.
-        The operation takes a variadic number of arguments, each of one representing
-        the size of a dynamic dimension within the desired array type. Note that
-        the amount of operands must match the number of dynamic dimensions and they
-        all must be of `index` type.
+        The operation takes a variadic number of arguments, each of one representing the
+        size of a dynamic dimension within the desired array type. Note that the amount
+        of operands must match the number of dynamic dimensions and they all must be of
+        `index` type.
 
         Example:
 
@@ -198,6 +198,8 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
         $dynamicSizes attr-dict `:` qualified(type($array))
     }];
 
+    let hasVerifier = 1;
+
     let builders = [
         OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$dynamicSizes), [{
             $_state.types.push_back(arrayType);
@@ -206,287 +208,9 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
     ];
 
     let extraClassDeclaration = [{
+        /// Get the result array type.
         ArrayType getArrayType() {
             return getArray().getType().cast<ArrayType>();
-        }
-    }];
-
-    let hasVerifier = 1;
-}
-
-def Modelica_ArrayCastOp : Modelica_Op<"array_cast", [ViewLikeOpInterface]>
-{
-    let summary = "Cast operation for array types.";
-
-    let description = [{
-        This operation should be used for only one purpose, that is to generalize the
-        dimensions of an array. This can be done by either converting some dimensions
-        to unknown ones or by converting the whole array to an unsized one.
-        The operation is NOT intended to cast the element type to a different one or
-        to to specialize the shape to a an array with dynamic dimensions.
-
-        Correct usage examples:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x2x!modelica.int>
-        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<?x?x!modelica.int>
-        %3 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<*x!modelica.int>
-        ```
-
-        Wrong usage examples:
-
-        ```mlir
-        %0 = ... : !modelica.array<3x2x!modelica.int>
-        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<3x2x!modelica.real>
-        ```
-    }];
-
-    let arguments = (ins AnyType:$source);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $source attr-dict `:` qualified(type($source)) `->` qualified(type($result))
-    }];
-
-    let extraClassDeclaration = [{
-        //===------------------------------------------------------------------===//
-        // ViewLikeOpInterface methods
-        //===------------------------------------------------------------------===//
-
-        Value getViewSource() {
-            return getSource();
-        }
-    }];
-}
-
-def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
-    [TypesMatchWith<"type of 'value' matches element type of 'array'",
-                    "array", "value",
-                    "$_self.cast<ArrayType>().getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Fill an array with a value";
-
-    let description = [{
-        Set all the elements of an array to a given value.
-        The value to be set must have the same type of array elements.
-
-        Example:
-
-        ```mlir
-        %value = ... : !modelica.real
-        %array = ... : !modelica.array<?x!modelica.real>
-        modelica.array_fill %array, %value : !modelica.array<?x!modelica.real>, !modelica.real
-        ```
-    }];
-
-    let arguments = (ins AnyType:$array, AnyType:$value);
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $array `,` $value attr-dict `:` qualified(type($array))
-    }];
-}
-
-def Modelica_DimOp : Modelica_Op<"dim", [NoMemoryEffect]>
-{
-    let summary = "Get the size of an array dimension.";
-
-    let description = [{
-        Get the size of an array dimension. The operation is trivial in case of
-        statically shaped arrays, while it is more useful in case of dimensions
-        that are unknown at compile-time.
-        The result value has `index` type.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<?x?x?x!modelica.int>
-        %c2 = constant 2 : index
-        %dim = modelica.dim %array, $c2 : !modelica.array<?x?x?x!modelica.int>
-        ```
-    }];
-
-    let arguments = (ins AnyArray:$array, Index:$dimension);
-    let results = (outs Index:$result);
-
-    let assemblyFormat = [{
-        $array `,` $dimension attr-dict `:` qualified(type($array))
-    }];
-
-    let builders = [
-        OpBuilder<(ins "Value":$array, "Value":$dimension), [{
-            auto indexType = $_builder.getIndexType();
-            build($_builder, $_state, indexType, array, dimension);
-        }]>
-    ];
-}
-
-def Modelica_FreeOp : Modelica_Op<"free", [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
-{
-    let summary = "Deallocate an heap-allocated array.";
-
-    let description = [{
-        Deallocate an heap-allocated array.
-        The array must have been created using the `modelica.alloc` operation.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<?x!modelica.int>
-        modelica.free %array : !modelica.array<?x!modelica.int>
-        ```
-    }];
-
-    let arguments = (ins AnyArray:$array);
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $array attr-dict `:` qualified(type($array))
-    }];
-}
-
-def Modelica_LoadOp : Modelica_Op<"load",
-    [TypesMatchWith<"result type matches element type of 'array'",
-                     "array", "result",
-                     "$_self.cast<ArrayType>().getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "Load a value from an array.";
-
-    let description = [{
-        Load a value from an array location given by indices. The number of
-        arguments provided within brackets must match the rank of the array.
-
-        Example:
-
-        ```mlir
-        $array = ... : !modelica.array<?x?x!modelica.int>
-        %0 = constant 3 : index
-        %1 = constant 5 : index
-        %value = modelica.load $array[%0, %1] : !modelica.array<?x?x!modelica.int>
-        ```
-    }];
-
-    let arguments = (ins AnyArray:$array, Variadic<Index>:$indices);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $array `[` $indices `]` attr-dict `:` qualified(type($array))
-    }];
-
-    let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "Value":$array, CArg<"ValueRange", "{}">:$indices), [{
-            auto arrayType = array.getType().cast<ArrayType>();
-            $_state.addOperands(array);
-            $_state.addOperands(indices);
-            $_state.types.push_back(arrayType.getElementType());
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        ArrayType getArrayType() {
-            return getArray().getType().cast<ArrayType>();
-        }
-    }];
-}
-
-def Modelica_StoreOp : Modelica_Op<"store",
-    [TypesMatchWith<"type of 'value' matches element type of 'array'",
-                    "array", "value",
-                    "$_self.cast<ArrayType>().getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "Store a value into an array.";
-
-    let description = [{
-        Store a value to an array location given by indices. The value stored must
-        have the same type as the elemental type of the array. The number of
-        arguments provided within brackets must match the rank of the array.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<?x?x!modelica.int>
-        %0 = constant 3 : index
-        %1 = constant 5 : index
-        %value = ... : !modelica.int
-        modelica.store %array[%0, %1], %value : !modelica.array<?x?x!modelica.int>
-        ```
-    }];
-
-    let arguments = (ins
-        AnyType:$value,
-        AnyArray:$array,
-        Variadic<Index>:$indices);
-
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $array `[` $indices `]` `,` $value attr-dict `:` qualified(type($array))
-    }];
-
-    let hasVerifier = 1;
-
-    let extraClassDeclaration = [{
-        ArrayType getArrayType() {
-            return getArray().getType().cast<ArrayType>();
-        }
-    }];
-}
-
-def Modelica_SubscriptionOp : Modelica_Op<"subscription",
-    [ViewLikeOpInterface,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "Create a reduced-rank view of an array.";
-
-    let description = [{
-        Create a reduced-rank view of an array.
-
-        Example:
-
-        ```mlir
-        %array = ... : !modelica.array<3x5x4x!modelica.int>
-        %c1 : constant 1 : index
-        %c2 : constant 2 : index
-        %view = modelica.subscription $array[%c1, %c2] : !modelica.array<3x5x4x!modelica.int>
-        // %view has type !modelica.array<4x!modelica.int>
-        ```
-    }];
-
-    let arguments = (ins AnyArray:$source, Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
-    let results = (outs AnyType:$result);
-
-    let hasCustomAssemblyFormat = 1;
-    let hasVerifier = 1;
-
-    let builders = [
-        OpBuilder<(ins "Value":$source, "ValueRange":$indices), [{
-            auto slicedArrayType = source.getType().cast<ArrayType>().slice(indices.size());
-            build($_builder, $_state, slicedArrayType, source, indices);
-        }]>
-    ];
-
-    let extraClassDeclaration = [{
-        ArrayType getSourceArrayType() {
-            return getSource().getType().cast<ArrayType>();
-        }
-
-        ArrayType getResultArrayType() {
-            return getResult().getType().cast<ArrayType>();
-        }
-
-        //===------------------------------------------------------------------===//
-        // ViewLikeOpInterface methods
-        //===------------------------------------------------------------------===//
-
-        Value getViewSource() {
-            return getSource();
         }
     }];
 }
@@ -521,6 +245,8 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
         $values attr-dict `:` qualified(type($values)) `->` qualified(type($array))
     }];
 
+    let hasVerifier = 1;
+
     let builders = [
         OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$values), [{
             $_state.types.push_back(arrayType);
@@ -529,17 +255,302 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
     ];
 
     let extraClassDeclaration = [{
+        /// Get the result array type.
         ArrayType getArrayType() {
             return getArray().getType().cast<ArrayType>();
         }
     }];
-
-    let hasVerifier = 1;
 }
 
-//===----------------------------------------------------------------------===//
+def Modelica_FreeOp : Modelica_Op<"free",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Deallocate an heap-allocated array.";
+
+    let description = [{
+        Deallocate an heap-allocated array.
+        The array must have been created using the `modelica.alloc` operation.
+
+        Example:
+
+        ```mlir
+        %array = ... : !modelica.array<?x!modelica.int>
+        modelica.free %array : !modelica.array<?x!modelica.int>
+        ```
+    }];
+
+    let arguments = (ins AnyArray:$array);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $array attr-dict `:` qualified(type($array))
+    }];
+}
+
+def Modelica_ArrayCastOp : Modelica_Op<"array_cast", [ViewLikeOpInterface]>
+{
+    let summary = "Cast operation for array types.";
+
+    let description = [{
+        This operation should be used for only one purpose, that is to generalize the
+        dimensions of an array. This can be done by either converting some dimensions
+        to unknown ones or by converting the whole array to an unsized one.
+        The operation is NOT intended to cast the element type to a different one or to
+        specialize the shape of an array with dynamic dimensions.
+
+        Correct usage examples:
+
+        ```mlir
+        %0 = ... : !modelica.array<3x2x!modelica.int>
+        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<?x?x!modelica.int>
+        %3 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<*x!modelica.int>
+        ```
+
+        Wrong usage examples:
+
+        ```mlir
+        %0 = ... : !modelica.array<3x2x!modelica.int>
+        %1 = modelica.array_cast %0 : !modelica.array<3x2x!modelica.int> -> !modelica.array<3x2x!modelica.real>
+        ```
+    }];
+
+    let arguments = (ins AnyType:$source);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $source attr-dict `:` qualified(type($source)) `->` qualified(type($result))
+    }];
+
+    let extraClassDeclaration = [{
+        /// @name ViewLikeOpInterface methods
+        /// {
+
+        Value getViewSource() {
+            return getSource();
+        }
+
+        /// }
+    }];
+}
+
+def Modelica_DimOp : Modelica_Op<"dim", [NoMemoryEffect]>
+{
+    let summary = "Get the size of an array dimension.";
+
+    let description = [{
+        Get the size of an array dimension. The operation is trivial in case of
+        statically shaped arrays, while it is more useful in case of dimensions that are
+        unknown at compile-time.
+        The result value has `index` type.
+
+        Example:
+
+        ```mlir
+        %array = ... : !modelica.array<?x?x?x!modelica.int>
+        %c2 = constant 2 : index
+        %dim = modelica.dim %array, $c2 : !modelica.array<?x?x?x!modelica.int>
+        ```
+    }];
+
+    let arguments = (ins AnyArray:$array, Index:$dimension);
+    let results = (outs Index:$result);
+
+    let assemblyFormat = [{
+        $array `,` $dimension attr-dict `:` qualified(type($array))
+    }];
+
+    let builders = [
+        OpBuilder<(ins "Value":$array, "Value":$dimension), [{
+            auto indexType = $_builder.getIndexType();
+            build($_builder, $_state, indexType, array, dimension);
+        }]>
+    ];
+}
+
+def Modelica_LoadOp : Modelica_Op<"load",
+    [TypesMatchWith<"result type matches element type of 'array'",
+                     "array", "result",
+                     "$_self.cast<ArrayType>().getElementType()">,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Load a value from an array.";
+
+    let description = [{
+        Load a value from an array location given by indices.
+        The number of arguments provided within brackets must match the rank of the
+        array. The indices must also have an `index` type.
+
+        Example:
+
+        ```mlir
+        $array = ... : !modelica.array<?x?x!modelica.int>
+        %0 = constant 3 : index
+        %1 = constant 5 : index
+        %value = modelica.load $array[%0, %1] : !modelica.array<?x?x!modelica.int>
+        ```
+    }];
+
+    let arguments = (ins AnyArray:$array, Variadic<Index>:$indices);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $array `[` $indices `]` attr-dict `:` qualified(type($array))
+    }];
+
+    let hasVerifier = 1;
+
+    let builders = [
+        OpBuilder<(ins "Value":$array, CArg<"ValueRange", "{}">:$indices), [{
+            auto arrayType = array.getType().cast<ArrayType>();
+            $_state.addOperands(array);
+            $_state.addOperands(indices);
+            $_state.types.push_back(arrayType.getElementType());
+        }]>
+    ];
+
+    let extraClassDeclaration = [{
+        /// Get the array type.
+        ArrayType getArrayType() {
+            return getArray().getType().cast<ArrayType>();
+        }
+    }];
+}
+
+def Modelica_StoreOp : Modelica_Op<"store",
+    [TypesMatchWith<"type of 'value' matches element type of 'array'",
+                    "array", "value",
+                    "$_self.cast<ArrayType>().getElementType()">,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Store a value into an array.";
+
+    let description = [{
+        Store a value to an array location given by indices.
+        The value stored must have the same type as the elemental type of the array.
+        The number of arguments provided within brackets must match the rank of the
+        array. The indices must also have an `index` type.
+
+        Example:
+
+        ```mlir
+        %array = ... : !modelica.array<?x?x!modelica.int>
+        %0 = constant 3 : index
+        %1 = constant 5 : index
+        %value = ... : !modelica.int
+        modelica.store %array[%0, %1], %value : !modelica.array<?x?x!modelica.int>
+        ```
+    }];
+
+    let arguments = (ins
+        AnyType:$value,
+        AnyArray:$array,
+        Variadic<Index>:$indices);
+
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $array `[` $indices `]` `,` $value attr-dict `:` qualified(type($array))
+    }];
+
+    let hasVerifier = 1;
+
+    let extraClassDeclaration = [{
+        /// Get the array type.
+        ArrayType getArrayType() {
+            return getArray().getType().cast<ArrayType>();
+        }
+    }];
+}
+
+def Modelica_SubscriptionOp : Modelica_Op<"subscription",
+    [ViewLikeOpInterface,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Create a reduced-rank view of an array.";
+
+    let description = [{
+        Create a reduced-rank view of an array.
+        The values of the original arrays are not copied and all the modifications
+        performed on the subview do reflect on the original array.
+
+        Example:
+
+        ```mlir
+        %array = ... : !modelica.array<3x5x4x!modelica.int>
+        %c1 : constant 1 : index
+        %c2 : constant 2 : index
+        %view = modelica.subscription $array[%c1, %c2] : !modelica.array<3x5x4x!modelica.int>
+        // %view has type !modelica.array<4x!modelica.int>
+        ```
+    }];
+
+    let arguments = (ins AnyArray:$source, Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
+    let results = (outs AnyType:$result);
+
+    let hasCustomAssemblyFormat = 1;
+    let hasVerifier = 1;
+
+    let builders = [
+        OpBuilder<(ins "Value":$source, "ValueRange":$indices), [{
+            auto slicedArrayType = source.getType().cast<ArrayType>().slice(indices.size());
+            build($_builder, $_state, slicedArrayType, source, indices);
+        }]>
+    ];
+
+    let extraClassDeclaration = [{
+        ArrayType getSourceArrayType() {
+            return getSource().getType().cast<ArrayType>();
+        }
+
+        ArrayType getResultArrayType() {
+            return getResult().getType().cast<ArrayType>();
+        }
+
+        /// @name ViewLikeOpInterface methods
+        /// {
+
+        Value getViewSource() {
+            return getSource();
+        }
+
+        /// }
+    }];
+}
+
+def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
+    [TypesMatchWith<"type of 'value' matches element type of 'array'",
+                    "array", "value",
+                    "$_self.cast<ArrayType>().getElementType()">,
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Fill an array with a value";
+
+    let description = [{
+        Set all the elements of an array to a given value.
+        The value to be set must have the same type of array elements.
+
+        Example:
+
+        ```mlir
+        %value = ... : !modelica.real
+        %array = ... : !modelica.array<?x!modelica.real>
+        modelica.array_fill %array, %value : !modelica.array<?x!modelica.real>, !modelica.real
+        ```
+    }];
+
+    let arguments = (ins AnyType:$array, AnyType:$value);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $array `,` $value attr-dict `:` qualified(type($array))
+    }];
+}
+
+//===---------------------------------------------------------------------===//
 // Member operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def Modelica_MemberCreateOp : Modelica_Op<"member_create", [Symbol]>
 {
@@ -547,9 +558,9 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create", [Symbol]>
 
     let description = [{
         The operation is used to declare a member of a class.
-        It takes the name of the symbol, its type and optional values
-        indicating the sizes of the unknown dimensions, in a way similar
-        to `modelica.alloca` and `modelica.alloc`.
+        It takes the name of the symbol, its type and optional values indicating the
+        sizes of the unknown dimensions, in a way similar to `modelica.alloca` and
+        `modelica.alloc`.
         The member value can be then read and written by means of the
         `modelica.member_load` and `modelica.member_store` operations.
 
@@ -639,29 +650,9 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
     }];
 }
 
-def Modelica_StartOp : Modelica_Op<"start",
-    [ParentOneOf<["ModelOp"]>,
-    SingleBlockImplicitTerminator<"YieldOp">]>
-{
-    let summary = "Start attribute of a variable";
-
-    let description = [{
-        The operation describes how to compute the initial value of a variable.
-    }];
-
-    let arguments = (ins AnyType:$variable, BoolAttr:$fixed, BoolAttr:$each);
-    let results = (outs);
-
-    let regions = (region
-        AnyRegion:$bodyRegion
-    );
-
-    let hasCustomAssemblyFormat = 1;
-}
-
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Math operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def Modelica_ConstantOp : Modelica_Op<"constant",
     [ConstantLike,
@@ -671,8 +662,8 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     let summary = "Constant.";
 
     let description = [{
-        The operation turns a literal into an SSA value. The data is attached
-        to the operation as an attribute.
+        The operation turns a literal into an SSA value. The data is attached to the
+        operation as an attribute.
 
         Example:
 
@@ -685,14 +676,13 @@ def Modelica_ConstantOp : Modelica_Op<"constant",
     let results = (outs AnyType);
 
     let hasCustomAssemblyFormat = 1;
+    let hasFolder = 1;
 
     let builders = [
         OpBuilder<(ins "Attribute":$value), [{
             build($_builder, $_state, value.cast<mlir::TypedAttr>().getType(), value);
         }]>
     ];
-
-    let hasFolder = 1;
 }
 
 def Modelica_NegateOp : Modelica_Op<"neg",
@@ -1003,7 +993,16 @@ def Modelica_PowOp : Modelica_Op<"pow",
     let summary = "Pow.";
 
     let description = [{
-        TODO
+        The operation computes the power of a base to a given exponent.
+        It takes to operands (base and exponent) and returns one result.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.real
+        %1 = ... : !modelica.real
+        %2 = modelica.pow %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
+        ```
     }];
 
     let arguments = (ins AnyType:$base, AnyType:$exponent);
@@ -1023,7 +1022,17 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     let summary = "Element-wise pow.";
 
     let description = [{
-        TODO
+        The operation computes the element-wise power of a (optionally array) base to a
+        given exponent.
+        It takes to operands (base and exponent) and returns one result.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.array<?x!modelica.real>
+        %1 = ... : !modelica.real
+        %2 = modelica.pow %0, %1 : (!modelica.array<?x!modelica.real>, !modelica.real) -> !modelica.array<?x!modelica.real>
+        ```
     }];
 
     let arguments = (ins AnyType:$base, AnyType:$exponent);
@@ -1036,9 +1045,9 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     let hasFolder = 1;
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Comparison operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 // Base class for comparison operations.
 class Modelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
@@ -1168,9 +1177,9 @@ def Modelica_LteOp : Modelica_ComparisonOp<"lte", []>
     let hasFolder = 1;
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Logic operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def Modelica_NotOp : Modelica_Op<"not",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
@@ -1289,9 +1298,28 @@ def Modelica_OrOp : Modelica_Op<"or",
     let hasFolder = 1;
 }
 
-//===----------------------------------------------------------------------===//
+def Modelica_SelectOp : Modelica_Op<"select", [SameVariadicOperandSize]>
+{
+    let summary = "Ternary operator";
+
+    let description = [{
+        The operation is used to select among two group of values according to a
+        condition.
+    }];
+
+    let arguments = (ins
+        AnyType:$condition,
+        Variadic<AnyType>:$trueValues,
+        Variadic<AnyType>:$falseValues);
+
+    let results = (outs Variadic<AnyType>:$results);
+
+    let hasCustomAssemblyFormat = 1;
+}
+
+//===---------------------------------------------------------------------===//
 // Built-in operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def Modelica_AbsOp : Modelica_Op<"abs",
     [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
@@ -2271,25 +2299,9 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
     }];
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modeling operations
-//===----------------------------------------------------------------------===//
-
-def Modelica_DerOp : Modelica_Op<"der", []>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$operand);
-    let results = (outs AnyType:$result);
-
-    let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
-    }];
-}
+//===---------------------------------------------------------------------===//
 
 def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
@@ -2315,10 +2327,71 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
+        /// Get the names of the variables.
         SmallVector<StringRef> variableNames();
 
         Block* bodyBlock();
     }];
+}
+
+def Modelica_StartOp : Modelica_Op<"start",
+    [ParentOneOf<["ModelOp"]>,
+    SingleBlockImplicitTerminator<"YieldOp">]>
+{
+    let summary = "Start attribute of a variable";
+
+    let description = [{
+        The operation describes how to compute the initial value of a variable.
+    }];
+
+    let arguments = (ins AnyType:$variable, BoolAttr:$fixed, BoolAttr:$each);
+    let results = (outs);
+
+    let regions = (region
+        AnyRegion:$bodyRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+}
+
+def Modelica_DerOp : Modelica_Op<"der", []>
+{
+    let summary = "Derivative.";
+
+    let description = [{
+        The derivative operation is used to obtain the derivative of a variable.
+    }];
+
+    let arguments = (ins AnyType:$operand);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+    }];
+}
+
+def Modelica_TimeOp : Modelica_Op<"time",
+    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
+{
+    let summary = "Time.";
+
+    let description = [{
+        The operation represents the time of the simulation.
+    }];
+
+    let arguments = (ins);
+    let results = (outs ModelicaReal);
+
+    let assemblyFormat = [{
+        attr-dict `:` qualified(type(results))
+    }];
+
+    let builders = [
+        OpBuilder<(ins), [{
+            auto realType = RealType::get($_builder.getContext());
+            build($_builder, $_state, realType);
+        }]>
+    ];
 }
 
 def Modelica_ForEquationOp : Modelica_Op<"for_equation",
@@ -2328,13 +2401,12 @@ def Modelica_ForEquationOp : Modelica_Op<"for_equation",
     let summary = "Loop defining more equation through a for loop.";
 
     let description = [{
-        The for equation loop is an operation used to declare multiple
-        equations whose structure just differ by the indices they depend
-        on. In this sense, the loop is not the standard algorithmic loop
-        developers are used to, but rather a modeling construct that
-        changes the model structure.
-        The iteration starts from the `from` value (included) and ends
-        with the `to` value (excluded), with a increment of 'step'.
+        The for equation loop is an operation used to declare multiple equations whose
+        structure just differ by the indices they depend on. In this sense, the loop is
+        not the standard algorithmic loop developers are used to, but rather a modeling
+        construct that changes the model structure.
+        The iteration starts from the `from` value (included) and ends with the `to`
+        value (excluded), with a increment of 'step'.
         Multiple for loops can be nested into each other.
 
         Example:
@@ -2415,6 +2487,72 @@ def Modelica_InitialEquationOp : Modelica_Op<"initial_equation",
     }];
 }
 
+def Modelica_EquationSideOp : Modelica_Op<"equation_side",
+    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
+{
+    let summary = "Equation side.";
+
+    let description = [{
+        The operation represents one of the sides (left or right)
+        of an equation.
+    }];
+
+    let arguments = (ins Variadic<AnyType>:$values);
+    let results = (outs AnyTuple);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        OpBuilder<(ins "ValueRange":$values), [{
+            auto tupleType = $_builder.getTupleType(values.getTypes());
+            build($_builder, $_state, tupleType, values);
+        }]>
+    ];
+}
+
+def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
+    [ParentOneOf<["EquationOp", "InitialEquationOp"]>,
+    Terminator]>
+{
+    let summary = "Equation terminator.";
+
+    let description = [{
+        The operation represents the equality between two equation sides of an equation.
+        It is intended to be used as terminator for the body of an equation.
+
+        Example:
+
+        ```mlir
+        modelica.equation {
+            %0 = modelica.equation_side ... : tuple<!modelica.real>
+            %1 = modelica.equation_side ... : tuple<!modelica.real>
+            modelica.equation_sides %0, %1 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
+        ```
+    }];
+
+    let arguments = (ins AnyTuple:$lhs, AnyTuple:$rhs);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $lhs `,` $rhs attr-dict `:` qualified(type($lhs)) `,` qualified(type($rhs))
+    }];
+
+    let extraClassDeclaration = [{
+        mlir::ValueRange getLhsValues() {
+            auto sideOp = getLhs().getDefiningOp();
+            assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
+            return mlir::cast<EquationSideOp>(sideOp).getValues();
+        }
+
+        mlir::ValueRange getRhsValues() {
+            auto sideOp = getRhs().getDefiningOp();
+            assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
+            return mlir::cast<EquationSideOp>(sideOp).getValues();
+        }
+    }];
+}
+
 def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
     [ParentOneOf<["ModelOp"]>,
     AlgorithmInterface,
@@ -2465,100 +2603,21 @@ def Modelica_InitialAlgorithmOp : Modelica_Op<"initial_algorithm",
   }];
 }
 
-def Modelica_TimeOp : Modelica_Op<"time",
-    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
+def Modelica_AssignmentOp : Modelica_Op<"assignment",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Time.";
+    let summary = "Assignment.";
 
     let description = [{
-        The operation represents the time of the simulation.
+        The operation represents an assignment to be performed into an algorithmic
     }];
 
-    let arguments = (ins);
-    let results = (outs ModelicaReal);
-
-    let assemblyFormat = [{
-        attr-dict `:` qualified(type(results))
-    }];
-
-    let builders = [
-        OpBuilder<(ins), [{
-            auto realType = RealType::get($_builder.getContext());
-            build($_builder, $_state, realType);
-        }]>
-    ];
-}
-
-def Modelica_SelectOp : Modelica_Op<"select", [SameVariadicOperandSize]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins
-        AnyType:$condition,
-        Variadic<AnyType>:$trueValues,
-        Variadic<AnyType>:$falseValues);
-
-    let results = (outs Variadic<AnyType>:$results);
-
-    let hasCustomAssemblyFormat = 1;
-}
-
-def Modelica_EquationSideOp : Modelica_Op<"equation_side",
-    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
-{
-    let summary = "Equation side.";
-
-    let description = [{
-        The operation represents one of the sides (left or right)
-        of an equation.
-    }];
-
-    let arguments = (ins Variadic<AnyType>:$values);
-    let results = (outs AnyTuple);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let builders = [
-        OpBuilder<(ins "ValueRange":$values), [{
-            auto tupleType = $_builder.getTupleType(values.getTypes());
-            build($_builder, $_state, tupleType, values);
-        }]>
-    ];
-}
-
-def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
-    [ParentOneOf<["EquationOp", "InitialEquationOp"]>,
-    Terminator]>
-{
-    let summary = "Equation.";
-
-    let description = [{
-        The operation represents a Modelica equation.
-    }];
-
-    let arguments = (ins AnyTuple:$lhs, AnyTuple:$rhs);
+    let arguments = (ins AnyType:$destination, AnyType:$value);
     let results = (outs);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` qualified(type($lhs)) `,` qualified(type($rhs))
-    }];
-
-    let extraClassDeclaration = [{
-        mlir::ValueRange getLhsValues() {
-            auto sideOp = getLhs().getDefiningOp();
-            assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
-            return mlir::cast<EquationSideOp>(sideOp).getValues();
-        }
-
-        mlir::ValueRange getRhsValues() {
-            auto sideOp = getRhs().getDefiningOp();
-            assert(sideOp != nullptr && mlir::isa<EquationSideOp>(sideOp));
-            return mlir::cast<EquationSideOp>(sideOp).getValues();
-        }
+        $destination `,` $value attr-dict `:` qualified(type($destination)) `,` qualified(type($value))
     }];
 }
 
@@ -2593,9 +2652,8 @@ def Modelica_FunctionOp : Modelica_Op<"function",
 
         bool shouldBeInlined();
 
-        //===------------------------------------------------------------------===//
-        // CallableOpInterface
-        //===------------------------------------------------------------------===//
+        /// @name CallableOpInterface
+        /// {
 
         /// Returns the region on the current operation that is callable. This may
         /// return null in the case of an external callable object, e.g. an external
@@ -2610,9 +2668,9 @@ def Modelica_FunctionOp : Modelica_Op<"function",
             return getFunctionType().getResults();
         }
 
-        //===------------------------------------------------------------------===//
-        // FunctionOpInterface Methods
-        //===------------------------------------------------------------------===//
+        /// }
+        /// @name FunctionOpInterface Methods
+        /// {
 
         /// Returns the argument types of this function.
         ArrayRef<Type> getArgumentTypes() {
@@ -2624,13 +2682,58 @@ def Modelica_FunctionOp : Modelica_Op<"function",
             return getFunctionType().getResults();
         }
 
-        //===------------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===------------------------------------------------------------------===//
+        /// }
+        /// @name SymbolOpInterface Methods
+        /// {
 
         bool isDeclaration() {
             return false;
         }
+
+        /// }
+    }];
+}
+
+def Modelica_DerFunctionOp : Modelica_Op<"der_function",
+    [IsolatedFromAbove, Symbol, CallableOpInterface]>
+{
+    let summary = "Modelica derivative function.";
+
+    let description = [{
+        The operation represents the derivative of a Modelica function.
+    }];
+
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        SymbolNameAttr:$derived_function,
+        StrArrayAttr:$independent_vars);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        /// @name CallableOpInterface
+        /// {
+
+        Region* getCallableRegion() {
+            // The function body will be created by an appropriate pass, and at the same
+            // type the der function will be converted to a standard function. Thus,
+            // this operation is like an external function.
+
+            return nullptr;
+        }
+
+        /// Returns the results types that the callable region produces when executed.
+        ArrayRef<Type> getCallableResults();
+
+        /// }
+        /// @name SymbolOpInterface Methods
+        /// {
+
+        bool isDeclaration() {
+            return false;
+        }
+
+        /// }
     }];
 }
 
@@ -2644,7 +2747,9 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
     let summary = "Raw function.";
 
     let description = [{
-        TODO
+        A raw Modelica function consists in a Modelica function that has been converted
+        to explicit control flow. It is intendend to be used only internally during the
+        lowering process.
     }];
 
     let arguments = (ins
@@ -2654,14 +2759,14 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
 
     let regions = (region AnyRegion:$body);
 
+    let hasCustomAssemblyFormat = 1;
+
     let builders = [
         OpBuilder<(ins
             "llvm::StringRef":$name, "mlir::FunctionType":$type,
             CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
             CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
     ];
-
-    let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
         bool shouldBeInlined();
@@ -2698,9 +2803,8 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
         /// compatible.
         void cloneInto(RawFunctionOp dest, mlir::BlockAndValueMapping &mapper);
 
-        //===------------------------------------------------------------------===//
-        // CallableOpInterface
-        //===------------------------------------------------------------------===//
+        /// @name CallableOpInterface methods
+        /// {
 
         /// Returns the region on the current operation that is callable. This may
         /// return null in the case of an external callable object, e.g. an external
@@ -2715,9 +2819,9 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
             return getFunctionType().getResults();
         }
 
-        //===------------------------------------------------------------------===//
-        // FunctionOpInterface Methods
-        //===------------------------------------------------------------------===//
+        /// }
+        /// @name FunctionOpInterface methods
+        /// {
 
         /// Returns the argument types of this function.
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
@@ -2729,13 +2833,15 @@ def Modelica_RawFunctionOp : Modelica_Op<"raw_function",
             return getFunctionType().getResults();
         }
 
-        //===------------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===------------------------------------------------------------------===//
+        /// }
+        /// @name SymbolOpInterface methods
+        /// {
 
         bool isDeclaration() {
             return isExternal();
         }
+
+        /// }
     }];
 }
 
@@ -2756,8 +2862,8 @@ def RawReturnOp : Modelica_Op<"raw_return",
 
     ```mlir
     modelica.raw_func @foo() : (!modelica.int, !modelica.real) {
-      ...
-      modelica.raw_return %0, %1 : !modelica.int, !modelica.real
+        ...
+        modelica.raw_return %0, %1 : !modelica.int, !modelica.real
     }
     ```
   }];
@@ -2786,6 +2892,8 @@ def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
         TypeAttrOf<FunctionType>:$function_type,
         OptionalAttr<StrAttr>:$sym_visibility);
 
+    let hasCustomAssemblyFormat = 1;
+
     let builders = [
         OpBuilder<(ins
             "llvm::StringRef":$name, "mlir::FunctionType":$type,
@@ -2793,12 +2901,9 @@ def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
             CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)>
     ];
 
-    let hasCustomAssemblyFormat = 1;
-
     let extraClassDeclaration = [{
-        //===------------------------------------------------------------------===//
-        // CallableOpInterface
-        //===------------------------------------------------------------------===//
+        /// @name CallableOpInterface
+        /// {
 
         /// Returns the region on the current operation that is callable. This may
         /// return null in the case of an external callable object, e.g. an external
@@ -2813,9 +2918,9 @@ def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
             return getFunctionType().getResults();
         }
 
-        //===------------------------------------------------------------------===//
-        // FunctionOpInterface Methods
-        //===------------------------------------------------------------------===//
+        /// }
+        /// @name FunctionOpInterface Methods
+        /// {
 
         /// Returns the argument types of this function.
         llvm::ArrayRef<mlir::Type> getArgumentTypes() {
@@ -2827,13 +2932,15 @@ def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
             return getFunctionType().getResults();
         }
 
-        //===------------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===------------------------------------------------------------------===//
+        /// }
+        /// @name SymbolOpInterface Methods
+        /// {
 
         bool isDeclaration() {
             return true;
         }
+
+        /// }
     }];
 }
 
@@ -2893,9 +3000,8 @@ def Modelica_CallOp : Modelica_Op<"call",
     ];
 
     let extraClassDeclaration = [{
-        //===------------------------------------------------------------------===//
-        // CallOpInterface
-        //===------------------------------------------------------------------===//
+        /// @name CallOpInterface
+        /// {
 
         mlir::FunctionType getCalleeType();
 
@@ -2916,82 +3022,22 @@ def Modelica_CallOp : Modelica_Op<"call",
         mlir::CallInterfaceCallable getCallableForCallee() {
             return (*this)->getAttrOfType<SymbolRefAttr>("callee");
         }
+
+        /// }
     }];
 }
 
-
-
-def Modelica_AssignmentOp : Modelica_Op<"assignment",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$destination, AnyType:$value);
-    let results = (outs);
-
-    let assemblyFormat = [{
-        $destination `,` $value attr-dict `:` qualified(type($destination)) `,` qualified(type($value))
-    }];
-}
-
-def Modelica_DerFunctionOp : Modelica_Op<"der_function",
-    [IsolatedFromAbove, Symbol, CallableOpInterface]>
-{
-    let summary = "Modelica derivative function.";
-
-    let description = [{
-        The operation represents the derivative of a Modelica function.
-    }];
-
-    let arguments = (ins
-        SymbolNameAttr:$sym_name,
-        SymbolNameAttr:$derived_function,
-        StrArrayAttr:$independent_vars);
-
-    let hasCustomAssemblyFormat = 1;
-
-    let extraClassDeclaration = [{
-        //===------------------------------------------------------------------===//
-        // CallableOpInterface
-        //===------------------------------------------------------------------===//
-
-        Region* getCallableRegion() {
-            // The function body will be created by an appropriate pass, and at the same
-            // type the der function will be converted to a standard function. Thus,
-            // this operation is like an external function.
-
-            return nullptr;
-        }
-
-        /// Returns the results types that the callable region produces when executed.
-        ArrayRef<Type> getCallableResults();
-
-        //===------------------------------------------------------------------===//
-        // SymbolOpInterface Methods
-        //===------------------------------------------------------------------===//
-
-        bool isDeclaration() {
-            return false;
-        }
-    }];
-}
-
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Control flow operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 def Modelica_BreakOp : Modelica_Op<"break", [Terminator]>
 {
     let summary = "Loop breaking operation.";
 
     let description = [{
-        The `modelica.break` operation terminates the execution of the closest
-        loop that contains the instruction.
+        The `modelica.break` operation terminates the execution of the closest loop that
+        contains the instruction.
 
         Example:
 
@@ -3018,94 +3064,13 @@ def Modelica_BreakOp : Modelica_Op<"break", [Terminator]>
     }];
 }
 
-def Modelica_ConditionOp : Modelica_Op<"condition",
-    [Terminator,
-    ParentOneOf<["ForOp", "WhileOp"]>]>
-{
-    let summary = "TODO";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins ModelicaBoolean:$condition, Variadic<AnyType>:$values);
-    let results = (outs);
-
-    let assemblyFormat = [{
-        `(` $condition `:` qualified(type($condition)) `)` attr-dict ($values^ `:` qualified(type($values)))?
-    }];
-
-    let builders = [
-        OpBuilder<(ins "::mlir::Value":$condition), [{
-            build($_builder, $_state, condition, llvm::None);
-        }]>
-    ];
-}
-
-def Modelica_ForOp : Modelica_Op<"for",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "For algorithmic loop.";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins Variadic<AnyType>:$args);
-    let results = (outs);
-
-    let regions = (region
-        SizedRegion<1>:$conditionRegion,
-        SizedRegion<1>:$bodyRegion,
-        SizedRegion<1>:$stepRegion
-    );
-
-    let hasCustomAssemblyFormat = 1;
-
-    let extraClassDeclaration = [{
-        Block* conditionBlock();
-        Block* bodyBlock();
-        Block* stepBlock();
-    }];
-}
-
-def Modelica_IfOp : Modelica_Op<"if",
-    [NoTerminator,
-    DeclareOpInterfaceMethods<DerivableOpInterface>]>
-{
-    let summary = "Algorithmic if-else construct.";
-
-    let description = [{
-        TODO
-    }];
-
-    let arguments = (ins AnyType:$condition);
-    let results = (outs);
-
-    let regions = (region
-      SizedRegion<1>:$thenRegion,
-      AnyRegion:$elseRegion
-    );
-
-    let hasCustomAssemblyFormat = 1;
-
-    let builders = [
-        OpBuilder<(ins "Value":$condition, "bool":$withElseRegion)>
-    ];
-
-    let extraClassDeclaration = [{
-        Block* thenBlock();
-        Block* elseBlock();
-    }];
-}
-
 def Modelica_ReturnOp : Modelica_Op<"return", [Terminator]>
 {
     let summary = "Early termination instruction for functions.";
 
     let description = [{
-        The `modelica.return` operation terminates the execution of the
-        whole function, making it returning the values as computed so far.
+        The `modelica.return` operation terminates the execution of the whole
+        function, making it returning the values as computed so far.
 
         Example:
 
@@ -3129,6 +3094,95 @@ def Modelica_ReturnOp : Modelica_Op<"return", [Terminator]>
     }];
 }
 
+def Modelica_IfOp : Modelica_Op<"if",
+    [NoTerminator,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Algorithmic if-else construct.";
+
+    let description = [{
+        The operation takes a value representing the condition and executes the code in
+        the "then" region; if not, it executes the code in the optional "else" region.
+        The value used as condition must be convertible to `!modelica.bool`.
+
+        Example:
+
+        ```mlir
+        %0 = ... : !modelica.bool
+
+        if (%0 : !modelica.bool) {
+            ...
+        } else {
+            ...
+        }
+        ```
+    }];
+
+    let arguments = (ins AnyType:$condition);
+    let results = (outs);
+
+    let regions = (region
+      SizedRegion<1>:$thenRegion,
+      AnyRegion:$elseRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        OpBuilder<(ins "Value":$condition, "bool":$withElseRegion)>
+    ];
+
+    let extraClassDeclaration = [{
+        Block* thenBlock();
+        Block* elseBlock();
+    }];
+}
+
+def Modelica_ForOp : Modelica_Op<"for",
+    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "For algorithmic loop.";
+
+    let description = [{
+        The operation represents an algorithmic for loop.
+        It consists in three regions:
+            1. A condition region that determines whether the iterations should go on.
+            2. The body region to be executed at each iteration.
+            3. A post-iteration region that is executed after each execution of the body
+               region.
+
+        Example:
+
+        ```mlir
+        modelica.for condition {
+            %0 = ... : !modelica.bool
+            modelica.condition (%0 : !modelica.bool)
+        } body {
+            modelica.yield
+        } step {
+            modelica.yield
+        }
+        ```
+    }];
+
+    let arguments = (ins Variadic<AnyType>:$args);
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$conditionRegion,
+        SizedRegion<1>:$bodyRegion,
+        SizedRegion<1>:$stepRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        Block* conditionBlock();
+        Block* bodyBlock();
+        Block* stepBlock();
+    }];
+}
+
 def Modelica_WhileOp : Modelica_Op<"while",
     [NoTerminator,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
@@ -3136,7 +3190,22 @@ def Modelica_WhileOp : Modelica_Op<"while",
     let summary = "While algorithmic loop.";
 
     let description = [{
-        TODO
+        The operation represents an algorithmic while loop.
+        It consists in two regions:
+            1. A condition region that determines whether the iterations should go on.
+            2. The body region to be executed at each iteration.
+
+        Example:
+
+        ```mlir
+        modelica.while {
+            %0 = ... : !modelica.bool
+            modelica.condition (%0 : !modelica.bool)
+        } do {
+            ...
+        }
+    }
+        ```
     }];
 
     let arguments = (ins);
@@ -3150,14 +3219,47 @@ def Modelica_WhileOp : Modelica_Op<"while",
     let hasCustomAssemblyFormat = 1;
 }
 
+def Modelica_ConditionOp : Modelica_Op<"condition",
+    [Terminator,
+    ParentOneOf<["ForOp", "WhileOp"]>]>
+{
+    let summary = "Iteration condition.";
+
+    let description = [{
+        The operation represents the condition to be evaluated at each iteration of the
+        parent loop (which can be either a `modelica.for` or `modelica.while`).
+
+
+    }];
+
+    let arguments = (ins ModelicaBoolean:$condition, Variadic<AnyType>:$values);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        `(` $condition `:` qualified(type($condition)) `)` attr-dict ($values^ `:` qualified(type($values)))?
+    }];
+
+    let builders = [
+        OpBuilder<(ins "::mlir::Value":$condition), [{
+            build($_builder, $_state, condition, llvm::None);
+        }]>
+    ];
+}
+
+//===---------------------------------------------------------------------===//
+// Utility operations
+//===---------------------------------------------------------------------===//
+
 def Modelica_YieldOp : Modelica_Op<"yield",
     [Terminator,
     ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp", "StartOp"]>]>
 {
-    let summary = "TODO";
+    let summary = "Yield values to the parent operation.";
 
     let description = [{
-        TODO
+        The operation yields zero or more SSA values from an op region and terminates
+        the region. The semantics of how the values yielded are used is defined by the
+        parent operation.
     }];
 
     let arguments = (ins Variadic<AnyType>:$values);
@@ -3167,10 +3269,6 @@ def Modelica_YieldOp : Modelica_Op<"yield",
         attr-dict ($values^ `:` qualified(type($values)))?
     }];
 }
-
-//===----------------------------------------------------------------------===//
-// Utility operations
-//===----------------------------------------------------------------------===//
 
 def Modelica_CastOp : Modelica_Op<"cast",
     [DeclareOpInterfaceMethods<DerivableOpInterface>]>
