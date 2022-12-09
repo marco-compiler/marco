@@ -1444,6 +1444,75 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // ArrayFromElementsOp
+  //===----------------------------------------------------------------------===//
+
+  mlir::LogicalResult ArrayFromElementsOp::verify()
+  {
+    if (!getArrayType().hasStaticShape()) {
+      return emitOpError("the shape must be fixed");
+    }
+
+    int64_t arrayFlatSize = getArrayType().getNumElements();
+    size_t numOfValues = getValues().size();
+
+    if (numOfValues != static_cast<size_t>(arrayFlatSize)) {
+      return emitOpError("incorrent number of values (expected " +
+                         std::to_string(arrayFlatSize) + ", got " +
+                         std::to_string(numOfValues) + ")");
+    }
+
+    return mlir::success();
+  }
+
+  void ArrayFromElementsOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(
+        mlir::MemoryEffects::Allocate::get(),
+        getResult(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getResult(),
+        mlir::SideEffects::DefaultResource::get());
+  }
+
+  mlir::ValueRange ArrayFromElementsOp::derive(
+      mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+  {
+    llvm::SmallVector<mlir::Value> derivedValues;
+
+    for (mlir::Value value : getValues()) {
+      derivedValues.push_back(derivatives.lookup(value));
+    }
+
+    auto derivedOp = builder.create<ArrayFromElementsOp>(
+        getLoc(),
+        getArrayType().toElementType(RealType::get(builder.getContext())),
+        derivedValues);
+
+    return derivedOp->getResults();
+  }
+
+  void ArrayFromElementsOp::getOperandsToBeDerived(
+      llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+  {
+    for (mlir::Value value : getValues()) {
+      toBeDerived.push_back(value);
+    }
+  }
+
+  void ArrayFromElementsOp::getDerivableRegions(
+      llvm::SmallVectorImpl<mlir::Region*>& regions)
+  {
+    // No regions to be derived.
+  }
+
+  //===----------------------------------------------------------------------===//
   // DerFunctionOp
   //===----------------------------------------------------------------------===//
 

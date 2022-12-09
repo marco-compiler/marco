@@ -71,6 +71,21 @@ class ArrayOf<list<Type> allowedTypes> :
 
 def AnyArray : ArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray]>;
 
+// Modelica Tensor Array type
+def ModelicaTensorArray : Type<CPred<"$_self.isa<::mlir::modelica::TensorArrayType>()">,
+                                     "tensor_array", "::mlir::modelica::TensorArrayType">;
+
+// Whether a type is an TensorArrayType.
+def IsTensorArrayTypePred : CPred<"$_self.isa<::mlir::modelica::TensorArrayType>()">;
+
+class TensorArrayOf<list<Type> allowedTypes> :
+    ContainerType<AnyTypeOf<allowedTypes>,
+                  IsTensorArrayTypePred,
+                  "$_self.cast<::mlir::modelica::TensorArrayType>().getElementType()",
+                  "tensor_array", "::mlir::modelica::TensorArrayType">;
+
+def AnyTensorArray : TensorArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
+
 // Whether a type is a MemberType.
 def IsMemberTypePred : CPred<"$_self.isa<::mlir::modelica::MemberType>()">;
 
@@ -474,6 +489,52 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
             return getSource();
         }
     }];
+}
+
+def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
+{
+    let summary = "Create an array with the given elements.";
+
+    let description = [{
+        Create an array with the given elements.
+        The amount of operands must match the total number of values of the array.
+
+        Example:
+
+        ```mlir
+        %0 = constant #modelica.int<1>
+        %1 = constant #modelica.real<2.0>
+        %2 = constant #modelica.real<3.0>
+        %3 = constant #modelica.int<4>
+        %4 = constant #modelica.int<5>
+        %5 = constant #modelica.int<6>
+        %1 = modelica.array_from_elements %0, %1, %2, %3, %4, %5 : !modelica.int, !modelica.real, !modelica.real, !modelica.int, !modelica.int, !modelica.int -> !modelica.array<3x2x!modelica.real>
+        ```
+    }];
+
+    let arguments = (ins Variadic<AnyType>:$values);
+    let results = (outs AnyArray:$array);
+
+    let assemblyFormat = [{
+        $values attr-dict `:` qualified(type($values)) `->` qualified(type($array))
+    }];
+
+    let builders = [
+        OpBuilder<(ins "ArrayType":$arrayType, "ValueRange":$values), [{
+            $_state.types.push_back(arrayType);
+            $_state.addOperands(values);
+        }]>
+    ];
+
+    let extraClassDeclaration = [{
+        ArrayType getArrayType() {
+            return getArray().getType().cast<ArrayType>();
+        }
+    }];
+
+    let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//

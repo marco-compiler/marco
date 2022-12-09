@@ -21,15 +21,16 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(array.getLocation());
     auto arrayType = lower(array.getType()).cast<ArrayType>();
 
-    mlir::Value result = builder().create<AllocOp>(location, arrayType, llvm::None);
+    llvm::SmallVector<mlir::Value> values;
 
-    for (const auto& value : llvm::enumerate(array)) {
-      mlir::Value index = builder().create<ConstantOp>(location, builder().getIndexAttr(value.index()));
-      mlir::Value slice = builder().create<SubscriptionOp>(location, result, index);
-      builder().create<AssignmentOp>(location, slice, *lower(*value.value())[0]);
+    for (const auto& value : array) {
+      values.push_back(*lower(*value)[0]);
     }
 
-    return Reference::ssa(&builder(), result);
+    mlir::Value result = builder().create<ArrayFromElementsOp>(
+        location, arrayType, values);
+
+    return Reference::memory(&builder(), result);
   }
 
   Results ExpressionLowerer::operator()(const Call& call)

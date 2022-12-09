@@ -165,6 +165,68 @@ namespace
     }
   };
 
+  class ArrayFromElementsOpLowering
+      : public ModelicaOpRewritePattern<ArrayFromElementsOp>
+  {
+    using ModelicaOpRewritePattern<ArrayFromElementsOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        ArrayFromElementsOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+
+      ArrayType arrayType = op.getArrayType();
+      assert(arrayType.hasStaticShape());
+
+      auto allocOp = rewriter.replaceOpWithNewOp<AllocOp>(
+          op, arrayType, llvm::None);
+
+      mlir::ValueRange values = op.getValues();
+      size_t currentValue = 0;
+
+      llvm::SmallVector<int64_t, 3> indices(arrayType.getRank(), 0);
+
+      auto advanceIndices = [&]() -> bool {
+        for (size_t i = 0, e = indices.size(); i < e; ++i) {
+          size_t pos = e - i - 1;
+          ++indices[pos];
+
+          if (indices[pos] == arrayType.getDimSize(pos)) {
+            indices[pos] = 0;
+          } else {
+            return true;
+          }
+        }
+
+        return false;
+      };
+
+      llvm::SmallVector<mlir::Value, 3> indicesValues;
+
+      do {
+        for (int64_t index : indices) {
+          indicesValues.push_back(
+              rewriter.create<mlir::arith::ConstantOp>(
+                  loc, rewriter.getIndexAttr(index)));
+        }
+
+        mlir::Value value = values[currentValue++];
+
+        if (mlir::Type elementType = arrayType.getElementType();
+            value.getType() != elementType) {
+          value = rewriter.create<CastOp>(loc, elementType, value);
+        }
+
+        rewriter.create<StoreOp>(
+            loc, value, allocOp.getResult(), indicesValues);
+
+        indicesValues.clear();
+      } while (advanceIndices());
+
+      return mlir::success();
+    }
+  };
+
   class FreeOpLowering : public ModelicaOpConversionPattern<FreeOp>
   {
     using ModelicaOpConversionPattern<FreeOp>::ModelicaOpConversionPattern;
@@ -371,7 +433,12 @@ static void populateModelicaToMemRefPatterns(
 
   patterns.insert<
       AllocaOpLowering,
-      AllocOpLowering,
+      AllocOpLowering>(typeConverter, context);
+
+  patterns.insert<
+      ArrayFromElementsOpLowering>(context);
+
+  patterns.insert<
       FreeOpLowering,
       DimOpLowering,
       SubscriptionOpLowering,
@@ -412,6 +479,7 @@ namespace
         target.addIllegalOp<
             AllocaOp,
             AllocOp,
+            ArrayFromElementsOp,
             FreeOp,
             DimOp,
             SubscriptionOp,
