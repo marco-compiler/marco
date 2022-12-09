@@ -9,6 +9,8 @@ namespace marco::diagnostic
   class Printer
   {
     public:
+      virtual ~Printer();
+
       virtual llvm::raw_ostream::Colors diagnosticLevelToColor(marco::diagnostic::Level level) const;
 
       virtual llvm::raw_ostream& getOutputStream();

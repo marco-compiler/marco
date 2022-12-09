@@ -18,6 +18,8 @@ namespace marco::diagnostic
   // Printer
   //===----------------------------------------------------------------------===//
 
+  Printer::~Printer() = default;
+
   llvm::raw_ostream::Colors Printer::diagnosticLevelToColor(marco::diagnostic::Level level) const
   {
     switch (level) {
