@@ -157,6 +157,7 @@ def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::Modul
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
         "mlir::ida::IDADialect",
+        "mlir::LLVM::LLVMDialect",
         "mlir::modelica::ModelicaDialect",
         "mlir::memref::MemRefDialect"
     ];
