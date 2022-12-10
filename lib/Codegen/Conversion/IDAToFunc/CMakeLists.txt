@@ -1,5 +1,5 @@
 set(SOURCES
-    ModelicaToFunc.cpp)
+    IDAToFunc.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
@@ -8,7 +8,7 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs})
 
-add_mlir_conversion_library(MLIRModelicaToFunc
+add_mlir_conversion_library(MLIRIDAToFunc
     ${SOURCES}
 
     DEPENDS
@@ -16,6 +16,4 @@ add_mlir_conversion_library(MLIRModelicaToFunc
 
     LINK_LIBS PUBLIC
     marco::codegen
-    MLIRModelicaCommonConversion
-    MLIRIDAToFunc
     ${MLIR_LIBS})

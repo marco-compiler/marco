@@ -345,34 +345,6 @@ RUNTIME_FUNC_DEF(exp, float, float)
 RUNTIME_FUNC_DEF(exp, double, double)
 
 //===----------------------------------------------------------------------===//
-// fill
-//===----------------------------------------------------------------------===//
-
-namespace
-{
-  /// Set all the elements of an array to a given value.
-  ///
-  /// @tparam T 		 data type
-  /// @param array  array to be populated
-  /// @param value  value to be set
-  template<typename T>
-  void fill_void(UnrankedMemRefType<T>* array, T value)
-  {
-    DynamicMemRefType dynamicArray(*array);
-
-    for (auto it = std::begin(dynamicArray), end = std::end(dynamicArray); it != end; ++it) {
-      *it = value;
-    }
-  }
-}
-
-RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(int32_t), int32_t)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(int64_t), int64_t)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(float), float)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
-
-//===----------------------------------------------------------------------===//
 // floor
 //===----------------------------------------------------------------------===//
 

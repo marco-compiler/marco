@@ -4,6 +4,31 @@
 include "mlir/Pass/PassBase.td"
 
 //===---------------------------------------------------------------------===//
+// IDA to Func
+//===---------------------------------------------------------------------===//
+
+def IDAToFuncConversionPass : Pass<"convert-ida-to-func", "mlir::ModuleOp"> {
+    let summary = "IDA: conversion to Func dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::arith::ArithDialect",
+        "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">
+    ];
+
+    let constructor = "mlir::createIDAToFuncConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
 // IDA to LLVM
 //===---------------------------------------------------------------------===//
 
@@ -131,6 +156,7 @@ def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::Modul
         "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
+        "mlir::ida::IDADialect",
         "mlir::modelica::ModelicaDialect",
         "mlir::memref::MemRefDialect"
     ];
@@ -138,6 +164,8 @@ def ModelicaToFuncConversionPass : Pass<"convert-modelica-to-func", "mlir::Modul
     let options = [
         Option<"bitWidth", "bitWidth", "unsigned int", "64",
                "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">,
         Option<"assertions", "assertions", "bool", "true",
                "Enable the runtime assertions">
     ];
@@ -158,12 +186,10 @@ def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::Modul
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
+        "mlir::ida::IDADialect",
+        "mlir::kinsol::KINSOLDialect",
         "mlir::arith::ArithDialect",
-        "mlir::cf::ControlFlowDialect",
-        "mlir::func::FuncDialect",
-        "mlir::scf::SCFDialect",
-        "mlir::LLVM::LLVMDialect",
-        "mlir::memref::MemRefDialect"
+        "mlir::LLVM::LLVMDialect"
     ];
 
     let options = [

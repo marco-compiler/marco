@@ -1,4 +1,4 @@
-#include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
 
 namespace mlir::ida
 {

@@ -1,6 +1,8 @@
 #include "marco/Codegen/Conversion/ModelicaToFunc/ModelicaToFunc.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
+#include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -2687,40 +2689,6 @@ namespace
 
 namespace
 {
-  struct ArrayFillOpLowering : public RuntimeOpConversionPattern<ArrayFillOp>
-  {
-    using RuntimeOpConversionPattern<ArrayFillOp>::RuntimeOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        ArrayFillOp op,
-        OpAdaptor adaptor,
-        mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      mlir::Location loc = op.getLoc();
-
-      llvm::SmallVector<mlir::Value, 1> newOperands;
-
-      // Array.
-      mlir::Value array = adaptor.getArray();
-      array = convertToUnrankedMemRef(rewriter, loc, array);
-
-      newOperands.push_back(array);
-
-      // Value.
-      newOperands.push_back(adaptor.getValue());
-
-      // Create the call to the runtime library.
-      auto callee = getOrDeclareRuntimeFunction(
-          rewriter,
-          op->getParentOfType<mlir::ModuleOp>(),
-          getMangledFunctionName("fill", llvm::None, newOperands),
-          llvm::None, newOperands);
-
-      rewriter.replaceOpWithNewOp<CallOp>(op, callee, newOperands);
-      return mlir::success();
-    }
-  };
-
   struct PrintOpLowering : public RuntimeOpConversionPattern<PrintOp>
   {
     using RuntimeOpConversionPattern<PrintOp>::RuntimeOpConversionPattern;
@@ -2852,7 +2820,6 @@ static void populateModelicaToFuncPatterns(
 
   // Utility operations
   patterns.insert<
-      ArrayFillOpLowering,
       PrintOpLowering>(typeConverter, context);
 }
 
@@ -2866,7 +2833,15 @@ namespace
       void runOnOperation() override
       {
         if (mlir::failed(convertOperations())) {
-          mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations");
+          mlir::emitError(getOperation().getLoc(),
+                          "Error in converting the Modelica operations");
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(legalizeIDAOperations())) {
+          mlir::emitError(getOperation().getLoc(),
+                          "Error in legalizing the IDA operations");
+
           return signalPassFailure();
         }
       }
@@ -2933,13 +2908,35 @@ namespace
             ZerosOp>();
 
         target.addIllegalOp<
-            ArrayFillOp,
             PrintOp>();
 
         mlir::modelica::TypeConverter typeConverter(bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
         populateModelicaToFuncPatterns(patterns, &getContext(), typeConverter, assertions);
+
+        return applyPartialConversion(module, target, std::move(patterns));
+      }
+
+      mlir::LogicalResult legalizeIDAOperations()
+      {
+        auto module = getOperation();
+        mlir::ConversionTarget target(getContext());
+
+        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+        llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+        mlir::modelica::LLVMTypeConverter typeConverter(
+            &getContext(), llvmLoweringOptions, bitWidth);
+
+        mlir::RewritePatternSet patterns(&getContext());
+
+        populateIDAToFuncStructuralTypeConversionsAndLegality(
+            typeConverter, patterns, target);
+
+        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+          return true;
+        });
 
         return applyPartialConversion(module, target, std::move(patterns));
       }

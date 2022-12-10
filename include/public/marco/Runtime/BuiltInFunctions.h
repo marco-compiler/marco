@@ -74,12 +74,6 @@ RUNTIME_FUNC_DECL(div, double, double, double)
 RUNTIME_FUNC_DECL(exp, float, float)
 RUNTIME_FUNC_DECL(exp, double, double)
 
-RUNTIME_FUNC_DECL(fill, void, ARRAY(bool), bool)
-RUNTIME_FUNC_DECL(fill, void, ARRAY(int32_t), int32_t)
-RUNTIME_FUNC_DECL(fill, void, ARRAY(int64_t), int64_t)
-RUNTIME_FUNC_DECL(fill, void, ARRAY(float), float)
-RUNTIME_FUNC_DECL(fill, void, ARRAY(double), double)
-
 RUNTIME_FUNC_DECL(floor, bool, bool)
 RUNTIME_FUNC_DECL(floor, int32_t, int32_t)
 RUNTIME_FUNC_DECL(floor, int64_t, int64_t)

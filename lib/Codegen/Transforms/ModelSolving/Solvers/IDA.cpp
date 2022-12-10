@@ -2338,15 +2338,13 @@ namespace marco::codegen
                 arrayType && !arrayType.isScalar()) {
               assert(arrayType.hasStaticShape());
 
-              auto array = builder.create<AllocOp>(
+              auto array = builder.create<ArrayBroadcastOp>(
                   loc,
                   arrayType.toElementType(RealType::get(builder.getContext())),
-                  llvm::None);
+                  zero);
 
               seedArrays.push_back(array);
               args.push_back(array);
-
-              builder.create<ArrayFillOp>(loc, array, zero);
 
               if (varArgNumber == oneSeedPosition) {
                 builder.create<StoreOp>(

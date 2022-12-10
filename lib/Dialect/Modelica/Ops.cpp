@@ -299,6 +299,28 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// ArrayBroadcastOp
+
+namespace mlir::modelica
+{
+  void ArrayBroadcastOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(
+        mlir::MemoryEffects::Allocate::get(),
+        getResult(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getResult(),
+        mlir::SideEffects::DefaultResource::get());
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // FreeOp
 
 namespace mlir::modelica
@@ -518,12 +540,10 @@ namespace mlir::modelica
           mlir::SideEffects::EffectInstance<
               mlir::MemoryEffects::Effect>>& effects)
   {
-    if (getArray().getType().isa<ArrayType>()) {
-      effects.emplace_back(
-          mlir::MemoryEffects::Write::get(),
-          getArray(),
-          mlir::SideEffects::DefaultResource::get());
-    }
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getArray(),
+        mlir::SideEffects::DefaultResource::get());
   }
 }
 

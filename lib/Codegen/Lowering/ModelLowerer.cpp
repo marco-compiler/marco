@@ -167,43 +167,6 @@ namespace marco::codegen::lowering
         location, member.getName(), memberType, llvm::None);
 
     symbolTable().insert(member.getName(), Reference::member(&builder(), memberOp));
-
-    /*
-    Reference reference = symbolTable().lookup(member.getName());
-
-    if (member.hasStartProperty() && !member.getFixedProperty()) {
-      auto startProperty = member.getStartProperty();
-      auto values = lower(*startProperty.value);
-      assert(values.size() == 1);
-
-      if (startProperty.each) {
-        assert(type.isa<ArrayType>());
-        builder().create<ArrayFillOp>(location, *reference, *values[0]);
-      } else {
-        reference.set(*values[0]);
-      }
-    } else if (member.isParameter() && member.hasExpression()) {
-      mlir::Value value = *lower(*member.getExpression())[0];
-
-      if (type.isa<ArrayType>()) {
-        if (value.getType().isa<ArrayType>()) {
-          reference.set(value);
-        } else {
-          builder().create<ArrayFillOp>(location, *reference, value);
-        }
-      } else {
-        reference.set(value);
-      }
-    } else {
-      if (auto arrayType = type.dyn_cast<ArrayType>()) {
-        mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(arrayType.getElementType()));
-        builder().create<ArrayFillOp>(location, *reference, zero);
-      } else {
-        mlir::Value zero = builder().create<ConstantOp>(location, getZeroAttr(type));
-        reference.set(zero);
-      }
-    }
-     */
   }
 
   void ModelLowerer::createMemberEquation(

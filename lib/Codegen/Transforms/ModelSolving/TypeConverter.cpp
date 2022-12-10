@@ -1,5 +1,5 @@
 #include "marco/Codegen/Transforms/ModelSolving/TypeConverter.h"
-#include "marco/Codegen/Conversion/IDAToLLVM/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/KINSOLToLLVM/LLVMTypeConverter.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
 

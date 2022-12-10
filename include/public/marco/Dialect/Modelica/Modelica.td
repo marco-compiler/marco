@@ -222,7 +222,7 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
     let summary = "Create an array with the given elements.";
 
     let description = [{
-        Create an array with the given elements.
+        Alloc an array with the given elements.
         The amount of operands must match the total number of values of the array.
 
         Example:
@@ -253,6 +253,47 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
             $_state.addOperands(values);
         }]>
     ];
+
+    let extraClassDeclaration = [{
+        /// Get the result array type.
+        ArrayType getArrayType() {
+            return getArray().getType().cast<ArrayType>();
+        }
+    }];
+}
+
+def Modelica_ArrayBroadcastOp : Modelica_Op<"array_broadcast",
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Create an array with a given value in all positions.";
+
+    let description = [{
+        Alloc an array with all the elements equal to a given one.
+        Dynamically sized arrays can be created by passing also the dynamic dimensions.
+
+        Example with static dimensions:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = modelica.array_broadcast %0 : !modelica.int -> !modelica.array<3x2x!modelica.real>
+        ```
+
+        Example with dynamic dimensions:
+
+        ```mlir
+        %0 = ... : !modelica.int
+        %1 = ... : index
+        %2 = ... : index
+        %3 = modelica.array_broadcast %0, %1, %2 : !modelica.int -> !modelica.array<?x2x?x!modelica.real>
+        ```
+    }];
+
+    let arguments = (ins AnyModelicaScalar:$value, Variadic<Index>:$dynamicDimensions);
+    let results = (outs AnyArray:$array);
+
+    let assemblyFormat = [{
+        $value (`,` $dynamicDimensions^)? attr-dict `:` qualified(type($value)) `->` qualified(type($array))
+    }];
 
     let extraClassDeclaration = [{
         /// Get the result array type.
@@ -520,10 +561,7 @@ def Modelica_SubscriptionOp : Modelica_Op<"subscription",
 }
 
 def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
-    [TypesMatchWith<"type of 'value' matches element type of 'array'",
-                    "array", "value",
-                    "$_self.cast<ArrayType>().getElementType()">,
-    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
 {
     let summary = "Fill an array with a value";
 
@@ -540,11 +578,18 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
         ```
     }];
 
-    let arguments = (ins AnyType:$array, AnyType:$value);
+    let arguments = (ins AnyArray:$array, AnyModelicaScalar:$value);
     let results = (outs);
 
     let assemblyFormat = [{
-        $array `,` $value attr-dict `:` qualified(type($array))
+        $array `,` $value attr-dict `:` qualified(type($array)) `,` qualified(type($value))
+    }];
+
+    let extraClassDeclaration = [{
+        /// Get the array type.
+        ArrayType getArrayType() {
+            return getArray().getType().cast<ArrayType>();
+        }
     }];
 }
 

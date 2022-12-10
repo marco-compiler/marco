@@ -227,6 +227,25 @@ namespace
     }
   };
 
+  class ArrayBroadcastOpLowering
+      : public ModelicaOpRewritePattern<ArrayBroadcastOp>
+  {
+    using ModelicaOpRewritePattern<ArrayBroadcastOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        ArrayBroadcastOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+      ArrayType arrayType = op.getArrayType();
+
+      auto allocOp = rewriter.replaceOpWithNewOp<AllocOp>(
+          op, arrayType, op.getDynamicDimensions());
+
+      rewriter.create<ArrayFillOp>(loc, allocOp.getResult(), op.getValue());
+      return mlir::success();
+    }
+  };
+
   class FreeOpLowering : public ModelicaOpConversionPattern<FreeOp>
   {
     using ModelicaOpConversionPattern<FreeOp>::ModelicaOpConversionPattern;
@@ -323,6 +342,55 @@ namespace
     mlir::LogicalResult matchAndRewrite(StoreOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
     {
       rewriter.replaceOpWithNewOp<mlir::memref::StoreOp>(op, adaptor.getValue(), adaptor.getArray(), adaptor.getIndices());
+      return mlir::success();
+    }
+  };
+
+  class ArrayFillOpLowering : public ModelicaOpRewritePattern<ArrayFillOp>
+  {
+    using ModelicaOpRewritePattern<ArrayFillOp>::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        ArrayFillOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+      ArrayType arrayType = op.getArrayType();
+
+      mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getIndexAttr(0));
+
+      mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getIndexAttr(1));
+
+      llvm::SmallVector<mlir::Value> lowerBounds(arrayType.getRank(), zero);
+      llvm::SmallVector<mlir::Value> upperBounds;
+      llvm::SmallVector<mlir::Value> steps(arrayType.getRank(), one);
+
+      for (int64_t i = 0, e = arrayType.getRank(); i < e; ++i) {
+        mlir::Value dimension = rewriter.create<mlir::arith::ConstantOp>(
+            loc, rewriter.getIndexAttr(i));
+
+        upperBounds.push_back(rewriter.create<DimOp>(
+            loc, op.getArray(), dimension));
+      }
+
+      mlir::Value value = op.getValue();
+
+      if (mlir::Type elementType = arrayType.getElementType();
+          value.getType() != elementType) {
+        value = rewriter.create<CastOp>(loc, elementType, value);
+      }
+
+      mlir::scf::buildLoopNest(
+          rewriter, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder,
+              mlir::Location,
+              mlir::ValueRange position) {
+            rewriter.create<StoreOp>(
+                loc, value, op.getArray(), position);
+          });
+
+      rewriter.eraseOp(op);
       return mlir::success();
     }
   };
@@ -436,7 +504,8 @@ static void populateModelicaToMemRefPatterns(
       AllocOpLowering>(typeConverter, context);
 
   patterns.insert<
-      ArrayFromElementsOpLowering>(context);
+      ArrayFromElementsOpLowering,
+      ArrayBroadcastOpLowering>(context);
 
   patterns.insert<
       FreeOpLowering,
@@ -444,6 +513,9 @@ static void populateModelicaToMemRefPatterns(
       SubscriptionOpLowering,
       LoadOpLowering,
       StoreOpLowering>(typeConverter, context);
+
+  patterns.insert<
+      ArrayFillOpLowering>(context);
 
   patterns.insert<
       NDimsOpLowering,
@@ -480,11 +552,13 @@ namespace
             AllocaOp,
             AllocOp,
             ArrayFromElementsOp,
+            ArrayBroadcastOp,
             FreeOp,
             DimOp,
             SubscriptionOp,
             LoadOp,
-            StoreOp>();
+            StoreOp,
+            ArrayFillOp>();
 
         target.addIllegalOp<
             NDimsOp,

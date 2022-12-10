@@ -11,7 +11,7 @@ namespace mlir
 #define GEN_PASS_DECL_IDATOLLVMCONVERSIONPASS
 #include "marco/Codegen/Conversion/Passes.h.inc"
 
-  void populateIDAStructuralTypeConversionsAndLegality(
+  void populateIDAToLLVMStructuralTypeConversionsAndLegality(
       mlir::LLVMTypeConverter& typeConverter,
       mlir::RewritePatternSet& patterns,
       mlir::ConversionTarget& target);

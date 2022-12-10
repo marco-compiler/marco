@@ -279,8 +279,8 @@ namespace marco::frontend
     passManager.addPass(createModelicaToFuncConversionPass());
     passManager.addPass(createModelicaToMemRefConversionPass());
     passManager.addPass(createModelicaToLLVMConversionPass());
-    passManager.addPass(createIDAToLLVMConversionPass());
-    passManager.addPass(createKINSOLToLLVMConversionPass());
+
+    passManager.addPass(createIDAToFuncConversionPass());
 
     if (ci.getCodegenOptions().omp) {
       // Use OpenMP for parallel loops.
@@ -295,6 +295,16 @@ namespace marco::frontend
     passManager.addPass(createFuncToLLVMConversionPass());
 
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
+
+    // Convert the MARCO dialects to LLVM dialect.
+    passManager.addPass(createIDAToLLVMConversionPass());
+    passManager.addPass(createKINSOLToLLVMConversionPass());
+
+    // Convert the non-LLVM operations that may have been introduced by the
+    // last conversions.
+    passManager.addPass(createArithToLLVMConversionPass());
+
+    // Finalization passes.
     passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
     passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
 
@@ -483,6 +493,7 @@ namespace marco::frontend
 
     mlir::ModelicaToFuncConversionPassOptions options;
     options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.dataLayout = getDataLayoutString();
     options.assertions = ci.getCodegenOptions().assertions;
 
     return mlir::createModelicaToFuncConversionPass(options);
@@ -509,6 +520,16 @@ namespace marco::frontend
     options.dataLayout = getDataLayoutString();
 
     return mlir::createModelicaToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createIDAToFuncConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::IDAToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+
+    return mlir::createIDAToFuncConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createIDAToLLVMConversionPass()

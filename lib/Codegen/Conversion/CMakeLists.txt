@@ -1,3 +1,5 @@
+add_subdirectory(IDACommon)
+add_subdirectory(IDAToFunc)
 add_subdirectory(IDAToLLVM)
 add_subdirectory(KINSOLToLLVM)
 add_subdirectory(ModelicaCommon)

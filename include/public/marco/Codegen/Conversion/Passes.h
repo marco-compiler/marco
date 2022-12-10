@@ -1,6 +1,7 @@
 #ifndef MARCO_CODEGEN_CONVERSION_PASSES_H
 #define MARCO_CODEGEN_CONVERSION_PASSES_H
 
+#include "marco/Codegen/Conversion/IDAToFunc/IDAToFunc.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToArith/ModelicaToArith.h"

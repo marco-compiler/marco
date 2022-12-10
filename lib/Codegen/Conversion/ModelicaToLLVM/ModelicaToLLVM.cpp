@@ -4,14 +4,12 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/KINSOL/KINSOLDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -348,7 +346,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
 
   populateModelicaToLLVMPatterns(patterns, typeConverter);
 
-  populateIDAStructuralTypeConversionsAndLegality(
+  populateIDAToLLVMStructuralTypeConversionsAndLegality(
       typeConverter, patterns, target);
 
   populateKINSOLStructuralTypeConversionsAndLegality(
