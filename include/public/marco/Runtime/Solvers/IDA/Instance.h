@@ -109,23 +109,20 @@ namespace marco::runtime::ida
   /// The 1st argument is an opaque pointer to the variable descriptor.
   /// The 2nd argument is a pointer to the indices list.
   /// The result is the scalar value.
-  template<typename FloatType>
-  using VariableGetterFunction = FloatType(*)(void*, const int64_t*);
+  using VariableGetter = double(*)(void*, const int64_t*);
 
   /// Signature of variable setter functions.
   /// The 1st argument is an opaque pointer to the variable descriptor.
   /// The 2nd argument is the value to be set.
   /// The 3rd argument is a pointer to the indices list.
-  template<typename FloatType>
-  using VariableSetterFunction = void(*)(void*, FloatType, const int64_t*);
+  using VariableSetter = void(*)(void*, double, const int64_t*);
 
   /// Signature of residual functions.
   /// The 1st argument is the current time.
   /// The 2nd argument is an opaque pointer to the simulation data.
   /// The 3rd argument is a pointer to the list of equation indices.
   /// The result is the residual value.
-  template<typename FloatType>
-  using ResidualFunction = FloatType(*)(FloatType, void*, const int64_t*);
+  using ResidualFunction = double(*)(double, void*, const int64_t*);
 
   /// Signature of Jacobian functions.
   /// The 1st argument is the current time.
@@ -134,13 +131,13 @@ namespace marco::runtime::ida
   /// The 4th argument is a pointer to the list of variable indices.
   /// The 5th argument is the 'alpha' value.
   /// The result is the Jacobian value.
-  template<typename FloatType>
-  using JacobianFunction = FloatType(*)(FloatType, void*, const int64_t*, const int64_t*, FloatType);
+  using JacobianFunction = double(*)(
+      double, void*, const int64_t*, const int64_t*, double);
 
   class IDAInstance
   {
     public:
-      IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber);
+      IDAInstance(int64_t scalarEquationsNumber);
 
       ~IDAInstance();
 
@@ -156,21 +153,21 @@ namespace marco::runtime::ida
           void* variable,
           int64_t* dimensions,
           int64_t rank,
-          void* getterFunction,
-          void* setterFunction);
+          VariableGetter getterFunction,
+          VariableSetter setterFunction);
 
       int64_t addStateVariable(
           void* variable,
           int64_t* dimensions,
           int64_t rank,
-          void* getterFunction,
-          void* setterFunction);
+          VariableGetter getterFunction,
+          VariableSetter setterFunction);
 
       void setDerivative(
           int64_t idaStateVariable,
           void* derivative,
-          void* getterFunction,
-          void* setterFunction);
+          VariableGetter getterFunction,
+          VariableSetter setterFunction);
 
       /// Add the information about an equation the is handled by IDA.
       int64_t addEquation(
@@ -188,14 +185,15 @@ namespace marco::runtime::ida
       /// Add the function pointer that computes the index-th residual function
       /// to the IDA user data.
       void setResidualFunction(
-          int64_t equationIndex, void* residualFunction);
+          int64_t equationIndex,
+          ResidualFunction residualFunction);
 
       /// Add the function pointer that computes the index-th Jacobian row to
       /// the user data.
       void addJacobianFunction(
           int64_t equationIndex,
           int64_t variableIndex,
-          void* jacobianFunction);
+          JacobianFunction jacobianFunction);
 
       /// Instantiate and initialize all the classes needed by IDA in order to
       /// solve the given system of equations. It also sets optional simulation
@@ -309,8 +307,6 @@ namespace marco::runtime::ida
       // Whether the instance has been inizialized or not.
       bool initialized;
 
-      int64_t marcoBitWidth;
-
       // Model size.
       int64_t scalarEquationsNumber;
       int64_t nonZeroValuesNumber;
@@ -334,13 +330,13 @@ namespace marco::runtime::ida
       // The residual functions associated with the equations.
       // The i-th position contains the pointer to the residual function of the
       // i-th equation.
-      std::vector<void*> residualFunctions;
+      std::vector<ResidualFunction> residualFunctions;
 
       // The jacobian functions associated with the equations.
       // The i-th position contains the list of partial derivative functions of
       // the i-th equation. The j-th function represents the function to
       // compute the derivative with respect to the j-th variable.
-      std::vector<std::vector<void*>> jacobianFunctions;
+      std::vector<std::vector<JacobianFunction>> jacobianFunctions;
 
       std::vector<VarAccessList> variableAccesses;
 
@@ -383,12 +379,12 @@ namespace marco::runtime::ida
       std::vector<void*> stateVariables;
 
       std::vector<void*> algebraicAndStateVariables;
-      std::vector<void*> algebraicAndStateVariablesGetters;
-      std::vector<void*> algebraicAndStateVariablesSetters;
+      std::vector<VariableGetter> algebraicAndStateVariablesGetters;
+      std::vector<VariableSetter> algebraicAndStateVariablesSetters;
 
       std::vector<void*> derivativeVariables;
-      std::vector<void*> derivativeVariablesGetters;
-      std::vector<void*> derivativeVariablesSetters;
+      std::vector<VariableGetter> derivativeVariablesGetters;
+      std::vector<VariableSetter> derivativeVariablesSetters;
 
       // Mapping from the IDA variable position to algebraic variables
       // position.
@@ -405,10 +401,10 @@ namespace marco::runtime::ida
 }
 
 //===---------------------------------------------------------------------===//
-// Allocation, initialization, usage and deletion
+// Exported functions
 //===---------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(idaCreate, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DECL(idaCreate, PTR(void), int64_t)
 
 RUNTIME_FUNC_DECL(idaInit, void, PTR(void))
 
@@ -416,17 +412,25 @@ RUNTIME_FUNC_DECL(idaCalcIC, void, PTR(void))
 
 RUNTIME_FUNC_DECL(idaStep, void, PTR(void))
 
-RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
-
 RUNTIME_FUNC_DECL(idaFree, void, PTR(void))
 
 RUNTIME_FUNC_DECL(idaSetStartTime, void, PTR(void), double)
+
 RUNTIME_FUNC_DECL(idaSetEndTime, void, PTR(void), double)
+
 RUNTIME_FUNC_DECL(idaSetTimeStep, void, PTR(void), double)
 
-//===---------------------------------------------------------------------===//
-// Equation setters
-//===---------------------------------------------------------------------===//
+RUNTIME_FUNC_DECL(idaGetCurrentTime, double, PTR(void))
+
+RUNTIME_FUNC_DECL(idaAddParametricVariable, void, PTR(void), PTR(void))
+
+RUNTIME_FUNC_DECL(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
+
+RUNTIME_FUNC_DECL(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
+
+RUNTIME_FUNC_DECL(idaSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
+
+RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
 
 RUNTIME_FUNC_DECL(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t, int64_t, PTR(int64_t))
 
@@ -434,24 +438,6 @@ RUNTIME_FUNC_DECL(idaSetResidual, void, PTR(void), int64_t, PTR(void))
 
 RUNTIME_FUNC_DECL(idaAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
 
-//===---------------------------------------------------------------------===//
-// Variable setters
-//===---------------------------------------------------------------------===//
-
-RUNTIME_FUNC_DECL(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-RUNTIME_FUNC_DECL(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-
-RUNTIME_FUNC_DECL(idaAddParametricVariable, void, PTR(void), PTR(void))
-
-RUNTIME_FUNC_DECL(idaSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
-
-RUNTIME_FUNC_DECL(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
-
-//===---------------------------------------------------------------------===//
-// Getters
-//===---------------------------------------------------------------------===//
-
-RUNTIME_FUNC_DECL(idaGetCurrentTime, float, PTR(void))
-RUNTIME_FUNC_DECL(idaGetCurrentTime, double, PTR(void))
+RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
 
 #endif // MARCO_RUNTIME_SOLVERS_IDA_INSTANCE_H

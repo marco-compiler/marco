@@ -317,9 +317,8 @@ static int64_t getFlatIndex(
 
 namespace marco::runtime::ida
 {
-  IDAInstance::IDAInstance(int64_t marcoBitWidth, int64_t scalarEquationsNumber)
+  IDAInstance::IDAInstance(int64_t scalarEquationsNumber)
       : initialized(false),
-        marcoBitWidth(marcoBitWidth),
         scalarEquationsNumber(scalarEquationsNumber),
         startTime(getOptions().startTime),
         endTime(getOptions().endTime),
@@ -399,8 +398,8 @@ namespace marco::runtime::ida
       void* variable,
       int64_t* dimensions,
       int64_t rank,
-      void* getterFunction,
-      void* setterFunction)
+      VariableGetter getterFunction,
+      VariableSetter setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
@@ -450,8 +449,8 @@ namespace marco::runtime::ida
       void* variable,
       int64_t* dimensions,
       int64_t rank,
-      void* getterFunction,
-      void* setterFunction)
+      VariableGetter getterFunction,
+      VariableSetter setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
@@ -501,8 +500,8 @@ namespace marco::runtime::ida
   void IDAInstance::setDerivative(
       int64_t idaStateVariable,
       void* derivative,
-      void* getterFunction,
-      void* setterFunction)
+      VariableGetter getterFunction,
+      VariableSetter setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
     assert(variableOffsets.size() == variablesDimensions.size() + 1);
@@ -585,7 +584,7 @@ namespace marco::runtime::ida
 
   void IDAInstance::setResidualFunction(
       int64_t equationIndex,
-      void* residualFunction)
+      ResidualFunction residualFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
@@ -601,7 +600,7 @@ namespace marco::runtime::ida
   void IDAInstance::addJacobianFunction(
       int64_t equationIndex,
       int64_t variableIndex,
-      void* jacobianFunction)
+      JacobianFunction jacobianFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
 
@@ -684,7 +683,7 @@ namespace marco::runtime::ida
 
     assert(std::all_of(
         residualFunctions.begin(), residualFunctions.end(),
-        [](void* function) {
+        [](const ResidualFunction& function) {
           return function != nullptr;
         }));
 
@@ -693,14 +692,14 @@ namespace marco::runtime::ida
 
     assert(std::all_of(
         jacobianFunctions.begin(), jacobianFunctions.end(),
-        [&](std::vector<void*> functions) {
+        [&](std::vector<JacobianFunction> functions) {
           if (functions.size() != algebraicAndStateVariables.size()) {
             return false;
           }
 
           return std::all_of(
               functions.begin(), functions.end(),
-              [](void* function) {
+              [](const JacobianFunction& function) {
                 return function != nullptr;
               });
         }));
@@ -1026,23 +1025,10 @@ namespace marco::runtime::ida
               instance->variablesDimensions[writtenVariable],
               writtenVariableIndices);
 
-          if (instance->marcoBitWidth == 32) {
-            auto residualFunction = reinterpret_cast<ResidualFunction<float>>(
-                instance->residualFunctions[eq]);
+          auto residualFunctionResult = instance->residualFunctions[eq](
+              time, instance->simulationData, equationIndices.data());
 
-            auto residualFunctionResult = residualFunction(
-                time, instance->simulationData, equationIndices.data());
-
-            *(rval + arrayVariableOffset + scalarVariableOffset) = residualFunctionResult;
-          } else {
-            auto residualFunction = reinterpret_cast<ResidualFunction<double>>(
-                instance->residualFunctions[eq]);
-
-            auto residualFunctionResult = residualFunction(
-                time, instance->simulationData, equationIndices.data());
-
-            *(rval + arrayVariableOffset + scalarVariableOffset) = residualFunctionResult;
-          }
+          *(rval + arrayVariableOffset + scalarVariableOffset) = residualFunctionResult;
         });
 
     return IDA_SUCCESS;
@@ -1100,33 +1086,16 @@ namespace marco::runtime::ida
                   instance->variablesDimensions[column.first],
                   column.second);
 
-              if (instance->marcoBitWidth == 32) {
-                auto jacobianFunction = reinterpret_cast<JacobianFunction<float>>(
-                    instance->jacobianFunctions[eq][column.first]);
+              auto jacobianFunctionResult =
+                  instance->jacobianFunctions[eq][column.first](
+                      time,
+                      instance->simulationData,
+                      equationIndices.data(),
+                      variableIndices,
+                      alpha);
 
-                auto jacobianFunctionResult = jacobianFunction(
-                    time,
-                    instance->simulationData,
-                    equationIndices.data(),
-                    variableIndices,
-                    alpha);
-
-                instance->jacobianMatrixData[scalarEquationIndex][i].second =
-                    jacobianFunctionResult;
-              } else {
-                auto jacobianFunction = reinterpret_cast<JacobianFunction<double>>(
-                    instance->jacobianFunctions[eq][column.first]);
-
-                auto jacobianFunctionResult = jacobianFunction(
-                    time,
-                    instance->simulationData,
-                    equationIndices.data(),
-                    variableIndices,
-                    alpha);
-
-                instance->jacobianMatrixData[scalarEquationIndex][i].second =
-                    jacobianFunctionResult;
-              }
+              instance->jacobianMatrixData[scalarEquationIndex][i].second =
+                  jacobianFunctionResult;
 
               instance->jacobianMatrixData[scalarEquationIndex][i].first =
                   arrayVariableOffset + scalarVariableOffset;
@@ -1261,39 +1230,23 @@ namespace marco::runtime::ida
       for (auto indices = dimensions.indicesBegin(), end = dimensions.indicesEnd(); indices != end; ++indices) {
         size_t scalarVariableOffset = getFlatIndex(dimensions, *indices);
         size_t index = arrayVariableOffset + scalarVariableOffset;
+        auto getterFn = algebraicAndStateVariablesGetters[i];
 
-        if (marcoBitWidth == 32) {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(
-              algebraicAndStateVariablesGetters[i]);
+        auto value = static_cast<realtype>(
+            getterFn(algebraicAndStateVariables[i], *indices));
 
-          auto value = static_cast<realtype>(getterFn(algebraicAndStateVariables[i], *indices));
-          algebraicAndStateVariablesPtr[index] = value;
-        } else {
-          auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(
-              algebraicAndStateVariablesGetters[i]);
-
-          auto value = static_cast<realtype>(getterFn(algebraicAndStateVariables[i], *indices));
-          algebraicAndStateVariablesPtr[index] = value;
-        }
+        algebraicAndStateVariablesPtr[index] = value;
 
         auto derivativeVariablePositionIt = stateVariablesMapping.find(i);
 
         if (derivativeVariablePositionIt != stateVariablesMapping.end()) {
           size_t derivativeVariablePos = derivativeVariablePositionIt->second;
+          auto getterFn = derivativeVariablesGetters[derivativeVariablePos];
 
-          if (marcoBitWidth == 32) {
-            auto getterFn = reinterpret_cast<VariableGetterFunction<float>>(
-                derivativeVariablesGetters[derivativeVariablePos]);
+          auto value = static_cast<realtype>(
+              getterFn(derivativeVariables[derivativeVariablePos], *indices));
 
-            auto value = static_cast<realtype>(getterFn(derivativeVariables[derivativeVariablePos], *indices));
-            derivativeVariablesPtr[index] = value;
-          } else {
-            auto getterFn = reinterpret_cast<VariableGetterFunction<double>>(
-                derivativeVariablesGetters[derivativeVariablePos]);
-
-            auto value = static_cast<realtype>(getterFn(derivativeVariables[derivativeVariablePos], *indices));
-            derivativeVariablesPtr[index] = value;
-          }
+          derivativeVariablesPtr[index] = value;
         }
       }
     }
@@ -1317,38 +1270,17 @@ namespace marco::runtime::ida
         size_t scalarVariableOffset = getFlatIndex(dimensions, *indices);
         size_t index = arrayVariableOffset + scalarVariableOffset;
 
-        if (marcoBitWidth == 32) {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(
-              algebraicAndStateVariablesSetters[i]);
-
-          auto value = static_cast<float>(algebraicAndStateVariablesPtr[index]);
-          setterFn(algebraicAndStateVariables[i], value, *indices);
-        } else {
-          auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(
-              algebraicAndStateVariablesSetters[i]);
-
-          auto value = static_cast<double>(algebraicAndStateVariablesPtr[index]);
-          setterFn(algebraicAndStateVariables[i], value, *indices);
-        }
+        auto setterFn = algebraicAndStateVariablesSetters[i];
+        auto value = static_cast<double>(algebraicAndStateVariablesPtr[index]);
+        setterFn(algebraicAndStateVariables[i], value, *indices);
 
         auto derivativeVariablePositionIt = stateVariablesMapping.find(i);
 
         if (derivativeVariablePositionIt != stateVariablesMapping.end()) {
           size_t derivativeVariablePos = derivativeVariablePositionIt->second;
-
-          if (marcoBitWidth == 32) {
-            auto setterFn = reinterpret_cast<VariableSetterFunction<float>>(
-                derivativeVariablesSetters[derivativeVariablePos]);
-
-            auto value = static_cast<float>(derivativeVariablesPtr[index]);
-            setterFn(derivativeVariables[derivativeVariablePos], value, *indices);
-          } else {
-            auto setterFn = reinterpret_cast<VariableSetterFunction<double>>(
-                derivativeVariablesSetters[derivativeVariablePos]);
-
-            auto value = static_cast<double>(derivativeVariablesPtr[index]);
-            setterFn(derivativeVariables[derivativeVariablePos], value, *indices);
-          }
+          auto setterFn = derivativeVariablesSetters[derivativeVariablePos];
+          auto value = static_cast<double>(derivativeVariablesPtr[index]);
+          setterFn(derivativeVariables[derivativeVariablePos], value, *indices);
         }
       }
     }
@@ -1842,187 +1774,241 @@ namespace marco::runtime::ida
 }
 
 //===---------------------------------------------------------------------===//
-// Allocation, initialization, usage and deletion
+// Exported functions
 //===---------------------------------------------------------------------===//
 
-/// Instantiate and initialize the struct of data needed by IDA, given the total
-/// number of scalar equations.
+//===---------------------------------------------------------------------===//
+// idaCreate
 
-static void* idaCreate_pvoid(int64_t scalarEquationsNumber, int64_t bitWidth)
+static void* idaCreate_pvoid(int64_t scalarEquationsNumber)
 {
-  auto* instance = new IDAInstance(bitWidth, scalarEquationsNumber);
+  auto* instance = new IDAInstance(scalarEquationsNumber);
   return static_cast<void*>(instance);
 }
 
-RUNTIME_FUNC_DEF(idaCreate, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DEF(idaCreate, PTR(void), int64_t)
 
-static void idaInit_void(void* userData)
+//===---------------------------------------------------------------------===//
+// idaInit
+
+static void idaInit_void(void* instance)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  [[maybe_unused]] bool result = instance->initialize();
+  [[maybe_unused]] bool result =
+      static_cast<IDAInstance*>(instance)->initialize();
+
   assert(result && "Can't initialize the IDA instance");
 }
 
 RUNTIME_FUNC_DEF(idaInit, void, PTR(void))
 
-static void idaCalcIC_void(void* userData)
+//===---------------------------------------------------------------------===//
+// idaCalcIC
+
+static void idaCalcIC_void(void* instance)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  [[maybe_unused]] bool result = instance->calcIC();
+  [[maybe_unused]] bool result = static_cast<IDAInstance*>(instance)->calcIC();
   assert(result && "Can't compute the initial values of the variables");
 }
 
 RUNTIME_FUNC_DEF(idaCalcIC, void, PTR(void))
 
-static void idaStep_void(void* userData)
+//===---------------------------------------------------------------------===//
+// idaStep
+
+static void idaStep_void(void* instance)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  [[maybe_unused]] bool result = instance->step();
+  [[maybe_unused]] bool result = static_cast<IDAInstance*>(instance)->step();
   assert(result && "IDA step failed");
 }
 
 RUNTIME_FUNC_DEF(idaStep, void, PTR(void))
 
-static void idaFree_void(void* userData)
+//===---------------------------------------------------------------------===//
+// idaFree
+
+static void idaFree_void(void* instance)
 {
-  auto* data = static_cast<IDAInstance*>(userData);
-  delete data;
+  delete static_cast<IDAInstance*>(instance);
 }
 
 RUNTIME_FUNC_DEF(idaFree, void, PTR(void))
 
-static void idaSetStartTime_void(void* userData, double startTime)
+//===---------------------------------------------------------------------===//
+// idaSetStartTime
+
+static void idaSetStartTime_void(void* instance, double startTime)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setStartTime(startTime);
+  static_cast<IDAInstance*>(instance)->setStartTime(startTime);
 }
 
 RUNTIME_FUNC_DEF(idaSetStartTime, void, PTR(void), double)
 
-static void idaSetEndTime_void(void* userData, double endTime)
+//===---------------------------------------------------------------------===//
+// idaSetEndTime
+
+static void idaSetEndTime_void(void* instance, double endTime)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setEndTime(endTime);
+  static_cast<IDAInstance*>(instance)->setEndTime(endTime);
 }
 
 RUNTIME_FUNC_DEF(idaSetEndTime, void, PTR(void), double)
 
-static void idaSetTimeStep_void(void* userData, double timeStep)
+//===---------------------------------------------------------------------===//
+// idaSetTimeStep
+
+static void idaSetTimeStep_void(void* instance, double timeStep)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setTimeStep(timeStep);
+  static_cast<IDAInstance*>(instance)->setTimeStep(timeStep);
 }
 
 RUNTIME_FUNC_DEF(idaSetTimeStep, void, PTR(void), double)
 
 //===---------------------------------------------------------------------===//
-// Equation setters
-//===---------------------------------------------------------------------===//
+// idaGetCurrentTime
 
-static int64_t idaAddEquation_i64(
-    void* userData,
-    int64_t* ranges,
-    int64_t rank,
-    int64_t writtenVariable,
-    int64_t* writeAccess)
+static double idaGetCurrentTime_f64(void* instance)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->addEquation(ranges, rank, writtenVariable, writeAccess);
+  return static_cast<double>(
+      static_cast<IDAInstance*>(instance)->getCurrentTime());
 }
 
-RUNTIME_FUNC_DEF(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t, int64_t, PTR(int64_t))
-
-static void idaSetResidual_void(void* userData, int64_t equationIndex, void* residualFunction)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setResidualFunction(equationIndex, residualFunction);
-}
-
-RUNTIME_FUNC_DEF(idaSetResidual, void, PTR(void), int64_t, PTR(void))
-
-static void idaAddJacobian_void(void* userData, int64_t equationIndex, int64_t variableIndex, void* jacobianFunction)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->addJacobianFunction(equationIndex, variableIndex, jacobianFunction);
-}
-
-RUNTIME_FUNC_DEF(idaAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
+RUNTIME_FUNC_DEF(idaGetCurrentTime, double, PTR(void))
 
 //===---------------------------------------------------------------------===//
-// Variable setters
-//===---------------------------------------------------------------------===//
+// idaAddParametricVariable
 
-static int64_t idaAddAlgebraicVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
+static void idaAddParametricVariable_void(void* instance, void* variable)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->addAlgebraicVariable(variable, dimensions, rank, getter, setter);
-}
-
-RUNTIME_FUNC_DEF(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-
-static int64_t idaAddStateVariable_i64(void* userData, void* variable, int64_t* dimensions, int64_t rank, void* getter, void* setter)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return instance->addStateVariable(variable, dimensions, rank, getter, setter);
-}
-
-RUNTIME_FUNC_DEF(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
-
-static void idaSetDerivative_void(void* userData, int64_t stateVariable, void* derivative, void* getter, void* setter)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->setDerivative(stateVariable, derivative, getter, setter);
-}
-
-RUNTIME_FUNC_DEF(idaSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
-
-static void idaAddParametricVariable_void(void* userData, void* variable)
-{
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->addParametricVariable(variable);
+  static_cast<IDAInstance*>(instance)->addParametricVariable(variable);
 }
 
 RUNTIME_FUNC_DEF(idaAddParametricVariable, void, PTR(void), PTR(void))
 
-/// Add a variable access to the var-th variable, where ind is the induction
-/// variable and off is the access offset.
-static void idaAddVariableAccess_void(
-    void* userData, int64_t equationIndex, int64_t variableIndex, int64_t* access, int64_t rank)
+//===---------------------------------------------------------------------===//
+// idaAddAlgebraicVariable
+
+static int64_t idaAddAlgebraicVariable_i64(
+    void* instance,
+    void* variable,
+    int64_t* dimensions,
+    int64_t rank,
+    void* getter,
+    void* setter)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->addVariableAccess(equationIndex, variableIndex, access, rank);
+  return static_cast<IDAInstance*>(instance)->addAlgebraicVariable(
+      variable, dimensions, rank,
+      reinterpret_cast<VariableGetter>(getter),
+      reinterpret_cast<VariableSetter>(setter));
+}
+
+RUNTIME_FUNC_DEF(idaAddAlgebraicVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
+
+//===---------------------------------------------------------------------===//
+// idaAddStateVariable
+
+static int64_t idaAddStateVariable_i64(
+    void* instance,
+    void* variable,
+    int64_t* dimensions,
+    int64_t rank,
+    void* getter,
+    void* setter)
+{
+  return static_cast<IDAInstance*>(instance)->addStateVariable(
+      variable, dimensions, rank,
+      reinterpret_cast<VariableGetter>(getter),
+      reinterpret_cast<VariableSetter>(setter));
+}
+
+RUNTIME_FUNC_DEF(idaAddStateVariable, int64_t, PTR(void), PTR(void), PTR(int64_t), int64_t, PTR(void), PTR(void))
+
+//===---------------------------------------------------------------------===//
+// idaSetDerivative
+
+static void idaSetDerivative_void(
+    void* instance,
+    int64_t stateVariable,
+    void* derivative,
+    void* getter,
+    void* setter)
+{
+  static_cast<IDAInstance*>(instance)->setDerivative(
+      stateVariable, derivative,
+      reinterpret_cast<VariableGetter>(getter),
+      reinterpret_cast<VariableSetter>(setter));
+}
+
+RUNTIME_FUNC_DEF(idaSetDerivative, void, PTR(void), int64_t, PTR(void), PTR(void), PTR(void))
+
+//===---------------------------------------------------------------------===//
+// idaAddVariableAccess
+
+static void idaAddVariableAccess_void(
+    void* instance,
+    int64_t equationIndex,
+    int64_t variableIndex,
+    int64_t* access,
+    int64_t rank)
+{
+  static_cast<IDAInstance*>(instance)->addVariableAccess(
+      equationIndex, variableIndex, access, rank);
 }
 
 RUNTIME_FUNC_DEF(idaAddVariableAccess, void, PTR(void), int64_t, int64_t, PTR(int64_t), int64_t)
 
 //===---------------------------------------------------------------------===//
-// Getters
-//===---------------------------------------------------------------------===//
+// idaAddEquation
 
-static float idaGetCurrentTime_f32(void* userData)
+static int64_t idaAddEquation_i64(
+    void* instance,
+    int64_t* ranges,
+    int64_t rank,
+    int64_t writtenVariable,
+    int64_t* writeAccess)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return static_cast<float>(instance->getCurrentTime());
+  return static_cast<IDAInstance*>(instance)->addEquation(
+      ranges, rank, writtenVariable, writeAccess);
 }
 
-static double idaGetCurrentTime_f64(void* userData)
+RUNTIME_FUNC_DEF(idaAddEquation, int64_t, PTR(void), PTR(int64_t), int64_t, int64_t, PTR(int64_t))
+
+//===---------------------------------------------------------------------===//
+// idaSetResidual
+
+static void idaSetResidual_void(
+    void* instance,
+    int64_t equationIndex,
+    void* residualFunction)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  return static_cast<double>(instance->getCurrentTime());
+  static_cast<IDAInstance*>(instance)->setResidualFunction(
+      equationIndex,
+      reinterpret_cast<ResidualFunction>(residualFunction));
 }
 
-RUNTIME_FUNC_DEF(idaGetCurrentTime, float, PTR(void))
-
-RUNTIME_FUNC_DEF(idaGetCurrentTime, double, PTR(void))
+RUNTIME_FUNC_DEF(idaSetResidual, void, PTR(void), int64_t, PTR(void))
 
 //===---------------------------------------------------------------------===//
-// Statistics
-//===---------------------------------------------------------------------===//
+// idaAddJacobian
 
-static void printStatistics_void(void* userData)
+static void idaAddJacobian_void(
+    void* instance,
+    int64_t equationIndex,
+    int64_t variableIndex,
+    void* jacobianFunction)
 {
-  auto* instance = static_cast<IDAInstance*>(userData);
-  instance->printStatistics();
+  static_cast<IDAInstance*>(instance)->addJacobianFunction(
+      equationIndex, variableIndex,
+      reinterpret_cast<JacobianFunction>(jacobianFunction));
+}
+
+RUNTIME_FUNC_DEF(idaAddJacobian, void, PTR(void), int64_t, int64_t, PTR(void))
+
+//===---------------------------------------------------------------------===//
+// idaPrintStatistics
+
+static void printStatistics_void(void* instance)
+{
+  static_cast<IDAInstance*>(instance)->printStatistics();
 }
 
 RUNTIME_FUNC_DEF(printStatistics, void, PTR(void))

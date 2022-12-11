@@ -48,7 +48,7 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
 {
   llvm::SmallVector<mlir::Type, 3> argsTypes;
 
-  for (auto type : args.getTypes()) {
+  for (mlir::Type type : args.getTypes()) {
     argsTypes.push_back(type);
   }
 
@@ -298,8 +298,8 @@ namespace
 
       RuntimeFunctionsMangling mangling;
 
-      llvm::SmallVector<mlir::Value, 2> newOperands;
-      llvm::SmallVector<std::string, 2> mangledArgsTypes;
+      llvm::SmallVector<mlir::Value, 1> newOperands;
+      llvm::SmallVector<std::string, 1> mangledArgsTypes;
 
       // Scalar equations amount.
       mlir::Value scalarEquationsAmount =
@@ -310,15 +310,6 @@ namespace
 
       mangledArgsTypes.push_back(mangling.getIntegerType(
           scalarEquationsAmount.getType().getIntOrFloatBitWidth()));
-
-      // Data bit-width.
-      mlir::Value dataBitWidth = rewriter.create<mlir::arith::ConstantOp>(
-          loc, rewriter.getI64IntegerAttr(bitWidth));
-
-      newOperands.push_back(dataBitWidth);
-
-      mangledArgsTypes.push_back(mangling.getIntegerType(
-          dataBitWidth.getType().getIntOrFloatBitWidth()));
 
       // Create the call to the runtime library.
       auto resultType = getVoidPtrType();
@@ -406,6 +397,7 @@ namespace
       // End time.
       mlir::Value endTime = rewriter.create<mlir::arith::ConstantOp>(
           loc, rewriter.getF64FloatAttr(op.getTime().convertToDouble()));
+
       newOperands.push_back(endTime);
 
       mangledArgsTypes.push_back(mangling.getFloatingPointType(
@@ -449,11 +441,10 @@ namespace
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
 
       // Create the call to the runtime library.
-      auto resultType =
-          getTypeConverter()->convertType(op.getResult().getType());
+      auto resultType = rewriter.getF64Type();
 
-      auto mangledResultType =
-          mangling.getFloatingPointType(resultType.getIntOrFloatBitWidth());
+      auto mangledResultType = mangling.getFloatingPointType(
+          resultType.getIntOrFloatBitWidth());
 
       auto functionName = mangling.getMangledFunction(
           "idaGetCurrentTime", mangledResultType, mangledArgsTypes);
@@ -461,8 +452,25 @@ namespace
       auto callee = getOrDeclareLLVMFunction(
           rewriter, module, loc, functionName, resultType, newOperands);
 
-      rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, callee, newOperands);
+      auto callOp = rewriter.create<mlir::LLVM::CallOp>(
+          loc, callee, newOperands);
 
+      mlir::Value result = callOp.getResult();
+
+      auto requiredResultType =
+          getTypeConverter()->convertType(op.getResult().getType());
+
+      if (requiredResultType.getIntOrFloatBitWidth() <
+          resultType.getIntOrFloatBitWidth()) {
+        result = rewriter.create<mlir::LLVM::FPTruncOp>(
+            loc, requiredResultType, result);
+      } else if (requiredResultType.getIntOrFloatBitWidth() >
+                 resultType.getIntOrFloatBitWidth()) {
+        result = rewriter.create<mlir::LLVM::FPExtOp>(
+            loc, requiredResultType, result);
+      }
+
+      rewriter.replaceOp(op, result);
       return mlir::success();
     }
   };
@@ -511,7 +519,7 @@ namespace
       mangledArgsTypes.push_back(mangling.getIntegerType(
           rank.getType().getIntOrFloatBitWidth()));
 
-      // Written variable
+      // Written variable.
       newOperands.push_back(adaptor.getWrittenVariable());
 
       mangledArgsTypes.push_back(mangling.getIntegerType(
