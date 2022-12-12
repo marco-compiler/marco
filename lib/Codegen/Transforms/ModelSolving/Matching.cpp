@@ -31,7 +31,7 @@ static Variables getFilteredVariables(
         auto filteredVariable = std::make_unique<FilteredVariable>(
             variable->clone(), std::move(indices));
 
-        std::unique_lock lock(mutex);
+        std::lock_guard<std::mutex> lock(mutex);
         filteredVariables.add(std::move(filteredVariable));
       }
     }

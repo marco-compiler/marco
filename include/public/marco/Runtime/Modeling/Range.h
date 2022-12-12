@@ -35,7 +35,7 @@ namespace marco::runtime
 
       RangeIterator operator++(int);
 
-      value_type operator*();
+      value_type operator*() const;
 
     private:
       RangeIterator(int64_t begin, int64_t end);

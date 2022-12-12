@@ -1144,7 +1144,7 @@ namespace marco::modeling::internal
             const auto& accessFunction = write.getAccessFunction();
 
             for (const auto& equationIndices : VectorEquationTraits::getIterationRanges(&equationProperty)) {
-              std::unique_lock graphLockGuard(graphMutex);
+              std::unique_lock<std::mutex> graphLockGuard(graphMutex);
               ScalarEquationDescriptor descriptor = graph.addVertex(ScalarEquation(equationProperty, equationIndices));
               vertices.push_back(descriptor);
               graphLockGuard.unlock();

@@ -1,4 +1,5 @@
 #include "marco/Runtime/Modeling/Range.h"
+#include <algorithm>
 #include <cassert>
 
 namespace marco::runtime
@@ -19,12 +20,12 @@ namespace marco::runtime
 
   RangeIterator RangeIterator::begin(const Range& range)
   {
-    return RangeIterator(range.begin, range.end);
+    return {range.begin, range.end};
   }
 
   RangeIterator RangeIterator::end(const Range& range)
   {
-    return RangeIterator(range.end, range.end);
+    return {range.end, range.end};
   }
 
   bool RangeIterator::operator==(const RangeIterator& it) const
@@ -50,7 +51,7 @@ namespace marco::runtime
     return temp;
   }
 
-  int64_t RangeIterator::operator*()
+  int64_t RangeIterator::operator*() const
   {
     return current_;
   }

@@ -622,7 +622,7 @@ static void collectDerivedVariablesIndices(
     auto indices = access.getAccessFunction().map(equation->getIterationRanges());
     auto argNumber = access.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-    std::unique_lock lock(mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     derivedIndices[argNumber] += indices;
   });
 }
@@ -696,7 +696,7 @@ static void collectDerivedVariablesIndices(
 
     auto varNumber = value.cast<mlir::BlockArgument>().getArgNumber();
 
-    std::unique_lock lock(mutex);
+    std::lock_guard<std::mutex> lock(mutex);
     derivedIndices[varNumber] += indices;
   });
 }

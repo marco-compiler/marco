@@ -1024,7 +1024,7 @@ namespace marco::modeling
         Equation eq(std::move(property));
         [[maybe_unused]] auto id = eq.getId();
 
-        std::unique_lock lockGuard(mutex);
+        std::unique_lock<std::mutex> lockGuard(mutex);
         assert(!hasEquationWithId(id) && "Already existing equation");
 
         // Insert the equation into the graph and get a reference to the new vertex

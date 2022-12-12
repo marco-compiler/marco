@@ -402,7 +402,7 @@ namespace marco::modeling
                   dependencies.addCyclicDependency(cycle);
                 }
 
-                std::lock_guard lockGuard(resultMutex);
+                std::lock_guard<std::mutex> lockGuard(resultMutex);
                 result.push_back(std::move(dependencies));
               }
             }

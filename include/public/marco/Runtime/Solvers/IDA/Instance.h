@@ -342,7 +342,7 @@ namespace marco::runtime::ida
 
       // The offset of each array variable inside the flattened variables
       // vector.
-      std::vector<sunindextype> variableOffsets;
+      std::vector<int64_t> variableOffsets;
 
       // The dimensions list of each array variable.
       std::vector<VariableDimensions> variablesDimensions;

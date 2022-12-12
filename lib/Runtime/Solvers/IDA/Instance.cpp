@@ -295,7 +295,7 @@ static size_t computeOffset(
 static int64_t getFlatIndex(
     const VariableDimensions& dimensions, const int64_t* indices)
 {
-  size_t offset = indices[0];
+  int64_t offset = indices[0];
 
   for (size_t i = 1, e = dimensions.rank(); i < e; ++i) {
     offset = offset * dimensions[i] + indices[i];
@@ -467,7 +467,7 @@ namespace marco::runtime::ida
     variablesDimensions.push_back(variableDimensions);
 
     // Store the position of the start of the flattened array.
-    size_t offset = variableOffsets.back();
+    int64_t offset = variableOffsets.back();
     variableOffsets.push_back(offset + flatSize);
 
     // Initialize the derivatives, the id values and the absolute tolerances.
@@ -494,7 +494,7 @@ namespace marco::runtime::ida
     // Return the position of the IDA variable.
     size_t idaVariable = variablesDimensions.size() - 1;
     stateVariablesMapping[idaVariable] = stateVariables.size() - 1;
-    return idaVariable;
+    return static_cast<int64_t>(idaVariable);
   }
 
   void IDAInstance::setDerivative(
@@ -522,7 +522,7 @@ namespace marco::runtime::ida
 
   int64_t IDAInstance::addEquation(
       int64_t* ranges,
-      int64_t rank,
+      int64_t equationRank,
       int64_t writtenVariable,
       int64_t* writeAccess)
   {
@@ -531,7 +531,7 @@ namespace marco::runtime::ida
     // Add the start and end dimensions of the current equation.
     MultidimensionalRange eqRanges = {};
 
-    for (size_t i = 0, e = rank * 2; i < e; i += 2) {
+    for (size_t i = 0, e = equationRank * 2; i < e; i += 2) {
       int64_t begin = ranges[i];
       int64_t end = ranges[i + 1];
       eqRanges.push_back({ begin, end });
@@ -545,14 +545,16 @@ namespace marco::runtime::ida
     const VariableDimensions& variableDimensions =
         variablesDimensions[writtenVariable];
 
-    for (int64_t i = 0, e = variableDimensions.rank() * 2; i < e; i += 2) {
+    auto variableRank = static_cast<int64_t>(variableDimensions.rank());
+
+    for (int64_t i = 0, e = variableRank * 2; i < e; i += 2) {
       access.push_back({ writeAccess[i], writeAccess[i + 1] });
     }
 
     writeAccesses.emplace_back(writtenVariable, access);
 
     // Return the index of the equation.
-    return equationRanges.size() - 1;
+    return static_cast<int64_t>(equationRanges.size() - 1);
   }
 
   void IDAInstance::addVariableAccess(
@@ -578,7 +580,7 @@ namespace marco::runtime::ida
     size_t numElements = rank * 2;
 
     for (size_t i = 0; i < numElements; i += 2) {
-      varAccessList.back().second.push_back({access[i], access[i + 1]});
+      varAccessList.back().second.emplace_back(access[i], access[i + 1]);
     }
   }
 

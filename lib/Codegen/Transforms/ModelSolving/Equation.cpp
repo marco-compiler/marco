@@ -1331,7 +1331,7 @@ namespace marco::codegen
         auto arg = access.getVariable()->getValue().cast<mlir::BlockArgument>();
         unsigned int argNumber = arg.getArgNumber();
 
-        std::lock_guardv lockGuard(accesesMutex);
+        std::lock_guard<std::mutex> lockGuard(accesesMutex);
         usedVariablesSet.insert(argNumber);
       }
     };
