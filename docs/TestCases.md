@@ -89,6 +89,6 @@
 | Type1 N=16, M=4 | ~800k | ~1k | TBD | TBD | TBD | TBD |
 | Type1 N=45, M=4 | ~6.4M | ~8k | TBD | TBD | TBD | TBD |
 
-**Status**: Currently trying to get proper flat Modelica output with non-scalarized bindings. 
+**Status**: Currently trying to get proper flat Modelica output with non-scalarized bindings. Current critical issue is #9935.
 Also, the model contains conditional expressions for saturation blocks, so it is necessary to create a variant using smooth saturation functions
 to handle them in MARCO until we have proper event handling.
