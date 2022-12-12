@@ -375,7 +375,7 @@ namespace marco::codegen
           break;
         }
 
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         derivativesMap.setDerivative(varIndex, derIndex);
         derivativesMap.setDerivedIndices(varIndex, std::move(derivedIndices));
       }
@@ -551,7 +551,7 @@ namespace marco::codegen
       }
 
       if (success) {
-        std::lock_guard lockGuard(equationsMutex);
+        std::lock_guard<std::mutex> lockGuard(equationsMutex);
 
         for (auto& matchedEquation : matchedEquations) {
           equations.add(std::move(matchedEquation));

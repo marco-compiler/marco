@@ -889,7 +889,7 @@ namespace marco::modeling
 
       MatchingGraph(MatchingGraph&& other)
       {
-        std::lock_guard lockGuard(other.mutex);
+        std::lock_guard<std::mutex> lockGuard(other.mutex);
 
         graph = std::move(other.graph);
         variablesMap = std::move(other.variablesMap);
@@ -905,7 +905,7 @@ namespace marco::modeling
       void dump(std::ostream& stream) const override
       {
         using namespace marco::utils;
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
 
         TreeOStream os(stream);
         os << "Matching graph\n";
@@ -926,49 +926,49 @@ namespace marco::modeling
 
       bool hasVariable(typename Variable::Id id) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return hasVariableWithId(id);
       }
 
       VariableProperty& getVariable(typename Variable::Id id)
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getVariablePropertyFromId(id);
       }
 
       const VariableProperty& getVariable(typename Variable::Id id) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getVariablePropertyFromId(id);
       }
 
       Variable& getVariable(VertexDescriptor descriptor)
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getVariableFromDescriptor(descriptor);
       }
 
       const Variable& getVariable(VertexDescriptor descriptor) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getVariableFromDescriptor(descriptor);
       }
 
       VariableIterator variablesBegin() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getVariablesBeginIt();
       }
 
       VariableIterator variablesEnd() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getVariablesEndIt();
       }
 
       void addVariable(VariableProperty property)
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
 
         Variable variable(std::move(property));
         auto id = variable.getId();
@@ -979,43 +979,43 @@ namespace marco::modeling
 
       bool hasEquation(typename Equation::Id id) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return hasEquationWithId(id);
       }
 
       EquationProperty& getEquation(typename Equation::Id id)
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getEquationPropertyFromId(id);
       }
 
       const EquationProperty& getEquation(typename Equation::Id id) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getEquationPropertyFromId(id);
       }
 
       Equation& getEquation(VertexDescriptor descriptor)
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getEquationFromDescriptor(descriptor);
       }
 
       const Equation& getEquation(VertexDescriptor descriptor) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getEquationFromDescriptor(descriptor);
       }
 
       EquationIterator equationsBegin() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getEquationsBeginIt();
       }
 
       EquationIterator equationsEnd() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         return getEquationsEndIt();
       }
 
@@ -1061,7 +1061,7 @@ namespace marco::modeling
       /// Get the total amount of scalar variables inside the graph.
       size_t getNumberOfScalarVariables() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         size_t result = 0;
 
         auto variables = llvm::make_range(getVariablesBeginIt(), getVariablesEndIt());
@@ -1078,7 +1078,7 @@ namespace marco::modeling
       /// the loops defining them.
       size_t getNumberOfScalarEquations() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         size_t result = 0;
 
         auto equations = llvm::make_range(getEquationsBeginIt(), getEquationsEndIt());
@@ -1093,7 +1093,7 @@ namespace marco::modeling
       // Warning: highly inefficient, use for testing purposes only.
       bool hasEdge(typename Equation::Id equationId, typename Variable::Id variableId) const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
 
         if (findEdge<Equation, Variable>(equationId, variableId).first) {
           return true;
@@ -1109,7 +1109,7 @@ namespace marco::modeling
       /// @return true if the simplification algorithm didn't find any inconsistency
       bool simplify()
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         llvm::ThreadPool threadPool;
 
         // Vertices that are candidate for the first simplification phase.
@@ -1264,7 +1264,7 @@ namespace marco::modeling
       /// @return true if the matching algorithm managed to fully match all the nodes
       bool match()
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         llvm::ThreadPool threadPool;
 
         if (allNodesMatched(threadPool)) {
@@ -1286,7 +1286,7 @@ namespace marco::modeling
       /// Get the solution of the matching problem.
       std::vector<MatchingSolution> getMatch() const
       {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
 
         assert(allNodesMatched() && "Not all the nodes have been fully matched");
         std::vector<MatchingSolution> result;
@@ -1608,7 +1608,7 @@ namespace marco::modeling
             // Move the collected vertices into the results list.
             // The operation is performed in constant time, being the elements
             // contained in a list.
-            std::lock_guard resultLockGuard(resultMutex);
+            std::lock_guard<std::mutex> resultLockGuard(resultMutex);
             nodes.splice(nodes.end(), threadResults);
           }
         };

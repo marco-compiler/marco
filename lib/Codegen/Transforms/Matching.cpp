@@ -111,7 +111,7 @@ static void splitIndices(llvm::ThreadPool& threadPool, Model<MatchedEquation>& m
         auto matchedClone = std::make_unique<MatchedEquation>(
             std::move(clone), IndexSet(range), write.getPath());
 
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         newEquations.add(std::move(matchedClone));
       }
 
@@ -123,7 +123,7 @@ static void splitIndices(llvm::ThreadPool& threadPool, Model<MatchedEquation>& m
         auto matchedClone = std::make_unique<MatchedEquation>(
             std::move(clone), IndexSet(range), write.getPath());
 
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         newEquations.add(std::move(matchedClone));
       }
 

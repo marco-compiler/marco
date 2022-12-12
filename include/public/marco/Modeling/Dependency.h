@@ -770,7 +770,7 @@ namespace marco::modeling::internal
                 const IndexSet& writtenIndices = writeInfo.getWrittenVariableIndexes();
 
                 if (writtenIndices.overlaps(readIndices)) {
-                  std::lock_guard lockGuard(graphMutex);
+                  std::lock_guard<std::mutex> lockGuard(graphMutex);
                   graph.addEdge(equationDescriptor, writeInfo.getEquation());
                 }
               }
@@ -858,7 +858,7 @@ namespace marco::modeling::internal
           while (i < numOfEquations) {
             const EquationProperty& equationProperty = equations[i];
 
-            std::unique_lock graphLockGuard(graphMutex);
+            std::unique_lock<std::mutex> graphLockGuard(graphMutex);
             EquationDescriptor descriptor = graph.addVertex(Equation(equationProperty));
             vertices.push_back(descriptor);
             const Equation& equation = graph[descriptor];
@@ -870,7 +870,7 @@ namespace marco::modeling::internal
             // Determine the indices of the variable that are written by the equation
             IndexSet writtenIndices(accessFunction.map(equation.getIterationRanges()));
 
-            std::unique_lock writesMapLockGuard(writesMapMutex);
+            std::unique_lock<std::mutex> writesMapLockGuard(writesMapMutex);
             writesMap.emplace(write.getVariable(), WriteInfo(graph, write.getVariable(), descriptor, std::move(writtenIndices)));
             writesMapLockGuard.unlock();
 
@@ -1083,7 +1083,7 @@ namespace marco::modeling::internal
                 const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
 
                 if (writtenIndexes == readIndexes) {
-                  std::lock_guard lockGuard(graphMutex);
+                  std::lock_guard<std::mutex> lockGuard(graphMutex);
                   graph.addEdge(descriptor, writeInfo.getEquation());
                 }
               }
@@ -1150,7 +1150,7 @@ namespace marco::modeling::internal
               graphLockGuard.unlock();
 
               IndexSet writtenIndices(accessFunction.map(equationIndices));
-              std::lock_guard writesMapLockGuard(writesMapMutex);
+              std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
 
               writesMap.emplace(
                   write.getVariable(),

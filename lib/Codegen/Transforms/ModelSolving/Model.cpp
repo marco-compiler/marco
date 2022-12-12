@@ -74,7 +74,7 @@ namespace marco::codegen
     // 'from' index is included, 'to' index is excluded.
     auto mapFn = [&](size_t from, size_t to) {
       for (size_t i = from; i < to; ++i) {
-        std::lock_guard lockGuard(mutex);
+        std::lock_guard<std::mutex> lockGuard(mutex);
         variables.add(Variable::build(args[i]));
       }
     };
