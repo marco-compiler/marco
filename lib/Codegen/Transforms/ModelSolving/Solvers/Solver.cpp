@@ -248,12 +248,19 @@ namespace marco::codegen
     if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name))) {
       mlir::OpBuilder::InsertionGuard insertGuard(builder);
       builder.setInsertionPointToStart(module.getBody());
-      auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
-      global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
+
+      auto type = mlir::LLVM::LLVMArrayType::get(
+          mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
+
+      global = builder.create<mlir::LLVM::GlobalOp>(
+          loc, type, true, mlir::LLVM::Linkage::Internal, name,
+          builder.getStringAttr(llvm::StringRef(
+              value.data(), value.size() + 1)));
     }
 
-    // Get the pointer to the first character in the global string.
-    mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+    // Get the pointer to the first character of the global string.
+    mlir::Value globalPtr =
+        builder.create<mlir::LLVM::AddressOfOp>(loc, global);
 
     mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
         loc,
@@ -371,19 +378,14 @@ namespace marco::codegen
         caseBlocks, caseOperandsRefs);
 
     // Populate the case blocks.
-    llvm::SmallString<10> terminatedName;
-
     for (const auto& name : llvm::enumerate(names)) {
       size_t i = name.index();
       builder.setInsertionPointToStart(caseBlocks[i]);
 
       std::string symbolName = "var" + std::to_string(name.index());
-      terminatedName = name.value();
-      terminatedName.append("\0");
 
       mlir::Value result = getOrCreateGlobalString(
-          builder, loc, module, symbolName,
-          llvm::StringRef(terminatedName.c_str(), terminatedName.size() + 1));
+          builder, loc, module, symbolName, name.value());
 
       builder.create<mlir::cf::BranchOp>(loc, returnBlock, result);
     }
