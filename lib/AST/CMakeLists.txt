@@ -63,20 +63,9 @@ set(BUILT_IN_FUNCTIONS
 	BuiltInFunction/Transpose.cpp
 	BuiltInFunction/Zeros.cpp)
 
-set(PASSES
-	Passes/ConstantFoldingPass.cpp
-	Passes/InliningPass.cpp
-	Passes/PassManager.cpp
-	Passes/SemanticAnalysisPass.cpp
-	Passes/StructuralConstantPropagationPass.cpp
-	Passes/RaggedFlatteningPass.cpp
-	Passes/TypeCheckingPass.cpp
-	Passes/TypeInferencePass.cpp)
-
 set(SOURCES
 	${AST_NODES}
 	${BUILT_IN_FUNCTIONS}
-	${PASSES}
 	BuiltInFunction.cpp
 	Pass.cpp
 	Symbol.cpp)
@@ -93,3 +82,4 @@ marco_add_library(ast
 	Support)
 
 add_subdirectory(Analysis)
+add_subdirectory(Passes)

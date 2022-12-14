@@ -29,6 +29,7 @@ marco_add_library(frontend
 
     LINK_LIBS
     PUBLIC marco::ast
+    PUBLIC marco::ASTPasses
     PUBLIC marco::parser
     PRIVATE marco::codegen
     PRIVATE marco::variableFilter

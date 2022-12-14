@@ -80,7 +80,6 @@ namespace marco::ast
   };
 }
 
-
 namespace llvm
 {
   template<>
