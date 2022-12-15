@@ -202,6 +202,8 @@ def MemberType : Modelica_Type<"Member",
 
         MemberType withShape(llvm::ArrayRef<int64_t> shape) const;
         MemberType withType(mlir::Type type) const;
+        MemberType asNonConstant() const;
+        MemberType asConstant() const;
         MemberType withIOProperty(IOProperty ioProperty) const;
     }];
 

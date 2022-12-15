@@ -453,6 +453,18 @@ namespace mlir::modelica
     return MemberType::wrap(type, isConstant(), getVisibilityProperty());
   }
 
+  MemberType MemberType::asNonConstant() const
+  {
+    return MemberType::get(
+        getShape(), getElementType(), false, getVisibilityProperty());
+  }
+
+  MemberType MemberType::asConstant() const
+  {
+    return MemberType::get(
+        getShape(), getElementType(), true, getVisibilityProperty());
+  }
+
   MemberType MemberType::withIOProperty(IOProperty ioProperty) const
   {
     return MemberType::get(getShape(), getElementType(), isConstant(), ioProperty);
