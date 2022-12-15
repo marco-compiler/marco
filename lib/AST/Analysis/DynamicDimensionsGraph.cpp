@@ -1,4 +1,5 @@
 #include "marco/AST/Analysis/DynamicDimensionsGraph.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 #include <stack>
@@ -234,6 +235,8 @@ namespace marco::ast
 
   llvm::SmallVector<const Member*> DynamicDimensionsGraph::postOrder() const
   {
+    assert(!hasCycles());
+
     llvm::SmallVector<const Member*> result;
     std::set<Node> set;
 
@@ -254,9 +257,16 @@ namespace marco::ast
     std::stack<const Expression*> expressions;
     expressions.push(expression);
 
+    // Keep track of the visited expressions in order to avoid an infinite
+    // traversal in case of cycles.
+    llvm::DenseSet<const Expression*> visited;
+
     while (!expressions.empty()) {
       const Expression* current = expressions.top();
       expressions.pop();
+
+      // Set the current expression as visited.
+      visited.insert(current);
 
       if (auto* reference = current->dyn_get<ReferenceAccess>()) {
         const Member* member =
@@ -268,7 +278,11 @@ namespace marco::ast
         ExpressionVisitor visitor;
 
         for (const Expression* child : current->visit(visitor)) {
-          expressions.push(child);
+          if (!visited.contains(child)) {
+            // Push the child expression to the top of the stack if it has
+            // never been visited yet.
+            expressions.push(child);
+          }
         }
       }
     }

@@ -137,3 +137,51 @@ TEST(DynamicDimensionsGraph, interGroupDependencies)
   EXPECT_EQ(postOrderVisit[0]->getName(), "x");
   EXPECT_EQ(postOrderVisit[1]->getName(), "y");
 }
+
+TEST(DynamicDimensionsGraph, cyclicDependencies)
+{
+  SourceRange loc = SourceRange::unknown();
+
+  llvm::SmallVector<const Member*, 1> inputMembers;
+  llvm::SmallVector<const Member*, 1> outputMembers;
+
+  auto expression1 = Expression::call(
+      loc, makeType<BuiltInType::Integer>(),
+      Expression::reference(loc, makeType<BuiltInType::Integer>(), "size"),
+      llvm::makeArrayRef({
+          Expression::reference(loc, makeType<BuiltInType::Integer>(), "y"),
+          Expression::constant(loc, makeType<BuiltInType::Integer>(), 1)
+      }));
+
+  auto x = Member::build(
+      loc, "x",
+      makeType<BuiltInType::Real>(std::move(expression1)),
+      TypePrefix(ParameterQualifier::none, IOQualifier::output),
+      true);
+
+  inputMembers.push_back(x.get());
+
+  auto expression2 = Expression::call(
+      loc, makeType<BuiltInType::Integer>(),
+      Expression::reference(loc, makeType<BuiltInType::Integer>(), "size"),
+      llvm::makeArrayRef({
+          Expression::reference(loc, makeType<BuiltInType::Integer>(), "x"),
+          Expression::constant(loc, makeType<BuiltInType::Integer>(), 1)
+      }));
+
+  auto y = Member::build(
+      loc, "y",
+      makeType<BuiltInType::Real>(std::move(expression2)),
+      TypePrefix(ParameterQualifier::none, IOQualifier::output),
+      true);
+
+  outputMembers.push_back(y.get());
+
+  DynamicDimensionsGraph graph;
+
+  graph.addMembersGroup(inputMembers, true);
+  graph.addMembersGroup(outputMembers, true);
+  graph.discoverDependencies();
+
+  EXPECT_TRUE(graph.hasCycles());
+}
