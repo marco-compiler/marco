@@ -128,9 +128,11 @@ namespace marco::ast
   }
 
   void DynamicDimensionsGraph::addMembersGroup(
-      llvm::ArrayRef<const Member*> group)
+      llvm::ArrayRef<const Member*> group,
+      bool enforceInternalOrder)
   {
     Group nodesGroup;
+    nodesGroup.ordered = enforceInternalOrder;
 
     for (const Member* member : group) {
       assert(member != nullptr);
@@ -166,7 +168,10 @@ namespace marco::ast
           }
         }
 
-        if (size_t i = node.index(); i > 0) {
+        // If the internal ordering must be preserved, then add the arcs from
+        // each node of the group to its predecessor.
+
+        if (size_t i = node.index(); i > 0 && group.ordered) {
           arcs[group.nodes[i].member].insert(group.nodes[i - 1]);
         }
       }

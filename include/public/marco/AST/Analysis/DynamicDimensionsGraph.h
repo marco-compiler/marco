@@ -34,15 +34,23 @@ namespace marco::ast
         const Member* member;
       };
 
+      /// A group of variables.
       struct Group
       {
         llvm::SmallVector<Node> nodes;
+        bool ordered;
       };
 
       DynamicDimensionsGraph();
 
-      void addMembersGroup(llvm::ArrayRef<const Member*> group);
+      /// Add a group of variables to the graph and optionally enforce their
+      /// relative order to be preserved.
+      void addMembersGroup(
+          llvm::ArrayRef<const Member*> group,
+          bool enforceInternalOrder);
 
+      /// Discover the dependencies of the variables that have been added to
+      /// the graph.
       void discoverDependencies();
 
       /// Get the number of nodes.

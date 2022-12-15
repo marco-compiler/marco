@@ -54,9 +54,9 @@ TEST(DynamicDimensionsGraph, numberOfNodes)
 
   DynamicDimensionsGraph graph;
 
-  graph.addMembersGroup(inputMembers);
-  graph.addMembersGroup(outputMembers);
-  graph.addMembersGroup(protectedMembers);
+  graph.addMembersGroup(inputMembers, true);
+  graph.addMembersGroup(outputMembers, true);
+  graph.addMembersGroup(protectedMembers, true);
 
   EXPECT_EQ(graph.getNumOfNodes(), 5);
 }
@@ -84,7 +84,7 @@ TEST(DynamicDimensionsGraph, intraGroupDependencies)
 
   DynamicDimensionsGraph graph;
 
-  graph.addMembersGroup(llvm::makeArrayRef(members.data(), 2));
+  graph.addMembersGroup(members, true);
   graph.discoverDependencies();
 
   auto postOrderVisit = graph.postOrder();
@@ -127,8 +127,8 @@ TEST(DynamicDimensionsGraph, interGroupDependencies)
 
   DynamicDimensionsGraph graph;
 
-  graph.addMembersGroup(inputMembers);
-  graph.addMembersGroup(outputMembers);
+  graph.addMembersGroup(inputMembers, true);
+  graph.addMembersGroup(outputMembers, true);
   graph.discoverDependencies();
 
   auto postOrderVisit = graph.postOrder();
