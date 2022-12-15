@@ -1,4 +1,5 @@
 #include "marco/AST/Passes/SemanticAnalysisPass.h"
+#include "marco/AST/Analysis/DynamicDimensionsGraph.h"
 #include "marco/Diagnostic/Printer.h"
 
 using namespace ::marco;
@@ -143,6 +144,23 @@ namespace marco::ast
 
     SymbolTable::ScopeTy scope(symbolTable);
     auto* function = cls.get<StandardFunction>();
+
+    // Check that the expression for dynamic dimensions do not create cycles.
+    DynamicDimensionsGraph dynamicDimensionsGraph;
+
+    dynamicDimensionsGraph.addMembersGroup(function->getArgs(), true);
+    dynamicDimensionsGraph.addMembersGroup(function->getResults(), true);
+
+    dynamicDimensionsGraph.addMembersGroup(
+        function->getProtectedMembers(), false);
+
+    if (dynamicDimensionsGraph.hasCycles()) {
+      diagnostics()->emitError<BadSemanticMessage>(
+          function->getLocation(),
+          "cycles detected among the dynamic dimensions of the variables");
+
+      return false;
+    }
 
     // Populate the symbol table
     symbolTable.insert(function->getName(), Symbol(cls));

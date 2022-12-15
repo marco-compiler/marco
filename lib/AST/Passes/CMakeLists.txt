@@ -13,6 +13,7 @@ marco_add_library(ASTPasses
 
     LINK_LIBS
     PUBLIC marco::ast
+    PUBLIC marco::ASTAnalysis
 
     LINK_COMPONENTS
     Core
