@@ -133,12 +133,13 @@ namespace marco::codegen::lowering
 
     DynamicDimensionsGraph dynamicDimensionsGraph;
 
-    dynamicDimensionsGraph.addMembersGroup(function.getArgs());
-    dynamicDimensionsGraph.addMembersGroup(function.getResults());
-    dynamicDimensionsGraph.addMembersGroup(function.getProtectedMembers());
-    dynamicDimensionsGraph.discoverDependencies();
+    dynamicDimensionsGraph.addMembersGroup(function.getArgs(), true);
+    dynamicDimensionsGraph.addMembersGroup(function.getResults(), true);
 
-    assert(!dynamicDimensionsGraph.hasCycles());
+    dynamicDimensionsGraph.addMembersGroup(
+        function.getProtectedMembers(), false);
+
+    dynamicDimensionsGraph.discoverDependencies();
 
     for (const auto& member : dynamicDimensionsGraph.postOrder()) {
       lower(*member);
