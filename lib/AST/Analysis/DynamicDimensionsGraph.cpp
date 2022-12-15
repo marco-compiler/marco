@@ -121,6 +121,10 @@ namespace marco::ast
   {
     // Entry node, which is connected to every other node.
     nodes.emplace_back(this, nullptr);
+
+    // Ensure that the set of children for the entry node exists, even in case
+    // of no other node.
+    arcs[getEntryNode().member] = {};
   }
 
   void DynamicDimensionsGraph::addMembersGroup(

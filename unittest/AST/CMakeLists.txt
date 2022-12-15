@@ -16,3 +16,5 @@ target_link_libraries(ASTTest
     PRIVATE marco::ast
     PRIVATE marco::ASTAnalysis
     PRIVATE marco::ASTPasses)
+
+add_subdirectory(Analysis)
