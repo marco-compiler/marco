@@ -123,35 +123,36 @@ namespace marco::ast
     nodes.emplace_back(this, nullptr);
 
     // Ensure that the set of children for the entry node exists, even in case
-    // of no other node.
+    // of no other nodes.
     arcs[getEntryNode().member] = {};
   }
 
   void DynamicDimensionsGraph::addMembersGroup(
       llvm::ArrayRef<const Member*> group)
   {
+    Group nodesGroup;
+
     for (const Member* member : group) {
       assert(member != nullptr);
 
       Node node(this, member);
       nodes.push_back(node);
+      nodesGroup.nodes.push_back(node);
       symbolTable[member->getName()] = node;
-
-      // Connect the entry node.
-      arcs[getEntryNode().member].insert(node);
     }
 
-    for (size_t i = 1, e = group.size(); i < e; ++i) {
-      arcs[group[i]].insert(Node(this, group[i - 1]));
-    }
+    groups.push_back(std::move(nodesGroup));
   }
 
   void DynamicDimensionsGraph::discoverDependencies()
   {
-    for (const Node& node : nodes) {
-      if (node != getEntryNode()) {
-        const Member* member = node.member;
+    for (const Group& group : groups) {
+      for (const auto& node : llvm::enumerate(group.nodes)) {
+        // Connect the entry node to the current one.
+        arcs[getEntryNode().member].insert(node.value());
 
+        // Connect the current node to the other nodes to which it depends.
+        const Member* member = node.value().member;
         auto& children = arcs[member];
 
         for (const auto& dimension : member->getType().getDimensions()) {
@@ -164,6 +165,10 @@ namespace marco::ast
             }
           }
         }
+
+        if (size_t i = node.index(); i > 0) {
+          arcs[group.nodes[i].member].insert(group.nodes[i - 1]);
+        }
       }
     }
   }
@@ -173,7 +178,7 @@ namespace marco::ast
     return nodes.size();
   }
 
-  DynamicDimensionsGraph::Node DynamicDimensionsGraph::getEntryNode() const
+  const DynamicDimensionsGraph::Node& DynamicDimensionsGraph::getEntryNode() const
   {
     return nodes[0];
   }

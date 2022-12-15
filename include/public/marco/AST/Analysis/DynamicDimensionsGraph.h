@@ -34,6 +34,11 @@ namespace marco::ast
         const Member* member;
       };
 
+      struct Group
+      {
+        llvm::SmallVector<Node> nodes;
+      };
+
       DynamicDimensionsGraph();
 
       void addMembersGroup(llvm::ArrayRef<const Member*> group);
@@ -45,7 +50,8 @@ namespace marco::ast
       /// entry node.
       size_t getNumOfNodes() const;
 
-      Node getEntryNode() const;
+      /// Get the entry node of the graph.
+      const Node& getEntryNode() const;
 
       /// @name Iterators for the children of a node
       /// {
@@ -76,6 +82,7 @@ namespace marco::ast
     private:
       llvm::DenseMap<const Member*, std::set<Node>> arcs;
       llvm::SmallVector<Node> nodes;
+      llvm::SmallVector<Group> groups;
       llvm::DenseMap<llvm::StringRef, Node> symbolTable;
   };
 }
