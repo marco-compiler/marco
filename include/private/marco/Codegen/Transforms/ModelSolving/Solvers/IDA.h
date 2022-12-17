@@ -3,6 +3,8 @@
 
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/Solvers/ModelSolver.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 
 namespace marco::codegen
 {
@@ -169,6 +171,11 @@ namespace marco::codegen
 
       std::vector<mlir::Value> getIDAFunctionArgs() const;
 
+      std::multimap<
+          unsigned int,
+          std::pair<modeling::IndexSet, ScheduledEquation*>>
+      getWritesMap(const Model<ScheduledEquationsBlock>& model) const;
+
       mlir::AffineMap getAccessMap(
           mlir::OpBuilder& builder,
           const modeling::AccessFunction& accessFunction) const;
@@ -228,7 +235,7 @@ namespace marco::codegen
       llvm::DenseMap<unsigned int, size_t> derivativeVariablesLookup;
 
       /// The equations managed by IDA.
-      std::set<ScheduledEquation*> equations;
+      llvm::DenseSet<ScheduledEquation*> equations;
   };
 
   class IDASolver : public ModelSolver

@@ -1140,7 +1140,7 @@ namespace marco::codegen
 
   void IDAInstance::addEquation(ScheduledEquation* equation)
   {
-    equations.emplace(equation);
+    equations.insert(equation);
   }
 
   mlir::Type IDAInstance::getSolverDataType(mlir::MLIRContext* context) const
@@ -1579,21 +1579,7 @@ namespace marco::codegen
     // First create the writes map, that is the knowledge of which equation
     // writes into a variable and in which indices.
     // The variables are mapped by their argument number.
-    std::multimap<unsigned int, std::pair<IndexSet, ScheduledEquation*>> writesMap;
-
-    for (const auto& equationsBlock : model.getScheduledBlocks()) {
-      for (const auto& equation : *equationsBlock) {
-        if (equations.find(equation.get()) != equations.end()) {
-          // Ignore the equation if it is already managed by IDA.
-          continue;
-        }
-
-        const auto& write = equation->getWrite();
-        auto varPosition = write.getVariable()->getValue().cast<mlir::BlockArgument>().getArgNumber();
-        IndexSet writtenIndices = write.getAccessFunction().map(equation->getIterationRanges());
-        writesMap.emplace(varPosition, std::make_pair(writtenIndices, equation.get()));
-      }
-    }
+    auto writesMap = getWritesMap(model);
 
     // The equations we are operating on
     std::queue<std::unique_ptr<ScheduledEquation>> processedEquations;
@@ -1646,6 +1632,12 @@ namespace marco::codegen
 
         for (const auto& entry : writingEquations) {
           ScheduledEquation* writingEquation = entry.second.second;
+
+          if (equations.contains(writingEquation)) {
+            // Ignore the equation if it is already managed by IDA.
+            continue;
+          }
+
           const IndexSet& writtenVariableIndices = entry.second.first;
 
           if (!writtenVariableIndices.overlaps(readIndices)) {
@@ -2507,6 +2499,32 @@ namespace marco::codegen
     }
 
     return result;
+  }
+
+  std::multimap<unsigned int, std::pair<IndexSet, ScheduledEquation*>>
+  IDAInstance::getWritesMap(const Model<ScheduledEquationsBlock>& model) const
+  {
+    std::multimap<unsigned int, std::pair<IndexSet, ScheduledEquation*>> writesMap;
+
+    for (const auto& equationsBlock : model.getScheduledBlocks()) {
+      for (const auto& equation : *equationsBlock) {
+        const Access& write = equation->getWrite();
+
+        mlir::Value writtenVariable = write.getVariable()->getValue();
+
+        auto varPosition =
+            writtenVariable.cast<mlir::BlockArgument>().getArgNumber();
+
+        IndexSet writtenIndices =
+            write.getAccessFunction().map(equation->getIterationRanges());
+
+        writesMap.emplace(
+            varPosition,
+            std::make_pair(writtenIndices, equation.get()));
+      }
+    }
+
+    return writesMap;
   }
 
   mlir::AffineMap IDAInstance::getAccessMap(
