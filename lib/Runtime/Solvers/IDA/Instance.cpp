@@ -362,15 +362,17 @@ namespace marco::runtime::ida
       heapFree(derivative);
     }
 
-    delete simulationData;
-
-    IDAFree(&idaMemory);
-    SUNLinSolFree(linearSolver);
-    SUNMatDestroy(sparseMatrix);
     N_VDestroy(variablesVector);
     N_VDestroy(derivativesVector);
     N_VDestroy(idVector);
     N_VDestroy(tolerancesVector);
+
+    if (scalarEquationsNumber != 0) {
+      delete simulationData;
+      IDAFree(&idaMemory);
+      SUNLinSolFree(linearSolver);
+      SUNMatDestroy(sparseMatrix);
+    }
   }
 
   void IDAInstance::setStartTime(double time)
