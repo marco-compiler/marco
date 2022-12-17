@@ -391,33 +391,44 @@ namespace marco::codegen::lowering
 
   Results OperationLowerer::subscription(const ast::Operation& operation)
   {
-    return lowerOperation<OperationKind::subscription>(operation, [&](mlir::Location loc, std::vector<Results> args) -> Results {
-      assert(args.size() >= 1);
+    return lowerOperation<OperationKind::subscription>(
+        operation,
+        [&](mlir::Location loc, std::vector<Results> args) -> Results {
+          assert(args.size() >= 1);
 
-      const auto& array = args[0];
-      assert(array.size() == 1);
+          const auto& array = args[0];
+          assert(array.size() == 1);
 
-      mlir::Value arrayValue = *array[0];
-      assert(arrayValue.getType().isa<ArrayType>());
+          mlir::Value arrayValue = *array[0];
+          assert(arrayValue.getType().isa<ArrayType>());
 
-      // Indices in Modelica are 1-based, while in the MLIR dialect are 0-based.
-      // Thus, we need to shift them by one.
-      std::vector<mlir::Value> zeroBasedIndices;
+          // Indices in Modelica are 1-based, while in the MLIR dialect are
+          // 0-based. Thus, we need to shift them by one. In doing so, we also
+          // force the result to be of index type.
+          std::vector<mlir::Value> zeroBasedIndices;
 
-      for (size_t i = 1; i < args.size(); ++i) {
-        const auto& index = args[i];
-        assert(index.size() == 1);
+          for (size_t i = 1; i < args.size(); ++i) {
+            const auto& index = args[i];
+            assert(index.size() == 1);
 
-        mlir::Value indexValue = *index[0];
+            mlir::Value indexValue = *index[0];
 
-        mlir::Value one = builder().create<ConstantOp>(indexValue.getLoc(), builder().getIndexAttr(-1));
-        mlir::Value zeroBasedIndex = builder().create<AddOp>(indexValue.getLoc(), indexValue.getType(), indexValue, one);
-        zeroBasedIndices.push_back(zeroBasedIndex);
-      }
+            mlir::Value one = builder().create<ConstantOp>(
+                indexValue.getLoc(), builder().getIndexAttr(-1));
 
-      mlir::Value result = builder().create<SubscriptionOp>(loc, arrayValue, zeroBasedIndices);
-      return Reference::memory(&builder(), result);
-    });
+            mlir::Value zeroBasedIndex = builder().create<AddOp>(
+                indexValue.getLoc(),
+                builder().getIndexType(),
+                indexValue, one);
+
+            zeroBasedIndices.push_back(zeroBasedIndex);
+          }
+
+          mlir::Value result = builder().create<SubscriptionOp>(
+              loc, arrayValue, zeroBasedIndices);
+
+          return Reference::memory(&builder(), result);
+        });
   }
 
   Results OperationLowerer::memberLookup(const ast::Operation& operation)
