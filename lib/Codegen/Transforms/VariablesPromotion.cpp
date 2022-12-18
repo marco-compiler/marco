@@ -61,7 +61,7 @@ namespace
 
       /// Get the writes map of a model, that is the knowledge of which
       /// equation writes into a variable and in which indices.
-      // The variables are mapped by their argument number.
+      /// The variables are mapped by their argument number.
       std::multimap<unsigned int, std::pair<IndexSet, MatchedEquation*>>
       getWritesMap(const Model<MatchedEquation>& model) const;
   };

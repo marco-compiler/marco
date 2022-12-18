@@ -244,3 +244,72 @@ modelica.model @Test {
         }
     }
 }
+
+// -----
+
+// Promotable array written by different equations
+
+// CHECK: modelica.member_create @x : !modelica.member<2x!modelica.real, constant>
+// CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
+// CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[1, 1]]], path = ["L"]}]}
+
+modelica.model @Test {
+    %0 = modelica.member_create @x : !modelica.member<2x!modelica.real>
+    modelica.yield %0 : !modelica.member<2x!modelica.real>
+} body {
+^bb0(%arg0: !modelica.array<2x!modelica.real>):
+    modelica.for_equation %i = 0 to 0 {
+        modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
+            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
+            %1 = modelica.constant #modelica.real<0.0>
+            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
+    }
+
+    modelica.for_equation %i = 1 to 1 {
+        modelica.equation attributes {id = 1, match = [{indices = [[[1, 1]]], path = ["L"]}]} {
+            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
+            %1 = modelica.constant #modelica.real<1.0>
+            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
+    }
+}
+
+
+// -----
+
+// Array not fully promotable.
+
+// CHECK: modelica.member_create @x : !modelica.member<2x!modelica.real>
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
+// CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[1, 1]]], path = ["L"]}]}
+
+modelica.model @Test {
+    %0 = modelica.member_create @x : !modelica.member<2x!modelica.real>
+    modelica.yield %0 : !modelica.member<2x!modelica.real>
+} body {
+^bb0(%arg0: !modelica.array<2x!modelica.real>):
+    modelica.for_equation %i = 0 to 0 {
+        modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
+            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
+            %1 = modelica.constant #modelica.real<0.0>
+            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
+    }
+
+    modelica.for_equation %i = 1 to 1 {
+        modelica.equation attributes {id = 1, match = [{indices = [[[1, 1]]], path = ["L"]}]} {
+            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
+            %1 = modelica.time : !modelica.real
+            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %3 = modelica.equation_side %1 : tuple<!modelica.real>
+            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+        }
+    }
+}
