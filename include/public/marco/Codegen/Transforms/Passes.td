@@ -116,6 +116,25 @@ def MatchingPass : Pass<"match", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createMatchingPass()";
 }
 
+def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "mlir::ModuleOp"> {
+    let summary = "Promote to parameters the variables that depend only on other parameters";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let options = [
+        Option<"modelName", "model-name", "std::string", "",
+               "Set the model onto which perform the matching">
+    ];
+
+    let constructor = "mlir::modelica::createVariablesPromotionPass()";
+}
+
 def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
     let summary = "Solve the cycles of matched model";
 

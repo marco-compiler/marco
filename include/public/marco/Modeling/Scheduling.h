@@ -158,11 +158,10 @@ namespace marco::modeling
   class Scheduler
   {
     private:
-      using VectorDependencyGraph = internal::VVarDependencyGraph<VariableProperty, EquationProperty>;
+      using VectorDependencyGraph = ArrayVariablesDependencyGraph<VariableProperty, EquationProperty>;
       using Equation = typename VectorDependencyGraph::Equation;
       using SCC = typename VectorDependencyGraph::SCC;
-      using SCCDependencyGraph = internal::SCCDependencyGraph<SCC>;
-      using ScalarDependencyGraph = internal::SVarDependencyGraph<VariableProperty, EquationProperty>;
+      using ScalarDependencyGraph = ScalarVariablesDependencyGraph<VariableProperty, EquationProperty>;
       using ScheduledEquation = internal::scheduling::ScheduledEquation<EquationProperty>;
       using ScheduledSCC = internal::scheduling::ScheduledSCC<ScheduledEquation>;
       using Schedule = internal::scheduling::Schedule<ScheduledSCC>;
@@ -175,7 +174,7 @@ namespace marco::modeling
         VectorDependencyGraph vectorDependencyGraph;
         vectorDependencyGraph.addEquations(equations);
 
-        SCCDependencyGraph sccDependencyGraph;
+        SCCDependencyGraph<SCC> sccDependencyGraph;
         sccDependencyGraph.addSCCs(vectorDependencyGraph.getSCCs());
 
         auto scheduledSCCs = sccDependencyGraph.postOrder();

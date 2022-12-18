@@ -349,7 +349,7 @@ namespace marco::modeling
   class CyclesFinder
   {
     public:
-      using DependencyGraph = internal::VVarDependencyGraph<VariableProperty, EquationProperty>;
+      using DependencyGraph = ArrayVariablesDependencyGraph<VariableProperty, EquationProperty>;
 
       using Variable = typename DependencyGraph::Variable;
       using Equation = typename DependencyGraph::Equation;

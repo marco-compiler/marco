@@ -699,10 +699,10 @@ namespace llvm
   };
 }
 
-namespace marco::modeling::internal
+namespace marco::modeling
 {
   template<typename VariableProperty, typename EquationProperty>
-  class VVarDependencyGraph
+  class ArrayVariablesDependencyGraph
   {
     public:
       using Variable = internal::dependency::VariableWrapper<VariableProperty>;
@@ -977,7 +977,7 @@ namespace marco::modeling::internal
       Graph graph;
   };
 
-  namespace dependency
+  namespace internal::dependency
   {
     /// An equation defined on a single (multidimensional) index.
     /// Differently from the vector equation, this does not have dedicated
@@ -1020,7 +1020,7 @@ namespace marco::modeling::internal
   }
 
   template<typename VariableProperty, typename EquationProperty>
-  class SVarDependencyGraph
+  class ScalarVariablesDependencyGraph
   {
     public:
       using VectorEquationTraits = ::marco::modeling::internal::dependency::VectorEquationTraits<EquationProperty>;

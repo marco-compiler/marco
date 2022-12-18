@@ -11,6 +11,7 @@
 #include "marco/Codegen/Transforms/ModelConversion.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
+#include "marco/Codegen/Transforms/VariablesPromotion.h"
 
 namespace marco::codegen
 {

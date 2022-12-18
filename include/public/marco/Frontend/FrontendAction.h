@@ -57,6 +57,7 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass();
       std::unique_ptr<mlir::Pass> createModelLegalizationPass();
       std::unique_ptr<mlir::Pass> createMatchingPass();
+      std::unique_ptr<mlir::Pass> createVariablesPromotionPass();
       std::unique_ptr<mlir::Pass> createCyclesSolvingPass();
       std::unique_ptr<mlir::Pass> createSchedulingPass();
       std::unique_ptr<mlir::Pass> createModelConversionPass();

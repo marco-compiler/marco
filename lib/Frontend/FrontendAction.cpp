@@ -253,6 +253,7 @@ namespace marco::frontend
     passManager.addPass(createAutomaticDifferentiationPass());
     passManager.addPass(createModelLegalizationPass());
     passManager.addPass(createMatchingPass());
+    passManager.addPass(createVariablesPromotionPass());
     passManager.addPass(createCyclesSolvingPass());
     passManager.addPass(createSchedulingPass());
     passManager.addPass(createModelConversionPass());
@@ -410,6 +411,16 @@ namespace marco::frontend
     options.modelName = ci.getSimulationOptions().modelName;
 
     return mlir::modelica::createMatchingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createVariablesPromotionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::VariablesPromotionPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createVariablesPromotionPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createCyclesSolvingPass()

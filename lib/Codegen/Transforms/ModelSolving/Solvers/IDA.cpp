@@ -1056,7 +1056,7 @@ namespace marco::codegen
 
   void IDAInstance::addParametricVariable(mlir::Value variable)
   {
-    if (!hasParametricVariable(variable)) {
+    if (!hasVariable(variable)) {
       unsigned int argNumber =
           variable.cast<mlir::BlockArgument>().getArgNumber();
 
@@ -1067,7 +1067,7 @@ namespace marco::codegen
 
   void IDAInstance::addAlgebraicVariable(mlir::Value variable)
   {
-    if (!hasAlgebraicVariable(variable)) {
+    if (!hasVariable(variable)) {
       unsigned int argNumber =
           variable.cast<mlir::BlockArgument>().getArgNumber();
 
@@ -1078,7 +1078,7 @@ namespace marco::codegen
 
   void IDAInstance::addStateVariable(mlir::Value variable)
   {
-    if (!hasStateVariable(variable)) {
+    if (!hasVariable(variable)) {
       unsigned int argNumber =
           variable.cast<mlir::BlockArgument>().getArgNumber();
 
@@ -1089,7 +1089,7 @@ namespace marco::codegen
 
   void IDAInstance::addDerivativeVariable(mlir::Value variable)
   {
-    if (!hasDerivativeVariable(variable)) {
+    if (!hasVariable(variable)) {
       unsigned int argNumber =
           variable.cast<mlir::BlockArgument>().getArgNumber();
 
