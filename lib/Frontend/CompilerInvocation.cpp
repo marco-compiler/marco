@@ -222,6 +222,7 @@ static void parseCodegenArgs(
     options.debug = false;
     options.inlining = true;
     options.outputArraysPromotion = true;
+    options.variablesToParametersPromotion = true;
     options.cse = true;
   }
 
@@ -259,6 +260,11 @@ static void parseCodegenArgs(
       options::OPT_output_arrays_promotion,
       options::OPT_no_output_arrays_promotion,
       options.outputArraysPromotion);
+
+  options.variablesToParametersPromotion = args.hasFlag(
+      options::OPT_variables_to_parameters_promotion,
+      options::OPT_no_variables_to_parameters_promotion,
+      options.variablesToParametersPromotion);
 
   options.cse = args.hasFlag(
       marco::frontend::options::OPT_cse,
