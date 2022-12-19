@@ -1,14 +1,14 @@
 // RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
-// CHECK-DEFAULT-DAG: Main function generation: true
+// CHECK-DEFAULT: Main function generation: true
 
 // RUN: marco-driver --init-only --generate-main | FileCheck %s --check-prefix="CHECK-ENABLED"
 
 // CHECK-ENABLED-LABEL: [Code generation]
-// CHECK-ENABLED-DAG: Main function generation: true
+// CHECK-ENABLED: Main function generation: true
 
 // RUN: marco-driver --init-only --no-generate-main | FileCheck %s --check-prefix="CHECK-DISABLED"
 
 // CHECK-DISABLED-LABEL: [Code generation]
-// CHECK-DISABLED-DAG: Main function generation: false
+// CHECK-DISABLED: Main function generation: false

@@ -1,29 +1,54 @@
 // RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
-// CHECK-DEFAULT-DAG: Assertions: true
+// CHECK-DEFAULT: Assertions: true
+
+// RUN: marco-driver --init-only --assertions | FileCheck %s --check-prefix="CHECK-ENABLED"
+
+// CHECK-ENABLED-LABEL: [Code generation]
+// CHECK-ENABLED: Assertions: true
 
 // RUN: marco-driver --init-only --no-assertions | FileCheck %s --check-prefix="CHECK-DISABLED"
 
 // CHECK-DISABLED-LABEL: [Code generation]
-// CHECK-DISABLED-DAG: Assertions: false
+// CHECK-DISABLED: Assertions: false
+
+// RUN: marco-driver --init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
+
+// CHECK-O0-LABEL: [Code generation]
+// CHECK-O0: Assertions: true
+
+// RUN: marco-driver --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
+
+// CHECK-O1-LABEL: [Code generation]
+// CHECK-O1: Assertions: false
 
 // RUN: marco-driver --init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
 
 // CHECK-O2-LABEL: [Code generation]
-// CHECK-O2-DAG: Assertions: false
+// CHECK-O2: Assertions: false
 
-// RUN: marco-driver --init-only -O2 --assertions | FileCheck %s --check-prefix="CHECK-ENABLED-O2"
+// RUN: marco-driver --init-only -O3 | FileCheck %s --check-prefix="CHECK-O3"
 
-// CHECK-ENABLED-O2-LABEL: [Code generation]
-// CHECK-ENABLED-O2-DAG: Assertions: true
+// CHECK-O3-LABEL: [Code generation]
+// CHECK-O3: Assertions: false
+
+// RUN: marco-driver --init-only -Ofast | FileCheck %s --check-prefix="CHECK-Ofast"
+
+// CHECK-Ofast-LABEL: [Code generation]
+// CHECK-Ofast: Assertions: false
 
 // RUN: marco-driver --init-only -Oz | FileCheck %s --check-prefix="CHECK-Oz"
 
 // CHECK-Oz-LABEL: [Code generation]
-// CHECK-Oz-DAG: Assertions: false
+// CHECK-Oz: Assertions: false
 
-// RUN: marco-driver --init-only -Oz --assertions | FileCheck %s --check-prefix="CHECK-ENABLED-Oz"
+// RUN: marco-driver --init-only --assertions -O1 | FileCheck %s --check-prefix="CHECK-ENABLED-AND-O1"
 
-// CHECK-ENABLED-Oz-LABEL: [Code generation]
-// CHECK-ENABLED-Oz-DAG: Assertions: true
+// CHECK-ENABLED-AND-O1-LABEL: [Code generation]
+// CHECK-ENABLED-AND-O1: Assertions: true
+
+// RUN: marco-driver --init-only --assertions -Oz | FileCheck %s --check-prefix="CHECK-ENABLED-AND-Oz"
+
+// CHECK-ENABLED-AND-Oz-LABEL: [Code generation]
+// CHECK-ENABLED-AND-Oz: Assertions: true

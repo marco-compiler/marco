@@ -1,19 +1,39 @@
 // RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
-// CHECK-DEFAULT-DAG: CSE: false
+// CHECK-DEFAULT: CSE: false
 
 // RUN: marco-driver --init-only --cse | FileCheck %s --check-prefix="CHECK-ENABLED"
 
 // CHECK-ENABLED-LABEL: [Code generation]
-// CHECK-ENABLED-DAG: CSE: true
+// CHECK-ENABLED: CSE: true
+
+// RUN: marco-driver --init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
+
+// CHECK-O0-LABEL: [Code generation]
+// CHECK-O0: CSE: false
 
 // RUN: marco-driver --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
 
 // CHECK-O1-LABEL: [Code generation]
-// CHECK-O1-DAG: CSE: true
+// CHECK-O1: CSE: false
 
-// RUN: marco-driver --init-only --no-cse | FileCheck %s --check-prefix="CHECK-DISABLED-O1"
+// RUN: marco-driver --init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
 
-// CHECK-DISABLED-O1-LABEL: [Code generation]
-// CHECK-DISABLED-O1-DAG: CSE: false
+// CHECK-O2-LABEL: [Code generation]
+// CHECK-O2: CSE: true
+
+// RUN: marco-driver --init-only -O3 | FileCheck %s --check-prefix="CHECK-O3"
+
+// CHECK-O3-LABEL: [Code generation]
+// CHECK-O3: CSE: true
+
+// RUN: marco-driver --init-only -Ofast | FileCheck %s --check-prefix="CHECK-Ofast"
+
+// CHECK-Ofast-LABEL: [Code generation]
+// CHECK-Ofast: CSE: true
+
+// RUN: marco-driver --init-only --no-cse -O2 | FileCheck %s --check-prefix="CHECK-DISABLED-AND-O2"
+
+// CHECK-DISABLED-AND-O2-LABEL: [Code generation]
+// CHECK-DISABLED-AND-O2: CSE: false

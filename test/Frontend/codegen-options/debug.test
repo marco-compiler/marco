@@ -1,14 +1,24 @@
 // RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
-// CHECK-DEFAULT-DAG: Debug information: true
+// CHECK-DEFAULT: Debug information: true
+
+// RUN: marco-driver --init-only -g | FileCheck %s --check-prefix="CHECK-ENABLED"
+
+// CHECK-ENABLED-LABEL: [Code generation]
+// CHECK-ENABLED: Debug information: true
+
+// RUN: marco-driver --init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
+
+// CHECK-O0-LABEL: [Code generation]
+// CHECK-O0: Debug information: true
 
 // RUN: marco-driver --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
 
 // CHECK-O1-LABEL: [Code generation]
-// CHECK-O1-DAG: Debug information: false
+// CHECK-O1: Debug information: false
 
-// RUN: marco-driver --init-only -O1 -g | FileCheck %s --check-prefix="CHECK-ENABLED"
+// RUN: marco-driver --init-only -g -O1 | FileCheck %s --check-prefix="CHECK-ENABLED-AND-O1"
 
-// CHECK-ENABLED-LABEL: [Code generation]
-// CHECK-ENABLED-DAG: Debug information: true
+// CHECK-ENABLED-AND-O1-LABEL: [Code generation]
+// CHECK-ENABLED-AND-O1: Debug information: true

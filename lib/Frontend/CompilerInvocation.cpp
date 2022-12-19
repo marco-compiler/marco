@@ -220,14 +220,14 @@ static void parseCodegenArgs(
   // Set the default options based on the optimization level
   if (options.optLevel.time > 0) {
     options.debug = false;
-    options.inlining = true;
-    options.outputArraysPromotion = true;
-    options.variablesToParametersPromotion = true;
-    options.cse = true;
+    options.assertions = false;
   }
 
   if (options.optLevel.time > 1) {
-    options.assertions = false;
+    options.outputArraysPromotion = true;
+    options.variablesToParametersPromotion = true;
+    options.inlining = true;
+    options.cse = true;
   }
 
   if (options.optLevel.size > 0) {

@@ -1,19 +1,39 @@
 // RUN: marco-driver --init-only | FileCheck %s --check-prefix="CHECK-DEFAULT"
 
 // CHECK-DEFAULT-LABEL: [Code generation]
-// CHECK-DEFAULT-DAG: Output arrays promotion: false
+// CHECK-DEFAULT: Output arrays promotion: false
 
 // RUN: marco-driver --init-only --output-arrays-promotion | FileCheck %s --check-prefix="CHECK-ENABLED"
 
 // CHECK-ENABLED-LABEL: [Code generation]
-// CHECK-ENABLED-DAG: Output arrays promotion: true
+// CHECK-ENABLED: Output arrays promotion: true
+
+// RUN: marco-driver --init-only -O0 | FileCheck %s --check-prefix="CHECK-O0"
+
+// CHECK-O0-LABEL: [Code generation]
+// CHECK-O0: Output arrays promotion: false
 
 // RUN: marco-driver --init-only -O1 | FileCheck %s --check-prefix="CHECK-O1"
 
 // CHECK-O1-LABEL: [Code generation]
-// CHECK-O1-DAG: Output arrays promotion: true
+// CHECK-O1: Output arrays promotion: false
 
-// RUN: marco-driver --init-only --no-output-arrays-promotion | FileCheck %s --check-prefix="CHECK-DISABLED-O1"
+// RUN: marco-driver --init-only -O2 | FileCheck %s --check-prefix="CHECK-O2"
 
-// CHECK-DISABLED-O1-LABEL: [Code generation]
-// CHECK-DISABLED-O1-DAG: Output arrays promotion: false
+// CHECK-O2-LABEL: [Code generation]
+// CHECK-O2: Output arrays promotion: true
+
+// RUN: marco-driver --init-only -O3 | FileCheck %s --check-prefix="CHECK-O3"
+
+// CHECK-O3-LABEL: [Code generation]
+// CHECK-O3: Output arrays promotion: true
+
+// RUN: marco-driver --init-only -Ofast | FileCheck %s --check-prefix="CHECK-Ofast"
+
+// CHECK-Ofast-LABEL: [Code generation]
+// CHECK-Ofast: Output arrays promotion: true
+
+// RUN: marco-driver --init-only --no-output-arrays-promotion -O2 | FileCheck %s --check-prefix="CHECK-DISABLED-AND-O2"
+
+// CHECK-DISABLED-O2-LABEL: [Code generation]
+// CHECK-DISABLED-AND-O2: Output arrays promotion: false
