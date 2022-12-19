@@ -1,8 +1,9 @@
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Codegen/Utils.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -48,8 +49,8 @@ static void removeUnreachableBlocks(mlir::Region& region)
   } while (!unreachableBlocks.empty());
 }
 
-using LoadReplacer = std::function<mlir::LogicalResult(MemberLoadOp)>;
-using StoreReplacer = std::function<mlir::LogicalResult(MemberStoreOp)>;
+using LoadReplacer = std::function<mlir::LogicalResult(mlir::OpBuilder&, MemberLoadOp)>;
+using StoreReplacer = std::function<mlir::LogicalResult(mlir::OpBuilder&, MemberStoreOp)>;
 
 /// Convert a member that is provided as input to the function.
 /// The replacement is the argument of the raw function.
@@ -64,12 +65,14 @@ static mlir::LogicalResult convertArgument(
       assert(op.getDynamicSizes().empty());
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
-          [&replacement](MemberLoadOp loadOp) -> mlir::LogicalResult {
+          [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
+              -> mlir::LogicalResult {
             loadOp.replaceAllUsesWith(replacement);
             loadOp.erase();
             return mlir::success();
           },
-          [](MemberStoreOp storeOp) -> mlir::LogicalResult {
+          [](mlir::OpBuilder& builder, MemberStoreOp storeOp)
+              -> mlir::LogicalResult {
             llvm_unreachable("Store on input scalar argument");
             return mlir::failure();
           });
@@ -81,13 +84,14 @@ static mlir::LogicalResult convertArgument(
     assert(op.isInput() || op.getMemberType().toArrayType().hasStaticShape());
 
     return std::make_pair<LoadReplacer, StoreReplacer>(
-        [&replacement](MemberLoadOp loadOp) -> mlir::LogicalResult {
+        [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
+            -> mlir::LogicalResult {
           loadOp.replaceAllUsesWith(replacement);
           loadOp.erase();
           return mlir::success();
         },
-        [&builder, &replacement]
-        (MemberStoreOp storeOp) -> mlir::LogicalResult {
+        [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
+            -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
 
           copyArray(
@@ -106,12 +110,12 @@ static mlir::LogicalResult convertArgument(
     assert(mlir::isa<MemberLoadOp>(user) || mlir::isa<MemberStoreOp>(user));
 
     if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
-      if (auto res = loadReplacer(loadOp); mlir::failed(res)) {
-        return res;
+      if (mlir::failed(loadReplacer(builder, loadOp))) {
+        return mlir::failure();
       }
     } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {
-      if (auto res = storeReplacer(storeOp); mlir::failed(res)) {
-        return res;
+      if (mlir::failed(storeReplacer(builder, storeOp))) {
+        return mlir::failure();
       }
     }
   }
@@ -127,7 +131,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   mlir::Location loc = op.getLoc();
-  auto unwrappedType = op.getMemberType().unwrap();
+  auto memberType = op.getMemberType();
+  auto unwrappedType = memberType.unwrap();
 
   auto replacers = [&]() {
     if (!unwrappedType.isa<ArrayType>()) {
@@ -140,7 +145,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(
           loc, ArrayType::get(llvm::None, unwrappedType), llvm::None);
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
-          [&builder, reference](MemberLoadOp loadOp) -> mlir::LogicalResult {
+          [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
+              -> mlir::LogicalResult {
             builder.setInsertionPoint(loadOp);
 
             mlir::Value replacement = builder.create<LoadOp>(
@@ -150,8 +156,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(
             loadOp.erase();
             return mlir::success();
           },
-          [&builder, reference, unwrappedType]
-          (MemberStoreOp storeOp) -> mlir::LogicalResult {
+          [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
+              -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
             mlir::Value value = storeOp.getValue();
 
@@ -186,12 +192,14 @@ static mlir::LogicalResult convertResultOrProtectedVar(
           builder.create<AllocOp>(loc, arrayType, op.getDynamicSizes());
 
       return std::make_pair<LoadReplacer, StoreReplacer>(
-          [reference](MemberLoadOp loadOp) -> mlir::LogicalResult {
+          [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
+              -> mlir::LogicalResult {
             loadOp.replaceAllUsesWith(reference);
             loadOp->erase();
             return mlir::success();
           },
-          [&builder, reference](MemberStoreOp storeOp) -> mlir::LogicalResult {
+          [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
+              -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
 
             copyArray(
@@ -209,25 +217,12 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     builder.setInsertionPoint(op);
 
     // Create the pointer to the array.
-    mlir::Type arrayPtrType = mlir::LLVM::LLVMPointerType::get(
-        typeConverter->convertType(op.getMemberType().toArrayType()));
+    auto memrefOfArrayType = mlir::MemRefType::get(
+        llvm::None,
+        typeConverter->convertType(memberType.toArrayType()));
 
-    mlir::Type indexType = typeConverter->convertType(builder.getIndexType());
-
-    mlir::Value nullPtr =
-        builder.create<mlir::LLVM::NullOp>(loc, arrayPtrType);
-
-    mlir::Value one = builder.create<mlir::LLVM::ConstantOp>(
-        loc, indexType, builder.getIntegerAttr(indexType, 1));
-
-    mlir::Value gepPtr = builder.create<mlir::LLVM::GEPOp>(
-        loc, arrayPtrType, nullPtr, one);
-
-    mlir::Value sizeBytes = builder.create<mlir::LLVM::PtrToIntOp>(
-        loc, indexType, gepPtr);
-
-    mlir::Value stackValue = builder.create<mlir::LLVM::AllocaOp>(
-        loc, arrayPtrType, sizeBytes, llvm::None);
+    mlir::Value memrefOfArray =
+        builder.create<mlir::memref::AllocaOp>(loc, memrefOfArrayType);
 
     // We need to allocate a fake buffer in order to allow the first free
     // operation to operate on a valid memory area.
@@ -243,14 +238,22 @@ static mlir::LogicalResult convertResultOrProtectedVar(
         builder, loc,
         typeConverter->convertType(fakeArray.getType()), fakeArray);
 
-    builder.create<mlir::LLVM::StoreOp>(loc, fakeArray, stackValue);
+    fakeArray = builder.create<mlir::memref::CastOp>(
+        loc, memrefOfArrayType.getElementType(), fakeArray);
+
+    builder.create<mlir::memref::StoreOp>(loc, fakeArray, memrefOfArray);
 
     return std::make_pair<LoadReplacer, StoreReplacer>(
-        [&builder, stackValue, typeConverter]
-        (MemberLoadOp loadOp) -> mlir::LogicalResult {
+        [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
+            -> mlir::LogicalResult {
           builder.setInsertionPoint(loadOp);
-          mlir::Value array = builder.create<mlir::LLVM::LoadOp>(
-              loadOp.getLoc(), stackValue);
+          mlir::Value array = builder.create<mlir::memref::LoadOp>(
+              loadOp.getLoc(), memrefOfArray);
+
+          array = builder.create<mlir::memref::CastOp>(
+              loadOp.getLoc(),
+              typeConverter->convertType(loadOp.getMemberType().toArrayType()),
+              array);
 
           array = typeConverter->materializeSourceConversion(
               builder, loadOp.getLoc(),
@@ -260,8 +263,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(
           loadOp->erase();
           return mlir::success();
         },
-        [&builder, arrayType, stackValue, typeConverter, indexType]
-        (MemberStoreOp storeOp) -> mlir::LogicalResult {
+        [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
+            -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
 
           // The destination array has dynamic and unknown sizes. Thus, the
@@ -272,20 +275,17 @@ static mlir::LogicalResult convertResultOrProtectedVar(
 
           // The function input arguments must be cloned, in order to avoid
           // inputs modifications.
+
           if (value.isa<mlir::BlockArgument>()) {
-            std::vector<mlir::Value> dynamicDimensions;
+            llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
             for (const auto& dimension :
                  llvm::enumerate(arrayType.getShape())) {
               if (dimension.value() == ArrayType::kDynamicSize) {
                 mlir::Value dimensionIndex =
-                    builder.create<mlir::LLVM::ConstantOp>(
-                        storeOp.getLoc(), indexType,
-                        builder.getIntegerAttr(indexType, dimension.index()));
-
-                dimensionIndex = typeConverter->materializeSourceConversion(
-                    builder, storeOp.getLoc(),
-                    builder.getIndexType(), dimensionIndex);
+                    builder.create<mlir::arith::ConstantOp>(
+                        storeOp.getLoc(),
+                        builder.getIndexAttr(dimension.index()));
 
                 dynamicDimensions.push_back(builder.create<DimOp>(
                     storeOp.getLoc(), storeOp.getValue(), dimensionIndex));
@@ -304,12 +304,12 @@ static mlir::LogicalResult convertResultOrProtectedVar(
           // sized array, so that the initial free always operates on valid
           // memory.
 
-          mlir::Value previousArray =
-              builder.create<mlir::LLVM::LoadOp>(storeOp.getLoc(), stackValue);
+          mlir::Value previousArray = builder.create<mlir::memref::LoadOp>(
+              storeOp.getLoc(), memrefOfArray);
 
           previousArray = typeConverter->materializeSourceConversion(
               builder, storeOp.getLoc(),
-              storeOp.getMemberType().toArrayType(), previousArray);
+              memberType.toArrayType(), previousArray);
 
           builder.create<FreeOp>(storeOp.getLoc(), previousArray);
 
@@ -319,8 +319,13 @@ static mlir::LogicalResult convertResultOrProtectedVar(
               builder, storeOp.getLoc(),
               typeConverter->convertType(value.getType()), value);
 
-          builder.create<mlir::LLVM::StoreOp>(
-              storeOp.getLoc(), value, stackValue);
+          value = builder.create<mlir::memref::CastOp>(
+              storeOp.getLoc(),
+              memrefOfArrayType.getElementType(),
+              value);
+
+          builder.create<mlir::memref::StoreOp>(
+              storeOp.getLoc(), value, memrefOfArray);
 
           storeOp->erase();
           return mlir::success();
@@ -335,12 +340,12 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     assert(mlir::isa<MemberLoadOp>(user) || mlir::isa<MemberStoreOp>(user));
 
     if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
-      if (auto res = loadReplacer(loadOp); mlir::failed(res)) {
-        return res;
+      if (mlir::failed(loadReplacer(builder, loadOp))) {
+        return mlir::failure();
       }
     } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {
-      if (auto res = storeReplacer(storeOp); mlir::failed(res)) {
-        return res;
+      if (mlir::failed(storeReplacer(builder, storeOp))) {
+        return mlir::failure();
       }
     }
   }
@@ -493,9 +498,9 @@ static mlir::LogicalResult convertToRawFunction(
   }
 
   // Collect the member operations
-  llvm::SmallVector<MemberCreateOp> inputMembers;
-  llvm::SmallVector<MemberCreateOp> outputMembers;
-  llvm::SmallVector<MemberCreateOp> protectedMembers;
+  llvm::SmallVector<MemberCreateOp, 3> inputMembers;
+  llvm::SmallVector<MemberCreateOp, 1> outputMembers;
+  llvm::SmallVector<MemberCreateOp, 3> protectedMembers;
 
   llvm::StringMap<MemberCreateOp> membersMap;
 
@@ -1079,12 +1084,7 @@ namespace
         auto module = getOperation();
         mlir::OpBuilder builder(module);
 
-        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout.reset(dataLayout);
-
-        mlir::modelica::LLVMTypeConverter typeConverter(
-            &getContext(), llvmLoweringOptions, bitWidth);
-
+        TypeConverter typeConverter(bitWidth);
         CFGLowerer lowerer(typeConverter, outputArraysPromotion);
 
         for (auto function : llvm::make_early_inc_range(

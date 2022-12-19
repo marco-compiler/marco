@@ -122,6 +122,7 @@ def ModelicaToCFConversionPass : Pass<"convert-modelica-to-cf", "mlir::ModuleOp"
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
+        "mlir::arith::ArithDialect",
         "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
         "mlir::scf::SCFDialect",
