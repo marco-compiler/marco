@@ -395,6 +395,102 @@ namespace
     }
   };
 
+  struct ArrayCopyOpDifferentTypeLowering
+      : public ModelicaOpRewritePattern<ArrayCopyOp>
+  {
+    using ModelicaOpRewritePattern<ArrayCopyOp>
+        ::ModelicaOpRewritePattern;
+
+    mlir::LogicalResult match(ArrayCopyOp op) const override
+    {
+      return mlir::LogicalResult::success(
+          op.getSource().getType().getElementType() !=
+          op.getDestination().getType().getElementType());
+    }
+
+    void rewrite(
+        ArrayCopyOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+
+      mlir::Value zero = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getIndexAttr(0));
+
+      mlir::Value one = rewriter.create<mlir::arith::ConstantOp>(
+          loc, rewriter.getIndexAttr(1));
+
+      int64_t rank = op.getSource().getType().getRank();
+
+      llvm::SmallVector<mlir::Value> lowerBounds(rank, zero);
+      llvm::SmallVector<mlir::Value> upperBounds;
+      llvm::SmallVector<mlir::Value> steps(rank, one);
+
+      for (int64_t i = 0; i < rank; ++i) {
+        int64_t sourceSize = op.getSource().getType().getDimSize(i);
+        int64_t destinationSize = op.getDestination().getType().getDimSize(i);
+
+        if (sourceSize != mlir::ShapedType::kDynamicSize) {
+          upperBounds.push_back(rewriter.create<mlir::arith::ConstantOp>(
+              loc, rewriter.getIndexAttr(sourceSize)));
+        } else if (destinationSize != mlir::ShapedType::kDynamicSize) {
+          upperBounds.push_back(rewriter.create<mlir::arith::ConstantOp>(
+              loc, rewriter.getIndexAttr(destinationSize)));
+        } else {
+          mlir::Value dimension = rewriter.create<mlir::arith::ConstantOp>(
+              loc, rewriter.getIndexAttr(i));
+
+          upperBounds.push_back(rewriter.create<DimOp>(
+              loc, op.getSource(), dimension));
+        }
+      }
+
+      mlir::scf::buildLoopNest(
+          rewriter, loc, lowerBounds, upperBounds, steps,
+          [&](mlir::OpBuilder& nestedBuilder,
+              mlir::Location,
+              mlir::ValueRange position) {
+            mlir::Value value = rewriter.create<LoadOp>(
+                loc, op.getSource(), position);
+
+            mlir::Type destinationElementType =
+                op.getDestination().getType().getElementType();
+
+            if (value.getType() != destinationElementType) {
+              value = rewriter.create<CastOp>(
+                  loc, destinationElementType, value);
+            }
+
+            rewriter.create<StoreOp>(
+                loc, value, op.getDestination(), position);
+          });
+
+      rewriter.eraseOp(op);
+    }
+  };
+
+  struct ArrayCopyOpSameTypeLowering
+      : public ModelicaOpConversionPattern<ArrayCopyOp>
+  {
+    using ModelicaOpConversionPattern<ArrayCopyOp>
+        ::ModelicaOpConversionPattern;
+
+    mlir::LogicalResult match(ArrayCopyOp op) const override
+    {
+      return mlir::LogicalResult::success(
+          op.getSource().getType().getElementType() ==
+          op.getDestination().getType().getElementType());
+    }
+
+    void rewrite(
+        ArrayCopyOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      rewriter.replaceOpWithNewOp<mlir::memref::CopyOp>(
+          op, adaptor.getSource(), adaptor.getDestination());
+    }
+  };
+
   struct NDimsOpLowering : public ModelicaOpRewritePattern<NDimsOp>
   {
     using ModelicaOpRewritePattern<NDimsOp>::ModelicaOpRewritePattern;
@@ -515,7 +611,11 @@ static void populateModelicaToMemRefPatterns(
       StoreOpLowering>(typeConverter, context);
 
   patterns.insert<
-      ArrayFillOpLowering>(context);
+      ArrayFillOpLowering,
+      ArrayCopyOpDifferentTypeLowering>(context);
+
+  patterns.insert<
+      ArrayCopyOpSameTypeLowering>(typeConverter, context);
 
   patterns.insert<
       NDimsOpLowering,
@@ -558,7 +658,8 @@ namespace
             SubscriptionOp,
             LoadOp,
             StoreOp,
-            ArrayFillOp>();
+            ArrayFillOp,
+            ArrayCopyOp>();
 
         target.addIllegalOp<
             NDimsOp,
