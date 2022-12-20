@@ -593,6 +593,32 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
     }];
 }
 
+def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
+    [SameOperandsShape,
+     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]>
+{
+    let summary = "Copy the elements from the source to the destination array.";
+
+    let description = [{
+        The operation copies the elements from the source to the destination array.
+
+        Example:
+
+        ```mlir
+        %source = ... : !modelica.array<?x!modelica.int>
+        %destination = ... : !modelica.array<?x!modelica.real>
+        modelica.array_copy %source, %destination : !modelica.array<?x!modelica.int>, !modelica.array<?x!modelica.real>
+        ```
+    }];
+
+    let arguments = (ins ModelicaArray:$source, ModelicaArray:$destination);
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $destination `,` $source attr-dict `:` qualified(type($source)) `,` qualified(type($destination))
+    }];
+}
+
 //===---------------------------------------------------------------------===//
 // Member operations
 //===---------------------------------------------------------------------===//

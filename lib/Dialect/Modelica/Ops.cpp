@@ -548,6 +548,28 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// ArrayCopyOp
+
+namespace mlir::modelica
+{
+  void ArrayCopyOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
+  {
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getSource(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getDestination(),
+        mlir::SideEffects::DefaultResource::get());
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // Member operations
 //===---------------------------------------------------------------------===//
 
