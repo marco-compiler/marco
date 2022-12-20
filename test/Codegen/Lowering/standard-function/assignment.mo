@@ -1,10 +1,8 @@
 // RUN: marco %s --omc-bypass --emit-modelica-dialect | FileCheck %s
 
 // CHECK-LABEL: @variableCopy
-// CHECK: %[[x:.*]] = modelica.member_create @x
-// CHECK-SAME: !modelica.member<!modelica.int, input>
-// CHECK: %[[y:.*]] = modelica.member_create @y
-// CHECK-SAME: !modelica.member<!modelica.int, output>
+// CHECK-DAG: %[[x:.*]] = modelica.member_create @x : !modelica.member<!modelica.int, input>
+// CHECK-DAG: %[[y:.*]] = modelica.member_create @y : !modelica.member<!modelica.int, output>
 // CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
 // CHECK: modelica.member_store %[[y]], %[[x_value]]
 
@@ -17,10 +15,8 @@ end variableCopy;
 
 
 // CHECK-LABEL: @arrayCopy
-// CHECK: %[[x:.*]] = modelica.member_create @x
-// CHECK-SAME: !modelica.member<?x!modelica.int, input>
-// CHECK: %[[y:.*]] = modelica.member_create @y
-// CHECK-SAME: !modelica.member<?x!modelica.int, output>
+// CHECK: %[[x:.*]] = modelica.member_create @x : !modelica.member<?x!modelica.int, input>
+// CHECK: %[[y:.*]] = modelica.member_create @y : !modelica.member<?x!modelica.int, output>
 // CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
 // CHECK: modelica.member_store %[[y]], %[[x_value]]
 
@@ -33,8 +29,7 @@ end arrayCopy;
 
 
 // CHECK-LABEL: @constantOutput
-// CHECK: %[[y:.*]] = modelica.member_create @y
-// CHECK-SAME: !modelica.member<!modelica.int, output>
+// CHECK: %[[y:.*]] = modelica.member_create @y : !modelica.member<!modelica.int, output>
 // CHECK: %[[const:.*]] = modelica.constant #modelica.int<10>
 // CHECK: modelica.member_store %[[y]], %[[const]]
 
@@ -46,10 +41,8 @@ end constantOutput;
 
 
 // CHECK-LABEL: @castIntegerToReal
-// CHECK: %[[x:.*]] = modelica.member_create @x
-// CHECK-SAME: !modelica.member<!modelica.int, input>
-// CHECK: %[[y:.*]] = modelica.member_create @y
-// CHECK-SAME: !modelica.member<!modelica.real, output>
+// CHECK: %[[x:.*]] = modelica.member_create @x : !modelica.member<!modelica.int, input>
+// CHECK: %[[y:.*]] = modelica.member_create @y : !modelica.member<!modelica.real, output>
 // CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
 // CHECK: modelica.member_store %[[y]], %[[x_value]]
 
