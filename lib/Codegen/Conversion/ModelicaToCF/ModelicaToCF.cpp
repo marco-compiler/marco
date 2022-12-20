@@ -1,6 +1,5 @@
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
 #include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
-#include "marco/Codegen/Utils.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -19,7 +18,6 @@ namespace mlir
 #include "marco/Codegen/Conversion/Passes.h.inc"
 }
 
-using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 /// Remove the unreachable blocks of a region.
@@ -94,8 +92,8 @@ static mlir::LogicalResult convertArgument(
             -> mlir::LogicalResult {
           builder.setInsertionPoint(storeOp);
 
-          copyArray(
-              builder, storeOp.getLoc(), storeOp.getValue(), replacement);
+          builder.create<ArrayCopyOp>(
+              storeOp.getLoc(), storeOp.getValue(), replacement);
 
           storeOp->erase();
           return mlir::success();
@@ -223,8 +221,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(
               -> mlir::LogicalResult {
             builder.setInsertionPoint(storeOp);
 
-            copyArray(
-                builder, storeOp.getLoc(), storeOp.getValue(), reference);
+            builder.create<ArrayCopyOp>(
+                storeOp.getLoc(), storeOp.getValue(), reference);
 
             storeOp->erase();
             return mlir::success();
@@ -309,7 +307,8 @@ static mlir::LogicalResult convertResultOrProtectedVar(
             value = builder.create<AllocOp>(
                 storeOp.getLoc(), arrayType, dynamicDimensions);
 
-            copyArray(builder, storeOp.getLoc(), storeOp.getValue(), value);
+            builder.create<ArrayCopyOp>(
+                storeOp.getLoc(), storeOp.getValue(), value);
           }
 
           // Deallocate the previously allocated memory. This is only
