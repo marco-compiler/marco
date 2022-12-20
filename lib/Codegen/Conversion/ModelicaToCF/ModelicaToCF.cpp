@@ -124,6 +124,27 @@ static mlir::LogicalResult convertArgument(
   return mlir::success();
 }
 
+static ArrayType getArrayTypeWithDynamicDimensionsSetToZero(
+    ArrayType type)
+{
+  if (!type.hasRank()) {
+    return type;
+  }
+
+  llvm::SmallVector<int64_t, 3> shape;
+
+  for (int64_t dimension : type.getShape()) {
+    if (dimension == mlir::ShapedType::kDynamicSize) {
+      shape.push_back(0);
+    } else {
+      shape.push_back(dimension);
+    }
+  }
+
+  return ArrayType::get(
+      shape, type.getElementType(), type.getMemorySpace());
+}
+
 static mlir::LogicalResult convertResultOrProtectedVar(
     mlir::OpBuilder& builder,
     MemberCreateOp op,
@@ -227,11 +248,9 @@ static mlir::LogicalResult convertResultOrProtectedVar(
     // We need to allocate a fake buffer in order to allow the first free
     // operation to operate on a valid memory area.
 
-    llvm::SmallVector<int64_t, 3> shape(arrayType.getRank(), 0);
-
     mlir::Value fakeArray = builder.create<AllocOp>(
         loc,
-        ArrayType::get(shape, arrayType.getElementType()),
+        getArrayTypeWithDynamicDimensionsSetToZero(arrayType),
         llvm::None);
 
     fakeArray = typeConverter->materializeTargetConversion(
@@ -249,11 +268,6 @@ static mlir::LogicalResult convertResultOrProtectedVar(
           builder.setInsertionPoint(loadOp);
           mlir::Value array = builder.create<mlir::memref::LoadOp>(
               loadOp.getLoc(), memrefOfArray);
-
-          array = builder.create<mlir::memref::CastOp>(
-              loadOp.getLoc(),
-              typeConverter->convertType(loadOp.getMemberType().toArrayType()),
-              array);
 
           array = typeConverter->materializeSourceConversion(
               builder, loadOp.getLoc(),
