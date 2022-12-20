@@ -607,7 +607,7 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
         ```mlir
         %source = ... : !modelica.array<?x!modelica.int>
         %destination = ... : !modelica.array<?x!modelica.real>
-        modelica.array_copy %source, %destination : !modelica.array<?x!modelica.int>, !modelica.array<?x!modelica.real>
+        modelica.array_copy %destination, %source : !modelica.array<?x!modelica.int>, !modelica.array<?x!modelica.real>
         ```
     }];
 
@@ -615,7 +615,7 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
     let results = (outs);
 
     let assemblyFormat = [{
-        $destination `,` $source attr-dict `:` qualified(type($source)) `,` qualified(type($destination))
+        $destination `,` $source attr-dict `:` qualified(type($destination)) `,` qualified(type($source))
     }];
 }
 
