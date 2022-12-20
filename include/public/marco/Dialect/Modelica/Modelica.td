@@ -615,7 +615,7 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
     let results = (outs);
 
     let assemblyFormat = [{
-        $destination `,` $source attr-dict `:` qualified(type($destination)) `,` qualified(type($source))
+        $source `,` $destination attr-dict `:` qualified(type($source)) `,` qualified(type($destination))
     }];
 }
 
