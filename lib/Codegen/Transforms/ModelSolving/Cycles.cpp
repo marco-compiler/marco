@@ -102,9 +102,14 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
 
 static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles) {
 
+  auto solver = CyclesSymbolicSolver(builder);
+
+  // We need to traverse the equations of the model as a graph.
+  // To do this we use llvm GraphTraits.
 
 
-  return false;
+
+  return solver.solve();
 }
 
 namespace marco::codegen
