@@ -5,6 +5,7 @@ set(SOURCES
     ModelSolving/ArrayVariable.cpp
     ModelSolving/Cycles.cpp
     ModelSolving/CyclesLinearSolver.cpp
+    ModelSolving/CyclesSymbolicSolver.cpp
     ModelSolving/DerivativesMap.cpp
     ModelSolving/Equation.cpp
     ModelSolving/FilteredVariable.cpp

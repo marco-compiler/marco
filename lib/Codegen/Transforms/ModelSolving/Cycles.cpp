@@ -1,5 +1,6 @@
 #include "marco/Codegen/Transforms/ModelSolving/Cycles.h"
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSubstitutionSolver.h"
+#include "marco/Codegen/Transforms/ModelSolving/CyclesSymbolicSolver.h"
 #include "marco/Modeling/Cycles.h"
 
 using namespace ::marco::codegen;
@@ -99,6 +100,13 @@ static bool solveBySubstitution(Model<MatchedEquation>& model, mlir::OpBuilder& 
   return allCyclesSolved;
 }
 
+static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuilder& builder, bool secondaryCycles) {
+
+
+
+  return false;
+}
+
 namespace marco::codegen
 {
   mlir::LogicalResult solveCycles(
@@ -119,6 +127,15 @@ namespace marco::codegen
     });
 
     if (solveBySubstitution(model, builder, false)) {
+      return mlir::success();
+    }
+
+    // Use the symbolic solver
+    LLVM_DEBUG({
+      llvm::dbgs() << "Solving cycles with the symbolic solver\n";
+    });
+
+    if (solveWithSymbolicSolver(model, builder, true)) {
       return mlir::success();
     }
 
