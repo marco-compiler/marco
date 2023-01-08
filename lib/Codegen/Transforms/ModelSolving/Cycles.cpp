@@ -109,7 +109,7 @@ static bool solveWithSymbolicSolver(Model<MatchedEquation>& model, mlir::OpBuild
 
 
 
-  return solver.solve();
+  return solver.solve(model);
 }
 
 namespace marco::codegen
