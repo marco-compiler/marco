@@ -149,8 +149,8 @@ def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
     let options = [
         Option<"modelName", "model-name", "std::string", "",
                "Set the model whose cycles hs to be solved">,
-        Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
-               "Set the solver to be used for the simulation">,
+        Option<"allowUnsolvedCycles", "allow-unsolved-cycles", "bool", "false",
+               "Set whether the pass should fail in case of remaining unsolved cycles">,
         Option<"processICModel", "process-ic-model", "bool", "true",
                "Process the 'initial conditions' model">,
         Option<"processMainModel", "process-main-model", "bool", "true",
@@ -187,7 +187,7 @@ def SchedulingPass : Pass<"schedule", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createSchedulingPass()";
 }
 
-def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
+def ModelConversionTestPass : Pass<"test-model-conversion", "mlir::ModuleOp"> {
     let summary = "TODO";
 
     let description = [{
@@ -196,13 +196,41 @@ def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
 
     let dependentDialects = [
         "mlir::modelica::ModelicaDialect",
-        "mlir::ida::IDADialect",
+        "mlir::simulation::SimulationDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">,
+        Option<"model", "model", "std::string", "",
+               "Set the model from which generate the simulation">,
+        Option<"processICModel", "process-ic-model", "bool", "true",
+               "Enable the processing of the 'initial conditions' model">,
+        Option<"processMainModel", "process-main-model", "bool", "true",
+               "Enable the processing of the 'main' model">,
+        Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
+               "Set a print filter for the variables of the simulation">,
+    ];
+
+    let constructor = "mlir::modelica::createModelConversionTestPass()";
+}
+
+def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp"> {
+    let summary = "TODO";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
         "mlir::kinsol::KINSOLDialect",
+        "mlir::simulation::SimulationDialect",
         "mlir::arith::ArithDialect",
-        "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
-        "mlir::scf::SCFDialect",
-        "mlir::LLVM::LLVMDialect"
+        "mlir::scf::SCFDialect"
     ];
 
     let options = [
@@ -220,13 +248,49 @@ def ModelConversionPass : Pass<"convert-model", "mlir::ModuleOp"> {
                "Emit the 'main' function of the simulation">,
         Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
                "Set a print filter for the variables of the simulation">,
-        Option<"solver", "solver", "marco::codegen::Solver", "\"forwardEuler\"",
-               "Set a the solver to be used for the simulation">,
         Option<"IDACleverDAE", "ida-clever-dae", "bool", "true",
                "IDA: enable the clever DAE mode">,
     ];
 
-    let constructor = "mlir::modelica::createModelConversionPass()";
+    let constructor = "mlir::modelica::createEulerForwardPass()";
+}
+
+def IDAPass : Pass<"ida", "mlir::ModuleOp"> {
+    let summary = "TODO";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+        "mlir::ida::IDADialect",
+        "mlir::kinsol::KINSOLDialect",
+        "mlir::simulation::SimulationDialect",
+        "mlir::arith::ArithDialect",
+        "mlir::func::FuncDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"dataLayout", "dataLayout", "std::string", "",
+               "Specify the data layout">,
+        Option<"model", "model", "std::string", "",
+               "Set the model from which generate the simulation">,
+        Option<"processICModel", "process-ic-model", "bool", "true",
+               "Enable the processing of the 'initial conditions' model">,
+        Option<"processMainModel", "process-main-model", "bool", "true",
+               "Enable the processing of the 'main' model">,
+        Option<"emitSimulationMainFunction", "emit-simulation-main-function", "bool", "true",
+               "Emit the 'main' function of the simulation">,
+        Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
+               "Set a print filter for the variables of the simulation">,
+        Option<"cleverDAE", "clever-dae", "bool", "true",
+               "Enable the clever DAE mode">,
+    ];
+
+    let constructor = "mlir::modelica::createIDAPass()";
 }
 
 def NegateOpDistributionPass : Pass<"distribute-neg", "mlir::ModuleOp"> {

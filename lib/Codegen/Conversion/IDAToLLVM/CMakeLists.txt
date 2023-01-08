@@ -17,4 +17,5 @@ add_mlir_conversion_library(MLIRIDAToLLVM
     LINK_LIBS PUBLIC
     marco::codegen
     MLIRIDACommonConversion
+    MLIRSimulationToFunc
     ${MLIR_LIBS})

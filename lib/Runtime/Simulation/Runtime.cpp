@@ -97,22 +97,29 @@ namespace
     // Pre-fetch the names.
     result.variablesNames.resize(numOfVariables);
 
-    for (int64_t var = 0, e = numOfVariables; var < e; ++var) {
+    for (int64_t var = 0; var < numOfVariables; ++var) {
       result.variablesNames[var] = getVariableName(var);
     }
 
     // Pre-fetch the ranks.
     result.variablesRanks.resize(numOfVariables);
 
-    for (int64_t var = 0, e = numOfVariables; var < e; ++var) {
+    for (int64_t var = 0; var < numOfVariables; ++var) {
       result.variablesRanks[var] = getVariableRank(var);
+    }
+
+    // Pre-fetch whether each variable is printable.
+    result.printableVariables.resize(numOfVariables);
+
+    for (int64_t var = 0; var < numOfVariables; ++var) {
+      result.printableVariables[var] = isPrintable(var);
     }
 
     // Pre-fetch the printable indices.
     result.variablesPrintableIndices.resize(numOfVariables);
     result.variablesPrintOrder.resize(numOfVariables);
 
-    for (int64_t var = 0, e = numOfVariables; var < e; ++var) {
+    for (int64_t var = 0; var < numOfVariables; ++var) {
       int64_t numOfPrintableRanges = getVariableNumOfPrintableRanges(var);
       result.variablesPrintableIndices[var].resize(numOfPrintableRanges);
 
@@ -135,11 +142,11 @@ namespace
     // Pre-fetch the derivatives map.
     result.derivativesMap.resize(numOfVariables);
 
-    for (int64_t var = 0, e = numOfVariables; var < e; ++var) {
+    for (int64_t var = 0; var < numOfVariables; ++var) {
       result.derivativesMap[var] = -1;
     }
 
-    for (int64_t var = 0, e = numOfVariables; var < e; ++var) {
+    for (int64_t var = 0; var < numOfVariables; ++var) {
       int64_t derivative = getDerivative(var);
 
       if (derivative != -1) {
@@ -150,7 +157,7 @@ namespace
     // Compute the derivative order of each variable.
     result.derOrders.resize(numOfVariables);
 
-    for (int64_t var = 0, e = numOfVariables; var < e; ++var) {
+    for (int64_t var = 0; var < numOfVariables; ++var) {
       int64_t currentVar = result.derivativesMap[var];
       int64_t order = 0;
 

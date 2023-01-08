@@ -1,3 +1,4 @@
+add_subdirectory(SimulationToFunc)
 add_subdirectory(IDACommon)
 add_subdirectory(IDAToFunc)
 add_subdirectory(IDAToLLVM)

@@ -10,6 +10,7 @@
 #include "marco/Codegen/Conversion/ModelicaToLLVM/ModelicaToLLVM.h"
 #include "marco/Codegen/Conversion/ModelicaToMemRef/ModelicaToMemRef.h"
 #include "marco/Codegen/Conversion/ModelicaToVector/ModelicaToVector.h"
+#include "marco/Codegen/Conversion/SimulationToFunc/SimulationToFunc.h"
 
 namespace marco::codegen
 {

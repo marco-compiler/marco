@@ -1,5 +1,6 @@
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
+#include "marco/Codegen/Conversion/SimulationToFunc/SimulationToFunc.h"
 #include "marco/Codegen/Runtime.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -1352,32 +1353,66 @@ namespace marco::codegen
 
           return signalPassFailure();
         }
+
+        if (mlir::failed(legalizeSimulation())) {
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in converting the IDA dialect within the Simulation operations");
+
+          return signalPassFailure();
+        }
       }
 
     private:
-      mlir::LogicalResult convertOperations()
-      {
-        auto module = getOperation();
-        mlir::ConversionTarget target(getContext());
+      mlir::LogicalResult convertOperations();
 
-        target.addIllegalDialect<mlir::ida::IDADialect>();
-        target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-
-        target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
-          return true;
-        });
-
-        mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-        llvmLoweringOptions.dataLayout.reset(dataLayout);
-
-        LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
-
-        mlir::RewritePatternSet patterns(&getContext());
-        populateIDAConversionPatterns(patterns, typeConverter, 64);
-
-        return applyPartialConversion(module, target, std::move(patterns));
-      }
+      mlir::LogicalResult legalizeSimulation();
   };
+}
+
+mlir::LogicalResult IDAToLLVMConversionPass::convertOperations()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  target.addIllegalDialect<mlir::ida::IDADialect>();
+  target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+  LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+
+  mlir::RewritePatternSet patterns(&getContext());
+  populateIDAConversionPatterns(patterns, typeConverter, 64);
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  return applyPartialConversion(module, target, std::move(patterns));
+}
+
+mlir::LogicalResult IDAToLLVMConversionPass::legalizeSimulation()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
+
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+  LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  populateSimulationToFuncStructuralTypeConversionsAndLegality(
+      typeConverter, patterns, target);
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  return applyPartialConversion(module, target, std::move(patterns));
 }
 
 namespace
@@ -1782,15 +1817,15 @@ namespace mlir
       mlir::RewritePatternSet& patterns,
       mlir::ConversionTarget& target)
   {
-    typeConverter.addConversion([&](InstanceType type) {
+    typeConverter.addConversion([](InstanceType type) {
       return type;
     });
 
-    typeConverter.addConversion([&](EquationType type) {
+    typeConverter.addConversion([](EquationType type) {
       return type;
     });
 
-    typeConverter.addConversion([&](VariableType type) {
+    typeConverter.addConversion([](VariableType type) {
       return type;
     });
 

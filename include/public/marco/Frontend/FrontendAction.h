@@ -60,7 +60,10 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createVariablesPromotionPass();
       std::unique_ptr<mlir::Pass> createCyclesSolvingPass();
       std::unique_ptr<mlir::Pass> createSchedulingPass();
-      std::unique_ptr<mlir::Pass> createModelConversionPass();
+
+      std::unique_ptr<mlir::Pass> createEulerForwardPass();
+      std::unique_ptr<mlir::Pass> createIDAPass();
+
       std::unique_ptr<mlir::Pass> createFunctionScalarizationPass();
       std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
       std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass();
@@ -73,6 +76,8 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
 
       std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass();
+
+      std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass();
 
       std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createArithToLLVMConversionPass();

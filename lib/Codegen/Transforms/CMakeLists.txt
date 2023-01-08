@@ -1,7 +1,4 @@
 set(SOURCES
-    ModelSolving/Solvers/EulerForward.cpp
-    ModelSolving/Solvers/IDA.cpp
-    ModelSolving/Solvers/Solver.cpp
     AutomaticDifferentiation/AutomaticDifferentiation.cpp
     AutomaticDifferentiation/ForwardAD.cpp
     ModelSolving/Access.cpp
@@ -18,19 +15,20 @@ set(SOURCES
     ModelSolving/ScalarEquation.cpp
     ModelSolving/ScalarVariable.cpp
     ModelSolving/Scheduling.cpp
-    ModelSolving/Solver.cpp
     ModelSolving/TypeConverter.cpp
     ModelSolving/Utils.cpp
     ModelSolving/Variable.cpp
     ArrayDeallocation.cpp
     CyclesSolving.cpp
+    EulerForward.cpp
     ExplicitCastInsertion.cpp
     FunctionScalarization.cpp
+    IDA.cpp
     Matching.cpp
-    ModelConversion.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
     Scheduling.cpp
+    SolverPassBase.cpp
     VariablesPromotion.cpp)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

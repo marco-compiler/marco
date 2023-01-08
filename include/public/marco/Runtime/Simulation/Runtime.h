@@ -29,6 +29,7 @@ namespace marco::runtime
     public:
       std::vector<char*> variablesNames;
       std::vector<int64_t> variablesRanks;
+      std::vector<bool> printableVariables;
       std::vector<IndexSet> variablesPrintableIndices;
       std::vector<int64_t> variablesPrintOrder;
 
@@ -79,6 +80,9 @@ extern "C"
 
   /// Get the rank of a variable.
   int64_t getVariableRank(int64_t var);
+
+  /// Get whether the variable is allowed to be printed.
+  bool isPrintable(int64_t var);
 
   /// Get the number of ranges of indices of a variable that are printable.
   int64_t getVariableNumOfPrintableRanges(int64_t var);

@@ -37,16 +37,7 @@ namespace marco::frontend
     const auto& simulationOptions = ci.getSimulationOptions();
     printCategory(os, "Simulation");
     printOption(os, "Model", simulationOptions.modelName);
-
-    std::string solver;
-
-    if (simulationOptions.solver.getKind() == codegen::Solver::Kind::forwardEuler) {
-      solver = "Forward Euler";
-    } else if (simulationOptions.solver.getKind() == codegen::Solver::Kind::ida) {
-      solver = "IDA";
-    }
-
-    printOption(os, "Solver", solver);
+    printOption(os, "Solver", simulationOptions.solver);
     os << "\n";
   }
 

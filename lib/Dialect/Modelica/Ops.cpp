@@ -231,7 +231,6 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-
   mlir::LogicalResult ArrayFromElementsOp::verify()
   {
     if (!getArrayType().hasStaticShape()) {
@@ -6942,12 +6941,34 @@ namespace mlir::modelica
     return mlir::RegionKind::Graph;
   }
 
-  SmallVector<StringRef> ModelOp::variableNames()
+  llvm::SmallVector<MemberCreateOp> ModelOp::getVariableDeclarationOps()
   {
-    SmallVector<StringRef> result;
+    llvm::SmallVector<MemberCreateOp> result;
 
     for (MemberCreateOp member : getVarsRegion().getOps<MemberCreateOp>()) {
+      result.push_back(member);
+    }
+
+    return result;
+  }
+
+  llvm::SmallVector<StringRef> ModelOp::getVariableNames()
+  {
+    llvm::SmallVector<llvm::StringRef> result;
+
+    for (MemberCreateOp member : getVariableDeclarationOps()) {
       result.push_back(member.getSymName());
+    }
+
+    return result;
+  }
+
+  llvm::StringMap<MemberCreateOp> ModelOp::getVariableDeclarationOpsMap()
+  {
+    llvm::StringMap<MemberCreateOp> result;
+
+    for (MemberCreateOp member : getVariableDeclarationOps()) {
+      result[member.getSymName()] = member;
     }
 
     return result;
@@ -7739,7 +7760,6 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-
   void RuntimeFunctionOp::build(
       mlir::OpBuilder& builder,
       mlir::OperationState& state,

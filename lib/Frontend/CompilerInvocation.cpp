@@ -322,9 +322,9 @@ static void parseSimulationArgs(
   // Determine the solver to be used.
   for (const auto& arg : args.getAllArgValues(options::OPT_solver)) {
     if (arg == "forward-euler") {
-      options.solver = codegen::Solver::forwardEuler();
+      options.solver = "euler-forward";
     } else if (arg == "ida") {
-      options.solver = codegen::Solver::ida();
+      options.solver = "ida";
     } else {
       diagnostics.emitError<UnknownSolverMessage>(arg);
     }

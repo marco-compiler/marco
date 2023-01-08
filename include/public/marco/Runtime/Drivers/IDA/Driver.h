@@ -34,7 +34,7 @@ extern "C"
 
   void updateIDAVariables(void* data);
   void updateNonIDAVariables(void* data);
-  void incrementTime(void* data);
+  double getIDATime(void* data);
 }
 
 #endif // MARCO_RUNTIME_DRIVERS_IDA_DRIVER_H

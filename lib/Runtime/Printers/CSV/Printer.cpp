@@ -64,13 +64,19 @@ static void printHeader(const Simulation& simulation)
   std::cout << '"' << "time" << '"';
   PRINT_PROFILER_STRING_STOP;
 
-  for (const int64_t& var : simulation.variablesPrintOrder) {
-    if (simulation.variablesPrintableIndices[var].empty()) {
-      // The variable has no printable indices.
+  for (int64_t var : simulation.variablesPrintOrder) {
+    if (!simulation.printableVariables[var]) {
+      // The variable must not be printed.
       continue;
     }
 
     int64_t rank = simulation.variablesRanks[var];
+
+    if (rank != 0 && simulation.variablesPrintableIndices[var].empty()) {
+      // The array variable has no printable indices.
+      continue;
+    }
+
     int64_t derOrder = simulation.derOrders[var];
     int64_t baseVar = var;
 
@@ -140,13 +146,18 @@ static void printValues(const Simulation& simulation)
   std::cout << time;
   PRINT_PROFILER_FLOAT_STOP;
 
-  for (const int64_t& var : simulation.variablesPrintOrder) {
-    if (simulation.variablesPrintableIndices[var].empty()) {
-      // The variable has no printable indices.
+  for (int64_t var : simulation.variablesPrintOrder) {
+    if (!simulation.printableVariables[var]) {
+      // The variable must not be printed.
       continue;
     }
 
     int64_t rank = simulation.variablesRanks[var];
+
+    if (rank != 0 && simulation.variablesPrintableIndices[var].empty()) {
+      // The array variable has no printable indices.
+      continue;
+    }
 
     if (rank == 0) {
       // Print the scalar variable.

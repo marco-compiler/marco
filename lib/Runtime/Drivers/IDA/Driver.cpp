@@ -44,7 +44,7 @@ namespace marco::runtime
 
       IDA_PROFILER_ALGEBRAIC_VARS_START;
       // Update the time.
-      incrementTime(data);
+      setTime(data, getIDATime(data));
 
       // Compute the next values of the variables not belonging to IDA (which
       // may depend on the IDA variables).

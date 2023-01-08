@@ -6,10 +6,12 @@
 #include "marco/Codegen/Conversion/Passes.h"
 #include "marco/Codegen/Transforms/Passes.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
+#include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
 #include "marco/Frontend/FrontendOptions.h"
 #include "mlir/Conversion/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
@@ -256,7 +258,15 @@ namespace marco::frontend
     passManager.addPass(createVariablesPromotionPass());
     passManager.addPass(createCyclesSolvingPass());
     passManager.addPass(createSchedulingPass());
-    passManager.addPass(createModelConversionPass());
+
+    // Apply the selected solver.
+    passManager.addPass(
+        llvm::StringSwitch<std::unique_ptr<mlir::Pass>>(
+            ci.getSimulationOptions().solver)
+            .Case("euler-forward", createEulerForwardPass())
+            .Case("ida", createIDAPass())
+            .Default(createEulerForwardPass()));
+
     passManager.addPass(createFunctionScalarizationPass());
     passManager.addPass(createExplicitCastInsertionPass());
     passManager.addPass(mlir::createCanonicalizerPass());
@@ -279,7 +289,6 @@ namespace marco::frontend
     passManager.addPass(createModelicaToArithConversionPass());
     passManager.addPass(createModelicaToFuncConversionPass());
     passManager.addPass(createModelicaToMemRefConversionPass());
-    passManager.addPass(createModelicaToLLVMConversionPass());
 
     passManager.addPass(createIDAToFuncConversionPass());
 
@@ -298,12 +307,19 @@ namespace marco::frontend
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
     // Convert the MARCO dialects to LLVM dialect.
+    passManager.addPass(createModelicaToLLVMConversionPass());
     passManager.addPass(createIDAToLLVMConversionPass());
     passManager.addPass(createKINSOLToLLVMConversionPass());
+
+    // Now that the Simulation dialect doesn't have dependencies from Modelica
+    // or the solvers, we can proceed converting it.
+    passManager.addPass(createSimulationToFuncConversionPass());
 
     // Convert the non-LLVM operations that may have been introduced by the
     // last conversions.
     passManager.addPass(createArithToLLVMConversionPass());
+    passManager.addPass(createFuncToLLVMConversionPass());
+    passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
     // Finalization passes.
     passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
@@ -429,7 +445,7 @@ namespace marco::frontend
 
     mlir::modelica::CyclesSolvingPassOptions options;
     options.modelName = ci.getSimulationOptions().modelName;
-    options.solver = ci.getSimulationOptions().solver;
+    options.allowUnsolvedCycles = ci.getSimulationOptions().solver == "ida";
 
     return mlir::modelica::createCyclesSolvingPass(options);
   }
@@ -444,20 +460,33 @@ namespace marco::frontend
     return mlir::modelica::createSchedulingPass(options);
   }
 
-  std::unique_ptr<mlir::Pass> FrontendAction::createModelConversionPass()
+  std::unique_ptr<mlir::Pass> FrontendAction::createEulerForwardPass()
   {
     const CompilerInstance& ci = instance();
 
-    mlir::modelica::ModelConversionPassOptions options;
+    mlir::modelica::EulerForwardPassOptions options;
     options.bitWidth = ci.getCodegenOptions().bitWidth;
     options.dataLayout = getDataLayoutString();
     options.model = ci.getSimulationOptions().modelName;
-    options.solver = ci.getSimulationOptions().solver;
     options.emitSimulationMainFunction = ci.getCodegenOptions().generateMain;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
-    options.IDACleverDAE = ci.getSimulationOptions().IDACleverDAE;
 
-    return mlir::modelica::createModelConversionPass(options);
+    return mlir::modelica::createEulerForwardPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createIDAPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::IDAPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+    options.dataLayout = getDataLayoutString();
+    options.model = ci.getSimulationOptions().modelName;
+    options.emitSimulationMainFunction = ci.getCodegenOptions().generateMain;
+    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+    options.cleverDAE = ci.getSimulationOptions().IDACleverDAE;
+
+    return mlir::modelica::createIDAPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createFunctionScalarizationPass()
@@ -557,6 +586,17 @@ namespace marco::frontend
     options.dataLayout = getDataLayoutString();
 
     return mlir::createKINSOLToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  FrontendAction::createSimulationToFuncConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::SimulationToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+
+    return mlir::createSimulationToFuncConversionPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createFuncToLLVMConversionPass()

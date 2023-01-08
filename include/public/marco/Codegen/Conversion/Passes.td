@@ -190,6 +190,7 @@ def ModelicaToLLVMConversionPass : Pass<"convert-modelica-to-llvm", "mlir::Modul
         "mlir::modelica::ModelicaDialect",
         "mlir::ida::IDADialect",
         "mlir::kinsol::KINSOLDialect",
+        "mlir::simulation::SimulationDialect",
         "mlir::arith::ArithDialect",
         "mlir::LLVM::LLVMDialect"
     ];
@@ -259,6 +260,33 @@ def ModelicaToVectorConversionPass : Pass<"convert-modelica-to-vector", "mlir::M
     ];
 
     let constructor = "mlir::createModelicaToVectorConversionPass()";
+}
+
+//===---------------------------------------------------------------------===//
+// Simulation to Func
+//===---------------------------------------------------------------------===//
+
+def SimulationToFuncConversionPass : Pass<"convert-simulation-to-func", "mlir::ModuleOp"> {
+    let summary = "Simulation: conversion to Func dialect";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::arith::ArithDialect",
+        "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect"
+    ];
+
+    let options = [
+        Option<"bitWidth", "bitWidth", "unsigned int", "64",
+               "Specify the bit-width for the simulation data">,
+        Option<"emitMainFunction", "emit-main-function", "bool", "true",
+               "Emit the 'main' function of the simulation">
+    ];
+
+    let constructor = "mlir::createSimulationToFuncConversionPass()";
 }
 
 #endif // MARCO_CODEGEN_CONVERSION_PASSES_TD

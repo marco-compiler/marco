@@ -48,6 +48,7 @@ namespace marco::codegen
     return getPointerType(getVoidType());
   }
 
+  // TODO: force i64 type for number of bytes
   mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::ModuleOp moduleOp, mlir::Type indexType)
   {
     RuntimeFunctionsMangling mangling;

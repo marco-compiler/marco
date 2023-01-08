@@ -7,6 +7,10 @@ namespace mlir::modelica
   TypeConverter::TypeConverter(unsigned int bitWidth)
     : bitWidth(bitWidth)
   {
+    addConversion([](mlir::Type type) {
+      return type;
+    });
+
     addConversion([&](BooleanType type) {
       return convertBooleanType(type);
     });

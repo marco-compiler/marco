@@ -2398,8 +2398,14 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
+        /// Get the variables.
+        llvm::SmallVector<MemberCreateOp> getVariableDeclarationOps();
+
         /// Get the names of the variables.
-        SmallVector<StringRef> variableNames();
+        llvm::SmallVector<llvm::StringRef> getVariableNames();
+
+        /// Get a map between the name of the variables and their declarations.
+        llvm::StringMap<MemberCreateOp> getVariableDeclarationOpsMap();
 
         Block* bodyBlock();
     }];

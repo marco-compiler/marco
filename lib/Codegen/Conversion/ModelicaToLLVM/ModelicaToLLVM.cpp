@@ -3,9 +3,11 @@
 #include "marco/Codegen/Conversion/ModelicaCommon/Utils.h"
 #include "marco/Codegen/Conversion/IDAToLLVM/IDAToLLVM.h"
 #include "marco/Codegen/Conversion/KINSOLToLLVM/KINSOLToLLVM.h"
+#include "marco/Codegen/Conversion/SimulationToFunc/SimulationToFunc.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "marco/Dialect/KINSOL/KINSOLDialect.h"
+#include "marco/Dialect/Simulation/SimulationDialect.h"
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/FunctionCallUtils.h"
@@ -288,12 +290,22 @@ namespace
 
           return signalPassFailure();
         }
+
+        if (mlir::failed(legalizeSimulation())) {
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in converting the Modelica dialect within the Simulation operations");
+
+          return signalPassFailure();
+        }
       }
 
     private:
       mlir::LogicalResult convertCallOps();
 
       mlir::LogicalResult convertOperations();
+
+      mlir::LogicalResult legalizeSimulation();
   };
 }
 
@@ -332,9 +344,33 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
       CastOp,
       RuntimeFunctionOp>();
 
+  mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+  llvmLoweringOptions.dataLayout.reset(dataLayout);
+
+  mlir::modelica::LLVMTypeConverter typeConverter(
+      &getContext(), llvmLoweringOptions, bitWidth);
+
+  mlir::RewritePatternSet patterns(&getContext());
+
+  populateModelicaToLLVMPatterns(patterns, typeConverter);
+
+  populateIDAToLLVMStructuralTypeConversionsAndLegality(
+      typeConverter, patterns, target);
+
+  populateKINSOLStructuralTypeConversionsAndLegality(
+      typeConverter, patterns, target);
+
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
   });
+
+  return applyPartialConversion(module, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaToLLVMConversionPass::legalizeSimulation()
+{
+  auto module = getOperation();
+  mlir::ConversionTarget target(getContext());
 
   mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
   llvmLoweringOptions.dataLayout.reset(dataLayout);
@@ -352,6 +388,13 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()
   populateKINSOLStructuralTypeConversionsAndLegality(
       typeConverter, patterns, target);
 
+  populateSimulationToFuncStructuralTypeConversionsAndLegality(
+      typeConverter, patterns, target);
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
   return applyPartialConversion(module, target, std::move(patterns));
 }
 
@@ -362,7 +405,8 @@ namespace mlir
     return std::make_unique<ModelicaToLLVMConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass(const ModelicaToLLVMConversionPassOptions& options)
+  std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass(
+      const ModelicaToLLVMConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToLLVMConversionPass>(options);
   }

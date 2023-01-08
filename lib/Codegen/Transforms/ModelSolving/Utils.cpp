@@ -245,7 +245,7 @@ namespace marco::codegen
       const ModelSolvingIROptions& irOptions)
   {
     llvm::SmallVector<mlir::Attribute> derivativeAttrs;
-    auto variablesNames = modelOp.variableNames();
+    auto variablesNames = modelOp.getVariableNames();
     auto members = mlir::cast<YieldOp>(modelOp.getVarsRegion().back().getTerminator()).getValues();
 
     for (const auto& variableName : llvm::enumerate(variablesNames)) {
@@ -351,7 +351,7 @@ namespace marco::codegen
     }
 
     // Map the positions of the variables by their names for a faster retrieval.
-    llvm::SmallVector<llvm::StringRef> variablesNames = modelOp.variableNames();
+    llvm::SmallVector<llvm::StringRef> variablesNames = modelOp.getVariableNames();
     llvm::DenseMap<llvm::StringRef, size_t> namesMap;
 
     for (const auto& name : llvm::enumerate(variablesNames)) {

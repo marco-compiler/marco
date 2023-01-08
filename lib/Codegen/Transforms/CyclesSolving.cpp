@@ -130,12 +130,13 @@ mlir::LogicalResult CyclesSolvingPass::processModelOp(mlir::OpBuilder& builder, 
   return mlir::success();
 }
 
-mlir::LogicalResult CyclesSolvingPass::solveCycles(mlir::OpBuilder& builder, Model<MatchedEquation>& model)
+mlir::LogicalResult CyclesSolvingPass::solveCycles(
+    mlir::OpBuilder& builder, Model<MatchedEquation>& model)
 {
-  if (auto res = ::solveCycles(model, builder); mlir::failed(res)) {
-    if (solver.getKind() != Solver::Kind::ida) {
+  if (mlir::failed(::solveCycles(model, builder))) {
+    if (!allowUnsolvedCycles) {
       // Check if the selected solver can deal with cycles. If not, fail.
-      return res;
+      return mlir::failure();
     }
   }
 
