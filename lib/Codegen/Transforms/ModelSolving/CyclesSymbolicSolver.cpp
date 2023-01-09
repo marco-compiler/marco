@@ -105,6 +105,31 @@ void EquationGraph::print()
   }
 }
 
+void EquationGraph::erase()
+{
+  std::stack<OperationNode*> stack;
+  std::vector<OperationNode*> vector;
+
+  stack.push(entryNode);
+
+  while (!stack.empty()) {
+    auto father = stack.top();
+    stack.pop();
+
+    vector.push_back(father);
+
+    auto child = father->getChild();
+    while (child) {
+      stack.push(child);
+      child = child->getNext();
+    }
+  }
+
+  for (const auto node : llvm::reverse(vector)) {
+    delete node;
+  }
+}
+
 CyclesSymbolicSolver::CyclesSymbolicSolver(mlir::OpBuilder& builder) : builder(builder)
 {
 
@@ -125,6 +150,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   auto graph = EquationGraph(toBeProcessed[0]);
 
   graph.print();
+
+  graph.erase();
 
   return false;
 }
