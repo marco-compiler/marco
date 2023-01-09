@@ -60,6 +60,7 @@ namespace marco::codegen {
     explicit EquationGraph(MatchedEquation* equation);
     OperationNode* getEntryNode();
     void print();
+    void erase();
   };
 }
 
