@@ -38,6 +38,7 @@ set(BUILT_IN_FUNCTIONS
 	BuiltInFunction/Diagonal.cpp
 	BuiltInFunction/Div.cpp
 	BuiltInFunction/Exp.cpp
+	BuiltInFunction/Fill.cpp
 	BuiltInFunction/Floor.cpp
 	BuiltInFunction/Integer.cpp
 	BuiltInFunction/Identity.cpp
