@@ -1041,11 +1041,12 @@ mlir::LogicalResult ModelLegalization::cloneEquationsAsInitialEquations(mlir::Op
   return mlir::success();
 }
 
-mlir::LogicalResult ModelLegalization::convertFixedStartOpsToInitialEquations(mlir::OpBuilder& builder)
+mlir::LogicalResult ModelLegalization::convertFixedStartOpsToInitialEquations(
+    mlir::OpBuilder& builder)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
 
-  // Collect the start operations having the 'fixed' attribute set to true
+  // Collect the start operations having the 'fixed' attribute set to true.
   std::vector<StartOp> startOps;
 
   modelOp.getBodyRegion().walk([&](StartOp startOp) {
@@ -1057,34 +1058,43 @@ mlir::LogicalResult ModelLegalization::convertFixedStartOpsToInitialEquations(ml
   for (auto& startOp : startOps) {
     builder.setInsertionPointToEnd(modelOp.bodyBlock());
 
-    auto loc = startOp.getLoc();
+    mlir::Location loc = startOp.getLoc();
     auto memberArrayType = startOp.getVariable().getType().cast<ArrayType>();
 
     unsigned int expressionRank = 0;
-    auto yieldOp =  mlir::cast<YieldOp>(startOp.getBodyRegion().back().getTerminator());
+
+    auto yieldOp =  mlir::cast<YieldOp>(
+        startOp.getBodyRegion().back().getTerminator());
+
     mlir::Value expressionValue = yieldOp.getValues()[0];
 
-    if (auto expressionArrayType = expressionValue.getType().dyn_cast<ArrayType>()) {
+    if (auto expressionArrayType =
+            expressionValue.getType().dyn_cast<ArrayType>()) {
       expressionRank = expressionArrayType.getRank();
     }
 
-    auto memberRank = memberArrayType.getRank();
-    assert(expressionRank == 0 || expressionRank == memberRank);
+    auto variableRank = memberArrayType.getRank();
+    assert(expressionRank == 0 || expressionRank == variableRank);
 
     std::vector<mlir::Value> inductionVariables;
 
-    for (unsigned int i = 0; i < memberRank - expressionRank; ++i) {
-      auto forEquationOp = builder.create<ForEquationOp>(loc, 0, memberArrayType.getShape()[i] - 1, 1);
+    for (unsigned int i = 0; i < variableRank - expressionRank; ++i) {
+      auto forEquationOp = builder.create<ForEquationOp>(
+          loc, 0, memberArrayType.getShape()[i] - 1, 1);
+
       inductionVariables.push_back(forEquationOp.induction());
       builder.setInsertionPointToStart(forEquationOp.bodyBlock());
     }
 
     auto equationOp = builder.create<InitialEquationOp>(loc);
     assert(equationOp.getBodyRegion().empty());
-    mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
+
+    mlir::Block* equationBodyBlock = builder.createBlock(
+        &equationOp.getBodyRegion());
+
     builder.setInsertionPointToStart(equationBodyBlock);
 
-    // Clone the operations
+    // Clone the operations.
     mlir::BlockAndValueMapping mapping;
 
     for (auto& op : startOp.getBody()->getOperations()) {
@@ -1093,17 +1103,22 @@ mlir::LogicalResult ModelLegalization::convertFixedStartOpsToInitialEquations(ml
       }
     }
 
-    // Left-hand side
+    // Left-hand side.
     mlir::Value lhsValue = startOp.getVariable();
+    auto lhsArrayType = lhsValue.getType().dyn_cast<ArrayType>();
 
-    if (lhsValue.getType().isa<ArrayType>()) {
+    if (inductionVariables.size() ==
+        static_cast<size_t>(lhsArrayType.getRank())) {
       lhsValue = builder.create<LoadOp>(loc, lhsValue, inductionVariables);
+    } else if (!inductionVariables.empty()) {
+      lhsValue = builder.create<SubscriptionOp>(
+          loc, lhsValue, inductionVariables);
     }
 
-    // Right-hand side
+    // Right-hand side.
     mlir::Value rhsValue = mapping.lookup(yieldOp.getValues()[0]);
 
-    // Create the assignment
+    // Create the assignment.
     mlir::Value lhsTuple = builder.create<EquationSideOp>(loc, lhsValue);
     mlir::Value rhsTuple = builder.create<EquationSideOp>(loc, rhsValue);
     builder.create<EquationSidesOp>(loc, lhsTuple, rhsTuple);
