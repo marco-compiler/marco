@@ -165,7 +165,8 @@ namespace marco::diagnostic
 
     os.resetColor();
 
-    for (int64_t i = highlightEnd + 1; line[i - 1] != '\n' && line[i - 1] != '\0'; ++i) {
+    for (int64_t i = highlightEnd + 1, e = line.size();
+         i < e && line[i - 1] != '\n' && line[i - 1] != '\0'; ++i) {
       os << line[i - 1];
     }
 
