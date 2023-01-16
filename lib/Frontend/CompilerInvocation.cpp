@@ -321,7 +321,7 @@ static void parseSimulationArgs(
 
   // Determine the solver to be used.
   for (const auto& arg : args.getAllArgValues(options::OPT_solver)) {
-    if (arg == "forward-euler") {
+    if (arg == "euler-forward") {
       options.solver = "euler-forward";
     } else if (arg == "ida") {
       options.solver = "ida";

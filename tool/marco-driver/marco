@@ -13,7 +13,7 @@ LIBS_PATHS_DEFAULT="@RUNTIME_LIBS_PATHS@"
 SIMULATION_LIBS="@SIMULATION_LIBS@"
 EXTRA_LINK_FLAGS="@EXTRA_LINK_FLAGS@"
 
-SOLVER="forward-euler"
+SOLVER="euler-forward"
 SOLVER_LIB=""
 
 PRINT_HELP="False"
@@ -147,7 +147,7 @@ main()
     SIMULATION_LIBS_FLAGS+=("-l$i")
   done
 
-  if [[ "$SOLVER" == "forward-euler" ]] ; then
+  if [[ "$SOLVER" == "euler-forward" ]] ; then
     SOLVER_LIB="-lMARCORuntimeDriverEulerForward"
   elif [[ "$SOLVER" == "ida" ]] ; then
     SOLVER_LIB="-lMARCORuntimeDriverIDA"

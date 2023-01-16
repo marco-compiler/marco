@@ -1,4 +1,4 @@
-// RUN: marco --omc-bypass --model=InductionInExpression --solver=forward-euler -o %basename_t %s
+// RUN: marco --omc-bypass --model=InductionInExpression --solver=euler-forward -o %basename_t %s
 // RUN: ./%basename_t --end-time=1 --time-step=0.1 --precision=6 | FileCheck %s
 
 // CHECK: "time","x[1]","x[2]","x[3]"

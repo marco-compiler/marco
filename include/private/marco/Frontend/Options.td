@@ -328,7 +328,7 @@ def filter : Joined<["--"], "variable-filter=">,
 def solver : Joined<["--"], "solver=">,
     Group<Simulation_Group>,
     Flags<[MC1Option]>,
-    HelpText<"Solver (possible options: forward-euler, ida">;
+    HelpText<"Solver (possible options: euler-forward, ida)">;
 
 defm ida_clever_dae : BoolOption<"", "ida-clever-dae",
     CodegenOpts<"IDA">,
