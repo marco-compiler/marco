@@ -57,34 +57,34 @@ def ModelicaRealAttr : Attr<CPred<"$_self.isa<::mlir::modelica::RealAttr>()">, "
 def ModelicaArray : Type<CPred<"$_self.isa<::mlir::modelica::ArrayType>()">,
                          "array", "::mlir::modelica::ArrayType">;
 
-// Modelica-compatible scalar type
-def AnyModelicaScalar : AnyTypeOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
+// Modelica scalar type.
+def AnyModelicaScalar : AnyTypeOf<[
+    ModelicaBoolean, ModelicaInteger, ModelicaReal]>;
+
+// Modelica-compatible scalar type.
+def AnyModelicaCompatibleScalar : AnyTypeOf<[
+    AnyModelicaScalar, AnyInteger, AnyFloat, Index]>;
 
 // Whether a type is an ArrayType.
-def IsArrayTypePred : CPred<"$_self.isa<::mlir::modelica::ArrayType>()">;
+def IsModelicaArrayTypePred : CPred<"$_self.isa<::mlir::modelica::ArrayType>()">;
+
+// Array with given allowed element types.
+class ModelicaArrayOf<list<Type> allowedTypes> :
+    ShapedContainerType<
+        allowedTypes, IsModelicaArrayTypePred, "array",
+        "::mlir::modelica::ArrayType">;
+
+def AnyModelicaArray : ModelicaArrayOf<[AnyModelicaScalar]>;
+
+def AnyModelicaCompatibleArray : ModelicaArrayOf<[AnyModelicaCompatibleScalar]>;
 
 class ArrayOf<list<Type> allowedTypes> :
     ContainerType<AnyTypeOf<allowedTypes>,
-                  IsArrayTypePred,
+                  IsModelicaArrayTypePred,
                   "$_self.cast<::mlir::modelica::ArrayType>().getElementType()",
                   "array", "::mlir::modelica::ArrayType">;
 
 def AnyArray : ArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray]>;
-
-// Modelica Tensor Array type
-def ModelicaTensorArray : Type<CPred<"$_self.isa<::mlir::modelica::TensorArrayType>()">,
-                                     "tensor_array", "::mlir::modelica::TensorArrayType">;
-
-// Whether a type is an TensorArrayType.
-def IsTensorArrayTypePred : CPred<"$_self.isa<::mlir::modelica::TensorArrayType>()">;
-
-class TensorArrayOf<list<Type> allowedTypes> :
-    ContainerType<AnyTypeOf<allowedTypes>,
-                  IsTensorArrayTypePred,
-                  "$_self.cast<::mlir::modelica::TensorArrayType>().getElementType()",
-                  "tensor_array", "::mlir::modelica::TensorArrayType">;
-
-def AnyTensorArray : TensorArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
 // Whether a type is a MemberType.
 def IsMemberTypePred : CPred<"$_self.isa<::mlir::modelica::MemberType>()">;
@@ -288,7 +288,7 @@ def Modelica_ArrayBroadcastOp : Modelica_Op<"array_broadcast",
         ```
     }];
 
-    let arguments = (ins AnyModelicaScalar:$value, Variadic<Index>:$dynamicDimensions);
+    let arguments = (ins AnyModelicaCompatibleScalar:$value, Variadic<Index>:$dynamicDimensions);
     let results = (outs AnyArray:$array);
 
     let assemblyFormat = [{
@@ -578,7 +578,7 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
         ```
     }];
 
-    let arguments = (ins AnyArray:$array, AnyModelicaScalar:$value);
+    let arguments = (ins AnyArray:$array, AnyModelicaCompatibleScalar:$value);
     let results = (outs);
 
     let assemblyFormat = [{
@@ -1125,13 +1125,13 @@ class Modelica_ComparisonOp<string mnemonic, list<Trait> traits = []> :
     Modelica_Op<mnemonic, traits>
 {
     let arguments = (ins
-        AnyModelicaScalar:$lhs,
-        AnyModelicaScalar:$rhs);
+        AnyModelicaCompatibleScalar:$lhs,
+        AnyModelicaCompatibleScalar:$rhs);
 
-    let results = (outs AnyModelicaScalar:$result);
+    let results = (outs AnyModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 }
 
@@ -1971,7 +1971,7 @@ def Modelica_NDimsOp : Modelica_Op<"ndims", []>
     }];
 
     let arguments = (ins AnyArray:$array);
-    let results = (outs AnyModelicaScalar:$result);
+    let results = (outs AnyModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
         $array attr-dict `:` qualified(type($array)) `->` qualified(type($result))
@@ -3365,8 +3365,8 @@ def Modelica_CastOp : Modelica_Op<"cast",
         ```
     }];
 
-    let arguments = (ins AnyModelicaScalar:$value);
-    let results = (outs AnyModelicaScalar:$result);
+    let arguments = (ins AnyModelicaCompatibleScalar:$value);
+    let results = (outs AnyModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
         $value attr-dict `:` qualified(type($value)) `->` qualified(type($result))

@@ -135,3 +135,54 @@ func.func @foo(%arg0 : !modelica.array<3x?x!modelica.bool>, %arg1 : !modelica.ar
     %0 = modelica.or %arg0, %arg1 : (!modelica.array<3x?x!modelica.bool>, !modelica.array<3x?x!modelica.bool>) -> !modelica.array<3x?x!modelica.bool>
     func.return %0 : !modelica.array<3x?x!modelica.bool>
 }
+
+// -----
+
+// MLIR index operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: index, %[[arg1:.*]]: index) -> i1
+// CHECK-DAG: %[[zero:.*]] = arith.constant 0 : index
+// CHECK: %[[lhs:.*]] = arith.cmpi ne, %[[arg0]], %[[zero]] : index
+// CHECK: %[[rhs:.*]] = arith.cmpi ne, %[[arg1]], %[[zero]] : index
+// CHECK: %[[result:.*]] = arith.ori %[[lhs]], %[[rhs]] : i1
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : index, %arg1 : index) -> i1 {
+    %0 = modelica.or %arg0, %arg1 : (index, index) -> i1
+    func.return %0 : i1
+}
+
+// -----
+
+// MLIR integer operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: i64, %[[arg1:.*]]: i64) -> i1
+// CHECK-DAG: %[[zero:.*]] = arith.constant 0 : i64
+// CHECK: %[[lhs:.*]] = arith.cmpi ne, %[[arg0]], %[[zero]] : i64
+// CHECK: %[[rhs:.*]] = arith.cmpi ne, %[[arg1]], %[[zero]] : i64
+// CHECK: %[[result:.*]] = arith.ori %[[lhs]], %[[rhs]] : i1
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : i64, %arg1 : i64) -> i1 {
+    %0 = modelica.or %arg0, %arg1 : (i64, i64) -> i1
+    func.return %0 : i1
+}
+
+// -----
+
+// MLIR float operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: f64, %[[arg1:.*]]: f64) -> i1
+// CHECK-DAG: %[[zero:.*]] = arith.constant 0.000000e+00 : f64
+// CHECK: %[[lhs:.*]] = arith.cmpf one, %[[arg0]], %[[zero]] : f64
+// CHECK: %[[rhs:.*]] = arith.cmpf one, %[[arg1]], %[[zero]] : f64
+// CHECK: %[[result:.*]] = arith.ori %[[lhs]], %[[rhs]] : i1
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : f64, %arg1 : f64) -> i1 {
+    %0 = modelica.or %arg0, %arg1 : (f64, f64) -> i1
+    func.return %0 : i1
+}

@@ -87,3 +87,47 @@ func.func @foo(%arg0 : !modelica.array<3x?x!modelica.real>) -> !modelica.array<3
     %0 = modelica.neg %arg0 : !modelica.array<3x?x!modelica.real> -> !modelica.array<3x?x!modelica.real>
     func.return %0 : !modelica.array<3x?x!modelica.real>
 }
+
+// -----
+
+// MLIR index operand
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: index) -> index
+// CHECK: %[[zero:.*]] = arith.constant 0 : index
+// CHECK: %[[result:.*]] = arith.subi %[[zero]], %[[arg0]] : index
+// CHECK: return %[[result]]
+
+func.func @foo(%arg0 : index) -> index {
+    %0 = modelica.neg %arg0 : index -> index
+    func.return %0 : index
+}
+
+// -----
+
+// MLIR integer operand
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: i64) -> i64
+// CHECK: %[[zero:.*]] = arith.constant 0 : i64
+// CHECK: %[[result:.*]] = arith.subi %[[zero]], %[[arg0]] : i64
+// CHECK: return %[[result]]
+
+func.func @foo(%arg0 : i64) -> i64 {
+    %0 = modelica.neg %arg0 : i64 -> i64
+    func.return %0 : i64
+}
+
+// -----
+
+// MLIR float operand
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: f64) -> f64
+// CHECK: %[[result:.*]] = arith.negf %[[arg0]] : f64
+// CHECK: return %[[result]]
+
+func.func @foo(%arg0 : f64) -> f64 {
+    %0 = modelica.neg %arg0 : f64 -> f64
+    func.return %0 : f64
+}

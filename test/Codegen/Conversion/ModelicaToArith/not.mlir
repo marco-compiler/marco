@@ -77,3 +77,48 @@ func.func @foo(%arg0 : !modelica.array<3x?x!modelica.bool>) -> !modelica.array<3
     %0 = modelica.not %arg0 : !modelica.array<3x?x!modelica.bool> -> !modelica.array<3x?x!modelica.bool>
     func.return %0 : !modelica.array<3x?x!modelica.bool>
 }
+
+// -----
+
+// MLIR index operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: index) -> i1
+// CHECK-DAG: %[[zero:.*]] = arith.constant 0 : index
+// CHECK: %[[result:.*]] = arith.cmpi eq, %[[arg0]], %[[zero]] : index
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : index) -> i1 {
+    %0 = modelica.not %arg0 : index -> i1
+    func.return %0 : i1
+}
+
+// -----
+
+// MLIR integer operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: i64) -> i1
+// CHECK-DAG: %[[zero:.*]] = arith.constant 0 : i64
+// CHECK: %[[result:.*]] = arith.cmpi eq, %[[arg0]], %[[zero]] : i64
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : i64) -> i1 {
+    %0 = modelica.not %arg0 : i64 -> i1
+    func.return %0 : i1
+}
+
+// -----
+
+// MLIR float operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: f64) -> i1
+// CHECK-DAG: %[[zero:.*]] = arith.constant 0.000000e+00 : f64
+// CHECK: %[[result:.*]] = arith.cmpf oeq, %[[arg0]], %[[zero]] : f64
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : f64) -> i1 {
+    %0 = modelica.not %arg0 : f64 -> i1
+    func.return %0 : i1
+}

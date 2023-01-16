@@ -38,10 +38,10 @@ func.func @foo(%arg0 : !modelica.real, %arg1 : !modelica.real) -> !modelica.bool
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.int, %[[arg1:.*]]: !modelica.real) -> !modelica.bool
-// CHECK-DAG: %[[arg0_casted:.*]] = modelica.cast %[[arg0]] : !modelica.int -> !modelica.real
-// CHECK-DAG: %[[x:.*]] = builtin.unrealized_conversion_cast %[[arg0_casted]] : !modelica.real to f64
+// CHECK-DAG: %[[x:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.int to i64
 // CHECK-DAG: %[[y:.*]] = builtin.unrealized_conversion_cast %[[arg1]] : !modelica.real to f64
-// CHECK: %[[cmp:.*]] = arith.cmpf oge, %[[x]], %[[y]] : f64
+// CHECK: %[[x_f64:.*]] = arith.sitofp %[[x]] : i64 to f64
+// CHECK: %[[cmp:.*]] = arith.cmpf oge, %[[x_f64]], %[[y]] : f64
 // CHECK: %[[result:.*]] =  builtin.unrealized_conversion_cast %[[cmp]] : i1 to !modelica.bool
 // CHECK: return %[[result]] : !modelica.bool
 
@@ -56,14 +56,56 @@ func.func @foo(%arg0 : !modelica.int, %arg1 : !modelica.real) -> !modelica.bool 
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.real, %[[arg1:.*]]: !modelica.int) -> !modelica.bool
-// CHECK-DAG: %[[arg1_casted:.*]] = modelica.cast %[[arg1]] : !modelica.int -> !modelica.real
-// CHECK-DAG: %[[y:.*]] = builtin.unrealized_conversion_cast %[[arg1_casted]] : !modelica.real to f64
 // CHECK-DAG: %[[x:.*]] = builtin.unrealized_conversion_cast %[[arg0]] : !modelica.real to f64
-// CHECK: %[[cmp:.*]] = arith.cmpf oge, %[[x]], %[[y]] : f64
+// CHECK-DAG: %[[y:.*]] = builtin.unrealized_conversion_cast %[[arg1]] : !modelica.int to i64
+// CHECK: %[[y_f64:.*]] = arith.sitofp %[[y]] : i64 to f64
+// CHECK: %[[cmp:.*]] = arith.cmpf oge, %[[x]], %[[y_f64]] : f64
 // CHECK: %[[result:.*]] =  builtin.unrealized_conversion_cast %[[cmp]] : i1 to !modelica.bool
 // CHECK: return %[[result]] : !modelica.bool
 
 func.func @foo(%arg0 : !modelica.real, %arg1 : !modelica.int) -> !modelica.bool {
     %0 = modelica.gte %arg0, %arg1 : (!modelica.real, !modelica.int) -> !modelica.bool
     func.return %0 : !modelica.bool
+}
+
+// -----
+
+// MLIR index operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: index, %[[arg1:.*]]: index) -> i1
+// CHECK: %[[result:.*]] = arith.cmpi sge, %[[arg0]], %[[arg1]] : index
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : index, %arg1 : index) -> i1 {
+    %0 = modelica.gte %arg0, %arg1 : (index, index) -> i1
+    func.return %0 : i1
+}
+
+// -----
+
+// MLIR integer operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: i64, %[[arg1:.*]]: i64) -> i1
+// CHECK: %[[result:.*]] = arith.cmpi sge, %[[arg0]], %[[arg1]] : i64
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : i64, %arg1 : i64) -> i1 {
+    %0 = modelica.gte %arg0, %arg1 : (i64, i64) -> i1
+    func.return %0 : i1
+}
+
+// -----
+
+// MLIR float operands
+
+// CHECK-LABEL: @foo
+// CHECK-SAME: (%[[arg0:.*]]: f64, %[[arg1:.*]]: f64) -> i1
+// CHECK: %[[result:.*]] = arith.cmpf oge, %[[arg0]], %[[arg1]] : f64
+// CHECK: return %[[result]] : i1
+
+func.func @foo(%arg0 : f64, %arg1 : f64) -> i1 {
+    %0 = modelica.gte %arg0, %arg1 : (f64, f64) -> i1
+    func.return %0 : i1
 }
