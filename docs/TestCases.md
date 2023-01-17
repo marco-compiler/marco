@@ -95,7 +95,7 @@
 | Type1 N=16, M=4 | ~800k | ~1k | TBD | TBD | TBD | TBD |
 | Type1 N=45, M=4 | ~6.4M | ~8k | TBD | TBD | TBD | TBD |
 
-**Status**: Currently trying to get proper flat Modelica output with non-scalarized bindings. Current blocker issue is [#10032](https://github.com/OpenModelica/OpenModelica/issues/10032), that should be fixed soon.
+**Status**: Currently trying to get proper flat Modelica output with non-scalarized bindings. All known issues have been fixed so far.
 The model contains conditional expressions for saturation blocks, so it is necessary to create a variant using smooth saturation functions
 to handle them in MARCO until we have proper event handling.
 The model includes a non-trivial initialization problem using homotopy, we should discuss to which extent we can support that.
