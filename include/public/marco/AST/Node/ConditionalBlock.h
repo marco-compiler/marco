@@ -1,7 +1,6 @@
 #ifndef MARCO_AST_NODE_CONDITIONALBLOCK_H
 #define MARCO_AST_NODE_CONDITIONALBLOCK_H
 
-#include "boost/iterator/indirect_iterator.hpp"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"

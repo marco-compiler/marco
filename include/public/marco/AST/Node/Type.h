@@ -2,9 +2,9 @@
 #define MARCO_AST_NODE_TYPE_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "boost/iterator/indirect_iterator.hpp"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>
 #include <type_traits>
@@ -168,8 +168,8 @@ namespace marco::ast
       using Container = llvm::SmallVector<TypePtr, 3>;
 
     public:
-      using iterator = boost::indirect_iterator<Container::iterator>;
-      using const_iterator = boost::indirect_iterator<Container::const_iterator>;
+      using iterator = llvm::pointee_iterator<Container::iterator>;
+      using const_iterator = llvm::pointee_iterator<Container::const_iterator>;
 
       explicit PackedType(llvm::ArrayRef<Type> types);
 
@@ -207,8 +207,8 @@ namespace marco::ast
       using Container = llvm::SmallVector<TypePtr, 3>;
 
     public:
-      using iterator = boost::indirect_iterator<Container::iterator>;
-      using const_iterator = boost::indirect_iterator<Container::const_iterator>;
+      using iterator = llvm::pointee_iterator<Container::iterator>;
+      using const_iterator = llvm::pointee_iterator<Container::const_iterator>;
 
       UserDefinedType(std::string name, llvm::ArrayRef<Type> types);
 

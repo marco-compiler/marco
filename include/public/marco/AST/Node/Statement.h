@@ -4,7 +4,6 @@
 #include "marco/AST/Node/ASTNode.h"
 #include "marco/AST/Node/ConditionalBlock.h"
 #include "marco/AST/Node/Induction.h"
-#include "boost/iterator/indirect_iterator.hpp"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
