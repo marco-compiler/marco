@@ -76,7 +76,6 @@ marco_add_library(ast
 
 	LINK_LIBS
 	PUBLIC marco::diagnostic
-	PUBLIC boost
 
 	LINK_COMPONENTS
 	Core

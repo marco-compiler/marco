@@ -7,7 +7,6 @@ It also defines an MLIR dialect that is specific to Modelica.
 
 - LLVM (see the docs for the specific commit to be used)
 - OpenModelica
-- Boost libraries
 - Sundials libraries
 - LLVM's LIT
 

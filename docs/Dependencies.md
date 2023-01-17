@@ -33,14 +33,6 @@ It is recommended installing the nighly version, because some features leveraged
 
 For MacOS users, OpenModelica is available through Homebrew.
 
-### Boost
-
-The Boost libraries can be easily retrieved through package managers. For example:
-
-```bash
-sudo apt install libboost-all-dev
-```
-
 ### Sundials
 The Sundials libraries can usually be installed through package managers:
 

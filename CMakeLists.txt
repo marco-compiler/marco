@@ -119,20 +119,6 @@ add_definitions(${LLVM_DEFINITIONS})
 find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
-# Boost (will be removed soon)
-#-------------------------------------------------------------------------------
-
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.45.0 COMPONENTS graph exception REQUIRED)
-
-add_library(boost INTERFACE)
-target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIRS})
-target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
-target_compile_features(boost INTERFACE cxx_std_17)
-
-#-------------------------------------------------------------------------------
 # MARCO configuration
 #-------------------------------------------------------------------------------
 
