@@ -47,13 +47,19 @@
 
 ## MethanolHeatExchangers
 
-| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | TBD | TBD | TBD | TBD |
-| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | TBD | TBD | TBD | TBD |
-| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | TBD | TBD | TBD | TBD |
+| Name  | Vars | States | Compile Time OMC       | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|------------------------|--------------------|--------------|---------------|
+| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | 1.754s                 | 0.290s             | 0.079s       | 0.068s           |
+| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | 29m 59.637s            | 0.495s             | 17.343s      | 11.919s           |
+| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | OOM after 229m 25.481s | 1.835s             | N/A          | 1m19.284s           |
 
-**Status**: blah blah blah
+**Status**:
+ - Simulation parameters:
+   - start time: `0`
+   - end time: `10`
+   - time-step: `0.01`
+ - Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
+ - Iterators have to be manually unrolled (e.g. `x[i] for i in 1:40`).
 
 ## PowerGrid
 
