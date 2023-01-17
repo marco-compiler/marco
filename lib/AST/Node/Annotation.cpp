@@ -2,7 +2,6 @@
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Modification.h"
 #include "marco/AST/Node/Function.h"
-#include "boost/algorithm/string.hpp"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -71,7 +70,7 @@ namespace marco::ast
   {
     for (const auto& argument : *properties) {
       if (auto* elementModification = argument->dyn_get<ElementModification>()) {
-        if (boost::iequals(elementModification->getName(), "inline") && elementModification->hasModification()) {
+        if (elementModification->getName().equals_insensitive("inline") && elementModification->hasModification()) {
           const auto& modification = elementModification->getModification();
           return modification->getExpression()->get<Constant>()->get<BuiltInType::Boolean>();
         }
@@ -156,7 +155,7 @@ namespace marco::ast
 
     for (const auto& argument : *properties) {
       if (auto* elementModification = argument->dyn_get<ElementModification>()) {
-        if (boost::iequals(elementModification->getName().str(), "inverse")) {
+        if (elementModification->getName().equals_insensitive("inverse")) {
           assert(elementModification->hasModification());
           const auto& modification = elementModification->getModification();
           assert(modification->hasClassModification());
