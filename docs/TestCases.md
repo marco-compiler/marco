@@ -1,15 +1,18 @@
 # Status of significant test cases in MARCO
 
 ## ThermalChip
-| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipSimpleBoundaryODE N=4, M=4, P=4 | 88 | 64 | TBD | TBD | TBD | TBD |
-| ThermalChipSimpleBoundaryODE N=40, M=40, P=40 | ~65k | ~64k | TBD | TBD | TBD | TBD |
-| ThermalChipSimpleBoundaryODE N=100, M=100, P=100 | ~1M | ~1M | TBD | TBD | TBD | TBD |
+| Name  | Vars | States | Compile Time OMC      | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|-----------------------|--------------------|--------------|---------------|
+| ThermalChipSimpleBoundaryODE N=4, M=4, P=4 | 88 | 64 | 0.592s                | 0.491s             | 0.022s       | 0.010s        |
+| ThermalChipSimpleBoundaryODE N=40, M=40, P=40 | ~65k | ~64k | 59m 14.056s           | 0.578s             | 2.724s       | 0.313s           |
+| ThermalChipSimpleBoundaryODE N=100, M=100, P=100 | ~1M | ~1M | Didn't end within 29h | 1.391s             | N/A          | 4.453s           |
 
-(the idea is to have one small and one large test case)
-
-**Status**: blah blah blah
+**Status**:
+- Simulation parameters:
+   - start time: `0`
+   - end time: `1`
+   - time-step: `0.001`
+- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
