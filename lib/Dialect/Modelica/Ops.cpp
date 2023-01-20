@@ -34,7 +34,9 @@ static bool isScalar(mlir::Type type)
     return false;
   }
 
-  return type.isa<BooleanType, IntegerType, RealType, mlir::IndexType>();
+  return type.isa<
+      BooleanType, IntegerType, RealType,
+      mlir::IndexType, mlir::IntegerType, mlir::FloatType>();
 }
 
 static bool isScalar(mlir::Attribute attribute)
@@ -56,7 +58,9 @@ static bool isScalarIntegerLike(mlir::Type type)
     return false;
   }
 
-  return type.isa<BooleanType, IntegerType, mlir::IndexType>();
+  return type.isa<
+      BooleanType, IntegerType,
+      mlir::IndexType, mlir::IntegerType>();
 }
 
 static bool isScalarIntegerLike(mlir::Attribute attribute)
@@ -78,7 +82,7 @@ static bool isScalarFloatLike(mlir::Type type)
     return false;
   }
 
-  return type.isa<RealType>();
+  return type.isa<RealType, mlir::FloatType>();
 }
 
 static bool isScalarFloatLike(mlir::Attribute attribute)
@@ -112,7 +116,12 @@ static long getScalarIntegerLikeValue(mlir::Attribute attribute)
 static double getScalarFloatLikeValue(mlir::Attribute attribute)
 {
   assert(isScalarFloatLike(attribute));
-  return attribute.dyn_cast<RealAttr>().getValue().convertToDouble();
+
+  if (auto realAttr = attribute.dyn_cast<RealAttr>()) {
+    return realAttr.getValue().convertToDouble();
+  }
+
+  return attribute.dyn_cast<mlir::FloatAttr>().getValueAsDouble();
 }
 
 #define GET_OP_CLASSES

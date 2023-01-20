@@ -47,6 +47,14 @@ namespace mlir::modelica
       return mlir::IntegerAttr::get(type, value);
     }
 
+    if (type.isa<mlir::IntegerType>()) {
+      return mlir::IntegerAttr::get(type, value);
+    }
+
+    if (type.isa<mlir::FloatType>()) {
+      return mlir::FloatAttr::get(type, value);
+    }
+
     llvm_unreachable("Unknown Modelica type");
     return {};
   }
@@ -67,6 +75,14 @@ namespace mlir::modelica
 
     if (type.isa<mlir::IndexType>()) {
       return mlir::IntegerAttr::get(type, value);
+    }
+
+    if (type.isa<mlir::IntegerType>()) {
+      return mlir::IntegerAttr::get(type, value);
+    }
+
+    if (type.isa<mlir::FloatType>()) {
+      return mlir::FloatAttr::get(type, value);
     }
 
     llvm_unreachable("Unknown Modelica type");
