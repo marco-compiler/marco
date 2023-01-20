@@ -20,8 +20,9 @@ namespace
     bool shouldMaterializeInto(Region *region) const final
     {
       return mlir::isa<
+          AlgorithmOp,
           EquationOp,
-          AlgorithmOp>(region->getParentOp());
+          StartOp>(region->getParentOp());
     }
   };
 
