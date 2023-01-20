@@ -14,13 +14,18 @@
    - time-step: `0.001`
 - Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
-| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipSimpleBoundaryDAE N=4, M=4, P=4 | 328 | 64 | TBD | TBD | TBD | TBD |
-| ThermalChipSimpleBoundaryDAE N=40, M=40, P=40 | ~300k | ~64k | TBD | TBD | TBD | TBD |
-| ThermalChipSimpleBoundaryDAE N=100, M=100, P=100 | ~5M | ~1M | TBD | TBD | TBD | TBD |
+| Name  | Vars | States | Compile Time OMC | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|------------------|--------------------|--------------|---------------|
+| ThermalChipSimpleBoundaryDAE N=4, M=4, P=4 | 328 | 64 | 0.708s           | 0.277s             | 0.026s       | 0.010s        |
+| ThermalChipSimpleBoundaryDAE N=40, M=40, P=40 | ~300k | ~64k | 264m 11.369s     | 11.631s            | 4.790s          | 0.758s        |
+| ThermalChipSimpleBoundaryDAE N=100, M=100, P=100 | ~5M | ~1M | TBD              | 45m 27.086s        | TBD          | 11.585s           |
 
-**Status**: blah blah blah
+**Status**:
+- Simulation parameters:
+    - start time: `0`
+    - end time: `1`
+    - time-step: `0.001`
+- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
