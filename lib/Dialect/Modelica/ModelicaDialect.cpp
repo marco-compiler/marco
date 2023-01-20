@@ -3,6 +3,7 @@
 #include "marco/Dialect/Modelica/Attributes.h"
 #include "marco/Dialect/Modelica/Types.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/Interfaces/FoldInterfaces.h"
 #include "mlir/Transforms/InliningUtils.h"
 
 using namespace ::mlir;
@@ -12,12 +13,27 @@ using namespace ::mlir::modelica;
 
 namespace
 {
+  struct ModelicaFoldInterface : public mlir::DialectFoldInterface
+  {
+    using DialectFoldInterface::DialectFoldInterface;
+
+    bool shouldMaterializeInto(Region *region) const final
+    {
+      return mlir::isa<
+          EquationOp,
+          AlgorithmOp>(region->getParentOp());
+    }
+  };
+
   /// This class defines the interface for handling inlining with Modelica operations.
   struct ModelicaInlinerInterface : public mlir::DialectInlinerInterface
   {
     using mlir::DialectInlinerInterface::DialectInlinerInterface;
 
-    bool isLegalToInline(mlir::Operation* call, mlir::Operation* callable, bool wouldBeCloned) const final
+    bool isLegalToInline(
+        mlir::Operation* call,
+        mlir::Operation* callable,
+        bool wouldBeCloned) const final
     {
       if (auto rawFunctionOp = mlir::dyn_cast<RawFunctionOp>(callable)) {
         return rawFunctionOp.shouldBeInlined();
@@ -26,17 +42,27 @@ namespace
       return true;
     }
 
-    bool isLegalToInline(mlir::Operation*, mlir::Region*, bool, mlir::BlockAndValueMapping&) const final
+    bool isLegalToInline(
+        mlir::Operation* op,
+        mlir::Region* dest,
+        bool wouldBeCloned,
+        mlir::BlockAndValueMapping& valueMapping) const final
     {
       return true;
     }
 
-    bool isLegalToInline(mlir::Region* dest, mlir::Region* src, bool wouldBeCloned, mlir::BlockAndValueMapping& valueMapping) const final
+    bool isLegalToInline(
+        mlir::Region* dest,
+        mlir::Region* src,
+        bool wouldBeCloned,
+        mlir::BlockAndValueMapping& valueMapping) const final
     {
       return true;
     }
 
-    void handleTerminator(mlir::Operation* op, llvm::ArrayRef<mlir::Value> valuesToReplace) const final
+    void handleTerminator(
+        mlir::Operation* op,
+        llvm::ArrayRef<mlir::Value> valuesToReplace) const final
     {
       // Only "modelica.raw_return" needs to be handled here.
       auto returnOp = cast<RawReturnOp>(op);
@@ -67,7 +93,9 @@ namespace mlir::modelica
       #include "marco/Dialect/Modelica/Modelica.cpp.inc"
         >();
 
-    addInterfaces<ModelicaInlinerInterface>();
+    addInterfaces<
+        ModelicaFoldInterface,
+        ModelicaInlinerInterface>();
   }
 
   Operation* ModelicaDialect::materializeConstant(
