@@ -252,6 +252,9 @@ namespace marco::frontend
     // transformations.
     mlir::PassManager passManager(&ci.getMLIRContext());
 
+    // Try to simplify the starting IR.
+    passManager.addPass(mlir::createCanonicalizerPass());
+
     passManager.addPass(createAutomaticDifferentiationPass());
     passManager.addPass(createModelLegalizationPass());
     passManager.addPass(createMatchingPass());
