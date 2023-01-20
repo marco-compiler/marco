@@ -473,7 +473,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
       llvm::None,
       RealType::get(builder.getContext()),
       simulationModuleOp.getVariablesTypes(),
-      RealType::get(builder.getContext()),
+      builder.getF64Type(),
       llvm::None);
 
   mlir::Block* entryBlock = functionOp.addEntryBlock();
