@@ -54,21 +54,40 @@
     - time-step: `0.001`
 - Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
-| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipCoolingSimpleBoundaryOO N=4, M=4, P=4 | ~1K | 80 | TBD | TBD | TBD | TBD |
-| ThermalChipCoolingSimpleBoundaryOO N=40, M=40, P=40 | ~500k | ~65k | TBD | TBD | TBD | TBD |
-| ThermalChipCoolingSimpleBoundaryOO N=100, M=100, P=100 | ~8M | ~1M | TBD | TBD | TBD | TBD |
+| Name  | Vars | States | Compile Time OMC        | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|-------------------------| -------------------|--------------|---------------|
+| ThermalChipCoolingSimpleBoundaryOO N=4, M=4, P=4 | ~1K | 80 | 2.649s                  | 0.478s | 0.061s       | 0.013s        |
+| ThermalChipCoolingSimpleBoundaryOO N=40, M=40, P=40 | ~500k | ~65k | Compilation failing (*) | 0.651s | N/A          | 2.589s           |
+| ThermalChipCoolingSimpleBoundaryOO N=100, M=100, P=100 | ~8M | ~1M | N/A                     | 1.545s | N/A          | 29.126s           |
 
-**Status**: blah blah blah
+**Status**:
+- Simulation parameters:
+    - start time: `0`
+    - end time: `1`
+    - time-step: `0.001`
+- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
+
+(*) Log from OMC:
+```
+[ThermalChipCoolingOO.mo:45:7-45:35:writable] Error: Model is structurally singular, error found sorting equations
+  283824: vol[24,33,38].upper.Q = 0.0296 * (vol[23,33,38].lower.T - vol[24,33,38].T)
+  261563: vol[24,33,38].upper.Q = 0.0296 * (vol[23,33,38].lower.T - vol[24,33,38].T)
+  261564: -vol[24,33,38].upper.Q = 0.0296 * (vol[23,33,38].lower.T - vol[23,33,38].T)
+for variables
+  186878: vol[24,33,38].upper.Q:VARIABLE(flow=true unit = \"W\" )  type: Real [40,40,40]
+  198035: vol[23,33,38].lower.T:VARIABLE(flow=false unit = \"K\" nominal = 500.0 )  type: Real [40,40,40]
+  164536: vol[26,34,1].T:STATE(1)(start = Tstart unit = \"K\" fixed = true nominal = 500.0 )  \"Volume temperature\" type: Real [40,40,40]
+Error: Internal error Transformation Module PFPlusExt index Reduction Method Pantelides failed!
+Error: post-optimization module removeSimpleEquations (simulation) failed.
+```
 
 ## MethanolHeatExchangers
 
 | Name  | Vars | States | Compile Time OMC       | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------|------------------------|--------------------|--------------|---------------|
-| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | 1.754s                 | 0.290s             | 0.079s       | 0.068s           |
-| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | 29m 59.637s            | 0.495s             | 17.343s      | 11.919s           |
-| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | OOM after 229m 25.481s | 1.835s             | N/A          | 1m19.284s           |
+| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | 1.754s                 | 0.290s             | 0.079s       | 0.068s        |
+| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | 29m 59.637s            | 0.495s             | 17.343s      | 11.919s       |
+| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | OOM after 229m 25.481s | 1.835s             | N/A          | 1m 19.284s    |
 
 **Status**:
  - Simulation parameters:
