@@ -473,17 +473,23 @@ namespace
           std::map<unsigned int, IndexSet>& derivedIndices,
           llvm::ArrayRef<AlgorithmOp> algorithmOps);
 
+      // Convert the binding equations into equations or StartOps.
+      mlir::LogicalResult convertBindingEquations();
+
       /// Add a StartOp for each variable not having one.
       mlir::LogicalResult addMissingStartOps(mlir::OpBuilder& builder);
 
-      mlir::LogicalResult convertAlgorithmsIntoEquations(mlir::OpBuilder& builder);
+      mlir::LogicalResult convertAlgorithmsIntoEquations(
+          mlir::OpBuilder& builder);
 
       /// For each EquationOp, create an InitialEquationOp with the same body.
-      mlir::LogicalResult cloneEquationsAsInitialEquations(mlir::OpBuilder& builder);
+      mlir::LogicalResult cloneEquationsAsInitialEquations(
+          mlir::OpBuilder& builder);
 
       /// Create the initial equations for the variables with a fixed
       /// initialization value.
-      mlir::LogicalResult convertFixedStartOpsToInitialEquations(mlir::OpBuilder& builder);
+      mlir::LogicalResult convertFixedStartOpsToInitialEquations(
+          mlir::OpBuilder& builder);
 
       mlir::LogicalResult convertEquationsWithMultipleValues();
 
@@ -499,6 +505,11 @@ namespace
 
 mlir::LogicalResult ModelLegalization::run()
 {
+  // Convert the binding equations.
+  if (mlir::failed(convertBindingEquations())) {
+    return mlir::failure();
+  }
+
   mlir::OpBuilder builder(modelOp);
 
   // The initial conditions are determined by resolving a separate model, with
@@ -506,11 +517,18 @@ mlir::LogicalResult ModelLegalization::run()
   Model<Equation> initialConditionsModel(modelOp);
   Model<Equation> mainModel(modelOp);
 
-  initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
-  initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
+  initialConditionsModel.setVariables(
+      discoverVariables(initialConditionsModel.getOperation()));
+
+  initialConditionsModel.setEquations(
+      discoverInitialEquations(
+          initialConditionsModel.getOperation(),
+          initialConditionsModel.getVariables()));
 
   mainModel.setVariables(discoverVariables(mainModel.getOperation()));
-  mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
+
+  mainModel.setEquations(
+      discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
 
   // A map that keeps track of which indices of a variable do appear under
   // the derivative operation.
@@ -519,21 +537,24 @@ mlir::LogicalResult ModelLegalization::run()
   // Add a 'start' value of zero for the variables for which an explicit
   // 'start' value has not been provided.
 
-  if (auto res = addMissingStartOps(builder); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(addMissingStartOps(builder))) {
+    return mlir::failure();
   }
 
   // Create the initial equations given by the start values having also
   // the fixed attribute set to 'true'.
-  if (auto res = convertFixedStartOpsToInitialEquations(builder); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(convertFixedStartOpsToInitialEquations(builder))) {
+    return mlir::failure();
   }
 
-  // Determine which scalar variables do appear as argument to the derivative operation
-  collectDerivedVariablesIndices(derivedIndices, initialConditionsModel.getEquations());
+  // Determine which scalar variables do appear as argument to the derivative
+  // operation.
+  collectDerivedVariablesIndices(
+      derivedIndices, initialConditionsModel.getEquations());
+
   collectDerivedVariablesIndices(derivedIndices, mainModel.getEquations());
 
-  // Discover the derivatives inside the algorithms
+  // Discover the derivatives inside the algorithms.
   llvm::SmallVector<AlgorithmOp> algorithmOps;
 
   modelOp.walk([&](AlgorithmOp algorithmOp) {
@@ -542,16 +563,17 @@ mlir::LogicalResult ModelLegalization::run()
 
   collectDerivedVariablesIndices(derivedIndices, algorithmOps);
 
-  // Create the variables for the derivatives, together with the initial equations needed to
-  // initialize them to zero.
+  // Create the variables for the derivatives, together with the initial
+  // equations needed to initialize them to zero.
   DerivativesMap derivativesMap;
 
-  if (auto res = readDerivativesMap(modelOp, derivativesMap); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(readDerivativesMap(modelOp, derivativesMap))) {
+    return mlir::failure();
   }
 
-  if (auto res = createDerivatives(builder, modelOp, derivativesMap, derivedIndices); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(createDerivatives(
+          builder, modelOp, derivativesMap, derivedIndices))) {
+    return mlir::failure();
   }
 
   // The derivatives mapping is now complete, thus we can set the derivatives
@@ -560,40 +582,47 @@ mlir::LogicalResult ModelLegalization::run()
   mainModel.setDerivativesMap(derivativesMap);
 
   // Remove the derivative operations.
-  if (auto res = removeDerOps(builder, modelOp, derivativesMap); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(removeDerOps(builder, modelOp, derivativesMap))) {
+    return mlir::failure();
   }
 
   // Convert the algorithms into equations.
-  if (auto res = convertAlgorithmsIntoEquations(builder); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(convertAlgorithmsIntoEquations(builder))) {
+    return mlir::failure();
   }
 
   // Clone the equations as initial equations, in order to use them when
   // computing the initial values of the variables.
 
-  if (auto res = cloneEquationsAsInitialEquations(builder); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(cloneEquationsAsInitialEquations(builder))) {
+    return mlir::failure();
   }
 
-  if (auto res = convertEquationsWithMultipleValues(); mlir::failed(res)) {
-    return res;
+  if (mlir::failed(convertEquationsWithMultipleValues())) {
+    return mlir::failure();
   }
 
-  // Split the loops containing more than one operation within their bodies
-  if (auto res = convertToSingleEquationBody(); mlir::failed(res)) {
-    return res;
+  // Split the loops containing more than one operation within their bodies.
+  if (mlir::failed(convertToSingleEquationBody())) {
+    return mlir::failure();
   }
 
   // We need to perform again the discovery process for both variables and
   // equations. Variables may have changed due to derivatives, while new
   // equations may have been created for multiple reasons (e.g. algorithms).
 
-  initialConditionsModel.setVariables(discoverVariables(initialConditionsModel.getOperation()));
-  initialConditionsModel.setEquations(discoverInitialEquations(initialConditionsModel.getOperation(), initialConditionsModel.getVariables()));
+  initialConditionsModel.setVariables(
+      discoverVariables(initialConditionsModel.getOperation()));
+
+  initialConditionsModel.setEquations(
+      discoverInitialEquations(
+          initialConditionsModel.getOperation(),
+          initialConditionsModel.getVariables()));
 
   mainModel.setVariables(discoverVariables(mainModel.getOperation()));
-  mainModel.setEquations(discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
+
+  mainModel.setEquations(
+      discoverEquations(mainModel.getOperation(), mainModel.getVariables()));
 
   // Store the information about derivatives in form of attribute.
   ModelSolvingIROptions irOptions;
@@ -730,6 +759,148 @@ void ModelLegalization::collectDerivedVariablesIndices(
 
   // Wait for all the tasks to finish.
   tasks.wait();
+}
+
+namespace
+{
+  struct BindingEquationOpToEquationOpPattern
+      : public mlir::OpRewritePattern<BindingEquationOp>
+  {
+    using mlir::OpRewritePattern<BindingEquationOp>::OpRewritePattern;
+
+    mlir::LogicalResult match(BindingEquationOp op) const override
+    {
+      auto modelOp = op->getParentOfType<ModelOp>();
+      auto variables = modelOp.getVariableDeclarationOps();
+
+      unsigned int argNumber =
+          op.getVariable().cast<mlir::BlockArgument>().getArgNumber();
+
+      return mlir::LogicalResult::success(!variables[argNumber].isConstant());
+    }
+
+    void rewrite(
+        BindingEquationOp op,
+        mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op->getLoc();
+
+      auto yieldOp = mlir::cast<YieldOp>(
+          op.getBodyRegion().back().getTerminator());
+
+      assert(yieldOp.getValues().size() == 1);
+      mlir::Value expression = yieldOp.getValues()[0];
+
+      auto variableType = op.getVariable().getType();
+      auto expressionType = expression.getType();
+
+      std::vector<mlir::Value> inductionVariables;
+
+      if (auto variableArrayType = variableType.dyn_cast<ArrayType>()) {
+        unsigned int expressionRank = 0;
+
+        if (auto expressionArrayType = expressionType.dyn_cast<ArrayType>()) {
+          expressionRank = expressionArrayType.getRank();
+        }
+
+        auto variableRank = variableArrayType.getRank();
+        assert(variableArrayType.hasStaticShape());
+        assert(expressionRank == variableRank);
+
+        for (unsigned int i = 0; i < variableRank; ++i) {
+          auto forEquationOp = rewriter.create<ForEquationOp>(
+              loc, 0, variableArrayType.getShape()[i] - 1, 1);
+
+          inductionVariables.push_back(forEquationOp.induction());
+          rewriter.setInsertionPointToStart(forEquationOp.bodyBlock());
+        }
+      }
+
+      auto equationOp = rewriter.create<EquationOp>(loc);
+      assert(equationOp.getBodyRegion().empty());
+
+      mlir::BlockAndValueMapping mapping;
+
+      rewriter.cloneRegionBefore(
+          op.getBodyRegion(),
+          equationOp.getBodyRegion(),
+          equationOp.getBodyRegion().end(),
+          mapping);
+
+      rewriter.eraseOp(equationOp.getBodyRegion().back().getTerminator());
+      rewriter.setInsertionPointToStart(&equationOp.getBodyRegion().back());
+
+      mlir::Value lhsValue = rewriter.create<LoadOp>(
+          loc, op.getVariable(), inductionVariables);
+
+      mlir::Value rhsValue = mapping.lookup(expression);
+      rewriter.setInsertionPointAfterValue(rhsValue);
+
+      if (!inductionVariables.empty()) {
+        rhsValue = rewriter.create<LoadOp>(loc, rhsValue, inductionVariables);
+      }
+
+      rewriter.setInsertionPointToEnd(&equationOp.getBodyRegion().back());
+      mlir::Value lhsTuple = rewriter.create<EquationSideOp>(loc, lhsValue);
+      mlir::Value rhsTuple = rewriter.create<EquationSideOp>(loc, rhsValue);
+      rewriter.create<EquationSidesOp>(loc, lhsTuple, rhsTuple);
+
+      rewriter.eraseOp(op);
+    }
+  };
+
+  struct BindingEquationOpToStartOpPattern
+      : public mlir::OpRewritePattern<BindingEquationOp>
+  {
+    using mlir::OpRewritePattern<BindingEquationOp>::OpRewritePattern;
+
+    mlir::LogicalResult match(BindingEquationOp op) const override
+    {
+      auto modelOp = op->getParentOfType<ModelOp>();
+      auto variables = modelOp.getVariableDeclarationOps();
+
+      unsigned int argNumber =
+          op.getVariable().cast<mlir::BlockArgument>().getArgNumber();
+
+      return mlir::LogicalResult::success(variables[argNumber].isConstant());
+    }
+
+    void rewrite(
+        BindingEquationOp op,
+        mlir::PatternRewriter& rewriter) const override
+    {
+      auto startOp = rewriter.replaceOpWithNewOp<StartOp>(
+          op, op.getVariable(), true, false);
+
+      assert(startOp.getBodyRegion().empty());
+
+      mlir::BlockAndValueMapping mapping;
+      mapping.map(op.getVariable(), startOp.getVariable());
+
+      rewriter.cloneRegionBefore(
+          op.getBodyRegion(),
+          startOp.getBodyRegion(),
+          startOp.getBodyRegion().end(),
+          mapping);
+    }
+  };
+}
+
+mlir::LogicalResult ModelLegalization::convertBindingEquations()
+{
+  mlir::ConversionTarget target(*modelOp.getContext());
+  target.addIllegalOp<BindingEquationOp>();
+
+  target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+    return true;
+  });
+
+  mlir::RewritePatternSet patterns(modelOp.getContext());
+  patterns.insert<
+      BindingEquationOpToEquationOpPattern,
+      BindingEquationOpToStartOpPattern>(modelOp.getContext());
+
+  return applyPartialConversion(modelOp, target, std::move(patterns));
 }
 
 mlir::LogicalResult ModelLegalization::addMissingStartOps(mlir::OpBuilder& builder)

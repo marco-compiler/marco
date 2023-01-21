@@ -2471,6 +2471,26 @@ def Modelica_TimeOp : Modelica_Op<"time",
     ];
 }
 
+def Modelica_BindingEquationOp : Modelica_Op<"binding_equation",
+    [HasParent<"ModelOp">]>
+{
+    let summary = "Binding equation.";
+
+    let description = [{
+        The operation represents an implicit equation whose expression is
+        written in form of assignment during the declaration of a variable.
+    }];
+
+    let arguments = (ins AnyType:$variable);
+    let results = (outs);
+
+    let regions = (region
+        AnyRegion:$bodyRegion
+    );
+
+    let hasCustomAssemblyFormat = 1;
+}
+
 def Modelica_ForEquationOp : Modelica_Op<"for_equation",
     [ParentOneOf<["ModelOp", "ForEquationOp"]>,
     NoTerminator]>
@@ -3329,7 +3349,7 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
 
 def Modelica_YieldOp : Modelica_Op<"yield",
     [Terminator,
-    ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp", "StartOp"]>]>
+    ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp", "StartOp", "BindingEquationOp"]>]>
 {
     let summary = "Yield values to the parent operation.";
 

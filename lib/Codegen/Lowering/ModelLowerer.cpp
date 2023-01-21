@@ -5,7 +5,8 @@ using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static IOProperty getIOProperty(const Member& member) {
+static IOProperty getIOProperty(const Member& member)
+{
   if (member.isInput()) {
     return IOProperty::input;
   }
@@ -36,7 +37,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Type, 3> variableTypes;
     llvm::SmallVector<mlir::Location, 3> variableLocations;
 
-    // Determine the type of each variable
+    // Determine the type of each variable.
     llvm::SmallVector<mlir::Attribute, 3> variableNames;
 
     for (const auto& member : model.getMembers()) {
@@ -54,14 +55,16 @@ namespace marco::codegen::lowering
       variableLocations.push_back(loc(member->getLocation()));
     }
 
-    // Create the model operation and its blocks
+    // Create the model operation and its blocks.
     auto modelOp = builder().create<ModelOp>(location, model.getName());
 
     mlir::Block* varsBlock = builder().createBlock(&modelOp.getVarsRegion());
-    mlir::Block* bodyBlock = builder().createBlock(&modelOp.getBodyRegion(), {}, variableTypes, variableLocations);
+
+    mlir::Block* bodyBlock = builder().createBlock(
+        &modelOp.getBodyRegion(), {}, variableTypes, variableLocations);
 
     {
-      // Simulation variables
+      // Simulation variables.
       builder().setInsertionPointToStart(varsBlock);
       llvm::SmallVector<mlir::Value, 3> vars;
 
@@ -74,27 +77,30 @@ namespace marco::codegen::lowering
     }
 
     {
-      // Equations
+      // Equations.
       builder().setInsertionPointToStart(bodyBlock);
       symbolTable().insert("time", Reference::time(&builder()));
 
       for (const auto& member : llvm::enumerate(model.getMembers())) {
         symbolTable().insert(
             member.value()->getName(),
-            Reference::memory(&builder(), modelOp.getBodyRegion().getArgument(member.index())));
+            Reference::memory(
+                &builder(),
+                modelOp.getBodyRegion().getArgument(member.index())));
       }
 
-      // Members with an assigned value are conceptually the same as equations performing that assignment.
+      // Create the binding equations.
       for (const auto& member : model.getMembers()) {
-        if (!member->isParameter() && member->hasModification()) {
-          if (const auto* modification = member->getModification(); modification->hasExpression()) {
-            createMemberEquation(*member, *modification->getExpression());
+        if (member->hasModification()) {
+          if (const auto* modification = member->getModification();
+              modification->hasExpression()) {
+            createBindingEquation(*member, *modification->getExpression());
             builder().setInsertionPointToEnd(bodyBlock);
           }
         }
       }
 
-      // Create the 'start' values
+      // Create the 'start' values.
       for (const auto& member : model.getMembers()) {
         if (member->hasStartExpression()) {
           lowerStartAttribute(
@@ -102,17 +108,10 @@ namespace marco::codegen::lowering
               *member->getStartExpression(),
               member->getFixedProperty(),
               member->getEachProperty());
-
-        } else if (member->isParameter() && member->hasExpression()) {
-          lowerStartAttribute(
-              *member,
-              *member->getExpression(),
-              false,
-              !member->getType().isScalar());
         }
       }
 
-      // Create the equations
+      // Create the equations.
       for (const auto& block : model.getEquationsBlocks()) {
         for (const auto& equation : block->getEquations()) {
           lower(*equation, false);
@@ -123,7 +122,7 @@ namespace marco::codegen::lowering
         }
       }
 
-      // Create the initial equations
+      // Create the initial equations.
       for (const auto& block : model.getInitialEquationsBlocks()) {
         for (const auto& equation : block->getEquations()) {
           lower(*equation, true);
@@ -134,16 +133,16 @@ namespace marco::codegen::lowering
         }
       }
 
-      // Create the algorithms
+      // Create the algorithms.
       for (const auto& algorithm : model.getAlgorithms()) {
         lower(*algorithm);
       }
     }
 
-    // Add the model operation to the list of top-level operations
+    // Add the model operation to the list of top-level operations.
     result.push_back(modelOp);
 
-    // Process the inner classes
+    // Process the inner classes.
     builder().setInsertionPointAfter(modelOp);
 
     for (const auto& innerClass : model.getInnerClasses()) {
@@ -161,20 +160,24 @@ namespace marco::codegen::lowering
 
     const auto& frontendType = member.getType();
     mlir::Type type = lower(frontendType);
-    auto memberType = MemberType::wrap(type, member.isParameter(), getIOProperty(member));
+
+    auto memberType = MemberType::wrap(
+        type, member.isParameter(), getIOProperty(member));
 
     mlir::Value memberOp = builder().create<MemberCreateOp>(
         location, member.getName(), memberType, llvm::None);
 
-    symbolTable().insert(member.getName(), Reference::member(&builder(), memberOp));
+    symbolTable().insert(
+        member.getName(), Reference::member(&builder(), memberOp));
   }
 
-  void ModelLowerer::createMemberEquation(
+  void ModelLowerer::createBindingEquation(
       const ast::Member& member, const ast::Expression& expression)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     auto location = loc(expression.getLocation());
 
+        /*
     auto memberType = lower(member.getType());
     auto expressionType = lower(expression.getType());
 
@@ -196,31 +199,29 @@ namespace marco::codegen::lowering
         builder().setInsertionPointToStart(forEquationOp.bodyBlock());
       }
     }
+     */
 
-    auto equationOp = builder().create<EquationOp>(location);
-    assert(equationOp.getBodyRegion().empty());
-    mlir::Block* equationBodyBlock = builder().createBlock(&equationOp.getBodyRegion());
-    builder().setInsertionPointToStart(equationBodyBlock);
+    auto bindingEquationOp = builder().create<BindingEquationOp>(
+        location, symbolTable().lookup(member.getName()).getReference());
 
-    // Left-hand side
-    mlir::Value lhsValue = *symbolTable().lookup(member.getName());
+    assert(bindingEquationOp.getBodyRegion().empty());
 
-    if (!inductionVariables.empty()) {
-      lhsValue = builder().create<LoadOp>(location, lhsValue, inductionVariables);
-    }
+    mlir::Block* bodyBlock = builder().createBlock(
+        &bindingEquationOp.getBodyRegion());
 
-    // Right-hand side
-    auto rhs = lower(expression);
-    assert(rhs.size() == 1);
-    mlir::Value rhsValue = *rhs[0];
+    builder().setInsertionPointToStart(bodyBlock);
 
-    // Create the assignment
-    mlir::Value lhsTuple = builder().create<EquationSideOp>(location, lhsValue);
-    mlir::Value rhsTuple = builder().create<EquationSideOp>(location, rhsValue);
-    builder().create<EquationSidesOp>(location, lhsTuple, rhsTuple);
+    // Lower the expression and yield its value.
+    auto expressionValues = lower(expression);
+    assert(expressionValues.size() == 1);
+    builder().create<YieldOp>(location, *expressionValues[0]);
   }
 
-  void ModelLowerer::lowerStartAttribute(const ast::Member& member, const ast::Expression& expression, bool fixed, bool each)
+  void ModelLowerer::lowerStartAttribute(
+      const ast::Member& member,
+      const ast::Expression& expression,
+      bool fixed,
+      bool each)
   {
     auto location = loc(expression.getLocation());
 

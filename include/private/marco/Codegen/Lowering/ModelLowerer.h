@@ -20,9 +20,15 @@ namespace marco::codegen::lowering
     private:
       void lower(const ast::Member& member);
 
-      void createMemberEquation(const ast::Member& member, const ast::Expression& expression);
+      void createBindingEquation(
+          const ast::Member& member,
+          const ast::Expression& expression);
 
-      void lowerStartAttribute(const ast::Member& member, const ast::Expression& expression, bool fixed, bool each);
+      void lowerStartAttribute(
+          const ast::Member& member,
+          const ast::Expression& expression,
+          bool fixed,
+          bool each);
   };
 }
 

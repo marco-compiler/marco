@@ -7027,6 +7027,42 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// BindingEquationOp
+
+namespace mlir::modelica
+{
+  mlir::ParseResult BindingEquationOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::OpAsmParser::UnresolvedOperand variable;
+    mlir::Type variableType;
+
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseLParen() ||
+        parser.parseOperand(variable) ||
+        parser.parseColonType(variableType) ||
+        parser.parseRParen() ||
+        parser.resolveOperand(variable, variableType, result.operands) ||
+        parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
+        parser.parseRegion(*bodyRegion)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void BindingEquationOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer << "(" << getVariable() << " : " << getVariable().getType() << ")";
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
+    printer << " ";
+    printer.printRegion(getBodyRegion());
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // ForEquationOp
 
 namespace mlir::modelica
