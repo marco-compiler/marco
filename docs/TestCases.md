@@ -41,13 +41,18 @@
 
 ## ThermalChipCooling
 
-| Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
-| ThermalChipCoolingSimpleBoundaryODE N=4, M=4, P=4 | 145 | 80 | TBD | TBD | TBD | TBD |
-| ThermalChipCoolingSimpleBoundaryODEODE N=40, M=40, P=40 | ~145k | ~65k | TBD | TBD | TBD | TBD |
-| ThermalChipCoolingSimpleBoundaryODEODE N=100, M=100, P=100 | ~2M | ~1M | TBD | TBD | TBD | TBD |
+| Name  | Vars | States | Compile Time OMC | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|------------------|--------------------|--------------|---------------|
+| ThermalChipCoolingSimpleBoundaryODE N=4, M=4, P=4 | 145 | 80 | 2.710s           | 1.035s             | 0.032s       | 0.011s        |
+| ThermalChipCoolingSimpleBoundaryODE N=40, M=40, P=40 | ~145k | ~65k | 95m 38.550s      | 1.175s             | 1.785s       | 0.400s           |
+| ThermalChipCoolingSimpleBoundaryODE N=100, M=100, P=100 | ~2M | ~1M | N/A              | 6.712s                | N/A          | 5.585s           |
 
-**Status**: blah blah blah
+**Status**:
+- Simulation parameters:
+    - start time: `0`
+    - end time: `1`
+    - time-step: `0.001`
+- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
