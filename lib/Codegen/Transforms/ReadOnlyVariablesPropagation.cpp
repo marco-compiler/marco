@@ -1,4 +1,4 @@
-#include "marco/Codegen/Transforms/ParametersPropagation.h"
+#include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "marco/Codegen/Transforms/ModelSolving/Model.h"
 #include "marco/Codegen/Transforms/ModelSolving/Matching.h"
@@ -9,7 +9,7 @@
 
 namespace mlir::modelica
 {
-#define GEN_PASS_DEF_PARAMETERSPROPAGATIONPASS
+#define GEN_PASS_DEF_READONLYVARIABLESPROPAGATIONPASS
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
@@ -20,12 +20,13 @@ using namespace ::mlir::modelica;
 
 namespace
 {
-  class ParametersPropagationPass
-      : public mlir::modelica::impl::ParametersPropagationPassBase<
-            ParametersPropagationPass>
+  class ReadOnlyVariablesPropagationPass
+      : public mlir::modelica::impl::ReadOnlyVariablesPropagationPassBase<
+            ReadOnlyVariablesPropagationPass>
   {
     public:
-      using ParametersPropagationPassBase::ParametersPropagationPassBase;
+      using ReadOnlyVariablesPropagationPassBase
+        ::ReadOnlyVariablesPropagationPassBase;
 
       void runOnOperation() override
       {
@@ -44,7 +45,7 @@ namespace
       }
 
     private:
-      llvm::DenseSet<llvm::StringRef> getIgnoredParameterNames() const;
+      llvm::DenseSet<llvm::StringRef> getIgnoredVariableNames() const;
 
       mlir::LogicalResult processModelOp(
           mlir::OpBuilder& builder, ModelOp modelOp);
@@ -52,20 +53,20 @@ namespace
 }
 
 llvm::DenseSet<llvm::StringRef>
-ParametersPropagationPass::getIgnoredParameterNames() const
+ReadOnlyVariablesPropagationPass::getIgnoredVariableNames() const
 {
   llvm::DenseSet<llvm::StringRef> result;
   llvm::SmallVector<llvm::StringRef> names;
-  llvm::StringRef(ignoredParameters).split(names, ',');
+  llvm::StringRef(ignoredVariables).split(names, ',');
   result.insert(names.begin(), names.end());
   return result;
 }
 
-mlir::LogicalResult ParametersPropagationPass::processModelOp(
+mlir::LogicalResult ReadOnlyVariablesPropagationPass::processModelOp(
     mlir::OpBuilder& builder, ModelOp modelOp)
 {
-  llvm::DenseSet<llvm::StringRef> nonPropagatableParameters =
-      getIgnoredParameterNames();
+  llvm::DenseSet<llvm::StringRef> nonPropagatableVariables =
+      getIgnoredVariableNames();
 
   auto memberCreateOps = modelOp.getVariableDeclarationOps();
 
@@ -78,11 +79,11 @@ mlir::LogicalResult ParametersPropagationPass::processModelOp(
 
     MemberCreateOp memberCreateOp = memberCreateOps[variableArgNumber];
 
-    if (!memberCreateOp.isParameter()) {
+    if (!memberCreateOp.isReadOnly()) {
       continue;
     }
 
-    if (nonPropagatableParameters.contains(memberCreateOp.getSymName())) {
+    if (nonPropagatableVariables.contains(memberCreateOp.getSymName())) {
       continue;
     }
 
@@ -122,14 +123,14 @@ mlir::LogicalResult ParametersPropagationPass::processModelOp(
 
 namespace mlir::modelica
 {
-  std::unique_ptr<mlir::Pass> createParametersPropagationPass()
+  std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass()
   {
-    return std::make_unique<ParametersPropagationPass>();
+    return std::make_unique<ReadOnlyVariablesPropagationPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createParametersPropagationPass(
-      const ParametersPropagationPassOptions& options)
+  std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass(
+      const ReadOnlyVariablesPropagationPassOptions& options)
   {
-    return std::make_unique<ParametersPropagationPass>(options);
+    return std::make_unique<ReadOnlyVariablesPropagationPass>(options);
   }
 }

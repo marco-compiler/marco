@@ -5,6 +5,23 @@ using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
+static VariabilityProperty getVariabilityProperty(const Member& member)
+{
+  if (member.isDiscrete()) {
+    return VariabilityProperty::discrete;
+  }
+
+  if (member.isParameter()) {
+    return VariabilityProperty::parameter;
+  }
+
+  if (member.isConstant()) {
+    return VariabilityProperty::constant;
+  }
+
+  return VariabilityProperty::none;
+}
+
 static IOProperty getIOProperty(const Member& member)
 {
   if (member.isInput()) {
@@ -162,7 +179,7 @@ namespace marco::codegen::lowering
     mlir::Type type = lower(frontendType);
 
     auto memberType = MemberType::wrap(
-        type, member.isParameter(), getIOProperty(member));
+        type, getVariabilityProperty(member), getIOProperty(member));
 
     mlir::Value memberOp = builder().create<MemberCreateOp>(
         location, member.getName(), memberType, llvm::None);
@@ -176,30 +193,6 @@ namespace marco::codegen::lowering
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
     auto location = loc(expression.getLocation());
-
-        /*
-    auto memberType = lower(member.getType());
-    auto expressionType = lower(expression.getType());
-
-    std::vector<mlir::Value> inductionVariables;
-
-    if (auto memberArrayType = memberType.dyn_cast<ArrayType>()) {
-      unsigned int expressionRank = 0;
-
-      if (auto expressionArrayType = expressionType.dyn_cast<ArrayType>()) {
-        expressionRank = expressionArrayType.getRank();
-      }
-
-      auto memberRank = memberArrayType.getRank();
-      assert(expressionRank == 0 || expressionRank == memberRank);
-
-      for (unsigned int i = 0; i < memberRank - expressionRank; ++i) {
-        auto forEquationOp = builder().create<ForEquationOp>(location, 0, memberArrayType.getShape()[i] - 1, 1);
-        inductionVariables.push_back(forEquationOp.induction());
-        builder().setInsertionPointToStart(forEquationOp.bodyBlock());
-      }
-    }
-     */
 
     auto bindingEquationOp = builder().create<BindingEquationOp>(
         location, symbolTable().lookup(member.getName()).getReference());

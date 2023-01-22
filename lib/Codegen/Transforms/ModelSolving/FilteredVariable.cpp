@@ -67,9 +67,19 @@ namespace marco::codegen
     return variable->getDefiningOp();
   }
 
+  bool FilteredVariable::isReadOnly() const
+  {
+    return variable->isReadOnly();
+  }
+
   bool FilteredVariable::isParameter() const
   {
     return variable->isParameter();
+  }
+
+  bool FilteredVariable::isConstant() const
+  {
+    return variable->isConstant();
   }
 
   IndexSet FilteredVariable::getIndices() const

@@ -666,8 +666,20 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create", [Symbol]>
             return getMemberType().isOutput();
         }
 
+        bool isReadOnly() {
+            return getMemberType().isReadOnly();
+        }
+
+        bool isDiscrete() {
+            return getMemberType().isDiscrete();
+        }
+
         bool isParameter() {
             return getMemberType().isParameter();
+        }
+
+        bool isConstant() {
+            return getMemberType().isConstant();
         }
     }];
 }

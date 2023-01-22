@@ -6,22 +6,22 @@ using namespace ::marco::ast;
 namespace marco::ast
 {
 	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const ParameterQualifier& obj)
+			llvm::raw_ostream& stream, const VariabilityQualifier& obj)
 	{
 		return stream << toString(obj);
 	}
 
-	std::string toString(ParameterQualifier qualifier)
+	std::string toString(VariabilityQualifier qualifier)
 	{
 		switch (qualifier)
 		{
-			case ParameterQualifier::discrete:
+			case VariabilityQualifier::discrete:
 				return "discrete";
-			case ParameterQualifier::parameter:
+			case VariabilityQualifier::parameter:
 				return "parameter";
-			case ParameterQualifier::constant:
+			case VariabilityQualifier::constant:
 				return "constant";
-			case ParameterQualifier::none:
+			case VariabilityQualifier::none:
 				return "none";
 		}
 
@@ -49,8 +49,8 @@ namespace marco::ast
 	}
 
   TypePrefix::TypePrefix(
-      ParameterQualifier parameterQualifier, IOQualifier ioQualifier)
-      : parameterQualifier(parameterQualifier), ioQualifier(ioQualifier)
+      VariabilityQualifier variabilityQualifier, IOQualifier ioQualifier)
+      : variabilityQualifier(variabilityQualifier), ioQualifier(ioQualifier)
   {
   }
 
@@ -58,13 +58,14 @@ namespace marco::ast
   {
     os << "Prefix: ";
 
-    if (parameterQualifier == ParameterQualifier::none && ioQualifier == IOQualifier::none) {
+    if (variabilityQualifier == VariabilityQualifier::none &&
+        ioQualifier == IOQualifier::none) {
       os << "none";
     } else {
       bool space = false;
 
-      if (parameterQualifier != ParameterQualifier::none) {
-        os << parameterQualifier;
+      if (variabilityQualifier != VariabilityQualifier::none) {
+        os << variabilityQualifier;
         space = true;
       }
 
@@ -80,10 +81,19 @@ namespace marco::ast
     os.indent(indents);
   }
 
+  bool TypePrefix::isDiscrete() const
+  {
+    return variabilityQualifier == VariabilityQualifier::discrete;
+  }
+
   bool TypePrefix::isParameter() const
   {
-    return parameterQualifier == ParameterQualifier::parameter ||
-        parameterQualifier == ParameterQualifier::constant;
+    return variabilityQualifier == VariabilityQualifier::parameter;
+  }
+
+  bool TypePrefix::isConstant() const
+  {
+    return variabilityQualifier == VariabilityQualifier::constant;
   }
 
   bool TypePrefix::isInput() const
@@ -98,6 +108,6 @@ namespace marco::ast
 
   TypePrefix TypePrefix::none()
   {
-    return TypePrefix(ParameterQualifier::none, IOQualifier::none);
+    return TypePrefix(VariabilityQualifier::none, IOQualifier::none);
   }
 }

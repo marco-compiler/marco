@@ -16,7 +16,10 @@ namespace marco::codegen
 
       mlir::Value getValue() const override;
       mlir::modelica::MemberCreateOp getDefiningOp() const override;
+
+      bool isReadOnly() const override;
       bool isParameter() const override;
+      bool isConstant() const override;
 
     private:
       mlir::Value value;

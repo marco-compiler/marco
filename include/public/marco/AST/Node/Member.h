@@ -49,7 +49,11 @@ namespace marco::ast
       TypePrefix getTypePrefix() const;
 
       bool isPublic() const;
+
+      bool isDiscrete() const;
       bool isParameter() const;
+      bool isConstant() const;
+
       bool isInput() const;
       bool isOutput() const;
 

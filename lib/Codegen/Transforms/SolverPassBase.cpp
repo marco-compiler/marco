@@ -440,7 +440,7 @@ namespace mlir::modelica::impl
       // Note that parameters must be set independently of the 'fixed'
       // attribute being true or false.
 
-      if (startOp.getFixed() && !originalMembers[argNumber].isParameter()) {
+      if (startOp.getFixed() && !originalMembers[argNumber].isReadOnly()) {
         return;
       }
 

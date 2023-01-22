@@ -1105,7 +1105,9 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
       "time",
       MemberType::get(
           llvm::None,
-          RealType::get(builder.getContext()), false, IOProperty::input),
+          RealType::get(builder.getContext()),
+          VariabilityProperty::none,
+          IOProperty::input),
       llvm::None);
 
   mlir::Value time = builder.create<MemberLoadOp>(loc, timeMember);
@@ -1183,7 +1185,9 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     std::string memberName = "var" + std::to_string(originalVar.index());
 
     auto memberType = MemberType::wrap(
-        originalVar.value().getType(), false, IOProperty::input);
+        originalVar.value().getType(),
+        VariabilityProperty::none,
+        IOProperty::input);
 
     auto memberOp = builder.create<MemberCreateOp>(
         loc, memberName, memberType, llvm::None);
@@ -1197,7 +1201,9 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     std::string memberName = "ind" + std::to_string(i);
 
     auto memberType = MemberType::wrap(
-        builder.getIndexType(), false, IOProperty::input);
+        builder.getIndexType(),
+        VariabilityProperty::none,
+        IOProperty::input);
 
     auto memberOp = builder.create<MemberCreateOp>(
         loc, memberName, memberType, llvm::None);
@@ -1217,7 +1223,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
       loc, "out",
       MemberType::wrap(
           RealType::get(builder.getContext()),
-          false,
+          VariabilityProperty::none,
           IOProperty::output),
       llvm::None);
 
@@ -1882,7 +1888,7 @@ mlir::LogicalResult IDASolver::solveICModel(
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
         for (const Access& access : equation->getAccesses()) {
-          if (auto var = access.getVariable(); var->isParameter()) {
+          if (auto var = access.getVariable(); var->isReadOnly()) {
             idaInstance->addParametricVariable(var->getValue());
           }
         }
@@ -1900,7 +1906,7 @@ mlir::LogicalResult IDASolver::solveICModel(
         // Also add the used parameters.
         for (const Access& access : equation->getAccesses()) {
           if (auto accessVar = access.getVariable();
-              accessVar->isParameter()) {
+              accessVar->isReadOnly()) {
             idaInstance->addParametricVariable(accessVar->getValue());
           }
         }
@@ -2063,7 +2069,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
         for (const Access& access : equation->getAccesses()) {
           const Variable* variable = access.getVariable();
 
-          if (variable->isParameter()) {
+          if (variable->isReadOnly()) {
             idaInstance->addParametricVariable(variable->getValue());
           }
         }
@@ -2107,7 +2113,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
         // Also add the used parameters.
         for (const Access& access : equation->getAccesses()) {
           if (auto accessVar = access.getVariable();
-              accessVar->isParameter()) {
+              accessVar->isReadOnly()) {
             idaInstance->addParametricVariable(accessVar->getValue());
           }
         }

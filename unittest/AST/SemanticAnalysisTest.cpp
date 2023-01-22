@@ -53,7 +53,7 @@ TEST(SemanticAnalysis, function_assignmentToInputMember)
   members.push_back(Member::build(
       LOC, "x",
       makeType<BuiltInType::Integer>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::input)));
+      TypePrefix(VariabilityQualifier::none, IOQualifier::input)));
 
   std::vector<std::unique_ptr<Statement>> statements;
 

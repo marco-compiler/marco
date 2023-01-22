@@ -776,7 +776,7 @@ namespace
       unsigned int argNumber =
           op.getVariable().cast<mlir::BlockArgument>().getArgNumber();
 
-      return mlir::LogicalResult::success(!variables[argNumber].isParameter());
+      return mlir::LogicalResult::success(!variables[argNumber].isReadOnly());
     }
 
     void rewrite(
@@ -862,7 +862,7 @@ namespace
       unsigned int argNumber =
           op.getVariable().cast<mlir::BlockArgument>().getArgNumber();
 
-      return mlir::LogicalResult::success(variables[argNumber].isParameter());
+      return mlir::LogicalResult::success(variables[argNumber].isReadOnly());
     }
 
     void rewrite(
@@ -1084,7 +1084,10 @@ mlir::LogicalResult ModelLegalization::convertAlgorithmsIntoEquations(mlir::OpBu
 
       if (removedFromOutput && !removedFromInput) {
         // Input variable
-        auto memberType = MemberType::wrap(array.value().getType(), false, IOProperty::input);
+        auto memberType = MemberType::wrap(
+            array.value().getType(),
+            VariabilityProperty::none,
+            IOProperty::input);
 
         mlir::Value member = builder.create<MemberCreateOp>(
             loc, "arg_" + std::to_string(array.index()), memberType, llvm::None);
@@ -1093,7 +1096,10 @@ mlir::LogicalResult ModelLegalization::convertAlgorithmsIntoEquations(mlir::OpBu
 
       } else if (removedFromInput && !removedFromOutput) {
         // Output variable
-        auto memberType = MemberType::wrap(array.value().getType(), false, IOProperty::output);
+        auto memberType = MemberType::wrap(
+            array.value().getType(),
+            VariabilityProperty::none,
+            IOProperty::output);
 
         mlir::Value member = builder.create<MemberCreateOp>(
             loc, "result_" + std::to_string(array.index()), memberType, llvm::None);

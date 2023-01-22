@@ -23,7 +23,7 @@ static mlir::LogicalResult matchInitialConditionsModel(
   auto matchableIndicesFn = [&](const Variable& variable) -> IndexSet {
     IndexSet matchableIndices(variable.getIndices());
 
-    if (variable.isParameter()) {
+    if (variable.isReadOnly()) {
       matchableIndices.clear();
       return matchableIndices;
     }
@@ -42,7 +42,7 @@ static mlir::LogicalResult matchMainModel(
   auto matchableIndicesFn = [&](const Variable& variable) -> IndexSet {
     IndexSet matchableIndices(variable.getIndices());
 
-    if (variable.isParameter()) {
+    if (variable.isReadOnly()) {
       matchableIndices.clear();
       return matchableIndices;
     }

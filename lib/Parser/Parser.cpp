@@ -1333,14 +1333,14 @@ namespace marco::parser
 
   llvm::Optional<ast::TypePrefix> Parser::parseTypePrefix()
   {
-    ParameterQualifier parameterQualifier = ParameterQualifier::none;
+    VariabilityQualifier parameterQualifier = VariabilityQualifier::none;
 
     if (accept<Token::Discrete>()) {
-      parameterQualifier = ParameterQualifier::discrete;
+      parameterQualifier = VariabilityQualifier::discrete;
     } else if (accept<Token::Parameter>()) {
-      parameterQualifier = ParameterQualifier::parameter;
+      parameterQualifier = VariabilityQualifier::parameter;
     } else if (accept<Token::Constant>()) {
-      parameterQualifier = ParameterQualifier::constant;
+      parameterQualifier = VariabilityQualifier::constant;
     }
 
     IOQualifier ioQualifier = IOQualifier::none;

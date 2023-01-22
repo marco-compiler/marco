@@ -9,7 +9,7 @@
 
 namespace marco::ast
 {
-	enum class ParameterQualifier
+	enum class VariabilityQualifier
 	{
 		discrete,
 		parameter,
@@ -18,9 +18,9 @@ namespace marco::ast
 	};
 
 	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const ParameterQualifier& obj);
+			llvm::raw_ostream& stream, const VariabilityQualifier& obj);
 
-	std::string toString(ParameterQualifier qualifier);
+	std::string toString(VariabilityQualifier qualifier);
 
 	enum class IOQualifier
 	{
@@ -37,19 +37,24 @@ namespace marco::ast
 	class TypePrefix : public impl::Dumpable<TypePrefix>
 	{
 		public:
-		TypePrefix(ParameterQualifier parameterQualifier, IOQualifier ioQualifier);
+      TypePrefix(
+        VariabilityQualifier variabilityQualifier,
+        IOQualifier ioQualifier);
 
-		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] bool isParameter() const;
-		[[nodiscard]] bool isInput() const;
-		[[nodiscard]] bool isOutput() const;
+      [[nodiscard]] bool isDiscrete() const;
+      [[nodiscard]] bool isParameter() const;
+      [[nodiscard]] bool isConstant() const;
 
-		static TypePrefix none();
+      [[nodiscard]] bool isInput() const;
+      [[nodiscard]] bool isOutput() const;
+
+      static TypePrefix none();
 
 		private:
-		ParameterQualifier parameterQualifier;
-		IOQualifier ioQualifier;
+      VariabilityQualifier variabilityQualifier;
+      IOQualifier ioQualifier;
 	};
 }
 

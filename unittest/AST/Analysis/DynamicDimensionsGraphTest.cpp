@@ -23,7 +23,7 @@ TEST(DynamicDimensionsGraph, numberOfNodes)
   auto x = Member::build(
       loc, "x",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::input),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::input),
       true);
 
   inputMembers.push_back(x.get());
@@ -31,7 +31,7 @@ TEST(DynamicDimensionsGraph, numberOfNodes)
   auto y = Member::build(
       loc, "y",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::input),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::input),
       true);
 
   inputMembers.push_back(y.get());
@@ -39,7 +39,7 @@ TEST(DynamicDimensionsGraph, numberOfNodes)
   auto z = Member::build(
       loc, "z",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::output),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::output),
       true);
 
   outputMembers.push_back(z.get());
@@ -47,7 +47,7 @@ TEST(DynamicDimensionsGraph, numberOfNodes)
   auto t = Member::build(
       loc, "t",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::none),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::none),
       false);
 
   protectedMembers.push_back(t.get());
@@ -69,7 +69,7 @@ TEST(DynamicDimensionsGraph, intraGroupDependencies)
   auto x = Member::build(
       loc, "x",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::input),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::input),
       true);
 
   members.push_back(x.get());
@@ -77,7 +77,7 @@ TEST(DynamicDimensionsGraph, intraGroupDependencies)
   auto y = Member::build(
       loc, "y",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::input),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::input),
       true);
 
   members.push_back(y.get());
@@ -104,7 +104,7 @@ TEST(DynamicDimensionsGraph, interGroupDependencies)
   auto x = Member::build(
       loc, "x",
       makeType<BuiltInType::Real>(),
-      TypePrefix(ParameterQualifier::none, IOQualifier::input),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::input),
       true);
 
   inputMembers.push_back(x.get());
@@ -120,7 +120,7 @@ TEST(DynamicDimensionsGraph, interGroupDependencies)
   auto y = Member::build(
       loc, "y",
       makeType<BuiltInType::Real>(std::move(expression)),
-      TypePrefix(ParameterQualifier::none, IOQualifier::output),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::output),
       true);
 
   outputMembers.push_back(y.get());
@@ -156,7 +156,7 @@ TEST(DynamicDimensionsGraph, cyclicDependencies)
   auto x = Member::build(
       loc, "x",
       makeType<BuiltInType::Real>(std::move(expression1)),
-      TypePrefix(ParameterQualifier::none, IOQualifier::output),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::output),
       true);
 
   inputMembers.push_back(x.get());
@@ -172,7 +172,7 @@ TEST(DynamicDimensionsGraph, cyclicDependencies)
   auto y = Member::build(
       loc, "y",
       makeType<BuiltInType::Real>(std::move(expression2)),
-      TypePrefix(ParameterQualifier::none, IOQualifier::output),
+      TypePrefix(VariabilityQualifier::none, IOQualifier::output),
       true);
 
   outputMembers.push_back(y.get());

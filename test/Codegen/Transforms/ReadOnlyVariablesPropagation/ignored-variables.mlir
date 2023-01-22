@@ -1,6 +1,6 @@
-// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(propagate-parameters{model-name=Test ignored-parameters="x,y"})" | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(propagate-read-only-variables{model-name=Test ignored-variables="x,y"})" | FileCheck %s
 
-// Parameters explicitly set as not to be propagated.
+// Multiple variables set as not to be propagated.
 
 // CHECK-LABEL: @Test
 // CHECK: ^bb0(%[[x:.*]]: !modelica.array<!modelica.int>, %[[y:.*]]: !modelica.array<!modelica.int>, %[[z:.*]]: !modelica.array<!modelica.int>):
@@ -15,10 +15,10 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.int, constant>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int, parameter>
     %2 = modelica.member_create @z : !modelica.member<!modelica.int>
-    modelica.yield %0, %1, %2 : !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int>
+    modelica.yield %0, %1, %2 : !modelica.member<!modelica.int, constant>, !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int>
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.int>, %arg1: !modelica.array<!modelica.int>, %arg2: !modelica.array<!modelica.int>):
     modelica.binding_equation (%arg0 : !modelica.array<!modelica.int>) {

@@ -116,9 +116,19 @@ namespace marco::ast
     return isPublicMember;
   }
 
+  bool Member::isDiscrete() const
+  {
+    return typePrefix.isDiscrete();
+  }
+
   bool Member::isParameter() const
   {
     return typePrefix.isParameter();
+  }
+
+  bool Member::isConstant() const
+  {
+    return typePrefix.isConstant();
   }
 
   bool Member::isInput() const

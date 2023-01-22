@@ -207,8 +207,16 @@ namespace marco::codegen::lowering
       }
     }
 
-    bool isConstant = false;
+    VariabilityProperty variabilityProperty = VariabilityProperty::none;
     IOProperty ioProperty = IOProperty::none;
+
+    if (member.isDiscrete()) {
+      variabilityProperty = VariabilityProperty::discrete;
+    } else if (member.isParameter()) {
+      variabilityProperty = VariabilityProperty::parameter;
+    } else if (member.isConstant()) {
+      variabilityProperty = VariabilityProperty::constant;
+    }
 
     if (member.isInput()) {
       ioProperty = IOProperty::input;
@@ -216,7 +224,7 @@ namespace marco::codegen::lowering
       ioProperty = IOProperty::output;
     }
 
-    auto memberType = MemberType::wrap(type, isConstant, ioProperty);
+    auto memberType = MemberType::wrap(type, variabilityProperty, ioProperty);
 
     mlir::Value var = builder().create<MemberCreateOp>(
         location, member.getName(), memberType, dynamicDimensions);

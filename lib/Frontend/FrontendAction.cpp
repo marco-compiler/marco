@@ -255,9 +255,10 @@ namespace marco::frontend
     // Try to simplify the starting IR.
     passManager.addPass(mlir::createCanonicalizerPass());
 
-    if (ci.getCodegenOptions().parametersPropagation) {
-      // Propagate the parameters and try to fold the constants right after.
-      passManager.addPass(createParametersPropagationPass());
+    if (ci.getCodegenOptions().readOnlyVariablesPropagation) {
+      // Propagate the read-only variables and try to fold the constants right
+      // after.
+      passManager.addPass(createReadOnlyVariablesPropagationPass());
       passManager.addPass(mlir::createCanonicalizerPass());
     }
 
@@ -413,14 +414,15 @@ namespace marco::frontend
     return dataLayoutString;
   }
 
-  std::unique_ptr<mlir::Pass> FrontendAction::createParametersPropagationPass()
+  std::unique_ptr<mlir::Pass>
+  FrontendAction::createReadOnlyVariablesPropagationPass()
   {
     const CompilerInstance& ci = instance();
 
-    mlir::modelica::ParametersPropagationPassOptions options;
+    mlir::modelica::ReadOnlyVariablesPropagationPassOptions options;
     options.modelName = ci.getSimulationOptions().modelName;
 
-    return mlir::modelica::createParametersPropagationPass(options);
+    return mlir::modelica::createReadOnlyVariablesPropagationPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createAutomaticDifferentiationPass()

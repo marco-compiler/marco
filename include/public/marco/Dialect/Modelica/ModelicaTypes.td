@@ -138,7 +138,8 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
 
 def MemberType : Modelica_Type<"Member",
     [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
-    DeclareTypeInterfaceMethods<ShapedTypeInterface>]> {
+    DeclareTypeInterfaceMethods<ShapedTypeInterface>]>
+{
     let summary = "Member type";
 
     let description = [{
@@ -148,7 +149,7 @@ def MemberType : Modelica_Type<"Member",
     let parameters = (ins
         ArrayRefParameter<"int64_t">:$shape,
         "mlir::Type":$elementType,
-        "bool":$parameterProperty,
+        "VariabilityProperty":$variabilityProperty,
         "IOProperty":$visibilityProperty,
         "mlir::Attribute":$memorySpace
     );
@@ -159,7 +160,7 @@ def MemberType : Modelica_Type<"Member",
         TypeBuilderWithInferredContext<(ins
             "llvm::ArrayRef<int64_t>":$shape,
             "mlir::Type":$elementType,
-            "bool":$parameterProperty,
+            "VariabilityProperty":$variabilityProperty,
             "IOProperty":$visibilityProperty,
             CArg<"Attribute", "{}">:$memorySpace)>
     ];
@@ -183,28 +184,61 @@ def MemberType : Modelica_Type<"Member",
         /// Arguments that are passed into the builder must outlive the builder.
         class Builder;
 
-        bool isParameter() const {
-            return getParameterProperty();
+        bool isDiscrete() const
+        {
+            return getVariabilityProperty() == VariabilityProperty::discrete;
         }
 
-        bool isInput() const {
+        bool isParameter() const
+        {
+            return getVariabilityProperty() == VariabilityProperty::parameter;
+        }
+
+        bool isConstant() const
+        {
+            return getVariabilityProperty() == VariabilityProperty::constant;
+        }
+
+        bool isReadOnly() const
+        {
+            return isParameter() || isConstant();
+        }
+
+        bool isInput() const
+        {
             return getVisibilityProperty() == IOProperty::input;
         }
 
-        bool isOutput() const {
+        bool isOutput() const
+        {
             return getVisibilityProperty() == IOProperty::output;
         }
 
-        static MemberType wrap(mlir::Type type, bool isParameter = false, IOProperty ioProperty = IOProperty::none);
+        static MemberType wrap(
+            mlir::Type type,
+            VariabilityProperty variabilityProperty =
+                VariabilityProperty::none,
+            IOProperty ioProperty = IOProperty::none);
 
         ArrayType toArrayType() const;
         mlir::Type unwrap() const;
 
         MemberType withShape(llvm::ArrayRef<int64_t> shape) const;
         MemberType withType(mlir::Type type) const;
-        MemberType asNonParameter() const;
+
+        MemberType withVariabilityProperty(
+            VariabilityProperty variabilityProperty) const;
+
+        MemberType withoutVariabilityProperty() const;
+        MemberType asDiscrete() const;
         MemberType asParameter() const;
+        MemberType asConstant() const;
+
         MemberType withIOProperty(IOProperty ioProperty) const;
+
+        MemberType withoutIOProperty() const;
+        MemberType asInput() const;
+        MemberType asOutput() const;
     }];
 
     let genVerifyDecl = 1;

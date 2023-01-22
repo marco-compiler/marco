@@ -124,7 +124,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
     unsigned int argNumber =
         variable->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-    if (variable->isParameter()) {
+    if (variable->isReadOnly()) {
       parameters.insert(argNumber);
     }
 

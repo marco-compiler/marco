@@ -135,8 +135,8 @@ def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "mlir::Modu
     let constructor = "mlir::modelica::createVariablesPromotionPass()";
 }
 
-def ParametersPropagationPass : Pass<"propagate-parameters", "mlir::ModuleOp"> {
-    let summary = "Propagate hte expression used to compute parameters";
+def ReadOnlyVariablesPropagationPass : Pass<"propagate-read-only-variables", "mlir::ModuleOp"> {
+    let summary = "Propagate the expression used to compute read-only variables";
 
     let description = [{
         // TODO
@@ -149,11 +149,11 @@ def ParametersPropagationPass : Pass<"propagate-parameters", "mlir::ModuleOp"> {
     let options = [
         Option<"modelName", "model-name", "std::string", "",
                "Set the model onto which perform the transformation">,
-        Option<"ignoredParameters", "ignored-parameters", "std::string", "",
+        Option<"ignoredVariables", "ignored-variables", "std::string", "",
                "List of comma-separated variables that must not be propagated">
     ];
 
-    let constructor = "mlir::modelica::createParametersPropagationPass()";
+    let constructor = "mlir::modelica::createReadOnlyVariablesPropagationPass()";
 }
 
 def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {

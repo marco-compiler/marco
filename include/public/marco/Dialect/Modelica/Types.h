@@ -7,6 +7,14 @@
 
 namespace mlir::modelica
 {
+  enum class VariabilityProperty
+  {
+    none,
+    discrete,
+    parameter,
+    constant
+  };
+
   enum class IOProperty
   {
     input,
@@ -14,12 +22,13 @@ namespace mlir::modelica
     none
   };
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // BaseArrayType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   /// This class provides a shared interface for ranked and unranked array types.
-  class BaseArrayType : public mlir::Type, public mlir::ShapedType::Trait<BaseArrayType>
+  class BaseArrayType
+      : public mlir::Type, public mlir::ShapedType::Trait<BaseArrayType>
   {
     public:
       using mlir::Type::Type;
@@ -27,18 +36,22 @@ namespace mlir::modelica
       /// Returns the element type of this array type.
       mlir::Type getElementType() const;
 
-      /// Returns if this type is ranked, i.e. it has a known number of dimensions.
+      /// Returns if this type is ranked, i.e. it has a known number of
+      /// dimensions.
       bool hasRank() const;
 
       /// Returns the shape of this array type.
       llvm::ArrayRef<int64_t> getShape() const;
 
-      /// Returns the memory space in which data referred to by this array resides.
+      /// Returns the memory space in which data referred to by this array
+      /// resides.
       mlir::Attribute getMemorySpace() const;
 
       /// Clone this type with the given shape and element type. If the
       /// provided shape is `None`, the current shape of the type is used.
-      BaseArrayType cloneWith(llvm::Optional<llvm::ArrayRef<int64_t>> shape, mlir::Type elementType) const;
+      BaseArrayType cloneWith(
+          llvm::Optional<llvm::ArrayRef<int64_t>> shape,
+          mlir::Type elementType) const;
 
       /// Return true if the specified element type is ok in a array.
       static bool isValidElementType(mlir::Type type);
@@ -56,15 +69,15 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // ArrayType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   /// This is a builder type that keeps local references to arguments.
   /// Arguments that are passed into the builder must outlive the builder.
   class ArrayType::Builder {
     public:
-      // Build from another ArrayType
+      // Build from another ArrayType.
       explicit Builder(ArrayType other)
           : shape(other.getShape()),
             elementType(other.getElementType()),
@@ -72,7 +85,7 @@ namespace mlir::modelica
       {
       }
 
-      // Build from scratch
+      // Build from scratch.
       Builder(llvm::ArrayRef<int64_t> shape, mlir::Type elementType)
           : shape(shape), elementType(elementType)
       {
@@ -113,19 +126,20 @@ namespace mlir::modelica
 
   /// This is a builder type that keeps local references to arguments.
   /// Arguments that are passed into the builder must outlive the builder.
-  class MemberType::Builder {
+  class MemberType::Builder
+  {
     public:
-      // Build from another MemberType
+      // Build from another MemberType.
       explicit Builder(MemberType other)
           : shape(other.getShape()),
             elementType(other.getElementType()),
-            parameterProperty(other.isParameter()),
+            variabilityProperty(other.getVariabilityProperty()),
             visibilityProperty(other.getVisibilityProperty()),
             memorySpace(other.getMemorySpace())
       {
       }
 
-      // Build from scratch
+      // Build from scratch.
       Builder(llvm::ArrayRef<int64_t> shape, mlir::Type elementType)
           : shape(shape), elementType(elementType)
       {
@@ -143,9 +157,10 @@ namespace mlir::modelica
         return *this;
       }
 
-      Builder& setParameterProperty(bool newParameterProperty)
+      Builder& setVariabilityProperty(
+          VariabilityProperty newVariabilityProperty)
       {
-        parameterProperty = newParameterProperty;
+        variabilityProperty = newVariabilityProperty;
         return *this;
       }
 
@@ -166,7 +181,7 @@ namespace mlir::modelica
         return MemberType::get(
             shape,
             elementType,
-            parameterProperty,
+            variabilityProperty,
             visibilityProperty,
             memorySpace);
       }
@@ -176,7 +191,7 @@ namespace mlir::modelica
         return MemberType::get(
             shape,
             elementType,
-            parameterProperty,
+            variabilityProperty,
             visibilityProperty,
             memorySpace);
       }
@@ -184,7 +199,7 @@ namespace mlir::modelica
     private:
       llvm::ArrayRef<int64_t> shape;
       mlir::Type elementType;
-      bool parameterProperty;
+      VariabilityProperty variabilityProperty;
       IOProperty visibilityProperty;
       mlir::Attribute memorySpace;
   };

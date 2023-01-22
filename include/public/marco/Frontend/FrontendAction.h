@@ -54,7 +54,7 @@ namespace marco::frontend
       llvm::DataLayout getDataLayout();
       std::string getDataLayoutString();
 
-      std::unique_ptr<mlir::Pass> createParametersPropagationPass();
+      std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass();
       std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass();
       std::unique_ptr<mlir::Pass> createModelLegalizationPass();
       std::unique_ptr<mlir::Pass> createMatchingPass();

@@ -8,16 +8,16 @@
 using namespace ::mlir::modelica;
 using namespace ::mlir::modelica::detail;
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Tablegen type definitions
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 #define GET_TYPEDEF_CLASSES
 #include "marco/Dialect/Modelica/ModelicaTypes.cpp.inc"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // ModelicaDialect
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace mlir::modelica
 {
@@ -37,7 +37,8 @@ namespace mlir::modelica
     llvm::StringRef typeTag;
     mlir::Type genType;
 
-    mlir::OptionalParseResult parseResult = generatedTypeParser(parser, &typeTag, genType);
+    mlir::OptionalParseResult parseResult =
+        generatedTypeParser(parser, &typeTag, genType);
 
     if (parseResult.has_value()) {
       return genType;
@@ -65,7 +66,7 @@ namespace mlir::modelica
         }
       }
 
-      Type elementType;
+      mlir::Type elementType;
       mlir::Attribute memorySpace;
 
       if (parser.parseType(elementType)) {
@@ -96,18 +97,22 @@ namespace mlir::modelica
         return mlir::Type();
       }
 
-      Type elementType;
+      mlir::Type elementType;
 
       if (parser.parseType(elementType)) {
         return mlir::Type();
       }
 
-      bool isParameter = false;
+      VariabilityProperty variabilityProperty = VariabilityProperty::none;
       IOProperty ioProperty = IOProperty::none;
 
       while (mlir::succeeded(parser.parseOptionalComma())) {
-        if (mlir::succeeded(parser.parseOptionalKeyword("parameter"))) {
-          isParameter = true;
+        if (mlir::succeeded(parser.parseOptionalKeyword("discrete"))) {
+          variabilityProperty = VariabilityProperty::discrete;
+        } else if (mlir::succeeded(parser.parseOptionalKeyword("parameter"))) {
+          variabilityProperty = VariabilityProperty::parameter;
+        } else if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
+          variabilityProperty = VariabilityProperty::constant;
         } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
           ioProperty = IOProperty::input;
         } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
@@ -119,14 +124,16 @@ namespace mlir::modelica
         return mlir::Type();
       }
 
-      return MemberType::get(dimensions, elementType, isParameter, ioProperty);
+      return MemberType::get(
+          dimensions, elementType, variabilityProperty, ioProperty);
     }
 
     llvm_unreachable("Unexpected 'Modelica' type kind");
     return mlir::Type();
   }
 
-  void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const
+  void ModelicaDialect::printType(
+      mlir::Type type, mlir::DialectAsmPrinter& printer) const
   {
     if (mlir::succeeded(generatedTypePrinter(type, printer))) {
       return;
@@ -135,8 +142,14 @@ namespace mlir::modelica
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
       printer << "array<";
 
-      for (const auto& dimension : arrayType.getShape()) {
-        printer << (dimension == ArrayType::kDynamicSize ? "?" : std::to_string(dimension)) << "x";
+      for (int64_t dimension : arrayType.getShape()) {
+        if (dimension == ArrayType::kDynamicSize) {
+          printer << "?";
+        } else {
+          printer << dimension;
+        }
+
+        printer << "x";
       }
 
       printer << arrayType.getElementType() << ">";
@@ -151,14 +164,24 @@ namespace mlir::modelica
     if (auto memberType = type.dyn_cast<MemberType>()) {
       printer << "member<";
 
-      for (const auto& dimension : memberType.getShape()) {
-        printer << (dimension == MemberType::kDynamicSize ? "?" : std::to_string(dimension)) << "x";
+      for (int64_t dimension : memberType.getShape()) {
+        if (dimension == MemberType::kDynamicSize) {
+          printer << "?";
+        } else {
+          printer << dimension;
+        }
+
+        printer << "x";
       }
 
       printer << memberType.getElementType();
 
-      if (memberType.isParameter()) {
+      if (memberType.isDiscrete()) {
+        printer << ", discrete";
+      } else if (memberType.isParameter()) {
         printer << ", parameter";
+      } else if (memberType.isConstant()) {
+        printer << ", constant";
       }
 
       if (memberType.isInput()) {
@@ -174,9 +197,9 @@ namespace mlir::modelica
     llvm_unreachable("Unexpected 'Modelica' type kind");
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // BaseArrayType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   bool BaseArrayType::classof(mlir::Type type)
   {
@@ -221,7 +244,9 @@ namespace mlir::modelica
     return cast<UnrankedArrayType>().getMemorySpace();
   }
 
-  BaseArrayType BaseArrayType::cloneWith(llvm::Optional<llvm::ArrayRef<int64_t>> shape, mlir::Type elementType) const
+  BaseArrayType BaseArrayType::cloneWith(
+      llvm::Optional<llvm::ArrayRef<int64_t>> shape,
+      mlir::Type elementType) const
   {
     if (isa<UnrankedArrayType>()) {
       if (!shape) {
@@ -243,16 +268,23 @@ namespace mlir::modelica
     return builder;
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // ArrayType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  ArrayType ArrayType::get(llvm::ArrayRef<int64_t> shape, mlir::Type elementType, mlir::Attribute memorySpace)
+  ArrayType ArrayType::get(
+      llvm::ArrayRef<int64_t> shape,
+      mlir::Type elementType,
+      mlir::Attribute memorySpace)
   {
     // Drop default memory space value and replace it with empty attribute.
     memorySpace = skipDefaultMemorySpace(memorySpace);
 
-    return Base::get(elementType.getContext(), shape, elementType, memorySpace);
+    return Base::get(
+        elementType.getContext(),
+        shape,
+        elementType,
+        memorySpace);
   }
 
   ArrayType ArrayType::getChecked(
@@ -264,7 +296,12 @@ namespace mlir::modelica
     // Drop default memory space value and replace it with empty attribute.
     memorySpace = skipDefaultMemorySpace(memorySpace);
 
-    return Base::getChecked(emitErrorFn, elementType.getContext(), shape, elementType, memorySpace);
+    return Base::getChecked(
+        emitErrorFn,
+        elementType.getContext(),
+        shape,
+        elementType,
+        memorySpace);
   }
 
   mlir::LogicalResult ArrayType::verify(
@@ -278,7 +315,7 @@ namespace mlir::modelica
     }
 
     // Negative sizes are not allowed except for `-1` that means dynamic size.
-    for (const auto& size : shape) {
+    for (int64_t size : shape) {
       if (size < 0 && size != ArrayType::kDynamicSize) {
         return emitError() << "invalid array size";
       }
@@ -319,9 +356,9 @@ namespace mlir::modelica
     return hasStaticShape();
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // UnrankedArrayType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::LogicalResult UnrankedArrayType::verify(
       llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
@@ -346,7 +383,7 @@ namespace mlir::modelica
   MemberType MemberType::get(
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
-      bool isParameter,
+      VariabilityProperty variabilityProperty,
       IOProperty ioProperty,
       mlir::Attribute memorySpace)
   {
@@ -357,7 +394,7 @@ namespace mlir::modelica
         elementType.getContext(),
         shape,
         elementType,
-        isParameter,
+        variabilityProperty,
         ioProperty,
         memorySpace);
   }
@@ -366,18 +403,19 @@ namespace mlir::modelica
       llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
-      bool isParameter,
+      VariabilityProperty variabilityProperty,
       IOProperty ioProperty,
       mlir::Attribute memorySpace)
   {
     // Drop default memory space value and replace it with empty attribute.
     memorySpace = skipDefaultMemorySpace(memorySpace);
 
-    return Base::get(
+    return Base::getChecked(
+        emitErrorFn,
         elementType.getContext(),
         shape,
         elementType,
-        isParameter,
+        variabilityProperty,
         ioProperty,
         memorySpace);
   }
@@ -386,7 +424,7 @@ namespace mlir::modelica
       llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
-      bool isParameter,
+      VariabilityProperty variabilityProperty,
       IOProperty ioProperty,
       mlir::Attribute memorySpace)
   {
@@ -395,7 +433,7 @@ namespace mlir::modelica
     }
 
     // Negative sizes are not allowed except for `-1` that means dynamic size.
-    for (const auto& size : shape) {
+    for (int64_t size : shape) {
       if (size < 0 && size != MemberType::kDynamicSize) {
         return emitError() << "invalid member size";
       }
@@ -418,7 +456,7 @@ namespace mlir::modelica
       mlir::Type elementType) const
   {
     MemberType::Builder builder(*shape, elementType);
-    builder.setParameterProperty(getParameterProperty());
+    builder.setVariabilityProperty(getVariabilityProperty());
     builder.setVisibilityProperty(getVisibilityProperty());
     builder.setMemorySpace(getMemorySpace());
     return builder;
@@ -430,18 +468,20 @@ namespace mlir::modelica
   }
 
   MemberType MemberType::wrap(
-      mlir::Type type, bool isParameter, IOProperty ioProperty)
+      mlir::Type type,
+      VariabilityProperty variabilityProperty,
+      IOProperty ioProperty)
   {
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
       return MemberType::get(
           arrayType.getShape(),
           arrayType.getElementType(),
-          isParameter,
+          variabilityProperty,
           ioProperty,
           arrayType.getMemorySpace());
     }
 
-    return MemberType::get(llvm::None, type, isParameter, ioProperty);
+    return MemberType::get(llvm::None, type, variabilityProperty, ioProperty);
   }
 
   ArrayType MemberType::toArrayType() const
@@ -461,30 +501,70 @@ namespace mlir::modelica
   MemberType MemberType::withShape(llvm::ArrayRef<int64_t> shape) const
   {
     return MemberType::get(
-        shape, getElementType(), isParameter(), getVisibilityProperty());
+        shape,
+        getElementType(),
+        getVariabilityProperty(),
+        getVisibilityProperty());
   }
 
   MemberType MemberType::withType(mlir::Type type) const
   {
-    return MemberType::wrap(type, isParameter(), getVisibilityProperty());
+    return MemberType::wrap(
+        type, getVariabilityProperty(), getVisibilityProperty());
   }
 
-  MemberType MemberType::asNonParameter() const
+  MemberType MemberType::withVariabilityProperty(
+      VariabilityProperty variabilityProperty) const
   {
     return MemberType::get(
-        getShape(), getElementType(), false, getVisibilityProperty());
+        getShape(),
+        getElementType(),
+        variabilityProperty,
+        getVisibilityProperty());
+  }
+
+  MemberType MemberType::withoutVariabilityProperty() const
+  {
+    return withVariabilityProperty(VariabilityProperty::none);
+  }
+
+  MemberType MemberType::asDiscrete() const
+  {
+    return withVariabilityProperty(VariabilityProperty::discrete);
   }
 
   MemberType MemberType::asParameter() const
   {
-    return MemberType::get(
-        getShape(), getElementType(), true, getVisibilityProperty());
+    return withVariabilityProperty(VariabilityProperty::parameter);
+  }
+
+  MemberType MemberType::asConstant() const
+  {
+    return withVariabilityProperty(VariabilityProperty::constant);
   }
 
   MemberType MemberType::withIOProperty(IOProperty ioProperty) const
   {
     return MemberType::get(
-        getShape(), getElementType(), isParameter(), ioProperty);
+        getShape(),
+        getElementType(),
+        getVariabilityProperty(),
+        ioProperty);
+  }
+
+  MemberType MemberType::withoutIOProperty() const
+  {
+    return withIOProperty(IOProperty::none);
+  }
+
+  MemberType MemberType::asInput() const
+  {
+    return withIOProperty(IOProperty::input);
+  }
+
+  MemberType MemberType::asOutput() const
+  {
+    return withIOProperty(IOProperty::output);
   }
 }
 
@@ -498,7 +578,8 @@ namespace mlir::modelica::detail
     }
 
     // Supported built-in attributes.
-    if (memorySpace.isa<mlir::IntegerAttr, mlir::StringAttr, mlir::DictionaryAttr>()) {
+    if (memorySpace.isa<
+        mlir::IntegerAttr, mlir::StringAttr, mlir::DictionaryAttr>()) {
       return true;
     }
 
@@ -512,7 +593,8 @@ namespace mlir::modelica::detail
 
   mlir::Attribute skipDefaultMemorySpace(mlir::Attribute memorySpace)
   {
-    mlir::IntegerAttr intMemorySpace = memorySpace.dyn_cast_or_null<mlir::IntegerAttr>();
+    mlir::IntegerAttr intMemorySpace =
+        memorySpace.dyn_cast_or_null<mlir::IntegerAttr>();
 
     if (intMemorySpace && intMemorySpace.getValue() == 0) {
       return nullptr;
