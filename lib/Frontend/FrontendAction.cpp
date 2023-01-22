@@ -255,6 +255,12 @@ namespace marco::frontend
     // Try to simplify the starting IR.
     passManager.addPass(mlir::createCanonicalizerPass());
 
+    if (ci.getCodegenOptions().parametersPropagation) {
+      // Propagate the parameters and try to fold the constants right after.
+      passManager.addPass(createParametersPropagationPass());
+      passManager.addPass(mlir::createCanonicalizerPass());
+    }
+
     passManager.addPass(createAutomaticDifferentiationPass());
     passManager.addPass(createModelLegalizationPass());
     passManager.addPass(createMatchingPass());
@@ -405,6 +411,16 @@ namespace marco::frontend
     assert(dataLayoutString != "" && "Expecting a valid target data layout");
 
     return dataLayoutString;
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createParametersPropagationPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::modelica::ParametersPropagationPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createParametersPropagationPass(options);
   }
 
   std::unique_ptr<mlir::Pass> FrontendAction::createAutomaticDifferentiationPass()

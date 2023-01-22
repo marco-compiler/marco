@@ -27,6 +27,7 @@ namespace marco::frontend
     printOption(os, "Assertions", codegenOptions.assertions);
     printOption(os, "Inlining", codegenOptions.inlining);
     printOption(os, "Output arrays promotion", codegenOptions.outputArraysPromotion);
+    printOption(os, "Parameters propagation", codegenOptions.parametersPropagation);
     printOption(os, "CSE", codegenOptions.cse);
     printOption(os, "OpenMP", codegenOptions.omp);
     printOption(os, "Main function generation", codegenOptions.generateMain);

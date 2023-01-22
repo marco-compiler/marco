@@ -20,6 +20,7 @@ namespace marco::frontend
     bool assertions = true;
     bool inlining = false;
     bool outputArraysPromotion = false;
+    bool parametersPropagation = false;
     bool variablesToParametersPromotion = false;
     bool cse = false;
     bool omp = false;

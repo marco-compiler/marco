@@ -225,6 +225,7 @@ static void parseCodegenArgs(
 
   if (options.optLevel.time > 1) {
     options.outputArraysPromotion = true;
+    options.parametersPropagation = true;
     options.variablesToParametersPromotion = true;
     options.inlining = true;
     options.cse = true;
@@ -260,6 +261,11 @@ static void parseCodegenArgs(
       options::OPT_output_arrays_promotion,
       options::OPT_no_output_arrays_promotion,
       options.outputArraysPromotion);
+
+  options.parametersPropagation = args.hasFlag(
+      options::OPT_parameters_propagation,
+      options::OPT_no_parameters_propagation,
+      options.parametersPropagation);
 
   options.variablesToParametersPromotion = args.hasFlag(
       options::OPT_variables_to_parameters_promotion,

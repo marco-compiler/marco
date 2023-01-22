@@ -258,6 +258,14 @@ defm output_arrays_promotion : BoolOption<"", "output-arrays-promotion",
     BothFlags<[MC1Option], " output arrays into arguments to delegate the allocation to the caller">>,
     Group<Codegen_Group>;
 
+defm parameters_propagation : BoolOption<"", "parameters-propagation",
+    CodegenOpts<"ParametersPropagation">,
+    DefaultTrue,
+    PosFlag<SetTrue, [], "Propagate">,
+    NegFlag<SetFalse, [], "Don't propagate">,
+    BothFlags<[MC1Option], " the values assigned to parameters through binding equations">>,
+    Group<Codegen_Group>;
+
 defm variables_to_parameters_promotion : BoolOption<"", "variables-to-parameters-promotion",
     CodegenOpts<"VariablesToParametersPromotion">,
     DefaultTrue,
