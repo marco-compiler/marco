@@ -52,9 +52,9 @@ namespace marco::codegen
     return mlir::cast<MemberCreateOp>(definingOp);
   }
 
-  bool BaseVariable::isConstant() const
+  bool BaseVariable::isParameter() const
   {
-    return getDefiningOp().isConstant();
+    return getDefiningOp().isParameter();
   }
 
   //===----------------------------------------------------------------------===//

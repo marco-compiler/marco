@@ -2,7 +2,7 @@
 
 // Variable depending on a constant.
 
-// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, constant>
+// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 
 modelica.model @Test {
@@ -23,15 +23,15 @@ modelica.model @Test {
 
 // Variable depending on a parameter.
 
-// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, constant>
-// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, constant>
+// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.int, constant>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.int, parameter>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int>
-    modelica.yield %0, %1 : !modelica.member<!modelica.int, constant>, !modelica.member<!modelica.int>
+    modelica.yield %0, %1 : !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int>
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.int>, %arg1: !modelica.array<!modelica.int>):
     modelica.initial_equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
@@ -77,18 +77,18 @@ modelica.model @Test {
 // Variable z depending on the non-parameter variable y.
 // Variable y depending on the parameter x.
 
-// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, constant>
-// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, constant>
-// CHECK: modelica.member_create @z : !modelica.member<!modelica.int, constant>
+// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, parameter>
+// CHECK: modelica.member_create @z : !modelica.member<!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 2 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.int, constant>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.int, parameter>
     %1 = modelica.member_create @y : !modelica.member<!modelica.int>
     %2 = modelica.member_create @z : !modelica.member<!modelica.int>
-    modelica.yield %0, %1, %2 : !modelica.member<!modelica.int, constant>, !modelica.member<!modelica.int>, !modelica.member<!modelica.int>
+    modelica.yield %0, %1, %2 : !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int>, !modelica.member<!modelica.int>
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.int>, %arg1: !modelica.array<!modelica.int>, %arg2: !modelica.array<!modelica.int>):
     modelica.initial_equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
@@ -120,8 +120,8 @@ modelica.model @Test {
 
 // Promotable SCC
 
-// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, constant>
-// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, constant>
+// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 
@@ -152,9 +152,9 @@ modelica.model @Test {
 
 // Promotable SCC depending on a promotable variable
 
-// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, constant>
-// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, constant>
-// CHECK: modelica.member_create @z : !modelica.member<!modelica.int, constant>
+// CHECK: modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+// CHECK: modelica.member_create @y : !modelica.member<!modelica.int, parameter>
+// CHECK: modelica.member_create @z : !modelica.member<!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 2 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}

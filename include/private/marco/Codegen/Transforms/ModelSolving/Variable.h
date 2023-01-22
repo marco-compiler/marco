@@ -30,7 +30,7 @@ namespace marco::codegen
 
       virtual mlir::Value getValue() const = 0;
       virtual mlir::modelica::MemberCreateOp getDefiningOp() const = 0;
-      virtual bool isConstant() const = 0;
+      virtual bool isParameter() const = 0;
   };
 
   /// Container for the variables of the model.

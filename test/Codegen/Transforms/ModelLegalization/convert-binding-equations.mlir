@@ -67,8 +67,8 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.int, constant>
-    modelica.yield %0 : !modelica.member<!modelica.int, constant>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+    modelica.yield %0 : !modelica.member<!modelica.int, parameter>
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.int>):
     modelica.binding_equation (%arg0 : !modelica.array<!modelica.int>) {
@@ -92,8 +92,8 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int, constant>
-    modelica.yield %0 : !modelica.member<3x!modelica.int, constant>
+    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
+    modelica.yield %0 : !modelica.member<3x!modelica.int, parameter>
 } body {
 ^bb0(%arg0: !modelica.array<3x!modelica.int>):
     modelica.binding_equation (%arg0 : !modelica.array<3x!modelica.int>) {

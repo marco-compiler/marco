@@ -148,7 +148,7 @@ def MemberType : Modelica_Type<"Member",
     let parameters = (ins
         ArrayRefParameter<"int64_t">:$shape,
         "mlir::Type":$elementType,
-        "bool":$constantProperty,
+        "bool":$parameterProperty,
         "IOProperty":$visibilityProperty,
         "mlir::Attribute":$memorySpace
     );
@@ -159,7 +159,7 @@ def MemberType : Modelica_Type<"Member",
         TypeBuilderWithInferredContext<(ins
             "llvm::ArrayRef<int64_t>":$shape,
             "mlir::Type":$elementType,
-            "bool":$constantProperty,
+            "bool":$parameterProperty,
             "IOProperty":$visibilityProperty,
             CArg<"Attribute", "{}">:$memorySpace)>
     ];
@@ -183,8 +183,8 @@ def MemberType : Modelica_Type<"Member",
         /// Arguments that are passed into the builder must outlive the builder.
         class Builder;
 
-        bool isConstant() const {
-            return getConstantProperty();
+        bool isParameter() const {
+            return getParameterProperty();
         }
 
         bool isInput() const {
@@ -195,15 +195,15 @@ def MemberType : Modelica_Type<"Member",
             return getVisibilityProperty() == IOProperty::output;
         }
 
-        static MemberType wrap(mlir::Type type, bool isConstant = false, IOProperty ioProperty = IOProperty::none);
+        static MemberType wrap(mlir::Type type, bool isParameter = false, IOProperty ioProperty = IOProperty::none);
 
         ArrayType toArrayType() const;
         mlir::Type unwrap() const;
 
         MemberType withShape(llvm::ArrayRef<int64_t> shape) const;
         MemberType withType(mlir::Type type) const;
-        MemberType asNonConstant() const;
-        MemberType asConstant() const;
+        MemberType asNonParameter() const;
+        MemberType asParameter() const;
         MemberType withIOProperty(IOProperty ioProperty) const;
     }];
 

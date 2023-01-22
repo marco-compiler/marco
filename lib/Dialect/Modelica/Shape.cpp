@@ -47,7 +47,7 @@ namespace marco
   {
     return std::holds_alternative<Undefined>(value);
   }
-  bool Shape::DimensionSize::isConstant() const
+  bool Shape::DimensionSize::isParameter() const
   {
     return !isUndefined();
   }
@@ -168,7 +168,7 @@ namespace marco
   {
     return std::find_if(sizes.begin(), sizes.end(), [](const DimensionSize& s) { return s.isUndefined(); }) != sizes.end();
   }
-  bool Shape::isConstant() const
+  bool Shape::isParameter() const
   {
     return !isUndefined();
   }

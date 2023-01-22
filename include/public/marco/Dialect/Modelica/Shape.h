@@ -42,7 +42,7 @@ namespace marco
 
       bool isRagged() const;
       bool isUndefined() const;
-      bool isConstant() const;
+      bool isParameter() const;
 
       long getNumericValue() const;
 
@@ -82,7 +82,7 @@ namespace marco
 
     bool isRagged() const;
     bool isUndefined() const;
-    bool isConstant() const;
+    bool isParameter() const;
 
     Shape() = default;
 

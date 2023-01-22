@@ -1882,7 +1882,7 @@ mlir::LogicalResult IDASolver::solveICModel(
     for (const auto& scheduledBlock : model.getScheduledBlocks()) {
       for (const auto& equation : *scheduledBlock) {
         for (const Access& access : equation->getAccesses()) {
-          if (auto var = access.getVariable(); var->isConstant()) {
+          if (auto var = access.getVariable(); var->isParameter()) {
             idaInstance->addParametricVariable(var->getValue());
           }
         }
@@ -1900,7 +1900,7 @@ mlir::LogicalResult IDASolver::solveICModel(
         // Also add the used parameters.
         for (const Access& access : equation->getAccesses()) {
           if (auto accessVar = access.getVariable();
-              accessVar->isConstant()) {
+              accessVar->isParameter()) {
             idaInstance->addParametricVariable(accessVar->getValue());
           }
         }
@@ -2063,7 +2063,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
         for (const Access& access : equation->getAccesses()) {
           const Variable* variable = access.getVariable();
 
-          if (variable->isConstant()) {
+          if (variable->isParameter()) {
             idaInstance->addParametricVariable(variable->getValue());
           }
         }
@@ -2107,7 +2107,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
         // Also add the used parameters.
         for (const Access& access : equation->getAccesses()) {
           if (auto accessVar = access.getVariable();
-              accessVar->isConstant()) {
+              accessVar->isParameter()) {
             idaInstance->addParametricVariable(accessVar->getValue());
           }
         }

@@ -107,9 +107,9 @@ namespace mlir::modelica
       mlir::Attribute memorySpace;
   };
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // MemberType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   /// This is a builder type that keeps local references to arguments.
   /// Arguments that are passed into the builder must outlive the builder.
@@ -119,7 +119,7 @@ namespace mlir::modelica
       explicit Builder(MemberType other)
           : shape(other.getShape()),
             elementType(other.getElementType()),
-            constantProperty(other.isConstant()),
+            parameterProperty(other.isParameter()),
             visibilityProperty(other.getVisibilityProperty()),
             memorySpace(other.getMemorySpace())
       {
@@ -143,9 +143,9 @@ namespace mlir::modelica
         return *this;
       }
 
-      Builder& setConstantProperty(bool newConstantProperty)
+      Builder& setParameterProperty(bool newParameterProperty)
       {
-        constantProperty = newConstantProperty;
+        parameterProperty = newParameterProperty;
         return *this;
       }
 
@@ -163,18 +163,28 @@ namespace mlir::modelica
 
       operator MemberType()
       {
-        return MemberType::get(shape, elementType, constantProperty, visibilityProperty, memorySpace);
+        return MemberType::get(
+            shape,
+            elementType,
+            parameterProperty,
+            visibilityProperty,
+            memorySpace);
       }
 
       operator ShapedType()
       {
-        return MemberType::get(shape, elementType, constantProperty, visibilityProperty, memorySpace);
+        return MemberType::get(
+            shape,
+            elementType,
+            parameterProperty,
+            visibilityProperty,
+            memorySpace);
       }
 
     private:
       llvm::ArrayRef<int64_t> shape;
       mlir::Type elementType;
-      bool constantProperty;
+      bool parameterProperty;
       IOProperty visibilityProperty;
       mlir::Attribute memorySpace;
   };

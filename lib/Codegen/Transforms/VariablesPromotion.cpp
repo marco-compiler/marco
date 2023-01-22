@@ -124,7 +124,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
     unsigned int argNumber =
         variable->getValue().cast<mlir::BlockArgument>().getArgNumber();
 
-    if (variable->isConstant()) {
+    if (variable->isParameter()) {
       parameters.insert(argNumber);
     }
 
@@ -298,7 +298,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
   for (unsigned int variable : promotableVariables) {
     // Change the member type.
     MemberCreateOp memberCreateOp = memberCreateOps[variable];
-    auto newMemberType = memberCreateOp.getMemberType().asConstant();
+    auto newMemberType = memberCreateOp.getMemberType().asParameter();
     memberCreateOp.getResult().setType(newMemberType);
 
     // Determine the indices of the variable that are currently handled only by

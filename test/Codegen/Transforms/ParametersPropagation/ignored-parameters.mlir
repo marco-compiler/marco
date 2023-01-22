@@ -15,10 +15,10 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.int, constant>
-    %1 = modelica.member_create @y : !modelica.member<!modelica.int, constant>
+    %0 = modelica.member_create @x : !modelica.member<!modelica.int, parameter>
+    %1 = modelica.member_create @y : !modelica.member<!modelica.int, parameter>
     %2 = modelica.member_create @z : !modelica.member<!modelica.int>
-    modelica.yield %0, %1, %2 : !modelica.member<!modelica.int, constant>, !modelica.member<!modelica.int, constant>, !modelica.member<!modelica.int>
+    modelica.yield %0, %1, %2 : !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int, parameter>, !modelica.member<!modelica.int>
 } body {
 ^bb0(%arg0: !modelica.array<!modelica.int>, %arg1: !modelica.array<!modelica.int>, %arg2: !modelica.array<!modelica.int>):
     modelica.binding_equation (%arg0 : !modelica.array<!modelica.int>) {

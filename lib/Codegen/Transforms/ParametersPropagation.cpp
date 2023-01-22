@@ -78,7 +78,7 @@ mlir::LogicalResult ParametersPropagationPass::processModelOp(
 
     MemberCreateOp memberCreateOp = memberCreateOps[variableArgNumber];
 
-    if (!memberCreateOp.isConstant()) {
+    if (!memberCreateOp.isParameter()) {
       continue;
     }
 

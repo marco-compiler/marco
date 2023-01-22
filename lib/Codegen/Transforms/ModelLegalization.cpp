@@ -776,7 +776,7 @@ namespace
       unsigned int argNumber =
           op.getVariable().cast<mlir::BlockArgument>().getArgNumber();
 
-      return mlir::LogicalResult::success(!variables[argNumber].isConstant());
+      return mlir::LogicalResult::success(!variables[argNumber].isParameter());
     }
 
     void rewrite(
@@ -862,7 +862,7 @@ namespace
       unsigned int argNumber =
           op.getVariable().cast<mlir::BlockArgument>().getArgNumber();
 
-      return mlir::LogicalResult::success(variables[argNumber].isConstant());
+      return mlir::LogicalResult::success(variables[argNumber].isParameter());
     }
 
     void rewrite(

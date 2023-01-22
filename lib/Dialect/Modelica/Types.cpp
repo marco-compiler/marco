@@ -102,12 +102,12 @@ namespace mlir::modelica
         return mlir::Type();
       }
 
-      bool isConstant = false;
+      bool isParameter = false;
       IOProperty ioProperty = IOProperty::none;
 
       while (mlir::succeeded(parser.parseOptionalComma())) {
-        if (mlir::succeeded(parser.parseOptionalKeyword("constant"))) {
-          isConstant = true;
+        if (mlir::succeeded(parser.parseOptionalKeyword("parameter"))) {
+          isParameter = true;
         } else if (mlir::succeeded(parser.parseOptionalKeyword("input"))) {
           ioProperty = IOProperty::input;
         } else if (mlir::succeeded(parser.parseOptionalKeyword("output"))) {
@@ -119,7 +119,7 @@ namespace mlir::modelica
         return mlir::Type();
       }
 
-      return MemberType::get(dimensions, elementType, isConstant, ioProperty);
+      return MemberType::get(dimensions, elementType, isParameter, ioProperty);
     }
 
     llvm_unreachable("Unexpected 'Modelica' type kind");
@@ -157,8 +157,8 @@ namespace mlir::modelica
 
       printer << memberType.getElementType();
 
-      if (memberType.isConstant()) {
-        printer << ", constant";
+      if (memberType.isParameter()) {
+        printer << ", parameter";
       }
 
       if (memberType.isInput()) {
@@ -339,42 +339,54 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // MemberType
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   MemberType MemberType::get(
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
-      bool isConstant,
+      bool isParameter,
       IOProperty ioProperty,
       mlir::Attribute memorySpace)
   {
     // Drop default memory space value and replace it with empty attribute.
     memorySpace = skipDefaultMemorySpace(memorySpace);
 
-    return Base::get(elementType.getContext(), shape, elementType, isConstant, ioProperty, memorySpace);
+    return Base::get(
+        elementType.getContext(),
+        shape,
+        elementType,
+        isParameter,
+        ioProperty,
+        memorySpace);
   }
 
   MemberType MemberType::getChecked(
       llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
-      bool isConstant,
+      bool isParameter,
       IOProperty ioProperty,
       mlir::Attribute memorySpace)
   {
     // Drop default memory space value and replace it with empty attribute.
     memorySpace = skipDefaultMemorySpace(memorySpace);
 
-    return Base::get(elementType.getContext(), shape, elementType, isConstant, ioProperty, memorySpace);
+    return Base::get(
+        elementType.getContext(),
+        shape,
+        elementType,
+        isParameter,
+        ioProperty,
+        memorySpace);
   }
 
   mlir::LogicalResult MemberType::verify(
       llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
-      bool isConstant,
+      bool isParameter,
       IOProperty ioProperty,
       mlir::Attribute memorySpace)
   {
@@ -401,10 +413,12 @@ namespace mlir::modelica
     return !getShape().empty();
   }
 
-  mlir::ShapedType MemberType::cloneWith(llvm::Optional<llvm::ArrayRef<int64_t>> shape, mlir::Type elementType) const
+  mlir::ShapedType MemberType::cloneWith(
+      llvm::Optional<llvm::ArrayRef<int64_t>> shape,
+      mlir::Type elementType) const
   {
     MemberType::Builder builder(*shape, elementType);
-    builder.setConstantProperty(getConstantProperty());
+    builder.setParameterProperty(getParameterProperty());
     builder.setVisibilityProperty(getVisibilityProperty());
     builder.setMemorySpace(getMemorySpace());
     return builder;
@@ -415,18 +429,19 @@ namespace mlir::modelica
     return type.isIndex() || type.isa<BooleanType, IntegerType, RealType>();
   }
 
-  MemberType MemberType::wrap(mlir::Type type, bool isConstant, IOProperty ioProperty)
+  MemberType MemberType::wrap(
+      mlir::Type type, bool isParameter, IOProperty ioProperty)
   {
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
       return MemberType::get(
           arrayType.getShape(),
           arrayType.getElementType(),
-          isConstant,
+          isParameter,
           ioProperty,
           arrayType.getMemorySpace());
     }
 
-    return MemberType::get(llvm::None, type, isConstant, ioProperty);
+    return MemberType::get(llvm::None, type, isParameter, ioProperty);
   }
 
   ArrayType MemberType::toArrayType() const
@@ -445,21 +460,22 @@ namespace mlir::modelica
 
   MemberType MemberType::withShape(llvm::ArrayRef<int64_t> shape) const
   {
-    return MemberType::get(shape, getElementType(), isConstant(), getVisibilityProperty());
+    return MemberType::get(
+        shape, getElementType(), isParameter(), getVisibilityProperty());
   }
 
   MemberType MemberType::withType(mlir::Type type) const
   {
-    return MemberType::wrap(type, isConstant(), getVisibilityProperty());
+    return MemberType::wrap(type, isParameter(), getVisibilityProperty());
   }
 
-  MemberType MemberType::asNonConstant() const
+  MemberType MemberType::asNonParameter() const
   {
     return MemberType::get(
         getShape(), getElementType(), false, getVisibilityProperty());
   }
 
-  MemberType MemberType::asConstant() const
+  MemberType MemberType::asParameter() const
   {
     return MemberType::get(
         getShape(), getElementType(), true, getVisibilityProperty());
@@ -467,7 +483,8 @@ namespace mlir::modelica
 
   MemberType MemberType::withIOProperty(IOProperty ioProperty) const
   {
-    return MemberType::get(getShape(), getElementType(), isConstant(), ioProperty);
+    return MemberType::get(
+        getShape(), getElementType(), isParameter(), ioProperty);
   }
 }
 

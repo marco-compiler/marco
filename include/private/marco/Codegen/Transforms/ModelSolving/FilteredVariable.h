@@ -38,7 +38,7 @@ namespace marco::codegen
 
       mlir::modelica::MemberCreateOp getDefiningOp() const override;
 
-      bool isConstant() const override;
+      bool isParameter() const override;
 
       /// }
       /// @name Modified methods
