@@ -27,6 +27,7 @@ set(SOURCES
     Matching.cpp
     ModelLegalization.cpp
     OpDistribution.cpp
+    ParametersPropagation.cpp
     Scheduling.cpp
     SolverPassBase.cpp
     VariablesPromotion.cpp)

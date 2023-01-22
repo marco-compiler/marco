@@ -135,6 +135,27 @@ def VariablesPromotionPass : Pass<"promote-variables-to-parameters", "mlir::Modu
     let constructor = "mlir::modelica::createVariablesPromotionPass()";
 }
 
+def ParametersPropagationPass : Pass<"propagate-parameters", "mlir::ModuleOp"> {
+    let summary = "Propagate hte expression used to compute parameters";
+
+    let description = [{
+        // TODO
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let options = [
+        Option<"modelName", "model-name", "std::string", "",
+               "Set the model onto which perform the transformation">,
+        Option<"ignoredParameters", "ignored-parameters", "std::string", "",
+               "List of comma-separated variables that must not be propagated">
+    ];
+
+    let constructor = "mlir::modelica::createParametersPropagationPass()";
+}
+
 def CyclesSolvingPass : Pass<"solve-cycles", "mlir::ModuleOp"> {
     let summary = "Solve the cycles of matched model";
 
