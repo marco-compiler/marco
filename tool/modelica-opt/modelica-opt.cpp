@@ -37,6 +37,8 @@ int main(int argc, char* argv[])
   mlir::registerInlinerPass();
   mlir::registerSCFToControlFlowPass();
   mlir::registerConvertControlFlowToLLVMPass();
+  mlir::registerConvertVectorToSCFPass();
+  mlir::registerConvertVectorToLLVMPass();
   mlir::registerReconcileUnrealizedCastsPass();
 
 	auto result = mlir::MlirOptMain(

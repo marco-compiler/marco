@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --convert-modelica-to-vector --cse | FileCheck %s
 
-// Integer matrix operand
+// Integer matrix operand.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.array<3x5x!modelica.int>) -> !modelica.array<5x3x!modelica.int>
@@ -20,7 +20,7 @@ func.func @foo(%arg0 : !modelica.array<3x5x!modelica.int>) -> !modelica.array<5x
 
 // -----
 
-// Real matrix operand
+// Real matrix operand.
 
 // CHECK-LABEL: @foo
 // CHECK-SAME: (%[[arg0:.*]]: !modelica.array<3x5x!modelica.real>) -> !modelica.array<5x3x!modelica.real>

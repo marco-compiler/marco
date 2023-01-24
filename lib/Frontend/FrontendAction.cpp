@@ -296,6 +296,7 @@ namespace marco::frontend
       passManager.addPass(mlir::createInlinerPass());
     }
 
+    passManager.addPass(createModelicaToVectorConversionPass());
     passManager.addPass(createModelicaToArithConversionPass());
     passManager.addPass(createModelicaToFuncConversionPass());
     passManager.addPass(createModelicaToMemRefConversionPass());
@@ -307,6 +308,9 @@ namespace marco::frontend
       passManager.addNestedPass<mlir::func::FuncOp>(
           mlir::createConvertSCFToOpenMPPass());
     }
+
+    passManager.addPass(createVectorToSCFConversionPass());
+    passManager.addPass(createVectorToLLVMConversionPass());
 
     passManager.addPass(createArithToLLVMConversionPass());
     passManager.addPass(createMemRefToLLVMConversionPass());
@@ -536,6 +540,16 @@ namespace marco::frontend
     return mlir::createModelicaToCFConversionPass(options);
   }
 
+  std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToVectorConversionPass()
+  {
+    const CompilerInstance& ci = instance();
+
+    mlir::ModelicaToVectorConversionPassOptions options;
+    options.bitWidth = ci.getCodegenOptions().bitWidth;
+
+    return mlir::createModelicaToVectorConversionPass(options);
+  }
+
   std::unique_ptr<mlir::Pass> FrontendAction::createModelicaToArithConversionPass()
   {
     const CompilerInstance& ci = instance();
@@ -642,5 +656,17 @@ namespace marco::frontend
     options.useGenericFunctions = true;
 
     return mlir::createMemRefToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createVectorToLLVMConversionPass()
+  {
+    mlir::LowerVectorToLLVMOptions options;
+    return mlir::createConvertVectorToLLVMPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> FrontendAction::createVectorToSCFConversionPass()
+  {
+    mlir::VectorTransferToSCFOptions options;
+    return mlir::createConvertVectorToSCFPass(options);
   }
 }

@@ -68,6 +68,7 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createFunctionScalarizationPass();
       std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
       std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass();
+      std::unique_ptr<mlir::Pass> createModelicaToVectorConversionPass();
       std::unique_ptr<mlir::Pass> createModelicaToArithConversionPass();
       std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass();
       std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass();
@@ -83,6 +84,8 @@ namespace marco::frontend
       std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createArithToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMemRefToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createVectorToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createVectorToSCFConversionPass();
 
     private:
       CompilerInstance* instance_;

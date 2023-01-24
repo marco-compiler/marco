@@ -4,7 +4,9 @@
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
+#include "mlir/Dialect/Vector/Transforms/VectorTransforms.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir
 {
@@ -15,23 +17,35 @@ namespace mlir
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static mlir::Value readVectorFromMemRef(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value memRef)
+static mlir::Value readVectorFromMemRef(
+    mlir::OpBuilder& builder, mlir::Location loc, mlir::Value memRef)
 {
   auto memRefType = memRef.getType().cast<mlir::MemRefType>();
-  auto vectorType = mlir::VectorType::get(memRefType.getShape(), memRefType.getElementType());
 
-  mlir::Value zeroIndex = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(0));
+  auto vectorType = mlir::VectorType::get(
+      memRefType.getShape(), memRefType.getElementType());
+
+  mlir::Value zeroIndex = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getIndexAttr(0));
+
   llvm::SmallVector<mlir::Value, 3> indices(memRefType.getRank(), zeroIndex);
 
-  return builder.create<mlir::vector::TransferReadOp>(loc, vectorType, memRef, indices);
+  return builder.create<mlir::vector::TransferReadOp>(
+      loc, vectorType, memRef, indices);
 }
 
-static void writeVectortoMemRef(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value vector, mlir::Value memRef)
+static void writeVectortoMemRef(
+    mlir::OpBuilder& builder,
+    mlir::Location loc,
+    mlir::Value vector,
+    mlir::Value memRef)
 {
   auto memRefType = memRef.getType().cast<mlir::MemRefType>();
-  mlir::Value zeroIndex = builder.create<mlir::arith::ConstantOp>(loc, builder.getIndexAttr(0));
-  llvm::SmallVector<mlir::Value, 3> indices(memRefType.getRank(), zeroIndex);
 
+  mlir::Value zeroIndex = builder.create<mlir::arith::ConstantOp>(
+      loc, builder.getIndexAttr(0));
+
+  llvm::SmallVector<mlir::Value, 3> indices(memRefType.getRank(), zeroIndex);
   builder.create<mlir::vector::TransferWriteOp>(loc, vector, memRef, indices);
 }
 
@@ -53,17 +67,21 @@ namespace
       using mlir::OpConversionPattern<Op>::OpConversionPattern;
 
     protected:
-      mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Value value) const
+      mlir::Value materializeTargetConversion(
+        mlir::OpBuilder& builder, mlir::Value value) const
       {
-        mlir::Type type = this->getTypeConverter()->convertType(value.getType());
-        return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
+        mlir::Type type =
+            this->getTypeConverter()->convertType(value.getType());
+
+        return this->getTypeConverter()->materializeTargetConversion(
+            builder, value.getLoc(), type, value);
       }
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // AddOp
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -73,39 +91,62 @@ namespace
     public:
       using ModelicaOpConversionPattern::ModelicaOpConversionPattern;
 
-      mlir::LogicalResult matchAndRewrite(AddOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      mlir::LogicalResult matchAndRewrite(
+          AddOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
       {
-        auto loc = op.getLoc();
+        mlir::Location loc = op.getLoc();
 
-        auto resultConvertedType = getTypeConverter()->convertType(op.getResult().getType());
-        mlir::Type elementType = resultConvertedType.template cast<mlir::MemRefType>().getElementType();
+        auto resultConvertedType =
+            getTypeConverter()->convertType(op.getResult().getType());
+
+        auto memrefType =
+            resultConvertedType.template cast<mlir::MemRefType>();
+
+        mlir::Type elementType = memrefType.getElementType();
 
         if (!mlir::isa<ElementType...>(elementType)) {
           return mlir::failure();
         }
 
-        mlir::Value lhs = readVectorFromMemRef(rewriter, loc, adaptor.getLhs());
-        mlir::Value rhs = readVectorFromMemRef(rewriter, loc, adaptor.getRhs());
+        mlir::Value lhs =
+            readVectorFromMemRef(rewriter, loc, adaptor.getLhs());
+
+        mlir::Value rhs =
+            readVectorFromMemRef(rewriter, loc, adaptor.getRhs());
 
         mlir::Value resultVector = createVectorOp(rewriter, loc, lhs, rhs);
 
-        mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(op, op.getResult().getType().cast<ArrayType>(), llvm::None);
-        mlir::Value resultMemRef = materializeTargetConversion(rewriter, resultArray);
+        mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(
+            op, op.getResult().getType().cast<ArrayType>(), llvm::None);
+
+        mlir::Value resultMemRef =
+            materializeTargetConversion(rewriter, resultArray);
 
         writeVectortoMemRef(rewriter, loc, resultVector, resultMemRef);
         return mlir::success();
       }
 
     protected:
-      virtual mlir::Value createVectorOp(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const = 0;
+      virtual mlir::Value createVectorOp(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Value lhs,
+        mlir::Value rhs) const = 0;
   };
 
-  struct AddOpIntegerLikeArraysLowering : public AddOpArraysLowering<mlir::IndexType, mlir::IntegerType>
+  struct AddOpIntegerLikeArraysLowering
+      : public AddOpArraysLowering<mlir::IndexType, mlir::IntegerType>
   {
     public:
       using AddOpArraysLowering::AddOpArraysLowering;
 
-      mlir::Value createVectorOp(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+      mlir::Value createVectorOp(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value lhs,
+          mlir::Value rhs) const override
       {
         return builder.create<mlir::arith::AddIOp>(loc, lhs, rhs);
       }
@@ -116,16 +157,20 @@ namespace
     public:
       using AddOpArraysLowering::AddOpArraysLowering;
 
-      mlir::Value createVectorOp(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+      mlir::Value createVectorOp(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value lhs,
+          mlir::Value rhs) const override
       {
         return builder.create<mlir::arith::AddFOp>(loc, lhs, rhs);
       }
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // ProductOp
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -138,15 +183,25 @@ namespace
       auto arrayType = op.getArray().getType().cast<ArrayType>();
       mlir::Type resultType = op.getResult().getType();
 
-      return mlir::LogicalResult::success(arrayType.getElementType() != resultType);
+      return mlir::LogicalResult::success(
+          arrayType.getElementType() != resultType);
     }
 
     void rewrite(ProductOp op, mlir::PatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
-      auto resultType = op.getArray().getType().cast<ArrayType>().getElementType();
-      mlir::Value result = rewriter.create<ProductOp>(loc, resultType, op.getArray());
-      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+      mlir::Location loc = op.getLoc();
+
+      auto arrayType = op.getArray().getType().cast<ArrayType>();
+
+      mlir::Value result = rewriter.create<ProductOp>(
+          loc, arrayType.getElementType(), op.getArray());
+
+      if (mlir::Type requestedType = op.getResult().getType();
+          result.getType() != requestedType) {
+        result = rewriter.create<CastOp>(loc, requestedType, result);
+      }
+
+      rewriter.replaceOp(op, result);
     }
   };
 
@@ -156,28 +211,44 @@ namespace
     public:
       using ModelicaOpConversionPattern::ModelicaOpConversionPattern;
 
-      mlir::LogicalResult matchAndRewrite(ProductOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      mlir::LogicalResult matchAndRewrite(
+          ProductOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
       {
-        mlir::Type elementType = adaptor.getArray().getType().template cast<mlir::MemRefType>().getElementType();
-        mlir::Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+        auto memrefType =
+            adaptor.getArray().getType().template cast<mlir::MemRefType>();
 
-        if (elementType != resultType || !mlir::isa<ElementType...>(resultType)) {
+        mlir::Type elementType = memrefType.getElementType();
+
+        mlir::Type resultType = getTypeConverter()->convertType(
+            op.getResult().getType());
+
+        if (elementType != resultType ||
+            !mlir::isa<ElementType...>(resultType)) {
           return mlir::failure();
         }
 
-        auto loc = op.getLoc();
-        mlir::Value array = readVectorFromMemRef(rewriter, loc, adaptor.getArray());
+        mlir::Location loc = op.getLoc();
+
+        mlir::Value array = readVectorFromMemRef(
+            rewriter, loc, adaptor.getArray());
+
         mlir::Value acc = createAccumulator(rewriter, loc, resultType);
 
-        int64_t rank = array.getType().template cast<mlir::VectorType>().getRank();
+        auto vectorType = array.getType().template cast<mlir::VectorType>();
+        int64_t rank = vectorType.getRank();
 
         if (rank == 1) {
           rewriter.template replaceOpWithNewOp<mlir::vector::ReductionOp>(
               op, mlir::vector::CombiningKind::MUL, array, acc);
         } else {
+          // This branch is actually never taken due to restriction on the
+          // legality of the operation.
           llvm::SmallVector<bool, 2> reductionMask(rank, true);
 
-          rewriter.template replaceOpWithNewOp<mlir::vector::MultiDimReductionOp>(
+          rewriter.template replaceOpWithNewOp<
+              mlir::vector::MultiDimReductionOp>(
               op, array, acc, reductionMask, mlir::vector::CombiningKind::MUL);
         }
 
@@ -185,37 +256,50 @@ namespace
       }
 
     protected:
-      virtual mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const = 0;
+      virtual mlir::Value createAccumulator(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Type type) const = 0;
   };
 
-  struct ProductOpIntegerLikeLowering : public ProductOpLowering<mlir::IndexType, mlir::IntegerType>
+  struct ProductOpIntegerLikeLowering
+      : public ProductOpLowering<mlir::IndexType, mlir::IntegerType>
   {
     public:
       using ProductOpLowering::ProductOpLowering;
 
     protected:
-      mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const override
+      mlir::Value createAccumulator(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Type type) const override
       {
-        return builder.create<mlir::arith::ConstantOp>(loc, builder.getIntegerAttr(type, 1));
+        return builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIntegerAttr(type, 1));
       }
   };
 
-  struct ProductOpFloatLowering : public ProductOpLowering<mlir::FloatType>
+  struct ProductOpFloatLowering
+      : public ProductOpLowering<mlir::FloatType>
   {
     public:
       using ProductOpLowering::ProductOpLowering;
 
     protected:
-      mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const override
+      mlir::Value createAccumulator(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Type type) const override
       {
-        return builder.create<mlir::arith::ConstantOp>(loc, builder.getFloatAttr(type, 1));
+        return builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getFloatAttr(type, 1));
       }
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // SubOp
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -225,39 +309,61 @@ namespace
     public:
       using ModelicaOpConversionPattern::ModelicaOpConversionPattern;
 
-      mlir::LogicalResult matchAndRewrite(SubOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      mlir::LogicalResult matchAndRewrite(
+          SubOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
       {
-        auto loc = op.getLoc();
+        mlir::Location loc = op.getLoc();
 
-        auto resultConvertedType = getTypeConverter()->convertType(op.getResult().getType());
-        mlir::Type elementType = resultConvertedType.template cast<mlir::MemRefType>().getElementType();
+        auto resultConvertedType = getTypeConverter()->convertType(
+            op.getResult().getType());
+
+        mlir::Type elementType = resultConvertedType
+                                     .template cast<mlir::MemRefType>()
+                                     .getElementType();
 
         if (!mlir::isa<ElementType...>(elementType)) {
           return mlir::failure();
         }
 
-        mlir::Value lhs = readVectorFromMemRef(rewriter, loc, adaptor.getLhs());
-        mlir::Value rhs = readVectorFromMemRef(rewriter, loc, adaptor.getRhs());
+        mlir::Value lhs =
+            readVectorFromMemRef(rewriter, loc, adaptor.getLhs());
+
+        mlir::Value rhs =
+            readVectorFromMemRef(rewriter, loc, adaptor.getRhs());
 
         mlir::Value resultVector = createVectorOp(rewriter, loc, lhs, rhs);
 
-        mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(op, op.getResult().getType().cast<ArrayType>(), llvm::None);
-        mlir::Value resultMemRef = materializeTargetConversion(rewriter, resultArray);
+        mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(
+            op, op.getResult().getType().cast<ArrayType>(), llvm::None);
+
+        mlir::Value resultMemRef =
+            materializeTargetConversion(rewriter, resultArray);
 
         writeVectortoMemRef(rewriter, loc, resultVector, resultMemRef);
         return mlir::success();
       }
 
     protected:
-      virtual mlir::Value createVectorOp(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const = 0;
+      virtual mlir::Value createVectorOp(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Value lhs,
+        mlir::Value rhs) const = 0;
   };
 
-  struct SubOpIntegerLikeArraysLowering : public SubOpArraysLowering<mlir::IndexType, mlir::IntegerType>
+  struct SubOpIntegerLikeArraysLowering
+      : public SubOpArraysLowering<mlir::IndexType, mlir::IntegerType>
   {
     public:
       using SubOpArraysLowering::SubOpArraysLowering;
 
-      mlir::Value createVectorOp(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+      mlir::Value createVectorOp(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value lhs,
+          mlir::Value rhs) const override
       {
         return builder.create<mlir::arith::SubIOp>(loc, lhs, rhs);
       }
@@ -268,16 +374,20 @@ namespace
     public:
       using SubOpArraysLowering::SubOpArraysLowering;
 
-      mlir::Value createVectorOp(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+      mlir::Value createVectorOp(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value lhs,
+          mlir::Value rhs) const override
       {
         return builder.create<mlir::arith::SubFOp>(loc, lhs, rhs);
       }
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // SumOp
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -290,15 +400,25 @@ namespace
       auto arrayType = op.getArray().getType().cast<ArrayType>();
       mlir::Type resultType = op.getResult().getType();
 
-      return mlir::LogicalResult::success(arrayType.getElementType() != resultType);
+      return mlir::LogicalResult::success(
+          arrayType.getElementType() != resultType);
     }
 
     void rewrite(SumOp op, mlir::PatternRewriter& rewriter) const override
     {
-      auto loc = op.getLoc();
-      auto resultType = op.getArray().getType().cast<ArrayType>().getElementType();
-      mlir::Value result = rewriter.create<SumOp>(loc, resultType, op.getArray());
-      rewriter.replaceOpWithNewOp<CastOp>(op, op.getResult().getType(), result);
+      mlir::Location loc = op.getLoc();
+      auto arrayType = op.getArray().getType().cast<ArrayType>();
+
+      mlir::Value result = rewriter.create<SumOp>(
+          loc, arrayType.getElementType(), op.getArray());
+
+      if (mlir::Type requestedType = op.getResult().getType();
+          op.getResult().getType() != requestedType) {
+        result = rewriter.create<CastOp>(loc, requestedType, result);
+      }
+
+      rewriter.replaceOpWithNewOp<CastOp>(
+          op, op.getResult().getType(), result);
     }
   };
 
@@ -308,28 +428,44 @@ namespace
     public:
       using ModelicaOpConversionPattern::ModelicaOpConversionPattern;
 
-      mlir::LogicalResult matchAndRewrite(SumOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      mlir::LogicalResult matchAndRewrite(
+          SumOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
       {
-        mlir::Type elementType = adaptor.getArray().getType().template cast<mlir::MemRefType>().getElementType();
-        mlir::Type resultType = getTypeConverter()->convertType(op.getResult().getType());
+        auto memrefType =
+            adaptor.getArray().getType().template cast<mlir::MemRefType>();
 
-        if (elementType != resultType || !mlir::isa<ElementType...>(resultType)) {
+        mlir::Type elementType = memrefType.getElementType();
+
+        mlir::Type resultType = getTypeConverter()->convertType(
+            op.getResult().getType());
+
+        if (elementType != resultType ||
+            !mlir::isa<ElementType...>(resultType)) {
           return mlir::failure();
         }
 
-        auto loc = op.getLoc();
-        mlir::Value array = readVectorFromMemRef(rewriter, loc, adaptor.getArray());
+        mlir::Location loc = op.getLoc();
+
+        mlir::Value array = readVectorFromMemRef(
+            rewriter, loc, adaptor.getArray());
+
         mlir::Value acc = createAccumulator(rewriter, loc, resultType);
 
-        int64_t rank = array.getType().template cast<mlir::VectorType>().getRank();
+        auto vectorType = array.getType().template cast<mlir::VectorType>();
+        int64_t rank = vectorType.getRank();
 
         if (rank == 1) {
           rewriter.template replaceOpWithNewOp<mlir::vector::ReductionOp>(
               op, mlir::vector::CombiningKind::ADD, array, acc);
         } else {
+          // This branch is actually never taken due to restriction on the
+          // legality of the operation.
           llvm::SmallVector<bool, 2> reductionMask(rank, true);
 
-          rewriter.template replaceOpWithNewOp<mlir::vector::MultiDimReductionOp>(
+          rewriter.template replaceOpWithNewOp<
+              mlir::vector::MultiDimReductionOp>(
               op, array, acc, reductionMask, mlir::vector::CombiningKind::ADD);
         }
 
@@ -337,18 +473,26 @@ namespace
       }
 
     protected:
-      virtual mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const = 0;
+      virtual mlir::Value createAccumulator(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Type type) const = 0;
   };
 
-  struct SumOpIntegerLikeLowering : public SumOpLowering<mlir::IndexType, mlir::IntegerType>
+  struct SumOpIntegerLikeLowering
+      : public SumOpLowering<mlir::IndexType, mlir::IntegerType>
   {
     public:
       using SumOpLowering::SumOpLowering;
 
     protected:
-      mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const override
+      mlir::Value createAccumulator(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Type type) const override
       {
-        return builder.create<mlir::arith::ConstantOp>(loc, builder.getIntegerAttr(type, 0));
+        return builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getIntegerAttr(type, 0));
       }
   };
 
@@ -358,16 +502,20 @@ namespace
       using SumOpLowering::SumOpLowering;
 
     protected:
-      mlir::Value createAccumulator(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const override
+      mlir::Value createAccumulator(
+        mlir::OpBuilder& builder,
+        mlir::Location loc,
+        mlir::Type type) const override
       {
-        return builder.create<mlir::arith::ConstantOp>(loc, builder.getFloatAttr(type, 0));
+        return builder.create<mlir::arith::ConstantOp>(
+            loc, builder.getFloatAttr(type, 0));
       }
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // TransposeOp
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -376,17 +524,26 @@ namespace
     public:
       using ModelicaOpConversionPattern::ModelicaOpConversionPattern;
 
-      mlir::LogicalResult matchAndRewrite(TransposeOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+      mlir::LogicalResult matchAndRewrite(
+          TransposeOp op,
+          OpAdaptor adaptor,
+          mlir::ConversionPatternRewriter& rewriter) const override
       {
-        auto loc = op.getLoc();
+        mlir::Location loc = op.getLoc();
 
-        mlir::Value matrix = readVectorFromMemRef(rewriter, loc, adaptor.getMatrix());
+        mlir::Value matrix = readVectorFromMemRef(
+            rewriter, loc, adaptor.getMatrix());
 
         llvm::SmallVector<int64_t, 2> permutation({1, 0});
-        mlir::Value resultVector = rewriter.create<mlir::vector::TransposeOp>(loc, matrix, permutation);
 
-        mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(op, op.getResult().getType().cast<ArrayType>(), llvm::None);
-        mlir::Value resultMemRef = materializeTargetConversion(rewriter, resultArray);
+        mlir::Value resultVector = rewriter.create<mlir::vector::TransposeOp>(
+            loc, matrix, permutation);
+
+        mlir::Value resultArray = rewriter.replaceOpWithNewOp<AllocOp>(
+            op, op.getResult().getType().cast<ArrayType>(), llvm::None);
+
+        mlir::Value resultMemRef = materializeTargetConversion(
+            rewriter, resultArray);
 
         writeVectortoMemRef(rewriter, loc, resultVector, resultMemRef);
         return mlir::success();
@@ -427,10 +584,13 @@ static void populateModelicaToVectorPatterns(
 
 namespace
 {
-  class ModelicaToVectorConversionPass : public mlir::impl::ModelicaToVectorConversionPassBase<ModelicaToVectorConversionPass>
+  class ModelicaToVectorConversionPass
+      : public mlir::impl::ModelicaToVectorConversionPassBase<
+          ModelicaToVectorConversionPass>
   {
     public:
-      using ModelicaToVectorConversionPassBase::ModelicaToVectorConversionPassBase;
+      using ModelicaToVectorConversionPassBase
+        ::ModelicaToVectorConversionPassBase;
 
       void runOnOperation() override
       {
@@ -462,11 +622,28 @@ namespace
           auto rhsArrayType = rhsType.cast<ArrayType>();
           auto resultArrayType = op.getResult().getType().cast<ArrayType>();
 
-          if (!lhsArrayType.hasStaticShape() || !rhsArrayType.hasStaticShape() || !resultArrayType.hasStaticShape()) {
+          if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
             return true;
           }
 
-          if (lhsArrayType.getElementType() != rhsArrayType.getElementType() || lhsArrayType.getElementType() != resultArrayType.getElementType()) {
+          if (lhsArrayType.getRank() != 1 ||
+              rhsArrayType.getRank() != 1) {
+            // Restrict the vector operations to 1D arrays in order to avoid
+            // code explosion when flattening the vector.
+            return true;
+          }
+
+          if (!lhsArrayType.hasStaticShape() ||
+              !rhsArrayType.hasStaticShape() ||
+              !resultArrayType.hasStaticShape()) {
+            return true;
+          }
+
+          auto lhsElementType = lhsArrayType.getElementType();
+          auto rhsElementType = rhsArrayType.getElementType();
+
+          if (lhsElementType != rhsElementType ||
+              lhsElementType != rhsElementType) {
             return true;
           }
 
@@ -485,11 +662,28 @@ namespace
           auto rhsArrayType = rhsType.cast<ArrayType>();
           auto resultArrayType = op.getResult().getType().cast<ArrayType>();
 
-          if (!lhsArrayType.hasStaticShape() || !rhsArrayType.hasStaticShape() || !resultArrayType.hasStaticShape()) {
+          if (lhsArrayType.getRank() != rhsArrayType.getRank()) {
             return true;
           }
 
-          if (lhsArrayType.getElementType() != rhsArrayType.getElementType() || lhsArrayType.getElementType() != resultArrayType.getElementType()) {
+          if (lhsArrayType.getRank() != 1 ||
+              rhsArrayType.getRank() != 1) {
+            // Restrict the vector operations to 1D arrays in order to avoid
+            // code explosion when flattening the vector.
+            return true;
+          }
+
+          if (!lhsArrayType.hasStaticShape() ||
+              !rhsArrayType.hasStaticShape() ||
+              !resultArrayType.hasStaticShape()) {
+            return true;
+          }
+
+          auto lhsElementType = lhsArrayType.getElementType();
+          auto rhsElementType = rhsArrayType.getElementType();
+
+          if (lhsElementType != rhsElementType ||
+              lhsElementType != rhsElementType) {
             return true;
           }
 
@@ -497,13 +691,28 @@ namespace
         });
 
         target.addDynamicallyLegalOp<TransposeOp>([](TransposeOp op) {
-          mlir::Type argType = op.getMatrix().getType().cast<ArrayType>().getElementType();
-          mlir::Type resultType = op.getResult().getType().cast<ArrayType>().getElementType();
+          mlir::Type argType =
+              op.getMatrix().getType().cast<ArrayType>().getElementType();
+
+          mlir::Type resultType =
+              op.getResult().getType().cast<ArrayType>().getElementType();
+
           return argType != resultType;
         });
 
-        target.addIllegalOp<SumOp>();
-        target.addIllegalOp<ProductOp>();
+        target.addDynamicallyLegalOp<SumOp>([](SumOp op) {
+          // Restrict the vector operations to 1D arrays in order to avoid
+          // code explosion when flattening the vector.
+          auto arrayType = op.getArray().getType().cast<ArrayType>();
+          return arrayType.getRank() != 1;
+        });
+
+        target.addDynamicallyLegalOp<ProductOp>([](ProductOp op) {
+          // Restrict the vector operations to 1D arrays in order to avoid
+          // code explosion when flattening the vector.
+          auto arrayType = op.getArray().getType().cast<ArrayType>();
+          return arrayType.getRank() != 1;
+        });
 
         TypeConverter typeConverter(bitWidth);
 
@@ -522,7 +731,8 @@ namespace mlir
     return std::make_unique<ModelicaToVectorConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToVectorConversionPass(const ModelicaToVectorConversionPassOptions& options)
+  std::unique_ptr<mlir::Pass> createModelicaToVectorConversionPass(
+      const ModelicaToVectorConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToVectorConversionPass>(options);
   }
