@@ -105,7 +105,8 @@ Error: post-optimization module removeSimpleEquations (simulation) failed.
 | PowerGridBaseDAE Ne=100 | ~400k | ~40k | TBD | TBD | TBD | TBD |
 | PowerGridBaseDAE Ne=400 | ~6M | ~640k | TBD | TBD | TBD | TBD |
 
-**Status**: blah blah blah
+**Status**:
+ - "If equations" are not supported yet.
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
@@ -113,7 +114,8 @@ Error: post-optimization module removeSimpleEquations (simulation) failed.
 | PowerGridSecondaryDAE Ne=100 | ~400k | ~40k | TBD | TBD | TBD | TBD |
 | PowerGridSecondaryDAE Ne=400 | ~6M | ~640k | TBD | TBD | TBD | TBD |
 
-**Status**: blah blah blah
+**Status**:
+ - "If equations" are not supported yet.
 
 | Name  | Vars | States | Compile Time OMC  | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------| -----------       | -------------------| ------------ | ------------- |
@@ -121,7 +123,7 @@ Error: post-optimization module removeSimpleEquations (simulation) failed.
 | PowerGridBaseOO Ne=100 | ~800k | ~40k | TBD | TBD | TBD | TBD |
 | PowerGridBaseOO Ne=400 | ~12M | ~600k | TBD | TBD | TBD | TBD |
 
-**Status**: blah blah blah
+**Status**:
 
 ## ScalableTestGrids
 
