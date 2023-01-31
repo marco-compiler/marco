@@ -1,11 +1,11 @@
 # Status of significant test cases in MARCO
 
 ## ThermalChip
-| Name  | Vars | States | Compile Time OMC      | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------|-----------------------|--------------------|--------------|---------------|
-| ThermalChipSimpleBoundaryODE N=4, M=4, P=4 | 88 | 64 | 0.592s                | 0.491s             | 0.022s       | 0.010s        |
-| ThermalChipSimpleBoundaryODE N=40, M=40, P=40 | ~65k | ~64k | 59m 14.056s           | 0.578s             | 2.724s       | 0.313s           |
-| ThermalChipSimpleBoundaryODE N=100, M=100, P=100 | ~1M | ~1M | Didn't end within 29h | 1.391s             | N/A          | 4.453s           |
+| Name  | Vars | States | Compile Time OMC | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|------------------|--------------------|--------------|---------------|
+| ThermalChipSimpleBoundaryODE N=4, M=4, P=4 | 88 | 64 | 0.345s           | 0.491s             | 0.021s       | 0.010s        |
+| ThermalChipSimpleBoundaryODE N=40, M=40, P=40 | ~65k | ~64k | 3m13.739s      | 0.578s             | 2.959s       | 0.313s           |
+| ThermalChipSimpleBoundaryODE N=100, M=100, P=100 | ~1M | ~1M | Compilation error (*)   | 1.391s             | N/A          | 4.453s           |
 
 **Status**:
 - Simulation parameters:
@@ -14,51 +14,16 @@
    - time-step: `0.001`
 - Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
-| Name  | Vars | States | Compile Time OMC | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------|------------------|--------------------|--------------|---------------|
-| ThermalChipSimpleBoundaryDAE N=4, M=4, P=4 | 328 | 64 | 0.708s           | 0.277s             | 0.026s       | 0.010s        |
-| ThermalChipSimpleBoundaryDAE N=40, M=40, P=40 | ~300k | ~64k | 264m 11.369s     | 11.631s            | 4.790s       | 0.758s        |
-| ThermalChipSimpleBoundaryDAE N=100, M=100, P=100 | ~5M | ~1M | N/A              | 45m 27.086s        | N/A          | 11.585s           |
+(*) Log from OMC:
+```
+Error: Internal error Instantiation of ThermalChipODE.Models.ThermalChipSimpleBoundary failed with no error message.
+```
 
-**Status**:
-- Simulation parameters:
-    - start time: `0`
-    - end time: `1`
-    - time-step: `0.001`
-- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
-
-| Name  | Vars | States | Compile Time OMC     | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------|----------------------| -------------------|--------------|---------------|
-| ThermalChipSimpleBoundaryOO N=4, M=4, P=4 |~1k | 64 | 2.381s               | 0.390s | 0.082s       | 0.012s        |
-| ThermalChipSimpleBoundaryOO N=40, M=40, P=40 | ~1M | ~64k | OOM after 5m 44.196s | 0.492s | N/A          | 2.696s           |
-| ThermalChipSimpleBoundaryOO N=100, M=100, P=100 | ~16M | ~1M | N/A                  | 1.108s | N/A          | 28.640s           |
-
-**Status**:
-- Simulation parameters:
-    - start time: `0`
-    - end time: `1`
-    - time-step: `0.001`
-
-## ThermalChipCooling
-
-| Name  | Vars | States | Compile Time OMC | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------|------------------|--------------------|--------------|---------------|
-| ThermalChipCoolingSimpleBoundaryODE N=4, M=4, P=4 | 145 | 80 | 2.710s           | 1.035s             | 0.032s       | 0.011s        |
-| ThermalChipCoolingSimpleBoundaryODE N=40, M=40, P=40 | ~145k | ~65k | 95m 38.550s      | 1.175s             | 1.785s       | 0.400s           |
-| ThermalChipCoolingSimpleBoundaryODE N=100, M=100, P=100 | ~2M | ~1M | N/A              | 6.712s                | N/A          | 5.585s           |
-
-**Status**:
-- Simulation parameters:
-    - start time: `0`
-    - end time: `1`
-    - time-step: `0.001`
-- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
-
-| Name  | Vars | States | Compile Time OMC        | Compile Time MARCO | Run Time OMC | RunTime Marco |
-|  ---- |  ----| -------|-------------------------| -------------------|--------------|---------------|
-| ThermalChipCoolingSimpleBoundaryOO N=4, M=4, P=4 | ~1K | 80 | 2.649s                  | 0.478s | 0.061s       | 0.013s        |
-| ThermalChipCoolingSimpleBoundaryOO N=40, M=40, P=40 | ~500k | ~65k | Compilation failing (*) | 0.651s | N/A          | 2.589s           |
-| ThermalChipCoolingSimpleBoundaryOO N=100, M=100, P=100 | ~8M | ~1M | N/A                     | 1.545s | N/A          | 29.126s           |
+| Name  | Vars | States | Compile Time OMC   | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|--------------------|--------------------|--------------|---------------|
+| ThermalChipSimpleBoundaryDAE N=4, M=4, P=4 | 328 | 64 | 0.423s             | 0.277s             | 0.021s       | 0.010s        |
+| ThermalChipSimpleBoundaryDAE N=40, M=40, P=40 | ~300k | ~64k | 6m6.130            | 11.631s            | 8.029s       | 0.758s        |
+| ThermalChipSimpleBoundaryDAE N=100, M=100, P=100 | ~5M | ~1M | Segmentation fault | 45m 27.086s        | N/A          | 11.585s           |
 
 **Status**:
 - Simulation parameters:
@@ -69,25 +34,80 @@
 
 (*) Log from OMC:
 ```
-[ThermalChipCoolingOO.mo:45:7-45:35:writable] Error: Model is structurally singular, error found sorting equations
-  283824: vol[24,33,38].upper.Q = 0.0296 * (vol[23,33,38].lower.T - vol[24,33,38].T)
-  261563: vol[24,33,38].upper.Q = 0.0296 * (vol[23,33,38].lower.T - vol[24,33,38].T)
-  261564: -vol[24,33,38].upper.Q = 0.0296 * (vol[23,33,38].lower.T - vol[23,33,38].T)
-for variables
-  186878: vol[24,33,38].upper.Q:VARIABLE(flow=true unit = \"W\" )  type: Real [40,40,40]
-  198035: vol[23,33,38].lower.T:VARIABLE(flow=false unit = \"K\" nominal = 500.0 )  type: Real [40,40,40]
-  164536: vol[26,34,1].T:STATE(1)(start = Tstart unit = \"K\" fixed = true nominal = 500.0 )  \"Volume temperature\" type: Real [40,40,40]
-Error: Internal error Transformation Module PFPlusExt index Reduction Method Pantelides failed!
-Error: post-optimization module removeSimpleEquations (simulation) failed.
+Limited backtrace at point of segmentation fault
+/lib/x86_64-linux-gnu/libc.so.6(+0x43090)[0x14867b577090]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaRuntimeC.so(listAppend+0x7e)[0x14867b43a3f0]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_ResolveLoops_colorNodePartitions+0x3ed)[0x14867c3df076]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_ResolveLoops_partitionBipartiteGraph+0x15a)[0x14867c3df240]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_CommonSubExpression_commonSubExpressionFind+0x54b)[0x14867c4fb67d]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_CommonSubExpression_commonSubExpression+0x14f)[0x14867c4fb92e]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_List_mapFold+0x7f)[0x14867c5c3888]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_BackendDAEUtil_mapEqSystem+0x49)[0x14867c54e4c3]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_BackendDAEUtil_preOptimizeDAE+0x1f8)[0x14867c554815]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_BackendDAEUtil_getSolvedSystem+0x152)[0x14867c555c55]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_SimCodeMain_translateModel+0xa18)[0x14867c0ef7cd]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_CevalScriptBackend_callTranslateModel+0xe4)[0x14867c138332]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_CevalScriptBackend_translateModel+0x27a)[0x14867c12f5af]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_CevalScriptBackend_buildModel+0x433)[0x14867c12ebf0]
+/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so(omc_CevalScriptBackend_cevalInteractiveFunctions3+0x6d60)[0x14867c14c0f4]
 ```
+
+| Name  | Vars | States | Compile Time OMC     | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|----------------------| -------------------|--------------|---------------|
+| ThermalChipSimpleBoundaryOO N=4, M=4, P=4 |~1k | 64 | 1.367s               | 0.390s | 0.063s       | 0.012s        |
+| ThermalChipSimpleBoundaryOO N=40, M=40, P=40 | ~1M | ~64k | OOM after 5m 34.814s | 0.492s | N/A          | 2.696s           |
+| ThermalChipSimpleBoundaryOO N=100, M=100, P=100 | ~16M | ~1M | N/A                  | 1.108s | N/A          | 28.640s           |
+
+**Status**:
+- Simulation parameters:
+    - start time: `0`
+    - end time: `1`
+    - time-step: `0.001`
+
+## ThermalChipCooling
+
+| Name  | Vars | States | Compile Time OMC      | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|-----------------------|--------------------|--------------|---------------|
+| ThermalChipCoolingSimpleBoundaryODE N=4, M=4, P=4 | 145 | 80 | 0.403s                | 1.035s             | 0.021s        | 0.011s        |
+| ThermalChipCoolingSimpleBoundaryODE N=40, M=40, P=40 | ~145k | ~65k | 3m 24.333s            | 1.175s             | 1.785s       | 1.378s           |
+| ThermalChipCoolingSimpleBoundaryODE N=100, M=100, P=100 | ~2M | ~1M | Compilation error (*) | 6.712s                | N/A          | 5.585s           |
+
+**Status**:
+- Simulation parameters:
+    - start time: `0`
+    - end time: `1`
+    - time-step: `0.001`
+- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
+
+(*) Log from OMC:
+```
+Error: Internal error SimCodeUtil.simEqSystemIndex failed
+[/var/lib/jenkins2/ws/LINUX_BUILDS/tmp.build/openmodelica-1.21.0~dev-206-gf7bc46b/OMCompiler/Compiler/SimCode/SerializeModelInfo.mo:116:9-116:84:writable] Error: Internal error SerializeModelInfo.serialize failed
+[/var/lib/jenkins2/ws/LINUX_BUILDS/tmp.build/openmodelica-1.21.0~dev-206-gf7bc46b/OMCompiler/Compiler/SimCode/SimCodeMain.mo:530:7-530:78:writable] Error: Internal error /usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so: (null) failed
+Error: Template error: A template call failed (/usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so: (null)). One possible reason could be that a template imported function call failed (which should not happen for functions called from within template code; templates assert pure 'match'/non-failing semantics).
+[/var/lib/jenkins2/ws/LINUX_BUILDS/tmp.build/openmodelica-1.21.0~dev-206-gf7bc46b/OMCompiler/Compiler/SimCode/SimCodeMain.mo:530:7-530:78:writable] Error: Internal error /usr/bin/../lib/x86_64-linux-gnu/omc/libOpenModelicaCompiler.so: (null) failed
+```
+
+| Name  | Vars | States | Compile Time OMC     | Compile Time MARCO | Run Time OMC | RunTime Marco |
+|  ---- |  ----| -------|----------------------| -------------------|--------------|---------------|
+| ThermalChipCoolingSimpleBoundaryOO N=4, M=4, P=4 | ~1K | 80 | 1.494s               | 0.478s | 0.094s       | 0.013s        |
+| ThermalChipCoolingSimpleBoundaryOO N=40, M=40, P=40 | ~500k | ~65k | OOM after 5m 36.858s | 0.651s | N/A          | 2.589s           |
+| ThermalChipCoolingSimpleBoundaryOO N=100, M=100, P=100 | ~8M | ~1M | N/A                  | 1.545s | N/A          | 29.126s           |
+
+**Status**:
+- Simulation parameters:
+    - start time: `0`
+    - end time: `1`
+    - time-step: `0.001`
+- Implicit ranges in equations (e.g. `x[:,:] = ...`) have to be manually converted to explicit ones.
 
 ## MethanolHeatExchangers
 
 | Name  | Vars | States | Compile Time OMC       | Compile Time MARCO | Run Time OMC | RunTime Marco |
 |  ---- |  ----| -------|------------------------|--------------------|--------------|---------------|
-| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | 1.754s                 | 0.290s             | 0.079s       | 0.068s        |
-| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | 29m 59.637s            | 0.495s             | 17.343s      | 11.919s       |
-| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | OOM after 229m 25.481s | 1.835s             | N/A          | 1m 19.284s    |
+| MethanolHeatExchangers Nu=3, Nh=4, Nv=6 | 546 | 147 | 0.619s                 | 0.290s             | 0.056s       | 0.068s        |
+| MethanolHeatExchangers Nu=30, Nh=40, Nv=20 | ~100k | ~24k | 4m 7.762s              | 0.495s             | 18.378s      | 11.919s       |
+| MethanolHeatExchangers Nu=300, Nh=40, Nv=20 | ~1M | ~240k | OOM after 211m 27.277s | 1.835s             | N/A          | 1m 19.284s    |
 
 **Status**:
  - Simulation parameters:
