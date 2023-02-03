@@ -21,6 +21,7 @@ namespace
     {
       return mlir::isa<
           AlgorithmOp,
+          BindingEquationOp,
           EquationOp,
           StartOp>(region->getParentOp());
     }
