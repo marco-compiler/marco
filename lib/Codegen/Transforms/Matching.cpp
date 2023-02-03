@@ -21,14 +21,7 @@ static mlir::LogicalResult matchInitialConditionsModel(
     const Model<Equation>& model)
 {
   auto matchableIndicesFn = [&](const Variable& variable) -> IndexSet {
-    IndexSet matchableIndices(variable.getIndices());
-
-    if (variable.isReadOnly()) {
-      matchableIndices.clear();
-      return matchableIndices;
-    }
-
-    return matchableIndices;
+    return variable.getIndices();
   };
 
   return match(matchedModel, model, matchableIndicesFn);
