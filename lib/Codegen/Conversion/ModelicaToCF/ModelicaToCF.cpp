@@ -428,7 +428,8 @@ static mlir::LogicalResult convertToRawFunction(
     mlir::OpBuilder& builder,
     FunctionOp functionOp,
     mlir::TypeConverter* typeConverter,
-    bool outputArraysPromotion)
+    bool outputArraysPromotion,
+    const llvm::StringMap<std::vector<CallOp>> callsMap)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPoint(functionOp);
@@ -623,17 +624,13 @@ static mlir::LogicalResult convertToRawFunction(
   }
 
   // Convert the calls to the current function.
-  std::vector<CallOp> callOps;
+  auto callsIt = callsMap.find(functionOp.getSymName());
 
-  functionOp->getParentOfType<mlir::ModuleOp>()->walk([&](CallOp callOp) {
-    if (callOp.getCallee() == functionOp.getSymName()) {
-      callOps.push_back(callOp);
-    }
-  });
-
-  for (const auto& callOp : callOps) {
-    if (mlir::failed(convertCall(builder, callOp, promotedResults))) {
-      return mlir::failure();
+  if (callsIt != callsMap.end()) {
+    for (CallOp callOp : callsIt->getValue()) {
+      if (mlir::failed(convertCall(builder, callOp, promotedResults))) {
+        return mlir::failure();
+      }
     }
   }
 
@@ -652,7 +649,10 @@ namespace
         mlir::TypeConverter& typeConverter,
         bool outputArraysPromotion);
 
-      mlir::LogicalResult run(mlir::OpBuilder& builder, FunctionOp function);
+      mlir::LogicalResult run(
+          mlir::OpBuilder& builder,
+          FunctionOp function,
+          const llvm::StringMap<std::vector<CallOp>>& callsMap);
 
     private:
       mlir::LogicalResult run(
@@ -710,7 +710,10 @@ CFGLowerer::CFGLowerer(
 {
 }
 
-mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp function)
+mlir::LogicalResult CFGLowerer::run(
+    mlir::OpBuilder& builder,
+    FunctionOp function,
+    const llvm::StringMap<std::vector<CallOp>>& callsMap)
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto loc = function.getLoc();
@@ -747,7 +750,7 @@ mlir::LogicalResult CFGLowerer::run(mlir::OpBuilder& builder, FunctionOp functio
 
   // Convert the Modelica function to the standard dialect
   return convertToRawFunction(
-      builder, function, typeConverter, outputArraysPromotion);
+      builder, function, typeConverter, outputArraysPromotion, callsMap);
 }
 
 mlir::LogicalResult CFGLowerer::run(
@@ -1097,12 +1100,18 @@ namespace
         auto module = getOperation();
         mlir::OpBuilder builder(module);
 
+        llvm::StringMap<std::vector<CallOp>> callsMap;
+
+        module->walk([&](CallOp callOp) {
+          callsMap[callOp.getCallee()].push_back(callOp);
+        });
+
         TypeConverter typeConverter(bitWidth);
         CFGLowerer lowerer(typeConverter, outputArraysPromotion);
 
         for (auto function : llvm::make_early_inc_range(
                  module.getBody()->getOps<FunctionOp>())) {
-          if (mlir::failed(lowerer.run(builder, function))) {
+          if (mlir::failed(lowerer.run(builder, function, callsMap))) {
             return mlir::failure();
           }
         }
