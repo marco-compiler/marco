@@ -27,17 +27,24 @@ static RuntimeFunctionOp getOrDeclareRuntimeFunction(
     mlir::ModuleOp module,
     llvm::StringRef name,
     mlir::TypeRange results,
-    mlir::TypeRange args)
+    mlir::TypeRange args,
+    llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
 {
-  if (auto funcOp = module.lookupSymbol<RuntimeFunctionOp>(name)) {
-    return funcOp;
+  if (auto it = runtimeFunctionsMap.find(name);
+      it != runtimeFunctionsMap.end()) {
+    return it->getValue();
   }
 
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(module.getBody());
 
   auto functionType = builder.getFunctionType(args, results);
-  return builder.create<RuntimeFunctionOp>(module.getLoc(), name, functionType);
+
+  auto runtimeFunctionOp = builder.create<RuntimeFunctionOp>(
+      module.getLoc(), name, functionType);
+
+  runtimeFunctionsMap[name] = runtimeFunctionOp;
+  return runtimeFunctionOp;
 }
 
 /// Get or declare an LLVM function inside the module.
@@ -46,15 +53,17 @@ static RuntimeFunctionOp getOrDeclareRuntimeFunction(
     mlir::ModuleOp module,
     llvm::StringRef name,
     mlir::TypeRange results,
-    mlir::ValueRange args)
+    mlir::ValueRange args,
+    llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
 {
   llvm::SmallVector<mlir::Type, 3> argsTypes;
 
-  for (const auto& arg : args) {
+  for (mlir::Value arg : args) {
     argsTypes.push_back(arg.getType());
   }
 
-  return getOrDeclareRuntimeFunction(builder, module, name, results, argsTypes);
+  return getOrDeclareRuntimeFunction(
+      builder, module, name, results, argsTypes, runtimeFunctionsMap);
 }
 
 namespace
@@ -106,7 +115,14 @@ namespace
   class RuntimeOpConversionPattern : public ModelicaOpConversionPattern<Op>
   {
     public:
-      using ModelicaOpConversionPattern<Op>::ModelicaOpConversionPattern;
+      RuntimeOpConversionPattern(
+          mlir::TypeConverter& typeConverter,
+          mlir::MLIRContext* context,
+          llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
+          : ModelicaOpConversionPattern<Op>(typeConverter, context),
+            runtimeFunctionsMap(&runtimeFunctionsMap)
+      {
+      }
 
     protected:
       const RuntimeFunctionsMangling* getMangler() const
@@ -166,8 +182,20 @@ namespace
         return getMangledFunctionName(name, resultTypes, args.getTypes());
       }
 
+      RuntimeFunctionOp getOrDeclareRuntimeFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          llvm::StringRef name,
+          mlir::TypeRange results,
+          mlir::ValueRange args) const
+      {
+        return ::getOrDeclareRuntimeFunction(
+            builder, module, name, results, args, *runtimeFunctionsMap);
+      }
+
     private:
       RuntimeFunctionsMangling mangler;
+      llvm::StringMap<RuntimeFunctionOp>* runtimeFunctionsMap;
   };
 }
 
@@ -2303,8 +2331,9 @@ namespace
       SymmetricOpLowering(
         mlir::TypeConverter& typeConverter,
         mlir::MLIRContext* context,
-        bool assertions)
-          : RuntimeOpConversionPattern(typeConverter, context),
+        bool assertions,
+        llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
+          : RuntimeOpConversionPattern(typeConverter, context, runtimeFunctionsMap),
             assertions(assertions)
       {
       }
@@ -2725,23 +2754,18 @@ namespace
   };
 }
 
-static void populateModelicaToFuncPatterns(
+static void populateModelicaBuiltInFunctionsPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::MLIRContext* context,
     mlir::TypeConverter& typeConverter,
-    bool assertions)
+    bool assertions,
+    llvm::StringMap<RuntimeFunctionOp>& runtimeFunctionsMap)
 {
-  // Func operations
+  // Math operations.
   patterns.insert<
-      RawFunctionOpLowering,
-      RawReturnOpLowering,
-      CallOpLowering>(typeConverter, context);
+      PowOpLowering>(typeConverter, context, runtimeFunctionsMap);
 
-  // Math operations
-  patterns.insert<
-      PowOpLowering>(typeConverter, context, assertions);
-
-  // Built-in functions
+  // Built-in functions.
   patterns.insert<
       AbsOpCastPattern,
       AcosOpCastPattern,
@@ -2807,47 +2831,67 @@ static void populateModelicaToFuncPatterns(
       SinOpLowering,
       SinhOpLowering,
       SqrtOpLowering,
-      SumOpLowering>(typeConverter, context);
+      SumOpLowering>(typeConverter, context, runtimeFunctionsMap);
 
   patterns.insert<
-      SymmetricOpLowering>(typeConverter, context, assertions);
+      SymmetricOpLowering>(typeConverter, context, assertions, runtimeFunctionsMap);
 
   patterns.insert<
       TanOpLowering,
       TanhOpLowering,
       TransposeOpLowering,
-      ZerosOpLowering>(typeConverter, context);
+      ZerosOpLowering>(typeConverter, context, runtimeFunctionsMap);
 
-  // Utility operations
+  // Utility operations.
   patterns.insert<
-      PrintOpLowering>(typeConverter, context);
+      PrintOpLowering>(typeConverter, context, runtimeFunctionsMap);
+}
+
+static void populateModelicaToFuncPatterns(
+    mlir::RewritePatternSet& patterns,
+    mlir::MLIRContext* context,
+    mlir::TypeConverter& typeConverter,
+    bool assertions)
+{
+  patterns.insert<
+      RawFunctionOpLowering,
+      RawReturnOpLowering,
+      CallOpLowering>(typeConverter, context);
 }
 
 namespace
 {
-  class ModelicaToFuncConversionPass : public mlir::impl::ModelicaToFuncConversionPassBase<ModelicaToFuncConversionPass>
+  class ModelicaToFuncConversionPass
+      : public mlir::impl::ModelicaToFuncConversionPassBase<
+          ModelicaToFuncConversionPass>
   {
     public:
       using ModelicaToFuncConversionPassBase::ModelicaToFuncConversionPassBase;
 
       void runOnOperation() override
       {
-        if (mlir::failed(convertOperations())) {
+        if (mlir::failed(convertBuiltInFunctions())) {
           mlir::emitError(getOperation().getLoc(),
-                          "Error in converting the Modelica operations");
+                          "Error in converting the Modelica built-in functions");
+          return signalPassFailure();
+        }
+
+        if (mlir::failed(convertRawFunctions())) {
+          mlir::emitError(getOperation().getLoc(),
+                          "Error in converting the Modelica raw functions");
           return signalPassFailure();
         }
 
         if (mlir::failed(legalizeIDAOperations())) {
           mlir::emitError(getOperation().getLoc(),
-                          "Error in legalizing the IDA operations");
+                          "Error in legalizing the IDA functions");
 
           return signalPassFailure();
         }
       }
 
     private:
-      mlir::LogicalResult convertOperations()
+      mlir::LogicalResult convertBuiltInFunctions()
       {
         auto module = getOperation();
         mlir::ConversionTarget target(getContext());
@@ -2859,14 +2903,6 @@ namespace
         target.addLegalDialect<mlir::memref::MemRefDialect>();
 
         target.addLegalDialect<ModelicaDialect>();
-        target.addIllegalOp<RawFunctionOp, RawReturnOp>();
-
-        target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
-          auto module = op->getParentOfType<mlir::ModuleOp>();
-          auto callee = module.lookupSymbol(op.getCallee());
-
-          return callee && mlir::isa<RuntimeFunctionOp>(callee);
-        });
 
         target.addDynamicallyLegalOp<PowOp>([](PowOp op) {
           return !isNumeric(op.getBase());
@@ -2913,7 +2949,47 @@ namespace
         mlir::modelica::TypeConverter typeConverter(bitWidth);
 
         mlir::RewritePatternSet patterns(&getContext());
-        populateModelicaToFuncPatterns(patterns, &getContext(), typeConverter, assertions);
+        llvm::StringMap<RuntimeFunctionOp> runtimeFunctionsMap;
+
+        populateModelicaBuiltInFunctionsPatterns(
+            patterns, &getContext(), typeConverter, assertions, runtimeFunctionsMap);
+
+        return applyPartialConversion(module, target, std::move(patterns));
+      }
+
+      mlir::LogicalResult convertRawFunctions()
+      {
+        auto module = getOperation();
+        mlir::ConversionTarget target(getContext());
+
+        // Create an instance of the symbol table in order to reduce the cost
+        // of looking for symbols.
+        mlir::SymbolTableCollection symbolTable;
+
+        target.addLegalDialect<mlir::BuiltinDialect>();
+        target.addLegalDialect<mlir::arith::ArithDialect>();
+        target.addLegalDialect<mlir::cf::ControlFlowDialect>();
+        target.addLegalDialect<mlir::func::FuncDialect>();
+        target.addLegalDialect<mlir::memref::MemRefDialect>();
+
+        target.addLegalDialect<ModelicaDialect>();
+        target.addIllegalOp<RawFunctionOp, RawReturnOp>();
+
+        target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
+          auto module = op->getParentOfType<mlir::ModuleOp>();
+
+          auto calleeName =
+              mlir::StringAttr::get(op.getContext(), op.getCallee());
+
+          auto calleeOp = symbolTable.lookupSymbolIn(module, calleeName);
+          return calleeOp && mlir::isa<RuntimeFunctionOp>(calleeOp);
+        });
+
+        mlir::modelica::TypeConverter typeConverter(bitWidth);
+        mlir::RewritePatternSet patterns(&getContext());
+
+        populateModelicaToFuncPatterns(
+            patterns, &getContext(), typeConverter, assertions);
 
         return applyPartialConversion(module, target, std::move(patterns));
       }
