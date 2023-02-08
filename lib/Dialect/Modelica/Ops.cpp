@@ -4014,7 +4014,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int AbsOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int AbsOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4105,7 +4106,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int AcosOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int AcosOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4237,7 +4239,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int AsinOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int AsinOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4367,7 +4370,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int AtanOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int AtanOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4477,7 +4481,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int Atan2Op::getArgExpectedRank(unsigned int argIndex)
+  unsigned int Atan2Op::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4623,7 +4628,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int CeilOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int CeilOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4714,7 +4720,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int CosOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int CosOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -4835,7 +4842,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int CoshOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int CoshOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -5026,7 +5034,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int ExpOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int ExpOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -5143,7 +5152,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int FloorOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int FloorOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -5256,7 +5266,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int IntegerOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int IntegerOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -5369,7 +5380,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int LogOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int LogOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -5487,7 +5499,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int Log10Op::getArgExpectedRank(unsigned int argIndex)
+  unsigned int Log10Op::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -6055,7 +6068,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int SignOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int SignOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -6144,7 +6158,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int SinOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int SinOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -6260,7 +6275,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int SinhOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int SinhOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -6463,7 +6479,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int SqrtOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int SqrtOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -6641,7 +6658,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int TanOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int TanOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -6766,7 +6784,8 @@ namespace mlir::modelica
     return mlir::ValueRange(getOperation()->getOperands());
   }
 
-  unsigned int TanhOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int TanhOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     return 0;
   }
@@ -7955,12 +7974,16 @@ namespace mlir::modelica
     }
   }
 
-  unsigned int CallOp::getArgExpectedRank(unsigned int argIndex)
+  unsigned int CallOp::getArgExpectedRank(
+      unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
     auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
-    auto function = module.lookupSymbol<FunctionOp>(getCallee());
+    auto calleeName = mlir::StringAttr::get(getContext(), getCallee());
 
-    if (function == nullptr) {
+    auto calleeFunctionOp =
+        symbolTable.lookupSymbolIn<FunctionOp>(module, calleeName);
+
+    if (calleeFunctionOp == nullptr) {
       // If the function is not declare, then assume that the arguments types
       // already match its hypothetical signature.
 
@@ -7972,7 +7995,7 @@ namespace mlir::modelica
       return 0;
     }
 
-    mlir::Type argType = function.getArgumentTypes()[argIndex];
+    mlir::Type argType = calleeFunctionOp.getArgumentTypes()[argIndex];
 
     if (auto arrayType = argType.dyn_cast<ArrayType>()) {
       return arrayType.getRank();

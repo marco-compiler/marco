@@ -77,7 +77,7 @@ def VectorizableOpInterface : Modelica_Interface<"VectorizableOpInterface"> {
         InterfaceMethod<
             "Get the expected rank of an argument in case of a scalar usage of the operation.",
             "unsigned int", "getArgExpectedRank",
-            (ins "unsigned int":$argIndex)
+            (ins "unsigned int":$argIndex, "::mlir::SymbolTableCollection&":$symbolTable)
         >,
         InterfaceMethod<
             "Convert the vectorized operation into a scalar one.",

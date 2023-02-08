@@ -4,6 +4,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/SymbolTable.h"
 
 #include "marco/Dialect/Modelica/ModelicaInterfaces.h.inc"
 

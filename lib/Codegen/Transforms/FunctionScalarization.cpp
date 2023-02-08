@@ -13,7 +13,8 @@ namespace mlir::modelica
 
 using namespace ::mlir::modelica;
 
-static unsigned int getVectorizationRank(VectorizableOpInterface op)
+static unsigned int getVectorizationRank(
+    VectorizableOpInterface op, mlir::SymbolTableCollection& symbolTable)
 {
 	// Only functions with exactly one result can be vectorized, as per
 	// Modelica language specification.
@@ -35,7 +36,9 @@ static unsigned int getVectorizationRank(VectorizableOpInterface op)
 
 	for (auto& arg : llvm::enumerate(args)) {
 		mlir::Type argType = arg.value().getType();
-		unsigned int argExpectedRank = op.getArgExpectedRank(arg.index());
+
+		unsigned int argExpectedRank = op.getArgExpectedRank(
+        arg.index(), symbolTable);
 
 		unsigned int argActualRank = argType.isa<ArrayType>() ?
 																 argType.cast<ArrayType>().getRank() : 0;
@@ -204,7 +207,8 @@ static mlir::LogicalResult scalarizeVectorizableOp(
 
 namespace
 {
-  class FunctionScalarizationPass : public impl::FunctionScalarizationPassBase<FunctionScalarizationPass>
+  class FunctionScalarizationPass
+      : public impl::FunctionScalarizationPassBase<FunctionScalarizationPass>
   {
     public:
       using FunctionScalarizationPassBase::FunctionScalarizationPassBase;
@@ -212,21 +216,28 @@ namespace
       void runOnOperation() override
       {
         auto module = getOperation();
-
         mlir::OpBuilder builder(module);
 
         // List of the vectorized operations, with their respective rank.
         // The rank is stored for efficiency reasons.
-        llvm::SmallVector<std::pair<VectorizableOpInterface, unsigned int>, 3> vectorizedOps;
+        llvm::SmallVector<
+            std::pair<VectorizableOpInterface, unsigned int>, 3> vectorizedOps;
 
-        module->walk([&vectorizedOps](VectorizableOpInterface op) {
-          if (unsigned int rank = getVectorizationRank(op); rank != 0) {
+        // Create an instance of the symbol table in order to reduce the cost
+        // of looking for symbols.
+        mlir::SymbolTableCollection symbolTable;
+
+        module->walk([&](VectorizableOpInterface op) {
+          unsigned int rank = getVectorizationRank(op, symbolTable);
+
+          if (rank != 0) {
             vectorizedOps.emplace_back(op, rank);
           }
         });
 
         for (auto& op : vectorizedOps) {
-          if (auto res = scalarizeVectorizableOp(builder, op.first, op.second, assertions); mlir::failed(res)) {
+          if (mlir::failed(scalarizeVectorizableOp(
+                  builder, op.first, op.second, assertions))) {
             return signalPassFailure();
           }
         }
@@ -241,7 +252,8 @@ namespace mlir::modelica
     return std::make_unique<FunctionScalarizationPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(const FunctionScalarizationPassOptions& options)
+  std::unique_ptr<mlir::Pass> createFunctionScalarizationPass(
+      const FunctionScalarizationPassOptions& options)
   {
     return std::make_unique<FunctionScalarizationPass>(options);
   }
