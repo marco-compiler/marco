@@ -62,7 +62,10 @@ namespace
   class IDAInstance
   {
     public:
-      IDAInstance(const DerivativesMap& derivativesMap, bool cleverDAE);
+      IDAInstance(
+        llvm::StringRef identifier,
+        const DerivativesMap& derivativesMap,
+        bool cleverDAE);
 
       void setStartTime(double time);
 
@@ -172,6 +175,8 @@ namespace
           mlir::Value independentVariable,
           llvm::StringRef partialDerTemplateName);
 
+      std::string getIDAFunctionName(llvm::StringRef name) const;
+
       std::vector<mlir::Value> getIDAFunctionArgs() const;
 
       std::multimap<
@@ -184,6 +189,10 @@ namespace
           const AccessFunction& accessFunction) const;
 
     private:
+      /// Instance identifier.
+      /// It is used to create unique symbols.
+      std::string identifier;
+
       const DerivativesMap* derivativesMap;
 
       bool cleverDAE;
@@ -242,9 +251,11 @@ namespace
 }
 
 IDAInstance::IDAInstance(
+    llvm::StringRef identifier,
     const DerivativesMap& derivativesMap,
     bool cleverDAE)
-    : derivativesMap(&derivativesMap),
+    : identifier(identifier.str()),
+      derivativesMap(&derivativesMap),
       cleverDAE(cleverDAE),
       startTime(llvm::None),
       endTime(llvm::None)
@@ -454,17 +465,15 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
   };
 
   auto getOrCreateGetterFn = [&](ArrayType arrayType) {
-    std::string getterName = getUniqueSymbolName(module, [&]() {
-      return "ida_getter_" + std::to_string(getterFunctionCounter++);
-    });
+    std::string getterName = getIDAFunctionName(
+        "getter_" + std::to_string(getterFunctionCounter++));
 
     return createGetterFunction(builder, module, loc, arrayType, getterName);
   };
 
   auto getOrCreateSetterFn = [&](ArrayType arrayType) {
-    std::string setterName = getUniqueSymbolName(module, [&]() {
-      return "ida_setter_" + std::to_string(setterFunctionCounter++);
-    });
+    std::string setterName = getIDAFunctionName(
+        "setter_" + std::to_string(setterFunctionCounter++));
 
     return createSetterFunction(builder, module, loc, arrayType, setterName);
   };
@@ -629,7 +638,6 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     const Model<ScheduledEquationsBlock>& model)
 {
   mlir::Location loc = model.getOperation().getLoc();
-  auto module = model.getOperation()->getParentOfType<mlir::ModuleOp>();
 
   // Substitute the accesses to non-IDA variables with the equations writing
   // in such variables.
@@ -810,10 +818,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       }
 
       // Create the residual function
-      std::string residualFunctionName = getUniqueSymbolName(module, [&]() {
-        return "ida_residualFunction_" +
-            std::to_string(residualFunctionsCounter++);
-      });
+      std::string residualFunctionName = getIDAFunctionName(
+          "residualFunction_" + std::to_string(residualFunctionsCounter++));
 
       if (mlir::failed(createResidualFunction(
               builder, *equation, idaEquation, residualFunctionName))) {
@@ -824,11 +830,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           loc, idaInstance, idaEquation, residualFunctionName);
 
       // Create the partial derivative template.
-      std::string partialDerTemplateName =
-          getUniqueSymbolName(module, [&]() {
-            return "ida_pder_" +
-                std::to_string(partialDerTemplatesCounter++);
-          });
+      std::string partialDerTemplateName = getIDAFunctionName(
+          "pder_" + std::to_string(partialDerTemplatesCounter++));
 
       if (mlir::failed(createPartialDerTemplateFunction(
               builder, *equation, partialDerTemplateName))) {
@@ -845,10 +848,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       assert(algebraicVariables.size() == idaAlgebraicVariables.size());
 
       for (auto [variable, idaVariable] : llvm::zip(algebraicVariables, idaAlgebraicVariables)) {
-        std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
-          return "ida_jacobianFunction_" +
-              std::to_string(jacobianFunctionsCounter++);
-        });
+        std::string jacobianFunctionName = getIDAFunctionName(
+            "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
         if (mlir::failed(createJacobianFunction(
                 builder, *equation, jacobianFunctionName, variable,
@@ -867,10 +868,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       assert(stateVariables.size() == idaStateVariables.size());
 
       for (auto [variable, idaVariable] : llvm::zip(stateVariables, idaStateVariables)) {
-        std::string jacobianFunctionName = getUniqueSymbolName(module, [&]() {
-          return "ida_jacobianFunction_" +
-              std::to_string(jacobianFunctionsCounter++);
-        });
+        std::string jacobianFunctionName = getIDAFunctionName(
+            "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
         if (mlir::failed(createJacobianFunction(
                 builder, *equation, jacobianFunctionName, variable,
@@ -1508,6 +1507,11 @@ mlir::Value IDAInstance::getCurrentTime(
       idaInstance.getLoc(), timeType, idaInstance);
 }
 
+std::string IDAInstance::getIDAFunctionName(llvm::StringRef name) const
+{
+  return "ida_" + identifier + "_" + name.str();
+}
+
 std::vector<mlir::Value> IDAInstance::getIDAFunctionArgs() const
 {
   std::vector<mlir::Value> result;
@@ -1805,7 +1809,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   DerivativesMap emptyDerivativesMap;
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      emptyDerivativesMap, cleverDAE);
+      "ic", emptyDerivativesMap, cleverDAE);
 
   idaInstance->setStartTime(0);
   idaInstance->setEndTime(0);
@@ -1939,7 +1943,9 @@ mlir::LogicalResult IDASolver::solveMainModel(
     const Model<ScheduledEquationsBlock>& model)
 {
   const DerivativesMap& derivativesMap = model.getDerivativesMap();
-  auto idaInstance = std::make_unique<IDAInstance>(derivativesMap, cleverDAE);
+
+  auto idaInstance = std::make_unique<IDAInstance>(
+      "main", derivativesMap, cleverDAE);
 
   std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
   ExplicitEquationsMap explicitEquationsMap;
