@@ -336,7 +336,9 @@ namespace marco::frontend
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
     // Finalization passes.
-    passManager.addPass(mlir::createReconcileUnrealizedCastsPass());
+    passManager.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+        mlir::createReconcileUnrealizedCastsPass());
+
     passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
 
     if (!ci.getCodegenOptions().debug) {
