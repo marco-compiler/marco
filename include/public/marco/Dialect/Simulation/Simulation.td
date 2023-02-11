@@ -524,9 +524,7 @@ def Simulation_YieldOp : Simulation_Op<"yield",
     let arguments = (ins Variadic<AnyType>:$values);
     let results = (outs);
 
-    let assemblyFormat = [{
-        ($values^)? attr-dict (`:` qualified(type($values))^)?
-    }];
+    let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
 }
 
 def Simulation_FunctionOp : Simulation_Op<"function",
