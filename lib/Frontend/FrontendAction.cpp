@@ -252,6 +252,14 @@ namespace marco::frontend
     // transformations.
     mlir::PassManager passManager(&ci.getMLIRContext());
 
+    if (!ci.getCodegenOptions().debug) {
+      // Remove the debug information if a non-debuggable executable has been
+      // requested. By doing this at the beginning of the compilation pipeline
+      // we reduce the time needed for the pass itself, as the code inevitably
+      // grows while traversing the pipeline.
+      passManager.addPass(mlir::createStripDebugInfoPass());
+    }
+
     // Try to simplify the starting IR.
     passManager.addPass(mlir::createCanonicalizerPass());
 
@@ -340,12 +348,6 @@ namespace marco::frontend
         mlir::createReconcileUnrealizedCastsPass());
 
     passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
-
-    if (!ci.getCodegenOptions().debug) {
-      // Remove the debug information if a non-debuggable executable has been
-      // requested.
-      passManager.addPass(mlir::createStripDebugInfoPass());
-    }
 
     // If requested, print the statistics.
     if (ci.getFrontendOptions().printStatistics) {
