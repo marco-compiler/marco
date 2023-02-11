@@ -124,27 +124,41 @@ find_program(LLVM_TABLEGEN_EXE "llvm-tblgen" ${LLVM_TOOLS_BINARY_DIR})
 
 # Shared libraries
 if (UNIX AND NOT APPLE)
-	set(BUILD_SHARED_LIBS_DEFAULT ON)
+	set(MARCO_BUILD_SHARED_LIBS_DEFAULT ON)
 else()
-	set(BUILD_SHARED_LIBS_DEFAULT OFF)
+	set(MARCO_BUILD_SHARED_LIBS_DEFAULT OFF)
 endif()
 
-option(BUILD_SHARED_LIBS "Whether the MARCO libraries should be shared" ${BUILD_SHARED_LIBS_DEFAULT})
+option(MARCO_BUILD_SHARED_LIBS "Whether the MARCO libraries should be shared" ${MARCO_BUILD_SHARED_LIBS_DEFAULT})
 
-if (BUILD_SHARED_LIBS)
+if (MARCO_BUILD_SHARED_LIBS)
 	if (WIN32)
 		message(WARNING "Shared libraries are not supported on Windows. Disabling them.")
 		set(BUILD_SHARED_LIBS OFF)
 	elseif (APPLE)
 		message(WARNING "Shared libraries are not supported on MacOS. Disabling them.")
-		set(BUILD_SHARED_LIBS OFF)
+		set(MARCO_BUILD_SHARED_LIBS OFF)
 	endif()
 endif()
 
-if (BUILD_SHARED_LIBS)
-	set(LIB_TYPE SHARED)
+if (MARCO_BUILD_SHARED_LIBS)
+	if (NOT LLVM_LINK_LLVM_DYLIB)
+		# If LLVM has been built statically, then shared libraries would lead
+		# to duplication of frontend options.
+		message(WARNING "LLVM has not been built as shared library. Project will be built statically.")
+		set(MARCO_BUILD_SHARED_LIBS OFF)
+	elseif (ARG_DISABLE_LLVM_LINK_LLVM_DYLIB)
+		# The situation is the same if the LLVM shared library has been built
+		# but the LLVM infrastructure has been instructed not to link it.
+		message(WARNING "LLVM libraries are not linked to the LLVM shared library. Project will be built statically.")
+		set(MARCO_BUILD_SHARED_LIBS OFF)
+	endif()
+endif()
+
+if (MARCO_BUILD_SHARED_LIBS)
+	set(MARCO_LIB_TYPE SHARED)
 else()
-	set(LIB_TYPE STATIC)
+	set(MARCO_LIB_TYPE STATIC)
 endif()
 
 # Paths
