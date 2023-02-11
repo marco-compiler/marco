@@ -26,17 +26,21 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
     mlir::Location loc,
     llvm::StringRef name,
     mlir::Type result,
-    llvm::ArrayRef<mlir::Type> args)
+    llvm::ArrayRef<mlir::Type> args,
+    llvm::StringMap<mlir::LLVM::LLVMFuncOp>& functionsMap)
 {
-  if (auto funcOp = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
-    return funcOp;
+  if (auto it = functionsMap.find(name); it != functionsMap.end()) {
+    return it->getValue();
   }
 
   mlir::PatternRewriter::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(module.getBody());
 
-  return builder.create<mlir::LLVM::LLVMFuncOp>(
+  auto funcOp = builder.create<mlir::LLVM::LLVMFuncOp>(
       loc, name, mlir::LLVM::LLVMFunctionType::get(result, args));
+
+  functionsMap[name] = funcOp;
+  return funcOp;
 }
 
 static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
@@ -45,7 +49,8 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
     mlir::Location loc,
     llvm::StringRef name,
     mlir::Type result,
-    mlir::ValueRange args)
+    mlir::ValueRange args,
+    llvm::StringMap<mlir::LLVM::LLVMFuncOp>& functionsMap)
 {
   llvm::SmallVector<mlir::Type, 3> argsTypes;
 
@@ -54,7 +59,7 @@ static mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
   }
 
   return getOrDeclareLLVMFunction(
-      builder, module, loc, name, result, argsTypes);
+      builder, module, loc, name, result, argsTypes, functionsMap);
 }
 
 namespace
@@ -66,9 +71,13 @@ namespace
     public:
       IDAOpConversion(
         mlir::LLVMTypeConverter& typeConverter,
-        unsigned int bitWidth)
+        unsigned int bitWidth,
+        mlir::SymbolTableCollection& symbolTable,
+        llvm::StringMap<mlir::LLVM::LLVMFuncOp>& funcDeclarationsMap)
         : mlir::ConvertOpToLLVMPattern<Op>(typeConverter),
-          bitWidth(bitWidth)
+          bitWidth(bitWidth),
+          symbolTable(&symbolTable),
+          funcDeclarationsMap(&funcDeclarationsMap)
       {
       }
 
@@ -269,7 +278,9 @@ namespace
           mlir::ModuleOp module,
           mlir::SymbolRefAttr functionName) const
       {
-        auto funcOp = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(functionName);
+        auto funcOp = symbolTable->template lookupSymbolIn<mlir::LLVM::LLVMFuncOp>(
+            module, functionName);
+
         mlir::Location loc = funcOp.getLoc();
 
         mlir::Value address =
@@ -281,8 +292,22 @@ namespace
         return opaquePtr;
       }
 
+      mlir::LLVM::LLVMFuncOp getOrDeclareLLVMFunction(
+          mlir::OpBuilder& builder,
+          mlir::ModuleOp module,
+          mlir::Location loc,
+          llvm::StringRef name,
+          mlir::Type result,
+          mlir::ValueRange args) const
+      {
+        return ::getOrDeclareLLVMFunction(
+            builder, module, loc, name, result, args, *funcDeclarationsMap);
+      }
+
     protected:
       unsigned int bitWidth;
+      mlir::SymbolTableCollection* symbolTable;
+      llvm::StringMap<mlir::LLVM::LLVMFuncOp>* funcDeclarationsMap;
   };
 
   struct CreateOpLowering : public IDAOpConversion<CreateOp>
@@ -1035,14 +1060,11 @@ namespace
           adaptor.getEquation().getType().getIntOrFloatBitWidth()));
 
       // Residual function address.
-      auto function =
-          module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.getFunction());
+      auto functionSymbol = mlir::SymbolRefAttr::get(
+          rewriter.getContext(), op.getFunction());
 
-      mlir::Value functionAddress =
-          rewriter.create<mlir::LLVM::AddressOfOp>(loc, function);
-
-      functionAddress = rewriter.create<mlir::LLVM::BitcastOp>(
-          loc, getVoidPtrType(), functionAddress);
+      mlir::Value functionAddress = getFunctionAddress(
+          rewriter, module, functionSymbol);
 
       newOperands.push_back(functionAddress);
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
@@ -1096,14 +1118,11 @@ namespace
           adaptor.getVariable().getType().getIntOrFloatBitWidth()));
 
       // Jacobian function address.
-      auto function =
-          module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.getFunction());
+      auto functionSymbol = mlir::SymbolRefAttr::get(
+          rewriter.getContext(), op.getFunction());
 
-      mlir::Value functionAddress =
-          rewriter.create<mlir::LLVM::AddressOfOp>(loc, function);
-
-      functionAddress = rewriter.create<mlir::LLVM::BitcastOp>(
-          loc, getVoidPtrType(), functionAddress);
+      mlir::Value functionAddress = getFunctionAddress(
+          rewriter, module, functionSymbol);
 
       newOperands.push_back(functionAddress);
       mangledArgsTypes.push_back(mangling.getVoidPointerType());
@@ -1314,7 +1333,9 @@ namespace
 static void populateIDAConversionPatterns(
     mlir::RewritePatternSet& patterns,
     mlir::ida::LLVMTypeConverter& typeConverter,
-    unsigned int bitWidth)
+    unsigned int bitWidth,
+    mlir::SymbolTableCollection& symbolTable,
+    llvm::StringMap<mlir::LLVM::LLVMFuncOp>& funcDeclarationsMap)
 {
   patterns.insert<
       CreateOpLowering,
@@ -1333,7 +1354,8 @@ static void populateIDAConversionPatterns(
       CalcICOpLowering,
       StepOpLowering,
       FreeOpLowering,
-      PrintStatisticsOpLowering>(typeConverter, bitWidth);
+      PrintStatisticsOpLowering>(typeConverter, bitWidth, symbolTable,
+                                 funcDeclarationsMap);
 }
 
 namespace marco::codegen
@@ -1384,7 +1406,15 @@ mlir::LogicalResult IDAToLLVMConversionPass::convertOperations()
   LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
   mlir::RewritePatternSet patterns(&getContext());
-  populateIDAConversionPatterns(patterns, typeConverter, 64);
+
+  // Create an instance of the symbol table in order to reduce the cost
+  // of looking for symbols.
+  mlir::SymbolTableCollection symbolTable;
+
+  llvm::StringMap<mlir::LLVM::LLVMFuncOp> funcDeclarationsMap;
+
+  populateIDAConversionPatterns(
+      patterns, typeConverter, 64, symbolTable, funcDeclarationsMap);
 
   target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
     return true;
