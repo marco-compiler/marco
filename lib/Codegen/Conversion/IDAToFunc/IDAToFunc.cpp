@@ -335,6 +335,10 @@ namespace
           mlir::LLVM::LLVMPointerType::get(getVoidPtrType()), variablesPtr);
 
       for (auto variable : llvm::enumerate(op.getVariables())) {
+        if (variable.value().getUses().empty()) {
+          continue;
+        }
+
         mlir::Value index = rewriter.create<mlir::arith::ConstantOp>(
             variablesPtr.getLoc(),
             rewriter.getIntegerAttr(getIndexType(), variable.index()));
@@ -476,6 +480,10 @@ namespace
           mlir::LLVM::LLVMPointerType::get(getVoidPtrType()), variablesPtr);
 
       for (auto variable : llvm::enumerate(op.getVariables())) {
+        if (variable.value().getUses().empty()) {
+          continue;
+        }
+
         mlir::Value index = rewriter.create<mlir::arith::ConstantOp>(
             variablesPtr.getLoc(),
             rewriter.getIntegerAttr(getIndexType(), variable.index()));
