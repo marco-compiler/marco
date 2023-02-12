@@ -339,7 +339,9 @@ namespace marco::frontend
 
     // Convert the non-LLVM operations that may have been introduced by the
     // last conversions.
-    passManager.addPass(createArithToLLVMConversionPass());
+    passManager.addNestedPass<mlir::func::FuncOp>(
+        createArithToLLVMConversionPass());
+
     passManager.addPass(createFuncToLLVMConversionPass());
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
