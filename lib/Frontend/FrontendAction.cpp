@@ -317,7 +317,9 @@ namespace marco::frontend
           mlir::createConvertSCFToOpenMPPass());
     }
 
-    passManager.addPass(createVectorToSCFConversionPass());
+    passManager.addNestedPass<mlir::func::FuncOp>(
+        createVectorToSCFConversionPass());
+
     passManager.addPass(createVectorToLLVMConversionPass());
 
     passManager.addPass(createArithToLLVMConversionPass());
