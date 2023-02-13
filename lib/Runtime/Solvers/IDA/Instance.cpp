@@ -556,7 +556,7 @@ namespace marco::runtime::ida
     writeAccesses.emplace_back(writtenVariable, access);
 
     // Return the index of the equation.
-    return static_cast<int64_t>(equationRanges.size() - 1);
+    return static_cast<int64_t>(getNumOfVectorizedEquations() - 1);
   }
 
   void IDAInstance::addVariableAccess(
@@ -568,7 +568,7 @@ namespace marco::runtime::ida
     assert(!initialized && "The IDA instance has already been initialized");
 
     assert(equationIndex >= 0);
-    assert((size_t) equationIndex < equationRanges.size());
+    assert((size_t) equationIndex < getNumOfVectorizedEquations());
     assert(variableIndex >= 0);
     assert((size_t) variableIndex < variablesDimensions.size());
 
@@ -612,7 +612,7 @@ namespace marco::runtime::ida
     assert(variableIndex >= 0);
 
     if (jacobianFunctions.size() <= (size_t) equationIndex) {
-      jacobianFunctions.resize(equationIndex + 1);
+      jacobianFunctions.resize(equationIndex + 1, {});
     }
 
     if (jacobianFunctions[equationIndex].size() <= (size_t) variableIndex) {
@@ -683,7 +683,7 @@ namespace marco::runtime::ida
               });
 
     // Check that all the residual functions have been set.
-    assert(residualFunctions.size() == equationRanges.size());
+    assert(residualFunctions.size() == getNumOfVectorizedEquations());
 
     assert(std::all_of(
         residualFunctions.begin(), residualFunctions.end(),
@@ -691,24 +691,7 @@ namespace marco::runtime::ida
           return function != nullptr;
         }));
 
-    // Check that all the jacobian functions have been set.
-    assert(jacobianFunctions.size() == equationRanges.size());
-
-    assert(std::all_of(
-        jacobianFunctions.begin(), jacobianFunctions.end(),
-        [&](std::vector<JacobianFunction> functions) {
-          if (functions.size() != algebraicAndStateVariables.size()) {
-            return false;
-          }
-
-          return std::all_of(
-              functions.begin(), functions.end(),
-              [](const JacobianFunction& function) {
-                return function != nullptr;
-              });
-        }));
-
-    // Constructor the variables list to be passed to the residual and Jacobian
+    // Construct the variables list to be passed to the residual and Jacobian
     // functions.
     simulationData = new void*[numOfVariables];
 
@@ -1198,7 +1181,7 @@ namespace marco::runtime::ida
 
     std::vector<int64_t> equationIndices;
 
-    for (size_t eq = 0; eq < equationRanges.size(); ++eq) {
+    for (size_t eq = 0; eq < getNumOfVectorizedEquations(); ++eq) {
       // Initialize the multidimensional interval of the vector equation.
       size_t equationRank = equationRanges[eq].size();
       equationIndices.resize(equationRank);
@@ -1372,7 +1355,7 @@ namespace marco::runtime::ida
     std::cerr << std::endl << "Final Run Statistics:" << std::endl;
 
     std::cerr << "Number of vector equations       = ";
-    std::cerr << equationRanges.size() << std::endl;
+    std::cerr << getNumOfVectorizedEquations() << std::endl;
     std::cerr << "Number of scalar equations       = ";
     std::cerr << scalarEquationsNumber << std::endl;
     std::cerr << "Number of non-zero values        = ";
@@ -1396,7 +1379,7 @@ namespace marco::runtime::ida
     std::cerr << std::endl;
 
     // For every vector equation
-    for (size_t eq = 0; eq < equationRanges.size(); ++eq) {
+    for (size_t eq = 0; eq < getNumOfVectorizedEquations(); ++eq) {
       // Initialize the multidimensional interval of the vector equation
       int64_t indexes[equationRanges[eq].size()];
 

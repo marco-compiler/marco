@@ -6,6 +6,7 @@
 #include "marco/Codegen/Transforms/AutomaticDifferentiation/ForwardAD.h"
 #include "marco/Codegen/Utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 
 namespace mlir::modelica
 {
@@ -66,6 +67,7 @@ namespace
         llvm::StringRef identifier,
         const DerivativesMap& derivativesMap,
         bool reducedSystem,
+        bool reducedDerivatives,
         bool jacobianOneSweep);
 
       void setStartTime(double time);
@@ -159,6 +161,9 @@ namespace
           mlir::Value idaEquation,
           llvm::StringRef residualFunctionName);
 
+      llvm::DenseSet<unsigned int> getIndependentVariablesForAD(
+          const Equation& equation);
+
       mlir::LogicalResult createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
           const Equation& equation,
@@ -197,6 +202,7 @@ namespace
       const DerivativesMap* derivativesMap;
 
       bool reducedSystem;
+      bool reducedDerivatives;
       bool jacobianOneSweep;
 
       llvm::Optional<double> startTime;
@@ -256,10 +262,12 @@ IDAInstance::IDAInstance(
     llvm::StringRef identifier,
     const DerivativesMap& derivativesMap,
     bool reducedSystem,
+    bool reducedDerivatives,
     bool jacobianOneSweep)
     : identifier(identifier.str()),
       derivativesMap(&derivativesMap),
       reducedSystem(reducedSystem),
+      reducedDerivatives(reducedDerivatives),
       jacobianOneSweep(jacobianOneSweep),
       startTime(llvm::None),
       endTime(llvm::None)
@@ -798,7 +806,20 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
   }
 
   for (const auto& equation : independentEquations) {
-    auto iterationRanges = equation->getIterationRanges(); //todo: check ragged case
+    auto iterationRanges = equation->getIterationRanges();
+
+    // Keep track of the accessed variables in order to reduce the amount of
+    // generated partial derivatives.
+    llvm::DenseSet<unsigned int> accessedVariables;
+
+    for (const auto& access : equation->getAccesses()) {
+      accessedVariables.insert(
+          access.getVariable()->getValue()
+              .cast<mlir::BlockArgument>().getArgNumber());
+    }
+
+    llvm::DenseSet<unsigned int> independentVariables =
+        getIndependentVariablesForAD(*equation);
 
     for(auto ranges : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd())) {
       std::vector<mlir::Attribute> rangesAttr;
@@ -821,7 +842,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         return mlir::failure();
       }
 
-      // Create the residual function
+      // Create the residual function.
       std::string residualFunctionName = getIDAFunctionName(
           "residualFunction_" + std::to_string(residualFunctionsCounter++));
 
@@ -852,6 +873,14 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       assert(algebraicVariables.size() == idaAlgebraicVariables.size());
 
       for (auto [variable, idaVariable] : llvm::zip(algebraicVariables, idaAlgebraicVariables)) {
+        unsigned int variableArgNumber =
+            variable.cast<mlir::BlockArgument>().getArgNumber();
+
+        if (reducedDerivatives &&
+            !accessedVariables.contains(variableArgNumber)) {
+          continue;
+        }
+
         std::string jacobianFunctionName = getIDAFunctionName(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
@@ -872,6 +901,16 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       assert(stateVariables.size() == idaStateVariables.size());
 
       for (auto [variable, idaVariable] : llvm::zip(stateVariables, idaStateVariables)) {
+        unsigned int variableArgNumber =
+            variable.cast<mlir::BlockArgument>().getArgNumber();
+
+        if (reducedDerivatives &&
+            !accessedVariables.contains(variableArgNumber) &&
+            !accessedVariables.contains(
+                derivativesMap->getDerivative(variableArgNumber))) {
+          continue;
+        }
+
         std::string jacobianFunctionName = getIDAFunctionName(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
@@ -1087,6 +1126,32 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
   rhsOp.erase();
 
   return mlir::success();
+}
+
+llvm::DenseSet<unsigned int> IDAInstance::getIndependentVariablesForAD(
+    const Equation& equation)
+{
+  llvm::DenseSet<unsigned int> result;
+
+  for (const auto& access : equation.getAccesses()) {
+    unsigned int varArgNumber =
+        access.getVariable()->getValue()
+            .cast<mlir::BlockArgument>().getArgNumber();
+
+    result.insert(varArgNumber);
+
+    if (derivativesMap->hasDerivative(varArgNumber)) {
+      unsigned int derArgNumber = derivativesMap->getDerivative(varArgNumber);
+      result.insert(derArgNumber);
+    } else if (derivativesMap->isDerivative(varArgNumber)) {
+      unsigned int stateArgNumber =
+          derivativesMap->getDerivedVariable(varArgNumber);
+
+      result.insert(stateArgNumber);
+    }
+  }
+
+  return result;
 }
 
 mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
@@ -1618,7 +1683,10 @@ namespace
       using ExplicitEquationsMap =
         llvm::DenseMap<ScheduledEquation*, Equation*>;
 
-      IDASolver(bool reducedSystem, bool jacobianOneSweep);
+      IDASolver(
+          bool reducedSystem,
+          bool reducedDerivatives,
+          bool jacobianOneSweep);
 
     protected:
       mlir::LogicalResult solveICModel(
@@ -1727,6 +1795,7 @@ namespace
 
     private:
       bool reducedSystem;
+      bool reducedDerivatives;
       bool jacobianOneSweep;
   };
 }
@@ -1801,8 +1870,12 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   return result;
 }
 
-IDASolver::IDASolver(bool reducedSystem, bool jacobianOneSweep)
+IDASolver::IDASolver(
+    bool reducedSystem,
+    bool reducedDerivatives,
+    bool jacobianOneSweep)
     : reducedSystem(reducedSystem),
+      reducedDerivatives(reducedDerivatives),
       jacobianOneSweep(jacobianOneSweep)
 {
 }
@@ -1815,7 +1888,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   DerivativesMap emptyDerivativesMap;
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "ic", emptyDerivativesMap, reducedSystem, jacobianOneSweep);
+      "ic", emptyDerivativesMap, reducedSystem, reducedDerivatives, jacobianOneSweep);
 
   idaInstance->setStartTime(0);
   idaInstance->setEndTime(0);
@@ -1951,7 +2024,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
   const DerivativesMap& derivativesMap = model.getDerivativesMap();
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "main", derivativesMap, reducedSystem, jacobianOneSweep);
+      "main", derivativesMap, reducedSystem, reducedDerivatives, jacobianOneSweep);
 
   std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
   ExplicitEquationsMap explicitEquationsMap;
@@ -2699,7 +2772,7 @@ namespace
                  return modelOp.getSymName() == model;
                }) <= 1 && "More than one model matches the requested model name, but only one can be converted into a simulation");
 
-        IDASolver solver(reducedSystem, jacobianOneSweep);
+        IDASolver solver(reducedSystem, reducedDerivatives, jacobianOneSweep);
 
         auto expectedVariablesFilter = marco::VariableFilter::fromString(variablesFilter);
         std::unique_ptr<marco::VariableFilter> variablesFilterInstance;

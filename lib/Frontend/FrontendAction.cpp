@@ -518,6 +518,7 @@ namespace marco::frontend
     options.emitSimulationMainFunction = ci.getCodegenOptions().generateMain;
     options.variablesFilter = ci.getFrontendOptions().variablesFilter;
     options.reducedSystem = ci.getSimulationOptions().IDAReducedSystem;
+    options.reducedDerivatives = ci.getSimulationOptions().IDAReducedDerivatives;
     options.jacobianOneSweep = ci.getSimulationOptions().IDAJacobianOneSweep;
 
     return mlir::modelica::createIDAPass(options);

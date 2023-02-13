@@ -10,6 +10,7 @@ namespace marco::frontend
     std::string modelName = "";
     std::string solver = "forwardEuler";
     bool IDAReducedSystem = true;
+    bool IDAReducedDerivatives = true;
     bool IDAJacobianOneSweep = true;
   };
 }

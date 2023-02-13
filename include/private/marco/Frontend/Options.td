@@ -346,6 +346,14 @@ defm ida_reduced_system : BoolOption<"", "ida-reduced-system",
     BothFlags<[MC1Option], "">>,
     Group<Simulation_Group>;
 
+defm ida_reduced_derivatives : BoolOption<"", "ida-reduced-derivatives",
+    CodegenOpts<"IDA">,
+    DefaultTrue,
+    PosFlag<SetTrue, [], "IDA: determine the derivatives that are always equal to zero">,
+    NegFlag<SetFalse, [], "IDA: do not determine the derivatives that are always equal to zero">,
+    BothFlags<[MC1Option], "">>,
+    Group<Simulation_Group>;
+
 defm ida_jacobian_one_sweep : BoolOption<"", "ida-jacobian-one-sweep",
     CodegenOpts<"IDA">,
     DefaultTrue,

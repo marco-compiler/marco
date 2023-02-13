@@ -342,6 +342,12 @@ static void parseSimulationArgs(
       options::OPT_no_ida_reduced_system,
       options.IDAReducedSystem);
 
+  // IDA: reduced derivatives.
+  options.IDAReducedDerivatives = args.hasFlag(
+      marco::frontend::options::OPT_ida_reduced_derivatives,
+      options::OPT_no_ida_reduced_derivatives,
+      options.IDAReducedDerivatives);
+
   // IDA: AD seeds optimization.
   options.IDAJacobianOneSweep = args.hasFlag(
       marco::frontend::options::OPT_ida_jacobian_one_sweep,
