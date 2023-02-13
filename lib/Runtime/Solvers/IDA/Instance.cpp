@@ -1073,6 +1073,8 @@ namespace marco::runtime::ida
                   instance->variablesDimensions[column.first],
                   column.second);
 
+              assert(instance->jacobianFunctions[eq][column.first] != nullptr);
+
               auto jacobianFunctionResult =
                   instance->jacobianFunctions[eq][column.first](
                       time,
