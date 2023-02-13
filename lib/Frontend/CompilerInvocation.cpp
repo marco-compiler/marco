@@ -336,11 +336,17 @@ static void parseSimulationArgs(
     }
   }
 
-  // IDA: clever DAE.
-  options.IDACleverDAE = args.hasFlag(
-      marco::frontend::options::OPT_ida_clever_dae,
-      options::OPT_no_ida_clever_dae,
-      options.IDACleverDAE);
+  // IDA: reduced system computation.
+  options.IDAReducedSystem = args.hasFlag(
+      marco::frontend::options::OPT_ida_reduced_system,
+      options::OPT_no_ida_reduced_system,
+      options.IDAReducedSystem);
+
+  // IDA: AD seeds optimization.
+  options.IDAJacobianOneSweep = args.hasFlag(
+      marco::frontend::options::OPT_ida_jacobian_one_sweep,
+      options::OPT_no_ida_jacobian_one_sweep,
+      options.IDAJacobianOneSweep);
 }
 
 namespace marco::frontend

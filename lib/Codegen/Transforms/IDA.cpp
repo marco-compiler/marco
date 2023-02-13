@@ -65,7 +65,8 @@ namespace
       IDAInstance(
         llvm::StringRef identifier,
         const DerivativesMap& derivativesMap,
-        bool cleverDAE);
+        bool reducedSystem,
+        bool jacobianOneSweep);
 
       void setStartTime(double time);
 
@@ -195,7 +196,8 @@ namespace
 
       const DerivativesMap* derivativesMap;
 
-      bool cleverDAE;
+      bool reducedSystem;
+      bool jacobianOneSweep;
 
       llvm::Optional<double> startTime;
       llvm::Optional<double> endTime;
@@ -253,10 +255,12 @@ namespace
 IDAInstance::IDAInstance(
     llvm::StringRef identifier,
     const DerivativesMap& derivativesMap,
-    bool cleverDAE)
+    bool reducedSystem,
+    bool jacobianOneSweep)
     : identifier(identifier.str()),
       derivativesMap(&derivativesMap),
-      cleverDAE(cleverDAE),
+      reducedSystem(reducedSystem),
+      jacobianOneSweep(jacobianOneSweep),
       startTime(llvm::None),
       endTime(llvm::None)
 {
@@ -1378,7 +1382,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
         unsigned int oneSeedPosition = independentVarArgNumber;
         llvm::Optional<unsigned int> alphaSeedPosition = llvm::None;
 
-        if (cleverDAE && derivativesMap->hasDerivative(independentVarArgNumber)) {
+        if (jacobianOneSweep && derivativesMap->hasDerivative(independentVarArgNumber)) {
           alphaSeedPosition =
               derivativesMap->getDerivative(independentVarArgNumber);
         }
@@ -1450,7 +1454,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     builder.create<FreeOp>(loc, seed);
   }
 
-  if (!cleverDAE && derivativesMap->hasDerivative(independentVarArgNumber)) {
+  if (!jacobianOneSweep && derivativesMap->hasDerivative(independentVarArgNumber)) {
     args.clear();
     arraySeeds.clear();
 
@@ -1614,7 +1618,7 @@ namespace
       using ExplicitEquationsMap =
         llvm::DenseMap<ScheduledEquation*, Equation*>;
 
-      IDASolver(bool cleverDAE);
+      IDASolver(bool reducedSystem, bool jacobianOneSweep);
 
     protected:
       mlir::LogicalResult solveICModel(
@@ -1722,7 +1726,8 @@ namespace
           mlir::TypeRange varsTypes) const;
 
     private:
-      bool cleverDAE;
+      bool reducedSystem;
+      bool jacobianOneSweep;
   };
 }
 
@@ -1796,8 +1801,9 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   return result;
 }
 
-IDASolver::IDASolver(bool cleverDAE)
-    : cleverDAE(cleverDAE)
+IDASolver::IDASolver(bool reducedSystem, bool jacobianOneSweep)
+    : reducedSystem(reducedSystem),
+      jacobianOneSweep(jacobianOneSweep)
 {
 }
 
@@ -1809,7 +1815,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   DerivativesMap emptyDerivativesMap;
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "ic", emptyDerivativesMap, cleverDAE);
+      "ic", emptyDerivativesMap, reducedSystem, jacobianOneSweep);
 
   idaInstance->setStartTime(0);
   idaInstance->setEndTime(0);
@@ -1817,7 +1823,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
   ExplicitEquationsMap explicitEquationsMap;
 
-  if (cleverDAE) {
+  if (reducedSystem) {
     llvm::DenseSet<ScheduledEquation*> implicitEquations;
     llvm::DenseSet<ScheduledEquation*> cyclicEquations;
 
@@ -1945,12 +1951,12 @@ mlir::LogicalResult IDASolver::solveMainModel(
   const DerivativesMap& derivativesMap = model.getDerivativesMap();
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "main", derivativesMap, cleverDAE);
+      "main", derivativesMap, reducedSystem, jacobianOneSweep);
 
   std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
   ExplicitEquationsMap explicitEquationsMap;
 
-  if (cleverDAE) {
+  if (reducedSystem) {
     llvm::DenseSet<ScheduledEquation*> implicitEquations;
     llvm::DenseSet<ScheduledEquation*> cyclicEquations;
 
@@ -2693,7 +2699,7 @@ namespace
                  return modelOp.getSymName() == model;
                }) <= 1 && "More than one model matches the requested model name, but only one can be converted into a simulation");
 
-        IDASolver solver(cleverDAE);
+        IDASolver solver(reducedSystem, jacobianOneSweep);
 
         auto expectedVariablesFilter = marco::VariableFilter::fromString(variablesFilter);
         std::unique_ptr<marco::VariableFilter> variablesFilterInstance;

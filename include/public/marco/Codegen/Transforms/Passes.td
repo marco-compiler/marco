@@ -307,8 +307,10 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp"> {
                "Emit the 'main' function of the simulation">,
         Option<"variablesFilter", "simulation-variables-filter", "std::string", "",
                "Set a print filter for the variables of the simulation">,
-        Option<"cleverDAE", "clever-dae", "bool", "true",
-               "Enable the clever DAE mode">,
+        Option<"reducedSystem", "reduced-system", "bool", "true",
+               "Compute a reduced system for IDA">,
+        Option<"jacobianOneSweep", "jacobian-one-sweep", "bool", "true",
+               "Enable one-sweep computation of derivatives with respect to state and derivative variables">
     ];
 
     let constructor = "mlir::modelica::createIDAPass()";

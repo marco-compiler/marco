@@ -338,11 +338,19 @@ def solver : Joined<["--"], "solver=">,
     Flags<[MC1Option]>,
     HelpText<"Solver (possible options: euler-forward, ida)">;
 
-defm ida_clever_dae : BoolOption<"", "ida-clever-dae",
+defm ida_reduced_system : BoolOption<"", "ida-reduced-system",
     CodegenOpts<"IDA">,
     DefaultTrue,
-    PosFlag<SetTrue, [], "IDA: enable the clever DAE mode">,
-    NegFlag<SetFalse, [], "IDA: use the raw DAE mode (all variables and equations are passed to IDA)">,
+    PosFlag<SetTrue, [], "IDA: compute a reduced system for the external solver">,
+    NegFlag<SetFalse, [], "IDA: all variables and equations are passed to the external solver">,
+    BothFlags<[MC1Option], "">>,
+    Group<Simulation_Group>;
+
+defm ida_jacobian_one_sweep : BoolOption<"", "ida-jacobian-one-sweep",
+    CodegenOpts<"IDA">,
+    DefaultTrue,
+    PosFlag<SetTrue, [], "IDA: enable one-sweep computation of derivatives with respect to state and derivative variables">,
+    NegFlag<SetFalse, [], "IDA: disable one-sweep computation of derivatives with respect to state and derivative variables">,
     BothFlags<[MC1Option], "">>,
     Group<Simulation_Group>;
 
