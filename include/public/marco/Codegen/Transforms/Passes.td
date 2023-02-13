@@ -289,7 +289,8 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp"> {
         "mlir::kinsol::KINSOLDialect",
         "mlir::simulation::SimulationDialect",
         "mlir::arith::ArithDialect",
-        "mlir::func::FuncDialect"
+        "mlir::func::FuncDialect",
+        "mlir::scf::SCFDialect"
     ];
 
     let options = [
@@ -309,6 +310,8 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp"> {
                "Set a print filter for the variables of the simulation">,
         Option<"reducedSystem", "reduced-system", "bool", "true",
                "Compute a reduced system for IDA">,
+        Option<"reducedDerivatives", "reduced-derivatives", "bool", "true",
+               "Determine the derivatives that are always equal to zero">,
         Option<"jacobianOneSweep", "jacobian-one-sweep", "bool", "true",
                "Enable one-sweep computation of derivatives with respect to state and derivative variables">
     ];
