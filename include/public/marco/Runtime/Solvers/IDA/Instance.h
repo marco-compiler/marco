@@ -247,6 +247,8 @@ namespace marco::runtime::ida
           N_Vector tempv3);
 
     private:
+      size_t getNumOfArrayVariables() const;
+
       size_t getNumOfVectorizedEquations() const;
 
       size_t getEquationRank(size_t equation) const;
@@ -337,6 +339,10 @@ namespace marco::runtime::ida
       // the i-th equation. The j-th function represents the function to
       // compute the derivative with respect to the j-th variable.
       std::vector<std::vector<JacobianFunction>> jacobianFunctions;
+
+      // Whether the IDA instance is informed about the accesses to the
+      // variables.
+      bool precomputedAccesses;
 
       std::vector<VarAccessList> variableAccesses;
 

@@ -837,9 +837,11 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           variablesMapping[writtenVarNumber],
           getAccessMap(builder, equation->getWrite().getAccessFunction()));
 
-      if (mlir::failed(addVariableAccessesInfoToIDA(
-              builder, idaInstance, *equation, idaEquation))) {
-        return mlir::failure();
+      if (reducedDerivatives) {
+        if (mlir::failed(addVariableAccessesInfoToIDA(
+                builder, idaInstance, *equation, idaEquation))) {
+          return mlir::failure();
+        }
       }
 
       // Create the residual function.

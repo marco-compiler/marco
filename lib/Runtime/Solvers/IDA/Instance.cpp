@@ -320,6 +320,7 @@ namespace marco::runtime::ida
   IDAInstance::IDAInstance(int64_t scalarEquationsNumber)
       : initialized(false),
         scalarEquationsNumber(scalarEquationsNumber),
+        precomputedAccesses(false),
         startTime(getOptions().startTime),
         endTime(getOptions().endTime),
         timeStep(getOptions().timeStep)
@@ -404,7 +405,7 @@ namespace marco::runtime::ida
       VariableSetter setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
-    assert(variableOffsets.size() == variablesDimensions.size() + 1);
+    assert(variableOffsets.size() == getNumOfArrayVariables() + 1);
 
     // Add variable offset and dimensions.
     VariableDimensions varDimension(rank);
@@ -442,7 +443,7 @@ namespace marco::runtime::ida
     algebraicAndStateVariablesSetters.push_back(setterFunction);
 
     // Return the index of the variable.
-    size_t idaVariable = variablesDimensions.size() - 1;
+    size_t idaVariable = getNumOfArrayVariables() - 1;
     algebraicVariablesMapping[idaVariable] = algebraicVariables.size() - 1;
     return idaVariable;
   }
@@ -455,7 +456,7 @@ namespace marco::runtime::ida
       VariableSetter setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
-    assert(variableOffsets.size() == variablesDimensions.size() + 1);
+    assert(variableOffsets.size() == getNumOfArrayVariables() + 1);
 
     // Add variable offset and dimensions
     VariableDimensions variableDimensions(rank);
@@ -494,7 +495,7 @@ namespace marco::runtime::ida
     derivativeVariablesSetters.push_back(nullptr);
 
     // Return the position of the IDA variable.
-    size_t idaVariable = variablesDimensions.size() - 1;
+    size_t idaVariable = getNumOfArrayVariables() - 1;
     stateVariablesMapping[idaVariable] = stateVariables.size() - 1;
     return static_cast<int64_t>(idaVariable);
   }
@@ -506,7 +507,7 @@ namespace marco::runtime::ida
       VariableSetter setterFunction)
   {
     assert(!initialized && "The IDA instance has already been initialized");
-    assert(variableOffsets.size() == variablesDimensions.size() + 1);
+    assert(variableOffsets.size() == getNumOfArrayVariables() + 1);
 
     assert(stateVariablesMapping.find(idaStateVariable) !=
            stateVariablesMapping.end());
@@ -570,7 +571,9 @@ namespace marco::runtime::ida
     assert(equationIndex >= 0);
     assert((size_t) equationIndex < getNumOfVectorizedEquations());
     assert(variableIndex >= 0);
-    assert((size_t) variableIndex < variablesDimensions.size());
+    assert((size_t) variableIndex < getNumOfArrayVariables());
+
+    precomputedAccesses = true;
 
     if (variableAccesses.size() <= (size_t) equationIndex) {
       variableAccesses.resize(equationIndex + 1);
@@ -690,6 +693,25 @@ namespace marco::runtime::ida
         [](const ResidualFunction& function) {
           return function != nullptr;
         }));
+
+    // If the IDA instance is not informed about the acceCheck that all the jacobian functions have been set.
+    assert(precomputedAccesses ||
+           jacobianFunctions.size() == getNumOfVectorizedEquations());
+
+    assert(precomputedAccesses ||
+           std::all_of(
+               jacobianFunctions.begin(), jacobianFunctions.end(),
+               [&](std::vector<JacobianFunction> functions) {
+                 if (functions.size() != algebraicAndStateVariables.size()) {
+                   return false;
+                 }
+
+                 return std::all_of(
+                     functions.begin(), functions.end(),
+                     [](const JacobianFunction& function) {
+                       return function != nullptr;
+                     });
+               }));
 
     // Construct the variables list to be passed to the residual and Jacobian
     // functions.
@@ -1114,6 +1136,11 @@ namespace marco::runtime::ida
     return IDA_SUCCESS;
   }
 
+  size_t IDAInstance::getNumOfArrayVariables() const
+  {
+    return variablesDimensions.size();
+  }
+
   size_t IDAInstance::getNumOfVectorizedEquations() const
   {
     return equationRanges.size();
@@ -1133,17 +1160,36 @@ namespace marco::runtime::ida
     assert(initialized && "The IDA instance has not been initialized yet");
     std::set<JacobianColumn> uniqueColumns;
 
-    for (const auto& access : variableAccesses[eq]) {
-      sunindextype variableIndex = access.first;
-      Access variableAccess = access.second;
+    if (precomputedAccesses) {
+      for (const auto& access : variableAccesses[eq]) {
+        sunindextype variableIndex = access.first;
+        Access variableAccess = access.second;
 
-      assert(variableAccess.size() ==
-             variablesDimensions[variableIndex].rank());
+        assert(variableAccess.size() ==
+               variablesDimensions[variableIndex].rank());
 
-      uniqueColumns.insert({
-          variableIndex,
-          applyAccessFunction(equationIndices, variableAccess)
-      });
+        uniqueColumns.insert({
+            variableIndex,
+            applyAccessFunction(equationIndices, variableAccess)
+        });
+      }
+    } else {
+      for (size_t variableIndex = 0, e = getNumOfArrayVariables();
+           variableIndex < e; ++variableIndex) {
+        const auto& dimensions = variablesDimensions[variableIndex];
+
+        for (auto indices = dimensions.indicesBegin(),
+                  end = dimensions.indicesEnd();
+             indices != end; ++indices) {
+          JacobianColumn column(variableIndex, {});
+
+          for (size_t dim = 0; dim < dimensions.rank(); ++dim) {
+            column.second.push_back((*indices)[dim]);
+          }
+
+          uniqueColumns.insert(std::move(column));
+        }
+      }
     }
 
     std::vector<JacobianColumn> orderedColumns;
@@ -1212,7 +1258,7 @@ namespace marco::runtime::ida
     auto* derivativeVariablesPtr =
         N_VGetArrayPointer(derivativeVariablesVector);
 
-    for (size_t i = 0; i < variablesDimensions.size(); ++i) {
+    for (size_t i = 0; i < getNumOfArrayVariables(); ++i) {
       size_t arrayVariableOffset = variableOffsets[i];
       const auto& dimensions = variablesDimensions[i];
 
@@ -1251,7 +1297,7 @@ namespace marco::runtime::ida
     auto* derivativeVariablesPtr =
         N_VGetArrayPointer(derivativeVariablesVector);
 
-    for (size_t i = 0; i < variablesDimensions.size(); ++i) {
+    for (size_t i = 0; i < getNumOfArrayVariables(); ++i) {
       size_t arrayVariableOffset = variableOffsets[i];
       const auto& dimensions = variablesDimensions[i];
 
