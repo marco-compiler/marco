@@ -7,6 +7,7 @@
 #include "mlir/IR/Builders.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/DirectedGraph.h"
 
 #include <algorithm>
 
@@ -28,7 +29,11 @@ namespace marco::codegen {
 
   };
 
-  class OperationNode {
+  class OperationEdge {
+
+  };
+
+  class OperationNode : llvm::DGNode<OperationNode, OperationEdge> {
   private:
     mlir::Operation* operation;
     OperationNode* next;
