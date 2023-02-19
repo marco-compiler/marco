@@ -352,6 +352,9 @@ namespace marco::frontend
     passManager.addNestedPass<mlir::LLVM::LLVMFuncOp>(
         mlir::createReconcileUnrealizedCastsPass());
 
+    passManager.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+        mlir::createCanonicalizerPass());
+
     passManager.addPass(mlir::LLVM::createLegalizeForExportPass());
 
     // If requested, print the statistics.
