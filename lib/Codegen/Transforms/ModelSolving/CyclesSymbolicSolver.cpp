@@ -1,4 +1,8 @@
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSymbolicSolver.h"
+#include "ginac/ginac.h"
+//#include <symengine/expression.h>
+
+#include "llvm/ADT/PostOrderIterator.h"
 
 using namespace marco::codegen;
 
@@ -105,6 +109,44 @@ void EquationGraph::print()
   }
 }
 
+void print_postorder(OperationNode* node)
+{
+  if (node != nullptr){
+    auto left = node->getChild();
+    print_postorder(left);
+    if (left != nullptr) {
+      auto right = left->getNext();
+      print_postorder(right);
+    }
+    node->getOperation()->dump();
+  }
+}
+
+
+
+GiNaC::ex visit_postorder(OperationNode* node)
+{
+  if (node != nullptr){
+    auto left = node->getChild();
+    GiNaC::ex left_ex = visit_postorder(left);
+    GiNaC::ex right_ex;
+    if (left != nullptr) {
+      auto right = left->getNext();
+      right_ex = visit_postorder(right);
+    }
+    auto op = node->getOperation();
+    if (left != nullptr) {
+      
+    }
+
+  }
+}
+
+GiNaC::ex build_binary_operation() {
+  
+}
+
+
 void EquationGraph::erase()
 {
   std::stack<OperationNode*> stack;
@@ -135,6 +177,10 @@ CyclesSymbolicSolver::CyclesSymbolicSolver(mlir::OpBuilder& builder) : builder(b
 
 }
 
+void postorder_traversal(EquationGraph& equationGraph) {
+
+}
+
 bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 {
   // The list of equations among which the cycles have to be searched
@@ -150,6 +196,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   auto graph = EquationGraph(toBeProcessed[0]);
 
   graph.print();
+
+  print_postorder(graph.getEntryNode());
 
   graph.erase();
 

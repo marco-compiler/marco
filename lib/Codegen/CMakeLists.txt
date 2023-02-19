@@ -43,6 +43,7 @@ marco_add_library(codegen
     ${SOURCES}
 
     LINK_LIBS PUBLIC
+    ginac
     marco::ast
     marco::modeling
     marco::variableFilter
