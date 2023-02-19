@@ -26,7 +26,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 project(marco LANGUAGES C CXX)
 
 # Disable exceptions and RTTI
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -frtti")
 
 # Set the default build type if none was specified
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
