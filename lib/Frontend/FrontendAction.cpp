@@ -326,7 +326,8 @@ namespace marco::frontend
     passManager.addPass(createMemRefToLLVMConversionPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
 
-    passManager.addPass(createFuncToLLVMConversionPass());
+    //passManager.addPass(createFuncToLLVMConversionPass(true));
+    passManager.addPass(createFuncToLLVMConversionPass(false));
 
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
@@ -344,7 +345,7 @@ namespace marco::frontend
     passManager.addNestedPass<mlir::func::FuncOp>(
         createArithToLLVMConversionPass());
 
-    passManager.addPass(createFuncToLLVMConversionPass());
+    passManager.addPass(createFuncToLLVMConversionPass(false));
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
 
     // Finalization passes.
@@ -644,12 +645,14 @@ namespace marco::frontend
     return mlir::createSimulationToFuncConversionPass(options);
   }
 
-  std::unique_ptr<mlir::Pass> FrontendAction::createFuncToLLVMConversionPass()
+  std::unique_ptr<mlir::Pass> FrontendAction::createFuncToLLVMConversionPass(
+      bool useBarePtrCallConv)
   {
     CompilerInstance& ci = instance();
 
     mlir::LowerToLLVMOptions options(&ci.getMLIRContext());
     options.dataLayout = getDataLayout();
+    options.useBarePtrCallConv = useBarePtrCallConv;
 
     return mlir::createConvertFuncToLLVMPass(options);
   }

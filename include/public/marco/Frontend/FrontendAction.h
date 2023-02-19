@@ -81,7 +81,9 @@ namespace marco::frontend
 
       std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass();
 
-      std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass();
+      std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass(
+          bool useBarePtrCallConv);
+
       std::unique_ptr<mlir::Pass> createArithToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createMemRefToLLVMConversionPass();
       std::unique_ptr<mlir::Pass> createVectorToLLVMConversionPass();
