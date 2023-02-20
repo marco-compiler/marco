@@ -400,7 +400,7 @@ namespace marco::frontend
 
     // Optimize the IR
     auto optLevel = ci.getCodegenOptions().optLevel;
-    auto optPipeline = mlir::makeOptimizingTransformer(optLevel.time, optLevel.size, nullptr);
+    auto optPipeline = mlir::makeOptimizingTransformer(optLevel.time, optLevel.size, targetMachine);
 
     if (auto error = optPipeline(llvmModule.get())) {
       ci.getDiagnostics().emitError<GenericStringMessage>("Failed to optimize LLVM-IR");
