@@ -326,7 +326,7 @@ namespace marco::frontend
     passManager.addPass(createMemRefToLLVMConversionPass());
     passManager.addPass(mlir::createConvertSCFToCFPass());
 
-    //passManager.addPass(createFuncToLLVMConversionPass(true));
+    passManager.addPass(createFuncToLLVMConversionPass(true));
     passManager.addPass(createFuncToLLVMConversionPass(false));
 
     passManager.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
