@@ -163,7 +163,7 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
       equation->getSchedulingDirection(),
       usedVariables);
 
-  size_t timeArgumentIndex = equation->getNumOfIterationVars() * 3;
+  size_t timeArgumentIndex = 0;
 
   function.insertArgument(
       timeArgumentIndex,
@@ -617,7 +617,9 @@ mlir::func::FuncOp EulerForwardSolver::createEquationFunction(
     return std::make_tuple(begin, end, step);
   };
 
-  std::vector<mlir::Value> args;
+  mlir::ValueRange vars = function.getArguments();
+  std::vector<mlir::Value> args(vars.begin(), vars.end());
+
   auto iterationRangesSet = equation.getIterationRanges();
   assert(iterationRangesSet.isSingleMultidimensionalRange());//todo: handle ragged case
   auto iterationRanges = iterationRangesSet.minContainingRange();
@@ -629,9 +631,6 @@ mlir::func::FuncOp EulerForwardSolver::createEquationFunction(
     args.push_back(std::get<1>(values));
     args.push_back(std::get<2>(values));
   }
-
-  mlir::ValueRange vars = function.getArguments();
-  args.insert(args.end(), vars.begin(), vars.end());
 
   // Call the equation template function
   builder.create<mlir::func::CallOp>(loc, templateFunction, args);

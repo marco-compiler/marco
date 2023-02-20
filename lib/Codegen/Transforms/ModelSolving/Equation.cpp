@@ -1353,14 +1353,14 @@ namespace marco::codegen
     // Determine the arguments of the function.
     llvm::SmallVector<mlir::Type, 6> argsTypes;
 
-    // For each iteration variable we need to specify three value: the lower
-    // bound, the upper bound and the iteration step.
-    argsTypes.append(3 * getNumOfIterationVars(), builder.getIndexType());
-
     // Add the variables to the function signature
     for (unsigned int usedVariable : usedVariables) {
       argsTypes.push_back(modelOp.getBodyRegion().getArgument(usedVariable).getType());
     }
+
+    // For each iteration variable we need to specify three value: the lower
+    // bound, the upper bound and the iteration step.
+    argsTypes.append(3 * getNumOfIterationVars(), builder.getIndexType());
 
     // Create the "template" function and its entry block
     auto functionType = builder.getFunctionType(argsTypes, llvm::None);
@@ -1370,11 +1370,10 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     mlir::BlockAndValueMapping mapping;
-    size_t varsOffset = getNumOfIterationVars() * 3;
 
     for (size_t i = 0, e = usedVariables.size(); i < e; ++i) {
       mlir::Value from = modelOp.getBodyRegion().getArgument(usedVariables[i]);
-      mlir::Value to = function.getArgument(i + varsOffset);
+      mlir::Value to = function.getArgument(i);
       mapping.map(from, to);
     }
 
@@ -1383,10 +1382,12 @@ namespace marco::codegen
     llvm::SmallVector<mlir::Value, 3> upperBounds;
     llvm::SmallVector<mlir::Value, 3> steps;
 
+    size_t numOfVariables = usedVariablesSet.size();
+
     for (size_t i = 0, e = getNumOfIterationVars(); i < e; ++i) {
-      lowerBounds.push_back(function.getArgument(0 + i * 3));
-      upperBounds.push_back(function.getArgument(1 + i * 3));
-      steps.push_back(function.getArgument(2 + i * 3));
+      lowerBounds.push_back(function.getArgument(numOfVariables + 0 + i * 3));
+      upperBounds.push_back(function.getArgument(numOfVariables + 1 + i * 3));
+      steps.push_back(function.getArgument(numOfVariables + 2 + i * 3));
     }
 
     // Delegate the body creation to the actual equation implementation
