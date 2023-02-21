@@ -28,6 +28,10 @@ namespace
       auto functionType = rewriter.getFunctionType(argTypes, resultTypes);
       auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(op, op.getSymName(), functionType);
 
+      if (op->hasAttr("llvm.linkage")) {
+        newOp->setAttr("llvm.linkage", op->getAttr("llvm.linkage"));
+      }
+
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
 

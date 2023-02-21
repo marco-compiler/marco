@@ -251,6 +251,7 @@ def EulerForwardPass : Pass<"euler-forward", "mlir::ModuleOp"> {
         "mlir::simulation::SimulationDialect",
         "mlir::arith::ArithDialect",
         "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect",
         "mlir::scf::SCFDialect"
     ];
 
@@ -290,6 +291,7 @@ def IDAPass : Pass<"ida", "mlir::ModuleOp"> {
         "mlir::simulation::SimulationDialect",
         "mlir::arith::ArithDialect",
         "mlir::func::FuncDialect",
+        "mlir::LLVM::LLVMDialect",
         "mlir::scf::SCFDialect"
     ];
 

@@ -5,6 +5,7 @@
 #include "marco/Codegen/Utils.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "llvm/ADT/STLExtras.h"
@@ -1365,6 +1366,11 @@ namespace marco::codegen
     // Create the "template" function and its entry block
     auto functionType = builder.getFunctionType(argsTypes, llvm::None);
     auto function = builder.create<mlir::func::FuncOp>(loc, functionName, functionType);
+
+    function->setAttr(
+        "llvm.linkage",
+        mlir::LLVM::LinkageAttr::get(
+            builder.getContext(), mlir::LLVM::Linkage::Internal));
 
     auto* entryBlock = function.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
