@@ -2709,6 +2709,12 @@ mlir::func::FuncOp IDASolver::createEquationFunction(
   auto functionType = builder.getFunctionType(varsTypes, llvm::None);
 
   auto function = builder.create<mlir::func::FuncOp>(loc, equationFunctionName, functionType);
+
+  function->setAttr(
+      "llvm.linkage",
+      mlir::LLVM::LinkageAttr::get(
+          builder.getContext(), mlir::LLVM::Linkage::Internal));
+
   auto* entryBlock = function.addEntryBlock();
   builder.setInsertionPointToStart(entryBlock);
 
