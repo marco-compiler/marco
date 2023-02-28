@@ -68,7 +68,11 @@ parse_args()
             COMPILE_ONLY="True"
             SHOULD_LINK="False"
             ;;
-          --init-only | --emit-flattened | --emit-ast | --emit-modelica-dialect | --emit-llvm-dialect | --emit-llvm-ir)
+          --init-only | --emit-flattened | --emit-ast | --emit-final-ast)
+            SHOULD_LINK="False"
+            ;;
+          --emit-mlir | --emit-llvm-ir | --emit-llvm-bc)
+            COMPILE_ONLY="True"
             SHOULD_LINK="False"
             ;;
         esac

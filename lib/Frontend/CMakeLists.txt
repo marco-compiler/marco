@@ -15,7 +15,9 @@ set(MLIR_LIBS
     ${dialect_libs}
     ${conversion_libs}
     MLIRExecutionEngine
-    MLIROpenMPToLLVMIRTranslation)
+    MLIRLLVMToLLVMIRTranslation
+    MLIROpenMPToLLVMIRTranslation
+    MLIRTargetLLVMIRImport)
 
 marco_add_library(frontend
     ${SOURCES}
@@ -28,12 +30,12 @@ marco_add_library(frontend
     MARCOFrontendOptions
 
     LINK_LIBS
-    PUBLIC marco::ast
-    PUBLIC marco::ASTPasses
-    PUBLIC marco::parser
-    PRIVATE marco::codegen
-    PRIVATE marco::variableFilter
-    PRIVATE ${MLIR_LIBS}
+    marco::ast
+    marco::ASTPasses
+    marco::parser
+    marco::codegen
+    marco::variableFilter
+    ${MLIR_LIBS}
 
     LINK_COMPONENTS
     Option

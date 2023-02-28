@@ -5,7 +5,8 @@
 
 using namespace marco::frontend;
 
-static std::unique_ptr<FrontendAction> createFrontendBaseAction(CompilerInstance& ci)
+static std::unique_ptr<FrontendAction> createFrontendBaseAction(
+    CompilerInstance& ci)
 {
   ActionKind action = ci.getFrontendOptions().programAction;
 
@@ -22,27 +23,27 @@ static std::unique_ptr<FrontendAction> createFrontendBaseAction(CompilerInstance
     case EmitFinalAST:
       return std::make_unique<EmitFinalASTAction>();
 
-    case EmitModelicaDialect:
-      return std::make_unique<EmitModelicaDialectAction>();
-
-    case EmitLLVMDialect:
-      return std::make_unique<EmitLLVMDialectAction>();
+    case EmitMLIR:
+      return std::make_unique<EmitMLIRAction>();
 
     case EmitLLVMIR:
       return std::make_unique<EmitLLVMIRAction>();
+
+    case EmitLLVMBitcode:
+      return std::make_unique<EmitBitcodeAction>();
 
     case EmitAssembly:
       return std::make_unique<EmitAssemblyAction>();
 
     case EmitObject:
-      return std::make_unique<EmitObjectAction>();
+      return std::make_unique<EmitObjAction>();
 
     default:
       break;
   }
 
   llvm_unreachable("Invalid program action");
-  return 0;
+  return nullptr;
 }
 
 namespace marco::frontend
@@ -61,7 +62,7 @@ namespace marco::frontend
 
   bool executeCompilerInvocation(CompilerInstance* ci)
   {
-    // Honor --help
+    // Honor --help.
     if (ci->getFrontendOptions().showHelp) {
       getDriverOptTable().printHelp(
           llvm::outs(),
@@ -73,19 +74,19 @@ namespace marco::frontend
       return true;
     }
 
-    // Honor --version
+    // Honor --version.
     if (ci->getFrontendOptions().showVersion) {
       llvm::outs() << "MARCO - Modelica Advanced Research COmpiler\n";
       llvm::outs() << "Website: https://github.com/modelica-polimi/marco\n";
       return true;
     }
 
-    // If there were errors in processing arguments, don't do anything else
+    // If there were errors in processing arguments, don't do anything else.
     if (ci->getDiagnostics().hasErrors()) {
       return false;
     }
 
-    // Create and execute the frontend action
+    // Create and execute the frontend action.
     std::unique_ptr<FrontendAction> act(createFrontendAction(*ci));
 
     if (!act) {

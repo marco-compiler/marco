@@ -11,86 +11,98 @@ namespace marco::frontend
 {
   class CompilerInstance;
 
-  /// Abstract base class for the actions which can be performed by the frontend.
+  /// Abstract base class for the actions which can be performed by the
+  /// frontend.
   class FrontendAction
   {
     public:
-      FrontendAction() : instance_(nullptr)
-      {
-      }
+      FrontendAction();
 
-      virtual ~FrontendAction() = default;
+      virtual ~FrontendAction();
 
-      CompilerInstance& instance()
-      {
-        assert(instance_ != nullptr && "Compiler instance not registered");
-        return *instance_;
-      }
+      /// @name Compiler instance access
+      /// @{
 
-      const CompilerInstance& instance() const
-      {
-        assert(instance_ != nullptr && "Compiler instance not registered");
-        return *instance_;
-      }
+      CompilerInstance& getInstance();
 
-      void setCompilerInstance(CompilerInstance* value)
-      {
-        instance_ = value;
-      }
+      const CompilerInstance& getInstance() const;
 
-      virtual bool beginAction();
+      void setInstance(CompilerInstance* value);
 
-      virtual void execute() = 0;
+      /// }
+      /// @name Current file information
+      /// {
+
+      const FrontendInputFile& getCurrentInput() const;
+
+      llvm::StringRef getCurrentFile() const;
+
+      llvm::StringRef getCurrentFileOrBufferName() const;
+
+      void setCurrentInput(const FrontendInputFile& currentIntput);
+
+      /// }
+      /// @name Public action interface
+      /// {
+
+      /// Prepare the action to execute on the given compiler instance.
+      bool prepareToExecute(CompilerInstance& ci);
+
+      /// Prepare the action for processing the input file.
+      ///
+      /// This is run after the options and frontend have been initialized,
+      /// but prior to executing any per-file processing.
+      bool beginSourceFile(
+          CompilerInstance &ci, const FrontendInputFile &input);
+
+      /// Run the action.
+      llvm::Error execute();
+
+      /// Perform any per-file post processing, deallocate per-file objects,
+      /// and run statistics and output file cleanup code.
+      void endSourceFile();
+
+      /// }
 
     protected:
-      bool runFlattening();
-      bool runParse();
-      bool runFrontendPasses();
-      bool runASTConversion();
-      bool runDialectConversion();
-      bool runLLVMIRGeneration();
+      /// @name Implementation action interface
+      /// {
+
+      virtual bool prepareToExecuteAction(CompilerInstance& ci);
+
+      /// Function called before starting to process a single input.
+      /// It gives the opportunity to modify the CompilerInvocation or do some
+      /// other action before beginSourceFileAction is called.
+      /// @return true on success; on failure beginSourceFileAction,
+      /// executeAction and endSourceFileAction will not be called.
+      virtual bool beginInvocation();
+
+      /// Callback at the start of processing a single input.
+      ///
+      /// @return true on success; on failure executionAction() and
+      /// endSourceFileAction() will not be called.
+      virtual bool beginSourceFileAction();
+
+      /// Callback to run the program action, using the initialized compiler
+      /// instance.
+      virtual void executeAction() = 0;
+
+      /// Function called at the end of processing a single input.
+      /// This is guaranteed to only be called following a successful call to
+      /// beginSourceFileAction (and beginSourceFile).
+      virtual void endSourceFileAction();
+
+      /// Callback at the end of processing a single input, to determine
+      /// if the output files should be erased or not.
+      ///
+      /// By default it returns true if a compiler error occurred.
+      virtual bool shouldEraseOutputFiles() const;
+
+      /// }
 
     private:
-      llvm::DataLayout getDataLayout();
-      std::string getDataLayoutString();
-
-      std::unique_ptr<mlir::Pass> createReadOnlyVariablesPropagationPass();
-      std::unique_ptr<mlir::Pass> createAutomaticDifferentiationPass();
-      std::unique_ptr<mlir::Pass> createModelLegalizationPass();
-      std::unique_ptr<mlir::Pass> createMatchingPass();
-      std::unique_ptr<mlir::Pass> createVariablesPromotionPass();
-      std::unique_ptr<mlir::Pass> createCyclesSolvingPass();
-      std::unique_ptr<mlir::Pass> createSchedulingPass();
-
-      std::unique_ptr<mlir::Pass> createEulerForwardPass();
-      std::unique_ptr<mlir::Pass> createIDAPass();
-
-      std::unique_ptr<mlir::Pass> createFunctionScalarizationPass();
-      std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
-      std::unique_ptr<mlir::Pass> createModelicaToCFConversionPass();
-      std::unique_ptr<mlir::Pass> createModelicaToVectorConversionPass();
-      std::unique_ptr<mlir::Pass> createModelicaToArithConversionPass();
-      std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createModelicaToMemRefConversionPass();
-      std::unique_ptr<mlir::Pass> createModelicaToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass> createIDAToFuncConversionPass();
-      std::unique_ptr<mlir::Pass> createIDAToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass> createKINSOLToLLVMConversionPass();
-
-      std::unique_ptr<mlir::Pass> createSimulationToFuncConversionPass();
-
-      std::unique_ptr<mlir::Pass> createFuncToLLVMConversionPass(
-          bool useBarePtrCallConv);
-
-      std::unique_ptr<mlir::Pass> createArithToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createMemRefToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createVectorToLLVMConversionPass();
-      std::unique_ptr<mlir::Pass> createVectorToSCFConversionPass();
-
-    private:
-      CompilerInstance* instance_;
+      CompilerInstance* instance;
+      FrontendInputFile currentInput;
   };
 }
 

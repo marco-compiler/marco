@@ -1,20 +1,15 @@
 #ifndef MARCO_FRONTEND_CODEGENOPTIONS_H
 #define MARCO_FRONTEND_CODEGENOPTIONS_H
 
+#include "llvm/Passes/OptimizationLevel.h"
+
 namespace marco::frontend
 {
-  /// Optimization level
-  struct OptLevel
-  {
-    unsigned int time = 0;
-    unsigned int size = 0;
-  };
-
   /// Code generation operations.
   /// The default values are for compiling without optimizations.
   struct CodegenOptions
   {
-    OptLevel optLevel;
+    llvm::OptimizationLevel optLevel = llvm::OptimizationLevel::O0;
 
     bool debug = true;
     bool assertions = true;

@@ -1,4 +1,5 @@
-// RUN: marco %s --omc-bypass --emit-modelica-dialect | FileCheck %s
+// RUN: marco %s --omc-bypass --emit-mlir -o %t
+// RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @variableCopy
 // CHECK-DAG: %[[x:.*]] = modelica.member_create @x : !modelica.member<!modelica.int, input>

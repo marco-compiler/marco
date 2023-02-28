@@ -386,20 +386,20 @@ def emit_final_ast : Flag<["--"], "emit-final-ast">,
     Group<Action_Group>,
     HelpText<"Emit the final AST, after the frontend passes">;
 
-def emit_modelica_dialect : Flag<["--"], "emit-modelica-dialect">,
+def emit_mlir : Flag<["--"], "emit-mlir">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
-    HelpText<"Emit Modelica dialect">;
-
-def emit_llvm_dialect : Flag<["--"], "emit-llvm-dialect">,
-    Flags<[MC1Option]>,
-    Group<Action_Group>,
-    HelpText<"Emit LLVM dialect">;
+    HelpText<"Emit MLIR">;
 
 def emit_llvm_ir : Flag<["--"], "emit-llvm-ir">,
     Flags<[MC1Option]>,
     Group<Action_Group>,
     HelpText<"Emit LLVM-IR">;
+
+def emit_llvm_bitcode : Flag<["--"], "emit-llvm-bc">,
+    Flags<[MC1Option]>,
+    Group<Action_Group>,
+    HelpText<"Emit LLVM bitcode">;
 
 def compile_only : Flag<["-"], "S">,
     Flags<[MC1Option]>,

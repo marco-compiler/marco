@@ -10,15 +10,14 @@
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Process.h"
-#include <memory>
 
 using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Messages
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -95,9 +94,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // CompilerInvocation
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 /// Tweak the frontend configuration based on the frontend action
 static void setUpFrontendBasedOnAction(FrontendOptions& options)
@@ -129,16 +128,16 @@ static void parseFrontendArgs(
         options.programAction = EmitFinalAST;
         break;
 
-      case options::OPT_emit_modelica_dialect:
-        options.programAction = EmitModelicaDialect;
-        break;
-
-      case options::OPT_emit_llvm_dialect:
-        options.programAction = EmitLLVMDialect;
+      case options::OPT_emit_mlir:
+        options.programAction = EmitMLIR;
         break;
 
       case options::OPT_emit_llvm_ir:
         options.programAction = EmitLLVMIR;
+        break;
+
+      case options::OPT_emit_llvm_bitcode:
+        options.programAction = EmitLLVMBitcode;
         break;
 
       case options::OPT_compile_only:
@@ -171,7 +170,8 @@ static void parseFrontendArgs(
 
   for (size_t i = 0, e = inputs.size(); i != e; ++i) {
     // TODO: expand to handle multiple input types
-    options.inputs.emplace_back(std::move(inputs[i]), InputKind(Language::Modelica));
+    options.inputs.emplace_back(
+        std::move(inputs[i]), InputKind(Language::Modelica));
   }
 
   setUpFrontendBasedOnAction(options);
@@ -193,24 +193,26 @@ static void parseFrontendArgs(
 }
 
 static void parseCodegenArgs(
-    CodegenOptions& options, llvm::opt::ArgList& args, DiagnosticEngine& diagnostics)
+    CodegenOptions& options,
+    llvm::opt::ArgList& args,
+    DiagnosticEngine& diagnostics)
 {
   // Determine the optimization level
   for (const auto& arg : args.getAllArgValues(options::OPT_opt)) {
     if (arg == "0") {
-      options.optLevel.time = 0;
+      options.optLevel = llvm::OptimizationLevel::O0;
     } else if (arg == "1") {
-      options.optLevel.time = 1;
+      options.optLevel = llvm::OptimizationLevel::O1;
     } else if (arg == "2") {
-      options.optLevel.time = 2;
+      options.optLevel = llvm::OptimizationLevel::O2;
     } else if (arg == "3") {
-      options.optLevel.time = 3;
+      options.optLevel = llvm::OptimizationLevel::O3;
     } else if (arg == "fast") {
-      options.optLevel.time = 3;
+      options.optLevel = llvm::OptimizationLevel::O3;
     } else if (arg == "s") {
-      options.optLevel.size = 1;
+      options.optLevel = llvm::OptimizationLevel::Os;
     } else if (arg == "z") {
-      options.optLevel.size = 2;
+      options.optLevel = llvm::OptimizationLevel::Oz;
     } else {
       // "Unknown optimization option: %s"
       diagnostics.emitWarning<UnknownOptimizationOptionMessage>(arg);
@@ -218,12 +220,12 @@ static void parseCodegenArgs(
   }
 
   // Set the default options based on the optimization level
-  if (options.optLevel.time > 0) {
+  if (options.optLevel.getSpeedupLevel() > 0) {
     options.debug = false;
     options.assertions = false;
   }
 
-  if (options.optLevel.time > 1) {
+  if (options.optLevel.getSpeedupLevel() > 1) {
     options.outputArraysPromotion = true;
     options.readOnlyVariablesPropagation = true;
     options.variablesToParametersPromotion = true;
@@ -231,17 +233,17 @@ static void parseCodegenArgs(
     options.cse = true;
   }
 
-  if (options.optLevel.size > 0) {
+  if (options.optLevel.getSizeLevel() > 0) {
     options.debug = false;
     options.cse = true;
   }
 
-  if (options.optLevel.size > 1) {
+  if (options.optLevel.getSizeLevel() > 1) {
     options.assertions = false;
   }
 
-  // Continue in processing the user-provided options, which may override the default
-  // options given by the optimization level.
+  // Continue in processing the user-provided options, which may override the
+  // default options given by the optimization level.
 
   if (!options.debug) {
     options.debug = args.hasArg(marco::frontend::options::OPT_debug);
@@ -318,7 +320,9 @@ static void parseCodegenArgs(
 }
 
 static void parseSimulationArgs(
-    SimulationOptions& options, llvm::opt::ArgList& args, DiagnosticEngine& diagnostics)
+    SimulationOptions& options,
+    llvm::opt::ArgList& args,
+    DiagnosticEngine& diagnostics)
 {
   if (const llvm::opt::Arg* arg = args.getLastArg(options::OPT_model)) {
     llvm::StringRef value = arg->getValue();
@@ -375,7 +379,8 @@ namespace marco::frontend
 
     // Check for missing argument error
     if (missingArgCount != 0) {
-      diagnostics.emitError<MissingArgumentValueMessage>(args.getArgString(missingArgIndex));
+      diagnostics.emitError<MissingArgumentValueMessage>(
+          args.getArgString(missingArgIndex));
     }
 
     // Issue errors on unknown arguments
@@ -384,40 +389,40 @@ namespace marco::frontend
       diagnostics.emitWarning<UnknownArgumentMessage>(argString);
     }
 
-    parseFrontendArgs(res.frontendOptions(), args, diagnostics);
-    parseCodegenArgs(res.codegenOptions(), args, diagnostics);
-    parseSimulationArgs(res.simulationOptions(), args, diagnostics);
+    parseFrontendArgs(res.getFrontendOptions(), args, diagnostics);
+    parseCodegenArgs(res.getCodeGenOptions(), args, diagnostics);
+    parseSimulationArgs(res.getSimulationOptions(), args, diagnostics);
 
     return numOfErrors == diagnostics.numOfErrors();
   }
 
-  FrontendOptions& CompilerInvocation::frontendOptions()
+  FrontendOptions& CompilerInvocation::getFrontendOptions()
   {
-    return frontendOptions_;
+    return frontendOptions;
   }
 
-  const FrontendOptions& CompilerInvocation::frontendOptions() const
+  const FrontendOptions& CompilerInvocation::getFrontendOptions() const
   {
-    return frontendOptions_;
+    return frontendOptions;
   }
 
-  CodegenOptions& CompilerInvocation::codegenOptions()
+  CodegenOptions& CompilerInvocation::getCodeGenOptions()
   {
-    return codegenOptions_;
+    return codegenOptions;
   }
 
-  const CodegenOptions& CompilerInvocation::codegenOptions() const
+  const CodegenOptions& CompilerInvocation::getCodeGenOptions() const
   {
-    return codegenOptions_;
+    return codegenOptions;
   }
 
-  SimulationOptions& CompilerInvocation::simulationOptions()
+  SimulationOptions& CompilerInvocation::getSimulationOptions()
   {
-    return simulationOptions_;
+    return simulationOptions;
   }
 
-  const SimulationOptions& CompilerInvocation::simulationOptions() const
+  const SimulationOptions& CompilerInvocation::getSimulationOptions() const
   {
-    return simulationOptions_;
+    return simulationOptions;
   }
 }

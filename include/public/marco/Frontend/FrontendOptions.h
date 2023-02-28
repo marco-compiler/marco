@@ -17,89 +17,94 @@ namespace marco::frontend
     EmitFlattened,
     EmitAST,
     EmitFinalAST,
-    EmitModelicaDialect,
-    EmitLLVMDialect,
+
+    // Emit a .mlir file.
+    EmitMLIR,
+
+    // Emit a .ll file.
     EmitLLVMIR,
+
+    /// Emit a .bc file
+    EmitLLVMBitcode,
+
+    // Emit a .s file.
     EmitAssembly,
+
+    // Emit a .o file.
     EmitObject
   };
-
-  /// \param suffix The file extension
-  /// \return True if the file should be preprocessed
-  bool mustBePreprocessed(llvm::StringRef suffix);
 
   enum class Language : uint8_t
   {
     Unknown,
     Modelica,
-    MLIR
+    MLIR,
+    LLVM_IR
   };
 
   /// The kind of a file that we've been handed as an input.
   class InputKind
   {
     private:
-      Language lang_;
+      Language lang;
 
     public:
       /// The input file format.
       enum Format { Source, ModuleMap, Precompiled };
 
-      constexpr InputKind(Language l = Language::Unknown) : lang_(l) {}
+      constexpr InputKind(Language l = Language::Unknown) : lang(l) {}
 
-      Language GetLanguage() const { return static_cast<Language>(lang_); }
+      Language getLanguage() const { return static_cast<Language>(lang); }
 
       /// Is the input kind fully-unknown?
-      bool IsUnknown() const { return lang_ == Language::Unknown; }
+      bool isUnknown() const { return lang == Language::Unknown; }
   };
 
-  /**
-   * An input file to the frontend.
-   */
+  /// An input file to the frontend.
   class FrontendInputFile
   {
-      // File name ("-" for standard input)
-      std::string file_;
+      /// File name ("-" for standard input).
+      std::string file;
 
-      // The input, if it comes from a buffer rather than a file. This object
-      // does not own the buffer, and the caller is responsible for ensuring
-      // that it outlives any users.
-      const llvm::MemoryBuffer* buffer_ = nullptr;
+      /// The input, if it comes from a buffer rather than a file. This object
+      /// does not own the buffer, and the caller is responsible for ensuring
+      /// that it outlives any users.
+      const llvm::MemoryBuffer* buffer = nullptr;
 
-      // The kind of input, atm it contains language
-      InputKind kind_;
+      /// The kind of input, atm it contains language.
+      InputKind kind;
 
     public:
       FrontendInputFile() = default;
 
       FrontendInputFile(llvm::StringRef file, InputKind kind)
-          : file_(file.str()), kind_(kind)
+          : file(file.str()), kind(kind)
       {
       }
 
       FrontendInputFile(const llvm::MemoryBuffer* buffer, InputKind kind)
-          : buffer_(buffer), kind_(kind)
+          : buffer(buffer), kind(kind)
       {
       }
 
-      InputKind kind() const { return kind_; }
+      InputKind getKind() const { return kind; }
 
-      bool isEmpty() const { return file_.empty() && buffer_ == nullptr; }
+      bool isEmpty() const { return file.empty() && buffer == nullptr; }
 
       bool isFile() const { return !isBuffer(); }
 
-      bool isBuffer() const { return buffer_ != nullptr; }
+      bool isBuffer() const { return buffer != nullptr; }
 
-      llvm::StringRef file() const
+      llvm::StringRef getFile() const
       {
         assert(isFile());
-        return file_;
+        return file;
       }
 
-      const llvm::MemoryBuffer* buffer() const
+      const llvm::MemoryBuffer* getBuffer() const
       {
-        assert(isBuffer() && "Requested buffer_, but it is empty!");
-        return buffer_;
+        assert(isBuffer() && "Requested buffer, but it is empty!");
+        return buffer;
       }
   };
 
@@ -109,14 +114,14 @@ namespace marco::frontend
 
     bool showVersion = false;
 
-    // The input files and their types
+    /// The input files and their types.
     std::vector<FrontendInputFile> inputs;
 
-    // The output file, if any
+    /// The output file, if any.
     std::string outputFile;
 
-    // The frontend action to perform.
-    frontend::ActionKind programAction;
+    /// The frontend action to perform.
+    frontend::ActionKind programAction = InvalidAction;
 
     // OMC options
     bool omcBypass = false;
@@ -128,7 +133,7 @@ namespace marco::frontend
     // Whether to print statistics when the compilation finishes.
     bool printStatistics = false;
 
-    // Return the appropriate input kind for a file extension
+    /// Return the appropriate input kind for a file extension.
     static InputKind getInputKindForExtension(llvm::StringRef extension);
   };
 }

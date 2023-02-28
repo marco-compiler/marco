@@ -37,11 +37,11 @@
 // RUN: marco-driver --init-only -Os | FileCheck %s --check-prefix="CHECK-Os"
 
 // CHECK-Os-LABEL: [Code generation]
-// CHECK-Os-DAG: Time optimization level: 0
+// CHECK-Os-DAG: Time optimization level: 2
 // CHECK-Os-DAG: Size optimization level: 1
 
 // RUN: marco-driver --init-only -Oz | FileCheck %s --check-prefix="CHECK-Oz"
 
 // CHECK-Oz-LABEL: [Code generation]
-// CHECK-Oz-DAG: Time optimization level: 0
+// CHECK-Oz-DAG: Time optimization level: 2
 // CHECK-Oz-DAG: Size optimization level: 2

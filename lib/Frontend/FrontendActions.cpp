@@ -1,28 +1,364 @@
-#include "marco/Frontend/CompilerInstance.h"
 #include "marco/Frontend/FrontendActions.h"
+#include "marco/AST/Passes.h"
+#include "marco/Diagnostic/Printer.h"
+#include "marco/Codegen/Bridge.h"
+#include "marco/Codegen/Verifier.h"
+#include "marco/Codegen/Conversion/Passes.h"
+#include "marco/Codegen/Transforms/Passes.h"
+#include "marco/Dialect/IDA/IDADialect.h"
+#include "marco/Dialect/KINSOL/KINSOLDialect.h"
+#include "marco/Dialect/Simulation/SimulationDialect.h"
+#include "marco/Frontend/CompilerInstance.h"
+#include "marco/Parser/Parser.h"
+#include "mlir/Conversion/Passes.h"
+#include "mlir/Dialect/DLTI/DLTI.h"
+#include "mlir/Dialect/LLVMIR/Transforms/LegalizeForExport.h"
+#include "mlir/InitAllDialects.h"
+#include "mlir/Parser/Parser.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Import.h"
+#include "mlir/Target/LLVMIR/ModuleTranslation.h"
+#include "mlir/Transforms/Passes.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
 
 using namespace ::marco;
 using namespace ::marco::diagnostic;
 using namespace ::marco::frontend;
 
+//===---------------------------------------------------------------------===//
+// Messages
+//===---------------------------------------------------------------------===//
+
+namespace
+{
+  class CantOpenInputFileMessage : public Message
+  {
+    public:
+      CantOpenInputFileMessage(llvm::StringRef file)
+          : file(file.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "Unable to open input file '" << file << "'" << "\n";
+      }
+
+    private:
+      std::string file;
+  };
+
+  class FlatteningFailureMessage : public Message
+  {
+    public:
+      FlatteningFailureMessage(llvm::StringRef error)
+          : error(error.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "OMC flattening failed";
+
+        if (!error.empty()) {
+          os << "\n\n" << error << "\n";
+        }
+      }
+
+    private:
+      std::string error;
+  };
+
+  class InvalidTargetTripleMessage : public Message
+  {
+    public:
+      InvalidTargetTripleMessage(llvm::StringRef targetTriple)
+          : targetTriple(targetTriple.str())
+      {
+      }
+
+      void print(PrinterInstance* printer) const override
+      {
+        auto& os = printer->getOutputStream();
+        os << "Invalid target triple '" << targetTriple << "'\n";
+      }
+
+    private:
+      std::string targetTriple;
+  };
+}
+
+//===---------------------------------------------------------------------===//
+// Utility functions
+//===---------------------------------------------------------------------===//
+
+static bool exec(const char* cmd, std::string& result)
+{
+  std::array<char, 128> buffer;
+  FILE* pipe = popen(cmd, "r");
+
+  if (!pipe) {
+    return false;
+  }
+
+  while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+    result += buffer.data();
+  }
+
+  return pclose(pipe)==0;
+}
+
+static llvm::CodeGenOpt::Level mapOptimizationLevelToCodeGenLevel(
+    llvm::OptimizationLevel level, bool debug)
+{
+  if (level == llvm::OptimizationLevel::O0) {
+    return llvm::CodeGenOpt::Level::None;;
+  }
+
+  if (debug || level == llvm::OptimizationLevel::O1) {
+    return llvm::CodeGenOpt::Level::Less;
+  }
+
+  if (level == llvm::OptimizationLevel::O2 ||
+      level == llvm::OptimizationLevel::Os ||
+      level == llvm::OptimizationLevel::Oz) {
+    return llvm::CodeGenOpt::Level::Default;
+  }
+
+  assert(level == llvm::OptimizationLevel::O3);
+  return llvm::CodeGenOpt::Level::Aggressive;
+}
+
+/// Generate target-specific machine-code or assembly file from the input LLVM
+/// module.
+///
+/// @param diags        Diagnostics engine for reporting errors
+/// @param tm           Target machine to aid the code-gen pipeline set-up
+/// @param act          Backend act to run (assembly vs machine-code generation)
+/// @param llvmModule   LLVM module to lower to assembly/machine-code
+/// @param os           Output stream to emit the generated code to
+static void generateMachineCodeOrAssemblyImpl(
+    diagnostic::DiagnosticEngine& diags,
+    llvm::TargetMachine& tm,
+    llvm::CodeGenFileType fileType,
+    llvm::Module& llvmModule,
+    llvm::raw_pwrite_stream& os)
+{
+  // Set-up the pass manager, i.e create an LLVM code-gen pass pipeline.
+  // Currently only the legacy pass manager is supported.
+  // TODO: Switch to the new PM once it's available in the backend.
+  llvm::legacy::PassManager codeGenPasses;
+
+  codeGenPasses.add(
+      llvm::createTargetTransformInfoWrapperPass(tm.getTargetIRAnalysis()));
+
+  llvm::Triple triple(llvmModule.getTargetTriple());
+
+  std::unique_ptr<llvm::TargetLibraryInfoImpl> tlii =
+      std::make_unique<llvm::TargetLibraryInfoImpl>(triple);
+
+  assert(tlii && "Failed to create TargetLibraryInfo");
+  codeGenPasses.add(new llvm::TargetLibraryInfoWrapperPass(*tlii));
+
+  if (tm.addPassesToEmitFile(codeGenPasses, os, nullptr, fileType)) {
+    diags.emitFatalError<GenericStringMessage>(
+        "TargetMachine can't emit a file of this type");
+
+    return;
+  }
+
+  // Run the passes.
+  codeGenPasses.run(llvmModule);
+
+  os.flush();
+}
+
 namespace marco::frontend
 {
-  void InitOnlyAction::execute()
+  bool PreprocessingAction::beginSourceFileAction()
   {
-    CompilerInstance& ci = this->instance();
+    CompilerInstance& ci = getInstance();
+
+    if (getCurrentInput().getKind().getLanguage() != Language::Modelica) {
+      ci.getDiagnostics().emitError<GenericStringMessage>(
+          "Invalid input type: expecting a Modelica file");
+
+      return false;
+    }
+
+    if (ci.getFrontendOptions().omcBypass) {
+      const auto& inputs = ci.getFrontendOptions().inputs;
+
+      if (inputs.size() > 1) {
+        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+            "MARCO can receive only one input flattened file");
+
+        return false;
+      }
+
+      auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputs[0].getFile());
+      auto buffer = llvm::errorOrToExpected(std::move(errorOrBuffer));
+
+      if (!buffer) {
+        ci.getDiagnostics().emitFatalError<CantOpenInputFileMessage>(inputs[0].getFile());
+        llvm::consumeError(buffer.takeError());
+        return false;
+      }
+
+      flattened = (*buffer)->getBuffer().str();
+      return true;
+    }
+
+    llvm::SmallString<256> cmd;
+
+    if (auto path = ci.getFrontendOptions().omcPath; !path.empty()) {
+      llvm::sys::path::append(cmd, path, "omc");
+    } else {
+      llvm::sys::path::append(cmd, "omc");
+    }
+
+    for (const auto& input : ci.getFrontendOptions().inputs) {
+      cmd += " \"" + input.getFile().str() + "\"";
+    }
+
+    if (const auto& modelName = ci.getSimulationOptions().modelName; modelName.empty()) {
+      ci.getDiagnostics().emitWarning<GenericStringMessage>("Model name not specified");
+    } else {
+      cmd += " +i=" + ci.getSimulationOptions().modelName;
+    }
+
+    if (const auto& args = ci.getFrontendOptions().omcCustomArgs; args.empty()) {
+      cmd += " -f";
+      cmd += " -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes";
+      cmd += " --newBackend";
+      cmd += " --showStructuralAnnotations";
+    } else {
+      for (const auto& arg : args) {
+        cmd += " " + arg;
+      }
+    }
+
+    auto result = exec(cmd.c_str(), flattened);
+
+    if (!result) {
+      ci.getDiagnostics().emitFatalError<FlatteningFailureMessage>(flattened);
+    }
+
+    return result;
+  }
+
+  void EmitFlattenedAction::executeAction()
+  {
+    // Print the flattened source on the standard output
+    llvm::outs() << flattened << "\n";
+  }
+
+  ASTAction::ASTAction(ASTActionKind action)
+      : action(action)
+  {
+  }
+
+  bool ASTAction::beginSourceFileAction()
+  {
+    if (!PreprocessingAction::beginSourceFileAction()) {
+      return false;
+    }
+
+    CompilerInstance& ci = getInstance();
+    auto& diagnostics = ci.getDiagnostics();
+
+    // Parse the source code.
+    auto sourceFile = std::make_shared<marco::SourceFile>(
+        "-", llvm::MemoryBuffer::getMemBuffer(flattened));
+
+    parser::Parser parser(diagnostics, sourceFile);
+    auto cls = parser.parseRoot();
+
+    if (!cls.has_value()) {
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+          "AST generation failed");
+      return false;
+    }
+
+    ast = std::move(*cls);
+
+    if (action == ASTActionKind::ParseAndProcessAST) {
+      // Apply the AST modification passes.
+      // TODO: slowly remove them, keeping only semantic analysis and type inference.
+      marco::ast::PassManager frontendPassManager;
+
+      frontendPassManager.addPass(
+          ast::createRaggedFlatteningPass(diagnostics));
+
+      frontendPassManager.addPass(ast::createTypeInferencePass(diagnostics));
+      frontendPassManager.addPass(ast::createTypeCheckingPass(diagnostics));
+
+      frontendPassManager.addPass(
+          ast::createSemanticAnalysisPass(diagnostics));
+
+      frontendPassManager.addPass(ast::createInliningPass(diagnostics));
+      frontendPassManager.addPass(ast::createConstantFoldingPass(diagnostics));
+
+      if (!frontendPassManager.run(ast)) {
+        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+            "Frontend passes failed");
+
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  EmitASTAction::EmitASTAction()
+      : ASTAction(ASTActionKind::Parse)
+  {
+  }
+
+  void EmitASTAction::executeAction()
+  {
+    // Print the AST on the standard output.
+    ast->dump(llvm::outs());
+  }
+
+  EmitFinalASTAction::EmitFinalASTAction()
+      : ASTAction(ASTActionKind::ParseAndProcessAST)
+  {
+  }
+
+  void EmitFinalASTAction::executeAction()
+  {
+    // Print the AST on the standard output.
+    ast->dump(llvm::outs());
+  }
+
+  void InitOnlyAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
 
     ci.getDiagnostics().emitWarning<GenericStringMessage>(
-        "Use '-init-only' for testing purposes only");
+        "Use '--init-only' for testing purposes only");
 
     auto& os = llvm::outs();
 
-    const auto& codegenOptions = ci.getCodegenOptions();
+    const CodegenOptions& codegenOptions = ci.getCodeGenOptions();
     printCategory(os, "Code generation");
-    printOption(os, "Time optimization level", static_cast<long>(codegenOptions.optLevel.time));
-    printOption(os, "Size optimization level", static_cast<long>(codegenOptions.optLevel.size));
+    printOption(os, "Time optimization level", static_cast<long>(codegenOptions.optLevel.getSpeedupLevel()));
+    printOption(os, "Size optimization level", static_cast<long>(codegenOptions.optLevel.getSizeLevel()));
     printOption(os, "Debug information", codegenOptions.debug);
     printOption(os, "Assertions", codegenOptions.assertions);
     printOption(os, "Inlining", codegenOptions.inlining);
@@ -35,7 +371,7 @@ namespace marco::frontend
     printOption(os, "Target cpu", codegenOptions.cpu);
     os << "\n";
 
-    const auto& simulationOptions = ci.getSimulationOptions();
+    const SimulationOptions& simulationOptions = ci.getSimulationOptions();
     printCategory(os, "Simulation");
     printOption(os, "Model", simulationOptions.modelName);
     printOption(os, "Solver", simulationOptions.solver);
@@ -67,102 +403,921 @@ namespace marco::frontend
     os << " - " << name << ": " << value << "\n";
   }
 
-  bool EmitFlattenedAction::beginAction()
+  CodeGenAction::CodeGenAction(CodeGenActionKind action)
+      : ASTAction(ASTActionKind::ParseAndProcessAST),
+        action(action)
   {
-    return runFlattening();
   }
 
-  void EmitFlattenedAction::execute()
+  CodeGenAction::~CodeGenAction() = default;
+
+  bool CodeGenAction::beginSourceFileAction()
   {
-    // Print the flattened source on the standard output
-    llvm::outs() << instance().getFlattened() << "\n";
+    if (action == CodeGenActionKind::GenerateLLVMIR) {
+      return generateLLVMIR();
+    }
+
+    assert(action == CodeGenActionKind::GenerateMLIR);
+    return generateMLIR();
   }
 
-  bool EmitASTAction::beginAction()
+  bool CodeGenAction::setUpTargetMachine()
   {
-    return runFlattening() && runParse();
+    CompilerInstance& ci = getInstance();
+    const std::string& triple = ci.getCodeGenOptions().target;
+
+    // Get the LLVM target.
+    std::string targetError;
+
+    const llvm::Target* target =
+        llvm::TargetRegistry::lookupTarget(triple, targetError);
+
+    if (!target) {
+      // Print an error and exit if we couldn't find the requested target.
+      // This generally occurs if we've forgotten to initialize the
+      // TargetRegistry or if we have a bogus target triple.
+
+      ci.getDiagnostics().emitFatalError<InvalidTargetTripleMessage>(triple);
+      return false;
+    }
+
+    // Create the LLVM TargetMachine.
+    const CodegenOptions& codegenOptions = ci.getCodeGenOptions();
+
+    llvm::CodeGenOpt::Level optLevel = mapOptimizationLevelToCodeGenLevel(
+        codegenOptions.optLevel, codegenOptions.debug);
+
+    std::string features = "";
+
+    auto relocationModel =
+        llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
+
+    targetMachine.reset(target->createTargetMachine(
+        triple, ci.getCodeGenOptions().cpu,
+        features, llvm::TargetOptions(),
+        relocationModel,
+        llvm::None, optLevel));
+
+    if (!targetMachine) {
+      ci.getDiagnostics().emitFatalError<GenericStringMessage>(
+          "Can't create TargetMachine");
+
+      return false;
+    }
+
+    return true;
   }
 
-  void EmitASTAction::execute()
+  llvm::DataLayout CodeGenAction::getDataLayout() const
   {
-    // Print the AST on the standard output
-    instance().getAST()->dump(llvm::outs());
+    assert(targetMachine && "TargetMachine has not been initialized yet");
+    return targetMachine->createDataLayout();
   }
 
-  bool EmitFinalASTAction::beginAction()
+  void CodeGenAction::registerMLIRDialects()
   {
-    return runFlattening() && runParse() && runFrontendPasses();
+    // Register all the MLIR native dialects. This does not impact performance,
+    // because of lazy loading.
+    mlir::registerAllDialects(mlirDialectRegistry);
+
+    // Register the custom dialects.
+    mlirDialectRegistry.insert<mlir::modelica::ModelicaDialect>();
+    mlirDialectRegistry.insert<mlir::ida::IDADialect>();
+    mlirDialectRegistry.insert<mlir::kinsol::KINSOLDialect>();
+    mlirDialectRegistry.insert<mlir::simulation::SimulationDialect>();
   }
 
-  void EmitFinalASTAction::execute()
+  void CodeGenAction::loadMLIRDialects()
   {
-    // Print the AST on the standard output
-    instance().getAST()->dump(llvm::outs());
+    assert(mlirContext && "MLIR context has not been created yet");
+
+    mlirContext->loadDialect<mlir::modelica::ModelicaDialect>();
+    mlirContext->loadDialect<mlir::DLTIDialect>();
   }
 
-  bool EmitModelicaDialectAction::beginAction()
+  bool CodeGenAction::generateMLIR()
   {
-    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion();
-  }
+    CompilerInstance& ci = getInstance();
 
-  void EmitModelicaDialectAction::execute()
-  {
-    // Print the module on the standard output
-    instance().getMLIRModule().print(llvm::outs());
-  }
+    // Create the MLIR context.
+    mlirContext = std::make_unique<mlir::MLIRContext>(mlirDialectRegistry);
+    loadMLIRDialects();
 
-  bool EmitLLVMDialectAction::beginAction()
-  {
-    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion();
-  }
+    if (getCurrentInput().getKind().getLanguage() == Language::MLIR) {
+      // If the input is an MLIR file, parse it.
+      llvm::SourceMgr sourceMgr;
 
-  void EmitLLVMDialectAction::execute()
-  {
-    instance().getMLIRModule().print(llvm::outs());
-  }
+      llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
+          llvm::MemoryBuffer::getFileOrSTDIN(getCurrentInput().getFile());
 
-  bool CodegenAction::beginAction()
-  {
-    return runFlattening() && runParse() && runFrontendPasses() && runASTConversion() && runDialectConversion() && runLLVMIRGeneration();
-  }
+      sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
 
-  void EmitLLVMIRAction::execute()
-  {
-    // Print the module on the standard output
-    llvm::outs() << instance().getLLVMModule();
-  }
+      // Register the dialects that can be parsed.
+      registerMLIRDialects();
 
-  void CompileAction::compileAndEmitFile(llvm::CodeGenFileType fileType, llvm::raw_pwrite_stream& os)
-  {
-    CompilerInstance& ci = instance();
+      // Parse the module.
+      mlir::OwningOpRef<mlir::ModuleOp> module =
+          mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, mlirContext.get());
 
-    if (auto targetMachine = ci.getTargetMachine()) {
-      // Compile the module
-      llvm::legacy::PassManager passManager;
+      if (!module || mlir::failed(module->verifyInvariants())) {
+        ci.getDiagnostics().emitError<GenericStringMessage>(
+            "Could not parse MLIR");
 
-      if (targetMachine->addPassesToEmitFile(passManager, os, nullptr, fileType)) {
-        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-            "TargetMachine can't emit a file of this type");
-
-        return;
+        return false;
       }
 
-      passManager.run(ci.getLLVMModule());
-      os.flush();
+      mlirModule = std::make_unique<mlir::ModuleOp>(module.release());
+      return true;
+    } else {
+      // If the input is not an MLIR file, then the MLIR module will be
+      // obtained starting from the AST.
+
+      if (!ASTAction::beginSourceFileAction()) {
+        return false;
+      }
+
+      // Convert the AST to MLIR.
+      codegen::CodegenOptions options;
+      marco::codegen::lowering::Bridge bridge(*mlirContext, options);
+      bridge.lower(*ast);
+
+      mlirModule = std::move(bridge.getMLIRModule());
+    }
+
+    // Set target triple and data layout inside the MLIR module.
+    setMLIRModuleTargetTriple();
+    setMLIRModuleDataLayout();
+
+    // Verify the IR.
+    mlir::PassManager pm(mlirContext.get());
+    pm.addPass(std::make_unique<codegen::lowering::VerifierPass>());
+
+    if (!mlir::succeeded(pm.run(*mlirModule))) {
+      ci.getDiagnostics().emitError<GenericStringMessage>(
+          "Verification of MLIR code failed");
+
+      return false;
+    }
+
+    return true;
+  }
+
+  void CodeGenAction::setMLIRModuleTargetTriple()
+  {
+    assert(mlirModule && "MLIR module has not been created yet");
+
+    if (!targetMachine) {
+      setUpTargetMachine();
+    }
+
+    const std::string& triple = targetMachine->getTargetTriple().str();
+
+    llvm::StringRef tripleAttrName =
+        mlir::LLVM::LLVMDialect::getTargetTripleAttrName();
+
+    auto tripleAttr = mlir::StringAttr::get(mlirModule->getContext(), triple);
+
+    auto existingTripleAttr =
+        (*mlirModule)->getAttrOfType<mlir::StringAttr>(tripleAttrName);
+
+    if (existingTripleAttr && existingTripleAttr != tripleAttr) {
+      // The LLVM module already has a target triple which is different from
+      // the one specified through the command-line.
+      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
+          "The target triple is being overridden");
+    }
+
+    (*mlirModule)->setAttr(tripleAttrName, tripleAttr);
+  }
+
+  void CodeGenAction::setMLIRModuleDataLayout()
+  {
+    assert(mlirModule && "MLIR module has not been created yet");
+
+    if (!targetMachine) {
+      setUpTargetMachine();
+    }
+
+    const llvm::DataLayout& dl = targetMachine->createDataLayout();
+
+    llvm::StringRef dlAttrName =
+        mlir::LLVM::LLVMDialect::getDataLayoutAttrName();
+
+    auto dlAttr = mlir::StringAttr::get(
+        mlirContext.get(), dl.getStringRepresentation());
+
+    auto existingDlAttr =
+        (*mlirModule)->getAttrOfType<mlir::StringAttr>(dlAttrName);
+
+    llvm::StringRef dlSpecAttrName =
+        mlir::DLTIDialect::kDataLayoutAttrName;
+
+    mlir::DataLayoutSpecInterface dlSpecAttr =
+        mlir::translateDataLayout(dl, mlirContext.get());
+
+    auto existingDlSpecAttr =
+        (*mlirModule)->getAttrOfType<mlir::DataLayoutSpecInterface>(
+            dlSpecAttrName);
+
+    if ((existingDlAttr && existingDlAttr != dlAttr) ||
+        (existingDlSpecAttr && existingDlSpecAttr != dlSpecAttr)) {
+      // The MLIR module already has a data layout which is different from the
+      // one given by the target machine.
+      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
+          "The data layout is being overridden");
+    }
+
+    (*mlirModule)->setAttr(dlAttrName, dlAttr);
+    (*mlirModule)->setAttr(dlSpecAttrName, dlSpecAttr);
+  }
+
+  void CodeGenAction::createModelicaToLLVMPassPipeline(mlir::PassManager& pm)
+  {
+    CompilerInstance& ci = getInstance();
+
+    if (!ci.getCodeGenOptions().debug) {
+      // Remove the debug information if a non-debuggable executable has been
+      // requested. By doing this at the beginning of the compilation pipeline
+      // we reduce the time needed for the pass itself, as the code inevitably
+      // grows while traversing the pipeline.
+      pm.addPass(mlir::createStripDebugInfoPass());
+    }
+
+    // Try to simplify the starting IR.
+    pm.addPass(mlir::createCanonicalizerPass());
+
+    if (ci.getCodeGenOptions().readOnlyVariablesPropagation) {
+      // Propagate the read-only variables and try to fold the constants right
+      // after.
+      pm.addPass(createMLIRReadOnlyVariablesPropagationPass());
+      pm.addPass(mlir::createCanonicalizerPass());
+    }
+
+    pm.addPass(createMLIRAutomaticDifferentiationPass());
+    pm.addPass(createMLIRModelLegalizationPass());
+    pm.addPass(createMLIRMatchingPass());
+    pm.addPass(createMLIRVariablesPromotionPass());
+    pm.addPass(createMLIRCyclesSolvingPass());
+    pm.addPass(createMLIRSchedulingPass());
+
+    // Apply the selected solver.
+    pm.addPass(
+        llvm::StringSwitch<std::unique_ptr<mlir::Pass>>(
+            ci.getSimulationOptions().solver)
+            .Case("euler-forward", createMLIREulerForwardPass())
+            .Case("ida", createMLIRIDAPass())
+            .Default(createMLIREulerForwardPass()));
+
+    pm.addPass(createMLIRFunctionScalarizationPass());
+    pm.addPass(createMLIRExplicitCastInsertionPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+
+    if (ci.getCodeGenOptions().cse) {
+      pm.addNestedPass<mlir::modelica::FunctionOp>(
+          mlir::createCSEPass());
+
+      pm.addNestedPass<mlir::func::FuncOp>(mlir::createCSEPass());
+    }
+
+    pm.addPass(mlir::modelica::createArrayDeallocationPass());
+    pm.addPass(createMLIRModelicaToCFConversionPass());
+
+    if (ci.getCodeGenOptions().inlining) {
+      // Inline the functions with the 'inline' annotation.
+      pm.addPass(mlir::createInlinerPass());
+    }
+
+    pm.addPass(createMLIRModelicaToVectorConversionPass());
+    pm.addPass(createMLIRModelicaToArithConversionPass());
+    pm.addPass(createMLIRModelicaToFuncConversionPass());
+    pm.addPass(createMLIRModelicaToMemRefConversionPass());
+
+    pm.addPass(createMLIRIDAToFuncConversionPass());
+
+    if (ci.getCodeGenOptions().omp) {
+      // Use OpenMP for parallel loops.
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::createConvertSCFToOpenMPPass());
+    }
+
+    pm.addNestedPass<mlir::func::FuncOp>(
+        createMLIRVectorToSCFConversionPass());
+
+    pm.addPass(createMLIRVectorToLLVMConversionPass());
+
+    pm.addPass(createMLIRArithToLLVMConversionPass());
+    pm.addPass(createMLIRMemRefToLLVMConversionPass());
+    pm.addPass(mlir::createConvertSCFToCFPass());
+
+    pm.addPass(createMLIRFuncToLLVMConversionPass(true));
+    pm.addPass(createMLIRFuncToLLVMConversionPass(false));
+
+    pm.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
+
+    // Convert the MARCO dialects to LLVM dialect.
+    pm.addPass(createMLIRModelicaToLLVMConversionPass());
+    pm.addPass(createMLIRIDAToLLVMConversionPass());
+    pm.addPass(createMLIRKINSOLToLLVMConversionPass());
+
+    // Now that the Simulation dialect doesn't have dependencies from Modelica
+    // or the solvers, we can proceed converting it.
+    pm.addPass(createMLIRSimulationToFuncConversionPass());
+
+    // Convert the non-LLVM operations that may have been introduced by the
+    // last conversions.
+    pm.addNestedPass<mlir::func::FuncOp>(
+        createMLIRArithToLLVMConversionPass());
+
+    pm.addPass(createMLIRFuncToLLVMConversionPass(false));
+    pm.addPass(mlir::cf::createConvertControlFlowToLLVMPass());
+
+    // Finalization passes.
+    pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+        mlir::createReconcileUnrealizedCastsPass());
+
+    pm.addNestedPass<mlir::LLVM::LLVMFuncOp>(
+        mlir::createCanonicalizerPass());
+
+    pm.addPass(mlir::LLVM::createLegalizeForExportPass());
+
+    // If requested, print the statistics.
+    if (ci.getFrontendOptions().printStatistics) {
+      pm.enableTiming();
+      pm.enableStatistics();
     }
   }
 
-  void EmitAssemblyAction::execute()
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRAutomaticDifferentiationPass()
   {
-    CompilerInstance& ci = instance();
-    auto os = ci.createDefaultOutputFile(false, ci.getFrontendOptions().outputFile, "s");
-    compileAndEmitFile(llvm::CGFT_AssemblyFile, *os);
+    return mlir::modelica::createAutomaticDifferentiationPass();
   }
 
-  void EmitObjectAction::execute()
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRArithToLLVMConversionPass()
   {
-    CompilerInstance& ci = instance();
-    auto os = ci.createDefaultOutputFile(true, ci.getFrontendOptions().outputFile, "o");
-    compileAndEmitFile(llvm::CGFT_ObjectFile, *os);
+    mlir::ArithToLLVMConversionPassOptions options;
+    return mlir::createArithToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRCyclesSolvingPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::CyclesSolvingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+    options.allowUnsolvedCycles = ci.getSimulationOptions().solver == "ida";
+
+    return mlir::modelica::createCyclesSolvingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIREulerForwardPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::EulerForwardPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+    options.model = ci.getSimulationOptions().modelName;
+    options.emitSimulationMainFunction = ci.getCodeGenOptions().generateMain;
+    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+
+    return mlir::modelica::createEulerForwardPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRExplicitCastInsertionPass()
+  {
+    return mlir::modelica::createExplicitCastInsertionPass();
+  }
+
+  std::unique_ptr<mlir::Pass> CodeGenAction::createMLIRFuncToLLVMConversionPass(
+      bool useBarePtrCallConv)
+  {
+    mlir::LowerToLLVMOptions options(mlirContext.get());
+    options.dataLayout = getDataLayout();
+    options.useBarePtrCallConv = useBarePtrCallConv;
+
+    return mlir::createConvertFuncToLLVMPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRFunctionScalarizationPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::FunctionScalarizationPassOptions options;
+    options.assertions = ci.getCodeGenOptions().assertions;
+
+    return mlir::modelica::createFunctionScalarizationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRIDAPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::IDAPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+    options.model = ci.getSimulationOptions().modelName;
+    options.emitSimulationMainFunction = ci.getCodeGenOptions().generateMain;
+    options.variablesFilter = ci.getFrontendOptions().variablesFilter;
+    options.reducedSystem = ci.getSimulationOptions().IDAReducedSystem;
+    options.reducedDerivatives = ci.getSimulationOptions().IDAReducedDerivatives;
+    options.jacobianOneSweep = ci.getSimulationOptions().IDAJacobianOneSweep;
+
+    return mlir::modelica::createIDAPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRIDAToFuncConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::IDAToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+
+    return mlir::createIDAToFuncConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRIDAToLLVMConversionPass()
+  {
+    mlir::IDAToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createIDAToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRKINSOLToLLVMConversionPass()
+  {
+    mlir::KINSOLToLLVMConversionPassOptions options;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createKINSOLToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRMatchingPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::MatchingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createMatchingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRMemRefToLLVMConversionPass()
+  {
+    mlir::MemRefToLLVMConversionPassOptions options;
+    options.useGenericFunctions = true;
+
+    return mlir::createMemRefToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToArithConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToArithConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+    options.assertions = ci.getCodeGenOptions().assertions;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createModelicaToArithConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToCFConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToCFConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+    options.outputArraysPromotion = ci.getCodeGenOptions().outputArraysPromotion;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createModelicaToCFConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToFuncConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+    options.assertions = ci.getCodeGenOptions().assertions;
+
+    return mlir::createModelicaToFuncConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToLLVMConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToLLVMConversionPassOptions options;
+    options.assertions = ci.getCodeGenOptions().assertions;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createModelicaToLLVMConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToMemRefConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToMemRefConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+    options.assertions = ci.getCodeGenOptions().assertions;
+    options.dataLayout = getDataLayout().getStringRepresentation();
+
+    return mlir::createModelicaToMemRefConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelicaToVectorConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::ModelicaToVectorConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+
+    return mlir::createModelicaToVectorConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRModelLegalizationPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::ModelLegalizationPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createModelLegalizationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRReadOnlyVariablesPropagationPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::ReadOnlyVariablesPropagationPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createReadOnlyVariablesPropagationPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRVariablesPromotionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::VariablesPromotionPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createVariablesPromotionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRSchedulingPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::modelica::SchedulingPassOptions options;
+    options.modelName = ci.getSimulationOptions().modelName;
+
+    return mlir::modelica::createSchedulingPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRSimulationToFuncConversionPass()
+  {
+    CompilerInstance& ci = getInstance();
+
+    mlir::SimulationToFuncConversionPassOptions options;
+    options.bitWidth = ci.getCodeGenOptions().bitWidth;
+
+    return mlir::createSimulationToFuncConversionPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRVectorToLLVMConversionPass()
+  {
+    mlir::LowerVectorToLLVMOptions options;
+    return mlir::createConvertVectorToLLVMPass(options);
+  }
+
+  std::unique_ptr<mlir::Pass>
+  CodeGenAction::createMLIRVectorToSCFConversionPass()
+  {
+    mlir::VectorTransferToSCFOptions options;
+    return mlir::createConvertVectorToSCFPass(options);
+  }
+
+  void CodeGenAction::registerMLIRToLLVMIRTranslations()
+  {
+    assert(mlirContext && "MLIR context has not been created yet");
+    mlir::registerLLVMDialectTranslation(*mlirContext);
+    mlir::registerOpenMPDialectTranslation(*mlirContext);
+  }
+
+  bool CodeGenAction::generateLLVMIR()
+  {
+    CompilerInstance& ci = getInstance();
+
+    // Create the LLVM context.
+    llvmContext = std::make_unique<llvm::LLVMContext>();
+
+    if (getCurrentInput().getKind().getLanguage() == Language::LLVM_IR) {
+      // If the input is an LLVM file, parse it return.
+      llvm::SMDiagnostic err;
+
+      llvmModule = llvm::parseIRFile(
+          getCurrentInput().getFile(), err, *llvmContext);
+
+      if (!llvmModule || llvm::verifyModule(*llvmModule, &llvm::errs())) {
+        err.print("marco", llvm::errs());
+
+        ci.getDiagnostics().emitError<GenericStringMessage>(
+            "Could not parse LLVM-IR");
+
+        return false;
+      }
+    } else {
+      // If the input is not an LLVM file, then the LLVM module will be
+      // obtained starting from the MLIR module.
+
+      if (!generateMLIR()) {
+        return false;
+      }
+
+      // Register the MLIR translations to obtain LLVM-IR.
+      registerMLIRToLLVMIRTranslations();
+
+      // Set up the MLIR pass manager.
+      mlir::PassManager pm(mlirContext.get());
+      pm.enableVerifier(true);
+
+      // Create the pass pipeline.
+      createModelicaToLLVMPassPipeline(pm);
+      mlir::applyPassManagerCLOptions(pm);
+
+      // Run the pass manager.
+      if (!mlir::succeeded(pm.run(*mlirModule))) {
+        ci.getDiagnostics().emitError<GenericStringMessage>(
+            "Lower to LLVM dialect failed");
+
+        return false;
+      }
+
+      // Translate to LLVM-IR.
+      llvm::Optional<llvm::StringRef> moduleName = mlirModule->getName();
+
+      if (!moduleName) {
+        // Fallback to the name of the compiled model.
+        if (llvm::StringRef modelName = ci.getSimulationOptions().modelName;
+            !modelName.empty()) {
+          moduleName = modelName;
+        }
+      }
+
+      llvmModule = mlir::translateModuleToLLVMIR(
+          *mlirModule, *llvmContext,
+          moduleName ? *moduleName : "ModelicaModule");
+
+      if (!llvmModule) {
+        ci.getDiagnostics().emitError<GenericStringMessage>(
+            "Failed to create the LLVM module");
+
+        return false;
+      }
+    }
+
+    // Set target triple and data layout inside the LLVM module.
+    setLLVMModuleTargetTriple();
+    setLLVMModuleDataLayout();
+
+    // Apply the optimizations to the LLVM module.
+    runOptimizationPipeline();
+
+    return true;
+  }
+
+  void CodeGenAction::setLLVMModuleTargetTriple()
+  {
+    assert(llvmModule && "LLVM module has not been created yet");
+
+    if (!targetMachine) {
+      setUpTargetMachine();
+    }
+
+    const std::string& triple = targetMachine->getTargetTriple().str();
+
+    if (llvmModule->getTargetTriple() != triple) {
+      // The LLVM module already has a target triple which is different from
+      // the one specified through the command-line.
+      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
+          "The target triple is being overridden");
+    }
+
+    llvmModule->setTargetTriple(triple);
+  }
+
+  void CodeGenAction::setLLVMModuleDataLayout()
+  {
+    assert(llvmModule && "LLVM module has not been created yet");
+
+    if (!targetMachine) {
+      setUpTargetMachine();
+    }
+
+    const llvm::DataLayout& dataLayout = targetMachine->createDataLayout();
+
+    if (llvmModule->getDataLayout() != dataLayout) {
+      // The LLVM module already has a data layout which is different from the
+      // one given by the target machine.
+      getInstance().getDiagnostics().emitWarning<GenericStringMessage>(
+          "The data layout is being overridden");
+    }
+
+    llvmModule->setDataLayout(dataLayout);
+  }
+
+  void CodeGenAction::runOptimizationPipeline()
+  {
+    CompilerInstance& ci = getInstance();
+    const CodegenOptions& codegenOptions = ci.getCodeGenOptions();
+
+    // Create the analysis managers.
+    llvm::LoopAnalysisManager lam;
+    llvm::FunctionAnalysisManager fam;
+    llvm::CGSCCAnalysisManager cgam;
+    llvm::ModuleAnalysisManager mam;
+
+    // Create the pass manager builder.
+    llvm::PassInstrumentationCallbacks pic;
+    llvm::PipelineTuningOptions pto;
+    llvm::Optional<llvm::PGOOptions> pgoOpt;
+
+    llvm::StandardInstrumentations si(false);
+    si.registerCallbacks(pic, &fam);
+
+    llvm::PassBuilder pb(targetMachine.get(), pto, pgoOpt, &pic);
+
+    // Register all the basic analyses with the managers.
+    pb.registerModuleAnalyses(mam);
+    pb.registerCGSCCAnalyses(cgam);
+    pb.registerFunctionAnalyses(fam);
+    pb.registerLoopAnalyses(lam);
+    pb.crossRegisterProxies(lam, fam, cgam, mam);
+
+    // Create the pass manager.
+    llvm::ModulePassManager mpm;
+
+    if (codegenOptions.optLevel == llvm::OptimizationLevel::O0) {
+      mpm = pb.buildO0DefaultPipeline(codegenOptions.optLevel, false);
+    } else {
+      mpm = pb.buildPerModuleDefaultPipeline(codegenOptions.optLevel);
+    }
+
+    // Run the passes.
+    mpm.run(*llvmModule, mam);
+  }
+
+  EmitMLIRAction::EmitMLIRAction()
+      : CodeGenAction(CodeGenActionKind::GenerateMLIR)
+  {
+  }
+
+  void EmitMLIRAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    // Get the default output stream, if none was specified.
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+          false, getCurrentFileOrBufferName(), "mlir"))) {
+        return;
+      }
+    }
+
+    // Emit MLIR.
+    mlirModule->print(ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+  }
+
+  EmitLLVMIRAction::EmitLLVMIRAction()
+      : CodeGenAction(CodeGenActionKind::GenerateLLVMIR)
+  {
+  }
+
+  void EmitLLVMIRAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+
+    // Get the default output stream, if none was specified.
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+          false, getCurrentFileOrBufferName(), "ll"))) {
+        return;
+      }
+    }
+
+    // Emit LLVM-IR.
+    llvmModule->print(
+        ci.isOutputStreamNull() ? *os : ci.getOutputStream(), nullptr);
+  }
+
+  EmitBitcodeAction::EmitBitcodeAction()
+      : CodeGenAction(CodeGenActionKind::GenerateLLVMIR)
+  {
+  }
+
+  void EmitBitcodeAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+
+    // Get the default output stream, if none was specified.
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+          true, getCurrentFileOrBufferName(), "bc"))) {
+        return;
+      }
+    }
+
+    // Emit the bitcode.
+    llvm::PassBuilder pb(targetMachine.get());
+
+    llvm::ModuleAnalysisManager mam;
+    pb.registerModuleAnalyses(mam);
+
+    llvm::ModulePassManager mpm;
+
+    mpm.addPass(llvm::BitcodeWriterPass(
+        ci.isOutputStreamNull() ? *os : ci.getOutputStream()));
+
+    mpm.run(*llvmModule, mam);
+  }
+
+  EmitAssemblyAction::EmitAssemblyAction()
+      : CodeGenAction(CodeGenActionKind::GenerateLLVMIR)
+  {
+  }
+
+  void EmitAssemblyAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+
+    // Get the default output stream, if none was specified.
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+          false, getCurrentFileOrBufferName(), "s"))) {
+        return;
+      }
+    }
+
+    // Emit the assembly code.
+    generateMachineCodeOrAssemblyImpl(
+        ci.getDiagnostics(), *targetMachine,
+        llvm::CodeGenFileType::CGFT_AssemblyFile, *llvmModule,
+        ci.isOutputStreamNull() ? *os : ci.getOutputStream());
+  }
+
+  EmitObjAction::EmitObjAction()
+      : CodeGenAction(CodeGenActionKind::GenerateLLVMIR)
+  {
+  }
+
+  void EmitObjAction::executeAction()
+  {
+    CompilerInstance& ci = getInstance();
+
+    // Get the default output stream, if none was specified.
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
+
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+                true, getCurrentFileOrBufferName(), "o"))) {
+        return;
+      }
+    }
+
+    // Emit the object file.
+    generateMachineCodeOrAssemblyImpl(
+        ci.getDiagnostics(), *targetMachine,
+        llvm::CodeGenFileType::CGFT_ObjectFile, *llvmModule,
+        ci.isOutputStreamNull() ? *os : ci.getOutputStream());
   }
 }

@@ -12,6 +12,7 @@ set(SOURCES
     Lowering/Results.cpp
     Lowering/StandardFunctionLowerer.cpp
     Lowering/StatementLowerer.cpp
+    Lowering/Verifier.cpp
     Bridge.cpp
     Reference.cpp
     Runtime.cpp

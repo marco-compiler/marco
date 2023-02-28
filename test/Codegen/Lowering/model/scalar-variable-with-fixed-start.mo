@@ -1,4 +1,5 @@
-// RUN: marco %s --omc-bypass --emit-modelica-dialect | FileCheck %s
+// RUN: marco %s --omc-bypass --emit-mlir -o %t
+// RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @Test
 // CHECK: ^bb0(%[[n:.*]]: !modelica.array<!modelica.real>):

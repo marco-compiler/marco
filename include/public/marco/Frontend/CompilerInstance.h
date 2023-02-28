@@ -2,16 +2,16 @@
 #define MARCO_FRONTEND_COMPILERINSTANCE_H
 
 #include "marco/AST/AST.h"
+#include "marco/Diagnostic/Diagnostic.h"
 #include "marco/Frontend/CompilerInvocation.h"
 #include "marco/Frontend/FrontendAction.h"
 #include "marco/Frontend/SimulationOptions.h"
-#include "marco/Diagnostic/Diagnostic.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "mlir/IR/BuiltinOps.h"
 #include <list>
 
 namespace marco::frontend
@@ -24,11 +24,11 @@ namespace marco::frontend
       struct OutputFile
       {
         std::string fileName;
+        llvm::Optional<llvm::sys::fs::TempFile> file;
 
-        OutputFile(std::string fileName)
-            : fileName(std::move(fileName))
-        {
-        }
+        OutputFile(
+            llvm::StringRef fileName,
+            llvm::Optional<llvm::sys::fs::TempFile> file);
       };
 
       CompilerInstance();
@@ -39,129 +39,143 @@ namespace marco::frontend
 
       void operator=(const CompilerInstance&) = delete;
 
+      /// @name Compiler invocation
+      /// {
+
+      /// Check whether an invocation has been set for this compiler instance.
+      bool hasInvocation() const;
+
       /// Get the current compiler invocation.
       CompilerInvocation& getInvocation();
+
+      /// Get the current compiler invocation.
+      const CompilerInvocation& getInvocation() const;
+
+      /// Replace the current invocation.
+      void setInvocation(std::shared_ptr<CompilerInvocation> value);
+
+      /// }
+      /// @name Diagnostics
+      /// {
+
+      /// CHeck whether the diagnostic engine has been set.
+      bool hasDiagnostics() const;
 
       /// Get the current diagnostics engine.
       diagnostic::DiagnosticEngine& getDiagnostics() const;
 
-      /// Get the frontend options.
-      FrontendOptions& getFrontendOptions();
+      /// }
+      /// @name Forwarding methods
+      /// {
 
-      /// Get the frontend options.
+      FrontendOptions& getFrontendOptions();
       const FrontendOptions& getFrontendOptions() const;
 
-      /// Get the code generation options.
-      CodegenOptions& getCodegenOptions();
+      CodegenOptions& getCodeGenOptions();
+      const CodegenOptions& getCodeGenOptions() const;
 
-      /// Get the code generation options.
-      const CodegenOptions& getCodegenOptions() const;
-
-      /// Get the simulation options.
       SimulationOptions& getSimulationOptions();
-
-      /// Get the simulation options.
       const SimulationOptions& getSimulationOptions() const;
 
-      /// Get the diagnostic options.
       diagnostic::DiagnosticOptions& getDiagnosticOptions();
-
-      /// Get the diagnostic options.
       const diagnostic::DiagnosticOptions& getDiagnosticOptions() const;
 
-      /// Execute a frontend action.
+      /// }
+
+      /// Execute the provided action against the compiler's CompilerInvocation
+      /// object.
       ///
       /// @param action the action to be executed
       /// @return whether the execution has been successful or not
       bool executeAction(FrontendAction& action);
 
+      /// @name Output Files
+      /// {
+
       /// Clear the output file list.
-      ///
-      /// @param eraseFiles   whether the registered output files should be erased or not
+      /// The underlying output streams must have been closed beforehand.
       void clearOutputFiles(bool eraseFiles);
 
-      /// Get the MLIR context.
-      mlir::MLIRContext& getMLIRContext();
-
-      /// Get the MLIR context.
-      const mlir::MLIRContext& getMLIRContext() const;
-
-      /// Get the LLVM context.
-      llvm::LLVMContext& getLLVMContext();
-
-      /// Get the LLVM context.
-      const llvm::LLVMContext& getLLVMContext() const;
-
-      std::string& getFlattened();
-
-      const std::string& getFlattened() const;
-
-      void setFlattened(std::string value);
-
-      std::unique_ptr<ast::Class>& getAST();
-
-      const std::unique_ptr<ast::Class>& getAST() const;
-
-      void setAST(std::unique_ptr<ast::Class> value);
-
-      mlir::ModuleOp& getMLIRModule();
-
-      const mlir::ModuleOp& getMLIRModule() const;
-
-      void setMLIRModule(std::unique_ptr<mlir::ModuleOp> module);
-
-      llvm::Module& getLLVMModule();
-
-      const llvm::Module& getLLVMModule() const;
-
-      void setLLVMModule(std::unique_ptr<llvm::Module> module);
-
       /// Create the default output file (based on the invocation's options) and
-      /// add it to the list of tracked output files. If the name of the output
-      /// file is not provided, it will be derived from the input file.
-      ///
-      /// @param binary     the mode to open the file in.
-      /// @param baseInput  if the invocation contains no output file name (i.e.
-      ///                   outputFile in FrontendOptions is empty), the input path
-      ///                   name to use for deriving the output path.
-      /// @param extension  the extension to use for output names derived from
-      ///                   the baseInput parameter.
-      /// @return null on error, ostream for the output file otherwise
+      /// add it to the list of tracked output files.
       std::unique_ptr<llvm::raw_pwrite_stream> createDefaultOutputFile(
-          bool binary = true, llvm::StringRef baseInput = "", llvm::StringRef extension = "");
+          bool binary = true,
+          llvm::StringRef inFile = "",
+          llvm::StringRef extension = "",
+          bool createMissingDirectories = false,
+          bool forceUseTemporary = false);
 
-      /// Get the LLVM target mapped by the target triple that is set in the
-      /// codegen options.
-      const llvm::Target* getLLVMTarget();
-
-      llvm::TargetMachine* getTargetMachine();
+      /// Create a new output file, optionally deriving the output path name,
+      /// and add it to the list of tracked output files.
+      std::unique_ptr<llvm::raw_pwrite_stream> createOutputFile(
+          llvm::StringRef outputPath,
+          bool binary,
+          bool useTemporary,
+          bool createMissingDirectories = false);
 
     private:
-      /// Create a new output file
+      /// Create a new output file.
       ///
-      /// @param outputPath   the path to the output file.
-      /// @param binary       the mode to open the file in.
-      /// @return null on error, ostream for the output file otherwise
-      llvm::Expected<std::unique_ptr<llvm::raw_pwrite_stream>> createOutputFileImpl(
-          llvm::StringRef outputPath, bool binary);
+      /// @param outputPath the path to the output file.
+      /// @param binary the mode to open the file in.
+      /// @param useTemporary create a new temporary file that must be renamed
+      /// to outputPath in the end.
+      /// @param createMissingDirectories whether to create the missing
+      /// directories in the output path.
+      llvm::Expected<std::unique_ptr<llvm::raw_pwrite_stream>>
+      createOutputFileImpl(
+        llvm::StringRef outputPath,
+        bool binary,
+        bool useTemporary,
+        bool createMissingDirectories);
+
+      /// }
+      /// @name Output stream methods
+      /// {
+
+    public:
+      void setOutputStream(std::unique_ptr<llvm::raw_pwrite_stream> outStream)
+      {
+        outputStream = std::move(outStream);
+      }
+
+      bool isOutputStreamNull()
+      {
+        return (outputStream == nullptr);
+      }
+
+      // Allow the frontend compiler to write in the output stream.
+      void writeOutputStream(const std::string &message)
+      {
+        *outputStream << message;
+      }
+
+      /// Get the user specified output stream.
+      llvm::raw_pwrite_stream& getOutputStream()
+      {
+        assert(outputStream &&
+               "Compiler instance has no user-specified output stream");
+        return *outputStream;
+      }
+
+      /// }
 
     private:
-      /// The options used in this compiler instance
-      std::shared_ptr<CompilerInvocation> invocation_;
+      /// The options used in this compiler instance.
+      std::shared_ptr<CompilerInvocation> invocation;
 
-      /// The diagnostics engine instance
-      std::unique_ptr<diagnostic::DiagnosticEngine> diagnostics_;
+      /// The diagnostics engine instance.
+      std::unique_ptr<diagnostic::DiagnosticEngine> diagnostics;
 
-      /// The list of active output files
-      std::list<OutputFile> outputFiles_;
+      /// The list of active output files.
+      std::list<OutputFile> outputFiles;
 
-      std::unique_ptr<mlir::MLIRContext> mlirContext_;
-      std::unique_ptr<llvm::LLVMContext> llvmContext_;
-
-      std::string flattened_;
-      std::unique_ptr<ast::Class> ast_;
-      std::unique_ptr<mlir::ModuleOp> mlirModule_;
-      std::unique_ptr<llvm::Module> llvmModule_;
+      /// Holds the output stream provided by the user. Normally, users of
+      /// CompilerInstance will call createOutputFile to obtain/create an output
+      /// stream. If they want to provide their own output stream, this field
+      /// will facilitate this. It is optional and will normally be just a
+      /// nullptr.
+      std::unique_ptr<llvm::raw_pwrite_stream> outputStream;
   };
 
   /// Construct the FrontendAction of a compiler invocation based on the

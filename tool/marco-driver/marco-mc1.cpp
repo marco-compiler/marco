@@ -6,16 +6,16 @@ using namespace marco::frontend;
 
 extern int mc1_main(llvm::ArrayRef<const char*> argv)
 {
-  // Create the compiler instance
+  // Create the compiler instance.
   auto instance = std::make_unique<CompilerInstance>();
 
-  // Initialize targets first, so that --version shows the registered targets
+  // Initialize targets first, so that --version shows the registered targets.
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
 
-  // Parse the arguments
+  // Parse the arguments.
   bool success = CompilerInvocation::createFromArgs(
       instance->getInvocation(), argv, instance->getDiagnostics());
 
@@ -23,10 +23,10 @@ extern int mc1_main(llvm::ArrayRef<const char*> argv)
     return 1;
   }
 
-  // Execute the frontend actions
+  // Execute the frontend actions.
   success = executeCompilerInvocation(instance.get());
 
-  // Delete output files to free Compiler Instance
+  // Delete output files to free Compiler Instance.
   instance->clearOutputFiles(false);
 
   return !success;

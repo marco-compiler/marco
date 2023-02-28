@@ -19,22 +19,22 @@ namespace marco::frontend
         llvm::ArrayRef<const char*> commandLineArgs,
         diagnostic::DiagnosticEngine& diagnostics);
 
-      FrontendOptions& frontendOptions();
+      FrontendOptions& getFrontendOptions();
 
-      const FrontendOptions& frontendOptions() const;
+      const FrontendOptions& getFrontendOptions() const;
 
-      CodegenOptions& codegenOptions();
+      CodegenOptions& getCodeGenOptions();
 
-      const CodegenOptions& codegenOptions() const;
+      const CodegenOptions& getCodeGenOptions() const;
 
-      SimulationOptions& simulationOptions();
+      SimulationOptions& getSimulationOptions();
 
-      const SimulationOptions& simulationOptions() const;
+      const SimulationOptions& getSimulationOptions() const;
 
     private:
-      FrontendOptions frontendOptions_;
-      CodegenOptions codegenOptions_;
-      SimulationOptions simulationOptions_;
+      FrontendOptions frontendOptions;
+      CodegenOptions codegenOptions;
+      SimulationOptions simulationOptions;
   };
 }
 
