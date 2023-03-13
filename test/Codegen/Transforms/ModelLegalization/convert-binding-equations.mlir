@@ -12,7 +12,7 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int>
+    modelica.variable @x : !modelica.variable<!modelica.int>
 
     modelica.binding_equation @x {
       %0 = modelica.constant #modelica.int<0> : !modelica.int
@@ -39,7 +39,7 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 
     modelica.binding_equation @x {
       %0 = modelica.constant #modelica.int<0> : !modelica.int
@@ -61,7 +61,7 @@ modelica.model @Test {
 // CHECK-NEXT:  } {each = false, fixed = true}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int, parameter>
+    modelica.variable @x : !modelica.variable<!modelica.int, parameter>
 
     modelica.binding_equation @x {
       %0 = modelica.constant #modelica.int<0> : !modelica.int
@@ -83,7 +83,7 @@ modelica.model @Test {
 // CHECK-NEXT:  } {each = false, fixed = true}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
 
     modelica.binding_equation @x {
       %0 = modelica.constant #modelica.int<0> : !modelica.int

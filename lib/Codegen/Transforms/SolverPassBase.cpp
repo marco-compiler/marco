@@ -313,7 +313,7 @@ namespace mlir::modelica::impl
       auto simulationPrintableIndices = getSimulationMultidimensionalRanges(
           builder.getContext(), printableIndices);
 
-      if (variableOp.getMemberType().isScalar()) {
+      if (variableOp.getVariableType().isScalar()) {
         if (printableIndices.empty()) {
           printable = false;
         }
@@ -324,9 +324,9 @@ namespace mlir::modelica::impl
       // Create the variable.
       variables.push_back(mlir::simulation::VariableAttr::get(
           builder.getContext(),
-          variableOp.getMemberType().toArrayType(),
+          variableOp.getVariableType().toArrayType(),
           variableOp.getSymName(),
-          variableOp.getMemberType().getShape(),
+          variableOp.getVariableType().getShape(),
           printable,
           simulationPrintableIndices));
 
@@ -358,8 +358,8 @@ namespace mlir::modelica::impl
       const VariableFilter& variablesFilter,
       VariableOp variableOp) const
   {
-    MemberType variableType = variableOp.getMemberType();
-    int64_t rank = variableOp.getMemberType().getRank();
+    VariableType variableType = variableOp.getVariableType();
+    int64_t rank = variableOp.getVariableType().getRank();
 
     if (derivativesMap.isDerivative(variableOp.getSymName())) {
       llvm::StringRef derivedVariableName =
@@ -400,7 +400,7 @@ namespace mlir::modelica::impl
     mlir::BlockAndValueMapping membersOpsMapping;
 
     for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
-      auto arrayType = variableOp.getMemberType().toArrayType();
+      auto arrayType = variableOp.getVariableType().toArrayType();
       assert(arrayType.hasStaticShape());
 
       mlir::Value array = builder.create<AllocOp>(
@@ -422,7 +422,7 @@ namespace mlir::modelica::impl
 
       auto variableOp = symbolTable.lookup<VariableOp>(startOp.getVariable());
 
-      if (startOp.getFixed() && !variableOp.getMemberType().isReadOnly()) {
+      if (startOp.getFixed() && !variableOp.getVariableType().isReadOnly()) {
         continue;
       }
 

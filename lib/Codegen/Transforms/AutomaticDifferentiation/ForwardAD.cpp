@@ -16,7 +16,7 @@ static std::string getPartialDerFunctionName(llvm::StringRef baseName)
   return "pder_" + baseName.str();
 }
   
-static std::string getPartialDerMemberName(
+static std::string getPartialDerVariableName(
     llvm::StringRef baseName, unsigned int order)
 {
   return "pder_" + std::to_string(order) + "_" + baseName.str();
@@ -32,10 +32,10 @@ static bool isFullDerivative(
   }
 
   // If the current argument name starts with der, we need to check if the
-  // original function to be derived has a member whose derivative may be the
+  // original function to be derived has a variable whose derivative may be the
   // current one. If this is the case, then we don't need to add the n-th
-  // derivative as it is already done when encountering that member. If it is
-  // not, then it means the original function had a "strange" member named
+  // derivative as it is already done when encountering that variable. If it is
+  // not, then it means the original function had a "strange" variable named
   // "der_something" and the derivative function will contain both
   // "der_something" and "der_der_something"; the original "der_something"
   // could effectively be a derivative, but this is an assumption we can't
@@ -123,7 +123,7 @@ namespace marco::codegen
           builder.clone(*variableOp.getOperation(), mapping));
 
       derFunctionSymbolTable.insert(clonedVariableOp);
-      MemberType variableType = clonedVariableOp.getMemberType();
+      VariableType variableType = clonedVariableOp.getVariableType();
 
       if (variableType.isOutput()) {
         // Convert the output variables to protected ones.
@@ -137,19 +137,19 @@ namespace marco::codegen
     // to guarantee the storage for the names.
 
     llvm::SmallVector<std::string> newInputVariableNames;
-    llvm::SmallVector<MemberType> newInputVariableTypes;
+    llvm::SmallVector<VariableType> newInputVariableTypes;
 
     llvm::SmallVector<std::string> newOutputVariableNames;
-    llvm::SmallVector<MemberType> newOutputVariableTypes;
+    llvm::SmallVector<VariableType> newOutputVariableTypes;
 
     llvm::SmallVector<std::string> newProtectedVariableNames;
-    llvm::SmallVector<MemberType> newProtectedVariableTypes;
+    llvm::SmallVector<VariableType> newProtectedVariableTypes;
 
     llvm::StringMap<llvm::StringRef> inverseDerivativesNamesMap;
 
     for (VariableOp variableOp : functionOp.getVariables()) {
       llvm::StringRef name = variableOp.getSymName();
-      MemberType variableType = variableOp.getMemberType();
+      VariableType variableType = variableOp.getVariableType();
 
       if (variableOp.isInput()) {
         if (variableType.getElementType().isa<RealType>()) {
@@ -172,8 +172,8 @@ namespace marco::codegen
       } else {
         if (variableDerivatives.find(variableOp.getSymNameAttr()) !=
             variableDerivatives.end()) {
-          // Avoid duplicates of original output members, which have become
-          // protected members in the previous derivative functions.
+          // Avoid duplicates of original output variables, which have become
+          // protected variables in the previous derivative functions.
           continue;
         }
 
@@ -190,15 +190,15 @@ namespace marco::codegen
     // Create the derivative variables.
     auto createDerVarsFn =
         [&](llvm::ArrayRef<std::string> derNames,
-            llvm::ArrayRef<MemberType> derTypes) {
+            llvm::ArrayRef<VariableType> derTypes) {
           for (const auto& [name, type] : llvm::zip(derNames, derTypes)) {
-            auto baseMemberName = inverseDerivativesNamesMap[name];
+            auto baseVariableName = inverseDerivativesNamesMap[name];
 
-            auto baseMember =
-                derFunctionSymbolTable.lookup<VariableOp>(baseMemberName);
+            auto baseVariable =
+                derFunctionSymbolTable.lookup<VariableOp>(baseVariableName);
 
             auto clonedOp = mlir::cast<VariableOp>(
-                builder.clone(*baseMember.getOperation(), mapping));
+                builder.clone(*baseVariable.getOperation(), mapping));
 
             clonedOp.setSymName(name);
             clonedOp.setType(type);
@@ -330,7 +330,7 @@ namespace marco::codegen
 
     for (VariableOp variableOp : inputVariables) {
       args.push_back(builder.create<VariableGetOp>(
-          loc, variableOp.getMemberType().unwrap(), variableOp.getSymName()));
+          loc, variableOp.getVariableType().unwrap(), variableOp.getSymName()));
     }
 
     size_t zeroOrderArgsNumber = llvm::count_if(
@@ -366,11 +366,11 @@ namespace marco::codegen
     assert(templateOrder == allIndependentVars.size());
     unsigned int numberOfSeeds = zeroOrderArgsNumber;
 
-    llvm::SmallVector<llvm::StringRef> inputMemberNames;
+    llvm::SmallVector<llvm::StringRef> inputVariableNames;
 
     for (VariableOp variableOp : zeroOrderFunctionOp.getVariables()) {
       if (variableOp.isInput()) {
-        inputMemberNames.push_back(variableOp.getSymName());
+        inputVariableNames.push_back(variableOp.getSymName());
       }
     }
 
@@ -382,19 +382,19 @@ namespace marco::codegen
       auto independentVarName =
           independentVariable.value().cast<mlir::StringAttr>().getValue();
 
-      unsigned int memberIndex = zeroOrderArgsNumber;
+      unsigned int variableIndex = zeroOrderArgsNumber;
 
       for (unsigned int i = 0; i < zeroOrderArgsNumber; ++i) {
-        if (inputMemberNames[i] == independentVarName) {
-          memberIndex = i;
+        if (inputVariableNames[i] == independentVarName) {
+          variableIndex = i;
           break;
         }
       }
 
-      assert(memberIndex < zeroOrderArgsNumber);
+      assert(variableIndex < zeroOrderArgsNumber);
 
       for (unsigned int i = 0; i < numberOfSeeds; ++i) {
-        float seed = i == memberIndex ? 1 : 0;
+        float seed = i == variableIndex ? 1 : 0;
         auto argType = templateFunctionArgTypes[i];
         assert(!(seed == 1 && argType.isa<ArrayType>()));
 
@@ -504,7 +504,7 @@ namespace marco::codegen
       if (clonedVariableOp.isOutput()) {
         // Convert the output variables to protected ones.
         clonedVariableOp.setType(
-            clonedVariableOp.getMemberType()
+            clonedVariableOp.getVariableType()
                 .withIOProperty(IOProperty::none));
       }
 
@@ -519,7 +519,7 @@ namespace marco::codegen
           builder.clone(*variableOp.getOperation()));
 
       std::string derivativeName =
-          getPartialDerMemberName(variableOp.getSymName(), currentOrder + 1)
+          getPartialDerVariableName(variableOp.getSymName(), currentOrder + 1)
           + "_" + std::to_string(variablesCounter++);
 
       clonedVariableOp.setSymName(derivativeName);

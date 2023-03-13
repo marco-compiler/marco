@@ -120,7 +120,7 @@ namespace marco::codegen
 
     for (auto& op : equationOp.bodyBlock()->getOperations()) {
       if (auto getOp = mlir::dyn_cast<VariableGetOp>(op)) {
-        mlir::Value replacement = variablesMap[getOp.getMember()];
+        mlir::Value replacement = variablesMap[getOp.getVariable()];
 
         if (auto arrayType = replacement.getType().cast<ArrayType>(); arrayType.isScalar()) {
           replacement = builder.create<LoadOp>(loc, replacement, llvm::None);

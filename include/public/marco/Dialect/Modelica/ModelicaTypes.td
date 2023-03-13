@@ -136,14 +136,14 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
     let genVerifyDecl = 1;
 }
 
-def MemberType : Modelica_Type<"Member",
+def VariableType : Modelica_Type<"Variable",
     [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
     DeclareTypeInterfaceMethods<ShapedTypeInterface>]>
 {
-    let summary = "Member type";
+    let summary = "Variable type";
 
     let description = [{
-        Member type.
+        Variable type.
     }];
 
     let parameters = (ins
@@ -170,15 +170,15 @@ def MemberType : Modelica_Type<"Member",
 
         static bool isValidElementType(mlir::Type type);
 
-        using ShapedType::Trait<MemberType>::clone;
-        using ShapedType::Trait<MemberType>::getElementTypeBitWidth;
-        using ShapedType::Trait<MemberType>::getRank;
-        using ShapedType::Trait<MemberType>::getNumElements;
-        using ShapedType::Trait<MemberType>::isDynamicDim;
-        using ShapedType::Trait<MemberType>::hasStaticShape;
-        using ShapedType::Trait<MemberType>::getNumDynamicDims;
-        using ShapedType::Trait<MemberType>::getDimSize;
-        using ShapedType::Trait<MemberType>::getDynamicDimIndex;
+        using ShapedType::Trait<VariableType>::clone;
+        using ShapedType::Trait<VariableType>::getElementTypeBitWidth;
+        using ShapedType::Trait<VariableType>::getRank;
+        using ShapedType::Trait<VariableType>::getNumElements;
+        using ShapedType::Trait<VariableType>::isDynamicDim;
+        using ShapedType::Trait<VariableType>::hasStaticShape;
+        using ShapedType::Trait<VariableType>::getNumDynamicDims;
+        using ShapedType::Trait<VariableType>::getDimSize;
+        using ShapedType::Trait<VariableType>::getDynamicDimIndex;
 
         /// This is a builder type that keeps local references to arguments.
         /// Arguments that are passed into the builder must outlive the builder.
@@ -219,7 +219,7 @@ def MemberType : Modelica_Type<"Member",
             return getVisibilityProperty() == IOProperty::output;
         }
 
-        static MemberType wrap(
+        static VariableType wrap(
             mlir::Type type,
             VariabilityProperty variabilityProperty =
                 VariabilityProperty::none,
@@ -228,22 +228,22 @@ def MemberType : Modelica_Type<"Member",
         ArrayType toArrayType() const;
         mlir::Type unwrap() const;
 
-        MemberType withShape(llvm::ArrayRef<int64_t> shape) const;
-        MemberType withType(mlir::Type type) const;
+        VariableType withShape(llvm::ArrayRef<int64_t> shape) const;
+        VariableType withType(mlir::Type type) const;
 
-        MemberType withVariabilityProperty(
+        VariableType withVariabilityProperty(
             VariabilityProperty variabilityProperty) const;
 
-        MemberType withoutVariabilityProperty() const;
-        MemberType asDiscrete() const;
-        MemberType asParameter() const;
-        MemberType asConstant() const;
+        VariableType withoutVariabilityProperty() const;
+        VariableType asDiscrete() const;
+        VariableType asParameter() const;
+        VariableType asConstant() const;
 
-        MemberType withIOProperty(IOProperty ioProperty) const;
+        VariableType withIOProperty(IOProperty ioProperty) const;
 
-        MemberType withoutIOProperty() const;
-        MemberType asInput() const;
-        MemberType asOutput() const;
+        VariableType withoutIOProperty() const;
+        VariableType asInput() const;
+        VariableType asOutput() const;
     }];
 
     let genVerifyDecl = 1;

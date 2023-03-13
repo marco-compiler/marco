@@ -9,7 +9,7 @@
 // CHECK-SAME: variables = [#[[x]]]
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.real>
+    modelica.variable @x : !modelica.variable<!modelica.real>
 }
 
 // -----
@@ -23,5 +23,5 @@ modelica.model @Test {
 // CHECK-SAME: variables = [#[[x]]]
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x2x!modelica.real>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.real>
 }

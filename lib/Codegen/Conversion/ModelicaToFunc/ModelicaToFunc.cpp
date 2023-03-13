@@ -276,8 +276,8 @@ namespace
         RawVariableOp op, mlir::PatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      auto memberType = op.getMemberType();
-      mlir::Type unwrappedType = memberType.unwrap();
+      auto variableType = op.getVariableType();
+      mlir::Type unwrappedType = variableType.unwrap();
 
       if (unwrappedType.isa<ArrayType>()) {
         return rewriter.notifyMatchFailure(op, "Not a scalar variable");
@@ -328,8 +328,8 @@ namespace
 
       mlir::Value value = op.getValue();
 
-      auto memberType = op.getMemberType();
-      mlir::Type unwrappedType = memberType.unwrap();
+      auto variableType = op.getVariableType();
+      mlir::Type unwrappedType = variableType.unwrap();
 
       if (value.getType() != unwrappedType) {
         value = rewriter.create<CastOp>(op.getLoc(), unwrappedType, value);
@@ -349,8 +349,8 @@ namespace
         RawVariableOp op, mlir::PatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      auto memberType = op.getMemberType();
-      mlir::Type unwrappedType = memberType.unwrap();
+      auto variableType = op.getVariableType();
+      mlir::Type unwrappedType = variableType.unwrap();
 
       if (!unwrappedType.isa<ArrayType>()) {
         return rewriter.notifyMatchFailure(op, "Not an array variable");
@@ -419,8 +419,8 @@ namespace
         mlir::ConversionPatternRewriter& rewriter) const override
     {
       mlir::Location loc = op.getLoc();
-      auto memberType = op.getMemberType();
-      mlir::Type unwrappedType = memberType.unwrap();
+      auto variableType = op.getVariableType();
+      mlir::Type unwrappedType = variableType.unwrap();
 
       if (!unwrappedType.isa<ArrayType>()) {
         return rewriter.notifyMatchFailure(op, "Not an array variable");
@@ -440,7 +440,7 @@ namespace
       // Create the pointer to the array.
       auto memrefOfArrayType = mlir::MemRefType::get(
           llvm::None,
-          getTypeConverter()->convertType(memberType.toArrayType()));
+          getTypeConverter()->convertType(variableType.toArrayType()));
 
       mlir::Value memrefOfArray =
           rewriter.create<mlir::memref::AllocaOp>(loc, memrefOfArrayType);
@@ -514,7 +514,7 @@ namespace
 
       array = getTypeConverter()->materializeSourceConversion(
           rewriter, op.getLoc(),
-          op.getMemberType().toArrayType(), array);
+          op.getVariableType().toArrayType(), array);
 
       rewriter.replaceOp(op, array);
       return mlir::success();
@@ -528,8 +528,8 @@ namespace
       mlir::OpBuilder::InsertionGuard guard(rewriter);
       rewriter.setInsertionPoint(op);
 
-      auto memberType = op.getMemberType();
-      mlir::Type unwrappedType = memberType.unwrap();
+      auto variableType = op.getVariableType();
+      mlir::Type unwrappedType = variableType.unwrap();
       auto arrayType = unwrappedType.cast<ArrayType>();
 
       // The destination array has dynamic and unknown sizes. Thus, the array
@@ -574,7 +574,7 @@ namespace
 
       previousArray = typeConverter->materializeSourceConversion(
           rewriter, op.getLoc(),
-          memberType.toArrayType(), previousArray);
+          variableType.toArrayType(), previousArray);
 
       rewriter.create<FreeOp>(op.getLoc(), previousArray);
 

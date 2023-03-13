@@ -3,8 +3,8 @@
 
 // only reals member must be present
 // CHECK-LABEL: @A
-// CHECK: !modelica.member<{{([0-9]+x)?}}!modelica.real>
-// CHECK-NOT: !modelica.member<{{([0-9]+x)?}}!modelica.{{[^r]}}
+// CHECK: !modelica.variable<{{([0-9]+x)?}}!modelica.real>
+// CHECK-NOT: !modelica.variable<{{([0-9]+x)?}}!modelica.{{[^r]}}
 
 // the equations must be decomposed to use the real members
 // CHECK-LABEL modelica.equation

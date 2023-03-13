@@ -2,8 +2,8 @@
 // RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @variableCopy
-// CHECK-DAG: modelica.variable @x : !modelica.member<!modelica.int, input>
-// CHECK-DAG: modelica.variable @y : !modelica.member<!modelica.int, output>
+// CHECK-DAG: modelica.variable @x : !modelica.variable<!modelica.int, input>
+// CHECK-DAG: modelica.variable @y : !modelica.variable<!modelica.int, output>
 // CHECK:       modelica.algorithm {
 // CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.int
 // CHECK-NEXT:      modelica.variable_set @y, %[[x]]
@@ -18,8 +18,8 @@ end variableCopy;
 
 
 // CHECK-LABEL: @arrayCopy
-// CHECK-DAG: modelica.variable @x : !modelica.member<?x!modelica.int, input>
-// CHECK-DAG: modelica.variable @y : !modelica.member<?x!modelica.int, output>
+// CHECK-DAG: modelica.variable @x : !modelica.variable<?x!modelica.int, input>
+// CHECK-DAG: modelica.variable @y : !modelica.variable<?x!modelica.int, output>
 // CHECK:       modelica.algorithm {
 // CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.array<?x!modelica.int>
 // CHECK-NEXT:      modelica.variable_set @y, %[[x]]
@@ -34,7 +34,7 @@ end arrayCopy;
 
 
 // CHECK-LABEL: @constantOutput
-// CHECK: modelica.variable @x : !modelica.member<!modelica.int, output>
+// CHECK: modelica.variable @x : !modelica.variable<!modelica.int, output>
 // CHECK:       modelica.algorithm {
 // CHECK-NEXT:      %[[const:.*]] = modelica.constant #modelica.int<10>
 // CHECK-NEXT:      modelica.variable_set @x, %[[const]]
@@ -48,8 +48,8 @@ end constantOutput;
 
 
 // CHECK-LABEL: @castIntegerToReal
-// CHECK-DAG: modelica.variable @x : !modelica.member<!modelica.int, input>
-// CHECK-DAG: modelica.variable @y : !modelica.member<!modelica.real, output>
+// CHECK-DAG: modelica.variable @x : !modelica.variable<!modelica.int, input>
+// CHECK-DAG: modelica.variable @y : !modelica.variable<!modelica.real, output>
 // CHECK:       modelica.algorithm {
 // CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.int
 // CHECK-NEXT:      modelica.variable_set @y, %[[x]]

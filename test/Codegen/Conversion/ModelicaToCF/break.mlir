@@ -6,7 +6,7 @@
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.bool, input>
+    modelica.variable @x : !modelica.variable<!modelica.bool, input>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.bool
@@ -38,8 +38,8 @@ modelica.function @foo {
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.bool, input>
-    modelica.variable @y : !modelica.member<!modelica.bool, input>
+    modelica.variable @x : !modelica.variable<!modelica.bool, input>
+    modelica.variable @y : !modelica.variable<!modelica.bool, input>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.bool
@@ -82,9 +82,9 @@ modelica.function @foo {
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.bool, input>
-    modelica.variable @y : !modelica.member<!modelica.bool, input>
-    modelica.variable @z : !modelica.member<!modelica.bool, input>
+    modelica.variable @x : !modelica.variable<!modelica.bool, input>
+    modelica.variable @y : !modelica.variable<!modelica.bool, input>
+    modelica.variable @z : !modelica.variable<!modelica.bool, input>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.bool
@@ -126,9 +126,9 @@ modelica.function @foo {
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.bool, input>
-    modelica.variable @y : !modelica.member<!modelica.int, input>
-    modelica.variable @z : !modelica.member<!modelica.int, input>
+    modelica.variable @x : !modelica.variable<!modelica.bool, input>
+    modelica.variable @y : !modelica.variable<!modelica.int, input>
+    modelica.variable @z : !modelica.variable<!modelica.int, input>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.bool
@@ -172,10 +172,10 @@ modelica.function @foo {
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.bool, input>
-    modelica.variable @y : !modelica.member<!modelica.bool, input>
-    modelica.variable @z : !modelica.member<!modelica.bool, input>
-    modelica.variable @t : !modelica.member<!modelica.int, input>
+    modelica.variable @x : !modelica.variable<!modelica.bool, input>
+    modelica.variable @y : !modelica.variable<!modelica.bool, input>
+    modelica.variable @z : !modelica.variable<!modelica.bool, input>
+    modelica.variable @t : !modelica.variable<!modelica.int, input>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.bool
@@ -233,12 +233,12 @@ modelica.function @foo {
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.bool, input>
-    modelica.variable @y : !modelica.member<!modelica.bool, input>
-    modelica.variable @z : !modelica.member<!modelica.bool, input>
-    modelica.variable @t : !modelica.member<!modelica.int, input>
-    modelica.variable @k : !modelica.member<!modelica.int, input>
-    modelica.variable @l : !modelica.member<!modelica.int, input>
+    modelica.variable @x : !modelica.variable<!modelica.bool, input>
+    modelica.variable @y : !modelica.variable<!modelica.bool, input>
+    modelica.variable @z : !modelica.variable<!modelica.bool, input>
+    modelica.variable @t : !modelica.variable<!modelica.int, input>
+    modelica.variable @k : !modelica.variable<!modelica.int, input>
+    modelica.variable @l : !modelica.variable<!modelica.int, input>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.bool

@@ -86,16 +86,16 @@ class ArrayOf<list<Type> allowedTypes> :
 
 def AnyArray : ArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray]>;
 
-// Whether a type is a MemberType.
-def IsMemberTypePred : CPred<"$_self.isa<::mlir::modelica::MemberType>()">;
+// Whether a type is a VariableType.
+def IsVariableTypePred : CPred<"$_self.isa<::mlir::modelica::VariableType>()">;
 
-class MemberOf<list<Type> allowedTypes> :
+class VariableOf<list<Type> allowedTypes> :
     ContainerType<AnyTypeOf<allowedTypes>,
-                  IsMemberTypePred,
-                  "$_self.cast<::mlir::modelica::MemberType>().getElementType()",
-                  "member", "::mlir::modelica::MemberType">;
+                  IsVariableTypePred,
+                  "$_self.cast<::mlir::modelica::VariableType>().getElementType()",
+                  "variable", "::mlir::modelica::VariableType">;
 
-def AnyMember : MemberOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
+def AnyVariable : VariableOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index]>;
 
 //===---------------------------------------------------------------------===//
 // Modelica operation definitions
@@ -620,7 +620,7 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
 }
 
 //===---------------------------------------------------------------------===//
-// Member operations
+// Variable operations
 //===---------------------------------------------------------------------===//
 
 def Modelica_VariableOp : Modelica_Op<"variable",
@@ -634,13 +634,13 @@ def Modelica_VariableOp : Modelica_Op<"variable",
         It takes the name of the symbol, its type and optional values indicating the
         sizes of the unknown dimensions, in a way similar to `modelica.alloca` and
         `modelica.alloc`.
-        The member value can be then read and written by means of the
+        The variable value can be then read and written by means of the
         `modelica.variable_get` and `modelica.variable_set` operations.
 
         Example:
 
         ```mlir
-        modelica.variable @x : !modelica.member<?x5x?x?x!modelica.int> [fixed, unbounded, fixed] {
+        modelica.variable @x : !modelica.variable<?x5x?x?x!modelica.int> [fixed, unbounded, fixed] {
             %0 = ... : index
             %1 = ... : index
             modelica.yield %0, %1 : index, index
@@ -662,39 +662,39 @@ def Modelica_VariableOp : Modelica_Op<"variable",
     let hasVerifier = 1;
 
     let builders = [
-        OpBuilder<(ins "llvm::StringRef":$name, "MemberType":$variableType)>
+        OpBuilder<(ins "llvm::StringRef":$name, "VariableType":$variableType)>
     ];
 
     let extraClassDeclaration = [{
         static constexpr llvm::StringLiteral kDimensionConstraintUnbounded = "unbounded";
         static constexpr llvm::StringLiteral kDimensionConstraintFixed = "fixed";
 
-        MemberType getMemberType() {
-            return getType().cast<MemberType>();
+        VariableType getVariableType() {
+            return getType().cast<VariableType>();
         }
 
         bool isInput() {
-            return getMemberType().isInput();
+            return getVariableType().isInput();
         }
 
         bool isOutput() {
-            return getMemberType().isOutput();
+            return getVariableType().isOutput();
         }
 
         bool isReadOnly() {
-            return getMemberType().isReadOnly();
+            return getVariableType().isReadOnly();
         }
 
         bool isDiscrete() {
-            return getMemberType().isDiscrete();
+            return getVariableType().isDiscrete();
         }
 
         bool isParameter() {
-            return getMemberType().isParameter();
+            return getVariableType().isParameter();
         }
 
         bool isConstant() {
-            return getMemberType().isConstant();
+            return getVariableType().isConstant();
         }
 
         /// Get the number of unbounded dimensions among the unknown ones.
@@ -712,14 +712,14 @@ def Modelica_VariableGetOp : Modelica_Op<"variable_get",
     let summary = "Load the data held by a class variable.";
 
     let description = [{
-        Load the data held by member of a class.
+        Load the data held by variable of a class.
     }];
 
-    let arguments = (ins SymbolNameAttr:$member);
+    let arguments = (ins SymbolNameAttr:$variable);
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $member attr-dict `:` type($result)
+        $variable attr-dict `:` type($result)
     }];
 }
 
@@ -727,17 +727,17 @@ def Modelica_VariableSetOp : Modelica_Op<"variable_set",
     [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Store data into a class member.";
+    let summary = "Store data into a class variable.";
 
     let description = [{
-        Store data into the member of a class.
+        Store data into the variable of a class.
     }];
 
-    let arguments = (ins SymbolNameAttr:$member, AnyType:$value);
+    let arguments = (ins SymbolNameAttr:$variable, AnyType:$value);
     let results = (outs);
 
     let assemblyFormat = [{
-        $member `,` $value attr-dict `:` type($value)
+        $variable `,` $value attr-dict `:` type($value)
     }];
 }
 
@@ -2997,46 +2997,46 @@ def Modelica_RawVariableOp : Modelica_Op<"raw_variable", []>
         DefaultValuedAttr<StrArrayAttr, "::llvm::None">:$dimensionsConstraints,
         Variadic<Index>:$dynamicSizes);
 
-    let results = (outs AnyMember:$member);
+    let results = (outs AnyVariable:$variable);
 
     let hasCustomAssemblyFormat = 1;
 
     let builders = [
-        OpBuilder<(ins "::llvm::StringRef":$name, "MemberType":$memberType, "::mlir::ArrayAttr":$dimensionsConstraints, "::mlir::ValueRange":$dynamicSizes), [{
+        OpBuilder<(ins "::llvm::StringRef":$name, "VariableType":$variableType, "::mlir::ArrayAttr":$dimensionsConstraints, "::mlir::ValueRange":$dynamicSizes), [{
             auto nameAttr = $_builder.getStringAttr(name);
-            build($_builder, $_state, memberType, nameAttr, dimensionsConstraints, dynamicSizes);
+            build($_builder, $_state, variableType, nameAttr, dimensionsConstraints, dynamicSizes);
     }]>];
 
     let extraClassDeclaration = [{
         static constexpr llvm::StringLiteral kDimensionConstraintUnbounded = "unbounded";
         static constexpr llvm::StringLiteral kDimensionConstraintFixed = "fixed";
 
-        MemberType getMemberType() {
-            return getMember().getType().cast<MemberType>();
+        VariableType getVariableType() {
+            return getVariable().getType().cast<VariableType>();
         }
 
         bool isInput() {
-            return getMemberType().isInput();
+            return getVariableType().isInput();
         }
 
         bool isOutput() {
-            return getMemberType().isOutput();
+            return getVariableType().isOutput();
         }
 
         bool isReadOnly() {
-            return getMemberType().isReadOnly();
+            return getVariableType().isReadOnly();
         }
 
         bool isDiscrete() {
-            return getMemberType().isDiscrete();
+            return getVariableType().isDiscrete();
         }
 
         bool isParameter() {
-            return getMemberType().isParameter();
+            return getVariableType().isParameter();
         }
 
         bool isConstant() {
-            return getMemberType().isConstant();
+            return getVariableType().isConstant();
         }
     }];
 }
@@ -3049,21 +3049,21 @@ def Modelica_RawVariableGetOp : Modelica_Op<"raw_variable_get", []>
         TODO
     }];
 
-    let arguments = (ins AnyMember:$member);
+    let arguments = (ins AnyVariable:$variable);
     let results = (outs AnyType:$result);
 
     let builders = [
-        OpBuilder<(ins "::mlir::Value":$member), [{
-            auto resultType = member.getType().cast<MemberType>().unwrap();
-            build($_builder, $_state, resultType, member);
+        OpBuilder<(ins "::mlir::Value":$variable), [{
+            auto resultType = variable.getType().cast<VariableType>().unwrap();
+            build($_builder, $_state, resultType, variable);
         }]>
     ];
 
     let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
-        MemberType getMemberType() {
-            return getMember().getType().cast<MemberType>();
+        VariableType getVariableType() {
+            return getVariable().getType().cast<VariableType>();
         }
     }];
 }
@@ -3073,17 +3073,17 @@ def Modelica_RawVariableSetOp : Modelica_Op<"raw_variable_set", []>
     let summary = "Store data into a raw variable.";
 
     let description = [{
-        Store data into the member of a class.
+        Store data into the variable of a class.
     }];
 
-    let arguments = (ins AnyMember:$member, AnyType:$value);
+    let arguments = (ins AnyVariable:$variable, AnyType:$value);
     let results = (outs);
 
     let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
-        MemberType getMemberType() {
-            return getMember().getType().cast<MemberType>();
+        VariableType getVariableType() {
+            return getVariable().getType().cast<VariableType>();
         }
     }];
 }

@@ -12,7 +12,7 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.real>
+    modelica.variable @x : !modelica.variable<!modelica.real>
 }
 
 // -----
@@ -29,7 +29,7 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x2x!modelica.real>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.real>
 }
 
 // -----
@@ -49,6 +49,6 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.real>
-    modelica.variable @y : !modelica.member<!modelica.real>
+    modelica.variable @x : !modelica.variable<!modelica.real>
+    modelica.variable @y : !modelica.variable<!modelica.real>
 }

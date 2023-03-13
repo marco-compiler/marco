@@ -2,7 +2,7 @@
 // RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @Test
-// CHECK: modelica.variable @n : !modelica.member<!modelica.int, constant>
+// CHECK: modelica.variable @n : !modelica.variable<!modelica.int, constant>
 
 model Test
     constant Integer n;

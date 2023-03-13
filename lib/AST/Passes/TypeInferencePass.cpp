@@ -2089,12 +2089,12 @@ namespace marco::ast
     // Ensure that the 'start' value is compatible with the member type
     if (member.hasStartExpression()) {
       auto* startExpression = member.getStartExpression();
-      auto memberType = member.getType();
+      auto variableType = member.getType();
       auto startValueType = startExpression->getType();
 
-      if (memberType.isa<BuiltInType>() && startValueType.isa<BuiltInType>()) {
+      if (variableType.isa<BuiltInType>() && startValueType.isa<BuiltInType>()) {
         auto mostGenericType = *getMostGenericBuiltInType(
-            memberType.get<BuiltInType>(),
+            variableType.get<BuiltInType>(),
                 startValueType.get<BuiltInType>());
 
         startExpression->setType(startValueType.to(mostGenericType));

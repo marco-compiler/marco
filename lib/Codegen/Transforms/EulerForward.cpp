@@ -534,7 +534,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
       auto derVarName = derivativesMap.getDerivative(variableName);
       mlir::Value derivative = variables[variablesPos[derVarName]];
 
-      if (variableOp.getMemberType().isScalar()) {
+      if (variableOp.getVariableType().isScalar()) {
         mlir::Value scalarState = builder.create<LoadOp>(
             loc, variable, llvm::None);
 
@@ -552,7 +552,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
         std::vector<mlir::Value> upperBounds;
         std::vector<mlir::Value> steps;
 
-        for (unsigned int i = 0; i < variableOp.getMemberType().getRank(); ++i) {
+        for (unsigned int i = 0; i < variableOp.getVariableType().getRank(); ++i) {
           lowerBounds.push_back(builder.create<ConstantOp>(
               loc, builder.getIndexAttr(0)));
 

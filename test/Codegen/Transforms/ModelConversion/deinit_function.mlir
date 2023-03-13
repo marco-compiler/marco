@@ -7,6 +7,6 @@
 // CHECK:   }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.real>
-    modelica.variable @y : !modelica.member<3x!modelica.real>
+    modelica.variable @x : !modelica.variable<!modelica.real>
+    modelica.variable @y : !modelica.variable<3x!modelica.real>
 }

@@ -2,11 +2,11 @@
 
 // Variable depending on a constant.
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -24,14 +24,14 @@ modelica.model @Test {
 
 // Variable depending on a parameter.
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.variable<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.initial_equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -61,11 +61,11 @@ modelica.model @Test {
 
 // Variable depending on time.
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int>
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -84,17 +84,17 @@ modelica.model @Test {
 // Variable z depending on the non-parameter variable y.
 // Variable y depending on the parameter x.
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.variable @z : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.variable<3x!modelica.int, parameter>
+// CHECK: modelica.variable @z : !modelica.variable<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 2 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
-    modelica.variable @z : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
+    modelica.variable @z : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.initial_equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -136,14 +136,14 @@ modelica.model @Test {
 
 // Promotable SCC.
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.variable<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -174,17 +174,17 @@ modelica.model @Test {
 
 // Promotable SCC depending on a promotable variable.
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.variable @z : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.variable<3x!modelica.int, parameter>
+// CHECK: modelica.variable @z : !modelica.variable<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 2 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
-    modelica.variable @z : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
+    modelica.variable @z : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -233,13 +233,13 @@ modelica.model @Test {
 // Variable depending on a variable that is not written by any other equation
 // (and, thus, potentially a state variable).
 
-// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int>
-// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int>
+// CHECK: modelica.variable @x : !modelica.variable<3x!modelica.int>
+// CHECK: modelica.variable @y : !modelica.variable<3x!modelica.int>
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
@@ -258,12 +258,12 @@ modelica.model @Test {
 
 // Promotable array written by different equations.
 
-// CHECK: modelica.variable @x : !modelica.member<2x!modelica.real, parameter>
+// CHECK: modelica.variable @x : !modelica.variable<2x!modelica.real, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[1, 1]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<2x!modelica.real>
+    modelica.variable @x : !modelica.variable<2x!modelica.real>
 
     modelica.for_equation %i = 0 to 0 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
@@ -293,12 +293,12 @@ modelica.model @Test {
 
 // Array not fully promotable.
 
-// CHECK: modelica.variable @x : !modelica.member<2x!modelica.real>
+// CHECK: modelica.variable @x : !modelica.variable<2x!modelica.real>
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[1, 1]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<2x!modelica.real>
+    modelica.variable @x : !modelica.variable<2x!modelica.real>
 
     modelica.for_equation %i = 0 to 0 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {

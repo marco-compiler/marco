@@ -367,7 +367,7 @@ namespace
     mlir::Region& region = variable.getConstraintsRegion();
 
     for (VariableGetOp user : region.getOps<VariableGetOp>()) {
-      dependencies.insert(user.getMember());
+      dependencies.insert(user.getVariable());
     }
 
     return dependencies;
@@ -383,7 +383,7 @@ namespace
       DefaultOp defaultOp = defaultOpIt->getValue();
 
       defaultOp->walk([&](VariableGetOp getOp) {
-        dependencies.insert(getOp.getMember());
+        dependencies.insert(getOp.getVariable());
       });
     }
 
@@ -422,12 +422,12 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
       llvm::DenseSet<VariableOp> promotedVariables;
 
       for (VariableOp variableOp : inputVariables) {
-        mlir::Type unwrappedType = variableOp.getMemberType().unwrap();
+        mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
         argTypes.push_back(unwrappedType);
       }
 
       for (VariableOp variableOp : outputVariables) {
-        mlir::Type unwrappedType = variableOp.getMemberType().unwrap();
+        mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
         resultTypes.push_back(unwrappedType);
       }
 
@@ -570,7 +570,7 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
         if (variableOp.isInput()) {
           inputVariables.push_back(variableOp);
         } else if (variableOp.isOutput()) {
-          mlir::Type unwrappedType = variableOp.getMemberType().unwrap();
+          mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
 
           if (auto arrayType = unwrappedType.dyn_cast<ArrayType>();
               arrayType && outputArraysPromotion && canBePromoted(arrayType)) {
@@ -630,7 +630,7 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
       return rewriter.create<RawVariableOp>(
           variableOp.getLoc(),
           variableOp.getSymName(),
-          variableOp.getMemberType(),
+          variableOp.getVariableType(),
           variableOp.getDimensionsConstraints(),
           constraints);
     }
@@ -688,12 +688,12 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
     {
       region.walk([&](VariableGetOp op) {
         rewriter.setInsertionPoint(op);
-        auto inputVarIt = inputVars.find(op.getMember());
+        auto inputVarIt = inputVars.find(op.getVariable());
 
         if (inputVarIt != inputVars.end()) {
           rewriter.replaceOp(op, inputVarIt->getValue());
         } else {
-          auto writableVarIt = outputAndProtectedVars.find(op.getMember());
+          auto writableVarIt = outputAndProtectedVars.find(op.getVariable());
           assert(writableVarIt != outputAndProtectedVars.end());
           RawVariableOp rawVariableOp = writableVarIt->getValue();
           rewriter.replaceOpWithNewOp<RawVariableGetOp>(op, rawVariableOp);
@@ -702,7 +702,7 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
 
       region.walk([&](VariableSetOp op) {
         rewriter.setInsertionPoint(op);
-        auto it = outputAndProtectedVars.find(op.getMember());
+        auto it = outputAndProtectedVars.find(op.getVariable());
         assert(it != outputAndProtectedVars.end());
         RawVariableOp rawVariableOp = it->getValue();
 

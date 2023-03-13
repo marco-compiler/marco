@@ -18,9 +18,9 @@
 // CHECK: -1.979985e+00
 
 modelica.function @sin_der {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @der_x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -41,9 +41,9 @@ func.func @test_sin() -> () {
 // CHECK: 2.822400e-01
 
 modelica.function @cos_der {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @der_x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real

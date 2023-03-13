@@ -86,7 +86,7 @@ namespace mlir::modelica
       return ArrayType::get(dimensions, elementType, memorySpace);
     }
 
-    if (typeTag == "member") {
+    if (typeTag == "variable") {
       if (parser.parseLess()) {
         return mlir::Type();
       }
@@ -124,7 +124,7 @@ namespace mlir::modelica
         return mlir::Type();
       }
 
-      return MemberType::get(
+      return VariableType::get(
           dimensions, elementType, variabilityProperty, ioProperty);
     }
 
@@ -161,11 +161,11 @@ namespace mlir::modelica
       return;
     }
 
-    if (auto memberType = type.dyn_cast<MemberType>()) {
-      printer << "member<";
+    if (auto variableType = type.dyn_cast<VariableType>()) {
+      printer << "variable<";
 
-      for (int64_t dimension : memberType.getShape()) {
-        if (dimension == MemberType::kDynamicSize) {
+      for (int64_t dimension : variableType.getShape()) {
+        if (dimension == VariableType::kDynamicSize) {
           printer << "?";
         } else {
           printer << dimension;
@@ -174,19 +174,19 @@ namespace mlir::modelica
         printer << "x";
       }
 
-      printer << memberType.getElementType();
+      printer << variableType.getElementType();
 
-      if (memberType.isDiscrete()) {
+      if (variableType.isDiscrete()) {
         printer << ", discrete";
-      } else if (memberType.isParameter()) {
+      } else if (variableType.isParameter()) {
         printer << ", parameter";
-      } else if (memberType.isConstant()) {
+      } else if (variableType.isConstant()) {
         printer << ", constant";
       }
 
-      if (memberType.isInput()) {
+      if (variableType.isInput()) {
         printer << ", input";
-      } else if (memberType.isOutput()) {
+      } else if (variableType.isOutput()) {
         printer << ", output";
       }
 
@@ -377,10 +377,10 @@ namespace mlir::modelica
   }
 
   //===-------------------------------------------------------------------===//
-  // MemberType
+  // VariableType
   //===-------------------------------------------------------------------===//
 
-  MemberType MemberType::get(
+  VariableType VariableType::get(
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
       VariabilityProperty variabilityProperty,
@@ -399,7 +399,7 @@ namespace mlir::modelica
         memorySpace);
   }
 
-  MemberType MemberType::getChecked(
+  VariableType VariableType::getChecked(
       llvm::function_ref<mlir::InFlightDiagnostic()> emitErrorFn,
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
@@ -420,7 +420,7 @@ namespace mlir::modelica
         memorySpace);
   }
 
-  mlir::LogicalResult MemberType::verify(
+  mlir::LogicalResult VariableType::verify(
       llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
       llvm::ArrayRef<int64_t> shape,
       mlir::Type elementType,
@@ -429,13 +429,13 @@ namespace mlir::modelica
       mlir::Attribute memorySpace)
   {
     if (!isValidElementType(elementType)) {
-      return emitError() << "invalid member element type";
+      return emitError() << "invalid variable element type";
     }
 
     // Negative sizes are not allowed except for `-1` that means dynamic size.
     for (int64_t size : shape) {
-      if (size < 0 && size != MemberType::kDynamicSize) {
-        return emitError() << "invalid member size";
+      if (size < 0 && size != VariableType::kDynamicSize) {
+        return emitError() << "invalid variable size";
       }
     }
 
@@ -446,34 +446,34 @@ namespace mlir::modelica
     return mlir::success();
   }
 
-  bool MemberType::hasRank() const
+  bool VariableType::hasRank() const
   {
     return true;
   }
 
-  mlir::ShapedType MemberType::cloneWith(
+  mlir::ShapedType VariableType::cloneWith(
       llvm::Optional<llvm::ArrayRef<int64_t>> shape,
       mlir::Type elementType) const
   {
-    MemberType::Builder builder(*shape, elementType);
+    VariableType::Builder builder(*shape, elementType);
     builder.setVariabilityProperty(getVariabilityProperty());
     builder.setVisibilityProperty(getVisibilityProperty());
     builder.setMemorySpace(getMemorySpace());
     return builder;
   }
 
-  bool MemberType::isValidElementType(mlir::Type type)
+  bool VariableType::isValidElementType(mlir::Type type)
   {
     return type.isIndex() || type.isa<BooleanType, IntegerType, RealType>();
   }
 
-  MemberType MemberType::wrap(
+  VariableType VariableType::wrap(
       mlir::Type type,
       VariabilityProperty variabilityProperty,
       IOProperty ioProperty)
   {
     if (auto arrayType = type.dyn_cast<ArrayType>()) {
-      return MemberType::get(
+      return VariableType::get(
           arrayType.getShape(),
           arrayType.getElementType(),
           variabilityProperty,
@@ -481,15 +481,15 @@ namespace mlir::modelica
           arrayType.getMemorySpace());
     }
 
-    return MemberType::get(llvm::None, type, variabilityProperty, ioProperty);
+    return VariableType::get(llvm::None, type, variabilityProperty, ioProperty);
   }
 
-  ArrayType MemberType::toArrayType() const
+  ArrayType VariableType::toArrayType() const
   {
     return ArrayType::get(getShape(), getElementType(), getMemorySpace());
   }
 
-  mlir::Type MemberType::unwrap() const
+  mlir::Type VariableType::unwrap() const
   {
     if (!isScalar()) {
       return toArrayType();
@@ -498,74 +498,74 @@ namespace mlir::modelica
     return getElementType();
   }
 
-  MemberType MemberType::withShape(llvm::ArrayRef<int64_t> shape) const
+  VariableType VariableType::withShape(llvm::ArrayRef<int64_t> shape) const
   {
-    return MemberType::get(
+    return VariableType::get(
         shape,
         getElementType(),
         getVariabilityProperty(),
         getVisibilityProperty());
   }
 
-  MemberType MemberType::withType(mlir::Type type) const
+  VariableType VariableType::withType(mlir::Type type) const
   {
-    return MemberType::get(
+    return VariableType::get(
         getShape(),
         type,
         getVariabilityProperty(),
         getVisibilityProperty());
   }
 
-  MemberType MemberType::withVariabilityProperty(
+  VariableType VariableType::withVariabilityProperty(
       VariabilityProperty variabilityProperty) const
   {
-    return MemberType::get(
+    return VariableType::get(
         getShape(),
         getElementType(),
         variabilityProperty,
         getVisibilityProperty());
   }
 
-  MemberType MemberType::withoutVariabilityProperty() const
+  VariableType VariableType::withoutVariabilityProperty() const
   {
     return withVariabilityProperty(VariabilityProperty::none);
   }
 
-  MemberType MemberType::asDiscrete() const
+  VariableType VariableType::asDiscrete() const
   {
     return withVariabilityProperty(VariabilityProperty::discrete);
   }
 
-  MemberType MemberType::asParameter() const
+  VariableType VariableType::asParameter() const
   {
     return withVariabilityProperty(VariabilityProperty::parameter);
   }
 
-  MemberType MemberType::asConstant() const
+  VariableType VariableType::asConstant() const
   {
     return withVariabilityProperty(VariabilityProperty::constant);
   }
 
-  MemberType MemberType::withIOProperty(IOProperty ioProperty) const
+  VariableType VariableType::withIOProperty(IOProperty ioProperty) const
   {
-    return MemberType::get(
+    return VariableType::get(
         getShape(),
         getElementType(),
         getVariabilityProperty(),
         ioProperty);
   }
 
-  MemberType MemberType::withoutIOProperty() const
+  VariableType VariableType::withoutIOProperty() const
   {
     return withIOProperty(IOProperty::none);
   }
 
-  MemberType MemberType::asInput() const
+  VariableType VariableType::asInput() const
   {
     return withIOProperty(IOProperty::input);
   }
 
-  MemberType MemberType::asOutput() const
+  VariableType VariableType::asOutput() const
   {
     return withIOProperty(IOProperty::output);
   }

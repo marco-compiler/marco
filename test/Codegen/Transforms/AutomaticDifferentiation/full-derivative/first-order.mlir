@@ -19,8 +19,8 @@
 // CHECK: 2.000000e+00
 
 modelica.function @var attributes {derivative = #modelica.derivative<"var_der", 1>} {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -40,8 +40,8 @@ func.func @test_var() -> () {
 // CHECK: -2.000000e+00
 
 modelica.function @neg attributes {derivative = #modelica.derivative<"neg_der", 1>} {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -62,9 +62,9 @@ func.func @test_neg() -> () {
 // CHECK: 5.000000e+00
 
 modelica.function @add attributes {derivative = #modelica.derivative<"add_der", 1>} {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, input>
-    modelica.variable @z : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, input>
+    modelica.variable @z : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -88,9 +88,9 @@ func.func @test_add() -> () {
 // CHECK: 1.000000e+00
 
 modelica.function @sub attributes {derivative = #modelica.derivative<"sub_der", 1>} {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, input>
-    modelica.variable @z : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, input>
+    modelica.variable @z : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -114,9 +114,9 @@ func.func @test_sub() -> () {
 // CHECK: 2.170000e+02
 
 modelica.function @mul attributes {derivative = #modelica.derivative<"mul_der", 1>} {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, input>
-    modelica.variable @z : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, input>
+    modelica.variable @z : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -140,9 +140,9 @@ func.func @test_mul() -> () {
 // CHECK: 3.847338e-02
 
 modelica.function @div attributes {derivative = #modelica.derivative<"div_der", 1>} {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, input>
-    modelica.variable @z : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, input>
+    modelica.variable @z : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real

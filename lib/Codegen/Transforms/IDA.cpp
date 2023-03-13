@@ -479,7 +479,7 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
 
   // Algebraic variables.
   for (VariableOp variable : algebraicVariables) {
-    auto arrayType = variable.getMemberType().toArrayType();
+    auto arrayType = variable.getVariableType().toArrayType();
 
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
     auto getter = getOrCreateGetterFn(arrayType);
@@ -499,7 +499,7 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
 
   // State variables.
   for (VariableOp variable : stateVariables) {
-    auto arrayType = variable.getMemberType().toArrayType();
+    auto arrayType = variable.getVariableType().toArrayType();
 
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
     auto getter = getOrCreateGetterFn(arrayType);
@@ -523,7 +523,7 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
         derivativesMap->getDerivative(stateVariable.value().getSymName());
 
     auto derivativeVariableOp = symbolTable.lookup<VariableOp>(derivativeVarName);
-    auto arrayType = derivativeVariableOp.getMemberType().toArrayType();
+    auto arrayType = derivativeVariableOp.getVariableType().toArrayType();
 
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
     auto getter = getOrCreateGetterFn(arrayType);
@@ -993,7 +993,7 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
   llvm::SmallVector<mlir::Type> variableTypes;
 
   for (VariableOp variableOp : managedVariables) {
-    variableTypes.push_back(variableOp.getMemberType().toArrayType());
+    variableTypes.push_back(variableOp.getVariableType().toArrayType());
   }
 
   auto residualFunction = builder.create<mlir::ida::ResidualFunctionOp>(
@@ -1034,7 +1034,7 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
 
   for (auto& op : equation.getOperation().bodyBlock()->getOperations()) {
     if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
-      mlir::Value mapped = variablesMap[variableGetOp.getMember()];
+      mlir::Value mapped = variablesMap[variableGetOp.getVariable()];
 
       if (auto arrayType = mapped.getType().dyn_cast<ArrayType>();
           arrayType && arrayType.isScalar()) {
@@ -1134,19 +1134,19 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
   auto partialDerTemplate = createPartialDerTemplateFromEquation(
       builder, symbolTable, equation, templateName);
 
-  // Add the time to the input members (and signature).
+  // Add the time to the input variables (and signature).
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(partialDerTemplate.bodyBlock());
 
   auto timeVariable = builder.create<VariableOp>(
       loc, "time",
-      MemberType::get(
+      VariableType::get(
           llvm::None,
           RealType::get(builder.getContext()),
           VariabilityProperty::none,
           IOProperty::input));
 
-  // Replace the TimeOp with the newly created member.
+  // Replace the TimeOp with the newly created variable.
   llvm::SmallVector<TimeOp> timeOps;
 
   partialDerTemplate.walk([&](TimeOp timeOp) {
@@ -1158,7 +1158,7 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
 
     mlir::Value time = builder.create<VariableGetOp>(
         timeVariable.getLoc(),
-        timeVariable.getMemberType().unwrap(),
+        timeVariable.getVariableType().unwrap(),
         timeVariable.getSymName());
 
     timeOp.replaceAllUsesWith(time);
@@ -1197,8 +1197,8 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     auto clonedVariableOp = mlir::cast<VariableOp>(
         builder.cloneWithoutRegions(*variableOp.getOperation()));
 
-    MemberType variableType =
-        clonedVariableOp.getMemberType().withIOProperty(IOProperty::input);
+    VariableType variableType =
+        clonedVariableOp.getVariableType().withIOProperty(IOProperty::input);
 
     clonedVariableOp.setType(variableType);
   }
@@ -1209,7 +1209,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   for (size_t i = 0; i < equation.getNumOfIterationVars(); ++i) {
     std::string variableName = "ind" + std::to_string(i);
 
-    auto variableType = MemberType::wrap(
+    auto variableType = VariableType::wrap(
         builder.getIndexType(),
         VariabilityProperty::none,
         IOProperty::input);
@@ -1230,7 +1230,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
   auto outputVariable = builder.create<VariableOp>(
       loc, "out",
-      MemberType::wrap(
+      VariableType::wrap(
           RealType::get(builder.getContext()),
           VariabilityProperty::none,
           IOProperty::output));
@@ -1249,7 +1249,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   for (VariableOp variableOp : inductionVariables) {
     mlir::Value induction = builder.create<VariableGetOp>(
         variableOp.getLoc(),
-        variableOp.getMemberType().unwrap(),
+        variableOp.getVariableType().unwrap(),
         variableOp.getSymName());
 
     inductions.push_back(induction);
@@ -1329,7 +1329,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   llvm::SmallVector<mlir::Type> variableTypes;
 
   for (VariableOp variableOp : managedVariables) {
-    variableTypes.push_back(variableOp.getMemberType().toArrayType());
+    variableTypes.push_back(variableOp.getVariableType().toArrayType());
   }
 
   auto jacobianFunction = builder.create<mlir::ida::JacobianFunctionOp>(
@@ -1338,7 +1338,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
       RealType::get(builder.getContext()),
       variableTypes,
       equation.getNumOfIterationVars(),
-      independentVariable.getMemberType().getRank(),
+      independentVariable.getVariableType().getRank(),
       RealType::get(builder.getContext()),
       RealType::get(builder.getContext()));
 
@@ -1391,8 +1391,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
         // Create the seed values for the variables.
         for (VariableOp var : managedVariables) {
-          if (!var.getMemberType().isScalar()) {
-            ArrayType arrayType = var.getMemberType().toArrayType();
+          if (!var.getVariableType().isScalar()) {
+            ArrayType arrayType = var.getVariableType().toArrayType();
             assert(arrayType.hasStaticShape());
 
             auto array = builder.create<ArrayBroadcastOp>(
@@ -2162,7 +2162,7 @@ mlir::LogicalResult IDASolver::createInitICSolversFunction(
   llvm::SmallVector<mlir::Type> variableTypes;
 
   for (VariableOp variableOp : model.getOperation().getVariables()) {
-    variableTypes.push_back(variableOp.getMemberType().toArrayType());
+    variableTypes.push_back(variableOp.getVariableType().toArrayType());
   }
 
   auto initSolversOp =
@@ -2220,7 +2220,7 @@ mlir::LogicalResult IDASolver::createInitMainSolversFunction(
   llvm::SmallVector<mlir::Type> variableTypes;
 
   for (VariableOp variableOp : model.getOperation().getVariables()) {
-    variableTypes.push_back(variableOp.getMemberType().toArrayType());
+    variableTypes.push_back(variableOp.getVariableType().toArrayType());
   }
 
   auto initSolversOp =

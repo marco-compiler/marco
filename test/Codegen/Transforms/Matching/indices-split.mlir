@@ -12,8 +12,8 @@
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 2 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<2x!modelica.int>
-    modelica.variable @y : !modelica.member<2x!modelica.int>
+    modelica.variable @x : !modelica.variable<2x!modelica.int>
+    modelica.variable @y : !modelica.variable<2x!modelica.int>
 
     modelica.for_equation %arg2 = 1 to 2 {
         modelica.equation attributes {id = 0} {

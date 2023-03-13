@@ -30,8 +30,8 @@ namespace
 
           if (auto arrayType = alloc.getType().dyn_cast<ArrayType>(); arrayType && !arrayType.hasStaticShape()) {
             bool isStored = llvm::any_of(alloc.getUsers(), [&](const auto& op) {
-              if (auto memberStoreOp = mlir::dyn_cast<VariableSetOp>(op)) {
-                return memberStoreOp.getValue() == alloc;
+              if (auto setOp = mlir::dyn_cast<VariableSetOp>(op)) {
+                return setOp.getValue() == alloc;
               }
 
               return false;

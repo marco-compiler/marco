@@ -9,9 +9,9 @@
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 2 : i64, match = [{indices = [[[0, 0]]], path = ["R"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int>
-    modelica.variable @y : !modelica.member<!modelica.int>
-    modelica.variable @z : !modelica.member<!modelica.int>
+    modelica.variable @x : !modelica.variable<!modelica.int>
+    modelica.variable @y : !modelica.variable<!modelica.int>
+    modelica.variable @z : !modelica.variable<!modelica.int>
 
     modelica.equation attributes {id = 0} {
         %0 = modelica.variable_get @x : !modelica.int

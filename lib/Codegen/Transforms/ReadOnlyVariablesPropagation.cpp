@@ -92,13 +92,13 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
         });
 
         for (VariableGetOp getOp : getOps) {
-          if (nonPropagatableVariables.contains(getOp.getMember())) {
+          if (nonPropagatableVariables.contains(getOp.getVariable())) {
             // The variable has been explicitly set as ignored.
             continue;
           }
 
           // Check if there is a binding equation for the variable.
-          auto bindingEquationIt = bindingEquations.find(getOp.getMember());
+          auto bindingEquationIt = bindingEquations.find(getOp.getVariable());
 
           if (bindingEquationIt == bindingEquations.end()) {
             continue;
@@ -107,7 +107,7 @@ ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
           BindingEquationOp bindingEquationOp = bindingEquationIt->getValue();
 
           // Get the variable declaration.
-          auto variable = symbolTable.lookup<VariableOp>(getOp.getMember());
+          auto variable = symbolTable.lookup<VariableOp>(getOp.getVariable());
 
           if (!variable.isReadOnly()) {
             // Writable variables can't be propagated.

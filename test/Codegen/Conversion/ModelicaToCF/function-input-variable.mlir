@@ -7,7 +7,7 @@
 // CHECK-NEXT:  }
 
 modelica.function @scalarVariable {
-    modelica.variable @x : !modelica.member<!modelica.int, input>
+    modelica.variable @x : !modelica.variable<!modelica.int, input>
 }
 
 // -----
@@ -20,7 +20,7 @@ modelica.function @scalarVariable {
 // CHECK-NEXT:  }
 
 modelica.function @scalarVariableGet {
-    modelica.variable @x : !modelica.member<!modelica.int, input>
+    modelica.variable @x : !modelica.variable<!modelica.int, input>
 
     modelica.algorithm {
         %1 = modelica.variable_get @x : !modelica.int
@@ -37,7 +37,7 @@ modelica.function @scalarVariableGet {
 // CHECK-NEXT:  }
 
 modelica.function @staticArray {
-    modelica.variable @x : !modelica.member<3x2x!modelica.int, input>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.int, input>
 }
 
 // -----
@@ -51,7 +51,7 @@ modelica.function @staticArray {
 // CHECK-NEXT:  }
 
 modelica.function @staticArrayGet {
-    modelica.variable @x : !modelica.member<3x2x!modelica.int, input>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.int, input>
 
     modelica.algorithm {
         %1 = modelica.variable_get @x : !modelica.array<3x2x!modelica.int>
@@ -70,7 +70,7 @@ modelica.function @staticArrayGet {
 // CHECK-NEXT:  }
 
 modelica.function @dynamicArray {
-    modelica.variable @x : !modelica.member<3x?x!modelica.int, input>
+    modelica.variable @x : !modelica.variable<3x?x!modelica.int, input>
 }
 
 // -----
@@ -85,7 +85,7 @@ modelica.function @dynamicArray {
 // CHECK-NEXT:  }
 
 modelica.function @dynamicArrayGet {
-    modelica.variable @x : !modelica.member<3x?x!modelica.int, input>
+    modelica.variable @x : !modelica.variable<3x?x!modelica.int, input>
 
     modelica.algorithm {
         %1 = modelica.variable_get @x : !modelica.array<3x?x!modelica.int>

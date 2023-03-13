@@ -261,9 +261,9 @@ namespace marco::codegen
             builder.getStringAttr("derivative"),
             mlir::SymbolRefAttr::get(builder.getContext(), derName));
 
-        auto memberType = variableOp.getMemberType();
+        auto variableType = variableOp.getVariableType();
 
-        if (memberType.hasRank()) {
+        if (variableType.hasRank()) {
           // Add the indices only in case of array variable. Scalar variables
           // are implicitly considered as a single-element array.
           const auto& derivedIndices = derivativesMap.getDerivedIndices(variableOp.getSymName());

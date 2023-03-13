@@ -2,9 +2,9 @@
 // RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @SD
-// CHECK: @"c.x[1]" : !modelica.member<3x!modelica.real>
-// CHECK: @"c.x[2]" : !modelica.member<4x!modelica.real>
-// CHECK: @"c.x[3]" : !modelica.member<5x!modelica.real>
+// CHECK: @"c.x[1]" : !modelica.variable<3x!modelica.real>
+// CHECK: @"c.x[2]" : !modelica.variable<4x!modelica.real>
+// CHECK: @"c.x[3]" : !modelica.variable<5x!modelica.real>
 
 model 'SD'
   parameter Integer 'N' = 3;

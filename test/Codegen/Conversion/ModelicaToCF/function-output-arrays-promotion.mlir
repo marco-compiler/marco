@@ -4,14 +4,14 @@
 
 // CHECK-LABEL: @callee
 // CHECK-SAME: (%[[x:.*]]: !modelica.array<3x!modelica.int>) -> !modelica.array<?x!modelica.int>
-// CHECK: %[[y:.*]] = modelica.raw_variable %{{.*}} : !modelica.member<?x!modelica.int, output>
+// CHECK: %[[y:.*]] = modelica.raw_variable %{{.*}} : !modelica.variable<?x!modelica.int, output>
 // CHECK: %[[y_value:.*]] = modelica.raw_variable_get %[[y]]
 // CHECK: modelica.raw_return %[[y_value]]
 
 modelica.function @callee {
-    modelica.variable @x : !modelica.member<3x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, output>
 
-    modelica.variable @y : !modelica.member<?x!modelica.int, output> [fixed] {
+    modelica.variable @y : !modelica.variable<?x!modelica.int, output> [fixed] {
         %0 = arith.constant 2 : index
         modelica.yield %0 : index
     }

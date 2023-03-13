@@ -10,7 +10,7 @@ namespace marco::codegen
 {
   std::unique_ptr<Variable> Variable::build(VariableOp variableOp)
   {
-    if (!variableOp.getMemberType().isScalar()) {
+    if (!variableOp.getVariableType().isScalar()) {
       return std::make_unique<ArrayVariable>(variableOp);
     }
 

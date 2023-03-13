@@ -14,8 +14,8 @@
 // CHECK-NEXT:  }
 
 // CHECK:       @Test_algorithm_0
-// CHECK-DAG:   modelica.variable @x : !modelica.member<!modelica.int, input>
-// CHECK-DAG:   modelica.variable @y : !modelica.member<!modelica.int, output>
+// CHECK-DAG:   modelica.variable @x : !modelica.variable<!modelica.int, input>
+// CHECK-DAG:   modelica.variable @y : !modelica.variable<!modelica.int, output>
 // CHECK:       modelica.default @y {
 // CHECK-NEXT:      %[[output_start:.*]] = modelica.constant #modelica.int<0>
 // CHECK-NEXT:      modelica.yield %[[output_start]]
@@ -26,8 +26,8 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int>
-    modelica.variable @y : !modelica.member<!modelica.int>
+    modelica.variable @x : !modelica.variable<!modelica.int>
+    modelica.variable @y : !modelica.variable<!modelica.int>
 
     modelica.start @y {
         %0 = modelica.constant #modelica.int<0> : !modelica.int
@@ -55,8 +55,8 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 // CHECK:       @Test_algorithm_0
-// CHECK-DAG:   modelica.variable @der_x : !modelica.member<!modelica.real, input>
-// CHECK-DAG:   modelica.variable @x : !modelica.member<!modelica.real, output>
+// CHECK-DAG:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
+// CHECK-DAG:   modelica.variable @x : !modelica.variable<!modelica.real, output>
 // CHECK:       modelica.default @x {
 // CHECK-NEXT:      %0 = modelica.constant #modelica.real<0.000000e+00>
 // CHECK-NEXT:      modelica.yield %0
@@ -65,7 +65,7 @@ modelica.model @Test {
 // CHECK:       modelica.variable_set @x, %[[x]]
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.real>
+    modelica.variable @x : !modelica.variable<!modelica.real>
 
     modelica.start @x {
         %0 = modelica.constant #modelica.real<0.0> : !modelica.real

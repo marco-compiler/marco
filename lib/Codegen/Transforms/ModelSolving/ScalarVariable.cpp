@@ -7,10 +7,10 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  ScalarVariable::ScalarVariable(VariableOp memberCreateOp)
-    : BaseVariable(memberCreateOp)
+  ScalarVariable::ScalarVariable(VariableOp variableOp)
+    : BaseVariable(variableOp)
   {
-    assert(memberCreateOp.getMemberType().isScalar());
+    assert(variableOp.getVariableType().isScalar());
   }
 
   std::unique_ptr<Variable> ScalarVariable::clone() const

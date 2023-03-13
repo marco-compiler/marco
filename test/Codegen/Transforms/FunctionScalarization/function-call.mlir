@@ -19,8 +19,8 @@
 // CHECK{LITERAL}: [0.000000e+00, 1.000000e+00, 2.000000e+00]
 
 modelica.function @callee {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real

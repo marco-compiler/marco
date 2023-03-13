@@ -14,8 +14,8 @@
 // CHECK-NEXT:  }
 
 modelica.function @foo {
-    modelica.variable @x : !modelica.member<!modelica.int, input>
-    modelica.variable @y : !modelica.member<!modelica.int, output>
+    modelica.variable @x : !modelica.variable<!modelica.int, input>
+    modelica.variable @y : !modelica.variable<!modelica.int, output>
 
     modelica.algorithm {
         %2 = modelica.variable_get @x : !modelica.int

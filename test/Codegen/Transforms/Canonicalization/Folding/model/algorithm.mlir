@@ -9,7 +9,7 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.real>
+    modelica.variable @x : !modelica.variable<!modelica.real>
 
     modelica.algorithm {
         %0 = modelica.constant #modelica.real<1.0>

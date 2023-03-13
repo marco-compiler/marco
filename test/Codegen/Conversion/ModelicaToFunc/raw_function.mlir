@@ -112,7 +112,7 @@ modelica.raw_function @staticArrayOutput() -> !modelica.array<3x5x!modelica.int>
 // CHECK-NEXT:  }
 
 modelica.raw_function @dynamicArrayOutput() {
-    %0 = modelica.raw_variable : !modelica.member<3x?x!modelica.int, output> {name = "x"}
+    %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
     modelica.raw_return
 }
 
@@ -126,8 +126,8 @@ modelica.raw_function @dynamicArrayOutput() {
 // CHECK-NEXT:  }
 
 modelica.raw_function @scalarOutputVariableGet() -> !modelica.int {
-    %0 = modelica.raw_variable : !modelica.member<!modelica.int, output> {name = "x"}
-    %1 = modelica.raw_variable_get %0 : !modelica.member<!modelica.int, output>
+    %0 = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
+    %1 = modelica.raw_variable_get %0 : !modelica.variable<!modelica.int, output>
     modelica.raw_return %1 : !modelica.int
 }
 
@@ -141,9 +141,9 @@ modelica.raw_function @scalarOutputVariableGet() -> !modelica.int {
 // CHECK-NEXT:  }
 
 modelica.raw_function @scalarOutputVariableSet() {
-    %0 = modelica.raw_variable : !modelica.member<!modelica.int, output> {name = "x"}
+    %0 = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
     %1 = modelica.constant #modelica.int<0>
-    modelica.raw_variable_set %0, %1 : !modelica.member<!modelica.int, output>, !modelica.int
+    modelica.raw_variable_set %0, %1 : !modelica.variable<!modelica.int, output>, !modelica.int
     modelica.raw_return
 }
 
@@ -156,8 +156,8 @@ modelica.raw_function @scalarOutputVariableSet() {
 // CHECK-NEXT:  }
 
 modelica.raw_function @staticArrayOutputVariableGet() -> !modelica.array<3x5x!modelica.int> {
-    %0 = modelica.raw_variable : !modelica.member<3x5x!modelica.int, output> {name = "x"}
-    %1 = modelica.raw_variable_get %0 : !modelica.member<3x5x!modelica.int, output>
+    %0 = modelica.raw_variable : !modelica.variable<3x5x!modelica.int, output> {name = "x"}
+    %1 = modelica.raw_variable_get %0 : !modelica.variable<3x5x!modelica.int, output>
     modelica.raw_return %1 : !modelica.array<3x5x!modelica.int>
 }
 
@@ -171,9 +171,9 @@ modelica.raw_function @staticArrayOutputVariableGet() -> !modelica.array<3x5x!mo
 // CHECK-NEXT:  }
 
 modelica.raw_function @staticArrayOutputVariableSet() {
-    %0 = modelica.raw_variable : !modelica.member<3x5x!modelica.int, output> {name = "x"}
+    %0 = modelica.raw_variable : !modelica.variable<3x5x!modelica.int, output> {name = "x"}
     %1 = modelica.alloca : !modelica.array<3x5x!modelica.int>
-    modelica.raw_variable_set %0, %1 : !modelica.member<3x5x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
+    modelica.raw_variable_set %0, %1 : !modelica.variable<3x5x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
     modelica.raw_return
 }
 
@@ -186,8 +186,8 @@ modelica.raw_function @staticArrayOutputVariableSet() {
 // CHECK-NEXT:  }
 
 modelica.raw_function @dynamicArrayOutputGet() -> !modelica.array<3x?x!modelica.int> {
-    %0 = modelica.raw_variable : !modelica.member<3x?x!modelica.int, output> {name = "x"}
-    %1 = modelica.raw_variable_get %0 : !modelica.member<3x?x!modelica.int, output>
+    %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
+    %1 = modelica.raw_variable_get %0 : !modelica.variable<3x?x!modelica.int, output>
     modelica.raw_return %1 : !modelica.array<3x?x!modelica.int>
 }
 
@@ -206,8 +206,8 @@ modelica.raw_function @dynamicArrayOutputGet() -> !modelica.array<3x?x!modelica.
 // CHECK-NEXT:  }
 
 modelica.raw_function @dynamicArrayOutputSet() {
-    %0 = modelica.raw_variable : !modelica.member<3x?x!modelica.int, output> {name = "x"}
+    %0 = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
     %1 = modelica.alloc : !modelica.array<3x5x!modelica.int>
-    modelica.raw_variable_set %0, %1 : !modelica.member<3x?x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
+    modelica.raw_variable_set %0, %1 : !modelica.variable<3x?x!modelica.int, output>, !modelica.array<3x5x!modelica.int>
     modelica.raw_return
 }

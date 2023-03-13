@@ -121,12 +121,12 @@ static void createInitializingEquation(
 
     std::vector<mlir::Value> currentIndices;
 
-    for (unsigned int i = 0; i < variableOp.getMemberType().getRank(); ++i) {
+    for (unsigned int i = 0; i < variableOp.getVariableType().getRank(); ++i) {
       currentIndices.push_back(inductionVariables[i]);
     }
 
     mlir::Value variable = builder.create<VariableGetOp>(
-        loc, variableOp.getMemberType().unwrap(), variableOp.getSymName());
+        loc, variableOp.getVariableType().unwrap(), variableOp.getSymName());
 
     if (!currentIndices.empty()) {
       variable = builder.create<LoadOp>(loc, variable, currentIndices);
@@ -150,9 +150,9 @@ static mlir::LogicalResult createDerivatives(
   for (const auto& entry : derivedIndices) {
     llvm::StringRef variableName = entry.getKey();
     auto variableOp = symbolTable.lookup<VariableOp>(variableName);
-    auto variableMemberType = variableOp.getMemberType();
+    auto variableType = variableOp.getVariableType();
 
-    auto derType = variableMemberType.withType(RealType::get(builder.getContext()));
+    auto derType = variableType.withType(RealType::get(builder.getContext()));
     assert(derType.hasStaticShape());
 
     auto derivedVariableIndices = derivedIndices.find(variableName);
@@ -163,29 +163,29 @@ static mlir::LogicalResult createDerivatives(
 
     auto derivativeName = getNextFullDerVariableName(variableOp.getSymName(), 1);
 
-    auto derMemberOp = builder.create<VariableOp>(
+    auto derVariableOp = builder.create<VariableOp>(
         variableOp.getLoc(), derivativeName, derType,
         variableOp.getDimensionsConstraints());
 
-    derivativesMap.setDerivative(variableName, derMemberOp.getSymName());
+    derivativesMap.setDerivative(variableName, derVariableOp.getSymName());
     derivativesMap.setDerivedIndices(variableName, derivedVariableIndices->second);
 
-    symbolTable.insert(derMemberOp);
+    symbolTable.insert(derVariableOp);
 
     // Create the start value
     builder.setInsertionPointToEnd(modelOp.bodyBlock());
 
     auto startOp = builder.create<StartOp>(
-        derMemberOp.getLoc(), derivativeName, false, !derType.isScalar());
+        derVariableOp.getLoc(), derivativeName, false, !derType.isScalar());
 
     assert(startOp.getBodyRegion().empty());
     mlir::Block* bodyBlock = builder.createBlock(&startOp.getBodyRegion());
     builder.setInsertionPointToStart(bodyBlock);
 
     mlir::Value zero = builder.create<ConstantOp>(
-        derMemberOp.getLoc(), RealAttr::get(builder.getContext(), 0));
+        derVariableOp.getLoc(), RealAttr::get(builder.getContext(), 0));
 
-    builder.create<YieldOp>(derMemberOp.getLoc(), zero);
+    builder.create<YieldOp>(derVariableOp.getLoc(), zero);
 
     // We need to create additional equations in case of some non-derived indices.
     // If this is not done, then the matching process would fail by detecting an
@@ -206,7 +206,7 @@ static mlir::LogicalResult createDerivatives(
     IndexSet allIndices{MultidimensionalRange(dimensions)};
     auto nonDerivedIndices = allIndices - derivedVariableIndices->second;
 
-    createInitializingEquation(builder, derMemberOp.getLoc(), derMemberOp, nonDerivedIndices, [](mlir::OpBuilder& builder, mlir::Location loc) {
+    createInitializingEquation(builder, derVariableOp.getLoc(), derVariableOp, nonDerivedIndices, [](mlir::OpBuilder& builder, mlir::Location loc) {
       mlir::Value zero = builder.create<ConstantOp>(loc, RealAttr::get(builder.getContext(), 0));
       return zero;
     });
@@ -294,7 +294,7 @@ static mlir::LogicalResult removeDerOps(
 
     assert(definingOp && mlir::isa<VariableGetOp>(definingOp));
     auto variableGetOp = mlir::cast<VariableGetOp>(definingOp);
-    llvm::StringRef variableName = variableGetOp.getMember();
+    llvm::StringRef variableName = variableGetOp.getVariable();
     llvm::StringRef derivativeName = derivativesMap.getDerivative(variableName);
 
     auto derivativeVariableOp = symbolTable.lookup<VariableOp>(derivativeName);
@@ -302,7 +302,7 @@ static mlir::LogicalResult removeDerOps(
 
     mlir::Value derivative = builder.create<VariableGetOp>(
         derivativeVariableOp.getLoc(),
-        derivativeVariableOp.getMemberType().unwrap(),
+        derivativeVariableOp.getVariableType().unwrap(),
         derivativeVariableOp.getSymName());
 
     if (!subscriptions.empty()) {
@@ -618,7 +618,7 @@ static void collectDerivedVariablesIndices(
       indices += Point(0);
     }
 
-    llvm::StringRef variableName = variableGetOp.getMember();
+    llvm::StringRef variableName = variableGetOp.getVariable();
 
     std::lock_guard<std::mutex> lock(mutex);
     derivedIndices[variableName] += indices;
@@ -696,7 +696,7 @@ namespace
       mlir::Value expression = yieldOp.getValues()[0];
 
       auto variable = symbolTable->lookup<VariableOp>(op.getVariable());
-      auto variableType = variable.getMemberType();
+      auto variableType = variable.getVariableType();
       mlir::Type unwrappedType = variableType.unwrap();
       auto expressionType = expression.getType();
 
@@ -817,7 +817,7 @@ mlir::LogicalResult ModelLegalization::addMissingStartOps(
   for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
     if (startOps.find(variableOp.getSymName()) == startOps.end()) {
       builder.setInsertionPointToEnd(modelOp.bodyBlock());
-      MemberType variableType = variableOp.getMemberType();
+      VariableType variableType = variableOp.getVariableType();
       bool each = !variableType.isScalar();
 
       auto startOp = builder.create<StartOp>(
@@ -869,9 +869,9 @@ namespace
 
         algorithmInt.walk([&](VariableGetOp getOp) {
           VariableOp variableOp =
-              symbolTable->lookup<VariableOp>(getOp.getMember());
+              symbolTable->lookup<VariableOp>(getOp.getVariable());
 
-          if (variableOp.getMemberType().isScalar()) {
+          if (variableOp.getVariableType().isScalar()) {
             readVariables.insert(variableOp);
           } else {
             bool isRead, isWritten;
@@ -887,7 +887,7 @@ namespace
 
         algorithmInt.walk([&](VariableSetOp setOp) {
           VariableOp variableOp =
-              symbolTable->lookup<VariableOp>(setOp.getMember());
+              symbolTable->lookup<VariableOp>(setOp.getVariable());
 
           writtenVariables.insert(variableOp);
         });
@@ -922,9 +922,9 @@ namespace
           auto clonedVariableOp = mlir::cast<VariableOp>(
               rewriter.clone(*variableOp.getOperation(), mapping));
 
-          auto originalVariableType = variableOp.getMemberType();
+          auto originalVariableType = variableOp.getVariableType();
 
-          clonedVariableOp.setType(MemberType::get(
+          clonedVariableOp.setType(VariableType::get(
               originalVariableType.getShape(),
               originalVariableType.getElementType(),
               VariabilityProperty::none,
@@ -935,9 +935,9 @@ namespace
           auto clonedVariableOp = mlir::cast<VariableOp>(
               rewriter.clone(*variableOp.getOperation(), mapping));
 
-          auto originalVariableType = variableOp.getMemberType();
+          auto originalVariableType = variableOp.getVariableType();
 
-          clonedVariableOp.setType(MemberType::get(
+          clonedVariableOp.setType(VariableType::get(
               originalVariableType.getShape(),
               originalVariableType.getElementType(),
               VariabilityProperty::none,
@@ -969,7 +969,7 @@ namespace
 
             mlir::Value array = rewriter.create<ArrayBroadcastOp>(
                 yieldOp.getLoc(),
-                variableOp.getMemberType().unwrap(),
+                variableOp.getVariableType().unwrap(),
                 yieldOp.getValues()[0]);
 
             rewriter.replaceOpWithNewOp<YieldOp>(yieldOp, array);
@@ -997,14 +997,14 @@ namespace
         for (VariableOp inputVariable : inputVariables) {
           inputVariableGetOps.push_back(rewriter.create<VariableGetOp>(
               loc,
-              inputVariable.getMemberType().unwrap(),
+              inputVariable.getVariableType().unwrap(),
               inputVariable.getSymName()));
         }
 
         for (VariableOp outputVariable : outputVariables) {
           outputVariableGetOps.push_back(rewriter.create<VariableGetOp>(
               loc,
-              outputVariable.getMemberType().unwrap(),
+              outputVariable.getVariableType().unwrap(),
               outputVariable.getSymName()));
         }
 
@@ -1271,7 +1271,7 @@ mlir::LogicalResult ModelLegalization::createInitialEquationsFromFixedStartOps(
 
     mlir::Location loc = startOp.getLoc();
     auto variable = symbolTable.lookup<VariableOp>(startOp.getVariable());
-    auto variableType = variable.getMemberType();
+    auto variableType = variable.getVariableType();
 
     unsigned int expressionRank = 0;
 

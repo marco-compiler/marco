@@ -154,7 +154,7 @@ namespace marco::codegen::lowering
       ioProperty = IOProperty::output;
     }
 
-    auto memberType = MemberType::wrap(type, variabilityProperty, ioProperty);
+    auto variableType = VariableType::wrap(type, variabilityProperty, ioProperty);
 
     llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
     bool hasFixedDimensions = false;
@@ -174,7 +174,7 @@ namespace marco::codegen::lowering
     }
 
     auto var = builder().create<VariableOp>(
-        location, member.getName(), memberType,
+        location, member.getName(), variableType,
         builder().getStrArrayAttr(dimensionsConstraints));
 
     if (hasFixedDimensions) {

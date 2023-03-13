@@ -9,7 +9,7 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int>
+    modelica.variable @x : !modelica.variable<!modelica.int>
 
     modelica.equation {
         %0 = modelica.variable_get @x : !modelica.int

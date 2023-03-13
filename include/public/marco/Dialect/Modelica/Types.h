@@ -121,16 +121,16 @@ namespace mlir::modelica
   };
 
   //===-------------------------------------------------------------------===//
-  // MemberType
+  // VariableType
   //===-------------------------------------------------------------------===//
 
   /// This is a builder type that keeps local references to arguments.
   /// Arguments that are passed into the builder must outlive the builder.
-  class MemberType::Builder
+  class VariableType::Builder
   {
     public:
-      // Build from another MemberType.
-      explicit Builder(MemberType other)
+      // Build from another VariableType.
+      explicit Builder(VariableType other)
           : shape(other.getShape()),
             elementType(other.getElementType()),
             variabilityProperty(other.getVariabilityProperty()),
@@ -176,9 +176,9 @@ namespace mlir::modelica
         return *this;
       }
 
-      operator MemberType()
+      operator VariableType()
       {
-        return MemberType::get(
+        return VariableType::get(
             shape,
             elementType,
             variabilityProperty,
@@ -188,7 +188,7 @@ namespace mlir::modelica
 
       operator ShapedType()
       {
-        return MemberType::get(
+        return VariableType::get(
             shape,
             elementType,
             variabilityProperty,

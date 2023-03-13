@@ -337,7 +337,7 @@ namespace marco::codegen
     };
 
     if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
-      resolveAccess(accesses, variableGetOp.getMember(), dimensionAccesses, path);
+      resolveAccess(accesses, variableGetOp.getVariable(), dimensionAccesses, path);
     } else if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
       processIndexesFn(loadOp.getIndices());
       searchAccesses(accesses, loadOp.getArray(), dimensionAccesses, std::move(path));
@@ -363,7 +363,7 @@ namespace marco::codegen
 
     if (variable.has_value()) {
       std::vector<DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());
-      MemberType variableType = (*variable)->getDefiningOp().getMemberType();
+      VariableType variableType = (*variable)->getDefiningOp().getVariableType();
 
       if (variableType.isScalar()) {
         // Scalar variables are masked as arrays with just one element.
@@ -1437,7 +1437,7 @@ namespace marco::codegen
 
     // Add the variables to the function signature
     for (VariableOp variableOp : usedVariables) {
-      argsTypes.push_back(variableOp.getMemberType().toArrayType());
+      argsTypes.push_back(variableOp.getVariableType().toArrayType());
     }
 
     // For each iteration variable we need to specify three value: the lower

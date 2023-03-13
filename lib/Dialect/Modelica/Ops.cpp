@@ -597,7 +597,7 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
-// Member operations
+// Variable operations
 //===---------------------------------------------------------------------===//
 
 //===---------------------------------------------------------------------===//
@@ -609,7 +609,7 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
       llvm::StringRef name,
-      MemberType variableType)
+      VariableType variableType)
   {
     llvm::SmallVector<mlir::Attribute, 3> constraints(
         variableType.getNumDynamicDims(),
@@ -799,14 +799,15 @@ namespace mlir::modelica
     }
 
     mlir::Operation* symbol =
-        symbolTableCollection.lookupSymbolIn(parentClass, getMemberAttr());
+        symbolTableCollection.lookupSymbolIn(parentClass, getVariableAttr());
 
     if (!symbol) {
-      return emitError("variable " + getMember() + " has not been declared.");
+      return emitError(
+          "variable " + getVariable() + " has not been declared.");
     }
 
     if (!mlir::isa<VariableOp>(symbol)) {
-      return emitError("symbol " + getMember() + " is not a variable.");
+      return emitError("symbol " + getVariable() + " is not a variable.");
     }
 
     return mlir::success();
@@ -818,7 +819,7 @@ namespace mlir::modelica
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
       mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivativeSymbolIt = symbolDerivatives.find(getMemberAttr());
+    auto derivativeSymbolIt = symbolDerivatives.find(getVariableAttr());
 
     if (derivativeSymbolIt == symbolDerivatives.end()) {
       return llvm::None;
@@ -859,14 +860,15 @@ namespace mlir::modelica
     }
 
     mlir::Operation* symbol =
-        symbolTableCollection.lookupSymbolIn(parentClass, getMemberAttr());
+        symbolTableCollection.lookupSymbolIn(parentClass, getVariableAttr());
 
     if (!symbol) {
-      return emitError("variable " + getMember() + " has not been declared.");
+      return emitError(
+          "variable " + getVariable() + " has not been declared.");
     }
 
     if (!mlir::isa<VariableOp>(symbol)) {
-      return emitError("symbol " + getMember() + " is not a variable.");
+      return emitError("symbol " + getVariable() + " is not a variable.");
     }
 
     return mlir::success();
@@ -878,7 +880,7 @@ namespace mlir::modelica
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
       mlir::BlockAndValueMapping& derivatives)
   {
-    auto derivativeSymbolIt = symbolDerivatives.find(getMemberAttr());
+    auto derivativeSymbolIt = symbolDerivatives.find(getVariableAttr());
 
     if (derivativeSymbolIt == symbolDerivatives.end()) {
       return llvm::None;
@@ -7652,7 +7654,7 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::Type> types;
 
     for (VariableOp variableOp : getOps<VariableOp>()) {
-      MemberType variableType = variableOp.getMemberType();
+      VariableType variableType = variableOp.getVariableType();
 
       if (variableType.isInput()) {
         types.push_back(variableType.unwrap());
@@ -7667,7 +7669,7 @@ namespace mlir::modelica
     llvm::SmallVector<mlir::Type> types;
 
     for (VariableOp variableOp : getOps<VariableOp>()) {
-      MemberType variableType = variableOp.getMemberType();
+      VariableType variableType = variableOp.getVariableType();
 
       if (variableType.isOutput()) {
         types.push_back(variableType.unwrap());
@@ -8003,7 +8005,7 @@ namespace mlir::modelica
       printer << " " << dynamicSizes;
     }
 
-    printer << " : " << getMemberType();
+    printer << " : " << getVariableType();
 
     auto dimConstraints =
         getDimensionsConstraints().getAsRange<mlir::StringAttr>();
@@ -8039,26 +8041,26 @@ namespace mlir::modelica
   mlir::ParseResult RawVariableGetOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
-    mlir::OpAsmParser::UnresolvedOperand member;
-    mlir::Type memberType;
+    mlir::OpAsmParser::UnresolvedOperand variable;
+    mlir::Type variableType;
 
-    if (parser.parseOperand(member) ||
+    if (parser.parseOperand(variable) ||
         parser.parseOptionalAttrDict(result.attributes) ||
-        parser.parseColonType(memberType) ||
-        parser.resolveOperand(member, memberType, result.operands)) {
+        parser.parseColonType(variableType) ||
+        parser.resolveOperand(variable, variableType, result.operands)) {
       return mlir::failure();
     }
 
-    result.addTypes(memberType.cast<MemberType>().unwrap());
+    result.addTypes(variableType.cast<VariableType>().unwrap());
     return mlir::success();
   }
 
   void RawVariableGetOp::print(mlir::OpAsmPrinter& printer)
   {
     printer << " ";
-    printer << getMember();
+    printer << getVariable();
     printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " : " << getMember().getType();
+    printer << " : " << getVariable().getType();
   }
 }
 
@@ -8070,20 +8072,20 @@ namespace mlir::modelica
   mlir::ParseResult RawVariableSetOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
-    mlir::OpAsmParser::UnresolvedOperand member;
+    mlir::OpAsmParser::UnresolvedOperand variable;
     mlir::OpAsmParser::UnresolvedOperand value;
-    mlir::Type memberType;
+    mlir::Type variableType;
     mlir::Type valueType;
 
-    if (parser.parseOperand(member) ||
+    if (parser.parseOperand(variable) ||
         parser.parseComma() ||
         parser.parseOperand(value) ||
         parser.parseOptionalAttrDict(result.attributes) ||
         parser.parseColon() ||
-        parser.parseType(memberType) ||
+        parser.parseType(variableType) ||
         parser.parseComma() ||
         parser.parseType(valueType) ||
-        parser.resolveOperand(member, memberType, result.operands) ||
+        parser.resolveOperand(variable, variableType, result.operands) ||
         parser.resolveOperand(value, valueType, result.operands)) {
       return mlir::failure();
     }
@@ -8094,9 +8096,9 @@ namespace mlir::modelica
   void RawVariableSetOp::print(mlir::OpAsmPrinter& printer)
   {
     printer << " ";
-    printer << getMember() << ", " << getValue();
+    printer << getVariable() << ", " << getValue();
     printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " : " << getMember().getType() << ", " << getValue().getType();
+    printer << " : " << getVariable().getType() << ", " << getValue().getType();
   }
 }
 

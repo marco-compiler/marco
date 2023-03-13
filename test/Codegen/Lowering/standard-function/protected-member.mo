@@ -3,9 +3,9 @@
 
 // CHECK-LABEL: @foo
 
-// CHECK: modelica.variable @x : !modelica.member<?x!modelica.int, input>
-// CHECK: modelica.variable @y : !modelica.member<!modelica.int, output>
-// CHECK: modelica.variable @z : !modelica.member<2x!modelica.int>
+// CHECK: modelica.variable @x : !modelica.variable<?x!modelica.int, input>
+// CHECK: modelica.variable @y : !modelica.variable<!modelica.int, output>
+// CHECK: modelica.variable @z : !modelica.variable<2x!modelica.int>
 
 function foo
     input Integer[:] x;

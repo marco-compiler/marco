@@ -22,7 +22,7 @@ namespace marco::codegen::test
     builder.setInsertionPointToStart(modelOp.bodyBlock());
 
     for (const auto& [name, type] : llvm::zip(names, varTypes)) {
-      auto variableType = MemberType::wrap(type);
+      auto variableType = VariableType::wrap(type);
 
       builder.create<VariableOp>(
           builder.getUnknownLoc(), name, variableType);

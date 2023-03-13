@@ -11,7 +11,7 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int>
+    modelica.variable @x : !modelica.variable<!modelica.int>
 
     modelica.start @x {
         %0 = modelica.constant #modelica.int<0> : !modelica.int
@@ -35,7 +35,7 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 
     modelica.start @x {
         %0 = modelica.constant #modelica.int<0> : !modelica.int
@@ -59,7 +59,7 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 
     modelica.start @x {
         %0 = modelica.constant #modelica.int<0> : !modelica.int

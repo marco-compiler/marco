@@ -19,8 +19,8 @@
 // CHECK: 1.000000e+00
 
 modelica.function @simpleVar {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -41,8 +41,8 @@ func.func @test_simpleVarDer() -> () {
 // CHECK: 2.300000e+01
 
 modelica.function @mulByScalar {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.constant #modelica.real<23.0>
@@ -65,9 +65,9 @@ func.func @test_mulByScalar() -> () {
 // CHECK: 1.000000e+00
 
 modelica.function @sumOfVars {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, input>
-    modelica.variable @z : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, input>
+    modelica.variable @z : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -91,9 +91,9 @@ func.func @test_sumOfVars() -> () {
 // CHECK: 2.300000e+01
 
 modelica.function @mulOfVars {
-    modelica.variable @x : !modelica.member<!modelica.real, input>
-    modelica.variable @y : !modelica.member<!modelica.real, input>
-    modelica.variable @z : !modelica.member<!modelica.real, output>
+    modelica.variable @x : !modelica.variable<!modelica.real, input>
+    modelica.variable @y : !modelica.variable<!modelica.real, input>
+    modelica.variable @z : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x : !modelica.real
@@ -118,8 +118,8 @@ func.func @test_mulOfVars() -> () {
 // CHECK: 1.311000e+03
 
 modelica.function @scalarMul {
-    modelica.variable @x1 : !modelica.member<!modelica.real, input>
-    modelica.variable @y1 : !modelica.member<!modelica.real, output>
+    modelica.variable @x1 : !modelica.variable<!modelica.real, input>
+    modelica.variable @y1 : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.variable_get @x1 : !modelica.real
@@ -130,8 +130,8 @@ modelica.function @scalarMul {
 }
 
 modelica.function @callOpDer {
-    modelica.variable @x2 : !modelica.member<!modelica.real, input>
-    modelica.variable @y2 : !modelica.member<!modelica.real, output>
+    modelica.variable @x2 : !modelica.variable<!modelica.real, input>
+    modelica.variable @y2 : !modelica.variable<!modelica.real, output>
 
     modelica.algorithm {
         %0 = modelica.constant #modelica.int<57>

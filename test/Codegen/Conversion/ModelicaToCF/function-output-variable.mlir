@@ -3,13 +3,13 @@
 // Scalar variable.
 
 // CHECK:       modelica.raw_function @scalarVariable() -> !modelica.int {
-// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.member<!modelica.int, output> {name = "x"}
+// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[result:.*]] = modelica.raw_variable_get %[[x]]
 // CHECK-NEXT:      modelica.raw_return %[[result]]
 // CHECK-NEXT:  }
 
 modelica.function @scalarVariable {
-    modelica.variable @x : !modelica.member<!modelica.int, output>
+    modelica.variable @x : !modelica.variable<!modelica.int, output>
 }
 
 // -----
@@ -17,13 +17,13 @@ modelica.function @scalarVariable {
 // Get a scalar variable.
 
 // CHECK:       modelica.raw_function @scalarVariableGet() -> !modelica.int {
-// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.member<!modelica.int, output> {name = "x"}
+// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[x_value:.*]] = modelica.raw_variable_get %[[x]]
 // CHECK-NEXT:      modelica.print %[[x_value]]
 // CHECK:       }
 
 modelica.function @scalarVariableGet {
-    modelica.variable @x : !modelica.member<!modelica.int, output>
+    modelica.variable @x : !modelica.variable<!modelica.int, output>
 
     modelica.algorithm {
         %1 = modelica.variable_get @x : !modelica.int
@@ -37,12 +37,12 @@ modelica.function @scalarVariableGet {
 
 // CHECK:       modelica.raw_function @scalarVariableSet() -> !modelica.int {
 // CHECK-DAG:       %[[value:.*]] = modelica.constant #modelica.int<0>
-// CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.member<!modelica.int, output> {name = "x"}
+// CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      modelica.raw_variable_set %[[x]], %[[value]]
 // CHECK:       }
 
 modelica.function @scalarVariableSet {
-    modelica.variable @x : !modelica.member<!modelica.int, output>
+    modelica.variable @x : !modelica.variable<!modelica.int, output>
 
     modelica.algorithm {
         %1 = modelica.constant #modelica.int<0>
@@ -55,13 +55,13 @@ modelica.function @scalarVariableSet {
 // Static array.
 
 // CHECK:       modelica.raw_function @staticArray() -> !modelica.array<3x2x!modelica.int> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.member<3x2x!modelica.int, output> {name = "x"}
+// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x2x!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[x_value:.*]] = modelica.raw_variable_get %[[x]]
 // CHECK-NEXT:      modelica.raw_return %[[x_value]]
 // CHECK-NEXT:  }
 
 modelica.function @staticArray {
-    modelica.variable @x : !modelica.member<3x2x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.int, output>
 }
 
 // -----
@@ -69,14 +69,14 @@ modelica.function @staticArray {
 // Get a static array.
 
 // CHECK:       modelica.raw_function @staticArrayGet() -> !modelica.array<3x2x!modelica.int> {
-// CHECK:           %[[x:.*]] = modelica.raw_variable : !modelica.member<3x2x!modelica.int, output> {name = "x"}
+// CHECK:           %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x2x!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[x_value:.*]] = modelica.raw_variable_get %[[x]]
 // CHECK-NEXT:      %[[value:.*]] = modelica.load %[[x_value]][%{{.*}}, %{{.*}}]
 // CHECK-NEXT:      modelica.print %[[value]]
 // CHECK:       }
 
 modelica.function @staticArrayGet {
-    modelica.variable @x : !modelica.member<3x2x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.int, output>
 
     modelica.algorithm {
         %1 = modelica.variable_get @x : !modelica.array<3x2x!modelica.int>
@@ -91,13 +91,13 @@ modelica.function @staticArrayGet {
 // Set a static array.
 
 // CHECK:   modelica.raw_function @staticArraySet() -> !modelica.array<3x2x!modelica.int> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.member<3x2x!modelica.int, output> {name = "x"}
+// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x2x!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[value:.*]] = modelica.alloc
 // CHECK-NEXT:      modelica.raw_variable_set %[[x]], %[[value]]
 // CHECK:   }
 
 modelica.function @staticArraySet {
-    modelica.variable @x : !modelica.member<3x2x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x2x!modelica.int, output>
 
     modelica.algorithm {
         %1 = modelica.alloc : !modelica.array<3x2x!modelica.int>
@@ -110,13 +110,13 @@ modelica.function @staticArraySet {
 // Dynamic array.
 
 // CHECK:       modelica.raw_function @dynamicArray() -> !modelica.array<3x?x!modelica.int> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.member<3x?x!modelica.int, output> {name = "x"}
+// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[result:.*]] = modelica.raw_variable_get %[[x]]
 // CHECK-NEXT:      modelica.raw_return %[[result]]
 // CHECK-NEXT:  }
 
 modelica.function @dynamicArray {
-    modelica.variable @x : !modelica.member<3x?x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x?x!modelica.int, output>
 }
 
 // -----
@@ -124,14 +124,14 @@ modelica.function @dynamicArray {
 // Get a dynamic array.
 
 // CHECK:       modelica.raw_function @dynamicArrayGet() -> !modelica.array<3x?x!modelica.int> {
-// CHECK:           %[[x:.*]] = modelica.raw_variable : !modelica.member<3x?x!modelica.int, output> {name = "x"}
+// CHECK:           %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[x_value:.*]] = modelica.raw_variable_get %[[x]]
 // CHECK-NEXT:      %[[value:.*]] = modelica.load %[[x_value]][%{{.*}}, %{{.*}}]
 // CHECK-NEXT:      modelica.print %[[value]] : !modelica.int
 // CHECK:       }
 
 modelica.function @dynamicArrayGet {
-    modelica.variable @x : !modelica.member<3x?x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x?x!modelica.int, output>
 
     modelica.algorithm {
         %1 = modelica.variable_get @x : !modelica.array<3x?x!modelica.int>
@@ -146,13 +146,13 @@ modelica.function @dynamicArrayGet {
 // Set a dynamic array.
 
 // CHECK:       modelica.raw_function @dynamicArraySet() -> !modelica.array<3x?x!modelica.int> {
-// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.member<3x?x!modelica.int, output> {name = "x"}
+// CHECK-NEXT:      %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x?x!modelica.int, output> {name = "x"}
 // CHECK-NEXT:      %[[value:.*]] = modelica.alloc
 // CHECK-NEXT:      modelica.raw_variable_set %[[x]], %[[value]]
 // CHECK:   }
 
 modelica.function @dynamicArraySet {
-    modelica.variable @x : !modelica.member<3x?x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x?x!modelica.int, output>
 
     modelica.algorithm {
         %1 = modelica.alloc : !modelica.array<3x2x!modelica.int>
@@ -167,13 +167,13 @@ modelica.function @dynamicArraySet {
 // CHECK:       modelica.raw_function @scalarDefaultValue() -> !modelica.int {
 // CHECK-DAG:       %[[default:.*]] = modelica.constant #modelica.int<0>
 // CHECK-DAG:       %[[non_default:.*]] = modelica.constant #modelica.int<1>
-// CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.member<!modelica.int, output> {name = "x"}
+// CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.variable<!modelica.int, output> {name = "x"}
 // CHECK:           modelica.raw_variable_set %[[x]], %[[default]]
 // CHECK:           modelica.raw_variable_set %[[x]], %[[non_default]]
 // CHECK:       }
 
 modelica.function @scalarDefaultValue {
-    modelica.variable @x : !modelica.member<!modelica.int, output>
+    modelica.variable @x : !modelica.variable<!modelica.int, output>
 
     modelica.default @x {
         %0 = modelica.constant #modelica.int<0>
@@ -193,7 +193,7 @@ modelica.function @scalarDefaultValue {
 // CHECK:       modelica.raw_function @arrayDefaultValue() -> !modelica.array<3x!modelica.int> {
 // CHECK-DAG:       %[[zero:.*]] = modelica.constant #modelica.int<0>
 // CHECK-DAG:       %[[one:.*]] = modelica.constant #modelica.int<1>
-// CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.member<3x!modelica.int, output> {name = "x"}
+// CHECK-DAG:       %[[x:.*]] = modelica.raw_variable : !modelica.variable<3x!modelica.int, output> {name = "x"}
 // CHECK:           %[[default:.*]] = modelica.array_broadcast %[[zero]]
 // CHECK:           modelica.raw_variable_set %[[x]], %[[default]]
 // CHECK:           %[[non_default:.*]] = modelica.array_broadcast %[[one]]
@@ -201,7 +201,7 @@ modelica.function @scalarDefaultValue {
 // CHECK:       }
 
 modelica.function @arrayDefaultValue {
-    modelica.variable @x : !modelica.member<3x!modelica.int, output>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, output>
 
     modelica.default @x {
         %0 = modelica.constant #modelica.int<0>

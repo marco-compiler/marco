@@ -8,7 +8,7 @@
 // CHECK-NEXT:  } {each = false, fixed = false}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<!modelica.int>
+    modelica.variable @x : !modelica.variable<!modelica.int>
 }
 
 // -----
@@ -21,5 +21,5 @@ modelica.model @Test {
 // CHECK-NEXT:  } {each = true, fixed = false}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 }

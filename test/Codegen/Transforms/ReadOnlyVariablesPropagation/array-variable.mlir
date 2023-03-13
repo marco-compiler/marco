@@ -17,8 +17,8 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int, constant>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, constant>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
 
     modelica.binding_equation @x {
         %0 = modelica.constant #modelica.int<0>
@@ -60,8 +60,8 @@ modelica.model @Test {
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
-    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int, parameter>
+    modelica.variable @y : !modelica.variable<3x!modelica.int>
 
     modelica.binding_equation @x {
         %0 = modelica.constant #modelica.int<0>

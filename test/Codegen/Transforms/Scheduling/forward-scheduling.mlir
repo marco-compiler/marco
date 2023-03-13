@@ -4,7 +4,7 @@
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[1, 2]]], path = ["L"]}], schedule = [{block = 1 : i64, cycle = false, direction = "forward", indices = [[[1, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @x : !modelica.variable<3x!modelica.int>
 
     modelica.for_equation %arg1 = 1 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[1, 2]]], path = ["L"]}]} {
