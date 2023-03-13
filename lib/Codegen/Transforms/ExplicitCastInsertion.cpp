@@ -78,19 +78,8 @@ namespace
           args.push_back(arg);
         }
 
-        auto movedResults = op.getMovedResults();
-
-        if (movedResults.has_value()) {
-          rewriter.replaceOpWithNewOp<CallOp>(
-              op,
-              op.getResultTypes(),
-              op.getCallee(),
-              args,
-              rewriter.getI64IntegerAttr(movedResults->getSExtValue()));
-        } else {
-          rewriter.replaceOpWithNewOp<CallOp>(
-              op, op.getCallee(), op.getResultTypes(), args);
-        }
+        rewriter.replaceOpWithNewOp<CallOp>(
+            op, op.getCallee(), op.getResultTypes(), args);
 
         return mlir::success();
       }

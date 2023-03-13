@@ -3176,7 +3176,7 @@ def Modelica_CallOp : Modelica_Op<"call",
         ```
     }];
 
-    let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$args, OptionalAttr<AnyI64Attr>:$movedResults);
+    let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$args);
     let results = (outs Variadic<AnyType>);
 
     let assemblyFormat = [{
