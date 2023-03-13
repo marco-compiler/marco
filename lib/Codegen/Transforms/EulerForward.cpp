@@ -58,11 +58,7 @@ namespace
   struct EquationTemplate
   {
     mlir::func::FuncOp funcOp;
-
-    // Positions of the used variables. Index 0 is used for the time variable,
-    // so the variables have an offset of 1 with respect to the ones declared
-    // in the ModelOp.
-    std::vector<unsigned int> usedVariables;
+    llvm::SmallVector<VariableOp> usedVariables;
   };
 
   class EulerForwardSolver : public mlir::modelica::impl::ModelSolver
@@ -126,6 +122,7 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
     llvm::ThreadPool& threadPool,
     mlir::OpBuilder& builder,
     ModelOp modelOp,
+    const mlir::SymbolTable& symbolTable,
     const ScheduledEquation* equation,
     const EulerForwardSolver::ConversionInfo& conversionInfo,
     std::map<EquationTemplateInfo, EquationTemplate>& equationTemplatesMap,
@@ -156,11 +153,12 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   }
 
   // Create the equation template function
-  std::vector<unsigned int> usedVariables;
+  llvm::SmallVector<VariableOp> usedVariables;
 
   mlir::func::FuncOp function = explicitEquation->second->createTemplateFunction(
       threadPool, builder, functionName,
       equation->getSchedulingDirection(),
+      symbolTable,
       usedVariables);
 
   size_t timeArgumentIndex = 0;
@@ -296,6 +294,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto modelOp = model.getOperation();
+  mlir::SymbolTable symbolTable(modelOp);
   auto loc = modelOp.getLoc();
 
   // Create the function inside the parent module.
@@ -325,10 +324,16 @@ mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
   std::map<EquationTemplateInfo, EquationTemplate> equationTemplatesMap;
   llvm::ThreadPool threadPool;
 
+  llvm::StringMap<size_t> variablesPos;
+
+  for (auto variable : llvm::enumerate(modelOp.getVariables())) {
+    variablesPos[variable.value().getSymName()] = variable.index();
+  }
+
   for (const auto& scheduledBlock : model.getScheduledBlocks()) {
     for (const auto& equation : *scheduledBlock) {
       auto templateFunction = getOrCreateEquationTemplateFunction(
-          threadPool, builder, modelOp, equation.get(), conversionInfo,
+          threadPool, builder, modelOp, symbolTable, equation.get(), conversionInfo,
           equationTemplatesMap, "eq_template_", equationTemplateCounter);
 
       if (!templateFunction.has_value()) {
@@ -354,9 +359,9 @@ mlir::LogicalResult EulerForwardSolver::createUpdateNonStateVariablesFunction(
       usedVariables.push_back(allVariables[0]);
       usedVariablesTypes.push_back(allVariables[0].getType());
 
-      for (unsigned int position : templateFunction->usedVariables) {
-        usedVariables.push_back(allVariables[position + 1]);
-        usedVariablesTypes.push_back(allVariables[position + 1].getType());
+      for (VariableOp variableOp : templateFunction->usedVariables) {
+        usedVariables.push_back(allVariables[variablesPos[variableOp.getSymName()] + 1]);
+        usedVariablesTypes.push_back(allVariables[variablesPos[variableOp.getSymName()] + 1].getType());
       }
 
       auto equationFunction = createEquationFunction(
@@ -382,6 +387,7 @@ mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto modelOp = model.getOperation();
+  mlir::SymbolTable symbolTable(modelOp);
   auto loc = modelOp.getLoc();
 
   // Create the function inside the parent module.
@@ -411,10 +417,16 @@ mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
   std::map<EquationTemplateInfo, EquationTemplate> equationTemplatesMap;
   llvm::ThreadPool threadPool;
 
+  llvm::StringMap<size_t> variablesPos;
+
+  for (auto variable : llvm::enumerate(modelOp.getVariables())) {
+    variablesPos[variable.value().getSymName()] = variable.index();
+  }
+
   for (const auto& scheduledBlock : model.getScheduledBlocks()) {
     for (const auto& equation : *scheduledBlock) {
       auto templateFunction = getOrCreateEquationTemplateFunction(
-          threadPool, builder, modelOp, equation.get(), conversionInfo,
+          threadPool, builder, modelOp, symbolTable, equation.get(), conversionInfo,
           equationTemplatesMap, "initial_eq_template_", equationTemplateCounter);
 
       if (!templateFunction.has_value()) {
@@ -435,9 +447,9 @@ mlir::LogicalResult EulerForwardSolver::createCalcICFunction(
       usedVariables.push_back(allVariables[0]);
       usedVariablesTypes.push_back(allVariables[0].getType());
 
-      for (unsigned int position : templateFunction->usedVariables) {
-        usedVariables.push_back(allVariables[position + 1]);
-        usedVariablesTypes.push_back(allVariables[position + 1].getType());
+      for (VariableOp variableOp : templateFunction->usedVariables) {
+        usedVariables.push_back(allVariables[variablesPos[variableOp.getSymName()] + 1]);
+        usedVariablesTypes.push_back(allVariables[variablesPos[variableOp.getSymName()] + 1].getType());
       }
 
       // Create the instantiated template function.
@@ -463,7 +475,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto modelOp = model.getOperation();
-  auto loc = modelOp.getLoc();
+  mlir::Location loc = modelOp.getLoc();
 
   // Create the function inside the parent module.
   builder.setInsertionPointToEnd(simulationModuleOp.getBody());
@@ -504,20 +516,25 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
   auto variables = functionOp.getVariables();
   const DerivativesMap& derivativesMap = model.getDerivativesMap();
 
+  llvm::StringMap<size_t> variablesPos;
+
+  for (const auto& variableAttr :
+       llvm::enumerate(simulationModuleOp.getVariables()
+           .getAsRange<mlir::simulation::VariableAttr>())) {
+    llvm::StringRef variableName = variableAttr.value().getName();
+    variablesPos[variableName] = variableAttr.index();
+  }
+
   for (const auto& var : model.getVariables()) {
-    auto varArgNumber = var->getValue().cast<mlir::BlockArgument>().getArgNumber();
-    mlir::Value variable = variables[varArgNumber];
+    VariableOp variableOp = var->getDefiningOp();
+    llvm::StringRef variableName = variableOp.getSymName();
+    mlir::Value variable = variables[variablesPos[variableName]];
 
-    if (derivativesMap.hasDerivative(varArgNumber)) {
-      auto derArgNumber = derivativesMap.getDerivative(varArgNumber);
-      mlir::Value derivative = variables[derArgNumber];
+    if (derivativesMap.hasDerivative(variableName)) {
+      auto derVarName = derivativesMap.getDerivative(variableName);
+      mlir::Value derivative = variables[variablesPos[derVarName]];
 
-      assert(variable.getType().cast<ArrayType>().getShape() ==
-             derivative.getType().cast<ArrayType>().getShape());
-
-      auto arrayType = variable.getType().cast<ArrayType>();
-
-      if (arrayType.isScalar()) {
+      if (variableOp.getMemberType().isScalar()) {
         mlir::Value scalarState = builder.create<LoadOp>(
             loc, variable, llvm::None);
 
@@ -535,7 +552,7 @@ mlir::LogicalResult EulerForwardSolver::createUpdateStateVariablesFunction(
         std::vector<mlir::Value> upperBounds;
         std::vector<mlir::Value> steps;
 
-        for (unsigned int i = 0; i < arrayType.getRank(); ++i) {
+        for (unsigned int i = 0; i < variableOp.getMemberType().getRank(); ++i) {
           lowerBounds.push_back(builder.create<ConstantOp>(
               loc, builder.getIndexAttr(0)));
 
@@ -692,7 +709,6 @@ namespace
                 getOperation(), typeConverter))) {
           return signalPassFailure();
         }
-
       }
   };
 }

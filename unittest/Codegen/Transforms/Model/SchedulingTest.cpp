@@ -19,8 +19,8 @@ TEST(ScheduledEquation, inductionVariables)
 
   // Create the model operation and map the variables
   llvm::SmallVector<mlir::Type, 2> types;
-  types.push_back(RealType::get(builder.getContext()));
-  types.push_back(RealType::get(builder.getContext()));
+  types.push_back(ArrayType::get({10, 30}, RealType::get(builder.getContext())));
+  types.push_back(ArrayType::get({10, 30}, RealType::get(builder.getContext())));
 
   auto model = createModel(builder, types);
   auto variables = discoverVariables(model);
@@ -30,8 +30,10 @@ TEST(ScheduledEquation, inductionVariables)
   equationRanges.emplace_back(13, 23);
 
   auto equationOp = createEquation(builder, model, equationRanges, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
-    mlir::Value loadX = builder.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), mlir::ValueRange({ indices[0], indices[1] }));
-    mlir::Value loadY = builder.create<LoadOp>(loc, model.getBodyRegion().getArgument(1), mlir::ValueRange({ indices[0], indices[1] }));
+    mlir::Value x = builder.create<VariableGetOp>(loc, types[0], "var0");
+    mlir::Value y = builder.create<VariableGetOp>(loc, types[1], "var1");
+    mlir::Value loadX = builder.create<LoadOp>(loc, x, mlir::ValueRange({ indices[0], indices[1] }));
+    mlir::Value loadY = builder.create<LoadOp>(loc, y, mlir::ValueRange({ indices[0], indices[1] }));
     createEquationSides(builder, loadX, loadY);
   });
 

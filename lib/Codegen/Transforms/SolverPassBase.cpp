@@ -143,34 +143,32 @@ static IndexSet getFilteredIndices(
 {
   IndexSet result;
 
-  auto arrayType = variableType.cast<ArrayType>();
-  assert(arrayType.hasStaticShape());
-
   for (const auto& filter : filters) {
     if (!filter.isVisible()) {
       continue;
     }
 
     auto filterRanges = filter.getRanges();
-    assert(filterRanges.size() == static_cast<size_t>(arrayType.getRank()));
-
     std::vector<Range> ranges;
 
-    for (const auto& range : llvm::enumerate(filterRanges)) {
-      // In Modelica, arrays are 1-based. If present, we need to lower by 1
-      // the value given by the variable filter.
+    if (auto arrayType = variableType.dyn_cast<ArrayType>()) {
+      assert(arrayType.hasStaticShape());
+      assert(filterRanges.size() == static_cast<size_t>(arrayType.getRank()));
 
-      auto lowerBound = range.value().hasLowerBound()
-          ? range.value().getLowerBound() - 1 : 0;
+      for (const auto& range : llvm::enumerate(filterRanges)) {
+        // In Modelica, arrays are 1-based. If present, we need to lower by 1
+        // the value given by the variable filter.
 
-      auto upperBound = range.value().hasUpperBound()
-          ? range.value().getUpperBound()
-          : arrayType.getShape()[range.index()];
+        auto lowerBound = range.value().hasLowerBound()
+            ? range.value().getLowerBound() - 1 : 0;
 
-      ranges.emplace_back(lowerBound, upperBound);
-    }
+        auto upperBound = range.value().hasUpperBound()
+            ? range.value().getUpperBound()
+            : arrayType.getShape()[range.index()];
 
-    if (ranges.empty()) {
+        ranges.emplace_back(lowerBound, upperBound);
+      }
+    } else {
       // Scalar value.
       ranges.emplace_back(0, 1);
     }
@@ -303,21 +301,19 @@ namespace mlir::modelica::impl
     builder.setInsertionPointToEnd(moduleOp.getBody());
 
     llvm::SmallVector<mlir::Attribute> variables;
+    llvm::StringMap<size_t> variablesMap;
 
-    for (const auto& variable :
-         llvm::enumerate(modelOp.getVariableDeclarationOps())) {
-      MemberCreateOp memberCreateOp = variable.value();
-
+    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
       // Determine the printable indices.
       bool printable = true;
 
       IndexSet printableIndices = getPrintableIndices(
-          modelOp, derivativesMap, variablesFilter, variable.index());
+          modelOp, derivativesMap, variablesFilter, variableOp);
 
       auto simulationPrintableIndices = getSimulationMultidimensionalRanges(
           builder.getContext(), printableIndices);
 
-      if (!memberCreateOp.getMemberType().hasRank()) {
+      if (variableOp.getMemberType().isScalar()) {
         if (printableIndices.empty()) {
           printable = false;
         }
@@ -328,20 +324,23 @@ namespace mlir::modelica::impl
       // Create the variable.
       variables.push_back(mlir::simulation::VariableAttr::get(
           builder.getContext(),
-          memberCreateOp.getMemberType().toArrayType(),
-          memberCreateOp.getSymName(),
-          memberCreateOp.getMemberType().getShape(),
+          variableOp.getMemberType().toArrayType(),
+          variableOp.getSymName(),
+          variableOp.getMemberType().getShape(),
           printable,
           simulationPrintableIndices));
+
+      variablesMap[variableOp.getSymName()] = variables.size() - 1;
     }
 
     llvm::SmallVector<mlir::Attribute> derivatives;
 
-    for (size_t i = 0, e = variables.size(); i < e; ++i) {
-      if (derivativesMap.hasDerivative(i)) {
-        auto variableAttr = variables[i].cast<mlir::simulation::VariableAttr>();
+    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+      if (derivativesMap.hasDerivative(variableOp.getSymName())) {
+        auto variableAttr = variables[variablesMap[variableOp.getSymName()]]
+                                .cast<mlir::simulation::VariableAttr>();
 
-        auto derivativeAttr = variables[derivativesMap.getDerivative(i)]
+        auto derivativeAttr = variables[variablesMap[derivativesMap.getDerivative(variableOp.getSymName())]]
                                   .cast<mlir::simulation::VariableAttr>();
 
         derivatives.push_back(mlir::simulation::DerivativeAttr::get(
@@ -357,30 +356,24 @@ namespace mlir::modelica::impl
       ModelOp modelOp,
       const DerivativesMap& derivativesMap,
       const VariableFilter& variablesFilter,
-      unsigned int variable) const
+      VariableOp variableOp) const
   {
-    llvm::SmallVector<llvm::StringRef> names = modelOp.getVariableNames();
-    llvm::StringRef name = names[variable];
+    MemberType variableType = variableOp.getMemberType();
+    int64_t rank = variableOp.getMemberType().getRank();
 
-    auto arrayType = modelOp.getBodyRegion()
-                         .getArgument(variable)
-                         .getType()
-                         .cast<ArrayType>();
+    if (derivativesMap.isDerivative(variableOp.getSymName())) {
+      llvm::StringRef derivedVariableName =
+          derivativesMap.getDerivedVariable(variableOp.getSymName());
 
-    int64_t rank = arrayType.hasRank() ? arrayType.getRank() : 0;
-
-    if (derivativesMap.isDerivative(variable)) {
-      auto derivedVariable = derivativesMap.getDerivedVariable(variable);
-      llvm::StringRef derivedVariableName = names[derivedVariable];
       auto filters = variablesFilter.getVariableDerInfo(derivedVariableName, rank);
 
-      IndexSet filteredIndices = getFilteredIndices(arrayType, filters);
-      IndexSet derivedIndices = derivativesMap.getDerivedIndices(derivedVariable);
+      IndexSet filteredIndices = getFilteredIndices(variableType.unwrap(), filters);
+      IndexSet derivedIndices = derivativesMap.getDerivedIndices(derivedVariableName);
       return filteredIndices.intersect(derivedIndices);
     }
 
-    auto filters = variablesFilter.getVariableInfo(name, rank);
-    return getFilteredIndices(arrayType, filters);
+    auto filters = variablesFilter.getVariableInfo(variableOp.getSymName(), rank);
+    return getFilteredIndices(variableType.unwrap(), filters);
   }
 
   mlir::LogicalResult ModelSolver::createInitFunction(
@@ -392,6 +385,7 @@ namespace mlir::modelica::impl
     builder.setInsertionPointToEnd(simulationModuleOp.getBody());
 
     mlir::Location loc = modelOp.getLoc();
+    mlir::SymbolTable symbolTable(modelOp);
 
     auto initFunctionOp = builder.create<mlir::simulation::InitFunctionOp>(
         loc, simulationModuleOp.getVariablesTypes());
@@ -399,61 +393,48 @@ namespace mlir::modelica::impl
     mlir::Block* entryBlock = initFunctionOp.addEntryBlock();
     builder.setInsertionPointToStart(entryBlock);
 
-    std::vector<MemberCreateOp> originalMembers;
-
     // The descriptors of the arrays that compose that runtime data structure.
     std::vector<mlir::Value> structVariables;
+    llvm::StringMap<mlir::Value> structVariablesMap;
 
     mlir::BlockAndValueMapping membersOpsMapping;
 
-    for (auto& op : modelOp.getVarsRegion().getOps()) {
-      if (auto memberCreateOp = mlir::dyn_cast<MemberCreateOp>(op)) {
-        auto arrayType = memberCreateOp.getMemberType().toArrayType();
-        assert(arrayType.hasStaticShape());
+    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+      auto arrayType = variableOp.getMemberType().toArrayType();
+      assert(arrayType.hasStaticShape());
 
-        std::vector<mlir::Value> dynamicDimensions;
+      mlir::Value array = builder.create<AllocOp>(
+          variableOp.getLoc(), arrayType, llvm::None);
 
-        for (const auto& dynamicDimension : memberCreateOp.getDynamicSizes()) {
-          dynamicDimensions.push_back(membersOpsMapping.lookup(dynamicDimension));
-        }
-
-        mlir::Value array = builder.create<AllocOp>(
-            memberCreateOp.getLoc(), arrayType, dynamicDimensions);
-
-        originalMembers.push_back(memberCreateOp);
-        structVariables.push_back(array);
-
-        membersOpsMapping.map(memberCreateOp.getResult(), array);
-      }
-    }
-
-    // Map the body arguments to the new arrays.
-    mlir::ValueRange bodyArgs = modelOp.getBodyRegion().getArguments();
-    mlir::BlockAndValueMapping startOpsMapping;
-
-    for (const auto& [arg, array] : llvm::zip(bodyArgs, structVariables)) {
-      startOpsMapping.map(arg, array);
+      structVariables.push_back(array);
+      structVariablesMap[variableOp.getSymName()] = array;
     }
 
     // Keep track of the variables for which a start value has been provided.
-    llvm::SmallVector<bool> initializedVars(bodyArgs.size(), false);
+    llvm::DenseSet<llvm::StringRef> initializedVars;
 
-    modelOp.getBodyRegion().walk([&](StartOp startOp) {
-      unsigned int argNumber = startOp.getVariable().cast<mlir::BlockArgument>().getArgNumber();
+    for (StartOp startOp : modelOp.getOps<StartOp>()) {
+      // Set the variable as initialized.
+      initializedVars.insert(startOp.getVariable());
 
       // Note that parameters must be set independently of the 'fixed'
       // attribute being true or false.
 
-      if (startOp.getFixed() && !originalMembers[argNumber].isReadOnly()) {
-        return;
+      auto variableOp = symbolTable.lookup<VariableOp>(startOp.getVariable());
+
+      if (startOp.getFixed() && !variableOp.getMemberType().isReadOnly()) {
+        continue;
       }
 
-      builder.setInsertionPointAfterValue(structVariables[argNumber]);
+      builder.setInsertionPointAfterValue(
+          structVariablesMap[startOp.getVariable()]);
+
+      mlir::BlockAndValueMapping startOpsMapping;
 
       for (auto& op : startOp.getBodyRegion().getOps()) {
         if (auto yieldOp = mlir::dyn_cast<YieldOp>(op)) {
           mlir::Value valueToBeStored = startOpsMapping.lookup(yieldOp.getValues()[0]);
-          mlir::Value destination = startOpsMapping.lookup(startOp.getVariable());
+          mlir::Value destination = structVariablesMap[startOp.getVariable()];
 
           if (startOp.getEach()) {
             builder.create<ArrayFillOp>(startOp.getLoc(), destination, valueToBeStored);
@@ -464,18 +445,15 @@ namespace mlir::modelica::impl
           builder.clone(op, startOpsMapping);
         }
       }
-
-      // Set the variable as initialized.
-      initializedVars[argNumber] = true;
-    });
+    }
 
     // The variables without a 'start' attribute must be initialized to zero.
-    for (const auto& initialized : llvm::enumerate(initializedVars)) {
-      if (initialized.value()) {
+    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+      if (initializedVars.contains(variableOp.getSymName())) {
         continue;
       }
 
-      mlir::Value destination = structVariables[initialized.index()];
+      mlir::Value destination =  structVariablesMap[variableOp.getSymName()];
       auto arrayType = destination.getType().cast<ArrayType>();
 
       builder.setInsertionPointAfterValue(destination);

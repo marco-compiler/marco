@@ -19,6 +19,7 @@ namespace marco::codegen
   void writeDerivativesMap(
       mlir::OpBuilder& builder,
       mlir::modelica::ModelOp modelOp,
+      const mlir::SymbolTable& symbolTable,
       const DerivativesMap& derivativesMap,
       const ModelSolvingIROptions& irOptions);
 

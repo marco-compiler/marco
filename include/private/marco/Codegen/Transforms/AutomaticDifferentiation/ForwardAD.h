@@ -17,16 +17,26 @@ namespace marco::codegen
       void setAsDerived(mlir::Operation* op);
 
       mlir::LogicalResult createFullDerFunction(
-          mlir::OpBuilder& builder, mlir::modelica::FunctionOp functionOp);
+          mlir::OpBuilder& builder,
+          mlir::modelica::FunctionOp functionOp,
+          mlir::SymbolTableCollection& symbolTableCollection);
 
-      mlir::LogicalResult createPartialDerFunction(
-          mlir::OpBuilder& builder, mlir::modelica::DerFunctionOp derFunctionOp);
+      mlir::LogicalResult convertPartialDerFunction(
+          mlir::OpBuilder& builder,
+          mlir::modelica::DerFunctionOp derFunctionOp,
+          mlir::SymbolTableCollection& symbolTableCollection);
 
       mlir::ValueRange deriveTree(
-          mlir::OpBuilder& builder, mlir::modelica::DerivableOpInterface op, mlir::BlockAndValueMapping& derivatives);
+          mlir::OpBuilder& builder,
+          mlir::modelica::DerivableOpInterface op,
+          const llvm::DenseMap<
+              mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
+          mlir::BlockAndValueMapping& derivatives);
 
       mlir::modelica::FunctionOp createPartialDerTemplateFunction(
-          mlir::OpBuilder& builder, mlir::modelica::DerFunctionOp derFunctionOp);
+          mlir::OpBuilder& builder,
+          mlir::modelica::DerFunctionOp derFunctionOp,
+          mlir::SymbolTableCollection& symbolTableCollection);
 
       mlir::modelica::FunctionOp createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
@@ -37,43 +47,53 @@ namespace marco::codegen
       std::pair<mlir::modelica::FunctionOp, unsigned int> getPartialDerBaseFunction(
           mlir::modelica::FunctionOp functionOp);
 
-      mlir::LogicalResult deriveFunctionBody(
+      mlir::LogicalResult deriveRegion(
           mlir::OpBuilder& builder,
-          mlir::modelica::FunctionOp functionOp,
-          mlir::BlockAndValueMapping& derivatives,
-          std::function<mlir::ValueRange(mlir::OpBuilder&, mlir::Operation*, mlir::BlockAndValueMapping&)> deriveFn);
+          mlir::Region& region,
+          llvm::DenseMap<
+              mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
+          mlir::BlockAndValueMapping& ssaDerivatives,
+          std::function<mlir::ValueRange(
+              mlir::OpBuilder&,
+              mlir::Operation*,
+              const llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&,
+              mlir::BlockAndValueMapping&)> deriveFn);
 
       bool isDerivable(mlir::Operation* op) const;
 
       mlir::ValueRange createOpFullDerivative(
           mlir::OpBuilder& builder,
           mlir::Operation* op,
-          mlir::BlockAndValueMapping& derivatives);
+          const llvm::DenseMap<
+              mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
+          mlir::BlockAndValueMapping& ssaDerivatives);
 
       mlir::ValueRange createOpPartialDerivative(
           mlir::OpBuilder& builder,
           mlir::Operation* op,
-          mlir::BlockAndValueMapping& derivatives);
+          const llvm::DenseMap<
+              mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
+          mlir::BlockAndValueMapping& ssaDerivatives);
 
       mlir::ValueRange createCallOpFullDerivative(
           mlir::OpBuilder& builder,
           mlir::modelica::CallOp callOp,
-          mlir::BlockAndValueMapping& derivatives);
+          mlir::BlockAndValueMapping& ssaDerivatives);
 
       mlir::ValueRange createCallOpPartialDerivative(
           mlir::OpBuilder& builder,
           mlir::modelica::CallOp callOp,
-          mlir::BlockAndValueMapping& derivatives);
+          mlir::BlockAndValueMapping& ssaDerivatives);
 
       mlir::ValueRange createTimeOpFullDerivative(
           mlir::OpBuilder& builder,
           mlir::modelica::TimeOp timeOp,
-          mlir::BlockAndValueMapping& derivatives);
+          mlir::BlockAndValueMapping& ssaDerivatives);
 
       mlir::ValueRange createTimeOpPartialDerivative(
           mlir::OpBuilder& builder,
           mlir::modelica::TimeOp timeOp,
-          mlir::BlockAndValueMapping& derivatives);
+          mlir::BlockAndValueMapping& ssaDerivatives);
 
     private:
       // Keeps track of the operations that have already been derived

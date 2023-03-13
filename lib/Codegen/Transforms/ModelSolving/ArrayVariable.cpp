@@ -7,10 +7,10 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  ArrayVariable::ArrayVariable(mlir::Value value)
-    : BaseVariable(value)
+  ArrayVariable::ArrayVariable(VariableOp memberCreateOp)
+    : BaseVariable(memberCreateOp)
   {
-    assert(!value.getType().cast<ArrayType>().isScalar());
+    assert(!memberCreateOp.getMemberType().isScalar());
   }
 
   std::unique_ptr<Variable> ArrayVariable::clone() const
@@ -20,14 +20,14 @@ namespace marco::codegen
 
   size_t ArrayVariable::getRank() const
   {
-    auto result = getValue().getType().cast<ArrayType>().getRank();
-    assert(result != 0);
-    return result;
+    int64_t rank = getDefiningOp().getMemberType().getRank();
+    assert(rank != 0);
+    return rank;
   }
 
   long ArrayVariable::getDimensionSize(size_t index) const
   {
-    return getValue().getType().cast<ArrayType>().getShape()[index];
+    return getDefiningOp().getMemberType().getShape()[index];
   }
 
   IndexSet ArrayVariable::getIndices() const

@@ -10,42 +10,24 @@ namespace marco::codegen::test
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
-    llvm::SmallVector<mlir::Attribute, 3> names;
+    llvm::SmallVector<std::string, 3> names;
+    llvm::SmallVector<mlir::Location, 3> varLocations;
 
     for (size_t i = 0; i < varTypes.size(); ++i) {
-      names.push_back(builder.getStringAttr("var" + std::to_string(i)));
-    }
-
-    llvm::SmallVector<mlir::Location, 3> varLocations;
-    llvm::SmallVector<mlir::Type, 3> varArrayTypes;
-
-    for (const auto& type : varTypes) {
-      if (auto arrayType = type.dyn_cast<ArrayType>()) {
-        varArrayTypes.push_back(arrayType);
-      } else {
-        varArrayTypes.push_back(ArrayType::get(llvm::None, type));
-      }
-
+      names.push_back("var" + std::to_string(i));
       varLocations.push_back(builder.getUnknownLoc());
     }
 
     auto modelOp = builder.create<ModelOp>(builder.getUnknownLoc(), "Test");
+    builder.setInsertionPointToStart(modelOp.bodyBlock());
 
-    mlir::Block* initBlock = builder.createBlock(&modelOp.getVarsRegion());
-    builder.setInsertionPointToStart(initBlock);
+    for (const auto& [name, type] : llvm::zip(names, varTypes)) {
+      auto variableType = MemberType::wrap(type);
 
-    llvm::SmallVector<mlir::Value, 3> members;
-
-    for (const auto& [name, type] : llvm::zip(names, varArrayTypes)) {
-      auto arrayType = type.cast<ArrayType>();
-      auto memberType = MemberType::wrap(arrayType);
-      auto member = builder.create<MemberCreateOp>(builder.getUnknownLoc(), name.cast<mlir::StringAttr>().getValue(), memberType, llvm::None);
-      members.push_back(member.getResult());
+      builder.create<VariableOp>(
+          builder.getUnknownLoc(), name, variableType);
     }
 
-    builder.create<YieldOp>(builder.getUnknownLoc(), members);
-
-    builder.createBlock(&modelOp.getBodyRegion(), {}, varArrayTypes, varLocations);
     return modelOp;
   }
 
@@ -56,7 +38,7 @@ namespace marco::codegen::test
       std::function<void(mlir::OpBuilder&, mlir::ValueRange)> bodyFn)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
-    builder.setInsertionPointToStart(&model.getBodyRegion().front());
+    builder.setInsertionPointToEnd(model.bodyBlock());
     auto loc = builder.getUnknownLoc();
 
     // Create the iteration ranges

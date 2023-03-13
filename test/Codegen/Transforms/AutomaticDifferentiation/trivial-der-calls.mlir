@@ -17,14 +17,17 @@
 
 // CHECK: -1.979985e+00
 
-modelica.function @sin_der : (!modelica.real, !modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @der_x : !modelica.member<!modelica.real, input>
-    %2 = modelica.member_create @y : !modelica.member<!modelica.real, output>
-    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %4 = modelica.sin %3 : !modelica.real -> !modelica.real
-    %5 = modelica.der %4 : !modelica.real -> !modelica.real
-    modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @sin_der {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @der_x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x : !modelica.real
+        %1 = modelica.sin %0 : !modelica.real -> !modelica.real
+        %2 = modelica.der %1 : !modelica.real -> !modelica.real
+        modelica.variable_set @y, %2 : !modelica.real
+    }
 }
 
 func.func @test_sin() -> () {
@@ -37,14 +40,17 @@ func.func @test_sin() -> () {
 
 // CHECK: 2.822400e-01
 
-modelica.function @cos_der : (!modelica.real, !modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @der_x : !modelica.member<!modelica.real, input>
-    %2 = modelica.member_create @y : !modelica.member<!modelica.real, output>
-    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %4 = modelica.cos %3 : !modelica.real -> !modelica.real
-    %5 = modelica.der %4 : !modelica.real -> !modelica.real
-    modelica.member_store %2, %5 : !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @cos_der {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @der_x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x : !modelica.real
+        %1 = modelica.cos %0 : !modelica.real -> !modelica.real
+        %2 = modelica.der %1 : !modelica.real -> !modelica.real
+        modelica.variable_set @y, %2 : !modelica.real
+    }
 }
 
 func.func @test_cos() -> () {

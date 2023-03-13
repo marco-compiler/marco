@@ -5,6 +5,4 @@
 
 modelica.model @Test {
 
-} body {
-
 }

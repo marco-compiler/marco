@@ -2,10 +2,12 @@
 // RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @variableCopy
-// CHECK-DAG: %[[x:.*]] = modelica.member_create @x : !modelica.member<!modelica.int, input>
-// CHECK-DAG: %[[y:.*]] = modelica.member_create @y : !modelica.member<!modelica.int, output>
-// CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
-// CHECK: modelica.member_store %[[y]], %[[x_value]]
+// CHECK-DAG: modelica.variable @x : !modelica.member<!modelica.int, input>
+// CHECK-DAG: modelica.variable @y : !modelica.member<!modelica.int, output>
+// CHECK:       modelica.algorithm {
+// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.int
+// CHECK-NEXT:      modelica.variable_set @y, %[[x]]
+// CHECK-NEXT:  }
 
 function variableCopy
     input Integer x;
@@ -16,10 +18,12 @@ end variableCopy;
 
 
 // CHECK-LABEL: @arrayCopy
-// CHECK: %[[x:.*]] = modelica.member_create @x : !modelica.member<?x!modelica.int, input>
-// CHECK: %[[y:.*]] = modelica.member_create @y : !modelica.member<?x!modelica.int, output>
-// CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
-// CHECK: modelica.member_store %[[y]], %[[x_value]]
+// CHECK-DAG: modelica.variable @x : !modelica.member<?x!modelica.int, input>
+// CHECK-DAG: modelica.variable @y : !modelica.member<?x!modelica.int, output>
+// CHECK:       modelica.algorithm {
+// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.array<?x!modelica.int>
+// CHECK-NEXT:      modelica.variable_set @y, %[[x]]
+// CHECK-NEXT:  }
 
 function arrayCopy
     input Integer[:] x;
@@ -30,22 +34,26 @@ end arrayCopy;
 
 
 // CHECK-LABEL: @constantOutput
-// CHECK: %[[y:.*]] = modelica.member_create @y : !modelica.member<!modelica.int, output>
-// CHECK: %[[const:.*]] = modelica.constant #modelica.int<10>
-// CHECK: modelica.member_store %[[y]], %[[const]]
+// CHECK: modelica.variable @x : !modelica.member<!modelica.int, output>
+// CHECK:       modelica.algorithm {
+// CHECK-NEXT:      %[[const:.*]] = modelica.constant #modelica.int<10>
+// CHECK-NEXT:      modelica.variable_set @x, %[[const]]
+// CHECK-NEXT:  }
 
 function constantOutput
-    output Integer y;
+    output Integer x;
 algorithm
-    y := 10;
+    x := 10;
 end constantOutput;
 
 
 // CHECK-LABEL: @castIntegerToReal
-// CHECK: %[[x:.*]] = modelica.member_create @x : !modelica.member<!modelica.int, input>
-// CHECK: %[[y:.*]] = modelica.member_create @y : !modelica.member<!modelica.real, output>
-// CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
-// CHECK: modelica.member_store %[[y]], %[[x_value]]
+// CHECK-DAG: modelica.variable @x : !modelica.member<!modelica.int, input>
+// CHECK-DAG: modelica.variable @y : !modelica.member<!modelica.real, output>
+// CHECK:       modelica.algorithm {
+// CHECK-NEXT:      %[[x:.*]] = modelica.variable_get @x : !modelica.int
+// CHECK-NEXT:      modelica.variable_set @y, %[[x]]
+// CHECK-NEXT:  }
 
 function castIntegerToReal
     input Integer x;

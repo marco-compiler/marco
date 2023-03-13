@@ -1,35 +1,25 @@
 // RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(legalize-model{model-name=Test})" | FileCheck %s
 
-// Uninitialized scalar variable
+// Uninitialized scalar variable.
 
-// CHECK:       ^bb0(%[[x:.*]]: !modelica.array<!modelica.int>):
-// CHECK-NEXT:  modelica.start (%[[x]] : !modelica.array<!modelica.int>) {each = false, fixed = false} {
+// CHECK:       modelica.start @x {
 // CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<0> : !modelica.int
 // CHECK-NEXT:      modelica.yield %[[value]]
-// CHECK-NEXT:  }
+// CHECK-NEXT:  } {each = false, fixed = false}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.int>
-    modelica.yield %0 : !modelica.member<!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<!modelica.int>):
-
+    modelica.variable @x : !modelica.member<!modelica.int>
 }
 
 // -----
 
-// Uninitialized array variable
+// Uninitialized array variable.
 
-// CHECK:       ^bb0(%[[x:.*]]: !modelica.array<3x!modelica.int>):
-// CHECK-NEXT:  modelica.start (%[[x]] : !modelica.array<3x!modelica.int>) {each = true, fixed = false} {
+// CHECK:       modelica.start @x {
 // CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<0> : !modelica.int
 // CHECK-NEXT:      modelica.yield %[[value]]
-// CHECK-NEXT:  }
+// CHECK-NEXT:  } {each = true, fixed = false}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
-    modelica.yield %0 : !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>):
-
+    modelica.variable @x : !modelica.member<3x!modelica.int>
 }

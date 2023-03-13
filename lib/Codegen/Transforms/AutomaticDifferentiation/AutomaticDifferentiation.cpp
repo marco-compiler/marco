@@ -33,7 +33,8 @@ namespace
 
 namespace marco::codegen
 {
-  std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int order)
+  std::string getFullDerVariableName(
+      llvm::StringRef baseName, unsigned int order)
   {
     assert(order > 0);
 
@@ -44,7 +45,8 @@ namespace marco::codegen
     return "der_" + std::to_string(order) + "_" + baseName.str();
   }
 
-  std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int requestedOrder)
+  std::string getNextFullDerVariableName(
+      llvm::StringRef currentName, unsigned int requestedOrder)
   {
     if (requestedOrder == 1) {
       return getFullDerVariableName(currentName, requestedOrder);
@@ -56,51 +58,58 @@ namespace marco::codegen
       return getFullDerVariableName(currentName.substr(4), requestedOrder);
     }
 
-    return getFullDerVariableName(currentName.substr(5 + numDigits(requestedOrder - 1)), requestedOrder);
+    return getFullDerVariableName(
+        currentName.substr(5 + numDigits(requestedOrder - 1)),
+        requestedOrder);
   }
 
-  void mapFullDerivatives(mlir::BlockAndValueMapping& mapping, llvm::ArrayRef<mlir::Value> members)
+  void mapFullDerivatives(
+      mlir::Operation* classOp,
+      mlir::SymbolTableCollection& symbolTableCollection,
+      llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>& mapping)
   {
-    llvm::StringMap<mlir::Value> membersByName;
+    mlir::SymbolTable& symbolTable =
+        symbolTableCollection.getSymbolTable(classOp);
 
-    for (const auto& member : members) {
-      auto memberOp = member.getDefiningOp<MemberCreateOp>();
-      membersByName[memberOp.getSymName()] = member;
-    }
-
-    for (const auto& member : members) {
-      auto name = member.getDefiningOp<MemberCreateOp>().getSymName();
-
+    // TODO leverage OneRegion trait when available for ClassInterface.
+    for (VariableOp variableOp : classOp->getRegion(0).getOps<VariableOp>()) {
       // Given a variable "x", first search for "der_x". If it doesn't exist,
-      // then also "der_2_x", "der_3_x", etc. will not exist and thus we can
+      // then also "der_2_x", "der_3_x", etc. will not exist, and thus we can
       // say that "x" has no derivatives. If it exists, add the first order
       // derivative and then search for the higher order ones.
 
-      auto candidateFirstOrderDer = getFullDerVariableName(name, 1);
-      auto derIt = membersByName.find(candidateFirstOrderDer);
+      std::string candidateFirstOrderDer =
+          getFullDerVariableName(variableOp.getSymName(), 1);
 
-      if (derIt == membersByName.end()) {
+      auto derivativeVariableOp =
+          symbolTable.lookup<VariableOp>(candidateFirstOrderDer);
+
+      if (!derivativeVariableOp) {
         continue;
       }
 
-      mlir::Value der = derIt->second;
-      mapping.map(member, der);
+      mapping[variableOp.getSymNameAttr()] =
+          derivativeVariableOp.getSymNameAttr();
 
       unsigned int order = 2;
       bool found;
 
       do {
-        auto nextName = getFullDerVariableName(name, order);
-        auto nextDerIt = membersByName.find(nextName);
-        found = nextDerIt != membersByName.end();
+        std::string nextName =
+            getFullDerVariableName(variableOp.getSymName(), order);
+
+        auto nextDerivativeVariableOp =
+            symbolTable.lookup<VariableOp>(nextName);
+
+        found = nextDerivativeVariableOp != nullptr;
 
         if (found) {
-          mlir::Value nextDer = nextDerIt->second;
-          mapping.map(der, nextDer);
-          der = nextDer;
-        }
+          mapping[derivativeVariableOp.getSymNameAttr()] =
+              nextDerivativeVariableOp.getSymNameAttr();
 
-        ++order;
+          derivativeVariableOp = nextDerivativeVariableOp;
+          ++order;
+        }
       } while (found);
     }
   }
@@ -108,7 +117,9 @@ namespace marco::codegen
 
 namespace
 {
-  class AutomaticDifferentiationPass : public impl::AutomaticDifferentiationPassBase<AutomaticDifferentiationPass>
+  class AutomaticDifferentiationPass
+      : public impl::AutomaticDifferentiationPassBase<
+          AutomaticDifferentiationPass>
   {
     public:
       using AutomaticDifferentiationPassBase::AutomaticDifferentiationPassBase;
@@ -116,17 +127,26 @@ namespace
       void runOnOperation() override
       {
         if (mlir::failed(createFullDerFunctions())) {
-          mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in creating the functions full derivatives");
+
           return signalPassFailure();
         }
 
         if (mlir::failed(createPartialDerFunctions())) {
-          mlir::emitError(getOperation().getLoc(), "Error in creating the functions partial derivatives");
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in creating the functions partial derivatives");
+
           return signalPassFailure();
         }
 
         if (mlir::failed(resolveTrivialDerCalls())) {
-          mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
+          mlir::emitError(
+              getOperation().getLoc(),
+              "Error in resolving the trivial derivative calls");
+
           return signalPassFailure();
         }
       }
@@ -154,10 +174,12 @@ namespace
         });
 
         ForwardAD forwardAD;
+        mlir::SymbolTableCollection symbolTableCollection;
 
         for (auto& function : toBeDerived) {
-          if (auto res = forwardAD.createFullDerFunction(builder, function); mlir::failed(res)) {
-            return res;
+          if (mlir::failed(forwardAD.createFullDerFunction(
+                  builder, function, symbolTableCollection))) {
+            return mlir::failure();
           }
         }
 
@@ -169,11 +191,11 @@ namespace
         auto module = getOperation();
         mlir::OpBuilder builder(module);
 
-        llvm::SmallVector<DerFunctionOp, 3> toBeProcessed;
+        llvm::SmallVector<DerFunctionOp> toBeProcessed;
 
         // The conversion is done in an iterative way, because new derivative
-        // functions may be created while converting the existing one (i.e. when
-        // a function to be derived contains a call to an another function).
+        // functions may be created while converting the existing one (i.e.
+        // when a function to be derived contains a call to another function).
 
         auto findDerFunctions = [&]() -> bool {
           module->walk([&](DerFunctionOp op) {
@@ -184,21 +206,23 @@ namespace
         };
 
         ForwardAD forwardAD;
+        mlir::SymbolTableCollection symbolTableCollection;
 
         while (findDerFunctions()) {
           // Sort the functions so that a function derivative is computed only
           // when the base function already has its body determined.
 
-          llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
-            return first.getSymName() == second.getDerivedFunction();
-          });
+          llvm::sort(
+              toBeProcessed,
+              [](DerFunctionOp first, DerFunctionOp second) {
+                return first.getSymName() == second.getDerivedFunction();
+              });
 
-          for (auto& function : toBeProcessed) {
-            if (auto res = forwardAD.createPartialDerFunction(builder, function); mlir::failed(res)) {
-              return res;
+          for (DerFunctionOp function : toBeProcessed) {
+            if (mlir::failed(forwardAD.convertPartialDerFunction(
+                    builder, function, symbolTableCollection))) {
+              return mlir::failure();
             }
-
-            function->erase();
           }
 
           toBeProcessed.clear();
@@ -219,6 +243,11 @@ namespace
         });
 
         ForwardAD forwardAD;
+        mlir::SymbolTableCollection symbolTableCollection;
+
+        llvm::DenseMap<
+            mlir::Operation*,
+            llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>> symbolDerivatives;
 
         for (auto derOp : ops) {
           mlir::Value operand = derOp.getOperand();
@@ -235,10 +264,20 @@ namespace
               continue;
             }
 
-            mlir::BlockAndValueMapping derivatives;
-            mapFullDerivatives(derivatives, classOp.getMembers());
+            mlir::BlockAndValueMapping ssaDerivatives;
 
-            mlir::ValueRange ders = forwardAD.deriveTree(builder, derivableOp, derivatives);
+            if (auto it = symbolDerivatives.find(classOp.getOperation());
+                it == symbolDerivatives.end()) {
+              mapFullDerivatives(
+                  classOp.getOperation(),
+                  symbolTableCollection,
+                  symbolDerivatives[classOp.getOperation()]);
+            }
+
+            mlir::ValueRange ders = forwardAD.deriveTree(
+                builder, derivableOp,
+                symbolDerivatives[classOp.getOperation()],
+                ssaDerivatives);
 
             if (ders.size() != derOp->getNumResults()) {
               continue;

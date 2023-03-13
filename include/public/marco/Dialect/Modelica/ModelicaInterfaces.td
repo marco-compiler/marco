@@ -8,22 +8,17 @@ include "mlir/IR/OpBase.td"
 // Modelica interface definitions
 //===----------------------------------------------------------------------===//
 
-class Modelica_Interface<string name> : OpInterface<name> {
+class Modelica_Interface<string name>
+    : OpInterface<name>
+{
     let cppNamespace = "::mlir::modelica";
 }
 
-def ClassInterface : Modelica_Interface<"ClassInterface"> {
+def ClassInterface : Modelica_Interface<"ClassInterface">
+{
     let description = [{
         Interface for a Modelica class.
     }];
-
-    let methods = [
-        InterfaceMethod<
-            "Get the members of the class together with their names.",
-            "std::vector<mlir::Value>", "getMembers",
-            (ins)
-        >
-    ];
 }
 
 def EquationInterface : Modelica_Interface<"EquationInterface"> {
@@ -160,14 +155,18 @@ def DivOpDistributionInterface : Modelica_Interface<"DivOpDistributionInterface"
 
 def DerivableOpInterface : Modelica_Interface<"DerivableOpInterface"> {
     let description = [{
-        Interface to describe an operation that can accept the DivOp to be distributed among its operands.
+        Interface to describe an operation that can be traversed while
+        performing the automatic differentiation.
     }];
 
     let methods = [
         InterfaceMethod<
             "Compute the derivative of the operation.",
             "mlir::ValueRange", "derive",
-            (ins "::mlir::OpBuilder&":$builder, "::mlir::BlockAndValueMapping&":$derivatives)
+            (ins
+                "::mlir::OpBuilder&":$builder,
+                "const ::llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&":$symbolDerivatives,
+                "::mlir::BlockAndValueMapping&":$ssaDerivatives)
         >,
         InterfaceMethod<
             "Get the operands to be derived.",

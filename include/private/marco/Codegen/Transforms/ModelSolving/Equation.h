@@ -97,10 +97,11 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           ::marco::modeling::scheduling::Direction iterationDirection,
-          std::vector<unsigned int>& usedVariables) const = 0;
+          const mlir::SymbolTable& symbolTable,
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& usedVariables) const = 0;
 
     protected:
-      llvm::Optional<Variable*> findVariable(mlir::Value value) const;
+      llvm::Optional<Variable*> findVariable(llvm::StringRef) const;
 
       void searchAccesses(
           std::vector<Access>& accesses,
@@ -121,7 +122,7 @@ namespace marco::codegen
 
       void resolveAccess(
           std::vector<Access>& accesses,
-          mlir::Value value,
+          llvm::StringRef variableName,
           std::vector<::marco::modeling::DimensionAccess>& dimensionsAccesses,
           EquationPath path) const;
 

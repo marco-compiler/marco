@@ -7,11 +7,7 @@
 // CHECK-SAME: variables = [#[[x]]]
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real>
-    modelica.yield %0 : !modelica.member<!modelica.real>
-} body {
-^bb0(%arg0: !modelica.array<!modelica.real>):
-
+    modelica.variable @x : !modelica.member<!modelica.real>
 }
 
 // -----
@@ -23,11 +19,7 @@ modelica.model @Test {
 // CHECK-SAME: variables = [#[[x]]]
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.real>
-    modelica.yield %0 : !modelica.member<3x!modelica.real>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.real>):
-
+    modelica.variable @x : !modelica.member<3x!modelica.real>
 }
 
 // -----
@@ -39,9 +31,5 @@ modelica.model @Test {
 // CHECK-SAME: variables = [#[[x]]]
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x2x!modelica.real>
-    modelica.yield %0 : !modelica.member<3x2x!modelica.real>
-} body {
-^bb0(%arg0: !modelica.array<3x2x!modelica.real>):
-
+    modelica.variable @x : !modelica.member<3x2x!modelica.real>
 }

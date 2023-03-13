@@ -14,13 +14,13 @@ namespace marco::codegen
     public:
       using Id = mlir::Operation*;
 
-      static std::unique_ptr<Variable> build(mlir::Value value);
+      static std::unique_ptr<Variable> build(mlir::modelica::VariableOp variableOp);
 
       virtual ~Variable();
 
       virtual std::unique_ptr<Variable> clone() const = 0;
 
-      bool operator==(mlir::Value value) const;
+      bool operator==(mlir::modelica::VariableOp value) const;
 
       virtual Id getId() const = 0;
       virtual size_t getRank() const = 0;
@@ -28,8 +28,7 @@ namespace marco::codegen
 
       virtual modeling::IndexSet getIndices() const = 0;
 
-      virtual mlir::Value getValue() const = 0;
-      virtual mlir::modelica::MemberCreateOp getDefiningOp() const = 0;
+      virtual mlir::modelica::VariableOp getDefiningOp() const = 0;
 
       virtual bool isReadOnly() const = 0;
       virtual bool isParameter() const = 0;
@@ -69,7 +68,7 @@ namespace marco::codegen
 
       bool isReferenceAccess(mlir::Value value) const;
 
-      llvm::Optional<Variable*> findVariable(mlir::Value value) const;
+      llvm::Optional<Variable*> findVariable(llvm::StringRef name) const;
 
     private:
       class Impl;

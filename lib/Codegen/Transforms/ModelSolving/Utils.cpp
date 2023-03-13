@@ -240,36 +240,33 @@ namespace marco::codegen
 {
   void writeDerivativesMap(
       mlir::OpBuilder& builder,
-      mlir::modelica::ModelOp modelOp,
+      ModelOp modelOp,
+      const mlir::SymbolTable& symbolTable,
       const DerivativesMap& derivativesMap,
       const ModelSolvingIROptions& irOptions)
   {
     llvm::SmallVector<mlir::Attribute> derivativeAttrs;
-    auto variablesNames = modelOp.getVariableNames();
-    auto members = mlir::cast<YieldOp>(modelOp.getVarsRegion().back().getTerminator()).getValues();
 
-    for (const auto& variableName : llvm::enumerate(variablesNames)) {
-      size_t varIndex = variableName.index();
-
-      if (derivativesMap.hasDerivative(varIndex)) {
+    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+      if (derivativesMap.hasDerivative(variableOp.getSymName())) {
         std::vector<mlir::NamedAttribute> namedAttrs;
 
         namedAttrs.emplace_back(
             builder.getStringAttr("variable"),
-            mlir::SymbolRefAttr::get(builder.getContext(), variableName.value()));
+            mlir::SymbolRefAttr::get(builder.getContext(), variableOp.getSymName()));
 
-        auto derIndex = derivativesMap.getDerivative(varIndex);
+        llvm::StringRef derName = derivativesMap.getDerivative(variableOp.getSymName());
 
         namedAttrs.emplace_back(
             builder.getStringAttr("derivative"),
-            mlir::SymbolRefAttr::get(builder.getContext(), variablesNames[derIndex]));
+            mlir::SymbolRefAttr::get(builder.getContext(), derName));
 
-        auto memberType = members[varIndex].getType().cast<MemberType>();
+        auto memberType = variableOp.getMemberType();
 
         if (memberType.hasRank()) {
           // Add the indices only in case of array variable. Scalar variables
           // are implicitly considered as a single-element array.
-          auto derivedIndices = derivativesMap.getDerivedIndices(varIndex);
+          const auto& derivedIndices = derivativesMap.getDerivedIndices(variableOp.getSymName());
 
           namedAttrs.emplace_back(
               builder.getStringAttr("indices"),
@@ -285,10 +282,9 @@ namespace marco::codegen
 }
 
 static mlir::LogicalResult readDerivativesMapEntry(
-    llvm::DenseMap<llvm::StringRef, size_t>& namesMap,
     mlir::Attribute mapEntry,
-    size_t& varIndex,
-    size_t& derIndex,
+    llvm::StringRef& variable,
+    llvm::StringRef& derivative,
     IndexSet& derivedIndices)
 {
   auto dict = mapEntry.dyn_cast<mlir::DictionaryAttr>();
@@ -326,8 +322,8 @@ static mlir::LogicalResult readDerivativesMapEntry(
     derivedIndices += Point(0);
   }
 
-  varIndex = namesMap[variableAttr.getLeafReference().getValue()];
-  derIndex = namesMap[derivativeAttr.getLeafReference().getValue()];
+  variable = variableAttr.getLeafReference().getValue();
+  derivative = derivativeAttr.getLeafReference().getValue();
 
   return mlir::success();
 }
@@ -350,14 +346,6 @@ namespace marco::codegen
       return mlir::failure();
     }
 
-    // Map the positions of the variables by their names for a faster retrieval.
-    llvm::SmallVector<llvm::StringRef> variablesNames = modelOp.getVariableNames();
-    llvm::DenseMap<llvm::StringRef, size_t> namesMap;
-
-    for (const auto& name : llvm::enumerate(variablesNames)) {
-      namesMap[name.value()] = name.index();
-    }
-
     std::atomic_bool success = true;
     std::mutex mutex;
 
@@ -366,18 +354,18 @@ namespace marco::codegen
       for (size_t i = from; success && i < to; ++i) {
         mlir::Attribute mapEntry = derivativesArrayAttr[i];
 
-        size_t varIndex;
-        size_t derIndex;
+        llvm::StringRef variable;
+        llvm::StringRef derivative;
         IndexSet derivedIndices;
 
-        if (mlir::failed(readDerivativesMapEntry(namesMap, mapEntry, varIndex, derIndex, derivedIndices))) {
+        if (mlir::failed(readDerivativesMapEntry(mapEntry, variable, derivative, derivedIndices))) {
           success = false;
           break;
         }
 
         std::lock_guard<std::mutex> lockGuard(mutex);
-        derivativesMap.setDerivative(varIndex, derIndex);
-        derivativesMap.setDerivedIndices(varIndex, std::move(derivedIndices));
+        derivativesMap.setDerivative(variable, derivative);
+        derivativesMap.setDerivedIndices(variable, std::move(derivedIndices));
       }
     };
 

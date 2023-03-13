@@ -40,13 +40,12 @@ static mlir::LogicalResult matchMainModel(
       return matchableIndices;
     }
 
-    auto argNumber = variable.getValue().cast<mlir::BlockArgument>().getArgNumber();
-
     // Remove the derived indices.
     const DerivativesMap& derivativesMap = matchedModel.getDerivativesMap();
+    llvm::StringRef variableName = variable.getDefiningOp().getSymName();
 
-    if (derivativesMap.hasDerivative(argNumber)) {
-      matchableIndices -= derivativesMap.getDerivedIndices(argNumber);
+    if (derivativesMap.hasDerivative(variableName)) {
+      matchableIndices -= derivativesMap.getDerivedIndices(variableName);
     }
 
     return matchableIndices;
@@ -241,7 +240,8 @@ namespace mlir::modelica
     return std::make_unique<MatchingPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createMatchingPass(const MatchingPassOptions& options)
+  std::unique_ptr<mlir::Pass> createMatchingPass(
+      const MatchingPassOptions& options)
   {
     return std::make_unique<MatchingPass>(options);
   }

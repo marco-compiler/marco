@@ -27,9 +27,9 @@ TEST(ScalarEquation, iterationRanges)
   auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
-    mlir::Value loadX = nested.create<LoadOp>(builder.getUnknownLoc(), model.getBodyRegion().getArgument(0));
-    mlir::Value loadY = nested.create<LoadOp>(builder.getUnknownLoc(), model.getBodyRegion().getArgument(1));
-    createEquationSides(nested, loadX, loadY);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+    createEquationSides(nested, x, y);
   });
 
   auto equation = Equation::build(equationOp, variables);
@@ -62,21 +62,21 @@ TEST(ScalarEquation, accesses)
   auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
-    mlir::Value loadX = nested.create<LoadOp>(builder.getUnknownLoc(), model.getBodyRegion().getArgument(0));
-    mlir::Value loadY = nested.create<LoadOp>(builder.getUnknownLoc(), model.getBodyRegion().getArgument(1));
-    createEquationSides(nested, loadX, loadY);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+    createEquationSides(nested, x, y);
   });
 
   auto equation = Equation::build(equationOp, variables);
   auto accesses = equation->getAccesses();
 
   auto access1 = AccessMatcher(
-      model.getBodyRegion().getArgument(0),
+      variables[0]->getDefiningOp(),
       AccessFunction(DimensionAccess::constant(0)),
       EquationPath(EquationPath::LEFT));
 
   auto access2 = AccessMatcher(
-      model.getBodyRegion().getArgument(1),
+      variables[1]->getDefiningOp(),
       AccessFunction(DimensionAccess::constant(0)),
       EquationPath(EquationPath::RIGHT));
 
@@ -118,8 +118,10 @@ TEST(LoopEquation, explicitLoops_iterationRanges)
     yIndexes.push_back(indices[0]);
     yIndexes.push_back(indices[1]);
 
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), xIndexes);
-    mlir::Value rhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1), yIndexes);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+    mlir::Value lhs = nested.create<LoadOp>(loc, x, xIndexes);
+    mlir::Value rhs = nested.create<LoadOp>(loc, y, yIndexes);
 
     createEquationSides(nested, lhs, rhs);
   });
@@ -178,8 +180,11 @@ TEST(LoopEquation, explicitLoops_accesses)
     xIndexes.push_back(xFirstIndex);
     xIndexes.push_back(xSecondIndex);
 
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), xIndexes);
-    mlir::Value rhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1), indices[0]);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+
+    mlir::Value lhs = nested.create<LoadOp>(loc, x, xIndexes);
+    mlir::Value rhs = nested.create<LoadOp>(loc, y, indices[0]);
 
     createEquationSides(nested, lhs, rhs);
   });
@@ -188,7 +193,7 @@ TEST(LoopEquation, explicitLoops_accesses)
   auto accesses = equation->getAccesses();
 
   auto access1 = AccessMatcher(
-      model.getBodyRegion().getArgument(0),
+      variables[0]->getDefiningOp(),
       AccessFunction({
         DimensionAccess::relative(0, -1),
         DimensionAccess::relative(1, 2)
@@ -196,7 +201,7 @@ TEST(LoopEquation, explicitLoops_accesses)
       EquationPath(EquationPath::LEFT));
 
   auto access2 = AccessMatcher(
-      model.getBodyRegion().getArgument(1),
+      variables[1]->getDefiningOp(),
       AccessFunction(DimensionAccess::relative(0, 0)),
       EquationPath(EquationPath::RIGHT));
 
@@ -214,17 +219,17 @@ TEST(LoopEquation, implicitLoops_iterationRanges)
   mlir::OpBuilder builder(&context);
 
   llvm::SmallVector<mlir::Type, 2> types;
-  auto arrayType = ArrayType::get({ 3, 5 }, RealType::get(builder.getContext()));
-  types.push_back(arrayType);
-  types.push_back(arrayType);
+  types.push_back(ArrayType::get({ 3, 5 }, RealType::get(builder.getContext())));
+  types.push_back(ArrayType::get({ 3, 5 }, RealType::get(builder.getContext())));
 
   auto model = createModel(builder, types);
   auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
-    mlir::Value lhs = model.getBodyRegion().getArgument(0);
-    mlir::Value rhs = model.getBodyRegion().getArgument(1);
-    createEquationSides(nested, lhs, rhs);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+
+    createEquationSides(nested, x, y);
   });
 
   auto equation = Equation::build(equationOp, variables);
@@ -260,16 +265,17 @@ TEST(LoopEquation, implicitLoops_accesses)
   auto variables = discoverVariables(model);
 
   auto equationOp = createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
-    mlir::Value lhs = model.getBodyRegion().getArgument(0);
-    mlir::Value rhs = model.getBodyRegion().getArgument(1);
-    createEquationSides(nested, lhs, rhs);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+
+    createEquationSides(nested, x, y);
   });
 
   auto equation = Equation::build(equationOp, variables);
   auto accesses = equation->getAccesses();
 
   auto access1 = AccessMatcher(
-      model.getBodyRegion().getArgument(0),
+      variables[0]->getDefiningOp(),
       AccessFunction({
           DimensionAccess::relative(0, 0),
           DimensionAccess::relative(1, 0)
@@ -277,7 +283,7 @@ TEST(LoopEquation, implicitLoops_accesses)
       EquationPath(EquationPath::LEFT));
 
   auto access2 = AccessMatcher(
-      model.getBodyRegion().getArgument(1),
+      variables[1]->getDefiningOp(),
       AccessFunction({
           DimensionAccess::relative(0, 0),
           DimensionAccess::relative(1, 0)

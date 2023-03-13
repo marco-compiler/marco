@@ -896,7 +896,10 @@ namespace marco::frontend
 
     mlir::ModelicaToCFConversionPassOptions options;
     options.bitWidth = ci.getCodeGenOptions().bitWidth;
-    options.outputArraysPromotion = ci.getCodeGenOptions().outputArraysPromotion;
+
+    options.outputArraysPromotion =
+        ci.getCodeGenOptions().outputArraysPromotion;
+
     options.dataLayout = getDataLayout().getStringRepresentation();
 
     return mlir::createModelicaToCFConversionPass(options);

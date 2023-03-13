@@ -18,8 +18,9 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> args;
 
     for (const auto& arg : call) {
+      auto argLoc = loc(arg->getLocation());
       auto reference = lower(*arg)[0];
-      args.push_back(*reference);
+      args.push_back(reference.get(argLoc));
     }
 
     auto resultType = call.getType();
@@ -39,7 +40,7 @@ namespace marco::codegen::lowering
         resultsTypes, args);
 
     for (auto result : op->getResults()) {
-      results.push_back(Reference::ssa(&builder(), result));
+      results.push_back(Reference::ssa(builder(), result));
     }
 
     return Results(results.begin(), results.end());
@@ -50,12 +51,14 @@ namespace marco::codegen::lowering
     assert(call.getFunction()->get<ReferenceAccess>()->getName() == "abs");
     assert(call.argumentsCount() == 1);
 
-    auto location = loc(call.getLocation());
+    auto callLoc = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<AbsOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    mlir::Value result = builder().create<AbsOp>(callLoc, resultType, operand);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::acos(const Call& call)
@@ -65,10 +68,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AcosOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::asin(const Call& call)
@@ -78,10 +83,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AsinOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::atan(const Call& call)
@@ -91,10 +98,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<AtanOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::atan2(const Call& call)
@@ -104,11 +113,15 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value y = *lower(*call.getArg(0))[0];
-    mlir::Value x = *lower(*call.getArg(1))[0];
+    mlir::Location yLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value y = lower(*call.getArg(0))[0].get(yLoc);
+
+    mlir::Location xLoc = loc(call.getArg(1)->getLocation());
+    mlir::Value x = lower(*call.getArg(1))[0].get(xLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<Atan2Op>(location, resultType, y, x);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::ceil(const Call& call)
@@ -118,10 +131,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<CeilOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::cos(const Call& call)
@@ -131,10 +146,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<CosOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::cosh(const Call& call)
@@ -144,10 +161,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<CoshOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::der(const Call& call)
@@ -157,10 +176,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<DerOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::diagonal(const Call& call)
@@ -170,10 +191,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<DiagonalOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::div(const Call& call)
@@ -183,12 +206,15 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value dividend = *lower(*call.getArg(0))[0];
-    mlir::Value divisor = *lower(*call.getArg(1))[0];
+    mlir::Location dividendLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value dividend = lower(*call.getArg(0))[0].get(dividendLoc);
+
+    mlir::Location divisorLoc = loc(call.getArg(1)->getLocation());
+    mlir::Value divisor = lower(*call.getArg(1))[0].get(divisorLoc);
 
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<DivTruncOp>(location, resultType, dividend, divisor);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::exp(const Call& call)
@@ -198,10 +224,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<ExpOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::floor(const Call& call)
@@ -211,10 +239,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<FloorOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::identity(const Call& call)
@@ -224,10 +254,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<IdentityOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::integer(const Call& call)
@@ -237,10 +269,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<IntegerOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::linspace(const Call& call)
@@ -250,12 +284,18 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value start = *lower(*call.getArg(0))[0];
-    mlir::Value end = *lower(*call.getArg(1))[0];
-    mlir::Value steps = *lower(*call.getArg(2))[0];
+    mlir::Location startLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value start = lower(*call.getArg(0))[0].get(startLoc);
+
+    mlir::Location endLoc = loc(call.getArg(1)->getLocation());
+    mlir::Value end = lower(*call.getArg(1))[0].get(endLoc);
+
+    mlir::Location stepsLoc = loc(call.getArg(2)->getLocation());
+    mlir::Value steps = lower(*call.getArg(2))[0].get(stepsLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<LinspaceOp>(location, resultType, start, end, steps);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::log(const Call& call)
@@ -265,10 +305,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<LogOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::log10(const Call& call)
@@ -278,10 +320,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<Log10Op>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::max(const Call& call)
@@ -294,12 +338,13 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> args;
 
     for (const auto& arg : call) {
-      args.push_back(*lower(*arg)[0]);
+      mlir::Location argLoc = loc(arg->getLocation());
+      args.push_back(lower(*arg)[0].get(argLoc));
     }
 
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<MaxOp>(location, resultType, args);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::min(const Call& call)
@@ -312,12 +357,13 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> args;
 
     for (const auto& arg : call) {
-      args.push_back(*lower(*arg)[0]);
+      mlir::Location argLoc = loc(arg->getLocation());
+      args.push_back(lower(*arg)[0].get(argLoc));
     }
 
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<MinOp>(location, resultType, args);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::mod(const Call& call)
@@ -327,12 +373,15 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value dividend = *lower(*call.getArg(0))[0];
-    mlir::Value divisor = *lower(*call.getArg(1))[0];
+    mlir::Location dividendLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value dividend = lower(*call.getArg(0))[0].get(dividendLoc);
+
+    mlir::Location divisorLoc = loc(call.getArg(1)->getLocation());
+    mlir::Value divisor = lower(*call.getArg(1))[0].get(divisorLoc);
 
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<ModOp>(location, resultType, dividend, divisor);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::ndims(const Call& call)
@@ -342,10 +391,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value array = *lower(*call.getArg(0))[0];
+    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<NDimsOp>(location, resultType, array);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::ones(const Call& call)
@@ -361,11 +412,12 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> dimensions;
 
     for (const auto& arg : call) {
-      dimensions.push_back(*lower(*arg)[0]);
+      mlir::Location argLoc = loc(arg->getLocation());
+      dimensions.push_back(lower(*arg)[0].get(argLoc));
     }
 
     mlir::Value result = builder().create<OnesOp>(location, resultType, dimensions);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::product(const Call& call)
@@ -375,10 +427,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value array = *lower(*call.getArg(0))[0];
+    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<ProductOp>(location, resultType, array);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::rem(const Call& call)
@@ -388,12 +442,15 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value x = *lower(*call.getArg(0))[0];
-    mlir::Value y = *lower(*call.getArg(1))[0];
+    mlir::Location xLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value x = lower(*call.getArg(0))[0].get(xLoc);
+
+    mlir::Location yLoc = loc(call.getArg(1)->getLocation());
+    mlir::Value y = lower(*call.getArg(1))[0].get(yLoc);
 
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<RemOp>(location, resultType, x, y);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::sign(const Call& call)
@@ -403,10 +460,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value array = *lower(*call.getArg(0))[0];
+    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SignOp>(location, resultType, array);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::sin(const Call& call)
@@ -416,10 +475,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SinOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::sinh(const Call& call)
@@ -429,10 +490,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SinhOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::size(const Call& call)
@@ -446,21 +509,22 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> args;
 
     for (const auto& arg : call) {
-      args.push_back(*lower(*arg)[0]);
+      mlir::Location argLoc = loc(arg->getLocation());
+      args.push_back(lower(*arg)[0].get(argLoc));
     }
 
     mlir::Type resultType = lower(call.getType());
 
     if (args.size() == 1) {
       mlir::Value result = builder().create<SizeOp>(location, resultType, args);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     }
 
     if (args.size() == 2) {
       mlir::Value oneValue = builder().create<ConstantOp>(location, IntegerAttr::get(builder().getContext(), 1));
       mlir::Value index = builder().create<SubOp>(location, builder().getIndexType(), args[1], oneValue);
       mlir::Value result = builder().create<SizeOp>(location, resultType, args[0], index);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     }
 
     llvm_unreachable("Unexpected number of arguments for 'size' function call");
@@ -474,10 +538,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SqrtOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::sum(const Call& call)
@@ -487,10 +553,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value array = *lower(*call.getArg(0))[0];
+    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SumOp>(location, resultType, array);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::symmetric(const Call& call)
@@ -500,10 +568,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value array = *lower(*call.getArg(0))[0];
+    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<SymmetricOp>(location, resultType, array);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::tan(const Call& call)
@@ -513,10 +583,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<TanOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::tanh(const Call& call)
@@ -526,10 +598,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value operand = *lower(*call.getArg(0))[0];
+    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<TanhOp>(location, resultType, operand);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::transpose(const Call& call)
@@ -539,10 +613,12 @@ namespace marco::codegen::lowering
 
     auto location = loc(call.getLocation());
 
-    mlir::Value array = *lower(*call.getArg(0))[0];
+    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
+    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+
     mlir::Type resultType = lower(call.getType());
     mlir::Value result = builder().create<TransposeOp>(location, resultType, array);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results CallLowerer::zeros(const Call& call)
@@ -558,10 +634,11 @@ namespace marco::codegen::lowering
     std::vector<mlir::Value> dimensions;
 
     for (const auto& arg : call) {
-      dimensions.push_back(*lower(*arg)[0]);
+      mlir::Location argLoc = loc(arg->getLocation());
+      dimensions.push_back(lower(*arg)[0].get(argLoc));
     }
 
     mlir::Value result = builder().create<ZerosOp>(location, resultType, dimensions);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 }

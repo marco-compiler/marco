@@ -57,12 +57,7 @@ namespace marco::codegen
     return variable->getDimensionSize(index);
   }
 
-  mlir::Value FilteredVariable::getValue() const
-  {
-    return variable->getValue();
-  }
-
-  MemberCreateOp FilteredVariable::getDefiningOp() const
+  VariableOp FilteredVariable::getDefiningOp() const
   {
     return variable->getDefiningOp();
   }

@@ -111,6 +111,7 @@ namespace marco::codegen
       mlir::ValueRange beginIndexes,
       mlir::ValueRange endIndexes,
       mlir::ValueRange steps,
+      llvm::StringMap<mlir::Value>& variablesMap,
       ::marco::modeling::scheduling::Direction iterationDirection) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -118,7 +119,15 @@ namespace marco::codegen
     auto loc = equationOp.getLoc();
 
     for (auto& op : equationOp.bodyBlock()->getOperations()) {
-      if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
+      if (auto getOp = mlir::dyn_cast<VariableGetOp>(op)) {
+        mlir::Value replacement = variablesMap[getOp.getMember()];
+
+        if (auto arrayType = replacement.getType().cast<ArrayType>(); arrayType.isScalar()) {
+          replacement = builder.create<LoadOp>(loc, replacement, llvm::None);
+        }
+
+        mapping.map(getOp.getResult(), replacement);
+      } else if (auto terminator = mlir::dyn_cast<EquationSidesOp>(op)) {
         // Convert the equality into an assignment
         for (auto [lhs, rhs] : llvm::zip(terminator.getLhsValues(), terminator.getRhsValues())) {
           mlir::Value mappedLhs = mapping.lookup(lhs);

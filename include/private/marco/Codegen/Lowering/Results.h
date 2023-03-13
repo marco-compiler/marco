@@ -6,10 +6,34 @@
 
 namespace marco::codegen::lowering
 {
+  class Result
+  {
+    public:
+      explicit Result(Reference reference);
+
+      /// @name Forwarding methods.
+      /// {
+
+      mlir::Location getLoc() const;
+
+      mlir::Value getReference() const;
+
+      mlir::Value get(mlir::Location loc) const;
+
+      void set(mlir::Location loc, mlir::Value value);
+
+      /// }
+
+      mlir::Value operator*() const;
+
+    private:
+      Reference reference;
+  };
+
   class Results
   {
     private:
-      using Container = std::vector<Reference>;
+      using Container = std::vector<Result>;
 
     public:
       using iterator = typename Container::iterator;
@@ -27,11 +51,14 @@ namespace marco::codegen::lowering
       {
       }
 
-      Reference& operator[](size_t index);
-      const Reference& operator[](size_t index) const;
+      Result& operator[](size_t index);
+      const Result& operator[](size_t index) const;
 
       /// Append a new result to the list of current ones.
       void append(Reference value);
+
+      /// Append a new result to the list of current ones.
+      void append(Result value);
 
       /// Get the number of results.
       size_t size() const;

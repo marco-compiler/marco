@@ -1,5 +1,4 @@
 #include "marco/Codegen/Conversion/ModelicaToCF/ModelicaToCF.h"
-#include "marco/Codegen/Conversion/ModelicaCommon/TypeConverter.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -9,6 +8,10 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "mlir/Transforms/RegionUtils.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/SCCIterator.h"
 #include <set>
 #include <stack>
 
@@ -20,1060 +23,1032 @@ namespace mlir
 
 using namespace ::mlir::modelica;
 
-/// Remove the unreachable blocks of a region.
-static void removeUnreachableBlocks(mlir::Region& region)
+static bool canBePromoted(ArrayType arrayType)
 {
-  std::stack<mlir::Block*> unreachableBlocks;
-
-  auto collectUnreachableBlocks = [&]() {
-    for (auto& block : region.getBlocks()) {
-      if (block.hasNoPredecessors() && !block.isEntryBlock()) {
-        unreachableBlocks.push(&block);
-      }
-    }
-  };
-
-  collectUnreachableBlocks();
-
-  do {
-    while (!unreachableBlocks.empty()) {
-      unreachableBlocks.top()->erase();
-      unreachableBlocks.pop();
-    }
-
-    // Erasing some blocks may have turned their successors into unreachable
-    // blocks.
-    collectUnreachableBlocks();
-  } while (!unreachableBlocks.empty());
-}
-
-using LoadReplacer = std::function<mlir::LogicalResult(mlir::OpBuilder&, MemberLoadOp)>;
-using StoreReplacer = std::function<mlir::LogicalResult(mlir::OpBuilder&, MemberStoreOp)>;
-
-/// Convert a member that is provided as input to the function.
-/// The replacement is the argument of the raw function.
-static mlir::LogicalResult convertArgument(
-    mlir::OpBuilder& builder, MemberCreateOp op, mlir::Value replacement)
-{
-  auto unwrappedType = op.getMemberType().unwrap();
-
-  auto replacers = [&]() {
-    if (!unwrappedType.isa<ArrayType>()) {
-      // The value is a scalar.
-      assert(op.getDynamicSizes().empty());
-
-      return std::make_pair<LoadReplacer, StoreReplacer>(
-          [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
-              -> mlir::LogicalResult {
-            loadOp.replaceAllUsesWith(replacement);
-            loadOp.erase();
-            return mlir::success();
-          },
-          [](mlir::OpBuilder& builder, MemberStoreOp storeOp)
-              -> mlir::LogicalResult {
-            llvm_unreachable("Store on input scalar argument");
-            return mlir::failure();
-          });
-    }
-
-    // Only true input members are allowed to have dynamic dimensions.
-    // The output values that have been promoted to input arguments must have
-    // a static shape in order to cover possible reassignments.
-    assert(op.isInput() || op.getMemberType().toArrayType().hasStaticShape());
-
-    return std::make_pair<LoadReplacer, StoreReplacer>(
-        [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
-            -> mlir::LogicalResult {
-          loadOp.replaceAllUsesWith(replacement);
-          loadOp.erase();
-          return mlir::success();
-        },
-        [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
-            -> mlir::LogicalResult {
-          builder.setInsertionPoint(storeOp);
-
-          builder.create<ArrayCopyOp>(
-              storeOp.getLoc(), storeOp.getValue(), replacement);
-
-          storeOp->erase();
-          return mlir::success();
-        });
-  };
-
-  LoadReplacer loadReplacer;
-  StoreReplacer storeReplacer;
-  std::tie(loadReplacer, storeReplacer) = replacers();
-
-  for (auto* user : llvm::make_early_inc_range(op->getUsers())) {
-    assert(mlir::isa<MemberLoadOp>(user) || mlir::isa<MemberStoreOp>(user));
-
-    if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
-      if (mlir::failed(loadReplacer(builder, loadOp))) {
-        return mlir::failure();
-      }
-    } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {
-      if (mlir::failed(storeReplacer(builder, storeOp))) {
-        return mlir::failure();
-      }
-    }
-  }
-
-  op->erase();
-  return mlir::success();
-}
-
-static ArrayType getArrayTypeWithDynamicDimensionsSetToZero(
-    ArrayType type)
-{
-  if (!type.hasRank()) {
-    return type;
-  }
-
-  llvm::SmallVector<int64_t, 3> shape;
-
-  for (int64_t dimension : type.getShape()) {
-    if (dimension == mlir::ShapedType::kDynamicSize) {
-      shape.push_back(0);
-    } else {
-      shape.push_back(dimension);
-    }
-  }
-
-  return ArrayType::get(
-      shape, type.getElementType(), type.getMemorySpace());
-}
-
-static mlir::LogicalResult convertResultOrProtectedVar(
-    mlir::OpBuilder& builder,
-    MemberCreateOp op,
-    mlir::TypeConverter* typeConverter)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  mlir::Location loc = op.getLoc();
-  auto memberType = op.getMemberType();
-  auto unwrappedType = memberType.unwrap();
-
-  auto replacers = [&]() {
-    if (!unwrappedType.isa<ArrayType>()) {
-      // The value is a scalar.
-      assert(op.getDynamicSizes().empty());
-
-      builder.setInsertionPoint(op);
-
-      mlir::Value reference = builder.create<AllocaOp>(
-          loc, ArrayType::get(llvm::None, unwrappedType), llvm::None);
-
-      return std::make_pair<LoadReplacer, StoreReplacer>(
-          [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
-              -> mlir::LogicalResult {
-            builder.setInsertionPoint(loadOp);
-
-            mlir::Value replacement = builder.create<LoadOp>(
-                loadOp.getLoc(), reference, llvm::None);
-
-            loadOp.replaceAllUsesWith(replacement);
-            loadOp.erase();
-            return mlir::success();
-          },
-          [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
-              -> mlir::LogicalResult {
-            builder.setInsertionPoint(storeOp);
-            mlir::Value value = storeOp.getValue();
-
-            if (value.getType() != unwrappedType) {
-              value = builder.create<CastOp>(
-                  storeOp.getLoc(), unwrappedType, storeOp.getValue());
-            }
-
-            builder.create<StoreOp>(
-                storeOp.getLoc(), value, reference, llvm::None);
-
-            storeOp.erase();
-            return mlir::success();
-          });
-    }
-
-    // If we are in the array case, then it may be not sufficient to
-    // allocate just the buffer. Instead, if the array has dynamic sizes
-    // and those are not initialized, then we need to also allocate a
-    // pointer to that buffer, so that we can eventually reassign it if
-    // the dimensions change.
-
-    auto arrayType = unwrappedType.cast<ArrayType>();
-
-    bool hasStaticSize = op.getDynamicSizes().size() ==
-        static_cast<size_t>(arrayType.getNumDynamicDims());
-
-    if (hasStaticSize) {
-      builder.setInsertionPoint(op);
-
-      mlir::Value reference =
-          builder.create<AllocOp>(loc, arrayType, op.getDynamicSizes());
-
-      return std::make_pair<LoadReplacer, StoreReplacer>(
-          [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
-              -> mlir::LogicalResult {
-            loadOp.replaceAllUsesWith(reference);
-            loadOp->erase();
-            return mlir::success();
-          },
-          [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
-              -> mlir::LogicalResult {
-            builder.setInsertionPoint(storeOp);
-
-            builder.create<ArrayCopyOp>(
-                storeOp.getLoc(), storeOp.getValue(), reference);
-
-            storeOp->erase();
-            return mlir::success();
-          });
-    }
-
-    // The array can change sizes during at runtime. Thus, we need to create
-    // a pointer to the array currently in use.
-
-    assert(op.getDynamicSizes().empty());
-    builder.setInsertionPoint(op);
-
-    // Create the pointer to the array.
-    auto memrefOfArrayType = mlir::MemRefType::get(
-        llvm::None,
-        typeConverter->convertType(memberType.toArrayType()));
-
-    mlir::Value memrefOfArray =
-        builder.create<mlir::memref::AllocaOp>(loc, memrefOfArrayType);
-
-    // We need to allocate a fake buffer in order to allow the first free
-    // operation to operate on a valid memory area.
-
-    mlir::Value fakeArray = builder.create<AllocOp>(
-        loc,
-        getArrayTypeWithDynamicDimensionsSetToZero(arrayType),
-        llvm::None);
-
-    fakeArray = typeConverter->materializeTargetConversion(
-        builder, loc,
-        typeConverter->convertType(fakeArray.getType()), fakeArray);
-
-    fakeArray = builder.create<mlir::memref::CastOp>(
-        loc, memrefOfArrayType.getElementType(), fakeArray);
-
-    builder.create<mlir::memref::StoreOp>(loc, fakeArray, memrefOfArray);
-
-    return std::make_pair<LoadReplacer, StoreReplacer>(
-        [=](mlir::OpBuilder& builder, MemberLoadOp loadOp)
-            -> mlir::LogicalResult {
-          builder.setInsertionPoint(loadOp);
-          mlir::Value array = builder.create<mlir::memref::LoadOp>(
-              loadOp.getLoc(), memrefOfArray);
-
-          array = typeConverter->materializeSourceConversion(
-              builder, loadOp.getLoc(),
-              loadOp.getMemberType().toArrayType(), array);
-
-          loadOp.replaceAllUsesWith(array);
-          loadOp->erase();
-          return mlir::success();
-        },
-        [=](mlir::OpBuilder& builder, MemberStoreOp storeOp)
-            -> mlir::LogicalResult {
-          builder.setInsertionPoint(storeOp);
-
-          // The destination array has dynamic and unknown sizes. Thus, the
-          // array has not been allocated yet, and we need to create a copy
-          // of the source one.
-
-          mlir::Value value = storeOp.getValue();
-
-          // The function input arguments must be cloned, in order to avoid
-          // inputs modifications.
-
-          if (value.isa<mlir::BlockArgument>()) {
-            llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
-
-            for (const auto& dimension :
-                 llvm::enumerate(arrayType.getShape())) {
-              if (dimension.value() == ArrayType::kDynamicSize) {
-                mlir::Value dimensionIndex =
-                    builder.create<mlir::arith::ConstantOp>(
-                        storeOp.getLoc(),
-                        builder.getIndexAttr(dimension.index()));
-
-                dynamicDimensions.push_back(builder.create<DimOp>(
-                    storeOp.getLoc(), storeOp.getValue(), dimensionIndex));
-              }
-            }
-
-            value = builder.create<AllocOp>(
-                storeOp.getLoc(), arrayType, dynamicDimensions);
-
-            builder.create<ArrayCopyOp>(
-                storeOp.getLoc(), storeOp.getValue(), value);
-          }
-
-          // Deallocate the previously allocated memory. This is only
-          // apparently in contrast with the above statements: unknown-sized
-          // arrays pointers are initialized with a pointer to a 1-element
-          // sized array, so that the initial free always operates on valid
-          // memory.
-
-          mlir::Value previousArray = builder.create<mlir::memref::LoadOp>(
-              storeOp.getLoc(), memrefOfArray);
-
-          previousArray = typeConverter->materializeSourceConversion(
-              builder, storeOp.getLoc(),
-              memberType.toArrayType(), previousArray);
-
-          builder.create<FreeOp>(storeOp.getLoc(), previousArray);
-
-          // Save the descriptor of the new copy into the destination using
-          // StoreOp.
-          value = typeConverter->materializeTargetConversion(
-              builder, storeOp.getLoc(),
-              typeConverter->convertType(value.getType()), value);
-
-          value = builder.create<mlir::memref::CastOp>(
-              storeOp.getLoc(),
-              memrefOfArrayType.getElementType(),
-              value);
-
-          builder.create<mlir::memref::StoreOp>(
-              storeOp.getLoc(), value, memrefOfArray);
-
-          storeOp->erase();
-          return mlir::success();
-        });
-  };
-
-  LoadReplacer loadReplacer;
-  StoreReplacer storeReplacer;
-  std::tie(loadReplacer, storeReplacer) = replacers();
-
-  for (auto* user : llvm::make_early_inc_range(op->getUsers())) {
-    assert(mlir::isa<MemberLoadOp>(user) || mlir::isa<MemberStoreOp>(user));
-
-    if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(user)) {
-      if (mlir::failed(loadReplacer(builder, loadOp))) {
-        return mlir::failure();
-      }
-    } else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user)) {
-      if (mlir::failed(storeReplacer(builder, storeOp))) {
-        return mlir::failure();
-      }
-    }
-  }
-
-  op->erase();
-  return mlir::success();
-}
-
-static mlir::LogicalResult convertCall(
-    mlir::OpBuilder& builder,
-    CallOp callOp,
-    std::set<size_t> promotedResults)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(callOp);
-
-  llvm::SmallVector<mlir::Value, 3> args;
-  llvm::SmallVector<mlir::Type, 3> resultTypes;
-  mlir::BlockAndValueMapping mapping;
-
-  for (const auto& resultType : llvm::enumerate(callOp->getResultTypes())) {
-    if (promotedResults.find(resultType.index()) == promotedResults.end()) {
-      resultTypes.push_back(resultType.value());
-    } else {
-      // The result has been promoted to argument.
-      assert(resultType.value().isa<ArrayType>());
-      auto resultArrayType = resultType.value().cast<ArrayType>();
-      assert(resultArrayType.hasStaticShape());
-
-      // Allocate the array inside the caller body.
-      mlir::Value array = builder.create<AllocOp>(
-          callOp.getLoc(), resultArrayType, llvm::None);
-
-      // Add the array to the arguments.
-      args.push_back(array);
-
-      // Map the previous result to the array allocated by the caller.
-      mapping.map(callOp->getResult(resultType.index()), array);
-    }
-  }
-
-  for (const auto& arg : callOp.getArgs()) {
-    args.push_back(arg);
-  }
-
-  auto newCallOp = builder.create<CallOp>(
-      callOp.getLoc(), callOp.getCallee(), resultTypes, args);
-
-  size_t newResultsCounter = 0;
-
-  for (const auto& originalResult : callOp.getResults()) {
-    mlir::Value mappedResult = mapping.lookupOrNull(originalResult);
-
-    if (mappedResult == nullptr) {
-      mlir::Value replacement = newCallOp.getResult(newResultsCounter++);
-      originalResult.replaceAllUsesWith(replacement);
-    } else {
-      originalResult.replaceAllUsesWith(mappedResult);
-    }
-  }
-
-  callOp->erase();
-  return mlir::success();
-}
-
-static mlir::LogicalResult convertToRawFunction(
-    mlir::OpBuilder& builder,
-    FunctionOp functionOp,
-    mlir::TypeConverter* typeConverter,
-    bool outputArraysPromotion,
-    const llvm::StringMap<std::vector<CallOp>> callsMap)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(functionOp);
-
-  // Determine which results can be promoted to input arguments.
-  std::set<size_t> promotedResults;
-
-  if (outputArraysPromotion) {
-    for (const auto& type : llvm::enumerate(functionOp.getResultTypes())) {
-      if (auto arrayType = type.value().dyn_cast<ArrayType>();
-          arrayType && arrayType.canBeOnStack()) {
-        promotedResults.insert(type.index());
-      }
-    }
-  }
-
-  // Determine the function type, taking into account the promoted results.
-  llvm::SmallVector<mlir::Type, 3> argTypes;
-  llvm::SmallVector<mlir::Type, 3> resultTypes;
-
-  for (const auto& type : llvm::enumerate(functionOp.getResultTypes())) {
-    if (promotedResults.find(type.index()) != promotedResults.end()) {
-      argTypes.push_back(type.value());
-    } else {
-      resultTypes.push_back(type.value());
-    }
-  }
-
-  for (const auto& type : functionOp.getArgumentTypes()) {
-    argTypes.push_back(type);
-  }
-
-  auto functionType = builder.getFunctionType(argTypes, resultTypes);
-
-  // Create the converted function.
-  auto rawFunctionOp = builder.create<RawFunctionOp>(
-      functionOp.getLoc(), functionOp.getSymName(), functionType);
-
-  mlir::Block* entryBlock = rawFunctionOp.addEntryBlock();
-  builder.setInsertionPointToStart(entryBlock);
-
-  mlir::BlockAndValueMapping mapping;
-
-  // Clone the blocks structure.
-  for (auto& block : llvm::enumerate(functionOp.getBody())) {
-    if (block.index() == 0) {
-      mapping.map(&block.value(), entryBlock);
-
-    } else {
-      std::vector<mlir::Location> argLocations;
-
-      for (const auto& arg : block.value().getArguments()) {
-        argLocations.push_back(arg.getLoc());
-      }
-
-      mlir::Block* clonedBlock = builder.createBlock(
-          &rawFunctionOp.getBody(),
-          rawFunctionOp.getBody().end(),
-          block.value().getArgumentTypes(),
-          argLocations);
-
-      builder.setInsertionPointToStart(clonedBlock);
-      mapping.map(&block.value(), clonedBlock);
-
-      for (const auto& [original, cloned] :
-           llvm::zip(block.value().getArguments(),
-                     clonedBlock->getArguments())) {
-        mapping.map(original, cloned);
-      }
-    }
-  }
-
-  // Clone the operations.
-  for (auto& block : functionOp.getBody()) {
-    builder.setInsertionPointToStart(mapping.lookup(&block));
-
-    for (auto& op : block.getOperations()) {
-      builder.clone(op, mapping);
-    }
-  }
-
-  // Collect the member operations
-  llvm::SmallVector<MemberCreateOp, 3> inputMembers;
-  llvm::SmallVector<MemberCreateOp, 1> outputMembers;
-  llvm::SmallVector<MemberCreateOp, 3> protectedMembers;
-
-  llvm::StringMap<MemberCreateOp> membersMap;
-
-  functionOp->walk([&membersMap](MemberCreateOp member) {
-    membersMap[member.getSymName()] = member;
-  });
-
-  for (const auto& name : functionOp.inputMemberNames()) {
-    inputMembers.push_back(membersMap[name]);
-  }
-
-  for (const auto& name : functionOp.outputMemberNames()) {
-    outputMembers.push_back(membersMap[name]);
-  }
-
-  for (const auto& name : functionOp.protectedMemberNames()) {
-    protectedMembers.push_back(membersMap[name]);
-  }
-
-  // Deallocate the protected members. We do this in the last block of the
-  // function, so that they are deallocated even in case of early function
-  // termination.
-  builder.setInsertionPointToEnd(&rawFunctionOp.getBody().back());
-
-  for (auto& member : protectedMembers) {
-    mlir::Type unwrappedType = member.getMemberType().unwrap();
-
-    if (unwrappedType.isa<ArrayType>()) {
-      auto mappedMember = mapping.lookup(member.getResult())
-                              .getDefiningOp<MemberCreateOp>();
-
-      auto array = builder.create<MemberLoadOp>(
-          mappedMember.getLoc(), mappedMember);
-
-      builder.create<FreeOp>(array.getLoc(), array);
-    }
-  }
-
-  // Create the return operation.
-  builder.setInsertionPointToEnd(&rawFunctionOp.getBody().back());
-
-  llvm::SmallVector<mlir::Value, 1> results;
-
-  for (const auto& name : llvm::enumerate(functionOp.outputMemberNames())) {
-    if (promotedResults.find(name.index()) == promotedResults.end()) {
-      auto mappedMember = mapping.lookup(membersMap[name.value()].getResult())
-                              .getDefiningOp<MemberCreateOp>();
-
-      auto memberType = mappedMember.getType().cast<MemberType>();
-
-      mlir::Value value = builder.create<MemberLoadOp>(
-          rawFunctionOp.getLoc(), memberType.unwrap(), mappedMember);
-
-      results.push_back(value);
-    }
-  }
-
-  builder.create<RawReturnOp>(rawFunctionOp.getLoc(), results);
-
-  // Convert the member operations.
-  builder.setInsertionPointToStart(&rawFunctionOp.getBody().front());
-
-  for (auto& member : llvm::enumerate(inputMembers)) {
-    auto mappedMember = mapping.lookup(member.value().getResult())
-                            .getDefiningOp<MemberCreateOp>();
-
-    mlir::Value replacement =
-        rawFunctionOp.getArgument(promotedResults.size() + member.index());
-
-    if (mlir::failed(convertArgument(builder, mappedMember, replacement))) {
-      return mlir::failure();
-    }
-  }
-
-  size_t movedResultArgumentPosition = 0;
-
-  for (auto& member : llvm::enumerate(outputMembers)) {
-    auto mappedMember = mapping.lookup(member.value().getResult())
-                            .getDefiningOp<MemberCreateOp>();
-
-    if (auto index = member.index();
-        promotedResults.find(index) != promotedResults.end()) {
-      mlir::Value replacement =
-          rawFunctionOp.getArgument(movedResultArgumentPosition);
-
-      if (mlir::failed(convertArgument(builder, mappedMember, replacement))) {
-        return mlir::failure();
-      }
-
-      ++movedResultArgumentPosition;
-    } else {
-      if (mlir::failed(convertResultOrProtectedVar(
-              builder, mappedMember, typeConverter))) {
-        return mlir::failure();
-      }
-    }
-  }
-
-  for (auto& member : protectedMembers) {
-    auto mappedMember =
-        mapping.lookup(member.getResult()).getDefiningOp<MemberCreateOp>();
-
-    if (mlir::failed(convertResultOrProtectedVar(
-            builder, mappedMember, typeConverter))) {
-      return mlir::failure();
-    }
-  }
-
-  // Convert the calls to the current function.
-  auto callsIt = callsMap.find(functionOp.getSymName());
-
-  if (callsIt != callsMap.end()) {
-    for (CallOp callOp : callsIt->getValue()) {
-      if (mlir::failed(convertCall(builder, callOp, promotedResults))) {
-        return mlir::failure();
-      }
-    }
-  }
-
-  // Erase the original function.
-  functionOp->erase();
-
-  return mlir::success();
+  return arrayType.hasStaticShape();
 }
 
 namespace
 {
-  class CFGLowerer
+  class VariablesDependencyGraph
   {
     public:
-      CFGLowerer(
-        mlir::TypeConverter& typeConverter,
-        bool outputArraysPromotion);
+      /// A node of the graph.
+      struct Node
+      {
+        Node() : graph(nullptr), variable(nullptr)
+        {
+        }
 
-      mlir::LogicalResult run(
-          mlir::OpBuilder& builder,
-          FunctionOp function,
-          const llvm::StringMap<std::vector<CallOp>>& callsMap);
+        Node(const VariablesDependencyGraph* graph, mlir::Operation* variable)
+            : graph(graph), variable(variable)
+        {
+        }
+
+        bool operator==(const Node& other) const
+        {
+          return graph == other.graph && variable == other.variable;
+        }
+
+        bool operator!=(const Node& other) const
+        {
+          return graph != other.graph || variable != other.variable;
+        }
+
+        bool operator<(const Node& other) const
+        {
+          if (variable == nullptr) {
+            return true;
+          }
+
+          if (other.variable == nullptr) {
+            return false;
+          }
+
+          return variable < other.variable;
+        }
+
+        const VariablesDependencyGraph* graph;
+        mlir::Operation* variable;
+      };
+
+      /// A group of variables.
+      struct Group
+      {
+        llvm::SmallVector<Node> nodes;
+        bool ordered{false};
+      };
+
+      VariablesDependencyGraph()
+      {
+        // Entry node, which is connected to every other node.
+        nodes.emplace_back(this, nullptr);
+
+        // Ensure that the set of children for the entry node exists, even in
+        // case of no other nodes.
+        arcs[getEntryNode().variable] = {};
+      }
+
+      virtual ~VariablesDependencyGraph() = default;
+
+      /// Add a group of variables to the graph and optionally enforce their
+      /// relative order to be preserved.
+      void addVariablesGroup(
+          llvm::ArrayRef<VariableOp> group,
+          bool enforceInternalOrder)
+      {
+        Group nodesGroup;
+        nodesGroup.ordered = enforceInternalOrder;
+
+        for (VariableOp variable : group) {
+          assert(variable != nullptr);
+
+          Node node(this, variable.getOperation());
+          nodes.push_back(node);
+          nodesGroup.nodes.push_back(node);
+          nodesByName[variable.getSymName()] = node;
+        }
+
+        groups.push_back(std::move(nodesGroup));
+      }
+
+      /// Discover the dependencies of the variables that have been added to
+      /// the graph.
+      void discoverDependencies()
+      {
+        for (const Group& group : groups) {
+          for (const auto& node : llvm::enumerate(group.nodes)) {
+            // Connect the entry node to the current one.
+            arcs[getEntryNode().variable].insert(node.value());
+
+            // Connect the current node to the other nodes to which it depends.
+            mlir::Operation* variable = node.value().variable;
+            auto& children = arcs[variable];
+
+            auto variableOp = mlir::cast<VariableOp>(variable);
+
+            for (llvm::StringRef dependency : getDependencies(variableOp)) {
+              children.insert(nodesByName[dependency]);
+            }
+
+            // If the internal ordering must be preserved, then add the arcs
+            // from each node of the group to its predecessor.
+
+            if (size_t i = node.index(); i > 0 && group.ordered) {
+              arcs[group.nodes[i].variable].insert(group.nodes[i - 1]);
+            }
+          }
+        }
+      }
+
+      /// Get the number of nodes.
+      /// Note that nodes consists in the inserted variables together with the
+      /// entry node.
+      size_t getNumOfNodes() const
+      {
+        return nodes.size();
+      }
+
+      /// Get the entry node of the graph.
+      const Node& getEntryNode() const
+      {
+        return nodes[0];
+      }
+
+      /// @name Iterators for the children of a node
+      /// {
+
+      std::set<Node>::const_iterator childrenBegin(Node node) const
+      {
+        auto it = arcs.find(node.variable);
+        assert(it != arcs.end());
+        const auto& children = it->second;
+        return children.begin();
+      }
+
+      std::set<Node>::const_iterator childrenEnd(Node node) const
+      {
+        auto it = arcs.find(node.variable);
+        assert(it != arcs.end());
+        const auto& children = it->second;
+        return children.end();
+      }
+
+      /// }
+      /// @name Iterators for the nodes
+      /// {
+
+      llvm::SmallVector<Node>::const_iterator nodesBegin() const
+      {
+        return nodes.begin();
+      }
+
+      llvm::SmallVector<Node>::const_iterator nodesEnd() const
+      {
+        return nodes.end();
+      }
+
+      /// }
+
+      /// Check if the graph contains cycles.
+      bool hasCycles() const;
+
+      /// Perform a post-order visit of the graph and get the ordered
+      /// variables.
+      llvm::SmallVector<VariableOp> postOrder() const;
+
+    protected:
+      virtual std::set<llvm::StringRef> getDependencies(
+          VariableOp variable) = 0;
 
     private:
-      mlir::LogicalResult run(
-        mlir::OpBuilder& builder,
-        mlir::Operation* op,
-        mlir::Block* loopExitBlock,
-        mlir::Block* functionReturnBlock);
+      llvm::DenseMap<mlir::Operation*, std::set<Node>> arcs;
+      llvm::SmallVector<Node> nodes;
+      llvm::SmallVector<Group> groups;
+      llvm::DenseMap<llvm::StringRef, Node> nodesByName;
+  };
 
-      mlir::LogicalResult run(
-          mlir::OpBuilder& builder,
-          BreakOp op,
-          mlir::Block* loopExitBlock);
+  /// Directed graph representing the dependencies among the variables with
+  /// respect to the usage of variables for the computation of the dynamic
+  /// dimensions of their types.
+  class DynamicDimensionsGraph : public VariablesDependencyGraph
+  {
+    protected:
+      std::set<llvm::StringRef> getDependencies(VariableOp variable) override;
+  };
 
-      mlir::LogicalResult run(
-          mlir::OpBuilder& builder,
-          ForOp op,
-          mlir::Block* functionReturnBlock);
+  /// Directed graph representing the dependencies among the variables with
+  /// respect to the usage of variables for the computation of the default
+  /// value.
+  class DefaultValuesGraph : public VariablesDependencyGraph
+  {
+    public:
+      explicit DefaultValuesGraph(const llvm::StringMap<DefaultOp>& defaultOps)
+          : defaultOps(&defaultOps)
+      {
+      }
 
-      mlir::LogicalResult run(
-          mlir::OpBuilder& builder,
-          IfOp op,
-          mlir::Block* loopExitBlock,
-          mlir::Block* functionReturnBlock);
-
-      mlir::LogicalResult run(
-          mlir::OpBuilder& builder,
-          WhileOp op,
-          mlir::Block* functionReturnBlock);
-
-      mlir::LogicalResult run(
-          mlir::OpBuilder& builder,
-          ReturnOp op,
-          mlir::Block* functionReturnBlock);
-
-      void inlineRegionBefore(mlir::Region& region, mlir::Block* before);
-
-      mlir::LogicalResult recurse(
-          mlir::OpBuilder& builder,
-          mlir::Block* first,
-          mlir::Block* last,
-          mlir::Block* loopExitBlock,
-          mlir::Block* functionReturnBlock);
+    protected:
+      std::set<llvm::StringRef> getDependencies(VariableOp variable) override;
 
     private:
-      mlir::TypeConverter* typeConverter;
-      bool outputArraysPromotion;
+      const llvm::StringMap<DefaultOp>* defaultOps;
   };
 }
 
-CFGLowerer::CFGLowerer(
-    mlir::TypeConverter& typeConverter,
-    bool outputArraysPromotion)
-    : typeConverter(&typeConverter),
-      outputArraysPromotion(outputArraysPromotion)
+namespace llvm
 {
-}
-
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder,
-    FunctionOp function,
-    const llvm::StringMap<std::vector<CallOp>>& callsMap)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  auto loc = function.getLoc();
-
-  auto& body = function.getBody();
-
-  if (body.empty()) {
-    return mlir::success();
-  }
-
-  llvm::SmallVector<mlir::Operation*> bodyOps;
-
-  for (auto& block : function.getBody()) {
-    for (auto& nestedOp : llvm::make_early_inc_range(block)) {
-      bodyOps.push_back(&nestedOp);
-    }
-  }
-
-  mlir::Block* lastBlock = function.bodyBlock();
-  mlir::Block* functionReturnBlock = &body.emplaceBlock();
-  builder.setInsertionPointToEnd(lastBlock);
-  builder.create<mlir::cf::BranchOp>(loc, functionReturnBlock);
-
-  // Create the return instruction.
-  for (auto& bodyOp : bodyOps) {
-    if (mlir::failed(run(builder, bodyOp, nullptr, functionReturnBlock))) {
-      return mlir::failure();
-    }
-  }
-
-  // Remove the unreachable blocks that may have arised from break or return
-  // operations.
-  removeUnreachableBlocks(function.getBody());
-
-  // Convert the Modelica function to the standard dialect
-  return convertToRawFunction(
-      builder, function, typeConverter, outputArraysPromotion, callsMap);
-}
-
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder,
-    mlir::Operation* op,
-    mlir::Block* loopExitBlock,
-    mlir::Block* functionReturnBlock)
-{
-  if (auto breakOp = mlir::dyn_cast<BreakOp>(op)) {
-    return run(builder, breakOp, loopExitBlock);
-  }
-
-  if (auto forOp = mlir::dyn_cast<ForOp>(op)) {
-    return run(builder, forOp, functionReturnBlock);
-  }
-
-  if (auto ifOp = mlir::dyn_cast<IfOp>(op)) {
-    return run(builder, ifOp, loopExitBlock, functionReturnBlock);
-  }
-
-  if (auto whileOp = mlir::dyn_cast<WhileOp>(op)) {
-    return run(builder, whileOp, functionReturnBlock);
-  }
-
-  if (auto returnOp = mlir::dyn_cast<ReturnOp>(op)) {
-    return run(builder, returnOp, functionReturnBlock);
-  }
-
-  return mlir::success();
-}
-
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder, BreakOp op, mlir::Block* loopExitBlock)
-{
-  if (loopExitBlock == nullptr) {
-    return mlir::failure();
-  }
-
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(op);
-
-  mlir::Block* currentBlock = builder.getInsertionBlock();
-  currentBlock->splitBlock(op);
-
-  builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::cf::BranchOp>(op->getLoc(), loopExitBlock);
-
-  op->erase();
-  return mlir::success();
-}
-
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder, ForOp op, mlir::Block* functionReturnBlock)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(op);
-
-  // Split the current block.
-  mlir::Block* currentBlock = builder.getInsertionBlock();
-  mlir::Block* continuation = currentBlock->splitBlock(op);
-
-  // Keep the references to the op blocks.
-  mlir::Block* conditionFirst = &op.getConditionRegion().front();
-  mlir::Block* conditionLast = &op.getConditionRegion().back();
-  mlir::Block* bodyFirst = &op.getBodyRegion().front();
-  mlir::Block* bodyLast = &op.getBodyRegion().back();
-  mlir::Block* stepFirst = &op.getStepRegion().front();
-  mlir::Block* stepLast = &op.getStepRegion().back();
-
-  // Inline the regions.
-  inlineRegionBefore(op.getConditionRegion(), continuation);
-  inlineRegionBefore(op.getBodyRegion(), continuation);
-  inlineRegionBefore(op.getStepRegion(), continuation);
-
-  // Start the for loop by branching to the "condition" region.
-  builder.setInsertionPointToEnd(currentBlock);
-
-  builder.create<mlir::cf::BranchOp>(
-      op->getLoc(), conditionFirst, op.getArgs());
-
-  // Check the condition.
-  auto conditionOp = mlir::cast<ConditionOp>(conditionLast->getTerminator());
-  builder.setInsertionPoint(conditionOp);
-
-  mlir::Value conditionValue = typeConverter->materializeTargetConversion(
-      builder,
-      conditionOp.getCondition().getLoc(),
-      builder.getI1Type(), conditionOp.getCondition());
-
-  builder.create<mlir::cf::CondBranchOp>(
-      conditionOp->getLoc(),
-      conditionValue,
-      bodyFirst, conditionOp.getValues(),
-      continuation, llvm::None);
-
-  conditionOp->erase();
-
-  // If present, replace "body" block terminator with a branch to the
-  // "step" block. If not present, just place the branch.
-  builder.setInsertionPointToEnd(bodyLast);
-  llvm::SmallVector<mlir::Value, 3> bodyYieldValues;
-
-  if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->back())) {
-    for (mlir::Value value : yieldOp.getValues()) {
-      bodyYieldValues.push_back(value);
-    }
-
-    yieldOp->erase();
-  }
-
-  builder.create<mlir::cf::BranchOp>(op->getLoc(), stepFirst, bodyYieldValues);
-
-  // Branch to the condition check after incrementing the induction variable.
-  builder.setInsertionPointToEnd(stepLast);
-  llvm::SmallVector<mlir::Value, 3> stepYieldValues;
-
-  if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->back())) {
-    for (mlir::Value value : yieldOp.getValues()) {
-      stepYieldValues.push_back(value);
-    }
-
-    yieldOp->erase();
-  }
-
-  builder.create<mlir::cf::BranchOp>(
-      op->getLoc(), conditionFirst, stepYieldValues);
-
-  // Erase the operation.
-  op->erase();
-
-  // Recurse on the body operations.
-  return recurse(
-      builder, bodyFirst, bodyLast, continuation, functionReturnBlock);
-}
-
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder,
-    IfOp op,
-    mlir::Block* loopExitBlock,
-    mlir::Block* functionReturnBlock)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(op);
-
-  // Split the current block.
-  mlir::Block* currentBlock = builder.getInsertionBlock();
-  mlir::Block* continuation = currentBlock->splitBlock(op);
-
-  // Keep the references to the op blocks.
-  mlir::Block* thenFirst = &op.getThenRegion().front();
-  mlir::Block* thenLast = &op.getThenRegion().back();
-
-  // Inline the regions.
-  inlineRegionBefore(op.getThenRegion(), continuation);
-  builder.setInsertionPointToEnd(currentBlock);
-
-  mlir::Value conditionValue = typeConverter->materializeTargetConversion(
-      builder,
-      op.getCondition().getLoc(),
-      builder.getI1Type(), op.getCondition());
-
-  if (op.getElseRegion().empty())
+  template<>
+  struct DenseMapInfo<::VariablesDependencyGraph::Node>
   {
-    // Branch to the "then" region or to the continuation block according
-    // to the condition.
-
-    builder.create<mlir::cf::CondBranchOp>(
-        op->getLoc(),
-        conditionValue,
-        thenFirst, llvm::None,
-        continuation, llvm::None);
-
-    builder.setInsertionPointToEnd(thenLast);
-    builder.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
-
-    // Erase the operation
-    op->erase();
-
-    // Recurse on the body operations
-    if (mlir::failed(recurse(
-            builder,
-            thenFirst, thenLast,
-            loopExitBlock, functionReturnBlock))) {
-      return mlir::failure();
+    static inline ::VariablesDependencyGraph::Node getEmptyKey()
+    {
+      return {nullptr, nullptr};
     }
-  } else {
-    // Branch to the "then" region or to the "else" region according
-    // to the condition.
-    mlir::Block* elseFirst = &op.getElseRegion().front();
-    mlir::Block* elseLast = &op.getElseRegion().back();
 
-    inlineRegionBefore(op.getElseRegion(), continuation);
-
-    builder.create<mlir::cf::CondBranchOp>(
-        op->getLoc(),
-        conditionValue,
-        thenFirst, llvm::None,
-        elseFirst, llvm::None);
-
-    // Branch to the continuation block.
-    builder.setInsertionPointToEnd(thenLast);
-    builder.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
-
-    builder.setInsertionPointToEnd(elseLast);
-    builder.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
-
-    // Erase the operation.
-    op->erase();
-
-    if (mlir::failed(recurse(
-            builder,
-            elseFirst, elseLast,
-            loopExitBlock, functionReturnBlock))) {
-      return mlir::failure();
+    static inline ::VariablesDependencyGraph::Node getTombstoneKey()
+    {
+      return {nullptr, nullptr};
     }
+
+    static unsigned getHashValue(const ::VariablesDependencyGraph::Node& val)
+    {
+      return std::hash<mlir::Operation*>{}(val.variable);
+    }
+
+    static bool isEqual(
+        const ::VariablesDependencyGraph::Node& lhs,
+        const ::VariablesDependencyGraph::Node& rhs)
+    {
+      return lhs.graph == rhs.graph && lhs.variable == rhs.variable;
+    }
+  };
+
+  template<>
+  struct GraphTraits<const ::VariablesDependencyGraph*>
+  {
+    using GraphType = const ::VariablesDependencyGraph*;
+    using NodeRef = ::VariablesDependencyGraph::Node;
+
+    using ChildIteratorType =
+        std::set<::VariablesDependencyGraph::Node>::const_iterator;
+
+    static NodeRef getEntryNode(const GraphType& graph)
+    {
+      return graph->getEntryNode();
+    }
+
+    static ChildIteratorType child_begin(NodeRef node)
+    {
+      return node.graph->childrenBegin(node);
+    }
+
+    static ChildIteratorType child_end(NodeRef node)
+    {
+      return node.graph->childrenEnd(node);
+    }
+
+    using nodes_iterator = llvm::SmallVector<NodeRef>::const_iterator;
+
+    static nodes_iterator nodes_begin(GraphType* graph)
+    {
+      return (*graph)->nodesBegin();
+    }
+
+    static nodes_iterator nodes_end(GraphType* graph)
+    {
+      return (*graph)->nodesEnd();
+    }
+
+    // There is no need for a dedicated class for the arcs.
+    using EdgeRef = ::VariablesDependencyGraph::Node;
+
+    using ChildEdgeIteratorType =
+        std::set<::VariablesDependencyGraph::Node>::const_iterator;
+
+    static ChildEdgeIteratorType child_edge_begin(NodeRef node)
+    {
+      return node.graph->childrenBegin(node);
+    }
+
+    static ChildEdgeIteratorType child_edge_end(NodeRef node)
+    {
+      return node.graph->childrenEnd(node);
+    }
+
+    static NodeRef edge_dest(EdgeRef edge)
+    {
+      return edge;
+    }
+
+    static unsigned int size(GraphType* graph)
+    {
+      return (*graph)->getNumOfNodes();
+    }
+  };
+}
+
+namespace
+{
+  bool VariablesDependencyGraph::hasCycles() const
+  {
+    auto beginIt = llvm::scc_begin(this);
+    auto endIt =  llvm::scc_end(this);
+
+    for (auto it = beginIt; it != endIt; ++it) {
+      if (it.hasCycle()) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
-  return mlir::success();
-}
+  llvm::SmallVector<VariableOp> VariablesDependencyGraph::postOrder() const
+  {
+    assert(!hasCycles());
 
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder, WhileOp op, mlir::Block* functionReturnBlock)
-{
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(op);
+    llvm::SmallVector<VariableOp> result;
+    std::set<Node> set;
 
-  // Split the current block.
-  mlir::Block* currentBlock = builder.getInsertionBlock();
-  mlir::Block* continuation = currentBlock->splitBlock(op);
+    for (const auto& node : llvm::post_order_ext(this, set)) {
+      if (node != getEntryNode()) {
+        result.push_back(mlir::cast<VariableOp>(node.variable));
+      }
+    }
 
-  // Keep the references to the op blocks.
-  mlir::Block* conditionFirst = &op.getConditionRegion().front();
-  mlir::Block* conditionLast = &op.getConditionRegion().back();
-
-  mlir::Block* bodyFirst = &op.getBodyRegion().front();
-  mlir::Block* bodyLast = &op.getBodyRegion().back();
-
-  // Inline the regions.
-  inlineRegionBefore(op.getConditionRegion(), continuation);
-  inlineRegionBefore(op.getBodyRegion(), continuation);
-
-  // Branch to the "condition" region.
-  builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst);
-
-  // Branch to the "body" region.
-  builder.setInsertionPointToEnd(conditionLast);
-  auto conditionOp = mlir::cast<ConditionOp>(conditionLast->getTerminator());
-
-  mlir::Value conditionValue = typeConverter->materializeTargetConversion(
-      builder, conditionOp->getLoc(),
-      builder.getI1Type(), conditionOp.getCondition());
-
-  builder.create<mlir::cf::CondBranchOp>(
-      op->getLoc(),
-      conditionValue,
-      bodyFirst, llvm::None,
-      continuation, llvm::None);
-
-  conditionOp->erase();
-
-  // Branch back to the "condition" region.
-  builder.setInsertionPointToEnd(bodyLast);
-  builder.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst);
-
-  // Erase the operation.
-  op->erase();
-
-  // Recurse on the body operations.
-  return recurse(
-      builder, bodyFirst, bodyLast, continuation, functionReturnBlock);
-}
-
-mlir::LogicalResult CFGLowerer::run(
-    mlir::OpBuilder& builder, ReturnOp op, mlir::Block* functionReturnBlock)
-{
-  if (functionReturnBlock == nullptr) {
-    return mlir::failure();
+    return result;
   }
 
-  mlir::OpBuilder::InsertionGuard guard(builder);
-  builder.setInsertionPoint(op);
+  std::set<llvm::StringRef> DynamicDimensionsGraph::getDependencies(
+      VariableOp variable)
+  {
+    std::set<llvm::StringRef> dependencies;
+    mlir::Region& region = variable.getConstraintsRegion();
 
-  mlir::Block* currentBlock = builder.getInsertionBlock();
-  currentBlock->splitBlock(op);
-
-  builder.setInsertionPointToEnd(currentBlock);
-  builder.create<mlir::cf::BranchOp>(op->getLoc(), functionReturnBlock);
-
-  op->erase();
-  return mlir::success();
-}
-
-void CFGLowerer::inlineRegionBefore(mlir::Region& region, mlir::Block* before)
-{
-  before->getParent()->getBlocks().splice(
-      before->getIterator(), region.getBlocks());
-}
-
-mlir::LogicalResult CFGLowerer::recurse(
-    mlir::OpBuilder& builder,
-    mlir::Block* first,
-    mlir::Block* last,
-    mlir::Block* loopExitBlock,
-    mlir::Block* functionReturnBlock)
-{
-  llvm::SmallVector<mlir::Operation*, 3> ops;
-  auto it = first->getIterator();
-
-  do {
-    for (auto& op : it->getOperations()) {
-      ops.push_back(&op);
+    for (VariableGetOp user : region.getOps<VariableGetOp>()) {
+      dependencies.insert(user.getMember());
     }
-  } while (it++ != last->getIterator());
 
-  for (auto& op : ops) {
-    if (mlir::failed(run(builder, op, loopExitBlock, functionReturnBlock))) {
-      return mlir::failure();
-    }
+    return dependencies;
   }
 
-  return mlir::success();
+  std::set<llvm::StringRef> DefaultValuesGraph::getDependencies(
+      VariableOp variable)
+  {
+    std::set<llvm::StringRef> dependencies;
+    auto defaultOpIt = defaultOps->find(variable.getSymName());
+
+    if (defaultOpIt != defaultOps->end()) {
+      DefaultOp defaultOp = defaultOpIt->getValue();
+
+      defaultOp->walk([&](VariableGetOp getOp) {
+        dependencies.insert(getOp.getMember());
+      });
+    }
+
+    return dependencies;
+  }
 }
+
+class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
+{
+  public:
+    CFGLowering(mlir::MLIRContext* context, bool outputArraysPromotion)
+        : mlir::OpRewritePattern<FunctionOp>(context),
+          outputArraysPromotion(outputArraysPromotion)
+    {
+    }
+
+    mlir::LogicalResult matchAndRewrite(
+        FunctionOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+      mlir::SymbolTable symbolTable(op.getOperation());
+
+      // Discover the variables.
+      llvm::SmallVector<VariableOp> inputVariables;
+      llvm::SmallVector<VariableOp> outputVariables;
+      llvm::SmallVector<VariableOp> promotedOutputVariables;
+      llvm::SmallVector<VariableOp> protectedVariables;
+
+      collectVariables(
+          op, inputVariables, outputVariables, protectedVariables);
+
+      // Determine the signature of the function.
+      llvm::SmallVector<mlir::Type> argTypes;
+      llvm::SmallVector<mlir::Type> resultTypes;
+
+      llvm::DenseSet<VariableOp> promotedVariables;
+
+      for (VariableOp variableOp : inputVariables) {
+        mlir::Type unwrappedType = variableOp.getMemberType().unwrap();
+        argTypes.push_back(unwrappedType);
+      }
+
+      for (VariableOp variableOp : outputVariables) {
+        mlir::Type unwrappedType = variableOp.getMemberType().unwrap();
+        resultTypes.push_back(unwrappedType);
+      }
+
+      // Create the raw function.
+      auto rawFunctionOp = rewriter.create<RawFunctionOp>(
+          op.getLoc(), op.getSymName(),
+          rewriter.getFunctionType(argTypes, resultTypes));
+
+      // Add the entry block and map the arguments to the input variables.
+      mlir::Block* entryBlock = rawFunctionOp.addEntryBlock();
+      mlir::Block* lastBlockBeforeExitBlock = entryBlock;
+
+      llvm::StringMap<mlir::BlockArgument> argsMapping;
+
+      for (const auto& [variableOp, arg] : llvm::zip(
+               inputVariables, rawFunctionOp.getArguments())) {
+        argsMapping[variableOp.getSymName()] = arg;
+      }
+
+      // Create the return block.
+      mlir::Block* exitBlock = rewriter.createBlock(
+          &rawFunctionOp.getFunctionBody(),
+          rawFunctionOp.getFunctionBody().end());
+
+      // Create the variables. The order in which the variables are created has
+      // to take into account the dependencies of their dynamic dimensions. At
+      // the same time, however, the relative order of the input and output
+      // variables must be the same as the declared one, in order to preserve
+      // the correctness of the calls. This last aspect is already taken into
+      // account by the dependency graph.
+      DynamicDimensionsGraph dynamicDimensionsGraph;
+
+      dynamicDimensionsGraph.addVariablesGroup(inputVariables, true);
+      dynamicDimensionsGraph.addVariablesGroup(outputVariables, true);
+      dynamicDimensionsGraph.addVariablesGroup(protectedVariables, false);
+
+      dynamicDimensionsGraph.discoverDependencies();
+
+      llvm::StringMap<RawVariableOp> rawVariables;
+
+      for (VariableOp variable : dynamicDimensionsGraph.postOrder()) {
+        if (variable.isInput()) {
+          // Input variables are already represented by the function arguments.
+          continue;
+        }
+
+        rawVariables[variable.getSymName()] = createVariable(
+            rewriter, variable, exitBlock, lastBlockBeforeExitBlock);
+      }
+
+      // Set the default values.
+      llvm::StringMap<DefaultOp> defaultOps;
+
+      for (DefaultOp defaultOp : op.getOps<DefaultOp>()) {
+        defaultOps[defaultOp.getVariable()] = defaultOp;
+      }
+
+      DefaultValuesGraph defaultValuesGraph(defaultOps);
+
+      defaultValuesGraph.addVariablesGroup(inputVariables, true);
+      defaultValuesGraph.addVariablesGroup(outputVariables, true);
+      defaultValuesGraph.addVariablesGroup(protectedVariables, false);
+
+      defaultValuesGraph.discoverDependencies();
+
+      for (VariableOp variable : defaultValuesGraph.postOrder()) {
+        auto defaultOpIt = defaultOps.find(variable.getSymName());
+
+        if (defaultOpIt != defaultOps.end()) {
+          setDefaultValue(
+              rewriter,
+              variable,
+              defaultOpIt->getValue(),
+              rawVariables,
+              exitBlock, lastBlockBeforeExitBlock);
+        }
+      }
+
+      // Convert the algorithms.
+      for (AlgorithmOp algorithmOp : op.getOps<AlgorithmOp>()) {
+        mlir::Region& algorithmRegion = algorithmOp.getBodyRegion();
+
+        if (algorithmRegion.empty()) {
+          continue;
+        }
+
+        rewriter.setInsertionPointToEnd(lastBlockBeforeExitBlock);
+        rewriter.create<mlir::cf::BranchOp>(loc, &algorithmRegion.front());
+
+        if (mlir::failed(recurse(
+                rewriter,
+                &algorithmRegion.front(), &algorithmRegion.back(),
+                nullptr, exitBlock))) {
+          return mlir::failure();
+        }
+
+        lastBlockBeforeExitBlock = &algorithmRegion.back();
+        rewriter.inlineRegionBefore(algorithmRegion, exitBlock);
+      }
+
+      rewriter.setInsertionPointToEnd(lastBlockBeforeExitBlock);
+      rewriter.create<mlir::cf::BranchOp>(loc, exitBlock);
+
+      // Replace symbol uses with SSA uses.
+      replaceSymbolAccesses(
+          rewriter, rawFunctionOp.getFunctionBody(),
+          argsMapping, rawVariables);
+
+      // Populate the exit block.
+      rewriter.setInsertionPointToStart(exitBlock);
+      llvm::SmallVector<mlir::Value> results;
+
+      for (VariableOp variableOp : outputVariables) {
+        RawVariableOp rawVariableOp = rawVariables[variableOp.getSymName()];
+
+        results.push_back(rewriter.create<RawVariableGetOp>(
+            variableOp->getLoc(), rawVariableOp));
+      }
+
+      rewriter.create<RawReturnOp>(loc, results);
+
+      // Erase the original function.
+      rewriter.eraseOp(op);
+
+      return mlir::success();
+    }
+
+  private:
+    void collectVariables(
+      FunctionOp functionOp,
+      llvm::SmallVectorImpl<VariableOp>& inputVariables,
+      llvm::SmallVectorImpl<VariableOp>& outputVariables,
+      llvm::SmallVectorImpl<VariableOp>& protectedVariables) const
+    {
+      // Keep the promoted variables in a separate list, so that they can be
+      // then appended to the list of input ones.
+      llvm::SmallVector<VariableOp> promotedVariables;
+
+      for (VariableOp variableOp : functionOp.getVariables()) {
+        if (variableOp.isInput()) {
+          inputVariables.push_back(variableOp);
+        } else if (variableOp.isOutput()) {
+          mlir::Type unwrappedType = variableOp.getMemberType().unwrap();
+
+          if (auto arrayType = unwrappedType.dyn_cast<ArrayType>();
+              arrayType && outputArraysPromotion && canBePromoted(arrayType)) {
+            promotedVariables.push_back(variableOp);
+          } else {
+            outputVariables.push_back(variableOp);
+          }
+        } else {
+          protectedVariables.push_back(variableOp);
+        }
+      }
+
+      // Append the promoted output variables to the list of input variables.
+      inputVariables.append(promotedVariables);
+    }
+
+    RawVariableOp createVariable(
+        mlir::PatternRewriter& rewriter,
+        VariableOp variableOp,
+        mlir::Block* exitBlock,
+        mlir::Block*& lastBlockBeforeExitBlock) const
+    {
+      // Inline the operations to compute the dimensions constraints, if any.
+      mlir::Region& constraintsRegion = variableOp.getConstraintsRegion();
+
+      // The YieldOp of the constraints region will be erased, so we need to
+      // store the list of its operands elsewhere.
+      llvm::SmallVector<mlir::Value> constraints;
+
+      if (!constraintsRegion.empty()) {
+        auto constraintsTerminator =
+            mlir::cast<YieldOp>(constraintsRegion.back().getTerminator());
+
+        for (mlir::Value constraint : constraintsTerminator.getValues()) {
+          constraints.push_back(constraint);
+        }
+
+        rewriter.eraseOp(constraintsTerminator);
+
+        rewriter.setInsertionPointToEnd(lastBlockBeforeExitBlock);
+
+        rewriter.create<mlir::cf::BranchOp>(
+            constraintsRegion.getLoc(), &constraintsRegion.back());
+
+        lastBlockBeforeExitBlock = &constraintsRegion.back();
+        rewriter.inlineRegionBefore(constraintsRegion, exitBlock);
+      }
+
+      // Create the block containing the declaration of the variable.
+      mlir::Block* variableBlock = rewriter.createBlock(exitBlock);
+      rewriter.setInsertionPointToEnd(lastBlockBeforeExitBlock);
+      rewriter.create<mlir::cf::BranchOp>(variableOp.getLoc(), variableBlock);
+      lastBlockBeforeExitBlock = variableBlock;
+
+      rewriter.setInsertionPointToStart(variableBlock);
+
+      return rewriter.create<RawVariableOp>(
+          variableOp.getLoc(),
+          variableOp.getSymName(),
+          variableOp.getMemberType(),
+          variableOp.getDimensionsConstraints(),
+          constraints);
+    }
+
+    void setDefaultValue(
+        mlir::PatternRewriter& rewriter,
+        VariableOp variableOp,
+        DefaultOp defaultOp,
+        const llvm::StringMap<RawVariableOp>& rawVariables,
+        mlir::Block* exitBlock,
+        mlir::Block*& lastBlockBeforeExitBlock) const
+    {
+      // Inline the operations to compute the default value, if any.
+      mlir::Region& region = defaultOp.getBodyRegion();
+
+      if (region.empty()) {
+        return;
+      }
+
+      // Create the block containing the assignment of the default value.
+      mlir::Block* valueAssignmentBlock = rewriter.createBlock(exitBlock);
+
+      // Create the branch to the block computing the default value.
+      rewriter.setInsertionPointToEnd(lastBlockBeforeExitBlock);
+      rewriter.create<mlir::cf::BranchOp>(defaultOp.getLoc(), &region.front());
+
+      // Inline the blocks computing the default value.
+      auto terminator = mlir::cast<YieldOp>(region.back().getTerminator());
+      mlir::Value value = terminator.getValues()[0];
+      rewriter.setInsertionPoint(terminator);
+
+      rewriter.replaceOpWithNewOp<mlir::cf::BranchOp>(
+          terminator, valueAssignmentBlock);
+
+      rewriter.inlineRegionBefore(region, valueAssignmentBlock);
+
+      // Assign the value.
+      rewriter.setInsertionPointToStart(valueAssignmentBlock);
+      auto it = rawVariables.find(variableOp.getSymName());
+      assert(it != rawVariables.end());
+      RawVariableOp rawVariableOp = it->second;
+      rewriter.create<RawVariableSetOp>(value.getLoc(), rawVariableOp, value);
+
+      // Set the last block before the exit one.
+      lastBlockBeforeExitBlock = valueAssignmentBlock;
+    }
+
+    /// Replace the references to the symbol of a variable with references to
+    /// the SSA value of its equivalent "raw" variable.
+    void replaceSymbolAccesses(
+        mlir::PatternRewriter& rewriter,
+        mlir::Region& region,
+        const llvm::StringMap<mlir::BlockArgument>& inputVars,
+        const llvm::StringMap<RawVariableOp>& outputAndProtectedVars) const
+    {
+      region.walk([&](VariableGetOp op) {
+        rewriter.setInsertionPoint(op);
+        auto inputVarIt = inputVars.find(op.getMember());
+
+        if (inputVarIt != inputVars.end()) {
+          rewriter.replaceOp(op, inputVarIt->getValue());
+        } else {
+          auto writableVarIt = outputAndProtectedVars.find(op.getMember());
+          assert(writableVarIt != outputAndProtectedVars.end());
+          RawVariableOp rawVariableOp = writableVarIt->getValue();
+          rewriter.replaceOpWithNewOp<RawVariableGetOp>(op, rawVariableOp);
+        }
+      });
+
+      region.walk([&](VariableSetOp op) {
+        rewriter.setInsertionPoint(op);
+        auto it = outputAndProtectedVars.find(op.getMember());
+        assert(it != outputAndProtectedVars.end());
+        RawVariableOp rawVariableOp = it->getValue();
+
+        rewriter.replaceOpWithNewOp<RawVariableSetOp>(
+            op, rawVariableOp, op.getValue());
+      });
+    }
+
+    mlir::LogicalResult createCFG(
+        mlir::PatternRewriter& rewriter,
+        mlir::Operation* op,
+        mlir::Block* loopExitBlock,
+        mlir::Block* functionReturnBlock) const
+    {
+      if (auto breakOp = mlir::dyn_cast<BreakOp>(op)) {
+        return createCFG(rewriter, breakOp, loopExitBlock);
+      }
+
+      if (auto forOp = mlir::dyn_cast<ForOp>(op)) {
+        return createCFG(rewriter, forOp, functionReturnBlock);
+      }
+
+      if (auto ifOp = mlir::dyn_cast<IfOp>(op)) {
+        return createCFG(rewriter, ifOp, loopExitBlock, functionReturnBlock);
+      }
+
+      if (auto whileOp = mlir::dyn_cast<WhileOp>(op)) {
+        return createCFG(rewriter, whileOp, functionReturnBlock);
+      }
+
+      if (auto returnOp = mlir::dyn_cast<ReturnOp>(op)) {
+        return createCFG(rewriter, returnOp, functionReturnBlock);
+      }
+
+      return mlir::success();
+    }
+
+    mlir::LogicalResult createCFG(
+        mlir::PatternRewriter& rewriter,
+        BreakOp op,
+        mlir::Block* loopExitBlock) const
+    {
+      if (loopExitBlock == nullptr) {
+        return mlir::failure();
+      }
+
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      mlir::Block* currentBlock = rewriter.getInsertionBlock();
+      rewriter.splitBlock(currentBlock, op->getIterator());
+
+      rewriter.setInsertionPointToEnd(currentBlock);
+      rewriter.create<mlir::cf::BranchOp>(op->getLoc(), loopExitBlock);
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult createCFG(
+        mlir::PatternRewriter& rewriter,
+        ForOp op,
+        mlir::Block* functionReturnBlock) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      // Split the current block.
+      mlir::Block* currentBlock = rewriter.getInsertionBlock();
+
+      mlir::Block* continuation =
+          rewriter.splitBlock(currentBlock, op->getIterator());
+
+      // Keep the references to the op blocks.
+      mlir::Block* conditionFirst = &op.getConditionRegion().front();
+      mlir::Block* conditionLast = &op.getConditionRegion().back();
+      mlir::Block* bodyFirst = &op.getBodyRegion().front();
+      mlir::Block* bodyLast = &op.getBodyRegion().back();
+      mlir::Block* stepFirst = &op.getStepRegion().front();
+      mlir::Block* stepLast = &op.getStepRegion().back();
+
+      // Inline the regions.
+      rewriter.inlineRegionBefore(op.getConditionRegion(), continuation);
+      rewriter.inlineRegionBefore(op.getBodyRegion(), continuation);
+      rewriter.inlineRegionBefore(op.getStepRegion(), continuation);
+
+      // Start the for loop by branching to the "condition" region.
+      rewriter.setInsertionPointToEnd(currentBlock);
+
+      rewriter.create<mlir::cf::BranchOp>(
+          op->getLoc(), conditionFirst, op.getArgs());
+
+      // Check the condition.
+      auto conditionOp =
+          mlir::cast<ConditionOp>(conditionLast->getTerminator());
+
+      rewriter.setInsertionPoint(conditionOp);
+
+      mlir::Value conditionValue = rewriter.create<CastOp>(
+          conditionOp.getCondition().getLoc(),
+          rewriter.getI1Type(),
+          conditionOp.getCondition());
+
+      rewriter.create<mlir::cf::CondBranchOp>(
+          conditionOp->getLoc(),
+          conditionValue,
+          bodyFirst, conditionOp.getValues(),
+          continuation, llvm::None);
+
+      rewriter.eraseOp(conditionOp);
+
+      // If present, replace "body" block terminator with a branch to the
+      // "step" block. If not present, just place the branch.
+      rewriter.setInsertionPointToEnd(bodyLast);
+      llvm::SmallVector<mlir::Value, 3> bodyYieldValues;
+
+      if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->back())) {
+        for (mlir::Value value : yieldOp.getValues()) {
+          bodyYieldValues.push_back(value);
+        }
+
+        rewriter.eraseOp(yieldOp);
+      }
+
+      rewriter.create<mlir::cf::BranchOp>(
+          op->getLoc(), stepFirst, bodyYieldValues);
+
+      // Branch to the condition check after incrementing the induction
+      // variable.
+      rewriter.setInsertionPointToEnd(stepLast);
+      llvm::SmallVector<mlir::Value, 3> stepYieldValues;
+
+      if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->back())) {
+        for (mlir::Value value : yieldOp.getValues()) {
+          stepYieldValues.push_back(value);
+        }
+
+        rewriter.eraseOp(yieldOp);
+      }
+
+      rewriter.create<mlir::cf::BranchOp>(
+          op->getLoc(), conditionFirst, stepYieldValues);
+
+      // Erase the operation.
+      rewriter.eraseOp(op);
+
+      // Recurse on the body operations.
+      return recurse(
+          rewriter, bodyFirst, bodyLast, continuation, functionReturnBlock);
+    }
+
+    mlir::LogicalResult createCFG(
+        mlir::PatternRewriter& rewriter,
+        IfOp op,
+        mlir::Block* loopExitBlock,
+        mlir::Block* functionReturnBlock) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      // Split the current block.
+      mlir::Block* currentBlock = rewriter.getInsertionBlock();
+
+      mlir::Block* continuation =
+          rewriter.splitBlock(currentBlock, op->getIterator());
+
+      // Keep the references to the op blocks.
+      mlir::Block* thenFirst = &op.getThenRegion().front();
+      mlir::Block* thenLast = &op.getThenRegion().back();
+
+      // Inline the regions.
+      rewriter.inlineRegionBefore(op.getThenRegion(), continuation);
+      rewriter.setInsertionPointToEnd(currentBlock);
+
+      mlir::Value conditionValue = rewriter.create<CastOp>(
+          op.getCondition().getLoc(), rewriter.getI1Type(), op.getCondition());
+
+      if (op.getElseRegion().empty()) {
+        // Branch to the "then" region or to the continuation block according
+        // to the condition.
+
+        rewriter.create<mlir::cf::CondBranchOp>(
+            op->getLoc(),
+            conditionValue,
+            thenFirst, llvm::None,
+            continuation, llvm::None);
+
+        rewriter.setInsertionPointToEnd(thenLast);
+        rewriter.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
+
+        // Erase the operation.
+        rewriter.eraseOp(op);
+
+        // Recurse on the body operations.
+        if (mlir::failed(recurse(
+                rewriter,
+                thenFirst, thenLast,
+                loopExitBlock, functionReturnBlock))) {
+          return mlir::failure();
+        }
+      } else {
+        // Branch to the "then" region or to the "else" region according
+        // to the condition.
+        mlir::Block* elseFirst = &op.getElseRegion().front();
+        mlir::Block* elseLast = &op.getElseRegion().back();
+
+        rewriter.inlineRegionBefore(op.getElseRegion(), continuation);
+
+        rewriter.create<mlir::cf::CondBranchOp>(
+            op->getLoc(),
+            conditionValue,
+            thenFirst, llvm::None,
+            elseFirst, llvm::None);
+
+        // Branch to the continuation block.
+        rewriter.setInsertionPointToEnd(thenLast);
+        rewriter.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
+
+        rewriter.setInsertionPointToEnd(elseLast);
+        rewriter.create<mlir::cf::BranchOp>(op->getLoc(), continuation);
+
+        // Erase the operation.
+        rewriter.eraseOp(op);
+
+        if (mlir::failed(recurse(
+                rewriter,
+                elseFirst, elseLast,
+                loopExitBlock, functionReturnBlock))) {
+          return mlir::failure();
+        }
+      }
+
+      return mlir::success();
+    }
+
+    mlir::LogicalResult createCFG(
+        mlir::PatternRewriter& rewriter,
+        WhileOp op,
+        mlir::Block* functionReturnBlock) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      // Split the current block.
+      mlir::Block* currentBlock = rewriter.getInsertionBlock();
+
+      mlir::Block* continuation =
+          rewriter.splitBlock(currentBlock, op->getIterator());
+
+      // Keep the references to the op blocks.
+      mlir::Block* conditionFirst = &op.getConditionRegion().front();
+      mlir::Block* conditionLast = &op.getConditionRegion().back();
+
+      mlir::Block* bodyFirst = &op.getBodyRegion().front();
+      mlir::Block* bodyLast = &op.getBodyRegion().back();
+
+      // Inline the regions.
+      rewriter.inlineRegionBefore(op.getConditionRegion(), continuation);
+      rewriter.inlineRegionBefore(op.getBodyRegion(), continuation);
+
+      // Branch to the "condition" region.
+      rewriter.setInsertionPointToEnd(currentBlock);
+      rewriter.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst);
+
+      // Branch to the "body" region.
+      rewriter.setInsertionPointToEnd(conditionLast);
+
+      auto conditionOp = mlir::cast<ConditionOp>(
+          conditionLast->getTerminator());
+
+      mlir::Value conditionValue = rewriter.create<CastOp>(
+          conditionOp->getLoc(),
+          rewriter.getI1Type(),
+          conditionOp.getCondition());
+
+      rewriter.create<mlir::cf::CondBranchOp>(
+          op->getLoc(),
+          conditionValue,
+          bodyFirst, llvm::None,
+          continuation, llvm::None);
+
+      rewriter.eraseOp(conditionOp);
+
+      // Branch back to the "condition" region.
+      rewriter.setInsertionPointToEnd(bodyLast);
+      rewriter.create<mlir::cf::BranchOp>(op->getLoc(), conditionFirst);
+
+      // Erase the operation.
+      rewriter.eraseOp(op);
+
+      // Recurse on the body operations.
+      return recurse(
+          rewriter, bodyFirst, bodyLast, continuation, functionReturnBlock);
+    }
+
+    mlir::LogicalResult createCFG(
+        mlir::PatternRewriter& rewriter,
+        ReturnOp op,
+        mlir::Block* functionReturnBlock) const
+    {
+      if (functionReturnBlock == nullptr) {
+        return mlir::failure();
+      }
+
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      mlir::Block* currentBlock = rewriter.getInsertionBlock();
+      rewriter.splitBlock(currentBlock, op->getIterator());
+
+      rewriter.setInsertionPointToEnd(currentBlock);
+      rewriter.create<mlir::cf::BranchOp>(op->getLoc(), functionReturnBlock);
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult recurse(
+        mlir::PatternRewriter& rewriter,
+        mlir::Block* first,
+        mlir::Block* last,
+        mlir::Block* loopExitBlock,
+        mlir::Block* functionReturnBlock) const
+    {
+      llvm::SmallVector<mlir::Operation*> ops;
+      auto it = first->getIterator();
+
+      do {
+        for (auto& op : it->getOperations()) {
+          ops.push_back(&op);
+        }
+      } while (it++ != last->getIterator());
+
+      for (auto& op : ops) {
+        if (mlir::failed(
+                createCFG(rewriter, op, loopExitBlock, functionReturnBlock))) {
+          return mlir::failure();
+        }
+      }
+
+      return mlir::success();
+    }
+
+  private:
+    bool outputArraysPromotion;
+};
 
 namespace
 {
@@ -1086,35 +1061,85 @@ namespace
 
       void runOnOperation() override
       {
-        if (mlir::failed(convertModelicaToCFG())) {
+        mlir::ModuleOp moduleOp = getOperation();
+
+        if (mlir::failed(convertModelicaToCFG(moduleOp))) {
           mlir::emitError(
               getOperation().getLoc(),
-              "Error in converting Modelica to CF");
+              "Can't compute CFG of Modelica functions");
 
           return signalPassFailure();
         }
-      }
 
-      mlir::LogicalResult convertModelicaToCFG()
-      {
-        auto module = getOperation();
-        mlir::OpBuilder builder(module);
-
-        llvm::StringMap<std::vector<CallOp>> callsMap;
-
-        module->walk([&](CallOp callOp) {
-          callsMap[callOp.getCallee()].push_back(callOp);
-        });
-
-        TypeConverter typeConverter(bitWidth);
-        CFGLowerer lowerer(typeConverter, outputArraysPromotion);
-
-        for (auto function : llvm::make_early_inc_range(
-                 module.getBody()->getOps<FunctionOp>())) {
-          if (mlir::failed(lowerer.run(builder, function, callsMap))) {
-            return mlir::failure();
+        if (outputArraysPromotion) {
+          if (mlir::failed(promoteCallResults(moduleOp))) {
+            return signalPassFailure();
           }
         }
+      }
+
+      mlir::LogicalResult convertModelicaToCFG(mlir::ModuleOp moduleOp)
+      {
+        mlir::RewritePatternSet patterns(&getContext());
+        patterns.add<CFGLowering>(&getContext(), outputArraysPromotion);
+
+        mlir::GreedyRewriteConfig config;
+        config.useTopDownTraversal = true;
+
+        return applyPatternsAndFoldGreedily(
+           moduleOp, std::move(patterns), config);
+      }
+
+      mlir::LogicalResult promoteCallResults(mlir::ModuleOp moduleOp)
+      {
+        mlir::OpBuilder builder(moduleOp);
+
+        moduleOp.walk([&](CallOp callOp) {
+          builder.setInsertionPoint(callOp);
+
+          llvm::SmallVector<mlir::Value> args;
+
+          for (mlir::Value arg : callOp.getArgs()) {
+            args.push_back(arg);
+          }
+
+          llvm::SmallVector<mlir::Type> resultTypes;
+          llvm::DenseMap<size_t, size_t> resultsMap;
+          size_t newResultsCounter = 0;
+
+          for (const auto& result : llvm::enumerate(callOp->getResults())) {
+            mlir::Type resultType = result.value().getType();
+
+            if (auto arrayType = resultType.dyn_cast<ArrayType>();
+                arrayType && canBePromoted(arrayType)) {
+              // Allocate the array inside the caller body.
+              mlir::Value array = builder.create<AllocOp>(
+                  callOp.getLoc(), arrayType, llvm::None);
+
+              // Add the array to the arguments.
+              args.push_back(array);
+
+              // Replace the usages of the old result.
+              result.value().replaceAllUsesWith(array);
+            } else {
+              resultTypes.push_back(resultType);
+              resultsMap[newResultsCounter++] = result.index();
+            }
+          }
+
+          // Create the new function call.
+          auto newCallOp = builder.create<CallOp>(
+              callOp.getLoc(), callOp.getCallee(), resultTypes, args);
+
+          // Replace the non-promoted old results.
+          for (size_t i = 0; i < newResultsCounter; ++i) {
+            callOp.getResult(resultsMap[i])
+                .replaceAllUsesWith(newCallOp.getResult(i));
+          }
+
+          // Erase the old function call.
+          callOp.erase();
+        });
 
         return mlir::success();
       }

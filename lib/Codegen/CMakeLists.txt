@@ -14,7 +14,6 @@ set(SOURCES
     Lowering/StatementLowerer.cpp
     Lowering/Verifier.cpp
     Bridge.cpp
-    Reference.cpp
     Runtime.cpp
     Options.cpp
     Utils.cpp)

@@ -49,6 +49,7 @@ namespace marco::codegen
           mlir::ValueRange beginIndexes,
           mlir::ValueRange endIndexes,
           mlir::ValueRange steps,
+          llvm::StringMap<mlir::Value>& variablesMap,
           ::marco::modeling::scheduling::Direction iterationDirection) const override;
   };
 }

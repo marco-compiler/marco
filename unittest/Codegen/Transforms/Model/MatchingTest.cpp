@@ -30,9 +30,9 @@ TEST(MatchedEquation, inductionVariables)
   equationRanges.emplace_back(13, 23);
 
   auto equationOp = createEquation(builder, model, equationRanges, [&](mlir::OpBuilder& nested, mlir::ValueRange indices) {
-    mlir::Value loadX = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), mlir::ValueRange({ indices[0], indices[1] }));
-    mlir::Value loadY = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1), mlir::ValueRange({ indices[0], indices[1] }));
-    createEquationSides(nested, loadX, loadY);
+    mlir::Value x = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(nested.getUnknownLoc(), types[1], "var1");
+    createEquationSides(nested, x, y);
   });
 
   auto equation = Equation::build(equationOp, variables);

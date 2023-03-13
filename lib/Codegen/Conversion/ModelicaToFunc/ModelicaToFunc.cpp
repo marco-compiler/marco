@@ -10,6 +10,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Threading.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir
@@ -199,35 +200,50 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Func operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
-  struct RawFunctionOpLowering : public ModelicaOpConversionPattern<RawFunctionOp>
+  struct RawFunctionOpLowering
+      : public ModelicaOpConversionPattern<RawFunctionOp>
   {
-    using ModelicaOpConversionPattern<RawFunctionOp>::ModelicaOpConversionPattern;
+    using ModelicaOpConversionPattern<RawFunctionOp>
+        ::ModelicaOpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(RawFunctionOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    using LoadReplacer = std::function<mlir::LogicalResult(
+        mlir::ConversionPatternRewriter&, RawVariableGetOp)>;
+
+    using StoreReplacer = std::function<mlir::LogicalResult(
+        mlir::ConversionPatternRewriter&, RawVariableSetOp)>;
+
+    mlir::LogicalResult matchAndRewrite(
+        RawFunctionOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      llvm::SmallVector<mlir::Type, 3> argsTypes;
-      llvm::SmallVector<mlir::Type, 3> resultsTypes;
+      llvm::SmallVector<mlir::Type> argsTypes;
+      llvm::SmallVector<mlir::Type> resultsTypes;
 
-      for (const auto& argType : op.getFunctionType().getInputs()) {
+      for (mlir::Type argType : op.getFunctionType().getInputs()) {
         argsTypes.push_back(getTypeConverter()->convertType(argType));
       }
 
-      for (const auto& resultType : op.getFunctionType().getResults()) {
+      for (mlir::Type resultType : op.getFunctionType().getResults()) {
         resultsTypes.push_back(getTypeConverter()->convertType(resultType));
       }
 
       auto functionType = rewriter.getFunctionType(argsTypes, resultsTypes);
-      auto funcOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(op, op.getSymName(), functionType);
 
-      rewriter.inlineRegionBefore(op.getBody(), funcOp.getBody(), funcOp.end());
+      auto funcOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
+          op, op.getSymName(), functionType);
 
-      if (mlir::failed(rewriter.convertRegionTypes(&funcOp.getBody(), *typeConverter))) {
+      rewriter.inlineRegionBefore(
+          op.getBody(), funcOp.getFunctionBody(), funcOp.end());
+
+      if (mlir::failed(rewriter.convertRegionTypes(
+              &funcOp.getFunctionBody(), *typeConverter))) {
         return mlir::failure();
       }
 
@@ -239,9 +255,344 @@ namespace
   {
     using mlir::OpConversionPattern<RawReturnOp>::OpConversionPattern;
 
-    mlir::LogicalResult matchAndRewrite(RawReturnOp op, OpAdaptor adaptor, mlir::ConversionPatternRewriter& rewriter) const override
+    mlir::LogicalResult matchAndRewrite(
+        RawReturnOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
     {
-      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op, adaptor.getOperands());
+      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(
+          op, adaptor.getOperands());
+
+      return mlir::success();
+    }
+  };
+
+  struct RawVariableScalarLowering
+      : public mlir::OpRewritePattern<RawVariableOp>
+  {
+    using mlir::OpRewritePattern<RawVariableOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        RawVariableOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+      auto memberType = op.getMemberType();
+      mlir::Type unwrappedType = memberType.unwrap();
+
+      if (unwrappedType.isa<ArrayType>()) {
+        return rewriter.notifyMatchFailure(op, "Not a scalar variable");
+      }
+
+      assert(op.getDynamicSizes().empty());
+
+      mlir::Value reference = rewriter.create<AllocOp>(
+          loc, ArrayType::get(llvm::None, unwrappedType), llvm::None);
+
+      for (auto* user : op->getUsers()) {
+        assert(mlir::isa<RawVariableGetOp>(user) ||
+               mlir::isa<RawVariableSetOp>(user));
+
+        if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
+          if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
+            return mlir::failure();
+          }
+        } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
+          if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
+            return mlir::failure();
+          }
+        }
+      }
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult convertGetOp(
+        mlir::PatternRewriter& rewriter,
+        RawVariableGetOp op,
+        mlir::Value reference) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+      rewriter.replaceOpWithNewOp<LoadOp>(op, reference, llvm::None);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult convertSetOp(
+        mlir::PatternRewriter& rewriter,
+        RawVariableSetOp op,
+        mlir::Value reference) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      mlir::Value value = op.getValue();
+
+      auto memberType = op.getMemberType();
+      mlir::Type unwrappedType = memberType.unwrap();
+
+      if (value.getType() != unwrappedType) {
+        value = rewriter.create<CastOp>(op.getLoc(), unwrappedType, value);
+      }
+
+      rewriter.replaceOpWithNewOp<StoreOp>(op, value, reference, llvm::None);
+      return mlir::success();
+    }
+  };
+
+  struct RawVariableStaticArrayLowering
+      : public mlir::OpRewritePattern<RawVariableOp>
+  {
+    using mlir::OpRewritePattern<RawVariableOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        RawVariableOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+      auto memberType = op.getMemberType();
+      mlir::Type unwrappedType = memberType.unwrap();
+
+      if (!unwrappedType.isa<ArrayType>()) {
+        return rewriter.notifyMatchFailure(op, "Not an array variable");
+      }
+
+      auto arrayType = unwrappedType.cast<ArrayType>();
+
+      if (op.getDynamicSizes().size() !=
+          static_cast<size_t>(arrayType.getNumDynamicDims())) {
+        return rewriter.notifyMatchFailure(
+            op, "Not a statically sized variable");
+      }
+
+      mlir::Value reference =
+          rewriter.create<AllocOp>(loc, arrayType, op.getDynamicSizes());
+
+      for (auto* user : op->getUsers()) {
+        assert(mlir::isa<RawVariableGetOp>(user) ||
+               mlir::isa<RawVariableSetOp>(user));
+
+        if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
+          if (mlir::failed(convertGetOp(rewriter, getOp, reference))) {
+            return mlir::failure();
+          }
+        } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
+          if (mlir::failed(convertSetOp(rewriter, setOp, reference))) {
+            return mlir::failure();
+          }
+        }
+      }
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult convertGetOp(
+        mlir::PatternRewriter& rewriter,
+        RawVariableGetOp op,
+        mlir::Value reference) const
+    {
+      rewriter.replaceOp(op, reference);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult convertSetOp(
+        mlir::PatternRewriter& rewriter,
+        RawVariableSetOp op,
+        mlir::Value reference) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+      rewriter.create<ArrayCopyOp>(op.getLoc(), op.getValue(), reference);
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+  };
+
+  struct RawVariableDynamicArrayLowering
+      : public mlir::OpConversionPattern<RawVariableOp>
+  {
+    using mlir::OpConversionPattern<RawVariableOp>::OpConversionPattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        RawVariableOp op,
+        OpAdaptor adaptor,
+        mlir::ConversionPatternRewriter& rewriter) const override
+    {
+      mlir::Location loc = op.getLoc();
+      auto memberType = op.getMemberType();
+      mlir::Type unwrappedType = memberType.unwrap();
+
+      if (!unwrappedType.isa<ArrayType>()) {
+        return rewriter.notifyMatchFailure(op, "Not an array variable");
+      }
+
+      auto arrayType = unwrappedType.cast<ArrayType>();
+
+      if (op.getDynamicSizes().size() ==
+          static_cast<size_t>(arrayType.getNumDynamicDims())) {
+        return rewriter.notifyMatchFailure(
+            op, "Not a dynamically sized variable");
+      }
+
+      // The array can change sizes during at runtime. Thus, we need to create
+      // a pointer to the array currently in use.
+
+      // Create the pointer to the array.
+      auto memrefOfArrayType = mlir::MemRefType::get(
+          llvm::None,
+          getTypeConverter()->convertType(memberType.toArrayType()));
+
+      mlir::Value memrefOfArray =
+          rewriter.create<mlir::memref::AllocaOp>(loc, memrefOfArrayType);
+
+      // We need to allocate a fake buffer in order to allow the first free
+      // operation to operate on a valid memory area.
+
+      mlir::Value fakeArray = rewriter.create<AllocOp>(
+          loc,
+          getArrayTypeWithDynamicDimensionsSetToZero(arrayType),
+          llvm::None);
+
+      fakeArray = getTypeConverter()->materializeTargetConversion(
+          rewriter, loc,
+          getTypeConverter()->convertType(fakeArray.getType()), fakeArray);
+
+      fakeArray = rewriter.create<mlir::memref::CastOp>(
+          loc, memrefOfArrayType.getElementType(), fakeArray);
+
+      rewriter.create<mlir::memref::StoreOp>(loc, fakeArray, memrefOfArray);
+
+      for (auto* user : op->getUsers()) {
+        assert(mlir::isa<RawVariableGetOp>(user) ||
+               mlir::isa<RawVariableSetOp>(user));
+
+        if (auto getOp = mlir::dyn_cast<RawVariableGetOp>(user)) {
+          if (mlir::failed(convertGetOp(rewriter, getOp, memrefOfArray))) {
+            return mlir::failure();
+          }
+        } else if (auto setOp = mlir::dyn_cast<RawVariableSetOp>(user)) {
+          if (mlir::failed(convertSetOp(rewriter, setOp, memrefOfArray))) {
+            return mlir::failure();
+          }
+        }
+      }
+
+      rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    ArrayType getArrayTypeWithDynamicDimensionsSetToZero(ArrayType type) const
+    {
+      if (!type.hasRank()) {
+        return type;
+      }
+
+      llvm::SmallVector<int64_t, 3> shape;
+
+      for (int64_t dimension : type.getShape()) {
+        if (dimension == mlir::ShapedType::kDynamicSize) {
+          shape.push_back(0);
+        } else {
+          shape.push_back(dimension);
+        }
+      }
+
+      return ArrayType::get(
+          shape, type.getElementType(), type.getMemorySpace());
+    }
+
+    mlir::LogicalResult convertGetOp(
+        mlir::ConversionPatternRewriter& rewriter,
+        RawVariableGetOp op,
+        mlir::Value reference) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      mlir::Value array = rewriter.create<mlir::memref::LoadOp>(
+          op.getLoc(), reference);
+
+      array = getTypeConverter()->materializeSourceConversion(
+          rewriter, op.getLoc(),
+          op.getMemberType().toArrayType(), array);
+
+      rewriter.replaceOp(op, array);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult convertSetOp(
+        mlir::ConversionPatternRewriter& rewriter,
+        RawVariableSetOp op,
+        mlir::Value reference) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(op);
+
+      auto memberType = op.getMemberType();
+      mlir::Type unwrappedType = memberType.unwrap();
+      auto arrayType = unwrappedType.cast<ArrayType>();
+
+      // The destination array has dynamic and unknown sizes. Thus, the array
+      // has not been allocated yet, and we need to create a copy of the
+      // source one.
+
+      mlir::Value value = op.getValue();
+
+      // The function input arguments must be cloned, in order to avoid inputs
+      // modifications.
+
+      if (value.isa<mlir::BlockArgument>()) {
+        llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+
+        for (const auto& dimension :
+             llvm::enumerate(arrayType.getShape())) {
+          if (dimension.value() == ArrayType::kDynamicSize) {
+            mlir::Value dimensionIndex =
+                rewriter.create<mlir::arith::ConstantOp>(
+                    op.getLoc(),
+                    rewriter.getIndexAttr(dimension.index()));
+
+            dynamicDimensions.push_back(rewriter.create<DimOp>(
+                op.getLoc(), op.getValue(), dimensionIndex));
+          }
+        }
+
+        value = rewriter.create<AllocOp>(
+            op.getLoc(), arrayType, dynamicDimensions);
+
+        rewriter.create<ArrayCopyOp>(op.getLoc(), op.getValue(), value);
+      }
+
+      // Deallocate the previously allocated memory. This is only
+      // apparently in contrast with the above statements: unknown-sized
+      // arrays pointers are initialized with a pointer to a 1-element
+      // sized array, so that the initial free always operates on valid
+      // memory.
+
+      mlir::Value previousArray = rewriter.create<mlir::memref::LoadOp>(
+          op.getLoc(), reference);
+
+      previousArray = typeConverter->materializeSourceConversion(
+          rewriter, op.getLoc(),
+          memberType.toArrayType(), previousArray);
+
+      rewriter.create<FreeOp>(op.getLoc(), previousArray);
+
+      // Save the descriptor of the new copy into the destination using
+      // StoreOp.
+      value = typeConverter->materializeTargetConversion(
+          rewriter, op.getLoc(),
+          typeConverter->convertType(value.getType()), value);
+
+      value = rewriter.create<mlir::memref::CastOp>(
+          op.getLoc(),
+          reference.getType().cast<mlir::MemRefType>().getElementType(),
+          value);
+
+      rewriter.create<mlir::memref::StoreOp>(
+          op.getLoc(), value, reference);
+
+      rewriter.eraseOp(op);
       return mlir::success();
     }
   };
@@ -264,9 +615,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Math operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -307,9 +658,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Built-in functions
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -2712,9 +3063,9 @@ namespace
   };
 }
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Utility operations
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
 namespace
 {
@@ -2876,6 +3227,12 @@ namespace
           return signalPassFailure();
         }
 
+        if (mlir::failed(convertRawVariables())) {
+          mlir::emitError(getOperation().getLoc(),
+                          "Error in converting the Modelica raw variables");
+          return signalPassFailure();
+        }
+
         if (mlir::failed(convertRawFunctions())) {
           mlir::emitError(getOperation().getLoc(),
                           "Error in converting the Modelica raw functions");
@@ -2990,6 +3347,35 @@ namespace
 
         populateModelicaToFuncPatterns(
             patterns, &getContext(), typeConverter, assertions);
+
+        return applyPartialConversion(module, target, std::move(patterns));
+      }
+
+      mlir::LogicalResult convertRawVariables()
+      {
+        auto module = getOperation();
+        mlir::ConversionTarget target(getContext());
+
+        target.addLegalDialect<mlir::BuiltinDialect>();
+        target.addLegalDialect<mlir::arith::ArithDialect>();
+        target.addLegalDialect<mlir::memref::MemRefDialect>();
+
+        target.addLegalDialect<ModelicaDialect>();
+
+        target.addIllegalOp<
+            RawVariableOp,
+            RawVariableGetOp,
+            RawVariableSetOp>();
+
+        mlir::modelica::TypeConverter typeConverter(bitWidth);
+        mlir::RewritePatternSet patterns(&getContext());
+
+        patterns.insert<
+            RawVariableScalarLowering,
+            RawVariableStaticArrayLowering>(&getContext());
+
+        patterns.insert<
+            RawVariableDynamicArrayLowering>(typeConverter, &getContext());
 
         return applyPartialConversion(module, target, std::move(patterns));
       }

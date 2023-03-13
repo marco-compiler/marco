@@ -10,19 +10,17 @@ namespace marco::codegen
     public:
       using Id = Variable::Id;
 
-      BaseVariable(mlir::Value value);
+      BaseVariable(mlir::modelica::VariableOp memberCreateOp);
 
       Id getId() const override;
 
-      mlir::Value getValue() const override;
-      mlir::modelica::MemberCreateOp getDefiningOp() const override;
+      mlir::modelica::VariableOp getDefiningOp() const override;
 
       bool isReadOnly() const override;
       bool isParameter() const override;
       bool isConstant() const override;
 
     private:
-      mlir::Value value;
       mlir::Operation* definingOp;
   };
 }

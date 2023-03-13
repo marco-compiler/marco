@@ -45,7 +45,7 @@ namespace mlir::modelica::impl
           ModelOp modelOp,
           const marco::codegen::DerivativesMap& derivativesMap,
           const marco::VariableFilter& variablesFilter,
-          unsigned int variable) const;
+          VariableOp variableOp) const;
 
       /// Create the initialization function that allocates the variables and
       /// stores them into an appropriate data structure to be passed to the

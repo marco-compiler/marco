@@ -32,40 +32,43 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
   auto variables = discoverVariables(model);
 
   auto eq1 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0));
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1)),
+        y,
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 4)));
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, x, rhs);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT));
 
   auto eq2 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1));
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)),
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2)));
+        z);
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, y, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
 
   auto eq3 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2));
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
 
     mlir::Value rhs = nested.create<MulOp>(
         loc, realType,
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 3)),
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0)));
+        x);
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, z, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -132,11 +135,14 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   eq1_ranges.emplace_back(1, 4);
 
   auto eq1 = Equation::build(createEquation(builder, model, eq1_ranges, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), inductions[0]);
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
+    mlir::Value lhs = nested.create<LoadOp>(loc, x, inductions[0]);
+
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1), inductions[0]),
+        nested.create<LoadOp>(loc, y, inductions[0]),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)));
 
     createEquationSides(nested, lhs, rhs);
@@ -148,8 +154,11 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   eq2_ranges.emplace_back(1, 4);
 
   auto eq2 = Equation::build(createEquation(builder, model, eq2_ranges, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1), inductions[0]);
-    mlir::Value rhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2), inductions[0]);
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
+
+    mlir::Value lhs = nested.create<LoadOp>(loc, y, inductions[0]);
+    mlir::Value rhs = nested.create<LoadOp>(loc, z, inductions[0]);
 
     createEquationSides(nested, lhs, rhs);
   }), variables);
@@ -160,14 +169,17 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   eq3_ranges.emplace_back(1, 2);
 
   auto eq3 = Equation::build(createEquation(builder, model, eq3_ranges, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2), inductions[0]);
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
+    mlir::Value lhs = nested.create<LoadOp>(loc, z, inductions[0]);
+
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
         nested.create<MulOp>(
             loc, realType,
             nested.create<ConstantOp>(loc, RealAttr::get(realType, 3)),
-            nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), inductions[0])),
+            x),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 4)));
 
     createEquationSides(nested, lhs, rhs);
@@ -179,14 +191,17 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   eq4_ranges.emplace_back(3, 4);
 
   auto eq4 = Equation::build(createEquation(builder, model, eq4_ranges, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2), inductions[0]);
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
+    mlir::Value lhs = nested.create<LoadOp>(loc, z, inductions[0]);
+
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
         nested.create<MulOp>(
             loc, realType,
             nested.create<ConstantOp>(loc, RealAttr::get(realType, 5)),
-            nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0), inductions[0])),
+            nested.create<LoadOp>(loc, x, inductions[0])),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 6)));
 
     createEquationSides(nested, lhs, rhs);
@@ -241,39 +256,43 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
   auto variables = discoverVariables(model);
 
   auto eq1 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
+
     mlir::Value lhs = nested.create<AddOp>(
         loc, realType,
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0)),
-        nested.create<SinOp>(loc, realType, nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0))));
+        x,
+        nested.create<SinOp>(loc, realType, x));
 
-    mlir::Value rhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1));
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, lhs, y);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT, { 0 }));
 
   auto eq2 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange indutions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1));
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)),
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2)));
+        z);
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, y, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
 
   auto eq3 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2));
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
 
     mlir::Value rhs = nested.create<MulOp>(
         loc, realType,
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 3)),
-        nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0)));
+        x);
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, z, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));
@@ -324,49 +343,50 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
   auto variables = discoverVariables(model);
 
   auto eq1 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0));
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
 
     mlir::Value rhs = nested.create<AddOp>(
         loc, realType,
-        nested.create<AddOp>(
-            loc, realType,
-            nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1)),
-            nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2))),
+        nested.create<AddOp>(loc, realType, y, z),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 12)));
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, x, rhs);
   }), variables);
 
   auto eq1_matched = std::make_unique<MatchedEquation>(std::move(eq1), eq1->getIterationRanges(), EquationPath(EquationPath::LEFT));
 
   auto eq2 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(1));
+    mlir::Value y = nested.create<VariableGetOp>(loc, types[1], "var1");
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
         nested.create<MulOp>(
             loc, realType,
             nested.create<ConstantOp>(loc, RealAttr::get(realType, 5)),
-            nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0))),
+            x),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 2)));
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, y, rhs);
   }), variables);
 
   auto eq2_matched = std::make_unique<MatchedEquation>(std::move(eq2), eq2->getIterationRanges(), EquationPath(EquationPath::LEFT));
 
   auto eq3 = Equation::build(createEquation(builder, model, llvm::None, [&](mlir::OpBuilder& nested, mlir::ValueRange inductions) {
-    mlir::Value lhs = nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(2));
+    mlir::Value z = nested.create<VariableGetOp>(loc, types[2], "var2");
+    mlir::Value x = nested.create<VariableGetOp>(loc, types[0], "var0");
 
     mlir::Value rhs = nested.create<SubOp>(
         loc, realType,
         nested.create<MulOp>(
             loc, realType,
             nested.create<ConstantOp>(loc, RealAttr::get(realType, -2)),
-            nested.create<LoadOp>(loc, model.getBodyRegion().getArgument(0))),
+            x),
         nested.create<ConstantOp>(loc, RealAttr::get(realType, 4)));
 
-    createEquationSides(nested, lhs, rhs);
+    createEquationSides(nested, z, rhs);
   }), variables);
 
   auto eq3_matched = std::make_unique<MatchedEquation>(std::move(eq3), eq3->getIterationRanges(), EquationPath(EquationPath::LEFT));

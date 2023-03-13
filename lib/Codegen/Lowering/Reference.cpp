@@ -1,100 +1,250 @@
 #include "marco/Codegen/Lowering/Reference.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
 
+using namespace ::marco::codegen::lowering;
 using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
+  class Reference::Impl
+  {
+    public:
+      Impl(mlir::OpBuilder& builder, mlir::Location loc)
+          : builder(&builder), loc(std::move(loc))
+      {
+      }
+
+      ~Impl() = default;
+
+      virtual std::unique_ptr<Reference::Impl> clone() = 0;
+
+      mlir::Location getLoc() const
+      {
+        return loc;
+      }
+
+      virtual mlir::Value getReference() const = 0;
+
+      virtual mlir::Value get(mlir::Location loc) const = 0;
+
+      virtual void set(mlir::Location loc, mlir::Value value) = 0;
+
+    protected:
+      mlir::OpBuilder* builder;
+      mlir::Location loc;
+  };
+}
+
+namespace
+{
+  class SSAReference : public Reference::Impl
+  {
+    public:
+      SSAReference(
+          mlir::OpBuilder& builder, mlir::Value value)
+          : Reference::Impl(builder, value.getLoc()),
+            reference(value)
+      {
+      }
+
+      std::unique_ptr<Reference::Impl> clone() override
+      {
+        return std::make_unique<SSAReference>(*this);
+      }
+
+      mlir::Value getReference() const override
+      {
+        return reference;
+      }
+
+      mlir::Value get(mlir::Location loc) const override
+      {
+        return reference;
+      }
+
+      void set(mlir::Location loc, mlir::Value value) override
+      {
+        llvm_unreachable("Can't assign value to SSA operand");
+      }
+
+    private:
+      mlir::Value reference;
+  };
+
+  class MemoryReference : public Reference::Impl
+  {
+    public:
+      MemoryReference(
+          mlir::OpBuilder& builder, mlir::Value value)
+          : Reference::Impl(builder, value.getLoc()),
+            reference(value)
+      {
+        assert(reference.getType().isa<ArrayType>());
+      }
+
+      std::unique_ptr<Reference::Impl> clone() override
+      {
+        return std::make_unique<MemoryReference>(*this);
+      }
+
+      mlir::Value get(mlir::Location loc) const override
+      {
+        auto arrayType = reference.getType().cast<ArrayType>();
+
+        // We can load the value only if it's a pointer to a scalar.
+        // Otherwise, return the array.
+
+        if (arrayType.getShape().empty()) {
+          return builder->create<LoadOp>(loc, reference);
+        }
+
+        return reference;
+      }
+
+      mlir::Value getReference() const override
+      {
+        return reference;
+      }
+
+      void set(mlir::Location loc, mlir::Value value) override
+      {
+        builder->create<AssignmentOp>(loc, reference, value);
+      }
+
+    private:
+      mlir::Value reference;
+  };
+
+  class VariableReference : public Reference::Impl
+  {
+    public:
+      VariableReference(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          llvm::StringRef name,
+          mlir::Type type)
+          : Reference::Impl(builder, loc),
+            name(name.str()),
+            type(type)
+      {
+      }
+
+      std::unique_ptr<Reference::Impl> clone() override
+      {
+        return std::make_unique<VariableReference>(*this);
+      }
+
+      mlir::Value get(mlir::Location loc) const override
+      {
+        return builder->create<VariableGetOp>(loc, type, name);
+      }
+
+      mlir::Value getReference() const override
+      {
+        llvm_unreachable("Variables have no SSA value");
+      }
+
+      void set(mlir::Location loc, mlir::Value value) override
+      {
+        builder->create<VariableSetOp>(loc, name, value);
+      }
+
+    private:
+      std::string name;
+      mlir::Type type;
+  };
+
+  class TimeReference : public Reference::Impl
+  {
+    public:
+      TimeReference(mlir::OpBuilder& builder, mlir::Location loc)
+          : Reference::Impl(builder, loc)
+      {
+      }
+
+      std::unique_ptr<Reference::Impl> clone() override
+      {
+        return std::make_unique<TimeReference>(*this);
+      }
+
+      mlir::Value get(mlir::Location loc) const override
+      {
+        return builder->create<TimeOp>(loc);
+      }
+
+      mlir::Value getReference() const override
+      {
+        llvm_unreachable("No reference for the 'time' variable");
+      }
+
+      void set(mlir::Location loc, mlir::Value value) override
+      {
+        llvm_unreachable("Can't write into the 'time' variable");
+      }
+  };
+}
+
+namespace marco::codegen::lowering
+{
   Reference::Reference()
-      : builder(nullptr),
-        value(nullptr),
-        reader(nullptr)
+      : impl(nullptr)
   {
   }
 
-  Reference::Reference(mlir::OpBuilder* builder,
-                       mlir::Value value,
-                       std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
-                       std::function<void(mlir::OpBuilder*, Reference&, mlir::Value)> writer)
-      : builder(builder),
-        value(std::move(value)),
-        reader(std::move(reader)),
-        writer(std::move(writer))
+  Reference::Reference(std::unique_ptr<Impl> impl)
+      : impl(std::move(impl))
   {
   }
 
-  mlir::Value Reference::operator*() const
+  Reference::~Reference() = default;
+
+  Reference::Reference(const Reference& other)
+      : impl(other.impl->clone())
   {
-    return reader(builder, value);
+  }
+
+  Reference Reference::ssa(mlir::OpBuilder& builder, mlir::Value value)
+  {
+    return Reference(std::make_unique<SSAReference>(builder, value));
+  }
+
+  Reference Reference::memory(mlir::OpBuilder& builder,  mlir::Value value)
+  {
+    return Reference(std::make_unique<MemoryReference>(builder, value));
+  }
+
+  Reference Reference::variable(
+      mlir::OpBuilder& builder,
+      mlir::Location loc,
+      llvm::StringRef name,
+      mlir::Type type)
+  {
+    return Reference(
+        std::make_unique<VariableReference>(builder, loc, name, type));
+  }
+
+  Reference Reference::time(mlir::OpBuilder& builder, mlir::Location loc)
+  {
+    return Reference(std::make_unique<TimeReference>(builder, loc));
+  }
+
+  mlir::Value Reference::get(mlir::Location loc) const
+  {
+    return impl->get(loc);
+  }
+
+  mlir::Location Reference::getLoc() const
+  {
+    return impl->getLoc();
   }
 
   mlir::Value Reference::getReference() const
   {
-    assert(value != nullptr);
-    return value;
+    return impl->getReference();
   }
 
-  void Reference::set(mlir::Value v)
+  void Reference::set(mlir::Location loc, mlir::Value value)
   {
-    writer(builder, *this, v);
-  }
-
-  Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
-  {
-    return Reference(
-        builder, value,
-        [](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
-          return value;
-        },
-        [](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
-          llvm_unreachable("Can't assign value to SSA operand");
-        });
-  }
-
-  Reference Reference::memory(mlir::OpBuilder* builder, mlir::Value value)
-  {
-    return Reference(
-        builder, value,
-        [](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
-          auto arrayType = value.getType().cast<ArrayType>();
-
-          // We can load the value only if it's a pointer to a scalar.
-          // Otherwise, return the array.
-
-          if (arrayType.getShape().empty()) {
-            return builder->create<LoadOp>(value.getLoc(), value);
-          }
-
-          return value;
-        },
-        [&](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
-          assert(destination.value.getType().isa<ArrayType>());
-          builder->create<AssignmentOp>(value.getLoc(), destination.getReference(), value);
-        });
-  }
-
-  Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
-  {
-    return Reference(
-        builder, value,
-        [](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
-          auto memberType = value.getType().cast<MemberType>();
-          return builder->create<MemberLoadOp>(value.getLoc(), memberType.unwrap(), value);
-        },
-        [](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
-          builder->create<MemberStoreOp>(value.getLoc(), destination.value, value);
-        });
-  }
-
-  Reference Reference::time(mlir::OpBuilder* builder)
-  {
-    return Reference(
-        builder, nullptr,
-        [](mlir::OpBuilder* builder, mlir::Value v) -> mlir::Value {
-          return builder->create<TimeOp>(builder->getUnknownLoc());
-        },
-        [](mlir::OpBuilder* builder, Reference& destination, mlir::Value v) {
-          llvm_unreachable("Can't write into the 'time' variable");
-        });
+    impl->set(loc, value);
   }
 }

@@ -34,9 +34,7 @@ namespace marco::codegen
 
       long getDimensionSize(size_t index) const override;
 
-      mlir::Value getValue() const override;
-
-      mlir::modelica::MemberCreateOp getDefiningOp() const override;
+      mlir::modelica::VariableOp getDefiningOp() const override;
 
       bool isReadOnly() const override;
       bool isParameter() const override;

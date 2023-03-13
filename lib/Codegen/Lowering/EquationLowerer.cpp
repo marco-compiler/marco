@@ -37,20 +37,24 @@ namespace marco::codegen::lowering
     {
       // Left-hand side
       const auto* expression = equation.getLhsExpression();
+
+      auto referencesLoc = loc(expression->getLocation());
       auto references = lower(*expression);
 
       for (auto& reference : references) {
-        lhs.push_back(*reference);
+        lhs.push_back(reference.get(referencesLoc));
       }
     }
 
     {
       // Right-hand side
       const auto* expression = equation.getRhsExpression();
+
+      auto referencesLoc = loc(expression->getLocation());
       auto references = lower(*expression);
 
       for (auto& reference : references) {
-        rhs.push_back(*reference);
+        rhs.push_back(reference.get(referencesLoc));
       }
     }
 
@@ -91,7 +95,7 @@ namespace marco::codegen::lowering
       // Add the induction variable to the symbol table
       symbolTable().insert(
           induction->getName(),
-          Reference::ssa(&builder(), forEquationOp.induction()));
+          Reference::ssa(builder(), forEquationOp.induction()));
 
       if (firstOp == nullptr) {
         firstOp = forEquationOp.getOperation();

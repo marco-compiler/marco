@@ -5,36 +5,6 @@ using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
-static VariabilityProperty getVariabilityProperty(const Member& member)
-{
-  if (member.isDiscrete()) {
-    return VariabilityProperty::discrete;
-  }
-
-  if (member.isParameter()) {
-    return VariabilityProperty::parameter;
-  }
-
-  if (member.isConstant()) {
-    return VariabilityProperty::constant;
-  }
-
-  return VariabilityProperty::none;
-}
-
-static IOProperty getIOProperty(const Member& member)
-{
-  if (member.isInput()) {
-    return IOProperty::input;
-  }
-
-  if (member.isOutput()) {
-    return IOProperty::output;
-  }
-
-  return IOProperty::none;
-}
-
 namespace marco::codegen::lowering
 {
   ModelLowerer::ModelLowerer(LoweringContext* context, BridgeInterface* bridge)
@@ -49,7 +19,7 @@ namespace marco::codegen::lowering
     mlir::OpBuilder::InsertionGuard guard(builder());
     Lowerer::SymbolScope varScope(symbolTable());
 
-    auto location = loc(model.getLocation());
+    mlir::Location location = loc(model.getLocation());
 
     llvm::SmallVector<mlir::Type, 3> variableTypes;
     llvm::SmallVector<mlir::Location, 3> variableLocations;
@@ -75,85 +45,75 @@ namespace marco::codegen::lowering
     // Create the model operation and its blocks.
     auto modelOp = builder().create<ModelOp>(location, model.getName());
 
-    mlir::Block* varsBlock = builder().createBlock(&modelOp.getVarsRegion());
+    // Simulation variables.
+    builder().setInsertionPointToStart(modelOp.bodyBlock());
 
-    mlir::Block* bodyBlock = builder().createBlock(
-        &modelOp.getBodyRegion(), {}, variableTypes, variableLocations);
+    // First, add the variables to the symbol table.
+    for (const auto& member : model.getMembers()) {
+      mlir::Location variableLoc = loc(member->getLocation());
+      mlir::Type type = lower(member->getType());
 
-    {
-      // Simulation variables.
-      builder().setInsertionPointToStart(varsBlock);
-      llvm::SmallVector<mlir::Value, 3> vars;
-
-      for (const auto& member : model.getMembers()) {
-        lower(*member);
-        vars.push_back(symbolTable().lookup(member->getName()).getReference());
-      }
-
-      builder().create<YieldOp>(location, vars);
+      symbolTable().insert(
+          member->getName(),
+          Reference::variable(
+              builder(), variableLoc, member->getName(), type));
     }
 
-    {
-      // Equations.
-      builder().setInsertionPointToStart(bodyBlock);
-      symbolTable().insert("time", Reference::time(&builder()));
+    // Then, lower them.
+    for (const auto& member : model.getMembers()) {
+      lower(*member);
+    }
 
-      for (const auto& member : llvm::enumerate(model.getMembers())) {
-        symbolTable().insert(
-            member.value()->getName(),
-            Reference::memory(
-                &builder(),
-                modelOp.getBodyRegion().getArgument(member.index())));
-      }
+    // Equations.
+    symbolTable().insert("time", Reference::time(builder(), location));
 
-      // Create the binding equations.
-      for (const auto& member : model.getMembers()) {
-        if (member->hasModification()) {
-          if (const auto* modification = member->getModification();
-              modification->hasExpression()) {
-            createBindingEquation(*member, *modification->getExpression());
-            builder().setInsertionPointToEnd(bodyBlock);
-          }
+    // Create the binding equations.
+    for (const auto& member : model.getMembers()) {
+      if (member->hasModification()) {
+        if (const auto* modification = member->getModification();
+            modification->hasExpression()) {
+          createBindingEquation(*member, *modification->getExpression());
+          builder().setInsertionPointToEnd(modelOp.bodyBlock());
         }
       }
+    }
 
-      // Create the 'start' values.
-      for (const auto& member : model.getMembers()) {
-        if (member->hasStartExpression()) {
-          lowerStartAttribute(
-              *member,
-              *member->getStartExpression(),
-              member->getFixedProperty(),
-              member->getEachProperty());
-        }
+    // Create the 'start' values.
+    for (const auto& member : model.getMembers()) {
+      if (member->hasStartExpression()) {
+        lowerStartAttribute(
+            *member,
+            *member->getStartExpression(),
+            member->getFixedProperty(),
+            member->getEachProperty());
+      }
+    }
+
+    // Create the equations.
+    for (const auto& block : model.getEquationsBlocks()) {
+      for (const auto& equation : block->getEquations()) {
+        lower(*equation, false);
       }
 
-      // Create the equations.
-      for (const auto& block : model.getEquationsBlocks()) {
-        for (const auto& equation : block->getEquations()) {
-          lower(*equation, false);
-        }
+      for (const auto& forEquation : block->getForEquations()) {
+        lower(*forEquation, false);
+      }
+    }
 
-        for (const auto& forEquation : block->getForEquations()) {
-          lower(*forEquation, false);
-        }
+    // Create the initial equations.
+    for (const auto& block : model.getInitialEquationsBlocks()) {
+      for (const auto& equation : block->getEquations()) {
+        lower(*equation, true);
       }
 
-      // Create the initial equations.
-      for (const auto& block : model.getInitialEquationsBlocks()) {
-        for (const auto& equation : block->getEquations()) {
-          lower(*equation, true);
-        }
-
-        for (const auto& forEquation : block->getForEquations()) {
-          lower(*forEquation, true);
-        }
+      for (const auto& forEquation : block->getForEquations()) {
+        lower(*forEquation, true);
       }
+    }
 
-      // Create the algorithms.
-      for (const auto& algorithm : model.getAlgorithms()) {
-        lower(*algorithm);
-      }
+    // Create the algorithms.
+    for (const auto& algorithm : model.getAlgorithms()) {
+      lower(*algorithm);
     }
 
     // Add the model operation to the list of top-level operations.
@@ -173,29 +133,85 @@ namespace marco::codegen::lowering
 
   void ModelLowerer::lower(const Member& member)
   {
-    auto location = loc(member.getLocation());
+    // TODO refactor, it is the same for both functions and models.
+    mlir::Location location = loc(member.getLocation());
+    mlir::Type type = lower(member.getType());
 
-    const auto& frontendType = member.getType();
-    mlir::Type type = lower(frontendType);
+    VariabilityProperty variabilityProperty = VariabilityProperty::none;
+    IOProperty ioProperty = IOProperty::none;
 
-    auto memberType = MemberType::wrap(
-        type, getVariabilityProperty(member), getIOProperty(member));
+    if (member.isDiscrete()) {
+      variabilityProperty = VariabilityProperty::discrete;
+    } else if (member.isParameter()) {
+      variabilityProperty = VariabilityProperty::parameter;
+    } else if (member.isConstant()) {
+      variabilityProperty = VariabilityProperty::constant;
+    }
 
-    mlir::Value memberOp = builder().create<MemberCreateOp>(
-        location, member.getName(), memberType, llvm::None);
+    if (member.isInput()) {
+      ioProperty = IOProperty::input;
+    } else if (member.isOutput()) {
+      ioProperty = IOProperty::output;
+    }
 
-    symbolTable().insert(
-        member.getName(), Reference::member(&builder(), memberOp));
+    auto memberType = MemberType::wrap(type, variabilityProperty, ioProperty);
+
+    llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
+    bool hasFixedDimensions = false;
+
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      for (const auto& dimension : member.getType().getDimensions()) {
+        if (dimension.hasExpression()) {
+          dimensionsConstraints.push_back(
+              VariableOp::kDimensionConstraintFixed);
+
+          hasFixedDimensions = true;
+        } else {
+          dimensionsConstraints.push_back(
+              VariableOp::kDimensionConstraintUnbounded);
+        }
+      }
+    }
+
+    auto var = builder().create<VariableOp>(
+        location, member.getName(), memberType,
+        builder().getStrArrayAttr(dimensionsConstraints));
+
+    if (hasFixedDimensions) {
+      mlir::OpBuilder::InsertionGuard guard(builder());
+
+      builder().setInsertionPointToStart(
+          &var.getConstraintsRegion().emplaceBlock());
+
+      llvm::SmallVector<mlir::Value> fixedDimensions;
+
+      for (const auto& dimension : member.getType().getDimensions()) {
+        if (dimension.hasExpression()) {
+          mlir::Location dimensionLoc =
+              loc(dimension.getExpression()->getLocation());
+
+          mlir::Value size =
+              lower(*dimension.getExpression())[0].get(dimensionLoc);
+
+          size = builder().create<CastOp>(
+              location, builder().getIndexType(), size);
+
+          fixedDimensions.push_back(size);
+        }
+      }
+
+      builder().create<YieldOp>(location, fixedDimensions);
+    }
   }
 
   void ModelLowerer::createBindingEquation(
       const ast::Member& member, const ast::Expression& expression)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
-    auto location = loc(expression.getLocation());
+    mlir::Location location = loc(expression.getLocation());
 
     auto bindingEquationOp = builder().create<BindingEquationOp>(
-        location, symbolTable().lookup(member.getName()).getReference());
+        location, member.getName());
 
     assert(bindingEquationOp.getBodyRegion().empty());
 
@@ -205,9 +221,12 @@ namespace marco::codegen::lowering
     builder().setInsertionPointToStart(bodyBlock);
 
     // Lower the expression and yield its value.
+    mlir::Location expressionLoc = loc(expression.getLocation());
     auto expressionValues = lower(expression);
     assert(expressionValues.size() == 1);
-    builder().create<YieldOp>(location, *expressionValues[0]);
+
+    builder().create<YieldOp>(
+        location, expressionValues[0].get(expressionLoc));
   }
 
   void ModelLowerer::lowerStartAttribute(
@@ -216,13 +235,10 @@ namespace marco::codegen::lowering
       bool fixed,
       bool each)
   {
-    auto location = loc(expression.getLocation());
+    mlir::Location location = loc(expression.getLocation());
 
     auto startOp = builder().create<StartOp>(
-        location,
-        symbolTable().lookup(member.getName()).getReference(),
-        builder().getBoolAttr(fixed),
-        builder().getBoolAttr(each));
+        location, member.getName(), fixed, each);
 
     mlir::OpBuilder::InsertionGuard guard(builder());
 
@@ -230,8 +246,10 @@ namespace marco::codegen::lowering
     mlir::Block* bodyBlock = builder().createBlock(&startOp.getBodyRegion());
     builder().setInsertionPointToStart(bodyBlock);
 
+    mlir::Location valueLoc = loc(expression.getLocation());
     auto value = lower(expression);
     assert(value.size() == 1);
-    builder().create<YieldOp>(location, *value[0]);
+
+    builder().create<YieldOp>(location, value[0].get(valueLoc));
   }
 }

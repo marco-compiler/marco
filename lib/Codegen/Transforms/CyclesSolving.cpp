@@ -150,7 +150,8 @@ namespace mlir::modelica
     return std::make_unique<CyclesSolvingPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createCyclesSolvingPass(const CyclesSolvingPassOptions& options)
+  std::unique_ptr<mlir::Pass> createCyclesSolvingPass(
+      const CyclesSolvingPassOptions& options)
   {
     return std::make_unique<CyclesSolvingPass>(options);
   }

@@ -46,7 +46,8 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           ::marco::modeling::scheduling::Direction iterationDirection,
-          std::vector<unsigned int>& usedVariables) const override;
+          const mlir::SymbolTable& symbolTable,
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& usedVariables) const override;
 
     protected:
       mlir::modelica::EquationSidesOp getTerminator() const;
@@ -65,7 +66,7 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           const ::marco::modeling::IndexSet& equationIndices,
           mlir::Value value,
-          mlir::Value variable,
+          llvm::StringRef variable,
           const ::marco::modeling::IndexSet& variableIndices) const;
 
       virtual mlir::LogicalResult mapInductionVariables(
@@ -89,6 +90,7 @@ namespace marco::codegen
           mlir::ValueRange beginIndexes,
           mlir::ValueRange endIndexes,
           mlir::ValueRange steps,
+          llvm::StringMap<mlir::Value>& variablesMap,
           ::marco::modeling::scheduling::Direction iterationDirection) const = 0;
 
     private:

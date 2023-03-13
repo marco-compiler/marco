@@ -11,7 +11,7 @@ namespace marco::codegen
   class ScalarVariable : public BaseVariable
   {
     public:
-      ScalarVariable(mlir::Value value);
+      ScalarVariable(mlir::modelica::VariableOp variableOp);
 
       std::unique_ptr<Variable> clone() const override;
 

@@ -22,35 +22,25 @@ namespace marco::codegen::lowering
     mlir::OpBuilder::InsertionGuard guard(builder());
     Lowerer::SymbolScope scope(symbolTable());
 
-    auto location = loc(function.getLocation());
+    mlir::Location location = loc(function.getLocation());
 
     // Input variables.
     llvm::SmallVector<llvm::StringRef, 3> argNames;
-    llvm::SmallVector<mlir::Type, 3> argTypes;
 
     for (const auto& member : function.getArgs()) {
       argNames.emplace_back(member->getName());
-
-      mlir::Type type = lower(member->getType());
-      argTypes.emplace_back(type);
     }
 
     // Output variables.
     llvm::SmallVector<llvm::StringRef, 1> returnNames;
-    llvm::SmallVector<mlir::Type, 1> returnTypes;
     auto outputMembers = function.getResults();
 
     for (const auto& member : outputMembers) {
-      mlir::Type type = lower(member->getType());
       returnNames.emplace_back(member->getName());
-      returnTypes.emplace_back(type);
     }
 
     // Create the function.
-    auto functionType = builder().getFunctionType(argTypes, returnTypes);
-
-    auto functionOp = builder().create<FunctionOp>(
-        location, function.getName(), functionType);
+    auto functionOp = builder().create<FunctionOp>(location, function.getName());
 
     // Process the annotations.
     if (function.hasAnnotation()) {
@@ -124,39 +114,24 @@ namespace marco::codegen::lowering
     mlir::Block* entryBlock = builder().createBlock(&functionOp.getBody());
     builder().setInsertionPointToStart(entryBlock);
 
-    // Create the variables. The order in which the variables are created has
-    // to take into account the dependencies of their dynamic dimensions. At
-    // the same time, however, the relative order of the input and output
-    // variables must be the same as the declared one, in order to preserve
-    // the correctness of the calls. This last aspect is already taken into
-    // account by the dependency graph.
+    // Add the variables to the symbol table.
+    for (const auto& member : function.getMembers()) {
+      mlir::Location variableLoc = loc(member->getLocation());
+      mlir::Type type = lower(member->getType());
 
-    DynamicDimensionsGraph dynamicDimensionsGraph;
-
-    dynamicDimensionsGraph.addMembersGroup(function.getArgs(), true);
-    dynamicDimensionsGraph.addMembersGroup(function.getResults(), true);
-
-    dynamicDimensionsGraph.addMembersGroup(
-        function.getProtectedMembers(), false);
-
-    dynamicDimensionsGraph.discoverDependencies();
-
-    for (const auto& member : dynamicDimensionsGraph.postOrder()) {
-      lower(*member);
+      symbolTable().insert(
+          member->getName(),
+          Reference::variable(
+              builder(), variableLoc, member->getName(), type));
     }
 
-    // Initialize the variables which have a default value.
-    // This must be performed after all the variables have been created, so
-    // that we can be sure that references to other variables can be resolved
-    // (without performing a post-order visit).
-
+    // Then, lower them.
     for (const auto& member : function.getMembers()) {
-      if (member->hasExpression()) {
-        // If the member has an initializer expression, lower and assign it as
-        // if it was a regular assignment statement.
+      lower(*member);
 
-        mlir::Value value = *lower(*member->getExpression())[0];
-        symbolTable().lookup(member->getName()).set(value);
+      if (member->hasExpression()) {
+        lowerVariableDefaultValue(
+            member->getName(), *member->getExpression());
       }
     }
 
@@ -166,8 +141,16 @@ namespace marco::codegen::lowering
 
       const auto& algorithm = function.getAlgorithms()[0];
 
-      for (const auto& statement : *algorithm) {
-        lower(*statement);
+      if (!algorithm->empty()) {
+        auto algorithmOp = builder().create<AlgorithmOp>(
+            loc(algorithm->getLocation()));
+
+        algorithmOp.getBodyRegion().emplaceBlock();
+        builder().setInsertionPointToStart(algorithmOp.bodyBlock());
+
+        for (const auto& statement : *algorithm) {
+          lower(*statement);
+        }
       }
     }
 
@@ -177,35 +160,8 @@ namespace marco::codegen::lowering
 
   void StandardFunctionLowerer::lower(const Member& member)
   {
-    auto location = loc(member.getLocation());
+    mlir::Location location = loc(member.getLocation());
     mlir::Type type = lower(member.getType());
-
-    llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
-
-    if (auto arrayType = type.dyn_cast<ArrayType>()) {
-      auto expressionsCount = llvm::count_if(
-          member.getType().getDimensions(),
-          [](const auto& dimension) {
-            return dimension.hasExpression();
-          });
-
-      // If all the dynamic dimensions have an expression to determine their
-      // values, then the member can be instantiated from the beginning.
-
-      bool initialized = expressionsCount == arrayType.getNumDynamicDims();
-
-      if (initialized) {
-        for (const auto& dimension : member.getType().getDimensions()) {
-          if (dimension.hasExpression()) {
-            mlir::Value size = *lower(*dimension.getExpression())[0];
-            size = builder().create<CastOp>(
-                location, builder().getIndexType(), size);
-
-            dynamicDimensions.push_back(size);
-          }
-        }
-      }
-    }
 
     VariabilityProperty variabilityProperty = VariabilityProperty::none;
     IOProperty ioProperty = IOProperty::none;
@@ -226,10 +182,65 @@ namespace marco::codegen::lowering
 
     auto memberType = MemberType::wrap(type, variabilityProperty, ioProperty);
 
-    mlir::Value var = builder().create<MemberCreateOp>(
-        location, member.getName(), memberType, dynamicDimensions);
+    llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
+    bool hasFixedDimensions = false;
 
-    // Add the member to the symbol table.
-    symbolTable().insert(member.getName(), Reference::member(&builder(), var));
+    if (auto arrayType = type.dyn_cast<ArrayType>()) {
+      for (const auto& dimension : member.getType().getDimensions()) {
+        if (dimension.isDynamic()) {
+          if (dimension.hasExpression()) {
+            dimensionsConstraints.push_back(
+                VariableOp::kDimensionConstraintFixed);
+
+            hasFixedDimensions = true;
+          } else {
+            dimensionsConstraints.push_back(
+                VariableOp::kDimensionConstraintUnbounded);
+          }
+        }
+      }
+    }
+
+    auto var = builder().create<VariableOp>(
+        location, member.getName(), memberType,
+        builder().getStrArrayAttr(dimensionsConstraints));
+
+    if (hasFixedDimensions) {
+      mlir::OpBuilder::InsertionGuard guard(builder());
+
+      builder().setInsertionPointToStart(
+          &var.getConstraintsRegion().emplaceBlock());
+
+      llvm::SmallVector<mlir::Value> fixedDimensions;
+
+      for (const auto& dimension : member.getType().getDimensions()) {
+        if (dimension.hasExpression()) {
+          mlir::Value size = lower(*dimension.getExpression())[0].get(location);
+
+          if (!size.getType().isa<mlir::IndexType>()) {
+            size = builder().create<CastOp>(
+                location, builder().getIndexType(), size);
+          }
+
+          fixedDimensions.push_back(size);
+        }
+      }
+
+      builder().create<YieldOp>(location, fixedDimensions);
+    }
+  }
+
+  void StandardFunctionLowerer::lowerVariableDefaultValue(
+   llvm::StringRef variable, const ast::Expression& expression)
+  {
+    mlir::Location expressionLoc = loc(expression.getLocation());
+    auto defaultOp = builder().create<DefaultOp>(expressionLoc, variable);
+
+    mlir::OpBuilder::InsertionGuard guard(builder());
+    mlir::Block* bodyBlock = builder().createBlock(&defaultOp.getBodyRegion());
+    builder().setInsertionPointToStart(bodyBlock);
+
+    mlir::Value value = lower(expression)[0].get(expressionLoc);
+    builder().create<YieldOp>(expressionLoc, value);
   }
 }

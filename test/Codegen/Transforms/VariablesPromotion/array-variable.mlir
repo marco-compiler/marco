@@ -2,21 +2,20 @@
 
 // Variable depending on a constant.
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
-    modelica.yield %0 : !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.constant #modelica.int<0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
+            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.constant #modelica.int<0>
             %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %4 = modelica.equation_side %2 : tuple<!modelica.int>
+            modelica.equation_sides %3, %4 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 }
@@ -25,34 +24,35 @@ modelica.model @Test {
 
 // Variable depending on a parameter.
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.member_create @y : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
-    %1 = modelica.member_create @y : !modelica.member<3x!modelica.int>
-    modelica.yield %0, %1 : !modelica.member<3x!modelica.int, parameter>, !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>, %arg1: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+    modelica.variable @y : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.initial_equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.constant #modelica.int<0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
+            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.constant #modelica.int<0>
             %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %4 = modelica.equation_side %2 : tuple<!modelica.int>
+            modelica.equation_sides %3, %4 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 1, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.equation_side %1 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 }
@@ -61,21 +61,20 @@ modelica.model @Test {
 
 // Variable depending on time.
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int>
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
-    modelica.yield %0 : !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.time : !modelica.real
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.real>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.real>
+            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.time : !modelica.real
+            %3 = modelica.equation_side %1 : tuple<!modelica.int>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.int>, tuple<!modelica.real>
         }
     }
 }
@@ -85,136 +84,146 @@ modelica.model @Test {
 // Variable z depending on the non-parameter variable y.
 // Variable y depending on the parameter x.
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.member_create @y : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.member_create @z : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @z : !modelica.member<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 2 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
-    %1 = modelica.member_create @y : !modelica.member<3x!modelica.int>
-    %2 = modelica.member_create @z : !modelica.member<3x!modelica.int>
-    modelica.yield %0, %1, %2 : !modelica.member<3x!modelica.int, parameter>, !modelica.member<3x!modelica.int>, !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>, %arg1: !modelica.array<3x!modelica.int>, %arg2: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @z : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.initial_equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.constant #modelica.int<0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
+            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.constant #modelica.int<0>
             %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %4 = modelica.equation_side %2 : tuple<!modelica.int>
+            modelica.equation_sides %3, %4 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 1, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.equation_side %1 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 2, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg2[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @z : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.equation_side %1 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 }
 
 // -----
 
-// Promotable SCC
+// Promotable SCC.
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.member_create @y : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
-    %1 = modelica.member_create @y : !modelica.member<3x!modelica.int>
-    modelica.yield %0, %1 : !modelica.member<3x!modelica.int>, !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>, %arg1: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @y : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.equation_side %1 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 1, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.equation_side %1 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 }
 
 // -----
 
-// Promotable SCC depending on a promotable variable
+// Promotable SCC depending on a promotable variable.
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.member_create @y : !modelica.member<3x!modelica.int, parameter>
-// CHECK: modelica.member_create @z : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int, parameter>
+// CHECK: modelica.variable @z : !modelica.member<3x!modelica.int, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 2 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
-    %1 = modelica.member_create @y : !modelica.member<3x!modelica.int>
-    %2 = modelica.member_create @z : !modelica.member<3x!modelica.int>
-    modelica.yield %0, %1, %2 : !modelica.member<3x!modelica.int>, !modelica.member<3x!modelica.int>, !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>, %arg1: !modelica.array<3x!modelica.int>, %arg2: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @y : !modelica.member<3x!modelica.int>
+    modelica.variable @z : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.constant #modelica.int<0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
+            %0 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.constant #modelica.int<0>
             %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %4 = modelica.equation_side %2 : tuple<!modelica.int>
+            modelica.equation_sides %3, %4 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 1, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.load %arg2[%i] : !modelica.array<3x!modelica.int>
-            %3 = modelica.add %1, %2 : (!modelica.int, !modelica.int) -> !modelica.int
-            %4 = modelica.equation_side %0 : tuple<!modelica.int>
-            %5 = modelica.equation_side %3 : tuple<!modelica.int>
-            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.variable_get @z : !modelica.array<3x!modelica.int>
+            %5 = modelica.load %4[%i] : !modelica.array<3x!modelica.int>
+            %6 = modelica.add %3, %5 : (!modelica.int, !modelica.int) -> !modelica.int
+            %7 = modelica.equation_side %1 : tuple<!modelica.int>
+            %8 = modelica.equation_side %6 : tuple<!modelica.int>
+            modelica.equation_sides %7, %8 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 2, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg2[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %3 = modelica.add %1, %2 : (!modelica.int, !modelica.int) -> !modelica.int
-            %4 = modelica.equation_side %0 : tuple<!modelica.int>
-            %5 = modelica.equation_side %3 : tuple<!modelica.int>
-            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @z : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %5 = modelica.load %4[%i] : !modelica.array<3x!modelica.int>
+            %6 = modelica.add %3, %5 : (!modelica.int, !modelica.int) -> !modelica.int
+            %7 = modelica.equation_side %1 : tuple<!modelica.int>
+            %8 = modelica.equation_side %6 : tuple<!modelica.int>
+            modelica.equation_sides %7, %8 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 }
@@ -224,57 +233,57 @@ modelica.model @Test {
 // Variable depending on a variable that is not written by any other equation
 // (and, thus, potentially a state variable).
 
-// CHECK: modelica.member_create @x : !modelica.member<3x!modelica.int>
-// CHECK: modelica.member_create @y : !modelica.member<3x!modelica.int>
+// CHECK: modelica.variable @x : !modelica.member<3x!modelica.int>
+// CHECK: modelica.variable @y : !modelica.member<3x!modelica.int>
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 2]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int>
-    %1 = modelica.member_create @y : !modelica.member<3x!modelica.int>
-    modelica.yield %0, %1 : !modelica.member<3x!modelica.int>, !modelica.member<3x!modelica.int>
-} body {
-^bb0(%arg0: !modelica.array<3x!modelica.int>, %arg1: !modelica.array<3x!modelica.int>):
+    modelica.variable @x : !modelica.member<3x!modelica.int>
+    modelica.variable @y : !modelica.member<3x!modelica.int>
+
     modelica.for_equation %i = 0 to 2 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 2]]], path = ["L"]}]} {
-            %0 = modelica.load %arg1[%i] : !modelica.array<3x!modelica.int>
-            %1 = modelica.load %arg0[%i] : !modelica.array<3x!modelica.int>
-            %2 = modelica.equation_side %0 : tuple<!modelica.int>
-            %3 = modelica.equation_side %1 : tuple<!modelica.int>
-            modelica.equation_sides %2, %3 : tuple<!modelica.int>, tuple<!modelica.int>
+            %0 = modelica.variable_get @y : !modelica.array<3x!modelica.int>
+            %1 = modelica.load %0[%i] : !modelica.array<3x!modelica.int>
+            %2 = modelica.variable_get @x : !modelica.array<3x!modelica.int>
+            %3 = modelica.load %2[%i] : !modelica.array<3x!modelica.int>
+            %4 = modelica.equation_side %1 : tuple<!modelica.int>
+            %5 = modelica.equation_side %3 : tuple<!modelica.int>
+            modelica.equation_sides %4, %5 : tuple<!modelica.int>, tuple<!modelica.int>
         }
     }
 }
 
 // -----
 
-// Promotable array written by different equations
+// Promotable array written by different equations.
 
-// CHECK: modelica.member_create @x : !modelica.member<2x!modelica.real, parameter>
+// CHECK: modelica.variable @x : !modelica.member<2x!modelica.real, parameter>
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.initial_equation attributes {id = 1 : i64, match = [{indices = [[[1, 1]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<2x!modelica.real>
-    modelica.yield %0 : !modelica.member<2x!modelica.real>
-} body {
-^bb0(%arg0: !modelica.array<2x!modelica.real>):
+    modelica.variable @x : !modelica.member<2x!modelica.real>
+
     modelica.for_equation %i = 0 to 0 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
-            %1 = modelica.constant #modelica.real<0.0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
+            %1 = modelica.load %0[%i] : !modelica.array<2x!modelica.real>
+            %2 = modelica.constant #modelica.real<0.0>
             %3 = modelica.equation_side %1 : tuple<!modelica.real>
-            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
         }
     }
 
     modelica.for_equation %i = 1 to 1 {
         modelica.equation attributes {id = 1, match = [{indices = [[[1, 1]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
-            %1 = modelica.constant #modelica.real<1.0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
+            %1 = modelica.load %0[%i] : !modelica.array<2x!modelica.real>
+            %2 = modelica.constant #modelica.real<1.0>
             %3 = modelica.equation_side %1 : tuple<!modelica.real>
-            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
         }
     }
 }
@@ -284,32 +293,32 @@ modelica.model @Test {
 
 // Array not fully promotable.
 
-// CHECK: modelica.member_create @x : !modelica.member<2x!modelica.real>
+// CHECK: modelica.variable @x : !modelica.member<2x!modelica.real>
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 0 : i64, match = [{indices = [[[0, 0]]], path = ["L"]}]}
 // CHECK-DAG{LITERAL}: modelica.equation attributes {id = 1 : i64, match = [{indices = [[[1, 1]]], path = ["L"]}]}
 
 modelica.model @Test {
-    %0 = modelica.member_create @x : !modelica.member<2x!modelica.real>
-    modelica.yield %0 : !modelica.member<2x!modelica.real>
-} body {
-^bb0(%arg0: !modelica.array<2x!modelica.real>):
+    modelica.variable @x : !modelica.member<2x!modelica.real>
+
     modelica.for_equation %i = 0 to 0 {
         modelica.equation attributes {id = 0, match = [{indices = [[[0, 0]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
-            %1 = modelica.constant #modelica.real<0.0>
-            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
+            %1 = modelica.load %0[%i] : !modelica.array<2x!modelica.real>
+            %2 = modelica.constant #modelica.real<0.0>
             %3 = modelica.equation_side %1 : tuple<!modelica.real>
-            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
         }
     }
 
     modelica.for_equation %i = 1 to 1 {
         modelica.equation attributes {id = 1, match = [{indices = [[[1, 1]]], path = ["L"]}]} {
-            %0 = modelica.load %arg0[%i] : !modelica.array<2x!modelica.real>
-            %1 = modelica.time : !modelica.real
-            %2 = modelica.equation_side %0 : tuple<!modelica.real>
+            %0 = modelica.variable_get @x : !modelica.array<2x!modelica.real>
+            %1 = modelica.load %0[%i] : !modelica.array<2x!modelica.real>
+            %2 = modelica.time : !modelica.real
             %3 = modelica.equation_side %1 : tuple<!modelica.real>
-            modelica.equation_sides %2, %3 : tuple<!modelica.real>, tuple<!modelica.real>
+            %4 = modelica.equation_side %2 : tuple<!modelica.real>
+            modelica.equation_sides %3, %4 : tuple<!modelica.real>, tuple<!modelica.real>
         }
     }
 }

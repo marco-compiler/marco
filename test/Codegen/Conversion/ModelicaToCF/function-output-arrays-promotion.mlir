@@ -1,16 +1,20 @@
-// RUN: modelica-opt %s --split-input-file --convert-modelica-to-cf | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --pass-pipeline="builtin.module(convert-modelica-to-cf{output-arrays-promotion=true})" | FileCheck %s
 
-// Static output arrays can be promoted
+// Static output arrays can be promoted.
 
 // CHECK-LABEL: @callee
 // CHECK-SAME: (%[[x:.*]]: !modelica.array<3x!modelica.int>) -> !modelica.array<?x!modelica.int>
-// CHECK: %[[y:.*]] = modelica.alloc %{{.*}} : !modelica.array<?x!modelica.int>
-// CHECK: modelica.raw_return %[[y]]
+// CHECK: %[[y:.*]] = modelica.raw_variable %{{.*}} : !modelica.member<?x!modelica.int, output>
+// CHECK: %[[y_value:.*]] = modelica.raw_variable_get %[[y]]
+// CHECK: modelica.raw_return %[[y_value]]
 
-modelica.function @callee : () -> (!modelica.array<3x!modelica.int>, !modelica.array<?x!modelica.int>) {
-    %0 = modelica.member_create @x : !modelica.member<3x!modelica.int, output>
-    %1 = arith.constant 2 : index
-    %2 = modelica.member_create @y %1 : !modelica.member<?x!modelica.int, output>
+modelica.function @callee {
+    modelica.variable @x : !modelica.member<3x!modelica.int, output>
+
+    modelica.variable @y : !modelica.member<?x!modelica.int, output> [fixed] {
+        %0 = arith.constant 2 : index
+        modelica.yield %0 : index
+    }
 }
 
 // CHECK-LABEL: @caller

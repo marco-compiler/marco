@@ -14,7 +14,11 @@ namespace marco::codegen::lowering
 
   void StatementLowerer::operator()(const ast::AssignmentStatement& statement)
   {
+    mlir::Location statementLoc = loc(statement.getLocation());
+
     const auto* destinations = statement.getDestinations();
+
+    mlir::Location valuesLoc = loc(statement.getExpression()->getLocation());
     auto values = lower(*statement.getExpression());
 
     assert(destinations->isa<Tuple>());
@@ -23,7 +27,7 @@ namespace marco::codegen::lowering
 
     for (const auto& [ dest, value ] : llvm::zip(*destinationsTuple, values)) {
       auto destination = lower(*dest)[0];
-      destination.set(*value);
+      destination.set(statementLoc, value.get(valuesLoc));
     }
   }
 
@@ -38,6 +42,8 @@ namespace marco::codegen::lowering
       Lowerer::SymbolScope varScope(symbolTable());
 
       const auto& conditionalBlock = statement[i];
+
+      mlir::Location conditionLoc = loc(conditionalBlock.getCondition()->getLocation());
       auto condition = lower(*conditionalBlock.getCondition())[0];
 
       // The last conditional block can be at most an originally equivalent
@@ -45,7 +51,7 @@ namespace marco::codegen::lowering
       bool elseBlock = i < e - 1;
 
       auto location = loc(statement.getLocation());
-      auto ifOp = builder().create<IfOp>(location, *condition, elseBlock);
+      auto ifOp = builder().create<IfOp>(location, condition.get(conditionLoc), elseBlock);
 
       if (firstOp == nullptr) {
         firstOp = ifOp;
@@ -82,7 +88,8 @@ namespace marco::codegen::lowering
     mlir::Value inductionVar = builder().create<AllocaOp>(
         location, ArrayType::get(llvm::None, builder().getIndexType()), llvm::None);
 
-    mlir::Value lowerBound = *lower(*induction->getBegin())[0];
+    mlir::Location lowerBoundLoc = loc(induction->getBegin()->getLocation());
+    mlir::Value lowerBound = lower(*induction->getBegin())[0].get(lowerBoundLoc);
     lowerBound = builder().create<CastOp>(lowerBound.getLoc(), builder().getIndexType(), lowerBound);
 
     builder().create<StoreOp>(location, lowerBound, inductionVar, llvm::None);
@@ -104,7 +111,8 @@ namespace marco::codegen::lowering
       builder().setInsertionPointToStart(conditionBlock);
       mlir::Value inductionValue = builder().create<LoadOp>(location, inductionVar);
 
-      mlir::Value upperBound = *lower(*induction->getEnd())[0];
+      mlir::Location upperBoundLoc = loc(induction->getEnd()->getLocation());
+      mlir::Value upperBound = lower(*induction->getEnd())[0].get(upperBoundLoc);
       upperBound = builder().create<CastOp>(lowerBound.getLoc(), builder().getIndexType(), upperBound);
 
       mlir::Value condition = builder().create<LteOp>(location, BooleanType::get(builder().getContext()), inductionValue, upperBound);
@@ -117,7 +125,7 @@ namespace marco::codegen::lowering
 
       builder().setInsertionPointToStart(bodyBlock);
       mlir::Value inductionValue = builder().create<LoadOp>(location, inductionVar);
-      symbolTable().insert(induction->getName(), Reference::ssa(&builder(), inductionValue));
+      symbolTable().insert(induction->getName(), Reference::ssa(builder(), inductionValue));
 
       for (const auto& stmnt : statement) {
         lower(*stmnt);
@@ -155,8 +163,11 @@ namespace marco::codegen::lowering
       assert(whileOp.getConditionRegion().empty());
       mlir::Block* conditionBlock = builder().createBlock(&whileOp.getConditionRegion());
       builder().setInsertionPointToStart(conditionBlock);
+      
+      mlir::Location conditionLoc = loc(statement.getCondition()->getLocation());
       const auto* condition = statement.getCondition();
-      builder().create<ConditionOp>(loc(condition->getLocation()), *lower(*condition)[0]);
+
+      builder().create<ConditionOp>(loc(condition->getLocation()), lower(*condition)[0].get(conditionLoc));
     }
 
     {

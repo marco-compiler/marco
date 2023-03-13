@@ -210,9 +210,10 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
       ::marco::modeling::scheduling::Direction iterationDirection,
-      std::vector<unsigned int>& usedVariables) const
+      const mlir::SymbolTable& symbolTable,
+      llvm::SmallVectorImpl<mlir::modelica::VariableOp>& usedVariables) const
   {
-    return equation->createTemplateFunction(threadPool, builder, functionName, iterationDirection, usedVariables);
+    return equation->createTemplateFunction(threadPool, builder, functionName, iterationDirection, symbolTable, usedVariables);
   }
 
   mlir::Value MatchedEquation::getValueAtPath(const EquationPath& path) const

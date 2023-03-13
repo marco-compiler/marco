@@ -2,8 +2,7 @@
 // RUN: cat %t | FileCheck %s
 
 // CHECK-LABEL: @outputBooleanScalar
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<!modelica.bool, output>
+// CHECK: modelica.variable @y : !modelica.member<!modelica.bool, output>
 
 function outputBooleanScalar
     output Boolean y;
@@ -12,8 +11,7 @@ end outputBooleanScalar;
 
 
 // CHECK-LABEL: @outputIntegerScalar
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<!modelica.int, output>
+// CHECK: modelica.variable @y : !modelica.member<!modelica.int, output>
 
 function outputIntegerScalar
     output Integer y;
@@ -22,8 +20,7 @@ end outputIntegerScalar;
 
 
 // CHECK-LABEL: @outputRealScalar
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<!modelica.real, output>
+// CHECK: modelica.variable @y : !modelica.member<!modelica.real, output>
 
 function outputRealScalar
     output Real y;
@@ -32,8 +29,7 @@ end outputRealScalar;
 
 
 // CHECK-LABEL: @outputBooleanStaticArray
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<3x2x!modelica.bool, output>
+// CHECK: modelica.variable @y : !modelica.member<3x2x!modelica.bool, output>
 
 function outputBooleanStaticArray
     output Boolean[3,2] y;
@@ -42,8 +38,7 @@ end outputBooleanStaticArray;
 
 
 // CHECK-LABEL: @outputBooleanDynamicArray
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<?x?x!modelica.bool, output>
+// CHECK: modelica.variable @y : !modelica.member<?x?x!modelica.bool, output>
 
 function outputBooleanDynamicArray
     output Boolean[:,:] y;
@@ -52,8 +47,7 @@ end outputBooleanDynamicArray;
 
 
 // CHECK-LABEL: @outputIntegerStaticArray
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<3x2x!modelica.int, output>
+// CHECK: modelica.variable @y : !modelica.member<3x2x!modelica.int, output>
 
 function outputIntegerStaticArray
     output Integer[3,2] y;
@@ -62,8 +56,7 @@ end outputIntegerStaticArray;
 
 
 // CHECK-LABEL: @outputIntegerDynamicArray
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<?x?x!modelica.int, output>
+// CHECK: modelica.variable @y : !modelica.member<?x?x!modelica.int, output>
 
 function outputIntegerDynamicArray
     output Integer[:,:] y;
@@ -72,8 +65,7 @@ end outputIntegerDynamicArray;
 
 
 // CHECK-LABEL: @outputRealStaticArray
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<3x2x!modelica.real, output>
+// CHECK: modelica.variable @y : !modelica.member<3x2x!modelica.real, output>
 
 function outputRealStaticArray
     output Real[3,2] y;
@@ -82,8 +74,7 @@ end outputRealStaticArray;
 
 
 // CHECK-LABEL: @outputRealDynamicArray
-// CHECK: modelica.member_create @y
-// CHECK-SAME: !modelica.member<?x?x!modelica.real, output>
+// CHECK: modelica.variable @y : !modelica.member<?x?x!modelica.real, output>
 
 function outputRealDynamicArray
     output Real[:,:] y;
@@ -92,13 +83,12 @@ end outputRealDynamicArray;
 
 
 // CHECK-LABEL: @sizeDependingOnIntegerInput
-// CHECK: %[[x:.*]] = modelica.member_create @n
-// CHECK-SAME: !modelica.member<!modelica.int, input>
-// CHECK: %[[x_value:.*]] = modelica.member_load %[[x]]
-// CHECK: %[[size:.*]] = modelica.cast %[[x_value]] : !modelica.int -> index
-// CHECK: %[[y:.*]] = modelica.member_create @y
-// CHECK-SAME: %[[size]]
-// CHECK-SAME: !modelica.member<?x!modelica.real, output>
+// CHECK: modelica.variable @n : !modelica.member<!modelica.int, input>
+// CHECK:       modelica.variable @y : !modelica.member<?x!modelica.real, output> [fixed] {
+// CHECK-NEXT:      %[[n:.*]] = modelica.variable_get @n
+// CHECK-NEXT:      %[[size:.*]] = modelica.cast %[[n]] : !modelica.int -> index
+// CHECK-NEXT:      modelica.yield %[[size]]
+// CHECK-NEXT:  }
 
 function sizeDependingOnIntegerInput
     input Integer n;
@@ -108,10 +98,11 @@ end sizeDependingOnIntegerInput;
 
 
 // CHECK-LABEL: @defaultValue
-// CHECK: %[[x:.*]] = modelica.member_create @x
-// CHECK-SAME: !modelica.member<!modelica.int, output>
-// CHECK: %[[value:.*]] = modelica.constant #modelica.int<10>
-// CHECK: modelica.member_store %[[x]], %[[value]]
+// CHECK:       modelica.variable @x : !modelica.member<!modelica.int, output>
+// CHECK-NEXT:  modelica.default @x {
+// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<10>
+// CHECK-NEXT:      modelica.yield %[[value]]
+// CHECK-NEXT:  }
 
 function defaultValue
     output Integer x = 10;

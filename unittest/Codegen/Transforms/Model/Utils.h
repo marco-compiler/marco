@@ -8,12 +8,12 @@
 
 // Match access by variable.
 MATCHER_P(AccessMatcher, variable, "") {
-  return arg.getVariable()->getValue() != variable;
+  return arg.getVariable()->getDefiningOp() != variable;
 }
 
 // Match access by variable and access function.
 MATCHER_P2(AccessMatcher, variable, accessFunction, "") {
-  if (arg.getVariable()->getValue() != variable) {
+  if (arg.getVariable()->getDefiningOp() != variable) {
     return false;
   }
 
@@ -26,7 +26,7 @@ MATCHER_P2(AccessMatcher, variable, accessFunction, "") {
 
 // Match access by variable, access function and equation path.
 MATCHER_P3(AccessMatcher, variable, accessFunction, path, "") {
-  if (arg.getVariable()->getValue() != variable) {
+  if (arg.getVariable()->getDefiningOp() != variable) {
     return false;
   }
 

@@ -30,7 +30,7 @@ namespace marco::codegen::lowering
     mlir::Value result = builder().create<ArrayFromElementsOp>(
         location, arrayType, values);
 
-    return Reference::memory(&builder(), result);
+    return Reference::memory(builder(), result);
   }
 
   Results ExpressionLowerer::operator()(const Call& call)
@@ -101,7 +101,7 @@ namespace marco::codegen::lowering
     }
 
     auto result = builder().create<ConstantOp>(loc(constant.getLocation()), attribute);
-    return Reference::ssa(&builder(), result);
+    return Reference::ssa(builder(), result);
   }
 
   Results ExpressionLowerer::operator()(const Operation& operation)

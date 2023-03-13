@@ -22,8 +22,10 @@ namespace
       return mlir::isa<
           AlgorithmOp,
           BindingEquationOp,
+          DefaultOp,
           EquationOp,
-          StartOp>(region->getParentOp());
+          StartOp,
+          VariableOp>(region->getParentOp());
     }
   };
 

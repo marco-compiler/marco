@@ -3,31 +3,31 @@
 
 #include "marco/Modeling/IndexSet.h"
 #include "mlir/IR/Value.h"
-#include <map>
+#include "llvm/ADT/StringMap.h"
 
 namespace marco::codegen
 {
   class DerivativesMap
   {
     public:
-      bool hasDerivative(unsigned int variable) const;
+      bool hasDerivative(llvm::StringRef variable) const;
 
-      unsigned int getDerivative(unsigned int variable) const;
+      llvm::StringRef getDerivative(llvm::StringRef variable) const;
 
-      void setDerivative(unsigned int variable, unsigned int derivative);
+      void setDerivative(llvm::StringRef variable, llvm::StringRef derivative);
 
-      const modeling::IndexSet& getDerivedIndices(unsigned int variable) const;
+      const modeling::IndexSet& getDerivedIndices(llvm::StringRef variable) const;
 
-      void setDerivedIndices(unsigned int variable, modeling::IndexSet indices);
+      void setDerivedIndices(llvm::StringRef variable, modeling::IndexSet indices);
 
-      bool isDerivative(unsigned int variable) const;
+      bool isDerivative(llvm::StringRef variable) const;
 
-      unsigned int getDerivedVariable(unsigned int derivative) const;
+      llvm::StringRef getDerivedVariable(llvm::StringRef derivative) const;
 
     private:
-      std::map<unsigned int, unsigned int> derivatives;
-      std::map<unsigned int, unsigned int> inverseDerivatives;
-      std::map<unsigned int, modeling::IndexSet> derivedIndices;
+      llvm::StringMap<llvm::StringRef> derivatives;
+      llvm::StringMap<llvm::StringRef> inverseDerivatives;
+      llvm::StringMap<modeling::IndexSet> derivedIndices;
   };
 }
 

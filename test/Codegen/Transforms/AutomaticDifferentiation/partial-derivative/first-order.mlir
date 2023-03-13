@@ -18,11 +18,14 @@
 // d/dx (x) = 1
 // CHECK: 1.000000e+00
 
-modelica.function @simpleVar : (!modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y : !modelica.member<!modelica.real, output>
-    %2 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    modelica.member_store %1, %2 : !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @simpleVar {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x : !modelica.real
+        modelica.variable_set @y, %0 : !modelica.real
+    }
 }
 
 modelica.der_function @simpleVar_x {derived_function = "simpleVar", independent_vars = ["x"]}
@@ -37,13 +40,16 @@ func.func @test_simpleVarDer() -> () {
 // d/dx (constant * x) = constant
 // CHECK: 2.300000e+01
 
-modelica.function @mulByScalar : (!modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y : !modelica.member<!modelica.real, output>
-    %2 = modelica.constant #modelica.real<23.0>
-    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %4 = modelica.mul %3, %2 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %1, %4: !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @mulByScalar {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.constant #modelica.real<23.0>
+        %1 = modelica.variable_get @x : !modelica.real
+        %2 = modelica.mul %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
+        modelica.variable_set @y, %2: !modelica.real
+    }
 }
 
 modelica.der_function @mulByScalar_x {derived_function = "mulByScalar", independent_vars = ["x"]}
@@ -58,14 +64,17 @@ func.func @test_mulByScalar() -> () {
 // d/dx (x + y) = 1
 // CHECK: 1.000000e+00
 
-modelica.function @sumOfVars : (!modelica.real, !modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y : !modelica.member<!modelica.real, input>
-    %2 = modelica.member_create @z : !modelica.member<!modelica.real, output>
-    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %4 = modelica.member_load %1 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %5 = modelica.add %3, %4 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %2, %5: !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @sumOfVars {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, input>
+    modelica.variable @z : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x : !modelica.real
+        %1 = modelica.variable_get @y : !modelica.real
+        %2 = modelica.add %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
+        modelica.variable_set @z, %2: !modelica.real
+    }
 }
 
 modelica.der_function @sumOfVars_x {derived_function = "sumOfVars", independent_vars = ["x"]}
@@ -81,14 +90,17 @@ func.func @test_sumOfVars() -> () {
 // d/dx (x * y) = y
 // CHECK: 2.300000e+01
 
-modelica.function @mulOfVars : (!modelica.real, !modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y : !modelica.member<!modelica.real, input>
-    %2 = modelica.member_create @z : !modelica.member<!modelica.real, output>
-    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %4 = modelica.member_load %1 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %5 = modelica.mul %3, %4 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %2, %5: !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @mulOfVars {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, input>
+    modelica.variable @z : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x : !modelica.real
+        %1 = modelica.variable_get @y : !modelica.real
+        %2 = modelica.mul %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
+        modelica.variable_set @z, %2: !modelica.real
+    }
 }
 
 modelica.der_function @mulOfVars_x {derived_function = "mulOfVars", independent_vars = ["x"]}
@@ -105,23 +117,29 @@ func.func @test_mulOfVars() -> () {
 // d/dx foo(constant2 * x) = constant2 * constant1
 // CHECK: 1.311000e+03
 
-modelica.function @scalarMul : (!modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x1 : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y1 : !modelica.member<!modelica.real, output>
-    %2 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %3 = modelica.constant #modelica.real<23.0>
-    %4 = modelica.mul %2, %3 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %1, %4: !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @scalarMul {
+    modelica.variable @x1 : !modelica.member<!modelica.real, input>
+    modelica.variable @y1 : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x1 : !modelica.real
+        %1 = modelica.constant #modelica.real<23.0>
+        %2 = modelica.mul %0, %1 : (!modelica.real, !modelica.real) -> !modelica.real
+        modelica.variable_set @y1, %2: !modelica.real
+    }
 }
 
-modelica.function @callOpDer : (!modelica.real) -> (!modelica.real) {
-    %0 = modelica.member_create @x2 : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y2 : !modelica.member<!modelica.real, output>
-    %2 = modelica.constant #modelica.int<57>
-    %3 = modelica.member_load %0 : !modelica.member<!modelica.real, input> -> !modelica.real
-    %4 = modelica.mul %2, %3 : (!modelica.int, !modelica.real) -> !modelica.real
-    %5 = modelica.call @scalarMul(%4) : (!modelica.real) -> (!modelica.real)
-    modelica.member_store %1, %5: !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @callOpDer {
+    modelica.variable @x2 : !modelica.member<!modelica.real, input>
+    modelica.variable @y2 : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.constant #modelica.int<57>
+        %1 = modelica.variable_get @x2 : !modelica.real
+        %2 = modelica.mul %0, %1 : (!modelica.int, !modelica.real) -> !modelica.real
+        %3 = modelica.call @scalarMul(%2) : (!modelica.real) -> (!modelica.real)
+        modelica.variable_set @y2, %3: !modelica.real
+    }
 }
 
 modelica.der_function @callOpDer_x2 {derived_function = "callOpDer", independent_vars = ["x2"]}

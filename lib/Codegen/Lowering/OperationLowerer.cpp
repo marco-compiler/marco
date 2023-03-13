@@ -34,7 +34,8 @@ namespace marco::codegen::lowering
       assert(value.size() == 1);
 
       mlir::Value result = builder().create<NegateOp>(loc, resultType, *value[0]);
-      return Reference::ssa(&builder(), result);
+
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -59,7 +60,7 @@ namespace marco::codegen::lowering
         result = builder().create<AddOp>(loc, resultType, result, *current[0]);
       }
 
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -77,7 +78,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<AddEWOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -95,7 +96,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<SubOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -113,7 +114,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<SubEWOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -139,7 +140,7 @@ namespace marco::codegen::lowering
         result = builder().create<MulOp>(loc, resultType, result, *current[0]);
       }
 
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -157,7 +158,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<MulEWOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -175,7 +176,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<DivOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -193,7 +194,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<DivEWOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -223,7 +224,7 @@ namespace marco::codegen::lowering
       std::vector<Reference> results;
 
       for (const auto& result : selectOp.getResults()) {
-        results.push_back(Reference::ssa(&builder(), result));
+        results.push_back(Reference::ssa(builder(), result));
       }
 
       return Results(results.begin(), results.end());
@@ -244,7 +245,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<GtOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -262,7 +263,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<GteOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -280,7 +281,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<EqOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -298,7 +299,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<NotEqOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -316,7 +317,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<LteOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -334,7 +335,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<LtOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -352,7 +353,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<AndOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -367,7 +368,7 @@ namespace marco::codegen::lowering
       assert(value.size() == 1);
 
       mlir::Value result = builder().create<NotOp>(loc, resultType, *value[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -385,7 +386,7 @@ namespace marco::codegen::lowering
       assert(second.size() == 1);
 
       mlir::Value result = builder().create<OrOp>(loc, resultType, *first[0], *second[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -427,7 +428,7 @@ namespace marco::codegen::lowering
           mlir::Value result = builder().create<SubscriptionOp>(
               loc, arrayValue, zeroBasedIndices);
 
-          return Reference::memory(&builder(), result);
+          return Reference::memory(builder(), result);
         });
   }
 
@@ -451,7 +452,7 @@ namespace marco::codegen::lowering
       assert(exponent.size() == 1);
 
       mlir::Value result = builder().create<PowOp>(loc, resultType, *base[0], *exponent[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 
@@ -469,7 +470,7 @@ namespace marco::codegen::lowering
       assert(exponent.size() == 1);
 
       mlir::Value result = builder().create<PowOp>(loc, resultType, *base[0], *exponent[0]);
-      return Reference::ssa(&builder(), result);
+      return Reference::ssa(builder(), result);
     });
   }
 }

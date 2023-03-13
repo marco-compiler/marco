@@ -5,7 +5,5 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.yield
-} body {
 
 }

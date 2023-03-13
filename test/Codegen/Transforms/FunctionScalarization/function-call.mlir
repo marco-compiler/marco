@@ -18,12 +18,14 @@
 
 // CHECK{LITERAL}: [0.000000e+00, 1.000000e+00, 2.000000e+00]
 
-modelica.function @callee : (!modelica.real) -> (!modelica.real) {
-    %cst = arith.constant 3 : index
-    %3 = modelica.member_create @x : !modelica.member<!modelica.real, input>
-    %1 = modelica.member_create @y : !modelica.member<!modelica.real, output>
-    %2 = modelica.member_load %3 : !modelica.member<!modelica.real, input> -> !modelica.real
-    modelica.member_store %1, %2 : !modelica.member<!modelica.real, output>, !modelica.real
+modelica.function @callee {
+    modelica.variable @x : !modelica.member<!modelica.real, input>
+    modelica.variable @y : !modelica.member<!modelica.real, output>
+
+    modelica.algorithm {
+        %0 = modelica.variable_get @x : !modelica.real
+        modelica.variable_set @y, %0 : !modelica.real
+    }
 }
 
 func.func @caller() -> () {

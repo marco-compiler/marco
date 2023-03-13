@@ -10,7 +10,7 @@ namespace marco::codegen
   class ArrayVariable : public BaseVariable
   {
     public:
-      ArrayVariable(mlir::Value value);
+      ArrayVariable(mlir::modelica::VariableOp variableOp);
 
       std::unique_ptr<Variable> clone() const override;
 

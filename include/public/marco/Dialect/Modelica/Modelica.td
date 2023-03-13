@@ -195,7 +195,7 @@ def Modelica_AllocOp : Modelica_Op<"alloc",
     let results = (outs AnyArray:$array);
 
     let assemblyFormat = [{
-        $dynamicSizes attr-dict `:` qualified(type($array))
+        ($dynamicSizes^)? attr-dict `:` type($array)
     }];
 
     let hasVerifier = 1;
@@ -623,39 +623,54 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
 // Member operations
 //===---------------------------------------------------------------------===//
 
-def Modelica_MemberCreateOp : Modelica_Op<"member_create", [Symbol]>
+def Modelica_VariableOp : Modelica_Op<"variable",
+    [Symbol,
+    ParentOneOf<["ModelOp", "FunctionOp"]>]>
 {
-    let summary = "Declare a member of a class.";
+    let summary = "Declare a variable of a class.";
 
     let description = [{
-        The operation is used to declare a member of a class.
+        The operation is used to declare a variable of a class.
         It takes the name of the symbol, its type and optional values indicating the
         sizes of the unknown dimensions, in a way similar to `modelica.alloca` and
         `modelica.alloc`.
         The member value can be then read and written by means of the
-        `modelica.member_load` and `modelica.member_store` operations.
+        `modelica.variable_get` and `modelica.variable_set` operations.
 
         Example:
 
         ```mlir
-        %0 = modelica.member_create @x : !modelica.member<3x5x4x!modelica.int>
+        modelica.variable @x : !modelica.member<?x5x?x?x!modelica.int> [fixed, unbounded, fixed] {
+            %0 = ... : index
+            %1 = ... : index
+            modelica.yield %0, %1 : index, index
+        } attributes {...}
         ```
     }];
 
-    let arguments = (ins StrAttr:$sym_name, Variadic<Index>:$dynamicSizes);
-    let results = (outs AnyMember:$member);
+    let arguments = (ins
+        SymbolNameAttr:$sym_name,
+        TypeAttr:$type,
+        StrArrayAttr:$dimensionsConstraints
+    );
+
+    let results = (outs);
+
+    let regions = (region AnyRegion:$constraintsRegion);
 
     let hasCustomAssemblyFormat = 1;
+    let hasVerifier = 1;
 
     let builders = [
-        OpBuilder<(ins "StringRef":$name, "MemberType":$memberType, "ValueRange":$dynamicSizes), [{
-            auto nameAttr = $_builder.getStringAttr(name);
-            build($_builder, $_state, memberType, nameAttr, dynamicSizes);
-    }]>];
+        OpBuilder<(ins "llvm::StringRef":$name, "MemberType":$variableType)>
+    ];
 
     let extraClassDeclaration = [{
+        static constexpr llvm::StringLiteral kDimensionConstraintUnbounded = "unbounded";
+        static constexpr llvm::StringLiteral kDimensionConstraintFixed = "fixed";
+
         MemberType getMemberType() {
-            return getMember().getType().cast<MemberType>();
+            return getType().cast<MemberType>();
         }
 
         bool isInput() {
@@ -681,39 +696,36 @@ def Modelica_MemberCreateOp : Modelica_Op<"member_create", [Symbol]>
         bool isConstant() {
             return getMemberType().isConstant();
         }
+
+        /// Get the number of unbounded dimensions among the unknown ones.
+        size_t getNumOfUnboundedDimensions();
+
+        /// Get the number of fixed dimensions among the unknown ones.
+        size_t getNumOfFixedDimensions();
     }];
 }
 
-def Modelica_MemberLoadOp : Modelica_Op<"member_load",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+def Modelica_VariableGetOp : Modelica_Op<"variable_get",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
-    let summary = "Load the data held by a class member.";
+    let summary = "Load the data held by a class variable.";
 
     let description = [{
         Load the data held by member of a class.
     }];
 
-    let arguments = (ins AnyMember:$member);
+    let arguments = (ins SymbolNameAttr:$member);
     let results = (outs AnyType:$result);
 
-    let builders = [
-        OpBuilder<(ins "Value":$member), [{
-            auto resultType = member.getType().cast<MemberType>().unwrap();
-            build($_builder, $_state, resultType, member);
-        }]>
-    ];
-
-    let hasCustomAssemblyFormat = 1;
-
-    let extraClassDeclaration = [{
-        MemberType getMemberType() {
-            return getMember().getType().cast<MemberType>();
-        }
+    let assemblyFormat = [{
+        $member attr-dict `:` type($result)
     }];
 }
 
-def Modelica_MemberStoreOp : Modelica_Op<"member_store",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+def Modelica_VariableSetOp : Modelica_Op<"variable_set",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Store data into a class member.";
 
@@ -721,15 +733,11 @@ def Modelica_MemberStoreOp : Modelica_Op<"member_store",
         Store data into the member of a class.
     }];
 
-    let arguments = (ins AnyMember:$member, AnyType:$value);
+    let arguments = (ins SymbolNameAttr:$member, AnyType:$value);
     let results = (outs);
 
-    let hasCustomAssemblyFormat = 1;
-
-    let extraClassDeclaration = [{
-        MemberType getMemberType() {
-            return getMember().getType().cast<MemberType>();
-        }
+    let assemblyFormat = [{
+        $member `,` $value attr-dict `:` type($value)
     }];
 }
 
@@ -2388,9 +2396,12 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
 
 def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
+    NoRegionArguments,
     Symbol,
+    SymbolTable,
     DeclareOpInterfaceMethods<RegionKindInterface>,
-    NoTerminator]>
+    NoTerminator,
+    DeclareOpInterfaceMethods<ClassInterface>]>
 {
     let summary = "Modelica model.";
 
@@ -2403,23 +2414,22 @@ def Modelica_ModelOp : Modelica_Op<"model",
     let results = (outs);
 
     let regions = (region
-        AnyRegion:$varsRegion,
-        AnyRegion:$bodyRegion
+        SizedRegion<1>:$bodyRegion
     );
 
+    // Ensure that the block inside the region exists.
     let hasCustomAssemblyFormat = 1;
+    let skipDefaultBuilders = 1;
+
+    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
 
     let extraClassDeclaration = [{
-        /// Get the variables.
-        llvm::SmallVector<MemberCreateOp> getVariableDeclarationOps();
-
-        /// Get the names of the variables.
-        llvm::SmallVector<llvm::StringRef> getVariableNames();
-
-        /// Get a map between the name of the variables and their declarations.
-        llvm::StringMap<MemberCreateOp> getVariableDeclarationOpsMap();
-
         Block* bodyBlock();
+
+        auto getVariables()
+        {
+            return getOps<VariableOp>();
+        }
     }];
 }
 
@@ -2433,14 +2443,38 @@ def Modelica_StartOp : Modelica_Op<"start",
         The operation describes how to compute the initial value of a variable.
     }];
 
-    let arguments = (ins AnyType:$variable, BoolAttr:$fixed, BoolAttr:$each);
+    let arguments = (ins SymbolNameAttr:$variable, BoolAttr:$fixed, BoolAttr:$each);
     let results = (outs);
 
     let regions = (region
         AnyRegion:$bodyRegion
     );
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        $variable $bodyRegion attr-dict
+    }];
+}
+
+def Modelica_DefaultOp : Modelica_Op<"default",
+    [ParentOneOf<["FunctionOp"]>,
+    SingleBlockImplicitTerminator<"YieldOp">]>
+{
+    let summary = "Default attribute of a variable.";
+
+    let description = [{
+        The operation describes how to compute the default value of a variable.
+    }];
+
+    let arguments = (ins SymbolNameAttr:$variable);
+    let results = (outs);
+
+    let regions = (region
+        AnyRegion:$bodyRegion
+    );
+
+    let assemblyFormat = [{
+        $variable $bodyRegion attr-dict
+    }];
 }
 
 def Modelica_DerOp : Modelica_Op<"der", []>
@@ -2493,14 +2527,16 @@ def Modelica_BindingEquationOp : Modelica_Op<"binding_equation",
         written in form of assignment during the declaration of a variable.
     }];
 
-    let arguments = (ins AnyType:$variable);
+    let arguments = (ins SymbolNameAttr:$variable);
     let results = (outs);
 
     let regions = (region
         AnyRegion:$bodyRegion
     );
 
-    let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+        $variable $bodyRegion attr-dict
+    }];
 }
 
 def Modelica_ForEquationOp : Modelica_Op<"for_equation",
@@ -2663,28 +2699,30 @@ def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
 }
 
 def Modelica_AlgorithmOp : Modelica_Op<"algorithm",
-    [ParentOneOf<["ModelOp"]>,
+    [ParentOneOf<["ModelOp", "FunctionOp"]>,
     AlgorithmInterface,
     NoTerminator]>
 {
-  let summary = "Algorithm.";
+    let summary = "Algorithm.";
 
-  let description = [{
-      The operation represents a Modelica algorithm.
-  }];
+    let description = [{
+        The operation represents a Modelica algorithm.
+    }];
 
-  let arguments = (ins);
-  let results = (outs);
+    let arguments = (ins);
+    let results = (outs);
 
-  let regions = (region
-      SizedRegion<1>:$bodyRegion
-  );
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
 
-  let hasCustomAssemblyFormat = 1;
+    let assemblyFormat = [{
+       attr-dict-with-keyword $bodyRegion
+    }];
 
-  let extraClassDeclaration = [{
-    Block* bodyBlock();
-  }];
+    let extraClassDeclaration = [{
+        Block* bodyBlock();
+    }];
 }
 
 def Modelica_InitialAlgorithmOp : Modelica_Op<"initial_algorithm",
@@ -2734,7 +2772,7 @@ def Modelica_FunctionOp : Modelica_Op<"function",
     [IsolatedFromAbove,
     AutomaticAllocationScope,
     Symbol,
-    CallableOpInterface,
+    SymbolTable,
     NoTerminator,
     DeclareOpInterfaceMethods<ClassInterface>]>
 {
@@ -2744,9 +2782,7 @@ def Modelica_FunctionOp : Modelica_Op<"function",
         The operation represents a Modelica function.
     }];
 
-    let arguments = (ins
-        SymbolNameAttr:$sym_name,
-        TypeAttrOf<FunctionType>:$function_type);
+    let arguments = (ins SymbolNameAttr:$sym_name);
 
     let regions = (region AnyRegion:$body);
 
@@ -2755,43 +2791,19 @@ def Modelica_FunctionOp : Modelica_Op<"function",
     let extraClassDeclaration = [{
         mlir::Block* bodyBlock();
 
-        SmallVector<StringRef> inputMemberNames();
-        SmallVector<StringRef> outputMemberNames();
-        SmallVector<StringRef> protectedMemberNames();
+        auto getVariables()
+        {
+            return getOps<VariableOp>();
+        }
 
         bool shouldBeInlined();
 
-        /// @name CallableOpInterface
-        /// {
-
-        /// Returns the region on the current operation that is callable. This may
-        /// return null in the case of an external callable object, e.g. an external
-        /// function.
-        Region *getCallableRegion() {
-            return isDeclaration() ? nullptr : &getBody();
-        }
-
-        /// Returns the results types that the callable region produces when
-        /// executed.
-        ArrayRef<Type> getCallableResults() {
-            return getFunctionType().getResults();
-        }
-
-        /// }
-        /// @name FunctionOpInterface Methods
-        /// {
-
         /// Returns the argument types of this function.
-        ArrayRef<Type> getArgumentTypes() {
-            return getFunctionType().getInputs();
-        }
+        llvm::SmallVector<Type> getArgumentTypes();
 
         /// Returns the result types of this function.
-        ArrayRef<Type> getResultTypes() {
-            return getFunctionType().getResults();
-        }
+        llvm::SmallVector<Type> getResultTypes();
 
-        /// }
         /// @name SymbolOpInterface Methods
         /// {
 
@@ -2804,7 +2816,7 @@ def Modelica_FunctionOp : Modelica_Op<"function",
 }
 
 def Modelica_DerFunctionOp : Modelica_Op<"der_function",
-    [IsolatedFromAbove, Symbol, CallableOpInterface]>
+    [IsolatedFromAbove, Symbol]>
 {
     let summary = "Modelica derivative function.";
 
@@ -2820,21 +2832,6 @@ def Modelica_DerFunctionOp : Modelica_Op<"der_function",
     let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
-        /// @name CallableOpInterface
-        /// {
-
-        Region* getCallableRegion() {
-            // The function body will be created by an appropriate pass, and at the same
-            // type the der function will be converted to a standard function. Thus,
-            // this operation is like an external function.
-
-            return nullptr;
-        }
-
-        /// Returns the results types that the callable region produces when executed.
-        ArrayRef<Type> getCallableResults();
-
-        /// }
         /// @name SymbolOpInterface Methods
         /// {
 
@@ -2987,6 +2984,110 @@ def RawReturnOp : Modelica_Op<"raw_return",
   let hasVerifier = 1;
 }
 
+def Modelica_RawVariableOp : Modelica_Op<"raw_variable", []>
+{
+    let summary = "Declare a variable of a class.";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins
+        StrAttr:$name,
+        DefaultValuedAttr<StrArrayAttr, "::llvm::None">:$dimensionsConstraints,
+        Variadic<Index>:$dynamicSizes);
+
+    let results = (outs AnyMember:$member);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let builders = [
+        OpBuilder<(ins "::llvm::StringRef":$name, "MemberType":$memberType, "::mlir::ArrayAttr":$dimensionsConstraints, "::mlir::ValueRange":$dynamicSizes), [{
+            auto nameAttr = $_builder.getStringAttr(name);
+            build($_builder, $_state, memberType, nameAttr, dimensionsConstraints, dynamicSizes);
+    }]>];
+
+    let extraClassDeclaration = [{
+        static constexpr llvm::StringLiteral kDimensionConstraintUnbounded = "unbounded";
+        static constexpr llvm::StringLiteral kDimensionConstraintFixed = "fixed";
+
+        MemberType getMemberType() {
+            return getMember().getType().cast<MemberType>();
+        }
+
+        bool isInput() {
+            return getMemberType().isInput();
+        }
+
+        bool isOutput() {
+            return getMemberType().isOutput();
+        }
+
+        bool isReadOnly() {
+            return getMemberType().isReadOnly();
+        }
+
+        bool isDiscrete() {
+            return getMemberType().isDiscrete();
+        }
+
+        bool isParameter() {
+            return getMemberType().isParameter();
+        }
+
+        bool isConstant() {
+            return getMemberType().isConstant();
+        }
+    }];
+}
+
+def Modelica_RawVariableGetOp : Modelica_Op<"raw_variable_get", []>
+{
+    let summary = "Load the data held by a raw variable.";
+
+    let description = [{
+        TODO
+    }];
+
+    let arguments = (ins AnyMember:$member);
+    let results = (outs AnyType:$result);
+
+    let builders = [
+        OpBuilder<(ins "::mlir::Value":$member), [{
+            auto resultType = member.getType().cast<MemberType>().unwrap();
+            build($_builder, $_state, resultType, member);
+        }]>
+    ];
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        MemberType getMemberType() {
+            return getMember().getType().cast<MemberType>();
+        }
+    }];
+}
+
+def Modelica_RawVariableSetOp : Modelica_Op<"raw_variable_set", []>
+{
+    let summary = "Store data into a raw variable.";
+
+    let description = [{
+        Store data into the member of a class.
+    }];
+
+    let arguments = (ins AnyMember:$member, AnyType:$value);
+    let results = (outs);
+
+    let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        MemberType getMemberType() {
+            return getMember().getType().cast<MemberType>();
+        }
+    }];
+}
+
 def Modelica_RuntimeFunctionOp : Modelica_Op<"runtime_function",
     [Symbol, CallableOpInterface]>
 {
@@ -3086,7 +3187,7 @@ def Modelica_CallOp : Modelica_Op<"call",
         OpBuilder<(ins "FunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
             $_state.addOperands(args);
             $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
-            $_state.addTypes(callee.getFunctionType().getResults());
+            $_state.addTypes(callee.getResultTypes());
         }]>,
         OpBuilder<(ins "RawFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
             $_state.addOperands(args);
@@ -3361,26 +3462,30 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
 
 def Modelica_YieldOp : Modelica_Op<"yield",
     [Terminator,
-    ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp", "StartOp", "BindingEquationOp"]>]>
+    ParentOneOf<["ForEquationOp", "IfOp", "ForOp", "WhileOp", "ModelOp",
+                 "VariableOp", "StartOp", "DefaultOp", "BindingEquationOp"]>]>
 {
     let summary = "Yield values to the parent operation.";
 
     let description = [{
-        The operation yields zero or more SSA values from an op region and terminates
-        the region. The semantics of how the values yielded are used is defined by the
-        parent operation.
+        The operation yields zero or more SSA values from an op region and
+        terminates the region. The semantics of how the yielded values are used
+        is defined by the parent operation.
     }];
 
     let arguments = (ins Variadic<AnyType>:$values);
     let results = (outs);
 
     let assemblyFormat = [{
-        attr-dict ($values^ `:` qualified(type($values)))?
+        attr-dict ($values^ `:` type($values))?
     }];
+
+    let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
 }
 
 def Modelica_CastOp : Modelica_Op<"cast",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    [NoMemoryEffect,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "Cast a scalar value to another type.";
 

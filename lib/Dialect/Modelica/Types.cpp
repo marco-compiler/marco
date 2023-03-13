@@ -448,7 +448,7 @@ namespace mlir::modelica
 
   bool MemberType::hasRank() const
   {
-    return !getShape().empty();
+    return true;
   }
 
   mlir::ShapedType MemberType::cloneWith(
@@ -491,7 +491,7 @@ namespace mlir::modelica
 
   mlir::Type MemberType::unwrap() const
   {
-    if (hasRank()) {
+    if (!isScalar()) {
       return toArrayType();
     }
 
@@ -509,8 +509,11 @@ namespace mlir::modelica
 
   MemberType MemberType::withType(mlir::Type type) const
   {
-    return MemberType::wrap(
-        type, getVariabilityProperty(), getVisibilityProperty());
+    return MemberType::get(
+        getShape(),
+        type,
+        getVariabilityProperty(),
+        getVisibilityProperty());
   }
 
   MemberType MemberType::withVariabilityProperty(

@@ -86,7 +86,8 @@ namespace marco::codegen
           mlir::OpBuilder& builder,
           llvm::StringRef functionName,
           modeling::scheduling::Direction iterationDirection,
-          std::vector<unsigned int>& usedVariables) const override;
+          const mlir::SymbolTable& symbolTable,
+          llvm::SmallVectorImpl<mlir::modelica::VariableOp>& usedVariables) const override;
 
       /// }
       /// @name Modified methods

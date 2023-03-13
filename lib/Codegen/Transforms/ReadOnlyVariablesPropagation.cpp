@@ -1,9 +1,7 @@
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
 #include "marco/Dialect/Modelica/ModelicaDialect.h"
-#include "marco/Codegen/Transforms/ModelSolving/Model.h"
-#include "marco/Codegen/Transforms/ModelSolving/Matching.h"
-#include "marco/Codegen/Transforms/ModelSolving/Utils.h"
-#include "marco/Modeling/Dependency.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Threading.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -13,9 +11,6 @@ namespace mlir::modelica
 #include "marco/Codegen/Transforms/Passes.h.inc"
 }
 
-using namespace ::marco;
-using namespace ::marco::codegen;
-using namespace ::marco::modeling;
 using namespace ::mlir::modelica;
 
 namespace
@@ -30,7 +25,6 @@ namespace
 
       void runOnOperation() override
       {
-        mlir::OpBuilder builder(getOperation());
         llvm::SmallVector<ModelOp, 1> modelOps;
 
         getOperation()->walk([&](ModelOp modelOp) {
@@ -38,7 +32,7 @@ namespace
         });
 
         for (ModelOp modelOp : modelOps) {
-          if (mlir::failed(processModelOp(builder, modelOp))) {
+          if (mlir::failed(processModelOp(modelOp))) {
             return signalPassFailure();
           }
         }
@@ -47,8 +41,7 @@ namespace
     private:
       llvm::DenseSet<llvm::StringRef> getIgnoredVariableNames() const;
 
-      mlir::LogicalResult processModelOp(
-          mlir::OpBuilder& builder, ModelOp modelOp);
+      mlir::LogicalResult processModelOp(ModelOp modelOp);
   };
 }
 
@@ -62,63 +55,88 @@ ReadOnlyVariablesPropagationPass::getIgnoredVariableNames() const
   return result;
 }
 
-mlir::LogicalResult ReadOnlyVariablesPropagationPass::processModelOp(
-    mlir::OpBuilder& builder, ModelOp modelOp)
+mlir::LogicalResult
+ReadOnlyVariablesPropagationPass::processModelOp(ModelOp modelOp)
 {
+  mlir::SymbolTable symbolTable(modelOp);
+
   llvm::DenseSet<llvm::StringRef> nonPropagatableVariables =
       getIgnoredVariableNames();
 
-  auto memberCreateOps = modelOp.getVariableDeclarationOps();
+  // Collect the regions into which the replacement has to be performed.
+  llvm::SmallVector<mlir::Region*> regions;
 
-  for (BindingEquationOp bindingEquationOp :
-       modelOp.getBodyRegion().getOps<BindingEquationOp>()) {
-    mlir::Value variable = bindingEquationOp.getVariable();
-
-    unsigned int variableArgNumber =
-        variable.cast<mlir::BlockArgument>().getArgNumber();
-
-    MemberCreateOp memberCreateOp = memberCreateOps[variableArgNumber];
-
-    if (!memberCreateOp.isReadOnly()) {
-      continue;
-    }
-
-    if (nonPropagatableVariables.contains(memberCreateOp.getSymName())) {
-      continue;
-    }
-
-    for (auto& use : llvm::make_early_inc_range(variable.getUses())) {
-      mlir::Operation* user = use.getOwner();
-
-      if (!user->getParentOfType<EquationInterface>()) {
-        continue;
-      }
-
-      builder.setInsertionPoint(user);
-      mlir::BlockAndValueMapping mapping;
-
-      for (auto& op : bindingEquationOp.getBodyRegion().getOps()) {
-        if (!mlir::isa<YieldOp>(op)) {
-          builder.clone(op, mapping);
-        }
-      }
-
-      auto yieldOp = mlir::cast<YieldOp>(
-          bindingEquationOp.getBodyRegion().back().getTerminator());
-
-      mlir::Value replacement = mapping.lookup(yieldOp.getValues()[0]);
-
-      if (auto loadOp = mlir::dyn_cast<LoadOp>(user);
-          loadOp && loadOp.getIndices().empty()) {
-        loadOp.getResult().replaceAllUsesWith(replacement);
-        user->erase();
-      } else {
-        use.set(replacement);
-      }
+  for (auto& op : modelOp.getOps()) {
+    for (mlir::Region& region : op.getRegions()) {
+      regions.push_back(&region);
     }
   }
 
-  return mlir::success();
+  // Collect the binding equations for faster lookup.
+  llvm::StringMap<BindingEquationOp> bindingEquations;
+
+  for (BindingEquationOp bindingEquationOp :
+       modelOp.getOps<BindingEquationOp>()) {
+    bindingEquations[bindingEquationOp.getVariable()] = bindingEquationOp;
+  }
+
+  return mlir::failableParallelForEach(
+      &getContext(), regions,
+      [&symbolTable, &nonPropagatableVariables, &bindingEquations]
+      (mlir::Region* region) {
+        mlir::OpBuilder builder(region->getContext());
+        llvm::SmallVector<VariableGetOp> getOps;
+
+        region->walk([&](VariableGetOp getOp) {
+          getOps.push_back(getOp);
+        });
+
+        for (VariableGetOp getOp : getOps) {
+          if (nonPropagatableVariables.contains(getOp.getMember())) {
+            // The variable has been explicitly set as ignored.
+            continue;
+          }
+
+          // Check if there is a binding equation for the variable.
+          auto bindingEquationIt = bindingEquations.find(getOp.getMember());
+
+          if (bindingEquationIt == bindingEquations.end()) {
+            continue;
+          }
+
+          BindingEquationOp bindingEquationOp = bindingEquationIt->getValue();
+
+          // Get the variable declaration.
+          auto variable = symbolTable.lookup<VariableOp>(getOp.getMember());
+
+          if (!variable.isReadOnly()) {
+            // Writable variables can't be propagated.
+            continue;
+          }
+
+          // Clone the operations used to obtain the replacement value.
+          builder.setInsertionPoint(getOp);
+          mlir::BlockAndValueMapping mapping;
+
+          for (auto& op : bindingEquationOp.getBodyRegion().getOps()) {
+            if (!mlir::isa<YieldOp>(op)) {
+              builder.clone(op, mapping);
+            }
+          }
+
+          // Get the value to be used as replacement.
+          auto yieldOp = mlir::cast<YieldOp>(
+              bindingEquationOp.getBodyRegion().back().getTerminator());
+
+          mlir::Value replacement = mapping.lookup(yieldOp.getValues()[0]);
+
+          // Perform the replacement.
+          getOp.replaceAllUsesWith(replacement);
+          getOp->erase();
+        }
+
+        return mlir::success();
+      });
 }
 
 namespace mlir::modelica

@@ -1,7 +1,7 @@
 // RUN: marco %s --omc-bypass --emit-mlir -o %t
 // RUN: cat %t | FileCheck %s
 
-// CHECK-LABEL: modelica.equation
+// CHECK: modelica.equation
 // CHECK-DAG: %[[condition:.*]] = modelica.gt
 // CHECK-DAG: %[[trueValue:.*]] = modelica.constant #modelica.int<1>
 // CHECK-DAG: %[[falseValue:.*]] = modelica.constant #modelica.int<0>

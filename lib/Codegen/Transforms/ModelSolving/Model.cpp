@@ -61,11 +61,16 @@ namespace marco::codegen
 {
   Variables discoverVariables(ModelOp modelOp)
   {
+    llvm::SmallVector<VariableOp> ops;
+
+    for (VariableOp variableOp : modelOp.getOps<VariableOp>()) {
+      ops.push_back(variableOp);
+    }
+
     Variables variables;
     std::mutex mutex;
 
-    mlir::ValueRange args = modelOp.getBodyRegion().getArguments();
-    size_t numOfVariables = args.size();
+    size_t numOfVariables = ops.size();
 
     // Parallelize the variables mapping.
     llvm::ThreadPool threadPool;
@@ -75,7 +80,7 @@ namespace marco::codegen
     auto mapFn = [&](size_t from, size_t to) {
       for (size_t i = from; i < to; ++i) {
         std::lock_guard<std::mutex> lockGuard(mutex);
-        variables.add(Variable::build(args[i]));
+        variables.add(Variable::build(ops[i]));
       }
     };
 

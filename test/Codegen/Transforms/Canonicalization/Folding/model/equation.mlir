@@ -11,8 +11,6 @@
 // CHECK-NEXT:  }
 
 modelica.model @Test {
-    modelica.yield
-} body {
     modelica.equation {
         %0 = modelica.constant #modelica.real<1.0>
         %1 = modelica.constant #modelica.real<4.0>

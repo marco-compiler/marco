@@ -1,6 +1,7 @@
 #ifndef MARCO_DIALECTS_MODELICA_OPS_H
 #define MARCO_DIALECTS_MODELICA_OPS_H
 
+#include "marco/Dialect/Modelica/Interfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"

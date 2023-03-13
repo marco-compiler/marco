@@ -184,6 +184,11 @@ def MemberType : Modelica_Type<"Member",
         /// Arguments that are passed into the builder must outlive the builder.
         class Builder;
 
+        bool isScalar() const
+        {
+            return getRank() == 0;
+        }
+
         bool isDiscrete() const
         {
             return getVariabilityProperty() == VariabilityProperty::discrete;

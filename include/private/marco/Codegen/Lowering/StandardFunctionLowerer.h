@@ -26,6 +26,9 @@ namespace marco::codegen::lowering
       /// input arguments by the dedicated pass. Protected arrays, instead, are
       /// allocated according to the ArrayType allocation logic.
       void lower(const ast::Member& member);
+
+      void lowerVariableDefaultValue(
+          llvm::StringRef variable, const ast::Expression& expression);
   };
 }
 

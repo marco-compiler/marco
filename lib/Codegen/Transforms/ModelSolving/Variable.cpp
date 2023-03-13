@@ -8,33 +8,25 @@ using namespace ::mlir::modelica;
 
 namespace marco::codegen
 {
-  std::unique_ptr<Variable> Variable::build(mlir::Value value)
+  std::unique_ptr<Variable> Variable::build(VariableOp variableOp)
   {
-    if (auto arrayType = value.getType().dyn_cast<ArrayType>(); !arrayType.isScalar()) {
-      return std::make_unique<ArrayVariable>(value);
+    if (!variableOp.getMemberType().isScalar()) {
+      return std::make_unique<ArrayVariable>(variableOp);
     }
 
-    return std::make_unique<ScalarVariable>(value);
+    return std::make_unique<ScalarVariable>(variableOp);
   }
 
   Variable::~Variable() = default;
 
-  BaseVariable::BaseVariable(mlir::Value value)
-    : value(value)
+  BaseVariable::BaseVariable(VariableOp variableOp)
+    : definingOp(variableOp.getOperation())
   {
-    assert(value.isa<mlir::BlockArgument>());
-    size_t index = value.cast<mlir::BlockArgument>().getArgNumber();
-    auto model = value.getParentRegion()->getParentOfType<ModelOp>();
-    auto terminator = mlir::cast<YieldOp>(model.getVarsRegion().back().getTerminator());
-    assert(index < terminator.getValues().size());
-    definingOp = terminator.getValues()[index].getDefiningOp();
-    assert(mlir::isa<MemberCreateOp>(definingOp));
   }
 
-  bool Variable::operator==(mlir::Value value) const
+  bool Variable::operator==(VariableOp variableOp) const
   {
-    assert(value.isa<mlir::BlockArgument>());
-    return getValue() == value;
+    return getDefiningOp() == variableOp;
   }
 
   BaseVariable::Id BaseVariable::getId() const
@@ -42,14 +34,9 @@ namespace marco::codegen
     return definingOp;
   }
 
-  mlir::Value BaseVariable::getValue() const
+  mlir::modelica::VariableOp BaseVariable::getDefiningOp() const
   {
-    return value;
-  }
-
-  mlir::modelica::MemberCreateOp BaseVariable::getDefiningOp() const
-  {
-    return mlir::cast<MemberCreateOp>(definingOp);
+    return mlir::cast<VariableOp>(definingOp);
   }
 
   bool BaseVariable::isReadOnly() const
@@ -88,19 +75,18 @@ namespace marco::codegen
 
       void add(std::unique_ptr<Variable> variable)
       {
-        mlir::Value value = variable->getValue();
-        unsigned int argNumber = value.cast<mlir::BlockArgument>().getArgNumber();
-        assert(positionsMap.find(argNumber) == positionsMap.end() && "Variable already added");
+        VariableOp op = variable->getDefiningOp();
+
+        assert(positionsMap.find(op.getSymName()) == positionsMap.end() &&
+               "Variable already added");
 
         variables.push_back(std::move(variable));
-        positionsMap[argNumber] = variables.size() - 1;
+        positionsMap[op.getSymName()] = variables.size() - 1;
       }
 
-      llvm::Optional<Variable*> findVariable(mlir::Value value) const
+      llvm::Optional<Variable*> findVariable(llvm::StringRef name) const
       {
-        unsigned int argNumber = value.cast<mlir::BlockArgument>().getArgNumber();
-
-        if (auto it = positionsMap.find(argNumber); it != positionsMap.end()) {
+        if (auto it = positionsMap.find(name); it != positionsMap.end()) {
           return variables[it->second].get();
         }
 
@@ -129,7 +115,7 @@ namespace marco::codegen
 
     private:
       Variables::Container variables;
-      std::map<unsigned int, size_t> positionsMap;
+      llvm::StringMap<size_t> positionsMap;
   };
 
   Variables::Variables()
@@ -183,11 +169,11 @@ namespace marco::codegen
 
   bool Variables::isReferenceAccess(mlir::Value value) const
   {
-    if (isVariable(value)) {
+    mlir::Operation* definingOp = value.getDefiningOp();
+
+    if (mlir::isa<VariableGetOp>(definingOp)) {
       return true;
     }
-
-    mlir::Operation* definingOp = value.getDefiningOp();
 
     if (auto loadOp = mlir::dyn_cast<LoadOp>(definingOp)) {
       return isReferenceAccess(loadOp.getArray());
@@ -200,8 +186,8 @@ namespace marco::codegen
     return false;
   }
 
-  llvm::Optional<Variable*> Variables::findVariable(mlir::Value value) const
+  llvm::Optional<Variable*> Variables::findVariable(llvm::StringRef name) const
   {
-    return impl->findVariable(value);
+    return impl->findVariable(name);
   }
 }

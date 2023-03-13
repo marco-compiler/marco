@@ -297,10 +297,9 @@ namespace marco::codegen
     dumpIR(llvm::dbgs());
   }
 
-  llvm::Optional<Variable*> Equation::findVariable(mlir::Value value) const
+  llvm::Optional<Variable*> Equation::findVariable(llvm::StringRef name) const
   {
-    assert(value.isa<mlir::BlockArgument>());
-    return getVariables().findVariable(value);
+    return getVariables().findVariable(name);
   }
 
   void Equation::searchAccesses(
@@ -318,9 +317,7 @@ namespace marco::codegen
       std::vector<DimensionAccess>& dimensionAccesses,
       EquationPath path) const
   {
-    if (getVariables().isVariable(value)) {
-      resolveAccess(accesses, value, dimensionAccesses, std::move(path));
-    } else if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr) {
+    if (mlir::Operation* definingOp = value.getDefiningOp(); definingOp != nullptr) {
       searchAccesses(accesses, definingOp, dimensionAccesses, std::move(path));
     }
   }
@@ -339,7 +336,9 @@ namespace marco::codegen
       }
     };
 
-    if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
+    if (auto variableGetOp = mlir::dyn_cast<VariableGetOp>(op)) {
+      resolveAccess(accesses, variableGetOp.getMember(), dimensionAccesses, path);
+    } else if (auto loadOp = mlir::dyn_cast<LoadOp>(op)) {
       processIndexesFn(loadOp.getIndices());
       searchAccesses(accesses, loadOp.getArray(), dimensionAccesses, std::move(path));
     } else if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op)) {
@@ -356,19 +355,17 @@ namespace marco::codegen
 
   void Equation::resolveAccess(
       std::vector<Access>& accesses,
-      mlir::Value value,
+      llvm::StringRef variableName,
       std::vector<DimensionAccess>& dimensionsAccesses,
       EquationPath path) const
   {
-    llvm::Optional<Variable*> variable = findVariable(value);
+    llvm::Optional<Variable*> variable = findVariable(variableName);
 
     if (variable.has_value()) {
       std::vector<DimensionAccess> reverted(dimensionsAccesses.rbegin(), dimensionsAccesses.rend());
-      mlir::Type type = value.getType();
+      MemberType variableType = (*variable)->getDefiningOp().getMemberType();
 
-      auto arrayType = type.cast<ArrayType>();
-
-      if (arrayType.getRank() == 0) {
+      if (variableType.isScalar()) {
         // Scalar variables are masked as arrays with just one element.
         // Thus, an access to a scalar variable is masked as an access to that unique element.
 
@@ -376,14 +373,14 @@ namespace marco::codegen
         reverted.push_back(DimensionAccess::constant(0));
         accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
       } else {
-        if (arrayType.getShape().size() == dimensionsAccesses.size()) {
+        if (variableType.getShape().size() == dimensionsAccesses.size()) {
           accesses.emplace_back(*variable, AccessFunction(reverted), std::move(path));
         } else {
           // If the variable is not subscribed enough times, then the remaining indices must be
           // added in their full ranges.
 
           std::vector<Range> additionalRanges;
-          auto shape = arrayType.getShape();
+          auto shape = variableType.getShape();
 
           for (size_t i = dimensionsAccesses.size(); i < shape.size(); ++i) {
             additionalRanges.push_back(modeling::Range(0, shape[i]));
@@ -622,11 +619,13 @@ namespace marco::codegen
     // Map of the source equation values to the destination ones
     mlir::BlockAndValueMapping mapping;
 
+    /*
     // First map the variables to themselves, so that direct accesses can be replaced in case of implicit loops
     for (const auto& variable : getVariables()) {
       auto variableValue = variable->getValue();
       mapping.map(variableValue, variableValue);
     }
+     */
 
     // Determine the access transformation to be applied to each induction variable usage.
     // For example, given the following equations:
@@ -957,7 +956,7 @@ namespace marco::codegen
 
         auto factor = getMultiplyingFactor(
             builder, equationIndices, value,
-            access.getVariable()->getValue(),
+            access.getVariable()->getDefiningOp().getSymName(),
             IndexSet(access.getAccessFunction().map(equationIndices)));
 
         if (!factor.second || factor.first > 1) {
@@ -1127,7 +1126,7 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       const IndexSet& equationIndices,
       mlir::Value value,
-      mlir::Value variable,
+      llvm::StringRef variable,
       const IndexSet& variableIndices) const
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1143,7 +1142,7 @@ namespace marco::codegen
 
       assert(accesses.size() == 1);
 
-      if (accesses[0].getVariable()->getValue() == variable &&
+      if (accesses[0].getVariable()->getDefiningOp().getSymName() == variable &&
           variableIndices == accesses[0].getAccessFunction().map(equationIndices)) {
         mlir::Value one = builder.create<ConstantOp>(value.getLoc(), getIntegerAttribute(builder, value.getType(), 1));
         return std::make_pair(1, one);
@@ -1191,7 +1190,7 @@ namespace marco::codegen
       searchAccesses(accesses, value, path);
 
       bool hasAccess = llvm::any_of(accesses, [&](const auto& access) {
-        return access.getVariable()->getValue() == variable &&
+        return access.getVariable()->getDefiningOp().getSymName() == variable &&
             variableIndices == access.getAccessFunction().map(equationIndices);
       });
 
@@ -1304,8 +1303,88 @@ namespace marco::codegen
       mlir::OpBuilder& builder,
       llvm::StringRef functionName,
       ::marco::modeling::scheduling::Direction iterationDirection,
-      std::vector<unsigned int>& usedVariables) const
+      const mlir::SymbolTable& symbolTable,
+      llvm::SmallVectorImpl<VariableOp>& usedVariables) const
   {
+    /*
+    mlir::OpBuilder::InsertionGuard guard(builder);
+
+    auto equationInt = getOperation();
+    mlir::Location loc = equationInt.getLoc();
+
+    auto moduleOp = equationInt->getParentOfType<mlir::ModuleOp>();
+    builder.setInsertionPointToEnd(moduleOp.getBody());
+
+    // Determine the accessed variables.
+    llvm::DenseSet<VariableOp> accessedVariablesSet;
+
+    for (const auto& access : getAccesses()) {
+      accessedVariablesSet.insert(access.getVariable()->getDefiningOp());
+    }
+
+    // Determine the argument types of the function.
+    llvm::SmallVector<VariableOp> accessedVariables(
+        accessedVariablesSet.begin(), accessedVariablesSet.end());
+
+    llvm::sort(accessedVariables, [](VariableOp first, VariableOp second) {
+      return first.getSymName().compare(second.getSymName());
+    });
+
+    llvm::SmallVector<mlir::Type> argTypes;
+
+    for (VariableOp variableOp : accessedVariables) {
+      argTypes.push_back(variableOp.getMemberType().toArrayType());
+    }
+
+    // For each iteration variable we need to specify three value: the lower
+    // bound, the upper bound and the iteration step.
+    size_t numOfIterationVars = getNumOfIterationVars();
+    argTypes.append(3 * numOfIterationVars, builder.getIndexType());
+
+    // Create the function.
+    auto functionOp = builder.create<FunctionOp>(
+        loc, functionName, builder.getFunctionType(argTypes, llvm::None));
+
+    mlir::Block* entryBlock = builder.createBlock(&functionOp.getBody());
+    builder.setInsertionPointToStart(entryBlock);
+
+    // Declare the variables.
+    mlir::BlockAndValueMapping mapping;
+
+    for (VariableOp variableOp : accessedVariables) {
+      auto clonedVariableOp = mlir::cast<VariableOp>(
+          builder.clone(*variableOp.getOperation(), mapping));
+    }
+
+    llvm::SmallVector<VariableOp> lowerBoundVariables;
+    llvm::SmallVector<VariableOp> upperBoundVariables;
+    llvm::SmallVector<VariableOp> stepVariables;
+
+    for (size_t i = 0; i < numOfIterationVars; ++i) {
+      auto variableType = MemberType::get(
+          llvm::None, builder.getIndexType(),
+          VariabilityProperty::none,
+          IOProperty::input);
+
+      lowerBoundVariables.push_back(builder.create<VariableOp>(
+          loc, variableType, llvm::None));
+
+      upperBoundVariables.push_back(builder.create<VariableOp>(
+          loc, variableType, llvm::None));
+
+      stepVariables.push_back(builder.create<VariableOp>(
+          loc, variableType, llvm::None));
+    }
+
+    // Create the body of the function.
+    auto algorithmOp = builder.create<AlgorithmOp>(loc);
+
+    mlir::Block* algorithmBody =
+        builder.createBlock(&algorithmOp.getBodyRegion());
+
+    builder.setInsertionPointToStart(algorithmBody);
+     */
+
     auto equation = getOperation();
 
     auto loc = getOperation()->getLoc();
@@ -1319,7 +1398,7 @@ namespace marco::codegen
     auto accesses = getAccesses();
     size_t numOfAccesses = accesses.size();
 
-    llvm::DenseSet<unsigned int> usedVariablesSet;
+    llvm::DenseSet<VariableOp> usedVariablesSet;
     std::mutex accesesMutex;
 
     llvm::ThreadPoolTaskGroup tasks(threadPool);
@@ -1329,11 +1408,10 @@ namespace marco::codegen
     auto accessMapFn = [&](size_t from, size_t to) {
       for (size_t i = from; i < to; ++i) {
         const auto& access = accesses[i];
-        auto arg = access.getVariable()->getValue().cast<mlir::BlockArgument>();
-        unsigned int argNumber = arg.getArgNumber();
+        VariableOp variableOp = access.getVariable()->getDefiningOp();
 
         std::lock_guard<std::mutex> lockGuard(accesesMutex);
-        usedVariablesSet.insert(argNumber);
+        usedVariablesSet.insert(variableOp);
       }
     };
 
@@ -1349,14 +1427,17 @@ namespace marco::codegen
     tasks.wait();
 
     usedVariables.insert(usedVariables.end(), usedVariablesSet.begin(), usedVariablesSet.end());
-    llvm::sort(usedVariables);
+
+    llvm::sort(usedVariables, [](VariableOp first, VariableOp second) {
+      return first.getSymName().compare(second.getSymName());
+    });
 
     // Determine the arguments of the function.
     llvm::SmallVector<mlir::Type, 6> argsTypes;
 
     // Add the variables to the function signature
-    for (unsigned int usedVariable : usedVariables) {
-      argsTypes.push_back(modelOp.getBodyRegion().getArgument(usedVariable).getType());
+    for (VariableOp variableOp : usedVariables) {
+      argsTypes.push_back(variableOp.getMemberType().toArrayType());
     }
 
     // For each iteration variable we need to specify three value: the lower
@@ -1376,11 +1457,12 @@ namespace marco::codegen
     builder.setInsertionPointToStart(entryBlock);
 
     mlir::BlockAndValueMapping mapping;
+    llvm::StringMap<mlir::Value> variablesMap;
 
     for (size_t i = 0, e = usedVariables.size(); i < e; ++i) {
-      mlir::Value from = modelOp.getBodyRegion().getArgument(usedVariables[i]);
+      VariableOp from = usedVariables[i];
       mlir::Value to = function.getArgument(i);
-      mapping.map(from, to);
+      variablesMap[from.getSymName()] = to;
     }
 
     // Create the iteration loops
@@ -1398,7 +1480,7 @@ namespace marco::codegen
 
     // Delegate the body creation to the actual equation implementation
     if (auto res = createTemplateFunctionBody(
-        builder, mapping, lowerBounds, upperBounds, steps, iterationDirection); mlir::failed(res)) {
+        builder, mapping, lowerBounds, upperBounds, steps, variablesMap, iterationDirection); mlir::failed(res)) {
       return nullptr;
     }
 
