@@ -7667,7 +7667,7 @@ namespace mlir::modelica
   {
     llvm::SmallVector<mlir::Type> types;
 
-    for (VariableOp variableOp : getOps<VariableOp>()) {
+    for (VariableOp variableOp : getVariables()) {
       VariableType variableType = variableOp.getVariableType();
 
       if (variableType.isInput()) {
@@ -7682,7 +7682,7 @@ namespace mlir::modelica
   {
     llvm::SmallVector<mlir::Type> types;
 
-    for (VariableOp variableOp : getOps<VariableOp>()) {
+    for (VariableOp variableOp : getVariables()) {
       VariableType variableType = variableOp.getVariableType();
 
       if (variableType.isOutput()) {
@@ -7691,6 +7691,24 @@ namespace mlir::modelica
     }
 
     return types;
+  }
+
+  mlir::FunctionType FunctionOp::getFunctionType()
+  {
+    llvm::SmallVector<mlir::Type> argTypes;
+    llvm::SmallVector<mlir::Type> resultTypes;
+
+    for (VariableOp variableOp : getVariables()) {
+      VariableType variableType = variableOp.getVariableType();
+
+      if (variableType.isInput()) {
+        argTypes.push_back(variableType.unwrap());
+      } else if (variableType.isOutput()) {
+        resultTypes.push_back(variableType.unwrap());
+      }
+    }
+
+    return mlir::FunctionType::get(getContext(), argTypes, resultTypes);
   }
 
   bool FunctionOp::shouldBeInlined()
@@ -8208,41 +8226,73 @@ namespace mlir::modelica
 namespace mlir::modelica
 {
   mlir::LogicalResult CallOp::verifySymbolUses(
-      mlir::SymbolTableCollection &symbolTable)
+      mlir::SymbolTableCollection& symbolTable)
   {
-    // TODO
-    /*
     // Check that the callee attribute was specified.
     auto fnAttr = (*this)->getAttrOfType<FlatSymbolRefAttr>("callee");
 
-    if (!fnAttr)
+    if (!fnAttr) {
       return emitOpError("requires a 'callee' symbol reference attribute");
+    }
 
-    auto fn = symbolTable.lookupNearestSymbolFrom<FunctionOp>(*this, fnAttr);
-    if (!fn)
+    mlir::Operation* callee =
+        symbolTable.lookupNearestSymbolFrom(*this, fnAttr);
+
+    if (!callee) {
+      // TODO
+      // At the moment verification would fail for derivatives of functions,
+      // because they are declared through an attribute. We should look into
+      // turning that attribute into an operation, so that the symbol becomes
+      // declared within the module, and thus obtainable.
+      return mlir::success();
+    }
+
+    if (mlir::isa<DerFunctionOp>(callee)) {
+      // TODO implement proper verification of DerFunctionOp function type.
+      return mlir::success();
+    }
+
+    if (!mlir::isa<FunctionOp, RawFunctionOp, RuntimeFunctionOp>(callee)) {
       return emitOpError() << "'" << fnAttr.getValue()
                            << "' does not reference a valid function";
+    }
 
     // Verify that the operand and result types match the callee.
-    auto fnType = fn.getType();
-    if (fnType.getNumInputs() != getNumOperands())
-      return emitOpError("incorrect number of operands for callee");
+    mlir::FunctionType functionType;
 
-    for (unsigned i = 0, e = fnType.getNumInputs(); i != e; ++i)
-      if (getOperand(i).getType() != fnType.getInput(i))
-        return emitOpError("operand type mismatch: expected operand type ")
-            << fnType.getInput(i) << ", but provided "
-            << getOperand(i).getType() << " for operand number " << i;
+    if (auto functionOp = mlir::dyn_cast<FunctionOp>(callee)) {
+      functionType = functionOp.getFunctionType();
+    }
 
-    if (fnType.getNumResults() != getNumResults())
-      return emitOpError("incorrect number of results for callee");
+    if (auto rawFunctionOp = mlir::dyn_cast<RawFunctionOp>(callee)) {
+      functionType = rawFunctionOp.getFunctionType();
+    }
 
-    for (unsigned i = 0, e = fnType.getNumResults(); i != e; ++i)
-      if (getResult(i).getType() != fnType.getResult(i))
-        return emitOpError("result type mismatch");
-    */
+    if (auto runtimeFunctionOp = mlir::dyn_cast<RuntimeFunctionOp>(callee)) {
+      functionType = runtimeFunctionOp.getFunctionType();
+    }
 
-    return success();
+    unsigned int expectedInputs = functionType.getNumInputs();
+    unsigned int actualInputs = getNumOperands();
+
+    if (expectedInputs != actualInputs) {
+      return emitOpError(
+          "incorrect number of operands for callee (expected " +
+          std::to_string(expectedInputs) + ", got " +
+          std::to_string(actualInputs) + ")");
+    }
+
+    unsigned int expectedResults = functionType.getNumResults();
+    unsigned int actualResults = getNumResults();
+
+    if (expectedResults != actualResults) {
+      return emitOpError(
+          "incorrect number of results for callee (expected " +
+          std::to_string(expectedResults) + ", got " +
+          std::to_string(actualResults) + ")");
+    }
+
+    return mlir::success();
   }
 
   void CallOp::getEffects(

@@ -2804,6 +2804,8 @@ def Modelica_FunctionOp : Modelica_Op<"function",
         /// Returns the result types of this function.
         llvm::SmallVector<Type> getResultTypes();
 
+        mlir::FunctionType getFunctionType();
+
         /// @name SymbolOpInterface Methods
         /// {
 
