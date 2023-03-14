@@ -142,7 +142,7 @@ namespace mlir::modelica
     auto valuesAmount = getDynamicSizes().size();
 
     if (static_cast<size_t>(dynamicDimensionsAmount) != valuesAmount) {
-      return emitError(
+      return emitOpError(
           "incorrect number of values for dynamic dimensions (expected " +
           std::to_string(dynamicDimensionsAmount) + ", got " +
           std::to_string(valuesAmount) + ")");
@@ -197,7 +197,7 @@ namespace mlir::modelica
     auto valuesAmount = getDynamicSizes().size();
 
     if (static_cast<size_t>(dynamicDimensionsAmount) != valuesAmount) {
-      return emitError(
+      return emitOpError(
           "incorrect number of values for dynamic dimensions (expected " +
           std::to_string(dynamicDimensionsAmount) + ", got " +
           std::to_string(valuesAmount) + ")");
@@ -249,16 +249,17 @@ namespace mlir::modelica
   mlir::LogicalResult ArrayFromElementsOp::verify()
   {
     if (!getArrayType().hasStaticShape()) {
-      return emitError("the shape must be fixed");
+      return emitOpError("the shape must be fixed");
     }
 
     int64_t arrayFlatSize = getArrayType().getNumElements();
     size_t numOfValues = getValues().size();
 
     if (numOfValues != static_cast<size_t>(arrayFlatSize)) {
-      return emitError("incorrent number of values (expected " +
-                         std::to_string(arrayFlatSize) + ", got " +
-                         std::to_string(numOfValues) + ")");
+      return emitOpError(
+          "incorrent number of values (expected " +
+          std::to_string(arrayFlatSize) + ", got " +
+          std::to_string(numOfValues) + ")");
     }
 
     return mlir::success();
@@ -365,7 +366,7 @@ namespace mlir::modelica
     auto rank = getArrayType().getRank();
 
     if (indicesAmount != static_cast<size_t>(rank)) {
-      return emitError(
+      return emitOpError(
           "incorrect number of indices for load (expected " +
           std::to_string(rank) + ", got " + std::to_string(indicesAmount) +
           ")");
@@ -421,7 +422,7 @@ namespace mlir::modelica
     auto rank = getArrayType().getRank();
 
     if (indicesAmount != static_cast<size_t>(rank)) {
-      return emitError(
+      return emitOpError(
           "incorrect number of indices for store (expected " +
           std::to_string(rank) + ", got " + std::to_string(indicesAmount) +
           ")");
@@ -524,7 +525,7 @@ namespace mlir::modelica
     auto indicesAmount = getIndices().size();
 
     if (getSourceArrayType().slice(indicesAmount) != getResultArrayType()) {
-      return emitError(
+      return emitOpError(
           "incompatible source array type and result sliced type");
     }
 
@@ -736,7 +737,7 @@ namespace mlir::modelica
     }
 
     if (numOfFixedDims != numOfConstraints) {
-      return emitError(
+      return emitOpError(
           "not enough constraints for dynamic dimension constraints have been "
           "provided (expected " + std::to_string(numOfFixedDims) + ", got " +
           std::to_string(numOfConstraints) + ")");
@@ -755,7 +756,7 @@ namespace mlir::modelica
       if (llvm::any_of(yieldOp.getValues(), [](mlir::Value value) {
             return !value.getType().isa<mlir::IndexType>();
           })) {
-        return emitError(
+        return emitOpError(
             "constraints for dynamic dimensions must have 'index' type");
       }
     }
@@ -795,19 +796,19 @@ namespace mlir::modelica
     auto parentClass = getOperation()->getParentOfType<ClassInterface>();
 
     if (!parentClass) {
-      return emitError("the operation must be used inside a class.");
+      return emitOpError("the operation must be used inside a class");
     }
 
     mlir::Operation* symbol =
         symbolTableCollection.lookupSymbolIn(parentClass, getVariableAttr());
 
     if (!symbol) {
-      return emitError(
-          "variable " + getVariable() + " has not been declared.");
+      return emitOpError(
+          "variable " + getVariable() + " has not been declared");
     }
 
     if (!mlir::isa<VariableOp>(symbol)) {
-      return emitError("symbol " + getVariable() + " is not a variable.");
+      return emitOpError("symbol " + getVariable() + " is not a variable");
     }
 
     return mlir::success();
@@ -856,19 +857,19 @@ namespace mlir::modelica
     auto parentClass = getOperation()->getParentOfType<ClassInterface>();
 
     if (!parentClass) {
-      return emitError("the operation must be used inside a class.");
+      return emitOpError("the operation must be used inside a class");
     }
 
     mlir::Operation* symbol =
         symbolTableCollection.lookupSymbolIn(parentClass, getVariableAttr());
 
     if (!symbol) {
-      return emitError(
-          "variable " + getVariable() + " has not been declared.");
+      return emitOpError(
+          "variable " + getVariable() + " has not been declared");
     }
 
     if (!mlir::isa<VariableOp>(symbol)) {
-      return emitError("symbol " + getVariable() + " is not a variable.");
+      return emitOpError("symbol " + getVariable() + " is not a variable");
     }
 
     return mlir::success();
@@ -1036,13 +1037,14 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (argumentIndex > 0) {
-      return emitError("Index out of bounds: " +
-                       std::to_string(argumentIndex));
+      return emitOpError(
+          "Index out of bounds: " + std::to_string(argumentIndex));
     }
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -1270,8 +1272,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -1314,9 +1317,9 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Can't invert the operand #" +
-                     std::to_string(argumentIndex) +
-                     ". The operation has 2 operands.");
+    return emitOpError(
+        "Can't invert the operand #" + std::to_string(argumentIndex) +
+        ". The operation has 2 operands");
   }
 
   mlir::Value AddOp::distributeNegateOp(
@@ -1505,8 +1508,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size)
+          + " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -1548,9 +1552,9 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Can't invert the operand #" +
-                     std::to_string(argumentIndex) +
-                     ". The operation has 2 operands.");
+    return emitOpError(
+        "Can't invert the operand #" + std::to_string(argumentIndex) +
+        ". The operation has 2 operands");
   }
 
   mlir::Value AddEWOp::distributeNegateOp(
@@ -1743,8 +1747,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size)
+          + " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -1787,9 +1792,9 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Can't invert the operand #" +
-                     std::to_string(argumentIndex) +
-                     ". The operation has 2 operands.");
+    return emitOpError(
+        "Can't invert the operand #" + std::to_string(argumentIndex) +
+        ". The operation has 2 operands");
   }
 
   mlir::Value SubOp::distributeNegateOp(
@@ -1982,8 +1987,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2026,9 +2032,9 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Can't invert the operand #" +
-                     std::to_string(argumentIndex) +
-                     ". The operation has 2 operands.");
+    return emitOpError(
+        "Can't invert the operand #" + std::to_string(argumentIndex) +
+        ". The operation has 2 operands");
   }
 
   mlir::Value SubEWOp::distributeNegateOp(
@@ -2223,8 +2229,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2263,7 +2270,8 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+    return emitOpError(
+        "Index out of bounds: " + std::to_string(argumentIndex));
   }
 
   mlir::Value MulOp::distribute(mlir::OpBuilder& builder)
@@ -2501,8 +2509,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2545,7 +2554,8 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+    return emitOpError(
+        "Index out of bounds: " + std::to_string(argumentIndex));
   }
 
   mlir::Value MulEWOp::distribute(mlir::OpBuilder& builder)
@@ -2783,8 +2793,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -2826,7 +2837,8 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+    return emitOpError(
+        "Index out of bounds: " + std::to_string(argumentIndex));
   }
 
   mlir::Value DivOp::distribute(mlir::OpBuilder& builder)
@@ -3061,8 +3073,9 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -3105,7 +3118,8 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+    return emitOpError(
+        "Index out of bounds: " + std::to_string(argumentIndex));
   }
 
   mlir::Value DivEWOp::distribute(mlir::OpBuilder& builder)
@@ -7923,18 +7937,18 @@ namespace mlir::modelica
     const auto& results = function.getFunctionType().getResults();
 
     if (getNumOperands() != results.size()) {
-      return emitError("has ")
+      return emitOpError("has ")
           << getNumOperands() << " operands, but enclosing function (@"
           << function.getName() << ") returns " << results.size();
     }
 
     for (unsigned i = 0, e = results.size(); i != e; ++i) {
       if (getOperand(i).getType() != results[i]) {
-        return emitError() << "type of return operand " << i << " ("
-                           << getOperand(i).getType()
-                           << ") doesn't match function result type ("
-                           << results[i] << ")"
-                           << " in function @" << function.getName();
+        return emitOpError()
+            << "type of return operand " << i << " ("
+            << getOperand(i).getType()
+            << ") doesn't match function result type (" << results[i] << ")"
+            << " in function @" << function.getName();
       }
     }
 
@@ -8336,17 +8350,18 @@ namespace mlir::modelica
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     if (getNumResults() != 1) {
-      return emitError("The callee must have one and only one result");
+      return emitOpError("The callee must have one and only one result");
     }
 
     if (argumentIndex >= getArgs().size()) {
-      return emitError("Index out of bounds: " +
-                       std::to_string(argumentIndex));
+      return emitOpError(
+          "Index out of bounds: " + std::to_string(argumentIndex));
     }
 
     if (auto size = currentResult.size(); size != 1) {
-      return emitError("Invalid amount of values to be nested: " +
-                       std::to_string(size) + " (expected 1)");
+      return emitOpError(
+          "Invalid amount of values to be nested: " + std::to_string(size) +
+          " (expected 1)");
     }
 
     mlir::Value toNest = currentResult[0];
@@ -8355,17 +8370,18 @@ namespace mlir::modelica
     auto callee = module.lookupSymbol<FunctionOp>(this->getCallee());
 
     if (!callee->hasAttr("inverse")) {
-      return emitError("Function " + callee->getName().getStringRef() +
-                       " is not invertible");
+      return emitOpError(
+          "Function " + callee->getName().getStringRef() +
+          " is not invertible");
     }
 
     auto inverseAnnotation =
         callee->getAttrOfType<InverseFunctionsAttr>("inverse");
 
     if (!inverseAnnotation.isInvertible(argumentIndex)) {
-      return emitError("Function " + callee->getName().getStringRef() +
-                       " is not invertible for argument " +
-                       std::to_string(argumentIndex));
+      return emitOpError(
+          "Function " + callee->getName().getStringRef() +
+          " is not invertible for argument " + std::to_string(argumentIndex));
     }
 
     size_t argsSize = getArgs().size();
