@@ -868,8 +868,14 @@ namespace mlir::modelica
           "variable " + getVariable() + " has not been declared");
     }
 
-    if (!mlir::isa<VariableOp>(symbol)) {
+    auto variableOp = mlir::dyn_cast<VariableOp>(symbol);
+
+    if (!variableOp) {
       return emitOpError("symbol " + getVariable() + " is not a variable");
+    }
+
+    if (variableOp.isInput()) {
+      return emitOpError("can't set a value for an input variable");
     }
 
     return mlir::success();
