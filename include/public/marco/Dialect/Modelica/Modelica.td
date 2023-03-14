@@ -110,7 +110,7 @@ class Modelica_UnaryOp<string mnemonic, list<Trait> traits = []> :
   let arguments = (ins AnyType:$operand);
   let results = (outs AnyType:$result);
 
-  let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
+  let assemblyFormat = "$operand attr-dict `:` type($result)";
 }
 
 // Base class for binary operations.
@@ -119,7 +119,7 @@ class Modelica_BinaryOp<string mnemonic, list<Trait> traits = []> :
   let arguments = (ins AnyType:$lhs, AnyType:$rhs);
   let results = (outs AnyType:$result);
 
-  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` qualified(type($result))";
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
 }
 
 //===---------------------------------------------------------------------===//
@@ -151,7 +151,7 @@ def Modelica_AllocaOp : Modelica_Op<"alloca",
     let results = (outs AnyArray:$array);
 
     let assemblyFormat = [{
-        $dynamicSizes attr-dict `:` qualified(type($array))
+        $dynamicSizes attr-dict `:` type($array)
     }];
 
     let hasVerifier = 1;
@@ -242,7 +242,7 @@ def Modelica_ArrayFromElementsOp : Modelica_Op<"array_from_elements",
     let results = (outs AnyArray:$array);
 
     let assemblyFormat = [{
-        $values attr-dict `:` qualified(type($values)) `->` qualified(type($array))
+        $values attr-dict `:` type($values) `->` type($array)
     }];
 
     let hasVerifier = 1;
@@ -292,7 +292,7 @@ def Modelica_ArrayBroadcastOp : Modelica_Op<"array_broadcast",
     let results = (outs AnyArray:$array);
 
     let assemblyFormat = [{
-        $value (`,` $dynamicDimensions^)? attr-dict `:` qualified(type($value)) `->` qualified(type($array))
+        $value (`,` $dynamicDimensions^)? attr-dict `:` type($value) `->` type($array)
     }];
 
     let extraClassDeclaration = [{
@@ -324,7 +324,7 @@ def Modelica_FreeOp : Modelica_Op<"free",
     let results = (outs);
 
     let assemblyFormat = [{
-        $array attr-dict `:` qualified(type($array))
+        $array attr-dict `:` type($array)
     }];
 }
 
@@ -359,7 +359,7 @@ def Modelica_ArrayCastOp : Modelica_Op<"array_cast", [ViewLikeOpInterface]>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $source attr-dict `:` qualified(type($source)) `->` qualified(type($result))
+        $source attr-dict `:` type($source) `->` type($result)
     }];
 
     let extraClassDeclaration = [{
@@ -397,7 +397,7 @@ def Modelica_DimOp : Modelica_Op<"dim", [NoMemoryEffect]>
     let results = (outs Index:$result);
 
     let assemblyFormat = [{
-        $array `,` $dimension attr-dict `:` qualified(type($array))
+        $array `,` $dimension attr-dict `:` type($array)
     }];
 
     let builders = [
@@ -436,7 +436,7 @@ def Modelica_LoadOp : Modelica_Op<"load",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $array `[` $indices `]` attr-dict `:` qualified(type($array))
+        $array `[` $indices `]` attr-dict `:` type($array)
     }];
 
     let hasVerifier = 1;
@@ -492,7 +492,7 @@ def Modelica_StoreOp : Modelica_Op<"store",
     let results = (outs);
 
     let assemblyFormat = [{
-        $array `[` $indices `]` `,` $value attr-dict `:` qualified(type($array))
+        $array `[` $indices `]` `,` $value attr-dict `:` type($array)
     }];
 
     let hasVerifier = 1;
@@ -582,7 +582,7 @@ def Modelica_ArrayFillOp : Modelica_Op<"array_fill",
     let results = (outs);
 
     let assemblyFormat = [{
-        $array `,` $value attr-dict `:` qualified(type($array)) `,` qualified(type($value))
+        $array `,` $value attr-dict `:` type($array) `,` type($value)
     }];
 
     let extraClassDeclaration = [{
@@ -615,7 +615,7 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
     let results = (outs);
 
     let assemblyFormat = [{
-        $source `,` $destination attr-dict `:` qualified(type($source)) `,` qualified(type($destination))
+        $source `,` $destination attr-dict `:` type($source) `,` type($destination)
     }];
 }
 
@@ -796,7 +796,7 @@ def Modelica_NegateOp : Modelica_Op<"neg",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -831,7 +831,7 @@ def Modelica_AddOp : Modelica_Op<"add",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -865,7 +865,7 @@ def Modelica_AddEWOp : Modelica_Op<"add_ew",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -899,7 +899,7 @@ def Modelica_SubOp : Modelica_Op<"sub",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -932,7 +932,7 @@ def Modelica_SubEWOp : Modelica_Op<"sub_ew",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -967,7 +967,7 @@ def Modelica_MulOp : Modelica_Op<"mul",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1002,7 +1002,7 @@ def Modelica_MulEWOp : Modelica_Op<"mul_ew",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1037,7 +1037,7 @@ def Modelica_DivOp : Modelica_Op<"div",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1071,7 +1071,7 @@ def Modelica_DivEWOp : Modelica_Op<"div_ew",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1100,7 +1100,7 @@ def Modelica_PowOp : Modelica_Op<"pow",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $base `,` $exponent attr-dict `:` `(` qualified(type($base)) `,` qualified(type($exponent)) `)` `->` qualified(type($result))
+        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1130,7 +1130,7 @@ def Modelica_PowEWOp : Modelica_Op<"pow_ew",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $base `,` $exponent attr-dict `:` `(` qualified(type($base)) `,` qualified(type($exponent)) `)` `->` qualified(type($result))
+        $base `,` $exponent attr-dict `:` `(` type($base) `,` type($exponent) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1303,7 +1303,7 @@ def Modelica_NotOp : Modelica_Op<"not",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1343,7 +1343,7 @@ def Modelica_AndOp : Modelica_Op<"and",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1383,7 +1383,7 @@ def Modelica_OrOp : Modelica_Op<"or",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` `(` qualified(type($lhs)) `,` qualified(type($rhs)) `)` `->` qualified(type($result))
+        $lhs `,` $rhs attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1433,7 +1433,7 @@ def Modelica_AbsOp : Modelica_Op<"abs",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1461,7 +1461,7 @@ def Modelica_AcosOp : Modelica_Op<"acos",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1489,7 +1489,7 @@ def Modelica_AsinOp : Modelica_Op<"asin",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1517,7 +1517,7 @@ def Modelica_AtanOp : Modelica_Op<"atan",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1547,7 +1547,7 @@ def Modelica_Atan2Op : Modelica_Op<"atan2",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $y `,` $x attr-dict `:` `(` qualified(type($y)) `,` qualified(type($x)) `)` `->` qualified(type($result))
+        $y `,` $x attr-dict `:` `(` type($y) `,` type($x) `)` `->` type($result)
     }];
 }
 
@@ -1572,7 +1572,7 @@ def Modelica_CeilOp : Modelica_Op<"ceil",
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+    $operand attr-dict `:` type($operand) `->` type($result)
   }];
 
   let hasFolder = 1;
@@ -1600,7 +1600,7 @@ def Modelica_CosOp : Modelica_Op<"cos",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1628,7 +1628,7 @@ def Modelica_CoshOp : Modelica_Op<"cosh",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1655,7 +1655,7 @@ def Modelica_DiagonalOp : Modelica_Op<"diagonal",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $values attr-dict `:` qualified(type($values)) `->` qualified(type($result))
+        $values attr-dict `:` type($values) `->` type($result)
     }];
 }
 
@@ -1680,7 +1680,7 @@ def Modelica_DivTruncOp : Modelica_Op<"div_trunc", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $x `,` $y attr-dict `:` `(` qualified(type($x)) `,` qualified(type($y)) `)` `->` qualified(type($result))
+        $x `,` $y attr-dict `:` `(` type($x) `,` type($y) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1708,7 +1708,7 @@ def Modelica_ExpOp : Modelica_Op<"exp",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $exponent attr-dict `:` qualified(type($exponent)) `->` qualified(type($result))
+        $exponent attr-dict `:` type($exponent) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1735,7 +1735,7 @@ def Modelica_FloorOp : Modelica_Op<"floor",
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+    $operand attr-dict `:` type($operand) `->` type($result)
   }];
 
   let hasFolder = 1;
@@ -1762,7 +1762,7 @@ def Modelica_IdentityOp : Modelica_Op<"identity",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $size attr-dict `:` qualified(type($size)) `->` qualified(type($result))
+        $size attr-dict `:` type($size) `->` type($result)
     }];
 }
 
@@ -1787,7 +1787,7 @@ def Modelica_IntegerOp : Modelica_Op<"integer",
   let results = (outs AnyType:$result);
 
   let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+    $operand attr-dict `:` type($operand) `->` type($result)
   }];
 
   let hasFolder = 1;
@@ -1810,7 +1810,7 @@ def Modelica_LinspaceOp : Modelica_Op<"linspace",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $begin `,` $end `,` $amount attr-dict `:` `(` qualified(type($begin)) `,` qualified(type($end)) `,` qualified(type($amount)) `)` `->` qualified(type($result))
+        $begin `,` $end `,` $amount attr-dict `:` `(` type($begin) `,` type($end) `,` type($amount) `)` `->` type($result)
     }];
 }
 
@@ -1836,7 +1836,7 @@ def Modelica_LogOp : Modelica_Op<"log",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1864,7 +1864,7 @@ def Modelica_Log10Op : Modelica_Op<"log10",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1967,7 +1967,7 @@ def Modelica_ModOp : Modelica_Op<"mod", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $x `,` $y attr-dict `:` `(` qualified(type($x)) `,` qualified(type($y)) `)` `->` qualified(type($result))
+        $x `,` $y attr-dict `:` `(` type($x) `,` type($y) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -1994,7 +1994,7 @@ def Modelica_NDimsOp : Modelica_Op<"ndims", []>
     let results = (outs AnyModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
-        $array attr-dict `:` qualified(type($array)) `->` qualified(type($result))
+        $array attr-dict `:` type($array) `->` type($result)
     }];
 }
 
@@ -2022,7 +2022,7 @@ def Modelica_OnesOp : Modelica_Op<"ones",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $sizes attr-dict `:` `(` qualified(type($sizes)) `)` `->` qualified(type($result))
+        $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
     }];
 }
 
@@ -2045,7 +2045,7 @@ def Modelica_ProductOp : Modelica_Op<"product", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $array attr-dict `:` qualified(type($array)) `->` qualified(type($result))
+        $array attr-dict `:` type($array) `->` type($result)
     }];
 }
 
@@ -2070,7 +2070,7 @@ def Modelica_RemOp : Modelica_Op<"rem", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $x `,` $y attr-dict `:` `(` qualified(type($x)) `,` qualified(type($y)) `)` `->` qualified(type($result))
+        $x `,` $y attr-dict `:` `(` type($x) `,` type($y) `)` `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2098,7 +2098,7 @@ def Modelica_SignOp : Modelica_Op<"sign",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2122,7 +2122,7 @@ def Modelica_SinOp : Modelica_Op<"sin",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2150,7 +2150,7 @@ def Modelica_SinhOp : Modelica_Op<"sinh",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2219,7 +2219,7 @@ def Modelica_SqrtOp : Modelica_Op<"sqrt",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2244,7 +2244,7 @@ def Modelica_SumOp : Modelica_Op<"sum", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $array attr-dict `:` qualified(type($array)) `->` qualified(type($result))
+        $array attr-dict `:` type($array) `->` type($result)
     }];
 }
 
@@ -2274,7 +2274,7 @@ def Modelica_SymmetricOp : Modelica_Op<"symmetric",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $matrix attr-dict `:` qualified(type($matrix)) `->` qualified(type($result))
+        $matrix attr-dict `:` type($matrix) `->` type($result)
     }];
 }
 
@@ -2300,7 +2300,7 @@ def Modelica_TanOp : Modelica_Op<"tan",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2328,7 +2328,7 @@ def Modelica_TanhOp : Modelica_Op<"tanh",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 
     let hasFolder = 1;
@@ -2358,7 +2358,7 @@ def Modelica_TransposeOp : Modelica_Op<"transpose",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $matrix attr-dict `:` qualified(type($matrix)) `->` qualified(type($result))
+        $matrix attr-dict `:` type($matrix) `->` type($result)
     }];
 }
 
@@ -2386,7 +2386,7 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $sizes attr-dict `:` `(` qualified(type($sizes)) `)` `->` qualified(type($result))
+        $sizes attr-dict `:` `(` type($sizes) `)` `->` type($result)
     }];
 }
 
@@ -2489,7 +2489,7 @@ def Modelica_DerOp : Modelica_Op<"der", []>
     let results = (outs AnyType:$result);
 
     let assemblyFormat = [{
-        $operand attr-dict `:` qualified(type($operand)) `->` qualified(type($result))
+        $operand attr-dict `:` type($operand) `->` type($result)
     }];
 }
 
@@ -2506,7 +2506,7 @@ def Modelica_TimeOp : Modelica_Op<"time",
     let results = (outs ModelicaReal);
 
     let assemblyFormat = [{
-        attr-dict `:` qualified(type(results))
+        attr-dict `:` type(results)
     }];
 
     let builders = [
@@ -2680,7 +2680,7 @@ def Modelica_EquationSidesOp : Modelica_Op<"equation_sides",
     let results = (outs);
 
     let assemblyFormat = [{
-        $lhs `,` $rhs attr-dict `:` qualified(type($lhs)) `,` qualified(type($rhs))
+        $lhs `,` $rhs attr-dict `:` type($lhs) `,` type($rhs)
     }];
 
     let extraClassDeclaration = [{
@@ -2764,7 +2764,7 @@ def Modelica_AssignmentOp : Modelica_Op<"assignment",
     let results = (outs);
 
     let assemblyFormat = [{
-        $destination `,` $value attr-dict `:` qualified(type($destination)) `,` qualified(type($value))
+        $destination `,` $value attr-dict `:` type($destination) `,` type($value)
     }];
 }
 
@@ -3448,7 +3448,7 @@ def Modelica_ConditionOp : Modelica_Op<"condition",
     let results = (outs);
 
     let assemblyFormat = [{
-        `(` $condition `:` qualified(type($condition)) `)` attr-dict ($values^ `:` qualified(type($values)))?
+        `(` $condition `:` type($condition) `)` attr-dict ($values^ `:` type($values))?
     }];
 
     let builders = [
@@ -3508,7 +3508,7 @@ def Modelica_CastOp : Modelica_Op<"cast",
     let results = (outs AnyModelicaCompatibleScalar:$result);
 
     let assemblyFormat = [{
-        $value attr-dict `:` qualified(type($value)) `->` qualified(type($result))
+        $value attr-dict `:` type($value) `->` type($result)
     }];
 }
 
@@ -3526,7 +3526,7 @@ def Modelica_PrintOp : Modelica_Op<"print",
     let results = (outs);
 
     let assemblyFormat = [{
-        $value attr-dict `:` qualified(type($value))
+        $value attr-dict `:` type($value)
     }];
 }
 
