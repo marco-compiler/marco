@@ -672,9 +672,7 @@ def Simulation_ReturnOp : Simulation_Op<"return",
     let arguments = (ins Variadic<AnyType>:$values);
     let results = (outs);
 
-    let assemblyFormat = [{
-        ($values^)? attr-dict (`:` type($values)^)?
-    }];
+    let assemblyFormat = "attr-dict ($values^ `:` type($values))?";
 }
 
 #endif // MARCO_DIALECTS_SIMULATION_SIMULATION_TD
