@@ -2433,6 +2433,44 @@ def Modelica_ModelOp : Modelica_Op<"model",
     }];
 }
 
+def Modelica_RecordOp : Modelica_Op<"record",
+    [IsolatedFromAbove,
+    NoRegionArguments,
+    Symbol,
+    SymbolTable,
+    NoTerminator,
+    DeclareOpInterfaceMethods<ClassInterface>]>
+{
+    let summary = "Modelica record.";
+
+    let description = [{
+        The operation represents a Modelica record.
+    }];
+
+    let arguments = (ins SymbolNameAttr:$sym_name);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    // Ensure that the block inside the region exists.
+    let hasCustomAssemblyFormat = 1;
+    let skipDefaultBuilders = 1;
+
+    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
+
+    let extraClassDeclaration = [{
+        Block* bodyBlock();
+
+        auto getVariables()
+        {
+            return getOps<VariableOp>();
+        }
+    }];
+}
+
 def Modelica_StartOp : Modelica_Op<"start",
     [ParentOneOf<["ModelOp"]>,
     SingleBlockImplicitTerminator<"YieldOp">]>
