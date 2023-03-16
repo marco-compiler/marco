@@ -249,4 +249,18 @@ def VariableType : Modelica_Type<"Variable",
     let genVerifyDecl = 1;
 }
 
+def RecordType : Modelica_Type<"record",
+    [DeclareTypeInterfaceMethods<SubElementTypeInterface>]>
+{
+    let summary = "Record type";
+
+    let description = [{
+        Record type.
+    }];
+
+    let parameters = (ins
+        ArrayRefParameter<"mlir::Type">:$body
+    );
+}
+
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD
