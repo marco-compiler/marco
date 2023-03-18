@@ -7337,6 +7337,71 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// OperatorRecordOp
+
+namespace mlir::modelica
+{
+  void OperatorRecordOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name)
+  {
+    state.addRegion()->emplaceBlock();
+
+    state.attributes.push_back(builder.getNamedAttr(
+        mlir::SymbolTable::getSymbolAttrName(),
+        builder.getStringAttr(name)));
+  }
+
+  mlir::ParseResult OperatorRecordOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    mlir::StringAttr nameAttr;
+
+    if (parser.parseSymbolName(
+            nameAttr,
+            mlir::SymbolTable::getSymbolAttrName(),
+            result.attributes)) {
+      return mlir::failure();
+    }
+
+    mlir::Region* bodyRegion = result.addRegion();
+
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
+        parser.parseRegion(*bodyRegion)) {
+      return mlir::failure();
+    }
+
+    if (bodyRegion->empty()) {
+      bodyRegion->emplaceBlock();
+    }
+
+    return mlir::success();
+  }
+
+  void OperatorRecordOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " ";
+    printer.printSymbolName(getSymName());
+    printer << " ";
+
+    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
+
+    printer.printOptionalAttrDictWithKeyword(
+        getOperation()->getAttrs(), elidedAttrs);
+
+    printer.printRegion(getBodyRegion());
+  }
+
+  mlir::Block* OperatorRecordOp::bodyBlock()
+  {
+    assert(getBodyRegion().hasOneBlock());
+    return &getBodyRegion().front();
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // StartOp
 
 namespace mlir::modelica
