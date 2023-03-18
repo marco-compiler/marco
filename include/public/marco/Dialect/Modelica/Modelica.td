@@ -2394,6 +2394,40 @@ def Modelica_ZerosOp : Modelica_Op<"zeros",
 // Modeling operations
 //===---------------------------------------------------------------------===//
 
+def Modelica_PackageOp : Modelica_Op<"package",
+    [IsolatedFromAbove,
+    NoRegionArguments,
+    Symbol,
+    SymbolTable,
+    NoTerminator,
+    DeclareOpInterfaceMethods<ClassInterface>]>
+{
+    let summary = "Modelica package.";
+
+    let description = [{
+        The operation represents a Modelica package.
+    }];
+
+    let arguments = (ins SymbolNameAttr:$sym_name);
+
+    let results = (outs);
+
+    let regions = (region
+        SizedRegion<1>:$bodyRegion
+    );
+
+    // Ensure that the block inside the region exists.
+    let hasCustomAssemblyFormat = 1;
+    let skipDefaultBuilders = 1;
+
+    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
+
+    let extraClassDeclaration = [{
+        Block* bodyBlock();
+    }];
+}
+
+
 def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
     NoRegionArguments,
