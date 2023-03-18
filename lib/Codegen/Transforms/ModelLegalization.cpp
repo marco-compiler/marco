@@ -165,7 +165,8 @@ static mlir::LogicalResult createDerivatives(
 
     auto derVariableOp = builder.create<VariableOp>(
         variableOp.getLoc(), derivativeName, derType,
-        variableOp.getDimensionsConstraints());
+        variableOp.getDimensionsConstraints(),
+        nullptr);
 
     derivativesMap.setDerivative(variableName, derVariableOp.getSymName());
     derivativesMap.setDerivedIndices(variableName, derivedVariableIndices->second);

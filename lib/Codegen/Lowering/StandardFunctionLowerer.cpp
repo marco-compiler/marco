@@ -203,7 +203,8 @@ namespace marco::codegen::lowering
 
     auto var = builder().create<VariableOp>(
         location, member.getName(), variableType,
-        builder().getStrArrayAttr(dimensionsConstraints));
+        builder().getStrArrayAttr(dimensionsConstraints),
+        nullptr);
 
     if (hasFixedDimensions) {
       mlir::OpBuilder::InsertionGuard guard(builder());

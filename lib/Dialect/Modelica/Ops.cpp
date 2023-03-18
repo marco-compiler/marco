@@ -616,7 +616,9 @@ namespace mlir::modelica
         variableType.getNumDynamicDims(),
         builder.getStringAttr(kDimensionConstraintUnbounded));
 
-    build(builder, state, name, variableType, builder.getArrayAttr(constraints));
+    build(builder, state, name, variableType,
+          builder.getArrayAttr(constraints),
+          nullptr);
   }
 
   mlir::ParseResult VariableOp::parse(
@@ -631,6 +633,11 @@ namespace mlir::modelica
             nameAttr,
             mlir::SymbolTable::getSymbolAttrName(),
             result.attributes)) {
+      return mlir::failure();
+    }
+
+    // Attributes.
+    if (parser.parseOptionalAttrDict(result.attributes)) {
       return mlir::failure();
     }
 
@@ -689,6 +696,14 @@ namespace mlir::modelica
   {
     printer << " ";
     printer.printSymbolName(getSymName());
+
+    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
+    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
+    elidedAttrs.push_back(getTypeAttrName());
+    elidedAttrs.push_back(getDimensionsConstraintsAttrName());
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
+
     printer << " : " << getType();
 
     auto dimConstraints =
@@ -713,13 +728,6 @@ namespace mlir::modelica
     if (mlir::Region& region = getConstraintsRegion(); !region.empty()) {
       printer.printRegion(region);
     }
-
-    llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
-    elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
-    elidedAttrs.push_back(getTypeAttrName());
-    elidedAttrs.push_back(getDimensionsConstraintsAttrName());
-
-    printer.printOptionalAttrDict(getOperation()->getAttrs(), elidedAttrs);
   }
 
   mlir::LogicalResult VariableOp::verify()

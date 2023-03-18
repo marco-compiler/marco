@@ -651,7 +651,8 @@ def Modelica_VariableOp : Modelica_Op<"variable",
     let arguments = (ins
         SymbolNameAttr:$sym_name,
         TypeAttr:$type,
-        StrArrayAttr:$dimensionsConstraints
+        StrArrayAttr:$dimensionsConstraints,
+        OptionalAttr<SymbolNameAttr>:$derivative
     );
 
     let results = (outs);
