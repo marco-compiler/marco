@@ -267,7 +267,8 @@ TEST(Cycles, oneStepCycle) {
   equations.push_back(&eq1);
   equations.push_back(&eq2);
 
-  CyclesFinder<Variable*, Equation*> graph(false);
+  mlir::MLIRContext context;
+  CyclesFinder<Variable*, Equation*> graph(&context, false);
   graph.addEquations(equations);
 
   auto cycles = graph.getEquationsCycles();
@@ -356,7 +357,8 @@ TEST(SCC, twoStepsCycle) {
   equations.push_back(&eq2);
   equations.push_back(&eq3);
 
-  CyclesFinder<Variable*, Equation*> graph(false);
+  mlir::MLIRContext context;
+  CyclesFinder<Variable*, Equation*> graph(&context, false);
   graph.addEquations(equations);
 
   auto cycles = graph.getEquationsCycles();
@@ -454,7 +456,8 @@ TEST(SCC, oneStepCycleWithMultipleReads) {
   equations.push_back(&eq2);
   equations.push_back(&eq3);
 
-  CyclesFinder<Variable*, Equation*> graph(false);
+  mlir::MLIRContext context;
+  CyclesFinder<Variable*, Equation*> graph(&context, false);
   graph.addEquations(equations);
 
   auto cycles = graph.getEquationsCycles();

@@ -192,7 +192,9 @@ namespace marco::codegen
       equations.push_back(equation.get());
     }
 
-    Scheduler<Variable*, MatchedEquation*> scheduler;
+    Scheduler<Variable*, MatchedEquation*> scheduler(
+        model.getOperation().getContext());
+
     ScheduledEquationsBlocks scheduledBlocks;
 
     for (const auto& scc : scheduler.schedule(equations)) {

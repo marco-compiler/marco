@@ -10,14 +10,16 @@ using namespace ::marco::modeling::matching::test;
 
 TEST(MatchingGraph, singleVariableInsertion)
 {
-  MatchingGraph<Variable, Equation> graph;
+  mlir::MLIRContext context;
+  MatchingGraph<Variable, Equation> graph(&context);
   graph.addVariable(Variable("x"));
   EXPECT_TRUE(graph.hasVariable("x"));
 }
 
 TEST(MatchingGraph, multipleVariablesInsertion)
 {
-  MatchingGraph<Variable, Equation> graph;
+  mlir::MLIRContext context;
+  MatchingGraph<Variable, Equation> graph(&context);
 
   graph.addVariable(Variable("x"));
   graph.addVariable(Variable("y"));
@@ -29,7 +31,8 @@ TEST(MatchingGraph, multipleVariablesInsertion)
 
 TEST(MatchingGraph, addEquation)
 {
-  MatchingGraph<Variable, Equation> graph;
+  mlir::MLIRContext context;
+  MatchingGraph<Variable, Equation> graph(&context);
 
   Variable x("x", {2});
 
@@ -47,7 +50,8 @@ TEST(MatchingGraph, addEquation)
 
 TEST(MatchingGraph, testCase1_equationsVariablesCount)
 {
-  auto graph = testCase1();
+  mlir::MLIRContext context;
+  auto graph = testCase1(&context);
 
   size_t amount = 3;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -56,7 +60,8 @@ TEST(MatchingGraph, testCase1_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase2_equationsVariablesCount)
 {
-  auto graph = testCase2();
+  mlir::MLIRContext context;
+  auto graph = testCase2(&context);
 
   size_t amount = 4;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -65,7 +70,8 @@ TEST(MatchingGraph, testCase2_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase3_equationsVariablesCount)
 {
-  auto graph = testCase3();
+  mlir::MLIRContext context;
+  auto graph = testCase3(&context);
 
   size_t amount = 19;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -74,7 +80,8 @@ TEST(MatchingGraph, testCase3_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase4_equationsVariablesCount)
 {
-  auto graph = testCase4();
+  mlir::MLIRContext context;
+  auto graph = testCase4(&context);
 
   size_t amount = 13;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -83,7 +90,8 @@ TEST(MatchingGraph, testCase4_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase5_equationsVariablesCount)
 {
-  auto graph = testCase5();
+  mlir::MLIRContext context;
+  auto graph = testCase5(&context);
 
   size_t amount = 14;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -92,7 +100,8 @@ TEST(MatchingGraph, testCase5_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase6_equationsVariablesCount)
 {
-  auto graph = testCase6();
+  mlir::MLIRContext context;
+  auto graph = testCase6(&context);
 
   size_t amount = 9;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -101,7 +110,8 @@ TEST(MatchingGraph, testCase6_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase7_equationsVariablesCount)
 {
-  auto graph = testCase7();
+  mlir::MLIRContext context;
+  auto graph = testCase7(&context);
 
   size_t amount = 4;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -110,7 +120,8 @@ TEST(MatchingGraph, testCase7_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase8_equationsVariablesCount)
 {
-  auto graph = testCase8();
+  mlir::MLIRContext context;
+  auto graph = testCase8(&context);
 
   size_t amount = 12;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -119,7 +130,8 @@ TEST(MatchingGraph, testCase8_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase9_equationsVariablesCount)
 {
-  auto graph = testCase9();
+  mlir::MLIRContext context;
+  auto graph = testCase9(&context);
 
   size_t amount = 10;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
@@ -128,7 +140,8 @@ TEST(MatchingGraph, testCase9_equationsVariablesCount)
 
 TEST(MatchingGraph, testCase10_equationsVariablesCount)
 {
-  auto graph = testCase10();
+  mlir::MLIRContext context;
+  auto graph = testCase10(&context);
 
   size_t amount = 4;
   EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);

@@ -4,9 +4,9 @@ using namespace ::marco::modeling::internal;
 
 namespace marco::modeling::matching::test
 {
-  MatchingGraph<Variable, Equation> testCase1()
+  MatchingGraph<Variable, Equation> testCase1(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {3});
     graph.addVariable(x);
@@ -25,9 +25,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase2()
+  MatchingGraph<Variable, Equation> testCase2(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {4});
     graph.addVariable(x);
@@ -45,9 +45,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase3()
+  MatchingGraph<Variable, Equation> testCase3(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable l("l", {1});
     graph.addVariable(l);
@@ -114,9 +114,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase4()
+  MatchingGraph<Variable, Equation> testCase4(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable l("l", {1});
     graph.addVariable(l);
@@ -167,9 +167,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase5()
+  MatchingGraph<Variable, Equation> testCase5(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {5});
     graph.addVariable(x);
@@ -207,9 +207,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase6()
+  MatchingGraph<Variable, Equation> testCase6(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {6});
     graph.addVariable(x);
@@ -232,9 +232,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase7()
+  MatchingGraph<Variable, Equation> testCase7(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {2});
     graph.addVariable(x);
@@ -271,9 +271,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase8()
+  MatchingGraph<Variable, Equation> testCase8(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {9});
     graph.addVariable(x);
@@ -307,9 +307,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase9()
+  MatchingGraph<Variable, Equation> testCase9(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {5});
     graph.addVariable(x);
@@ -371,9 +371,9 @@ namespace marco::modeling::matching::test
     return std::move(graph);
   }
 
-  MatchingGraph<Variable, Equation> testCase10()
+  MatchingGraph<Variable, Equation> testCase10(mlir::MLIRContext* context)
   {
-    MatchingGraph<Variable, Equation> graph;
+    MatchingGraph<Variable, Equation> graph(context);
 
     Variable x("x", {2});
     graph.addVariable(x);

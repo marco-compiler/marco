@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include "marco/Modeling/Scheduling.h"
+#include "mlir/IR/MLIRContext.h"
 
 using namespace ::marco::modeling;
 using ::marco::modeling::IndexSet;
@@ -106,7 +107,8 @@ TEST(Scheduling, forwardSchedulable) {
 
   EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
 
-  Scheduler<Variable*, Equation*> scheduler;
+  mlir::MLIRContext context;
+  Scheduler<Variable*, Equation*> scheduler(&context);
   auto schedule = scheduler.schedule({ &eq1 });
   EXPECT_TRUE(schedule.hasCycles());
   EXPECT_THAT(schedule, testing::SizeIs(1));
@@ -147,7 +149,8 @@ TEST(Scheduling, backwardSchedulable) {
 
   EXPECT_CALL(eq1, reads()).WillRepeatedly(Return(eq1r));
 
-  Scheduler<Variable*, Equation*> scheduler;
+  mlir::MLIRContext context;
+  Scheduler<Variable*, Equation*> scheduler(&context);
   auto schedule = scheduler.schedule({ &eq1 });
   EXPECT_TRUE(schedule.hasCycles());
   EXPECT_THAT(schedule, testing::SizeIs(1));

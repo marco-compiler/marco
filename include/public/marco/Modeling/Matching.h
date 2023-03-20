@@ -8,11 +8,12 @@
 #include "marco/Modeling/LocalMatchingSolutions.h"
 #include "marco/Modeling/MCIM.h"
 #include "marco/Modeling/Range.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Threading.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/ThreadPool.h"
 #include <atomic>
 #include <iostream>
 #include <list>
@@ -883,7 +884,10 @@ namespace marco::modeling
 
       using Dumpable::dump;
 
-      MatchingGraph() = default;
+      MatchingGraph(mlir::MLIRContext* context)
+          : context(context)
+      {
+      }
 
       MatchingGraph(const MatchingGraph& other) = delete;
 
@@ -922,6 +926,11 @@ namespace marco::modeling
           os << tree_property;
           graph[descriptor].dump(os);
         }
+      }
+
+      mlir::MLIRContext* getContext() const
+      {
+        return context;
       }
 
       bool hasVariable(typename Variable::Id id) const
@@ -1110,13 +1119,12 @@ namespace marco::modeling
       bool simplify()
       {
         std::lock_guard<std::mutex> lockGuard(mutex);
-        llvm::ThreadPool threadPool;
 
         // Vertices that are candidate for the first simplification phase.
         // They are the ones having only one incident edge.
         std::list<VertexDescriptor> candidates;
 
-        if (!collectSimplifiableNodes(threadPool, candidates)) {
+        if (!collectSimplifiableNodes(candidates)) {
           return false;
         }
 
@@ -1265,9 +1273,8 @@ namespace marco::modeling
       bool match()
       {
         std::lock_guard<std::mutex> lockGuard(mutex);
-        llvm::ThreadPool threadPool;
 
-        if (allNodesMatched(threadPool)) {
+        if (allNodesMatched()) {
           return true;
         }
 
@@ -1276,9 +1283,8 @@ namespace marco::modeling
 
         do {
           success = matchIteration();
-          complete = allNodesMatched(threadPool);
+          complete = allNodesMatched();
         } while (success && !complete);
-
 
         return success;
       }
@@ -1447,56 +1453,16 @@ namespace marco::modeling
       /// Check if all the scalar variables and equations have been matched.
       bool allNodesMatched() const
       {
-        llvm::ThreadPool threadPool;
-        return allNodesMatched(threadPool);
-      };
-
-      /// Check if all the scalar variables and equations have been matched.
-      bool allNodesMatched(llvm::ThreadPool& threadPool) const
-      {
-        std::atomic_bool allMatched = true;
-
         auto allComponentsMatchedFn = [](const auto& obj) {
           return obj.allComponentsMatched();
         };
 
-        auto checkFn = [&](VertexIterator beginIt, VertexIterator endIt) {
-          for (VertexDescriptor vertex : llvm::make_range(beginIt, endIt)) {
-            if (!allMatched) {
-              break;
-            }
-
-            if (!std::visit(allComponentsMatchedFn, graph[vertex])) {
-              allMatched = false;
-            }
-          }
-        };
-
-        VertexIterator currentIt = graph.verticesBegin();
-        VertexIterator endIt = graph.verticesEnd();
-
-        size_t numOfVertices = std::distance(currentIt, endIt);
-
-        unsigned int numOfThreads = threadPool.getThreadCount();
-        size_t chunkSize = (numOfVertices + numOfThreads - 1) / numOfThreads;
-        size_t remaining = numOfVertices;
-
-        llvm::ThreadPoolTaskGroup tasks(threadPool);
-
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          if (currentIt != endIt) {
-            VertexIterator from = currentIt;
-            size_t step = std::min(remaining, chunkSize);
-            VertexIterator to = std::next(from, step);
-            currentIt = to;
-            remaining -= step;
-
-            tasks.async(checkFn, from, to);
-          }
-        }
-
-        tasks.wait();
-        return allMatched;
+        return mlir::succeeded(mlir::failableParallelForEach(
+            getContext(), graph.verticesBegin(), graph.verticesEnd(),
+            [&](VertexDescriptor vertex) -> mlir::LogicalResult {
+              return mlir::LogicalResult::success(
+                  std::visit(allComponentsMatchedFn, graph[vertex]));
+            }));
       }
 
       size_t getVertexVisibilityDegree(VertexDescriptor vertex) const
@@ -1577,67 +1543,29 @@ namespace marco::modeling
       /// Collect the list of vertices with exactly one incident edge.
       /// The function returns 'false' if there exist a node with no incident
       /// edges (which would make the matching process to fail in aby case).
-      bool collectSimplifiableNodes(llvm::ThreadPool& threadPool, std::list<VertexDescriptor>& nodes) const
+      bool collectSimplifiableNodes(std::list<VertexDescriptor>& nodes) const
       {
-        std::atomic_bool consistent = true;
-
         std::mutex resultMutex;
 
-        auto collectFn = [&](VertexIterator from, VertexIterator to) {
-          // Create a temporary list to reduce the synchronization overhead.
-          std::list<VertexDescriptor> threadResults;
+        auto collectFn = [&](VertexDescriptor vertex) -> mlir::LogicalResult {
+          size_t incidentEdges = getVertexVisibilityDegree(vertex);
 
-          for (VertexDescriptor vertex : llvm::make_range(from, to)) {
-            if (!consistent) {
-              break;
-            }
-
-            size_t incidentEdges = getVertexVisibilityDegree(vertex);
-
-            if (incidentEdges == 0) {
-              consistent = false;
-              break;
-            }
-
-            if (incidentEdges == 1) {
-              threadResults.push_back(vertex);
-            }
+          if (incidentEdges == 0) {
+            return mlir::failure();
           }
 
-          if (consistent) {
-            // Move the collected vertices into the results list.
-            // The operation is performed in constant time, being the elements
-            // contained in a list.
+          if (incidentEdges == 1) {
             std::lock_guard<std::mutex> resultLockGuard(resultMutex);
-            nodes.splice(nodes.end(), threadResults);
+            nodes.push_back(vertex);
           }
+
+          return mlir::success();
         };
 
-        VertexIterator currentIt = graph.verticesBegin();
-        VertexIterator endIt = graph.verticesEnd();
-
-        size_t numOfVertices = std::distance(currentIt, endIt);
-
-        unsigned int numOfThreads = threadPool.getThreadCount();
-        size_t chunkSize = (numOfVertices + numOfThreads - 1) / numOfThreads;
-        size_t remaining = numOfVertices;
-
-        llvm::ThreadPoolTaskGroup tasks(threadPool);
-
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          if (currentIt != endIt) {
-            VertexIterator from = currentIt;
-            size_t step = std::min(remaining, chunkSize);
-            VertexIterator to = std::next(from, step);
-            currentIt = to;
-            remaining -= step;
-
-            tasks.async(collectFn, from, to);
-          }
-        }
-
-        tasks.wait();
-        return consistent;
+        return mlir::succeeded(mlir::failableParallelForEach(
+            getContext(),
+            graph.verticesBegin(), graph.verticesEnd(),
+            collectFn));
       }
 
       bool matchIteration()
@@ -1853,6 +1781,7 @@ namespace marco::modeling
       }
 
     private:
+      mlir::MLIRContext* context;
       Graph graph;
 
       // Maps user for faster lookups.

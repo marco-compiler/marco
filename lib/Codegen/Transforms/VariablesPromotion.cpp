@@ -129,7 +129,7 @@ mlir::LogicalResult VariablesPromotionPass::processModelOp(
 
   using SCC = VectorDependencyGraph::SCC;
 
-  VectorDependencyGraph vectorDependencyGraph;
+  VectorDependencyGraph vectorDependencyGraph(&getContext());
   llvm::SmallVector<MatchedEquation*> equations;
 
   for (auto& equation : mainModel.getEquations()) {

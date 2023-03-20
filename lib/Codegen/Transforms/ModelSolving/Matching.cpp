@@ -343,7 +343,8 @@ namespace marco::codegen
 
     // Create the matching graph. We use the pointers to the real nodes in order
     // to speed up the copies.
-    MatchingGraph<Variable*, Equation*> matchingGraph;
+    MatchingGraph<Variable*, Equation*> matchingGraph(
+        model.getOperation().getContext());
 
     addVariablesToGraph(threadPool, matchingGraph, filteredVariables);
     addEquationsToGraph(threadPool, matchingGraph, filteredEquations);

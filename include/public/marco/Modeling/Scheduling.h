@@ -167,11 +167,21 @@ namespace marco::modeling
       using Schedule = internal::scheduling::Schedule<ScheduledSCC>;
 
     public:
+      Scheduler(mlir::MLIRContext* context)
+        : context(context)
+      {
+      }
+
+      mlir::MLIRContext* getContext() const
+      {
+        return context;
+      }
+
       Schedule schedule(llvm::ArrayRef<EquationProperty> equations) const
       {
         std::vector<ScheduledSCC> result;
 
-        VectorDependencyGraph vectorDependencyGraph;
+        VectorDependencyGraph vectorDependencyGraph(getContext());
         vectorDependencyGraph.addEquations(equations);
 
         SCCDependencyGraph<SCC> sccDependencyGraph;
@@ -367,6 +377,9 @@ namespace marco::modeling
         assert(direction != scheduling::Direction::Unknown);
         return direction;
       }
+
+    private:
+      mlir::MLIRContext* context;
   };
 }
 

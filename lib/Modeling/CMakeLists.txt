@@ -19,6 +19,9 @@ set(SOURCES
 marco_add_library(modeling
     ${SOURCES}
 
+    LINK_LIBS PUBLIC
+    MLIRIR
+
     LINK_COMPONENTS
     Core
     Support)

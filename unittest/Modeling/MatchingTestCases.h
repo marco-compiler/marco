@@ -2,6 +2,7 @@
 #define MARCO_MODELING_TEST_MATCHINGTESTCASES_H
 
 #include "marco/Modeling/Matching.h"
+#include "mlir/IR/MLIRContext.h"
 
 #include "MatchingCommon.h"
 
@@ -15,7 +16,7 @@ namespace marco::modeling::matching::test
    * eq1 ; x[i] + x[i + 1] = 0 ; i[0:2)
    * eq2 ; x[2] = 0
    */
-  MatchingGraph<Variable, Equation> testCase1();
+  MatchingGraph<Variable, Equation> testCase1(mlir::MLIRContext* context);
 
   /**
    * var
@@ -25,7 +26,7 @@ namespace marco::modeling::matching::test
    * eq1 ; x[i] = 0 ; i[0:2)
    * eq2 ; x[i] = 0 ; i[2,4)
    */
-  MatchingGraph<Variable, Equation> testCase2();
+  MatchingGraph<Variable, Equation> testCase2(mlir::MLIRContext* context);
 
   /**
    * var
@@ -46,7 +47,7 @@ namespace marco::modeling::matching::test
    * eq6 ; fh[0] + f[i] + y[i] = 0 ; i[0:5)
    * eq7 ; f[i] = 0 ; i[0:5)
    */
-  MatchingGraph<Variable, Equation> testCase3();
+  MatchingGraph<Variable, Equation> testCase3(mlir::MLIRContext* context);
 
   /**
    * var
@@ -63,7 +64,7 @@ namespace marco::modeling::matching::test
    * e5 ; h[0] + f[5] = 0
    * e6 ; f[5] = 0
    */
-  MatchingGraph<Variable, Equation> testCase4();
+  MatchingGraph<Variable, Equation> testCase4(mlir::MLIRContext* context);
 
   /**
    * var
@@ -77,7 +78,7 @@ namespace marco::modeling::matching::test
    * e3 ; z[i] = x[i] + y[i] ; i[0:4)
    * e4 ; z[4] = x[4]        ;
    */
-  MatchingGraph<Variable, Equation> testCase5();
+  MatchingGraph<Variable, Equation> testCase5(mlir::MLIRContext* context);
 
   /**
    * var
@@ -88,7 +89,7 @@ namespace marco::modeling::matching::test
    * e1 ; x[i] + y[i] = 0 ; i[0:3)
    * e2 ; x[i] + y[1] = 0 ; i[0:6)
    */
-  MatchingGraph<Variable, Equation> testCase6();
+  MatchingGraph<Variable, Equation> testCase6(mlir::MLIRContext* context);
 
   /**
    * var
@@ -102,7 +103,7 @@ namespace marco::modeling::matching::test
    * e3 ; y[0] + z[0] = 0
    * e4 ; y[0] + z[0] = 0
    */
-  MatchingGraph<Variable, Equation> testCase7();
+  MatchingGraph<Variable, Equation> testCase7(mlir::MLIRContext* context);
 
   /**
    * var
@@ -115,7 +116,7 @@ namespace marco::modeling::matching::test
    * e3 ; x[i] + y[2] = 0 ; i[7:9)
    * e4 ; y[i] = 12       ; i[0:3)
    */
-  MatchingGraph<Variable, Equation> testCase8();
+  MatchingGraph<Variable, Equation> testCase8(mlir::MLIRContext* context);
 
   /**
    * var
@@ -130,7 +131,7 @@ namespace marco::modeling::matching::test
    * e5 ; y[0] + y[1] - y[2] + y[3] + y[4] = 3 ;
    * e6 ; x[0] + x[1] + x[2] - x[3] + x[4] = 2 ;
    */
-  MatchingGraph<Variable, Equation> testCase9();
+  MatchingGraph<Variable, Equation> testCase9(mlir::MLIRContext* context);
 
   /**
    * var
@@ -142,7 +143,7 @@ namespace marco::modeling::matching::test
    * e2 ; x[0] + x[1] = 2 ;
    * e3 ; y[0] + y[1] = 3 ;
    */
-  MatchingGraph<Variable, Equation> testCase10();
+  MatchingGraph<Variable, Equation> testCase10(mlir::MLIRContext* context);
 }
 
 #endif // MARCO_MODELING_TEST_MATCHINGTESTCASES_H

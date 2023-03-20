@@ -2,6 +2,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSubstitutionSolver.h"
 #include "marco/Modeling/Cycles.h"
+#include "mlir/IR/MLIRContext.h"
 
 #include "Utils.h"
 
@@ -78,7 +79,7 @@ TEST(Cycles, solvableScalarCycleWithExplicitEquations)
   equations.push_back(eq2_matched.get());
   equations.push_back(eq3_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(&context);
   cyclesFinder.addEquations(equations);
 
   auto cycles = cyclesFinder.getEquationsCycles();
@@ -215,7 +216,7 @@ TEST(Cycles, solvableArrayCycleWithBifurcation)
   equations.push_back(eq3_matched.get());
   equations.push_back(eq4_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(&context);
   cyclesFinder.addEquations(equations);
 
   auto cycles = cyclesFinder.getEquationsCycles();
@@ -302,7 +303,7 @@ TEST(Cycles, solvableScalarCycleWithImplicitEquation)
   equations.push_back(eq2_matched.get());
   equations.push_back(eq3_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(&context);
   cyclesFinder.addEquations(equations);
 
   auto cycles = cyclesFinder.getEquationsCycles();
@@ -396,7 +397,7 @@ TEST(Cycles, solvableScalarCycleWithMultipleDependencies)
   equations.push_back(eq2_matched.get());
   equations.push_back(eq3_matched.get());
 
-  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder;
+  CyclesFinder<Variable*, MatchedEquation*> cyclesFinder(&context);
   cyclesFinder.addEquations(equations);
 
   auto cycles = cyclesFinder.getEquationsCycles();

@@ -7,12 +7,13 @@
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Threading.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/ThreadPool.h"
 #include <mutex>
 
 namespace marco::modeling
@@ -722,6 +723,16 @@ namespace marco::modeling
 
       using SCC = internal::dependency::SCC<Graph>;
 
+      ArrayVariablesDependencyGraph(mlir::MLIRContext* context)
+          : context(context)
+      {
+      }
+
+      mlir::MLIRContext* getContext() const
+      {
+        return context;
+      }
+
       /// @name Forwarded methods
       /// {
 
@@ -739,57 +750,40 @@ namespace marco::modeling
 
       void addEquations(llvm::ArrayRef<EquationProperty> equations)
       {
-        llvm::ThreadPool threadPool;
-
         // Add the equations to the graph and determine which equation writes
         // into which variable, together with the accessed indices.
-        std::vector<EquationDescriptor> vertices = addEquationsAndMapWrites(threadPool, equations);
+        std::vector<EquationDescriptor> vertices =
+            addEquationsAndMapWrites(equations);
 
         // Now that the writes are known, we can explore the reads in order to
         // determine the dependencies among the equations. An equation e1
         // depends on another equation e2 if e1 reads (a part) of a variable
         // that is written by e2.
-        size_t numOfNewVertices = vertices.size();
-        std::atomic_size_t currentVertex = 0;
-
         std::mutex graphMutex;
 
-        auto mapFn = [&]() {
-          size_t i = currentVertex++;
+        auto mapFn = [&](EquationDescriptor equationDescriptor) {
+          const Equation& equation = graph[equationDescriptor];
+          std::vector<Access> reads = equation.getReads();
 
-          while (i < numOfNewVertices) {
-            const EquationDescriptor& equationDescriptor = vertices[i];
-            const Equation& equation = graph[equationDescriptor];
-            std::vector<Access> reads = equation.getReads();
+          for (const Access& read : reads) {
+            IndexSet readIndices = read.getAccessFunction().map(
+                equation.getIterationRanges());
+            auto writeInfos = writesMap.equal_range(read.getVariable());
 
-            for (const Access& read : reads) {
-              IndexSet readIndices = read.getAccessFunction().map(equation.getIterationRanges());
-              auto writeInfos = writesMap.equal_range(read.getVariable());
+            for (const auto& [variableId, writeInfo] :
+                 llvm::make_range(writeInfos.first, writeInfos.second)) {
+              const IndexSet& writtenIndices =
+                  writeInfo.getWrittenVariableIndexes();
 
-              for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
-                const IndexSet& writtenIndices = writeInfo.getWrittenVariableIndexes();
-
-                if (writtenIndices.overlaps(readIndices)) {
-                  std::lock_guard<std::mutex> lockGuard(graphMutex);
-                  graph.addEdge(equationDescriptor, writeInfo.getEquation());
-                }
+              if (writtenIndices.overlaps(readIndices)) {
+                std::lock_guard<std::mutex> lockGuard(graphMutex);
+                graph.addEdge(equationDescriptor, writeInfo.getEquation());
               }
             }
-
-            i = currentVertex++;
           }
         };
 
-        // Shard the work among multiple threads.
-        unsigned int numOfThreads = threadPool.getThreadCount();
-        llvm::ThreadPoolTaskGroup tasks(threadPool);
-
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          tasks.async(mapFn);
-        }
-
-        // Wait for all the threads to terminate.
-        tasks.wait();
+        mlir::parallelForEach(getContext(), vertices, mapFn);
       }
 
       /// Get all the SCCs.
@@ -840,7 +834,6 @@ namespace marco::modeling
 
     private:
       std::vector<EquationDescriptor> addEquationsAndMapWrites(
-        llvm::ThreadPool& threadPool,
         llvm::ArrayRef<EquationProperty> equations)
       {
         std::vector<EquationDescriptor> vertices;
@@ -849,50 +842,43 @@ namespace marco::modeling
         std::mutex graphMutex;
         std::mutex writesMapMutex;
 
-        size_t numOfEquations = equations.size();
-        std::atomic_size_t currentEquation = 0;
+        auto mapFn = [&](const EquationProperty& equationProperty) {
+          std::unique_lock<std::mutex> graphLockGuard(graphMutex);
 
-        auto mapFn = [&]() {
-          size_t i = currentEquation++;
+          EquationDescriptor descriptor =
+              graph.addVertex(Equation(equationProperty));
 
-          while (i < numOfEquations) {
-            const EquationProperty& equationProperty = equations[i];
+          vertices.push_back(descriptor);
+          const Equation& equation = graph[descriptor];
+          graphLockGuard.unlock();
 
-            std::unique_lock<std::mutex> graphLockGuard(graphMutex);
-            EquationDescriptor descriptor = graph.addVertex(Equation(equationProperty));
-            vertices.push_back(descriptor);
-            const Equation& equation = graph[descriptor];
-            graphLockGuard.unlock();
+          const auto& write = equation.getWrite();
+          const auto& accessFunction = write.getAccessFunction();
 
-            const auto& write = equation.getWrite();
-            const auto& accessFunction = write.getAccessFunction();
+          // Determine the indices of the variable that are written by the
+          // equation.
+          IndexSet writtenIndices(
+              accessFunction.map(equation.getIterationRanges()));
 
-            // Determine the indices of the variable that are written by the equation
-            IndexSet writtenIndices(accessFunction.map(equation.getIterationRanges()));
+          std::unique_lock<std::mutex> writesMapLockGuard(writesMapMutex);
 
-            std::unique_lock<std::mutex> writesMapLockGuard(writesMapMutex);
-            writesMap.emplace(write.getVariable(), WriteInfo(graph, write.getVariable(), descriptor, std::move(writtenIndices)));
-            writesMapLockGuard.unlock();
+          writesMap.emplace(
+              write.getVariable(),
+              WriteInfo(
+                  graph,
+                  write.getVariable(),
+                  descriptor,
+                  std::move(writtenIndices)));
 
-            i = currentEquation++;
-          }
+          writesMapLockGuard.unlock();
         };
 
-        // Shard the work among multiple threads.
-        unsigned int numOfThreads = threadPool.getThreadCount();
-        llvm::ThreadPoolTaskGroup tasks(threadPool);
-
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          tasks.async(mapFn);
-        }
-
-        // Wait for all the threads to terminate.
-        tasks.wait();
-
+        mlir::parallelForEach(getContext(), equations, mapFn);
         return vertices;
       }
 
     private:
+      mlir::MLIRContext* context;
       Graph graph;
       WritesMap writesMap;
   };
@@ -1037,6 +1023,11 @@ namespace marco::modeling
       using WriteInfo = internal::dependency::WriteInfo<Graph, typename Variable::Id, ScalarEquationDescriptor>;
       using WritesMap = std::multimap<typename Variable::Id, WriteInfo>;
 
+      mlir::MLIRContext* getContext() const
+      {
+        return context;
+      }
+
       /// @name Forwarded methods
       /// {
 
@@ -1054,54 +1045,40 @@ namespace marco::modeling
 
       void addEquations(llvm::ArrayRef<EquationProperty> equations)
       {
-        llvm::ThreadPool threadPool;
-        unsigned int numOfThreads = threadPool.getThreadCount();
-
         // Add the equations to the graph, while keeping track of which scalar
         // equation writes into each scalar variable.
-        std::vector<ScalarEquationDescriptor> vertices = addEquationsAndMapWrites(threadPool, equations);
+        std::vector<ScalarEquationDescriptor> vertices =
+            addEquationsAndMapWrites(equations);
 
         // Determine the dependencies among the equations.
-        size_t numOfNewVertices = vertices.size();
-        std::atomic_size_t currentVertex = 0;
-
         std::mutex graphMutex;
 
-        auto mapFn = [&]() {
-          size_t i = currentVertex++;
+        auto mapFn = [&](ScalarEquationDescriptor equationDescriptor) {
+          const ScalarEquation& scalarEquation = graph[equationDescriptor];
 
-          while (i < numOfNewVertices) {
-            const ScalarEquationDescriptor& descriptor = vertices[i];
-            const ScalarEquation& scalarEquation = graph[descriptor];
-            auto reads = VectorEquationTraits::getReads(&scalarEquation.getProperty());
+          auto reads = VectorEquationTraits::getReads(
+              &scalarEquation.getProperty());
 
-            for (const Access& read : reads) {
-              auto readIndexes = read.getAccessFunction().map(scalarEquation.getIndex());
-              auto writeInfos = writesMap.equal_range(read.getVariable());
+          for (const Access& read : reads) {
+            auto readIndexes = read.getAccessFunction().map(
+                scalarEquation.getIndex());
 
-              for (const auto& [variableId, writeInfo]: llvm::make_range(writeInfos.first, writeInfos.second)) {
-                const auto& writtenIndexes = writeInfo.getWrittenVariableIndexes();
+            auto writeInfos = writesMap.equal_range(read.getVariable());
 
-                if (writtenIndexes == readIndexes) {
-                  std::lock_guard<std::mutex> lockGuard(graphMutex);
-                  graph.addEdge(descriptor, writeInfo.getEquation());
-                }
+            for (const auto& [variableId, writeInfo] :
+                 llvm::make_range(writeInfos.first, writeInfos.second)) {
+              const auto& writtenIndexes =
+                  writeInfo.getWrittenVariableIndexes();
+
+              if (writtenIndexes == readIndexes) {
+                std::lock_guard<std::mutex> lockGuard(graphMutex);
+                graph.addEdge(equationDescriptor, writeInfo.getEquation());
               }
             }
-
-            i = currentVertex++;
           }
         };
 
-        // Shard the work among multiple threads.
-        llvm::ThreadPoolTaskGroup tasks(threadPool);
-
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          tasks.async(mapFn);
-        }
-
-        // Wait for all the threads to terminate.
-        tasks.wait();
+        mlir::parallelForEach(getContext(), vertices, mapFn);
       }
 
       /// Perform a post-order visit of the dependency graph and get the
@@ -1123,7 +1100,6 @@ namespace marco::modeling
 
     private:
       std::vector<ScalarEquationDescriptor> addEquationsAndMapWrites(
-        llvm::ThreadPool& threadPool,
         llvm::ArrayRef<EquationProperty> equations)
       {
         std::vector<ScalarEquationDescriptor> vertices;
@@ -1132,50 +1108,38 @@ namespace marco::modeling
         std::mutex graphMutex;
         std::mutex writesMapMutex;
 
-        size_t numOfEquations = equations.size();
-        std::atomic_size_t currentEquation = 0;
+        auto mapFn = [&](const EquationProperty& equationProperty) {
+          const auto& write = VectorEquationTraits::getWrite(&equationProperty);
+          const auto& accessFunction = write.getAccessFunction();
 
-        auto mapFn = [&]() {
-          size_t i = currentEquation++;
+          for (const auto& equationIndices :
+               VectorEquationTraits::getIterationRanges(&equationProperty)) {
+            std::unique_lock<std::mutex> graphLockGuard(graphMutex);
 
-          while (i < numOfEquations) {
-            const EquationProperty& equationProperty = equations[i];
-            const auto& write = VectorEquationTraits::getWrite(&equationProperty);
-            const auto& accessFunction = write.getAccessFunction();
+            ScalarEquationDescriptor descriptor = graph.addVertex(
+                ScalarEquation(equationProperty, equationIndices));
 
-            for (const auto& equationIndices : VectorEquationTraits::getIterationRanges(&equationProperty)) {
-              std::unique_lock<std::mutex> graphLockGuard(graphMutex);
-              ScalarEquationDescriptor descriptor = graph.addVertex(ScalarEquation(equationProperty, equationIndices));
-              vertices.push_back(descriptor);
-              graphLockGuard.unlock();
+            vertices.push_back(descriptor);
+            graphLockGuard.unlock();
 
-              IndexSet writtenIndices(accessFunction.map(equationIndices));
-              std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
+            IndexSet writtenIndices(accessFunction.map(equationIndices));
+            std::lock_guard<std::mutex> writesMapLockGuard(writesMapMutex);
 
-              writesMap.emplace(
-                  write.getVariable(),
-                  WriteInfo(graph, write.getVariable(), descriptor, std::move(writtenIndices)));
-            }
-
-            i = currentEquation++;
+            writesMap.emplace(
+                write.getVariable(),
+                WriteInfo(
+                    graph,
+                    write.getVariable(),
+                    descriptor, std::move(writtenIndices)));
           }
         };
 
-        // Shard the work among multiple threads.
-        unsigned int numOfThreads = threadPool.getThreadCount();
-        llvm::ThreadPoolTaskGroup tasks(threadPool);
-
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          tasks.async(mapFn);
-        }
-
-        // Wait for all the threads to terminate.
-        tasks.wait();
-
+        mlir::parallelForEach(getContext(), equations, mapFn);
         return vertices;
       }
 
     private:
+      mlir::MLIRContext* context;
       Graph graph;
       WritesMap writesMap;
   };

@@ -8,9 +8,10 @@
 #include "marco/Modeling/Graph.h"
 #include "marco/Modeling/IndexSet.h"
 #include "marco/Modeling/MultidimensionalRange.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Threading.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/SCCIterator.h"
-#include "llvm/Support/ThreadPool.h"
 #include <list>
 #include <stack>
 
@@ -364,9 +365,18 @@ namespace marco::modeling
       using FilteredEquation = internal::scc::FilteredEquation<DependencyGraph, EquationDescriptor, Equation, Access>;
       using Cycle = FilteredEquation;
 
-      CyclesFinder(bool includeSecondaryCycles = true)
-        : includeSecondaryCycles(includeSecondaryCycles)
+      CyclesFinder(
+          mlir::MLIRContext* context,
+          bool includeSecondaryCycles = true)
+          : context(context),
+            includeSecondaryCycles(includeSecondaryCycles),
+            vectorDependencyGraph(context)
       {
+      }
+
+      mlir::MLIRContext* getContext() const
+      {
+        return context;
       }
 
       void addEquations(llvm::ArrayRef<EquationProperty> equations)
@@ -376,46 +386,34 @@ namespace marco::modeling
 
       std::vector<Cycle> getEquationsCycles() const
       {
-        llvm::ThreadPool threadPool;
-        unsigned int numOfThreads = threadPool.getThreadCount();
-
         std::vector<Cycle> result;
         std::mutex resultMutex;
 
         auto SCCs = vectorDependencyGraph.getSCCs();
-        size_t numOfSCCs = SCCs.size();
-        std::atomic_size_t currentSCC = 0;
 
-        auto processFn = [&]() {
-          size_t i = currentSCC++;
+        auto processFn = [&](const typename DependencyGraph::SCC& scc) {
+          auto writes = vectorDependencyGraph.getWritesMap(
+              scc.begin(), scc.end());
 
-          while (i < numOfSCCs) {
-            const auto& scc = SCCs[i];
-            auto writes = vectorDependencyGraph.getWritesMap(scc.begin(), scc.end());
+          if (scc.hasCycle()) {
+            for (const EquationDescriptor& equationDescriptor : scc) {
+              auto cycles = getEquationCyclicDependencies(
+                  writes, equationDescriptor);
 
-            if (scc.hasCycle()) {
-              for (const EquationDescriptor& equationDescriptor : scc) {
-                auto cycles = getEquationCyclicDependencies(writes, equationDescriptor);
-                FilteredEquation dependencies(vectorDependencyGraph, equationDescriptor);
+              FilteredEquation dependencies(
+                  vectorDependencyGraph, equationDescriptor);
 
-                for (const auto& cycle : cycles) {
-                  dependencies.addCyclicDependency(cycle);
-                }
-
-                std::lock_guard<std::mutex> lockGuard(resultMutex);
-                result.push_back(std::move(dependencies));
+              for (const auto& cycle : cycles) {
+                dependencies.addCyclicDependency(cycle);
               }
-            }
 
-            i = currentSCC++;
+              std::lock_guard<std::mutex> lockGuard(resultMutex);
+              result.push_back(std::move(dependencies));
+            }
           }
         };
 
-        for (unsigned int i = 0; i < numOfThreads; ++i) {
-          threadPool.async(processFn);
-        }
-
-        threadPool.wait();
+        mlir::parallelForEach(getContext(), SCCs, processFn);
         return result;
       }
 
@@ -560,8 +558,9 @@ namespace marco::modeling
       }
 
     private:
-      DependencyGraph vectorDependencyGraph;
+      mlir::MLIRContext* context;
       bool includeSecondaryCycles;
+      DependencyGraph vectorDependencyGraph;
   };
 }
 
