@@ -136,9 +136,6 @@ namespace marco::ast
   bool RaggedFlattener::run<Tuple>(Expression& expression);
 
   template<>
-  bool RaggedFlattener::run<RecordInstance>(Expression& expression);
-
-  template<>
   bool RaggedFlattener::run<AssignmentStatement>(Statement& statement);
 
   template<>

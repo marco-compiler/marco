@@ -625,7 +625,7 @@ def Modelica_ArrayCopyOp : Modelica_Op<"array_copy",
 
 def Modelica_VariableOp : Modelica_Op<"variable",
     [Symbol,
-    ParentOneOf<["ModelOp", "FunctionOp"]>]>
+    ParentOneOf<["ModelOp", "FunctionOp", "RecordOp"]>]>
 {
     let summary = "Declare a variable of a class.";
 

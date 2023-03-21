@@ -719,9 +719,8 @@ namespace marco::ast
           }
 
           if (auto* record = cls->dyn_get<Record>()) {
-            // Calling the default record constructor
-            canBeCalledElementWise = false;
-            return record->getDefaultConstructor().getType();
+            // TODO
+            llvm_unreachable("Not implemented");
           }
         }
 
@@ -1922,12 +1921,6 @@ namespace marco::ast
     expression.setType(Type(PackedType(types)));
 
     return numOfErrors == diagnostics()->numOfErrors();
-  }
-
-  template<>
-  bool TypeInferencePass::run<RecordInstance>(Expression& expression)
-  {
-    return true;
   }
 
   bool TypeInferencePass::run(Equation& equation)

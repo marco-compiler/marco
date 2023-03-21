@@ -101,9 +101,6 @@ namespace marco::ast
   bool SemanticAnalysisPass::run<Tuple>(Expression& expression);
 
   template<>
-  bool SemanticAnalysisPass::run<RecordInstance>(Expression& expression);
-
-  template<>
   bool SemanticAnalysisPass::run<AssignmentStatement>(Statement& statement);
 
   template<>

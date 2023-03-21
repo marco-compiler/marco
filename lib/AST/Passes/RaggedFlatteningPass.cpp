@@ -802,19 +802,6 @@ bool RaggedFlattener::run<Tuple>(Expression& expression)
   return true;
 }
 
-template<>
-bool RaggedFlattener::run<RecordInstance>(Expression& expression)
-{
-  auto* instance = expression.get<RecordInstance>();
-
-  for (auto& value : *instance) {
-    if (!run<Expression>(*value))
-      return false;
-  }
-
-  return true;
-}
-
 bool RaggedFlattener::run(Member& member)
 {
   return true;

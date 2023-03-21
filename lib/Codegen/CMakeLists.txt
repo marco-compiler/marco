@@ -10,6 +10,7 @@ set(SOURCES
     Lowering/OperationLowerer.cpp
     Lowering/Reference.cpp
     Lowering/Results.cpp
+    Lowering/RecordLowerer.cpp
     Lowering/StandardFunctionLowerer.cpp
     Lowering/StatementLowerer.cpp
     Lowering/Verifier.cpp

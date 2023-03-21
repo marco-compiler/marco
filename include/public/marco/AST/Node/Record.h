@@ -2,23 +2,23 @@
 #define MARCO_AST_NODE_RECORD_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Function.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include <memory>
 
 namespace marco::ast
 {
-	class Member;
+  class Class;
+  class Member;
 
-	class Record
-			: public ASTNode,
-				public impl::Dumpable<Record>
-	{
-		private:
+  class Record
+      : public ASTNode,
+        public impl::Dumpable<Record>
+  {
+    private:
       template<typename T> using Container = llvm::SmallVector<T, 3>;
 
-		public:
+    public:
       using iterator = Container<std::unique_ptr<Member>>::iterator;
       using const_iterator = Container<std::unique_ptr<Member>>::const_iterator;
 
@@ -41,6 +41,9 @@ namespace marco::ast
 
       [[nodiscard]] llvm::StringRef getName() const;
 
+      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Member>> getMembers();
+      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Member>> getMembers() const;
+
       [[nodiscard]] size_t size() const;
 
       [[nodiscard]] iterator begin();
@@ -49,32 +52,26 @@ namespace marco::ast
       [[nodiscard]] iterator end();
       [[nodiscard]] const_iterator end() const;
 
-      [[nodiscard]] bool shouldBeInlined() const;
+      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Class>> getInnerClasses();
+      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Class>> getInnerClasses() const;
 
-      [[nodiscard]] const StandardFunction& getDefaultConstructor() const;
-
-      void setAsNotInlineable();
-
-		private:
+    private:
       friend class Class;
 
-      Record(SourceRange location,
-             llvm::StringRef name,
-             llvm::ArrayRef<std::unique_ptr<Member>> members);
-
-      void setupDefaultConstructor();
+      Record(
+          SourceRange location,
+          llvm::StringRef name,
+          llvm::ArrayRef<std::unique_ptr<Member>> members);
 
     private:
       std::string name;
       Container<std::unique_ptr<Member>> members;
+      Container<std::unique_ptr<Class>> innerClasses;
+  };
 
-      std::unique_ptr<StandardFunction> defaultConstructor;
-      bool inlineable=true;
-	};
+  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Record& obj);
 
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Record& obj);
-
-	std::string toString(const Record& obj);
+  std::string toString(const Record& obj);
 }
 
 #endif // MARCO_AST_NODE_RECORD_H

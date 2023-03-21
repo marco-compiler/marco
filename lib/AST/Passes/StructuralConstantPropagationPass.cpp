@@ -238,13 +238,6 @@ namespace marco::ast
     return true;
   }
 
-  template<>
-  bool StructuralConstantPropagationPass::run<RecordInstance>(Expression& expression)
-  {
-    llvm_unreachable("Not implemented");
-    return false;
-  }
-
   std::unique_ptr<Pass> createStructuralConstantPropagationPass(diagnostic::DiagnosticEngine& diagnostics)
   {
     return std::make_unique<StructuralConstantPropagationPass>(diagnostics);

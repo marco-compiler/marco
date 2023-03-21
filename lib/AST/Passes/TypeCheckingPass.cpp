@@ -591,12 +591,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<>
-  bool TypeCheckingPass::run<RecordInstance>(Expression& expression)
-  {
-    return true;
-  }
-
   bool TypeCheckingPass::run(Equation& equation)
   {
     if (!run<Expression>(*equation.getLhsExpression())) {

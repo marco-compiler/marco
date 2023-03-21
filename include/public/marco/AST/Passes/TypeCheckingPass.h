@@ -96,9 +96,6 @@ namespace marco::ast
   bool TypeCheckingPass::run<Tuple>(Expression& expression);
 
   template<>
-  bool TypeCheckingPass::run<RecordInstance>(Expression& expression);
-
-  template<>
   bool TypeCheckingPass::run<AssignmentStatement>(Statement& statement);
 
   template<>

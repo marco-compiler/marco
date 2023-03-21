@@ -1,8 +1,9 @@
-#include "marco/AST/Node/Record.h"
-#include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Algorithm.h"
 #include "marco/AST/Node/Annotation.h"
+#include "marco/AST/Node/Class.h"
+#include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Modification.h"
+#include "marco/AST/Node/Record.h"
 #include <numeric>
 
 using namespace ::marco;
@@ -10,28 +11,25 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Record::Record(SourceRange location,
-                 llvm::StringRef name,
-                 llvm::ArrayRef<std::unique_ptr<Member>> members)
-    : ASTNode(std::move(location)),
-      name(name.str())
+  Record::Record(
+      SourceRange location,
+      llvm::StringRef name,
+      llvm::ArrayRef<std::unique_ptr<Member>> members)
+      : ASTNode(std::move(location)),
+        name(name.str())
   {
     for (const auto& member : members) {
       this->members.push_back(member->clone());
     }
-
-    setupDefaultConstructor();
   }
 
   Record::Record(const Record& other)
-    : ASTNode(other),
-      name(other.name)
+      : ASTNode(other),
+        name(other.name)
   {
     for (const auto& member : other.members) {
       this->members.push_back(member->clone());
     }
-
-    setupDefaultConstructor();
   }
 
   Record::Record(Record&& other) = default;
@@ -46,46 +44,6 @@ namespace marco::ast
   }
 
   Record& Record::operator=(Record&& other) = default;
-
-  /// default constructor is inline, accepts one param for each member and return a record
-  ///
-  /// Inline property AST structure:
-  ///
-  ///          class-modification
-  ///                  |
-  ///            argument-list
-  ///             /         \
-  ///       argument         ...
-  ///          |
-  ///  element-modification
-  ///    /           \
-  ///  name        modification
-  /// inline           |
-  ///              expression
-  ///                true
-  void Record::setupDefaultConstructor()
-  {
-    auto loc = getLocation();
-    llvm::SmallVector<std::unique_ptr<Algorithm>, 3> algorithms;
-
-    llvm::SmallVector<std::unique_ptr<Argument>, 3> arguments;
-
-    auto mod = Modification::build(std::move(loc), Expression::constant(loc,Type(BuiltInType::Boolean),true));
-    arguments.push_back(Argument::elementModification(loc, false, false, "inline", std::move(mod)));
-    auto class_mod = ClassModification::build(loc, arguments);
-
-    std::unique_ptr<Annotation> annotation = std::make_unique<Annotation>(std::move(loc),std::move(class_mod));
-    llvm::Optional<std::unique_ptr<Annotation>> clsAnnotation = std::move(annotation);
-
-    defaultConstructor = StandardFunction::build(
-        getLocation(),
-        true,
-        getName(),
-        members,
-        algorithms,
-        std::move(clsAnnotation)
-    );
-  }
 
   void swap(Record& first, Record& second)
   {
@@ -147,6 +105,16 @@ namespace marco::ast
     return name;
   }
 
+  llvm::MutableArrayRef<std::unique_ptr<Member>> Record::getMembers()
+  {
+    return members;
+  }
+
+  llvm::ArrayRef<std::unique_ptr<Member>> Record::getMembers() const
+  {
+    return members;
+  }
+
   size_t Record::size() const
   {
     return members.size();
@@ -172,19 +140,13 @@ namespace marco::ast
     return members.end();
   }
 
-  bool Record::shouldBeInlined() const
+  llvm::MutableArrayRef<std::unique_ptr<Class>> Record::getInnerClasses()
   {
-    //is true iff all functions that use it are inline-able
-    return inlineable;
+    return innerClasses;
   }
 
-  void Record::setAsNotInlineable()
+  llvm::ArrayRef<std::unique_ptr<Class>> Record::getInnerClasses() const
   {
-    inlineable = false;
-  }
-
-  const StandardFunction& Record::getDefaultConstructor() const
-  {
-    return *defaultConstructor;
+    return innerClasses;
   }
 }

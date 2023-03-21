@@ -1,6 +1,5 @@
 set(SOURCES
     ConstantFoldingPass.cpp
-    InliningPass.cpp
     PassManager.cpp
     SemanticAnalysisPass.cpp
     StructuralConstantPropagationPass.cpp

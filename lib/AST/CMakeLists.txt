@@ -18,7 +18,6 @@ set(AST_NODES
 	Node/Operation.cpp
 	Node/Package.cpp
 	Node/Record.cpp
-	Node/RecordInstance.cpp
 	Node/ReferenceAccess.cpp
 	Node/Statement.cpp
 	Node/Tuple.cpp

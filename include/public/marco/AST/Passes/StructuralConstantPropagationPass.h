@@ -72,9 +72,6 @@ namespace marco::ast
   template<>
   bool StructuralConstantPropagationPass::run<Tuple>(Expression& expression);
 
-  template<>
-  bool StructuralConstantPropagationPass::run<RecordInstance>(Expression& expression);
-
   std::unique_ptr<Pass> createStructuralConstantPropagationPass(diagnostic::DiagnosticEngine& diagnostics);
 }
 

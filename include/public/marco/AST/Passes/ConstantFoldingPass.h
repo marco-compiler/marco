@@ -87,9 +87,6 @@ namespace marco::ast
   bool ConstantFoldingPass::run<Tuple>(Expression& expression);
 
   template<>
-  bool ConstantFoldingPass::run<RecordInstance>(Expression& expression);
-
-  template<>
   bool ConstantFoldingPass::run<AssignmentStatement>(Statement& statement);
 
   template<>

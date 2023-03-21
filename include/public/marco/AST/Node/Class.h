@@ -126,7 +126,12 @@ namespace marco::ast
       }
 
 		private:
-		  std::variant<PartialDerFunction, StandardFunction, Model, Package, Record> content;
+		  std::variant<
+        PartialDerFunction,
+        StandardFunction,
+        Model,
+        Package,
+        Record> content;
 	};
 }
 

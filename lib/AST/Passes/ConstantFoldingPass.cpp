@@ -970,12 +970,6 @@ namespace marco::ast
     return numOfErrors == diagnostics()->numOfErrors();
   }
 
-  template<>
-  bool ConstantFoldingPass::run<RecordInstance>(Expression& expression)
-  {
-    return true;
-  }
-
   bool ConstantFoldingPass::run(Equation& equation)
   {
     auto numOfErrors = diagnostics()->numOfErrors();

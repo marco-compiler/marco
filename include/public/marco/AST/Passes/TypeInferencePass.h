@@ -97,9 +97,6 @@ namespace marco::ast
 
   template<>
   bool TypeInferencePass::run<Tuple>(Expression& expression);
-
-  template<>
-  bool TypeInferencePass::run<RecordInstance>(Expression& expression);
   
   template<>
   bool TypeInferencePass::run<AssignmentStatement>(Statement& statement);

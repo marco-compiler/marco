@@ -740,12 +740,6 @@ namespace marco::ast
   }
 
   template<>
-  bool SemanticAnalysisPass::run<RecordInstance>(Expression& expression)
-  {
-    return true;
-  }
-
-  template<>
   bool SemanticAnalysisPass::run<Expression>(Expression& expression)
   {
     return expression.visit([&](auto& obj) {

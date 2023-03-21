@@ -64,18 +64,6 @@ namespace
 
       return result;
     }
-
-    std::set<const Expression*> operator()(
-        const RecordInstance& recordInstance)
-    {
-      std::set<const Expression*> result;
-
-      for (const auto& expression : recordInstance) {
-        result.insert(expression.get());
-      }
-
-      return result;
-    }
   };
 }
 

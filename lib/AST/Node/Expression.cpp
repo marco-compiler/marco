@@ -35,11 +35,6 @@ namespace marco::ast
   {
   }
 
-  Expression::Expression(RecordInstance content)
-      : content(std::move(content))
-  {
-  }
-
   Expression::Expression(const Expression& other)
       : content(other.content)
   {

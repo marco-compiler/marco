@@ -4,6 +4,7 @@
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
 #include "marco/Codegen/Lowering/ModelLowerer.h"
+#include "marco/Codegen/Lowering/RecordLowerer.h"
 #include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
 #include "marco/Codegen/BridgeInterface.h"
 #include <memory>
@@ -23,6 +24,7 @@ namespace marco::codegen::lowering
 
     private:
       std::unique_ptr<ModelLowerer> modelLowerer;
+      std::unique_ptr<RecordLowerer> recordLowerer;
       std::unique_ptr<StandardFunctionLowerer> standardFunctionLowerer;
   };
 }
