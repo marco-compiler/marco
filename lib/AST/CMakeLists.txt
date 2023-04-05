@@ -2,7 +2,10 @@ set(AST_NODES
 	Node/Algorithm.cpp
 	Node/Annotation.cpp
 	Node/Array.cpp
+	Node/ArrayDimension.cpp
+	Node/AssignmentStatement.cpp
 	Node/ASTNode.cpp
+	Node/BreakStatement.cpp
 	Node/Call.cpp
 	Node/Class.cpp
 	Node/EquationsBlock.cpp
@@ -11,7 +14,9 @@ set(AST_NODES
 	Node/Equation.cpp
 	Node/Expression.cpp
 	Node/ForEquation.cpp
+	Node/ForStatement.cpp
 	Node/Function.cpp
+	Node/IfStatement.cpp
 	Node/Induction.cpp
 	Node/Member.cpp
 	Node/Modification.cpp
@@ -19,56 +24,18 @@ set(AST_NODES
 	Node/Package.cpp
 	Node/Record.cpp
 	Node/ReferenceAccess.cpp
+	Node/ReturnStatement.cpp
+	Node/Root.cpp
 	Node/Statement.cpp
+	Node/StatementsBlock.cpp
 	Node/Tuple.cpp
 	Node/Type.cpp
-	Node/TypePrefix.cpp)
-
-set(BUILT_IN_FUNCTIONS
-	BuiltInFunction/Abs.cpp
-	BuiltInFunction/Acos.cpp
-	BuiltInFunction/Asin.cpp
-	BuiltInFunction/Atan.cpp
-	BuiltInFunction/Atan2.cpp
-	BuiltInFunction/Ceil.cpp
-	BuiltInFunction/Cos.cpp
-	BuiltInFunction/Cosh.cpp
-	BuiltInFunction/Der.cpp
-	BuiltInFunction/Diagonal.cpp
-	BuiltInFunction/Div.cpp
-	BuiltInFunction/Exp.cpp
-	BuiltInFunction/Fill.cpp
-	BuiltInFunction/Floor.cpp
-	BuiltInFunction/Integer.cpp
-	BuiltInFunction/Identity.cpp
-	BuiltInFunction/Linspace.cpp
-	BuiltInFunction/Log.cpp
-	BuiltInFunction/Log10.cpp
-	BuiltInFunction/Max.cpp
-	BuiltInFunction/Min.cpp
-	BuiltInFunction/Mod.cpp
-	BuiltInFunction/Ndims.cpp
-	BuiltInFunction/Ones.cpp
-	BuiltInFunction/Product.cpp
-	BuiltInFunction/Rem.cpp
-	BuiltInFunction/Sign.cpp
-	BuiltInFunction/Sin.cpp
-	BuiltInFunction/Sinh.cpp
-	BuiltInFunction/Size.cpp
-	BuiltInFunction/Sqrt.cpp
-	BuiltInFunction/Sum.cpp
-	BuiltInFunction/Symmetric.cpp
-	BuiltInFunction/Tan.cpp
-	BuiltInFunction/Tanh.cpp
-	BuiltInFunction/Transpose.cpp
-	BuiltInFunction/Zeros.cpp)
+	Node/TypePrefix.cpp
+	Node/WhenStatement.cpp
+	Node/WhileStatement.cpp)
 
 set(SOURCES
-	${AST_NODES}
-	${BUILT_IN_FUNCTIONS}
-	BuiltInFunction.cpp
-	Pass.cpp
-	Symbol.cpp)
+	${AST_NODES})
 
 marco_add_library(ast
 	${SOURCES}
@@ -81,4 +48,3 @@ marco_add_library(ast
 	Support)
 
 add_subdirectory(Analysis)
-add_subdirectory(Passes)

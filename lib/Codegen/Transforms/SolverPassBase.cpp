@@ -439,6 +439,12 @@ namespace mlir::modelica::impl
           if (startOp.getEach()) {
             builder.create<ArrayFillOp>(startOp.getLoc(), destination, valueToBeStored);
           } else {
+            auto elementType = destination.getType().cast<ArrayType>().getElementType();
+
+            if (elementType != valueToBeStored.getType()) {
+              valueToBeStored = builder.create<CastOp>(loc, elementType, valueToBeStored);
+            }
+
             builder.create<StoreOp>(startOp.getLoc(), valueToBeStored, destination, llvm::None);
           }
         } else {

@@ -432,13 +432,10 @@ def Modelica_LoadOp : Modelica_Op<"load",
         ```
     }];
 
-    let arguments = (ins AnyArray:$array, Variadic<Index>:$indices);
+    let arguments = (ins AnyArray:$array, Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
     let results = (outs AnyType:$result);
 
-    let assemblyFormat = [{
-        $array `[` $indices `]` attr-dict `:` type($array)
-    }];
-
+    let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
 
     let builders = [
@@ -487,14 +484,11 @@ def Modelica_StoreOp : Modelica_Op<"store",
     let arguments = (ins
         AnyType:$value,
         AnyArray:$array,
-        Variadic<Index>:$indices);
+        Variadic<AnyTypeOf<[Index, ModelicaInteger]>>:$indices);
 
     let results = (outs);
 
-    let assemblyFormat = [{
-        $array `[` $indices `]` `,` $value attr-dict `:` type($array)
-    }];
-
+    let hasCustomAssemblyFormat = 1;
     let hasVerifier = 1;
 
     let extraClassDeclaration = [{
@@ -2425,9 +2419,13 @@ def Modelica_PackageOp : Modelica_Op<"package",
 
     let extraClassDeclaration = [{
         Block* bodyBlock();
+
+        auto getVariables()
+        {
+            return getOps<VariableOp>();
+        }
     }];
 }
-
 
 def Modelica_ModelOp : Modelica_Op<"model",
     [IsolatedFromAbove,
@@ -2897,7 +2895,11 @@ def Modelica_FunctionOp : Modelica_Op<"function",
 
     let regions = (region AnyRegion:$body);
 
+    // Ensure that the block inside the region exists.
     let hasCustomAssemblyFormat = 1;
+    let skipDefaultBuilders = 1;
+
+    let builders = [OpBuilder<(ins "::llvm::StringRef":$name)>];
 
     let extraClassDeclaration = [{
         mlir::Block* bodyBlock();

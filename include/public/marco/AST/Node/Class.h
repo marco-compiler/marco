@@ -2,136 +2,73 @@
 #define MARCO_AST_NODE_CLASS_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Function.h"
-#include "marco/AST/Node/Model.h"
-#include "marco/AST/Node/Package.h"
-#include "marco/AST/Node/Record.h"
-#include <variant>
 
 namespace marco::ast
 {
-  enum class ClassType
-  {
-    Function,
-    Model,
-    Package,
-    Record
-  };
-
-	class Class
-			: public impl::Cloneable<Class>,
-				public impl::Dumpable<Class>
+	class Class : public ASTNode
 	{
 		public:
-      explicit Class(PartialDerFunction content);
-      explicit Class(StandardFunction content);
-      explicit Class(Model content);
-      explicit Class(Package content);
-      explicit Class(Record content);
+      using ASTNode::ASTNode;
 
       Class(const Class& other);
-      Class(Class&& other);
 
-      ~Class();
+      virtual ~Class();
 
-      Class& operator=(const Class& other);
-      Class& operator=(Class&& other);
-
-      friend void swap(Class& first, Class& second);
-
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-      template<typename T>
-      [[nodiscard]] bool isa() const
+      static bool classof(const ASTNode* node)
       {
-        return std::holds_alternative<T>(content);
+        return node->getKind() >= ASTNode::Kind::Class &&
+          node->getKind() <= ASTNode::Kind::Class_LastClass;
       }
 
-      template<typename T>
-      [[nodiscard]] T* get()
-      {
-        assert(isa<T>());
-        return &std::get<T>(content);
-      }
+    protected:
+      virtual void addJSONProperties(llvm::json::Object& obj) const override;
 
-      template<typename T>
-      [[nodiscard]] const T* get() const
-      {
-        assert(isa<T>());
-        return &std::get<T>(content);
-      }
+    public:
+      /// Get the name.
+      llvm::StringRef getName() const;
 
-      template<typename T>
-      [[nodiscard]] T* dyn_get()
-      {
-        if (!isa<T>())
-          return nullptr;
+      /// Set the name.
+      void setName(llvm::StringRef newName);
 
-        return get<T>();
-      }
+      /// Get the variables.
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getVariables() const;
 
-      template<typename T>
-      [[nodiscard]] const T* dyn_get() const
-      {
-        if (!isa<T>())
-          return nullptr;
+      /// Set the variables.
+      void setVariables(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-        return get<T>();
-      }
+      /// Get the 'equations' blocks.
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getEquationsBlocks() const;
 
-      template<class Visitor>
-      auto visit(Visitor&& visitor)
-      {
-        return std::visit(visitor, content);
-      }
+      /// Set the 'equations' blocks.
+      void setEquationsBlocks(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      template<class Visitor>
-      auto visit(Visitor&& visitor) const
-      {
-        return std::visit(visitor, content);
-      }
+      /// Get the 'initial equations' blocks.
+      llvm::ArrayRef<std::unique_ptr<ASTNode>>
+      getInitialEquationsBlocks() const;
 
-      [[nodiscard]] SourceRange getLocation() const;
+      /// Set the 'initial equations' blocks.
+      void setInitialEquationsBlocks(
+          llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      [[nodiscard]] llvm::StringRef getName() const;
+      /// Get the 'algorithm' blocks.
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getAlgorithms() const;
 
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Class> partialDerFunction(Args&&... args)
-      {
-        return std::make_unique<Class>(PartialDerFunction(std::forward<Args>(args)...));
-      }
+      /// Set the 'algorithm' blocks.
+      void setAlgorithms(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Class> standardFunction(Args&&... args)
-      {
-        return std::make_unique<Class>(StandardFunction(std::forward<Args>(args)...));
-      }
+      /// Get the inner classes.
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getInnerClasses() const;
 
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Class> model(Args&&... args)
-      {
-        return std::make_unique<Class>(Model(std::forward<Args>(args)...));
-      }
+      /// Set the inner classes.
+      void setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Class> package(Args&&... args)
-      {
-        return std::make_unique<Class>(Package(std::forward<Args>(args)...));
-      }
-
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Class> record(Args&&... args)
-      {
-        return std::make_unique<Class>(Record(std::forward<Args>(args)...));
-      }
-
-		private:
-		  std::variant<
-        PartialDerFunction,
-        StandardFunction,
-        Model,
-        Package,
-        Record> content;
+    private:
+      std::string name;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> variables;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> equationsBlocks;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> initialEquationsBlocks;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> algorithms;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> innerClasses;
 	};
 }
 

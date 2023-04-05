@@ -18,39 +18,39 @@ namespace marco::ast
   class Expression;
 	class Modification;
 
-  template<typename Exp>
-  class StartModificationProperty;
-
-	class Modification
-			: public ASTNode,
-				public impl::Cloneable<Modification>,
-				public impl::Dumpable<Modification>
+	class Modification : public ASTNode
 	{
 		public:
-      template<typename... Args>
-      static std::unique_ptr<Modification> build(Args&&... args)
-      {
-        return std::unique_ptr<Modification>(new Modification(std::forward<Args>(args)...));
-      }
+      explicit Modification(SourceRange location);
 
       Modification(const Modification& other);
-      Modification(Modification&& other);
+
       ~Modification() override;
 
-      Modification& operator=(const Modification& other);
-      Modification& operator=(Modification&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Modification;
+      }
 
-      friend void swap(Modification& first, Modification& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] bool hasClassModification() const;
-      [[nodiscard]] ClassModification* getClassModification();
-      [[nodiscard]] const ClassModification* getClassModification() const;
+      bool hasClassModification() const;
 
-      [[nodiscard]] bool hasExpression() const;
-      [[nodiscard]] Expression* getExpression();
-      [[nodiscard]] const Expression* getExpression() const;
+      ClassModification* getClassModification();
+
+      const ClassModification* getClassModification() const;
+
+      void setClassModification(std::unique_ptr<ASTNode> node);
+
+      bool hasExpression() const;
+
+      Expression* getExpression();
+
+      const Expression* getExpression() const;
+
+      void setExpression(std::unique_ptr<ASTNode> node);
 
       /// @name Forwarded methods
       /// {
@@ -67,56 +67,32 @@ namespace marco::ast
 
       /// }
 
-		private:
-      Modification(SourceRange location,
-                   std::unique_ptr<ClassModification> classModification);
-
-      Modification(SourceRange location,
-                   std::unique_ptr<ClassModification> classModification,
-                   std::unique_ptr<Expression> expression);
-
-      Modification(SourceRange location,
-                   std::unique_ptr<Expression> expression);
-
     private:
-      llvm::Optional<std::unique_ptr<ClassModification>> classModification;
-      llvm::Optional<std::unique_ptr<Expression>> expression;
+      std::unique_ptr<ASTNode> classModification;
+      std::unique_ptr<ASTNode> expression;
 	};
 
-	class ClassModification
-			: public ASTNode,
-				public impl::Cloneable<ClassModification>,
-				public impl::Dumpable<ClassModification>
+	class ClassModification : public ASTNode
 	{
-		private:
-      template<typename T> using Container = llvm::SmallVector<T, 3>;
-
 		public:
-      using iterator = Container<std::unique_ptr<Argument>>::iterator;
-      using const_iterator = Container<std::unique_ptr<Argument>>::const_iterator;
-
-      template<typename... Args>
-      static std::unique_ptr<ClassModification> build(Args&&... args)
-      {
-        return std::unique_ptr<ClassModification>(new ClassModification(std::forward<Args>(args)...));
-      }
+      explicit ClassModification(SourceRange location);
 
       ClassModification(const ClassModification& other);
-      ClassModification(ClassModification&& other);
+
       ~ClassModification() override;
 
-      ClassModification& operator=(const ClassModification& other);
-      ClassModification& operator=(ClassModification&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::ClassModification;
+      }
 
-      friend void swap(ClassModification& first, ClassModification& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] iterator begin();
-      [[nodiscard]] const_iterator begin() const;
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
 
-      [[nodiscard]] iterator end();
-      [[nodiscard]] const_iterator end() const;
+      void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
       /// @name Predefined properties
       /// {
@@ -133,209 +109,105 @@ namespace marco::ast
 
       /// }
 
-		private:
-      ClassModification(SourceRange location,
-                        llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
-
     private:
-		  Container<std::unique_ptr<Argument>> arguments;
+		  llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
 	};
 
-	class ElementModification
-			: public ASTNode,
-				public impl::Dumpable<ElementModification>
+  class Argument : public ASTNode
+  {
+    public:
+      using ASTNode::ASTNode;
+
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() >= ASTNode::Kind::Argument &&
+            node->getKind() <= ASTNode::Kind::Argument_LastArgument;
+      }
+  };
+
+	class ElementModification : public Argument
 	{
 		public:
+      explicit ElementModification(SourceRange location);
+
       ElementModification(const ElementModification& other);
-      ElementModification(ElementModification&& other);
+
       ~ElementModification() override;
 
-      ElementModification& operator=(const ElementModification& other);
-      ElementModification& operator=(ElementModification&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Argument_ElementModification;
+      }
 
-      friend void swap(ElementModification& first, ElementModification& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] bool hasEachProperty() const;
-      [[nodiscard]] bool hasFinalProperty() const;
+      bool hasEachProperty() const;
 
-      [[nodiscard]] llvm::StringRef getName() const;
+      void setEachProperty(bool value);
 
-      [[nodiscard]] bool hasModification() const;
-      [[nodiscard]] Modification* getModification();
-      [[nodiscard]] const Modification* getModification() const;
+      bool hasFinalProperty() const;
 
-		private:
-      friend class Argument;
+      void setFinalProperty(bool value);
 
-      ElementModification(SourceRange location,
-                          bool each,
-                          bool final,
-                          llvm::StringRef name,
-                          std::unique_ptr<Modification> modification);
+      llvm::StringRef getName() const;
 
-      ElementModification(SourceRange location,
-                          bool each,
-                          bool final,
-                          llvm::StringRef name);
+      void setName(llvm::StringRef newName);
+
+      bool hasModification() const;
+
+      Modification* getModification();
+
+      const Modification* getModification() const;
+
+      void setModification(std::unique_ptr<ASTNode> node);
 
     private:
       bool each;
       bool final;
       std::string name;
-      llvm::Optional<std::unique_ptr<Modification>> modification;
+      std::unique_ptr<ASTNode> modification;
 	};
 
 	// TODO: ElementReplaceable
-	class ElementReplaceable
-			: public ASTNode,
-				public impl::Dumpable<ElementReplaceable>
+	class ElementReplaceable : public Argument
 	{
 		public:
+      explicit ElementReplaceable(SourceRange location);
+
       ElementReplaceable(const ElementReplaceable& other);
-      ElementReplaceable(ElementReplaceable&& other);
+
       ~ElementReplaceable() override;
 
-      ElementReplaceable& operator=(const ElementReplaceable& other);
-      ElementReplaceable& operator=(ElementReplaceable&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Argument_ElementReplaceable;
+      }
 
-      friend void swap(ElementReplaceable& first, ElementReplaceable& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-		private:
-      friend class Argument;
-
-      explicit ElementReplaceable(SourceRange location);
+      llvm::json::Value toJSON() const override;
 	};
 
 	// TODO: ElementRedeclaration
-	class ElementRedeclaration
-			: public ASTNode,
-				public impl::Dumpable<ElementRedeclaration>
+	class ElementRedeclaration : public Argument
 	{
 		public:
+      explicit ElementRedeclaration(SourceRange location);
+
       ElementRedeclaration(const ElementRedeclaration& other);
-      ElementRedeclaration(ElementRedeclaration&& other);
+
       ~ElementRedeclaration() override;
 
-      ElementRedeclaration& operator=(const ElementRedeclaration& other);
-      ElementRedeclaration& operator=(ElementRedeclaration&& other);
-
-      friend void swap(ElementRedeclaration& first, ElementRedeclaration& second);
-
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-		private:
-      friend class Argument;
-
-      explicit ElementRedeclaration(SourceRange location);
-	};
-
-	class Argument
-			: public impl::Cloneable<Argument>,
-				public impl::Dumpable<Argument>
-	{
-		public:
-      template<typename... Args>
-      static std::unique_ptr<Argument> build(Args&&... args)
+      static bool classof(const ASTNode* node)
       {
-        return std::make_unique<Argument>(std::forward<Args>(args)...);
+        return node->getKind() == ASTNode::Kind::Argument_ElementRedeclaration;
       }
 
-      Argument(const Argument& other);
-      Argument(Argument&& other);
-      ~Argument();
+      std::unique_ptr<ASTNode> clone() const override;
 
-      Argument& operator=(const Argument& other);
-      Argument& operator=(Argument&& other);
-
-      friend void swap(Argument& first, Argument& second);
-
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-      template<typename T>
-      [[nodiscard]] bool isa() const
-      {
-        return std::holds_alternative<T>(content);
-      }
-
-      template<typename T>
-      [[nodiscard]] T* get()
-      {
-        return &std::get<T>(content);
-      }
-
-      template<typename T>
-      [[nodiscard]] const T* get() const
-      {
-        return &std::get<T>(content);
-      }
-
-      template<typename T>
-      [[nodiscard]] T* dyn_get()
-      {
-        if (!isa<T>()) {
-          return nullptr;
-        }
-
-        return get<T>();
-      }
-
-      template<typename T>
-      [[nodiscard]] const T* dyn_get() const
-      {
-        if (!isa<T>()) {
-          return nullptr;
-        }
-
-        return get<T>();
-      }
-
-      template<typename Visitor>
-      auto visit(Visitor&& visitor)
-      {
-        return std::visit(visitor, content);
-      }
-
-      template<typename Visitor>
-      auto visit(Visitor&& visitor) const
-      {
-        return std::visit(visitor, content);
-      }
-
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Argument> elementModification(Args&&... args)
-      {
-        ElementModification content(std::forward<Args>(args)...);
-        return std::unique_ptr<Argument>(new Argument(std::move(content)));
-      }
-
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Argument> elementRedeclaration(Args&&... args)
-      {
-        ElementRedeclaration content(std::forward<Args>(args)...);
-        return std::unique_ptr<Argument>(new Argument(std::move(content)));
-      }
-
-      template<typename... Args>
-      [[nodiscard]] static std::unique_ptr<Argument> elementReplaceable(Args&&... args)
-      {
-        ElementReplaceable content(std::forward<Args>(args)...);
-        return std::unique_ptr<Argument>(new Argument(std::move(content)));
-      }
-
-		private:
-      explicit Argument(ElementModification content);
-      explicit Argument(ElementRedeclaration content);
-      explicit Argument(ElementReplaceable content);
-
-    private:
-      std::variant<
-          ElementModification,
-          ElementRedeclaration,
-          ElementReplaceable> content;
+      llvm::json::Value toJSON() const override;
 	};
 }
 

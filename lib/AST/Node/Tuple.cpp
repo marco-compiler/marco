@@ -1,56 +1,42 @@
 #include "marco/AST/Node/Tuple.h"
-#include "marco/AST/Node/Expression.h"
-#include <numeric>
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Tuple::Tuple(SourceRange location,
-               Type type,
-               llvm::ArrayRef<std::unique_ptr<Expression>> expressions)
-      : ASTNode(std::move(location)),
-        type(std::move(type))
+  Tuple::Tuple(SourceRange location)
+      : Expression(ASTNode::Kind::Expression_Tuple, std::move(location))
   {
-    for (const auto& expression : expressions)
-      this->expressions.push_back(expression->clone());
   }
 
   Tuple::Tuple(const Tuple& other)
-      : ASTNode(other),
-        type(other.type)
+      : Expression(other)
   {
-    for (const auto& expression : other.expressions)
-      this->expressions.push_back(expression->clone());
+    setExpressions(other.expressions);
   }
-
-  Tuple::Tuple(Tuple&& other) = default;
 
   Tuple::~Tuple() = default;
 
-  Tuple& Tuple::operator=(const Tuple& other)
+  std::unique_ptr<ASTNode> Tuple::clone() const
   {
-    Tuple result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Tuple>(*this);
   }
 
-  Tuple& Tuple::operator=(Tuple&& other) = default;
-
-  void swap(Tuple& first, Tuple& second)
+  llvm::json::Value Tuple::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    using std::swap;
-    swap(first.type, second.type);
-    impl::swap(first.expressions, second.expressions);
-  }
+    llvm::SmallVector<llvm::json::Value> expressionsJson;
 
-  void Tuple::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    for (const auto& expression : *this)
-      expression->print(os, indents);
+    for (const auto& expression : expressions) {
+      expressionsJson.push_back(expression->toJSON());
+    }
+
+    result["expressions"] = llvm::json::Array(expressionsJson);
+
+    addJSONProperties(result);
+    return result;
   }
 
   bool Tuple::isLValue() const
@@ -58,102 +44,32 @@ namespace marco::ast
     return false;
   }
 
-  bool Tuple::operator==(const Tuple& other) const
-  {
-    if (expressions.size() != other.expressions.size())
-      return false;
-
-    auto pairs = llvm::zip(expressions, other.expressions);
-
-    return std::all_of(
-        pairs.begin(), pairs.end(),
-        [](const auto& pair) {
-          const auto& [x, y] = pair;
-          return *x == *y;
-        });
-  }
-
-  bool Tuple::operator!=(const Tuple& other) const
-  {
-    return !(*this == other);
-  }
-
-  Expression* Tuple::operator[](size_t index)
-  {
-    return getArg(index);
-  }
-
-  const Expression* Tuple::operator[](size_t index) const
-  {
-    return getArg(index);
-  }
-
-  Type& Tuple::getType()
-  {
-    return type;
-  }
-
-  const Type& Tuple::getType() const
-  {
-    return type;
-  }
-
-  void Tuple::setType(Type tp)
-  {
-    type = std::move(tp);
-  }
-
-  Expression* Tuple::getArg(size_t index)
-  {
-    assert(index < expressions.size());
-    return expressions[index].get();
-  }
-
-  const Expression* Tuple::getArg(size_t index) const
-  {
-    assert(index < expressions.size());
-    return expressions[index].get();
-  }
-
   size_t Tuple::size() const
   {
     return expressions.size();
   }
 
-  Tuple::iterator Tuple::begin()
+  Expression* Tuple::getExpression(size_t index)
   {
-    return expressions.begin();
+    assert(index < expressions.size());
+    return expressions[index]->cast<Expression>();
   }
 
-  Tuple::const_iterator Tuple::begin() const
+  const Expression* Tuple::getExpression(size_t index) const
   {
-    return expressions.begin();
+    assert(index < expressions.size());
+    return expressions[index]->cast<Expression>();
   }
 
-  Tuple::iterator Tuple::end()
+  void Tuple::setExpressions(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    return expressions.end();
-  }
+    expressions.clear();
 
-  Tuple::const_iterator Tuple::end() const
-  {
-    return expressions.end();
-  }
-
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj)
-  {
-    return stream << toString(obj);
-  }
-
-  std::string toString(const Tuple& obj)
-  {
-    return "(" +
-        accumulate(std::next(obj.begin()), obj.end(), std::string(),
-                   [](const std::string& result, const auto& element)
-                   {
-                     std::string str = toString(*element);
-                     return result.empty() ? str : result + "," + str;
-                   }) +
-        ")";
+    for (const auto& node : nodes) {
+      assert(node->isa<Expression>());
+      auto& clone = expressions.emplace_back(node->clone());
+      clone->setParent(this);
+    }
   }
 }

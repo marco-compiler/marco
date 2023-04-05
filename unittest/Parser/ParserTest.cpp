@@ -144,7 +144,8 @@ TEST(Parser, algorithm_emptyBody)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 9);
 
-  EXPECT_TRUE((*node)->getBody().empty());
+  ASSERT_TRUE((*node)->isa<Algorithm>());
+  EXPECT_TRUE((*node)->cast<Algorithm>()->getStatements().empty());
 }
 
 TEST(Parser, model)
@@ -169,8 +170,8 @@ TEST(Parser, model)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 7);
 
-  EXPECT_TRUE((*node)->isa<Model>());
-  EXPECT_EQ((*node)->get<Model>()->getName(), "M");
+  ASSERT_TRUE((*node)->isa<Model>());
+  EXPECT_EQ((*node)->cast<Model>()->getName(), "M");
 }
 
 TEST(Parser, standardFunction)
@@ -195,11 +196,11 @@ TEST(Parser, standardFunction)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 12);
 
-  EXPECT_TRUE((*node)->isa<StandardFunction>());
-  auto function = (*node)->get<StandardFunction>();
+  ASSERT_TRUE((*node)->isa<StandardFunction>());
+  auto function = (*node)->cast<StandardFunction>();
 
   EXPECT_EQ(function->getName(), "foo");
-  ASSERT_EQ(function->getMembers().size(), 2);
+  EXPECT_EQ(function->getVariables().size(), 2);
   EXPECT_EQ(function->getAlgorithms().size(), 1);
 }
 
@@ -220,13 +221,13 @@ TEST(Parser, partialDerFunction)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 12);
 
-  EXPECT_TRUE((*node)->isa<PartialDerFunction>());
-  auto function = (*node)->get<PartialDerFunction>();
+  ASSERT_TRUE((*node)->isa<PartialDerFunction>());
+  auto function = (*node)->cast<PartialDerFunction>();
 
-  EXPECT_EQ(function->getDerivedFunction()->get<ReferenceAccess>()->getName(), "Foo");
+  EXPECT_EQ(function->getDerivedFunction()->cast<ReferenceAccess>()->getName(), "Foo");
   EXPECT_EQ(function->getIndependentVariables().size(), 2);
-  EXPECT_EQ(function->getIndependentVariables()[0]->get<ReferenceAccess>()->getName(), "x");
-  EXPECT_EQ(function->getIndependentVariables()[1]->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(function->getIndependentVariables()[0]->cast<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(function->getIndependentVariables()[1]->cast<ReferenceAccess>()->getName(), "y");
 }
 
 TEST(Parser, algorithm_statementsCount)
@@ -249,7 +250,8 @@ TEST(Parser, algorithm_statementsCount)
   EXPECT_EQ((*node)->getLocation().end.line, 4);
   EXPECT_EQ((*node)->getLocation().end.column, 8);
 
-  EXPECT_EQ((*node)->getBody().size(), 3);
+  ASSERT_TRUE((*node)->isa<Algorithm>());
+  EXPECT_EQ((*node)->cast<Algorithm>()->getStatements().size(), 3);
 }
 
 TEST(Parser, equation)
@@ -269,13 +271,15 @@ TEST(Parser, equation)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
-  auto lhs = (*node)->getLhsExpression();
-  ASSERT_TRUE(lhs->isa<ReferenceAccess>());
-  EXPECT_EQ(lhs->get<ReferenceAccess>()->getName(), "y");
+  ASSERT_TRUE((*node)->isa<Equation>());
 
-  auto rhs = (*node)->getRhsExpression();
+  auto lhs = (*node)->cast<Equation>()->getLhsExpression();
+  ASSERT_TRUE(lhs->isa<ReferenceAccess>());
+  EXPECT_EQ(lhs->cast<ReferenceAccess>()->getName(), "y");
+
+  auto rhs = (*node)->cast<Equation>()->getRhsExpression();
   ASSERT_TRUE(rhs->isa<ReferenceAccess>());
-  EXPECT_EQ(rhs->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(rhs->cast<ReferenceAccess>()->getName(), "x");
 }
 
 TEST(Parser, statement_assignment)
@@ -297,16 +301,17 @@ TEST(Parser, statement_assignment)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
-  auto statement = (*node)->get<AssignmentStatement>();
+  ASSERT_TRUE((*node)->isa<AssignmentStatement>());
+  auto statement = (*node)->cast<AssignmentStatement>();
 
   ASSERT_TRUE(statement->getDestinations()->isa<Tuple>());
-  auto destinations = statement->getDestinations()->get<Tuple>();
+  auto destinations = statement->getDestinations()->cast<Tuple>();
   ASSERT_EQ(destinations->size(), 1);
-  ASSERT_TRUE((*destinations)[0]->isa<ReferenceAccess>());
-  EXPECT_EQ((*destinations)[0]->get<ReferenceAccess>()->getName(), "y");
+  ASSERT_TRUE(destinations->getExpression(0)->isa<ReferenceAccess>());
+  EXPECT_EQ(destinations->getExpression(0)->cast<ReferenceAccess>()->getName(), "y");
 
   ASSERT_TRUE(statement->getExpression()->isa<ReferenceAccess>());
-  EXPECT_EQ(statement->getExpression()->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(statement->getExpression()->cast<ReferenceAccess>()->getName(), "x");
 }
 
 TEST(Parser, statement_assignmentWithMultipleDestinations)
@@ -328,14 +333,14 @@ TEST(Parser, statement_assignmentWithMultipleDestinations)
 
   // Right-hand side is not tested because not important for this test
   ASSERT_TRUE((*node)->isa<AssignmentStatement>());
-  auto statement = (*node)->get<AssignmentStatement>();
+  auto statement = (*node)->cast<AssignmentStatement>();
 
   ASSERT_TRUE(statement->getDestinations()->isa<Tuple>());
-  auto* destinations = statement->getDestinations()->get<Tuple>();
+  auto* destinations = statement->getDestinations()->cast<Tuple>();
 
   ASSERT_EQ(destinations->size(), 2);
-  EXPECT_EQ(destinations->getArg(0)->get<ReferenceAccess>()->getName(), "x");
-  EXPECT_EQ(destinations->getArg(1)->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(destinations->getExpression(0)->cast<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(destinations->getExpression(1)->cast<ReferenceAccess>()->getName(), "y");
 }
 
 TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
@@ -357,15 +362,15 @@ TEST(Parser, statement_assignmentWithIgnoredResults)	 // NOLINT
 
   // Right-hand side is not tested because not so important for this test
   ASSERT_TRUE((*node)->isa<AssignmentStatement>());
-  auto statement = (*node)->get<AssignmentStatement>();
+  auto statement = (*node)->cast<AssignmentStatement>();
 
   ASSERT_TRUE(statement->getDestinations()->isa<Tuple>());
-  auto* destinations = statement->getDestinations()->get<Tuple>();
+  auto* destinations = statement->getDestinations()->cast<Tuple>();
 
   ASSERT_EQ(destinations->size(), 3);
-  EXPECT_EQ(destinations->getArg(0)->get<ReferenceAccess>()->getName(), "x");
-  EXPECT_TRUE(destinations->getArg(1)->get<ReferenceAccess>()->isDummy());
-  EXPECT_EQ(destinations->getArg(2)->get<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ(destinations->getExpression(0)->cast<ReferenceAccess>()->getName(), "x");
+  EXPECT_TRUE(destinations->getExpression(1)->cast<ReferenceAccess>()->isDummy());
+  EXPECT_EQ(destinations->getExpression(2)->cast<ReferenceAccess>()->getName(), "z");
 }
 
 TEST(Parser, statement_if)
@@ -389,10 +394,11 @@ TEST(Parser, statement_if)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<IfStatement>());
-  auto statement = (*node)->get<IfStatement>();
+  auto statement = (*node)->cast<IfStatement>();
 
-  ASSERT_EQ(statement->size(), 1);
-  EXPECT_EQ(statement->getBlock(0).size(), 2);
+  EXPECT_EQ(statement->getIfBlock()->size(), 2);
+  EXPECT_EQ(statement->getNumOfElseIfBlocks(), 0);
+  EXPECT_FALSE(statement->hasElseBlock());
 }
 
 TEST(Parser, statement_ifElse)
@@ -418,16 +424,23 @@ TEST(Parser, statement_ifElse)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<IfStatement>());
-  auto statement = (*node)->get<IfStatement>();
+  auto statement = (*node)->cast<IfStatement>();
 
-  ASSERT_EQ(statement->size(), 2);
-  EXPECT_EQ(statement->getBlock(0).size(), 2);
-  EXPECT_EQ(statement->getBlock(1).size(), 1);
+  EXPECT_EQ(statement->getIfBlock()->size(), 2);
+  EXPECT_EQ(statement->getNumOfElseIfBlocks(), 0);
+
+  ASSERT_TRUE(statement->hasElseBlock());
+  EXPECT_EQ(statement->getElseBlock()->size(), 1);
 }
 
 TEST(Parser, statement_ifElseIfElse)
 {
   std::string str = "if false then\n"
+                    "  x := 1;\n"
+                    "  y := 2;\n"
+                    "  z := 3;\n"
+                    "  y := 4;\n"
+                    "elseif false then\n"
                     "  x := 1;\n"
                     "  y := 2;\n"
                     "  z := 3;\n"
@@ -448,16 +461,20 @@ TEST(Parser, statement_ifElseIfElse)
   EXPECT_EQ((*node)->getLocation().begin.line, 1);
   EXPECT_EQ((*node)->getLocation().begin.column, 1);
 
-  EXPECT_EQ((*node)->getLocation().end.line, 10);
+  EXPECT_EQ((*node)->getLocation().end.line, 15);
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<IfStatement>());
-  auto statement = (*node)->get<IfStatement>();
+  auto statement = (*node)->cast<IfStatement>();
 
-  ASSERT_EQ(statement->size(), 3);
-  EXPECT_EQ(statement->getBlock(0).size(), 3);
-  EXPECT_EQ(statement->getBlock(1).size(), 2);
-  EXPECT_EQ(statement->getBlock(2).size(), 1);
+  EXPECT_EQ(statement->getIfBlock()->size(), 4);
+
+  ASSERT_EQ(statement->getNumOfElseIfBlocks(), 2);
+  EXPECT_EQ(statement->getElseIfBlock(0)->size(), 3);
+  EXPECT_EQ(statement->getElseIfBlock(1)->size(), 2);
+
+  ASSERT_TRUE(statement->hasElseBlock());
+  EXPECT_EQ(statement->getElseBlock()->size(), 1);
 }
 
 TEST(Parser, statement_for)
@@ -481,9 +498,9 @@ TEST(Parser, statement_for)
   EXPECT_EQ((*node)->getLocation().end.column, 7);
 
   ASSERT_TRUE((*node)->isa<ForStatement>());
-  auto statement = (*node)->get<ForStatement>();
+  auto statement = (*node)->cast<ForStatement>();
 
-  ASSERT_EQ(statement->size(), 2);
+  EXPECT_EQ(statement->getStatements().size(), 2);
 }
 
 TEST(Parser, statement_while)
@@ -507,9 +524,9 @@ TEST(Parser, statement_while)
   EXPECT_EQ((*node)->getLocation().end.column, 9);
 
   ASSERT_TRUE((*node)->isa<WhileStatement>());
-  auto statement = (*node)->get<WhileStatement>();
+  auto statement = (*node)->cast<WhileStatement>();
 
-  ASSERT_EQ(statement->size(), 2);
+  EXPECT_EQ(statement->getStatements().size(), 2);
 }
 
 TEST(Parser, statement_break)
@@ -570,7 +587,7 @@ TEST(Parser, expression_constant)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Constant>());
-  EXPECT_EQ((*node)->get<Constant>()->get<BuiltInType::Integer>(), 12345);
+  EXPECT_EQ((*node)->cast<Constant>()->as<int64_t>(), 12345);
 }
 
 TEST(Parser, expression_not)
@@ -591,7 +608,7 @@ TEST(Parser, expression_not)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::lnot);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::lnot);
 }
 
 TEST(Parser, expression_and)
@@ -612,7 +629,7 @@ TEST(Parser, expression_and)
   EXPECT_EQ((*node)->getLocation().end.column, 7);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::land);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::land);
 }
 
 TEST(Parser, expression_or)
@@ -633,7 +650,7 @@ TEST(Parser, expression_or)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::lor);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::lor);
 }
 
 TEST(Parser, expression_equal)
@@ -654,7 +671,7 @@ TEST(Parser, expression_equal)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::equal);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::equal);
 }
 
 TEST(Parser, expression_notEqual)
@@ -675,7 +692,7 @@ TEST(Parser, expression_notEqual)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::different);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::different);
 }
 
 TEST(Parser, expression_less)
@@ -696,7 +713,7 @@ TEST(Parser, expression_less)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::less);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::less);
 }
 
 TEST(Parser, expression_lessEqual)
@@ -717,7 +734,7 @@ TEST(Parser, expression_lessEqual)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::lessEqual);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::lessEqual);
 }
 
 TEST(Parser, expression_greater)
@@ -738,7 +755,7 @@ TEST(Parser, expression_greater)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::greater);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::greater);
 }
 
 TEST(Parser, expression_greaterEqual)
@@ -759,7 +776,7 @@ TEST(Parser, expression_greaterEqual)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::greaterEqual);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::greaterEqual);
 }
 
 TEST(Parser, expression_addition)
@@ -780,7 +797,7 @@ TEST(Parser, expression_addition)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::add);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::add);
 }
 
 TEST(Parser, expression_additionElementWise)
@@ -801,7 +818,7 @@ TEST(Parser, expression_additionElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::addEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::addEW);
 }
 
 TEST(Parser, expression_subtraction)
@@ -822,7 +839,7 @@ TEST(Parser, expression_subtraction)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::subtract);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subtract);
 }
 
 TEST(Parser, expression_subtractionElementWise)
@@ -843,7 +860,7 @@ TEST(Parser, expression_subtractionElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::subtractEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subtractEW);
 }
 
 TEST(Parser, expression_multiplication)
@@ -864,7 +881,7 @@ TEST(Parser, expression_multiplication)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::multiply);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::multiply);
 }
 
 TEST(Parser, expression_multiplicationElementWise)
@@ -885,7 +902,7 @@ TEST(Parser, expression_multiplicationElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::multiplyEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::multiplyEW);
 }
 
 TEST(Parser, expression_division)
@@ -906,7 +923,7 @@ TEST(Parser, expression_division)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::divide);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::divide);
 }
 
 TEST(Parser, expression_divisionElementWise)
@@ -927,7 +944,7 @@ TEST(Parser, expression_divisionElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::divideEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::divideEW);
 }
 
 TEST(Parser, expression_additionAndMultiplication)
@@ -948,24 +965,24 @@ TEST(Parser, expression_additionAndMultiplication)
   EXPECT_EQ((*node)->getLocation().end.column, 9);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  ASSERT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::add);
+  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::add);
 
-  auto* addition = (*node)->get<Operation>();
+  auto* addition = (*node)->cast<Operation>();
 
-  auto* x = addition->getArg(0);
+  auto* x = addition->getArgument(0);
   ASSERT_TRUE(x->isa<ReferenceAccess>());
-  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(x->cast<ReferenceAccess>()->getName(), "x");
 
-  auto* multiplication = addition->getArg(1)->get<Operation>();
+  auto* multiplication = addition->getArgument(1)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* y = multiplication->getArg(0);
+  auto* y = multiplication->getArgument(0);
   ASSERT_TRUE(y->isa<ReferenceAccess>());
-  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(y->cast<ReferenceAccess>()->getName(), "y");
 
-  auto* z = multiplication->getArg(1);
+  auto* z = multiplication->getArgument(1);
   ASSERT_TRUE(z->isa<ReferenceAccess>());
-  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ(z->cast<ReferenceAccess>()->getName(), "z");
 }
 
 TEST(Parser, expression_multiplicationAndAddition)
@@ -986,26 +1003,26 @@ TEST(Parser, expression_multiplicationAndAddition)
   EXPECT_EQ((*node)->getLocation().end.column, 9);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  ASSERT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::add);
+  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::add);
 
-  auto* addition = (*node)->get<Operation>();
+  auto* addition = (*node)->cast<Operation>();
 
-  auto* z = addition->getArg(1);
+  auto* z = addition->getArgument(1);
   ASSERT_TRUE(z->isa<ReferenceAccess>());
-  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ(z->cast<ReferenceAccess>()->getName(), "z");
 
-  ASSERT_TRUE(addition->getArg(0)->isa<Operation>());
+  ASSERT_TRUE(addition->getArgument(0)->isa<Operation>());
 
-  auto* multiplication = addition->getArg(0)->get<Operation>();
+  auto* multiplication = addition->getArgument(0)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* x = multiplication->getArg(0);
+  auto* x = multiplication->getArgument(0);
   ASSERT_TRUE(x->isa<ReferenceAccess>());
-  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(x->cast<ReferenceAccess>()->getName(), "x");
 
-  auto* y = multiplication->getArg(1);
+  auto* y = multiplication->getArgument(1);
   ASSERT_TRUE(y->isa<ReferenceAccess>());
-  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(y->cast<ReferenceAccess>()->getName(), "y");
 }
 
 TEST(Parser, expression_multiplicationAndDivision)
@@ -1027,25 +1044,25 @@ TEST(Parser, expression_multiplicationAndDivision)
 
   ASSERT_TRUE((*node)->isa<Operation>());
 
-  auto* division = (*node)->get<Operation>();
+  auto* division = (*node)->cast<Operation>();
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
-  auto* z = division->getArg(1);
+  auto* z = division->getArgument(1);
   ASSERT_TRUE(z->isa<ReferenceAccess>());
-  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ(z->cast<ReferenceAccess>()->getName(), "z");
 
-  ASSERT_TRUE(division->getArg(0)->isa<Operation>());
+  ASSERT_TRUE(division->getArgument(0)->isa<Operation>());
 
-  auto* multiplication = division->getArg(0)->get<Operation>();
+  auto* multiplication = division->getArgument(0)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* x = multiplication->getArg(0);
+  auto* x = multiplication->getArgument(0);
   ASSERT_TRUE(x->isa<ReferenceAccess>());
-  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(x->cast<ReferenceAccess>()->getName(), "x");
 
-  auto* y = multiplication->getArg(1);
+  auto* y = multiplication->getArgument(1);
   ASSERT_TRUE(y->isa<ReferenceAccess>());
-  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(y->cast<ReferenceAccess>()->getName(), "y");
 }
 
 TEST(Parser, expression_divisionAndMultiplication)
@@ -1067,25 +1084,25 @@ TEST(Parser, expression_divisionAndMultiplication)
 
   ASSERT_TRUE((*node)->isa<Operation>());
 
-  auto* multiplication = (*node)->get<Operation>();
+  auto* multiplication = (*node)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* z = multiplication->getArg(1);
+  auto* z = multiplication->getArgument(1);
   ASSERT_TRUE(z->isa<ReferenceAccess>());
-  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ(z->cast<ReferenceAccess>()->getName(), "z");
 
-  ASSERT_TRUE(multiplication->getArg(0)->isa<Operation>());
+  ASSERT_TRUE(multiplication->getArgument(0)->isa<Operation>());
 
-  auto* division = multiplication->getArg(0)->get<Operation>();
+  auto* division = multiplication->getArgument(0)->cast<Operation>();
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
-  auto* x = division->getArg(0);
+  auto* x = division->getArgument(0);
   ASSERT_TRUE(x->isa<ReferenceAccess>());
-  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(x->cast<ReferenceAccess>()->getName(), "x");
 
-  auto* y = division->getArg(1);
+  auto* y = division->getArgument(1);
   ASSERT_TRUE(y->isa<ReferenceAccess>());
-  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(y->cast<ReferenceAccess>()->getName(), "y");
 }
 
 TEST(Parser, expression_arithmeticExpressionWithParentheses)
@@ -1107,25 +1124,25 @@ TEST(Parser, expression_arithmeticExpressionWithParentheses)
 
   ASSERT_TRUE((*node)->isa<Operation>());
 
-  auto* division = (*node)->get<Operation>();
+  auto* division = (*node)->cast<Operation>();
   ASSERT_EQ(division->getOperationKind(), OperationKind::divide);
 
-  auto* x = division->getArg(0);
+  auto* x = division->getArgument(0);
   ASSERT_TRUE(x->isa<ReferenceAccess>());
-  EXPECT_EQ(x->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(x->cast<ReferenceAccess>()->getName(), "x");
 
-  ASSERT_TRUE(division->getArg(1)->isa<Operation>());
+  ASSERT_TRUE(division->getArgument(1)->isa<Operation>());
 
-  auto* multiplication = division->getArg(1)->get<Operation>();
+  auto* multiplication = division->getArgument(1)->cast<Operation>();
   ASSERT_EQ(multiplication->getOperationKind(), OperationKind::multiply);
 
-  auto* y = multiplication->getArg(0);
+  auto* y = multiplication->getArgument(0);
   ASSERT_TRUE(y->isa<ReferenceAccess>());
-  EXPECT_EQ(y->get<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ(y->cast<ReferenceAccess>()->getName(), "y");
 
-  auto* z = multiplication->getArg(1);
+  auto* z = multiplication->getArgument(1);
   ASSERT_TRUE(z->isa<ReferenceAccess>());
-  EXPECT_EQ(z->get<ReferenceAccess>()->getName(), "z");
+  EXPECT_EQ(z->cast<ReferenceAccess>()->getName(), "z");
 }
 
 TEST(Parser, expression_pow)
@@ -1146,7 +1163,7 @@ TEST(Parser, expression_pow)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::powerOf);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::powerOf);
 }
 
 TEST(Parser, expression_powElementWise)
@@ -1167,7 +1184,7 @@ TEST(Parser, expression_powElementWise)
   EXPECT_EQ((*node)->getLocation().end.column, 6);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  EXPECT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::powerOfEW);
+  EXPECT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::powerOfEW);
 }
 
 TEST(Parser, expression_tuple_empty)
@@ -1188,7 +1205,7 @@ TEST(Parser, expression_tuple_empty)
   EXPECT_EQ((*node)->getLocation().end.column, 2);
 
   ASSERT_TRUE((*node)->isa<Tuple>());
-  EXPECT_EQ((*node)->get<Tuple>()->size(), 0);
+  EXPECT_EQ((*node)->cast<Tuple>()->size(), 0);
 }
 
 TEST(Parser, expression_componentReference)
@@ -1209,7 +1226,7 @@ TEST(Parser, expression_componentReference)
   EXPECT_EQ((*node)->getLocation().end.column, 3);
 
   ASSERT_TRUE((*node)->isa<ReferenceAccess>());
-  EXPECT_EQ((*node)->get<ReferenceAccess>()->getName(), "var");
+  EXPECT_EQ((*node)->cast<ReferenceAccess>()->getName(), "var");
 }
 
 TEST(Parser, expression_array)
@@ -1230,23 +1247,23 @@ TEST(Parser, expression_array)
   EXPECT_EQ((*node)->getLocation().end.column, 15);
 
   ASSERT_TRUE((*node)->isa<Array>());
-  const auto& array = *(*node)->get<Array>();
+  const auto& array = *(*node)->cast<Array>();
   ASSERT_EQ(array.size(), 5);
 
   ASSERT_TRUE(array[0]->isa<Constant>());
-  EXPECT_EQ(array[0]->get<Constant>()->get<BuiltInType::Integer>(), 1);
+  EXPECT_EQ(array[0]->cast<Constant>()->as<int64_t>(), 1);
 
   ASSERT_TRUE(array[1]->isa<Constant>());
-  EXPECT_EQ(array[1]->get<Constant>()->get<BuiltInType::Integer>(), 2);
+  EXPECT_EQ(array[1]->cast<Constant>()->as<int64_t>(), 2);
 
   ASSERT_TRUE(array[2]->isa<Constant>());
-  EXPECT_EQ(array[2]->get<Constant>()->get<BuiltInType::Integer>(), 3);
+  EXPECT_EQ(array[2]->cast<Constant>()->as<int64_t>(), 3);
 
   ASSERT_TRUE(array[3]->isa<Constant>());
-  EXPECT_EQ(array[3]->get<Constant>()->get<BuiltInType::Integer>(), 4);
+  EXPECT_EQ(array[3]->cast<Constant>()->as<int64_t>(), 4);
 
   ASSERT_TRUE(array[4]->isa<Constant>());
-  EXPECT_EQ(array[4]->get<Constant>()->get<BuiltInType::Integer>(), 5);
+  EXPECT_EQ(array[4]->cast<Constant>()->as<int64_t>(), 5);
 }
 
 TEST(Parser, expression_subscription)
@@ -1267,19 +1284,19 @@ TEST(Parser, expression_subscription)
   EXPECT_EQ((*node)->getLocation().end.column, 10);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  auto args =(*node)->get<Operation>()->getArguments();
+  auto args =(*node)->cast<Operation>()->getArguments();
 
   ASSERT_TRUE(args[0]->isa<ReferenceAccess>());
-  EXPECT_EQ(args[0]->get<ReferenceAccess>()->getName(), "var");
+  EXPECT_EQ(args[0]->cast<ReferenceAccess>()->getName(), "var");
 
   ASSERT_TRUE(args[1]->isa<Constant>());
-  EXPECT_EQ(args[1]->get<Constant>()->get<BuiltInType::Integer>(), 3);
+  EXPECT_EQ(args[1]->cast<Constant>()->as<int64_t>(), 3);
 
   ASSERT_TRUE(args[2]->isa<ReferenceAccess>());
-  EXPECT_EQ(args[2]->get<ReferenceAccess>()->getName(), "i");
+  EXPECT_EQ(args[2]->cast<ReferenceAccess>()->getName(), "i");
 
   ASSERT_TRUE(args[3]->isa<Constant>());
-  EXPECT_EQ(args[3]->get<Constant>()->get<BuiltInType::Integer>(), -1);
+  EXPECT_EQ(args[3]->cast<Constant>()->as<int64_t>(), -1);
 }
 
 TEST(Parser, expression_subscriptionOfInlineArray)
@@ -1300,13 +1317,13 @@ TEST(Parser, expression_subscriptionOfInlineArray)
   EXPECT_EQ((*node)->getLocation().end.column, 18);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  ASSERT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::subscription);
+  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subscription);
 
-  auto args = (*node)->get<Operation>()->getArguments();
+  auto args = (*node)->cast<Operation>()->getArguments();
 
   EXPECT_TRUE(args[0]->isa<Array>());
   ASSERT_TRUE(args[1]->isa<ReferenceAccess>());
-  EXPECT_EQ(args[1]->get<ReferenceAccess>()->getName(), "i");
+  EXPECT_EQ(args[1]->cast<ReferenceAccess>()->getName(), "i");
 }
 
 TEST(Parser, expression_subscriptionOfFunctionCall)
@@ -1327,13 +1344,13 @@ TEST(Parser, expression_subscriptionOfFunctionCall)
   EXPECT_EQ((*node)->getLocation().end.column, 8);
 
   ASSERT_TRUE((*node)->isa<Operation>());
-  ASSERT_EQ((*node)->get<Operation>()->getOperationKind(), OperationKind::subscription);
+  ASSERT_EQ((*node)->cast<Operation>()->getOperationKind(), OperationKind::subscription);
 
-  auto args = (*node)->get<Operation>()->getArguments();
+  auto args = (*node)->cast<Operation>()->getArguments();
 
   EXPECT_TRUE(args[0]->isa<Call>());
   ASSERT_TRUE(args[1]->isa<ReferenceAccess>());
-  EXPECT_EQ(args[1]->get<ReferenceAccess>()->getName(), "i");
+  EXPECT_EQ(args[1]->cast<ReferenceAccess>()->getName(), "i");
 }
 
 TEST(Parser, expression_functionCall_noArgs)
@@ -1354,12 +1371,12 @@ TEST(Parser, expression_functionCall_noArgs)
   EXPECT_EQ((*node)->getLocation().end.column, 5);
 
   ASSERT_TRUE((*node)->isa<Call>());
-  auto call = (*node)->get<Call>();
+  auto call = (*node)->cast<Call>();
 
-  ASSERT_TRUE(call->getFunction()->isa<ReferenceAccess>());
-  EXPECT_EQ(call->getFunction()->get<ReferenceAccess>()->getName(), "foo");
+  ASSERT_TRUE(call->getCallee()->isa<ReferenceAccess>());
+  EXPECT_EQ(call->getCallee()->cast<ReferenceAccess>()->getName(), "foo");
 
-  auto args = call->getArgs();
+  auto args = call->getArguments();
   EXPECT_TRUE(args.empty());
 }
 
@@ -1381,22 +1398,22 @@ TEST(Parser, expression_functionCall_withArgs)
   EXPECT_EQ((*node)->getLocation().end.column, 12);
 
   ASSERT_TRUE((*node)->isa<Call>());
-  auto call = (*node)->get<Call>();
+  auto call = (*node)->cast<Call>();
 
-  ASSERT_TRUE(call->getFunction()->isa<ReferenceAccess>());
-  EXPECT_EQ(call->getFunction()->get<ReferenceAccess>()->getName(), "foo");
+  ASSERT_TRUE(call->getCallee()->isa<ReferenceAccess>());
+  EXPECT_EQ(call->getCallee()->cast<ReferenceAccess>()->getName(), "foo");
 
-  auto args = call->getArgs();
+  auto args = call->getArguments();
   EXPECT_EQ(args.size(), 3);
 
   ASSERT_TRUE(args[0]->isa<ReferenceAccess>());
-  EXPECT_EQ(args[0]->get<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ(args[0]->cast<ReferenceAccess>()->getName(), "x");
 
   ASSERT_TRUE(args[1]->isa<Constant>());
-  EXPECT_EQ(args[1]->get<Constant>()->get<BuiltInType::Integer>(), 1);
+  EXPECT_EQ(args[1]->cast<Constant>()->as<int64_t>(), 1);
 
   ASSERT_TRUE(args[2]->isa<Constant>());
-  EXPECT_EQ(args[2]->get<Constant>()->get<BuiltInType::Integer>(), 2);
+  EXPECT_EQ(args[2]->cast<Constant>()->as<int64_t>(), 2);
 }
 
 TEST(Parser, annotation_inlineTrue)
@@ -1416,7 +1433,8 @@ TEST(Parser, annotation_inlineTrue)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 25);
 
-  EXPECT_TRUE((*node)->getInlineProperty());
+  ASSERT_TRUE((*node)->isa<Annotation>());
+  EXPECT_TRUE((*node)->cast<Annotation>()->getInlineProperty());
 }
 
 TEST(Parser, annotation_inlineFalse)
@@ -1436,7 +1454,8 @@ TEST(Parser, annotation_inlineFalse)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 26);
 
-  EXPECT_FALSE((*node)->getInlineProperty());
+  ASSERT_TRUE((*node)->isa<Annotation>());
+  EXPECT_FALSE((*node)->cast<Annotation>()->getInlineProperty());
 }
 
 TEST(Parser, annotation_inverseFunction)
@@ -1456,7 +1475,8 @@ TEST(Parser, annotation_inverseFunction)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 51);
 
-  auto annotation = (*node)->getInverseFunctionAnnotation();
+  ASSERT_TRUE((*node)->isa<Annotation>());
+  auto annotation = (*node)->cast<Annotation>()->getInverseFunctionAnnotation();
 
   ASSERT_TRUE(annotation.isInvertible("y"));
   EXPECT_EQ(annotation.getInverseFunction("y"), "foo1");
@@ -1488,7 +1508,8 @@ TEST(Parser, annotation_functionDerivativeWithOrder)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 36);
 
-  auto annotation = (*node)->getDerivativeAnnotation();
+  ASSERT_TRUE((*node)->isa<Annotation>());
+  auto annotation = (*node)->cast<Annotation>()->getDerivativeAnnotation();
 
   EXPECT_EQ(annotation.getName(), "foo1");
   EXPECT_EQ(annotation.getOrder(), 2);
@@ -1511,7 +1532,8 @@ TEST(Parser, annotation_functionDerivativeWithoutOrder)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 27);
 
-  auto annotation = (*node)->getDerivativeAnnotation();
+  ASSERT_TRUE((*node)->isa<Annotation>());
+  auto annotation = (*node)->cast<Annotation>()->getDerivativeAnnotation();
 
   EXPECT_EQ(annotation.getName(), "foo1");
   EXPECT_EQ(annotation.getOrder(), 1);

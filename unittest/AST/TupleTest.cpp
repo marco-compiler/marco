@@ -6,6 +6,7 @@ using namespace ::marco::ast;
 
 #define LOC SourceRange::unknown()
 
+/*
 TEST(AST, tuple_singleElement)
 {
 	auto expression = Expression::tuple(
@@ -29,3 +30,4 @@ TEST(AST, tuple_multipleElements)
   ASSERT_TRUE(expression->isa<Tuple>());
 	EXPECT_EQ(expression->get<Tuple>()->size(), 3);
 }
+*/

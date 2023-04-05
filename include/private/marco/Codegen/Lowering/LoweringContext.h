@@ -11,8 +11,10 @@ namespace marco::codegen::lowering
 {
   struct LoweringContext
   {
-    using SymbolTable = llvm::ScopedHashTable<llvm::StringRef, Reference>;
-    using SymbolScope = SymbolTable::ScopeTy;
+    using VariablesSymbolTable =
+        llvm::ScopedHashTable<llvm::StringRef, Reference>;
+
+    using VariablesScope = VariablesSymbolTable::ScopeTy;
 
     LoweringContext(mlir::MLIRContext& context, CodegenOptions options);
 
@@ -21,12 +23,15 @@ namespace marco::codegen::lowering
     /// that is where the next operations will be introduced.
     mlir::OpBuilder builder;
 
+    /// Global symbol table.
+    /// It should not be used before the class declaration process is finished.
+    mlir::SymbolTableCollection symbolTable;
+
     /// The symbol table maps a variable name to a value in the current scope.
-    /// Entering a function creates a new scope, and the function arguments
-    /// are added to the mapping. When the processing of a function is
+    /// Entering a class creates a new scope. When the processing of a class is
     /// terminated, the scope is destroyed and the mappings created in this
     /// scope are dropped.
-    SymbolTable symbolTable;
+    VariablesSymbolTable variablesSymbolTable;
 
     /// A list of options that has impact on the whole code generation process.
     CodegenOptions options;

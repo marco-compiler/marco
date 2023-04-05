@@ -913,10 +913,9 @@ namespace
         rewriter.setInsertionPointToEnd(moduleOp.getBody());
 
         auto functionOp = rewriter.create<FunctionOp>(loc, functionName);
-        mlir::Block* entryBlock = rewriter.createBlock(&functionOp.getBody());
 
         // Declare the variables.
-        rewriter.setInsertionPointToStart(entryBlock);
+        rewriter.setInsertionPointToStart(functionOp.bodyBlock());
         mlir::BlockAndValueMapping mapping;
 
         for (VariableOp variableOp : inputVariables) {
@@ -979,7 +978,7 @@ namespace
 
         // Create the algorithm inside the function and move the original body
         // into it.
-        rewriter.setInsertionPointToEnd(entryBlock);
+        rewriter.setInsertionPointToEnd(functionOp.bodyBlock());
         auto algorithmOp = rewriter.create<AlgorithmOp>(loc);
 
         rewriter.inlineRegionBefore(
@@ -1441,6 +1440,7 @@ namespace
       void runOnOperation() override
       {
         mlir::OpBuilder builder(getOperation());
+        getOperation().dump();
         llvm::SmallVector<ModelOp, 1> modelOps;
 
         for (ModelOp modelOp : getOperation().getOps<ModelOp>()) {

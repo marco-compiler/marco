@@ -8,43 +8,39 @@ namespace marco::ast
 {
 	class Expression;
 
-	class Equation
-			: public ASTNode,
-				public impl::Cloneable<Equation>,
-				public impl::Dumpable<Equation>
+	class Equation : public ASTNode
 	{
 		public:
-      template<typename... Args>
-      static std::unique_ptr<Equation> build(Args&&... args)
-      {
-        return std::unique_ptr<Equation>(new Equation(std::forward<Args>(args)...));
-      }
+      explicit Equation(SourceRange location);
 
       Equation(const Equation& other);
-      Equation(Equation&& other);
+
       ~Equation() override;
 
-      Equation& operator=(const Equation& other);
-      Equation& operator=(Equation&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Equation;
+      }
 
-      friend void swap(Equation& first, Equation& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] Expression* getLhsExpression();
-      [[nodiscard]] const Expression* getLhsExpression() const;
-      void setLhsExpression(std::unique_ptr<Expression> expression);
+      Expression* getLhsExpression();
 
-      [[nodiscard]] Expression* getRhsExpression();
-      [[nodiscard]] const Expression* getRhsExpression() const;
-      void setRhsExpression(std::unique_ptr<Expression> expression);
+      const Expression* getLhsExpression() const;
 
-		private:
-      Equation(SourceRange location, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs);
+      void setLhsExpression(std::unique_ptr<ASTNode> node);
+
+      Expression* getRhsExpression();
+
+      const Expression* getRhsExpression() const;
+
+      void setRhsExpression(std::unique_ptr<ASTNode> node);
 
     private:
-      std::unique_ptr<Expression> lhs;
-      std::unique_ptr<Expression> rhs;
+      std::unique_ptr<ASTNode> lhs;
+      std::unique_ptr<ASTNode> rhs;
 	};
 }
 

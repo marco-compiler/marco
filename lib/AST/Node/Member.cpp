@@ -1,89 +1,54 @@
 #include "marco/AST/Node/Member.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Modification.h"
+#include "marco/AST/Node/Type.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Member::Member(
-      SourceRange location,
-      llvm::StringRef name,
-      Type type,
-      TypePrefix typePrefix,
-      bool isPublic,
-      std::unique_ptr<Modification> modification)
-      : ASTNode(std::move(location)),
-        name(name.str()),
-        type(std::move(type)),
-        typePrefix(std::move(typePrefix)),
-        isPublicMember(isPublic),
-        modification(std::move(modification))
+  Member::Member(SourceRange location)
+      : ASTNode(ASTNode::Kind::Member, std::move(location)),
+        name(""),
+        isPublicMember(true)
   {
   }
 
   Member::Member(const Member& other)
       : ASTNode(other),
         name(other.name),
-        type(other.type),
-        typePrefix(other.typePrefix),
         isPublicMember(other.isPublicMember)
   {
+    setType(other.type->clone());
+    setTypePrefix(other.typePrefix->clone());
+
     if (other.hasModification()) {
-      modification = std::make_unique<Modification>(*other.modification);
+      setModification(other.modification->clone());
     }
   }
-
-  Member::Member(Member&& other) = default;
 
   Member::~Member() = default;
 
-  Member& Member::operator=(const Member& other)
+  std::unique_ptr<ASTNode> Member::clone() const
   {
-    Member result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Member>(*this);
   }
 
-  Member& Member::operator=(Member&& other) = default;
-
-  void swap(Member& first, Member& second)
+  llvm::json::Value Member::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
-
-    using std::swap;
-    swap(first.name, second.name);
-    swap(first.type, second.type);
-    swap(first.typePrefix, second.typePrefix);
-    swap(first.isPublicMember, second.isPublicMember);
-    swap(first.modification, second.modification);
-  }
-
-  void Member::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "member: {name: " << name << ", type: ";
-    type.print(os);
-    os << "}\n";
+    llvm::json::Object result;
+    result["name"] = getName();
+    result["type"] = getType()->toJSON();
+    result["type_prefix"] = getTypePrefix()->toJSON();
+    result["public"] = isPublicMember;
 
     if (hasModification()) {
-      os.indent(indents + 1);
-      os << "modification:\n";
-      modification->print(os, indents + 2);
+      result["modification"] = getModification()->toJSON();
     }
-  }
 
-  bool Member::operator==(const Member& other) const
-  {
-    return name == other.name &&
-        type == other.type &&
-        modification == other.modification;
-  }
-
-  bool Member::operator!=(const Member& other) const
-  {
-    return !(*this == other);
+    addJSONProperties(result);
+    return result;
   }
 
   llvm::StringRef Member::getName() const
@@ -91,24 +56,45 @@ namespace marco::ast
     return name;
   }
 
-  Type& Member::getType()
+  void Member::setName(llvm::StringRef newName)
   {
-    return type;
+    name = newName.str();
   }
 
-  const Type& Member::getType() const
+  VariableType* Member::getType()
   {
-    return type;
+    assert(type != nullptr && "Type not set");
+    return type->cast<VariableType>();
   }
 
-  void Member::setType(Type new_type)
+  const VariableType* Member::getType() const
   {
-    type = std::move(new_type);
+    assert(type != nullptr && "Type not set");
+    return type->cast<VariableType>();
   }
 
-  TypePrefix Member::getTypePrefix() const
+  void Member::setType(std::unique_ptr<ASTNode> node)
   {
-    return typePrefix;
+    assert(node->isa<VariableType>());
+    type = std::move(node);
+    type->setParent(this);
+  }
+
+  TypePrefix* Member::getTypePrefix()
+  {
+    return typePrefix->cast<TypePrefix>();
+  }
+
+  const TypePrefix* Member::getTypePrefix() const
+  {
+    return typePrefix->cast<TypePrefix>();
+  }
+
+  void Member::setTypePrefix(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<TypePrefix>());
+    typePrefix = std::move(node);
+    typePrefix->setParent(this);
   }
 
   bool Member::isPublic() const
@@ -116,29 +102,34 @@ namespace marco::ast
     return isPublicMember;
   }
 
+  void Member::setPublic(bool value)
+  {
+    isPublicMember = value;
+  }
+
   bool Member::isDiscrete() const
   {
-    return typePrefix.isDiscrete();
+    return getTypePrefix()->isDiscrete();
   }
 
   bool Member::isParameter() const
   {
-    return typePrefix.isParameter();
+    return getTypePrefix()->isParameter();
   }
 
   bool Member::isConstant() const
   {
-    return typePrefix.isConstant();
+    return getTypePrefix()->isConstant();
   }
 
   bool Member::isInput() const
   {
-    return typePrefix.isInput();
+    return getTypePrefix()->isInput();
   }
 
   bool Member::isOutput() const
   {
-    return typePrefix.isOutput();
+    return getTypePrefix()->isOutput();
   }
 
   bool Member::hasModification() const
@@ -149,13 +140,20 @@ namespace marco::ast
   Modification* Member::getModification()
   {
     assert(hasModification());
-    return modification.get();
+    return modification->cast<Modification>();
   }
 
   const Modification* Member::getModification() const
   {
     assert(hasModification());
-    return modification.get();
+    return modification->cast<Modification>();
+  }
+
+  void Member::setModification(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Modification>());
+    modification = std::move(node);
+    modification->setParent(this);
   }
 
   bool Member::hasExpression() const
@@ -164,23 +162,23 @@ namespace marco::ast
       return false;
     }
 
-    if (!modification->hasExpression()) {
+    if (!getModification()->hasExpression()) {
       return false;
     }
 
-    return modification->getExpression();
+    return getModification()->getExpression();
   }
 
   Expression* Member::getExpression()
   {
     assert(hasExpression());
-    return modification->getExpression();
+    return getModification()->getExpression();
   }
 
   const Expression* Member::getExpression() const
   {
     assert(hasExpression());
-    return modification->getExpression();
+    return getModification()->getExpression();
   }
 
   bool Member::hasStartExpression() const
@@ -189,19 +187,19 @@ namespace marco::ast
       return false;
     }
 
-    return modification->hasStartExpression();
+    return getModification()->hasStartExpression();
   }
 
   Expression* Member::getStartExpression()
   {
     assert(hasStartExpression());
-    return modification->getStartExpression();
+    return getModification()->getStartExpression();
   }
 
   const Expression* Member::getStartExpression() const
   {
     assert(hasStartExpression());
-    return modification->getStartExpression();
+    return getModification()->getStartExpression();
   }
 
   bool Member::getFixedProperty() const
@@ -210,7 +208,7 @@ namespace marco::ast
       return false;
     }
 
-    return modification->getFixedProperty();
+    return getModification()->getFixedProperty();
   }
 
   bool Member::getEachProperty() const
@@ -219,6 +217,6 @@ namespace marco::ast
       return false;
     }
 
-    return modification->getEachProperty();
+    return getModification()->getEachProperty();
   }
 }

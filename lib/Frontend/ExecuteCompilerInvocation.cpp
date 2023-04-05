@@ -20,9 +20,6 @@ static std::unique_ptr<FrontendAction> createFrontendBaseAction(
     case EmitAST:
       return std::make_unique<EmitASTAction>();
 
-    case EmitFinalAST:
-      return std::make_unique<EmitFinalASTAction>();
-
     case EmitMLIR:
       return std::make_unique<EmitMLIRAction>();
 

@@ -24,8 +24,6 @@ namespace marco::codegen::lowering
 
       /// }
 
-      mlir::Value operator*() const;
-
     private:
       Reference reference;
   };

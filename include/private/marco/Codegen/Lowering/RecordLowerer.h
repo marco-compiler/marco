@@ -10,15 +10,15 @@ namespace marco::codegen::lowering
   class RecordLowerer : public Lowerer
   {
     public:
-      RecordLowerer(LoweringContext* context, BridgeInterface* bridge);
+      RecordLowerer(BridgeInterface* bridge);
 
-      std::vector<mlir::Operation*> lower(const ast::Record& model);
+      void declare(const ast::Record& record) override;
+
+      void lower(const ast::Record& record) override;
 
     protected:
+      using Lowerer::declare;
       using Lowerer::lower;
-
-    private:
-      void lower(const ast::Member& member);
   };
 }
 

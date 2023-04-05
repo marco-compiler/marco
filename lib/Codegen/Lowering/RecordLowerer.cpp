@@ -1,17 +1,68 @@
 #include "marco/Codegen/Lowering/RecordLowerer.h"
 
 using namespace ::marco;
-using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
-  RecordLowerer::RecordLowerer(LoweringContext* context, BridgeInterface* bridge)
-      : Lowerer(context, bridge)
+  RecordLowerer::RecordLowerer(BridgeInterface* bridge)
+      : Lowerer(bridge)
   {
   }
 
+  void RecordLowerer::declare(const ast::Record& record)
+  {
+    mlir::Location location = loc(record.getLocation());
+
+    // Create the record operation.
+    auto recordOp = builder().create<RecordOp>(location, record.getName());
+
+    mlir::OpBuilder::InsertionGuard guard(builder());
+    builder().setInsertionPointToStart(recordOp.bodyBlock());
+
+    // Declare the variables.
+    declareClassVariables(record);
+
+    // Declare the inner classes.
+    for (const auto& innerClassNode : record.getInnerClasses()) {
+      declare(*innerClassNode->cast<ast::Class>());
+    }
+  }
+
+  void RecordLowerer::lower(const ast::Record& record)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder());
+    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+
+    // Get the operation.
+    auto recordOp = mlir::cast<RecordOp>(getClass(record));
+    builder().setInsertionPointToEnd(recordOp.bodyBlock());
+
+    // Map the variables.
+    insertVariable(
+        "time",
+        Reference::time(builder(), builder().getUnknownLoc()));
+
+    for (VariableOp variableOp : recordOp.getVariables()) {
+      insertVariable(
+          variableOp.getSymName(),
+          Reference::variable(
+              builder(), variableOp->getLoc(),
+              variableOp.getSymName(),
+              variableOp.getVariableType().unwrap()));
+    }
+
+    // Lower the body.
+    lowerClassBody(record);
+
+    // Lower the inner classes.
+    for (const auto& innerClassNode : record.getInnerClasses()) {
+      lower(*innerClassNode->cast<ast::Class>());
+    }
+  }
+
+  /*
   std::vector<mlir::Operation*> RecordLowerer::lower(const Record& record)
   {
     std::vector<mlir::Operation*> result;
@@ -155,4 +206,5 @@ namespace marco::codegen::lowering
       builder().create<YieldOp>(location, fixedDimensions);
     }
   }
+   */
 }

@@ -10,12 +10,13 @@ namespace marco::codegen::lowering
   class AlgorithmLowerer : public Lowerer
   {
     public:
-      AlgorithmLowerer(LoweringContext* context, BridgeInterface* bridge);
+      AlgorithmLowerer(BridgeInterface* bridge);
 
       void lower(const ast::Algorithm& algorithm) override;
 
     protected:
       using Lowerer::lower;
+
   };
 }
 

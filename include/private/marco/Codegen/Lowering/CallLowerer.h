@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_LOWERING_CALLBRIDGE_H
-#define MARCO_CODEGEN_LOWERING_CALLBRIDGE_H
+#ifndef MARCO_CODEGEN_LOWERING_CALLLOWERER_H
+#define MARCO_CODEGEN_LOWERING_CALLLOWERER_H
 
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
@@ -9,14 +9,48 @@
 
 namespace marco::codegen::lowering
 {
+  class ExpressionLowerer;
+
   class CallLowerer : public Lowerer
   {
     public:
-      using LoweringFunction = std::function<Results(CallLowerer&, const ast::Call&)>;
+      CallLowerer(BridgeInterface* bridge);
 
-      CallLowerer(LoweringContext* context, BridgeInterface* bridge);
+      virtual Results lower(const ast::Call& call) override;
 
-      Results userDefinedFunction(const ast::Call& call);
+    protected:
+      using Lowerer::lower;
+
+    private:
+      mlir::Value lowerArg(const ast::Expression& expression);
+
+      void lowerArgs(
+          const ast::Call& call,
+          llvm::SmallVectorImpl<mlir::Value>& args);
+
+      /// Get the argument expected ranks of a user-defined function.
+      void getFunctionExpectedArgRanks(
+          mlir::Operation* op,
+          llvm::SmallVectorImpl<int64_t>& ranks);
+
+      /// Get the result types of a user-defined function.
+      void getFunctionResultTypes(
+          mlir::Operation* op,
+          llvm::SmallVectorImpl<mlir::Type>& types);
+
+      /// Get the result type in case of a possibly element-wise call.
+      /// The arguments are needed because some functions (such as min / size)
+      /// may vary their behaviour according to arguments count.
+      bool getVectorizedResultTypes(
+          llvm::ArrayRef<mlir::Value> args,
+          llvm::ArrayRef<int64_t> expectedArgRanks,
+          llvm::ArrayRef<mlir::Type> scalarizedResultTypes,
+          llvm::SmallVectorImpl<mlir::Type>& inferredResultTypes) const;
+
+      /// Check if a built-in function with a given name exists.
+      bool isBuiltInFunction(llvm::StringRef name) const;
+
+      Results dispatchBuiltInFunctionCall(const ast::Call& call);
 
       Results abs(const ast::Call& call);
       Results acos(const ast::Call& call);
@@ -57,4 +91,4 @@ namespace marco::codegen::lowering
   };
 }
 
-#endif // MARCO_CODEGEN_LOWERING_CALLBRIDGE_H
+#endif // MARCO_CODEGEN_LOWERING_CALLLOWERER_H

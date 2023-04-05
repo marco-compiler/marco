@@ -14,9 +14,11 @@ namespace
     {
       std::set<const Expression*> result;
 
+      /*
       for (const auto& value : array) {
         result.insert(value.get());
       }
+       */
 
       return result;
     }
@@ -25,9 +27,11 @@ namespace
     {
       std::set<const Expression*> result;
 
+      /*
       for (const auto& expression : call.getArgs()) {
         result.insert(expression.get());
       }
+       */
 
       return result;
     }
@@ -41,9 +45,11 @@ namespace
     {
       std::set<const Expression*> result;
 
+      /*
       for (const auto& expression : operation.getArguments()) {
         result.insert(expression.get());
       }
+       */
 
       return result;
     }
@@ -58,9 +64,11 @@ namespace
     {
       std::set<const Expression*> result;
 
+      /*
       for (const auto& expression : tuple) {
         result.insert(expression.get());
       }
+       */
 
       return result;
     }
@@ -146,6 +154,7 @@ namespace marco::ast
         const Member* member = node.value().member;
         auto& children = arcs[member];
 
+        /*
         for (const auto& dimension : member->getType().getDimensions()) {
           if (dimension.hasExpression()) {
             const Expression* expression = dimension.getExpression();
@@ -156,6 +165,7 @@ namespace marco::ast
             }
           }
         }
+         */
 
         // If the internal ordering must be preserved, then add the arcs from
         // each node of the group to its predecessor.
@@ -242,6 +252,7 @@ namespace marco::ast
   {
     std::set<const Member*> result;
 
+    /*
     std::stack<const Expression*> expressions;
     expressions.push(expression);
 
@@ -274,6 +285,7 @@ namespace marco::ast
         }
       }
     }
+    */
 
     return result;
   }

@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_LOWERING_STATEMENTBRIDGE_H
-#define MARCO_CODEGEN_LOWERING_STATEMENTBRIDGE_H
+#ifndef MARCO_CODEGEN_LOWERING_STATEMENTLOWERER_H
+#define MARCO_CODEGEN_LOWERING_STATEMENTLOWERER_H
 
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
@@ -10,16 +10,13 @@ namespace marco::codegen::lowering
   class StatementLowerer : public Lowerer
   {
     public:
-      StatementLowerer(LoweringContext* context, BridgeInterface* bridge);
+      StatementLowerer(BridgeInterface* bridge);
 
-      void operator()(const ast::AssignmentStatement& statement);
-      void operator()(const ast::IfStatement& statement);
-      void operator()(const ast::ForStatement& statement);
-      void operator()(const ast::WhileStatement& statement);
-      void operator()(const ast::WhenStatement& statement);
-      void operator()(const ast::BreakStatement& statement);
-      void operator()(const ast::ReturnStatement& statement);
+      void lower(const ast::Statement& statement) override;
+
+    protected:
+      using Lowerer::lower;
   };
 }
 
-#endif // MARCO_CODEGEN_LOWERING_STATEMENTBRIDGE_H
+#endif // MARCO_CODEGEN_LOWERING_STATEMENTLOWERER_H

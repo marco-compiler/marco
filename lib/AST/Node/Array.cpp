@@ -1,61 +1,40 @@
 #include "marco/AST/Node/Array.h"
-#include "marco/AST/Node/Expression.h"
-#include <memory>
-#include <numeric>
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Array::Array(SourceRange location,
-               Type type,
-               llvm::ArrayRef<std::unique_ptr<Expression>> values)
-      : ASTNode(std::move(location)),
-        type(std::move(type))
+  Array::Array(SourceRange location)
+      : Expression(ASTNode::Kind::Expression_Array, std::move(location))
   {
-    for (const auto& value : values) {
-      this->values.push_back(value->clone());
-    }
   }
 
   Array::Array(const Array& other)
-      : ASTNode(other),
-        type(other.type)
+      : Expression(other)
   {
-    for (const auto& value : other.values) {
-      this->values.push_back(value->clone());
+    setValues(other.values);
+  }
+
+  std::unique_ptr<ASTNode> Array::clone() const
+  {
+    return std::make_unique<Array>(*this);
+  }
+
+  llvm::json::Value Array::toJSON() const
+  {
+    llvm::json::Object result;
+
+    llvm::SmallVector<llvm::json::Value> valuesJson;
+
+    for (const auto& value : values) {
+      valuesJson.push_back(value->toJSON());
     }
-  }
 
-  Array::Array(Array&& other) = default;
+    result["values"] = llvm::json::Array(valuesJson);
 
-  Array::~Array() = default;
-
-  Array& Array::operator=(const Array& other)
-  {
-    Array result(other);
-    swap(*this, result);
-    return *this;
-  }
-
-  Array& Array::operator=(Array&& other) = default;
-
-  void swap(Array& first, Array& second)
-  {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
-
-    using std::swap;
-    swap(first.type, second.type);
-    impl::swap(first.values, second.values);
-  }
-
-  void Array::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "array:\n";
-    for (const auto& value : values)
-      value->print(os, indents+1);
+    addJSONProperties(result);
+    return result;
   }
 
   bool Array::isLValue() const
@@ -63,95 +42,31 @@ namespace marco::ast
     return false;
   }
 
-  bool Array::operator==(const Array& other) const
-  {
-    if (type != other.type) {
-      return false;
-    }
-
-    if (values.size() != other.values.size()) {
-      return false;
-    }
-
-    auto pairs = llvm::zip(values, other.values);
-
-    return std::all_of(pairs.begin(), pairs.end(), [](const auto& pair) {
-      const auto& [x, y] = pair;
-      return *x == *y;
-    });
-  }
-
-  bool Array::operator!=(const Array& other) const
-  {
-    return !(*this == other);
-  }
-
-  Expression* Array::operator[](size_t index)
-  {
-    assert(index < values.size());
-    return values[index].get();
-  }
-
-  const Expression* Array::operator[](size_t index) const
-  {
-    assert(index < values.size());
-    return values[index].get();
-  }
-
-  Type& Array::getType()
-  {
-    return type;
-  }
-
-  const Type& Array::getType() const
-  {
-    return type;
-  }
-
-  void Array::setType(Type tp)
-  {
-    type = std::move(tp);
-  }
-
   size_t Array::size() const
   {
     return values.size();
   }
 
-  Array::iterator Array::begin()
+  Expression* Array::operator[](size_t index)
   {
-    return values.begin();
+    assert(index < values.size());
+    return values[index]->cast<Expression>();
   }
 
-  Array::const_iterator Array::begin() const
+  const Expression* Array::operator[](size_t index) const
   {
-    return values.begin();
+    assert(index < values.size());
+    return values[index]->cast<Expression>();
   }
 
-  Array::iterator Array::end()
+  void Array::setValues(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    return values.end();
-  }
+    values.clear();
 
-  Array::const_iterator Array::end() const
-  {
-    return values.end();
-  }
-
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Array& obj)
-  {
-    return stream << toString(obj);
-  }
-
-  std::string toString(const Array& obj)
-  {
-    return "(" +
-        accumulate(
-               obj.begin(), obj.end(), std::string(),
-               [](const std::string& result, const std::unique_ptr<Expression>& element) {
-                 std::string str = toString(*element);
-                 return result.empty() ? str : result + "," + str;
-               }) +
-        ")";
+    for (const auto& node : nodes) {
+      assert(node->isa<Expression>());
+      auto& clone = values.emplace_back(node->clone());
+      clone->setParent(this);
+    }
   }
 }

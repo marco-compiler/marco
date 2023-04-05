@@ -3,7 +3,6 @@
 
 #include "marco/AST/Node/ASTNode.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
 #include <string>
 #include <type_traits>
 
@@ -17,11 +16,6 @@ namespace marco::ast
 		none
 	};
 
-	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const VariabilityQualifier& obj);
-
-	std::string toString(VariabilityQualifier qualifier);
-
 	enum class IOQualifier
 	{
 		input,
@@ -29,28 +23,34 @@ namespace marco::ast
 		none
 	};
 
-	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const IOQualifier& obj);
-
-	std::string toString(IOQualifier qualifier);
-
-	class TypePrefix : public impl::Dumpable<TypePrefix>
+	class TypePrefix : public ASTNode
 	{
 		public:
-      TypePrefix(
-        VariabilityQualifier variabilityQualifier,
-        IOQualifier ioQualifier);
+      explicit TypePrefix(SourceRange location);
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      TypePrefix(const TypePrefix& other);
 
-      [[nodiscard]] bool isDiscrete() const;
-      [[nodiscard]] bool isParameter() const;
-      [[nodiscard]] bool isConstant() const;
+      ~TypePrefix() override;
 
-      [[nodiscard]] bool isInput() const;
-      [[nodiscard]] bool isOutput() const;
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::TypePrefix;
+      }
 
-      static TypePrefix none();
+      std::unique_ptr<ASTNode> clone() const override;
+
+      llvm::json::Value toJSON() const override;
+
+      void setVariabilityQualifier(VariabilityQualifier qualifier);
+
+      void setIOQualifier(IOQualifier qualifier);
+
+      bool isDiscrete() const;
+      bool isParameter() const;
+      bool isConstant() const;
+
+      bool isInput() const;
+      bool isOutput() const;
 
 		private:
       VariabilityQualifier variabilityQualifier;

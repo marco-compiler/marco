@@ -1,8 +1,8 @@
 #include "marco/AST/Node/Function.h"
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/Expression.h"
-#include "marco/AST/Node/Algorithm.h"
 #include "marco/AST/Node/Member.h"
+#include "marco/AST/Node/Type.h"
 #include <algorithm>
 #include <variant>
 
@@ -11,287 +11,137 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Function::Function(SourceRange location, llvm::StringRef name)
-      : ASTNode(std::move(location)),
-        name(name.str())
+  FunctionType::FunctionType(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> args,
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> results)
   {
   }
 
-  Function::Function(const Function& other)
-      : ASTNode(other),
-        name(other.name)
+  size_t FunctionType::getNumOfArgs() const
   {
+    return args.size();
   }
 
-  Function::Function(Function&& other) = default;
-
-  Function::~Function() = default;
-
-  Function& Function::operator=(const Function& other)
+  const VariableType* FunctionType::getArg(size_t index) const
   {
-    if (this != &other) {
-      static_cast<ASTNode&>(*this) = static_cast<const ASTNode&>(other);
-
-      this->name = other.name;
-    }
-
-    return *this;
+    assert(index < args.size());
+    return args[index]->cast<VariableType>();
   }
 
-  Function& Function::operator=(Function&& other) = default;
-
-  void swap(Function& first, Function& second)
+  size_t FunctionType::getNumOfResults() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
-
-    using std::swap;
-    swap(first.name, second.name);
+    return results.size();
   }
 
-  llvm::StringRef Function::getName() const
+  const VariableType* FunctionType::getResult(size_t index) const
   {
-    return name;
+    assert(index < results.size());
+    return results[index]->cast<VariableType>();
   }
 
-  PartialDerFunction::PartialDerFunction(
-      SourceRange location,
-      llvm::StringRef name,
-      std::unique_ptr<Expression> derivedFunction,
-      llvm::ArrayRef<std::unique_ptr<Expression>> independentVariables)
-    : Function(std::move(location), name),
-      derivedFunction(std::move(derivedFunction))
+  PartialDerFunction::PartialDerFunction(SourceRange location)
+      : Function(
+          ASTNode::Kind::Class_Function_PartialDerFunction,
+          std::move(location))
   {
-    for (const auto& var : independentVariables) {
-      this->independentVariables.push_back(var->clone());
-    }
   }
 
   PartialDerFunction::PartialDerFunction(const PartialDerFunction& other)
-    : Function(other),
-      derivedFunction(other.derivedFunction->clone())
+    : Function(other)
   {
-    independentVariables.clear();
-
-    for (const auto& arg : other.independentVariables) {
-      independentVariables.push_back(arg->clone());
-    }
-
-    args.clear();
-
-    for (const auto& type : other.args) {
-      args.push_back(type);
-    }
-
-    results.clear();
-
-    for (const auto& type : other.results) {
-      results.push_back(type);
-    }
+    setDerivedFunction(other.derivedFunction->clone());
+    setIndependentVariables(other.independentVariables);
   }
-
-  PartialDerFunction::PartialDerFunction(PartialDerFunction&& other) = default;
 
   PartialDerFunction::~PartialDerFunction() = default;
 
-  PartialDerFunction& PartialDerFunction::operator=(const PartialDerFunction& other)
+  std::unique_ptr<ASTNode> PartialDerFunction::clone() const
   {
-    PartialDerFunction result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<PartialDerFunction>(*this);
   }
 
-  PartialDerFunction& PartialDerFunction::operator=(PartialDerFunction&& other) = default;
-
-  void swap(PartialDerFunction& first, PartialDerFunction& second)
+  llvm::json::Value PartialDerFunction::toJSON() const
   {
-    swap(static_cast<Function&>(first), static_cast<Function&>(second));
+    llvm::json::Object result;
+    result["derived_function"] = getDerivedFunction()->toJSON();
 
-    using std::swap;
-    swap(first.derivedFunction, second.derivedFunction);
-    impl::swap(first.independentVariables, second.independentVariables);
-    swap(first.args, second.args);
-    swap(first.results, second.results);
-  }
+    llvm::SmallVector<llvm::json::Value> independentVariablesJson;
 
-  void PartialDerFunction::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "function " << getName() << "\n";
-
-    os.indent(indents + 1);
-    os << "derived function\n";
-    derivedFunction->dump(os, indents + 2);
-
-    os.indent(indents + 1);
-    os << "args\n";
-
-    for (const auto& var : independentVariables) {
-      var->dump(os, indents + 2);
+    for (const auto& independentVariable : independentVariables) {
+      independentVariablesJson.push_back(independentVariable->toJSON());
     }
+
+    result["independent_variables"] =
+        llvm::json::Array(independentVariablesJson);
+
+    addJSONProperties(result);
+    return result;
   }
 
   Expression* PartialDerFunction::getDerivedFunction() const
   {
-    return derivedFunction.get();
+    assert(derivedFunction != nullptr && "Derived function not set");
+    return derivedFunction->cast<Expression>();
   }
 
-  llvm::MutableArrayRef<std::unique_ptr<Expression>> PartialDerFunction::getIndependentVariables()
+  void PartialDerFunction::setDerivedFunction(std::unique_ptr<ASTNode> node)
+  {
+    derivedFunction = std::move(node);
+    derivedFunction->setParent(this);
+  }
+
+  llvm::ArrayRef<std::unique_ptr<ASTNode>>
+  PartialDerFunction::getIndependentVariables() const
   {
     return independentVariables;
   }
 
-  llvm::ArrayRef<std::unique_ptr<Expression>> PartialDerFunction::getIndependentVariables() const
+  void PartialDerFunction::setIndependentVariables(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    return independentVariables;
-  }
+    independentVariables.clear();
 
-  llvm::MutableArrayRef<Type> PartialDerFunction::getArgsTypes()
-  {
-    return args;
-  }
-
-  llvm::ArrayRef<Type> PartialDerFunction::getArgsTypes() const
-  {
-    return args;
-  }
-
-  void PartialDerFunction::setArgsTypes(llvm::ArrayRef<Type> types)
-  {
-    this->args.clear();
-
-    for (const auto& type : types) {
-      this->args.push_back(type);
+    for (const auto& node : nodes) {
+      assert(node->isa<Expression>());
+      auto& clone = independentVariables.emplace_back(node->clone());
+      clone->setParent(this);
     }
   }
 
-  llvm::MutableArrayRef<Type> PartialDerFunction::getResultsTypes()
+  StandardFunction::StandardFunction(SourceRange location)
+      : Function(
+          ASTNode::Kind::Class_Function_StandardFunction,
+          std::move(location))
   {
-    return results;
-  }
-
-  llvm::ArrayRef<Type> PartialDerFunction::getResultsTypes() const
-  {
-    return results;
-  }
-
-  void PartialDerFunction::setResultsTypes(llvm::ArrayRef<Type> types)
-  {
-    this->results.clear();
-
-    for (const auto& type : types) {
-      this->results.push_back(type);
-    }
-  }
-
-  FunctionType PartialDerFunction::getType() const
-  {
-    return FunctionType(args, results);
-  }
-
-  StandardFunction::StandardFunction(
-      SourceRange location,
-      bool pure,
-      llvm::StringRef name,
-      llvm::ArrayRef<std::unique_ptr<Member>> members,
-      llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
-      llvm::Optional<std::unique_ptr<Annotation>> annotation)
-    : Function(std::move(location), name),
-      pure(pure)
-  {
-    for (const auto& member : members) {
-      this->members.push_back(member->clone());
-    }
-
-    for (const auto& algorithm : algorithms) {
-      this->algorithms.push_back(algorithm->clone());
-    }
-
-    if (annotation.has_value()) {
-      this->annotation = annotation.value()->clone();
-    } else {
-      this->annotation = llvm::None;
-    }
   }
 
   StandardFunction::StandardFunction(const StandardFunction& other)
     : Function(other),
       pure(other.pure)
   {
-    for (const auto& member : other.members) {
-      this->members.push_back(member->clone());
-    }
-
-    for (const auto& algorithm : other.algorithms) {
-      this->algorithms.push_back(algorithm->clone());
-    }
-
-    if (other.annotation.has_value()) {
-      annotation = other.annotation.value()->clone();
-    } else {
-      annotation = llvm::None;
+    if (other.hasAnnotation()) {
+      setAnnotation(other.annotation->clone());
     }
   }
-
-  StandardFunction::StandardFunction(StandardFunction&& other) = default;
 
   StandardFunction::~StandardFunction() = default;
 
-  StandardFunction& StandardFunction::operator=(const StandardFunction& other)
+  std::unique_ptr<ASTNode> StandardFunction::clone() const
   {
-    StandardFunction result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<StandardFunction>(*this);
   }
 
-  StandardFunction& StandardFunction::operator=(StandardFunction&& other) = default;
-
-  void swap(StandardFunction& first, StandardFunction& second)
+  llvm::json::Value StandardFunction::toJSON() const
   {
-    swap(static_cast<Function&>(first), static_cast<Function&>(second));
+    llvm::json::Object result;
+    result["pure"] = llvm::json::Value(pure);
 
-    using std::swap;
-    swap(first.pure, second.pure);
-    impl::swap(first.members, second.members);
-    impl::swap(first.algorithms, second.algorithms);
-    swap(first.annotation, second.annotation);
-  }
-
-  void StandardFunction::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "function " << getName() << "\n";
-
-    for (const auto& member : members) {
-      member->print(os, indents + 1);
+    if (hasAnnotation()) {
+      result["annotation"] = getAnnotation()->toJSON();
     }
 
-    for (const auto& algorithm : getAlgorithms()) {
-      algorithm->print(os, indents + 1);
-    }
-  }
-
-  Member* StandardFunction::operator[](llvm::StringRef name)
-  {
-    for (auto& member : members) {
-      if (member->getName() == name) {
-        return member.get();
-      }
-    }
-
-    assert(false && "Not found");
-    return nullptr;
-  }
-
-  const Member* StandardFunction::operator[](llvm::StringRef name) const
-  {
-    for (const auto& member : members) {
-      if (member->getName() == name) {
-        return member.get();
-      }
-    }
-
-    assert(false && "Not found");
-    return nullptr;
+    addJSONProperties(result);
+    return result;
   }
 
   bool StandardFunction::isPure() const
@@ -299,114 +149,56 @@ namespace marco::ast
     return pure;
   }
 
-  llvm::MutableArrayRef<std::unique_ptr<Member>> StandardFunction::getMembers()
+  void StandardFunction::setPure(bool value)
   {
-    return members;
-  }
-
-  llvm::ArrayRef<std::unique_ptr<Member>> StandardFunction::getMembers() const
-  {
-    return members;
-  }
-
-  StandardFunction::Container<Member*> StandardFunction::getArgs() const
-  {
-    Container<Member*> result;
-
-    for (const auto& member : members) {
-      if (member->isInput()) {
-        result.push_back(member.get());
-      }
-    }
-
-    return result;
-  }
-
-  StandardFunction::Container<Member*> StandardFunction::getResults() const
-  {
-    Container<Member*> result;
-
-    for (const auto& member : members) {
-      if (member->isOutput()) {
-        result.push_back(member.get());
-      }
-    }
-
-    return result;
-  }
-
-  StandardFunction::Container<Member*> StandardFunction::getProtectedMembers() const
-  {
-    Container<Member*> result;
-
-    for (const auto& member : members) {
-      if (!member->isInput() && !member->isOutput()) {
-        result.push_back(member.get());
-      }
-    }
-
-    return result;
-  }
-
-  void StandardFunction::addMember(std::unique_ptr<Member> member)
-  {
-    this->members.push_back(std::move(member));
-  }
-
-  llvm::MutableArrayRef<std::unique_ptr<Algorithm>> StandardFunction::getAlgorithms()
-  {
-    return algorithms;
-  }
-
-  llvm::ArrayRef<std::unique_ptr<Algorithm>> StandardFunction::getAlgorithms() const
-  {
-    return algorithms;
+    pure = value;
   }
 
   bool StandardFunction::hasAnnotation() const
   {
-    return annotation.has_value();
+    return annotation != nullptr;
   }
 
   Annotation* StandardFunction::getAnnotation()
   {
-    assert(annotation.has_value());
-    return annotation.value().get();
+    assert(annotation != nullptr && "Annotation not set");
+    return annotation->cast<Annotation>();
   }
 
   const Annotation* StandardFunction::getAnnotation() const
   {
-    assert(annotation.has_value());
-    return annotation.value().get();
+    assert(annotation != nullptr && "Annotation not set");
+    return annotation->cast<Annotation>();
+  }
+
+  void StandardFunction::setAnnotation(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Annotation>());
+    annotation = std::move(node);
+    annotation->setParent(this);
   }
 
   bool StandardFunction::shouldBeInlined() const
   {
-    return hasAnnotation() ? getAnnotation()->getInlineProperty() : false;
-  }
-
-  bool StandardFunction::isCustomRecordConstructor() const
-  {
-    auto str = getName().str();
-
-    return str.find(".constructor.") != std::string::npos ||
-        str.find(".'constructor'.") != std::string::npos;
+    return hasAnnotation() && getAnnotation()->getInlineProperty();
   }
 
   FunctionType StandardFunction::getType() const
   {
-    llvm::SmallVector<Type, 3> argsTypes;
-    llvm::SmallVector<Type, 1> resultsTypes;
+    llvm::SmallVector<std::unique_ptr<ASTNode>> args;
+    llvm::SmallVector<std::unique_ptr<ASTNode>> results;
 
-    for (const auto& member : members) {
-      if (member->isInput()) {
-        argsTypes.push_back(member->getType());
-      } else if (member->isOutput()) {
-        resultsTypes.push_back(member->getType());
+    for (const auto& node : getVariables()) {
+      auto* variable = node->cast<Member>();
+
+      if (variable->isInput()) {
+        args.push_back(variable->getType()->clone());
+      } else if (variable->isOutput()) {
+        results.push_back(variable->getType()->clone());
       }
     }
 
-    return FunctionType(argsTypes, resultsTypes);
+    return FunctionType(args, results);
   }
 
   DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name, unsigned int order)

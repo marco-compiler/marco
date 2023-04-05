@@ -1,38 +1,30 @@
 #ifndef MARCO_AST_NODE_COSTANT_H
 #define MARCO_AST_NODE_COSTANT_H
 
-#include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Type.h"
-#include <cassert>
+#include "marco/AST/Node/Expression.h"
 #include <string>
-#include <type_traits>
 
 namespace marco::ast
 {
-	class Constant
-			: public ASTNode,
-				public impl::Dumpable<Constant>
+	class Constant : public Expression
 	{
 		public:
+      Constant(SourceRange location);
+
       Constant(const Constant& other);
-      Constant(Constant&& other);
+
       ~Constant() override;
 
-      Constant& operator=(const Constant& other);
-      Constant& operator=(Constant&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Expression_Constant;
+      }
 
-      friend void swap(Constant& first, Constant& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] bool isLValue() const;
-
-      [[nodiscard]] bool operator==(const Constant& other) const;
-      [[nodiscard]] bool operator!=(const Constant& other) const;
-
-      [[nodiscard]] Type& getType();
-      [[nodiscard]] const Type& getType() const;
-      void setType(Type tp);
+      bool isLValue() const override;
 
       template<class Visitor>
       auto visit(Visitor&& vis)
@@ -46,64 +38,36 @@ namespace marco::ast
         return std::visit(std::forward<Visitor>(vis), value);
       }
 
-      template<BuiltInType T>
-      [[nodiscard]] bool isa() const
+      template<typename T>
+      T as() const
       {
-        return std::holds_alternative<frontendTypeToType_v<T>>(value);
+        if (std::holds_alternative<bool>(value)) {
+          return static_cast<T>(std::get<bool>(value));
+        }
+
+        if (std::holds_alternative<int64_t>(value)) {
+          return static_cast<T>(std::get<int64_t>(value));
+        }
+
+        if (std::holds_alternative<double>(value)) {
+          return static_cast<T>(std::get<double>(value));
+        }
+
+        return static_cast<T>(!std::get<std::string>(value).empty());
       }
 
-      template<BuiltInType T>
-      [[nodiscard]] frontendTypeToType_v<T>& get()
-      {
-        assert(isa<T>());
-        return std::get<frontendTypeToType_v<T>>(value);
-      }
+      void setValue(bool newValue);
+      void setValue(int64_t newValue);
+      void setValue(double newValue);
+      void setValue(std::string newValue);
 
-      template<BuiltInType T>
-      [[nodiscard]] const frontendTypeToType_v<T>& get() const
-      {
-        assert(isa<T>());
-        return std::get<frontendTypeToType_v<T>>(value);
-      }
-
-      template<BuiltInType T>
-      [[nodiscard]] frontendTypeToType_v<T> as() const
-      {
-        using Tr = frontendTypeToType_v<T>;
-
-        if (isa<BuiltInType::Integer>())
-          return static_cast<Tr>(get<BuiltInType::Integer>());
-
-        if (isa<BuiltInType::Real>())
-          return static_cast<Tr>(get<BuiltInType::Real>());
-
-        if (isa<BuiltInType::Boolean>())
-          return static_cast<Tr>(get<BuiltInType::Boolean>());
-
-        assert(false && "unreachable");
-        return {};
-      }
-
-		private:
-      friend class Expression;
-
-      Constant(SourceRange location, Type type, bool value);
-      Constant(SourceRange location, Type type, int64_t value);
-      Constant(SourceRange location, Type type, double value);
-      Constant(SourceRange location, Type type, std::string value);
-
-      // Utility constructors for tests
-      Constant(SourceRange location, Type type, int32_t value);
-      Constant(SourceRange location, Type type, float value);
+      // Utility methods for tests.
+      void setValue(int32_t newValue);
+      void setValue(float newValue);
 
     private:
-      Type type;
       std::variant<bool, int64_t, double, std::string> value;
 	};
-
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj);
-
-	std::string toString(const Constant& obj);
 }
 
 #endif // MARCO_AST_NODE_COSTANT_H

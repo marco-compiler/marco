@@ -2,79 +2,173 @@
 #define MARCO_AST_NODE_ASTNODE_H
 
 #include "marco/Diagnostic/Location.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/JSON.h"
+
+namespace llvm
+{
+  class raw_ostream;
+}
 
 namespace marco::ast
 {
-	namespace impl
-	{
-		template<class Derived>
-		struct Cloneable
-		{
-			[[nodiscard]] std::unique_ptr<Derived> clone() const
-			{
-				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
-			}
-		};
+  class ASTNode
+  {
+    public:
+      enum class Kind
+      {
+        Root,
+        Algorithm,
+        Annotation,
+        Argument,
+        Argument_ElementModification,
+        Argument_ElementRedeclaration,
+        Argument_ElementReplaceable,
+        Argument_LastArgument,
+        ArrayDimension,
+        Class,
+        Class_Function,
+        Class_Function_PartialDerFunction,
+        Class_Function_StandardFunction,
+        Class_Function_LastFunction,
+        Class_Model,
+        Class_Package,
+        Class_Record,
+        Class_LastClass,
+        ClassModification,
+        Equation,
+        EquationsBlock,
+        Expression,
+        Expression_Array,
+        Expression_Call,
+        Expression_Constant,
+        Expression_Operation,
+        Expression_ReferenceAccess,
+        Expression_Tuple,
+        Expression_LastExpression,
+        ForEquation,
+        Induction,
+        Member,
+        Modification,
+        Statement,
+        Statement_Assignment,
+        Statement_Break,
+        Statement_For,
+        Statement_If,
+        Statement_Return,
+        Statement_When,
+        Statement_While,
+        Statement_LastStatement,
+        StatementsBlock,
+        TypePrefix,
+        VariableType,
+        VariableType_BuiltIn,
+        VariableType_UserDefined,
+        VariableType_LastVariableType
+      };
 
-		template<class Derived>
-		struct Dumpable
-		{
-			Dumpable() = default;
-			Dumpable(const Dumpable& other) = default;
-			Dumpable(Dumpable&& other) = default;
-			virtual ~Dumpable() = default;
-
-			Dumpable& operator=(const Dumpable& other) = default;
-			Dumpable& operator=(Dumpable&& other) = default;
-
-			void dump() const
-			{
-				dump(llvm::outs(), 0);
-			}
-
-			void dump(llvm::raw_ostream& os, size_t indents = 0) const
-			{
-				print(os, indents);
-			}
-
-			virtual void print(llvm::raw_ostream& os, size_t indents = 0) const = 0;
-		};
-
-		template<typename T>
-		void swap(llvm::SmallVectorImpl<std::unique_ptr<T>>& first,
-							llvm::SmallVectorImpl<std::unique_ptr<T>>& second)
-		{
-			llvm::SmallVector<std::unique_ptr<T>, 3> tmp;
-
-			tmp = std::move(first);
-			first = std::move(second);
-			second = std::move(tmp);
-		}
-	}
-
-	class ASTNode
-	{
-		public:
-      ASTNode(SourceRange location);
+      ASTNode(Kind kind, SourceRange location, ASTNode* parent = nullptr);
 
       ASTNode(const ASTNode& other);
-      ASTNode(ASTNode&& other);
 
       virtual ~ASTNode() = 0;
 
-      ASTNode& operator=(const ASTNode& other);
-      ASTNode& operator=(ASTNode&& other);
+      /// @name LLVM-style RTTI methods
+      /// {
 
-      friend void swap(ASTNode& first, ASTNode& second);
+      Kind getKind() const
+      {
+        return kind;
+      }
+
+      template<typename T>
+      bool isa() const
+      {
+        return llvm::isa<T>(this);
+      }
+
+      template<typename T>
+      T* cast()
+      {
+        assert(isa<T>());
+        return llvm::cast<T>(this);
+      }
+
+      template<typename T>
+      const T* cast() const
+      {
+        assert(isa<T>());
+        return llvm::cast<T>(this);
+      }
+
+      template<typename T>
+      T* dyn_cast()
+      {
+        return llvm::dyn_cast<T>(this);
+      }
+
+      template<typename T>
+      const T* dyn_cast() const
+      {
+        return llvm::dyn_cast<T>(this);
+      }
+
+      /// }
+
+      virtual std::unique_ptr<ASTNode> clone() const = 0;
 
       SourceRange getLocation() const;
 
       void setLocation(SourceRange loc);
 
-		private:
-		  SourceRange location;
-	};
+      ASTNode* getParent();
+
+      const ASTNode* getParent() const;
+
+      void setParent(ASTNode* node);
+
+      template<typename T>
+      T* getParentOfType()
+      {
+        ASTNode* node = parent;
+
+        while (node != nullptr) {
+          if (T* casted = node->dyn_cast<T>()) {
+            return casted;
+          }
+
+          node = node->parent;
+        }
+
+        return nullptr;
+      }
+
+      template<typename T>
+      const T* getParentOfType() const
+      {
+        ASTNode* node = parent;
+
+        while (node != nullptr) {
+          if (T* casted = node->dyn_cast<T>()) {
+            return casted;
+          }
+
+          node = node->parent;
+        }
+
+        return nullptr;
+      }
+
+      virtual llvm::json::Value toJSON() const = 0;
+
+    protected:
+      virtual void addJSONProperties(llvm::json::Object& obj) const;
+
+    private:
+      Kind kind;
+      SourceRange location;
+      ASTNode* parent;
+  };
 }
 
 #endif // MARCO_AST_NODE_ASTNODE_H

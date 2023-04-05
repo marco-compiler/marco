@@ -29,11 +29,6 @@ namespace marco::codegen::lowering
     reference.set(loc, value);
   }
 
-  mlir::Value Result::operator*() const
-  {
-    return reference.get(reference.getLoc());
-  }
-
   Results::Results() = default;
 
   Results::Results(Reference value)

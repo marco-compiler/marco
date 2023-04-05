@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_LOWERING_OPERATIONBRIDGE_H
-#define MARCO_CODEGEN_LOWERING_OPERATIONBRIDGE_H
+#ifndef MARCO_CODEGEN_LOWERING_OPERATIONLOWERER_H
+#define MARCO_CODEGEN_LOWERING_OPERATIONLOWERER_H
 
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
@@ -13,8 +13,14 @@ namespace marco::codegen::lowering
     public:
       using LoweringFunction = std::function<Results(OperationLowerer&, const ast::Operation&)>;
 
-      OperationLowerer(LoweringContext* context, BridgeInterface* bridge);
+      OperationLowerer(BridgeInterface* bridge);
 
+      Results lower(const ast::Operation& operation) override;
+
+    protected:
+      using Lowerer::lower;
+
+    private:
       Results negate(const ast::Operation& operation);
       Results add(const ast::Operation& operation);
       Results addEW(const ast::Operation& operation);
@@ -39,21 +45,19 @@ namespace marco::codegen::lowering
       Results powerOf(const ast::Operation& operation);
       Results powerOfEW(const ast::Operation& operation);
 
-    protected:
-      using Lowerer::lower;
+      template<ast::OperationKind OperationKind>
+      bool inferResultTypes(
+          mlir::MLIRContext* context,
+          llvm::ArrayRef<mlir::Value> operands,
+          llvm::SmallVectorImpl<mlir::Type>& inferredTypes);
 
     private:
-      std::vector<Results> lowerArgs(const ast::Operation& operation);
+      mlir::Value lowerArg(const ast::Expression& expression);
 
-      template<ast::OperationKind Kind>
-      Results lowerOperation(const ast::Operation& operation, std::function<Results(mlir::Location, std::vector<Results>)> callback)
-      {
-        assert(operation.getOperationKind() == Kind);
-        auto args = lowerArgs(operation);
-        auto location = loc(operation.getLocation());
-        return callback(std::move(location), args);
-      }
+      void lowerArgs(
+          const ast::Operation& operation,
+          llvm::SmallVectorImpl<mlir::Value>& args);
   };
 }
 
-#endif // MARCO_CODEGEN_LOWERING_OPERATIONBRIDGE_H
+#endif // MARCO_CODEGEN_LOWERING_OPERATIONLOWERER_H

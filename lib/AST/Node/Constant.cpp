@@ -1,91 +1,62 @@
 #include "marco/AST/Node/Constant.h"
 
-using namespace ::marco;
 using namespace ::marco::ast;
+
+namespace
+{
+  struct ConstantJsonVisitor
+  {
+    llvm::json::Value operator()(bool value)
+    {
+      return llvm::json::Value(value);
+    }
+
+    llvm::json::Value operator()(int64_t value)
+    {
+      return llvm::json::Value(value);
+    }
+
+    llvm::json::Value operator()(double value)
+    {
+      return llvm::json::Value(value);
+    }
+
+    llvm::json::Value operator()(std::string value)
+    {
+      return llvm::json::Value(value);
+    }
+  };
+}
 
 namespace marco::ast
 {
-  Constant::Constant(SourceRange location, Type type, bool value)
-      : ASTNode(std::move(location)),
-        type(std::move(type)),
-        value(value)
-  {
-  }
-
-  Constant::Constant(SourceRange location, Type type, int64_t value)
-      : ASTNode(std::move(location)),
-        type(std::move(type)),
-        value(value)
-  {
-  }
-
-  Constant::Constant(SourceRange location, Type type, double value)
-      : ASTNode(std::move(location)),
-        type(std::move(type)),
-        value(value)
-  {
-  }
-
-  Constant::Constant(SourceRange location, Type type, std::string value)
-      : ASTNode(std::move(location)),
-        type(std::move(type)),
-        value(value)
-  {
-  }
-
-  Constant::Constant(SourceRange location, Type type, int32_t value)
-      : Constant(std::move(location), std::move(type), static_cast<int64_t>(value))
-  {
-  }
-
-  Constant::Constant(SourceRange location, Type type, float value)
-      : Constant(std::move(location), std::move(type), static_cast<double>(value))
+  Constant::Constant(SourceRange location)
+      : Expression(ASTNode::Kind::Expression_Constant, std::move(location))
   {
   }
 
   Constant::Constant(const Constant& other)
-      : ASTNode(other),
-        type(other.type),
+      : Expression(other),
         value(other.value)
   {
   }
 
-  Constant::Constant(Constant&& other) = default;
-
   Constant::~Constant() = default;
 
-  Constant& Constant::operator=(const Constant& other)
+  std::unique_ptr<ASTNode> Constant::clone() const
   {
-    Constant result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Constant>(*this);
   }
 
-  Constant& Constant::operator=(Constant&& other) = default;
-
-  void swap(Constant& first, Constant& second)
+  llvm::json::Value Constant::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    using std::swap;
-    swap(first.type, second.type);
-    swap(first.value, second.value);
-  }
+    ConstantJsonVisitor visitor;
+    result["value"] = std::visit(visitor, value);
 
-  bool Constant::operator==(const Constant& other) const
-  {
-    return type == other.type && value == other.value;
-  }
-
-  bool Constant::operator!=(const Constant& other) const
-  {
-    return !(*this == other);
-  }
-
-  void Constant::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "constant: " << *this << "\n";
+    addJSONProperties(result);
+    return result;
   }
 
   bool Constant::isLValue() const
@@ -93,52 +64,33 @@ namespace marco::ast
     return false;
   }
 
-  Type& Constant::getType()
+  void Constant::setValue(bool newValue)
   {
-    return type;
+    value = newValue;
   }
 
-  const Type& Constant::getType() const
+  void Constant::setValue(int64_t newValue)
   {
-    return type;
+    value = newValue;
   }
 
-  void Constant::setType(Type tp)
+  void Constant::setValue(double newValue)
   {
-    type = std::move(tp);
+    value = newValue;
   }
 
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj)
+  void Constant::setValue(std::string newValue)
   {
-    return stream << toString(obj);
+    value = newValue;
   }
 
-  class ConstantToStringVisitor
+  void Constant::setValue(int32_t newValue)
   {
-    public:
-      std::string operator()(const bool& value)
-      {
-        return value ? "true" : "false";
-      }
+    value = static_cast<int64_t>(newValue);
+  }
 
-      std::string operator()(const int64_t& value)
-      {
-        return std::to_string(value);
-      }
-
-      std::string operator()(const double& value)
-      {
-        return std::to_string(value);
-      }
-
-      std::string operator()(const std::string& value)
-      {
-        return value;
-      }
-  };
-
-  std::string toString(const Constant& obj)
+  void Constant::setValue(float newValue)
   {
-    return obj.visit(ConstantToStringVisitor());
+    value = static_cast<double>(newValue);
   }
 }

@@ -8,7 +8,7 @@
 // CHECK-NEXT:  }
 
 record Test
-    Boolean x[3];
-    Integer y[4];
-    Real z[5];
+    Boolean[3] x;
+    Integer[4] y;
+    Real[5] z;
 end Test;

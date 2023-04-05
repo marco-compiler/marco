@@ -360,6 +360,58 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::ParseResult LoadOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto loc = parser.getCurrentLocation();
+    mlir::OpAsmParser::UnresolvedOperand array;
+    mlir::Type arrayType;
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
+    llvm::SmallVector<mlir::Type, 3> indicesTypes;
+
+    if (parser.parseOperand(array) ||
+        parser.parseOperandList(
+            indices, mlir::OpAsmParser::Delimiter::Square) ||
+        parser.parseColonType(arrayType) ||
+        parser.resolveOperand(array, arrayType, result.operands)) {
+      return mlir::failure();
+    }
+
+    indicesTypes.resize(
+        indices.size(),
+        mlir::IndexType::get(result.getContext()));
+
+    size_t i = 0;
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseType(indicesTypes[i++])) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
+      return mlir::failure();
+    }
+
+    result.addTypes(arrayType.cast<ArrayType>().getElementType());
+    return mlir::success();
+  }
+
+  void LoadOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " " << getArray() << "[" << getIndices() << "]";
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : " << getArray().getType();
+
+    if (!llvm::all_of(getIndices(), [](mlir::Value index) {
+          return index.getType().isa<mlir::IndexType>();
+        })) {
+      for (mlir::Value index : getIndices()) {
+        printer << ", " << index.getType();
+      }
+    }
+  }
+
   mlir::LogicalResult LoadOp::verify()
   {
     auto indicesAmount = getIndices().size();
@@ -416,6 +468,63 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  mlir::ParseResult StoreOp::parse(
+      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  {
+    auto loc = parser.getCurrentLocation();
+    mlir::OpAsmParser::UnresolvedOperand array;
+    mlir::Type arrayType;
+    mlir::OpAsmParser::UnresolvedOperand value;
+    llvm::SmallVector<mlir::OpAsmParser::UnresolvedOperand, 3> indices;
+    llvm::SmallVector<mlir::Type, 3> indicesTypes;
+
+    if (parser.parseOperand(array) ||
+        parser.parseOperandList(
+            indices, mlir::OpAsmParser::Delimiter::Square) ||
+        parser.parseComma() ||
+        parser.parseOperand(value) ||
+        parser.parseColonType(arrayType) ||
+        parser.resolveOperand(value, arrayType.cast<ArrayType>().getElementType(), result.operands) ||
+        parser.resolveOperand(array, arrayType, result.operands)) {
+      return mlir::failure();
+    }
+
+    indicesTypes.resize(
+        indices.size(),
+        mlir::IndexType::get(result.getContext()));
+
+    size_t i = 0;
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseType(indicesTypes[i++])) {
+        return mlir::failure();
+      }
+    }
+
+    if (parser.resolveOperands(indices, indicesTypes, loc, result.operands)) {
+      return mlir::failure();
+    }
+
+    return mlir::success();
+  }
+
+  void StoreOp::print(mlir::OpAsmPrinter& printer)
+  {
+    printer << " " << getArray() << "[" << getIndices() << "]"
+            << ", " << getValue();
+
+    printer.printOptionalAttrDict(getOperation()->getAttrs());
+    printer << " : " << getArray().getType();
+
+    if (!llvm::all_of(getIndices(), [](mlir::Value index) {
+          return index.getType().isa<mlir::IndexType>();
+        })) {
+      for (mlir::Value index : getIndices()) {
+        printer << ", " << index.getType();
+      }
+    }
+  }
+
   mlir::LogicalResult StoreOp::verify()
   {
     auto indicesAmount = getIndices().size();
@@ -7169,14 +7278,14 @@ namespace mlir::modelica
     if (parser.parseSymbolName(
             nameAttr,
             mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes)) {
+            result.attributes) ||
+        parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
       return mlir::failure();
     }
 
     mlir::Region* bodyRegion = result.addRegion();
 
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
-        parser.parseRegion(*bodyRegion)) {
+    if (parser.parseRegion(*bodyRegion)) {
       return mlir::failure();
     }
 
@@ -7234,14 +7343,14 @@ namespace mlir::modelica
     if (parser.parseSymbolName(
             nameAttr,
             mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes)) {
+            result.attributes) ||
+        parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
       return mlir::failure();
     }
 
     mlir::Region* bodyRegion = result.addRegion();
 
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
-        parser.parseRegion(*bodyRegion)) {
+    if (parser.parseRegion(*bodyRegion)) {
       return mlir::failure();
     }
 
@@ -7304,14 +7413,14 @@ namespace mlir::modelica
     if (parser.parseSymbolName(
             nameAttr,
             mlir::SymbolTable::getSymbolAttrName(),
-            result.attributes)) {
+            result.attributes) ||
+        parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
       return mlir::failure();
     }
 
     mlir::Region* bodyRegion = result.addRegion();
 
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
-        parser.parseRegion(*bodyRegion)) {
+    if (parser.parseRegion(*bodyRegion)) {
       return mlir::failure();
     }
 
@@ -7704,31 +7813,6 @@ namespace mlir::modelica
     assert(getBodyRegion().getBlocks().size() == 1);
     return &getBodyRegion().front();
   }
-
-  /*
-  mlir::ParseResult AlgorithmOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
-  {
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
-    }
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
-  }
-
-  void AlgorithmOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-    printer << " ";
-    printer.printRegion(getBodyRegion());
-  }
-   */
 }
 
 //===---------------------------------------------------------------------===//
@@ -7825,6 +7909,18 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  void FunctionOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      llvm::StringRef name)
+  {
+    state.addRegion()->emplaceBlock();
+
+    state.attributes.push_back(builder.getNamedAttr(
+        mlir::SymbolTable::getSymbolAttrName(),
+        builder.getStringAttr(name)));
+  }
+
   mlir::ParseResult FunctionOp::parse(
       mlir::OpAsmParser& parser, mlir::OperationState& result)
   {
@@ -7847,6 +7943,10 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
+    if (bodyRegion->empty()) {
+      bodyRegion->emplaceBlock();
+    }
+
     return mlir::success();
   }
 
@@ -7862,7 +7962,6 @@ namespace mlir::modelica
     printer.printOptionalAttrDictWithKeyword(
         getOperation()->getAttrs(), elidedAttrs);
 
-    printer << " ";
     printer.printRegion(getBody());
   }
 
@@ -7956,6 +8055,7 @@ namespace mlir::modelica
 
   void DerFunctionOp::print(mlir::OpAsmPrinter& printer)
   {
+    printer << " ";
     printer.printSymbolName(getSymName());
 
     llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
@@ -8775,11 +8875,11 @@ namespace mlir::modelica
       printer << ")";
     }
 
-    printer << " condition";
+    printer << " condition ";
     printer.printRegion(getConditionRegion(), true);
-    printer << " body";
+    printer << " body ";
     printer.printRegion(getBodyRegion(), true);
-    printer << " step";
+    printer << " step ";
     printer.printRegion(getStepRegion(), true);
     printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
   }
@@ -8856,6 +8956,10 @@ namespace mlir::modelica
       return mlir::failure();
     }
 
+    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
+      return mlir::failure();
+    }
+
     mlir::Region* thenRegion = result.addRegion();
 
     if (parser.parseRegion(*thenRegion)) {
@@ -8870,26 +8974,21 @@ namespace mlir::modelica
       }
     }
 
-    if (parser.parseOptionalAttrDictWithKeyword(result.attributes)) {
-      return mlir::failure();
-    }
-
     return mlir::success();
   }
 
   void IfOp::print(mlir::OpAsmPrinter& printer)
   {
-    printer << "(" << getCondition() << " : "
-            << getCondition().getType() << ")";
+    printer << " (" << getCondition() << " : "
+            << getCondition().getType() << ") ";
 
+    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
     printer.printRegion(getThenRegion());
 
     if (!getElseRegion().empty()) {
-      printer << " else";
+      printer << " else ";
       printer.printRegion(getElseRegion());
     }
-
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
   }
 
   mlir::ValueRange IfOp::derive(

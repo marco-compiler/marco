@@ -2,8 +2,7 @@
 #define MARCO_AST_NODE_FOREQUATION_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include <memory>
 
 namespace marco::ast
@@ -17,45 +16,41 @@ namespace marco::ast
 	///
 	/// Inductions are mapped to a set of indexes so that an from a name we can
 	/// deduce a index and from a index we can deduce a name.
-	class ForEquation
-			: public ASTNode,
-				public impl::Cloneable<ForEquation>,
-				public impl::Dumpable<ForEquation>
+	class ForEquation : public ASTNode
 	{
 		public:
-      template<typename... Args>
-      static std::unique_ptr<ForEquation> build(Args&&... args)
-      {
-        return std::unique_ptr<ForEquation>(new ForEquation(std::forward<Args>(args)...));
-      }
+      explicit ForEquation(SourceRange location);
 
       ForEquation(const ForEquation& other);
-      ForEquation(ForEquation&& other);
+
       ~ForEquation() override;
 
-      ForEquation& operator=(const ForEquation& other);
-      ForEquation& operator=(ForEquation&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::ForEquation;
+      }
 
-      friend void swap(ForEquation& first, ForEquation& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Induction>> getInductions();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Induction>> getInductions() const;
-      [[nodiscard]] size_t inductionsCount() const;
+      size_t getNumOfInductions() const;
 
-      void addOuterInduction(std::unique_ptr<Induction> induction);
+      Induction* getInduction(size_t index);
 
-      [[nodiscard]] Equation* getEquation() const;
+      const Induction* getInduction(size_t index) const;
 
-		private:
-      ForEquation(SourceRange location,
-                  llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
-                  std::unique_ptr<Equation> equation);
+      void setInductions(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+
+      void addOuterInduction(std::unique_ptr<ASTNode> node);
+
+      Equation* getEquation() const;
+
+      void setEquation(std::unique_ptr<ASTNode> node);
 
     private:
-      llvm::SmallVector<std::unique_ptr<Induction>, 3> inductions;
-      std::unique_ptr<Equation> equation;
+      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> inductions;
+      std::unique_ptr<ASTNode> equation;
 	};
 }
 

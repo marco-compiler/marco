@@ -1,0 +1,18 @@
+#include "marco/Codegen/Lowering/WhenStatementLowerer.h"
+
+using namespace ::marco;
+using namespace ::marco::codegen;
+using namespace ::mlir::modelica;
+
+namespace marco::codegen::lowering
+{
+  WhenStatementLowerer::WhenStatementLowerer(BridgeInterface* bridge)
+      : Lowerer(bridge)
+  {
+  }
+
+  void WhenStatementLowerer::lower(const ast::WhenStatement& statement)
+  {
+    llvm_unreachable("When statement is not implemented yet");
+  }
+}

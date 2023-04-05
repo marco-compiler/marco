@@ -3,8 +3,8 @@
 
 // CHECK-LABEL: @Test
 // CHECK:       modelica.start @x {
-// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.real<5.000000e+00>
-// CHECK-NEXT:      modelica.yield %[[value]] : !modelica.real
+// CHECK-NEXT:      %[[value:.*]] = modelica.constant #modelica.int<5>
+// CHECK-NEXT:      modelica.yield %[[value]] : !modelica.int
 // CHECK-NEXT:  } {each = false, fixed = true}
 
 model Test

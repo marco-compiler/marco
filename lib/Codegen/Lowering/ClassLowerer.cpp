@@ -1,88 +1,290 @@
 #include "marco/Codegen/Lowering/ClassLowerer.h"
-#include "marco/Codegen/Lowering/ModelLowerer.h"
-#include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
+#include "marco/Codegen/Lowering/ClassDependencyGraph.h"
 
 using namespace ::marco;
-using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
-  ClassLowerer::ClassLowerer(LoweringContext* context, BridgeInterface* bridge)
-      : Lowerer(context, bridge),
-        modelLowerer(std::make_unique<ModelLowerer>(context, bridge)),
-        recordLowerer(std::make_unique<RecordLowerer>(context, bridge)),
-        standardFunctionLowerer(
-            std::make_unique<StandardFunctionLowerer>(context, bridge))
+  ClassLowerer::ClassLowerer(BridgeInterface* bridge)
+      : Lowerer(bridge)
   {
-    assert(modelLowerer != nullptr);
-    assert(recordLowerer != nullptr);
-    assert(standardFunctionLowerer != nullptr);
   }
 
-  std::vector<mlir::Operation*> ClassLowerer::operator()(
-      const ast::PartialDerFunction& function)
+  void ClassLowerer::declare(const ast::Class& cls)
   {
-    std::vector<mlir::Operation*> result;
-
-    mlir::OpBuilder::InsertionGuard guard(builder());
-    auto location = loc(function.getLocation());
-
-    llvm::StringRef derivedFunctionName =
-        function.getDerivedFunction()->get<ReferenceAccess>()->getName();
-
-    llvm::SmallVector<mlir::Attribute, 3> independentVariables;
-
-    for (const auto& independentVariable :
-         function.getIndependentVariables()) {
-      auto independentVariableName =
-          independentVariable->get<ReferenceAccess>()->getName();
-
-      independentVariables.push_back(
-          builder().getStringAttr(independentVariableName));
+    if (auto model = cls.dyn_cast<ast::Model>()) {
+      return declare(*model);
     }
 
-    auto derFunctionOp = builder().create<DerFunctionOp>(
-        location, function.getName(), derivedFunctionName,
-        builder().getArrayAttr(independentVariables));
+    if (auto package = cls.dyn_cast<ast::Package>()) {
+      return declare(*package);
+    }
 
-    result.push_back(derFunctionOp);
-    return result;
+    if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
+      return declare(*function);
+    }
+
+    if (auto record = cls.dyn_cast<ast::Record>()) {
+      return declare(*record);
+    }
+
+    if (auto standardFunction = cls.dyn_cast<ast::StandardFunction>()) {
+      return declare(*standardFunction);
+    }
+
+    llvm_unreachable("Unknown class type");
   }
 
-  std::vector<mlir::Operation*> ClassLowerer::operator()(
-      const ast::StandardFunction& function)
+  void ClassLowerer::declareClassVariables(const ast::Class& cls)
   {
-    // inlined functions are already handled in the frontend's InliningPass.
-    if(function.shouldBeInlined())
-      return {};
-
-    return standardFunctionLowerer->lower(function);
+    for (const auto& variable : cls.getVariables()) {
+      declareClassVariable(*variable->cast<ast::Member>());
+    }
   }
 
-  std::vector<mlir::Operation*> ClassLowerer::operator()(
-      const ast::Model& model)
+  void ClassLowerer::declareClassVariable(const ast::Member& variable)
   {
-    return modelLowerer->lower(model);
-  }
+    mlir::Location location = loc(variable.getLocation());
 
-  std::vector<mlir::Operation*> ClassLowerer::operator()(
-      const ast::Package& package)
-  {
-    std::vector<mlir::Operation*> result;
+    VariableType variableType = getVariableType(
+        *variable.getType(), *variable.getTypePrefix());
 
-    for (const auto& cls : package.getInnerClasses()) {
-      for (const auto& op : lower(*cls)) {
-        result.push_back(op);
+    llvm::SmallVector<llvm::StringRef> dimensionsConstraints;
+
+    if (auto arrayType = variableType.unwrap().dyn_cast<ArrayType>()) {
+      for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
+           ++dim) {
+        const ast::ArrayDimension* dimension = (*variable.getType())[dim];
+
+        if (dimension->isDynamic()) {
+          if (dimension->hasExpression()) {
+            dimensionsConstraints.push_back(
+                VariableOp::kDimensionConstraintFixed);
+          } else {
+            dimensionsConstraints.push_back(
+                VariableOp::kDimensionConstraintUnbounded);
+          }
+        }
       }
     }
 
-    return result;
+    builder().create<VariableOp>(
+        location, variable.getName(), variableType,
+        builder().getStrArrayAttr(dimensionsConstraints),
+        nullptr);
   }
 
-  std::vector<mlir::Operation*> ClassLowerer::operator()(const ast::Record& record)
+  void ClassLowerer::lower(const ast::Class& cls)
   {
-    return recordLowerer->lower(record);
+    if (auto model = cls.dyn_cast<ast::Model>()) {
+      return lower(*model);
+    }
+
+    if (auto package = cls.dyn_cast<ast::Package>()) {
+      return lower(*package);
+    }
+
+    if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
+      return lower(*function);
+    }
+
+    if (auto record = cls.dyn_cast<ast::Record>()) {
+      return lower(*record);
+    }
+
+    if (auto standardFunction = cls.dyn_cast<ast::StandardFunction>()) {
+      return lower(*standardFunction);
+    }
+
+    llvm_unreachable("Unknown class type");
+  }
+
+  VariableType ClassLowerer::getVariableType(
+      const ast::VariableType& variableType,
+      const ast::TypePrefix& typePrefix)
+  {
+    llvm::SmallVector<int64_t, 3> shape;
+
+    for (size_t i = 0, rank = variableType.getRank(); i < rank; ++i) {
+      const ast::ArrayDimension* dimension = variableType[i];
+
+      if (dimension->isDynamic()) {
+        shape.push_back(VariableType::kDynamicSize);
+      } else {
+        shape.push_back(dimension->getNumericSize());
+      }
+    }
+
+    mlir::Type baseType;
+
+    if (auto builtInType = variableType.dyn_cast<ast::BuiltInType>()) {
+      if (builtInType->getBuiltInTypeKind() ==
+          ast::BuiltInType::Kind::Boolean) {
+        baseType = BooleanType::get(builder().getContext());
+      } else if (builtInType->getBuiltInTypeKind() ==
+                 ast::BuiltInType::Kind::Integer) {
+        baseType = IntegerType::get(builder().getContext());
+      } else if (builtInType->getBuiltInTypeKind() ==
+                 ast::BuiltInType::Kind::Real) {
+        baseType = RealType::get(builder().getContext());
+      } else {
+        llvm_unreachable("Unknown built-in type");
+        return nullptr;
+      }
+    } else {
+      llvm_unreachable("Unsupported variable type");
+      return nullptr;
+    }
+
+    VariabilityProperty variabilityProperty = VariabilityProperty::none;
+    IOProperty ioProperty = IOProperty::none;
+
+    if (typePrefix.isDiscrete()) {
+      variabilityProperty = VariabilityProperty::discrete;
+    } else if (typePrefix.isParameter()) {
+      variabilityProperty = VariabilityProperty::parameter;
+    } else if (typePrefix.isConstant()) {
+      variabilityProperty = VariabilityProperty::constant;
+    }
+
+    if (typePrefix.isInput()) {
+      ioProperty = IOProperty::input;
+    } else if (typePrefix.isOutput()) {
+      ioProperty = IOProperty::output;
+    }
+
+    return VariableType::get(shape, baseType, variabilityProperty, ioProperty);
+  }
+
+  void ClassLowerer::lowerClassBody(const ast::Class& cls)
+  {
+    // Lower the constraints for the dynamic dimensions of the variables.
+    for (const auto& variable : cls.getVariables()) {
+      lowerVariableDimensionConstraints(
+          getSymbolTable().getSymbolTable(getClass(cls)),
+          *variable->cast<ast::Member>());
+    }
+
+    // Create the equations.
+    for (const auto& blockNode : cls.getEquationsBlocks()) {
+      const ast::EquationsBlock* block =
+          blockNode->cast<ast::EquationsBlock>();
+
+      for (size_t i = 0, e = block->getNumOfEquations(); i < e; ++i) {
+        lower(*block->getEquation(i), false);
+      }
+
+      for (size_t i = 0, e = block->getNumOfForEquations(); i < e; ++i) {
+        lower(*block->getForEquation(i), false);
+      }
+    }
+
+    // Create the initial equations.
+    for (const auto& blockNode : cls.getInitialEquationsBlocks()) {
+      const ast::EquationsBlock* block =
+          blockNode->cast<ast::EquationsBlock>();
+
+      for (size_t i = 0, e = block->getNumOfEquations(); i < e; ++i) {
+        lower(*block->getEquation(i), true);
+      }
+
+      for (size_t i = 0, e = block->getNumOfForEquations(); i < e; ++i) {
+        lower(*block->getForEquation(i), true);
+      }
+    }
+
+    // Create the algorithms.
+    for (const auto& algorithm : cls.getAlgorithms()) {
+      lower(*algorithm->cast<ast::Algorithm>());
+    }
+  }
+
+  void ClassLowerer::createBindingEquation(
+      const ast::Member& variable, const ast::Expression& expression)
+  {
+    mlir::Location location = loc(expression.getLocation());
+
+    auto bindingEquationOp = builder().create<BindingEquationOp>(
+        location, variable.getName());
+
+    mlir::OpBuilder::InsertionGuard guard(builder());
+
+    assert(bindingEquationOp.getBodyRegion().empty());
+
+    mlir::Block* bodyBlock = builder().createBlock(
+        &bindingEquationOp.getBodyRegion());
+
+    builder().setInsertionPointToStart(bodyBlock);
+
+    // Lower the expression and yield its value.
+    mlir::Location expressionLoc = loc(expression.getLocation());
+    auto expressionValues = lower(expression);
+    assert(expressionValues.size() == 1);
+
+    builder().create<YieldOp>(
+        location, expressionValues[0].get(expressionLoc));
+  }
+
+  void ClassLowerer::lowerStartAttribute(
+      const ast::Member& member,
+      const ast::Expression& expression,
+      bool fixed,
+      bool each)
+  {
+    mlir::Location location = loc(expression.getLocation());
+
+    auto startOp = builder().create<StartOp>(
+        location, member.getName(), fixed, each);
+
+    mlir::OpBuilder::InsertionGuard guard(builder());
+
+    assert(startOp.getBodyRegion().empty());
+    mlir::Block* bodyBlock = builder().createBlock(&startOp.getBodyRegion());
+    builder().setInsertionPointToStart(bodyBlock);
+
+    mlir::Location valueLoc = loc(expression.getLocation());
+    auto value = lower(expression);
+    assert(value.size() == 1);
+
+    builder().create<YieldOp>(location, value[0].get(valueLoc));
+  }
+
+  void ClassLowerer::lowerVariableDimensionConstraints(
+      mlir::SymbolTable& symbolTable,
+      const ast::Member& variable)
+  {
+    mlir::Location location = loc(variable.getLocation());
+    auto variableOp = symbolTable.lookup<VariableOp>(variable.getName());
+
+    if (variableOp.getNumOfFixedDimensions() != 0) {
+      mlir::OpBuilder::InsertionGuard guard(builder());
+
+      builder().setInsertionPointToStart(
+          &variableOp.getConstraintsRegion().emplaceBlock());
+
+      llvm::SmallVector<mlir::Value> fixedDimensions;
+
+      for (size_t dim = 0, rank = variable.getType()->getRank(); dim < rank;
+           ++dim) {
+        const ast::ArrayDimension* dimension = (*variable.getType())[dim];
+
+        if (dimension->hasExpression()) {
+          const ast::Expression* sizeExpression = dimension->getExpression();
+          mlir::Location sizeLoc = loc(sizeExpression->getLocation());
+          mlir::Value size = lower(*sizeExpression)[0].get(sizeLoc);
+
+          if (!size.getType().isa<mlir::IndexType>()) {
+            size = builder().create<CastOp>(
+                location, builder().getIndexType(), size);
+          }
+
+          fixedDimensions.push_back(size);
+        }
+      }
+
+      builder().create<YieldOp>(location, fixedDimensions);
+    }
   }
 }

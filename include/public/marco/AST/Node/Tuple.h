@@ -1,79 +1,46 @@
 #ifndef MARCO_AST_NODE_TUPLE_H
 #define MARCO_AST_NODE_TUPLE_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
-#include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Type.h"
+#include "marco/AST/Node/Expression.h"
+#include "llvm/ADT/STLExtras.h"
 #include <memory>
 
 namespace marco::ast
 {
-	class Expression;
-
 	/// A tuple is a container for destinations of a call. It is NOT an
 	/// array-like structure that is supposed to be summable, passed around or
 	/// whatever.
-	class Tuple
-			: public ASTNode,
-				public impl::Dumpable<Tuple>
+	class Tuple : public Expression
 	{
-		private:
-      template<typename T> using Container = llvm::SmallVector<T, 3>;
-
 		public:
-      using iterator = Container<std::unique_ptr<Expression>>::iterator;
-      using const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
+      Tuple(SourceRange location);
 
       Tuple(const Tuple& other);
-      Tuple(Tuple&& other);
+
       ~Tuple() override;
 
-      Tuple& operator=(const Tuple& other);
-      Tuple& operator=(Tuple&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Expression_Tuple;
+      }
 
-      friend void swap(Tuple& first, Tuple& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] bool isLValue() const;
+      bool isLValue() const override;
 
-      [[nodiscard]] bool operator==(const Tuple& other) const;
-      [[nodiscard]] bool operator!=(const Tuple& other) const;
+      size_t size() const;
 
-      [[nodiscard]] Expression* operator[](size_t index);
-      [[nodiscard]] const Expression* operator[](size_t index) const;
+      Expression* getExpression(size_t index);
 
-      [[nodiscard]] Type& getType();
-      [[nodiscard]] const Type& getType() const;
-      void setType(Type tp);
+      const Expression* getExpression(size_t index) const;
 
-      [[nodiscard]] Expression* getArg(size_t index);
-      [[nodiscard]] const Expression* getArg(size_t index) const;
-
-      [[nodiscard]] size_t size() const;
-
-      [[nodiscard]] iterator begin();
-      [[nodiscard]] const_iterator begin() const;
-
-      [[nodiscard]] iterator end();
-      [[nodiscard]] const_iterator end() const;
-
-		private:
-      friend class Expression;
-
-      Tuple(SourceRange location,
-            Type type,
-            llvm::ArrayRef<std::unique_ptr<Expression>> expressions = llvm::None);
+      void setExpressions(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
     private:
-      Type type;
-      Container<std::unique_ptr<Expression>> expressions;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> expressions;
 	};
-
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj);
-
-	std::string toString(const Tuple& obj);
 }
 
 #endif // MARCO_AST_NODE_TUPLE_H

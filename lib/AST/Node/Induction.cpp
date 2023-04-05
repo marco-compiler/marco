@@ -6,71 +6,39 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Induction::Induction(SourceRange location,
-                       llvm::StringRef inductionVariable,
-                       std::unique_ptr<Expression> begin,
-                       std::unique_ptr<Expression> end,
-                       std::unique_ptr<Expression> step)
-      : ASTNode(std::move(location)),
-        inductionVariable(inductionVariable.str()),
-        begin(std::move(begin)),
-        end(std::move(end)),
-        step(std::move(step)),
-        inductionIndex(0)
+  Induction::Induction(SourceRange location)
+      : ASTNode(ASTNode::Kind::Induction, std::move(location))
   {
   }
 
   Induction::Induction(const Induction& other)
       : ASTNode(other),
         inductionVariable(other.inductionVariable),
-        begin(other.begin->clone()),
-        end(other.end->clone()),
-        step(other.step->clone()),
         inductionIndex(other.inductionIndex)
   {
+    setBegin(other.begin->clone());
+    setEnd(other.end->clone());
+    setStep(other.step->clone());
   }
-
-  Induction::Induction(Induction&& other) = default;
 
   Induction::~Induction() = default;
 
-  Induction& Induction::operator=(const Induction& other)
+  std::unique_ptr<ASTNode> Induction::clone() const
   {
-    Induction result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Induction>(*this);
   }
 
-  Induction& Induction::operator=(Induction&& other) = default;
-
-  void swap(Induction& first, Induction& second)
+  llvm::json::Value Induction::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
+    result["induction_variable"] = getName();
+    result["induction_index"] = inductionIndex;
+    result["begin"] = getBegin()->toJSON();
+    result["end"] = getEnd()->toJSON();
+    result["step"] = getStep()->toJSON();
 
-    using std::swap;
-    swap(first.inductionVariable, second.inductionVariable);
-    swap(first.begin, second.begin);
-    swap(first.end, second.end);
-    swap(first.step, second.step);
-    swap(first.inductionIndex, second.inductionIndex);
-  }
-
-  void Induction::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "induction var " << getName() << "\n";
-
-    os.indent(indents);
-    os << "from ";
-    begin->print(os, indents + 1);
-    os << "\n";
-    os.indent(indents);
-    os << "to";
-    end->print(os, indents + 1);
-    os << "\n";
-    os.indent(indents);
-    os << "step";
-    step->print(os, indents + 1);
+    addJSONProperties(result);
+    return result;
   }
 
   llvm::StringRef Induction::getName() const
@@ -78,34 +46,66 @@ namespace marco::ast
     return inductionVariable;
   }
 
+  void Induction::setName(llvm::StringRef newName)
+  {
+    inductionVariable = newName.str();
+  }
+
   Expression* Induction::getBegin()
   {
-    return begin.get();
+    assert(begin != nullptr && "Begin expression not set");
+    return begin->cast<Expression>();
   }
 
   const Expression* Induction::getBegin() const
   {
-    return begin.get();
+    assert(begin != nullptr && "Begin expression not set");
+    return begin->cast<Expression>();
+  }
+
+  void Induction::setBegin(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Expression>());
+    begin = std::move(node);
+    begin->setParent(this);
   }
 
   Expression* Induction::getEnd()
   {
-    return end.get();
+    assert(begin != nullptr && "End expression not set");
+    return end->cast<Expression>();
   }
 
   const Expression* Induction::getEnd() const
   {
-    return end.get();
+    assert(end != nullptr && "End expression not set");
+    return end->cast<Expression>();
+  }
+
+  void Induction::setEnd(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Expression>());
+    end = std::move(node);
+    end->setParent(this);
   }
 
   Expression* Induction::getStep()
   {
-    return step.get();
+    assert(begin != nullptr && "Step expression not set");
+    return step->cast<Expression>();
   }
 
   const Expression* Induction::getStep() const
   {
-    return step.get();
+    assert(step != nullptr && "Step expression not set");
+    return step->cast<Expression>();
+  }
+
+  void Induction::setStep(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Expression>());
+    step = std::move(node);
+    step->setParent(this);
   }
 
   size_t Induction::getInductionIndex() const

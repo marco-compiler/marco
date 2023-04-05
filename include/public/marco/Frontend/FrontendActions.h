@@ -60,8 +60,7 @@ namespace marco::frontend
 
   enum class ASTActionKind
   {
-    Parse,              /// Parse only.
-    ParseAndProcessAST  /// Parse and process the AST.
+    Parse
   };
 
   class ASTAction : public PreprocessingAction
@@ -76,21 +75,13 @@ namespace marco::frontend
       ASTActionKind action;
 
     protected:
-      std::unique_ptr<ast::Class> ast;
+      std::unique_ptr<ast::ASTNode> ast;
   };
 
   class EmitASTAction : public ASTAction
   {
     public:
       EmitASTAction();
-
-      void executeAction() override;
-  };
-
-  class EmitFinalASTAction : public ASTAction
-  {
-    public:
-      EmitFinalASTAction();
 
       void executeAction() override;
   };

@@ -1,18 +1,18 @@
 #include "marco/Codegen/Lowering/EquationLowerer.h"
 
 using namespace ::marco;
-using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
-  EquationLowerer::EquationLowerer(LoweringContext* context, BridgeInterface* bridge)
-      : Lowerer(context, bridge)
+  EquationLowerer::EquationLowerer(BridgeInterface* bridge)
+      : Lowerer(bridge)
   {
   }
 
-  void EquationLowerer::lower(const ast::Equation& equation, bool initialEquation)
+  void EquationLowerer::lower(
+      const ast::Equation& equation, bool initialEquation)
   {
     mlir::Location location = loc(equation.getLocation());
     mlir::Operation* op = nullptr;
@@ -21,13 +21,17 @@ namespace marco::codegen::lowering
       auto initialEquationOp = builder().create<InitialEquationOp>(location);
       op = initialEquationOp.getOperation();
       assert(initialEquationOp.getBodyRegion().empty());
-      mlir::Block* bodyBlock = builder().createBlock(&initialEquationOp.getBodyRegion());
+      mlir::Block* bodyBlock =
+          builder().createBlock(&initialEquationOp.getBodyRegion());
       builder().setInsertionPointToStart(bodyBlock);
     } else {
       auto equationOp = builder().create<EquationOp>(location);
       op = equationOp.getOperation();
       assert(equationOp.getBodyRegion().empty());
-      mlir::Block* bodyBlock = builder().createBlock(&equationOp.getBodyRegion());
+
+      mlir::Block* bodyBlock =
+          builder().createBlock(&equationOp.getBodyRegion());
+
       builder().setInsertionPointToStart(bodyBlock);
     }
 
@@ -35,7 +39,7 @@ namespace marco::codegen::lowering
     llvm::SmallVector<mlir::Value, 1> rhs;
 
     {
-      // Left-hand side
+      // Left-hand side.
       const auto* expression = equation.getLhsExpression();
 
       auto referencesLoc = loc(expression->getLocation());
@@ -47,7 +51,7 @@ namespace marco::codegen::lowering
     }
 
     {
-      // Right-hand side
+      // Right-hand side.
       const auto* expression = equation.getRhsExpression();
 
       auto referencesLoc = loc(expression->getLocation());
@@ -64,9 +68,10 @@ namespace marco::codegen::lowering
     builder().setInsertionPointAfter(op);
   }
 
-  void EquationLowerer::lower(const ast::ForEquation& forEquation, bool initialEquation)
+  void EquationLowerer::lower(
+      const ast::ForEquation& forEquation, bool initialEquation)
   {
-    Lowerer::SymbolScope scope(symbolTable());
+    Lowerer::VariablesScope scope(getVariablesSymbolTable());
     mlir::Location location = loc(forEquation.getEquation()->getLocation());
 
     // We need to keep track of the first loop in order to restore
@@ -76,24 +81,28 @@ namespace marco::codegen::lowering
 
     llvm::SmallVector<mlir::Value, 3> inductions;
 
-    for (auto& induction : forEquation.getInductions()) {
-      const auto& startExpression = induction->getBegin();
-      assert(startExpression->isa<Constant>());
-      long start = startExpression->get<Constant>()->as<BuiltInType::Integer>();
+    for (size_t i = 0, e = forEquation.getNumOfInductions(); i < e; ++i) {
+      const ast::Induction* induction = forEquation.getInduction(i);
 
-      const auto& endExpression = induction->getEnd();
-      assert(endExpression->isa<Constant>());
-      long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
+      const ast::Expression* startExpression = induction->getBegin();
+      assert(startExpression->isa<ast::Constant>());
+      long start = startExpression->cast<ast::Constant>()->as<int64_t>();
 
-      const auto& stepExpression = induction->getStep();
-      assert(stepExpression->isa<Constant>());
-      long step = stepExpression->get<Constant>()->as<BuiltInType::Integer>();
+      const ast::Expression* endExpression = induction->getEnd();
+      assert(endExpression->isa<ast::Constant>());
+      long end = endExpression->cast<ast::Constant>()->as<int64_t>();
 
-      auto forEquationOp = builder().create<ForEquationOp>(location, start, end, step);
+      const ast::Expression* stepExpression = induction->getStep();
+      assert(stepExpression->isa<ast::Constant>());
+      long step = stepExpression->cast<ast::Constant>()->as<int64_t>();
+
+      auto forEquationOp =
+          builder().create<ForEquationOp>(location, start, end, step);
+
       builder().setInsertionPointToStart(forEquationOp.bodyBlock());
 
       // Add the induction variable to the symbol table
-      symbolTable().insert(
+      getVariablesSymbolTable().insert(
           induction->getName(),
           Reference::ssa(builder(), forEquationOp.induction()));
 
@@ -102,7 +111,7 @@ namespace marco::codegen::lowering
       }
     }
 
-    // Create the equation body
+    // Create the equation body.
     lower(*forEquation.getEquation(), initialEquation);
 
     builder().setInsertionPointAfter(firstOp);

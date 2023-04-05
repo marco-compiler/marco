@@ -1,4 +1,5 @@
 #include "marco/AST/Node/Modification.h"
+#include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Member.h"
 
@@ -8,114 +9,92 @@ using namespace ::marco::ast;
 namespace marco::ast
 {
   Modification::Modification(
-      SourceRange location,
-      std::unique_ptr<ClassModification> classModification)
-    : ASTNode(std::move(location)),
-      classModification(std::move(classModification)),
-      expression(llvm::None)
-  {
-  }
-
-  Modification::Modification(
-      SourceRange location,
-      std::unique_ptr<ClassModification> classModification,
-      std::unique_ptr<Expression> expression)
-    : ASTNode(std::move(location)),
-      classModification(std::move(classModification)),
-      expression(std::move(expression))
-  {
-  }
-
-  Modification::Modification(
-      SourceRange location,
-      std::unique_ptr<Expression> expression)
-    : ASTNode(std::move(location)),
-      classModification(llvm::None),
-      expression(std::move(expression))
+      SourceRange location)
+    : ASTNode(ASTNode::Kind::Modification, std::move(location))
   {
   }
 
   Modification::Modification(const Modification& other)
     : ASTNode(other)
   {
-    if (other.classModification.has_value()) {
-      classModification = other.classModification.value()->clone();
-    } else {
-      classModification = llvm::None;
+    if (other.hasClassModification()) {
+      setClassModification(other.classModification->clone());
     }
 
-    if (other.expression.has_value()) {
-      expression = other.expression.value()->clone();
-    } else {
-      expression = llvm::None;
+    if (other.hasExpression()) {
+      setExpression(other.expression->clone());
     }
   }
-
-  Modification::Modification(Modification&& other) = default;
 
   Modification::~Modification() = default;
 
-  Modification& Modification::operator=(const Modification& other)
+  std::unique_ptr<ASTNode> Modification::clone() const
   {
-    Modification result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Modification>(*this);
   }
 
-  Modification& Modification::operator=(Modification&& other) = default;
-
-  void swap(Modification& first, Modification& second)
+  llvm::json::Value Modification::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    using std::swap;
-    swap(first.classModification, second.classModification);
-    swap(first.expression, second.expression);
-  }
+    if (hasClassModification()) {
+      result["class_modification"] = getClassModification()->toJSON();
+    }
 
-  void Modification::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents) << "modification:\n";
+    if (hasExpression()) {
+      result["expression"] = getExpression()->toJSON();
+    }
 
-    if (classModification.has_value())
-      (*classModification)->dump(os, indents + 1);
-
-    if (expression.has_value())
-      (*expression)->dump(os, indents + 1);
+    addJSONProperties(result);
+    return result;
   }
 
   bool Modification::hasClassModification() const
   {
-    return classModification.has_value();
+    return classModification != nullptr;
   }
 
   ClassModification* Modification::getClassModification()
   {
-    assert(hasClassModification());
-    return classModification->get();
+    assert(hasClassModification() && "Class modification not set");
+    return classModification->cast<ClassModification>();
   }
 
   const ClassModification* Modification::getClassModification() const
   {
-    assert(hasClassModification());
-    return classModification->get();
+    assert(hasClassModification() && "Class modification not set");
+    return classModification->cast<ClassModification>();
+  }
+
+  void Modification::setClassModification(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<ClassModification>());
+    classModification = std::move(node);
+    classModification->setParent(this);
   }
 
   bool Modification::hasExpression() const
   {
-    return expression.has_value();
+    return expression != nullptr;
   }
 
   Expression* Modification::getExpression()
   {
-    assert(hasExpression());
-    return expression->get();
+    assert(hasExpression() && "Expression not set");
+    return expression->cast<Expression>();
   }
 
   const Expression* Modification::getExpression() const
   {
-    assert(hasExpression());
-    return expression->get();
+    assert(hasExpression() && "Expression not set");
+    return expression->cast<Expression>();
+  }
+
+  void Modification::setExpression(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Expression>());
+    expression = std::move(node);
+    expression->setParent(this);
   }
 
   bool Modification::hasStartExpression() const
@@ -157,10 +136,8 @@ namespace marco::ast
     return getClassModification()->getEachProperty();
   }
 
-  ClassModification::ClassModification(
-      SourceRange location,
-      llvm::ArrayRef<std::unique_ptr<Argument>> arguments)
-    : ASTNode(std::move(location))
+  ClassModification::ClassModification(SourceRange location)
+    : ASTNode(ASTNode::Kind::ClassModification, std::move(location))
   {
     for (const auto& arg : arguments) {
       this->arguments.push_back(arg->clone());
@@ -175,54 +152,45 @@ namespace marco::ast
     }
   }
 
-  ClassModification::ClassModification(ClassModification&& other) = default;
-
   ClassModification::~ClassModification() = default;
 
-  ClassModification& ClassModification::operator=(const ClassModification& other)
+  std::unique_ptr<ASTNode> ClassModification::clone() const
   {
-    ClassModification result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<ClassModification>(*this);
   }
 
-  ClassModification& ClassModification::operator=(ClassModification&& other) = default;
-
-  void swap(ClassModification& first, ClassModification& second)
+  llvm::json::Value ClassModification::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    using std::swap;
-    impl::swap(first.arguments, second.arguments);
-  }
-
-  void ClassModification::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents) << "class-modification:\n";
+    llvm::SmallVector<llvm::json::Value> argumentsJson;
 
     for (const auto& argument : arguments) {
-      argument->dump(os, indents + 1);
+      argumentsJson.push_back(argument->toJSON());
     }
+
+    result["arguments"] = llvm::json::Array(argumentsJson);
+
+    addJSONProperties(result);
+    return result;
   }
 
-  ClassModification::iterator ClassModification::begin()
+  llvm::ArrayRef<std::unique_ptr<ASTNode>>
+  ClassModification::getArguments() const
   {
-    return arguments.begin();
+    return arguments;
   }
 
-  ClassModification::const_iterator ClassModification::begin() const
+  void ClassModification::setArguments(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    return arguments.begin();
-  }
+    arguments.clear();
 
-  ClassModification::iterator ClassModification::end()
-  {
-    return arguments.end();
-  }
-
-  ClassModification::const_iterator ClassModification::end() const
-  {
-    return arguments.end();
+    for (const auto& node : nodes) {
+      assert(node->isa<Argument>());
+      auto& clone = arguments.emplace_back(node->clone());
+      clone->setParent(this);
+    }
   }
 
   bool ClassModification::hasStartExpression() const
@@ -232,7 +200,7 @@ namespace marco::ast
         continue;
       }
 
-      auto* elementModification = argument->get<ElementModification>();
+      auto* elementModification = argument->cast<ElementModification>();
 
       if (elementModification->getName() != "start") {
         continue;
@@ -254,7 +222,7 @@ namespace marco::ast
         continue;
       }
 
-      auto* elementModification = argument->get<ElementModification>();
+      auto* elementModification = argument->cast<ElementModification>();
 
       if (elementModification->getName() != "start") {
         continue;
@@ -275,7 +243,7 @@ namespace marco::ast
         continue;
       }
 
-      auto* elementModification = argument->get<ElementModification>();
+      auto* elementModification = argument->cast<ElementModification>();
 
       if (elementModification->getName() != "start") {
         continue;
@@ -294,7 +262,7 @@ namespace marco::ast
         continue;
       }
 
-      const auto* elementModification = argument->get<ElementModification>();
+      const auto* elementModification = argument->cast<ElementModification>();
 
       if (elementModification->getName() != "fixed") {
         continue;
@@ -305,7 +273,7 @@ namespace marco::ast
       assert(modification->hasExpression());
       const auto* modificationExpression = modification->getExpression();
       assert(modificationExpression->isa<Constant>());
-      return modificationExpression->get<Constant>()->as<BuiltInType::Boolean>();
+      return modificationExpression->cast<Constant>()->as<bool>();
     }
 
     return false;
@@ -318,139 +286,52 @@ namespace marco::ast
         continue;
       }
 
-      auto* elementModification = argument->get<ElementModification>();
+      auto* elementModification = argument->cast<ElementModification>();
       return elementModification->hasEachProperty();
     }
 
     return false;
   }
 
-  Argument::Argument(ElementModification content)
-      : content(std::move(content))
-  {
-  }
-
-  Argument::Argument(ElementRedeclaration content)
-      : content(std::move(content))
-  {
-  }
-
-  Argument::Argument(ElementReplaceable content)
-      : content(std::move(content))
-  {
-  }
-
-  Argument::Argument(const Argument& other)
-      : content(other.content)
-  {
-  }
-
-  Argument::Argument(Argument&& other) = default;
-
-  Argument::~Argument() = default;
-
-  Argument& Argument::operator=(const Argument& other)
-  {
-    Argument result(other);
-    swap(*this, result);
-    return *this;
-  }
-
-  Argument& Argument::operator=(Argument&& other) = default;
-
-  void swap(Argument& first, Argument& second)
-  {
-    using std::swap;
-    swap(first.content, second.content);
-  }
-
-  void Argument::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    visit([&os, indents](const auto& obj) {
-      obj.print(os, indents);
-    });
-  }
-
-  ElementModification::ElementModification(
-      SourceRange location,
-      bool each,
-      bool final,
-      llvm::StringRef name,
-    std::unique_ptr<Modification> modification)
-    : ASTNode(std::move(location)),
-      each(each),
-      final(final),
-      name(name.str()),
-      modification(std::move(modification))
-  {
-  }
-
-  ElementModification::ElementModification(
-      SourceRange location,
-      bool each,
-      bool final,
-      llvm::StringRef name)
-    : ASTNode(std::move(location)),
-      each(each),
-      final(final),
-      name(name.str())
+  ElementModification::ElementModification(SourceRange location)
+    : Argument(ASTNode::Kind::Argument_ElementModification, std::move(location)),
+      each(false),
+      final(false),
+      name("")
   {
   }
 
   ElementModification::ElementModification(const ElementModification& other)
-      : ASTNode(other),
+      : Argument(other),
         each(other.each),
         final(other.final),
         name(other.name)
   {
-    if (other.modification.has_value()) {
-      modification = other.modification.value()->clone();
-    } else {
-      modification = llvm::None;
+    if (other.hasModification()) {
+      setModification(other.modification->clone());
     }
   }
-
-  ElementModification::ElementModification(ElementModification&& other) = default;
 
   ElementModification::~ElementModification() = default;
 
-  ElementModification& ElementModification::operator=(const ElementModification& other)
+  std::unique_ptr<ASTNode> ElementModification::clone() const
   {
-    ElementModification result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<ElementModification>(*this);
   }
 
-  ElementModification& ElementModification::operator=(ElementModification&& other) = default;
-
-  void swap(ElementModification& first, ElementModification& second)
+  llvm::json::Value ElementModification::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
+    result["each"] = hasEachProperty();
+    result["final"] = hasFinalProperty();
+    result["name"] = getName();
 
-    using std::swap;
-    swap(first.each, second.each);
-    swap(first.final, second.final);
-    swap(first.name, second.name);
-    swap(first.modification, second.modification);
-  }
-
-  void ElementModification::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents) << "element-modification:\n";
-
-    if (each) {
-      os.indent(indents + 1) << "each: " << each << "\n";
+    if (hasModification()) {
+      result["modification"] = getModification()->toJSON();
     }
 
-    if (final) {
-      os.indent(indents + 1) << "final: " << final << "\n";
-    }
-
-    os.indent(indents + 1) << "name: " << name << "\n";
-
-    if (modification.has_value()) {
-      (*modification)->dump(os, indents + 1);
-    }
+    addJSONProperties(result);
+    return result;
   }
 
   bool ElementModification::hasEachProperty() const
@@ -458,9 +339,19 @@ namespace marco::ast
     return each;
   }
 
+  void ElementModification::setEachProperty(bool value)
+  {
+    each = value;
+  }
+
   bool ElementModification::hasFinalProperty() const
   {
     return final;
+  }
+
+  void ElementModification::setFinalProperty(bool value)
+  {
+    final = value;
   }
 
   llvm::StringRef ElementModification::getName() const
@@ -468,90 +359,80 @@ namespace marco::ast
     return name;
   }
 
+  void ElementModification::setName(llvm::StringRef newName)
+  {
+    name = newName.str();
+  }
+
   bool ElementModification::hasModification() const
   {
-    return modification.has_value();
+    return modification != nullptr;
   }
 
   Modification* ElementModification::getModification()
   {
-    assert(hasModification());
-    return modification->get();
+    assert(hasModification() && "Modification not set");
+    return modification->cast<Modification>();
   }
 
   const Modification* ElementModification::getModification() const
   {
-    assert(hasModification());
-    return modification->get();
+    assert(hasModification() && "Modification not set");
+    return modification->cast<Modification>();
+  }
+
+  void ElementModification::setModification(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Modification>());
+    modification = std::move(node);
+    modification->setParent(this);
   }
 
   ElementReplaceable::ElementReplaceable(SourceRange location)
-      : ASTNode(std::move(location))
+      : Argument(ASTNode::Kind::Argument_ElementReplaceable, std::move(location))
   {
   }
 
   ElementReplaceable::ElementReplaceable(const ElementReplaceable& other)
-      : ASTNode(other)
+      : Argument(other)
   {
   }
-
-  ElementReplaceable::ElementReplaceable(ElementReplaceable&& other) = default;
 
   ElementReplaceable::~ElementReplaceable() = default;
 
-  ElementReplaceable& ElementReplaceable::operator=(const ElementReplaceable& other)
+  std::unique_ptr<ASTNode> ElementReplaceable::clone() const
   {
-    ElementReplaceable result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<ElementReplaceable>(*this);
   }
 
-  ElementReplaceable& ElementReplaceable::operator=(ElementReplaceable&& other) = default;
-
-  void swap(ElementReplaceable& first, ElementReplaceable& second)
+  llvm::json::Value ElementReplaceable::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
-
-    using std::swap;
-  }
-
-  void ElementReplaceable::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    // TODO
+    llvm::json::Object result;
+    addJSONProperties(result);
+    return result;
   }
 
   ElementRedeclaration::ElementRedeclaration(SourceRange location)
-      : ASTNode(std::move(location))
+      : Argument(ASTNode::Kind::Argument_ElementRedeclaration, std::move(location))
   {
   }
 
   ElementRedeclaration::ElementRedeclaration(const ElementRedeclaration& other)
-      : ASTNode(other)
+      : Argument(other)
   {
   }
-
-  ElementRedeclaration::ElementRedeclaration(ElementRedeclaration&& other) = default;
 
   ElementRedeclaration::~ElementRedeclaration() = default;
 
-  ElementRedeclaration& ElementRedeclaration::operator=(const ElementRedeclaration& other)
+  std::unique_ptr<ASTNode> ElementRedeclaration::clone() const
   {
-    ElementRedeclaration result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<ElementRedeclaration>(*this);
   }
 
-  ElementRedeclaration& ElementRedeclaration::operator=(ElementRedeclaration&& other) = default;
-
-  void swap(ElementRedeclaration& first, ElementRedeclaration& second)
+  llvm::json::Value ElementRedeclaration::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
-
-    using std::swap;
-  }
-
-  void ElementRedeclaration::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    // TODO
+    llvm::json::Object result;
+    addJSONProperties(result);
+    return result;
   }
 }

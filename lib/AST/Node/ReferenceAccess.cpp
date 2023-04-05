@@ -1,93 +1,48 @@
 #include "marco/AST/Node/ReferenceAccess.h"
-#include "marco/AST/Node/Expression.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  ReferenceAccess::ReferenceAccess(SourceRange location,
-                                   Type type,
-                                   llvm::StringRef name,
-                                   bool globalLookup,
-                                   bool dummy)
-      : ASTNode(std::move(location)),
-        type(std::move(type)),
-        name(name.str()),
-        globalLookup(globalLookup),
-        dummyVar(dummy)
+  ReferenceAccess::ReferenceAccess(SourceRange location)
+      : Expression(
+          ASTNode::Kind::Expression_ReferenceAccess, std::move(location)),
+        dummy(false)
   {
   }
 
   ReferenceAccess::ReferenceAccess(const ReferenceAccess& other)
-      : ASTNode(other),
-        type(other.type),
+      : Expression(other),
         name(other.name),
-        globalLookup(other.globalLookup),
-        dummyVar(other.dummyVar)
+        dummy(other.dummy)
   {
   }
-
-  ReferenceAccess::ReferenceAccess(ReferenceAccess&& other) = default;
 
   ReferenceAccess::~ReferenceAccess() = default;
 
-  ReferenceAccess& ReferenceAccess::operator=(const ReferenceAccess& other)
+  std::unique_ptr<ASTNode> ReferenceAccess::clone() const
   {
-    ReferenceAccess result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<ReferenceAccess>(*this);
   }
 
-  ReferenceAccess& ReferenceAccess::operator=(ReferenceAccess&& other) = default;
-
-  void swap(ReferenceAccess& first, ReferenceAccess& second)
+  llvm::json::Value ReferenceAccess::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    using std::swap;
-    swap(first.type, second.type);
-    swap(first.name, second.name);
-    swap(first.globalLookup, second.globalLookup);
-    swap(first.dummyVar, second.dummyVar);
-  }
+    if (!isDummy()) {
+      result["name"] = getName();
+    }
 
-  void ReferenceAccess::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "reference access: " << (hasGlobalLookup() ? "." : "") << name << "\n";
+    result["dummy"] = isDummy();
+
+    addJSONProperties(result);
+    return result;
   }
 
   bool ReferenceAccess::isLValue() const
   {
     return true;
-  }
-
-  bool ReferenceAccess::operator==(const ReferenceAccess& other) const
-  {
-    return globalLookup == other.globalLookup &&
-        name == other.name &&
-        dummyVar == other.dummyVar;
-  }
-
-  bool ReferenceAccess::operator!=(const ReferenceAccess& other) const
-  {
-    return !(*this == other);
-  }
-
-  Type& ReferenceAccess::getType()
-  {
-    return type;
-  }
-
-  const Type& ReferenceAccess::getType() const
-  {
-    return type;
-  }
-
-  void ReferenceAccess::setType(Type tp)
-  {
-    type = std::move(tp);
   }
 
   llvm::StringRef ReferenceAccess::getName() const
@@ -100,28 +55,13 @@ namespace marco::ast
     this->name = newName.str();
   }
 
-  bool ReferenceAccess::hasGlobalLookup() const
-  {
-    return globalLookup;
-  }
-
   bool ReferenceAccess::isDummy() const
   {
-    return dummyVar;
+    return dummy;
   }
 
-  std::unique_ptr<Expression> ReferenceAccess::dummy(SourceRange location, Type type)
+  void ReferenceAccess::setDummy(bool value)
   {
-    return Expression::reference(location, type, "", false, true);
-  }
-
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj)
-  {
-    return stream << toString(obj);
-  }
-
-  std::string toString(const ReferenceAccess& obj)
-  {
-    return obj.getName().str();
+    dummy = value;
   }
 }

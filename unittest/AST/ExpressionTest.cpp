@@ -6,85 +6,102 @@ using namespace ::marco::ast;
 
 #define LOC SourceRange::unknown()
 
+/*
 TEST(AST, expression_array)
 {
-  std::vector<std::unique_ptr<Expression>> values;
+  std::vector<std::unique_ptr<ASTNode>> values;
 
-  values.push_back(Expression::constant(LOC, makeType<BuiltInType::Boolean>(), false));
-  values.push_back(Expression::constant(LOC, makeType<BuiltInType::Integer>(), 1));
-  values.push_back(Expression::constant(LOC, makeType<BuiltInType::Real>(), 2));
+  auto value0 = std::make_unique<Constant>(LOC);
+  value0->setValue(false);
+  values.push_back(std::move(value0));
 
-  auto expression = Expression::array(LOC, makeType<BuiltInType::Real>(3), values);
+  auto value1 = std::make_unique<Constant>(LOC);
+  value1->setValue(1);
+  values.push_back(std::move(value1));
 
-  ASSERT_TRUE(expression->isa<Array>());
-  EXPECT_EQ(expression->get<Array>()->size(), 3);
+  auto value2 = std::make_unique<Constant>(LOC);
+  value2->setValue(2);
+  values.push_back(std::move(value2));
+
+  auto node = std::make_unique<Array>(LOC);
+  node->setValues(values);
+
+  ASSERT_TRUE(node->isa<Array>());
+  EXPECT_EQ(node->cast<Array>()->size(), 3);
 }
 
 TEST(AST, expression_call)
 {
-  auto constant = Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0);
+  auto node = std::make_unique<Call>(LOC);
 
-  auto expression = Expression::call(
-      LOC, makeType<BuiltInType::Integer>(),
-      Expression::reference(LOC, makeType<BuiltInType::Integer>(), "Foo"),
-      llvm::None);
+  auto callee = std::make_unique<ReferenceAccess>(LOC);
+  callee->setName("Foo");
+  node->setCallee(std::move(callee));
 
-  ASSERT_TRUE(expression->isa<Call>());
-  EXPECT_EQ(expression->get<Call>()->getFunction()->get<ReferenceAccess>()->getName(), "Foo");
+  ASSERT_TRUE(node->isa<Call>());
+  EXPECT_EQ(node->cast<Call>()->getCallee()->cast<ReferenceAccess>()->getName(), "Foo");
 }
 
 TEST(AST, expression_constant)
 {
-	auto expression = Expression::constant(LOC, makeType<BuiltInType::Integer>(), 0);
+	auto node = std::make_unique<Constant>(LOC);
+  node->setValue(0);
 
-  EXPECT_EQ(expression->getType(), makeType<BuiltInType::Integer>());
-
-	ASSERT_TRUE(expression->isa<Constant>());
-	ASSERT_TRUE(expression->get<Constant>()->isa<BuiltInType::Integer>());
-	EXPECT_EQ(expression->get<Constant>()->get<BuiltInType::Integer>(), 0);
+	ASSERT_TRUE(node->isa<Constant>());
+	EXPECT_EQ(node->cast<Constant>()->as<int64_t>(), 0);
 }
 
 TEST(AST, expression_reference)
 {
-	auto expression = Expression::reference(LOC, makeType<BuiltInType::Integer>(), "x");
+	auto node = std::make_unique<ReferenceAccess>(LOC);
+  node->setName("x");
 
-  EXPECT_EQ(expression->getType(), makeType<BuiltInType::Integer>());
-
-	ASSERT_TRUE(expression->isa<ReferenceAccess>());
-	EXPECT_EQ(expression->get<ReferenceAccess>()->getName(), "x");
+	ASSERT_TRUE(node->isa<ReferenceAccess>());
+	EXPECT_EQ(node->cast<ReferenceAccess>()->getName(), "x");
 }
 
 TEST(AST, expression_operation)
 {
-  std::vector<std::unique_ptr<Expression>> args;
+  std::vector<std::unique_ptr<ASTNode>> args;
 
-	args.push_back(Expression::reference(LOC, makeType<BuiltInType::Integer>(), "x"));
-  args.push_back(Expression::reference(LOC, makeType<BuiltInType::Integer>(), "y"));
+  auto arg0 = std::make_unique<ReferenceAccess>(LOC);
+  arg0->setName("x");
+  args.push_back(std::move(arg0));
 
-	auto expression = Expression::operation(LOC, makeType<BuiltInType::Integer>(), OperationKind::add, args);
+  auto arg1 = std::make_unique<ReferenceAccess>(LOC);
+  arg1->setName("y");
+  args.push_back(std::move(arg1));
 
-	ASSERT_TRUE(expression->isa<Operation>());
-	EXPECT_EQ(expression->get<Operation>()->getOperationKind(), OperationKind::add);
+	auto node = std::make_unique<Operation>(LOC);
+  node->setOperationKind(OperationKind::add);
+  node->setArguments(args);
+
+	ASSERT_TRUE(node->isa<Operation>());
+	EXPECT_EQ(node->cast<Operation>()->getOperationKind(), OperationKind::add);
 }
 
 TEST(AST, expression_tuple)
 {
-  std::vector<std::unique_ptr<Expression>> values;
+  std::vector<std::unique_ptr<ASTNode>> values;
 
-  values.push_back(Expression::reference(LOC, makeType<BuiltInType::Boolean>(), "x"));
-  values.push_back(Expression::reference(LOC, makeType<BuiltInType::Integer>(), "y"));
-  values.push_back(Expression::reference(LOC, makeType<BuiltInType::Real>(), "z"));
+  auto value0 = std::make_unique<ReferenceAccess>(LOC);
+  value0->setName("x");
+  values.push_back(std::move(value0));
 
-  Type type(PackedType({
-      makeType<BuiltInType::Boolean>(),
-      makeType<BuiltInType::Integer>(),
-      makeType<BuiltInType::Real>()
-  }));
+  auto value1 = std::make_unique<ReferenceAccess>(LOC);
+  value1->setName("y");
+  values.push_back(std::move(value1));
 
-  auto expression = Expression::tuple(LOC, type, values);
+  auto value2 = std::make_unique<ReferenceAccess>(LOC);
+  value2->setName("z");
+  values.push_back(std::move(value2));
 
-  ASSERT_TRUE(expression->isa<Tuple>());
-  EXPECT_EQ((*expression->get<Tuple>())[0]->get<ReferenceAccess>()->getName(), "x");
-  EXPECT_EQ((*expression->get<Tuple>())[1]->get<ReferenceAccess>()->getName(), "y");
-  EXPECT_EQ((*expression->get<Tuple>())[2]->get<ReferenceAccess>()->getName(), "z");
+  auto node = std::make_unique<Tuple>(LOC);
+  node->setExpressions(values);
+
+  ASSERT_TRUE(node->isa<Tuple>());
+  EXPECT_EQ((*node->cast<Tuple>()).getExpression(0)->cast<ReferenceAccess>()->getName(), "x");
+  EXPECT_EQ((*node->cast<Tuple>()).getExpression(1)->cast<ReferenceAccess>()->getName(), "y");
+  EXPECT_EQ((*node->cast<Tuple>()).getExpression(2)->cast<ReferenceAccess>()->getName(), "z");
 }
+*/

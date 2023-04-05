@@ -1662,7 +1662,7 @@ namespace
 
       // Operands must be scalar values.
       return mlir::LogicalResult::success(
-          isScalarType(lhsType) && isScalarType(rhsType));
+          ::isScalarType(lhsType) && ::isScalarType(rhsType));
     }
 
     void rewrite(AddEWOp op, mlir::PatternRewriter& rewriter) const override
@@ -1702,11 +1702,11 @@ namespace
       mlir::Type lhsType = op.getLhs().getType();
       mlir::Type rhsType = op.getRhs().getType();
 
-      if (lhsType.isa<ArrayType>() && isScalarType(rhsType)) {
+      if (lhsType.isa<ArrayType>() && ::isScalarType(rhsType)) {
         return mlir::success();
       }
 
-      if (isScalarType(lhsType) && rhsType.isa<ArrayType>()) {
+      if (::isScalarType(lhsType) && rhsType.isa<ArrayType>()) {
         return mlir::success();
       }
 
@@ -1925,7 +1925,7 @@ namespace
 
       // Operands must be scalar values.
       return mlir::LogicalResult::success(
-          isScalarType(lhsType) && isScalarType(rhsType));
+          ::isScalarType(lhsType) && ::isScalarType(rhsType));
     }
 
     void rewrite(SubEWOp op, mlir::PatternRewriter& rewriter) const override
@@ -1964,11 +1964,11 @@ namespace
       mlir::Type lhsType = op.getLhs().getType();
       mlir::Type rhsType = op.getRhs().getType();
 
-      if (lhsType.isa<ArrayType>() && isScalarType(rhsType)) {
+      if (lhsType.isa<ArrayType>() && ::isScalarType(rhsType)) {
         return mlir::success();
       }
 
-      if (isScalarType(lhsType) && rhsType.isa<ArrayType>()) {
+      if (::isScalarType(lhsType) && rhsType.isa<ArrayType>()) {
         return mlir::success();
       }
 
@@ -2097,13 +2097,13 @@ namespace
       }
 
       if (op.getLhs().getType().isa<ArrayType>() &&
-          !isScalarType(op.getRhs().getType())) {
+          !::isScalarType(op.getRhs().getType())) {
         return rewriter.notifyMatchFailure(
             op, "Right-hand side operand is not a scalar");
       }
 
       if (op.getRhs().getType().isa<ArrayType>() &&
-          !isScalarType(op.getLhs().getType())) {
+          !::isScalarType(op.getLhs().getType())) {
         return rewriter.notifyMatchFailure(
             op, "Left-hand side operand is not a scalar");
       }
@@ -2896,7 +2896,7 @@ namespace
 
       // Operands must be scalar values.
       return mlir::LogicalResult::success(
-          isScalarType(lhsType) && isScalarType(rhsType));
+          ::isScalarType(lhsType) && ::isScalarType(rhsType));
     }
 
     void rewrite(MulEWOp op, mlir::PatternRewriter& rewriter) const override
@@ -3024,11 +3024,11 @@ namespace
       mlir::Type lhsType = op.getLhs().getType();
       mlir::Type rhsType = op.getRhs().getType();
 
-      if (lhsType.isa<ArrayType>() && isScalarType(rhsType)) {
+      if (lhsType.isa<ArrayType>() && ::isScalarType(rhsType)) {
         return mlir::success();
       }
 
-      if (isScalarType(lhsType) && rhsType.isa<ArrayType>()) {
+      if (::isScalarType(lhsType) && rhsType.isa<ArrayType>()) {
         return mlir::success();
       }
 
@@ -3113,7 +3113,7 @@ namespace
       mlir::Type rhsType = op.getRhs().getType();
 
       return mlir::LogicalResult::success(
-          lhsType.isa<ArrayType>() && isScalarType(rhsType));
+          lhsType.isa<ArrayType>() && ::isScalarType(rhsType));
     }
 
     void rewrite(DivOp op, mlir::PatternRewriter& rewriter) const override
@@ -3160,7 +3160,7 @@ namespace
 
       // Operands must be scalar values
       return mlir::LogicalResult::success(
-          isScalarType(lhsType) && isScalarType(rhsType));
+          ::isScalarType(lhsType) && ::isScalarType(rhsType));
     }
 
     void rewrite(DivEWOp op, mlir::PatternRewriter& rewriter) const override
@@ -3478,8 +3478,8 @@ namespace
       assert(adaptor.getTrueValues().size() ==
              adaptor.getFalseValues().size());
 
-      if (!isScalarType(adaptor.getTrueValues()[0].getType()) ||
-          !isScalarType(adaptor.getFalseValues()[0].getType())) {
+      if (!::isScalarType(adaptor.getTrueValues()[0].getType()) ||
+          !::isScalarType(adaptor.getFalseValues()[0].getType())) {
         return rewriter.notifyMatchFailure(
             op, "Unsupported operand types");
       }

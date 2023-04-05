@@ -1,19 +1,34 @@
 set(SOURCES
     Lowering/AlgorithmLowerer.cpp
+    Lowering/ArrayLowerer.cpp
+    Lowering/AssignmentStatementLowerer.cpp
+    Lowering/BreakStatementLowerer.cpp
     Lowering/CallLowerer.cpp
+    Lowering/ClassDependencyGraph.cpp
+    Lowering/ClassPath.cpp
     Lowering/ClassLowerer.cpp
+    Lowering/ConstantLowerer.cpp
     Lowering/ExpressionLowerer.cpp
     Lowering/EquationLowerer.cpp
+    Lowering/ForStatementLowerer.cpp
+    Lowering/IfStatementLowerer.cpp
     Lowering/Lowerer.cpp
     Lowering/LoweringContext.cpp
     Lowering/ModelLowerer.cpp
     Lowering/OperationLowerer.cpp
+    Lowering/PackageLowerer.cpp
+    Lowering/PartialDerFunctionLowerer.cpp
     Lowering/Reference.cpp
+    Lowering/ReferenceAccessLowerer.cpp
     Lowering/Results.cpp
     Lowering/RecordLowerer.cpp
+    Lowering/ReturnStatementLowerer.cpp
     Lowering/StandardFunctionLowerer.cpp
     Lowering/StatementLowerer.cpp
+    Lowering/TupleLowerer.cpp
     Lowering/Verifier.cpp
+    Lowering/WhenStatementLowerer.cpp
+    Lowering/WhileStatementLowerer.cpp
     Bridge.cpp
     Runtime.cpp
     Options.cpp

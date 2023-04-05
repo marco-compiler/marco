@@ -1,99 +1,24 @@
 #include "marco/AST/Node/Package.h"
-#include "marco/AST/Node/Class.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Package::Package(SourceRange location,
-                   llvm::StringRef name,
-                   llvm::ArrayRef<std::unique_ptr<Class>> innerClasses)
-    : ASTNode(std::move(location)),
-      name(name.str())
+  Package::Package(SourceRange location)
+      : Class(ASTNode::Kind::Class_Package, std::move(location))
   {
-    for (const auto& cls : innerClasses) {
-      this->innerClasses.push_back(cls->clone());
-    }
   }
 
-  Package::Package(const Package& other)
-      : ASTNode(other),
-        name(other.name)
+  std::unique_ptr<ASTNode> Package::clone() const
   {
-    for (const auto& cls : other.innerClasses) {
-      this->innerClasses.push_back(cls->clone());
-    }
+    return std::make_unique<Package>(*this);
   }
 
-  Package::Package(Package&& other) = default;
-
-  Package::~Package() = default;
-
-  Package& Package::operator=(const Package& other)
+  llvm::json::Value Package::toJSON() const
   {
-    Package result(other);
-    swap(*this, result);
-    return *this;
-  }
-
-  Package& Package::operator=(Package&& other) = default;
-
-  void swap(Package& first, Package& second)
-  {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
-
-    using std::swap;
-    impl::swap(first.innerClasses, second.innerClasses);
-  }
-
-  void Package::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "package " << getName() << "\n";
-
-    for (const auto& cls : innerClasses) {
-      cls->print(os, indents + 1);
-    }
-  }
-
-  llvm::StringRef Package::getName() const
-  {
-    return name;
-  }
-
-  llvm::MutableArrayRef<std::unique_ptr<Class>> Package::getInnerClasses()
-  {
-    return innerClasses;
-  }
-
-  llvm::ArrayRef<std::unique_ptr<Class>> Package::getInnerClasses() const
-  {
-    return innerClasses;
-  }
-
-  size_t Package::size() const
-  {
-    return innerClasses.size();
-  }
-
-  Package::iterator Package::begin()
-  {
-    return innerClasses.begin();
-  }
-
-  Package::const_iterator Package::begin() const
-  {
-    return innerClasses.begin();
-  }
-
-  Package::iterator Package::end()
-  {
-    return innerClasses.end();
-  }
-
-  Package::const_iterator Package::end() const
-  {
-    return innerClasses.end();
+    llvm::json::Object result;
+    addJSONProperties(result);
+    return result;
   }
 }

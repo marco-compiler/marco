@@ -1,0 +1,83 @@
+#include "marco/AST/Node/AssignmentStatement.h"
+#include "marco/AST/Node/Expression.h"
+#include "marco/AST/Node/Tuple.h"
+
+using namespace ::marco;
+using namespace ::marco::ast;
+
+namespace marco::ast
+{
+  AssignmentStatement::AssignmentStatement(SourceRange location)
+      : Statement(ASTNode::Kind::Statement_Assignment, std::move(location))
+  {
+  }
+
+  AssignmentStatement::AssignmentStatement(const AssignmentStatement& other)
+      : Statement(other)
+  {
+    setDestinations(other.destinations->clone());
+    setExpression(other.expression->clone());
+  }
+
+  AssignmentStatement::~AssignmentStatement() = default;
+
+  std::unique_ptr<ASTNode> AssignmentStatement::clone() const
+  {
+    return std::make_unique<AssignmentStatement>(*this);
+  }
+
+  llvm::json::Value AssignmentStatement::toJSON() const
+  {
+    llvm::json::Object result;
+    result["destinations"] = getDestinations()->toJSON();
+    result["expression"] = getExpression()->toJSON();
+
+    addJSONProperties(result);
+    return result;
+  }
+
+  Expression* AssignmentStatement::getDestinations()
+  {
+    assert(destinations != nullptr && "Destinations not set");
+    return destinations->cast<Expression>();
+  }
+
+  const Expression* AssignmentStatement::getDestinations() const
+  {
+    assert(destinations != nullptr && "Destinations not set");
+    return destinations->cast<Expression>();
+  }
+
+  void AssignmentStatement::setDestinations(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Expression>());
+    destinations = std::move(node);
+
+    if (!destinations->isa<Tuple>()) {
+      auto tuple = std::make_unique<Tuple>(destinations->getLocation());
+      tuple->setExpressions(destinations);
+      destinations = std::move(tuple);
+    }
+
+    destinations->setParent(this);
+  }
+
+  Expression* AssignmentStatement::getExpression()
+  {
+    assert(expression != nullptr && "Expression not set");
+    return expression->cast<Expression>();
+  }
+
+  const Expression* AssignmentStatement::getExpression() const
+  {
+    assert(expression != nullptr && "Expression not set");
+    return expression->cast<Expression>();
+  }
+
+  void AssignmentStatement::setExpression(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Expression>());
+    expression = std::move(node);
+    expression->setParent(this);
+  }
+}

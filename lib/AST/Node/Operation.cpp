@@ -6,162 +6,109 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
+static std::string toString(OperationKind kind)
+{
+  switch (kind) {
+    case OperationKind::unknown:
+      return "unknown";
+    case OperationKind::negate:
+      return "negate";
+    case OperationKind::add:
+      return "add";
+    case OperationKind::addEW:
+      return "add_ew";
+    case OperationKind::subtract:
+      return "subtract";
+    case OperationKind::subtractEW:
+      return "subtract_ew";
+    case OperationKind::multiply:
+      return "multiply";
+    case OperationKind::multiplyEW:
+      return "multiply_ew";
+    case OperationKind::divide:
+      return "divide";
+    case OperationKind::divideEW:
+      return "divide_ew";
+    case OperationKind::ifelse:
+      return "if_else";
+    case OperationKind::greater:
+      return "greater";
+    case OperationKind::greaterEqual:
+      return "greater_equal";
+    case OperationKind::equal:
+      return "equal";
+    case OperationKind::different:
+      return "different";
+    case OperationKind::lessEqual:
+      return "less_equal";
+    case OperationKind::less:
+      return "less";
+    case OperationKind::land:
+      return "land";
+    case OperationKind::lor:
+      return "lor";
+    case OperationKind::lnot:
+      return "lnot";
+    case OperationKind::subscription:
+      return "subscription";
+    case OperationKind::memberLookup:
+      return "member_lookup";
+    case OperationKind::powerOf:
+      return "power_of";
+    case OperationKind::powerOfEW:
+      return "power_of_ew";
+    case OperationKind::range:
+      return "range";
+    default:
+      llvm_unreachable("Unknown operation kind");
+      return "unknown";
+  }
+}
+
 namespace marco::ast
 {
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const OperationKind& obj)
-	{
-		return stream << toString(obj);
-	}
-
-	std::string toString(OperationKind operation)
-	{
-		switch (operation) {
-			case OperationKind::negate:
-				return "negate";
-
-			case OperationKind::add:
-				return "add";
-
-      case OperationKind::addEW:
-        return "addEW";
-
-			case OperationKind::subtract:
-				return "subtract";
-
-      case OperationKind::subtractEW:
-        return "subtractEW";
-
-			case OperationKind::multiply:
-				return "multiply";
-
-      case OperationKind::multiplyEW:
-        return "multiplyEW";
-
-			case OperationKind::divide:
-				return "divide";
-
-      case OperationKind::divideEW:
-        return "divideEW";
-
-			case OperationKind::ifelse:
-				return "ifelse";
-
-			case OperationKind::greater:
-				return "greater";
-
-			case OperationKind::greaterEqual:
-				return "greaterEqual";
-
-			case OperationKind::equal:
-				return "equal";
-
-			case OperationKind::different:
-				return "different";
-
-			case OperationKind::lessEqual:
-				return "lessEqual";
-
-			case OperationKind::less:
-				return "less";
-
-			case OperationKind::land:
-				return "land";
-
-      case OperationKind::lnot:
-        return "lnot";
-
-			case OperationKind::lor:
-				return "lor";
-
-			case OperationKind::subscription:
-				return "subscription";
-
-			case OperationKind::memberLookup:
-				return "memberLookup";
-
-			case OperationKind::powerOf:
-				return "powerOf";
-
-      case OperationKind::powerOfEW:
-        return "powerOfEW";
-
-			case OperationKind::range:
-				return "range";
-		}
-
-		return "unexpected";
-	}
-
-  Operation::Operation(
-      SourceRange location,
-      Type type,
-      OperationKind kind,
-      llvm::ArrayRef<std::unique_ptr<Expression>> args)
-    : ASTNode(std::move(location)),
-      type(std::move(type)),
-      kind(kind)
+  Operation::Operation(SourceRange location)
+    : Expression(ASTNode::Kind::Expression_Operation, std::move(location)),
+      kind(OperationKind::unknown)
   {
-    for (const auto& arg : args) {
-      this->args.push_back(arg->clone());
-    }
   }
 
   Operation::Operation(const Operation& other)
-    : ASTNode(other),
-      type(other.type),
+    : Expression(other),
       kind(other.kind)
   {
-    for (const auto& arg : other.args) {
-      this->args.push_back(arg->clone());
-    }
+    setArguments(other.arguments);
   }
-
-  Operation::Operation(Operation&& other) = default;
 
   Operation::~Operation() = default;
 
-  Operation& Operation::operator=(const Operation& other)
+  std::unique_ptr<ASTNode> Operation::clone() const
   {
-    Operation result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Operation>(*this);
   }
 
-  Operation& Operation::operator=(Operation&& other) = default;
-
-  void swap(Operation& first, Operation& second)
+  llvm::json::Value Operation::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
+    result["operation_kind"] = toString(getOperationKind());
 
-    using std::swap;
-    swap(first.type, second.type);
-    swap(first.kind, second.kind);
-    impl::swap(first.args, second.args);
-  }
+    llvm::SmallVector<llvm::json::Value> argsJson;
 
-  void Operation::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "operation kind: " << getOperationKind() << "\n";
-
-    os.indent(indents);
-    os << "type: ";
-    getType().print(os);
-    os << "\n";
-
-    os.indent(indents);
-    os << "args:\n";
-
-    for (const auto& arg : getArguments()) {
-      arg->print(os, indents + 1);
+    for (const auto& arg : arguments) {
+      argsJson.push_back(arg->toJSON());
     }
+
+    result["args"] = llvm::json::Array(argsJson);
+
+    addJSONProperties(result);
+    return result;
   }
 
   bool Operation::isLValue() const
   {
     switch (getOperationKind()) {
       case OperationKind::subscription:
-        return args[0]->isLValue();
+        return getArgument(0)->isLValue();
 
       case OperationKind::memberLookup:
         return true;
@@ -169,49 +116,6 @@ namespace marco::ast
       default:
         return false;
     }
-  }
-
-  bool Operation::operator==(const Operation& other) const
-  {
-    if (kind != other.kind) {
-      return false;
-    }
-
-    if (args.size() != other.args.size()) {
-      return false;
-    }
-
-    return args == other.args;
-  }
-
-  bool Operation::operator!=(const Operation& other) const
-  {
-    return !(*this == other);
-  }
-
-  Expression* Operation::operator[](size_t index)
-  {
-    return getArg(index);
-  }
-
-  const Expression* Operation::operator[](size_t index) const
-  {
-    return getArg(index);
-  }
-
-  Type& Operation::getType()
-  {
-    return type;
-  }
-
-  const Type& Operation::getType() const
-  {
-    return type;
-  }
-
-  void Operation::setType(Type tp)
-  {
-    type = std::move(tp);
   }
 
   OperationKind Operation::getOperationKind() const
@@ -224,170 +128,36 @@ namespace marco::ast
     this->kind = newKind;
   }
 
-  Expression* Operation::getArg(size_t index)
+  size_t Operation::getNumOfArguments() const
   {
-    assert(index < args.size());
-    return args[index].get();
+    return arguments.size();
   }
 
-  const Expression* Operation::getArg(size_t index) const
+  Expression* Operation::getArgument(size_t index)
   {
-    assert(index < args.size());
-    return args[index].get();
+    assert(index < arguments.size());
+    return arguments[index]->cast<Expression>();
   }
 
-  llvm::MutableArrayRef<std::unique_ptr<Expression>> Operation::getArguments()
+  const Expression* Operation::getArgument(size_t index) const
   {
-    return args;
+    assert(index < arguments.size());
+    return arguments[index]->cast<Expression>();
   }
 
-  llvm::ArrayRef<std::unique_ptr<Expression>> Operation::getArguments() const
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> Operation::getArguments() const
   {
-    return args;
+    return arguments;
   }
 
-  size_t Operation::argumentsCount() const
+  void Operation::setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    return args.size();
-  }
+    arguments.clear();
 
-  size_t Operation::size() const
-  {
-    return args.size();
-  }
-
-  Operation::iterator Operation::begin()
-  {
-    return args.begin();
-  }
-
-  Operation::const_iterator Operation::begin() const
-  {
-    return args.begin();
-  }
-
-  Operation::iterator Operation::end()
-  {
-    return args.end();
-  }
-
-  Operation::const_iterator Operation::end() const
-  {
-    return args.end();
-  }
-
-  void Operation::removeArg(size_t index)
-  {
-    assert(!args.empty() && index<args.size() && "invalid index");
-    args.erase(args.begin()+index);
-  }
-
-  llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj)
-  {
-    return stream << toString(obj);
-  }
-
-  std::string toString(const Operation& obj)
-  {
-    switch (obj.getOperationKind())
-    {
-      case OperationKind::negate:
-        return "(not" + toString(*obj[0]) + ")";
-
-      case OperationKind::add:
-      case OperationKind::addEW:
-        return "(" +
-            accumulate(obj.begin(), obj.end(), std::string(),
-                       [](const std::string& result, const std::unique_ptr<Expression>& element) {
-                         std::string str = toString(*element);
-                         return result.empty() ? str : result + " + " + str;
-                       })
-            + ")";
-
-      case OperationKind::subtract:
-      case OperationKind::subtractEW:
-        return "(" +
-            accumulate(obj.begin(), obj.end(), std::string(),
-                       [](const std::string& result, const std::unique_ptr<Expression>& element) {
-                         std::string str = toString(*element);
-                         return result.empty() ? str : result + " - " + str;
-                       })
-            + ")";
-
-      case OperationKind::multiply:
-      case OperationKind::multiplyEW:
-        return "(" +
-            accumulate(obj.begin(), obj.end(), std::string(),
-                       [](const std::string& result, const std::unique_ptr<Expression>& element) {
-                         std::string str = toString(*element);
-                         return result.empty() ? str : result + " * " + str;
-                       })
-            + ")";
-
-      case OperationKind::divide:
-      case OperationKind::divideEW:
-        return "(" +
-            accumulate(obj.begin(), obj.end(), std::string(),
-                       [](const std::string& result, const std::unique_ptr<Expression>& element) {
-                         std::string str = toString(*element);
-                         return result.empty() ? str : result + " / " + str;
-                       })
-            + ")";
-
-      case OperationKind::ifelse:
-        return "(" + toString(*obj[0]) + " ? " + toString(*obj[1]) + " : " + toString(*obj[2]) + ")";
-
-      case OperationKind::greater:
-        return "(" + toString(*obj[0]) + " > " + toString(*obj[1]) + ")";
-
-      case OperationKind::greaterEqual:
-        return "(" + toString(*obj[0]) + " >= " + toString(*obj[1]) + ")";
-
-      case OperationKind::equal:
-        return "(" + toString(*obj[0]) + " == " + toString(*obj[1]) + ")";
-
-      case OperationKind::different:
-        return "(" + toString(*obj[0]) + " != " + toString(*obj[1]) + ")";
-
-      case OperationKind::lessEqual:
-        return "(" + toString(*obj[0]) + " <= " + toString(*obj[1]) + ")";
-
-      case OperationKind::less:
-        return "(" + toString(*obj[0]) + " < " + toString(*obj[1]) + ")";
-
-      case OperationKind::land:
-        return "(" + toString(*obj[0]) + " && " + toString(*obj[1]) + ")";
-
-      case OperationKind::lnot:
-        return "(not " + toString(*obj[0]) + ")";
-
-      case OperationKind::lor:
-        return "(" + toString(*obj[0]) + " || " + toString(*obj[1]) + ")";
-
-      case OperationKind::subscription:
-        return "(" + toString(*obj[0]) +
-            accumulate(std::next(obj.begin()), obj.end(), std::string(),
-                       [](const std::string& result, const std::unique_ptr<Expression>& element) {
-                         std::string str = toString(*element);
-                         return result + "[" + str + "]";
-                       }) +
-            ")";
-
-      case OperationKind::memberLookup:
-        return "(" + toString(*obj[0]) + " . " + toString(*obj[1]) + ")";
-
-      case OperationKind::powerOf:
-      case OperationKind::powerOfEW:
-        return "(" + toString(*obj[0]) + " ^ " + toString(*obj[1]) + ")";
-
-      case OperationKind::range:
-        if (obj.argumentsCount() == 3) {
-          return toString(*obj[0]) + " : " + toString(*obj[1]) + " : " + toString(*obj[2]);
-        }
-
-        return toString(*obj[0]) + " : " + toString(*obj[1]);
+    for (const auto& node : nodes) {
+      assert(node->isa<Expression>());
+      auto& clone = arguments.emplace_back(node->clone());
+      clone->setParent(this);
     }
-
-    return "unknown";
   }
 }

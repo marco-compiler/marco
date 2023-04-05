@@ -31,7 +31,6 @@ marco_add_library(frontend
 
     LINK_LIBS
     marco::ast
-    marco::ASTPasses
     marco::parser
     marco::codegen
     marco::variableFilter

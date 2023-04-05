@@ -1345,8 +1345,7 @@ namespace marco::codegen
     auto functionOp = builder.create<FunctionOp>(
         loc, functionName, builder.getFunctionType(argTypes, llvm::None));
 
-    mlir::Block* entryBlock = builder.createBlock(&functionOp.getBody());
-    builder.setInsertionPointToStart(entryBlock);
+    builder.setInsertionPointToStart(functionOp.bodyBlock());
 
     // Declare the variables.
     mlir::BlockAndValueMapping mapping;

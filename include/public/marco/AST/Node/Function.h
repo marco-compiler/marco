@@ -1,154 +1,122 @@
 #ifndef MARCO_AST_NODE_FUNCTION_H
 #define MARCO_AST_NODE_FUNCTION_H
 
-#include "marco/AST/Node/ASTNode.h"
+#include "marco/AST/Node/Class.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Annotation.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
-#include <memory>
-#include <string>
 
 namespace marco::ast
 {
 	class Algorithm;
 	class Annotation;
 	class Member;
+  class VariableType;
 
-	class Function : public ASTNode
-	{
-		public:
-      Function(SourceRange location, llvm::StringRef name);
+  class FunctionType
+  {
+    public:
+      FunctionType(
+        llvm::ArrayRef<std::unique_ptr<ASTNode>> args,
+        llvm::ArrayRef<std::unique_ptr<ASTNode>> results);
 
-      Function(const Function& other);
-      Function(Function&& other);
+      size_t getNumOfArgs() const;
 
-      ~Function() override;
+      const VariableType* getArg(size_t index) const;
 
-      Function& operator=(const Function& other);
-      Function& operator=(Function&& other);
+      size_t getNumOfResults() const;
 
-      friend void swap(Function& first, Function& second);
-
-      [[nodiscard]] llvm::StringRef getName() const;
-
-		private:
-		  std::string name;
-	};
-
-	class PartialDerFunction
-			: public Function,
-				public impl::Dumpable<PartialDerFunction>
-	{
-		public:
-      PartialDerFunction(const PartialDerFunction& other);
-      PartialDerFunction(PartialDerFunction&& other);
-      ~PartialDerFunction() override;
-
-      PartialDerFunction& operator=(const PartialDerFunction& other);
-      PartialDerFunction& operator=(PartialDerFunction&& other);
-
-      friend void swap(PartialDerFunction& first, PartialDerFunction& second);
-
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-      [[nodiscard]] Expression* getDerivedFunction() const;
-
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Expression>> getIndependentVariables();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Expression>> getIndependentVariables() const;
-
-      [[nodiscard]] llvm::MutableArrayRef<Type> getArgsTypes();
-      [[nodiscard]] llvm::ArrayRef<Type> getArgsTypes() const;
-      void setArgsTypes(llvm::ArrayRef<Type> types);
-
-      [[nodiscard]] llvm::MutableArrayRef<Type> getResultsTypes();
-      [[nodiscard]] llvm::ArrayRef<Type> getResultsTypes() const;
-      void setResultsTypes(llvm::ArrayRef<Type> types);
-
-      [[nodiscard]] FunctionType getType() const;
-
-		private:
-      friend class Class;
-
-      PartialDerFunction(SourceRange location,
-                         llvm::StringRef name,
-                         std::unique_ptr<Expression> derivedFunction,
-                         llvm::ArrayRef<std::unique_ptr<Expression>> independentVariables);
+      const VariableType* getResult(size_t index) const;
 
     private:
-      std::unique_ptr<Expression> derivedFunction;
-      llvm::SmallVector<std::unique_ptr<Expression>, 3> independentVariables;
-      llvm::SmallVector<Type, 3> args;
-      llvm::SmallVector<Type, 3> results;
+      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> args;
+      llvm::SmallVector<std::unique_ptr<ASTNode>, 1> results;
+  };
+
+	class Function : public Class
+	{
+		public:
+      using Class::Class;
+
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() >= ASTNode::Kind::Class_Function &&
+          node->getKind() <= ASTNode::Kind::Class_Function_LastFunction;
+      }
 	};
 
-	class StandardFunction
-			: public Function,
-				public impl::Dumpable<StandardFunction>
+	class PartialDerFunction : public Function
 	{
-		private:
-		  template<typename T> using Container = llvm::SmallVector<T, 3>;
-
 		public:
-      template<typename... Args>
-      static std::unique_ptr<StandardFunction> build(Args&&... args)
+      explicit PartialDerFunction(SourceRange location);
+
+      PartialDerFunction(const PartialDerFunction& other);
+
+      ~PartialDerFunction() override;
+
+      static bool classof(const ASTNode* node)
       {
-        return std::unique_ptr<StandardFunction>(new StandardFunction(std::forward<Args>(args)...));
+        return node->getKind() ==
+            ASTNode::Kind::Class_Function_PartialDerFunction;
       }
 
+      std::unique_ptr<ASTNode> clone() const override;
+
+      llvm::json::Value toJSON() const override;
+
+      Expression* getDerivedFunction() const;
+
+      void setDerivedFunction(std::unique_ptr<ASTNode> node);
+
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getIndependentVariables() const;
+
+      void setIndependentVariables(
+          llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+
+    private:
+      std::unique_ptr<ASTNode> derivedFunction;
+      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> independentVariables;
+	};
+
+	class StandardFunction : public Function
+	{
+		public:
+      explicit StandardFunction(SourceRange location);
+
       StandardFunction(const StandardFunction& other);
-      StandardFunction(StandardFunction&& other);
+
       ~StandardFunction() override;
 
-      StandardFunction& operator=(const StandardFunction& other);
-      StandardFunction& operator=(StandardFunction&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() ==
+            ASTNode::Kind::Class_Function_StandardFunction;
+      }
 
-      friend void swap(StandardFunction& first, StandardFunction& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] Member* operator[](llvm::StringRef name);
-      [[nodiscard]] const Member* operator[](llvm::StringRef name) const;
+      bool isPure() const;
 
-      [[nodiscard]] bool isPure() const;
+      void setPure(bool value);
 
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Member>> getMembers();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Member>> getMembers() const;
+      bool hasAnnotation() const;
 
-      [[nodiscard]] Container<Member*> getArgs() const;
-      [[nodiscard]] Container<Member*> getResults() const;
-      [[nodiscard]] Container<Member*> getProtectedMembers() const;
+      Annotation* getAnnotation();
 
-      void addMember(std::unique_ptr<Member> member);
+      const Annotation* getAnnotation() const;
 
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Algorithm>> getAlgorithms();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Algorithm>> getAlgorithms() const;
+      void setAnnotation(std::unique_ptr<ASTNode> node);
 
-      [[nodiscard]] bool hasAnnotation() const;
-      [[nodiscard]] Annotation* getAnnotation();
-      [[nodiscard]] const Annotation* getAnnotation() const;
+      bool shouldBeInlined() const;
 
-      [[nodiscard]] bool shouldBeInlined() const;
-      [[nodiscard]] bool isCustomRecordConstructor() const;
-
-      [[nodiscard]] FunctionType getType() const;
-
-		private:
-      friend class Class;
-
-      StandardFunction(SourceRange location,
-                       bool pure,
-                       llvm::StringRef name,
-                       llvm::ArrayRef<std::unique_ptr<Member>> members,
-                       llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
-                       llvm::Optional<std::unique_ptr<Annotation>> annotation = llvm::None);
+      FunctionType getType() const;
 
     private:
       bool pure;
-      Container<std::unique_ptr<Member>> members;
-      Container<std::unique_ptr<Algorithm>> algorithms;
-      llvm::Optional<std::unique_ptr<Annotation>> annotation;
+      std::unique_ptr<ASTNode> annotation;
 	};
 
 	class DerivativeAnnotation

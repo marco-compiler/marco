@@ -10,11 +10,15 @@ namespace marco::codegen::lowering
   class EquationLowerer : public Lowerer
   {
     public:
-      EquationLowerer(LoweringContext* context, BridgeInterface* bridge);
+      EquationLowerer(BridgeInterface* bridge);
 
-      void lower(const ast::Equation& equation, bool initialEquation) override;
+      void lower(
+          const ast::Equation& equation,
+          bool initialEquation) override;
 
-      void lower(const ast::ForEquation& forEquation, bool initialEquation) override;
+      void lower(
+          const ast::ForEquation& forEquation,
+          bool initialEquation) override;
 
     protected:
       using Lowerer::lower;

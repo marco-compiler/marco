@@ -106,10 +106,7 @@ namespace marco::codegen
     moduleSymbolTable.insert(derivedFunctionOp.getOperation());
 
     // Start the body of the function.
-    mlir::Block* entryBlock =
-        builder.createBlock(&derivedFunctionOp.getBody());
-
-    builder.setInsertionPointToStart(entryBlock);
+    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
     mlir::BlockAndValueMapping mapping;
 
     mlir::SymbolTable& derFunctionSymbolTable =
@@ -297,8 +294,7 @@ namespace marco::codegen
 
     partialDersTemplateCallers[derivedFunctionOp.getSymName()] = templateFunction;
 
-    mlir::Block* entryBlock = builder.createBlock(&derivedFunctionOp.getBody());
-    builder.setInsertionPointToStart(entryBlock);
+    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
 
     // Declare the variables.
     llvm::SmallVector<VariableOp> inputVariables;
@@ -488,10 +484,7 @@ namespace marco::codegen
         functionOp.getLoc(), derivedFunctionName);
 
     // Start the body of the function.
-    mlir::Block* entryBlock =
-        builder.createBlock(&derivedFunctionOp.getBody());
-
-    builder.setInsertionPointToStart(entryBlock);
+    builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
     mlir::BlockAndValueMapping mapping;
 
     // Clone the variables.

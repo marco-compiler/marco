@@ -1,22 +1,15 @@
 #ifndef MARCO_AST_NODE_OPERATION_H
 #define MARCO_AST_NODE_OPERATION_H
 
-#include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Type.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
-#include <initializer_list>
+#include "marco/AST/Node/Expression.h"
+#include "llvm/ADT/STLExtras.h"
 #include <memory>
-#include <utility>
-#include <variant>
-#include <vector>
 
 namespace marco::ast
 {
-	class Expression;
-
 	enum class OperationKind
 	{
+    unknown,
 		negate,
 		add,
     addEW,
@@ -43,83 +36,44 @@ namespace marco::ast
 		range,
 	};
 
-	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const OperationKind& obj);
-
-	std::string toString(OperationKind operation);
-
-	class Operation
-			: public ASTNode,
-				public impl::Dumpable<Operation>
+	class Operation : public Expression
 	{
-		private:
-      template<typename T> using Container = llvm::SmallVector<T, 3>;
-
 		public:
-      using iterator = Container<std::unique_ptr<Expression>>::iterator;
-      using const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
+      explicit Operation(SourceRange location);
 
       Operation(const Operation& other);
-      Operation(Operation&& other);
+
       ~Operation() override;
 
-      Operation& operator=(const Operation& other);
-      Operation& operator=(Operation&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Expression_Operation;
+      }
 
-      friend void swap(Operation& first, Operation& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] bool isLValue() const;
+      bool isLValue() const override;
 
-      [[nodiscard]] bool operator==(const Operation& other) const;
-      [[nodiscard]] bool operator!=(const Operation& other) const;
+      OperationKind getOperationKind() const;
 
-      [[nodiscard]] Expression* operator[](size_t index);
-      [[nodiscard]] const Expression* operator[](size_t index) const;
+      void setOperationKind(OperationKind newOperationKind);
 
-      [[nodiscard]] Type& getType();
-      [[nodiscard]] const Type& getType() const;
-      void setType(Type tp);
+      size_t getNumOfArguments() const;
 
-      [[nodiscard]] OperationKind getOperationKind() const;
-      void setOperationKind(OperationKind k);
+      Expression* getArgument(size_t index);
 
-      [[nodiscard]] Expression* getArg(size_t index);
-      [[nodiscard]] const Expression* getArg(size_t index) const;
+      const Expression* getArgument(size_t index) const;
 
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Expression>> getArguments();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Expression>> getArguments() const;
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
 
-      [[nodiscard]] size_t argumentsCount() const;
-
-      [[nodiscard]] size_t size() const;
-
-      [[nodiscard]] iterator begin();
-      [[nodiscard]] const_iterator begin() const;
-
-      [[nodiscard]] iterator end();
-      [[nodiscard]] const_iterator end() const;
-
-      void removeArg(size_t index);
-
-		private:
-      friend class Expression;
-
-      Operation(SourceRange location,
-                Type type,
-                OperationKind kind,
-                llvm::ArrayRef<std::unique_ptr<Expression>> args);
+      void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
     private:
-      Type type;
       OperationKind kind;
-      Container<std::unique_ptr<Expression>> args;
+      llvm::SmallVector<std::unique_ptr<ASTNode>, 3> arguments;
 	};
-
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj);
-
-	std::string toString(const Operation& obj);
 }
 
 #endif // MARCO_AST_NODE_OPERATION_H

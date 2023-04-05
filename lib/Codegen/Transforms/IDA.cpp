@@ -1189,8 +1189,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   auto functionOp = builder.create<FunctionOp>(loc, functionOpName);
 
   // Start the body of the function.
-  mlir::Block* entryBlock = builder.createBlock(&functionOp.getBody());
-  builder.setInsertionPointToStart(entryBlock);
+  builder.setInsertionPointToStart(functionOp.bodyBlock());
 
   // Clone the original variables.
   for (VariableOp variableOp : managedVariables) {

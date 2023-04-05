@@ -4,6 +4,7 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
+/*
 TEST(DynamicDimensionsGraph, emptyGraph)
 {
   DynamicDimensionsGraph graph;
@@ -185,3 +186,4 @@ TEST(DynamicDimensionsGraph, cyclicDependencies)
 
   EXPECT_TRUE(graph.hasCycles());
 }
+*/

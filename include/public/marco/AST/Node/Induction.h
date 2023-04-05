@@ -14,55 +14,55 @@ namespace marco::ast
 	///
 	/// Notice that for the compiler we made the assumption that all range will be
 	/// of step one.
-	class Induction
-			: public ASTNode,
-				public impl::Cloneable<Induction>,
-				public impl::Dumpable<Induction>
+	class Induction : public ASTNode
 	{
 		public:
-      template<typename... Args>
-      static std::unique_ptr<Induction> build(Args&&... args)
-      {
-        return std::unique_ptr<Induction>(new Induction(std::forward<Args>(args)...));
-      }
+      explicit Induction(SourceRange location);
 
       Induction(const Induction& other);
-      Induction(Induction&& other);
+
       ~Induction() override;
 
-      Induction& operator=(const Induction& other);
-      Induction& operator=(Induction&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Induction;
+      }
 
-      friend void swap(Induction& first, Induction& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] llvm::StringRef getName() const;
+      llvm::StringRef getName() const;
 
-      [[nodiscard]] Expression* getBegin();
-      [[nodiscard]] const Expression* getBegin() const;
+      void setName(llvm::StringRef newName);
 
-      [[nodiscard]] Expression* getEnd();
-      [[nodiscard]] const Expression* getEnd() const;
+      Expression* getBegin();
 
-      [[nodiscard]] Expression* getStep();
-      [[nodiscard]] const Expression* getStep() const;
+      const Expression* getBegin() const;
 
-      [[nodiscard]] size_t getInductionIndex() const;
+      void setBegin(std::unique_ptr<ASTNode> node);
+
+      Expression* getEnd();
+
+      const Expression* getEnd() const;
+
+      void setEnd(std::unique_ptr<ASTNode> node);
+
+      Expression* getStep();
+
+      const Expression* getStep() const;
+
+      void setStep(std::unique_ptr<ASTNode> node);
+
+      size_t getInductionIndex() const;
+
       void setInductionIndex(size_t index);
-
-		private:
-      Induction(SourceRange location,
-                llvm::StringRef inductionVariable,
-                std::unique_ptr<Expression> begin,
-                std::unique_ptr<Expression> end,
-                std::unique_ptr<Expression> step);
 
     private:
       std::string inductionVariable;
-      std::unique_ptr<Expression> begin;
-      std::unique_ptr<Expression> end;
-      std::unique_ptr<Expression> step;
+      std::unique_ptr<ASTNode> begin;
+      std::unique_ptr<ASTNode> end;
+      std::unique_ptr<ASTNode> step;
       size_t inductionIndex;
 	};
 }

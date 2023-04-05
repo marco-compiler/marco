@@ -1,7 +1,10 @@
 #include "marco/AST/Node/Annotation.h"
+#include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Expression.h"
 #include "marco/AST/Node/Modification.h"
 #include "marco/AST/Node/Function.h"
+#include "marco/AST/Node/ReferenceAccess.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -9,47 +12,49 @@ using namespace ::marco::ast;
 namespace marco::ast
 {
   Annotation::Annotation(SourceRange location)
-      : ASTNode(std::move(location))
-  {
-  }
-
-  Annotation::Annotation(SourceRange location,
-                         std::unique_ptr<ClassModification> properties)
-      : ASTNode(std::move(location)),
-        properties(std::move(properties))
+      : ASTNode(ASTNode::Kind::Annotation, std::move(location))
   {
   }
 
   Annotation::Annotation(const Annotation& other)
-      : ASTNode(other),
-        properties(other.properties->clone())
+      : ASTNode(other)
   {
+    setProperties(other.properties->clone());
   }
-
-  Annotation::Annotation(Annotation&& other) = default;
 
   Annotation::~Annotation() = default;
 
-  Annotation& Annotation::operator=(const Annotation& other)
+  std::unique_ptr<ASTNode> Annotation::clone() const
   {
-    Annotation result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Annotation>(*this);
   }
 
-  Annotation& Annotation::operator=(Annotation&& other) = default;
-
-  void swap(Annotation& first, Annotation& second)
+  llvm::json::Value Annotation::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
+    result["properties"] = getProperties()->toJSON();
 
-    using std::swap;
-    swap(first.properties, second.properties);
+    addJSONProperties(result);
+    return result;
   }
 
-  void Annotation::print(llvm::raw_ostream& os, size_t indents) const
+  ClassModification* Annotation::getProperties()
   {
-    // TODO
+    assert(properties != nullptr && "Properties not set");
+    return properties->cast<ClassModification>();
+  }
+
+  const ClassModification* Annotation::getProperties() const
+  {
+    assert(properties != nullptr && "Properties not set");
+    return properties->cast<ClassModification>();
+  }
+
+  void Annotation::setProperties(std::unique_ptr<ASTNode> newProperties)
+  {
+    assert(newProperties->isa<ClassModification>());
+    properties = std::move(newProperties);
+    properties->setParent(this);
   }
 
   /// Inline property AST structure:
@@ -68,11 +73,11 @@ namespace marco::ast
   ///                true
   bool Annotation::getInlineProperty() const
   {
-    for (const auto& argument : *properties) {
-      if (auto* elementModification = argument->dyn_get<ElementModification>()) {
+    for (const auto& argument : getProperties()->getArguments()) {
+      if (auto* elementModification = argument->dyn_cast<ElementModification>()) {
         if (elementModification->getName().equals_insensitive("inline") && elementModification->hasModification()) {
           const auto& modification = elementModification->getModification();
-          return modification->getExpression()->get<Constant>()->get<BuiltInType::Boolean>();
+          return modification->getExpression()->cast<Constant>()->as<bool>();
         }
       }
     }
@@ -82,8 +87,8 @@ namespace marco::ast
 
   bool Annotation::hasDerivativeAnnotation() const
   {
-    for (const auto& argument : *properties) {
-      if (auto* elementModification = argument->dyn_get<ElementModification>()) {
+    for (const auto& argument : getProperties()->getArguments()) {
+      if (auto* elementModification = argument->dyn_cast<ElementModification>()) {
         if (elementModification->getName() == "derivative") {
           return true;
         }
@@ -121,21 +126,21 @@ namespace marco::ast
   {
     assert(hasDerivativeAnnotation());
 
-    for (const auto& argument : *properties) {
-      if (auto* elementModification = argument->dyn_get<ElementModification>()) {
+    for (const auto& argument : getProperties()->getArguments()) {
+      if (auto* elementModification = argument->dyn_cast<ElementModification>()) {
         if (elementModification->getName() != "derivative") {
           continue;
         }
 
         auto* modification = elementModification->getModification();
-        auto name = modification->getExpression()->get<ReferenceAccess>()->getName();
+        auto name = modification->getExpression()->cast<ReferenceAccess>()->getName();
         unsigned int order = 1;
 
         if (modification->hasClassModification()) {
-          for (const auto& derivativeArgument : *modification->getClassModification()) {
-            if (auto* derivativeModification = derivativeArgument->dyn_get<ElementModification>()) {
+          for (const auto& derivativeArgument : modification->getClassModification()->getArguments()) {
+            if (auto* derivativeModification = derivativeArgument->dyn_cast<ElementModification>()) {
               if (derivativeModification->getName() == "order") {
-                order = derivativeModification->getModification()->getExpression()->get<Constant>()->get<BuiltInType::Integer>();
+                order = derivativeModification->getModification()->getExpression()->dyn_cast<Constant>()->as<int64_t>();
               }
             }
           }
@@ -153,29 +158,29 @@ namespace marco::ast
   {
     InverseFunctionAnnotation result;
 
-    for (const auto& argument : *properties) {
-      if (auto* elementModification = argument->dyn_get<ElementModification>()) {
+    for (const auto& argument : getProperties()->getArguments()) {
+      if (auto* elementModification = argument->dyn_cast<ElementModification>()) {
         if (elementModification->getName().equals_insensitive("inverse")) {
           assert(elementModification->hasModification());
           const auto& modification = elementModification->getModification();
           assert(modification->hasClassModification());
 
-          for (const auto& inverseDeclaration : *modification->getClassModification()) {
-            const auto& inverseDeclarationFullExpression = inverseDeclaration->get<ElementModification>();
+          for (const auto& inverseDeclaration : modification->getClassModification()->getArguments()) {
+            const auto& inverseDeclarationFullExpression = inverseDeclaration->cast<ElementModification>();
             assert(inverseDeclarationFullExpression->hasModification());
             const auto& callExpression = inverseDeclarationFullExpression->getModification();
             assert(callExpression->hasExpression());
-            const auto* call = callExpression->getExpression()->get<Call>();
+            const auto* call = callExpression->getExpression()->cast<Call>();
 
             llvm::SmallVector<std::string, 3> args;
 
-            for (const auto& arg : *call) {
-              args.push_back(arg->get<ReferenceAccess>()->getName().str());
+            for (const auto& arg : call->getArguments()) {
+              args.push_back(arg->cast<ReferenceAccess>()->getName().str());
             }
 
             result.addInverse(
                 inverseDeclarationFullExpression->getName().str(),
-                call->getFunction()->get<ReferenceAccess>()->getName(),
+                call->getCallee()->cast<ReferenceAccess>()->getName(),
                 args);
           }
         }

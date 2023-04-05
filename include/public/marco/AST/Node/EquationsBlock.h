@@ -9,47 +9,47 @@ namespace marco::ast
   class Equation;
   class ForEquation;
 
-  class EquationsBlock
-      : public ASTNode,
-        public impl::Cloneable<EquationsBlock>,
-        public impl::Dumpable<EquationsBlock>
+  class EquationsBlock : public ASTNode
   {
-    private:
-      template<typename T> using Container = llvm::SmallVector<T, 3>;
-
     public:
-      EquationsBlock(
-        SourceRange location,
-        llvm::ArrayRef<std::unique_ptr<Equation>> equations = llvm::None,
-        llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations = llvm::None);
-
-      template<typename... Args>
-      static std::unique_ptr<EquationsBlock> build(Args&&... args)
-      {
-        return std::unique_ptr<EquationsBlock>(new EquationsBlock(std::forward<Args>(args)...));
-      }
+      explicit EquationsBlock(SourceRange location);
 
       EquationsBlock(const EquationsBlock& other);
-      EquationsBlock(EquationsBlock&& other);
 
       ~EquationsBlock() override;
 
-      EquationsBlock& operator=(const EquationsBlock& other);
-      EquationsBlock& operator=(EquationsBlock&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::EquationsBlock;
+      }
 
-      friend void swap(EquationsBlock& first, EquationsBlock& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      llvm::ArrayRef<std::unique_ptr<Equation>> getEquations() const;
-      llvm::ArrayRef<std::unique_ptr<ForEquation>> getForEquations() const;
+      size_t getNumOfEquations() const;
 
-      void add(std::unique_ptr<Equation> equation);
-      void add(std::unique_ptr<ForEquation> equation);
+      Equation* getEquation(size_t index);
+
+      const Equation* getEquation(size_t index) const;
+
+      void setEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+
+      void addEquation(std::unique_ptr<ASTNode> node);
+
+      size_t getNumOfForEquations() const;
+
+      ForEquation* getForEquation(size_t index);
+
+      const ForEquation* getForEquation(size_t index) const;
+
+      void setForEquations(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
+
+      void addForEquation(std::unique_ptr<ASTNode> node);
 
     private:
-      Container<std::unique_ptr<Equation>> equations;
-      Container<std::unique_ptr<ForEquation>> forEquations;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> equations;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> forEquations;
   };
 }
 

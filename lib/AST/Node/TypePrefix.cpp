@@ -3,82 +3,78 @@
 using namespace ::marco;
 using namespace ::marco::ast;
 
+static std::string toString(VariabilityQualifier qualifier)
+{
+  switch (qualifier)
+  {
+    case VariabilityQualifier::discrete:
+      return "discrete";
+    case VariabilityQualifier::parameter:
+      return "parameter";
+    case VariabilityQualifier::constant:
+      return "constant";
+    case VariabilityQualifier::none:
+      return "none";
+    default:
+      llvm_unreachable("Unknown variability qualifier");
+      return "unknown";
+  }
+}
+
+static std::string toString(IOQualifier qualifier)
+{
+  switch (qualifier) {
+    case IOQualifier::input:
+      return "input";
+    case IOQualifier::output:
+      return "output";
+    case IOQualifier::none:
+      return "none";
+    default:
+      llvm_unreachable("Unknown I/O qualifier");
+      return "unknown";
+  }
+}
+
 namespace marco::ast
 {
-	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const VariabilityQualifier& obj)
-	{
-		return stream << toString(obj);
-	}
-
-	std::string toString(VariabilityQualifier qualifier)
-	{
-		switch (qualifier)
-		{
-			case VariabilityQualifier::discrete:
-				return "discrete";
-			case VariabilityQualifier::parameter:
-				return "parameter";
-			case VariabilityQualifier::constant:
-				return "constant";
-			case VariabilityQualifier::none:
-				return "none";
-		}
-
-		return "unexpected";
-	}
-
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const IOQualifier& obj)
-	{
-		return stream << toString(obj);
-	}
-
-	std::string toString(IOQualifier qualifier)
-	{
-		switch (qualifier)
-		{
-			case IOQualifier::input:
-				return "input";
-			case IOQualifier::output:
-				return "output";
-			case IOQualifier::none:
-				return "none";
-		}
-
-		return "unexpected";
-	}
-
-  TypePrefix::TypePrefix(
-      VariabilityQualifier variabilityQualifier, IOQualifier ioQualifier)
-      : variabilityQualifier(variabilityQualifier), ioQualifier(ioQualifier)
+  TypePrefix::TypePrefix(SourceRange location)
+      : ASTNode(ASTNode::Kind::TypePrefix, std::move(location))
   {
   }
 
-  void TypePrefix::print(llvm::raw_ostream& os, size_t indents) const
+  TypePrefix::TypePrefix(const TypePrefix& other)
+      : ASTNode(other),
+        variabilityQualifier(other.variabilityQualifier),
+        ioQualifier(other.ioQualifier)
   {
-    os << "Prefix: ";
+  }
 
-    if (variabilityQualifier == VariabilityQualifier::none &&
-        ioQualifier == IOQualifier::none) {
-      os << "none";
-    } else {
-      bool space = false;
+  TypePrefix::~TypePrefix() = default;
 
-      if (variabilityQualifier != VariabilityQualifier::none) {
-        os << variabilityQualifier;
-        space = true;
-      }
+  std::unique_ptr<ASTNode> TypePrefix::clone() const
+  {
+    return std::make_unique<TypePrefix>(*this);
+  }
 
-      if (ioQualifier != IOQualifier::none) {
-        if (space) {
-          os << " ";
-        }
+  llvm::json::Value TypePrefix::toJSON() const
+  {
+    llvm::json::Object result;
+    result["variability"] = toString(variabilityQualifier);
+    result["io"] = toString(ioQualifier);
 
-        os << ioQualifier;
-      }
-    }
+    addJSONProperties(result);
+    return result;
+  }
 
-    os.indent(indents);
+  void TypePrefix::setVariabilityQualifier(VariabilityQualifier qualifier)
+  {
+    variabilityQualifier = qualifier;
+  }
+
+  void TypePrefix::setIOQualifier(IOQualifier qualifier)
+  {
+    ioQualifier = qualifier;
   }
 
   bool TypePrefix::isDiscrete() const
@@ -104,10 +100,5 @@ namespace marco::ast
   bool TypePrefix::isOutput() const
   {
     return ioQualifier == IOQualifier::output;
-  }
-
-  TypePrefix TypePrefix::none()
-  {
-    return TypePrefix(VariabilityQualifier::none, IOQualifier::none);
   }
 }

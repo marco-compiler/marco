@@ -895,6 +895,7 @@ namespace marco::modeling
       {
         std::lock_guard<std::mutex> lockGuard(other.mutex);
 
+        context = std::move(other.context);
         graph = std::move(other.graph);
         variablesMap = std::move(other.variablesMap);
         equationsMap = std::move(other.equationsMap);

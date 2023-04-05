@@ -8,82 +8,88 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  ForEquation::ForEquation(SourceRange location,
-                           llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
-                           std::unique_ptr<Equation> equation)
-      : ASTNode(std::move(location)),
-        equation(std::move(equation))
+  ForEquation::ForEquation(SourceRange location)
+      : ASTNode(ASTNode::Kind::ForEquation, std::move(location))
   {
-    for (const auto& induction : inductions) {
-      this->inductions.push_back(induction->clone());
-    }
   }
 
   ForEquation::ForEquation(const ForEquation& other)
-      : ASTNode(other),
-        equation(other.equation->clone())
+      : ASTNode(other)
   {
-    for (const auto& induction : other.inductions) {
-      this->inductions.push_back(induction->clone());
-    }
+    setInductions(other.inductions);
+    setEquation(other.equation->clone());
   }
-
-  ForEquation::ForEquation(ForEquation&& other) = default;
 
   ForEquation::~ForEquation() = default;
 
-  ForEquation& ForEquation::operator=(const ForEquation& other)
+  std::unique_ptr<ASTNode> ForEquation::clone() const
   {
-    ForEquation result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<ForEquation>(*this);
   }
 
-  ForEquation& ForEquation::operator=(ForEquation&& other) = default;
-
-  void swap(ForEquation& first, ForEquation& second)
+  llvm::json::Value ForEquation::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    using std::swap;
-    impl::swap(first.inductions, second.inductions);
-    swap(first.equation, second.equation);
-  }
+    llvm::SmallVector<llvm::json::Value> inductionsJson;
 
-  void ForEquation::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os << "for equation\n";
-
-    for (const auto& induction : getInductions()) {
-      induction->print(os, indents + 1);
-      os << "\n";
+    for (const auto& induction : inductions) {
+      inductionsJson.push_back(induction->toJSON());
     }
 
-    equation->print(os, indents + 1);
+    result["inductions"] = llvm::json::Array(inductionsJson);
+    result["equation"] = getEquation()->toJSON();
+
+    addJSONProperties(result);
+    return result;
   }
 
-  llvm::MutableArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions()
-  {
-    return inductions;
-  }
-
-  llvm::ArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions() const
-  {
-    return inductions;
-  }
-
-  size_t ForEquation::inductionsCount() const
+  size_t ForEquation::getNumOfInductions() const
   {
     return inductions.size();
   }
 
-  void ForEquation::addOuterInduction(std::unique_ptr<Induction> induction)
+  Induction* ForEquation::getInduction(size_t index)
   {
+    assert(index < inductions.size());
+    return inductions[index]->cast<Induction>();
+  }
+
+  const Induction* ForEquation::getInduction(size_t index) const
+  {
+    assert(index < inductions.size());
+    return inductions[index]->cast<Induction>();
+  }
+
+  void ForEquation::setInductions(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
+  {
+    inductions.clear();
+
+    for (const auto& node : nodes) {
+      assert(node->isa<Induction>());
+      auto& clone = inductions.emplace_back(node->clone());
+      clone->setParent(this);
+    }
+  }
+
+  void ForEquation::addOuterInduction(std::unique_ptr<ASTNode> induction)
+  {
+    assert(induction->isa<Induction>());
+    induction->setParent(this);
     inductions.insert(inductions.begin(), std::move(induction));
   }
 
   Equation* ForEquation::getEquation() const
   {
-    return equation.get();
+    assert(equation != nullptr && "Equation not set");
+    return equation->cast<Equation>();
+  }
+
+  void ForEquation::setEquation(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Equation>());
+    equation = std::move(node);
+    equation->setParent(this);
   }
 }

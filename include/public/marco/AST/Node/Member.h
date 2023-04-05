@@ -2,7 +2,6 @@
 #define MARCO_AST_NODE_MEMBER_H
 
 #include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Type.h"
 #include "marco/AST/Node/TypePrefix.h"
 #include <optional>
 #include <string>
@@ -11,44 +10,45 @@ namespace marco::ast
 {
   class Expression;
   class Modification;
+  class VariableType;
 
-	class Member
-			: public ASTNode,
-				public impl::Cloneable<Member>,
-				public impl::Dumpable<Member>
+	class Member : public ASTNode
 	{
 		public:
-      template<typename... Args>
-      static std::unique_ptr<Member> build(Args&&... args)
-      {
-        return std::unique_ptr<Member>(new Member(std::forward<Args>(args)...));
-      }
+      explicit Member(SourceRange location);
 
       Member(const Member& other);
-      Member(Member&& other);
 
       ~Member() override;
 
-      Member& operator=(const Member& other);
-      Member& operator=(Member&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Member;
+      }
 
-      friend void swap(Member& first, Member& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-      bool operator==(const Member& other) const;
-      bool operator!=(const Member& other) const;
+      llvm::json::Value toJSON() const override;
 
       llvm::StringRef getName() const;
 
-      Type& getType();
-      const Type& getType() const;
+      void setName(llvm::StringRef newName);
 
-      void setType(Type new_type);
+      VariableType* getType();
 
-      TypePrefix getTypePrefix() const;
+      const VariableType* getType() const;
+
+      void setType(std::unique_ptr<ASTNode> node);
+
+      TypePrefix* getTypePrefix();
+
+      const TypePrefix* getTypePrefix() const;
+
+      void setTypePrefix(std::unique_ptr<ASTNode> node);
 
       bool isPublic() const;
+
+      void setPublic(bool value);
 
       bool isDiscrete() const;
       bool isParameter() const;
@@ -58,8 +58,12 @@ namespace marco::ast
       bool isOutput() const;
 
       bool hasModification() const;
+
       Modification* getModification();
+
       const Modification* getModification() const;
+
+      void setModification(std::unique_ptr<ASTNode> node);
 
       /// @name Modification properties
       /// {
@@ -82,21 +86,12 @@ namespace marco::ast
 
       /// }
 
-		private:
-      Member(
-          SourceRange location,
-          llvm::StringRef name,
-          Type type,
-          TypePrefix typePrefix,
-          bool isPublic = true,
-          std::unique_ptr<Modification> modification = nullptr);
-
     private:
       std::string name;
-      Type type;
-      TypePrefix typePrefix;
+      std::unique_ptr<ASTNode> type;
+      std::unique_ptr<ASTNode> typePrefix;
       bool isPublicMember;
-      std::unique_ptr<Modification> modification;
+      std::unique_ptr<ASTNode> modification;
 	};
 }
 

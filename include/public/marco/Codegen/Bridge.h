@@ -18,11 +18,13 @@ namespace marco::codegen::lowering
       std::unique_ptr<Impl> impl;
 
     public:
-      Bridge(mlir::MLIRContext& context, CodegenOptions options = CodegenOptions::getDefaultOptions());
+      Bridge(
+        mlir::MLIRContext& context,
+        CodegenOptions options = CodegenOptions::getDefaultOptions());
 
       ~Bridge();
 
-      void lower(const ast::Class& cls);
+      void lower(const ast::Root& root);
 
       std::unique_ptr<mlir::ModuleOp>& getMLIRModule();
   };

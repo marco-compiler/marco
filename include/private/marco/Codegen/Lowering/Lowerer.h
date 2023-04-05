@@ -13,9 +13,9 @@ namespace marco::codegen::lowering
   class Lowerer : public BridgeInterface
   {
     public:
-      using SymbolScope = LoweringContext::SymbolScope;
+      using VariablesScope = LoweringContext::VariablesScope;
 
-      Lowerer(LoweringContext* context, BridgeInterface* bridge);
+      Lowerer(BridgeInterface* bridge);
 
       virtual ~Lowerer();
 
@@ -26,45 +26,138 @@ namespace marco::codegen::lowering
       /// Helper to convert an AST location range to a MLIR location.
       mlir::Location loc(const SourceRange& location);
 
-      /// @name Utility getters
+      /// @name Utility getters.
       /// {
-
-      LoweringContext* context();
 
       mlir::OpBuilder& builder();
 
-      LoweringContext::SymbolTable& symbolTable();
+      mlir::SymbolTableCollection& getSymbolTable();
+
+      LoweringContext::VariablesSymbolTable& getVariablesSymbolTable();
+
+      mlir::Operation* getClass(const ast::Class& cls);
+
+      mlir::Operation* resolveClassName(
+          llvm::StringRef name,
+          mlir::Operation* currentScope);
+
+      template<typename... T>
+      mlir::Operation* resolveSymbolName(
+          llvm::StringRef name,
+          mlir::Operation* currentScope)
+      {
+        return resolveSymbolName(name, currentScope, [](mlir::Operation* op) {
+          return mlir::isa<T...>(op);
+        });
+      }
+
+      Reference lookupVariable(llvm::StringRef name);
+
+      void insertVariable(llvm::StringRef name, Reference reference);
+
+      mlir::Type getMostGenericScalarType(mlir::Type first, mlir::Type second);
+
+      bool isScalarType(mlir::Type type);
 
       /// }
-      /// @name Forwarded methods
+      /// @name Forwarded methods.
       /// {
 
-      virtual std::vector<mlir::Operation*> lower(const ast::Class& cls) override;
+      LoweringContext& getContext() override;
+
+      const LoweringContext& getContext() const override;
+
+      mlir::Operation* getRoot() const override;
+
+      virtual void declare(const ast::Class& node) override;
+
+      virtual void declare(const ast::Model& node) override;
+
+      virtual void declare(const ast::Package& node) override;
+
+      virtual void declare(const ast::PartialDerFunction& node) override;
+
+      virtual void declare(const ast::Record& node) override;
+
+      virtual void declare(const ast::StandardFunction& node) override;
+
+      virtual void declareClassVariables(const ast::Class& node) override;
+
+      virtual void lower(const ast::Class& node) override;
+
+      virtual void lower(const ast::Model& node) override;
+
+      virtual void lower(const ast::Package& node) override;
+
+      virtual void lower(const ast::PartialDerFunction& node) override;
+
+      virtual void lower(const ast::Record& node) override;
+
+      virtual void lower(const ast::StandardFunction& node) override;
+
+      virtual void lowerClassBody(const ast::Class& node) override;
+
+      virtual void createBindingEquation(
+          const ast::Member& variable,
+          const ast::Expression& expression) override;
+
+      virtual void lowerStartAttribute(
+          const ast::Member& variable,
+          const ast::Expression& expression,
+          bool fixed,
+          bool each) override;
 
       virtual Results lower(const ast::Expression& expression) override;
 
-      virtual void lower(const ast::Algorithm& algorithm) override;
+      virtual Results lower(const ast::Array& node) override;
 
-      virtual void lower(const ast::Statement& statement) override;
+      virtual Results lower(const ast::Call& node) override;
 
-      virtual void lower(const ast::Equation& equation, bool initialEquation) override;
+      virtual Results lower(const ast::Constant& constant) override;
 
-      virtual void lower(const ast::ForEquation& forEquation, bool initialEquation) override;
+      virtual Results lower(const ast::Operation& operation) override;
+
+      virtual Results lower(
+          const ast::ReferenceAccess& referenceAccess) override;
+
+      virtual Results lower(const ast::Tuple& tuple) override;
+
+      virtual void lower(const ast::Algorithm& node) override;
+
+      virtual void lower(const ast::Statement& node) override;
+
+      virtual void lower(const ast::AssignmentStatement& statement) override;
+
+      virtual void lower(const ast::BreakStatement& statement) override;
+
+      virtual void lower(const ast::ForStatement& statement) override;
+
+      virtual void lower(const ast::IfStatement& statement) override;
+
+      virtual void lower(const ast::ReturnStatement& statement) override;
+
+      virtual void lower(const ast::WhenStatement& statement) override;
+
+      virtual void lower(const ast::WhileStatement& statement) override;
+
+      virtual void lower(
+          const ast::Equation& equation,
+          bool initialEquation) override;
+
+      virtual void lower(
+          const ast::ForEquation& forEquation,
+          bool initialEquation) override;
 
       /// }
 
-      virtual mlir::Type lower(const ast::Type& type);
-
-      virtual mlir::Type lower(const ast::BuiltInType& type);
-
-      virtual mlir::Type lower(const ast::PackedType& type);
-
-      virtual mlir::Type lower(const ast::UserDefinedType& type);
+    private:
+      mlir::Operation* resolveSymbolName(
+          llvm::StringRef name,
+          mlir::Operation* currentScope,
+          std::function<bool(mlir::Operation*)> filterFn);
 
     private:
-      LoweringContext* context_;
-
-      BridgeInterface* bridge_;
+      BridgeInterface* bridge;
   };
 }
 

@@ -1,644 +1,1398 @@
 #include "marco/Codegen/Lowering/CallLowerer.h"
+#include "llvm/ADT/StringSwitch.h"
 
 using namespace ::marco;
-using namespace ::marco::ast;
 using namespace ::marco::codegen;
 using namespace ::mlir::modelica;
 
 namespace marco::codegen::lowering
 {
-  CallLowerer::CallLowerer(LoweringContext* context, BridgeInterface* bridge)
-    : Lowerer(context, bridge)
+  CallLowerer::CallLowerer(BridgeInterface* bridge)
+    : Lowerer(bridge)
   {
   }
 
-  Results CallLowerer::userDefinedFunction(const Call& call)
+  Results CallLowerer::lower(const ast::Call& call)
   {
-    std::vector<Reference> results;
-    std::vector<mlir::Value> args;
+    const ast::Expression* function = call.getCallee();
 
-    for (const auto& arg : call) {
-      auto argLoc = loc(arg->getLocation());
-      auto reference = lower(*arg)[0];
-      args.push_back(reference.get(argLoc));
-    }
+    llvm::StringRef functionName =
+        function->dyn_cast<ast::ReferenceAccess>()->getName();
 
-    auto resultType = call.getType();
-    std::vector<mlir::Type> resultsTypes;
+    auto caller = mlir::cast<ClassInterface>(
+        getClass(*call.getParentOfType<ast::Class>()));
 
-    if (resultType.isa<PackedType>()) {
-      for (const auto& type : resultType.get<PackedType>()) {
-        resultsTypes.push_back(lower(type));
+    mlir::Operation* calleeOp =
+        resolveSymbolName<FunctionOp, DerFunctionOp>(functionName, caller);
+
+    if (calleeOp != nullptr) {
+      // User-defined function.
+      llvm::SmallVector<mlir::Value, 3> args;
+      lowerArgs(call, args);
+
+      llvm::SmallVector<int64_t, 3> expectedArgRanks;
+      getFunctionExpectedArgRanks(calleeOp, expectedArgRanks);
+
+      llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+      getFunctionResultTypes(calleeOp, scalarizedResultTypes);
+
+      llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+      if (!getVectorizedResultTypes(
+              args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+        assert("Can't vectorize function call");
+        return {};
       }
-    } else {
-      resultsTypes.push_back(lower(resultType));
+
+      auto callOp = builder().create<CallOp>(
+          loc(call.getLocation()), functionName, resultTypes, args);
+
+      std::vector<Reference> results;
+
+      for (auto result : callOp->getResults()) {
+        results.push_back(Reference::ssa(builder(), result));
+      }
+
+      return Results(results.begin(), results.end());
     }
 
-    auto op = builder().create<CallOp>(
-        loc(call.getLocation()),
-        call.getFunction()->get<ReferenceAccess>()->getName(),
-        resultsTypes, args);
-
-    for (auto result : op->getResults()) {
-      results.push_back(Reference::ssa(builder(), result));
+    if (isBuiltInFunction(functionName)) {
+      // Built-in function.
+      return dispatchBuiltInFunctionCall(call);
     }
 
-    return Results(results.begin(), results.end());
+    // The function doesn't exist.
+    llvm_unreachable("Function not found");
+    return {};
   }
 
-  Results CallLowerer::abs(const Call& call)
+  mlir::Value CallLowerer::lowerArg(const ast::Expression& expression)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "abs");
-    assert(call.argumentsCount() == 1);
-
-    auto callLoc = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<AbsOp>(callLoc, resultType, operand);
-    return Reference::ssa(builder(), result);
+    mlir::Location location = loc(expression.getLocation());
+    auto results = lower(expression);
+    assert(results.size() == 1);
+    return results[0].get(location);
   }
 
-  Results CallLowerer::acos(const Call& call)
+  void CallLowerer::lowerArgs(
+      const ast::Call& call,
+      llvm::SmallVectorImpl<mlir::Value>& args)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "acos");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<AcosOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
+    for (size_t i = 0, e = call.getNumOfArguments(); i < e; ++i) {
+      args.push_back(lowerArg(*call.getArgument(i)));
+    }
   }
 
-  Results CallLowerer::asin(const Call& call)
+  void CallLowerer::getFunctionExpectedArgRanks(
+      mlir::Operation* op,
+      llvm::SmallVectorImpl<int64_t>& ranks)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "asin");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<AsinOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::atan(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "atan");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<AtanOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::atan2(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "atan2");
-    assert(call.argumentsCount() == 2);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location yLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value y = lower(*call.getArg(0))[0].get(yLoc);
-
-    mlir::Location xLoc = loc(call.getArg(1)->getLocation());
-    mlir::Value x = lower(*call.getArg(1))[0].get(xLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<Atan2Op>(location, resultType, y, x);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::ceil(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ceil");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<CeilOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::cos(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "cos");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<CosOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::cosh(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "cosh");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<CoshOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::der(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "der");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<DerOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::diagonal(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "diagonal");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<DiagonalOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::div(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "div");
-    assert(call.argumentsCount() == 2);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location dividendLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value dividend = lower(*call.getArg(0))[0].get(dividendLoc);
-
-    mlir::Location divisorLoc = loc(call.getArg(1)->getLocation());
-    mlir::Value divisor = lower(*call.getArg(1))[0].get(divisorLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<DivTruncOp>(location, resultType, dividend, divisor);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::exp(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "exp");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<ExpOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::floor(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "floor");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<FloorOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::identity(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "identity");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<IdentityOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::integer(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "integer");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<IntegerOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::linspace(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "linspace");
-    assert(call.argumentsCount() == 3);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location startLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value start = lower(*call.getArg(0))[0].get(startLoc);
-
-    mlir::Location endLoc = loc(call.getArg(1)->getLocation());
-    mlir::Value end = lower(*call.getArg(1))[0].get(endLoc);
-
-    mlir::Location stepsLoc = loc(call.getArg(2)->getLocation());
-    mlir::Value steps = lower(*call.getArg(2))[0].get(stepsLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<LinspaceOp>(location, resultType, start, end, steps);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::log(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "log");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<LogOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::log10(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "log10");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<Log10Op>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::max(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "max");
-    assert(call.argumentsCount() == 1 || call.argumentsCount() == 2);
-
-    auto location = loc(call.getLocation());
-
-    std::vector<mlir::Value> args;
-
-    for (const auto& arg : call) {
-      mlir::Location argLoc = loc(arg->getLocation());
-      args.push_back(lower(*arg)[0].get(argLoc));
+    assert((mlir::isa<FunctionOp, DerFunctionOp>(op)));
+
+    if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
+      mlir::FunctionType functionType = functionOp.getFunctionType();
+
+      for (mlir::Type type : functionType.getInputs()) {
+        if (auto arrayType = type.dyn_cast<ArrayType>()) {
+          ranks.push_back(arrayType.getRank());
+        } else {
+          ranks.push_back(0);
+        }
+      }
+
+      return;
     }
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<MaxOp>(location, resultType, args);
-    return Reference::ssa(builder(), result);
+    if (auto derFunctionOp = mlir::dyn_cast<DerFunctionOp>(op)) {
+      mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
+
+      while (derivedFunctionOp && !mlir::isa<FunctionOp>(derivedFunctionOp)) {
+        derivedFunctionOp = resolveSymbolName<FunctionOp, DerFunctionOp>(
+            derFunctionOp.getDerivedFunction(),
+            derivedFunctionOp);
+      }
+
+      assert(derivedFunctionOp && "Derived function not found");
+      auto functionOp = mlir::cast<FunctionOp>(derivedFunctionOp);
+
+      mlir::FunctionType functionType = functionOp.getFunctionType();
+
+      for (mlir::Type type : functionType.getInputs()) {
+        if (auto arrayType = type.dyn_cast<ArrayType>()) {
+          ranks.push_back(arrayType.getRank());
+        } else {
+          ranks.push_back(0);
+        }
+      }
+
+      return;
+    }
   }
 
-  Results CallLowerer::min(const Call& call)
+  void CallLowerer::getFunctionResultTypes(
+      mlir::Operation* op,
+      llvm::SmallVectorImpl<mlir::Type>& types)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "min");
-    assert(call.argumentsCount() == 1 || call.argumentsCount() == 2);
+    assert((mlir::isa<FunctionOp, DerFunctionOp>(op)));
 
-    auto location = loc(call.getLocation());
-
-    std::vector<mlir::Value> args;
-
-    for (const auto& arg : call) {
-      mlir::Location argLoc = loc(arg->getLocation());
-      args.push_back(lower(*arg)[0].get(argLoc));
+    if (auto functionOp = mlir::dyn_cast<FunctionOp>(op)) {
+      mlir::FunctionType functionType = functionOp.getFunctionType();
+      auto resultTypes = functionType.getResults();
+      types.append(resultTypes.begin(), resultTypes.end());
+      return;
     }
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<MinOp>(location, resultType, args);
-    return Reference::ssa(builder(), result);
+    if (auto derFunctionOp = mlir::dyn_cast<DerFunctionOp>(op)) {
+      mlir::Operation* derivedFunctionOp = derFunctionOp.getOperation();
+
+      while (derivedFunctionOp && !mlir::isa<FunctionOp>(derivedFunctionOp)) {
+        derivedFunctionOp = resolveSymbolName<FunctionOp, DerFunctionOp>(
+            derFunctionOp.getDerivedFunction(),
+            derivedFunctionOp);
+      }
+
+      assert(derivedFunctionOp && "Derived function not found");
+      auto functionOp = mlir::cast<FunctionOp>(derivedFunctionOp);
+
+      mlir::FunctionType functionType = functionOp.getFunctionType();
+      auto resultTypes = functionType.getResults();
+      types.append(resultTypes.begin(), resultTypes.end());
+
+      return;
+    }
   }
 
-  Results CallLowerer::mod(const Call& call)
+  bool CallLowerer::getVectorizedResultTypes(
+      llvm::ArrayRef<mlir::Value> args,
+      llvm::ArrayRef<int64_t> expectedArgRanks,
+      llvm::ArrayRef<mlir::Type> scalarizedResultTypes,
+      llvm::SmallVectorImpl<mlir::Type>& inferredResultTypes) const
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "mod");
-    assert(call.argumentsCount() == 2);
+    assert(args.size() == expectedArgRanks.size());
 
-    auto location = loc(call.getLocation());
+    llvm::SmallVector<int64_t, 3> dimensions;
 
-    mlir::Location dividendLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value dividend = lower(*call.getArg(0))[0].get(dividendLoc);
+    for (size_t argIndex = 0, e = args.size(); argIndex < e; ++argIndex) {
+      mlir::Value arg = args[argIndex];
+      mlir::Type argType = arg.getType();
+      auto argArrayType = argType.dyn_cast<ArrayType>();
 
-    mlir::Location divisorLoc = loc(call.getArg(1)->getLocation());
-    mlir::Value divisor = lower(*call.getArg(1))[0].get(divisorLoc);
+      int64_t argExpectedRank = expectedArgRanks[argIndex];
+      int64_t argActualRank = 0;
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<ModOp>(location, resultType, dividend, divisor);
-    return Reference::ssa(builder(), result);
-  }
+      if (argArrayType) {
+        argActualRank = argArrayType.getRank();
+      }
 
-  Results CallLowerer::ndims(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ndims");
-    assert(call.argumentsCount() == 1);
+      if (argIndex == 0) {
+        // If this is the first argument, then it will determine the
+        // rank and dimensions of the result array, although the dimensions
+        // can be also specialized by the other arguments if initially unknown.
 
-    auto location = loc(call.getLocation());
+        for (int64_t i = 0; i < argActualRank - argExpectedRank; ++i) {
+          dimensions.push_back(argArrayType.getDimSize(i));
+        }
+      } else {
+        // The rank difference must match with the one given by the first
+        // argument, independently of the dimensions sizes.
 
-    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+        if (argActualRank !=
+            argExpectedRank + static_cast<int64_t>(dimensions.size())) {
+          return false;
+        }
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<NDimsOp>(location, resultType, array);
-    return Reference::ssa(builder(), result);
-  }
+        for (int64_t i = 0; i < argActualRank - argExpectedRank; ++i) {
+          int64_t dimension = argArrayType.getDimSize(i);
 
-  Results CallLowerer::ones(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "ones");
+          // If the dimension is dynamic, then no further checks or
+          // specializations are possible.
+          if (dimension == ArrayType::kDynamicSize) {
+            continue;
+          }
 
-    auto location = loc(call.getLocation());
-    mlir::Type resultType = lower(call.getType());
+          // If the dimension determined by the first argument is fixed, then
+          // also the dimension of the other arguments must match (when that's
+          // fixed too).
 
-    // The number of operands is equal to the rank of the resulting array
-    assert(call.argumentsCount() == static_cast<size_t>(resultType.cast<ArrayType>().getRank()));
+          if (dimensions[i] != ArrayType::kDynamicSize &&
+              dimensions[i] != dimension) {
+            return false;
+          }
 
-    std::vector<mlir::Value> dimensions;
-
-    for (const auto& arg : call) {
-      mlir::Location argLoc = loc(arg->getLocation());
-      dimensions.push_back(lower(*arg)[0].get(argLoc));
+          // If the dimension determined by the first argument is dynamic, then
+          // set it to a required size.
+          if (dimensions[i] == ArrayType::kDynamicSize) {
+            dimensions[i] = dimension;
+          }
+        }
+      }
     }
 
-    mlir::Value result = builder().create<OnesOp>(location, resultType, dimensions);
-    return Reference::ssa(builder(), result);
-  }
+    for (mlir::Type scalarizedResultType : scalarizedResultTypes) {
+      llvm::SmallVector<int64_t, 3> shape;
+      shape.append(dimensions);
 
-  Results CallLowerer::product(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "product");
-    assert(call.argumentsCount() == 1);
+      if (auto arrayType = scalarizedResultType.dyn_cast<ArrayType>()) {
+        auto previousShape = arrayType.getShape();
+        shape.append(previousShape.begin(), previousShape.end());
 
-    auto location = loc(call.getLocation());
-
-    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<ProductOp>(location, resultType, array);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::rem(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "rem");
-    assert(call.argumentsCount() == 2);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location xLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value x = lower(*call.getArg(0))[0].get(xLoc);
-
-    mlir::Location yLoc = loc(call.getArg(1)->getLocation());
-    mlir::Value y = lower(*call.getArg(1))[0].get(yLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<RemOp>(location, resultType, x, y);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::sign(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "sign");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SignOp>(location, resultType, array);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::sin(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "sin");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SinOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::sinh(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "sinh");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SinhOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::size(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "size");
-    assert(call.argumentsCount() == 1 || call.argumentsCount() == 2);
-
-    auto location = loc(call.getLocation());
-
-    std::vector<Reference> results;
-    std::vector<mlir::Value> args;
-
-    for (const auto& arg : call) {
-      mlir::Location argLoc = loc(arg->getLocation());
-      args.push_back(lower(*arg)[0].get(argLoc));
+        inferredResultTypes.push_back(
+            ArrayType::get(shape, arrayType.getElementType()));
+      } else {
+        if (shape.empty()) {
+          inferredResultTypes.push_back(scalarizedResultType);
+        } else {
+          inferredResultTypes.push_back(
+              ArrayType::get(shape, scalarizedResultType));
+        }
+      }
     }
 
-    mlir::Type resultType = lower(call.getType());
+    return true;
+  }
+
+  bool CallLowerer::isBuiltInFunction(llvm::StringRef name) const
+  {
+    return llvm::StringSwitch<bool>(name)
+        .Case("abs", true)
+        .Case("acos", true)
+        .Case("asin", true)
+        .Case("atan", true)
+        .Case("atan2", true)
+        .Case("ceil", true)
+        .Case("cos", true)
+        .Case("cosh", true)
+        .Case("der", true)
+        .Case("diagonal", true)
+        .Case("div", true)
+        .Case("exp", true)
+        .Case("floor", true)
+        .Case("identity", true)
+        .Case("integer", true)
+        .Case("linspace", true)
+        .Case("log", true)
+        .Case("log10", true)
+        .Case("max", true)
+        .Case("min", true)
+        .Case("mod", true)
+        .Case("ndims", true)
+        .Case("ones", true)
+        .Case("product", true)
+        .Case("rem", true)
+        .Case("sign", true)
+        .Case("sin", true)
+        .Case("sinh", true)
+        .Case("size", true)
+        .Case("sqrt", true)
+        .Case("sum", true)
+        .Case("symmetric", true)
+        .Case("tan", true)
+        .Case("tanh", true)
+        .Case("transpose", true)
+        .Case("zeros", true)
+        .Default(false);
+  }
+
+  Results CallLowerer::dispatchBuiltInFunctionCall(const ast::Call& call)
+  {
+    llvm::StringRef functionName =
+        call.getCallee()->cast<ast::ReferenceAccess>()->getName();
+
+    if (functionName == "abs") {
+      return abs(call);
+    }
+
+    if (functionName == "acos") {
+      return acos(call);
+    }
+
+    if (functionName == "asin") {
+      return asin(call);
+    }
+
+    if (functionName == "atan") {
+      return atan(call);
+    }
+
+    if (functionName == "atan2") {
+      return atan2(call);
+    }
+
+    if (functionName == "ceil") {
+      return ceil(call);
+    }
+
+    if (functionName == "cos") {
+      return cos(call);
+    }
+
+    if (functionName == "cosh") {
+      return cosh(call);
+    }
+
+    if (functionName == "der") {
+      return der(call);
+    }
+
+    if (functionName == "diagonal") {
+      return diagonal(call);
+    }
+
+    if (functionName == "div") {
+      return div(call);
+    }
+
+    if (functionName == "exp") {
+      return exp(call);
+    }
+
+    if (functionName == "floor") {
+      return floor(call);
+    }
+
+    if (functionName == "identity") {
+      return identity(call);
+    }
+
+    if (functionName == "integer") {
+      return integer(call);
+    }
+
+    if (functionName == "linspace") {
+      return linspace(call);
+    }
+
+    if (functionName == "log") {
+      return log(call);
+    }
+
+    if (functionName == "log10") {
+      return log10(call);
+    }
+
+    if (functionName == "max") {
+      return max(call);
+    }
+
+    if (functionName == "min") {
+      return min(call);
+    }
+
+    if (functionName == "mod") {
+      return mod(call);
+    }
+
+    if (functionName == "ndims") {
+      return ndims(call);
+    }
+
+    if (functionName == "ones") {
+      return ones(call);
+    }
+
+    if (functionName == "product") {
+      return product(call);
+    }
+
+    if (functionName == "rem") {
+      return rem(call);
+    }
+
+    if (functionName == "sign") {
+      return sign(call);
+    }
+
+    if (functionName == "sin") {
+      return sin(call);
+    }
+
+    if (functionName == "sinh") {
+      return sinh(call);
+    }
+
+    if (functionName == "size") {
+      return size(call);
+    }
+
+    if (functionName == "sqrt") {
+      return sqrt(call);
+    }
+
+    if (functionName == "sum") {
+      return sum(call);
+    }
+
+    if (functionName == "symmetric") {
+      return symmetric(call);
+    }
+
+    if (functionName == "tan") {
+      return tan(call);
+    }
+
+    if (functionName == "tanh") {
+      return tanh(call);
+    }
+
+    if (functionName == "transpose") {
+      return transpose(call);
+    }
+
+    if (functionName == "zeros") {
+      return zeros(call);
+    }
+
+    llvm_unreachable("Unknown built-in function");
+    return {};
+  }
+
+  Results CallLowerer::abs(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "abs");
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(args[0].getType());
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<AbsOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::acos(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "acos");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<AcosOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::asin(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "asin");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<AsinOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::atan(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "atan");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<AtanOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::atan2(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "atan2");
+
+    assert(call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 2> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<Atan2Op>(
+        loc(call.getLocation()), resultTypes[0], args[0], args[1]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::ceil(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "ceil");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<CeilOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::cos(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "cos");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<CosOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::cosh(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "cosh");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<CoshOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::der(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "der");
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<DerOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::diagonal(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "diagonal");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    auto resultType = ArrayType::get(
+        {-1, -1}, IntegerType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<DiagonalOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::div(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "div");
+    assert(call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    mlir::Type resultType = IntegerType::get(builder().getContext());
+
+    if (args[0].getType().isa<RealType>() ||
+        args[1].getType().isa<RealType>()) {
+      resultType = RealType::get(builder().getContext());
+    }
+
+    mlir::Value result = builder().create<DivTruncOp>(
+        loc(call.getLocation()), resultType, args[0], args[1]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::exp(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "exp");
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<ExpOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::floor(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "floor");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<FloorOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::identity(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "identity");
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    auto resultType = ArrayType::get(
+        {-1, -1}, IntegerType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<IdentityOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::integer(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "integer");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(IntegerType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<IntegerOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::linspace(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "linspace");
+
+    assert(call.getNumOfArguments() == 3);
+
+    llvm::SmallVector<mlir::Value, 3> args;
+    lowerArgs(call, args);
+
+    auto resultType = ArrayType::get(
+        ArrayType::kDynamicSize, RealType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<LinspaceOp>(
+        loc(call.getLocation()), resultType, args[0], args[1], args[2]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::log(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "log");
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<LogOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::log10(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "log10");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<Log10Op>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::max(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "max");
+    assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    mlir::Type resultType;
 
     if (args.size() == 1) {
-      mlir::Value result = builder().create<SizeOp>(location, resultType, args);
+      resultType = args[0].getType().cast<ArrayType>().getElementType();
+    } else {
+      resultType = getMostGenericScalarType(
+          args[0].getType(), args[1].getType());
+    }
+
+    mlir::Value result = builder().create<MaxOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::min(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "min");
+    assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    mlir::Type resultType;
+
+    if (args.size() == 1) {
+      resultType = args[0].getType().cast<ArrayType>().getElementType();
+    } else {
+      resultType = getMostGenericScalarType(
+          args[0].getType(), args[1].getType());
+    }
+
+    mlir::Value result = builder().create<MinOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::mod(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "mod");
+    assert(call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    mlir::Type resultType = IntegerType::get(builder().getContext());
+
+    if (args[0].getType().isa<RealType>() ||
+        args[1].getType().isa<RealType>()) {
+      resultType = RealType::get(builder().getContext());
+    }
+
+    mlir::Value result = builder().create<ModOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::ndims(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "ndims");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    auto resultType = IntegerType::get(builder().getContext());
+
+    mlir::Value result = builder().create<NDimsOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::ones(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "ones");
+
+    assert(call.getNumOfArguments() > 0);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamicSize);
+
+    auto resultType = ArrayType::get(
+        shape, IntegerType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<OnesOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::product(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "product");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    auto argArrayType = args[0].getType().cast<ArrayType>();
+    mlir::Type resultType = argArrayType.getElementType();
+
+    mlir::Value result = builder().create<ProductOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::rem(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "rem");
+    assert(call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    mlir::Type resultType = IntegerType::get(builder().getContext());
+
+    if (args[0].getType().isa<RealType>() ||
+        args[1].getType().isa<RealType>()) {
+      resultType = RealType::get(builder().getContext());
+    }
+
+    mlir::Value result = builder().create<RemOp>(
+        loc(call.getLocation()), resultType, args);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::sign(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "sign");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    auto resultType = IntegerType::get(builder().getContext());
+
+    mlir::Value result = builder().create<SignOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::sin(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "sin");
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<SinOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::sinh(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "sinh");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<SinhOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::size(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "size");
+
+    assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
+
+    llvm::SmallVector<mlir::Value, 2> args;
+    lowerArgs(call, args);
+
+    if (args.size() == 1) {
+      mlir::Type resultType = ArrayType::get(
+          args[0].getType().cast<ArrayType>().getRank(),
+          IntegerType::get(builder().getContext()));
+
+      mlir::Value result = builder().create<SizeOp>(
+          loc(call.getLocation()), resultType, args);
+
       return Reference::ssa(builder(), result);
     }
 
-    if (args.size() == 2) {
-      mlir::Value oneValue = builder().create<ConstantOp>(location, IntegerAttr::get(builder().getContext(), 1));
-      mlir::Value index = builder().create<SubOp>(location, builder().getIndexType(), args[1], oneValue);
-      mlir::Value result = builder().create<SizeOp>(location, resultType, args[0], index);
-      return Reference::ssa(builder(), result);
+    mlir::Type resultType = IntegerType::get(builder().getContext());
+
+    mlir::Value oneValue = builder().create<ConstantOp>(
+        args[1].getLoc(), IntegerAttr::get(builder().getContext(), 1));
+
+    mlir::Value index = builder().create<SubOp>(
+        args[1].getLoc(), builder().getIndexType(), args[1], oneValue);
+
+    mlir::Value result = builder().create<SizeOp>(
+        loc(call.getLocation()), resultType, args[0], index);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::sqrt(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "sqrt");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
     }
 
-    llvm_unreachable("Unexpected number of arguments for 'size' function call");
-    return Results();
-  }
+    assert(resultTypes.size() == 1);
 
-  Results CallLowerer::sqrt(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "sqrt");
-    assert(call.argumentsCount() == 1);
+    mlir::Value result = builder().create<SqrtOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
 
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SqrtOp>(location, resultType, operand);
     return Reference::ssa(builder(), result);
   }
 
-  Results CallLowerer::sum(const Call& call)
+  Results CallLowerer::sum(const ast::Call& call)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "sum");
-    assert(call.argumentsCount() == 1);
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "sum");
+    assert(call.getNumOfArguments() == 1);
 
-    auto location = loc(call.getLocation());
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
 
-    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+    auto argArrayType = args[0].getType().cast<ArrayType>();
+    mlir::Type resultType = argArrayType.getElementType();
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SumOp>(location, resultType, array);
+    mlir::Value result = builder().create<SumOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
     return Reference::ssa(builder(), result);
   }
 
-  Results CallLowerer::symmetric(const Call& call)
+  Results CallLowerer::symmetric(const ast::Call& call)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "symmetric");
-    assert(call.argumentsCount() == 1);
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "symmetric");
 
-    auto location = loc(call.getLocation());
+    assert(call.getNumOfArguments() == 1);
 
-    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<SymmetricOp>(location, resultType, array);
+    mlir::Type resultType = args[0].getType();
+
+    mlir::Value result = builder().create<SymmetricOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
     return Reference::ssa(builder(), result);
   }
 
-  Results CallLowerer::tan(const Call& call)
+  Results CallLowerer::tan(const ast::Call& call)
   {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "tan");
-    assert(call.argumentsCount() == 1);
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "tan");
+    assert(call.getNumOfArguments() == 1);
 
-    auto location = loc(call.getLocation());
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
 
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
 
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<TanOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
 
-  Results CallLowerer::tanh(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "tanh");
-    assert(call.argumentsCount() == 1);
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
 
-    auto location = loc(call.getLocation());
-
-    mlir::Location operandLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value operand = lower(*call.getArg(0))[0].get(operandLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<TanhOp>(location, resultType, operand);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::transpose(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "transpose");
-    assert(call.argumentsCount() == 1);
-
-    auto location = loc(call.getLocation());
-
-    mlir::Location arrayLoc = loc(call.getArg(0)->getLocation());
-    mlir::Value array = lower(*call.getArg(0))[0].get(arrayLoc);
-
-    mlir::Type resultType = lower(call.getType());
-    mlir::Value result = builder().create<TransposeOp>(location, resultType, array);
-    return Reference::ssa(builder(), result);
-  }
-
-  Results CallLowerer::zeros(const Call& call)
-  {
-    assert(call.getFunction()->get<ReferenceAccess>()->getName() == "zeros");
-
-    auto location = loc(call.getLocation());
-    mlir::Type resultType = lower(call.getType());
-
-    // The number of operands is equal to the rank of the resulting array
-    assert(call.argumentsCount() == static_cast<size_t>(resultType.cast<ArrayType>().getRank()));
-
-    std::vector<mlir::Value> dimensions;
-
-    for (const auto& arg : call) {
-      mlir::Location argLoc = loc(arg->getLocation());
-      dimensions.push_back(lower(*arg)[0].get(argLoc));
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
     }
 
-    mlir::Value result = builder().create<ZerosOp>(location, resultType, dimensions);
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<TanOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::tanh(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "tanh");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> expectedArgRanks;
+    expectedArgRanks.push_back(0);
+
+    llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+    scalarizedResultTypes.push_back(RealType::get(builder().getContext()));
+
+    llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+    if (!getVectorizedResultTypes(
+            args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+      assert("Can't vectorize function call");
+      return {};
+    }
+
+    assert(resultTypes.size() == 1);
+
+    mlir::Value result = builder().create<TanhOp>(
+        loc(call.getLocation()), resultTypes[0], args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::transpose(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "transpose");
+
+    assert(call.getNumOfArguments() == 1);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 2> shape;
+    auto argArrayType = args[0].getType().cast<ArrayType>();
+    shape.push_back(argArrayType.getDimSize(1));
+    shape.push_back(argArrayType.getDimSize(0));
+    auto resultType = ArrayType::get(shape, argArrayType.getElementType());
+
+    mlir::Value result = builder().create<TransposeOp>(
+        loc(call.getLocation()), resultType, args[0]);
+
+    return Reference::ssa(builder(), result);
+  }
+
+  Results CallLowerer::zeros(const ast::Call& call)
+  {
+    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+           "zeros");
+
+    assert(call.getNumOfArguments() > 0);
+
+    llvm::SmallVector<mlir::Value, 1> args;
+    lowerArgs(call, args);
+
+    llvm::SmallVector<int64_t, 1> shape(args.size(), ArrayType::kDynamicSize);
+
+    auto resultType = ArrayType::get(
+        shape, IntegerType::get(builder().getContext()));
+
+    mlir::Value result = builder().create<ZerosOp>(
+        loc(call.getLocation()), resultType, args);
+
     return Reference::ssa(builder(), result);
   }
 }

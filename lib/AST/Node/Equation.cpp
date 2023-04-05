@@ -6,79 +6,70 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Equation::Equation(SourceRange location,
-                     std::unique_ptr<Expression> lhs,
-                     std::unique_ptr<Expression> rhs)
-      : ASTNode(std::move(location)),
-        lhs(std::move(lhs)),
-        rhs(std::move(rhs))
+  Equation::Equation(SourceRange location)
+      : ASTNode(ASTNode::Kind::Equation, std::move(location))
   {
   }
 
   Equation::Equation(const Equation& other)
-      : ASTNode(other),
-        lhs(other.lhs->clone()),
-        rhs(other.rhs->clone())
+      : ASTNode(other)
   {
+    setLhsExpression(other.lhs->clone());
+    setRhsExpression(other.rhs->clone());
   }
-
-  Equation::Equation(Equation&& other) = default;
 
   Equation::~Equation() = default;
 
-  Equation& Equation::operator=(const Equation& other)
+  std::unique_ptr<ASTNode> Equation::clone() const
   {
-    Equation result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Equation>(*this);
   }
 
-  Equation& Equation::operator=(Equation&& other) = default;
-
-  void swap(Equation& first, Equation& second)
+  llvm::json::Value Equation::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
+    result["lhs"] = getLhsExpression()->toJSON();
+    result["rhs"] = getRhsExpression()->toJSON();
 
-    using std::swap;
-    swap(first.lhs, second.lhs);
-    swap(first.rhs, second.rhs);
-  }
-
-  void Equation::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "equation\n";
-    lhs->print(os, indents + 1);
-    rhs->print(os, indents + 1);
+    addJSONProperties(result);
+    return result;
   }
 
   Expression* Equation::getLhsExpression()
   {
-    return lhs.get();
+    assert(lhs != nullptr && "Left-hand side expression not set");
+    return lhs->cast<Expression>();
   }
 
   const Expression* Equation::getLhsExpression() const
   {
-    return lhs.get();
+    assert(lhs != nullptr && "Left-hand side expression not set");
+    return lhs->cast<Expression>();
   }
 
-  void Equation::setLhsExpression(std::unique_ptr<Expression> expression)
+  void Equation::setLhsExpression(std::unique_ptr<ASTNode> node)
   {
-    this->lhs = std::move(expression);
+    assert(node->isa<Expression>());
+    lhs = std::move(node);
+    lhs->setParent(this);
   }
 
   Expression* Equation::getRhsExpression()
   {
-    return rhs.get();
+    assert(rhs != nullptr && "Right-hand side expression not set");
+    return rhs->cast<Expression>();
   }
 
   const Expression* Equation::getRhsExpression() const
   {
-    return rhs.get();
+    assert(rhs != nullptr && "Right-hand side expression not set");
+    return rhs->cast<Expression>();
   }
 
-  void Equation::setRhsExpression(std::unique_ptr<Expression> expression)
+  void Equation::setRhsExpression(std::unique_ptr<ASTNode> node)
   {
-    this->rhs = std::move(expression);
+    assert(node->isa<Expression>());
+    rhs = std::move(node);
+    rhs->setParent(this);
   }
 }

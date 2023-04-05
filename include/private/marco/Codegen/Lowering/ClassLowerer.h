@@ -1,32 +1,49 @@
-#ifndef MARCO_CODEGEN_LOWERING_CLASSBRIDGE_H
-#define MARCO_CODEGEN_LOWERING_CLASSBRIDGE_H
+#ifndef MARCO_CODEGEN_LOWERING_CLASSLOWERER_H
+#define MARCO_CODEGEN_LOWERING_CLASSLOWERER_H
 
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
-#include "marco/Codegen/Lowering/ModelLowerer.h"
-#include "marco/Codegen/Lowering/RecordLowerer.h"
-#include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
 #include "marco/Codegen/BridgeInterface.h"
-#include <memory>
 
 namespace marco::codegen::lowering
 {
   class ClassLowerer : public Lowerer
   {
     public:
-      ClassLowerer(LoweringContext* context, BridgeInterface* bridge);
+      ClassLowerer(BridgeInterface* bridge);
 
-      std::vector<mlir::Operation*> operator()(const ast::PartialDerFunction& function);
-      std::vector<mlir::Operation*> operator()(const ast::StandardFunction& function);
-      std::vector<mlir::Operation*> operator()(const ast::Model& model);
-      std::vector<mlir::Operation*> operator()(const ast::Package& package);
-      std::vector<mlir::Operation*> operator()(const ast::Record& record);
+      void declare(const ast::Class& cls) override;
 
-    private:
-      std::unique_ptr<ModelLowerer> modelLowerer;
-      std::unique_ptr<RecordLowerer> recordLowerer;
-      std::unique_ptr<StandardFunctionLowerer> standardFunctionLowerer;
+      void declareClassVariables(const ast::Class& cls) override;
+
+      void lower(const ast::Class& cls) override;
+
+      void lowerClassBody(const ast::Class& cls) override;
+
+      void createBindingEquation(
+          const ast::Member& variable,
+          const ast::Expression& expression) override;
+
+      void lowerStartAttribute(
+          const ast::Member& variable,
+          const ast::Expression& expression,
+          bool fixed,
+          bool each) override;
+
+    protected:
+      using Lowerer::declare;
+      using Lowerer::lower;
+
+      void declareClassVariable(const ast::Member& variable);
+
+      mlir::modelica::VariableType getVariableType(
+          const ast::VariableType& type,
+          const ast::TypePrefix& typePrefix);
+
+      void lowerVariableDimensionConstraints(
+          mlir::SymbolTable& symbolTable,
+          const ast::Member& variable);
   };
 }
 
-#endif // MARCO_CODEGEN_LOWERING_CLASSBRIDGE_H
+#endif // MARCO_CODEGEN_LOWERING_CLASSLOWERER_H

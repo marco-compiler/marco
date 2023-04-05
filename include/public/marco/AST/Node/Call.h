@@ -1,85 +1,52 @@
 #ifndef MARCO_AST_NODE_CALL_H
 #define MARCO_AST_NODE_CALL_H
 
-#include "marco/AST/Node/ASTNode.h"
-#include "marco/AST/Node/Type.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
+#include "marco/AST/Node/Expression.h"
+#include "llvm/ADT/STLExtras.h"
 #include <memory>
 
 namespace marco::ast
 {
-	class Expression;
-	class ReferenceAccess;
-
-	class Call
-			: public ASTNode,
-				public impl::Dumpable<Call>
+	class Call : public Expression
 	{
-		private:
-		  template<typename T> using Container = llvm::SmallVector<T, 3>;
-
 		public:
-      using args_iterator = Container<std::unique_ptr<Expression>>::iterator;
-      using args_const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
+      explicit Call(SourceRange location);
 
       Call(const Call& other);
-      Call(Call&& other);
+
       ~Call() override;
 
-      Call& operator=(const Call& other);
-      Call& operator=(Call&& other);
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::Expression_Call;
+      }
 
-      friend void swap(Call& first, Call& second);
+      std::unique_ptr<ASTNode> clone() const override;
 
-      void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+      llvm::json::Value toJSON() const override;
 
-      [[nodiscard]] bool isLValue() const;
+      bool isLValue() const override;
 
-      [[nodiscard]] bool operator==(const Call& other) const;
-      [[nodiscard]] bool operator!=(const Call& other) const;
+      Expression* getCallee();
 
-      [[nodiscard]] Expression* operator[](size_t index);
-      [[nodiscard]] const Expression* operator[](size_t index) const;
+      const Expression* getCallee() const;
 
-      [[nodiscard]] Type& getType();
-      [[nodiscard]] const Type& getType() const;
-      void setType(Type tp);
+      void setCallee(std::unique_ptr<ASTNode> node);
 
-      [[nodiscard]] Expression* getFunction();
-      [[nodiscard]] const Expression* getFunction() const;
+      size_t getNumOfArguments() const;
 
-      [[nodiscard]] Expression* getArg(size_t index);
-      [[nodiscard]] const Expression* getArg(size_t index) const;
+      Expression* getArgument(size_t index);
 
-      [[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Expression>> getArgs();
-      [[nodiscard]] llvm::ArrayRef<std::unique_ptr<Expression>> getArgs() const;
+      const Expression* getArgument(size_t index) const;
 
-      [[nodiscard]] size_t argumentsCount() const;
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> getArguments() const;
 
-      [[nodiscard]] args_iterator begin();
-      [[nodiscard]] args_const_iterator begin() const;
-
-      [[nodiscard]] args_iterator end();
-      [[nodiscard]] args_const_iterator end() const;
-
-		private:
-      friend class Expression;
-
-      Call(SourceRange location,
-           Type type,
-           std::unique_ptr<Expression> function,
-           llvm::ArrayRef<std::unique_ptr<Expression>> args);
+      void setArguments(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
     private:
-      Type type;
-      std::unique_ptr<Expression> function;
-      Container<std::unique_ptr<Expression>> args;
+      std::unique_ptr<ASTNode> callee;
+      llvm::SmallVector<std::unique_ptr<ASTNode>> arguments;
 	};
-
-	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj);
-
-	std::string toString(const Call& obj);
 }
 
 #endif // MARCO_AST_NODE_CALL_H

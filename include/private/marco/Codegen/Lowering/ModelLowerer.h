@@ -1,5 +1,5 @@
-#ifndef MARCO_CODEGEN_LOWERING_MODELBRIDGE_H
-#define MARCO_CODEGEN_LOWERING_MODELBRIDGE_H
+#ifndef MARCO_CODEGEN_LOWERING_MODELLOWERER_H
+#define MARCO_CODEGEN_LOWERING_MODELLOWERER_H
 
 #include "marco/AST/AST.h"
 #include "marco/Codegen/Lowering/Lowerer.h"
@@ -10,8 +10,17 @@ namespace marco::codegen::lowering
   class ModelLowerer : public Lowerer
   {
     public:
-      ModelLowerer(LoweringContext* context, BridgeInterface* bridge);
+      ModelLowerer(BridgeInterface* bridge);
 
+      void declare(const ast::Model& model) override;
+
+      void lower(const ast::Model& model) override;
+
+    protected:
+      using Lowerer::declare;
+      using Lowerer::lower;
+
+      /*
       std::vector<mlir::Operation*> lower(const ast::Model& model);
 
     protected:
@@ -29,7 +38,8 @@ namespace marco::codegen::lowering
           const ast::Expression& expression,
           bool fixed,
           bool each);
+          */
   };
 }
 
-#endif // MARCO_CODEGEN_LOWERING_MODELBRIDGE_H
+#endif // MARCO_CODEGEN_LOWERING_MODELLOWERER_H

@@ -6,83 +6,38 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  Algorithm::Algorithm(
-      SourceRange location,
-      llvm::ArrayRef<std::unique_ptr<Statement>> statements)
-    : ASTNode(std::move(location))
+  Algorithm::Algorithm(SourceRange location)
+      : ASTNode(ASTNode::Kind::Algorithm, std::move(location))
   {
-    for (const auto& statement : statements) {
-      this->statements.push_back(statement->clone());
-    }
   }
 
   Algorithm::Algorithm(const Algorithm& other)
       : ASTNode(other)
   {
-    for (const auto& statement : other.statements) {
-      this->statements.push_back(statement->clone());
-    }
+    setStatements(other.statements);
   }
-
-  Algorithm::Algorithm(Algorithm&& other) = default;
 
   Algorithm::~Algorithm() = default;
 
-  Algorithm& Algorithm::operator=(const Algorithm& other)
+  std::unique_ptr<ASTNode> Algorithm::clone() const
   {
-    Algorithm result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<Algorithm>(*this);
   }
 
-  Algorithm& Algorithm::operator=(Algorithm&& other) = default;
-
-  void swap(Algorithm& first, Algorithm& second)
+  llvm::json::Value Algorithm::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    impl::swap(first.statements, second.statements);
-  }
+    llvm::SmallVector<llvm::json::Value> statementsJson;
 
-void Algorithm::print(llvm::raw_ostream& os, size_t indents) const
-  {
-    os.indent(indents);
-    os << "algorithm\n";
-
-    for (const auto& statement : *this) {
-      statement->dump(os, indents + 1);
+    for (const auto& statement : statements) {
+      statementsJson.push_back(statement->toJSON());
     }
-  }
 
-  Statement* Algorithm::operator[](size_t index)
-  {
-    assert(index < statements.size());
-    return statements[index].get();
-  }
+    result["statements"] = llvm::json::Array(statementsJson);
 
-  const Statement* Algorithm::operator[](size_t index) const
-  {
-    assert(index < statements.size());
-    return statements[index].get();
-  }
-
-  llvm::MutableArrayRef<std::unique_ptr<Statement>> Algorithm::getBody()
-  {
-    return statements;
-  }
-
-  llvm::ArrayRef<std::unique_ptr<Statement>> Algorithm::getBody() const
-  {
-    return statements;
-  }
-
-  void Algorithm::setBody(llvm::ArrayRef<std::unique_ptr<Statement>> body)
-  {
-    statements.clear();
-
-    for (const auto& statement : body) {
-      statements.push_back(statement->clone());
-    }
+    addJSONProperties(result);
+    return result;
   }
 
   size_t Algorithm::size() const
@@ -95,23 +50,31 @@ void Algorithm::print(llvm::raw_ostream& os, size_t indents) const
     return statements.empty();
   }
 
-  Algorithm::statements_iterator Algorithm::begin()
+  Statement* Algorithm::operator[](size_t index)
   {
-    return statements.begin();
+    assert(index < statements.size());
+    return statements[index]->cast<Statement>();
   }
 
-  Algorithm::statements_const_iterator Algorithm::begin() const
+  const Statement* Algorithm::operator[](size_t index) const
   {
-    return statements.begin();
+    assert(index < statements.size());
+    return statements[index]->cast<Statement>();
   }
 
-  Algorithm::statements_iterator Algorithm::end()
+  llvm::ArrayRef<std::unique_ptr<ASTNode>> Algorithm::getStatements()
   {
-    return statements.end();
+    return statements;
   }
 
-  Algorithm::statements_const_iterator Algorithm::end() const
+  void Algorithm::setStatements(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
   {
-    return statements.end();
+    statements.clear();
+
+    for (const auto& node : nodes) {
+      assert(node->isa<Statement>());
+      auto& clone = statements.emplace_back(node->clone());
+      clone->setParent(this);
+    }
   }
 }

@@ -7,82 +7,114 @@ using namespace ::marco::ast;
 
 namespace marco::ast
 {
-  EquationsBlock::EquationsBlock(
-      SourceRange location,
-      llvm::ArrayRef<std::unique_ptr<Equation>> equations,
-      llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations)
-    : ASTNode(std::move(location))
+  EquationsBlock::EquationsBlock(SourceRange location)
+      : ASTNode(ASTNode::Kind::EquationsBlock, std::move(location))
   {
-    for (const auto& equation : equations) {
-      this->equations.push_back(equation->clone());
-    }
-
-    for (const auto& forEquation : forEquations) {
-      this->forEquations.push_back(forEquation->clone());
-    }
   }
 
   EquationsBlock::EquationsBlock(const EquationsBlock& other)
     : ASTNode(other)
   {
-    for (const auto& equation : other.equations) {
-      this->equations.push_back(equation->clone());
-    }
-
-    for (const auto& forEquation : other.forEquations) {
-      this->forEquations.push_back(forEquation->clone());
-    }
+    setEquations(other.equations);
+    setForEquations(other.forEquations);
   }
-
-  EquationsBlock::EquationsBlock(EquationsBlock&& other) = default;
 
   EquationsBlock::~EquationsBlock() = default;
 
-  EquationsBlock& EquationsBlock::operator=(const EquationsBlock& other)
+  std::unique_ptr<ASTNode> EquationsBlock::clone() const
   {
-    EquationsBlock result(other);
-    swap(*this, result);
-    return *this;
+    return std::make_unique<EquationsBlock>(*this);
   }
 
-  EquationsBlock& EquationsBlock::operator=(EquationsBlock&& other) = default;
-
-  void swap(EquationsBlock& first, EquationsBlock& second)
+  llvm::json::Value EquationsBlock::toJSON() const
   {
-    swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+    llvm::json::Object result;
 
-    impl::swap(first.equations, second.equations);
-    impl::swap(first.forEquations, second.forEquations);
-  }
+    llvm::SmallVector<llvm::json::Value> equationsJson;
 
-  void EquationsBlock::print(llvm::raw_ostream& os, size_t indents) const
-  {
     for (const auto& equation : equations) {
-      equation->dump(os, indents);
+      equationsJson.push_back(equation->toJSON());
     }
+
+    result["equations"] = llvm::json::Array(equationsJson);
+
+    llvm::SmallVector<llvm::json::Value> forEquationsJson;
 
     for (const auto& forEquation : forEquations) {
-      forEquation->dump(os, indents);
+      forEquationsJson.push_back(forEquation->toJSON());
+    }
+
+    result["for_equations"] = llvm::json::Array(forEquationsJson);
+
+    addJSONProperties(result);
+    return result;
+  }
+
+  size_t EquationsBlock::getNumOfEquations() const
+  {
+    return equations.size();
+  }
+
+  Equation* EquationsBlock::getEquation(size_t index)
+  {
+    assert(index < equations.size());
+    return equations[index]->cast<Equation>();
+  }
+
+  const Equation* EquationsBlock::getEquation(size_t index) const
+  {
+    assert(index < equations.size());
+    return equations[index]->cast<Equation>();
+  }
+
+  void EquationsBlock::setEquations(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
+  {
+    equations.clear();
+
+    for (const auto& node : nodes) {
+      addEquation(node->clone());
     }
   }
 
-  llvm::ArrayRef<std::unique_ptr<Equation>> EquationsBlock::getEquations() const
+  void EquationsBlock::addEquation(std::unique_ptr<ASTNode> node)
   {
-    return equations;
+    assert(node->isa<Equation>());
+    auto& clone = equations.emplace_back(node->clone());
+    clone->setParent(this);
   }
 
-  llvm::ArrayRef<std::unique_ptr<ForEquation>> EquationsBlock::getForEquations() const
+  size_t EquationsBlock::getNumOfForEquations() const
   {
-    return forEquations;
+    return forEquations.size();
   }
 
-  void EquationsBlock::add(std::unique_ptr<Equation> equation)
+  ForEquation* EquationsBlock::getForEquation(size_t index)
   {
-    equations.push_back(std::move(equation));
+    assert(index < forEquations.size());
+    return forEquations[index]->cast<ForEquation>();
   }
 
-  void EquationsBlock::add(std::unique_ptr<ForEquation> equation)
+  const ForEquation* EquationsBlock::getForEquation(size_t index) const
   {
-    forEquations.push_back(std::move(equation));
+    assert(index < forEquations.size());
+    return forEquations[index]->cast<ForEquation>();
+  }
+
+  void EquationsBlock::setForEquations(
+      llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes)
+  {
+    forEquations.clear();
+
+    for (const auto& node : nodes) {
+      addForEquation(node->clone());
+    }
+  }
+
+  void EquationsBlock::addForEquation(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<ForEquation>());
+    auto& clone = forEquations.emplace_back(node->clone());
+    clone->setParent(this);
   }
 }

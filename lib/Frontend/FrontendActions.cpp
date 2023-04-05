@@ -1,5 +1,4 @@
 #include "marco/Frontend/FrontendActions.h"
-#include "marco/AST/Passes.h"
 #include "marco/Diagnostic/Printer.h"
 #include "marco/Codegen/Bridge.h"
 #include "marco/Codegen/Verifier.h"
@@ -295,31 +294,6 @@ namespace marco::frontend
     }
 
     ast = std::move(*cls);
-
-    if (action == ASTActionKind::ParseAndProcessAST) {
-      // Apply the AST modification passes.
-      // TODO: slowly remove them, keeping only semantic analysis and type inference.
-      marco::ast::PassManager frontendPassManager;
-
-      frontendPassManager.addPass(
-          ast::createRaggedFlatteningPass(diagnostics));
-
-      frontendPassManager.addPass(ast::createTypeInferencePass(diagnostics));
-      frontendPassManager.addPass(ast::createTypeCheckingPass(diagnostics));
-
-      frontendPassManager.addPass(
-          ast::createSemanticAnalysisPass(diagnostics));
-
-      frontendPassManager.addPass(ast::createConstantFoldingPass(diagnostics));
-
-      if (!frontendPassManager.run(ast)) {
-        ci.getDiagnostics().emitFatalError<GenericStringMessage>(
-            "Frontend passes failed");
-
-        return false;
-      }
-    }
-
     return true;
   }
 
@@ -330,19 +304,26 @@ namespace marco::frontend
 
   void EmitASTAction::executeAction()
   {
-    // Print the AST on the standard output.
-    ast->dump(llvm::outs());
-  }
+    CompilerInstance& ci = getInstance();
+    std::unique_ptr<llvm::raw_pwrite_stream> os;
 
-  EmitFinalASTAction::EmitFinalASTAction()
-      : ASTAction(ASTActionKind::ParseAndProcessAST)
-  {
-  }
+    // Get the default output stream, if none was specified.
+    if (ci.isOutputStreamNull()) {
+      if (!(os = ci.createDefaultOutputFile(
+                false, getCurrentFileOrBufferName(), "json"))) {
+        return;
+      }
+    }
 
-  void EmitFinalASTAction::executeAction()
-  {
-    // Print the AST on the standard output.
-    ast->dump(llvm::outs());
+    // Get the JSON object for the AST.
+    llvm::json::Value json = ast->toJSON();
+
+    // Print the JSON object to file.
+    if (ci.isOutputStreamNull()) {
+      *os << llvm::formatv("{0:2}", json);
+    } else {
+      ci.getOutputStream() << llvm::formatv("{0:2}", json);
+    }
   }
 
   void InitOnlyAction::executeAction()
@@ -403,7 +384,7 @@ namespace marco::frontend
   }
 
   CodeGenAction::CodeGenAction(CodeGenActionKind action)
-      : ASTAction(ASTActionKind::ParseAndProcessAST),
+      : ASTAction(ASTActionKind::Parse),
         action(action)
   {
   }
@@ -538,7 +519,7 @@ namespace marco::frontend
       // Convert the AST to MLIR.
       codegen::CodegenOptions options;
       marco::codegen::lowering::Bridge bridge(*mlirContext, options);
-      bridge.lower(*ast);
+      bridge.lower(*ast->cast<ast::Root>());
 
       mlirModule = std::move(bridge.getMLIRModule());
     }
