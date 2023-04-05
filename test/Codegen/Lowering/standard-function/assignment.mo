@@ -1,5 +1,4 @@
-// RUN: marco %s --omc-bypass --emit-mlir -o %t
-// RUN: cat %t | FileCheck %s
+// RUN: marco %s --omc-bypass --emit-mlir -o - | FileCheck %s
 
 // CHECK-LABEL: @variableCopy
 // CHECK-DAG: modelica.variable @x : !modelica.variable<!modelica.int, input>
