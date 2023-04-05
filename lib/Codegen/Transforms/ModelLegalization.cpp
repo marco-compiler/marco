@@ -1440,7 +1440,6 @@ namespace
       void runOnOperation() override
       {
         mlir::OpBuilder builder(getOperation());
-        getOperation().dump();
         llvm::SmallVector<ModelOp, 1> modelOps;
 
         for (ModelOp modelOp : getOperation().getOps<ModelOp>()) {
