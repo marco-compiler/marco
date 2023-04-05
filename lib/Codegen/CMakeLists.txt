@@ -44,7 +44,6 @@ marco_add_library(codegen
 
     LINK_LIBS PUBLIC
     marco::ast
-    marco::ASTAnalysis
     marco::modeling
     marco::variableFilter
     ${MLIR_LIBS})

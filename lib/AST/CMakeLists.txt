@@ -46,5 +46,3 @@ marco_add_library(ast
 	LINK_COMPONENTS
 	Core
 	Support)
-
-add_subdirectory(Analysis)
