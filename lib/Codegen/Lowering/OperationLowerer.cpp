@@ -1340,9 +1340,19 @@ namespace marco::codegen::lowering
   {
     assert(operands.size() == 2);
     mlir::Type baseType = operands[0].getType();
+    mlir::Type exponentType = operands[1].getType();
+
+    auto inferResultType =
+        [](mlir::Type base, mlir::Type exponent) -> mlir::Type {
+      if (exponent.isa<RealType>()) {
+        return exponent;
+      }
+
+      return base;
+    };
 
     if (isScalarType(baseType)) {
-      inferredTypes.push_back(baseType);
+      inferredTypes.push_back(inferResultType(baseType, exponentType));
       return true;
     }
 
@@ -1386,8 +1396,17 @@ namespace marco::codegen::lowering
     mlir::Type baseType = operands[0].getType();
     mlir::Type exponentType = operands[1].getType();
 
+    auto inferResultType =
+        [](mlir::Type base, mlir::Type exponent) -> mlir::Type {
+          if (exponent.isa<RealType>()) {
+            return exponent;
+          }
+
+          return base;
+        };
+
     if (isScalarType(baseType) && isScalarType(exponentType)) {
-      inferredTypes.push_back(baseType);
+      inferredTypes.push_back(inferResultType(baseType, exponentType));
       return true;
     }
 
@@ -1395,14 +1414,15 @@ namespace marco::codegen::lowering
     auto exponentArrayType = exponentType.dyn_cast<ArrayType>();
 
     if (isScalarType(baseType) && exponentArrayType) {
-      inferredTypes.push_back(
-          exponentArrayType.toElementType(baseType));
+      inferredTypes.push_back(exponentArrayType.toElementType(
+          inferResultType(baseType, exponentArrayType.getElementType())));
 
       return true;
     }
 
     if (baseArrayType && isScalarType(exponentType)) {
-      inferredTypes.push_back(baseArrayType);
+      inferredTypes.push_back(baseArrayType.toElementType(
+          inferResultType(baseArrayType.getElementType(), exponentType)));
       return true;
     }
 
@@ -1424,9 +1444,10 @@ namespace marco::codegen::lowering
         }
       }
 
-      inferredTypes.push_back(
-          ArrayType::get(shape, baseArrayType.getElementType()));
+      mlir::Type resultElementType = inferResultType(
+          baseArrayType.getElementType(), exponentArrayType.getElementType());
 
+      inferredTypes.push_back(ArrayType::get(shape, resultElementType));
       return true;
     }
 
