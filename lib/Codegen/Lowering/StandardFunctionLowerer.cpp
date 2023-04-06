@@ -21,22 +21,44 @@ namespace marco::codegen::lowering
     mlir::OpBuilder::InsertionGuard guard(builder());
     builder().setInsertionPointToStart(functionOp.bodyBlock());
 
-    // Declare the variables.
-    declareClassVariables(function);
-
     // Declare the inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
       declare(*innerClassNode->cast<ast::Class>());
     }
   }
 
-  void StandardFunctionLowerer::lower(const ast::StandardFunction& function)
+  void StandardFunctionLowerer::declareVariables(
+      const ast::StandardFunction& function)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.
     auto functionOp = mlir::cast<FunctionOp>(getClass(function));
+    pushLookupScope(functionOp);
+    builder().setInsertionPointToEnd(functionOp.bodyBlock());
+
+    // Declare the variables.
+    for (const auto& variable : function.getVariables()) {
+      declare(*variable->cast<ast::Member>());
+    }
+
+    // Declare the variables of inner classes.
+    for (const auto& innerClassNode : function.getInnerClasses()) {
+      declareVariables(*innerClassNode->cast<ast::Class>());
+    }
+  }
+
+  void StandardFunctionLowerer::lower(const ast::StandardFunction& function)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder());
+
+    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    LookupScopeGuard lookupScopeGuard(&getContext());
+
+    // Get the operation.
+    auto functionOp = mlir::cast<FunctionOp>(getClass(function));
+    pushLookupScope(functionOp);
     builder().setInsertionPointToEnd(functionOp.bodyBlock());
 
     // Map the variables.

@@ -64,7 +64,21 @@ namespace marco::codegen::lowering
 
       void declare(const ast::StandardFunction& node) override;
 
-      void declareClassVariables(const ast::Class& node) override;
+      void declareVariables(const ast::Class& node) override;
+
+      void declareVariables(const ast::Model& model) override;
+
+      void declareVariables(const ast::Package& package) override;
+
+      void declareVariables(
+          const ast::PartialDerFunction& function) override;
+
+      void declareVariables(const ast::Record& record) override;
+
+      void declareVariables(
+          const ast::StandardFunction& function) override;
+
+      void declare(const ast::Member& node) override;
 
       void lower(const ast::Class& node) override;
 
@@ -168,7 +182,7 @@ namespace marco::codegen::lowering
         context, std::move(options));
 
     this->module = std::make_unique<mlir::ModuleOp>(
-        mlir::ModuleOp::create(this->context->builder.getUnknownLoc()));
+        mlir::ModuleOp::create(this->context->getBuilder().getUnknownLoc()));
 
     // Initialize the lowerers.
     this->classLowerer = std::make_unique<ClassLowerer>(this);
@@ -243,11 +257,16 @@ namespace marco::codegen::lowering
 
   void Bridge::Impl::convert(const ast::Root& root)
   {
-    mlir::OpBuilder::InsertionGuard guard(context->builder);
-    context->builder.setInsertionPointToStart(module->getBody());
+    mlir::OpBuilder::InsertionGuard guard(context->getBuilder());
+    context->pushLookupScope(module->getOperation());
+    context->getBuilder().setInsertionPointToStart(module->getBody());
 
     for (const auto& cls : root.getInnerClasses()) {
       classLowerer->declare(*cls->cast<ast::Class>());
+    }
+
+    for (const auto& cls : root.getInnerClasses()) {
+      classLowerer->declareVariables(*cls->cast<ast::Class>());
     }
 
     for (const auto& cls : root.getInnerClasses()) {
@@ -297,10 +316,48 @@ namespace marco::codegen::lowering
     return standardFunctionLowerer->declare(function);
   }
 
-  void Bridge::Impl::declareClassVariables(const ast::Class& cls)
+  void Bridge::Impl::declareVariables(const ast::Class& cls)
   {
     assert(classLowerer != nullptr);
-    return classLowerer->declareClassVariables(cls);
+    return classLowerer->declareVariables(cls);
+  }
+
+  void Bridge::Impl::declareVariables(const ast::Model& model)
+  {
+    assert(modelLowerer != nullptr);
+    return modelLowerer->declareVariables(model);
+  }
+
+  void Bridge::Impl::declareVariables(const ast::Package& package)
+  {
+    assert(packageLowerer != nullptr);
+    return packageLowerer->declareVariables(package);
+  }
+
+  void Bridge::Impl::declareVariables(
+      const ast::PartialDerFunction& function)
+  {
+    assert(partialDerFunctionLowerer != nullptr);
+    return partialDerFunctionLowerer->declareVariables(function);
+  }
+
+  void Bridge::Impl::declareVariables(const ast::Record& record)
+  {
+    assert(recordLowerer != nullptr);
+    return recordLowerer->declareVariables(record);
+  }
+
+  void Bridge::Impl::declareVariables(
+      const ast::StandardFunction& function)
+  {
+    assert(standardFunctionLowerer != nullptr);
+    return standardFunctionLowerer->declareVariables(function);
+  }
+
+  void Bridge::Impl::declare(const ast::Member& variable)
+  {
+    assert(classLowerer != nullptr);
+    return classLowerer->declare(variable);
   }
 
   void Bridge::Impl::lower(const ast::Class& cls)

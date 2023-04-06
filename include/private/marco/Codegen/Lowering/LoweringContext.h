@@ -9,32 +9,62 @@
 
 namespace marco::codegen::lowering
 {
-  struct LoweringContext
+  class LoweringContext
   {
-    using VariablesSymbolTable =
-        llvm::ScopedHashTable<llvm::StringRef, Reference>;
+    public:
+      using VariablesSymbolTable =
+          llvm::ScopedHashTable<llvm::StringRef, Reference>;
 
-    using VariablesScope = VariablesSymbolTable::ScopeTy;
+      using VariablesScope = VariablesSymbolTable::ScopeTy;
 
-    LoweringContext(mlir::MLIRContext& context, CodegenOptions options);
+      class LookupScopeGuard
+      {
+        public:
+          LookupScopeGuard(LoweringContext* context);
 
-    /// The builder is a helper class to create IR inside a function. The
-    /// builder is stateful, in particular it keeps an "insertion point",
-    /// that is where the next operations will be introduced.
-    mlir::OpBuilder builder;
+          ~LookupScopeGuard();
 
-    /// Global symbol table.
-    /// It should not be used before the class declaration process is finished.
-    mlir::SymbolTableCollection symbolTable;
+        private:
+          LoweringContext* context;
+          size_t size;
+      };
 
-    /// The symbol table maps a variable name to a value in the current scope.
-    /// Entering a class creates a new scope. When the processing of a class is
-    /// terminated, the scope is destroyed and the mappings created in this
-    /// scope are dropped.
-    VariablesSymbolTable variablesSymbolTable;
+      LoweringContext(mlir::MLIRContext& context, CodegenOptions options);
 
-    /// A list of options that has impact on the whole code generation process.
-    CodegenOptions options;
+      mlir::OpBuilder& getBuilder();
+
+      CodegenOptions& getOptions();
+
+      const CodegenOptions& getOptions() const;
+
+      mlir::SymbolTableCollection& getSymbolTable();
+
+      VariablesSymbolTable& getVariablesSymbolTable();
+
+      mlir::Operation* getLookupScope();
+
+      void pushLookupScope(mlir::Operation* lookupScope);
+
+    private:
+      /// The builder is a helper class to create IR inside a function. The
+      /// builder is stateful, in particular it keeps an "insertion point",
+      /// that is where the next operations will be introduced.
+      mlir::OpBuilder builder;
+
+      /// A list of options that has impact on the whole code generation process.
+      CodegenOptions options;
+
+      /// Global symbol table.
+      /// It should not be used before the class declaration process is finished.
+      mlir::SymbolTableCollection symbolTable;
+
+      /// The symbol table maps a variable name to a value in the current scope.
+      /// Entering a class creates a new scope. When the processing of a class is
+      /// terminated, the scope is destroyed and the mappings created in this
+      /// scope are dropped.
+      VariablesSymbolTable variablesSymbolTable;
+
+      llvm::SmallVector<mlir::Operation*> lookupScopes;
   };
 }
 

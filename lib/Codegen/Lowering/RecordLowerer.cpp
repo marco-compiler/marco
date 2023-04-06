@@ -21,22 +21,43 @@ namespace marco::codegen::lowering
     mlir::OpBuilder::InsertionGuard guard(builder());
     builder().setInsertionPointToStart(recordOp.bodyBlock());
 
-    // Declare the variables.
-    declareClassVariables(record);
-
     // Declare the inner classes.
     for (const auto& innerClassNode : record.getInnerClasses()) {
       declare(*innerClassNode->cast<ast::Class>());
     }
   }
 
-  void RecordLowerer::lower(const ast::Record& record)
+  void RecordLowerer::declareVariables(const ast::Record& record)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.
     auto recordOp = mlir::cast<RecordOp>(getClass(record));
+    pushLookupScope(recordOp);
+    builder().setInsertionPointToEnd(recordOp.bodyBlock());
+
+    // Declare the variables.
+    for (const auto& variable : record.getVariables()) {
+      declare(*variable->cast<ast::Member>());
+    }
+
+    // Declare the variables of inner classes.
+    for (const auto& innerClassNode : record.getInnerClasses()) {
+      declareVariables(*innerClassNode->cast<ast::Class>());
+    }
+  }
+
+  void RecordLowerer::lower(const ast::Record& record)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder());
+
+    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    LookupScopeGuard lookupScopeGuard(&getContext());
+
+    // Get the operation.
+    auto recordOp = mlir::cast<RecordOp>(getClass(record));
+    pushLookupScope(recordOp);
     builder().setInsertionPointToEnd(recordOp.bodyBlock());
 
     // Map the variables.

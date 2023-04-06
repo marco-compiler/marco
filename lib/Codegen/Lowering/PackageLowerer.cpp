@@ -21,22 +21,43 @@ namespace marco::codegen::lowering
     mlir::OpBuilder::InsertionGuard guard(builder());
     builder().setInsertionPointToStart(packageOp.bodyBlock());
 
-    // Declare the variables.
-    declareClassVariables(package);
-
     // Declare the inner classes.
     for (const auto& innerClassNode : package.getInnerClasses()) {
       declare(*innerClassNode->cast<ast::Class>());
     }
   }
 
-  void PackageLowerer::lower(const ast::Package& package)
+  void PackageLowerer::declareVariables(const ast::Package& package)
   {
     mlir::OpBuilder::InsertionGuard guard(builder());
-    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    LookupScopeGuard lookupScopeGuard(&getContext());
 
     // Get the operation.
     auto packageOp = mlir::cast<PackageOp>(getClass(package));
+    pushLookupScope(packageOp);
+    builder().setInsertionPointToEnd(packageOp.bodyBlock());
+
+    // Declare the variables.
+    for (const auto& variable : package.getVariables()) {
+      declare(*variable->cast<ast::Member>());
+    }
+
+    // Declare the variables of inner classes.
+    for (const auto& innerClassNode : package.getInnerClasses()) {
+      declareVariables(*innerClassNode->cast<ast::Class>());
+    }
+  }
+
+  void PackageLowerer::lower(const ast::Package& package)
+  {
+    mlir::OpBuilder::InsertionGuard guard(builder());
+
+    Lowerer::VariablesScope varScope(getVariablesSymbolTable());
+    LookupScopeGuard lookupScopeGuard(&getContext());
+
+    // Get the operation.
+    auto packageOp = mlir::cast<PackageOp>(getClass(package));
+    pushLookupScope(packageOp);
     builder().setInsertionPointToEnd(packageOp.bodyBlock());
 
     // Map the variables.

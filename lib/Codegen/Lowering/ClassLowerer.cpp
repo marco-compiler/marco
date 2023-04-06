@@ -37,14 +37,32 @@ namespace marco::codegen::lowering
     llvm_unreachable("Unknown class type");
   }
 
-  void ClassLowerer::declareClassVariables(const ast::Class& cls)
+  void ClassLowerer::declareVariables(const ast::Class& cls)
   {
-    for (const auto& variable : cls.getVariables()) {
-      declareClassVariable(*variable->cast<ast::Member>());
+    if (auto model = cls.dyn_cast<ast::Model>()) {
+      return declareVariables(*model);
     }
+
+    if (auto package = cls.dyn_cast<ast::Package>()) {
+      return declareVariables(*package);
+    }
+
+    if (auto function = cls.dyn_cast<ast::PartialDerFunction>()) {
+      return declareVariables(*function);
+    }
+
+    if (auto record = cls.dyn_cast<ast::Record>()) {
+      return declareVariables(*record);
+    }
+
+    if (auto standardFunction = cls.dyn_cast<ast::StandardFunction>()) {
+      return declareVariables(*standardFunction);
+    }
+
+    llvm_unreachable("Unknown class type");
   }
 
-  void ClassLowerer::declareClassVariable(const ast::Member& variable)
+  void ClassLowerer::declare(const ast::Member& variable)
   {
     mlir::Location location = loc(variable.getLocation());
 
@@ -70,10 +88,15 @@ namespace marco::codegen::lowering
       }
     }
 
-    builder().create<VariableOp>(
+    auto variableOp = builder().create<VariableOp>(
         location, variable.getName(), variableType,
         builder().getStrArrayAttr(dimensionsConstraints),
         nullptr);
+
+    mlir::SymbolTable& symbolTable = getSymbolTable().getSymbolTable(
+        variableOp->getParentOfType<ClassInterface>());
+
+    symbolTable.insert(variableOp);
   }
 
   void ClassLowerer::lower(const ast::Class& cls)
@@ -133,8 +156,25 @@ namespace marco::codegen::lowering
         llvm_unreachable("Unknown built-in type");
         return nullptr;
       }
+    } else if (auto userDefinedType =
+                   variableType.dyn_cast<ast::UserDefinedType>()) {
+      auto symbolOp = resolveSymbolName<ClassInterface>(
+          userDefinedType->getName(), getLookupScope());
+
+      if (symbolOp == nullptr) {
+        llvm_unreachable("Unknown variable type");
+        return nullptr;
+      }
+
+      if (mlir::isa<RecordOp>(symbolOp)) {
+        baseType = RecordType::get(
+            builder().getContext(), userDefinedType->getName());
+      } else {
+        llvm_unreachable("Unknown variable type");
+        return nullptr;
+      }
     } else {
-      llvm_unreachable("Unsupported variable type");
+      llvm_unreachable("Unknown variable type");
       return nullptr;
     }
 
@@ -257,6 +297,7 @@ namespace marco::codegen::lowering
   {
     mlir::Location location = loc(variable.getLocation());
     auto variableOp = symbolTable.lookup<VariableOp>(variable.getName());
+    assert(variableOp != nullptr);
 
     if (variableOp.getNumOfFixedDimensions() != 0) {
       mlir::OpBuilder::InsertionGuard guard(builder());

@@ -213,7 +213,8 @@ namespace mlir::modelica
 
   bool BaseArrayType::isValidElementType(mlir::Type type)
   {
-    return type.isIndex() || type.isa<BooleanType, IntegerType, RealType>();
+    return type.isIndex() ||
+        type.isa<BooleanType, IntegerType, RealType, RecordType>();
   }
 
   mlir::Type BaseArrayType::getElementType() const
@@ -464,7 +465,8 @@ namespace mlir::modelica
 
   bool VariableType::isValidElementType(mlir::Type type)
   {
-    return type.isIndex() || type.isa<BooleanType, IntegerType, RealType>();
+    return type.isIndex() ||
+        type.isa<BooleanType, IntegerType, RealType, RecordType>();
   }
 
   VariableType VariableType::wrap(

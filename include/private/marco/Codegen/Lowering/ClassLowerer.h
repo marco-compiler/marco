@@ -14,7 +14,9 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Class& cls) override;
 
-      void declareClassVariables(const ast::Class& cls) override;
+      void declareVariables(const ast::Class& cls) override;
+
+      void declare(const ast::Member& variable) override;
 
       void lower(const ast::Class& cls) override;
 
@@ -32,9 +34,8 @@ namespace marco::codegen::lowering
 
     protected:
       using Lowerer::declare;
+      using Lowerer::declareVariables;
       using Lowerer::lower;
-
-      void declareClassVariable(const ast::Member& variable);
 
       mlir::modelica::VariableType getVariableType(
           const ast::VariableType& type,

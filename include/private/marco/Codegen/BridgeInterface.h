@@ -30,7 +30,19 @@ namespace marco::codegen::lowering
 
       virtual void declare(const ast::StandardFunction& function) = 0;
 
-      virtual void declareClassVariables(const ast::Class& cls) = 0;
+      virtual void declareVariables(const ast::Class& cls) = 0;
+
+      virtual void declareVariables(const ast::Model& model) = 0;
+
+      virtual void declareVariables(const ast::Package& package) = 0;
+
+      virtual void declareVariables(const ast::PartialDerFunction& function) = 0;
+
+      virtual void declareVariables(const ast::Record& record) = 0;
+
+      virtual void declareVariables(const ast::StandardFunction& function) = 0;
+
+      virtual void declare(const ast::Member& variable) = 0;
 
       virtual void lower(const ast::Class& cls) = 0;
 

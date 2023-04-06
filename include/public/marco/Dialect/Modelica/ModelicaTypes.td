@@ -11,12 +11,17 @@ include "mlir/IR/SubElementInterfaces.td"
 //===----------------------------------------------------------------------===//
 
 // Base class for Modelica dialect types.
-class Modelica_Type<string name, list<Trait> traits = [], string baseCppClass = "::mlir::Type">
-    : TypeDef<Modelica_Dialect, name, traits, baseCppClass> {
+class Modelica_Type<
+    string name,
+    list<Trait> traits = [],
+    string baseCppClass = "::mlir::Type">
+    : TypeDef<Modelica_Dialect, name, traits, baseCppClass>
+{
     let mnemonic = ?;
 }
 
-def BooleanType : Modelica_Type<"Boolean"> {
+def BooleanType : Modelica_Type<"Boolean">
+{
     let summary = "Boolean type";
     let mnemonic = "bool";
 
@@ -25,7 +30,8 @@ def BooleanType : Modelica_Type<"Boolean"> {
     }];
 }
 
-def IntegerType : Modelica_Type<"Integer"> {
+def IntegerType : Modelica_Type<"Integer">
+{
     let summary = "Integer type";
     let mnemonic = "int";
 
@@ -34,7 +40,8 @@ def IntegerType : Modelica_Type<"Integer"> {
     }];
 }
 
-def RealType : Modelica_Type<"Real"> {
+def RealType : Modelica_Type<"Real">
+{
     let summary = "Real type";
     let mnemonic = "real";
 
@@ -44,8 +51,10 @@ def RealType : Modelica_Type<"Real"> {
 }
 
 def ArrayType : Modelica_Type<"Array",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>, ShapedTypeInterface],
-    "BaseArrayType"> {
+    [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
+    ShapedTypeInterface],
+    "BaseArrayType">
+{
     let summary = "Array type";
 
     let description = [{
@@ -96,8 +105,10 @@ def ArrayType : Modelica_Type<"Array",
 }
 
 def UnrankedArrayType : Modelica_Type<"UnrankedArray",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>, ShapedTypeInterface],
-    "BaseArrayType"> {
+    [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
+    ShapedTypeInterface],
+    "BaseArrayType">
+{
     let summary = "Unranked array type";
 
     let description = [{
@@ -249,18 +260,20 @@ def VariableType : Modelica_Type<"Variable",
     let genVerifyDecl = 1;
 }
 
-def RecordType : Modelica_Type<"record",
-    [DeclareTypeInterfaceMethods<SubElementTypeInterface>]>
+def Modelica_RecordType : Modelica_Type<"Record", []>
 {
     let summary = "Record type";
+    let mnemonic = "record";
 
     let description = [{
         Record type.
     }];
 
     let parameters = (ins
-        ArrayRefParameter<"mlir::Type">:$body
+        StringRefParameter<"Name">:$name
     );
+
+    let assemblyFormat = "`<` $name `>`";
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD

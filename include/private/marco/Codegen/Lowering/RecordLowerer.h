@@ -14,10 +14,13 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Record& record) override;
 
+      void declareVariables(const ast::Record& record) override;
+
       void lower(const ast::Record& record) override;
 
     protected:
       using Lowerer::declare;
+      using Lowerer::declareVariables;
       using Lowerer::lower;
   };
 }

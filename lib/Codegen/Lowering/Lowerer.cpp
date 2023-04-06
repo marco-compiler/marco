@@ -31,17 +31,27 @@ namespace marco::codegen::lowering
 
   mlir::OpBuilder& Lowerer::builder()
   {
-    return getContext().builder;
+    return getContext().getBuilder();
   }
 
   mlir::SymbolTableCollection& Lowerer::getSymbolTable()
   {
-    return getContext().symbolTable;
+    return getContext().getSymbolTable();
   }
 
   LoweringContext::VariablesSymbolTable& Lowerer::getVariablesSymbolTable()
   {
-    return getContext().variablesSymbolTable;
+    return getContext().getVariablesSymbolTable();
+  }
+
+  mlir::Operation* Lowerer::getLookupScope()
+  {
+    return getContext().getLookupScope();
+  }
+
+  void Lowerer::pushLookupScope(mlir::Operation* lookupScope)
+  {
+    getContext().pushLookupScope(lookupScope);
   }
 
   mlir::Operation* Lowerer::getClass(const ast::Class& cls)
@@ -197,9 +207,39 @@ namespace marco::codegen::lowering
     return bridge->declare(node);
   }
 
-  void Lowerer::declareClassVariables(const ast::Class& node)
+  void Lowerer::declareVariables(const ast::Class& node)
   {
-    return bridge->declareClassVariables(node);
+    return bridge->declareVariables(node);
+  }
+
+  void Lowerer::declareVariables(const ast::Model& node)
+  {
+    return bridge->declareVariables(node);
+  }
+
+  void Lowerer::declareVariables(const ast::Package& node)
+  {
+    return bridge->declareVariables(node);
+  }
+
+  void Lowerer::declareVariables(const ast::PartialDerFunction& node)
+  {
+    return bridge->declareVariables(node);
+  }
+
+  void Lowerer::declareVariables(const ast::Record& node)
+  {
+    return bridge->declareVariables(node);
+  }
+
+  void Lowerer::declareVariables(const ast::StandardFunction& node)
+  {
+    return bridge->declareVariables(node);
+  }
+
+  void Lowerer::declare(const ast::Member& node)
+  {
+    return bridge->declare(node);
   }
 
   void Lowerer::lower(const ast::Class& node)

@@ -200,7 +200,9 @@ namespace marco::parser
 
       llvm::Optional<std::unique_ptr<ast::ASTNode>> parseTypePrefix();
 
-      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseTypeSpecifier();
+      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseVariableType();
+
+      llvm::Optional<std::unique_ptr<ast::ASTNode>> parseArrayDimension();
 
       llvm::Optional<std::unique_ptr<ast::ASTNode>> parseTermModification();
 

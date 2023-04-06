@@ -14,6 +14,7 @@ namespace marco::codegen::lowering
   {
     public:
       using VariablesScope = LoweringContext::VariablesScope;
+      using LookupScopeGuard = LoweringContext::LookupScopeGuard;
 
       Lowerer(BridgeInterface* bridge);
 
@@ -34,6 +35,10 @@ namespace marco::codegen::lowering
       mlir::SymbolTableCollection& getSymbolTable();
 
       LoweringContext::VariablesSymbolTable& getVariablesSymbolTable();
+
+      mlir::Operation* getLookupScope();
+
+      void pushLookupScope(mlir::Operation* lookupScope);
 
       mlir::Operation* getClass(const ast::Class& cls);
 
@@ -81,7 +86,21 @@ namespace marco::codegen::lowering
 
       virtual void declare(const ast::StandardFunction& node) override;
 
-      virtual void declareClassVariables(const ast::Class& node) override;
+      virtual void declareVariables(const ast::Class& node) override;
+
+      virtual void declareVariables(const ast::Model& model) override;
+
+      virtual void declareVariables(const ast::Package& package) override;
+
+      virtual void declareVariables(
+          const ast::PartialDerFunction& function) override;
+
+      virtual void declareVariables(const ast::Record& record) override;
+
+      virtual void declareVariables(
+          const ast::StandardFunction& function) override;
+
+      virtual void declare(const ast::Member& node) override;
 
       virtual void lower(const ast::Class& node) override;
 

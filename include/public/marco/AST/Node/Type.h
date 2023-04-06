@@ -63,6 +63,11 @@ namespace marco::ast
 
       ~BuiltInType();
 
+      static bool classof(const ASTNode* node)
+      {
+        return node->getKind() == ASTNode::Kind::VariableType_BuiltIn;
+      }
+
       std::unique_ptr<ASTNode> clone() const override;
 
       llvm::json::Value toJSON() const override;
@@ -85,6 +90,11 @@ namespace marco::ast
       UserDefinedType(const UserDefinedType& other);
 
       ~UserDefinedType();
+
+      static bool classof(const ASTNode* node)
+      {
+          return node->getKind() == ASTNode::Kind::VariableType_UserDefined;
+      }
 
       std::unique_ptr<ASTNode> clone() const override;
 

@@ -1458,7 +1458,7 @@ namespace marco::parser
   {
     accept<Token::Final>();
     TRY(typePrefix, parseTypePrefix());
-    TRY(type, parseTypeSpecifier());
+    TRY(type, parseVariableType());
     TRY(name, parseIdentifier());
 
     std::unique_ptr<ast::ASTNode> modification;
@@ -1518,60 +1518,70 @@ namespace marco::parser
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 
-  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseTypeSpecifier()
+  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseVariableType()
   {
     auto loc = lexer.getTokenPosition();
+    std::unique_ptr<ast::ASTNode> result;
+
     std::string name = lexer.getIdentifier();
     EXPECT(Token::Identifier);
 
-    while (accept<Token::Dot>()) {
-      name += "." + lexer.getIdentifier();
-      EXPECT(Token::Identifier);
+    if (name == "String") {
+      result = std::make_unique<BuiltInType>(loc);
+      result->cast<BuiltInType>()->setBuiltInTypeKind(
+          ast::BuiltInType::Kind::String);
+    } else if (name == "Boolean") {
+      result = std::make_unique<BuiltInType>(loc);
+      result->cast<BuiltInType>()->setBuiltInTypeKind(
+          ast::BuiltInType::Kind::Boolean);
+    } else if (name == "Integer") {
+      result = std::make_unique<BuiltInType>(loc);
+      result->cast<BuiltInType>()->setBuiltInTypeKind(
+          ast::BuiltInType::Kind::Integer);
+    } else if (name == "Real") {
+      result = std::make_unique<BuiltInType>(loc);
+      result->cast<BuiltInType>()->setBuiltInTypeKind(
+          ast::BuiltInType::Kind::Real);
+    } else {
+      while (accept<Token::Dot>()) {
+        loc.end = lexer.getTokenPosition().end;
+        name += "." + lexer.getIdentifier();
+        EXPECT(Token::Identifier);
+      }
+
+      result = std::make_unique<UserDefinedType>(loc);
+      result->cast<UserDefinedType>()->setName(name);
     }
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> dimensions;
 
-    if (current != Token::Identifier) {
-      EXPECT(Token::LSquare);
-
+    if (accept<Token::LSquare>()) {
       do {
-        auto dimensionLoc = lexer.getTokenPosition();
-
-        if (accept<Token::Colon>()) {
-          auto arrayDimension = std::make_unique<ArrayDimension>(dimensionLoc);
-          arrayDimension->setSize(-1);
-          dimensions.push_back(std::move(arrayDimension));
-        } else if (accept<Token::Integer>()) {
-          auto arrayDimension = std::make_unique<ArrayDimension>(dimensionLoc);
-          arrayDimension->setSize(lexer.getInt());
-          dimensions.push_back(std::move(arrayDimension));
-        } else {
-          TRY(expression, parseExpression());
-          auto arrayDimension = std::make_unique<ArrayDimension>(dimensionLoc);
-          arrayDimension->setSize(std::move(*expression));
-          dimensions.push_back(std::move(arrayDimension));
-        }
+        TRY(arrayDimension, parseArrayDimension());
+        dimensions.push_back(std::move(*arrayDimension));
       } while (accept<Token::Comma>());
 
       EXPECT(Token::RSquare);
     }
 
-    auto result = std::make_unique<BuiltInType>(loc);
+    result->dyn_cast<VariableType>()->setDimensions(dimensions);
+    return std::move(result);
+  }
 
-    if (name == "String") {
-      result->setBuiltInTypeKind(ast::BuiltInType::Kind::String);
-    } else if (name == "Boolean") {
-      result->setBuiltInTypeKind(ast::BuiltInType::Kind::Boolean);
-    } else if (name == "Integer") {
-      result->setBuiltInTypeKind(ast::BuiltInType::Kind::Integer);
-    } else  if (name == "Real") {
-      result->setBuiltInTypeKind(ast::BuiltInType::Kind::Real);
+  llvm::Optional<std::unique_ptr<ast::ASTNode>> Parser::parseArrayDimension()
+  {
+    auto loc = lexer.getTokenPosition();
+    auto result = std::make_unique<ArrayDimension>(loc);
+
+    if (accept<Token::Colon>()) {
+      result->setSize(-1);
+    } else if (accept<Token::Integer>()) {
+      result->setSize(lexer.getInt());
     } else {
-      // TODO emit error
-      return llvm::None;
+      TRY(expression, parseExpression());
+      result->setSize(std::move(*expression));
     }
 
-    result->setDimensions(dimensions);
     return static_cast<std::unique_ptr<ast::ASTNode>>(std::move(result));
   }
 

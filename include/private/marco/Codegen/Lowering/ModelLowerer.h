@@ -14,31 +14,14 @@ namespace marco::codegen::lowering
 
       void declare(const ast::Model& model) override;
 
+      void declareVariables(const ast::Model& model) override;
+
       void lower(const ast::Model& model) override;
 
     protected:
       using Lowerer::declare;
+      using Lowerer::declareVariables;
       using Lowerer::lower;
-
-      /*
-      std::vector<mlir::Operation*> lower(const ast::Model& model);
-
-    protected:
-      using Lowerer::lower;
-
-    private:
-      void lower(const ast::Member& member);
-
-      void createBindingEquation(
-          const ast::Member& member,
-          const ast::Expression& expression);
-
-      void lowerStartAttribute(
-          const ast::Member& member,
-          const ast::Expression& expression,
-          bool fixed,
-          bool each);
-          */
   };
 }
 

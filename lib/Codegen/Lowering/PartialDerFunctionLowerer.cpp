@@ -35,6 +35,12 @@ namespace marco::codegen::lowering
         builder().getArrayAttr(independentVariables));
   }
 
+  void PartialDerFunctionLowerer::declareVariables(
+      const ast::PartialDerFunction& function)
+  {
+    // Nothing to do.
+  }
+
   void PartialDerFunctionLowerer::lower(
       const ast::PartialDerFunction& function)
   {
