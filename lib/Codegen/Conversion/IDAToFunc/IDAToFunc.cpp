@@ -2,6 +2,7 @@
 #include "marco/Codegen/Conversion/IDACommon/LLVMTypeConverter.h"
 #include "marco/Dialect/IDA/IDADialect.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BlockAndValueMapping.h"
@@ -97,7 +98,8 @@ namespace
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
 
-      mlir::BlockAndValueMapping mapping;
+      // The arguments to be passed to the entry block of the old operation.
+      llvm::SmallVector<mlir::Value, 3> branchArgs;
 
       // The lowered function will receive a void pointer to the array
       // descriptor of the variable.
@@ -108,7 +110,7 @@ namespace
                    op.getVariable().getType()), variableOpaquePtr);
 
       mlir::Value variable = rewriter.create<mlir::LLVM::LoadOp>(loc, variablePtr);
-      mapping.map(op.getVariable(), variable);
+      branchArgs.push_back(variable);
 
       // The equation indices are also passed through an array.
       mlir::Value variableIndicesPtr = newOp.getArgument(1);
@@ -133,46 +135,33 @@ namespace
             rewriter.getIndexType(),
             mappedVariableIndex);
 
-        mapping.map(variableIndex.value(), mappedVariableIndex);
+        branchArgs.push_back(mappedVariableIndex);
       }
 
-      // Clone the blocks structure.
-      for (auto& block : llvm::enumerate(op.getBodyRegion().getBlocks())) {
-        if (block.index() != 0) {
-          std::vector<mlir::Location> argLocations;
+      // Create a branch to the entry block of the old region.
+      rewriter.create<mlir::cf::BranchOp>(
+          loc, &op.getBodyRegion().front(), branchArgs);
 
-          for (const auto& arg : block.value().getArguments()) {
-            argLocations.push_back(arg.getLoc());
-          }
+      // Convert the return operation.
+      auto returnOp =
+          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
 
-          mlir::Block* clonedBlock = rewriter.createBlock(
-              &newOp.getBody(),
-              newOp.getBody().end(),
-              block.value().getArgumentTypes(),
-              argLocations);
+      llvm::SmallVector<mlir::Value, 1> returnValues;
+      rewriter.setInsertionPoint(returnOp);
 
-          mapping.map(&block.value(), clonedBlock);
-
-          for (const auto& [original, cloned]
-               : llvm::zip(block.value().getArguments(),
-                           clonedBlock->getArguments())) {
-            mapping.map(original, cloned);
-          }
-        }
+      for (mlir::Value returnValue : returnOp.getOperands()) {
+        returnValues.push_back(
+            materializeTargetConversion(rewriter, returnValue));
       }
 
-      // Clone the original operations.
-      for (auto& block : llvm::enumerate(op.getBodyRegion())) {
-        if (block.index() == 0) {
-          rewriter.setInsertionPointToEnd(entryBlock);
-        } else {
-          rewriter.setInsertionPointToStart(mapping.lookup(&block.value()));
-        }
+      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(
+          returnOp, returnValues);
 
-        for (auto& bodyOp : block.value().getOperations()) {
-          rewriter.clone(bodyOp, mapping);
-        }
-      }
+      // Inline the old region.
+      rewriter.inlineRegionBefore(
+          op.getBodyRegion(),
+          newOp.getFunctionBody(),
+          newOp.getFunctionBody().end());
 
       return mlir::success();
     }
@@ -198,9 +187,7 @@ namespace
       argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(
           getTypeConverter()->getIndexType()));
 
-      auto functionType = rewriter.getFunctionType(
-          argsTypes,
-          mlir::LLVM::LLVMVoidType::get(rewriter.getContext()));
+      auto functionType = rewriter.getFunctionType(argsTypes, llvm::None);
 
       auto newOp = rewriter.replaceOpWithNewOp<mlir::func::FuncOp>(
           op, op.getSymName(), functionType);
@@ -208,7 +195,8 @@ namespace
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
 
-      mlir::BlockAndValueMapping mapping;
+      // The arguments to be passed to the entry block of the old operation.
+      llvm::SmallVector<mlir::Value, 3> branchArgs;
 
       // The lowered function will receive a void pointer to the array
       // descriptor of the variable
@@ -219,10 +207,10 @@ namespace
                    op.getVariable().getType()), variableOpaquePtr);
 
       mlir::Value variable = rewriter.create<mlir::LLVM::LoadOp>(loc, variablePtr);
-      mapping.map(op.getVariable(), variable);
+      branchArgs.push_back(variable);
 
       // Map the value.
-      mapping.map(op.getValue(), newOp.getArgument(1));
+      branchArgs.push_back(newOp.getArgument(1));
 
       // The equation indices are also passed through an array.
       mlir::Value variableIndicesPtr = newOp.getArgument(2);
@@ -247,46 +235,33 @@ namespace
             rewriter.getIndexType(),
             mappedVariableIndex);
 
-        mapping.map(variableIndex.value(), mappedVariableIndex);
+        branchArgs.push_back(mappedVariableIndex);
       }
 
-      // Clone the blocks structure.
-      for (auto& block : llvm::enumerate(op.getBodyRegion().getBlocks())) {
-        if (block.index() != 0) {
-          std::vector<mlir::Location> argLocations;
+      // Create a branch to the entry block of the old region.
+      rewriter.create<mlir::cf::BranchOp>(
+          loc, &op.getBodyRegion().front(), branchArgs);
 
-          for (const auto& arg : block.value().getArguments()) {
-            argLocations.push_back(arg.getLoc());
-          }
+      // Convert the return operation.
+      auto returnOp =
+          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
 
-          mlir::Block* clonedBlock = rewriter.createBlock(
-              &newOp.getBody(),
-              newOp.getBody().end(),
-              block.value().getArgumentTypes(),
-              argLocations);
+      llvm::SmallVector<mlir::Value, 1> returnValues;
+      rewriter.setInsertionPoint(returnOp);
 
-          mapping.map(&block.value(), clonedBlock);
-
-          for (const auto& [original, cloned]
-               : llvm::zip(block.value().getArguments(),
-                           clonedBlock->getArguments())) {
-            mapping.map(original, cloned);
-          }
-        }
+      for (mlir::Value returnValue : returnOp.getOperands()) {
+        returnValues.push_back(
+            materializeTargetConversion(rewriter, returnValue));
       }
 
-      // Clone the original operations.
-      for (auto& block : llvm::enumerate(op.getBodyRegion())) {
-        if (block.index() == 0) {
-          rewriter.setInsertionPointToEnd(entryBlock);
-        } else {
-          rewriter.setInsertionPointToStart(mapping.lookup(&block.value()));
-        }
+      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(
+          returnOp, returnValues);
 
-        for (auto& bodyOp : block.value().getOperations()) {
-          rewriter.clone(bodyOp, mapping);
-        }
-      }
+      // Inline the old region.
+      rewriter.inlineRegionBefore(
+          op.getBodyRegion(),
+          newOp.getFunctionBody(),
+          newOp.getFunctionBody().end());
 
       return mlir::success();
     }
@@ -302,6 +277,8 @@ namespace
         OpAdaptor adaptor,
         mlir::ConversionPatternRewriter& rewriter) const override
     {
+      mlir::Location loc = op.getLoc();
+
       mlir::SmallVector<mlir::Type, 3> argsTypes;
 
       argsTypes.push_back(op.getTime().getType());
@@ -320,10 +297,11 @@ namespace
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
 
-      mlir::BlockAndValueMapping mapping;
+      // The arguments to be passed to the entry block of the old operation.
+      llvm::SmallVector<mlir::Value, 3> branchArgs;
 
       // Map the time variable.
-      mapping.map(op.getTime(), newOp.getArgument(0));
+      branchArgs.push_back(newOp.getArgument(0));
 
       // The lowered function will receive a pointer to the array of variables.
       assert(!op.getVariables().empty());
@@ -361,7 +339,7 @@ namespace
         mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(
             mappedVariable.getLoc(), mappedVariable);
 
-        mapping.map(variable.value(), mappedVariable);
+        branchArgs.push_back(mappedVariable);
       }
 
       // The equation indices are also passed through an array.
@@ -387,46 +365,33 @@ namespace
             rewriter.getIndexType(),
             mappedEquationIndex);
 
-        mapping.map(equationIndex.value(), mappedEquationIndex);
+        branchArgs.push_back(mappedEquationIndex);
       }
 
-      // Clone the blocks structure.
-      for (auto& block : llvm::enumerate(op.getBodyRegion().getBlocks())) {
-        if (block.index() != 0) {
-          std::vector<mlir::Location> argLocations;
+      // Create a branch to the entry block of the old region.
+      rewriter.create<mlir::cf::BranchOp>(
+          loc, &op.getBodyRegion().front(), branchArgs);
 
-          for (const auto& arg : block.value().getArguments()) {
-            argLocations.push_back(arg.getLoc());
-          }
+      // Convert the return operation.
+      auto returnOp =
+          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
 
-          mlir::Block* clonedBlock = rewriter.createBlock(
-              &newOp.getBody(),
-              newOp.getBody().end(),
-              block.value().getArgumentTypes(),
-              argLocations);
+      llvm::SmallVector<mlir::Value, 1> returnValues;
+      rewriter.setInsertionPoint(returnOp);
 
-          mapping.map(&block.value(), clonedBlock);
-
-          for (const auto& [original, cloned]
-               : llvm::zip(block.value().getArguments(),
-                           clonedBlock->getArguments())) {
-            mapping.map(original, cloned);
-          }
-        }
+      for (mlir::Value returnValue : returnOp.getOperands()) {
+        returnValues.push_back(
+            materializeTargetConversion(rewriter, returnValue));
       }
 
-      // Clone the original operations.
-      for (auto& block : llvm::enumerate(op.getBodyRegion())) {
-        if (block.index() == 0) {
-          rewriter.setInsertionPointToEnd(entryBlock);
-        } else {
-          rewriter.setInsertionPointToStart(mapping.lookup(&block.value()));
-        }
+      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(
+          returnOp, returnValues);
 
-        for (auto& bodyOp : block.value().getOperations()) {
-          rewriter.clone(bodyOp, mapping);
-        }
-      }
+      // Inline the old region.
+      rewriter.inlineRegionBefore(
+          op.getBodyRegion(),
+          newOp.getFunctionBody(),
+          newOp.getFunctionBody().end());
 
       return mlir::success();
     }
@@ -442,6 +407,8 @@ namespace
         OpAdaptor adaptor,
         mlir::ConversionPatternRewriter& rewriter) const override
     {
+      mlir::Location loc = op.getLoc();
+
       mlir::SmallVector<mlir::Type, 5> argsTypes;
 
       argsTypes.push_back(op.getTime().getType());
@@ -465,10 +432,11 @@ namespace
       mlir::Block* entryBlock = newOp.addEntryBlock();
       rewriter.setInsertionPointToStart(entryBlock);
 
-      mlir::BlockAndValueMapping mapping;
+      // The arguments to be passed to the entry block of the old operation.
+      llvm::SmallVector<mlir::Value, 3> branchArgs;
 
       // Map the "time" variable.
-      mapping.map(op.getTime(), newOp.getArgument(0));
+      branchArgs.push_back(newOp.getArgument(0));
 
       // The lowered function will receive a pointer to the array of variables.
       assert(!op.getVariables().empty());
@@ -506,7 +474,7 @@ namespace
         mappedVariable = rewriter.create<mlir::LLVM::LoadOp>(
             mappedVariable.getLoc(), mappedVariable);
 
-        mapping.map(variable.value(), mappedVariable);
+        branchArgs.push_back(mappedVariable);
       }
 
       // The equation indices are also passed through an array.
@@ -532,7 +500,7 @@ namespace
             rewriter.getIndexType(),
             mappedEquationIndex);
 
-        mapping.map(equationIndex.value(), mappedEquationIndex);
+        branchArgs.push_back(mappedEquationIndex);
       }
 
       // The variable indices are also passed through an array.
@@ -558,65 +526,36 @@ namespace
             rewriter.getIndexType(),
             mappedVariableIndex);
 
-        mapping.map(variableIndex.value(), mappedVariableIndex);
+        branchArgs.push_back(mappedVariableIndex);
       }
 
       // Add the "alpha" variable.
-      mapping.map(op.getAlpha(), newOp.getArgument(4));
+      branchArgs.push_back(newOp.getArgument(4));
 
-      // Clone the blocks structure.
-      for (auto& block : llvm::enumerate(op.getBodyRegion().getBlocks())) {
-        if (block.index() != 0) {
-          std::vector<mlir::Location> argLocations;
+      // Create a branch to the entry block of the old region.
+      rewriter.create<mlir::cf::BranchOp>(
+          loc, &op.getBodyRegion().front(), branchArgs);
 
-          for (const auto& arg : block.value().getArguments()) {
-            argLocations.push_back(arg.getLoc());
-          }
+      // Convert the return operation.
+      auto returnOp =
+          mlir::cast<ReturnOp>(op.getBodyRegion().back().getTerminator());
 
-          mlir::Block* clonedBlock = rewriter.createBlock(
-              &newOp.getBody(),
-              newOp.getBody().end(),
-              block.value().getArgumentTypes(),
-              argLocations);
+      llvm::SmallVector<mlir::Value, 1> returnValues;
+      rewriter.setInsertionPoint(returnOp);
 
-          mapping.map(&block.value(), clonedBlock);
-
-          for (const auto& [original, cloned]
-               : llvm::zip(block.value().getArguments(),
-                           clonedBlock->getArguments())) {
-            mapping.map(original, cloned);
-          }
-        }
+      for (mlir::Value returnValue : returnOp.getOperands()) {
+        returnValues.push_back(
+            materializeTargetConversion(rewriter, returnValue));
       }
 
-      // Clone the original operations.
-      for (auto& block : llvm::enumerate(op.getBodyRegion())) {
-        if (block.index() == 0) {
-          rewriter.setInsertionPointToEnd(entryBlock);
-        } else {
-          rewriter.setInsertionPointToStart(mapping.lookup(&block.value()));
-        }
+      rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(
+          returnOp, returnValues);
 
-        for (auto& bodyOp : block.value().getOperations()) {
-          rewriter.clone(bodyOp, mapping);
-        }
-      }
-
-      return mlir::success();
-    }
-  };
-
-  struct ReturnOpLowering : public IDAOpConversionPattern<ReturnOp>
-  {
-    using IDAOpConversionPattern<ReturnOp>::IDAOpConversionPattern;
-
-    mlir::LogicalResult matchAndRewrite(
-        ReturnOp op,
-        OpAdaptor adaptor,
-        mlir::ConversionPatternRewriter& rewriter) const override
-    {
-      rewriter.replaceOpWithNewOp<mlir::LLVM::ReturnOp>(
-          op, adaptor.getOperands());
+      // Inline the old region.
+      rewriter.inlineRegionBefore(
+          op.getBodyRegion(),
+          newOp.getFunctionBody(),
+          newOp.getFunctionBody().end());
 
       return mlir::success();
     }
@@ -632,8 +571,7 @@ static void populateIDAToFuncPatterns(
       VariableGetterOpLowering,
       VariableSetterOpLowering,
       ResidualFunctionOpLowering,
-      JacobianFunctionOpLowering,
-      ReturnOpLowering>(typeConverter, bitWidth);
+      JacobianFunctionOpLowering>(typeConverter, bitWidth);
 }
 
 namespace

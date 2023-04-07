@@ -16,6 +16,7 @@ def IDAToFuncConversionPass : Pass<"convert-ida-to-func", "mlir::ModuleOp"> {
 
     let dependentDialects = [
         "mlir::arith::ArithDialect",
+        "mlir::cf::ControlFlowDialect",
         "mlir::func::FuncDialect",
         "mlir::LLVM::LLVMDialect"
     ];

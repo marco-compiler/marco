@@ -13,148 +13,254 @@ using namespace ::mlir::ida;
 
 namespace mlir::ida
 {
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // CreateOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void CreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void CreateOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Allocate::get(),
+        getResult(),
+        mlir::SideEffects::AutomaticAllocationScopeResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // SetStartTimeOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void SetStartTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetStartTimeOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // SetEndTimeOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void SetEndTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetEndTimeOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // GetCurrentTimeOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void GetCurrentTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void GetCurrentTimeOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // InitOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void InitOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void InitOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // FreeOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void FreeOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Free::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Free::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // CalcICOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void CalcICOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void CalcICOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // StepOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void StepOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void StepOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // AddEquationOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void AddEquationOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddEquationOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), getEquationRanges(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
+
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getEquationRanges(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // SetResidualOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void SetResidualOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetResidualOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // AddJacobianOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void AddJacobianOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddJacobianOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // AddAlgebraicVariableOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void AddAlgebraicVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddAlgebraicVariableOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // AddStateVariableOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void AddStateVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddStateVariableOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // SetDerivativeOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void SetDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void SetDerivativeOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // AddParametricVariableOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void AddParametricVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddParametricVariableOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // VariableGetterOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::BlockArgument VariableGetterOp::getVariable()
   {
@@ -166,9 +272,9 @@ namespace mlir::ida
     return getBodyRegion().getArguments().slice(1);
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // VariableSetterOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::BlockArgument VariableSetterOp::getVariable()
   {
@@ -185,18 +291,24 @@ namespace mlir::ida
     return getBodyRegion().getArguments().slice(2);
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // AddVariableAccessOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void AddVariableAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void AddVariableAccessOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Write::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // ResidualFunctionOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::BlockArgument ResidualFunctionOp::getTime()
   {
@@ -205,18 +317,21 @@ namespace mlir::ida
 
   llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getVariables()
   {
-    size_t numVariables = getBodyRegion().getNumArguments() - 1 - getEquationRank().getSExtValue();
+    size_t numVariables = getBodyRegion().getNumArguments() - 1 -
+        getEquationRank().getSExtValue();
+
     return getBodyRegion().getArguments().slice(1, numVariables);
   }
 
   llvm::ArrayRef<BlockArgument> ResidualFunctionOp::getEquationIndices()
   {
-    return getBodyRegion().getArguments().take_back(getEquationRank().getSExtValue());
+    return getBodyRegion().getArguments().take_back(
+        getEquationRank().getSExtValue());
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // JacobianFunctionOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
   mlir::BlockArgument JacobianFunctionOp::getTime()
   {
@@ -225,20 +340,30 @@ namespace mlir::ida
 
   llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariables()
   {
-    size_t numVariables = getBodyRegion().getNumArguments() - 1 - getEquationRank().getSExtValue() - getVariableRank().getSExtValue() - 1;
+    size_t numVariables = getBodyRegion().getNumArguments() - 1 -
+        getEquationRank().getSExtValue() - getVariableRank().getSExtValue()
+        - 1;
+
     return getBodyRegion().getArguments().slice(1, numVariables);
   }
 
   llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getEquationIndices()
   {
-    size_t offset = getBodyRegion().getNumArguments() - getEquationRank().getSExtValue() - getVariableRank().getSExtValue() - 1;
-    return getBodyRegion().getArguments().slice(offset, getEquationRank().getSExtValue());
+    size_t offset = getBodyRegion().getNumArguments() -
+        getEquationRank().getSExtValue() -
+        getVariableRank().getSExtValue() - 1;
+
+    return getBodyRegion().getArguments().slice(
+        offset, getEquationRank().getSExtValue());
   }
 
   llvm::ArrayRef<BlockArgument> JacobianFunctionOp::getVariableIndices()
   {
-    size_t offset = getBodyRegion().getNumArguments() - getVariableRank().getSExtValue() - 1;
-    return getBodyRegion().getArguments().slice(offset, getVariableRank().getSExtValue());
+    size_t offset = getBodyRegion().getNumArguments() -
+        getVariableRank().getSExtValue() - 1;
+
+    return getBodyRegion().getArguments().slice(
+        offset, getVariableRank().getSExtValue());
   }
 
   BlockArgument JacobianFunctionOp::getAlpha()
@@ -246,12 +371,18 @@ namespace mlir::ida
     return getBodyRegion().getArguments().back();
   }
 
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
   // PrintStatisticsOp
-  //===----------------------------------------------------------------------===//
+  //===-------------------------------------------------------------------===//
 
-  void PrintStatisticsOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+  void PrintStatisticsOp::getEffects(
+      mlir::SmallVectorImpl<
+          mlir::SideEffects::EffectInstance<
+              mlir::MemoryEffects::Effect>>& effects)
   {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), getInstance(), mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(
+        mlir::MemoryEffects::Read::get(),
+        getInstance(),
+        mlir::SideEffects::DefaultResource::get());
   }
 }
