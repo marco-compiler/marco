@@ -246,9 +246,11 @@ namespace marco::modeling::internal
     });
 
     if (isIdentityLike) {
-      auto mappedVariableRanges = access.map(equations);
-      set(equations, mappedVariableRanges);
-
+      for (const auto& equationsRange : llvm::make_range(
+               equations.rangesBegin(), equations.rangesEnd())) {
+        auto mappedVariableRanges = access.map(equationsRange);
+        set(equationsRange, mappedVariableRanges);
+      }
     } else {
       // In case of constant accesses or out-of-order induction variables
       // the delta would be wrong. Thus, we need to iterate over all the
@@ -330,53 +332,6 @@ namespace marco::modeling::internal
     IndexSet keys(getKey(equations, variables));
     auto delta = getDelta(equations, variables);
 
-    add(std::move(keys), std::move(delta));
-  }
-
-  void MCIM::Impl::set(const IndexSet& equations, const IndexSet& variables)
-  {
-    assert(equations.rank() == getEquationRanges().rank());
-    assert(variables.rank() == getVariableRanges().rank());
-
-    auto delta = getDelta(equations.minContainingRange(), variables.minContainingRange());
-
-    assert(equations.rank() < variables.rank() || llvm::all_of(llvm::make_range(equations.rangesBegin(), equations.rangesEnd()), [&](const auto& equation) {
-             IndexSet key(equation);
-             MCIMElement group(key);
-
-             IndexSet reducedValues;
-
-             auto groupValues = group.getValues(delta);
-             for (const auto& value : llvm::make_range(groupValues.rangesBegin(), groupValues.rangesEnd())) {
-               reducedValues += value.slice(variables.rank());
-             }
-
-             return llvm::none_of(llvm::make_range(reducedValues.rangesBegin(), reducedValues.rangesEnd()), [&](const auto& range) {
-               return llvm::any_of(range, [&](const auto& point) {
-                 return !variables.contains(point);
-               });
-             });
-           }));
-
-    assert(equations.rank() >= variables.rank() || llvm::all_of(llvm::make_range(equations.rangesBegin(), equations.rangesEnd()), [&](const auto& variable) {
-             IndexSet key(variable);
-             MCIMElement group(key);
-
-             IndexSet reducedValues;
-
-             auto groupValues = group.getValues(delta);
-             for (const auto& value : llvm::make_range(groupValues.rangesBegin(), groupValues.rangesEnd())) {
-               reducedValues += value.slice(equations.rank());
-             }
-
-             return llvm::none_of(llvm::make_range(reducedValues.rangesBegin(), reducedValues.rangesEnd()), [&](const auto& range) {
-               return llvm::any_of(range, [&](const auto& point) {
-                 return !equations.contains(point);
-               });
-             });
-           }));
-
-    IndexSet keys(getKey(equations.minContainingRange(), variables.minContainingRange()));
     add(std::move(keys), std::move(delta));
   }
 

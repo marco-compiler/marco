@@ -111,8 +111,6 @@ namespace marco::modeling::internal
 
       void set(const MultidimensionalRange& equations, const MultidimensionalRange& variables);
 
-      void set(const IndexSet& equations, const IndexSet& variables);
-
       void add(IndexSet equations, Delta delta);
 
     private:
