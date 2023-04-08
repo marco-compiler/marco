@@ -672,7 +672,8 @@ namespace marco::modeling::impl
 
   bool RTreeIndexSet::operator==(const RTreeIndexSet& rhs) const
   {
-    return contains(rhs) && rhs.contains(*this);
+    return contains(rhs) &&
+        rhs.contains(static_cast<const IndexSet::Impl&>(*this));
   }
 
   bool RTreeIndexSet::operator!=(const Point& rhs) const
@@ -704,7 +705,8 @@ namespace marco::modeling::impl
 
   bool RTreeIndexSet::operator!=(const RTreeIndexSet& rhs) const
   {
-    return !contains(rhs) || !rhs.contains(*this);
+    return !contains(rhs) ||
+        !rhs.contains(static_cast<const IndexSet::Impl&>(*this));
   }
 
   IndexSet::Impl& RTreeIndexSet::operator+=(const Point& rhs)
@@ -1082,17 +1084,126 @@ namespace marco::modeling::impl
   bool RTreeIndexSet::contains(const IndexSet::Impl& other) const
   {
     if (auto* otherCasted = other.dyn_cast<RTreeIndexSet>()) {
-      return contains(*otherCasted);
+      bool optimizedResult = contains(*otherCasted);
+      assert(optimizedResult == containsGenericIndexSet(other));
+      return optimizedResult;
     }
 
-    return std::all_of(
-        other.rangesBegin(), other.rangesEnd(),
-        [&](const MultidimensionalRange& range) {
-          return contains(range);
-        });
+    return containsGenericIndexSet(other);
   }
 
   bool RTreeIndexSet::contains(const RTreeIndexSet& other) const
+  {
+    if (other.empty()) {
+      return true;
+    }
+
+    if (empty()) {
+      return false;
+    }
+
+    const Node* lhsRoot = getRoot();
+    const Node* rhsRoot = other.getRoot();
+
+    if (!lhsRoot->getBoundary().contains(rhsRoot->getBoundary())) {
+      return false;
+    }
+
+    using OverlappingNode =
+        std::pair<const Node*, std::vector<const Node*>>;
+
+    std::stack<OverlappingNode> overlappingNodes;
+
+    overlappingNodes.emplace(
+        rhsRoot, std::vector<const Node*>({ lhsRoot }));
+
+    while (!overlappingNodes.empty()) {
+      OverlappingNode overlappingNode = overlappingNodes.top();
+      overlappingNodes.pop();
+
+      const Node* rhs = overlappingNode.first;
+      const auto& lhsNodes = overlappingNode.second;
+
+      if (rhs->isLeaf()) {
+        if (llvm::any_of(lhsNodes, [](const Node* node) {
+          return !node->isLeaf();
+        })) {
+          std::vector<const Node*> newLhsNodes;
+
+          for (const Node* lhs : lhsNodes) {
+            if (lhs->isLeaf()) {
+              newLhsNodes.push_back(lhs);
+            } else {
+              for (const auto& child : lhs->children) {
+                if (child->getBoundary().overlaps(rhs->getBoundary())) {
+                  newLhsNodes.push_back(child.get());
+                }
+              }
+            }
+          }
+
+          overlappingNodes.emplace(rhs, newLhsNodes);
+        } else {
+          for (const MultidimensionalRange& value : rhs->values) {
+            llvm::SmallVector<MultidimensionalRange, 3> remainingRanges;
+            remainingRanges.push_back(value);
+
+            for (const auto& lhs : lhsNodes) {
+              assert(lhs->isLeaf());
+
+              for (const MultidimensionalRange& lhsRange : lhs->values) {
+                llvm::SmallVector<MultidimensionalRange, 3> newRemaining;
+
+                for (const auto& remainingRange : remainingRanges) {
+                  for (auto& diff : remainingRange.subtract(lhsRange)) {
+                    newRemaining.push_back(std::move(diff));
+                  }
+                }
+
+                remainingRanges = std::move(newRemaining);
+              }
+            }
+
+            if (!remainingRanges.empty()) {
+              return false;
+            }
+          }
+        }
+      } else {
+        for (const auto& child : rhs->children) {
+          bool anyOverlap = false;
+          std::vector<const Node*> childOverlappingNodes;
+
+          for (const auto& lhs : lhsNodes) {
+            if (lhs->isLeaf()) {
+              if (lhs->getBoundary().overlaps(child->getBoundary())) {
+                childOverlappingNodes.push_back(lhs);
+                anyOverlap = true;
+              }
+            } else {
+              for (const auto& lhsChild : lhs->children) {
+                if (lhsChild->getBoundary().overlaps(child->getBoundary())) {
+                  childOverlappingNodes.push_back(lhs);
+                  anyOverlap = true;
+                }
+              }
+            }
+          }
+
+          if (!anyOverlap) {
+            return false;
+          }
+
+          overlappingNodes.emplace(child.get(), childOverlappingNodes);
+        }
+      }
+    }
+
+    return true;
+  }
+
+  bool RTreeIndexSet::containsGenericIndexSet(
+      const IndexSet::Impl& other) const
   {
     return std::all_of(
         other.rangesBegin(), other.rangesEnd(),
@@ -1136,14 +1247,12 @@ namespace marco::modeling::impl
   bool RTreeIndexSet::overlaps(const IndexSet::Impl& other) const
   {
     if (auto* otherCasted = other.dyn_cast<RTreeIndexSet>()) {
-      return overlaps(*otherCasted);
+      bool optimizedResult = overlaps(*otherCasted);
+      assert(optimizedResult == overlapsGenericIndexSet(other));
+      return optimizedResult;
     }
 
-    return llvm::any_of(
-        llvm::make_range(other.rangesBegin(), other.rangesEnd()),
-        [&](const MultidimensionalRange& range) {
-          return overlaps(range);
-        });
+    return overlapsGenericIndexSet(other);
   }
 
   bool RTreeIndexSet::overlaps(const RTreeIndexSet& other) const
@@ -1197,6 +1306,16 @@ namespace marco::modeling::impl
     }
 
     return false;
+  }
+
+  bool RTreeIndexSet::overlapsGenericIndexSet(
+      const IndexSet::Impl& other) const
+  {
+    return llvm::any_of(
+        llvm::make_range(other.rangesBegin(), other.rangesEnd()),
+        [&](const MultidimensionalRange& range) {
+          return overlaps(range);
+        });
   }
 
   IndexSet RTreeIndexSet::intersect(const MultidimensionalRange& other) const

@@ -187,6 +187,10 @@ namespace marco::modeling::impl
       /// Check if all the invariants are respected.
       bool isValid() const;
 
+      bool containsGenericIndexSet(const IndexSet::Impl& other) const;
+
+      bool overlapsGenericIndexSet(const IndexSet::Impl& other) const;
+
     public:
       /// The minimum number of elements for each node (apart the root).
       const size_t minElements;
