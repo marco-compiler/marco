@@ -696,8 +696,8 @@ namespace marco::codegen
       mlir::BlockAndValueMapping& ssaDerivatives)
   {
     auto loc = callOp.getLoc();
-    auto module = callOp->getParentOfType<mlir::ModuleOp>();
-    auto callee = module.lookupSymbol<FunctionOp>(callOp.getCallee());
+    auto moduleOp = callOp->getParentOfType<mlir::ModuleOp>();
+    auto callee = moduleOp.lookupSymbol<FunctionOp>(callOp.getCallee());
 
     std::string derivedFunctionName = "call_pder_" + callOp.getCallee().str();
 
@@ -712,7 +712,7 @@ namespace marco::codegen
     }
 
     if (auto derTemplate =
-            module.lookupSymbol<FunctionOp>(derivedFunctionName)) {
+            moduleOp.lookupSymbol<FunctionOp>(derivedFunctionName)) {
       return builder.create<CallOp>(loc, derTemplate, args)->getResults();
     }
 
