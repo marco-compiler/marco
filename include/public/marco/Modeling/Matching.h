@@ -1062,7 +1062,7 @@ namespace marco::modeling
             Edge edge(equation.getId(), variable.getId(), equationRanges, IndexSet(range), access);
 
             lockGuard.lock();
-            graph.addEdge(equationDescriptor, variableDescriptor, edge);
+            graph.addEdge(equationDescriptor, variableDescriptor, std::move(edge));
             lockGuard.unlock();
           }
         }
