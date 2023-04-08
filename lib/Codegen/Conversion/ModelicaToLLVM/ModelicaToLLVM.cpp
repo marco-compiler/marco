@@ -311,12 +311,17 @@ namespace
 
 mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
 {
-  auto module = getOperation();
+  auto moduleOp = getOperation();
+  mlir::SymbolTableCollection symbolTableCollection;
   mlir::ConversionTarget target(getContext());
 
-  target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
+  target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
     auto module = op->getParentOfType<mlir::ModuleOp>();
-    auto callee = module.lookupSymbol(op.getCallee());
+
+    mlir::SymbolTable& symbolTable =
+        symbolTableCollection.getSymbolTable(moduleOp);
+
+    mlir::Operation* callee = symbolTable.lookup(op.getCallee());
     return !mlir::isa<RuntimeFunctionOp>(callee);
   });
 
@@ -331,7 +336,7 @@ mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
   mlir::RewritePatternSet patterns(&getContext());
   patterns.insert<CallOpLowering>(typeConverter);
 
-  return applyPartialConversion(module, target, std::move(patterns));
+  return applyPartialConversion(moduleOp, target, std::move(patterns));
 }
 
 mlir::LogicalResult ModelicaToLLVMConversionPass::convertOperations()

@@ -21,16 +21,12 @@ using namespace ::mlir::simulation;
 
 /// Get the LLVM function with the given name, or declare it inside the module
 /// if not present.
-static mlir::LLVM::LLVMFuncOp getOrDeclareExternalFunction(
+static mlir::LLVM::LLVMFuncOp declareExternalFunction(
     mlir::OpBuilder& builder,
     mlir::ModuleOp module,
     llvm::StringRef name,
     mlir::LLVM::LLVMFunctionType type)
 {
-  if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name)) {
-    return foo;
-  }
-
   mlir::OpBuilder::InsertionGuard guard(builder);
   builder.setInsertionPointToStart(module.getBody());
   return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
@@ -234,22 +230,23 @@ namespace
             loc, ptrType, resultOpaquePtr);
       }
 
-      mlir::Value getOrCreateGlobalString(
+      mlir::Value createGlobalString(
           mlir::OpBuilder& builder,
           mlir::Location loc,
           mlir::ModuleOp moduleOp,
           mlir::StringRef name,
           mlir::StringRef value) const
       {
-        // Create the global at the entry of the module.
         mlir::LLVM::GlobalOp global;
 
-        if (!(global = moduleOp.lookupSymbol<mlir::LLVM::GlobalOp>(name))) {
+        {
+          // Create the global at the entry of the module.
           mlir::OpBuilder::InsertionGuard insertGuard(builder);
           builder.setInsertionPointToStart(moduleOp.getBody());
 
           auto type = mlir::LLVM::LLVMArrayType::get(
-              mlir::IntegerType::get(builder.getContext(), 8), value.size() + 1);
+              mlir::IntegerType::get(
+                  builder.getContext(), 8), value.size() + 1);
 
           global = builder.create<mlir::LLVM::GlobalOp>(
               loc, type, true, mlir::LLVM::Linkage::Internal, name,
@@ -925,7 +922,7 @@ void ModuleOpLowering::createGetModelNameFunction(
   builder.setInsertionPointToStart(entryBlock);
 
   // Create a global string containing the name of the model.
-  mlir::Value result = getOrCreateGlobalString(
+  mlir::Value result = createGlobalString(
       builder, loc, moduleOp, "modelName",
       simulationModuleOp.getModelName());
 
@@ -1007,7 +1004,7 @@ void ModuleOpLowering::createGetVariableNamesFunction(
 
   builder.setInsertionPointToStart(entryBlock);
 
-  mlir::Value unknownVariableName = getOrCreateGlobalString(
+  mlir::Value unknownVariableName = createGlobalString(
       builder, loc, moduleOp, "varUnknown", "");
 
   builder.create<mlir::cf::SwitchOp>(
@@ -1027,7 +1024,7 @@ void ModuleOpLowering::createGetVariableNamesFunction(
 
     if (llvm::StringRef nameStr = variable.value().getName();
         !nameStr.empty()) {
-      variableName = getOrCreateGlobalString(
+      variableName = createGlobalString(
           builder, loc, moduleOp, symbolName, nameStr);
     }
 
@@ -1882,7 +1879,7 @@ void ModuleOpLowering::createMainFunction(
   // Call the function to start the simulation.
   // Its definition lives within the runtime library.
 
-  auto runFunction = getOrDeclareExternalFunction(
+  auto runFunction = declareExternalFunction(
       builder, moduleOp, "runSimulation",
       mlir::LLVM::LLVMFunctionType::get(resultType, argTypes));
 
