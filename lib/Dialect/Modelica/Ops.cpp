@@ -1032,6 +1032,32 @@ namespace mlir::modelica
 }
 
 //===---------------------------------------------------------------------===//
+// ComponentGetOp
+
+namespace mlir::modelica
+{
+  mlir::LogicalResult ComponentGetOp::verifySymbolUses(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    // TODO
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
+// ComponentSetOp
+
+namespace mlir::modelica
+{
+  mlir::LogicalResult ComponentSetOp::verifySymbolUses(
+      mlir::SymbolTableCollection& symbolTableCollection)
+  {
+    // TODO
+    return mlir::success();
+  }
+}
+
+//===---------------------------------------------------------------------===//
 // Math operations
 //===---------------------------------------------------------------------===//
 

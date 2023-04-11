@@ -16,7 +16,7 @@ namespace marco::codegen::lowering
   {
     const ast::Expression* function = call.getCallee();
 
-    llvm::StringRef functionName =
+    std::string functionName =
         function->dyn_cast<ast::ReferenceAccess>()->getName();
 
     auto caller = mlir::cast<ClassInterface>(
@@ -295,7 +295,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::dispatchBuiltInFunctionCall(const ast::Call& call)
   {
-    llvm::StringRef functionName =
+    std::string functionName =
         call.getCallee()->cast<ast::ReferenceAccess>()->getName();
 
     if (functionName == "abs") {

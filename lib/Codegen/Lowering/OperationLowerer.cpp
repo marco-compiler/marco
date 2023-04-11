@@ -75,9 +75,6 @@ namespace marco::codegen::lowering
         case ast::OperationKind::subscription:
           return &OperationLowerer::subscription;
 
-        case ast::OperationKind::memberLookup:
-          return &OperationLowerer::memberLookup;
-
         case ast::OperationKind::powerOf:
           return &OperationLowerer::powerOf;
 
@@ -1324,12 +1321,6 @@ namespace marco::codegen::lowering
         location, array, zeroBasedIndices);
 
     return Reference::memory(builder(), result);
-  }
-
-  Results OperationLowerer::memberLookup(const ast::Operation& operation)
-  {
-    llvm_unreachable("Member lookup is not implemented yet.");
-    return Results();
   }
 
   template<>

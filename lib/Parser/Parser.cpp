@@ -92,11 +92,13 @@ namespace marco::parser
     std::string identifier = lexer.getIdentifier();
     EXPECT(Token::Identifier);
 
+    /*
     while (accept<Token::Dot>()) {
       identifier += "." + lexer.getIdentifier();
       loc.end = lexer.getTokenPosition().end;
       EXPECT(Token::Identifier);
     }
+     */
 
     return ValueWrapper(loc, std::move(identifier));
   }
@@ -1063,7 +1065,9 @@ namespace marco::parser
 
     } else if (accept<Token::Der>()) {
       auto callee = std::make_unique<ReferenceAccess>(loc);
-      callee->setName("der");
+      llvm::SmallVector<std::string, 1> calleeName;
+      calleeName.push_back("der");
+      callee->setPathVariables(calleeName);
 
       TRY(functionCallArgs, parseFunctionCallArgs());
       loc.end = functionCallArgs->getLocation().end;
@@ -1117,14 +1121,19 @@ namespace marco::parser
     auto loc = lexer.getTokenPosition();
     bool globalLookup = accept<Token::Dot>();
 
-    TRY(name, parseIdentifier());
-    loc.end = name->getLocation().end;
+    llvm::SmallVector<std::string> pathVariables;
+
+    do {
+      TRY(name, parseIdentifier());
+      pathVariables.push_back(name->getValue());
+      loc.end = name->getLocation().end;
+    } while (accept<Token::Dot>());
 
     std::unique_ptr<ast::ASTNode> result;
     result = std::make_unique<ReferenceAccess>(loc);
 
-    result->dyn_cast<ReferenceAccess>()->setName(
-        globalLookup ? "." + name->getValue() : name->getValue());
+    result->cast<ReferenceAccess>()->setGlobalLookup(globalLookup);
+    result->cast<ReferenceAccess>()->setPathVariables(pathVariables);
 
     if (current == Token::LSquare) {
       TRY(arraySubscripts, parseArraySubscripts());

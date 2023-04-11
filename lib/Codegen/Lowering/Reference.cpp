@@ -154,6 +154,49 @@ namespace
       mlir::Type type;
   };
 
+  class ComponentReference : public Reference::Impl
+  {
+    public:
+      ComponentReference(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value parent,
+          mlir::Type componentType,
+          llvm::StringRef componentName)
+          : Reference::Impl(builder, loc),
+            parent(parent),
+            componentType(componentType),
+            componentName(componentName.str())
+      {
+      }
+
+      std::unique_ptr<Reference::Impl> clone() override
+      {
+        return std::make_unique<ComponentReference>(*this);
+      }
+
+      mlir::Value get(mlir::Location loc) const override
+      {
+        return builder->create<ComponentGetOp>(
+            loc, componentType, parent, componentName);
+      }
+
+      mlir::Value getReference() const override
+      {
+        llvm_unreachable("Variable components have no SSA value");
+      }
+
+      void set(mlir::Location loc, mlir::Value value) override
+      {
+        builder->create<ComponentSetOp>(loc, parent, componentName, value);
+      }
+
+    private:
+      mlir::Value parent;
+      mlir::Type componentType;
+      std::string componentName;
+  };
+
   class TimeReference : public Reference::Impl
   {
     public:
@@ -203,6 +246,21 @@ namespace marco::codegen::lowering
   {
   }
 
+  Reference& Reference::operator=(const Reference& other)
+  {
+    Reference result(other);
+    swap(*this, result);
+    return *this;
+  }
+
+  Reference& Reference::operator=(Reference&& other) = default;
+
+  void swap(Reference& first, Reference& second)
+  {
+    using std::swap;
+    swap(first.impl, second.impl);
+  }
+
   Reference Reference::ssa(mlir::OpBuilder& builder, mlir::Value value)
   {
     return Reference(std::make_unique<SSAReference>(builder, value));
@@ -221,6 +279,17 @@ namespace marco::codegen::lowering
   {
     return Reference(
         std::make_unique<VariableReference>(builder, loc, name, type));
+  }
+
+  Reference Reference::component(
+      mlir::OpBuilder& builder,
+      mlir::Location loc,
+      mlir::Value parent,
+      mlir::Type componentType,
+      llvm::StringRef componentName)
+  {
+    return Reference(std::make_unique<ComponentReference>(
+        builder, loc, parent, componentType, componentName));
   }
 
   Reference Reference::time(mlir::OpBuilder& builder, mlir::Location loc)

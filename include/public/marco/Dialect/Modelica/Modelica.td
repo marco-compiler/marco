@@ -736,6 +736,80 @@ def Modelica_VariableSetOp : Modelica_Op<"variable_set",
     }];
 }
 
+def Modelica_ComponentGetOp : Modelica_Op<"component_get",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+{
+    let summary = "Get the value of a component of a variable.";
+
+    let description = [{
+        Get the value of a component of a variable.
+
+        Example:
+
+        ```mlir
+        modelica.record @R {
+            modelica.variable @x : !modelica.variable<!modelica.real>
+        }
+
+        modelica.function @Foo {
+            modelica.variable @r : !modelica.record<"R">
+            modelica.algorithm {
+                %0 = modelica.variable_get @r : !modelica.record<"R">
+                %1 = modelica.component_get %0, @x, !modelica.record<"R">, !modelica.real
+                ...
+            }
+        }
+        ```
+    }];
+
+    let arguments = (ins AnyType:$variable, SymbolNameAttr:$componentName);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $variable `,` $componentName attr-dict `:` type($variable) `->` type($result)
+    }];
+}
+
+def Modelica_ComponentSetOp : Modelica_Op<"component_set",
+    [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>
+{
+    let summary = "Set the value of a component of a variable.";
+
+    let description = [{
+        Set the value of a component of a variable.
+
+        Example:
+
+        ```mlir
+        modelica.record @R {
+            modelica.variable @x : !modelica.variable<!modelica.real>
+        }
+
+        modelica.function @Foo {
+            modelica.variable @r : !modelica.record<"R">
+            modelica.algorithm {
+                %0 = modelica.variable_get @r : !modelica.record<"R">
+                %1 = ... : !modelica.real
+                modelica.component_set %0, @x, %1 !modelica.record<"R">, !modelica.real
+                ...
+            }
+        }
+        ```
+    }];
+
+    let arguments = (ins
+        AnyType:$variable,
+        SymbolNameAttr:$componentName,
+        AnyType:$value
+    );
+
+    let results = (outs);
+
+    let assemblyFormat = [{
+        $variable `,` $componentName `,` $value attr-dict `:` type($variable) `,` type($value)
+    }];
+}
+
 //===---------------------------------------------------------------------===//
 // Math operations
 //===---------------------------------------------------------------------===//

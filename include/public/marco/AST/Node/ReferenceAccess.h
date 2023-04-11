@@ -28,17 +28,24 @@ namespace marco::ast
 
       bool isLValue() const override;
 
-      llvm::StringRef getName() const;
-
-      void setName(llvm::StringRef name);
-
       bool isDummy() const;
 
       void setDummy(bool value);
 
+      bool isGlobalLookup() const;
+
+      void setGlobalLookup(bool global);
+
+      llvm::ArrayRef<std::string> getPathVariables() const;
+
+      void setPathVariables(llvm::ArrayRef<std::string> newPath);
+
+      std::string getName() const;
+
     private:
-      std::string name;
       bool dummy;
+      bool globalLookup;
+      llvm::SmallVector<std::string> path;
 	};
 }
 

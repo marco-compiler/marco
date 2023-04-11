@@ -51,8 +51,6 @@ static std::string toString(OperationKind kind)
       return "lnot";
     case OperationKind::subscription:
       return "subscription";
-    case OperationKind::memberLookup:
-      return "member_lookup";
     case OperationKind::powerOf:
       return "power_of";
     case OperationKind::powerOfEW:
@@ -109,9 +107,6 @@ namespace marco::ast
     switch (getOperationKind()) {
       case OperationKind::subscription:
         return getArgument(0)->isLValue();
-
-      case OperationKind::memberLookup:
-        return true;
 
       default:
         return false;

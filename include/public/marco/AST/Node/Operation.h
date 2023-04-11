@@ -30,7 +30,6 @@ namespace marco::ast
 		lor,
     lnot,
 		subscription,
-		memberLookup,
 		powerOf,
     powerOfEW,
 		range,

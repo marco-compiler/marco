@@ -19,6 +19,12 @@ namespace marco::codegen::lowering
 
       Reference(const Reference& other);
 
+      Reference& operator=(const Reference& other);
+
+      Reference& operator=(Reference&& other);
+
+      friend void swap(Reference& first, Reference& second);
+
       static Reference ssa(mlir::OpBuilder& builder, mlir::Value value);
 
       static Reference memory(mlir::OpBuilder& builder, mlir::Value value);
@@ -28,6 +34,13 @@ namespace marco::codegen::lowering
           mlir::Location loc,
           llvm::StringRef name,
           mlir::Type type);
+
+      static Reference component(
+          mlir::OpBuilder& builder,
+          mlir::Location loc,
+          mlir::Value parent,
+          mlir::Type componentType,
+          llvm::StringRef componentName);
 
       static Reference time(mlir::OpBuilder& builder, mlir::Location loc);
 

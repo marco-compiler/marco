@@ -175,7 +175,7 @@ namespace marco::ast
             llvm::SmallVector<std::string, 3> args;
 
             for (const auto& arg : call->getArguments()) {
-              args.push_back(arg->cast<ReferenceAccess>()->getName().str());
+              args.push_back(arg->cast<ReferenceAccess>()->getName());
             }
 
             result.addInverse(

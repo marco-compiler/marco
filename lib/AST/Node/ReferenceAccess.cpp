@@ -8,15 +8,17 @@ namespace marco::ast
   ReferenceAccess::ReferenceAccess(SourceRange location)
       : Expression(
           ASTNode::Kind::Expression_ReferenceAccess, std::move(location)),
-        dummy(false)
+        dummy(false),
+        globalLookup(false)
   {
   }
 
   ReferenceAccess::ReferenceAccess(const ReferenceAccess& other)
       : Expression(other),
-        name(other.name),
-        dummy(other.dummy)
+        dummy(other.dummy),
+        globalLookup(other.globalLookup)
   {
+    setPathVariables(other.path);
   }
 
   ReferenceAccess::~ReferenceAccess() = default;
@@ -30,11 +32,16 @@ namespace marco::ast
   {
     llvm::json::Object result;
 
-    if (!isDummy()) {
-      result["name"] = getName();
+    result["dummy"] = isDummy();
+    result["globalLookup"] = isGlobalLookup();
+
+    llvm::SmallVector<llvm::json::Value> pathJson;
+
+    for (const auto& variable : path) {
+      pathJson.emplace_back(variable);
     }
 
-    result["dummy"] = isDummy();
+    result["path"] = llvm::json::Array(pathJson);
 
     addJSONProperties(result);
     return result;
@@ -45,16 +52,6 @@ namespace marco::ast
     return true;
   }
 
-  llvm::StringRef ReferenceAccess::getName() const
-  {
-    return name;
-  }
-
-  void ReferenceAccess::setName(llvm::StringRef newName)
-  {
-    this->name = newName.str();
-  }
-
   bool ReferenceAccess::isDummy() const
   {
     return dummy;
@@ -63,5 +60,45 @@ namespace marco::ast
   void ReferenceAccess::setDummy(bool value)
   {
     dummy = value;
+  }
+
+  bool ReferenceAccess::isGlobalLookup() const
+  {
+    return globalLookup;
+  }
+
+  void ReferenceAccess::setGlobalLookup(bool global)
+  {
+    globalLookup = global;
+  }
+
+  llvm::ArrayRef<std::string> ReferenceAccess::getPathVariables() const
+  {
+    return path;
+  }
+
+  void ReferenceAccess::setPathVariables(llvm::ArrayRef<std::string> newPath)
+  {
+    path.clear();
+    path.append(newPath.begin(), newPath.end());
+  }
+
+  std::string ReferenceAccess::getName() const
+  {
+    std::string result = "";
+
+    if (globalLookup) {
+      result += ".";
+    }
+
+    for (size_t i = 0, e = path.size(); i< e; ++i) {
+      result += path[i];
+
+      if (i != e - 1) {
+        result += ".";
+      }
+    }
+
+    return result;
   }
 }
