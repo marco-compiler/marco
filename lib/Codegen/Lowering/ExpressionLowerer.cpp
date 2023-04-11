@@ -29,8 +29,9 @@ namespace marco::codegen::lowering
       return lower(*operation);
     }
 
-    if (auto referenceAccess = expression.dyn_cast<ast::ReferenceAccess>()) {
-      return lower(*referenceAccess);
+    if (auto componentReference =
+            expression.dyn_cast<ast::ComponentReference>()) {
+      return lower(*componentReference);
     }
 
     if (auto tuple = expression.dyn_cast<ast::Tuple>()) {

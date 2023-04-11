@@ -1064,16 +1064,22 @@ namespace marco::parser
       result = std::move(newResult);
 
     } else if (accept<Token::Der>()) {
-      auto callee = std::make_unique<ReferenceAccess>(loc);
-      llvm::SmallVector<std::string, 1> calleeName;
-      calleeName.push_back("der");
-      callee->setPathVariables(calleeName);
+      auto callee = std::make_unique<ast::ComponentReference>(loc);
+
+      llvm::SmallVector<std::unique_ptr<ASTNode>, 1> path;
+      path.push_back(std::make_unique<ast::ComponentReferenceEntry>(loc));
+      path[0]->cast<ast::ComponentReferenceEntry>()->setName("der");
+
+      callee->setPath(path);
 
       TRY(functionCallArgs, parseFunctionCallArgs());
       loc.end = functionCallArgs->getLocation().end;
 
       auto newResult = std::make_unique<Call>(loc);
-      newResult->setCallee(std::move(callee));
+
+      newResult->setCallee(
+          static_cast<std::unique_ptr<ASTNode>>(std::move(callee)));
+
       newResult->setArguments(functionCallArgs->getValue());
       result = std::move(newResult);
 
@@ -1121,38 +1127,46 @@ namespace marco::parser
     auto loc = lexer.getTokenPosition();
     bool globalLookup = accept<Token::Dot>();
 
-    llvm::SmallVector<std::string> pathVariables;
+    llvm::SmallVector<std::unique_ptr<ASTNode>> path;
 
-    do {
-      TRY(name, parseIdentifier());
-      pathVariables.push_back(name->getValue());
-      loc.end = name->getLocation().end;
-    } while (accept<Token::Dot>());
+    TRY(firstEntry, parseComponentReferenceEntry());
+    loc.end = (*firstEntry)->getLocation().end;
+    path.push_back(std::move(*firstEntry));
 
-    std::unique_ptr<ast::ASTNode> result;
-    result = std::make_unique<ReferenceAccess>(loc);
+    while (accept<Token::Dot>()) {
+      TRY(entry, parseComponentReferenceEntry());
+      loc.end = (*entry)->getLocation().end;
+      path.push_back(std::move(*entry));
+    }
 
-    result->cast<ReferenceAccess>()->setGlobalLookup(globalLookup);
-    result->cast<ReferenceAccess>()->setPathVariables(pathVariables);
+    auto result = std::make_unique<ComponentReference>(loc);
+
+    result->setGlobalLookup(globalLookup);
+    result->setPath(path);
+
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
+  }
+
+  llvm::Optional<std::unique_ptr<ast::ASTNode>>
+  Parser::parseComponentReferenceEntry()
+  {
+    auto loc = lexer.getTokenPosition();
+
+    TRY(name, parseIdentifier());
+    loc.end = name->getLocation().end;
+
+    auto result = std::make_unique<ComponentReferenceEntry>(loc);
+    result->setName(name->getValue());
 
     if (current == Token::LSquare) {
       TRY(arraySubscripts, parseArraySubscripts());
       loc.end = arraySubscripts.value().getLocation().end;
 
-      std::vector<std::unique_ptr<ast::ASTNode>> args;
-      args.push_back(std::move(result));
-
-      for (auto& subscript : arraySubscripts->getValue()) {
-        args.push_back(std::move(subscript));
-      }
-
-      auto newResult = std::make_unique<Operation>(loc);
-      newResult->setOperationKind(ast::OperationKind::subscription);
-      newResult->setArguments(args);
-      result = std::move(newResult);
+      result->setSubscripts(arraySubscripts->getValue());
+      result->setLocation(loc);
     }
 
-    return std::move(result);
+    return static_cast<std::unique_ptr<ASTNode>>(std::move(result));
   }
 
   llvm::Optional<Parser::ValueWrapper<std::vector<std::unique_ptr<ASTNode>>>> Parser::parseFunctionCallArgs()
@@ -1252,7 +1266,7 @@ namespace marco::parser
       auto loc = lexer.getTokenPosition();
 
       if (accept<Token::Comma>()) {
-        auto expression = std::make_unique<ReferenceAccess>(loc);
+        auto expression = std::make_unique<ComponentReference>(loc);
         expression->setDummy(true);
         expressions.push_back(std::move(expression));
         continue;

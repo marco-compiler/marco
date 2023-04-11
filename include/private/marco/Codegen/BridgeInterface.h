@@ -78,7 +78,8 @@ namespace marco::codegen::lowering
 
       virtual Results lower(const ast::Operation& operation) = 0;
 
-      virtual Results lower(const ast::ReferenceAccess& referenceAccess) = 0;
+      virtual Results lower(
+          const ast::ComponentReference& componentReference) = 0;
 
       virtual Results lower(const ast::Tuple& tuple) = 0;
 

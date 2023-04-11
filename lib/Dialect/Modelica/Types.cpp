@@ -352,6 +352,11 @@ namespace mlir::modelica
     return ArrayType::get(getShape(), elementType);
   }
 
+  ArrayType ArrayType::withShape(llvm::ArrayRef<int64_t> shape) const
+  {
+    return ArrayType::get(shape, getElementType());
+  }
+
   bool ArrayType::canBeOnStack() const
   {
     return hasStaticShape();

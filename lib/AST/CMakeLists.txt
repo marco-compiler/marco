@@ -8,6 +8,8 @@ set(AST_NODES
 	Node/BreakStatement.cpp
 	Node/Call.cpp
 	Node/Class.cpp
+	Node/ComponentReference.cpp
+	Node/ComponentReferenceEntry.cpp
 	Node/EquationsBlock.cpp
 	Node/Model.cpp
 	Node/Constant.cpp
@@ -23,7 +25,6 @@ set(AST_NODES
 	Node/Operation.cpp
 	Node/Package.cpp
 	Node/Record.cpp
-	Node/ReferenceAccess.cpp
 	Node/ReturnStatement.cpp
 	Node/Root.cpp
 	Node/Statement.cpp

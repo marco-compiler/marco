@@ -97,6 +97,7 @@ def ArrayType : Modelica_Type<"Array",
 
         ArrayType slice(unsigned int subscriptsAmount) const;
         ArrayType toElementType(Type elementType) const;
+        ArrayType withShape(llvm::ArrayRef<int64_t> shape) const;
 
         bool canBeOnStack() const;
     }];

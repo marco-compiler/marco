@@ -57,6 +57,9 @@ def ModelicaRealAttr : Attr<CPred<"$_self.isa<::mlir::modelica::RealAttr>()">, "
 def ModelicaArray : Type<CPred<"$_self.isa<::mlir::modelica::ArrayType>()">,
                          "array", "::mlir::modelica::ArrayType">;
 
+// Modelica Record type
+def ModelicaRecord : Type<CPred<"$_self.isa<::mlir::modelica::RecordType>()">,
+                        "real", "::mlir::modelica::RecordType">;
 // Modelica scalar type.
 def AnyModelicaScalar : AnyTypeOf<[
     ModelicaBoolean, ModelicaInteger, ModelicaReal]>;
@@ -84,7 +87,9 @@ class ArrayOf<list<Type> allowedTypes> :
                   "$_self.cast<::mlir::modelica::ArrayType>().getElementType()",
                   "array", "::mlir::modelica::ArrayType">;
 
-def AnyArray : ArrayOf<[ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray]>;
+def AnyArray : ArrayOf<[
+    ModelicaBoolean, ModelicaInteger, ModelicaReal, Index, ModelicaArray,
+    ModelicaRecord]>;
 
 // Whether a type is a VariableType.
 def IsVariableTypePred : CPred<"$_self.isa<::mlir::modelica::VariableType>()">;

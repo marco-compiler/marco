@@ -1,10 +1,10 @@
 #include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/Call.h"
+#include "marco/AST/Node/ComponentReference.h"
 #include "marco/AST/Node/Constant.h"
 #include "marco/AST/Node/Expression.h"
-#include "marco/AST/Node/Modification.h"
 #include "marco/AST/Node/Function.h"
-#include "marco/AST/Node/ReferenceAccess.h"
+#include "marco/AST/Node/Modification.h"
 
 using namespace ::marco;
 using namespace ::marco::ast;
@@ -133,7 +133,7 @@ namespace marco::ast
         }
 
         auto* modification = elementModification->getModification();
-        auto name = modification->getExpression()->cast<ReferenceAccess>()->getName();
+        auto name = modification->getExpression()->cast<ComponentReference>()->getName();
         unsigned int order = 1;
 
         if (modification->hasClassModification()) {
@@ -175,12 +175,12 @@ namespace marco::ast
             llvm::SmallVector<std::string, 3> args;
 
             for (const auto& arg : call->getArguments()) {
-              args.push_back(arg->cast<ReferenceAccess>()->getName());
+              args.push_back(arg->cast<ComponentReference>()->getName());
             }
 
             result.addInverse(
                 inverseDeclarationFullExpression->getName().str(),
-                call->getCallee()->cast<ReferenceAccess>()->getName(),
+                call->getCallee()->cast<ComponentReference>()->getName(),
                 args);
           }
         }

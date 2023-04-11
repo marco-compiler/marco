@@ -157,6 +157,9 @@ namespace marco::parser
       /// Parse the 'component-reference' symbol.
       llvm::Optional<std::unique_ptr<ast::ASTNode>> parseComponentReference();
 
+      llvm::Optional<std::unique_ptr<ast::ASTNode>>
+      parseComponentReferenceEntry();
+
       /// Parse the 'function-call-args' symbol.
       llvm::Optional<ValueWrapper<std::vector<std::unique_ptr<ast::ASTNode>>>> parseFunctionCallArgs();
 

@@ -7,6 +7,7 @@
 #include "marco/Codegen/Lowering/BreakStatementLowerer.h"
 #include "marco/Codegen/Lowering/CallLowerer.h"
 #include "marco/Codegen/Lowering/ClassLowerer.h"
+#include "marco/Codegen/Lowering/ComponentReferenceLowerer.h"
 #include "marco/Codegen/Lowering/ConstantLowerer.h"
 #include "marco/Codegen/Lowering/EquationLowerer.h"
 #include "marco/Codegen/Lowering/ExpressionLowerer.h"
@@ -17,7 +18,6 @@
 #include "marco/Codegen/Lowering/PackageLowerer.h"
 #include "marco/Codegen/Lowering/PartialDerFunctionLowerer.h"
 #include "marco/Codegen/Lowering/RecordLowerer.h"
-#include "marco/Codegen/Lowering/ReferenceAccessLowerer.h"
 #include "marco/Codegen/Lowering/ReturnStatementLowerer.h"
 #include "marco/Codegen/Lowering/StandardFunctionLowerer.h"
 #include "marco/Codegen/Lowering/StatementLowerer.h"
@@ -114,7 +114,8 @@ namespace marco::codegen::lowering
 
       Results lower(const ast::Operation& operation) override;
 
-      Results lower(const ast::ReferenceAccess& reference) override;
+      Results lower(
+          const ast::ComponentReference& componentReference) override;
 
       Results lower(const ast::Tuple& tuple) override;
 
@@ -162,7 +163,7 @@ namespace marco::codegen::lowering
       std::unique_ptr<CallLowerer> callLowerer;
       std::unique_ptr<ConstantLowerer> constantLowerer;
       std::unique_ptr<OperationLowerer> operationLowerer;
-      std::unique_ptr<ReferenceAccessLowerer> referenceAccessLowerer;
+      std::unique_ptr<ComponentReferenceLowerer> componentReferenceLowerer;
       std::unique_ptr<TupleLowerer> tupleLowerer;
       std::unique_ptr<AlgorithmLowerer> algorithmLowerer;
       std::unique_ptr<StatementLowerer> statementLowerer;
@@ -200,12 +201,12 @@ namespace marco::codegen::lowering
     this->expressionLowerer = std::make_unique<ExpressionLowerer>(this);
     this->arrayLowerer = std::make_unique<ArrayLowerer>(this);
     this->callLowerer = std::make_unique<CallLowerer>(this);
+
+    this->componentReferenceLowerer =
+        std::make_unique<ComponentReferenceLowerer>(this);
+
     this->constantLowerer = std::make_unique<ConstantLowerer>(this);
     this->operationLowerer = std::make_unique<OperationLowerer>(this);
-
-    this->referenceAccessLowerer =
-        std::make_unique<ReferenceAccessLowerer>(this);
-
     this->tupleLowerer = std::make_unique<TupleLowerer>(this);
     this->algorithmLowerer = std::make_unique<AlgorithmLowerer>(this);
     this->statementLowerer = std::make_unique<StatementLowerer>(this);
@@ -452,10 +453,11 @@ namespace marco::codegen::lowering
     return operationLowerer->lower(operation);
   }
 
-  Results Bridge::Impl::lower(const ast::ReferenceAccess& referenceAccess)
+  Results Bridge::Impl::lower(
+      const ast::ComponentReference& componentReference)
   {
-    assert(referenceAccessLowerer != nullptr);
-    return referenceAccessLowerer->lower(referenceAccess);
+    assert(componentReferenceLowerer != nullptr);
+    return componentReferenceLowerer->lower(componentReference);
   }
 
   Results Bridge::Impl::lower(const ast::Tuple& tuple)

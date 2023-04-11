@@ -137,7 +137,7 @@ namespace marco::codegen::lowering
       virtual Results lower(const ast::Operation& operation) override;
 
       virtual Results lower(
-          const ast::ReferenceAccess& referenceAccess) override;
+          const ast::ComponentReference& componentReference) override;
 
       virtual Results lower(const ast::Tuple& tuple) override;
 

@@ -17,14 +17,15 @@ namespace marco::codegen::lowering
     mlir::Location location = loc(function.getLocation());
 
     std::string derivedFunctionName =
-        function.getDerivedFunction()->cast<ast::ReferenceAccess>()->getName();
+        function.getDerivedFunction()
+            ->cast<ast::ComponentReference>()->getName();
 
     llvm::SmallVector<mlir::Attribute, 3> independentVariables;
 
     for (const auto& independentVariable :
          function.getIndependentVariables()) {
       auto independentVariableName =
-          independentVariable->cast<ast::ReferenceAccess>()->getName();
+          independentVariable->cast<ast::ComponentReference>()->getName();
 
       independentVariables.push_back(
           builder().getStringAttr(independentVariableName));

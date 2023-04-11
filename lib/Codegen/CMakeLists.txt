@@ -19,7 +19,7 @@ set(SOURCES
     Lowering/PackageLowerer.cpp
     Lowering/PartialDerFunctionLowerer.cpp
     Lowering/Reference.cpp
-    Lowering/ReferenceAccessLowerer.cpp
+        Lowering/ComponentReferenceLowerer.cpp
     Lowering/Results.cpp
     Lowering/RecordLowerer.cpp
     Lowering/ReturnStatementLowerer.cpp

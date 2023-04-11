@@ -17,7 +17,7 @@ namespace marco::codegen::lowering
     const ast::Expression* function = call.getCallee();
 
     std::string functionName =
-        function->dyn_cast<ast::ReferenceAccess>()->getName();
+        function->dyn_cast<ast::ComponentReference>()->getName();
 
     auto caller = mlir::cast<ClassInterface>(
         getClass(*call.getParentOfType<ast::Class>()));
@@ -296,7 +296,7 @@ namespace marco::codegen::lowering
   Results CallLowerer::dispatchBuiltInFunctionCall(const ast::Call& call)
   {
     std::string functionName =
-        call.getCallee()->cast<ast::ReferenceAccess>()->getName();
+        call.getCallee()->cast<ast::ComponentReference>()->getName();
 
     if (functionName == "abs") {
       return abs(call);
@@ -448,7 +448,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::abs(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "abs");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "abs");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -478,7 +480,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::acos(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "acos");
 
     assert(call.getNumOfArguments() == 1);
@@ -510,7 +512,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::asin(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "asin");
 
     assert(call.getNumOfArguments() == 1);
@@ -542,7 +544,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::atan(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "atan");
 
     assert(call.getNumOfArguments() == 1);
@@ -574,7 +576,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::atan2(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "atan2");
 
     assert(call.getNumOfArguments() == 2);
@@ -607,7 +609,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::ceil(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "ceil");
 
     assert(call.getNumOfArguments() == 1);
@@ -639,7 +641,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::cos(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "cos");
 
     assert(call.getNumOfArguments() == 1);
@@ -671,7 +673,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::cosh(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "cosh");
 
     assert(call.getNumOfArguments() == 1);
@@ -703,7 +705,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::der(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "der");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "der");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -733,7 +737,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::diagonal(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "diagonal");
 
     assert(call.getNumOfArguments() == 1);
@@ -752,7 +756,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::div(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "div");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "div");
+
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
@@ -773,7 +779,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::exp(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "exp");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "exp");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -803,7 +811,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::floor(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "floor");
 
     assert(call.getNumOfArguments() == 1);
@@ -835,7 +843,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::identity(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "identity");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "identity");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -852,7 +862,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::integer(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "integer");
 
     assert(call.getNumOfArguments() == 1);
@@ -884,7 +894,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::linspace(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "linspace");
 
     assert(call.getNumOfArguments() == 3);
@@ -903,7 +913,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::log(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "log");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "log");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -933,7 +945,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::log10(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "log10");
 
     assert(call.getNumOfArguments() == 1);
@@ -965,7 +977,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::max(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "max");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "max");
+
     assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
@@ -988,7 +1002,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::min(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "min");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "min");
+
     assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
@@ -1011,7 +1027,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::mod(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "mod");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "mod");
+
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
@@ -1032,7 +1050,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::ndims(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "ndims");
 
     assert(call.getNumOfArguments() == 1);
@@ -1050,7 +1068,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::ones(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "ones");
 
     assert(call.getNumOfArguments() > 0);
@@ -1071,7 +1089,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::product(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "product");
 
     assert(call.getNumOfArguments() == 1);
@@ -1090,7 +1108,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::rem(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "rem");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "rem");
+
     assert(call.getNumOfArguments() == 2);
 
     llvm::SmallVector<mlir::Value, 2> args;
@@ -1111,7 +1131,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::sign(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "sign");
 
     assert(call.getNumOfArguments() == 1);
@@ -1129,7 +1149,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::sin(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "sin");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() == "sin");
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -1159,7 +1179,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::sinh(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "sinh");
 
     assert(call.getNumOfArguments() == 1);
@@ -1191,7 +1211,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::size(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "size");
 
     assert(call.getNumOfArguments() == 1 || call.getNumOfArguments() == 2);
@@ -1226,7 +1246,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::sqrt(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "sqrt");
 
     assert(call.getNumOfArguments() == 1);
@@ -1258,7 +1278,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::sum(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "sum");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "sum");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -1275,7 +1297,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::symmetric(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "symmetric");
 
     assert(call.getNumOfArguments() == 1);
@@ -1293,7 +1315,9 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::tan(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() == "tan");
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
+           "tan");
+
     assert(call.getNumOfArguments() == 1);
 
     llvm::SmallVector<mlir::Value, 1> args;
@@ -1323,7 +1347,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::tanh(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "tanh");
 
     assert(call.getNumOfArguments() == 1);
@@ -1355,7 +1379,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::transpose(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "transpose");
 
     assert(call.getNumOfArguments() == 1);
@@ -1377,7 +1401,7 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::zeros(const ast::Call& call)
   {
-    assert(call.getCallee()->cast<ast::ReferenceAccess>()->getName() ==
+    assert(call.getCallee()->cast<ast::ComponentReference>()->getName() ==
            "zeros");
 
     assert(call.getNumOfArguments() > 0);

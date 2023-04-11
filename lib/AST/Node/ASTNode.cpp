@@ -33,6 +33,8 @@ static std::string toString(ASTNode::Kind kind)
       return "record";
     case ASTNode::Kind::ClassModification:
       return "class_modification";
+    case ASTNode::Kind::ComponentReferenceEntry:
+      return "component_reference_entry";
     case ASTNode::Kind::Equation:
       return "equation";
     case ASTNode::Kind::EquationsBlock:
@@ -41,12 +43,12 @@ static std::string toString(ASTNode::Kind kind)
       return "array";
     case ASTNode::Kind::Expression_Call:
       return "call";
+    case ASTNode::Kind::Expression_ComponentReference:
+      return "component_reference";
     case ASTNode::Kind::Expression_Constant:
       return "constant";
     case ASTNode::Kind::Expression_Operation:
       return "operation";
-    case ASTNode::Kind::Expression_ReferenceAccess:
-      return "reference_access";
     case ASTNode::Kind::Expression_Tuple:
       return "tuple";
     case ASTNode::Kind::ForEquation:

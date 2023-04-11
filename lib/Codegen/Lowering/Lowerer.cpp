@@ -318,9 +318,9 @@ namespace marco::codegen::lowering
     return bridge->lower(operation);
   }
 
-  Results Lowerer::lower(const ast::ReferenceAccess& referenceAccess)
+  Results Lowerer::lower(const ast::ComponentReference& componentReference)
   {
-    return bridge->lower(referenceAccess);
+    return bridge->lower(componentReference);
   }
 
   Results Lowerer::lower(const ast::Tuple& tuple)
