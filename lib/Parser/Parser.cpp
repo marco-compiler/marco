@@ -214,6 +214,7 @@ namespace marco::parser
       if (current == Token::Class ||
           current == Token::Function ||
           current == Token::Model ||
+          current == Token::Package ||
           current == Token::Record) {
         TRY(innerClass, parseClassDefinition());
         innerClasses.emplace_back(std::move(*innerClass));
@@ -1546,6 +1547,7 @@ namespace marco::parser
     auto loc = lexer.getTokenPosition();
     std::unique_ptr<ast::ASTNode> result;
 
+    bool globalLookup = accept<Token::Dot>();
     std::string name = lexer.getIdentifier();
     EXPECT(Token::Identifier);
 
@@ -1566,14 +1568,18 @@ namespace marco::parser
       result->cast<BuiltInType>()->setBuiltInTypeKind(
           ast::BuiltInType::Kind::Real);
     } else {
+      llvm::SmallVector<std::string> path;
+      path.push_back(name);
+
       while (accept<Token::Dot>()) {
         loc.end = lexer.getTokenPosition().end;
-        name += "." + lexer.getIdentifier();
+        path.push_back(lexer.getIdentifier());
         EXPECT(Token::Identifier);
       }
 
       result = std::make_unique<UserDefinedType>(loc);
-      result->cast<UserDefinedType>()->setName(name);
+      result->cast<UserDefinedType>()->setGlobalLookup(globalLookup);
+      result->cast<UserDefinedType>()->setPath(path);
     }
 
     llvm::SmallVector<std::unique_ptr<ast::ASTNode>, 3> dimensions;

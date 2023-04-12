@@ -79,6 +79,34 @@ namespace marco::codegen::lowering
     return result;
   }
 
+  mlir::SymbolRefAttr Lowerer::getFlatSymbolFromRoot(mlir::Operation* symbol)
+  {
+    llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
+
+    flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+        builder().getContext(),
+        mlir::cast<mlir::SymbolOpInterface>(symbol).getName()));
+
+    mlir::Operation* parent = symbol->getParentOp();
+
+    while (parent != nullptr) {
+      if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
+        flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+            builder().getContext(),
+            mlir::cast<mlir::SymbolOpInterface>(
+                classInterface.getOperation()).getName()));
+      }
+
+      parent = parent->getParentOp();
+    }
+
+    std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
+
+    return mlir::SymbolRefAttr::get(
+        builder().getContext(), flatSymbolAttrs[0].getValue(),
+        llvm::makeArrayRef(flatSymbolAttrs).drop_front());
+  }
+
   mlir::Operation* Lowerer::resolveClassName(
       llvm::StringRef name,
       mlir::Operation* currentScope)
@@ -86,6 +114,44 @@ namespace marco::codegen::lowering
     return resolveSymbolName(name, currentScope, [](mlir::Operation* op) {
       return mlir::isa<ClassInterface>(op);
     });
+  }
+
+  mlir::Operation* Lowerer::resolveType(
+      const ast::UserDefinedType& type,
+      mlir::Operation* lookupScope)
+  {
+    mlir::Operation* scope = lookupScope;
+
+    if (type.isGlobalLookup()) {
+      scope = getRoot();
+    }
+
+    scope = resolveSymbolName<ClassInterface>(
+        type.getElement(0), scope);
+
+    for (size_t i = 1, e = type.getPathLength();
+         i < e && scope != nullptr; ++i) {
+      scope = getSymbolTable().lookupSymbolIn(
+          scope, builder().getStringAttr(type.getElement(i)));
+    }
+
+    return scope;
+  }
+
+  mlir::Operation* Lowerer::resolveTypeFromRoot(mlir::SymbolRefAttr name)
+  {
+    mlir::Operation* scope = getRoot();
+    scope = getSymbolTable().lookupSymbolIn(scope, name.getRootReference());
+
+    for (mlir::FlatSymbolRefAttr nestedRef : name.getNestedReferences()) {
+      if (scope == nullptr) {
+        return nullptr;
+      }
+
+      scope = getSymbolTable().lookupSymbolIn(scope, nestedRef.getAttr());
+    }
+
+    return scope;
   }
 
   mlir::Operation* Lowerer::resolveSymbolName(

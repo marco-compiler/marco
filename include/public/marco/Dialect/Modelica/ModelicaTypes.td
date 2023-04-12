@@ -271,7 +271,7 @@ def Modelica_RecordType : Modelica_Type<"Record", []>
     }];
 
     let parameters = (ins
-        StringRefParameter<"Name">:$name
+        AttrParameter<"mlir::SymbolRefAttr", "Name">:$name
     );
 
     let assemblyFormat = "`<` $name `>`";

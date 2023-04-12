@@ -39,8 +39,8 @@ namespace marco::codegen::lowering
       }
 
       if (auto recordType = mlir::dyn_cast<RecordType>(baseType)) {
-        auto recordOp = resolveSymbolName<RecordOp>(
-            recordType.getName(), getLookupScope());
+        auto recordOp = resolveTypeFromRoot(recordType.getName());
+        assert(recordOp != nullptr);
 
         auto variableOp = mlir::cast<VariableOp>(
             resolveSymbolName<VariableOp>(pathEntry->getName(), recordOp));

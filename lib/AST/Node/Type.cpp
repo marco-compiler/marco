@@ -153,8 +153,9 @@ namespace marco::ast
 
   UserDefinedType::UserDefinedType(const UserDefinedType& other)
       : VariableType(other),
-        name(other.name)
+        globalLookup(other.globalLookup)
   {
+    setPath(other.path);
   }
 
   UserDefinedType::~UserDefinedType() = default;
@@ -167,19 +168,44 @@ namespace marco::ast
   llvm::json::Value UserDefinedType::toJSON() const
   {
     llvm::json::Object result;
-    result["name"] = getName();
+    result["global_lookup"] = isGlobalLookup();
+
+    llvm::SmallVector<llvm::json::Value> pathJson;
+
+    for (const auto& name : path) {
+      pathJson.emplace_back(name);
+    }
+
+    result["path"] = llvm::json::Array(pathJson);
 
     addJSONProperties(result);
     return result;
   }
 
-  llvm::StringRef UserDefinedType::getName() const
+  bool UserDefinedType::isGlobalLookup() const
   {
-    return name;
+    return globalLookup;
   }
 
-  void UserDefinedType::setName(llvm::StringRef newName)
+  void UserDefinedType::setGlobalLookup(bool global)
   {
-    name = newName.str();
+    globalLookup = global;
+  }
+
+  size_t UserDefinedType::getPathLength() const
+  {
+    return path.size();
+  }
+
+  llvm::StringRef UserDefinedType::getElement(size_t index) const
+  {
+    assert(index < path.size());
+    return path[index];
+  }
+
+  void UserDefinedType::setPath(llvm::ArrayRef<std::string> newPath)
+  {
+    path.clear();
+    path.append(newPath.begin(), newPath.end());
   }
 }

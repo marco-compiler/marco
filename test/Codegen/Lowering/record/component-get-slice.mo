@@ -2,8 +2,8 @@
 
 // CHECK:       modelica.function @Foo {
 // CHECK:           modelica.algorithm {
-// CHECK-NEXT:          %[[r:.*]] = modelica.variable_get @r : !modelica.array<3x!modelica.record<"R">>
-// CHECK-NEXT:          %[[r_x:.*]] = modelica.component_get %[[r]], @x : !modelica.array<3x!modelica.record<"R">> -> !modelica.array<3x!modelica.real>
+// CHECK-NEXT:          %[[r:.*]] = modelica.variable_get @r : !modelica.array<3x!modelica.record<@R>>
+// CHECK-NEXT:          %[[r_x:.*]] = modelica.component_get %[[r]], @x : !modelica.array<3x!modelica.record<@R>> -> !modelica.array<3x!modelica.real>
 // CHECK-NEXT:          modelica.variable_set @x, %[[r_x]]
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }

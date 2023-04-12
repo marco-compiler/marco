@@ -100,12 +100,19 @@ namespace marco::ast
 
       llvm::json::Value toJSON() const override;
 
-      llvm::StringRef getName() const;
+      bool isGlobalLookup() const;
 
-      void setName(llvm::StringRef newName);
+      void setGlobalLookup(bool global);
+
+      size_t getPathLength() const;
+
+      llvm::StringRef getElement(size_t index) const;
+
+      void setPath(llvm::ArrayRef<std::string> newPath);
 
     private:
-      std::string name;
+      bool globalLookup;
+      llvm::SmallVector<std::string> path;
   };
 }
 
