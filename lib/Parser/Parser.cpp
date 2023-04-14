@@ -252,15 +252,11 @@ namespace marco::parser
       }
     }
 
-    // Parse an optional annotation
-    llvm::Optional<std::unique_ptr<ASTNode>> clsAnnotation;
-
+    // Parse an optional annotation.
     if (current == Token::Annotation) {
       TRY(annotation, parseAnnotation());
-      clsAnnotation = std::move(*annotation);
       EXPECT(Token::Semicolon);
-    } else {
-      clsAnnotation = llvm::None;
+      result->dyn_cast<Class>()->setAnnotation(std::move(*annotation));
     }
 
     // The class name must be present also after the 'end' keyword
