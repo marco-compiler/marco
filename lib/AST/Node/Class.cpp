@@ -1,5 +1,6 @@
 #include "marco/AST/Node/Class.h"
 #include "marco/AST/Node/Algorithm.h"
+#include "marco/AST/Node/Annotation.h"
 #include "marco/AST/Node/EquationsBlock.h"
 #include "marco/AST/Node/Member.h"
 
@@ -17,6 +18,10 @@ namespace marco::ast
     setInitialEquationsBlocks(other.initialEquationsBlocks);
     setAlgorithms(other.algorithms);
     setInnerClasses(other.innerClasses);
+
+    if (other.hasAnnotation()) {
+      setAnnotation(other.annotation->clone());
+    }
   }
 
   Class::~Class() = default;
@@ -162,5 +167,29 @@ namespace marco::ast
       auto& clone = innerClasses.emplace_back(cls->clone());
       clone->setParent(this);
     }
+  }
+
+  bool Class::hasAnnotation() const
+  {
+    return annotation != nullptr;
+  }
+
+  Annotation* Class::getAnnotation()
+  {
+    assert(annotation != nullptr && "Annotation not set");
+    return annotation->cast<Annotation>();
+  }
+
+  const Annotation* Class::getAnnotation() const
+  {
+    assert(annotation != nullptr && "Annotation not set");
+    return annotation->cast<Annotation>();
+  }
+
+  void Class::setAnnotation(std::unique_ptr<ASTNode> node)
+  {
+    assert(node->isa<Annotation>());
+    annotation = std::move(node);
+    annotation->setParent(this);
   }
 }

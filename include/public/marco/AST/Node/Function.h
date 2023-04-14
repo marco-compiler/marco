@@ -102,21 +102,12 @@ namespace marco::ast
 
       void setPure(bool value);
 
-      bool hasAnnotation() const;
-
-      Annotation* getAnnotation();
-
-      const Annotation* getAnnotation() const;
-
-      void setAnnotation(std::unique_ptr<ASTNode> node);
-
       bool shouldBeInlined() const;
 
       FunctionType getType() const;
 
     private:
       bool pure;
-      std::unique_ptr<ASTNode> annotation;
 	};
 
 	class DerivativeAnnotation

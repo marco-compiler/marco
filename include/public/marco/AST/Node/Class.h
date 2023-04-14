@@ -5,6 +5,8 @@
 
 namespace marco::ast
 {
+  class Annotation;
+
 	class Class : public ASTNode
 	{
 		public:
@@ -62,6 +64,14 @@ namespace marco::ast
       /// Set the inner classes.
       void setInnerClasses(llvm::ArrayRef<std::unique_ptr<ASTNode>> nodes);
 
+      bool hasAnnotation() const;
+
+      Annotation* getAnnotation();
+
+      const Annotation* getAnnotation() const;
+
+      void setAnnotation(std::unique_ptr<ASTNode> node);
+
     private:
       std::string name;
       llvm::SmallVector<std::unique_ptr<ASTNode>> variables;
@@ -69,6 +79,7 @@ namespace marco::ast
       llvm::SmallVector<std::unique_ptr<ASTNode>> initialEquationsBlocks;
       llvm::SmallVector<std::unique_ptr<ASTNode>> algorithms;
       llvm::SmallVector<std::unique_ptr<ASTNode>> innerClasses;
+      std::unique_ptr<ASTNode> annotation;
 	};
 }
 

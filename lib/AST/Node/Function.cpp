@@ -119,9 +119,6 @@ namespace marco::ast
     : Function(other),
       pure(other.pure)
   {
-    if (other.hasAnnotation()) {
-      setAnnotation(other.annotation->clone());
-    }
   }
 
   StandardFunction::~StandardFunction() = default;
@@ -152,30 +149,6 @@ namespace marco::ast
   void StandardFunction::setPure(bool value)
   {
     pure = value;
-  }
-
-  bool StandardFunction::hasAnnotation() const
-  {
-    return annotation != nullptr;
-  }
-
-  Annotation* StandardFunction::getAnnotation()
-  {
-    assert(annotation != nullptr && "Annotation not set");
-    return annotation->cast<Annotation>();
-  }
-
-  const Annotation* StandardFunction::getAnnotation() const
-  {
-    assert(annotation != nullptr && "Annotation not set");
-    return annotation->cast<Annotation>();
-  }
-
-  void StandardFunction::setAnnotation(std::unique_ptr<ASTNode> node)
-  {
-    assert(node->isa<Annotation>());
-    annotation = std::move(node);
-    annotation->setParent(this);
   }
 
   bool StandardFunction::shouldBeInlined() const
