@@ -36,6 +36,8 @@ namespace marco::ast
       statementsJson.push_back(statement->toJSON());
     }
 
+    result["statements"] = llvm::json::Array(statementsJson);
+
     addJSONProperties(result);
     return result;
   }
