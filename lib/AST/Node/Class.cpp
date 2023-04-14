@@ -31,11 +31,15 @@ namespace marco::ast
       variablesJson.push_back(variable->toJSON());
     }
 
+    obj["variables"] = llvm::json::Array(variablesJson);
+
     llvm::SmallVector<llvm::json::Value> equationsBlocksJson;
 
     for (const auto& block : equationsBlocks) {
       equationsBlocksJson.push_back(block->toJSON());
     }
+
+    obj["equations"] = llvm::json::Array(equationsBlocksJson);
 
     llvm::SmallVector<llvm::json::Value> initialEquationsBlocksJson;
 
@@ -43,17 +47,23 @@ namespace marco::ast
       initialEquationsBlocksJson.push_back(block->toJSON());
     }
 
+    obj["initial_equations"] = llvm::json::Array(initialEquationsBlocksJson);
+
     llvm::SmallVector<llvm::json::Value> algorithmsJson;
 
     for (const auto& algorithm : algorithms) {
       algorithmsJson.push_back(algorithm->toJSON());
     }
 
+    obj["algorithms"] = llvm::json::Array(algorithmsJson);
+
     llvm::SmallVector<llvm::json::Value> innerClassesJson;
 
     for (const auto& innerClass : innerClasses) {
       innerClassesJson.push_back(innerClass->toJSON());
     }
+
+    obj["inner_classes"] = llvm::json::Array(innerClassesJson);
 
     ASTNode::addJSONProperties(obj);
   }
