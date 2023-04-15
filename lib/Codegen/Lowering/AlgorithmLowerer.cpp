@@ -13,6 +13,10 @@ namespace marco::codegen::lowering
 
   void AlgorithmLowerer::lower(const ast::Algorithm& algorithm)
   {
+    if (algorithm.empty()) {
+      return;
+    }
+
     mlir::Location location = loc(algorithm.getLocation());
 
     auto algorithmOp = builder().create<AlgorithmOp>(location);
