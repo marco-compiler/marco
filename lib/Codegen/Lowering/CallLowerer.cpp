@@ -14,49 +14,52 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::lower(const ast::Call& call)
   {
-    const ast::Expression* function = call.getCallee();
+    const ast::ComponentReference* callee =
+        call.getCallee()->cast<ast::ComponentReference>();
 
-    std::string functionName =
-        function->dyn_cast<ast::ComponentReference>()->getName();
+    llvm::Optional<mlir::Operation*> calleeOp = resolveCallee(*callee);
 
-    auto caller = mlir::cast<ClassInterface>(
-        getClass(*call.getParentOfType<ast::Class>()));
-
-    mlir::Operation* calleeOp =
-        resolveSymbolName<FunctionOp, DerFunctionOp>(functionName, caller);
-
-    if (calleeOp != nullptr) {
-      // User-defined function.
-      llvm::SmallVector<mlir::Value, 3> args;
-      lowerArgs(call, args);
-
-      llvm::SmallVector<int64_t, 3> expectedArgRanks;
-      getFunctionExpectedArgRanks(calleeOp, expectedArgRanks);
-
-      llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
-      getFunctionResultTypes(calleeOp, scalarizedResultTypes);
-
-      llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-      if (!getVectorizedResultTypes(
-              args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
-        assert("Can't vectorize function call");
-        return {};
-      }
-
-      auto callOp = builder().create<CallOp>(
-          loc(call.getLocation()), functionName, resultTypes, args);
-
-      std::vector<Reference> results;
-
-      for (auto result : callOp->getResults()) {
-        results.push_back(Reference::ssa(builder(), result));
-      }
-
-      return Results(results.begin(), results.end());
+    if (!calleeOp) {
+      llvm_unreachable("Invalid callee");
+      return {};
     }
 
-    if (isBuiltInFunction(functionName)) {
+    if (*calleeOp) {
+      if (mlir::isa<FunctionOp, DerFunctionOp>(*calleeOp)) {
+        // User-defined function.
+        llvm::SmallVector<mlir::Value, 3> args;
+        lowerArgs(call, args);
+
+        llvm::SmallVector<int64_t, 3> expectedArgRanks;
+        getFunctionExpectedArgRanks(*calleeOp, expectedArgRanks);
+
+        llvm::SmallVector<mlir::Type, 1> scalarizedResultTypes;
+        getFunctionResultTypes(*calleeOp, scalarizedResultTypes);
+
+        llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+        if (!getVectorizedResultTypes(
+                args, expectedArgRanks, scalarizedResultTypes, resultTypes)) {
+          assert("Can't vectorize function call");
+          return {};
+        }
+
+        auto callOp = builder().create<CallOp>(
+            loc(call.getLocation()),
+            getSymbolRefFromRoot(*calleeOp),
+            resultTypes, args);
+
+        std::vector<Reference> results;
+
+        for (auto result : callOp->getResults()) {
+          results.push_back(Reference::ssa(builder(), result));
+        }
+
+        return Results(results.begin(), results.end());
+      }
+    }
+
+    if (isBuiltInFunction(*callee)) {
       // Built-in function.
       return dispatchBuiltInFunctionCall(call);
     }
@@ -64,6 +67,33 @@ namespace marco::codegen::lowering
     // The function doesn't exist.
     llvm_unreachable("Function not found");
     return {};
+  }
+
+  llvm::Optional<mlir::Operation*> CallLowerer::resolveCallee(
+      const ast::ComponentReference& callee)
+  {
+    size_t pathLength = callee.getPathLength();
+    assert(callee.getPathLength() > 0);
+
+    for (size_t i = 0; i < pathLength; ++i) {
+      if (callee.getElement(i)->getNumOfSubscripts() != 0) {
+        return llvm::None;
+      }
+    }
+
+    mlir::Operation* result = resolveSymbolName(
+        callee.getElement(0)->getName(), getLookupScope());
+
+    for (size_t i = 1; i < pathLength; ++i) {
+      if (result == nullptr) {
+        return nullptr;
+      }
+
+      result = getSymbolTable().lookupSymbolIn(
+          result, builder().getStringAttr(callee.getElement(i)->getName()));
+    }
+
+    return result;
   }
 
   mlir::Value CallLowerer::lowerArg(const ast::Expression& expression)
@@ -251,9 +281,18 @@ namespace marco::codegen::lowering
     return true;
   }
 
-  bool CallLowerer::isBuiltInFunction(llvm::StringRef name) const
+  bool CallLowerer::isBuiltInFunction(
+      const ast::ComponentReference& functionName) const
   {
-    return llvm::StringSwitch<bool>(name)
+    if (functionName.getPathLength() != 1) {
+      return false;
+    }
+
+    if (functionName.getElement(0)->getNumOfSubscripts() != 0) {
+      return false;
+    }
+
+    return llvm::StringSwitch<bool>(functionName.getElement(0)->getName())
         .Case("abs", true)
         .Case("acos", true)
         .Case("asin", true)
@@ -295,150 +334,150 @@ namespace marco::codegen::lowering
 
   Results CallLowerer::dispatchBuiltInFunctionCall(const ast::Call& call)
   {
-    std::string functionName =
-        call.getCallee()->cast<ast::ComponentReference>()->getName();
+    auto callee = call.getCallee()->cast<ast::ComponentReference>()
+        ->getElement(0)->getName();
 
-    if (functionName == "abs") {
+    if (callee == "abs") {
       return abs(call);
     }
 
-    if (functionName == "acos") {
+    if (callee == "acos") {
       return acos(call);
     }
 
-    if (functionName == "asin") {
+    if (callee == "asin") {
       return asin(call);
     }
 
-    if (functionName == "atan") {
+    if (callee == "atan") {
       return atan(call);
     }
 
-    if (functionName == "atan2") {
+    if (callee == "atan2") {
       return atan2(call);
     }
 
-    if (functionName == "ceil") {
+    if (callee == "ceil") {
       return ceil(call);
     }
 
-    if (functionName == "cos") {
+    if (callee == "cos") {
       return cos(call);
     }
 
-    if (functionName == "cosh") {
+    if (callee == "cosh") {
       return cosh(call);
     }
 
-    if (functionName == "der") {
+    if (callee == "der") {
       return der(call);
     }
 
-    if (functionName == "diagonal") {
+    if (callee == "diagonal") {
       return diagonal(call);
     }
 
-    if (functionName == "div") {
+    if (callee == "div") {
       return div(call);
     }
 
-    if (functionName == "exp") {
+    if (callee == "exp") {
       return exp(call);
     }
 
-    if (functionName == "floor") {
+    if (callee == "floor") {
       return floor(call);
     }
 
-    if (functionName == "identity") {
+    if (callee == "identity") {
       return identity(call);
     }
 
-    if (functionName == "integer") {
+    if (callee == "integer") {
       return integer(call);
     }
 
-    if (functionName == "linspace") {
+    if (callee == "linspace") {
       return linspace(call);
     }
 
-    if (functionName == "log") {
+    if (callee == "log") {
       return log(call);
     }
 
-    if (functionName == "log10") {
+    if (callee == "log10") {
       return log10(call);
     }
 
-    if (functionName == "max") {
+    if (callee == "max") {
       return max(call);
     }
 
-    if (functionName == "min") {
+    if (callee == "min") {
       return min(call);
     }
 
-    if (functionName == "mod") {
+    if (callee == "mod") {
       return mod(call);
     }
 
-    if (functionName == "ndims") {
+    if (callee == "ndims") {
       return ndims(call);
     }
 
-    if (functionName == "ones") {
+    if (callee == "ones") {
       return ones(call);
     }
 
-    if (functionName == "product") {
+    if (callee == "product") {
       return product(call);
     }
 
-    if (functionName == "rem") {
+    if (callee == "rem") {
       return rem(call);
     }
 
-    if (functionName == "sign") {
+    if (callee == "sign") {
       return sign(call);
     }
 
-    if (functionName == "sin") {
+    if (callee == "sin") {
       return sin(call);
     }
 
-    if (functionName == "sinh") {
+    if (callee == "sinh") {
       return sinh(call);
     }
 
-    if (functionName == "size") {
+    if (callee == "size") {
       return size(call);
     }
 
-    if (functionName == "sqrt") {
+    if (callee == "sqrt") {
       return sqrt(call);
     }
 
-    if (functionName == "sum") {
+    if (callee == "sum") {
       return sum(call);
     }
 
-    if (functionName == "symmetric") {
+    if (callee == "symmetric") {
       return symmetric(call);
     }
 
-    if (functionName == "tan") {
+    if (callee == "tan") {
       return tan(call);
     }
 
-    if (functionName == "tanh") {
+    if (callee == "tanh") {
       return tanh(call);
     }
 
-    if (functionName == "transpose") {
+    if (callee == "transpose") {
       return transpose(call);
     }
 
-    if (functionName == "zeros") {
+    if (callee == "zeros") {
       return zeros(call);
     }
 

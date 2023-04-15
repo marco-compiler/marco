@@ -63,6 +63,7 @@ namespace
     public:
       IDAInstance(
         llvm::StringRef identifier,
+        mlir::SymbolTableCollection& symbolTable,
         const DerivativesMap& derivativesMap,
         bool reducedSystem,
         bool reducedDerivatives,
@@ -95,8 +96,7 @@ namespace
           mlir::Value idaInstance,
           const Model<ScheduledEquationsBlock>& model,
           mlir::ValueRange variables,
-          llvm::DenseMap<VariableOp, size_t>& variablesPos,
-          const mlir::SymbolTable& symbolTable);
+          llvm::DenseMap<VariableOp, size_t>& variablesPos);
 
       mlir::LogicalResult performCalcIC(
           mlir::OpBuilder& builder,
@@ -127,10 +127,10 @@ namespace
       mlir::LogicalResult addVariablesToIDA(
           mlir::OpBuilder& builder,
           mlir::ModuleOp module,
+          const Model<ScheduledEquationsBlock>& model,
           mlir::Value idaInstance,
           mlir::ValueRange variables,
-          llvm::DenseMap<VariableOp, size_t>& variablesPos,
-          const mlir::SymbolTable& symbolTable);
+          llvm::DenseMap<VariableOp, size_t>& variablesPos);
 
       mlir::ida::VariableGetterOp createGetterFunction(
           mlir::OpBuilder& builder,
@@ -150,41 +150,41 @@ namespace
           mlir::OpBuilder& builder,
           mlir::Value idaInstance,
           const Model<ScheduledEquationsBlock>& model,
-          const mlir::SymbolTable& symbolTable,
           llvm::DenseMap<VariableOp, size_t>& variablesPos);
 
       mlir::LogicalResult addVariableAccessesInfoToIDA(
           mlir::OpBuilder& builder,
           mlir::Value idaInstance,
-          const mlir::SymbolTable& symbolTable,
+          const Model<ScheduledEquationsBlock>& model,
           const Equation& equation,
           mlir::Value idaEquation);
 
       mlir::LogicalResult createResidualFunction(
           mlir::OpBuilder& builder,
-          const mlir::SymbolTable& symbolTable,
+          const Model<ScheduledEquationsBlock>& model,
           const Equation& equation,
           mlir::Value idaEquation,
           llvm::StringRef residualFunctionName);
 
       llvm::DenseSet<VariableOp> getIndependentVariablesForAD(
-          const Equation& equation, const mlir::SymbolTable& symbolTable);
+          const mlir::SymbolTable& modelSymbolTable,
+          const Equation& equation);
 
       mlir::LogicalResult createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
+          const Model<ScheduledEquationsBlock>& model,
           const Equation& equation,
-          llvm::StringRef templateName,
-          const mlir::SymbolTable& symbolTable);
+          llvm::StringRef templateName);
 
       mlir::modelica::FunctionOp createPartialDerTemplateFromEquation(
           mlir::OpBuilder& builder,
-          const mlir::SymbolTable& symbolTable,
+          const Model<ScheduledEquationsBlock>& model,
           const marco::codegen::Equation& equation,
           llvm::StringRef templateName);
 
       mlir::LogicalResult createJacobianFunction(
           mlir::OpBuilder& builder,
-          const mlir::SymbolTable& symbolTable,
+          const Model<ScheduledEquationsBlock>& model,
           const Equation& equation,
           llvm::StringRef jacobianFunctionName,
           VariableOp independentVariable,
@@ -194,7 +194,7 @@ namespace
       std::string getIDAFunctionName(llvm::StringRef name) const;
 
       std::vector<VariableOp> getIDAFunctionArgs(
-          const mlir::SymbolTable& symbolTable) const;
+          const mlir::SymbolTable& modelSymbolTable) const;
 
       std::multimap<VariableOp, std::pair<IndexSet, ScheduledEquation*>>
       getWritesMap(const Model<ScheduledEquationsBlock>& model) const;
@@ -207,6 +207,8 @@ namespace
       /// Instance identifier.
       /// It is used to create unique symbols.
       std::string identifier;
+
+      mlir::SymbolTableCollection* symbolTable;
 
       const DerivativesMap* derivativesMap;
 
@@ -261,11 +263,13 @@ namespace
 
 IDAInstance::IDAInstance(
     llvm::StringRef identifier,
+    mlir::SymbolTableCollection& symbolTable,
     const DerivativesMap& derivativesMap,
     bool reducedSystem,
     bool reducedDerivatives,
     bool jacobianOneSweep)
     : identifier(identifier.str()),
+      symbolTable(&symbolTable),
       derivativesMap(&derivativesMap),
       reducedSystem(reducedSystem),
       reducedDerivatives(reducedDerivatives),
@@ -390,8 +394,7 @@ mlir::LogicalResult IDAInstance::configure(
     mlir::Value idaInstance,
     const Model<ScheduledEquationsBlock>& model,
     mlir::ValueRange variables,
-    llvm::DenseMap<VariableOp, size_t>& variablesPos,
-    const mlir::SymbolTable& symbolTable)
+    llvm::DenseMap<VariableOp, size_t>& variablesPos)
 {
   auto moduleOp = model.getOperation()->getParentOfType<mlir::ModuleOp>();
 
@@ -409,12 +412,12 @@ mlir::LogicalResult IDAInstance::configure(
 
   // Add the variables to IDA.
   if (mlir::failed(addVariablesToIDA(
-          builder, moduleOp, idaInstance, variables, variablesPos, symbolTable))) {
+          builder, moduleOp, model, idaInstance, variables, variablesPos))) {
     return mlir::failure();
   }
 
   // Add the equations to IDA.
-  if (mlir::failed(addEquationsToIDA(builder, idaInstance, model, symbolTable, variablesPos))) {
+  if (mlir::failed(addEquationsToIDA(builder, idaInstance, model, variablesPos))) {
     return mlir::failure();
   }
 
@@ -427,10 +430,10 @@ mlir::LogicalResult IDAInstance::configure(
 mlir::LogicalResult IDAInstance::addVariablesToIDA(
     mlir::OpBuilder& builder,
     mlir::ModuleOp module,
+    const Model<ScheduledEquationsBlock>& model,
     mlir::Value idaInstance,
     mlir::ValueRange variables,
-    llvm::DenseMap<VariableOp, size_t>& variablesPos,
-    const mlir::SymbolTable& symbolTable)
+    llvm::DenseMap<VariableOp, size_t>& variablesPos)
 {
   mlir::Location loc = idaInstance.getLoc();
 
@@ -522,7 +525,9 @@ mlir::LogicalResult IDAInstance::addVariablesToIDA(
     llvm::StringRef derivativeVarName =
         derivativesMap->getDerivative(stateVariable.value().getSymName());
 
-    auto derivativeVariableOp = symbolTable.lookup<VariableOp>(derivativeVarName);
+    auto derivativeVariableOp = symbolTable->lookupSymbolIn<VariableOp>(
+        model.getOperation(), builder.getStringAttr(derivativeVarName));
+
     auto arrayType = derivativeVariableOp.getVariableType().toArrayType();
 
     std::vector<int64_t> dimensions = getDimensionsFn(arrayType);
@@ -616,7 +621,6 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
     mlir::OpBuilder& builder,
     mlir::Value idaInstance,
     const Model<ScheduledEquationsBlock>& model,
-    const mlir::SymbolTable& symbolTable,
     llvm::DenseMap<VariableOp, size_t>& variablesPos)
 {
   mlir::Location loc = model.getOperation().getLoc();
@@ -784,8 +788,8 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
       accessedVariables.insert(access.getVariable()->getDefiningOp());
     }
 
-    llvm::DenseSet<VariableOp> independentVariables =
-        getIndependentVariablesForAD(*equation, symbolTable);
+    llvm::DenseSet<VariableOp> independentVariables = getIndependentVariablesForAD(
+        symbolTable->getSymbolTable(model.getOperation()), *equation);
 
     for(auto ranges : llvm::make_range(iterationRanges.rangesBegin(), iterationRanges.rangesEnd())) {
       std::vector<mlir::Attribute> rangesAttr;
@@ -805,7 +809,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
 
       if (reducedDerivatives) {
         if (mlir::failed(addVariableAccessesInfoToIDA(
-                builder, idaInstance, symbolTable, *equation, idaEquation))) {
+                builder, idaInstance, model, *equation, idaEquation))) {
           return mlir::failure();
         }
       }
@@ -815,7 +819,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           "residualFunction_" + std::to_string(residualFunctionsCounter++));
 
       if (mlir::failed(createResidualFunction(
-              builder, symbolTable, *equation, idaEquation, residualFunctionName))) {
+              builder, model, *equation, idaEquation, residualFunctionName))) {
         return mlir::failure();
       }
 
@@ -827,7 +831,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
           "pder_" + std::to_string(partialDerTemplatesCounter++));
 
       if (mlir::failed(createPartialDerTemplateFunction(
-              builder, *equation, partialDerTemplateName, symbolTable))) {
+              builder, model, *equation, partialDerTemplateName))) {
         return mlir::failure();
       }
 
@@ -850,7 +854,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
         if (mlir::failed(createJacobianFunction(
-                builder, symbolTable, *equation, jacobianFunctionName, variable,
+                builder, model, *equation, jacobianFunctionName, variable,
                 partialDerTemplateName, variablesPos))) {
           return mlir::failure();
         }
@@ -869,7 +873,10 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
         if (reducedDerivatives &&
             !accessedVariables.contains(variable) &&
             !accessedVariables.contains(
-                symbolTable.lookup<VariableOp>(derivativesMap->getDerivative(variable.getSymName())))) {
+                symbolTable->lookupSymbolIn<VariableOp>(
+                    model.getOperation(),
+                    builder.getStringAttr(derivativesMap->getDerivative(
+                        variable.getSymName()))))) {
           continue;
         }
 
@@ -877,7 +884,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
             "jacobianFunction_" + std::to_string(jacobianFunctionsCounter++));
 
         if (mlir::failed(createJacobianFunction(
-                builder, symbolTable, *equation, jacobianFunctionName, variable,
+                builder, model, *equation, jacobianFunctionName, variable,
                 partialDerTemplateName, variablesPos))) {
           return mlir::failure();
         }
@@ -898,7 +905,7 @@ mlir::LogicalResult IDAInstance::addEquationsToIDA(
 mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
     mlir::OpBuilder& builder,
     mlir::Value idaInstance,
-    const mlir::SymbolTable& symbolTable,
+    const Model<ScheduledEquationsBlock>& model,
     const Equation& equation,
     mlir::Value idaEquation)
 {
@@ -911,7 +918,10 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
       llvm::StringRef stateVarName =
           derivativesMap->getDerivedVariable(variable.getSymName());
 
-      auto stateVar = symbolTable.lookup<VariableOp>(stateVarName);
+      auto stateVar = symbolTable->lookupSymbolIn<VariableOp>(
+          model.getOperation(),
+          builder.getStringAttr(stateVarName));
+
       return idaStateVariables[stateVariablesLookup[stateVar]];
     }
 
@@ -975,7 +985,7 @@ mlir::LogicalResult IDAInstance::addVariableAccessesInfoToIDA(
 
 mlir::LogicalResult IDAInstance::createResidualFunction(
     mlir::OpBuilder& builder,
-    const mlir::SymbolTable& symbolTable,
+    const Model<ScheduledEquationsBlock>& model,
     const Equation& equation,
     mlir::Value idaEquation,
     llvm::StringRef residualFunctionName)
@@ -988,7 +998,8 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
   builder.setInsertionPointToEnd(module.getBody());
 
   // Create the function.
-  std::vector<VariableOp> managedVariables = getIDAFunctionArgs(symbolTable);
+  std::vector<VariableOp> managedVariables = getIDAFunctionArgs(
+      symbolTable->getSymbolTable(model.getOperation()));
 
   llvm::SmallVector<mlir::Type> variableTypes;
 
@@ -1100,7 +1111,8 @@ mlir::LogicalResult IDAInstance::createResidualFunction(
 }
 
 llvm::DenseSet<VariableOp> IDAInstance::getIndependentVariablesForAD(
-    const Equation& equation, const mlir::SymbolTable& symbolTable)
+    const mlir::SymbolTable& modelSymbolTable,
+    const Equation& equation)
 {
   llvm::DenseSet<VariableOp> result;
 
@@ -1109,11 +1121,11 @@ llvm::DenseSet<VariableOp> IDAInstance::getIndependentVariablesForAD(
     result.insert(var);
 
     if (derivativesMap->hasDerivative(var.getSymName())) {
-      auto derVar = symbolTable.lookup<VariableOp>(
+      auto derVar = modelSymbolTable.lookup<VariableOp>(
           derivativesMap->getDerivative(var.getSymName()));
       result.insert(derVar);
     } else if (derivativesMap->isDerivative(var.getSymName())) {
-      auto stateVar = symbolTable.lookup<VariableOp>(
+      auto stateVar = modelSymbolTable.lookup<VariableOp>(
           derivativesMap->getDerivedVariable(var.getSymName()));
 
       result.insert(stateVar);
@@ -1125,14 +1137,14 @@ llvm::DenseSet<VariableOp> IDAInstance::getIndependentVariablesForAD(
 
 mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
     mlir::OpBuilder& builder,
+    const Model<ScheduledEquationsBlock>& model,
     const Equation& equation,
-    llvm::StringRef templateName,
-    const mlir::SymbolTable& symbolTable)
+    llvm::StringRef templateName)
 {
   mlir::Location loc = equation.getOperation().getLoc();
 
   auto partialDerTemplate = createPartialDerTemplateFromEquation(
-      builder, symbolTable, equation, templateName);
+      builder, model, equation, templateName);
 
   // Add the time to the input variables (and signature).
   mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1170,7 +1182,7 @@ mlir::LogicalResult IDAInstance::createPartialDerTemplateFunction(
 
 FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
     mlir::OpBuilder& builder,
-    const mlir::SymbolTable& symbolTable,
+    const Model<ScheduledEquationsBlock>& model,
     const Equation& equation,
     llvm::StringRef templateName)
 {
@@ -1183,7 +1195,9 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
   // Create the function.
   std::string functionOpName = templateName.str() + "_base";
-  std::vector<VariableOp> managedVariables = getIDAFunctionArgs(symbolTable);
+
+  std::vector<VariableOp> managedVariables = getIDAFunctionArgs(
+      symbolTable->getSymbolTable(model.getOperation()));
 
   // Create the function to be derived.
   auto functionOp = builder.create<FunctionOp>(loc, functionOpName);
@@ -1299,7 +1313,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
   ForwardAD forwardAD;
 
   auto derTemplate = forwardAD.createPartialDerTemplateFunction(
-      builder, loc, functionOp, templateName);
+      builder, loc, *symbolTable, functionOp, templateName);
 
   functionOp.erase();
 
@@ -1308,7 +1322,7 @@ FunctionOp IDAInstance::createPartialDerTemplateFromEquation(
 
 mlir::LogicalResult IDAInstance::createJacobianFunction(
     mlir::OpBuilder& builder,
-    const mlir::SymbolTable& symbolTable,
+    const Model<ScheduledEquationsBlock>& model,
     const Equation& equation,
     llvm::StringRef jacobianFunctionName,
     VariableOp independentVariable,
@@ -1323,7 +1337,8 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   builder.setInsertionPointToEnd(module.getBody());
 
   // Create the function.
-  std::vector<VariableOp> managedVariables = getIDAFunctionArgs(symbolTable);
+  std::vector<VariableOp> managedVariables = getIDAFunctionArgs(
+      symbolTable->getSymbolTable(model.getOperation()));
 
   llvm::SmallVector<mlir::Type> variableTypes;
 
@@ -1384,7 +1399,11 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
 
         if (jacobianOneSweep && derivativesMap->hasDerivative(independentVariableOp.getSymName())) {
           llvm::StringRef derName = derivativesMap->getDerivative(independentVariableOp.getSymName());
-          auto op = symbolTable.lookup<VariableOp>(derName);
+
+          auto op = symbolTable->lookupSymbolIn<VariableOp>(
+              model.getOperation(),
+              builder.getStringAttr(derName));
+
           alphaSeedPosition = variablesPos[op];
         }
 
@@ -1437,7 +1456,7 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
   // Call the derivative template.
   auto templateCall = builder.create<CallOp>(
       loc,
-      partialDerTemplateName,
+      mlir::SymbolRefAttr::get(builder.getContext(), partialDerTemplateName),
       RealType::get(builder.getContext()),
       args);
 
@@ -1453,13 +1472,15 @@ mlir::LogicalResult IDAInstance::createJacobianFunction(
     arraySeeds.clear();
 
     populateArgsFn(
-        symbolTable.lookup<VariableOp>(
-            derivativesMap->getDerivative(independentVariable.getSymName())),
+        symbolTable->lookupSymbolIn<VariableOp>(
+            model.getOperation(),
+            builder.getStringAttr(
+                derivativesMap->getDerivative(independentVariable.getSymName()))),
         args, arraySeeds);
 
     auto secondTemplateCall = builder.create<CallOp>(
         loc,
-        partialDerTemplateName,
+        mlir::SymbolRefAttr::get(builder.getContext(), partialDerTemplateName),
         RealType::get(builder.getContext()),
         args);
 
@@ -1512,7 +1533,7 @@ std::string IDAInstance::getIDAFunctionName(llvm::StringRef name) const
 }
 
 std::vector<VariableOp> IDAInstance::getIDAFunctionArgs(
-    const mlir::SymbolTable& symbolTable) const
+    const mlir::SymbolTable& modelSymbolTable) const
 {
   std::vector<VariableOp> result;
 
@@ -1536,7 +1557,7 @@ std::vector<VariableOp> IDAInstance::getIDAFunctionArgs(
   // variables.
 
   for (VariableOp stateVariable : stateVariables) {
-    auto derivativeVariableOp = symbolTable.lookup<VariableOp>(
+    auto derivativeVariableOp = modelSymbolTable.lookup<VariableOp>(
         derivativesMap->getDerivative(stateVariable.getSymName()));
 
     result.push_back(derivativeVariableOp);
@@ -1666,6 +1687,7 @@ namespace
       /// "initial conditions model".
       mlir::LogicalResult createSolveICModelFunction(
           mlir::OpBuilder& builder,
+          mlir::SymbolTableCollection& symbolTable,
           mlir::simulation::ModuleOp simulationModuleOp,
           const Model<ScheduledEquationsBlock>& model,
           const ExplicitEquationsMap& explicitEquationsMap,
@@ -1691,6 +1713,7 @@ namespace
       /// not belonging to IDA will have in the next iteration.
       mlir::LogicalResult createUpdateNonIDAVariablesFunction(
           mlir::OpBuilder& builder,
+          mlir::SymbolTableCollection& symbolTable,
           mlir::simulation::ModuleOp simulationModuleOp,
           const Model<ScheduledEquationsBlock>& model,
           const ExplicitEquationsMap& explicitEquationsMap,
@@ -1721,8 +1744,8 @@ namespace
 static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
     llvm::ThreadPool& threadPool,
     mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTable,
     ModelOp modelOp,
-    const mlir::SymbolTable& symbolTable,
     const ScheduledEquation* equation,
     const IDASolver::ExplicitEquationsMap& explicitEquationsMap,
     std::map<EquationTemplateInfo, EquationTemplate>& equationTemplatesMap,
@@ -1764,7 +1787,7 @@ static llvm::Optional<EquationTemplate> getOrCreateEquationTemplateFunction(
   mlir::func::FuncOp function = explicitEquation->second->createTemplateFunction(
       threadPool, builder, functionName,
       equation->getSchedulingDirection(),
-      symbolTable,
+      symbolTable.getSymbolTable(modelOp),
       usedVariables);
 
   size_t timeArgumentIndex = 0;
@@ -1802,10 +1825,12 @@ mlir::LogicalResult IDASolver::solveICModel(
     mlir::simulation::ModuleOp simulationModuleOp,
     const Model<ScheduledEquationsBlock>& model)
 {
+  mlir::SymbolTableCollection symbolTable;
   DerivativesMap emptyDerivativesMap;
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "ic", emptyDerivativesMap, reducedSystem, reducedDerivatives, jacobianOneSweep);
+      "ic", symbolTable, emptyDerivativesMap,
+      reducedSystem, reducedDerivatives, jacobianOneSweep);
 
   idaInstance->setStartTime(0);
   idaInstance->setEndTime(0);
@@ -1925,7 +1950,7 @@ mlir::LogicalResult IDASolver::solveICModel(
   }
 
   if (mlir::failed(createSolveICModelFunction(
-          builder, simulationModuleOp, model,
+          builder, symbolTable, simulationModuleOp, model,
           explicitEquationsMap, idaInstance.get()))) {
     return mlir::failure();
   }
@@ -1938,11 +1963,13 @@ mlir::LogicalResult IDASolver::solveMainModel(
     mlir::simulation::ModuleOp simulationModuleOp,
     const Model<ScheduledEquationsBlock>& model)
 {
-  mlir::SymbolTable symbolTable(model.getOperation());
+  mlir::SymbolTableCollection symbolTable;
   const DerivativesMap& derivativesMap = model.getDerivativesMap();
 
   auto idaInstance = std::make_unique<IDAInstance>(
-      "main", derivativesMap, reducedSystem, reducedDerivatives, jacobianOneSweep);
+      "main",
+      symbolTable, derivativesMap,
+      reducedSystem, reducedDerivatives, jacobianOneSweep);
 
   std::set<std::unique_ptr<Equation>> explicitEquationsStorage;
   ExplicitEquationsMap explicitEquationsMap;
@@ -2027,8 +2054,10 @@ mlir::LogicalResult IDASolver::solveMainModel(
           idaInstance->addEquation(scheduledEquation.get());
 
           // State variable.
-          auto stateVariableOp = symbolTable.lookup<VariableOp>(
-              derivativesMap.getDerivedVariable(var.getSymName()));
+          auto stateVariableOp = symbolTable.lookupSymbolIn<VariableOp>(
+              model.getOperation(),
+              builder.getStringAttr(
+                  derivativesMap.getDerivedVariable(var.getSymName())));
 
           idaInstance->addStateVariable(stateVariableOp);
 
@@ -2079,8 +2108,10 @@ mlir::LogicalResult IDASolver::solveMainModel(
 
         if (derivativesMap.isDerivative(var.getSymName())) {
           // State variable.
-          auto stateVar = symbolTable.lookup<VariableOp>(
-              derivativesMap.getDerivedVariable(var.getSymName()));
+          auto stateVar = symbolTable.lookupSymbolIn<VariableOp>(
+              model.getOperation(),
+              builder.getStringAttr(
+                  derivativesMap.getDerivedVariable(var.getSymName())));
 
           idaInstance->addStateVariable(stateVar);
 
@@ -2091,8 +2122,9 @@ mlir::LogicalResult IDASolver::solveMainModel(
           idaInstance->addStateVariable(var);
 
           // Derivative variable.
-          auto derVar = symbolTable.lookup<VariableOp>(
-              derivativesMap.getDerivative(var.getSymName()));
+          auto derVar = symbolTable.lookupSymbolIn<VariableOp>(
+              model.getOperation(),
+              builder.getStringAttr(derivativesMap.getDerivative(var.getSymName())));
 
           idaInstance->addDerivativeVariable(derVar);
         } else {
@@ -2131,7 +2163,7 @@ mlir::LogicalResult IDASolver::solveMainModel(
   }
 
   if (mlir::failed(createUpdateNonIDAVariablesFunction(
-          builder, simulationModuleOp, model,
+          builder, symbolTable, simulationModuleOp, model,
           explicitEquationsMap, idaInstance.get()))) {
     return mlir::failure();
   }
@@ -2278,10 +2310,8 @@ mlir::LogicalResult IDASolver::createInitSolversFunction(
     variablesPos[variable.value()] = variable.index();
   }
 
-  mlir::SymbolTable symbolTable(model.getOperation());
-
   if (mlir::failed(idaInstance->configure(
-          builder, instance, model, variables, variablesPos, symbolTable))) {
+          builder, instance, model, variables, variablesPos))) {
     return mlir::failure();
   }
 
@@ -2311,6 +2341,7 @@ mlir::LogicalResult IDASolver::createDeinitSolversFunction(
 
 mlir::LogicalResult IDASolver::createSolveICModelFunction(
     mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTable,
     mlir::simulation::ModuleOp simulationModuleOp,
     const Model<ScheduledEquationsBlock>& model,
     const ExplicitEquationsMap& explicitEquationsMap,
@@ -2318,7 +2349,6 @@ mlir::LogicalResult IDASolver::createSolveICModelFunction(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto modelOp = model.getOperation();
-  mlir::SymbolTable symbolTable(modelOp);
   auto loc = modelOp.getLoc();
 
   // Create the function inside the parent module.
@@ -2368,7 +2398,8 @@ mlir::LogicalResult IDASolver::createSolveICModelFunction(
       } else {
         // The equation is handled by MARCO.
         auto templateFunction = getOrCreateEquationTemplateFunction(
-            threadPool, builder, modelOp, symbolTable, equation.get(), explicitEquationsMap,
+            threadPool, builder, symbolTable,
+            modelOp, equation.get(), explicitEquationsMap,
             equationTemplatesMap, "initial_eq_template_",
             equationTemplateCounter);
 
@@ -2486,6 +2517,7 @@ mlir::LogicalResult IDASolver::createUpdateIDAVariablesFunction(
 
 mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
     mlir::OpBuilder& builder,
+    mlir::SymbolTableCollection& symbolTable,
     mlir::simulation::ModuleOp simulationModuleOp,
     const Model<ScheduledEquationsBlock>& model,
     const ExplicitEquationsMap& explicitEquationsMap,
@@ -2493,7 +2525,6 @@ mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
 {
   mlir::OpBuilder::InsertionGuard guard(builder);
   auto modelOp = model.getOperation();
-  mlir::SymbolTable symbolTable(modelOp);
   auto loc = modelOp.getLoc();
 
   // Create the function inside the parent module.
@@ -2538,7 +2569,8 @@ mlir::LogicalResult IDASolver::createUpdateNonIDAVariablesFunction(
       } else {
         // The equation is handled by MARCO.
         auto templateFunction = getOrCreateEquationTemplateFunction(
-            threadPool, builder, modelOp, symbolTable, equation.get(), explicitEquationsMap,
+            threadPool, builder, symbolTable,
+            modelOp, equation.get(), explicitEquationsMap,
             equationTemplatesMap, "eq_template_", equationTemplateCounter);
 
         if (!templateFunction.has_value()) {

@@ -27,13 +27,10 @@ namespace
       mlir::LogicalResult matchAndRewrite(
           CallOp op, mlir::PatternRewriter& rewriter) const override
       {
-        auto module = op->getParentOfType<mlir::ModuleOp>();
+        auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
 
-        auto calleeName =
-            mlir::StringAttr::get(op.getContext(), op.getCallee());
-
-        auto calleeFunctionOp =
-            symbolTable->lookupSymbolIn<FunctionOp>(module, calleeName);
+        auto calleeFunctionOp = mlir::cast<FunctionOp>(
+            op.getFunction(moduleOp, *symbolTable));
 
         assert(op.getArgs().size() ==
                calleeFunctionOp.getArgumentTypes().size());
@@ -150,7 +147,7 @@ namespace
 
       void runOnOperation() override
       {
-        auto module = getOperation();
+        auto moduleOp = getOperation();
 
         mlir::ConversionTarget target(getContext());
         target.addLegalDialect<ModelicaDialect>();
@@ -161,13 +158,8 @@ namespace
         mlir::SymbolTableCollection symbolTable;
 
         target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-          auto module = op->getParentOfType<mlir::ModuleOp>();
-
-          auto calleeName =
-              mlir::StringAttr::get(op.getContext(), op.getCallee());
-
-          auto calleeFunctionOp =
-              symbolTable.lookupSymbolIn<FunctionOp>(module, calleeName);
+          auto calleeFunctionOp = mlir::cast<FunctionOp>(
+              op.getFunction(moduleOp, symbolTable));
 
           if (calleeFunctionOp == nullptr) {
             return true;
@@ -203,9 +195,9 @@ namespace
             patterns, &getContext(), symbolTable);
 
         if (mlir::failed(applyPartialConversion(
-                module, target, std::move(patterns)))) {
+                moduleOp, target, std::move(patterns)))) {
           mlir::emitError(
-              module.getLoc(), "Error in inserting the explicit casts");
+              moduleOp.getLoc(), "Error in inserting the explicit casts");
 
           return signalPassFailure();
         }

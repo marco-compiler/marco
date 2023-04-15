@@ -124,6 +124,54 @@ static double getScalarFloatLikeValue(mlir::Attribute attribute)
   return attribute.dyn_cast<mlir::FloatAttr>().getValueAsDouble();
 }
 
+static mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol)
+{
+  llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
+
+  flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+      symbol->getContext(),
+      mlir::cast<mlir::SymbolOpInterface>(symbol).getName()));
+
+  mlir::Operation* parent = symbol->getParentOp();
+
+  while (parent != nullptr) {
+    if (auto classInterface = mlir::dyn_cast<ClassInterface>(parent)) {
+      flatSymbolAttrs.push_back(mlir::FlatSymbolRefAttr::get(
+          symbol->getContext(),
+          mlir::cast<mlir::SymbolOpInterface>(
+              classInterface.getOperation()).getName()));
+    }
+
+    parent = parent->getParentOp();
+  }
+
+  std::reverse(flatSymbolAttrs.begin(), flatSymbolAttrs.end());
+
+  return mlir::SymbolRefAttr::get(
+      symbol->getContext(),
+      flatSymbolAttrs[0].getValue(),
+      llvm::makeArrayRef(flatSymbolAttrs).drop_front());
+}
+
+static mlir::Operation* resolveSymbol(
+    mlir::ModuleOp moduleOp,
+    mlir::SymbolTableCollection& symbolTable,
+    mlir::SymbolRefAttr symbol)
+{
+  mlir::Operation* result =
+      symbolTable.lookupSymbolIn(moduleOp, symbol.getRootReference());
+
+  for (mlir::FlatSymbolRefAttr nestedRef : symbol.getNestedReferences()) {
+    if (result == nullptr) {
+      return nullptr;
+    }
+
+    result = symbolTable.lookupSymbolIn(result, nestedRef.getAttr());
+  }
+
+  return result;
+}
+
 #define GET_OP_CLASSES
 #include "marco/Dialect/Modelica/Modelica.cpp.inc"
 
@@ -8560,18 +8608,53 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  void CallOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      FunctionOp callee,
+      mlir::ValueRange args)
+  {
+    mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
+    build(builder, state, symbol, callee.getResultTypes(), args);
+  }
+
+  void CallOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      RawFunctionOp callee,
+      mlir::ValueRange args)
+  {
+    mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
+    build(builder, state, symbol, callee.getResultTypes(), args);
+  }
+
+  void CallOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      RuntimeFunctionOp callee,
+      mlir::ValueRange args)
+  {
+    mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
+    build(builder, state, symbol, callee.getResultTypes(), args);
+  }
+
+  void CallOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      mlir::SymbolRefAttr callee,
+      mlir::TypeRange resultTypes,
+      mlir::ValueRange args)
+  {
+    state.addOperands(args);
+    state.addAttribute(getCalleeAttrName(state.name), callee);
+    state.addTypes(resultTypes);
+  }
+
   mlir::LogicalResult CallOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTable)
   {
-    // Check that the callee attribute was specified.
-    auto fnAttr = (*this)->getAttrOfType<FlatSymbolRefAttr>("callee");
-
-    if (!fnAttr) {
-      return emitOpError("requires a 'callee' symbol reference attribute");
-    }
-
-    mlir::Operation* callee =
-        symbolTable.lookupNearestSymbolFrom(*this, fnAttr);
+    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+    mlir::Operation* callee = getFunction(moduleOp, symbolTable);
 
     if (!callee) {
       // TODO
@@ -8588,7 +8671,7 @@ namespace mlir::modelica
     }
 
     if (!mlir::isa<FunctionOp, RawFunctionOp, RuntimeFunctionOp>(callee)) {
-      return emitOpError() << "'" << fnAttr.getValue()
+      return emitOpError() << "'" << getCallee()
                            << "' does not reference a valid function";
     }
 
@@ -8661,14 +8744,11 @@ namespace mlir::modelica
   unsigned int CallOp::getArgExpectedRank(
       unsigned int argIndex, mlir::SymbolTableCollection& symbolTable)
   {
-    auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
-    auto calleeName = mlir::StringAttr::get(getContext(), getCallee());
+    auto moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
+    auto calleeOp = resolveSymbol(moduleOp, symbolTable, getCallee());
 
-    auto calleeFunctionOp =
-        symbolTable.lookupSymbolIn<FunctionOp>(module, calleeName);
-
-    if (calleeFunctionOp == nullptr) {
-      // If the function is not declare, then assume that the arguments types
+    if (calleeOp == nullptr) {
+      // If the function is not declared, then assume that the arguments types
       // already match its hypothetical signature.
 
       mlir::Type argType = getArgs()[argIndex].getType();
@@ -8679,7 +8759,7 @@ namespace mlir::modelica
       return 0;
     }
 
-    mlir::Type argType = calleeFunctionOp.getArgumentTypes()[argIndex];
+    mlir::Type argType = mlir::cast<FunctionOp>(calleeOp).getArgumentTypes()[argIndex];
 
     if (auto arrayType = argType.dyn_cast<ArrayType>()) {
       return arrayType.getRank();
@@ -8783,7 +8863,8 @@ namespace mlir::modelica
 
     auto invertedCall = builder.create<CallOp>(
         getLoc(),
-        inverseAnnotation.getFunction(argumentIndex),
+        mlir::SymbolRefAttr::get(builder.getStringAttr(
+            inverseAnnotation.getFunction(argumentIndex))),
         this->getArgs()[argumentIndex].getType(),
         args);
 
@@ -8797,6 +8878,25 @@ namespace mlir::modelica
     }
 
     return mlir::success();
+  }
+
+  mlir::Operation* CallOp::getFunction(
+      mlir::ModuleOp moduleOp, mlir::SymbolTableCollection& symbolTable)
+  {
+    mlir::SymbolRefAttr callee = getCallee();
+
+    mlir::Operation* result = symbolTable.lookupSymbolIn(
+        moduleOp, callee.getRootReference());
+
+    for (mlir::FlatSymbolRefAttr flatSymbolRef : callee.getNestedReferences()) {
+      if (result == nullptr) {
+        return nullptr;
+      }
+
+      result = symbolTable.lookupSymbolIn(result, flatSymbolRef.getAttr());
+    }
+
+    return result;
   }
 }
 

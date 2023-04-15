@@ -35,12 +35,13 @@ namespace marco::codegen
 
       mlir::modelica::FunctionOp createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
-          mlir::modelica::DerFunctionOp derFunctionOp,
-          mlir::SymbolTableCollection& symbolTableCollection);
+          mlir::SymbolTableCollection& symbolTableCollection,
+          mlir::modelica::DerFunctionOp derFunctionOp);
 
       mlir::modelica::FunctionOp createPartialDerTemplateFunction(
           mlir::OpBuilder& builder,
           mlir::Location loc,
+          mlir::SymbolTableCollection& symbolTable,
           mlir::modelica::FunctionOp functionOp,
           llvm::StringRef derivedFunctionName);
 
@@ -50,12 +51,14 @@ namespace marco::codegen
       mlir::LogicalResult deriveRegion(
           mlir::OpBuilder& builder,
           mlir::Region& region,
+          mlir::SymbolTableCollection& symbolTable,
           llvm::DenseMap<
               mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
           mlir::BlockAndValueMapping& ssaDerivatives,
           std::function<mlir::ValueRange(
               mlir::OpBuilder&,
               mlir::Operation*,
+              mlir::SymbolTableCollection&,
               const llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&,
               mlir::BlockAndValueMapping&)> deriveFn);
 
@@ -71,6 +74,7 @@ namespace marco::codegen
       mlir::ValueRange createOpPartialDerivative(
           mlir::OpBuilder& builder,
           mlir::Operation* op,
+          mlir::SymbolTableCollection& symbolTable,
           const llvm::DenseMap<
               mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
           mlir::BlockAndValueMapping& ssaDerivatives);
@@ -83,6 +87,7 @@ namespace marco::codegen
       mlir::ValueRange createCallOpPartialDerivative(
           mlir::OpBuilder& builder,
           mlir::modelica::CallOp callOp,
+          mlir::SymbolTableCollection& symbolTable,
           mlir::BlockAndValueMapping& ssaDerivatives);
 
       mlir::ValueRange createTimeOpFullDerivative(

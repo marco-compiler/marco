@@ -8,6 +8,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/RegionUtils.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -22,6 +23,30 @@ namespace mlir
 }
 
 using namespace ::mlir::modelica;
+
+static std::string getFlatName(FunctionOp op)
+{
+  std::string result = op.getSymName().str();
+  mlir::Operation* cls = op->getParentOfType<ClassInterface>();
+
+  while (cls) {
+    result = mlir::cast<mlir::SymbolOpInterface>(cls).getName().str() + "." + result;
+    cls = cls->getParentOfType<ClassInterface>();
+  }
+
+  return result;
+}
+
+static mlir::FlatSymbolRefAttr getFlatName(mlir::SymbolRefAttr symbol)
+{
+  std::string result = symbol.getRootReference().str();
+
+  for (mlir::FlatSymbolRefAttr flatSymbolRef : symbol.getNestedReferences()) {
+    result += "." + flatSymbolRef.getValue().str();
+  }
+
+  return mlir::FlatSymbolRefAttr::get(symbol.getContext(), result);
+}
 
 static bool canBePromoted(ArrayType arrayType)
 {
@@ -432,8 +457,11 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
       }
 
       // Create the raw function.
+      auto moduleOp = op->getParentOfType<mlir::ModuleOp>();
+      rewriter.setInsertionPointToEnd(moduleOp.getBody());
+
       auto rawFunctionOp = rewriter.create<RawFunctionOp>(
-          op.getLoc(), op.getSymName(),
+          op.getLoc(), getFlatName(op),
           rewriter.getFunctionType(argTypes, resultTypes));
 
       // Add the entry block and map the arguments to the input variables.
@@ -1050,6 +1078,24 @@ class CFGLowering : public mlir::OpRewritePattern<FunctionOp>
     bool outputArraysPromotion;
 };
 
+class CallFlattener : public mlir::OpRewritePattern<CallOp>
+{
+  public:
+    using mlir::OpRewritePattern<CallOp>::OpRewritePattern;
+
+    mlir::LogicalResult matchAndRewrite(
+        CallOp op, mlir::PatternRewriter& rewriter) const override
+    {
+      mlir::SymbolRefAttr callee = op.getCallee();
+      mlir::FlatSymbolRefAttr flatCallee = getFlatName(callee);
+
+      rewriter.replaceOpWithNewOp<CallOp>(
+          op, flatCallee, op->getResultTypes(), op.getArgs());
+
+      return mlir::success();
+    }
+};
+
 namespace
 {
   class ModelicaToCFConversionPass
@@ -1071,6 +1117,10 @@ namespace
           return signalPassFailure();
         }
 
+        if (mlir::failed(setFlatCallees(moduleOp))) {
+          return signalPassFailure();
+        }
+
         if (outputArraysPromotion) {
           if (mlir::failed(promoteCallResults(moduleOp))) {
             return signalPassFailure();
@@ -1088,6 +1138,20 @@ namespace
 
         return applyPatternsAndFoldGreedily(
            moduleOp, std::move(patterns), config);
+      }
+
+      mlir::LogicalResult setFlatCallees(mlir::ModuleOp moduleOp)
+      {
+        mlir::ConversionTarget target(getContext());
+
+        target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
+          return op.getCallee().getNestedReferences().empty();
+        });
+
+        mlir::RewritePatternSet patterns(&getContext());
+        patterns.add<CallFlattener>(&getContext());
+
+        return applyPartialConversion(moduleOp, target, std::move(patterns));
       }
 
       mlir::LogicalResult promoteCallResults(mlir::ModuleOp moduleOp)

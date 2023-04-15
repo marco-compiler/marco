@@ -4,15 +4,6 @@
 // CHECK:       modelica.start @y
 // CHECK-NEXT:  %{{.*}} = modelica.constant #modelica.int<[[start_value:.*]]> : !modelica.int
 
-// CHECK:       modelica.equation {
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
-// CHECK-DAG:       %[[y:.*]] = modelica.variable_get @y
-// CHECK:           %[[res:.*]] = modelica.call @Test_algorithm_0(%[[x]]) : (!modelica.int) -> !modelica.int
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[y]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
-
 // CHECK:       @Test_algorithm_0
 // CHECK-DAG:   modelica.variable @x : !modelica.variable<!modelica.int, input>
 // CHECK-DAG:   modelica.variable @y : !modelica.variable<!modelica.int, output>
@@ -23,6 +14,15 @@
 // CHECK:       modelica.algorithm {
 // CHECK-NEXT:      %0 = modelica.variable_get @x
 // CHECK-NEXT:      modelica.variable_set @y, %0
+// CHECK-NEXT:  }
+
+// CHECK:       modelica.equation {
+// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
+// CHECK-DAG:       %[[y:.*]] = modelica.variable_get @y
+// CHECK:           %[[res:.*]] = modelica.call @Test::@Test_algorithm_0(%[[x]]) : (!modelica.int) -> !modelica.int
+// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[y]]
+// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
+// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
 // CHECK-NEXT:  }
 
 modelica.model @Test {
@@ -45,14 +45,6 @@ modelica.model @Test {
 // Derivative inside algorithm.
 
 // CHECK:       @Test
-// CHECK:       modelica.equation {
-// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
-// CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
-// CHECK:           %[[res:.*]] = modelica.call @Test_algorithm_0(%[[der_x]]) : (!modelica.real) -> !modelica.real
-// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x]]
-// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
-// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
-// CHECK-NEXT:  }
 
 // CHECK:       @Test_algorithm_0
 // CHECK-DAG:   modelica.variable @der_x : !modelica.variable<!modelica.real, input>
@@ -61,8 +53,19 @@ modelica.model @Test {
 // CHECK-NEXT:      %0 = modelica.constant #modelica.real<0.000000e+00>
 // CHECK-NEXT:      modelica.yield %0
 // CHECK-NEXT:  }
-// CHECK:       %[[x:.*]] = modelica.variable_get @der_x
-// CHECK:       modelica.variable_set @x, %[[x]]
+// CHECK:       modelica.algorithm {
+// CHECK:           %[[x:.*]] = modelica.variable_get @der_x
+// CHECK:           modelica.variable_set @x, %[[x]]
+// CHECK:       }
+
+// CHECK:       modelica.equation {
+// CHECK-DAG:       %[[x:.*]] = modelica.variable_get @x
+// CHECK-DAG:       %[[der_x:.*]] = modelica.variable_get @der_x
+// CHECK:           %[[res:.*]] = modelica.call @Test::@Test_algorithm_0(%[[der_x]]) : (!modelica.real) -> !modelica.real
+// CHECK-DAG:       %[[lhs:.*]] = modelica.equation_side %[[x]]
+// CHECK-DAG:       %[[rhs:.*]] = modelica.equation_side %[[res]]
+// CHECK:           modelica.equation_sides %[[lhs]], %[[rhs]]
+// CHECK-NEXT:  }
 
 modelica.model @Test {
     modelica.variable @x : !modelica.variable<!modelica.real>

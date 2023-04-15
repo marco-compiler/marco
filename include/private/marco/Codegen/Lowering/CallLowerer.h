@@ -22,6 +22,9 @@ namespace marco::codegen::lowering
       using Lowerer::lower;
 
     private:
+      llvm::Optional<mlir::Operation*> resolveCallee(
+        const ast::ComponentReference& callee);
+
       mlir::Value lowerArg(const ast::Expression& expression);
 
       void lowerArgs(
@@ -48,7 +51,7 @@ namespace marco::codegen::lowering
           llvm::SmallVectorImpl<mlir::Type>& inferredResultTypes) const;
 
       /// Check if a built-in function with a given name exists.
-      bool isBuiltInFunction(llvm::StringRef name) const;
+      bool isBuiltInFunction(const ast::ComponentReference& name) const;
 
       Results dispatchBuiltInFunctionCall(const ast::Call& call);
 

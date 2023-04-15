@@ -42,7 +42,7 @@ namespace marco::codegen::lowering
 
       mlir::Operation* getClass(const ast::Class& cls);
 
-      mlir::SymbolRefAttr getFlatSymbolFromRoot(mlir::Operation* symbol);
+      mlir::SymbolRefAttr getSymbolRefFromRoot(mlir::Operation* symbol);
 
       mlir::Operation* resolveClassName(
           llvm::StringRef name,
@@ -53,6 +53,10 @@ namespace marco::codegen::lowering
           mlir::Operation* lookupScope);
 
       mlir::Operation* resolveTypeFromRoot(mlir::SymbolRefAttr name);
+
+      mlir::Operation* resolveSymbolName(
+          llvm::StringRef name,
+          mlir::Operation* currentScope);
 
       template<typename... T>
       mlir::Operation* resolveSymbolName(

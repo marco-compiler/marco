@@ -113,6 +113,44 @@ namespace
   };
 
   template<typename Op>
+  class ClassInterfaceLowering : public ModelicaOpRewritePattern<Op>
+  {
+    public:
+      using ModelicaOpRewritePattern<Op>::ModelicaOpRewritePattern;
+
+      mlir::LogicalResult matchAndRewrite(
+          Op op, mlir::PatternRewriter& rewriter) const override
+      {
+        rewriter.eraseOp(op);
+        return mlir::success();
+      }
+  };
+
+  class FunctionOpLowering : public ClassInterfaceLowering<FunctionOp>
+  {
+    public:
+      using ClassInterfaceLowering<FunctionOp>::ClassInterfaceLowering;
+  };
+
+  class ModelOpLowering : public ClassInterfaceLowering<ModelOp>
+  {
+    public:
+      using ClassInterfaceLowering<ModelOp>::ClassInterfaceLowering;
+  };
+
+  class PackageOpLowering : public ClassInterfaceLowering<PackageOp>
+  {
+    public:
+      using ClassInterfaceLowering<PackageOp>::ClassInterfaceLowering;
+  };
+
+  class RecordOpLowering : public ClassInterfaceLowering<RecordOp>
+  {
+    public:
+      using ClassInterfaceLowering<RecordOp>::ClassInterfaceLowering;
+  };
+
+  template<typename Op>
   class RuntimeOpConversionPattern : public ModelicaOpConversionPattern<Op>
   {
     public:
@@ -3221,6 +3259,12 @@ namespace
 
       void runOnOperation() override
       {
+        if (mlir::failed(eraseObjectOrientation())) {
+          mlir::emitError(getOperation().getLoc(),
+                          "Error in erasing object-orientation");
+          return signalPassFailure();
+        }
+
         if (mlir::failed(convertBuiltInFunctions())) {
           mlir::emitError(getOperation().getLoc(),
                           "Error in converting the Modelica built-in functions");
@@ -3248,6 +3292,28 @@ namespace
       }
 
     private:
+      mlir::LogicalResult eraseObjectOrientation()
+      {
+        auto moduleOp = getOperation();
+        mlir::ConversionTarget target(getContext());
+
+        target.addIllegalOp<
+            FunctionOp,
+            ModelOp,
+            PackageOp,
+            RecordOp>();
+
+        mlir::RewritePatternSet patterns(&getContext());
+
+        patterns.insert<
+            FunctionOpLowering,
+            ModelOpLowering,
+            PackageOpLowering,
+            RecordOpLowering>(&getContext());
+
+        return applyPartialConversion(moduleOp, target, std::move(patterns));
+      }
+
       mlir::LogicalResult convertBuiltInFunctions()
       {
         auto module = getOperation();
@@ -3316,7 +3382,7 @@ namespace
 
       mlir::LogicalResult convertRawFunctions()
       {
-        auto module = getOperation();
+        auto moduleOp = getOperation();
         mlir::ConversionTarget target(getContext());
 
         // Create an instance of the symbol table in order to reduce the cost
@@ -3333,12 +3399,7 @@ namespace
         target.addIllegalOp<RawFunctionOp, RawReturnOp>();
 
         target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-          auto module = op->getParentOfType<mlir::ModuleOp>();
-
-          auto calleeName =
-              mlir::StringAttr::get(op.getContext(), op.getCallee());
-
-          auto calleeOp = symbolTable.lookupSymbolIn(module, calleeName);
+          auto calleeOp = op.getFunction(moduleOp, symbolTable);
           return calleeOp && mlir::isa<RuntimeFunctionOp>(calleeOp);
         });
 
@@ -3348,7 +3409,7 @@ namespace
         populateModelicaToFuncPatterns(
             patterns, &getContext(), typeConverter, assertions);
 
-        return applyPartialConversion(module, target, std::move(patterns));
+        return applyPartialConversion(moduleOp, target, std::move(patterns));
       }
 
       mlir::LogicalResult convertRawVariables()
@@ -3412,7 +3473,8 @@ namespace mlir
     return std::make_unique<ModelicaToFuncConversionPass>();
   }
 
-  std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass(const ModelicaToFuncConversionPassOptions& options)
+  std::unique_ptr<mlir::Pass> createModelicaToFuncConversionPass(
+      const ModelicaToFuncConversionPassOptions& options)
   {
     return std::make_unique<ModelicaToFuncConversionPass>(options);
   }

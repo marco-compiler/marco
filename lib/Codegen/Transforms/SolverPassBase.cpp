@@ -283,9 +283,6 @@ namespace mlir::modelica::impl
       return mlir::failure();
     }
 
-    // Erase the model operation, which has been converted to algorithmic code.
-    modelOp.erase();
-
     return mlir::success();
   }
 
@@ -629,10 +626,10 @@ namespace
 
       void runOnOperation() override
       {
-        mlir::ModuleOp module = getOperation();
+        mlir::ModuleOp moduleOp = getOperation();
         std::vector<ModelOp> modelOps;
 
-        module.walk([&](ModelOp modelOp) {
+        moduleOp.walk([&](ModelOp modelOp) {
           modelOps.push_back(modelOp);
         });
 

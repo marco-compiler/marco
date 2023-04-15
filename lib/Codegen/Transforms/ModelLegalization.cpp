@@ -862,7 +862,6 @@ namespace
 
         auto algorithmInt = mlir::cast<AlgorithmInterface>(op.getOperation());
         auto modelOp = algorithmInt->template getParentOfType<ModelOp>();
-        auto moduleOp = modelOp->template getParentOfType<mlir::ModuleOp>();
 
         // Determine the read and written variables.
         llvm::DenseSet<VariableOp> readVariables;
@@ -910,7 +909,7 @@ namespace
         std::string functionName = getFunctionName(modelOp);
 
         // Create the function.
-        rewriter.setInsertionPointToEnd(moduleOp.getBody());
+        rewriter.setInsertionPointToEnd(modelOp.bodyBlock());
 
         auto functionOp = rewriter.create<FunctionOp>(loc, functionName);
 
@@ -1009,9 +1008,7 @@ namespace
         }
 
         auto callOp = rewriter.create<CallOp>(
-            loc, functionName,
-            mlir::ValueRange(outputVariableGetOps).getTypes(),
-            inputVariableGetOps);
+            loc, functionOp, inputVariableGetOps);
 
         mlir::Value lhs = rewriter.create<EquationSideOp>(
             loc, outputVariableGetOps);

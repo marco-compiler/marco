@@ -69,7 +69,7 @@ namespace marco::codegen
   mlir::LogicalResult ForwardAD::createFullDerFunction(
       mlir::OpBuilder& builder,
       FunctionOp functionOp,
-      mlir::SymbolTableCollection& symbolTableCollection)
+      mlir::SymbolTableCollection& symbolTable)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -79,13 +79,14 @@ namespace marco::codegen
     unsigned int order = derivativeAttribute.getOrder();
 
     // Check if the derivative is already existing.
-    auto module = functionOp->getParentOfType<mlir::ModuleOp>();
+    auto moduleOp = functionOp->getParentOfType<mlir::ModuleOp>();
 
-    mlir::SymbolTable& moduleSymbolTable =
-        symbolTableCollection.getSymbolTable(module.getOperation());
+    mlir::Operation* symbolTableOp =
+        functionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-    if (auto derSymbol =
-            moduleSymbolTable.lookup(derivativeAttribute.getName())) {
+    if (auto derSymbol = symbolTable.lookupSymbolIn(
+            symbolTableOp,
+            builder.getStringAttr(derivativeAttribute.getName()))) {
       // If the source already provides a symbol with the derived function
       // name, then check that it is a function. If it is, then it means the
       // user manually provided the derivative.
@@ -94,7 +95,7 @@ namespace marco::codegen
 
     // Map the existing derivative relationships among the variables.
     llvm::DenseMap<mlir::StringAttr, mlir::StringAttr> variableDerivatives;
-    mapFullDerivatives(functionOp, symbolTableCollection, variableDerivatives);
+    mapFullDerivatives(functionOp, symbolTable, variableDerivatives);
 
     // Create the derived function.
     builder.setInsertionPointAfter(functionOp);
@@ -103,14 +104,12 @@ namespace marco::codegen
         functionOp.getLoc(),
         derivativeAttribute.getName());
 
-    moduleSymbolTable.insert(derivedFunctionOp.getOperation());
+    symbolTable.getSymbolTable(symbolTableOp).insert(
+        derivedFunctionOp.getOperation());
 
     // Start the body of the function.
     builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
     mlir::BlockAndValueMapping mapping;
-
-    mlir::SymbolTable& derFunctionSymbolTable =
-        symbolTableCollection.getSymbolTable(derivedFunctionOp.getOperation());
 
     // Clone the original variables, with the output ones being converted to
     // protected ones. At the same time, determine the names and the types of
@@ -119,7 +118,9 @@ namespace marco::codegen
       auto clonedVariableOp = mlir::cast<VariableOp>(
           builder.clone(*variableOp.getOperation(), mapping));
 
-      derFunctionSymbolTable.insert(clonedVariableOp);
+      symbolTable.getSymbolTable(derivedFunctionOp.getOperation())
+          .insert(clonedVariableOp);
+
       VariableType variableType = clonedVariableOp.getVariableType();
 
       if (variableType.isOutput()) {
@@ -191,8 +192,8 @@ namespace marco::codegen
           for (const auto& [name, type] : llvm::zip(derNames, derTypes)) {
             auto baseVariableName = inverseDerivativesNamesMap[name];
 
-            auto baseVariable =
-                derFunctionSymbolTable.lookup<VariableOp>(baseVariableName);
+            auto baseVariable = symbolTable.lookupSymbolIn<VariableOp>(
+                derivedFunctionOp, builder.getStringAttr(baseVariableName));
 
             auto clonedOp = mlir::cast<VariableOp>(
                 builder.clone(*baseVariable.getOperation(), mapping));
@@ -200,7 +201,8 @@ namespace marco::codegen
             clonedOp.setSymName(name);
             clonedOp.setType(type);
 
-            derFunctionSymbolTable.insert(clonedOp.getOperation());
+            symbolTable.getSymbolTable(derivedFunctionOp)
+                .insert(clonedOp.getOperation());
           }
         };
 
@@ -210,8 +212,7 @@ namespace marco::codegen
 
     variableDerivatives.clear();
 
-    mapFullDerivatives(
-        derivedFunctionOp, symbolTableCollection, variableDerivatives);
+    mapFullDerivatives(derivedFunctionOp, symbolTable, variableDerivatives);
 
     // Clone the other operations. In the meanwhile, collect the algorithms
     // whose operations have to be derived.
@@ -236,15 +237,18 @@ namespace marco::codegen
       auto deriveFn =
           [this](mlir::OpBuilder& builder,
                  mlir::Operation* op,
+                 mlir::SymbolTableCollection& symbolTable,
                  const llvm::DenseMap<
                      mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
-                 mlir::BlockAndValueMapping& ssaDerivatives) -> mlir::ValueRange {
+                 mlir::BlockAndValueMapping& ssaDerivatives)
+          -> mlir::ValueRange {
             return createOpFullDerivative(
                 builder, op, symbolDerivatives, ssaDerivatives);
           };
 
       mlir::LogicalResult res = deriveRegion(
           builder, algorithmOp.getBodyRegion(),
+          symbolTable,
           variableDerivatives, ssaDerivatives,
           deriveFn);
 
@@ -259,12 +263,12 @@ namespace marco::codegen
   mlir::LogicalResult ForwardAD::convertPartialDerFunction(
       mlir::OpBuilder& builder,
       DerFunctionOp derFunctionOp,
-      mlir::SymbolTableCollection& symbolTableCollection)
+      mlir::SymbolTableCollection& symbolTable)
   {
     mlir::OpBuilder::InsertionGuard guard(builder);
 
     auto templateFunction = createPartialDerTemplateFunction(
-        builder, derFunctionOp, symbolTableCollection);
+        builder, symbolTable, derFunctionOp);
 
     if (templateFunction == nullptr) {
       // The template function could not be generated.
@@ -280,11 +284,12 @@ namespace marco::codegen
     mlir::Location loc = derFunctionOp.getLoc();
     auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-    mlir::SymbolTable& symbolTable =
-        symbolTableCollection.getSymbolTable(module.getOperation());
+    mlir::Operation* parentSymbolTable =
+        derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-    auto baseFunctionOp = symbolTable.lookup<FunctionOp>(
-        derFunctionOp.getDerivedFunction());
+    auto baseFunctionOp = symbolTable.lookupSymbolIn<FunctionOp>(
+        parentSymbolTable,
+        builder.getStringAttr(derFunctionOp.getDerivedFunction()));
 
     // Create the derived function.
     builder.setInsertionPointAfter(derFunctionOp);
@@ -292,7 +297,8 @@ namespace marco::codegen
     auto derivedFunctionOp = builder.create<FunctionOp>(
         derFunctionOp.getLoc(), derFunctionOp.getSymName());
 
-    partialDersTemplateCallers[derivedFunctionOp.getSymName()] = templateFunction;
+    partialDersTemplateCallers[derivedFunctionOp.getSymName()] =
+        templateFunction;
 
     builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
 
@@ -418,24 +424,25 @@ namespace marco::codegen
       builder.create<VariableSetOp>(loc, variable.getSymName(), result);
     }
 
-    symbolTable.erase(derFunctionOp.getOperation());
-    symbolTable.insert(derivedFunctionOp.getOperation());
+    symbolTable.getSymbolTable(parentSymbolTable).erase(derFunctionOp);
+    symbolTable.getSymbolTable(parentSymbolTable).insert(derivedFunctionOp);
 
     return mlir::success();
   }
 
   FunctionOp ForwardAD::createPartialDerTemplateFunction(
       mlir::OpBuilder& builder,
-      DerFunctionOp derFunctionOp,
-      mlir::SymbolTableCollection& symbolTableCollection)
+      mlir::SymbolTableCollection& symbolTable,
+      DerFunctionOp derFunctionOp)
   {
-    auto module = derFunctionOp->getParentOfType<mlir::ModuleOp>();
+    auto moduleOp = derFunctionOp->getParentOfType<mlir::ModuleOp>();
 
-    mlir::SymbolTable& symbolTable =
-        symbolTableCollection.getSymbolTable(module.getOperation());
+    mlir::Operation* parentSymbolTable =
+        derFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
 
-    FunctionOp functionOp =
-        symbolTable.lookup<FunctionOp>(derFunctionOp.getDerivedFunction());
+    FunctionOp functionOp = symbolTable.lookupSymbolIn<FunctionOp>(
+        parentSymbolTable,
+        builder.getStringAttr(derFunctionOp.getDerivedFunction()));
 
     if (auto it = partialDersTemplateCallers.find(functionOp.getSymName());
         it != partialDersTemplateCallers.end()) {
@@ -447,13 +454,15 @@ namespace marco::codegen
 
     for (size_t i = 0; i < derFunctionOp.getIndependentVars().size(); ++i) {
       auto derTemplate = createPartialDerTemplateFunction(
-          builder, derFunctionOp.getLoc(), functionOp, derivedFunctionName);
+          builder, derFunctionOp.getLoc(), symbolTable,
+          functionOp, derivedFunctionName);
 
       if (derTemplate == nullptr) {
         return nullptr;
       }
 
-      symbolTable.insert(derTemplate.getOperation());
+      symbolTable.getSymbolTable(parentSymbolTable)
+          .insert(derTemplate.getOperation());
 
       partialDerTemplates[derTemplate.getSymName()] = functionOp;
       functionOp = derTemplate;
@@ -466,6 +475,7 @@ namespace marco::codegen
   FunctionOp ForwardAD::createPartialDerTemplateFunction(
       mlir::OpBuilder& builder,
       mlir::Location loc,
+      mlir::SymbolTableCollection& symbolTable,
       FunctionOp functionOp,
       llvm::StringRef derivedFunctionName)
   {
@@ -482,6 +492,11 @@ namespace marco::codegen
     // Create the derived function.
     auto derivedFunctionOp = builder.create<FunctionOp>(
         functionOp.getLoc(), derivedFunctionName);
+
+    mlir::Operation* parentSymbolTable =
+        derivedFunctionOp->getParentWithTrait<mlir::OpTrait::SymbolTable>();
+
+    symbolTable.getSymbolTable(parentSymbolTable).insert(derivedFunctionOp);
 
     // Start the body of the function.
     builder.setInsertionPointToStart(derivedFunctionOp.bodyBlock());
@@ -536,15 +551,18 @@ namespace marco::codegen
         auto deriveFn =
             [this](mlir::OpBuilder& nestedBuilder,
                 mlir::Operation* op,
+                mlir::SymbolTableCollection& symbolTable,
                 const llvm::DenseMap<
                     mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
                 mlir::BlockAndValueMapping& ssaDerivatives) {
               return createOpPartialDerivative(
-                  nestedBuilder, op, symbolDerivatives, ssaDerivatives);
+                  nestedBuilder, op, symbolTable,
+                  symbolDerivatives, ssaDerivatives);
         };
 
         if (mlir::failed(deriveRegion(
                 builder, algorithmOp.getBodyRegion(),
+                symbolTable,
                 varDerMap, ssaDerMap,
                 deriveFn))) {
           return nullptr;
@@ -573,11 +591,13 @@ namespace marco::codegen
   mlir::LogicalResult ForwardAD::deriveRegion(
       mlir::OpBuilder& builder,
       mlir::Region& region,
+      mlir::SymbolTableCollection& symbolTable,
       llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
       mlir::BlockAndValueMapping& ssaDerivatives,
       std::function<mlir::ValueRange(
           mlir::OpBuilder&,
           mlir::Operation*,
+          mlir::SymbolTableCollection&,
           const llvm::DenseMap<mlir::StringAttr, mlir::StringAttr>&,
           mlir::BlockAndValueMapping&)> deriveFn)
   {
@@ -596,8 +616,8 @@ namespace marco::codegen
       builder.setInsertionPointAfter(op);
 
       if (isDerivable(op) && !isDerived(op)) {
-        mlir::ValueRange derivedValues =
-            deriveFn(builder, op, symbolDerivatives, ssaDerivatives);
+        mlir::ValueRange derivedValues = deriveFn(
+            builder, op, symbolTable, symbolDerivatives, ssaDerivatives);
 
         assert(op->getNumResults() == derivedValues.size());
         setAsDerived(op);
@@ -661,12 +681,14 @@ namespace marco::codegen
   mlir::ValueRange ForwardAD::createOpPartialDerivative(
       mlir::OpBuilder& builder,
       mlir::Operation* op,
+      mlir::SymbolTableCollection& symbolTable,
       const llvm::DenseMap<
           mlir::StringAttr, mlir::StringAttr>& symbolDerivatives,
       mlir::BlockAndValueMapping& ssaDerivatives)
   {
     if (auto callOp = mlir::dyn_cast<CallOp>(op)) {
-      return createCallOpPartialDerivative(builder, callOp, ssaDerivatives);
+      return createCallOpPartialDerivative(
+          builder, callOp, symbolTable, ssaDerivatives);
     }
 
     if (auto timeOp = mlir::dyn_cast<TimeOp>(op)) {
@@ -693,13 +715,15 @@ namespace marco::codegen
   mlir::ValueRange ForwardAD::createCallOpPartialDerivative(
       mlir::OpBuilder& builder,
       CallOp callOp,
+      mlir::SymbolTableCollection& symbolTable,
       mlir::BlockAndValueMapping& ssaDerivatives)
   {
-    auto loc = callOp.getLoc();
+    mlir::Location loc = callOp.getLoc();
     auto moduleOp = callOp->getParentOfType<mlir::ModuleOp>();
     auto callee = moduleOp.lookupSymbol<FunctionOp>(callOp.getCallee());
 
-    std::string derivedFunctionName = "call_pder_" + callOp.getCallee().str();
+    std::string derivedFunctionName =
+        "call_pder_" + callOp.getCallee().getLeafReference().getValue().str();
 
     llvm::SmallVector<mlir::Value, 3> args;
 
@@ -717,7 +741,7 @@ namespace marco::codegen
     }
 
     auto derTemplate = createPartialDerTemplateFunction(
-        builder, loc, callee, derivedFunctionName);
+        builder, loc, symbolTable, callee, derivedFunctionName);
 
     return builder.create<CallOp>(loc, derTemplate, args)->getResults();
   }

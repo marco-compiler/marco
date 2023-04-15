@@ -3370,37 +3370,20 @@ def Modelica_CallOp : Modelica_Op<"call",
         ```
     }];
 
-    let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AnyType>:$args);
+    let arguments = (ins SymbolRefAttr:$callee, Variadic<AnyType>:$args);
     let results = (outs Variadic<AnyType>);
 
     let assemblyFormat = [{
         $callee `(` $args `)` attr-dict `:` functional-type($args, results)
     }];
 
+    let skipDefaultBuilders = 1;
+
     let builders = [
-        OpBuilder<(ins "FunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
-            $_state.addOperands(args);
-            $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
-            $_state.addTypes(callee.getResultTypes());
-        }]>,
-        OpBuilder<(ins "RawFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
-            $_state.addOperands(args);
-            $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
-            $_state.addTypes(callee.getFunctionType().getResults());
-        }]>,
-        OpBuilder<(ins "RuntimeFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args), [{
-            $_state.addOperands(args);
-            $_state.addAttribute("callee", SymbolRefAttr::get($_builder.getContext(), callee.getSymName()));
-            $_state.addTypes(callee.getFunctionType().getResults());
-        }]>,
-        OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::TypeRange":$results, CArg<"mlir::ValueRange", "{}">:$args), [{
-            $_state.addOperands(args);
-            $_state.addAttribute("callee", callee);
-            $_state.addTypes(results);
-        }]>,
-        OpBuilder<(ins "llvm::StringRef":$callee, "mlir::TypeRange":$results, CArg<"mlir::ValueRange", "{}">:$args), [{
-            build($_builder, $_state, SymbolRefAttr::get($_builder.getContext(), callee), results, args);
-        }]>
+        OpBuilder<(ins "FunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins "RawFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins "RuntimeFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::TypeRange":$results, CArg<"mlir::ValueRange", "{}">:$args)>
     ];
 
     let extraClassDeclaration = [{
@@ -3428,6 +3411,9 @@ def Modelica_CallOp : Modelica_Op<"call",
         }
 
         /// }
+
+        mlir::Operation* getFunction(
+            mlir::ModuleOp moduleOp, mlir::SymbolTableCollection& symbolTable);
     }];
 }
 

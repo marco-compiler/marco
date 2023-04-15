@@ -79,7 +79,7 @@ namespace marco::codegen::lowering
     return result;
   }
 
-  mlir::SymbolRefAttr Lowerer::getFlatSymbolFromRoot(mlir::Operation* symbol)
+  mlir::SymbolRefAttr Lowerer::getSymbolRefFromRoot(mlir::Operation* symbol)
   {
     llvm::SmallVector<mlir::FlatSymbolRefAttr> flatSymbolAttrs;
 
@@ -152,6 +152,15 @@ namespace marco::codegen::lowering
     }
 
     return scope;
+  }
+
+  mlir::Operation* Lowerer::resolveSymbolName(
+      llvm::StringRef name,
+      mlir::Operation* currentScope)
+  {
+    return resolveSymbolName(name, currentScope, [](mlir::Operation* op) {
+      return true;
+    });
   }
 
   mlir::Operation* Lowerer::resolveSymbolName(

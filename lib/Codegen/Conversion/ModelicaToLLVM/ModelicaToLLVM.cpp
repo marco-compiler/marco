@@ -218,7 +218,7 @@ namespace
       }
 
       rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(
-          op, resultTypes, op.getCallee(), args);
+          op, resultTypes, op.getCallee().getLeafReference(), args);
 
       return mlir::success();
     }
@@ -312,16 +312,11 @@ namespace
 mlir::LogicalResult ModelicaToLLVMConversionPass::convertCallOps()
 {
   auto moduleOp = getOperation();
-  mlir::SymbolTableCollection symbolTableCollection;
+  mlir::SymbolTableCollection symbolTable;
   mlir::ConversionTarget target(getContext());
 
   target.addDynamicallyLegalOp<CallOp>([&](CallOp op) {
-    auto module = op->getParentOfType<mlir::ModuleOp>();
-
-    mlir::SymbolTable& symbolTable =
-        symbolTableCollection.getSymbolTable(moduleOp);
-
-    mlir::Operation* callee = symbolTable.lookup(op.getCallee());
+    mlir::Operation* callee = op.getFunction(moduleOp, symbolTable);
     return !mlir::isa<RuntimeFunctionOp>(callee);
   });
 

@@ -41,11 +41,6 @@ namespace marco::codegen::lowering
           const ast::VariableType& type,
           const ast::TypePrefix& typePrefix);
 
-      /*
-      mlir::SymbolRefAttr getTypeSymbolRefAttr(
-          const ast::UserDefinedType& type);
-          */
-
       void lowerVariableDimensionConstraints(
           mlir::SymbolTable& symbolTable,
           const ast::Member& variable);

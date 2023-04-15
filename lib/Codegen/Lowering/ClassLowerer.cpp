@@ -167,7 +167,7 @@ namespace marco::codegen::lowering
 
       if (mlir::isa<RecordOp>(symbolOp)) {
         baseType = RecordType::get(
-            builder().getContext(), getFlatSymbolFromRoot(symbolOp));
+            builder().getContext(), getSymbolRefFromRoot(symbolOp));
       } else {
         llvm_unreachable("Unknown variable type");
         return nullptr;
@@ -196,22 +196,6 @@ namespace marco::codegen::lowering
 
     return VariableType::get(shape, baseType, variabilityProperty, ioProperty);
   }
-
-  /*
-  mlir::SymbolRefAttr ClassLowerer::getTypeSymbolRefAttr(
-      const ast::UserDefinedType& type)
-  {
-    llvm::SmallVector<mlir::FlatSymbolRefAttr> nestedRefs;
-
-    for (size_t i = 1, e = type.getPathLength(); i < e; ++i) {
-      nestedRefs.push_back(mlir::SymbolRefAttr::get(
-          builder().getContext(), type.getElement(i)));
-    }
-
-    return mlir::SymbolRefAttr::get(
-        builder().getContext(), type.getElement(0), nestedRefs);
-  }
-   */
 
   void ClassLowerer::lowerClassBody(const ast::Class& cls)
   {
