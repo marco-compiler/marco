@@ -148,6 +148,28 @@ def UnrankedArrayType : Modelica_Type<"UnrankedArray",
     let genVerifyDecl = 1;
 }
 
+def Modelica_RecordType : Modelica_Type<"Record", []>
+{
+    let summary = "Record type";
+    let mnemonic = "record";
+
+    let description = [{
+        Record type.
+    }];
+
+    let parameters = (ins
+        AttrParameter<"mlir::SymbolRefAttr", "Name">:$name
+    );
+
+    let assemblyFormat = "`<` $name `>`";
+
+    let extraClassDeclaration = [{
+        mlir::Operation* getRecordOp(
+            mlir::SymbolTableCollection& symbolTable,
+            mlir::ModuleOp moduleOp);
+    }];
+}
+
 def VariableType : Modelica_Type<"Variable",
     [DeclareTypeInterfaceMethods<SubElementTypeInterface>,
     DeclareTypeInterfaceMethods<ShapedTypeInterface>]>
@@ -259,22 +281,6 @@ def VariableType : Modelica_Type<"Variable",
     }];
 
     let genVerifyDecl = 1;
-}
-
-def Modelica_RecordType : Modelica_Type<"Record", []>
-{
-    let summary = "Record type";
-    let mnemonic = "record";
-
-    let description = [{
-        Record type.
-    }];
-
-    let parameters = (ins
-        AttrParameter<"mlir::SymbolRefAttr", "Name">:$name
-    );
-
-    let assemblyFormat = "`<` $name `>`";
 }
 
 #endif // MARCO_DIALECTS_MODELICA_MODELICATYPES_TD

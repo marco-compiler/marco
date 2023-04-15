@@ -383,6 +383,29 @@ namespace mlir::modelica
   }
 
   //===-------------------------------------------------------------------===//
+  // RecordType
+  //===-------------------------------------------------------------------===//
+
+  mlir::Operation* RecordType::getRecordOp(
+      mlir::SymbolTableCollection& symbolTable,
+      mlir::ModuleOp moduleOp)
+  {
+    mlir::Operation* result = moduleOp.getOperation();
+    result = symbolTable.lookupSymbolIn(result, getName().getRootReference());
+
+    for (mlir::FlatSymbolRefAttr flatSymbolRef :
+         getName().getNestedReferences()) {
+      if (result == nullptr) {
+        return nullptr;
+      }
+
+      result = symbolTable.lookupSymbolIn(result, flatSymbolRef.getAttr());
+    }
+
+    return result;
+  }
+
+  //===-------------------------------------------------------------------===//
   // VariableType
   //===-------------------------------------------------------------------===//
 
