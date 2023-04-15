@@ -109,7 +109,7 @@ TEST(Parser, rawValue_string)
 
 TEST(Parser, identifier)
 {
-  std::string str = "x.y";
+  std::string str = "x";
 
   DiagnosticEngine diagnostics(std::make_unique<Printer>());
   auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
@@ -122,9 +122,39 @@ TEST(Parser, identifier)
   EXPECT_EQ(node->getLocation().begin.column, 1);
 
   EXPECT_EQ(node->getLocation().end.line, 1);
-  EXPECT_EQ(node->getLocation().end.column, 3);
+  EXPECT_EQ(node->getLocation().end.column, 1);
 
-  EXPECT_EQ(node->getValue(), "x.y");
+  EXPECT_EQ(node->getValue(), "x");
+}
+
+TEST(Parser, componentReference)
+{
+  std::string str = "x.y.z";
+
+  DiagnosticEngine diagnostics(std::make_unique<Printer>());
+  auto sourceFile = std::make_shared<SourceFile>("-", llvm::MemoryBuffer::getMemBuffer(str));
+  Parser parser(diagnostics, sourceFile);
+
+  auto node = parser.parseComponentReference();
+  ASSERT_TRUE(node.has_value());
+
+  EXPECT_EQ((*node)->getLocation().begin.line, 1);
+  EXPECT_EQ((*node)->getLocation().begin.column, 1);
+
+  EXPECT_EQ((*node)->getLocation().end.line, 1);
+  EXPECT_EQ((*node)->getLocation().end.column, 5);
+
+  ASSERT_TRUE((*node)->isa<ComponentReference>());
+  ASSERT_EQ((*node)->cast<ComponentReference>()->getPathLength(), 3);
+
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getName(), "x");
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
+
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(1)->getName(), "y");
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(1)->getNumOfSubscripts(), 0);
+
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(2)->getName(), "z");
+  EXPECT_EQ((*node)->cast<ComponentReference>()->getElement(2)->getNumOfSubscripts(), 0);
 }
 
 TEST(Parser, algorithm_emptyBody)
@@ -1118,7 +1148,7 @@ TEST(Parser, expression_multiplicationAndDivision)
   auto* y = multiplication->getArgument(1);
   ASSERT_TRUE(y->isa<ast::ComponentReference>());
   EXPECT_EQ(y->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "xy");
+  EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getName(), "y");
   EXPECT_EQ(y->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 }
 
@@ -1354,9 +1384,6 @@ TEST(Parser, expression_subscription)
   EXPECT_EQ((*node)->getLocation().end.line, 1);
   EXPECT_EQ((*node)->getLocation().end.column, 10);
 
-  ASSERT_TRUE((*node)->isa<Operation>());
-  auto args =(*node)->cast<Operation>()->getArguments();
-
   ASSERT_TRUE((*node)->isa<ast::ComponentReference>());
 
   EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getPathLength(), 1);
@@ -1366,10 +1393,13 @@ TEST(Parser, expression_subscription)
   ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(0)->isa<Constant>());
   EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(0)->cast<Constant>()->as<int64_t>(), 3);
 
-  ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(2)->isa<ast::ComponentReference>());
+  ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->isa<ast::ComponentReference>());
+  ASSERT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->cast<ast::ComponentReference>()->getPathLength(), 1);
+  ASSERT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->cast<ast::ComponentReference>()->getElement(0)->getName(), "i");
+  ASSERT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(1)->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   ASSERT_TRUE((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(2)->isa<Constant>());
-  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(2)->cast<Constant>()->as<int64_t>(), 3);
+  EXPECT_EQ((*node)->cast<ast::ComponentReference>()->getElement(0)->getSubscript(2)->cast<Constant>()->as<int64_t>(), -1);
 }
 
 TEST(Parser, expression_subscriptionOfInlineArray)
@@ -1472,7 +1502,7 @@ TEST(Parser, expression_functionCall_withArgs)
 
   ASSERT_TRUE(call->getCallee()->isa<ast::ComponentReference>());
   EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getPathLength(), 1);
-  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "Foo");
+  EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getName(), "foo");
   EXPECT_EQ(call->getCallee()->cast<ast::ComponentReference>()->getElement(0)->getNumOfSubscripts(), 0);
 
   auto args = call->getArguments();
