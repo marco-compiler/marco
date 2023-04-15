@@ -92,14 +92,6 @@ namespace marco::parser
     std::string identifier = lexer.getIdentifier();
     EXPECT(Token::Identifier);
 
-    /*
-    while (accept<Token::Dot>()) {
-      identifier += "." + lexer.getIdentifier();
-      loc.end = lexer.getTokenPosition().end;
-      EXPECT(Token::Identifier);
-    }
-     */
-
     return ValueWrapper(loc, std::move(identifier));
   }
 
