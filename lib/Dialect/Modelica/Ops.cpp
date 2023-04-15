@@ -955,6 +955,16 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  void VariableGetOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      VariableOp variableOp)
+  {
+    auto variableType = variableOp.getVariableType();
+    auto variableName = variableOp.getSymName();
+    build(builder, state, variableType, variableName);
+  }
+
   mlir::LogicalResult VariableGetOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTableCollection)
   {
@@ -1016,6 +1026,16 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
+  void VariableSetOp::build(
+      mlir::OpBuilder& builder,
+      mlir::OperationState& state,
+      VariableOp variableOp,
+      mlir::Value value)
+  {
+    auto variableName = variableOp.getSymName();
+    build(builder, state, variableName, value);
+  }
+
   mlir::LogicalResult VariableSetOp::verifySymbolUses(
       mlir::SymbolTableCollection& symbolTableCollection)
   {

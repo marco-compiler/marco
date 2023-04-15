@@ -721,6 +721,10 @@ def Modelica_VariableGetOp : Modelica_Op<"variable_get",
     let assemblyFormat = [{
         $variable attr-dict `:` type($result)
     }];
+
+    let builders = [
+        OpBuilder<(ins "VariableOp":$variableOp)>
+    ];
 }
 
 def Modelica_VariableSetOp : Modelica_Op<"variable_set",
@@ -739,6 +743,10 @@ def Modelica_VariableSetOp : Modelica_Op<"variable_set",
     let assemblyFormat = [{
         $variable `,` $value attr-dict `:` type($value)
     }];
+
+    let builders = [
+        OpBuilder<(ins "VariableOp":$variableOp, "mlir::Value":$value)>
+    ];
 }
 
 def Modelica_ComponentGetOp : Modelica_Op<"component_get",
