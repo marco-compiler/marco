@@ -8048,7 +8048,6 @@ namespace mlir::modelica
   {
     printer << " ";
     printer.printSymbolName(getSymName());
-    printer << " ";
 
     llvm::SmallVector<llvm::StringRef, 1> elidedAttrs;
     elidedAttrs.push_back(mlir::SymbolTable::getSymbolAttrName());
@@ -8056,6 +8055,7 @@ namespace mlir::modelica
     printer.printOptionalAttrDictWithKeyword(
         getOperation()->getAttrs(), elidedAttrs);
 
+    printer << " ";
     printer.printRegion(getBody());
   }
 
