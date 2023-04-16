@@ -2996,6 +2996,11 @@ def Modelica_FunctionOp : Modelica_Op<"function",
             return getOps<VariableOp>();
         }
 
+        auto getDefaultValues()
+        {
+            return getOps<DefaultOp>();
+        }
+
         bool shouldBeInlined();
 
         /// Returns the argument types of this function.
@@ -3378,20 +3383,35 @@ def Modelica_CallOp : Modelica_Op<"call",
         ```
     }];
 
-    let arguments = (ins SymbolRefAttr:$callee, Variadic<AnyType>:$args);
+    let arguments = (ins
+        SymbolRefAttr:$callee,
+        Variadic<AnyType>:$args,
+        OptionalAttr<FlatSymbolRefArrayAttr>:$argNames);
+
     let results = (outs Variadic<AnyType>);
 
     let assemblyFormat = [{
-        $callee `(` $args `)` attr-dict `:` functional-type($args, results)
+        $callee `(` $args `)` ($argNames^)? attr-dict `:` functional-type($args, results)
     }];
 
     let skipDefaultBuilders = 1;
 
     let builders = [
-        OpBuilder<(ins "FunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
-        OpBuilder<(ins "RawFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
-        OpBuilder<(ins "RuntimeFunctionOp":$callee, CArg<"mlir::ValueRange", "{}">:$args)>,
-        OpBuilder<(ins "mlir::SymbolRefAttr":$callee, "mlir::TypeRange":$results, CArg<"mlir::ValueRange", "{}">:$args)>
+        OpBuilder<(ins
+            "FunctionOp":$callee,
+            CArg<"mlir::ValueRange", "{}">:$args,
+            CArg<"llvm::Optional<mlir::ArrayAttr>", "llvm::None">:$argNames)>,
+        OpBuilder<(ins
+            "RawFunctionOp":$callee,
+            CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins
+            "RuntimeFunctionOp":$callee,
+            CArg<"mlir::ValueRange", "{}">:$args)>,
+        OpBuilder<(ins
+            "mlir::SymbolRefAttr":$callee,
+            "mlir::TypeRange":$results,
+            CArg<"mlir::ValueRange", "{}">:$args,
+            CArg<"llvm::Optional<mlir::ArrayAttr>", "llvm::None">:$argNames)>
     ];
 
     let extraClassDeclaration = [{

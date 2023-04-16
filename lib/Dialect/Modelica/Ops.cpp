@@ -8632,10 +8632,11 @@ namespace mlir::modelica
       mlir::OpBuilder& builder,
       mlir::OperationState& state,
       FunctionOp callee,
-      mlir::ValueRange args)
+      mlir::ValueRange args,
+      llvm::Optional<mlir::ArrayAttr> argNames)
   {
     mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(callee);
-    build(builder, state, symbol, callee.getResultTypes(), args);
+    build(builder, state, symbol, callee.getResultTypes(), args, argNames);
   }
 
   void CallOp::build(
@@ -8663,10 +8664,16 @@ namespace mlir::modelica
       mlir::OperationState& state,
       mlir::SymbolRefAttr callee,
       mlir::TypeRange resultTypes,
-      mlir::ValueRange args)
+      mlir::ValueRange args,
+      llvm::Optional<mlir::ArrayAttr> argNames)
   {
     state.addOperands(args);
     state.addAttribute(getCalleeAttrName(state.name), callee);
+
+    if (argNames) {
+      state.addAttribute(getArgNamesAttrName(state.name), *argNames);
+    }
+
     state.addTypes(resultTypes);
   }
 
@@ -8690,47 +8697,147 @@ namespace mlir::modelica
       return mlir::success();
     }
 
-    if (!mlir::isa<FunctionOp, RawFunctionOp, RuntimeFunctionOp>(callee)) {
-      return emitOpError() << "'" << getCallee()
-                           << "' does not reference a valid function";
-    }
-
     // Verify that the operand and result types match the callee.
-    mlir::FunctionType functionType;
-
     if (auto functionOp = mlir::dyn_cast<FunctionOp>(callee)) {
-      functionType = functionOp.getFunctionType();
+      mlir::FunctionType functionType = functionOp.getFunctionType();
+
+      llvm::SmallVector<mlir::StringAttr> inputVariables;
+      llvm::DenseSet<mlir::StringAttr> inputVariablesSet;
+
+      for (VariableOp variableOp : functionOp.getVariables()) {
+        mlir::StringAttr variableName = variableOp.getSymNameAttr();
+
+        if (variableOp.isInput()) {
+          inputVariables.push_back(variableName);
+          inputVariablesSet.insert(variableName);
+        }
+      }
+
+      llvm::DenseSet<mlir::StringAttr> variablesWithDefaultValue;
+
+      for (DefaultOp defaultOp : functionOp.getDefaultValues()) {
+        variablesWithDefaultValue.insert(defaultOp.getVariableAttr());
+      }
+
+      auto args = getArgs();
+
+      if (auto argNames = getArgNames()) {
+        if (argNames->size() != args.size()) {
+          return emitOpError()
+              << "the number of arguments (" << args.size()
+              << ") does not match the number of argument names ("
+              << argNames->size() << ")";
+        }
+
+        llvm::DenseSet<mlir::StringAttr> specifiedInputs;
+
+        for (mlir::FlatSymbolRefAttr argName :
+             argNames->getAsRange<mlir::FlatSymbolRefAttr>()) {
+          if (!inputVariablesSet.contains(argName.getAttr())) {
+            return emitOpError() << "unknown argument '"
+                                 << argName.getValue() << "'";
+          }
+
+          if (specifiedInputs.contains(argName.getAttr())) {
+            return emitOpError() << "multiple values for argument '"
+                                 << argName.getValue() << "'";
+          }
+
+          specifiedInputs.insert(argName.getAttr());
+        }
+
+        for (mlir::StringAttr variableName : inputVariables) {
+          if (!variablesWithDefaultValue.contains(variableName) &&
+              !specifiedInputs.contains(variableName)) {
+            return emitOpError() << "missing value for argument '"
+                                 << variableName.getValue() << "'";
+          }
+        }
+      } else {
+        if (args.size() > inputVariables.size()) {
+          return emitOpError() << "too many arguments specified (expected "
+              << inputVariables.size() << ", got " << args.size() << ")";
+        }
+
+        for (mlir::StringAttr variableName :
+             llvm::makeArrayRef(inputVariables).drop_front(args.size())) {
+          if (!variablesWithDefaultValue.contains(variableName)) {
+            return emitOpError() << "missing value for argument '"
+                                 << variableName.getValue() << "'";
+          }
+        }
+      }
+
+      unsigned int expectedResults = functionType.getNumResults();
+      unsigned int actualResults = getNumResults();
+
+      if (expectedResults != actualResults) {
+        return emitOpError()
+            << "incorrect number of results for callee (expected "
+            << expectedResults << ", got " << actualResults << ")";
+
+        return mlir::failure();
+      }
+
+      return mlir::success();
     }
 
     if (auto rawFunctionOp = mlir::dyn_cast<RawFunctionOp>(callee)) {
-      functionType = rawFunctionOp.getFunctionType();
+      mlir::FunctionType functionType = rawFunctionOp.getFunctionType();
+
+      unsigned int expectedInputs = functionType.getNumInputs();
+      unsigned int actualInputs = getNumOperands();
+
+      if (expectedInputs != actualInputs) {
+        return emitOpError()
+            << "incorrect number of operands for callee (expected "
+            << expectedInputs << ", got "
+            << actualInputs << ")";
+      }
+
+      unsigned int expectedResults = functionType.getNumResults();
+      unsigned int actualResults = getNumResults();
+
+      if (expectedResults != actualResults) {
+        return emitOpError()
+            << "incorrect number of results for callee (expected "
+            << expectedResults << ", got "
+            << actualResults << ")";
+      }
+
+      return mlir::success();
     }
 
     if (auto runtimeFunctionOp = mlir::dyn_cast<RuntimeFunctionOp>(callee)) {
-      functionType = runtimeFunctionOp.getFunctionType();
+      mlir::FunctionType functionType = runtimeFunctionOp.getFunctionType();
+
+      unsigned int expectedInputs = functionType.getNumInputs();
+      unsigned int actualInputs = getNumOperands();
+
+      if (expectedInputs != actualInputs) {
+        return emitOpError()
+            << "incorrect number of operands for callee (expected "
+            << expectedInputs << ", got "
+            << actualInputs << ")";
+      }
+
+      unsigned int expectedResults = functionType.getNumResults();
+      unsigned int actualResults = getNumResults();
+
+      if (expectedResults != actualResults) {
+        return emitOpError()
+            << "incorrect number of results for callee (expected "
+            << expectedResults << ", got "
+            << actualResults << ")";
+      }
+
+      return mlir::success();
     }
 
-    unsigned int expectedInputs = functionType.getNumInputs();
-    unsigned int actualInputs = getNumOperands();
+    return emitOpError() << "'" << getCallee()
+                         << "' does not reference a valid function";
 
-    if (expectedInputs != actualInputs) {
-      return emitOpError(
-          "incorrect number of operands for callee (expected " +
-          std::to_string(expectedInputs) + ", got " +
-          std::to_string(actualInputs) + ")");
-    }
-
-    unsigned int expectedResults = functionType.getNumResults();
-    unsigned int actualResults = getNumResults();
-
-    if (expectedResults != actualResults) {
-      return emitOpError(
-          "incorrect number of results for callee (expected " +
-          std::to_string(expectedResults) + ", got " +
-          std::to_string(actualResults) + ")");
-    }
-
-    return mlir::success();
+    return mlir::failure();
   }
 
   void CallOp::getEffects(
