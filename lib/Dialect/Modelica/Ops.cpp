@@ -971,19 +971,27 @@ namespace mlir::modelica
     auto parentClass = getOperation()->getParentOfType<ClassInterface>();
 
     if (!parentClass) {
-      return emitOpError("the operation must be used inside a class");
+      return emitOpError() << "the operation must be used inside a class";
     }
 
     mlir::Operation* symbol =
         symbolTableCollection.lookupSymbolIn(parentClass, getVariableAttr());
 
     if (!symbol) {
-      return emitOpError(
-          "variable " + getVariable() + " has not been declared");
+      return emitOpError()
+          << "variable " << getVariable() << " has not been declared";
     }
 
     if (!mlir::isa<VariableOp>(symbol)) {
-      return emitOpError("symbol " + getVariable() + " is not a variable");
+      return emitOpError()
+          << "symbol " << getVariable() << " is not a variable";
+    }
+
+    auto variableOp = mlir::cast<VariableOp>(symbol);
+    mlir::Type unwrappedType = variableOp.getVariableType().unwrap();
+
+    if (unwrappedType != getResult().getType()) {
+      return emitOpError() << "result type does not match the variable type";
     }
 
     return mlir::success();
