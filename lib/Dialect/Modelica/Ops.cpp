@@ -962,7 +962,7 @@ namespace mlir::modelica
   {
     auto variableType = variableOp.getVariableType();
     auto variableName = variableOp.getSymName();
-    build(builder, state, variableType, variableName);
+    build(builder, state, variableType.unwrap(), variableName);
   }
 
   mlir::LogicalResult VariableGetOp::verifySymbolUses(
