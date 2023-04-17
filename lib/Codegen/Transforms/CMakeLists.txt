@@ -22,6 +22,7 @@ set(SOURCES
     CyclesSolving.cpp
     EulerForward.cpp
     ExplicitCastInsertion.cpp
+    FunctionInlining.cpp
     FunctionScalarization.cpp
     IDA.cpp
     Matching.cpp

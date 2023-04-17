@@ -6,6 +6,7 @@
 #include "marco/Codegen/Transforms/CyclesSolving.h"
 #include "marco/Codegen/Transforms/EulerForward.h"
 #include "marco/Codegen/Transforms/ExplicitCastInsertion.h"
+#include "marco/Codegen/Transforms/FunctionInlining.h"
 #include "marco/Codegen/Transforms/FunctionScalarization.h"
 #include "marco/Codegen/Transforms/IDA.h"
 #include "marco/Codegen/Transforms/Matching.h"

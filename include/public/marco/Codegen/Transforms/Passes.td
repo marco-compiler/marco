@@ -69,6 +69,20 @@ def FunctionScalarizationPass : Pass<"scalarize", "mlir::ModuleOp"> {
   let constructor = "mlir::modelica::createFunctionScalarizationPass()";
 }
 
+def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp"> {
+    let summary = "Inline Modelica functions.";
+
+    let description = [{
+        Inline modelica functions.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect",
+    ];
+
+    let constructor = "mlir::modelica::createFunctionInliningPass()";
+}
+
 def ModelLegalizationPass : Pass<"legalize-model", "mlir::ModuleOp"> {
     let summary = "Process a model in order to make it solvable";
 
