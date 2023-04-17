@@ -24,6 +24,7 @@ namespace
           BindingEquationOp,
           DefaultOp,
           EquationOp,
+          InitialEquationOp,
           StartOp,
           VariableOp>(region->getParentOp());
     }
