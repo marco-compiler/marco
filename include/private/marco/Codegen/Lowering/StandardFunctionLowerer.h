@@ -25,6 +25,8 @@ namespace marco::codegen::lowering
 
     private:
       void lowerVariableDefaultValue(const ast::Member& variable);
+
+      bool isRecordConstructor(const ast::StandardFunction& function);
   };
 }
 

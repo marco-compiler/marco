@@ -13,6 +13,7 @@
 #include "marco/Codegen/Transforms/ModelLegalization.h"
 #include "marco/Codegen/Transforms/OpDistribution.h"
 #include "marco/Codegen/Transforms/ReadOnlyVariablesPropagation.h"
+#include "marco/Codegen/Transforms/RecordInlining.h"
 #include "marco/Codegen/Transforms/Scheduling.h"
 #include "marco/Codegen/Transforms/SolverPassBase.h"
 #include "marco/Codegen/Transforms/VariablesPromotion.h"

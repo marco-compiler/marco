@@ -2591,6 +2591,22 @@ def Modelica_RecordOp : Modelica_Op<"record",
     }];
 }
 
+def Modelica_RecordCreateOp : Modelica_Op<"record_create", []>
+{
+    let summary = "Create record instance.";
+
+    let description = [{
+        Create an instance of a record.
+    }];
+
+    let arguments = (ins Variadic<AnyType>:$values);
+    let results = (outs AnyType:$result);
+
+    let assemblyFormat = [{
+        $values attr-dict `:` type($values) `->` type($result)
+    }];
+}
+
 def Modelica_OperatorRecordOp : Modelica_Op<"operator_record",
     [IsolatedFromAbove,
     NoRegionArguments,
@@ -2649,6 +2665,10 @@ def Modelica_StartOp : Modelica_Op<"start",
     let assemblyFormat = [{
         $variable $bodyRegion attr-dict
     }];
+
+    let extraClassDeclaration = [{
+        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTable);
+    }];
 }
 
 def Modelica_DefaultOp : Modelica_Op<"default",
@@ -2671,6 +2691,10 @@ def Modelica_DefaultOp : Modelica_Op<"default",
     let assemblyFormat = [{
         $variable $bodyRegion attr-dict
     }];
+
+    let extraClassDeclaration = [{
+        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTable);
+    }];
 }
 
 def Modelica_DerOp : Modelica_Op<"der", []>
@@ -2689,8 +2713,7 @@ def Modelica_DerOp : Modelica_Op<"der", []>
     }];
 }
 
-def Modelica_TimeOp : Modelica_Op<"time",
-    [ParentOneOf<["EquationOp", "InitialEquationOp"]>]>
+def Modelica_TimeOp : Modelica_Op<"time", []>
 {
     let summary = "Time.";
 
@@ -2732,6 +2755,10 @@ def Modelica_BindingEquationOp : Modelica_Op<"binding_equation",
 
     let assemblyFormat = [{
         $variable $bodyRegion attr-dict
+    }];
+
+    let extraClassDeclaration = [{
+        VariableOp getVariableOp(mlir::SymbolTableCollection& symbolTable);
     }];
 }
 

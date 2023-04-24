@@ -167,6 +167,35 @@ namespace marco::codegen::lowering
     // Lower the body.
     lowerClassBody(function);
 
+    // Special handling of record constructors.
+    if (isRecordConstructor(function)) {
+      mlir::Location location = loc(function.getLocation());
+      auto algorithmOp = builder().create<AlgorithmOp>(location);
+
+      builder().createBlock(&algorithmOp.getBodyRegion());
+      builder().setInsertionPointToStart(algorithmOp.bodyBlock());
+
+      llvm::SmallVector<mlir::Value, 3> args;
+      llvm::SmallVector<VariableOp, 1> resultVariables;
+
+      for (VariableOp variableOp : functionOp.getVariables()) {
+        if (variableOp.isInput()) {
+          args.push_back(
+              builder().create<VariableGetOp>(location, variableOp));
+        } else if (variableOp.isOutput()) {
+          resultVariables.push_back(variableOp);
+        }
+      }
+
+      assert(resultVariables.size() == 1);
+
+      mlir::Value record = builder().create<RecordCreateOp>(
+          location, resultVariables[0].getVariableType().unwrap(), args);
+
+      builder().create<VariableSetOp>(location, resultVariables[0], record);
+      builder().setInsertionPointAfter(algorithmOp);
+    }
+
     // Lower the inner classes.
     for (const auto& innerClassNode : function.getInnerClasses()) {
       lower(*innerClassNode->cast<ast::Class>());
@@ -193,5 +222,11 @@ namespace marco::codegen::lowering
 
     mlir::Value value = lower(*expression)[0].get(expressionLoc);
     builder().create<YieldOp>(expressionLoc, value);
+  }
+
+  bool StandardFunctionLowerer::isRecordConstructor(
+      const ast::StandardFunction& function)
+  {
+    return function.getName().contains("'constructor'");
   }
 }

@@ -57,6 +57,21 @@ namespace marco::codegen::lowering
 
         return Results(results.begin(), results.end());
       }
+
+      // Check if it's an implicit record constructor.
+      if (auto recordConstructor = mlir::dyn_cast<RecordOp>(*calleeOp)) {
+        llvm::SmallVector<mlir::Value, 3> args;
+        lowerArgs(call, args);
+
+        mlir::SymbolRefAttr symbol = getSymbolRefFromRoot(recordConstructor);
+
+        mlir::Value result = builder().create<RecordCreateOp>(
+            loc(call.getLocation()),
+            RecordType::get(builder().getContext(), symbol),
+            args);
+
+        return Reference::ssa(builder(), result);
+      }
     }
 
     if (isBuiltInFunction(*callee)) {

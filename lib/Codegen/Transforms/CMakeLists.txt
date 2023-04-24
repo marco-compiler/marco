@@ -29,6 +29,7 @@ set(SOURCES
     ModelLegalization.cpp
     OpDistribution.cpp
     ReadOnlyVariablesPropagation.cpp
+    RecordInlining.cpp
     Scheduling.cpp
     SolverPassBase.cpp
     VariablesPromotion.cpp)

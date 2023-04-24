@@ -83,6 +83,20 @@ def FunctionInliningPass : Pass<"inline-functions", "mlir::ModuleOp"> {
     let constructor = "mlir::modelica::createFunctionInliningPass()";
 }
 
+def RecordInliningPass : Pass<"inline-records", "mlir::ModuleOp"> {
+    let summary = "Instantiate a model.";
+
+    let description = [{
+        Instantiate a model by removing all the object-oriented features.
+    }];
+
+    let dependentDialects = [
+        "mlir::modelica::ModelicaDialect"
+    ];
+
+    let constructor = "mlir::modelica::createRecordInliningPass()";
+}
+
 def ModelLegalizationPass : Pass<"legalize-model", "mlir::ModuleOp"> {
     let summary = "Process a model in order to make it solvable";
 

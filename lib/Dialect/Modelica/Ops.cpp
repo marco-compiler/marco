@@ -7625,37 +7625,23 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  /*
-  mlir::ParseResult StartOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  VariableOp StartOp::getVariableOp(mlir::SymbolTableCollection& symbolTable)
   {
-    mlir::OpAsmParser::UnresolvedOperand variable;
-    mlir::Type variableType;
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseLParen() ||
-        parser.parseOperand(variable) ||
-        parser.parseColonType(variableType) ||
-        parser.parseRParen() ||
-        parser.resolveOperand(variable, variableType, result.operands) ||
-        parser.parseOptionalAttrDict(result.attributes) ||
-        parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
+    auto cls = getOperation()->getParentOfType<ClassInterface>();
+    return symbolTable.lookupSymbolIn<VariableOp>(cls, getVariableAttr());
   }
+}
 
-  void StartOp::print(mlir::OpAsmPrinter& printer)
+//===---------------------------------------------------------------------===//
+// DefaultOp
+
+namespace mlir::modelica
+{
+  VariableOp DefaultOp::getVariableOp(mlir::SymbolTableCollection& symbolTable)
   {
-    printer << " ";
-    printer << "(" << getVariable() << " : " << getVariable().getType() << ")";
-    printer.printOptionalAttrDict(getOperation()->getAttrs());
-    printer << " ";
-    printer.printRegion(getBodyRegion());
+    auto cls = getOperation()->getParentOfType<ClassInterface>();
+    return symbolTable.lookupSymbolIn<VariableOp>(cls, getVariableAttr());
   }
-  */
 }
 
 //===---------------------------------------------------------------------===//
@@ -7663,37 +7649,12 @@ namespace mlir::modelica
 
 namespace mlir::modelica
 {
-  /*
-  mlir::ParseResult BindingEquationOp::parse(
-      mlir::OpAsmParser& parser, mlir::OperationState& result)
+  VariableOp BindingEquationOp::getVariableOp(
+      mlir::SymbolTableCollection& symbolTable)
   {
-    mlir::OpAsmParser::UnresolvedOperand variable;
-    mlir::Type variableType;
-
-    mlir::Region* bodyRegion = result.addRegion();
-
-    if (parser.parseLParen() ||
-        parser.parseOperand(variable) ||
-        parser.parseColonType(variableType) ||
-        parser.parseRParen() ||
-        parser.resolveOperand(variable, variableType, result.operands) ||
-        parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
-        parser.parseRegion(*bodyRegion)) {
-      return mlir::failure();
-    }
-
-    return mlir::success();
+    auto cls = getOperation()->getParentOfType<ClassInterface>();
+    return symbolTable.lookupSymbolIn<VariableOp>(cls, getVariableAttr());
   }
-
-  void BindingEquationOp::print(mlir::OpAsmPrinter& printer)
-  {
-    printer << " ";
-    printer << "(" << getVariable() << " : " << getVariable().getType() << ")";
-    printer.printOptionalAttrDictWithKeyword(getOperation()->getAttrs());
-    printer << " ";
-    printer.printRegion(getBodyRegion());
-  }
-  */
 }
 
 //===---------------------------------------------------------------------===//
