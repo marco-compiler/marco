@@ -144,15 +144,6 @@ namespace marco::codegen
       return mlir::success();
     }
 
-    // Use the symbolic solver
-    LLVM_DEBUG({
-      llvm::dbgs() << "Solving cycles with the symbolic solver\n";
-    });
-
-    if (solveWithSymbolicSolver(model, builder, true)) {
-      return mlir::success();
-    }
-
     return mlir::failure();
   }
 }
