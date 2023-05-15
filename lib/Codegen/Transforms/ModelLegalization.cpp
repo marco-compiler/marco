@@ -1290,7 +1290,6 @@ mlir::LogicalResult ModelLegalization::createInitialEquationsFromFixedStartOps(
     for (unsigned int i = 0; i < variableRank - expressionRank; ++i) {
       auto forEquationOp = builder.create<ForEquationOp>(
           loc, 0, variableType.getShape()[i] - 1, 1);
-
       inductionVariables.push_back(forEquationOp.induction());
       builder.setInsertionPointToStart(forEquationOp.bodyBlock());
     }
@@ -1328,6 +1327,10 @@ mlir::LogicalResult ModelLegalization::createInitialEquationsFromFixedStartOps(
 
     // Right-hand side.
     mlir::Value rhsValue = mapping.lookup(yieldOp.getValues()[0]);
+
+    if (rhsValue.getType().isa<ArrayType>()) {
+      rhsValue = builder.create<LoadOp>(loc, rhsValue, inductionVariables);
+    }
 
     // Create the assignment.
     mlir::Value lhsTuple = builder.create<EquationSideOp>(loc, lhsValue);
