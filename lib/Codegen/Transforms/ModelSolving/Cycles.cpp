@@ -117,23 +117,23 @@ namespace marco::codegen
   mlir::LogicalResult solveCycles(
       Model<MatchedEquation>& model, mlir::OpBuilder& builder)
   {
-    // Try an aggressive method first
-    LLVM_DEBUG({
-       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
-    });
-
-    if (solveBySubstitution(model, builder, true)) {
-      return mlir::success();
-    }
-
-    // Retry by limiting the cycles identification to the primary ones
-    LLVM_DEBUG({
-      llvm::dbgs() << "Solving cycles by substitution, without secondary cycles.\n";
-    });
-
-    if (solveBySubstitution(model, builder, false)) {
-      return mlir::success();
-    }
+//    // Try an aggressive method first
+//    LLVM_DEBUG({
+//       llvm::dbgs() << "Solving cycles by substitution, with secondary cycles.\n";
+//    });
+//
+//    if (solveBySubstitution(model, builder, true)) {
+//      return mlir::success();
+//    }
+//
+//    // Retry by limiting the cycles identification to the primary ones
+//    LLVM_DEBUG({
+//      llvm::dbgs() << "Solving cycles by substitution, without secondary cycles.\n";
+//    });
+//
+//    if (solveBySubstitution(model, builder, false)) {
+//      return mlir::success();
+//    }
 
     // Use the symbolic solver
     LLVM_DEBUG({

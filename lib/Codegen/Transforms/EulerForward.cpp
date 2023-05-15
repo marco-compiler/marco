@@ -265,6 +265,8 @@ mlir::LogicalResult EulerForwardSolver::solveMainModel(
 
   // Fail in case of implicit equations.
   if (!conversionInfo.implicitEquations.empty()) {
+    // todo add kinsol
+    // Instanziare un solutore
     return mlir::failure();
   }
 
