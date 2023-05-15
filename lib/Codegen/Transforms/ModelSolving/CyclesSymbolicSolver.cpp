@@ -12,20 +12,21 @@ mlir::Operation* OperationNode::getOperation()
   return operation;
 }
 
-OperationNode::OperationNode(mlir::Operation* operation,
-                             OperationNode* next,
-                             OperationNode* prev,
-                             OperationNode* father,
-                             OperationNode* child,
-                             size_t childNumber,
-                             size_t numberOfChildren) :
-                             operation(operation),
-                             next(next),
-                             prev(prev),
-                             father(father),
-                             child(child),
-                             childNumber(childNumber),
-                             numberOfChildren(numberOfChildren)
+OperationNode::OperationNode(
+     mlir::Operation* operatwalion,
+     OperationNode* next,
+     OperationNode* prev,
+     OperationNode* father,
+     OperationNode* child,
+     size_t childNumber,
+     size_t numberOfChildren) :
+     operation(operation),
+     next(next),
+     prev(prev),
+     father(father),
+     child(child),
+     childNumber(childNumber),
+     numberOfChildren(numberOfChildren)
 {
 }
 
@@ -84,6 +85,94 @@ OperationNode* OperationNode::getNext()
 //    }
 //  }
 //}
+
+EquationValueGraph::EquationValueGraph(MatchedEquation* equation) : equation(equation)
+{
+  std::stack<ValueNode*> stack;
+
+  mlir::Operation* terminator = equation->getOperation().bodyBlock()->getTerminator();
+
+  mlir::Value lhs = terminator->getOperand(0);
+  mlir::Value rhs = terminator->getOperand(1);
+
+  auto* lhsNode = new ValueNode(lhs, &entryNode);
+  auto* rhsNode = new ValueNode(rhs, &entryNode);
+
+  stack.push(lhsNode);
+  stack.push(rhsNode);
+
+  entryNode.addChild(lhsNode);
+  entryNode.addChild(rhsNode);
+
+  while (!stack.empty()) {
+    auto father = stack.top();
+    stack.pop();
+
+    // If the value is defined by an operation, take its operand values and add them as children.
+    // If instead the value is a block argument, it will have no children.
+    if (mlir::Operation* operandOp = father->getValue().getDefiningOp(); operandOp != nullptr) {
+
+      for (const mlir::Value operand : operandOp->getOperands()) {
+        auto* newNode = new ValueNode(operand, father);
+
+        father->addChild(newNode);
+        stack.push(newNode);
+      }
+    }
+  }
+}
+
+ValueNode* EquationValueGraph::getEntryNode()
+{
+  return &this->entryNode;
+}
+
+static void deleteValueNode(ValueNode* node) {
+  if (node->getFather() != nullptr) {
+    delete node;
+  }
+}
+
+void EquationValueGraph::erase()
+{
+  walk(deleteValueNode);
+}
+
+static void printValueNode(ValueNode* node) {
+  if (node->getFather() != nullptr) {
+    if (mlir::Operation* operandOp = node->getValue().getDefiningOp()) {
+      operandOp->dump();
+    }
+  }
+}
+
+void EquationValueGraph::print()
+{
+  walk(printValueNode);
+}
+
+void EquationValueGraph::walk(void (*func)(ValueNode*))
+{
+  std::stack<ValueNode*> stack;
+  std::vector<ValueNode*> vector;
+
+  stack.push(&entryNode);
+
+  while (!stack.empty()) {
+    auto father = stack.top();
+    stack.pop();
+
+    vector.push_back(father);
+
+    for (ValueNode* child : father->getChildren()) {
+      stack.push(child);
+    }
+  }
+
+  for (ValueNode* node : llvm::reverse(vector)) {
+    func(node);
+  }
+}
 
 EquationGraph::EquationGraph(MatchedEquation* equation) : equation(equation)
 {
@@ -363,6 +452,14 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     equation->getOperation()->dump();
 
+    EquationValueGraph valueGraph = EquationValueGraph(equation);
+
+    std::cerr << "Equation Value Graph built\n" << std::flush;
+
+    valueGraph.print();
+
+    exit(1);
+
     auto graph = EquationGraph(equation);
 
     GiNaC::ex expression = visit_postorder_recursive(graph.getEntryNode(), symbols);
@@ -385,4 +482,28 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   return false;
 }
 
+ValueNode::ValueNode(mlir::Value value, ValueNode* father)
+{
+  this->value = value;
+  this->father = father;
+}
 
+mlir::Value ValueNode::getValue()
+{
+  return this->value;
+}
+
+std::vector<ValueNode*>& ValueNode::getChildren()
+{
+  return this->children;
+}
+
+void ValueNode::addChild(ValueNode* child)
+{
+  this->children.push_back(child);
+}
+
+ValueNode* ValueNode::getFather()
+{
+  return this->father;
+}
