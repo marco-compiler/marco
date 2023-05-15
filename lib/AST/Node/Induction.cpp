@@ -32,7 +32,7 @@ namespace marco::ast
   {
     llvm::json::Object result;
     result["induction_variable"] = getName();
-    result["induction_index"] = inductionIndex;
+    result["induction_index"] = static_cast<int64_t>(inductionIndex);
     result["begin"] = getBegin()->toJSON();
     result["end"] = getEnd()->toJSON();
     result["step"] = getStep()->toJSON();
