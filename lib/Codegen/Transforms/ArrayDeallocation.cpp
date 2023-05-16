@@ -37,7 +37,7 @@ namespace
               return false;
             });
 
-            if (isStored) {
+            if (isStored && !arrayType.hasStaticShape()) {
               continue;
             }
           }
