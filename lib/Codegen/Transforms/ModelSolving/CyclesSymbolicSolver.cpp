@@ -276,10 +276,14 @@ GiNaC::ex build_binary_operation(const GiNaC::ex& op1,const GiNaC::ex& op2, mlir
     return op1 + op2;
   if(mlir::isa<mlir::modelica::SubOp>(op))
     return op1 - op2;
+  if(mlir::isa<mlir::modelica::MulOp>(op))
+    return op1 * op2;
+  if(mlir::isa<mlir::modelica::DivOp>(op))
+    return op1 / op2;
   if(mlir::isa<mlir::modelica::EquationSidesOp>(op))
     return op1 == op2;
   if(mlir::isa<mlir::modelica::SubscriptionOp>(op))
-    //todo
+    //todo: fix subscription op, probably better to treat all the operations in the body independently of operand number
     return op1 == op2;
 
   op->dump();
@@ -300,7 +304,7 @@ GiNaC::ex build_unary_operation(const GiNaC::ex& op1, mlir::Operation* op) {
 
 }
 
-GiNaC::ex visit_postorder_recursive(OperationNode* node, const GiNaC::lst& symbols)
+GiNaC::ex visit_postorder_recursive_operation(OperationNode* node, const GiNaC::lst& symbols)
 {
   std::cerr << "Visiting postorder\n" << std::flush;
   if (node != nullptr) {
@@ -333,7 +337,7 @@ GiNaC::ex visit_postorder_recursive(OperationNode* node, const GiNaC::lst& symbo
 
     OperationNode* right = nullptr;
     if (left != nullptr) {
-      left_ex = visit_postorder_recursive(left, symbols);
+      left_ex = visit_postorder_recursive_operation(left, symbols);
 
       std::cerr << "left expression: " << left_ex << '\n' << std::flush;
       right = left->getNext();
@@ -344,7 +348,7 @@ GiNaC::ex visit_postorder_recursive(OperationNode* node, const GiNaC::lst& symbo
 
     if (left != nullptr) {
       if (right != nullptr) {
-        right_ex = visit_postorder_recursive(right, symbols);
+        right_ex = visit_postorder_recursive_operation(right, symbols);
         std::cerr << "right expression: " << right_ex << '\n' << std::flush;
         return build_binary_operation(left_ex, right_ex, op);
       }
@@ -362,6 +366,63 @@ GiNaC::ex visit_postorder_recursive(OperationNode* node, const GiNaC::lst& symbo
   }
 
   std::cerr << "Null node\n" << std::flush;
+}
+
+GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& symbols)
+{
+  //todo: the load operation has is variadic, so support for it will need to be hardcoded
+  //todo: fix the multiple terminator problem
+  std::cerr << "Visiting postorder\n" << std::flush;
+
+  // If the node is the root of the tree, its value is null so it needs to be handled separately
+  if (node->getFather() == nullptr) {
+    GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), symbols);
+    GiNaC::ex rhs = visit_postorder_recursive_value(node->getChild(1), symbols);
+    return lhs == rhs;
+  }
+
+  // If the value is a block argument, return immediately its corresponding symbol (leaf case)
+  if (auto blockArgument = mlir::dyn_cast<mlir::BlockArgument>(node->getValue())) {
+    return symbols[blockArgument.getArgNumber()];
+  }
+
+  // If the value is not a block argument, it must be a SSA value defined by an operation.
+  mlir::Operation* definingOp = node->getValue().getDefiningOp();
+  definingOp->dump();
+  size_t numberOfArguments = definingOp->getNumOperands();
+
+  // If the value is defined by a constant operation, it is a leaf.
+  if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(definingOp); constantOp != nullptr) {
+    GiNaC::ex res = getDoubleFromAttribute(constantOp.getValue());
+    return res;
+  }
+
+  //todo: put this in a separate function
+  if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp)) {
+    return visit_postorder_recursive_value(node->getChild(0), symbols);
+  }
+  if(mlir::isa<mlir::modelica::LoadOp>(definingOp)) {
+    return visit_postorder_recursive_value(node->getChild(0), symbols);
+  }
+
+  if(mlir::isa<mlir::modelica::AddOp>(definingOp))
+    return visit_postorder_recursive_value(node->getChild(0), symbols) +
+        visit_postorder_recursive_value(node->getChild(1), symbols);
+  if(mlir::isa<mlir::modelica::SubOp>(definingOp))
+    return visit_postorder_recursive_value(node->getChild(0), symbols) -
+        visit_postorder_recursive_value(node->getChild(1), symbols);
+  if(mlir::isa<mlir::modelica::MulOp>(definingOp))
+    return visit_postorder_recursive_value(node->getChild(0), symbols) *
+        visit_postorder_recursive_value(node->getChild(1), symbols);
+  if(mlir::isa<mlir::modelica::DivOp>(definingOp))
+    return visit_postorder_recursive_value(node->getChild(0), symbols) /
+        visit_postorder_recursive_value(node->getChild(1), symbols);
+  if(mlir::isa<mlir::modelica::SubscriptionOp>(definingOp))
+    //todo: fix subscription op, probably better to treat all the operations in the body independently of operand number
+    ;
+
+  definingOp->dump();
+  llvm_unreachable("Found operation with an unusual number of arguments\n");
 }
 
 
@@ -458,15 +519,21 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     valueGraph.print();
 
-    exit(1);
+    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols);
 
-    auto graph = EquationGraph(equation);
+    valueGraph.erase();
 
-    GiNaC::ex expression = visit_postorder_recursive(graph.getEntryNode(), symbols);
-
-    graph.erase();
-    systemEquations.append(expression);
     std::cerr << "This is the complete expression: " << expression << '\n' << std::flush;
+
+    systemEquations.append(expression);
+
+    // auto graph = EquationGraph(equation);
+
+    //GiNaC::ex expression = visit_postorder_recursive_operation(graph.getEntryNode(), symbols);
+
+//    graph.erase();
+//
+//    std::cerr << "This is the complete expression: " << expression << '\n' << std::flush;
   }
 
   GiNaC::lst variables = {};
@@ -506,4 +573,9 @@ void ValueNode::addChild(ValueNode* child)
 ValueNode* ValueNode::getFather()
 {
   return this->father;
+}
+
+ValueNode* ValueNode::getChild(size_t i)
+{
+  return this->children.at(i);
 }
