@@ -119,7 +119,7 @@ modelica.raw_function @dynamicArrayOutput() {
 // -----
 
 // CHECK:       func.func @scalarOutputVariableGet() -> i64 {
-// CHECK-NEXT:      %[[x:.*]] = modelica.alloc : !modelica.array<!modelica.int>
+// CHECK-NEXT:      %[[x:.*]] = modelica.alloca : !modelica.array<!modelica.int>
 // CHECK-NEXT:      %[[result:.*]] = modelica.load %[[x]][]
 // CHECK-NEXT:      %[[result_casted:.*]] =  builtin.unrealized_conversion_cast %[[result]] : !modelica.int to i64
 // CHECK-NEXT:      return %[[result_casted]]
@@ -134,7 +134,7 @@ modelica.raw_function @scalarOutputVariableGet() -> !modelica.int {
 // -----
 
 // CHECK:       func.func @scalarOutputVariableSet() {
-// CHECK-DAG:       %[[x:.*]] = modelica.alloc : !modelica.array<!modelica.int>
+// CHECK-DAG:       %[[x:.*]] = modelica.alloca : !modelica.array<!modelica.int>
 // CHECK-DAG:       %[[value:.*]] = modelica.constant #modelica.int<0>
 // CHECK-NEXT:      modelica.store %[[x]][], %[[value]]
 // CHECK-NEXT:      return

@@ -250,12 +250,6 @@ namespace
     using ModelicaOpConversionPattern<RawFunctionOp>
         ::ModelicaOpConversionPattern;
 
-    using LoadReplacer = std::function<mlir::LogicalResult(
-        mlir::ConversionPatternRewriter&, RawVariableGetOp)>;
-
-    using StoreReplacer = std::function<mlir::LogicalResult(
-        mlir::ConversionPatternRewriter&, RawVariableSetOp)>;
-
     mlir::LogicalResult matchAndRewrite(
         RawFunctionOp op,
         OpAdaptor adaptor,
@@ -323,7 +317,7 @@ namespace
 
       assert(op.getDynamicSizes().empty());
 
-      mlir::Value reference = rewriter.create<AllocOp>(
+      mlir::Value reference = rewriter.create<AllocaOp>(
           loc, ArrayType::get(llvm::None, unwrappedType), llvm::None);
 
       for (auto* user : op->getUsers()) {
@@ -405,6 +399,14 @@ namespace
       mlir::Value reference =
           rewriter.create<AllocOp>(loc, arrayType, op.getDynamicSizes());
 
+      // Create the deallocations for when exiting the function.
+      if (mlir::failed(addFreeOp(
+              rewriter,
+              op->getParentOfType<RawFunctionOp>(),
+              reference, variableType))) {
+        return mlir::failure();
+      }
+
       for (auto* user : op->getUsers()) {
         assert(mlir::isa<RawVariableGetOp>(user) ||
                mlir::isa<RawVariableSetOp>(user));
@@ -442,6 +444,30 @@ namespace
       rewriter.setInsertionPoint(op);
       rewriter.create<ArrayCopyOp>(op.getLoc(), op.getValue(), reference);
       rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult addFreeOp(
+        mlir::PatternRewriter& rewriter,
+        RawFunctionOp functionOp,
+        mlir::Value reference,
+        VariableType variableType) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+      if (!variableType.isOutput()) {
+        llvm::SmallVector<RawReturnOp> returnOps;
+
+        functionOp.walk([&](RawReturnOp returnOp) {
+          returnOps.push_back(returnOp);
+        });
+
+        for (RawReturnOp returnOp : returnOps) {
+          rewriter.setInsertionPoint(returnOp);
+          rewriter.create<FreeOp>(reference.getLoc(), reference);
+        }
+      }
+
       return mlir::success();
     }
   };
@@ -482,6 +508,14 @@ namespace
 
       mlir::Value memrefOfArray =
           rewriter.create<mlir::memref::AllocaOp>(loc, memrefOfArrayType);
+
+      // Create the deallocations for when exiting the function.
+      if (mlir::failed(addFreeOp(
+              rewriter,
+              op->getParentOfType<RawFunctionOp>(),
+              memrefOfArray, variableType))) {
+        return mlir::failure();
+      }
 
       // We need to allocate a fake buffer in order to allow the first free
       // operation to operate on a valid memory area.
@@ -631,6 +665,38 @@ namespace
           op.getLoc(), value, reference);
 
       rewriter.eraseOp(op);
+      return mlir::success();
+    }
+
+    mlir::LogicalResult addFreeOp(
+        mlir::PatternRewriter& rewriter,
+        RawFunctionOp functionOp,
+        mlir::Value reference,
+        VariableType variableType) const
+    {
+      mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+      if (!variableType.isOutput()) {
+        llvm::SmallVector<RawReturnOp> returnOps;
+
+        functionOp.walk([&](RawReturnOp returnOp) {
+          returnOps.push_back(returnOp);
+        });
+
+        for (RawReturnOp returnOp : returnOps) {
+          rewriter.setInsertionPoint(returnOp);
+
+          mlir::Value previousArray = rewriter.create<mlir::memref::LoadOp>(
+              reference.getLoc(), reference);
+
+          previousArray = typeConverter->materializeSourceConversion(
+              rewriter, reference.getLoc(),
+              variableType.toArrayType(), previousArray);
+
+          rewriter.create<FreeOp>(reference.getLoc(), previousArray);
+        }
+      }
+
       return mlir::success();
     }
   };
