@@ -370,10 +370,6 @@ GiNaC::ex visit_postorder_recursive_operation(OperationNode* node, const GiNaC::
 
 GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& symbols)
 {
-  //todo: the load operation has is variadic, so support for it will need to be hardcoded
-  //todo: fix the multiple terminator problem
-  std::cerr << "Visiting postorder\n" << std::flush;
-
   // If the node is the root of the tree, its value is null so it needs to be handled separately
   if (node->getFather() == nullptr) {
     GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), symbols);
@@ -397,13 +393,10 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
     return res;
   }
 
-  //todo: put this in a separate function
-  if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp)) {
+  if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp))
     return visit_postorder_recursive_value(node->getChild(0), symbols);
-  }
-  if(mlir::isa<mlir::modelica::LoadOp>(definingOp)) {
+  if(mlir::isa<mlir::modelica::LoadOp>(definingOp))
     return visit_postorder_recursive_value(node->getChild(0), symbols);
-  }
 
   if(mlir::isa<mlir::modelica::AddOp>(definingOp))
     return visit_postorder_recursive_value(node->getChild(0), symbols) +
@@ -417,9 +410,23 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
   if(mlir::isa<mlir::modelica::DivOp>(definingOp))
     return visit_postorder_recursive_value(node->getChild(0), symbols) /
         visit_postorder_recursive_value(node->getChild(1), symbols);
-  if(mlir::isa<mlir::modelica::SubscriptionOp>(definingOp))
-    //todo: fix subscription op, probably better to treat all the operations in the body independently of operand number
-    ;
+
+  // If we have a subscription operation, get the shape of the base vector, that should correspond with
+  // the first operand. Then add an index to the symbol of the vector for each operand except the base.
+  if(mlir::isa<mlir::modelica::SubscriptionOp>(definingOp)) {
+    mlir::Value baseOperand = node->getChild(0)->getValue();
+    GiNaC::ex base = visit_postorder_recursive_value(node->getChild(0), symbols);
+
+    for (size_t i = 1; i < definingOp->getNumOperands(); ++i) {
+      size_t dim = baseOperand.getType().dyn_cast<mlir::modelica::ArrayType>().getShape()[i-1];
+      GiNaC::idx index(visit_postorder_recursive_value(node->getChild(i), symbols), dim);
+      // base = GiNaC::indexed(base, index);
+      std::cerr << "Here: " << index << std::flush;
+      //todo: need to convert the integers/indices into int, not float
+    }
+
+    return base;
+  }
 
   definingOp->dump();
   llvm_unreachable("Found operation with an unusual number of arguments\n");
