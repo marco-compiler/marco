@@ -49,6 +49,7 @@ namespace marco::codegen {
       std::vector<ValueNode*>& getChildren();
       void addChild(ValueNode*);
       ValueNode* getFather();
+      ValueNode* getChild(size_t);
   };
 
   class OperationNode : llvm::DGNode<OperationNode, OperationEdge> {
