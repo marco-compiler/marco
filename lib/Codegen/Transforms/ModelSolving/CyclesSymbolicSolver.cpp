@@ -368,12 +368,12 @@ GiNaC::ex visit_postorder_recursive_operation(OperationNode* node, const GiNaC::
   std::cerr << "Null node\n" << std::flush;
 }
 
-GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& symbols)
+GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& symbols, const GiNaC::symbol time)
 {
   // If the node is the root of the tree, its value is null so it needs to be handled separately
   if (node->getFather() == nullptr) {
-    GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), symbols);
-    GiNaC::ex rhs = visit_postorder_recursive_value(node->getChild(1), symbols);
+    GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), symbols, time);
+    GiNaC::ex rhs = visit_postorder_recursive_value(node->getChild(1), symbols, time);
     return lhs == rhs;
   }
 
@@ -403,33 +403,41 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
     return res;
   }
 
+  //todo: understand how to substitute parameters with their actual value
+  if(mlir::isa<mlir::modelica::TimeOp>(definingOp))
+    return time;
+
   if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), symbols);
+    return visit_postorder_recursive_value(node->getChild(0), symbols, time);
   if(mlir::isa<mlir::modelica::LoadOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), symbols);
+    return visit_postorder_recursive_value(node->getChild(0), symbols, time);
+  if(mlir::isa<mlir::modelica::SinOp>(definingOp))
+    return sin(visit_postorder_recursive_value(node->getChild(0), symbols, time));
+  if(mlir::isa<mlir::modelica::NegateOp>(definingOp))
+    return -visit_postorder_recursive_value(node->getChild(0), symbols, time);
 
   if(mlir::isa<mlir::modelica::AddOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), symbols) +
-        visit_postorder_recursive_value(node->getChild(1), symbols);
+    return visit_postorder_recursive_value(node->getChild(0), symbols, time) +
+        visit_postorder_recursive_value(node->getChild(1), symbols, time);
   if(mlir::isa<mlir::modelica::SubOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), symbols) -
-        visit_postorder_recursive_value(node->getChild(1), symbols);
+    return visit_postorder_recursive_value(node->getChild(0), symbols, time) -
+        visit_postorder_recursive_value(node->getChild(1), symbols, time);
   if(mlir::isa<mlir::modelica::MulOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), symbols) *
-        visit_postorder_recursive_value(node->getChild(1), symbols);
+    return visit_postorder_recursive_value(node->getChild(0), symbols, time) *
+        visit_postorder_recursive_value(node->getChild(1), symbols, time);
   if(mlir::isa<mlir::modelica::DivOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), symbols) /
-        visit_postorder_recursive_value(node->getChild(1), symbols);
+    return visit_postorder_recursive_value(node->getChild(0), symbols, time) /
+        visit_postorder_recursive_value(node->getChild(1), symbols, time);
 
   // If we have a subscription operation, get the shape of the base vector, that should correspond with
   // the first operand. Then add an index to the symbol of the vector for each operand except the base.
   if(mlir::isa<mlir::modelica::SubscriptionOp>(definingOp)) {
     mlir::Value baseOperand = node->getChild(0)->getValue();
-    GiNaC::ex base = visit_postorder_recursive_value(node->getChild(0), symbols);
+    GiNaC::ex base = visit_postorder_recursive_value(node->getChild(0), symbols, time);
 
     for (size_t i = 1; i < definingOp->getNumOperands(); ++i) {
       size_t dim = baseOperand.getType().dyn_cast<mlir::modelica::ArrayType>().getShape()[i-1];
-      GiNaC::idx index(visit_postorder_recursive_value(node->getChild(i), symbols), dim);
+      GiNaC::idx index(visit_postorder_recursive_value(node->getChild(i), symbols, time), dim);
       base = GiNaC::indexed(base, index);
     }
 
@@ -534,7 +542,9 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     valueGraph.print();
 
-    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols);
+    GiNaC::symbol time("time");
+
+    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
 
     valueGraph.erase();
 
