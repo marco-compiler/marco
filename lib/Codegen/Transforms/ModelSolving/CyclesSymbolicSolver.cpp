@@ -389,6 +389,16 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
 
   // If the value is defined by a constant operation, it is a leaf.
   if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(definingOp); constantOp != nullptr) {
+    mlir::Attribute attribute = constantOp.getValue();
+
+    if (const auto integerValue = attribute.dyn_cast<mlir::IntegerAttr>()) {
+      return integerValue.getInt();
+    }
+
+    if (const auto integerValue = attribute.dyn_cast<mlir::modelica::IntegerAttr>()) {
+      return integerValue.getValue().getSExtValue();
+    }
+
     GiNaC::ex res = getDoubleFromAttribute(constantOp.getValue());
     return res;
   }
@@ -420,9 +430,7 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
     for (size_t i = 1; i < definingOp->getNumOperands(); ++i) {
       size_t dim = baseOperand.getType().dyn_cast<mlir::modelica::ArrayType>().getShape()[i-1];
       GiNaC::idx index(visit_postorder_recursive_value(node->getChild(i), symbols), dim);
-      // base = GiNaC::indexed(base, index);
-      std::cerr << "Here: " << index << std::flush;
-      //todo: need to convert the integers/indices into int, not float
+      base = GiNaC::indexed(base, index);
     }
 
     return base;
