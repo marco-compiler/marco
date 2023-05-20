@@ -283,7 +283,6 @@ GiNaC::ex build_binary_operation(const GiNaC::ex& op1,const GiNaC::ex& op2, mlir
   if(mlir::isa<mlir::modelica::EquationSidesOp>(op))
     return op1 == op2;
   if(mlir::isa<mlir::modelica::SubscriptionOp>(op))
-    //todo: fix subscription op, probably better to treat all the operations in the body independently of operand number
     return op1 == op2;
 
   op->dump();
@@ -600,17 +599,36 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   size_t numberOfArguments = model.getOperation().getBodyRegion().getArguments().size();
 
   auto symbols = GiNaC::lst();
-  for (size_t i = 0; i < numberOfArguments; ++i) {
-    GiNaC::symbol sym("sym" + std::to_string(i));
-    symbols.append(sym);
-  }
+//  for (size_t i = 0; i < numberOfArguments; ++i) {
+//    GiNaC::symbol sym("sym" + std::to_string(i));
+//    symbols.append(sym);
+//  }
 
   //todo: give symbols reasonable names and substitute parameter values
   mlir::Block* bodyBlock = model.getOperation().bodyBlock();
+  mlir::Block& varsBlock = model.getOperation().getVarsRegion().front();
   llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap;
-  for (unsigned int i = 0; i < bodyBlock->getNumArguments(); ++i) {
-    valueExpressionMap[bodyBlock->getArgument(i)] = symbols[i];
-  }
+
+  unsigned int i = 1;
+  varsBlock.walk(
+      [&](mlir::modelica::MemberCreateOp op) {
+        auto argumentSymbol = GiNaC::symbol(op.getSymName().str());
+        symbols.append(argumentSymbol);
+        valueExpressionMap[bodyBlock->getArgument(i)] = argumentSymbol;
+        ++i;
+        return;
+      }
+  );
+
+//  for (unsigned int i = 0; i < bodyBlock->getNumArguments(); ++i) {
+//    mlir::Value argument = bodyBlock->getArgument(i);
+//    argument.getDefiningOp()->dump();
+//    auto memberOp = mlir::dyn_cast<mlir::modelica::MemberCreateOp>(argument.getDefiningOp());
+//    auto argumentSymbol = GiNaC::symbol(memberOp.getSymName().str());
+//
+//    symbols.append(argumentSymbol);
+//    valueExpressionMap[argument] = argumentSymbol;
+//  }
 
   for (const auto& equation : toBeProcessed) {
     std::cerr << "Num operands: " << numberOfScalarEquations << std::flush;
