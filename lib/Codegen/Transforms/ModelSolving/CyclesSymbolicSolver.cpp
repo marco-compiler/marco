@@ -448,6 +448,80 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
   llvm_unreachable("Found operation with an unusual number of arguments\n");
 }
 
+GiNaC::ex get_equation_expression(MatchedEquation* equation, const GiNaC::lst& symbols, const GiNaC::symbol time, llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap)
+{
+  // If the node is the root of the tree, its value is null so it needs to be handled separately
+
+  GiNaC::ex resultExpression;
+
+  equation->getOperation().bodyBlock()->walk(
+    [&](mlir::Operation* op) {
+      GiNaC::ex expression;
+      mlir::Value result = op->getResult(0);
+
+      if (mlir::modelica::EquationSidesOp sidesOp = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(op)) {
+        GiNaC::ex lhs = valueExpressionMap[sidesOp->getOperand(0)];
+        GiNaC::ex rhs = valueExpressionMap[sidesOp->getOperand(1)];
+        resultExpression = lhs == rhs;
+      }
+
+      else if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(op); constantOp != nullptr) {
+        mlir::Attribute attribute = constantOp.getValue();
+
+        if (const auto integerValue = attribute.dyn_cast<mlir::IntegerAttr>())
+          expression = integerValue.getInt();
+        else if (const auto modelicaIntegerValue = attribute.dyn_cast<mlir::modelica::IntegerAttr>())
+          expression = modelicaIntegerValue.getValue().getSExtValue();
+        else
+          expression = getDoubleFromAttribute(constantOp.getValue());
+      }
+
+      else if(mlir::isa<mlir::modelica::TimeOp>(op))
+        expression = time;
+
+      else if(mlir::isa<mlir::modelica::EquationSideOp>(op))
+        expression = valueExpressionMap[op->getOperand(0)];
+      else if(mlir::isa<mlir::modelica::LoadOp>(op))
+        expression = valueExpressionMap[op->getOperand(0)];
+      else if(mlir::isa<mlir::modelica::SinOp>(op))
+        expression = sin(valueExpressionMap[op->getOperand(0)]);
+      else if(mlir::isa<mlir::modelica::NegateOp>(op))
+        expression = -valueExpressionMap[op->getOperand(0)];
+
+      else if(mlir::isa<mlir::modelica::AddOp>(op))
+        expression = valueExpressionMap[op->getOperand(0)] + valueExpressionMap[op->getOperand(1)];
+      else if(mlir::isa<mlir::modelica::SubOp>(op))
+        expression = valueExpressionMap[op->getOperand(0)] - valueExpressionMap[op->getOperand(1)];
+      else if(mlir::isa<mlir::modelica::MulOp>(op))
+        expression = valueExpressionMap[op->getOperand(0)] * valueExpressionMap[op->getOperand(1)];
+      else if(mlir::isa<mlir::modelica::DivOp>(op))
+        expression = valueExpressionMap[op->getOperand(0)] / valueExpressionMap[op->getOperand(1)];
+
+      // If we have a subscription operation, get the shape of the base vector, that should correspond with
+      // the first operand. Then add an index to the symbol of the vector for each operand except the base.
+      else if(mlir::isa<mlir::modelica::SubscriptionOp>(op)) {
+        mlir::Value baseOperand = op->getOperand(0);
+        GiNaC::ex base = valueExpressionMap[baseOperand];
+
+        for (size_t i = 1; i < op->getNumOperands(); ++i) {
+          size_t dim = baseOperand.getType().dyn_cast<mlir::modelica::ArrayType>().getShape()[i-1];
+          GiNaC::idx index(valueExpressionMap[op->getOperand(i)], dim);
+          base = GiNaC::indexed(base, index);
+        }
+
+        expression = base;
+      }
+
+      op->dump();
+      std::cerr << "Got expression: " << expression << '\n' << std::flush;
+      valueExpressionMap[result] = expression;
+      return;
+    }
+  );
+
+  return resultExpression;
+}
+
 
 void EquationGraph::erase()
 {
@@ -531,22 +605,31 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
     symbols.append(sym);
   }
 
+  //todo: give symbols reasonable names and substitute parameter values
+  mlir::Block* bodyBlock = model.getOperation().bodyBlock();
+  llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap;
+  for (unsigned int i = 0; i < bodyBlock->getNumArguments(); ++i) {
+    valueExpressionMap[bodyBlock->getArgument(i)] = symbols[i];
+  }
+
   for (const auto& equation : toBeProcessed) {
     std::cerr << "Num operands: " << numberOfScalarEquations << std::flush;
 
     equation->getOperation()->dump();
 
-    EquationValueGraph valueGraph = EquationValueGraph(equation);
+    //EquationValueGraph valueGraph = EquationValueGraph(equation);
 
     std::cerr << "Equation Value Graph built\n" << std::flush;
 
-    valueGraph.print();
+    //valueGraph.print();
 
     GiNaC::symbol time("time");
 
-    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
+    //GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
 
-    valueGraph.erase();
+    GiNaC::ex expression = get_equation_expression(equation, symbols, time, valueExpressionMap);
+
+    //valueGraph.erase();
 
     std::cerr << "This is the complete expression: " << expression << '\n' << std::flush;
 
