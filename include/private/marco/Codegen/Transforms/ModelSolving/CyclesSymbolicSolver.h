@@ -10,6 +10,8 @@
 #include "llvm/ADT/DirectedGraph.h"
 
 #include <algorithm>
+#include <ginac/ginac.h>
+#include <ginac/flags.h>
 
 namespace marco::codegen {
   class CyclesSymbolicSolver
@@ -101,6 +103,49 @@ namespace marco::codegen {
       void print();
       void walk(void (*func)(ValueNode*));
   };
+
+  class SymbolicVisitor
+      : public GiNaC::visitor,
+        public GiNaC::add::visitor,
+        public GiNaC::mul::visitor,
+        public GiNaC::power::visitor,
+        public GiNaC::function::visitor,
+        public GiNaC::relational::visitor,
+        public GiNaC::numeric::visitor
+        //public GiNaC::basic::visitor
+  {
+      void visit(const GiNaC::add & x) override {
+        std::cerr << "Add\n" << x.nops() << '\n' << std::flush;
+      }
+
+      void visit(const GiNaC::mul & x) override {
+        std::cerr << "Mul\n" << x << '\n' << std::flush;
+      }
+
+      void visit(const GiNaC::power & x) override {
+        std::cerr << "Power\n" << x << '\n' << std::flush;
+      }
+
+      void visit(const GiNaC::function & x) override {
+        if (x.get_name() == "sin") {
+          std::cerr << "Function\n" << x << '\n' << std::flush;
+        }
+      }
+
+      void visit(const GiNaC::relational & x) override {
+        if (x.info(GiNaC::info_flags::relation_equal)) {
+          std::cerr << "Equals\n" << '\n' << std::flush;
+        }
+      }
+
+      void visit(const GiNaC::numeric & x) override {
+        std::cerr << "Numeric\n" << x << '\n' << std::flush;
+      }
+
+//      void visit(const GiNaC::basic & x) {
+//        std::cerr << "Basic\n" << x << '\n' << std::flush;
+//      }
+  };
 }
 
 
@@ -128,6 +173,8 @@ namespace llvm
 
     }
   };
+
+
 }
 
 #endif//MARCO_CYCLESSYMBOLICSOLVER_H
