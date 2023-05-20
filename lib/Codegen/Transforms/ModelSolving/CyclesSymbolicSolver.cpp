@@ -635,31 +635,15 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     equation->getOperation()->dump();
 
-    //EquationValueGraph valueGraph = EquationValueGraph(equation);
-
+    EquationValueGraph valueGraph = EquationValueGraph(equation);
     std::cerr << "Equation Value Graph built\n" << std::flush;
-
     //valueGraph.print();
-
     GiNaC::symbol time("time");
-
-    //GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
-
-    GiNaC::ex expression = get_equation_expression(equation, symbols, time, valueExpressionMap);
-
-    //valueGraph.erase();
-
+    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
+    //GiNaC::ex expression = get_equation_expression(equation, symbols, time, valueExpressionMap);
+    valueGraph.erase();
     std::cerr << "This is the complete expression: " << expression << '\n' << std::flush;
-
     systemEquations.append(expression);
-
-    // auto graph = EquationGraph(equation);
-
-    //GiNaC::ex expression = visit_postorder_recursive_operation(graph.getEntryNode(), symbols);
-
-//    graph.erase();
-//
-//    std::cerr << "This is the complete expression: " << expression << '\n' << std::flush;
   }
 
   GiNaC::lst variables = {};
