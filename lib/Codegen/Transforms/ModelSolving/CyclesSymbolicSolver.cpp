@@ -599,6 +599,7 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   size_t numberOfArguments = model.getOperation().getBodyRegion().getArguments().size();
 
   auto symbols = GiNaC::lst();
+  auto variableSymbols = GiNaC::lst();
 //  for (size_t i = 0; i < numberOfArguments; ++i) {
 //    GiNaC::symbol sym("sym" + std::to_string(i));
 //    symbols.append(sym);
@@ -611,13 +612,15 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
   unsigned int i = 1;
   varsBlock.walk(
-      [&](mlir::modelica::MemberCreateOp op) {
-        auto argumentSymbol = GiNaC::symbol(op.getSymName().str());
-        symbols.append(argumentSymbol);
-        valueExpressionMap[bodyBlock->getArgument(i)] = argumentSymbol;
-        ++i;
-        return;
-      }
+    [&](mlir::modelica::MemberCreateOp op) {
+      auto argumentSymbol = GiNaC::symbol(op.getSymName().str());
+      symbols.append(argumentSymbol);
+      if (!op.isConstant())
+        variableSymbols.append(argumentSymbol);
+      valueExpressionMap[bodyBlock->getArgument(i)] = argumentSymbol;
+      ++i;
+      return;
+    }
   );
 
 //  for (unsigned int i = 0; i < bodyBlock->getNumArguments(); ++i) {
@@ -646,15 +649,19 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
     systemEquations.append(expression);
   }
 
-  GiNaC::lst variables = {};
-
-  for (const auto& symbol : symbols) {
-    variables.append(symbol);
-  }
-
   std::cerr << systemEquations;
   std::cerr << "\nSOLUTION:\n" << std::flush;
-  std::cerr << GiNaC::lsolve(systemEquations, variables) << "\n" << std::flush;
+
+  GiNaC::ex solution = GiNaC::lsolve(systemEquations, variableSymbols);
+  std::cerr << solution << "\n" << std::flush;
+
+  SymbolicVisitor visitor = SymbolicVisitor();
+  for (const GiNaC::ex expr : solution) {
+    std::cerr << "Equation: " << expr << '\n' << std::flush;
+    expr.traverse_postorder(visitor);
+  }
+
+  //solution.traverse_postorder(visitor);
 
   return false;
 }
