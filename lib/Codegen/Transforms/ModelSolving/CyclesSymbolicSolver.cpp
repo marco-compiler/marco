@@ -402,7 +402,6 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
     return res;
   }
 
-  //todo: understand how to substitute parameters with their actual value
   if(mlir::isa<mlir::modelica::TimeOp>(definingOp))
     return time;
 
@@ -605,7 +604,6 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 //    symbols.append(sym);
 //  }
 
-  //todo: give symbols reasonable names and substitute parameter values
   mlir::Block* bodyBlock = model.getOperation().bodyBlock();
   mlir::Block& varsBlock = model.getOperation().getVarsRegion().front();
   llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap;
@@ -676,19 +674,10 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
     expressionHashToValueMap[symbols[argumentIndex].gethash()] = model.getOperation().bodyBlock()->getArgument(argumentIndex);
   }
 
-  // todo: add time to the mapping
-
-  for (const auto& [key, val] : symbolToValueMap) {
-    std::cerr << key << '\n' << std::flush;
-    mlir::Value value = val;
-    value.dump();
-  }
-
   for (const GiNaC::ex expr : solution) {
     std::cerr << "Equation: " << expr << '\n' << std::flush;
 
     // todo: change to a meaningful location
-    // todo: which location is meaningful?
     auto loc = builder.getUnknownLoc();
     builder.setInsertionPointToStart(model.getOperation().bodyBlock());
     auto equationOp = builder.create<mlir::modelica::EquationOp>(loc);

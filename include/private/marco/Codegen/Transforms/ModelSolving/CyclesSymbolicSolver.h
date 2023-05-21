@@ -135,24 +135,18 @@ namespace marco::codegen {
       }
 
       void visit(const GiNaC::add & x) override {
-        std::cerr << "Add\n" << x.nops() << '\n' << std::flush;
-        // todo: loop to add also the third argument
-
         mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
-        mlir::Value rhs = expressionHashToValueMap[x.op(1).gethash()];
 
-        lhs.dump();
-        rhs.dump();
+        for (size_t i = 1; i < x.nops(); ++i) {
+          mlir::Value rhs = expressionHashToValueMap[x.op(i).gethash()];
+          mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
+          lhs = builder.create<mlir::modelica::AddOp>(loc, type, lhs, rhs);
+        }
 
-        mlir::Type type = getMostGenericType(lhs.getType(), rhs.getType());
-
-        mlir::Value value = builder.create<mlir::modelica::AddOp>(loc, type, lhs, rhs);
-        expressionHashToValueMap[x.gethash()] = value;
+        expressionHashToValueMap[x.gethash()] = lhs;
       }
 
       void visit(const GiNaC::mul & x) override {
-        std::cerr << "Mul\n" << x << '\n' << std::flush;
-
         mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
         mlir::Value rhs = expressionHashToValueMap[x.op(1).gethash()];
 
@@ -163,8 +157,6 @@ namespace marco::codegen {
       }
 
       void visit(const GiNaC::power & x) override {
-        std::cerr << "Power\n" << x << '\n' << std::flush;
-
         mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
         mlir::Value rhs = expressionHashToValueMap[x.op(1).gethash()];
 
@@ -176,9 +168,6 @@ namespace marco::codegen {
 
       void visit(const GiNaC::function & x) override {
         if (x.get_name() == "sin") {
-          //todo: add time to expvalue mapping
-          std::cerr << "Function\n" << x << '\n' << std::flush;
-
           mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
 
           mlir::Type type = lhs.getType();
@@ -190,8 +179,6 @@ namespace marco::codegen {
 
       void visit(const GiNaC::relational & x) override {
         if (x.info(GiNaC::info_flags::relation_equal)) {
-          std::cerr << "Equals\n" << '\n' << std::flush;
-
           mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
           mlir::Value rhs = expressionHashToValueMap[x.op(1).gethash()];
 
@@ -203,8 +190,6 @@ namespace marco::codegen {
       }
 
       void visit(const GiNaC::numeric & x) override {
-        std::cerr << "Numeric\n" << x << '\n' << std::flush;
-
         mlir::Attribute attribute;
 
         if (x.is_cinteger()) {
@@ -221,8 +206,6 @@ namespace marco::codegen {
       }
 
       void visit(const GiNaC::symbol & x) override {
-        std::cerr << "Numeric\n" << x << '\n' << std::flush;
-
         mlir::Value value = expressionHashToValueMap[x.gethash()];
         if (value == nullptr) {
           if (x.get_name() == "time") {
