@@ -426,6 +426,11 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, const GiNaC::lst& sym
   if(mlir::isa<mlir::modelica::DivOp>(definingOp))
     return visit_postorder_recursive_value(node->getChild(0), symbols, time) /
         visit_postorder_recursive_value(node->getChild(1), symbols, time);
+  if(mlir::isa<mlir::modelica::PowOp>(definingOp))
+    return GiNaC::pow(
+        visit_postorder_recursive_value(node->getChild(0), symbols, time),
+        visit_postorder_recursive_value(node->getChild(1), symbols, time)
+        );
 
   // If we have a subscription operation, get the shape of the base vector, that should correspond with
   // the first operand. Then add an index to the symbol of the vector for each operand except the base.
@@ -576,6 +581,7 @@ void visit_postorder(const MatchedEquation& equation, const GiNaC::lst& symbols)
 
 }
 
+// todo: check if moving the solver before the matching phase can be done
 bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 {
   model.getOperation()->dump();
@@ -662,6 +668,7 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   GiNaC::ex solution = GiNaC::lsolve(systemEquations, variableSymbols);
   std::cerr << solution << "\n" << std::flush;
 
+  // todo: add equations to Model class and add matching
   model.setEquations(Equations<MatchedEquation>());
   model.getOperation()->walk(
       [&] (mlir::modelica::EquationInterface op) {
@@ -674,11 +681,17 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
     expressionHashToValueMap[symbols[argumentIndex].gethash()] = model.getOperation().bodyBlock()->getArgument(argumentIndex);
   }
 
-  for (const GiNaC::ex expr : solution) {
-    std::cerr << "Equation: " << expr << '\n' << std::flush;
+  GiNaC::lst checkEquations = {};
 
-    // todo: change to a meaningful location
-    auto loc = builder.getUnknownLoc();
+  Equations<MatchedEquation> solutionEquations;
+
+  for (const GiNaC::ex expr : solution) {
+    // todo:
+    // Set the location to the model, as all the equations are going to be changed:
+    // they will not correspond to the source code anymore.
+    // An alternative would be to assign to each equation the location of the previously
+    // matched one
+    auto loc = model.getOperation().getLoc();
     builder.setInsertionPointToStart(model.getOperation().bodyBlock());
     auto equationOp = builder.create<mlir::modelica::EquationOp>(loc);
     assert(equationOp.getBodyRegion().empty());
@@ -687,10 +700,23 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     SymbolicVisitor visitor = SymbolicVisitor(builder, loc, symbolToValueMap);
     expr.traverse_postorder(visitor);
-    equationOp->dump();
+
+    auto newEquation = Equation::build(equationOp, model.getVariables());
+
+    auto uniqueEquation = std::make_unique<MatchedEquation>(
+                    std::move(newEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT);
+
+    auto testEquation = Equation::build(equationOp, model.getVariables());
+    auto matchedEquation = MatchedEquation(std::move(testEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT);
+    EquationValueGraph valueGraph = EquationValueGraph(&matchedEquation);
+    auto checkEquation = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
+
+    checkEquations.append(checkEquation);
   }
 
-  model.getOperation()->dump();
+//  model.getOperation()->dump();
+
+  std::cerr << checkEquations << std::flush;
 
   //solution.traverse_postorder(visitor);
 
