@@ -609,17 +609,25 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   mlir::Block* bodyBlock = model.getOperation().bodyBlock();
   mlir::Block& varsBlock = model.getOperation().getVarsRegion().front();
   llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap;
+  std::map<std::string, mlir::Value> symbolToValueMap;
 
-  unsigned int i = 1;
+  unsigned int i = 0;
   varsBlock.walk(
     [&](mlir::modelica::MemberCreateOp op) {
-      auto argumentSymbol = GiNaC::symbol(op.getSymName().str());
-      symbols.append(argumentSymbol);
-      if (!op.isConstant())
-        variableSymbols.append(argumentSymbol);
-      valueExpressionMap[bodyBlock->getArgument(i)] = argumentSymbol;
-      ++i;
-      return;
+        std::string symbolName = op.getSymName().str();
+        mlir::Value argument = bodyBlock->getArgument(i);
+
+        symbolToValueMap[symbolName] = argument;
+        auto argumentSymbol = GiNaC::symbol(symbolName);
+        symbols.append(argumentSymbol);
+
+        if (!op.isConstant())
+          variableSymbols.append(argumentSymbol);
+
+        //valueExpressionMap[bodyBlock->getArgument(i)] = argumentSymbol;
+        ++i;
+
+        return;
     }
   );
 
@@ -633,6 +641,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 //    valueExpressionMap[argument] = argumentSymbol;
 //  }
 
+  GiNaC::symbol time("time");
+
   for (const auto& equation : toBeProcessed) {
     std::cerr << "Num operands: " << numberOfScalarEquations << std::flush;
 
@@ -641,7 +651,6 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
     EquationValueGraph valueGraph = EquationValueGraph(equation);
     std::cerr << "Equation Value Graph built\n" << std::flush;
     //valueGraph.print();
-    GiNaC::symbol time("time");
     GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), symbols, time);
     //GiNaC::ex expression = get_equation_expression(equation, symbols, time, valueExpressionMap);
     valueGraph.erase();
@@ -655,11 +664,44 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   GiNaC::ex solution = GiNaC::lsolve(systemEquations, variableSymbols);
   std::cerr << solution << "\n" << std::flush;
 
-  SymbolicVisitor visitor = SymbolicVisitor();
+  model.setEquations(Equations<MatchedEquation>());
+  model.getOperation()->walk(
+      [&] (mlir::modelica::EquationInterface op) {
+        op.erase();
+      }
+    );
+
+  llvm::DenseMap<unsigned int, mlir::Value> expressionHashToValueMap;
+  for (size_t argumentIndex = 0; argumentIndex < symbols.nops(); ++argumentIndex) {
+    expressionHashToValueMap[symbols[argumentIndex].gethash()] = model.getOperation().bodyBlock()->getArgument(argumentIndex);
+  }
+
+  // todo: add time to the mapping
+
+  for (const auto& [key, val] : symbolToValueMap) {
+    std::cerr << key << '\n' << std::flush;
+    mlir::Value value = val;
+    value.dump();
+  }
+
   for (const GiNaC::ex expr : solution) {
     std::cerr << "Equation: " << expr << '\n' << std::flush;
+
+    // todo: change to a meaningful location
+    // todo: which location is meaningful?
+    auto loc = builder.getUnknownLoc();
+    builder.setInsertionPointToStart(model.getOperation().bodyBlock());
+    auto equationOp = builder.create<mlir::modelica::EquationOp>(loc);
+    assert(equationOp.getBodyRegion().empty());
+    mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
+    builder.setInsertionPointToStart(equationBodyBlock);
+
+    SymbolicVisitor visitor = SymbolicVisitor(builder, loc, symbolToValueMap);
     expr.traverse_postorder(visitor);
+    equationOp->dump();
   }
+
+  model.getOperation()->dump();
 
   //solution.traverse_postorder(visitor);
 
