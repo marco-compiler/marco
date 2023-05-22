@@ -582,7 +582,6 @@ void visit_postorder(const MatchedEquation& equation, const GiNaC::lst& symbols)
 // todo: check if moving the solver before the matching phase can be done
 bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 {
-  model.getOperation()->dump();
   // The list of equations among which the cycles have to be searched
   llvm::SmallVector<MatchedEquation*> toBeProcessed;
 
@@ -593,28 +592,14 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
   auto systemEquations = GiNaC::lst();
 
-  size_t numberOfScalarEquations = 0;
-
-  for (const auto& equation : toBeProcessed) {
-    numberOfScalarEquations += equation->getIterationRanges().flatSize();
-  }
-
-  size_t numberOfArguments = model.getOperation().getBodyRegion().getArguments().size();
-
   auto symbols = GiNaC::lst();
   auto variableSymbols = GiNaC::lst();
-//  for (size_t i = 0; i < numberOfArguments; ++i) {
-//    GiNaC::symbol sym("sym" + std::to_string(i));
-//    symbols.append(sym);
-//  }
 
-  mlir::Block* bodyBlock = model.getOperation().bodyBlock();
   llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap;
   std::map<std::string, mlir::modelica::VariableOp> nameToVariableMap;
   std::map<std::string, mlir::Type> nameToTypeMap;
   std::map<std::string, GiNaC::symbol> nameToSymbolMap;
 
-  unsigned int i = 0;
   model.getOperation().walk(
     [&](mlir::modelica::VariableOp op) {
         std::string symbolName = op.getSymName().str();
@@ -629,39 +614,19 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
         if (!op.isParameter())
           variableSymbols.append(symbol);
 
-        //valueExpressionMap[bodyBlock->getArgument(i)] = argumentSymbol;
-        ++i;
-
         return;
     }
   );
-
-//  for (unsigned int i = 0; i < bodyBlock->getNumArguments(); ++i) {
-//    mlir::Value argument = bodyBlock->getArgument(i);
-//    argument.getDefiningOp()->dump();
-//    auto memberOp = mlir::dyn_cast<mlir::modelica::MemberCreateOp>(argument.getDefiningOp());
-//    auto argumentSymbol = GiNaC::symbol(memberOp.getSymName().str());
-//
-//    symbols.append(argumentSymbol);
-//    valueExpressionMap[argument] = argumentSymbol;
-//  }
 
   GiNaC::symbol time("time");
 
   GiNaC::lst trivialEquations;
 
   for (const auto& equation : toBeProcessed) {
-    std::cerr << "Num operands: " << numberOfScalarEquations << std::flush;
-
-    equation->getOperation()->dump();
-
     EquationValueGraph valueGraph = EquationValueGraph(equation);
-    std::cerr << "Equation Value Graph built\n" << std::flush;
-    //valueGraph.print();
     GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), nameToSymbolMap, time);
     //GiNaC::ex expression = get_equation_expression(equation, symbols, time, valueExpressionMap);
     valueGraph.erase();
-    std::cerr << "This is the complete expression: " << expression << '\n' << std::flush;
 
     // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
     // todo: is this sufficient to cover all parameter cases or not?
@@ -674,21 +639,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
   GiNaC::lst finalEquations;
 
-  // Substitute the trivial equations in the system equations.
-//  for (const auto& equation : systemEquations) {
-//    finalEquations.append(equation.subs(trivialEquations));
-//  }
-
-  std::cerr << systemEquations;
-  std::cerr << variableSymbols << "\n" << std::flush;
-
-  std::cerr << "\nSOLUTION:\n" << std::flush;
-
   GiNaC::ex solution = GiNaC::lsolve(systemEquations, variableSymbols);
 
-  std::cerr << solution << "\n" << std::flush;
-
-  // todo: add equations to Model class and add matching
   model.setEquations(Equations<MatchedEquation>());
   model.getOperation()->walk(
       [&] (mlir::modelica::EquationInterface op) {
@@ -701,11 +653,7 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   Equations<MatchedEquation> solutionEquations;
 
   for (const GiNaC::ex expr : solution) {
-    // todo:
-    // Set the location to the model, as all the equations are going to be changed:
-    // they will not correspond to the source code anymore.
-    // An alternative would be to assign to each equation the location of the previously
-    // matched one
+    // todo: is this the best we can do for location?
     auto loc = model.getOperation().getLoc();
     builder.setInsertionPointToStart(model.getOperation().bodyBlock());
     auto equationOp = builder.create<mlir::modelica::EquationOp>(loc);
@@ -728,12 +676,6 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     checkEquations.append(checkEquation);
   }
-
-  model.getOperation()->dump();
-
-  std::cerr << checkEquations << std::flush;
-
-  //solution.traverse_postorder(visitor);
 
   model.setEquations(solutionEquations);
   return true;
