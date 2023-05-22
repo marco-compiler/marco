@@ -121,15 +121,14 @@ namespace marco::codegen {
       mlir::Location loc;
       // Map from expression to Value, to be able to get the Value of a subexpression while traversing the expression.
       llvm::DenseMap<unsigned int, mlir::Value> expressionHashToValueMap;
-      std::map<std::string, mlir::Value> symbolNameToValueMap;
-      std::map<mlir::Value, mlir::Value> variableLoadingMapping;
+      std::map<std::string, mlir::modelica::VariableOp> symbolNameToValueMap;
       mlir::Value timeValue;
 
       public:
       explicit SymbolicVisitor(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          std::map<std::string, mlir::Value>& symbolValueMap
+          std::map<std::string, mlir::modelica::VariableOp>& symbolValueMap
       ) : builder(builder), loc(loc), symbolNameToValueMap(symbolValueMap)
       {
 
@@ -222,11 +221,8 @@ namespace marco::codegen {
           if (x.get_name() == "time") {
             value = builder.create<mlir::modelica::TimeOp>(loc);
           } else {
-            std::cerr << x.get_name() << std::flush;
-            value = symbolNameToValueMap[x.get_name()];
-            value.dump();
-            // todo: create appropriate LoadOp / SubscriptionOp for arrays
-            value = builder.create<mlir::modelica::LoadOp>(loc, value);
+            mlir::Type type = symbolNameToValueMap[x.get_name()].getVariableType().unwrap();
+            value = builder.create<mlir::modelica::VariableGetOp>(loc, type, x.get_name());
           }
 
           expressionHashToValueMap[x.gethash()] = value;
