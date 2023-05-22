@@ -703,8 +703,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
     auto newEquation = Equation::build(equationOp, model.getVariables());
 
-    auto uniqueEquation = std::make_unique<MatchedEquation>(
-                    std::move(newEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT);
+    solutionEquations.add(std::make_unique<MatchedEquation>(
+                    std::move(newEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT));
 
     auto testEquation = Equation::build(equationOp, model.getVariables());
     auto matchedEquation = MatchedEquation(std::move(testEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT);
@@ -720,7 +720,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
   //solution.traverse_postorder(visitor);
 
-  return false;
+  model.setEquations(solutionEquations);
+  return true;
 }
 
 ValueNode::ValueNode(mlir::Value value, ValueNode* father)
