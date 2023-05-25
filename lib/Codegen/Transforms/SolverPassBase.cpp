@@ -436,13 +436,20 @@ namespace mlir::modelica::impl
           if (startOp.getEach()) {
             builder.create<ArrayFillOp>(startOp.getLoc(), destination, valueToBeStored);
           } else {
-            auto elementType = destination.getType().cast<ArrayType>().getElementType();
+            auto destinationArrayType = destination.getType().cast<ArrayType>();
+            auto valueType = valueToBeStored.getType();
 
-            if (elementType != valueToBeStored.getType()) {
-              valueToBeStored = builder.create<CastOp>(loc, elementType, valueToBeStored);
+            if (auto valueArrayType = valueType.dyn_cast<ArrayType>()) {
+              builder.create<ArrayCopyOp>(startOp.getLoc(), valueToBeStored, destination);
+            } else {
+              auto elementType = destinationArrayType.getElementType();
+
+              if (elementType != valueToBeStored.getType()) {
+                valueToBeStored = builder.create<CastOp>(loc, elementType, valueToBeStored);
+              }
+
+              builder.create<StoreOp>(startOp.getLoc(), valueToBeStored, destination, llvm::None);
             }
-
-            builder.create<StoreOp>(startOp.getLoc(), valueToBeStored, destination, llvm::None);
           }
         } else {
           builder.clone(op, startOpsMapping);
