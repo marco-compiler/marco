@@ -1,7 +1,6 @@
 #include "marco/Codegen/Transforms/ModelSolving/CyclesSymbolicSolver.h"
 #include "ginac/ginac.h"
 #include <string>
-//#include <symengine/expression.h>
 
 #include "llvm/ADT/PostOrderIterator.h"
 
@@ -358,22 +357,39 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
 
   GiNaC::ex solution = GiNaC::lsolve(systemEquations, variableSymbols);
 
-  model.setEquations(Equations<MatchedEquation>());
-  model.getOperation()->walk(
-      [&] (mlir::modelica::EquationInterface op) {
-        op.erase();
-      }
-    );
+  std::cerr << solution << '\n';
+
+  auto solutionEquations = Equations<MatchedEquation>();
+
+  // todo: better to substitute equation IR with mine, so that I keep the information of initial
+  // todo: this way I am building normal equations instead of initial equations
+  std::map<std::string, MatchedEquation*> nameToEquationMap;
+  for (const auto& equation : toBeProcessed) {
+    mlir::modelica::VariableOp variable = equation->getWrite().getVariable()->getDefiningOp();
+    auto simpleEquation = Equation::build(equation->getOperation(), model.getVariables());
+    if (!variable.isParameter()) {
+      nameToEquationMap[variable.getSymName().str()] = equation;
+      solutionEquations.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT)));
+    } else {
+      solutionEquations.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), equation->getIterationRanges(), equation->getWrite().getPath())));
+    }
+  }
 
   GiNaC::lst checkEquations = {};
-
-  Equations<MatchedEquation> solutionEquations;
 
   for (const GiNaC::ex expr : solution) {
     // todo: is this the best we can do for location?
     auto loc = model.getOperation().getLoc();
     builder.setInsertionPointToStart(model.getOperation().bodyBlock());
-    auto equationOp = builder.create<mlir::modelica::EquationOp>(loc);
+    std::string matchedVariableName;
+    if (GiNaC::is_a<GiNaC::symbol>(expr.lhs())) {
+      matchedVariableName = GiNaC::ex_to<GiNaC::symbol>(expr.lhs()).get_name();
+    } else {
+      llvm_unreachable("Expected the left hand side of the equation to be a symbol.");
+    }
+
+    auto equationOp = nameToEquationMap[matchedVariableName]->getOperation();
+    equationOp.bodyBlock()->erase();
     assert(equationOp.getBodyRegion().empty());
     mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
     builder.setInsertionPointToStart(equationBodyBlock);
@@ -381,10 +397,8 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
     SymbolicVisitor visitor = SymbolicVisitor(builder, loc, nameToVariableMap);
     expr.traverse_postorder(visitor);
 
-    auto newEquation = Equation::build(equationOp, model.getVariables());
-
-    solutionEquations.add(std::make_unique<MatchedEquation>(
-                    std::move(newEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT));
+//    equationOp.dump();
+//    exit(1);
 
     // Check correctness by converting the equations back to GiNaC
 //    auto testEquation = Equation::build(equationOp, model.getVariables());
@@ -398,6 +412,7 @@ bool CyclesSymbolicSolver::solve(Model<MatchedEquation>& model)
   //std::cerr << checkEquations << '\n';
 
   model.setEquations(solutionEquations);
+
   return true;
 }
 
