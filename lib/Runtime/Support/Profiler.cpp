@@ -17,32 +17,32 @@ namespace marco::runtime::profiling
     std::lock_guard<std::mutex> lockGuard(mutex);
 
     sinFunction.reset();
-    sinCounter = 0;
+    stdSinCounter = 0;
 
     cosFunction.reset();
-    cosCounter = 0;
+    stdCosCounter = 0;
   }
 
   void SupportProfiler::print() const
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
-    std::cerr << "Number of 'sin' function calls: " << sinCounter << "\n";
+    std::cerr << "Number of 'std::sin' function calls: " << stdSinCounter << "\n";
     std::cerr << "Time spent on computing the 'sin' function: " << sinFunction.totalElapsedTime() << " ms\n";
-    std::cerr << "Number of 'cos' function calls: " << cosCounter << "\n";
+    std::cerr << "Number of 'std::cos' function calls: " << stdCosCounter << "\n";
     std::cerr << "Time spent on computing the 'cos' function: " << cosFunction.totalElapsedTime() << " ms\n";
   }
 
-  void SupportProfiler::incrementSinCounter()
+  void SupportProfiler::incrementStdSinCounter()
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
-    ++sinCounter;
+    ++stdSinCounter;
   }
 
-  void SupportProfiler::incrementCosCounter()
+  void SupportProfiler::incrementStdCosCounter()
   {
     std::lock_guard<std::mutex> lockGuard(mutex);
-    ++cosCounter;
+    ++stdCosCounter;
   }
 
   SupportProfiler& supportProfiler()

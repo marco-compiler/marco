@@ -185,14 +185,10 @@ namespace
           angles.push_back(angle);
 
           SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
-          SUPPORT_PROFILER_SINFUNCTION_START;
           sinResults.push_back(std::sin(angle));
-          SUPPORT_PROFILER_SINFUNCTION_STOP;
 
           SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
-          SUPPORT_PROFILER_COSFUNCTION_START;
           cosResults.push_back(std::cos(angle));
-          SUPPORT_PROFILER_COSFUNCTION_STOP;
         }
       }
 
@@ -322,17 +318,19 @@ namespace
 {
   float cos_f32(float value)
   {
+    SUPPORT_PROFILER_COSFUNCTION_START;
     auto& options = supportOptions();
 
     if (options.useCosInterpolation) {
       static CosApproximation<float> approximation(
           options.cosInterpolationPoints);
 
-      return approximation.get(value);
+      auto result = approximation.get(value);
+      SUPPORT_PROFILER_COSFUNCTION_STOP;
+      return result;
     }
 
     SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
-    SUPPORT_PROFILER_COSFUNCTION_START;
     auto result = std::cos(value);
     SUPPORT_PROFILER_COSFUNCTION_STOP;
     return result;
@@ -340,17 +338,19 @@ namespace
 
   double cos_f64(double value)
   {
+    SUPPORT_PROFILER_COSFUNCTION_START;
     auto& options = supportOptions();
 
     if (options.useCosInterpolation) {
       static CosApproximation<double> approximation(
           options.cosInterpolationPoints);
 
-      return approximation.get(value);
+      auto result = approximation.get(value);
+      SUPPORT_PROFILER_COSFUNCTION_STOP;
+      return result;
     }
 
     SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
-    SUPPORT_PROFILER_COSFUNCTION_START;
     auto result = std::cos(value);
     SUPPORT_PROFILER_COSFUNCTION_STOP;
     return result;
@@ -1164,14 +1164,10 @@ namespace
           angles.push_back(angle);
 
           SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
-          SUPPORT_PROFILER_SINFUNCTION_START;
           sinResults.push_back(std::sin(angle));
-          SUPPORT_PROFILER_SINFUNCTION_STOP;
 
           SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
-          SUPPORT_PROFILER_COSFUNCTION_START;
           cosResults.push_back(std::cos(angle));
-          SUPPORT_PROFILER_COSFUNCTION_STOP;
         }
       }
 
@@ -1301,17 +1297,19 @@ namespace
 {
   float sin_f32(float value)
   {
+    SUPPORT_PROFILER_SINFUNCTION_START;
     auto& options = supportOptions();
 
     if (options.useSinInterpolation) {
       static SinApproximation<float> approximation(
             options.sinInterpolationPoints);
 
-      return approximation.get(value);
+      auto result = approximation.get(value);
+      SUPPORT_PROFILER_SINFUNCTION_STOP;
+      return result;
     }
 
     SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
-    SUPPORT_PROFILER_SINFUNCTION_START;
     auto result = std::sin(value);
     SUPPORT_PROFILER_SINFUNCTION_STOP;
     return result;
@@ -1319,17 +1317,19 @@ namespace
 
   double sin_f64(double value)
   {
+    SUPPORT_PROFILER_SINFUNCTION_START;
     auto& options = supportOptions();
 
     if (options.useSinInterpolation) {
       static SinApproximation<double> approximation(
           options.sinInterpolationPoints);
 
-      return approximation.get(value);
+      auto result = approximation.get(value);
+      SUPPORT_PROFILER_SINFUNCTION_STOP;
+      return result;
     }
 
     SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
-    SUPPORT_PROFILER_SINFUNCTION_START;
     auto result = std::sin(value);
     SUPPORT_PROFILER_SINFUNCTION_STOP;
     return result;

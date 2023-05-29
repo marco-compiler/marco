@@ -18,15 +18,15 @@ namespace marco::runtime::profiling
 
       void print() const override;
 
-      void incrementSinCounter();
+      void incrementStdSinCounter();
 
-      void incrementCosCounter();
+      void incrementStdCosCounter();
 
     public:
-      size_t sinCounter;
+      size_t stdSinCounter;
       Timer sinFunction;
 
-      size_t cosCounter;
+      size_t stdCosCounter;
       Timer cosFunction;
 
       mutable std::mutex mutex;
@@ -35,12 +35,12 @@ namespace marco::runtime::profiling
   SupportProfiler& supportProfiler();
 }
 
-#define SUPPORT_PROFILER_SINCOUNTER_INCREMENT ::marco::runtime::profiling::supportProfiler().incrementSinCounter()
+#define SUPPORT_PROFILER_SINCOUNTER_INCREMENT ::marco::runtime::profiling::supportProfiler().incrementStdSinCounter()
 
 #define SUPPORT_PROFILER_SINFUNCTION_START ::marco::runtime::profiling::supportProfiler().sinFunction.start()
 #define SUPPORT_PROFILER_SINFUNCTION_STOP ::marco::runtime::profiling::supportProfiler().sinFunction.stop()
 
-#define SUPPORT_PROFILER_COSCOUNTER_INCREMENT ::marco::runtime::profiling::supportProfiler().incrementCosCounter()
+#define SUPPORT_PROFILER_COSCOUNTER_INCREMENT ::marco::runtime::profiling::supportProfiler().incrementStdCosCounter()
 
 #define SUPPORT_PROFILER_COSFUNCTION_START ::marco::runtime::profiling::supportProfiler().cosFunction.start()
 #define SUPPORT_PROFILER_COSFUNCTION_STOP ::marco::runtime::profiling::supportProfiler().cosFunction.stop()
