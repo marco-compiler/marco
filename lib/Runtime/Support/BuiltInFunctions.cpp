@@ -1,5 +1,6 @@
 #include "marco/Runtime/Support/BuiltInFunctions.h"
 #include "marco/Runtime/Support/Options.h"
+#include "marco/Runtime/Support/Profiler.h"
 #include "marco/Runtime/Support/Utils.h"
 #include <algorithm>
 #include <cmath>
@@ -182,8 +183,16 @@ namespace
         for (size_t i = 1; i <= precomputedValues; ++i) {
           T angle = width * i;
           angles.push_back(angle);
+
+          SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
+          SUPPORT_PROFILER_SINFUNCTION_START;
           sinResults.push_back(std::sin(angle));
+          SUPPORT_PROFILER_SINFUNCTION_STOP;
+
+          SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
+          SUPPORT_PROFILER_COSFUNCTION_START;
           cosResults.push_back(std::cos(angle));
+          SUPPORT_PROFILER_COSFUNCTION_STOP;
         }
       }
 
@@ -322,7 +331,11 @@ namespace
       return approximation.get(value);
     }
 
-    return std::cos(value);
+    SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
+    SUPPORT_PROFILER_COSFUNCTION_START;
+    auto result = std::cos(value);
+    SUPPORT_PROFILER_COSFUNCTION_STOP;
+    return result;
   }
 
   double cos_f64(double value)
@@ -336,7 +349,11 @@ namespace
       return approximation.get(value);
     }
 
-    return std::cos(value);
+    SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
+    SUPPORT_PROFILER_COSFUNCTION_START;
+    auto result = std::cos(value);
+    SUPPORT_PROFILER_COSFUNCTION_STOP;
+    return result;
   }
 }
 
@@ -1145,8 +1162,16 @@ namespace
         for (size_t i = 1; i <= precomputedValues; ++i) {
           T angle = width * i;
           angles.push_back(angle);
+
+          SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
+          SUPPORT_PROFILER_SINFUNCTION_START;
           sinResults.push_back(std::sin(angle));
+          SUPPORT_PROFILER_SINFUNCTION_STOP;
+
+          SUPPORT_PROFILER_COSCOUNTER_INCREMENT;
+          SUPPORT_PROFILER_COSFUNCTION_START;
           cosResults.push_back(std::cos(angle));
+          SUPPORT_PROFILER_COSFUNCTION_STOP;
         }
       }
 
@@ -1285,7 +1310,11 @@ namespace
       return approximation.get(value);
     }
 
-    return std::sin(value);
+    SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
+    SUPPORT_PROFILER_SINFUNCTION_START;
+    auto result = std::sin(value);
+    SUPPORT_PROFILER_SINFUNCTION_STOP;
+    return result;
   }
 
   double sin_f64(double value)
@@ -1299,7 +1328,11 @@ namespace
       return approximation.get(value);
     }
 
-    return std::sin(value);
+    SUPPORT_PROFILER_SINCOUNTER_INCREMENT;
+    SUPPORT_PROFILER_SINFUNCTION_START;
+    auto result = std::sin(value);
+    SUPPORT_PROFILER_SINFUNCTION_STOP;
+    return result;
   }
 }
 
