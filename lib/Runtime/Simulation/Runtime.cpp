@@ -5,6 +5,7 @@
 #include "marco/Runtime/Simulation/Profiler.h"
 #include "marco/Runtime/Drivers/Driver.h"
 #include "marco/Runtime/Printers/Printer.h"
+#include "marco/Runtime/Support/CLI.h"
 #include <iostream>
 
 using namespace ::marco::runtime;
@@ -231,6 +232,7 @@ namespace
   cli += multithreading::getCLIOptions();
   cli += driver->getCLIOptions();
   cli += printer->getCLIOptions();
+  cli += support::getCLIApproximationOptions();
 
   argh::parser cmdl(argc, argv);
 

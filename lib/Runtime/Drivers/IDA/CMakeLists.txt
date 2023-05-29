@@ -1,6 +1,6 @@
 set(LIBS
-    PUBLIC marco::runtime
-    PUBLIC argh)
+    PUBLIC argh
+    PUBLIC marco::runtimeSolversIDA)
 
 marco_add_runtime_library(runtimeDriverIDA
     STATIC
@@ -10,7 +10,3 @@ marco_add_runtime_library(runtimeDriverIDA
 
     LINK_LIBS
     ${LIBS})
-
-if (MARCO_PROFILING)
-    target_compile_definitions(runtimeDriverIDA PUBLIC MARCO_PROFILING)
-endif()

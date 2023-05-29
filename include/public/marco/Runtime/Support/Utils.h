@@ -1,5 +1,5 @@
-#ifndef MARCO_RUNTIME_UTILS_H
-#define MARCO_RUNTIME_UTILS_H
+#ifndef MARCO_RUNTIME_SUPPORT_UTILS_H
+#define MARCO_RUNTIME_SUPPORT_UTILS_H
 
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <iostream>
@@ -60,4 +60,4 @@ std::ostream& operator<<(
   return stream;
 }
 
-#endif // MARCO_RUNTIME_UTILS_H
+#endif // MARCO_RUNTIME_SUPPORT_UTILS_H

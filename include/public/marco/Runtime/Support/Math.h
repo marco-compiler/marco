@@ -1,7 +1,7 @@
-#ifndef MARCO_RUNTIME_MATH_H
-#define MARCO_RUNTIME_MATH_H
+#ifndef MARCO_RUNTIME_SUPPORT_MATH_H
+#define MARCO_RUNTIME_SUPPORT_MATH_H
 
-#include "marco/Runtime/Mangling.h"
+#include "marco/Runtime/Support/Mangling.h"
 #include <cstdint>
 
 // Pow with 'bool' return type
@@ -79,4 +79,4 @@ RUNTIME_FUNC_DECL(pow, double, double, bool)
 RUNTIME_FUNC_DECL(pow, double, double, int64_t)
 RUNTIME_FUNC_DECL(pow, double, double, double)
 
-#endif // MARCO_RUNTIME_MATH_H
+#endif // MARCO_RUNTIME_SUPPORT_MATH_H

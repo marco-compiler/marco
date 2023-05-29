@@ -1,7 +1,7 @@
 #include "marco/Runtime/Solvers/IDA/Instance.h"
 #include "marco/Runtime/Solvers/IDA/Options.h"
 #include "marco/Runtime/Solvers/IDA/Profiler.h"
-#include "marco/Runtime/MemoryManagement.h"
+#include "marco/Runtime/Support/MemoryManagement.h"
 #include <atomic>
 #include <cassert>
 #include <functional>

@@ -1,4 +1,4 @@
-#include "marco/Runtime/Math.h"
+#include "marco/Runtime/Support/Math.h"
 #include "gtest/gtest.h"
 
 TEST(Runtime, pow_i1_i1_i1)

@@ -1,7 +1,7 @@
-#ifndef MARCO_RUNTIME_UTILITYFUNCTIONS_H
-#define MARCO_RUNTIME_UTILITYFUNCTIONS_H
+#ifndef MARCO_RUNTIME_SUPPORT_UTILITYFUNCTIONS_H
+#define MARCO_RUNTIME_SUPPORT_UTILITYFUNCTIONS_H
 
-#include "marco/Runtime/Mangling.h"
+#include "marco/Runtime/Support/Mangling.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cstdint>
 
@@ -35,4 +35,4 @@ RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(double))
 
-#endif	// MARCO_RUNTIME_UTILITYFUNCTIONS_H
+#endif // MARCO_RUNTIME_SUPPORT_UTILITYFUNCTIONS_H

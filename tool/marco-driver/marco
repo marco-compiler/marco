@@ -14,7 +14,9 @@ SIMULATION_LIBS="@SIMULATION_LIBS@"
 EXTRA_LINK_FLAGS="@EXTRA_LINK_FLAGS@"
 
 SOLVER="euler-forward"
+
 SOLVER_LIB=""
+DRIVER_LIB=""
 
 PRINT_HELP="False"
 PRINT_VERSION="False"
@@ -152,9 +154,11 @@ main()
   done
 
   if [[ "$SOLVER" == "euler-forward" ]] ; then
-    SOLVER_LIB="-lMARCORuntimeDriverEulerForward"
+    SOLVER_LIB="-lMARCORuntimeSolversEulerForward"
+    DRIVER_LIB="-lMARCORuntimeDriverEulerForward"
   elif [[ "$SOLVER" == "ida" ]] ; then
-    SOLVER_LIB="-lMARCORuntimeDriverIDA"
+    SOLVER_LIB="-lMARCORuntimeSolversIDA"
+    DRIVER_LIB="-lMARCORuntimeDriverIDA"
   else
     echo "Invalid solver"
     exit 1
@@ -182,9 +186,9 @@ main()
 
   if [[ $SHOULD_LINK == "True" ]]; then
     if [[ $OSTYPE == 'darwin'* ]]; then
-      c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Xlinker,--start-group -lMARCORuntime -lMARCORuntimeDriverKINSOL -lMARCORuntimePrinterCSV "${SOLVER_LIB}" -Xlinker,--end-group "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}" "${EXTRA_LINK_FLAGS}"
+      c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Xlinker,--start-group -lMARCORuntime -lMARCORuntimeDriverKINSOL -lMARCORuntimePrinterCSV "${SOLVER_LIB}" "${DRIVER_LIB}" -lMARCORuntimeSupport -lMARCORuntimeCLI -lMARCORuntimeModeling -lMARCORuntimeMultithreading -lMARCORuntimeProfiling -Xlinker,--end-group "${LIBS_PATHS_FLAGS[@]}" "${SIMULATION_LIBS_FLAGS[@]}" "${EXTRA_LINK_FLAGS}"
     else
-      c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Wl,--start-group -lMARCORuntime -lMARCORuntimeDriverKINSOL -lMARCORuntimePrinterCSV "${SOLVER_LIB}" "${LIBS_PATHS_FLAGS[@]}" -Wl,--end-group "${SIMULATION_LIBS_FLAGS[@]}" "${EXTRA_LINK_FLAGS}"
+      c++ -o "$OUTPUT_FILE" $RPATH_FLAG "$TEMPORARY_DIR/simulation.o" "-L${SCRIPT_PATH}/../lib" -Wl,--start-group -lMARCORuntime -lMARCORuntimeSupport -lMARCORuntimeDriverKINSOL -lMARCORuntimePrinterCSV "${SOLVER_LIB}" "${DRIVER_LIB}" -lMARCORuntimeSupport -lMARCORuntimeCLI -lMARCORuntimeModeling -lMARCORuntimeMultithreading -lMARCORuntimeProfiling "${LIBS_PATHS_FLAGS[@]}" -Wl,--end-group "${SIMULATION_LIBS_FLAGS[@]}" "${EXTRA_LINK_FLAGS}"
     fi
 
     resultCode=$?

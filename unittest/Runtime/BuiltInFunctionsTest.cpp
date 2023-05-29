@@ -1,10 +1,13 @@
-#include "marco/Runtime/BuiltInFunctions.h"
-#include "gtest/gtest.h"
+#include "marco/Runtime/Support/BuiltInFunctions.h"
+#include "marco/Runtime/Support/Options.h"
 #include "llvm/ADT/STLExtras.h"
+#include "gtest/gtest.h"
 #include <cmath>
 #include <numeric>
 
 #include "Utils.h"
+
+using namespace ::marco::runtime;
 
 TEST(Runtime, abs_i1)
 {
@@ -222,6 +225,8 @@ TEST(Runtime, ceil_f64)
 
 TEST(Runtime, cos_f32)
 {
+  support::supportOptions().useCosInterpolation = false;
+
   auto cosFn = [](float value) -> float {
     return NAME_MANGLED(cos, float, float)(value);
   };
@@ -234,8 +239,27 @@ TEST(Runtime, cos_f32)
   EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
 }
 
+TEST(Runtime, cos_approximation_f32)
+{
+  support::supportOptions().useCosInterpolation = true;
+  support::supportOptions().cosInterpolationPoints = 20;
+
+  auto cosFn = [](float value) -> float {
+    return NAME_MANGLED(cos, float, float)(value);
+  };
+
+  EXPECT_NEAR(cosFn(0), 1, 0.001);
+  EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.001);
+  EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.001);
+  EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.001);
+  EXPECT_NEAR(cosFn(M_PI), -1, 0.001);
+  EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.001);
+}
+
 TEST(Runtime, cos_f64)
 {
+  support::supportOptions().useCosInterpolation = false;
+
   auto cosFn = [](double value) -> double {
     return NAME_MANGLED(cos, double, double)(value);
   };
@@ -246,6 +270,23 @@ TEST(Runtime, cos_f64)
   EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.000001);
   EXPECT_NEAR(cosFn(M_PI), -1, 0.000001);
   EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.000001);
+}
+
+TEST(Runtime, cos_approximation_f64)
+{
+  support::supportOptions().useCosInterpolation = true;
+  support::supportOptions().cosInterpolationPoints = 20;
+
+  auto cosFn = [](double value) -> double {
+    return NAME_MANGLED(cos, double, double)(value);
+  };
+
+  EXPECT_NEAR(cosFn(0), 1, 0.001);
+  EXPECT_NEAR(cosFn(M_PI / 6), 0.866025403, 0.001);
+  EXPECT_NEAR(cosFn(M_PI / 4), 0.707106781, 0.001);
+  EXPECT_NEAR(cosFn(M_PI / 2), 0, 0.001);
+  EXPECT_NEAR(cosFn(M_PI), -1, 0.001);
+  EXPECT_NEAR(cosFn(2 * M_PI), 1, 0.001);
 }
 
 TEST(Runtime, cosh_f32)
@@ -1961,6 +2002,8 @@ TEST(Runtime, sign_f64)
 
 TEST(Runtime, sin_f32)
 {
+  support::supportOptions().useSinInterpolation = false;
+
   auto sinFn = [](float value) -> float {
     return NAME_MANGLED(sin, float, float)(value);
   };
@@ -1973,8 +2016,27 @@ TEST(Runtime, sin_f32)
   EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
 }
 
+TEST(Runtime, sin_approximation_f32)
+{
+  support::supportOptions().useSinInterpolation = true;
+  support::supportOptions().sinInterpolationPoints = 20;
+
+  auto sinFn = [](float value) -> float {
+    return NAME_MANGLED(sin, float, float)(value);
+  };
+
+  EXPECT_NEAR(sinFn(0), 0, 0.001);
+  EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.001);
+  EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.001);
+  EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.001);
+  EXPECT_NEAR(sinFn(M_PI), 0, 0.001);
+  EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.001);
+}
+
 TEST(Runtime, sin_f64)
 {
+  support::supportOptions().useSinInterpolation = false;
+
   auto sinFn = [](double value) -> double {
     return NAME_MANGLED(sin, double, double)(value);
   };
@@ -1985,6 +2047,23 @@ TEST(Runtime, sin_f64)
   EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.000001);
   EXPECT_NEAR(sinFn(M_PI), 0, 0.000001);
   EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.000001);
+}
+
+TEST(Runtime, sin_approximation_f64)
+{
+  support::supportOptions().useSinInterpolation = true;
+  support::supportOptions().sinInterpolationPoints = 5;
+
+  auto sinFn = [](double value) -> double {
+    return NAME_MANGLED(sin, double, double)(value);
+  };
+
+  EXPECT_NEAR(sinFn(0), 0, 0.001);
+  EXPECT_NEAR(sinFn(M_PI / 6), 0.5, 0.001);
+  EXPECT_NEAR(sinFn(M_PI / 4), 0.707106781, 0.001);
+  EXPECT_NEAR(sinFn(M_PI / 2), 1, 0.001);
+  EXPECT_NEAR(sinFn(M_PI), 0, 0.001);
+  EXPECT_NEAR(sinFn(2 * M_PI), 0, 0.001);
 }
 
 TEST(Runtime, sqrt_f32)

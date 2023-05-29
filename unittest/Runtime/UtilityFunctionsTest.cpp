@@ -1,6 +1,6 @@
-#include "marco/Runtime/UtilityFunctions.h"
-#include "gtest/gtest.h"
+#include "marco/Runtime/Support/UtilityFunctions.h"
 #include "llvm/ADT/STLExtras.h"
+#include "gtest/gtest.h"
 
 #include "Utils.h"
 

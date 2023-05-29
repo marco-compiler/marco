@@ -1,7 +1,7 @@
-#ifndef MARCO_RUNTIME_MEMORYMANAGEMENT_H
-#define MARCO_RUNTIME_MEMORYMANAGEMENT_H
+#ifndef MARCO_RUNTIME_SUPPORT_MEMORYMANAGEMENT_H
+#define MARCO_RUNTIME_SUPPORT_MEMORYMANAGEMENT_H
 
-#include "marco/Runtime/Mangling.h"
+#include "marco/Runtime/Support/Mangling.h"
 #include <cstdint>
 
 void* heapAlloc(int64_t size);
@@ -16,4 +16,4 @@ RUNTIME_FUNC_DECL(heapFree, void, PTR(void))
 
 extern "C" void _mlir_memref_to_llvm_free(void* ptr);
 
-#endif // MARCO_RUNTIME_MEMORYMANAGEMENT_H
+#endif // MARCO_RUNTIME_SUPPORT_MEMORYMANAGEMENT_H

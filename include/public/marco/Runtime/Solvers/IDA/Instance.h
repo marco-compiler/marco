@@ -1,10 +1,10 @@
 #ifndef MARCO_RUNTIME_SOLVERS_IDA_INSTANCE_H
 #define MARCO_RUNTIME_SOLVERS_IDA_INSTANCE_H
 
-#include "marco/Runtime/Mangling.h"
+#include "ida/ida.h"
 #include "marco/Runtime/Modeling/MultidimensionalRange.h"
 #include "marco/Runtime/Multithreading/ThreadPool.h"
-#include "ida/ida.h"
+#include "marco/Runtime/Support/Mangling.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_config.h"
 #include "sundials/sundials_types.h"

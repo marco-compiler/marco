@@ -1,9 +1,12 @@
-#include "marco/Runtime/BuiltInFunctions.h"
-#include "marco/Runtime/Utils.h"
+#include "marco/Runtime/Support/BuiltInFunctions.h"
+#include "marco/Runtime/Support/Options.h"
+#include "marco/Runtime/Support/Utils.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <vector>
+
+using namespace ::marco::runtime::support;
 
 //===----------------------------------------------------------------------===//
 // abs
@@ -167,13 +170,172 @@ RUNTIME_FUNC_DEF(ceil, double, double)
 
 namespace
 {
+  template<typename T>
+  class CosApproximation
+  {
+    public:
+      CosApproximation(size_t precomputedValues)
+          : width(M_PI_2 / static_cast<T>(precomputedValues + 1))
+      {
+        assert(precomputedValues >= 2);
+
+        for (size_t i = 1; i <= precomputedValues; ++i) {
+          T angle = width * i;
+          angles.push_back(angle);
+          sinResults.push_back(std::sin(angle));
+          cosResults.push_back(std::cos(angle));
+        }
+      }
+
+      T get(T value) const
+      {
+        if (value < 0) {
+          // cos(x) = cos(-x)
+          value *= -1;
+        }
+
+        // Periodicity.
+        while (value >= 2 * M_PI) {
+          value -= 2 * M_PI;
+        }
+
+        bool negative = false;
+
+        if (value > M_PI_2 && value <= M_PI) {
+          // cos(PI - x) = -cos(x)
+          value = M_PI - value;
+          negative = true;
+        } else if (value > M_PI && value <= 3 * M_PI_2) {
+          // cos(x + PI) = -cos(x)
+          value -= M_PI;
+          negative = true;
+        } else if (value > 3 * M_PI_2 && value <= 2 * M_PI) {
+          // cos(2 * PI - x) = cos(x)
+          value = 2 * M_PI - value;
+        }
+
+        T result = interpolate(value);
+
+        if (negative) {
+          result *= -1;
+        }
+
+        return result;
+      }
+
+    private:
+      T interpolate(T value) const
+      {
+        auto chunk = static_cast<size_t>(value / width);
+
+        if (value == 0) {
+          return getCosResultAtIndex(0);
+        }
+
+        if (size_t size = angles.size(); chunk == size + 1) {
+          return getCosResultAtIndex(chunk);
+        }
+
+        size_t lowerAngleIndex = chunk;
+        size_t upperAngleIndex = chunk + 1;
+
+        auto lowerAngle = getAngleAtIndex(lowerAngleIndex);
+        auto upperAngle = getAngleAtIndex(upperAngleIndex);
+
+        assert(value >= lowerAngle);
+        auto lowerDiff = value - lowerAngle;
+
+        assert(value <= upperAngle);
+        auto upperDiff = upperAngle - value;
+
+        if (lowerDiff < upperDiff) {
+          // cos(a + b) = cos(a) - b * sin(a)
+          return getCosResultAtIndex(lowerAngleIndex) -
+              lowerDiff * getSinResultAtIndex(lowerAngleIndex);
+        }
+
+        // cos(a - b) = cos(a) + b * sin(a)
+        return getCosResultAtIndex(upperAngleIndex) +
+            upperDiff * getSinResultAtIndex(upperAngleIndex);
+      }
+
+      T getAngleAtIndex(size_t index) const
+      {
+        if (index == 0) {
+          return 0;
+        }
+
+        if (index == angles.size() + 1) {
+          return M_PI_2;
+        }
+
+        assert(index - 1 < angles.size());
+        return angles[index - 1];
+      }
+
+      T getSinResultAtIndex(size_t index) const
+      {
+        if (index == 0) {
+          return 0;
+        }
+
+        if (index == sinResults.size() + 1) {
+          return 1;
+        }
+
+        assert(index - 1 < sinResults.size());
+        return sinResults[index - 1];
+      }
+
+      T getCosResultAtIndex(size_t index) const
+      {
+        if (index == 0) {
+          return 1;
+        }
+
+        if (index == cosResults.size() + 1) {
+          return 0;
+        }
+
+        assert(index - 1 < cosResults.size());
+        return cosResults[index - 1];
+      }
+
+    private:
+      T width;
+      std::vector<T> angles;
+      std::vector<T> sinResults;
+      std::vector<T> cosResults;
+  };
+}
+
+namespace
+{
   float cos_f32(float value)
   {
+    auto& options = supportOptions();
+
+    if (options.useCosInterpolation) {
+      static CosApproximation<float> approximation(
+          options.cosInterpolationPoints);
+
+      return approximation.get(value);
+    }
+
     return std::cos(value);
   }
 
   double cos_f64(double value)
   {
+    auto& options = supportOptions();
+
+    if (options.useCosInterpolation) {
+      static CosApproximation<double> approximation(
+          options.cosInterpolationPoints);
+
+      return approximation.get(value);
+    }
+
     return std::cos(value);
   }
 }
@@ -971,13 +1133,172 @@ RUNTIME_FUNC_DEF(sign, int64_t, double)
 
 namespace
 {
+  template<typename T>
+  class SinApproximation
+  {
+    public:
+      SinApproximation(size_t precomputedValues)
+          : width(M_PI_2 / static_cast<T>(precomputedValues + 1))
+      {
+        assert(precomputedValues >= 2);
+
+        for (size_t i = 1; i <= precomputedValues; ++i) {
+          T angle = width * i;
+          angles.push_back(angle);
+          sinResults.push_back(std::sin(angle));
+          cosResults.push_back(std::cos(angle));
+        }
+      }
+
+      T get(T value) const
+      {
+        // sin(-x) = -sin(x)
+        bool negative = value < 0;
+
+        if (negative) {
+          value *= -1;
+        }
+
+        // Periodicity.
+        while (value >= 2 * M_PI) {
+          value -= 2 * M_PI;
+        }
+
+        if (value > M_PI_2 && value <= M_PI) {
+          // sin(PI - x) = sin(x)
+          value = M_PI - value;
+        } else if (value > M_PI && value <= 3 * M_PI_2) {
+          // sin(x + PI) = -sin(x)
+          value -= M_PI;
+          negative = !negative;
+        } else if (value > 3 * M_PI_2 && value <= 2 * M_PI) {
+          // sin(2 * PI - x) = -sin(x)
+          value = 2 * M_PI - value;
+          negative = !negative;
+        }
+
+        T result = interpolate(value);
+
+        if (negative) {
+          result *= -1;
+        }
+
+        return result;
+      }
+
+    private:
+      T interpolate(T value) const
+      {
+        auto chunk = static_cast<size_t>(value / width);
+
+        if (value == 0) {
+          return getSinResultAtIndex(0);
+        }
+
+        if (size_t size = angles.size(); chunk == size + 1) {
+          return getSinResultAtIndex(chunk);
+        }
+
+        size_t lowerAngleIndex = chunk;
+        size_t upperAngleIndex = chunk + 1;
+
+        auto lowerAngle = getAngleAtIndex(lowerAngleIndex);
+        auto upperAngle = getAngleAtIndex(upperAngleIndex);
+
+        assert(value >= lowerAngle);
+        auto lowerDiff = value - lowerAngle;
+
+        assert(value <= upperAngle);
+        auto upperDiff = upperAngle - value;
+
+        if (lowerDiff < upperDiff) {
+          // sin(a + b) = sin(a) + b * cos(a)
+          return getSinResultAtIndex(lowerAngleIndex) +
+              lowerDiff * getCosResultAtIndex(lowerAngleIndex);
+        }
+
+        // sin(a - b) = sin(a) - b é cos(a)
+        return getSinResultAtIndex(upperAngleIndex) -
+            upperDiff * getCosResultAtIndex(upperAngleIndex);
+      }
+
+      T getAngleAtIndex(size_t index) const
+      {
+        if (index == 0) {
+          return 0;
+        }
+
+        if (index == angles.size() + 1) {
+          return M_PI_2;
+        }
+
+        assert(index - 1 < angles.size());
+        return angles[index - 1];
+      }
+
+      T getSinResultAtIndex(size_t index) const
+      {
+        if (index == 0) {
+          return 0;
+        }
+
+        if (index == sinResults.size() + 1) {
+          return 1;
+        }
+
+        assert(index - 1 < sinResults.size());
+        return sinResults[index - 1];
+      }
+
+      T getCosResultAtIndex(size_t index) const
+      {
+        if (index == 0) {
+          return 1;
+        }
+
+        if (index == cosResults.size() + 1) {
+          return 0;
+        }
+
+        assert(index - 1 < cosResults.size());
+        return cosResults[index - 1];
+      }
+
+    private:
+      T width;
+      std::vector<T> angles;
+      std::vector<T> sinResults;
+      std::vector<T> cosResults;
+  };
+}
+
+namespace
+{
   float sin_f32(float value)
   {
+    auto& options = supportOptions();
+
+    if (options.useSinInterpolation) {
+      static SinApproximation<float> approximation(
+            options.sinInterpolationPoints);
+
+      return approximation.get(value);
+    }
+
     return std::sin(value);
   }
 
   double sin_f64(double value)
   {
+    auto& options = supportOptions();
+
+    if (options.useSinInterpolation) {
+      static SinApproximation<double> approximation(
+          options.sinInterpolationPoints);
+
+      return approximation.get(value);
+    }
+
     return std::sin(value);
   }
 }
