@@ -22,6 +22,10 @@ namespace marco::runtime::profiling
       Timer initialConditionsTimer;
       Timer stepsTimer;
       Timer algebraicVariablesTimer;
+      Timer residualsTimer;
+      Timer partialDerivativesTimer;
+      Timer copyVarsFromMARCOTimer;
+      Timer copyVarsIntoMARCOTimer;
 
       mutable std::mutex mutex;
   };
@@ -38,6 +42,18 @@ namespace marco::runtime::profiling
 #define IDA_PROFILER_ALGEBRAIC_VARS_START ::marco::runtime::profiling::idaProfiler().algebraicVariablesTimer.start()
 #define IDA_PROFILER_ALGEBRAIC_VARS_STOP ::marco::runtime::profiling::idaProfiler().algebraicVariablesTimer.stop()
 
+#define IDA_PROFILER_RESIDUALS_START ::marco::runtime::profiling::idaProfiler().residualsTimer.start()
+#define IDA_PROFILER_RESIDUALS_STOP ::marco::runtime::profiling::idaProfiler().residualsTimer.stop()
+
+#define IDA_PROFILER_PARTIAL_DERIVATIVES_START ::marco::runtime::profiling::idaProfiler().partialDerivativesTimer.start()
+#define IDA_PROFILER_PARTIAL_DERIVATIVES_STOP ::marco::runtime::profiling::idaProfiler().partialDerivativesTimer.stop()
+
+#define IDA_PROFILER_COPY_VARS_FROM_MARCO_START ::marco::runtime::profiling::idaProfiler().copyVarsFromMARCOTimer.start()
+#define IDA_PROFILER_COPY_VARS_FROM_MARCO_STOP ::marco::runtime::profiling::idaProfiler().copyVarsFromMARCOTimer.stop()
+
+#define IDA_PROFILER_COPY_VARS_INTO_MARCO_START ::marco::runtime::profiling::idaProfiler().copyVarsIntoMARCOTimer.start()
+#define IDA_PROFILER_COPY_VARS_INTO_MARCO_STOP ::marco::runtime::profiling::idaProfiler().copyVarsIntoMARCOTimer.stop()
+
 #else
 
 #define IDA_PROFILER_DO_NOTHING static_assert(true)
@@ -50,6 +66,18 @@ namespace marco::runtime::profiling
 
 #define IDA_PROFILER_ALGEBRAIC_VARS_START IDA_PROFILER_DO_NOTHING
 #define IDA_PROFILER_ALGEBRAIC_VARS_STOP IDA_PROFILER_DO_NOTHING
+
+#define IDA_PROFILER_RESIDUALS_START IDA_PROFILER_DO_NOTHING
+#define IDA_PROFILER_RESIDUALS_STOP IDA_PROFILER_DO_NOTHING
+
+#define IDA_PROFILER_PARTIAL_DERIVATIVES_START IDA_PROFILER_DO_NOTHING
+#define IDA_PROFILER_PARTIAL_DERIVATIVES_STOP IDA_PROFILER_DO_NOTHING
+
+#define IDA_PROFILER_COPY_VARS_FROM_MARCO_START IDA_PROFILER_DO_NOTHING
+#define IDA_PROFILER_COPY_VARS_FROM_MARCO_STOP IDA_PROFILER_DO_NOTHING
+
+#define IDA_PROFILER_COPY_VARS_INTO_MARCO_START IDA_PROFILER_DO_NOTHING
+#define IDA_PROFILER_COPY_VARS_INTO_MARCO_STOP IDA_PROFILER_DO_NOTHING
 
 #endif // MARCO_PROFILING
 

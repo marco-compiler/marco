@@ -1019,6 +1019,7 @@ namespace marco::runtime::ida
 
     // For every vectorized equation, set the residual values of the variables
     // it writes into.
+    IDA_PROFILER_RESIDUALS_START;
 
     instance->scalarEquationsParallelIteration(
         [&](size_t eq, const std::vector<int64_t>& equationIndices) {
@@ -1039,6 +1040,8 @@ namespace marco::runtime::ida
 
           *(rval + arrayVariableOffset + scalarVariableOffset) = residualFunctionResult;
         });
+
+    IDA_PROFILER_RESIDUALS_STOP;
 
     return IDA_SUCCESS;
   }
@@ -1061,6 +1064,7 @@ namespace marco::runtime::ida
 
     // For every vectorized equation, compute its row within the Jacobian
     // matrix.
+    IDA_PROFILER_PARTIAL_DERIVATIVES_START;
 
     instance->scalarEquationsParallelIteration(
         [&](size_t eq, const std::vector<int64_t>& equationIndices) {
@@ -1133,6 +1137,7 @@ namespace marco::runtime::ida
     assert(columnIndices == SUNSparseMatrix_IndexValues(jacobianMatrix) + instance->nonZeroValuesNumber);
     assert(jacobian == SUNSparseMatrix_Data(jacobianMatrix) + instance->nonZeroValuesNumber);
 
+    IDA_PROFILER_PARTIAL_DERIVATIVES_STOP;
     return IDA_SUCCESS;
   }
 
@@ -1252,6 +1257,8 @@ namespace marco::runtime::ida
       N_Vector algebraicAndStateVariablesVector,
       N_Vector derivativeVariablesVector)
   {
+    IDA_PROFILER_COPY_VARS_FROM_MARCO_START;
+
     auto* algebraicAndStateVariablesPtr =
         N_VGetArrayPointer(algebraicAndStateVariablesVector);
 
@@ -1285,12 +1292,16 @@ namespace marco::runtime::ida
         }
       }
     }
+
+    IDA_PROFILER_COPY_VARS_FROM_MARCO_STOP;
   }
 
   void IDAInstance::copyVariablesIntoMARCO(
       N_Vector algebraicAndStateVariablesVector,
       N_Vector derivativeVariablesVector)
   {
+    IDA_PROFILER_COPY_VARS_INTO_MARCO_START;
+
     auto* algebraicAndStateVariablesPtr =
         N_VGetArrayPointer(algebraicAndStateVariablesVector);
 
@@ -1319,6 +1330,8 @@ namespace marco::runtime::ida
         }
       }
     }
+
+    IDA_PROFILER_COPY_VARS_INTO_MARCO_STOP;
   }
 
   void IDAInstance::scalarEquationsParallelIteration(
