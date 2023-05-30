@@ -1,7 +1,7 @@
-#ifndef MARCO_RUNTIME_PRINT_H
-#define MARCO_RUNTIME_PRINT_H
+#ifndef MARCO_RUNTIME_SUPPORT_PRINT_H
+#define MARCO_RUNTIME_SUPPORT_PRINT_H
 
-#include "marco/Runtime/Mangling.h"
+#include "marco/Runtime/Support/Mangling.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include <cstdint>
 
@@ -21,4 +21,4 @@ RUNTIME_FUNC_DECL(print, void, ARRAY(int64_t))
 RUNTIME_FUNC_DECL(print, void, ARRAY(float))
 RUNTIME_FUNC_DECL(print, void, ARRAY(double))
 
-#endif // MARCO_RUNTIME_PRINT_H
+#endif // MARCO_RUNTIME_SUPPORT_PRINT_H

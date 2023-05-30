@@ -1,7 +1,7 @@
 #include "marco/Runtime/Solvers/KINSOL/Instance.h"
 #include "marco/Runtime/Solvers/KINSOL/Options.h"
 #include "marco/Runtime/Solvers/KINSOL/Profiler.h"
-#include "marco/Runtime/MemoryManagement.h"
+#include "marco/Runtime/Support/MemoryManagement.h"
 #include <cassert>
 #include <functional>
 #include <iostream>

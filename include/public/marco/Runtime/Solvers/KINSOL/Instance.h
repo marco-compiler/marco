@@ -1,7 +1,7 @@
 #ifndef MARCO_RUNTIME_SOLVERS_KINSOL_INSTANCE_H
 #define MARCO_RUNTIME_SOLVERS_KINSOL_INSTANCE_H
 
-#include "marco/Runtime/Mangling.h"
+#include "marco/Runtime/Support/Mangling.h"
 #include "kinsol/kinsol.h"
 #include "nvector/nvector_serial.h"
 #include "sundials/sundials_config.h"

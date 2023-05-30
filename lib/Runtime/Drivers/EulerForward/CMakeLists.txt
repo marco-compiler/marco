@@ -1,6 +1,6 @@
 set(LIBS
-    PUBLIC marco::runtime
-    PUBLIC argh)
+    PUBLIC argh
+    PUBLIC marco::runtimeSolversEulerForward)
 
 marco_add_runtime_library(runtimeDriverEulerForward
     STATIC
@@ -10,7 +10,3 @@ marco_add_runtime_library(runtimeDriverEulerForward
 
     LINK_LIBS
     ${LIBS})
-
-if (MARCO_PROFILING)
-    target_compile_definitions(runtimeDriverEulerForward PUBLIC MARCO_PROFILING)
-endif()

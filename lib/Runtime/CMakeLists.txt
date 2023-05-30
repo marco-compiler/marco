@@ -1,44 +1,3 @@
-set(SOLVER_EULERFORWARD
-	Solvers/EulerForward/Options.cpp
-	Solvers/EulerForward/Profiler.cpp)
-
-set(SOLVER_IDA
-	Solvers/IDA/Instance.cpp
-	Solvers/IDA/Options.cpp
-	Solvers/IDA/Profiler.cpp)
-
-set(SOLVER_KINSOL
-	Solvers/KINSOL/Instance.cpp
-	Solvers/KINSOL/Options.cpp
-	Solvers/KINSOL/Profiler.cpp)
-
-set(SHARED_SOURCES
-	${SOLVER_EULERFORWARD}
-	${SOLVER_IDA}
-	${SOLVER_KINSOL}
-	BuiltInFunctions.cpp
-	Modeling/IndexSet.cpp
-	Modeling/MultidimensionalRange.cpp
-	Modeling/Range.cpp
-	Multithreading/Options.cpp
-	Multithreading/ThreadPool.cpp
-	Profiling/Profiler.cpp
-	Profiling/Profiling.cpp
-	Profiling/Statistics.cpp
-	Profiling/Timer.cpp
-	Simulation/Profiler.cpp
-	Print.cpp
-	Math.cpp
-	MemoryManagement.cpp
-	UtilityFunctions.cpp)
-
-set(STATIC_SOURCES
-	${SHARED_SOURCES}
-	CLI/Category.cpp
-	CLI/CLI.cpp
-	Multithreading/CLI.cpp
-	Simulation/Runtime.cpp)
-
 # Fetch the Argh! project, which is used to handle runtime command-line
 # arguments.
 
@@ -63,39 +22,12 @@ FetchContent_MakeAvailable(argh)
 
 add_custom_target(marco-runtime)
 
-# Find the thread library of the system.
-find_package(Threads REQUIRED)
-
-# Libraries to be linked
-set(LIBS
-	${CMAKE_THREAD_LIBS_INIT}
-	PUBLIC SUNDIALS::KLU
-	PUBLIC SUNDIALS::ida
-	PUBLIC SUNDIALS::kinsol
-	PUBLIC SUNDIALS::nvecserial
-	PUBLIC SUNDIALS::sunlinsolklu)
-
-# Declare the shared library.
-marco_add_runtime_library(runtimeShared
-	SHARED
-	PARTIAL_SOURCES_INTENDED
-	${SHARED_SOURCES}
-
-	LINK_LIBS
-	${LIBS})
-
-# Declare the static libraries.
-marco_add_runtime_library(runtime
-	STATIC
-	${STATIC_SOURCES}
-
-	LINK_LIBS
-	${LIBS}
-	argh)
-
-if (MARCO_PROFILING)
-	target_compile_definitions(runtime PUBLIC MARCO_PROFILING)
-endif()
-
+add_subdirectory(CLI)
+add_subdirectory(Profiling)
+add_subdirectory(Multithreading)
+add_subdirectory(Modeling)
+add_subdirectory(Support)
 add_subdirectory(Printers)
+add_subdirectory(Solvers)
 add_subdirectory(Drivers)
+add_subdirectory(Simulation)
