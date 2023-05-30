@@ -938,6 +938,7 @@ namespace marco::runtime::ida
     }
 
     // Execute one step
+    IDA_PROFILER_STEPS_COUNTER_INCREMENT;
     IDA_PROFILER_STEP_START;
 
     realtype tout = getOptions().equidistantTimeGrid ? (currentTime + timeStep) : endTime;

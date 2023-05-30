@@ -18,8 +18,11 @@ namespace marco::runtime::profiling
 
       void print() const override;
 
+      void incrementStepsCounter();
+
     public:
       Timer initialConditionsTimer;
+      int64_t stepsCounter;
       Timer stepsTimer;
       Timer algebraicVariablesTimer;
       Timer residualsTimer;
@@ -35,6 +38,8 @@ namespace marco::runtime::profiling
 
 #define IDA_PROFILER_IC_START ::marco::runtime::profiling::idaProfiler().initialConditionsTimer.start()
 #define IDA_PROFILER_IC_STOP ::marco::runtime::profiling::idaProfiler().initialConditionsTimer.stop()
+
+#define IDA_PROFILER_STEPS_COUNTER_INCREMENT ::marco::runtime::profiling::idaProfiler().incrementStepsCounter()
 
 #define IDA_PROFILER_STEP_START ::marco::runtime::profiling::idaProfiler().stepsTimer.start()
 #define IDA_PROFILER_STEP_STOP ::marco::runtime::profiling::idaProfiler().stepsTimer.stop()
@@ -60,6 +65,8 @@ namespace marco::runtime::profiling
 
 #define IDA_PROFILER_IC_START IDA_PROFILER_DO_NOTHING
 #define IDA_PROFILER_IC_STOP IDA_PROFILER_DO_NOTHING
+
+IDA_PROFILER_STEPS_COUNTER_INCREMENT IDA_PROFILER_DO_NOTHING
 
 #define IDA_PROFILER_STEP_START IDA_PROFILER_DO_NOTHING
 #define IDA_PROFILER_STEP_STOP IDA_PROFILER_DO_NOTHING
