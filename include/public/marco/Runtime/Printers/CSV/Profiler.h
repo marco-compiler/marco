@@ -40,7 +40,7 @@ namespace marco::runtime::profiling
 #define PRINT_PROFILER_FLOAT_STOP ::marco::runtime::profiling::printProfiler().floatValues.stop()
 
 #define PRINT_PROFILER_STRING_START ::marco::runtime::profiling::printProfiler().stringValues.start()
-#define PRINT_PROFILER_STRING_STOP ::marco::runtime::profiling::printProfiler().stringValues.start()
+#define PRINT_PROFILER_STRING_STOP ::marco::runtime::profiling::printProfiler().stringValues.stop()
 
 #else
 
