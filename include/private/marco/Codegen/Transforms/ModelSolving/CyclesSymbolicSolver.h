@@ -20,10 +20,25 @@ namespace marco::codegen {
   private:
     mlir::OpBuilder& builder;
 
+    // The equations which originally had cycles but have been partially or fully solved.
+    std::vector<MatchedEquation*> solvedEquations_;
+
+    // The newly created equations which has no cycles anymore.
+    Equations<MatchedEquation> newEquations_;
+
+    // The cycles that can't be solved by substitution.
+    std::vector<MatchedEquation*> unsolvedCycles_;
+
   public:
     explicit CyclesSymbolicSolver(mlir::OpBuilder& builder);
 
-    bool solve(Model<MatchedEquation>& model);
+    bool solve(const std::set<MatchedEquation*>& equationSet);
+
+    [[nodiscard]] Equations<MatchedEquation> getSolution() const;
+
+    [[nodiscard]] bool hasUnsolvedCycles() const;
+
+    [[nodiscard]] Equations<MatchedEquation> getUnsolvedEquations() const;
 
   };
 
@@ -72,6 +87,7 @@ namespace marco::codegen {
       private:
       mlir::OpBuilder& builder;
       mlir::Location loc;
+      MatchedEquation* equation;
       // Map from expression to Value, to be able to get the Value of a subexpression while traversing the expression.
       llvm::DenseMap<unsigned int, mlir::Value> expressionHashToValueMap;
       std::map<std::string, mlir::modelica::VariableOp> symbolNameToValueMap;
@@ -80,7 +96,7 @@ namespace marco::codegen {
       explicit SymbolicVisitor(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          std::map<std::string, mlir::modelica::VariableOp>& symbolValueMap
+          MatchedEquation* equation
       );
 
       void visit(const GiNaC::add & x) override;
