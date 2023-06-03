@@ -436,39 +436,37 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
   std::cerr << "Solution: " << solution << '\n';
 
-  auto solutionEquations = Equations<MatchedEquation>();
+  if (solution.gethash() != systemEquations.gethash()) {
+    for (const GiNaC::ex expr : solution) {
+      std::string matchedVariableName;
+      if (GiNaC::is_a<GiNaC::symbol>(expr.lhs())) {
+        matchedVariableName = GiNaC::ex_to<GiNaC::symbol>(expr.lhs()).get_name();
+      } else {
+        llvm_unreachable("Expected the left hand side of the solution equation to be a symbol.");
+      }
 
-  // Keep InitialEquations and Equations intact, and set the lhs as the matched variable.
-  for (const auto& equation : equationSet) {
-    equation->setPath(EquationPath::LEFT);
-    equation->dumpIR();
-//    auto simpleEquation = Equation::build(equation->getOperation(), equation->getVariables());
-//    solutionEquations.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), modeling::IndexSet(modeling::Point(0)), EquationPath::LEFT)));
-  }
+      auto equation = nameToEquationMap[matchedVariableName];
+      equation->setPath(EquationPath::LEFT);
+      auto equationOp = equation->getOperation();
+      auto loc = equationOp.getLoc();
+      builder.setInsertionPoint(equationOp);
 
-  for (const GiNaC::ex expr : solution) {
-    std::string matchedVariableName;
-    if (GiNaC::is_a<GiNaC::symbol>(expr.lhs())) {
-      matchedVariableName = GiNaC::ex_to<GiNaC::symbol>(expr.lhs()).get_name();
-    } else {
-      llvm_unreachable("Expected the left hand side of the solution equation to be a symbol.");
+      equationOp.bodyBlock()->erase();
+      assert(equationOp.getBodyRegion().empty());
+      mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
+      builder.setInsertionPointToStart(equationBodyBlock);
+
+      SymbolicVisitor visitor = SymbolicVisitor(builder, loc, equation, nameToTypeMap, nameToIndicesMap);
+      expr.traverse_postorder(visitor);
+
+      auto simpleEquation = Equation::build(equation->getOperation(), equation->getVariables());
+      newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), equation->getIterationRanges(), equation->getWrite().getPath())));
+      solvedEquations_.push_back(equation);
     }
 
-    auto equation = nameToEquationMap[matchedVariableName];
-    auto equationOp = equation->getOperation();
-    auto loc = equationOp.getLoc();
-    builder.setInsertionPoint(equationOp);
-
-    equationOp.bodyBlock()->erase();
-    assert(equationOp.getBodyRegion().empty());
-    mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
-    builder.setInsertionPointToStart(equationBodyBlock);
-
-    SymbolicVisitor visitor = SymbolicVisitor(builder, loc, equation, nameToTypeMap, nameToIndicesMap);
-    expr.traverse_postorder(visitor);
+    return true;
   }
-
-  return true;
+  return false;
 }
 
 ValueNode::ValueNode(mlir::Value value, ValueNode* father)
