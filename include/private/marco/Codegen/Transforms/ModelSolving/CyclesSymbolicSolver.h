@@ -50,38 +50,6 @@ namespace marco::codegen {
 
   };
 
-  class ValueNode {
-    private:
-      mlir::Value value;
-      ValueNode* father;
-      std::vector<ValueNode*> children;
-
-    public:
-      ValueNode(
-          mlir::Value value,
-          ValueNode* father
-      );
-
-      mlir::Value getValue();
-      std::vector<ValueNode*>& getChildren();
-      void addChild(ValueNode*);
-      ValueNode* getFather();
-      ValueNode* getChild(size_t);
-  };
-
-  class EquationValueGraph {
-    private:
-      marco::codegen::MatchedEquation* equation;
-      ValueNode entryNode = ValueNode(nullptr, nullptr);
-
-    public:
-      explicit EquationValueGraph(MatchedEquation* equation);
-      ValueNode* getEntryNode();
-      void erase();
-      void print();
-      void walk(void (*func)(ValueNode*));
-  };
-
   class SymbolicVisitor
       : public GiNaC::visitor,
         public GiNaC::add::visitor,
