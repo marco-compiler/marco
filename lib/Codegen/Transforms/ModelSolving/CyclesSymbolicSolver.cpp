@@ -264,7 +264,7 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matc
         if(!symbolNameToInfoMap.count(variableName)) {
           symbolNameToInfoMap[variableName] = SymbolInfo();
           symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
-          symbolNameToInfoMap[variableName].variableName = variableName;
+          symbolNameToInfoMap[variableName].variableName = baseVariableName;
           symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
           symbolNameToInfoMap[variableName].indices = indices;
         }
@@ -272,7 +272,13 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matc
         if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
           // If the this is the matched variable for the equation, add it to the array
           auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
-          if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
+          std::cerr << "WRITE OP:\n";
+          write->dump();
+          std::cerr << "VARIABLE GET OP:\n";
+          variableGetOp->dump();
+          if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
+            std::cerr << "MATCHED OP:\n";
+            write->dump();
             symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
           }
         }
@@ -452,7 +458,11 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
       }
 
       auto equation = symbolNameToInfoMap[matchedVariableName].matchedEquation;
+
       equation->setPath(EquationPath::LEFT);
+      // todo: how does one modify the EquationOp attributes?
+//      equation->getOperation()->setAttr("path", );
+
       auto equationOp = equation->getOperation();
       auto loc = equationOp.getLoc();
       builder.setInsertionPoint(equationOp);
@@ -610,10 +620,12 @@ void SymbolicVisitor::visit(const GiNaC::symbol & x) {
       }
 
       mlir::Type type = symbolNameToInfoMap[x.get_name()].variableType;
-      value = builder.create<mlir::modelica::VariableGetOp>(loc, type, x.get_name());
+      std::string baseVariableName = symbolNameToInfoMap[variableName].variableName;
+      value = builder.create<mlir::modelica::VariableGetOp>(loc, type, baseVariableName);
 
       if (!currentIndices.empty()) {
-        value = builder.create<mlir::modelica::LoadOp>(loc, value, currentIndices);
+        value = builder.create<mlir::modelica::SubscriptionOp>(loc, value, currentIndices);
+        value = builder.create<mlir::modelica::LoadOp>(loc, value);
       }
     }
 
