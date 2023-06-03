@@ -398,7 +398,6 @@ void visit_postorder(const MatchedEquation& equation, const GiNaC::lst& symbols)
 
 }
 
-// todo: check if moving the solver before the matching phase can be done
 bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 {
   GiNaC::lst systemEquations;
@@ -421,8 +420,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
     std::cerr << '\n' << "Expression: " << expression << '\n';
 
-    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
-    // todo: is this sufficient to cover all parameter cases or not?
+//    // If an equation is trivial instead (e.g. x == 1), save it to later substitute it in the other ones.
     if (GiNaC::is_a<GiNaC::symbol>(expression.lhs()) && GiNaC::is_a<GiNaC::numeric>(expression.rhs())) {
       trivialEquations.append(expression);
     } else {
@@ -440,11 +438,14 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   std::cerr << "System equations: " << systemEquations << '\n' << std::flush;
   std::cerr << "Matched variables: " << matchedVariables << '\n' << std::flush;
 
-  // todo: either compile llvm with exception handling or find a way to handle the logic error thrown
-  // todo: you could also copy GiNaC source code for non linear system detection since it is not available from public interface
-  // https://stackoverflow.com/questions/32094585/c-error-exception-handling-disabled-use-fexceptions-to-enable
-
-  GiNaC::ex solution = GiNaC::lsolve(systemEquations, matchedVariables);
+  GiNaC::ex solution;
+  try {
+    solution = GiNaC::lsolve(systemEquations, matchedVariables);
+  } catch (std::logic_error& e) {
+      // The system is not linear so it cannot be solved by the symbolic solver.
+    std::cerr << "The system of equations is not linear" << std::endl;
+    return false;
+  };
 
   std::cerr << "Solution: " << solution << '\n';
 
@@ -484,7 +485,9 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
     return true;
   }
-  return false;
+
+  std::cerr << "The system of equations was already solved." << std::endl;
+  return true;
 }
 
 ValueNode::ValueNode(mlir::Value value, ValueNode* father)
