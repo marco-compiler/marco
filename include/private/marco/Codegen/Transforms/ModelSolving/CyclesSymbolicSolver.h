@@ -15,6 +15,14 @@
 #include <ginac/ginac.h>
 
 namespace marco::codegen {
+  struct SymbolInfo {
+    GiNaC::symbol symbol;
+    std::string variableName;
+    mlir::Type variableType;
+    std::vector<GiNaC::ex> indices;
+    MatchedEquation* matchedEquation;
+  };
+
   class CyclesSymbolicSolver
   {
   private:
@@ -90,16 +98,14 @@ namespace marco::codegen {
       MatchedEquation* equation;
       // Map from expression to Value, to be able to get the Value of a subexpression while traversing the expression.
       llvm::DenseMap<unsigned int, mlir::Value> expressionHashToValueMap;
-      std::map<std::string, mlir::Type> nameToTypeMap;
-      std::map<std::string, std::vector<GiNaC::ex>> nameToIndicesMap;
+      std::map<std::string, SymbolInfo> symbolNameToInfoMap;
 
       public:
       explicit SymbolicVisitor(
           mlir::OpBuilder& builder,
           mlir::Location loc,
           MatchedEquation* equation,
-          std::map<std::string, mlir::Type>& nameToTypeMap,
-          std::map<std::string, std::vector<GiNaC::ex>>& nameToIndicesMap
+          std::map<std::string, SymbolInfo>& symbolNameToInfoMap
       );
 
       void visit(const GiNaC::add & x) override;
