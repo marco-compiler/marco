@@ -155,12 +155,12 @@ static double getDoubleFromAttribute(mlir::Attribute attribute)
 
 // todo: is it possible to swap the ValueNode for a simple mlir::Value?
 // todo: how do you make this non recursive?
-GiNaC::ex visit_postorder_recursive_value(ValueNode* node, std::map<std::string, GiNaC::symbol>& nameToSymbolMap, std::map<std::string, MatchedEquation*>& nameToEquationMap, std::map<std::string, mlir::Type>& nameToTypeMap, std::map<std::string, std::vector<GiNaC::ex>>& nameToIndicesMap, MatchedEquation* matchedEquation)
+GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap)
 {
   // If the node is the root of the tree, its value is null so it needs to be handled separately
   if (node->getFather() == nullptr) {
-    GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
-    GiNaC::ex rhs = visit_postorder_recursive_value(node->getChild(1), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap);
+    GiNaC::ex rhs = visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
     return lhs == rhs;
   }
 
@@ -184,76 +184,74 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, std::map<std::string,
   }
 
   if(mlir::isa<mlir::modelica::TimeOp>(definingOp))
-    return nameToSymbolMap["time"];
+    return symbolNameToInfoMap["time"].symbol;
 
   if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::SinOp>(definingOp))
-    return sin(visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation));
+    return sin(visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap));
 
   if(mlir::isa<mlir::modelica::NegateOp>(definingOp))
-    return -visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    return -visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap);
 
   if(auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(definingOp)) {
     std::string variableName = variableGetOp.getVariable().str();
 
-    if(!nameToSymbolMap.count(variableName)) {
-      nameToSymbolMap[variableName] = GiNaC::symbol(variableName);
+    if(!symbolNameToInfoMap.count(variableName)) {
+      symbolNameToInfoMap[variableName] = SymbolInfo();
+      symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
+      symbolNameToInfoMap[variableName].variableName = variableName;
+      symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
+      symbolNameToInfoMap[variableName].indices = {};
     }
 
-    if(!nameToTypeMap.count(variableName)) {
-      nameToTypeMap[variableName] = variableGetOp.getType();
-    }
-
-    if(!nameToIndicesMap.count(variableName)) {
-      nameToIndicesMap[variableName] = {};
-    }
-
-    if (!nameToEquationMap.count(variableName)) {
+    if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
       // If the this is the matched variable for the equation, add it to the array
       auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
       if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
-        nameToEquationMap[variableName] = matchedEquation;
+        symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
       }
     }
 
-    return nameToSymbolMap[variableName];
+    return symbolNameToInfoMap[variableName].symbol;
   }
 
   if(mlir::isa<mlir::modelica::AddOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation) + visit_postorder_recursive_value(node->getChild(1), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) + visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::SubOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation) - visit_postorder_recursive_value(node->getChild(1), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) - visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::MulOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation) * visit_postorder_recursive_value(node->getChild(1), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) * visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::DivOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation) / visit_postorder_recursive_value(node->getChild(1), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) / visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::PowOp>(definingOp))
     return GiNaC::pow(
-        visit_postorder_recursive_value(node->getChild(0), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation),
-        visit_postorder_recursive_value(node->getChild(1), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation));
+        visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap),
+        visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap));
 
   // If we have a subscription operation, get the shape of the base vector, that should correspond with
   // the first operand. Then add an index to the symbol of the vector for each operand except the base.
-  if (auto loadOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(definingOp)) {
+  if (auto loadOp = mlir::dyn_cast<mlir::modelica::LoadOp>(definingOp)) {
     if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(loadOp->getOperand(0).getDefiningOp())) {
-      mlir::Value baseOperand = node->getChild(0)->getValue();
+      mlir::Value baseOperand = subscriptionOp->getOperand(0);
       std::string baseVariableName;
+      matchedEquation->dumpIR();
       if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(baseOperand.getDefiningOp())) {
         baseVariableName = variableGetOp.getVariable().str();
 
         std::string offset;
 
         std::vector<GiNaC::ex> indices;
-        for (size_t i = 1; i < definingOp->getNumOperands(); ++i) {
-          offset += '_';
+        for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
+          if (offset.length())
+            offset += '_';
 
-          GiNaC::ex expression = visit_postorder_recursive_value(node->getChild(i), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, matchedEquation);
+          GiNaC::ex expression = visit_postorder_recursive_value(node->getChild(0)->getChild(i), matchedEquation, symbolNameToInfoMap);
           indices.push_back(expression);
 
           std::ostringstream oss;
@@ -261,34 +259,36 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, std::map<std::string,
           offset += oss.str();
         }
 
-        std::string variableName = baseVariableName + '-' + offset;
+        std::string variableName = baseVariableName + '_' + offset;
 
-        if(!nameToSymbolMap.count(variableName)) {
-          nameToSymbolMap[variableName] = GiNaC::symbol(variableName);
+        if(!symbolNameToInfoMap.count(variableName)) {
+          symbolNameToInfoMap[variableName] = SymbolInfo();
+          symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
+          symbolNameToInfoMap[variableName].variableName = variableName;
+          symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
+          symbolNameToInfoMap[variableName].indices = indices;
         }
 
-        if(!nameToTypeMap.count(variableName)) {
-          nameToTypeMap[variableName] = variableGetOp.getType();
-        }
-
-        if(!nameToIndicesMap.count(variableName)) {
-          nameToIndicesMap[variableName] = indices;
-        }
-
-        if (!nameToEquationMap.count(variableName)) {
+        if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
           // If the this is the matched variable for the equation, add it to the array
           auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
-          if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
-            nameToEquationMap[variableName] = matchedEquation;
+          if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
+            symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
           }
         }
 
-        return nameToSymbolMap[variableName];
+        return symbolNameToInfoMap[variableName].symbol;
       }
-      llvm_unreachable("We assume that all arrays are variables, and the arrays are fully subscripted.");
+      matchedEquation->dumpIR();
+      baseOperand.getDefiningOp()->dump();
+      llvm_unreachable("Not a VariableGetOp.");
     }
-    llvm_unreachable("We assume that all arrays are variables, and the arrays are fully subscripted.");
+    matchedEquation->dumpIR();
+    definingOp->dump();
+    llvm_unreachable("Not a SubscriptionOp.");
   }
+  matchedEquation->dumpIR();
+  definingOp->dump();
   llvm_unreachable("Found operation with an unusual number of arguments\n");
 }
 
@@ -398,19 +398,19 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   GiNaC::lst systemEquations;
   GiNaC::lst matchedVariables;
 
-  std::map<std::string, GiNaC::symbol> nameToSymbolMap;
-  std::map<std::string, MatchedEquation*> nameToEquationMap;
-  std::map<std::string, mlir::Type> nameToTypeMap;
-  std::map<std::string, std::vector<GiNaC::ex>> nameToIndicesMap;
+  std::map<std::string, SymbolInfo> symbolNameToInfoMap;
 
-  GiNaC::symbol time("time");
-  nameToSymbolMap["time"] = time;
+  symbolNameToInfoMap["time"] = SymbolInfo();
+  symbolNameToInfoMap["time"].symbol = GiNaC::symbol("time");
+  symbolNameToInfoMap["time"].variableName = "time";
+  symbolNameToInfoMap["time"].indices = {};
+  symbolNameToInfoMap["time"].matchedEquation = nullptr;
 
   GiNaC::lst trivialEquations;
 
   for (auto& equation : equationSet) {
     EquationValueGraph valueGraph = EquationValueGraph(equation);
-    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), nameToSymbolMap, nameToEquationMap, nameToTypeMap, nameToIndicesMap, equation);
+    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), equation, symbolNameToInfoMap);
     valueGraph.erase();
 
     std::cerr << '\n' << "Expression: " << expression << '\n';
@@ -425,12 +425,18 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   }
 
   // The variables into wrt. which the linear system is solved are the matched ones.
-  for (const auto& [name, equation] : nameToEquationMap) {
-    matchedVariables.append(nameToSymbolMap[name]);
+  for (const auto& [name, info] : symbolNameToInfoMap) {
+    if (info.matchedEquation != nullptr) {
+      matchedVariables.append(info.symbol);
+    }
   }
 
   std::cerr << "System equations: " << systemEquations << '\n' << std::flush;
   std::cerr << "Matched variables: " << matchedVariables << '\n' << std::flush;
+
+  // todo: either compile llvm with exception handling or find a way to handle the logic error thrown
+  // todo: you could also copy GiNaC source code for non linear system detection since it is not available from public interface
+  // https://stackoverflow.com/questions/32094585/c-error-exception-handling-disabled-use-fexceptions-to-enable
 
   GiNaC::ex solution = GiNaC::lsolve(systemEquations, matchedVariables);
 
@@ -445,7 +451,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
         llvm_unreachable("Expected the left hand side of the solution equation to be a symbol.");
       }
 
-      auto equation = nameToEquationMap[matchedVariableName];
+      auto equation = symbolNameToInfoMap[matchedVariableName].matchedEquation;
       equation->setPath(EquationPath::LEFT);
       auto equationOp = equation->getOperation();
       auto loc = equationOp.getLoc();
@@ -456,9 +462,11 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
       mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
       builder.setInsertionPointToStart(equationBodyBlock);
 
-      SymbolicVisitor visitor = SymbolicVisitor(builder, loc, equation, nameToTypeMap, nameToIndicesMap);
+      SymbolicVisitor visitor = SymbolicVisitor(builder, loc, equation, symbolNameToInfoMap);
       expr.traverse_postorder(visitor);
 
+      equation->dumpIR();
+      equation->getWrite().getPath().dump();
       auto simpleEquation = Equation::build(equation->getOperation(), equation->getVariables());
       newEquations_.add(std::make_unique<MatchedEquation>(MatchedEquation(std::move(simpleEquation), equation->getIterationRanges(), equation->getWrite().getPath())));
       solvedEquations_.push_back(equation);
@@ -505,9 +513,8 @@ SymbolicVisitor::SymbolicVisitor(
     mlir::OpBuilder& builder,
     mlir::Location loc,
     MatchedEquation* equation,
-    std::map<std::string, mlir::Type>& nameToTypeMap,
-    std::map<std::string, std::vector<GiNaC::ex>>& nameToIndicesMap
-    ) : builder(builder), loc(loc), equation(equation), nameToTypeMap(nameToTypeMap), nameToIndicesMap(nameToIndicesMap)
+    std::map<std::string, SymbolInfo>& symbolNameToInfoMap
+    ) : builder(builder), loc(loc), equation(equation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
 }
 
@@ -594,7 +601,7 @@ void SymbolicVisitor::visit(const GiNaC::symbol & x) {
 
       std::string variableName = x.get_name();
 
-      for (const auto& index : nameToIndicesMap[variableName]) {
+      for (const auto& index : symbolNameToInfoMap[variableName].indices) {
         if (expressionHashToValueMap[index.gethash()] == nullptr) {
           index.traverse_postorder(*this);
         }
@@ -602,7 +609,7 @@ void SymbolicVisitor::visit(const GiNaC::symbol & x) {
         currentIndices.push_back(expressionHashToValueMap[index.gethash()]);
       }
 
-      mlir::Type type = nameToTypeMap[x.get_name()];
+      mlir::Type type = symbolNameToInfoMap[x.get_name()].variableType;
       value = builder.create<mlir::modelica::VariableGetOp>(loc, type, x.get_name());
 
       if (!currentIndices.empty()) {
