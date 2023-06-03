@@ -6,44 +6,6 @@
 
 using namespace marco::codegen;
 
-mlir::Value cloneValueAndDependencies(mlir::OpBuilder& builder, mlir::Value value)
-{
-  std::stack<mlir::Operation*> cloneStack;
-  std::vector<mlir::Operation*> toBeCloned;
-
-  // Push the defining operation of the input value on the stack.
-  if (auto op = value.getDefiningOp(); op != nullptr) {
-    cloneStack.push(op);
-  }
-
-  // Until the stack is empty pop it, add the operand to the list, get its
-  // operands (if any) and push them on the stack.
-  while (!cloneStack.empty()) {
-    auto op = cloneStack.top();
-    cloneStack.pop();
-
-    toBeCloned.push_back(op);
-
-    for (const auto& operand : op->getOperands()) {
-      if (auto operandOp = operand.getDefiningOp(); operandOp != nullptr) {
-        cloneStack.push(operandOp);
-      }
-    }
-  }
-
-  // Clone the operations
-  mlir::BlockAndValueMapping mapping;
-  mlir::Operation* clonedOp = nullptr;
-  for (auto opToClone : llvm::reverse(toBeCloned)) {
-    clonedOp = builder.clone(*opToClone, mapping);
-  }
-
-  assert(clonedOp != nullptr);
-  auto results = clonedOp->getResults();
-  assert(results.size() == 1);
-  return results[0];
-}
-
 static double getDoubleFromAttribute(mlir::Attribute attribute)
 {
   if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>()) {
@@ -206,103 +168,8 @@ GiNaC::ex visit_postorder_recursive_value(mlir::Value value, MatchedEquation* ma
   llvm_unreachable("Found operation with an unusual number of arguments\n");
 }
 
-GiNaC::ex get_equation_expression(MatchedEquation* equation, const GiNaC::lst& symbols, const GiNaC::symbol time, llvm::DenseMap<mlir::Value, GiNaC::ex> valueExpressionMap)
-{
-  // If the node is the root of the tree, its value is null so it needs to be handled separately
-
-  GiNaC::ex resultExpression;
-
-  equation->getOperation().bodyBlock()->walk(
-    [&](mlir::Operation* op) {
-      GiNaC::ex expression;
-      mlir::Value result = op->getResult(0);
-
-      if (mlir::modelica::EquationSidesOp sidesOp = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(op)) {
-        GiNaC::ex lhs = valueExpressionMap[sidesOp->getOperand(0)];
-        GiNaC::ex rhs = valueExpressionMap[sidesOp->getOperand(1)];
-        resultExpression = lhs == rhs;
-      }
-
-      else if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(op); constantOp != nullptr) {
-        mlir::Attribute attribute = constantOp.getValue();
-
-        if (const auto integerValue = attribute.dyn_cast<mlir::IntegerAttr>())
-          expression = integerValue.getInt();
-        else if (const auto modelicaIntegerValue = attribute.dyn_cast<mlir::modelica::IntegerAttr>())
-          expression = modelicaIntegerValue.getValue().getSExtValue();
-        else
-          expression = getDoubleFromAttribute(constantOp.getValue());
-      }
-
-      else if(mlir::isa<mlir::modelica::TimeOp>(op))
-        expression = time;
-
-      else if(mlir::isa<mlir::modelica::EquationSideOp>(op))
-        expression = valueExpressionMap[op->getOperand(0)];
-      else if(mlir::isa<mlir::modelica::SinOp>(op))
-        expression = sin(valueExpressionMap[op->getOperand(0)]);
-      else if(mlir::isa<mlir::modelica::NegateOp>(op))
-        expression = -valueExpressionMap[op->getOperand(0)];
-
-      else if(mlir::isa<mlir::modelica::AddOp>(op))
-        expression = valueExpressionMap[op->getOperand(0)] + valueExpressionMap[op->getOperand(1)];
-      else if(mlir::isa<mlir::modelica::SubOp>(op))
-        expression = valueExpressionMap[op->getOperand(0)] - valueExpressionMap[op->getOperand(1)];
-      else if(mlir::isa<mlir::modelica::MulOp>(op))
-        expression = valueExpressionMap[op->getOperand(0)] * valueExpressionMap[op->getOperand(1)];
-      else if(mlir::isa<mlir::modelica::DivOp>(op))
-        expression = valueExpressionMap[op->getOperand(0)] / valueExpressionMap[op->getOperand(1)];
-
-      // If we have a subscription operation, get the shape of the base vector, that should correspond with
-      // the first operand. Then add an index to the symbol of the vector for each operand except the base.
-      else if(mlir::isa<mlir::modelica::SubscriptionOp>(op)) {
-        mlir::Value baseOperand = op->getOperand(0);
-        GiNaC::ex base = valueExpressionMap[baseOperand];
-
-        for (size_t i = 1; i < op->getNumOperands(); ++i) {
-          size_t dim = baseOperand.getType().dyn_cast<mlir::modelica::ArrayType>().getShape()[i-1];
-          GiNaC::idx index(valueExpressionMap[op->getOperand(i)], dim);
-          base = GiNaC::indexed(base, index);
-        }
-
-        expression = base;
-      }
-
-      valueExpressionMap[result] = expression;
-      return;
-    }
-  );
-
-  return resultExpression;
-}
-
 CyclesSymbolicSolver::CyclesSymbolicSolver(mlir::OpBuilder& builder) : builder(builder)
 {
-
-}
-
-void visit_postorder(const MatchedEquation& equation, const GiNaC::lst& symbols) {
-  std::stack<mlir::Value> valueStack;
-  std::stack<mlir::Operation*> operationStack;
-
-  std::stack<mlir::Operation*> tempStack;
-
-  mlir::Operation* terminator = equation.getOperation().bodyBlock()->getTerminator();
-  mlir::ValueRange operands = terminator->getOperands();
-
-  tempStack.push(terminator);
-  operationStack.push(terminator);
-
-  while (!tempStack.empty()) {
-    mlir::Operation* operation = tempStack.top();
-    tempStack.pop();
-
-    for (const mlir::Value& operand : operation->getOperands()) {
-      valueStack.push(operand);
-      tempStack.push(operand.getDefiningOp());
-      operationStack.push(operand.getDefiningOp());
-    }
-  }
 
 }
 
