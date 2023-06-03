@@ -98,6 +98,8 @@ namespace marco::codegen
 
       Access getWrite() const;
 
+      void setPath(EquationPath path);
+
       std::unique_ptr<Equation> cloneIRAndExplicitate(
           mlir::OpBuilder& builder,
           const ::marco::modeling::IndexSet& equationIndices) const;

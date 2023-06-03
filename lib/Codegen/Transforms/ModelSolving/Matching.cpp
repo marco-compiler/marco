@@ -317,6 +317,10 @@ namespace marco::codegen
   {
     return equation->cloneIRAndExplicitate(builder, getIterationRanges(), getWrite().getPath());
   }
+  void MatchedEquation::setPath(EquationPath path)
+  {
+    matchedPath = path;
+  }
 
   mlir::LogicalResult match(
       Model<MatchedEquation>& result,
