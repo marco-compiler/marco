@@ -44,94 +44,6 @@ mlir::Value cloneValueAndDependencies(mlir::OpBuilder& builder, mlir::Value valu
   return results[0];
 }
 
-EquationValueGraph::EquationValueGraph(MatchedEquation* equation) : equation(equation)
-{
-  std::stack<ValueNode*> stack;
-
-  mlir::Operation* terminator = equation->getOperation().bodyBlock()->getTerminator();
-
-  mlir::Value lhs = terminator->getOperand(0);
-  mlir::Value rhs = terminator->getOperand(1);
-
-  auto* lhsNode = new ValueNode(lhs, &entryNode);
-  auto* rhsNode = new ValueNode(rhs, &entryNode);
-
-  stack.push(lhsNode);
-  stack.push(rhsNode);
-
-  entryNode.addChild(lhsNode);
-  entryNode.addChild(rhsNode);
-
-  while (!stack.empty()) {
-    auto father = stack.top();
-    stack.pop();
-
-    // If the value is defined by an operation, take its operand values and add them as children.
-    // If instead the value is a block argument, it will have no children.
-    if (mlir::Operation* operandOp = father->getValue().getDefiningOp(); operandOp != nullptr) {
-
-      for (const mlir::Value operand : operandOp->getOperands()) {
-        auto* newNode = new ValueNode(operand, father);
-
-        father->addChild(newNode);
-        stack.push(newNode);
-      }
-    }
-  }
-}
-
-ValueNode* EquationValueGraph::getEntryNode()
-{
-  return &this->entryNode;
-}
-
-static void deleteValueNode(ValueNode* node) {
-  if (node->getFather() != nullptr) {
-    delete node;
-  }
-}
-
-void EquationValueGraph::erase()
-{
-  walk(deleteValueNode);
-}
-
-static void printValueNode(ValueNode* node) {
-  if (node->getFather() != nullptr) {
-    if (mlir::Operation* operandOp = node->getValue().getDefiningOp()) {
-      operandOp->dump();
-    }
-  }
-}
-
-void EquationValueGraph::print()
-{
-  walk(printValueNode);
-}
-
-void EquationValueGraph::walk(void (*func)(ValueNode*))
-{
-  std::stack<ValueNode*> stack;
-  std::vector<ValueNode*> vector;
-
-  stack.push(&entryNode);
-
-  while (!stack.empty()) {
-    auto father = stack.top();
-    stack.pop();
-
-    vector.push_back(father);
-
-    for (ValueNode* child : father->getChildren()) {
-      stack.push(child);
-    }
-  }
-
-  for (ValueNode* node : llvm::reverse(vector)) {
-    func(node);
-  }
-}
-
 static double getDoubleFromAttribute(mlir::Attribute attribute)
 {
   if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>()) {
@@ -153,19 +65,11 @@ static double getDoubleFromAttribute(mlir::Attribute attribute)
   llvm_unreachable("Unknown attribute type");
 }
 
-// todo: is it possible to swap the ValueNode for a simple mlir::Value?
 // todo: how do you make this non recursive?
-GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap)
+GiNaC::ex visit_postorder_recursive_value(mlir::Value value, MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap)
 {
-  // If the node is the root of the tree, its value is null so it needs to be handled separately
-  if (node->getFather() == nullptr) {
-    GiNaC::ex lhs = visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap);
-    GiNaC::ex rhs = visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
-    return lhs == rhs;
-  }
-
   // If the value is not a block argument, it must be a SSA value defined by an operation.
-  mlir::Operation* definingOp = node->getValue().getDefiningOp();
+  mlir::Operation* definingOp = value.getDefiningOp();
 
   // If the value is defined by a constant operation, it is a leaf.
   if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(definingOp); constantOp != nullptr) {
@@ -187,13 +91,13 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matc
     return symbolNameToInfoMap["time"].symbol;
 
   if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap);
+    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::SinOp>(definingOp))
-    return sin(visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap));
+    return sin(visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap));
 
   if(mlir::isa<mlir::modelica::NegateOp>(definingOp))
-    return -visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap);
+    return -visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap);
 
   if(auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(definingOp)) {
     std::string variableName = variableGetOp.getVariable().str();
@@ -218,21 +122,25 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matc
   }
 
   if(mlir::isa<mlir::modelica::AddOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) + visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
+    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) +
+        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::SubOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) - visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
+    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) -
+        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::MulOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) * visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
+    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) *
+        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::DivOp>(definingOp))
-    return visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap) / visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap);
+    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) /
+        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
 
   if(mlir::isa<mlir::modelica::PowOp>(definingOp))
     return GiNaC::pow(
-        visit_postorder_recursive_value(node->getChild(0), matchedEquation, symbolNameToInfoMap),
-        visit_postorder_recursive_value(node->getChild(1), matchedEquation, symbolNameToInfoMap));
+        visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap),
+        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap));
 
   // If we have a subscription operation, get the shape of the base vector, that should correspond with
   // the first operand. Then add an index to the symbol of the vector for each operand except the base.
@@ -251,7 +159,7 @@ GiNaC::ex visit_postorder_recursive_value(ValueNode* node, MatchedEquation* matc
           if (offset.length())
             offset += '_';
 
-          GiNaC::ex expression = visit_postorder_recursive_value(node->getChild(0)->getChild(i), matchedEquation, symbolNameToInfoMap);
+          GiNaC::ex expression = visit_postorder_recursive_value(definingOp->getOperand(0).getDefiningOp()->getOperand(i), matchedEquation, symbolNameToInfoMap);
           indices.push_back(expression);
 
           std::ostringstream oss;
@@ -414,9 +322,12 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   GiNaC::lst trivialEquations;
 
   for (auto& equation : equationSet) {
-    EquationValueGraph valueGraph = EquationValueGraph(equation);
-    GiNaC::ex expression = visit_postorder_recursive_value(valueGraph.getEntryNode(), equation, symbolNameToInfoMap);
-    valueGraph.erase();
+    auto terminator = mlir::cast<mlir::modelica::EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
+
+    GiNaC::ex lhs = visit_postorder_recursive_value(terminator.getLhsValues()[0], equation, symbolNameToInfoMap);
+    GiNaC::ex rhs = visit_postorder_recursive_value(terminator.getRhsValues()[0], equation, symbolNameToInfoMap);
+
+    GiNaC::ex expression = lhs == rhs;
 
     std::cerr << '\n' << "Expression: " << expression << '\n';
 
@@ -489,38 +400,6 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   std::cerr << "The system of equations was already solved." << std::endl;
   return true;
 }
-
-ValueNode::ValueNode(mlir::Value value, ValueNode* father)
-{
-  this->value = value;
-  this->father = father;
-}
-
-mlir::Value ValueNode::getValue()
-{
-  return this->value;
-}
-
-std::vector<ValueNode*>& ValueNode::getChildren()
-{
-  return this->children;
-}
-
-void ValueNode::addChild(ValueNode* child)
-{
-  this->children.push_back(child);
-}
-
-ValueNode* ValueNode::getFather()
-{
-  return this->father;
-}
-
-ValueNode* ValueNode::getChild(size_t i)
-{
-  return this->children.at(i);
-}
-
 
 SymbolicVisitor::SymbolicVisitor(
     mlir::OpBuilder& builder,
