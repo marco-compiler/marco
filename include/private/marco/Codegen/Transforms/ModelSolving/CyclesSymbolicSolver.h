@@ -50,7 +50,7 @@ namespace marco::codegen {
 
   };
 
-  class SymbolicVisitor
+  class SymbolicToModelicaEquationVisitor
       : public GiNaC::visitor,
         public GiNaC::add::visitor,
         public GiNaC::mul::visitor,
@@ -69,7 +69,7 @@ namespace marco::codegen {
       std::map<std::string, SymbolInfo> symbolNameToInfoMap;
 
       public:
-      explicit SymbolicVisitor(
+      explicit SymbolicToModelicaEquationVisitor(
           mlir::OpBuilder& builder,
           mlir::Location loc,
           MatchedEquation* equation,
@@ -83,6 +83,39 @@ namespace marco::codegen {
       void visit(const GiNaC::relational & x) override;
       void visit(const GiNaC::numeric & x) override;
       void visit(const GiNaC::symbol & x) override;
+  };
+
+  class ModelicaToSymbolicEquationVisitor
+  {
+      private:
+      MatchedEquation* matchedEquation;
+      std::map<std::string, SymbolInfo>& symbolNameToInfoMap;
+      llvm::DenseMap<mlir::Value, GiNaC::ex> valueToExpressionMap;
+      GiNaC::ex& solution;
+
+      public:
+      ModelicaToSymbolicEquationVisitor(
+          MatchedEquation* matchedEquation,
+          std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
+          GiNaC::ex& solution
+          ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution)
+      {
+      }
+
+      void visit(mlir::modelica::VariableGetOp);
+      void visit(mlir::modelica::SubscriptionOp);
+      void visit(mlir::modelica::LoadOp);
+      void visit(mlir::modelica::ConstantOp);
+      void visit(mlir::modelica::TimeOp);
+      void visit(mlir::modelica::NegateOp);
+      void visit(mlir::modelica::AddOp);
+      void visit(mlir::modelica::SubOp);
+      void visit(mlir::modelica::MulOp);
+      void visit(mlir::modelica::DivOp);
+      void visit(mlir::modelica::PowOp);
+      void visit(mlir::modelica::SinOp);
+      void visit(mlir::modelica::EquationSideOp);
+      void visit(mlir::modelica::EquationSidesOp);
   };
 }
 
