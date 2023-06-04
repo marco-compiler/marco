@@ -63,7 +63,7 @@ namespace marco::codegen {
       private:
       mlir::OpBuilder& builder;
       mlir::Location loc;
-      MatchedEquation* equation;
+      MatchedEquation* matchedEquation;
       // Map from expression to Value, to be able to get the Value of a subexpression while traversing the expression.
       llvm::DenseMap<unsigned int, mlir::Value> expressionHashToValueMap;
       std::map<std::string, SymbolInfo> symbolNameToInfoMap;
@@ -72,7 +72,7 @@ namespace marco::codegen {
       explicit SymbolicToModelicaEquationVisitor(
           mlir::OpBuilder& builder,
           mlir::Location loc,
-          MatchedEquation* equation,
+          MatchedEquation* matchedEquation,
           std::map<std::string, SymbolInfo>& symbolNameToInfoMap
       );
 
@@ -97,10 +97,7 @@ namespace marco::codegen {
       ModelicaToSymbolicEquationVisitor(
           MatchedEquation* matchedEquation,
           std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
-          GiNaC::ex& solution
-          ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution)
-      {
-      }
+          GiNaC::ex& solution);
 
       void visit(mlir::modelica::VariableGetOp);
       void visit(mlir::modelica::SubscriptionOp);

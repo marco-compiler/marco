@@ -105,7 +105,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
     }
   }
 
-  // The variables into wrt. which the linear system is solved are the matched ones.
+  // The variables wrt. which the linear system is solved are the matched ones.
   for (const auto& [name, info] : symbolNameToInfoMap) {
     if (info.matchedEquation != nullptr) {
       matchedVariables.append(info.symbol);
@@ -170,10 +170,20 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     mlir::OpBuilder& builder,
     mlir::Location loc,
-    MatchedEquation* equation,
+    MatchedEquation* matchedEquation,
     std::map<std::string, SymbolInfo>& symbolNameToInfoMap
-    ) : builder(builder), loc(loc), equation(equation), symbolNameToInfoMap(symbolNameToInfoMap)
+    ) : builder(builder), loc(loc), matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap)
 {
+  auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
+  while (forEquationOp) {
+    mlir::BlockArgument blockArgument = forEquationOp.bodyBlock()->getArgument(0);
+    std::string argumentName = "%arg" + std::to_string(blockArgument.getArgNumber());
+
+    GiNaC::symbol argumentSymbol = symbolNameToInfoMap[argumentName].symbol;
+    expressionHashToValueMap[argumentSymbol.gethash()] = blockArgument;
+
+    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
+  }
 }
 
 void SymbolicToModelicaEquationVisitor::visit(const GiNaC::add & x) {
@@ -307,6 +317,34 @@ Equations<MatchedEquation> CyclesSymbolicSolver::getUnsolvedEquations() const
   return result;
 }
 
+ModelicaToSymbolicEquationVisitor::ModelicaToSymbolicEquationVisitor(
+    MatchedEquation* matchedEquation,
+    std::map<std::string, SymbolInfo>& symbolNameToInfoMap,
+    GiNaC::ex& solution
+    ) : matchedEquation(matchedEquation), symbolNameToInfoMap(symbolNameToInfoMap), solution(solution)
+{
+  // Initialize the block arguments of the valueToExpressionMap
+  auto forEquationOp = matchedEquation->getOperation()->getParentOfType<mlir::modelica::ForEquationOp>();
+  while (forEquationOp) {
+    mlir::BlockArgument blockArgument = forEquationOp.bodyBlock()->getArgument(0);
+    std::string argumentName = "%arg" + std::to_string(blockArgument.getArgNumber());
+
+    if (!symbolNameToInfoMap.count(argumentName)) {
+      symbolNameToInfoMap[argumentName] = SymbolInfo();
+      symbolNameToInfoMap[argumentName].symbol = GiNaC::symbol(argumentName);
+      symbolNameToInfoMap[argumentName].variableName = argumentName;
+      symbolNameToInfoMap[argumentName].variableType = blockArgument.getType();
+      symbolNameToInfoMap[argumentName].indices = {};
+    }
+
+    if (!valueToExpressionMap.count(blockArgument)) {
+      valueToExpressionMap[blockArgument] = symbolNameToInfoMap[argumentName].symbol;
+    }
+
+    forEquationOp = forEquationOp->getParentOfType<mlir::modelica::ForEquationOp>();
+  }
+}
+
 void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
 {
   std::string variableName = variableGetOp.getVariable().str();
@@ -345,8 +383,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
 
       std::vector<GiNaC::ex> indices;
       for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
-        if (offset.length())
-          offset += '_';
+        offset += '[';
 
         GiNaC::ex expression = valueToExpressionMap[subscriptionOp->getOperand(i)];
         indices.push_back(expression);
@@ -354,9 +391,10 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         std::ostringstream oss;
         oss << expression;
         offset += oss.str();
+        offset += ']';
       }
 
-      std::string variableName = baseVariableName + '_' + offset;
+      std::string variableName = baseVariableName + offset;
 
       if(!symbolNameToInfoMap.count(variableName)) {
         symbolNameToInfoMap[variableName] = SymbolInfo();
