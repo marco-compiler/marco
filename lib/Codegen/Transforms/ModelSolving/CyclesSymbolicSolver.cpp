@@ -27,6 +27,50 @@ static double getDoubleFromAttribute(mlir::Attribute attribute)
   llvm_unreachable("Unknown attribute type");
 }
 
+GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap) {
+  auto terminator = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(matchedEquation->getOperation().bodyBlock()->getTerminator());
+
+  GiNaC::ex solution;
+  ModelicaToSymbolicEquationVisitor visitor(matchedEquation, symbolNameToInfoMap, solution);
+
+  auto operation = matchedEquation->getOperation().bodyBlock()->begin();
+  while (operation != matchedEquation->getOperation().bodyBlock()->end()) {
+    if(auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(operation)) {
+      visitor.visit(variableGetOp);
+    } else if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(operation)) {
+      visitor.visit(subscriptionOp);
+    } else if(auto loadOp = mlir::dyn_cast<mlir::modelica::LoadOp>(operation)) {
+      visitor.visit(loadOp);
+    } else if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(operation)) {
+      visitor.visit(constantOp);
+    } else if(auto timeOp = mlir::dyn_cast<mlir::modelica::TimeOp>(operation)) {
+      visitor.visit(timeOp);
+    } else if(auto negateOp = mlir::dyn_cast<mlir::modelica::NegateOp>(operation)) {
+      visitor.visit(negateOp);
+    } else if(auto addOp = mlir::dyn_cast<mlir::modelica::AddOp>(operation)) {
+      visitor.visit(addOp);
+    } else if(auto subOp = mlir::dyn_cast<mlir::modelica::SubOp>(operation)) {
+      visitor.visit(subOp);
+    } else if(auto mulOp = mlir::dyn_cast<mlir::modelica::MulOp>(operation)) {
+      visitor.visit(mulOp);
+    } else if(auto divOp = mlir::dyn_cast<mlir::modelica::DivOp>(operation)) {
+      visitor.visit(divOp);
+    } else if(auto powOp = mlir::dyn_cast<mlir::modelica::PowOp>(operation)) {
+      visitor.visit(powOp);
+    } else if(auto sinOp = mlir::dyn_cast<mlir::modelica::SinOp>(operation)) {
+      visitor.visit(sinOp);
+    } else if(auto equationSideOp = mlir::dyn_cast<mlir::modelica::EquationSideOp>(operation)) {
+      visitor.visit(equationSideOp);
+    } else if(auto equationSidesOp = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(operation)) {
+      visitor.visit(equationSidesOp);
+    }
+
+    ++operation;
+  }
+
+  return solution;
+}
+
 // todo: how do you make this non recursive?
 GiNaC::ex visit_postorder_recursive_value(mlir::Value value, MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap)
 {
@@ -191,10 +235,10 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   for (auto& equation : equationSet) {
     auto terminator = mlir::cast<mlir::modelica::EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
 
-    GiNaC::ex lhs = visit_postorder_recursive_value(terminator.getLhsValues()[0], equation, symbolNameToInfoMap);
-    GiNaC::ex rhs = visit_postorder_recursive_value(terminator.getRhsValues()[0], equation, symbolNameToInfoMap);
+//    GiNaC::ex lhs = visit_postorder_recursive_value(terminator.getLhsValues()[0], equation, symbolNameToInfoMap);
+//    GiNaC::ex rhs = visit_postorder_recursive_value(terminator.getRhsValues()[0], equation, symbolNameToInfoMap);
 
-    GiNaC::ex expression = lhs == rhs;
+    GiNaC::ex expression = getExpressionFromEquation(equation, symbolNameToInfoMap);
 
     std::cerr << '\n' << "Expression: " << expression << '\n';
 
@@ -251,7 +295,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
       mlir::Block* equationBodyBlock = builder.createBlock(&equationOp.getBodyRegion());
       builder.setInsertionPointToStart(equationBodyBlock);
 
-      SymbolicVisitor visitor = SymbolicVisitor(builder, loc, equation, symbolNameToInfoMap);
+      SymbolicToModelicaEquationVisitor visitor = SymbolicToModelicaEquationVisitor(builder, loc, equation, symbolNameToInfoMap);
       expr.traverse_postorder(visitor);
 
       equation->dumpIR();
@@ -268,7 +312,7 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   return true;
 }
 
-SymbolicVisitor::SymbolicVisitor(
+SymbolicToModelicaEquationVisitor::SymbolicToModelicaEquationVisitor(
     mlir::OpBuilder& builder,
     mlir::Location loc,
     MatchedEquation* equation,
@@ -277,7 +321,7 @@ SymbolicVisitor::SymbolicVisitor(
 {
 }
 
-void SymbolicVisitor::visit(const GiNaC::add & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::add & x) {
   mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
 
   for (size_t i = 1; i < x.nops(); ++i) {
@@ -289,7 +333,7 @@ void SymbolicVisitor::visit(const GiNaC::add & x) {
   expressionHashToValueMap[x.gethash()] = lhs;
 }
 
-void SymbolicVisitor::visit(const GiNaC::mul & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::mul & x) {
   mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
 
   for (size_t i = 1; i < x.nops(); ++i) {
@@ -301,7 +345,7 @@ void SymbolicVisitor::visit(const GiNaC::mul & x) {
   expressionHashToValueMap[x.gethash()] = lhs;
 }
 
-void SymbolicVisitor::visit(const GiNaC::power & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::power & x) {
   mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
   mlir::Value rhs = expressionHashToValueMap[x.op(1).gethash()];
 
@@ -311,7 +355,7 @@ void SymbolicVisitor::visit(const GiNaC::power & x) {
   expressionHashToValueMap[x.gethash()] = value;
 }
 
-void SymbolicVisitor::visit(const GiNaC::function & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::function & x) {
   if (x.get_name() == "sin") {
     mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
 
@@ -322,7 +366,7 @@ void SymbolicVisitor::visit(const GiNaC::function & x) {
   }
 }
 
-void SymbolicVisitor::visit(const GiNaC::relational & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::relational & x) {
   if (x.info(GiNaC::info_flags::relation_equal)) {
     mlir::Value lhs = expressionHashToValueMap[x.op(0).gethash()];
     mlir::Value rhs = expressionHashToValueMap[x.op(1).gethash()];
@@ -334,7 +378,7 @@ void SymbolicVisitor::visit(const GiNaC::relational & x) {
   }
 }
 
-void SymbolicVisitor::visit(const GiNaC::numeric & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::numeric & x) {
   mlir::Attribute attribute;
 
   if (x.is_cinteger()) {
@@ -350,7 +394,7 @@ void SymbolicVisitor::visit(const GiNaC::numeric & x) {
 
 }
 
-void SymbolicVisitor::visit(const GiNaC::symbol & x) {
+void SymbolicToModelicaEquationVisitor::visit(const GiNaC::symbol & x) {
   mlir::Value value = expressionHashToValueMap[x.gethash()];
   if (value == nullptr) {
     if (x.get_name() == "time") {
@@ -406,4 +450,148 @@ Equations<MatchedEquation> CyclesSymbolicSolver::getUnsolvedEquations() const
   }
 
   return result;
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::VariableGetOp variableGetOp)
+{
+  std::string variableName = variableGetOp.getVariable().str();
+
+  if(!symbolNameToInfoMap.count(variableName)) {
+    symbolNameToInfoMap[variableName] = SymbolInfo();
+    symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
+    symbolNameToInfoMap[variableName].variableName = variableName;
+    symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
+    symbolNameToInfoMap[variableName].indices = {};
+  }
+
+  if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
+    // If the this is the matched variable for the equation, add it to the array
+    auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
+    if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
+      symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
+    }
+  }
+
+  valueToExpressionMap[variableGetOp.getResult()] = symbolNameToInfoMap[variableName].symbol;
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::SubscriptionOp subscriptionOp)
+{
+  // As of now we don't need to do anything when we visit a SubscriptionOp, as array loading is managed by LoadOp
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadOp)
+{
+  if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(loadOp->getOperand(0).getDefiningOp())) {
+    if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(subscriptionOp->getOperand(0).getDefiningOp())) {
+      std::string baseVariableName = variableGetOp.getVariable().str();
+
+      std::string offset;
+
+      std::vector<GiNaC::ex> indices;
+      for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
+        if (offset.length())
+          offset += '_';
+
+        GiNaC::ex expression = visit_postorder_recursive_value(loadOp->getOperand(0).getDefiningOp()->getOperand(i), matchedEquation, symbolNameToInfoMap);
+        indices.push_back(expression);
+
+        std::ostringstream oss;
+        oss << expression;
+        offset += oss.str();
+      }
+
+      std::string variableName = baseVariableName + '_' + offset;
+
+      if(!symbolNameToInfoMap.count(variableName)) {
+        symbolNameToInfoMap[variableName] = SymbolInfo();
+        symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
+        symbolNameToInfoMap[variableName].variableName = baseVariableName;
+        symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
+        symbolNameToInfoMap[variableName].indices = indices;
+      }
+
+      if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
+        // If the this is the matched variable for the equation, add it to the array
+        auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
+        if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
+          symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
+        }
+      }
+
+      valueToExpressionMap[loadOp->getResult(0)] = symbolNameToInfoMap[variableName].symbol;
+    } else {
+      matchedEquation->dumpIR();
+      subscriptionOp->dump();
+      subscriptionOp->getOperand(0).getDefiningOp()->dump();
+      llvm_unreachable("Not a VariableGetOp.");
+    }
+  }
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::ConstantOp constantOp)
+{
+  mlir::Attribute attribute = constantOp.getValue();
+
+  GiNaC::ex res;
+
+  if (const auto integerValue = attribute.dyn_cast<mlir::IntegerAttr>()) {
+    res = integerValue.getInt();
+  } else if (const auto modelicaIntegerValue = attribute.dyn_cast<mlir::modelica::IntegerAttr>()) {
+    res = modelicaIntegerValue.getValue().getSExtValue();
+  } else {
+    res = getDoubleFromAttribute(constantOp.getValue());
+  }
+
+  valueToExpressionMap[constantOp.getResult()] = res;
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::TimeOp timeOp)
+{
+  valueToExpressionMap[timeOp.getResult()] = symbolNameToInfoMap["time"].symbol;
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::NegateOp negateOp)
+{
+  valueToExpressionMap[negateOp.getResult()] = - valueToExpressionMap[negateOp->getOperand(0)];
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::AddOp addOp)
+{
+  valueToExpressionMap[addOp.getResult()] = valueToExpressionMap[addOp->getOperand(0)] + valueToExpressionMap[addOp->getOperand(1)];
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::SubOp subOp)
+{
+  valueToExpressionMap[subOp.getResult()] = valueToExpressionMap[subOp->getOperand(0)] - valueToExpressionMap[subOp->getOperand(1)];
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::MulOp mulOp)
+{
+  valueToExpressionMap[mulOp.getResult()] = valueToExpressionMap[mulOp->getOperand(0)] * valueToExpressionMap[mulOp->getOperand(1)];
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::DivOp divOp)
+{
+  valueToExpressionMap[divOp.getResult()] = valueToExpressionMap[divOp->getOperand(0)] / valueToExpressionMap[divOp->getOperand(1)];
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::PowOp powOp)
+{
+  valueToExpressionMap[powOp.getResult()] = GiNaC::pow(valueToExpressionMap[powOp->getOperand(0)], valueToExpressionMap[powOp->getOperand(1)]);
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::SinOp sinOp)
+{
+  valueToExpressionMap[sinOp.getResult()] = sin(valueToExpressionMap[sinOp->getOperand(0)]);
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::EquationSideOp equationSideOp)
+{
+  valueToExpressionMap[equationSideOp.getResult()] = valueToExpressionMap[equationSideOp->getOperand(0)];
+}
+
+void ModelicaToSymbolicEquationVisitor::visit(mlir::modelica::EquationSidesOp equationSidesOp)
+{
+  solution = valueToExpressionMap[equationSidesOp->getOperand(0)] == valueToExpressionMap[equationSidesOp->getOperand(1)];
 }
