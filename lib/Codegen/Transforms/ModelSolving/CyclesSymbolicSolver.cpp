@@ -71,150 +71,8 @@ GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<s
   return solution;
 }
 
-// todo: how do you make this non recursive?
-GiNaC::ex visit_postorder_recursive_value(mlir::Value value, MatchedEquation* matchedEquation, std::map<std::string, SymbolInfo>& symbolNameToInfoMap)
-{
-  // If the value is not a block argument, it must be a SSA value defined by an operation.
-  mlir::Operation* definingOp = value.getDefiningOp();
-
-  // If the value is defined by a constant operation, it is a leaf.
-  if(auto constantOp = mlir::dyn_cast<mlir::modelica::ConstantOp>(definingOp); constantOp != nullptr) {
-    mlir::Attribute attribute = constantOp.getValue();
-
-    if (const auto integerValue = attribute.dyn_cast<mlir::IntegerAttr>()) {
-      return integerValue.getInt();
-    }
-
-    if (const auto integerValue = attribute.dyn_cast<mlir::modelica::IntegerAttr>()) {
-      return integerValue.getValue().getSExtValue();
-    }
-
-    GiNaC::ex res = getDoubleFromAttribute(constantOp.getValue());
-    return res;
-  }
-
-  if(mlir::isa<mlir::modelica::TimeOp>(definingOp))
-    return symbolNameToInfoMap["time"].symbol;
-
-  if(mlir::isa<mlir::modelica::EquationSideOp>(definingOp))
-    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap);
-
-  if(mlir::isa<mlir::modelica::SinOp>(definingOp))
-    return sin(visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap));
-
-  if(mlir::isa<mlir::modelica::NegateOp>(definingOp))
-    return -visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap);
-
-  if(auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(definingOp)) {
-    std::string variableName = variableGetOp.getVariable().str();
-
-    if(!symbolNameToInfoMap.count(variableName)) {
-      symbolNameToInfoMap[variableName] = SymbolInfo();
-      symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
-      symbolNameToInfoMap[variableName].variableName = variableName;
-      symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
-      symbolNameToInfoMap[variableName].indices = {};
-    }
-
-    if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
-      // If the this is the matched variable for the equation, add it to the array
-      auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
-      if (auto writeOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(write); writeOp == variableGetOp) {
-        symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
-      }
-    }
-
-    return symbolNameToInfoMap[variableName].symbol;
-  }
-
-  if(mlir::isa<mlir::modelica::AddOp>(definingOp))
-    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) +
-        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
-
-  if(mlir::isa<mlir::modelica::SubOp>(definingOp))
-    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) -
-        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
-
-  if(mlir::isa<mlir::modelica::MulOp>(definingOp))
-    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) *
-        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
-
-  if(mlir::isa<mlir::modelica::DivOp>(definingOp))
-    return visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap) /
-        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap);
-
-  if(mlir::isa<mlir::modelica::PowOp>(definingOp))
-    return GiNaC::pow(
-        visit_postorder_recursive_value(definingOp->getOperand(0), matchedEquation, symbolNameToInfoMap),
-        visit_postorder_recursive_value(definingOp->getOperand(1), matchedEquation, symbolNameToInfoMap));
-
-  // If we have a subscription operation, get the shape of the base vector, that should correspond with
-  // the first operand. Then add an index to the symbol of the vector for each operand except the base.
-  if (auto loadOp = mlir::dyn_cast<mlir::modelica::LoadOp>(definingOp)) {
-    if(auto subscriptionOp = mlir::dyn_cast<mlir::modelica::SubscriptionOp>(loadOp->getOperand(0).getDefiningOp())) {
-      mlir::Value baseOperand = subscriptionOp->getOperand(0);
-      std::string baseVariableName;
-      matchedEquation->dumpIR();
-      if (auto variableGetOp = mlir::dyn_cast<mlir::modelica::VariableGetOp>(baseOperand.getDefiningOp())) {
-        baseVariableName = variableGetOp.getVariable().str();
-
-        std::string offset;
-
-        std::vector<GiNaC::ex> indices;
-        for (size_t i = 1; i < subscriptionOp->getNumOperands(); ++i) {
-          if (offset.length())
-            offset += '_';
-
-          GiNaC::ex expression = visit_postorder_recursive_value(definingOp->getOperand(0).getDefiningOp()->getOperand(i), matchedEquation, symbolNameToInfoMap);
-          indices.push_back(expression);
-
-          std::ostringstream oss;
-          oss << expression;
-          offset += oss.str();
-        }
-
-        std::string variableName = baseVariableName + '_' + offset;
-
-        if(!symbolNameToInfoMap.count(variableName)) {
-          symbolNameToInfoMap[variableName] = SymbolInfo();
-          symbolNameToInfoMap[variableName].symbol = GiNaC::symbol(variableName);
-          symbolNameToInfoMap[variableName].variableName = baseVariableName;
-          symbolNameToInfoMap[variableName].variableType = variableGetOp.getType();
-          symbolNameToInfoMap[variableName].indices = indices;
-        }
-
-        if (symbolNameToInfoMap[variableName].matchedEquation == nullptr) {
-          // If the this is the matched variable for the equation, add it to the array
-          auto write = matchedEquation->getValueAtPath(matchedEquation->getWrite().getPath()).getDefiningOp();
-          std::cerr << "WRITE OP:\n";
-          write->dump();
-          std::cerr << "VARIABLE GET OP:\n";
-          variableGetOp->dump();
-          if (auto writeOp = mlir::dyn_cast<mlir::modelica::LoadOp>(write); writeOp == loadOp) {
-            std::cerr << "MATCHED OP:\n";
-            write->dump();
-            symbolNameToInfoMap[variableName].matchedEquation = matchedEquation;
-          }
-        }
-
-        return symbolNameToInfoMap[variableName].symbol;
-      }
-      matchedEquation->dumpIR();
-      baseOperand.getDefiningOp()->dump();
-      llvm_unreachable("Not a VariableGetOp.");
-    }
-    matchedEquation->dumpIR();
-    definingOp->dump();
-    llvm_unreachable("Not a SubscriptionOp.");
-  }
-  matchedEquation->dumpIR();
-  definingOp->dump();
-  llvm_unreachable("Found operation with an unusual number of arguments\n");
-}
-
 CyclesSymbolicSolver::CyclesSymbolicSolver(mlir::OpBuilder& builder) : builder(builder)
 {
-
 }
 
 bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
@@ -234,9 +92,6 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
 
   for (auto& equation : equationSet) {
     auto terminator = mlir::cast<mlir::modelica::EquationSidesOp>(equation->getOperation().bodyBlock()->getTerminator());
-
-//    GiNaC::ex lhs = visit_postorder_recursive_value(terminator.getLhsValues()[0], equation, symbolNameToInfoMap);
-//    GiNaC::ex rhs = visit_postorder_recursive_value(terminator.getRhsValues()[0], equation, symbolNameToInfoMap);
 
     GiNaC::ex expression = getExpressionFromEquation(equation, symbolNameToInfoMap);
 
@@ -493,7 +348,7 @@ void ModelicaToSymbolicEquationVisitor::visit(const mlir::modelica::LoadOp loadO
         if (offset.length())
           offset += '_';
 
-        GiNaC::ex expression = visit_postorder_recursive_value(loadOp->getOperand(0).getDefiningOp()->getOperand(i), matchedEquation, symbolNameToInfoMap);
+        GiNaC::ex expression = valueToExpressionMap[subscriptionOp->getOperand(i)];
         indices.push_back(expression);
 
         std::ostringstream oss;
