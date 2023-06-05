@@ -251,7 +251,11 @@ namespace marco::runtime::ida
 
       size_t getNumOfVectorizedEquations() const;
 
+      size_t getNumOfScalarEquations() const;
+
       size_t getEquationRank(size_t equation) const;
+
+      size_t getEquationFlatSize(size_t equation) const;
 
       std::vector<JacobianColumn> computeJacobianColumns(
           size_t eq, const int64_t* eqIndexes) const;
@@ -266,10 +270,24 @@ namespace marco::runtime::ida
           N_Vector algebraicAndStateVariablesVector,
           N_Vector derivativeVariablesVector);
 
+      void vectorEquationsParallelIteration(
+          std::function<void(size_t equation)> processFn);
+
       void scalarEquationsParallelIteration(
           std::function<void(
               size_t equation,
               const std::vector<int64_t>& equationIndices)> processFn);
+
+      void equationsParallelIteration(
+          std::function<void(
+              size_t equation,
+              const std::vector<int64_t>& equationIndices)> processFn);
+
+      void getEquationBeginIndices(
+          size_t equation, std::vector<int64_t>& indices) const;
+
+      void getEquationEndIndices(
+          size_t equation, std::vector<int64_t>& indices) const;
 
       /// Prints the Jacobian incidence matrix of the system.
       void printIncidenceMatrix() const;

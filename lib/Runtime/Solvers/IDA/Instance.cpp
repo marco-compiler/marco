@@ -257,6 +257,10 @@ static bool advanceIndices(int64_t* indices, const MultidimensionalRange& ranges
     }
   }
 
+  for (size_t i = 0, e = ranges.size(); i < e; ++i) {
+    indices[i] = ranges[i].end;
+  }
+
   return false;
 }
 
@@ -264,6 +268,20 @@ static bool advanceIndices(
     std::vector<int64_t>& indices, const MultidimensionalRange& ranges)
 {
   return advanceIndices(indices.data(), ranges);
+}
+
+static bool advanceIndicesUntil(
+    std::vector<int64_t>& indices,
+    const MultidimensionalRange& ranges,
+    const std::vector<int64_t>& end)
+{
+  assert(indices.size() == end.size());
+
+  if (!advanceIndices(indices, ranges)) {
+    return false;
+  }
+
+  return indices != end;
 }
 
 /// Given an array of indexes, the dimension of a variable and the type of
@@ -309,6 +327,58 @@ static int64_t getFlatIndex(
 {
   assert(indices.size() == dimensions.rank());
   return getFlatIndex(dimensions, indices.data());
+}
+
+static uint64_t getEquationFlatIndex(
+    const std::vector<int64_t>& indices,
+    const MultidimensionalRange& ranges)
+{
+  int64_t offset = indices[0] - ranges[0].begin;
+
+  for (size_t i = 1, e = ranges.size(); i < e; ++i) {
+    offset = offset * (ranges[i].end - ranges[i].begin) +
+        (indices[i] - ranges[i].begin);
+  }
+
+  assert(offset >= 0);
+  return offset;
+}
+
+static void getEquationIndicesFromFlatIndex(
+    uint64_t flatIndex,
+    std::vector<int64_t>& result,
+    const MultidimensionalRange& ranges)
+{
+  result.resize(ranges.size());
+  uint64_t size = 1;
+
+  for (size_t i = 1, e = ranges.size(); i < e; ++i) {
+    size *= ranges[i].end - ranges[i].begin;
+  }
+
+  for (size_t i = 1, e = ranges.size(); i < e; ++i) {
+    result[i - 1] =
+        static_cast<int64_t>(flatIndex / size) + ranges[i - 1].begin;
+
+    flatIndex %= size;
+    size /= ranges[i].end - ranges[i].begin;
+  }
+
+  result[ranges.size() - 1] =
+      static_cast<int64_t>(flatIndex) + ranges.back().begin;
+
+  assert(size == 1);
+
+  assert(([&]() -> bool {
+           for (size_t i = 0, e = result.size(); i < e; ++i) {
+             if (result[i] < ranges[i].begin ||
+                 result[i] >= ranges[i].end) {
+               return false;
+             }
+           }
+
+           return true;
+         }()) && "Wrong index unflattening result");
 }
 
 //===---------------------------------------------------------------------===//
@@ -1022,7 +1092,7 @@ namespace marco::runtime::ida
     // it writes into.
     IDA_PROFILER_RESIDUALS_START;
 
-    instance->scalarEquationsParallelIteration(
+    instance->equationsParallelIteration(
         [&](size_t eq, const std::vector<int64_t>& equationIndices) {
           assert(equationIndices.size() == instance->getEquationRank(eq));
 
@@ -1067,7 +1137,7 @@ namespace marco::runtime::ida
     // matrix.
     IDA_PROFILER_PARTIAL_DERIVATIVES_START;
 
-    instance->scalarEquationsParallelIteration(
+    instance->equationsParallelIteration(
         [&](size_t eq, const std::vector<int64_t>& equationIndices) {
           int64_t equationVariable = instance->writeAccesses[eq].first;
 
@@ -1152,9 +1222,32 @@ namespace marco::runtime::ida
     return equationRanges.size();
   }
 
+  size_t IDAInstance::getNumOfScalarEquations() const
+  {
+    size_t result = 0;
+
+    for (size_t i = 0, e = getNumOfVectorizedEquations(); i < e; ++i) {
+      result += getEquationFlatSize(i);
+    }
+
+    return result;
+  }
+
   size_t IDAInstance::getEquationRank(size_t equation) const
   {
     return equationRanges[equation].size();
+  }
+
+  size_t IDAInstance::getEquationFlatSize(size_t equation) const
+  {
+    assert(equation < getNumOfVectorizedEquations());
+    size_t result = 1;
+
+    for (const Range& range : equationRanges[equation]) {
+      result *= range.end - range.begin;
+    }
+
+    return result;
   }
 
   /// Determine which of the columns of the current Jacobian row has to be
@@ -1335,6 +1428,38 @@ namespace marco::runtime::ida
     IDA_PROFILER_COPY_VARS_INTO_MARCO_STOP;
   }
 
+  void IDAInstance::vectorEquationsParallelIteration(
+      std::function<void(size_t equation)> processFn)
+  {
+    std::mutex mutex;
+    size_t processedEquations = 0;
+
+    // Function to move to the next equation.
+    auto getEquationAndAdvance =
+        [&](size_t& eq) {
+          std::lock_guard<std::mutex> lockGuard(mutex);
+
+          if (processedEquations >= getNumOfVectorizedEquations()) {
+            return false;
+          }
+
+          eq = equationsProcessingOrder[processedEquations++];
+          return true;
+        };
+
+    for (unsigned int i = 0, e = threadPool.getNumOfThreads(); i < e; ++i) {
+      threadPool.async([&]() {
+        size_t equation;
+
+        while (getEquationAndAdvance(equation)) {
+          processFn(equation);
+        }
+      });
+    }
+
+    threadPool.wait();
+  }
+
   void IDAInstance::scalarEquationsParallelIteration(
       std::function<void(
           size_t equation,
@@ -1343,15 +1468,6 @@ namespace marco::runtime::ida
     size_t processedEquations = 0;
     std::vector<int64_t> equationIndices;
     std::mutex mutex;
-
-    auto setBeginIndices = [&](size_t eq) {
-      size_t equationRank = getEquationRank(eq);
-      equationIndices.resize(equationRank);
-
-      for (size_t i = 0; i < equationRank; ++i) {
-        equationIndices[i] = equationRanges[eq][i].begin;
-      }
-    };
 
     // Function to advance the indices by one, or move to the next equation if
     // the current one has been fully visited.
@@ -1368,14 +1484,17 @@ namespace marco::runtime::ida
 
           if (!advanceIndices(equationIndices, equationRanges[eq])) {
             if (++processedEquations < getNumOfVectorizedEquations()) {
-              setBeginIndices(equationsProcessingOrder[processedEquations]);
+              getEquationBeginIndices(
+                  equationsProcessingOrder[processedEquations],
+                  equationIndices);
             }
           }
 
           return true;
         };
 
-    setBeginIndices(equationsProcessingOrder[processedEquations]);
+    getEquationBeginIndices(
+        equationsProcessingOrder[processedEquations], equationIndices);
 
     for (unsigned int i = 0, e = threadPool.getNumOfThreads(); i < e; ++i) {
       threadPool.async([&]() {
@@ -1389,6 +1508,175 @@ namespace marco::runtime::ida
     }
 
     threadPool.wait();
+  }
+
+  void IDAInstance::equationsParallelIteration(
+      std::function<void(
+          size_t equation,
+          const std::vector<int64_t>& equationIndices)> processFn)
+  {
+    size_t numOfVectorizedEquations = getNumOfVectorizedEquations();
+    size_t numOfScalarEquations = getNumOfScalarEquations();
+    unsigned int numOfThreads = threadPool.getNumOfThreads();
+
+    size_t chunkSize =
+        (numOfScalarEquations + numOfThreads - 1) / numOfThreads;
+
+    // A chunk is described by:
+    //   - the index of the equation
+    //   - the begin indices of iteration
+    //   - the end indices of iteration
+    using Chunk = std::tuple
+        <size_t, std::vector<int64_t>, std::vector<int64_t>>;
+
+    std::vector<std::vector<Chunk>> threadChunks(numOfThreads);
+
+    // The number of vectorized equations whose indices have been completely
+    // assigned.
+    size_t processedEquations = 0;
+
+    size_t equation = equationsProcessingOrder[processedEquations];
+    std::vector<int64_t> equationIndices;
+
+    // Set the indices to the beginning.
+    getEquationBeginIndices(equation, equationIndices);
+
+    for (unsigned int thread = 0; thread < numOfThreads - 1; ++thread) {
+      size_t currentChunkSize = 0;
+
+      while (processedEquations < numOfVectorizedEquations &&
+             currentChunkSize < chunkSize) {
+        const MultidimensionalRange& ranges = equationRanges[equation];
+        size_t equationFlatSize = getEquationFlatSize(equation);
+        uint64_t flatIndex = getEquationFlatIndex(equationIndices, ranges);
+        uint64_t remainingScalarEquations = equationFlatSize - flatIndex;
+
+        if (remainingScalarEquations + currentChunkSize <= chunkSize) {
+          // All the remaining indices can be processed without exceeding the
+          // maximum chunk size.
+          std::vector<int64_t> endIndices;
+          getEquationEndIndices(equation, endIndices);
+
+          // Add the chunk.
+          threadChunks[thread].emplace_back(
+              equation, equationIndices, endIndices);
+
+          // Update the size of the current chunk.
+          currentChunkSize += remainingScalarEquations;
+
+          // Move to the next equation.
+          ++processedEquations;
+          equation = equationsProcessingOrder[processedEquations];
+          getEquationBeginIndices(equation, equationIndices);
+        } else {
+          // Only part of the indices can be processed before exceeding the
+          // maximum chunk size.
+          size_t numOfScalarEquationsToBeAdded = chunkSize - currentChunkSize;
+          assert(numOfScalarEquationsToBeAdded < remainingScalarEquations);
+
+          std::vector<int64_t> endIndices;
+
+          getEquationIndicesFromFlatIndex(
+              flatIndex + numOfScalarEquationsToBeAdded,
+              endIndices, equationRanges[equation]);
+
+          // Add the chunk.
+          threadChunks[thread].emplace_back(
+              equation, equationIndices, endIndices);
+
+          // The next chunk will start from here.
+          equationIndices = endIndices;
+
+          // Update the size of the current chunk.
+          currentChunkSize += numOfScalarEquationsToBeAdded;
+        }
+      }
+    }
+
+    // Assign the chunks to the last thread separately, in order to ensure that
+    // all the remaining equations are processed.
+
+    auto isEndIndices =
+        [](const std::vector<int64_t>& indices,
+           const MultidimensionalRange& ranges) {
+          assert(indices.size() == ranges.size());
+
+          for (size_t i = 0, e = ranges.size(); i < e; ++i) {
+            if (indices[i] != ranges[i].end) {
+              return false;
+            }
+          }
+
+          return true;
+        };
+
+    // Add the remaining indices for the current equation.
+    if (processedEquations < numOfVectorizedEquations &&
+        !isEndIndices(equationIndices, equationRanges[equation])) {
+      std::vector<int64_t> endIndices(equationRanges[equation].size());
+
+      for (size_t i = 0, e = equationRanges[equation].size(); i < e; ++i) {
+        endIndices[i] = equationRanges[equation][i].end;
+      }
+
+      threadChunks[threadChunks.size() - 1].emplace_back(
+          equation, equationIndices, endIndices);
+
+      ++processedEquations;
+    }
+
+    // Add the remaining equations.
+    while (processedEquations < numOfVectorizedEquations) {
+      equation = equationsProcessingOrder[processedEquations];
+      getEquationBeginIndices(equation, equationIndices);
+
+      std::vector<int64_t> endIndices;
+      getEquationEndIndices(equation, endIndices);
+
+      threadChunks[threadChunks.size() - 1].emplace_back(
+          equation, equationIndices, endIndices);
+
+      ++processedEquations;
+    }
+
+    // Shard the work among multiple threads.
+    for (unsigned int thread = 0; thread < numOfThreads; ++thread) {
+      threadPool.async([=, &threadChunks]() {
+        for (const Chunk& chunk : threadChunks[thread]) {
+          size_t equation = std::get<0>(chunk);
+          std::vector<int64_t> equationIndices = std::get<1>(chunk);
+
+          do {
+            processFn(equation, equationIndices);
+          } while (advanceIndicesUntil(
+              equationIndices, equationRanges[equation], std::get<2>(chunk)));
+        }
+      });
+    }
+
+    threadPool.wait();
+  }
+
+  void IDAInstance::getEquationBeginIndices(
+      size_t equation, std::vector<int64_t>& indices) const
+  {
+    size_t equationRank = getEquationRank(equation);
+    indices.resize(equationRank);
+
+    for (size_t i = 0; i < equationRank; ++i) {
+      indices[i] = equationRanges[equation][i].begin;
+    }
+  }
+
+  void IDAInstance::getEquationEndIndices(
+      size_t equation, std::vector<int64_t>& indices) const
+  {
+    size_t equationRank = getEquationRank(equation);
+    indices.resize(equationRank);
+
+    for (size_t i = 0; i < equationRank; ++i) {
+      indices[i] = equationRanges[equation][i].end;
+    }
   }
 
   void IDAInstance::printStatistics() const
