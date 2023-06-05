@@ -63,6 +63,9 @@ GiNaC::ex getExpressionFromEquation(MatchedEquation* matchedEquation, std::map<s
       visitor.visit(equationSideOp);
     } else if(auto equationSidesOp = mlir::dyn_cast<mlir::modelica::EquationSidesOp>(operation)) {
       visitor.visit(equationSidesOp);
+    } else {
+      operation->dump();
+      llvm_unreachable("Unsupported operation");
     }
 
     ++operation;
@@ -115,24 +118,39 @@ bool CyclesSymbolicSolver::solve(const std::set<MatchedEquation*>& equationSet)
   std::cerr << "System equations: " << systemEquations << '\n' << std::flush;
   std::cerr << "Matched variables: " << matchedVariables << '\n' << std::flush;
 
-  GiNaC::ex solution;
+  GiNaC::ex solutionEquations;
   try {
-    solution = GiNaC::lsolve(systemEquations, matchedVariables);
+    solutionEquations = GiNaC::lsolve(systemEquations, matchedVariables);
   } catch (std::logic_error& e) {
       // The system is not linear so it cannot be solved by the symbolic solver.
     std::cerr << "The system of equations is not linear" << std::endl;
     return false;
   };
 
-  std::cerr << "Solution: " << solution << '\n';
+  // todo: check that there are new equations
+  GiNaC::lst newEquations;
+  std::map<unsigned int, GiNaC::ex> equationsMap;
 
-  if (solution.gethash() != systemEquations.gethash()) {
-    for (const GiNaC::ex expr : solution) {
+  for (const auto& ex : systemEquations) {
+    equationsMap[ex.gethash()] = ex;
+  }
+
+  for (const auto& ex : solutionEquations) {
+    if (equationsMap.count(ex.gethash())) {
+      newEquations.append(ex);
+    }
+  }
+
+  std::cerr << "Solution: " << solutionEquations << '\n';
+  std::cerr << "New Equations: " << newEquations << '\n';
+
+  if (!newEquations.nops()) {
+    for (const GiNaC::ex& expr : newEquations) {
       std::string matchedVariableName;
       if (GiNaC::is_a<GiNaC::symbol>(expr.lhs())) {
         matchedVariableName = GiNaC::ex_to<GiNaC::symbol>(expr.lhs()).get_name();
       } else {
-        llvm_unreachable("Expected the left hand side of the solution equation to be a symbol.");
+        llvm_unreachable("Expected the left hand side of the solutionEquations equation to be a symbol.");
       }
 
       auto equation = symbolNameToInfoMap[matchedVariableName].matchedEquation;
