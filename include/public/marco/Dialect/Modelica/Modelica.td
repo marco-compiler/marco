@@ -10,6 +10,7 @@ include "mlir/IR/RegionKindInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 
@@ -3619,7 +3620,8 @@ def Modelica_IfOp : Modelica_Op<"if",
 }
 
 def Modelica_ForOp : Modelica_Op<"for",
-    [DeclareOpInterfaceMethods<DerivableOpInterface>]>
+    [LoopLikeOpInterface,
+    DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "For algorithmic loop.";
 
@@ -3657,6 +3659,16 @@ def Modelica_ForOp : Modelica_Op<"for",
     let hasCustomAssemblyFormat = 1;
 
     let extraClassDeclaration = [{
+        /// @name LoopLikeOpInterface methods.
+        /// {
+
+        mlir::Region& getLoopBody()
+        {
+            return getBodyRegion();
+        }
+
+        /// }
+
         Block* conditionBlock();
         Block* bodyBlock();
         Block* stepBlock();
@@ -3665,6 +3677,7 @@ def Modelica_ForOp : Modelica_Op<"for",
 
 def Modelica_WhileOp : Modelica_Op<"while",
     [NoTerminator,
+    LoopLikeOpInterface,
     DeclareOpInterfaceMethods<DerivableOpInterface>]>
 {
     let summary = "While algorithmic loop.";
@@ -3697,6 +3710,18 @@ def Modelica_WhileOp : Modelica_Op<"while",
     );
 
     let hasCustomAssemblyFormat = 1;
+
+    let extraClassDeclaration = [{
+        /// @name LoopLikeOpInterface methods.
+        /// {
+
+        mlir::Region& getLoopBody()
+        {
+            return getBodyRegion();
+        }
+
+        /// }
+    }];
 }
 
 def Modelica_ConditionOp : Modelica_Op<"condition",
