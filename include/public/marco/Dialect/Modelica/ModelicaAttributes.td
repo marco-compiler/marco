@@ -6,23 +6,32 @@ include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 // Modelica attribute definitions
-//===----------------------------------------------------------------------===//
+//===---------------------------------------------------------------------===//
 
-class Modelica_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<Modelica_Dialect, name, traits> {
-    let mnemonic = attrMnemonic;
+class Modelica_Attr<string name,
+                    list<Trait> traits = [],
+                    string baseCppClass = "::mlir::Attribute">
+    : AttrDef<Modelica_Dialect, name, traits, baseCppClass>
+{
+    let mnemonic = ?;
 }
 
-def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool", [TypedAttrInterface]> {
-    let summary = "Modelica's Boolean attribute";
+def Modelica_BooleanAttr
+    : Modelica_Attr<"Boolean", [TypedAttrInterface]>
+{
+    let summary = "Modelica Boolean attribute";
 
     let description = [{
         Attribute representing a Boolean-typed value.
     }];
 
-    let parameters = (ins "Type":$type, "bool":$value);
+    let mnemonic = "bool";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        "bool":$value);
 
     let builders = [
         AttrBuilderWithInferredContext<(ins "Type":$type, "bool":$value), [{
@@ -36,14 +45,20 @@ def Modelica_BooleanAttr : Modelica_Attr<"Boolean", "bool", [TypedAttrInterface]
     let hasCustomAssemblyFormat = 1;
 }
 
-def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int", [TypedAttrInterface]> {
-    let summary = "Modelica's Integer attribute";
+def Modelica_IntegerAttr
+    : Modelica_Attr<"Integer", [TypedAttrInterface]>
+{
+    let summary = "Modelica Integer attribute";
 
     let description = [{
         Attribute representing an Integer-typed value.
     }];
 
-    let parameters = (ins "Type":$type, "::llvm::APInt":$value);
+    let mnemonic = "int";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        "::llvm::APInt":$value);
 
     let builders = [
         AttrBuilderWithInferredContext<(ins "Type":$type, "long":$value), [{
@@ -57,14 +72,20 @@ def Modelica_IntegerAttr : Modelica_Attr<"Integer", "int", [TypedAttrInterface]>
     let hasCustomAssemblyFormat = 1;
 }
 
-def Modelica_RealAttr : Modelica_Attr<"Real", "real", [TypedAttrInterface]> {
-    let summary = "Modelica's Real attribute";
+def Modelica_RealAttr
+    : Modelica_Attr<"Real", [TypedAttrInterface]>
+{
+    let summary = "Modelica Real attribute";
 
     let description = [{
         Attribute representing a Real-typed value.
     }];
 
-    let parameters = (ins "Type":$type, "::llvm::APFloat":$value);
+    let mnemonic = "real";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        "::llvm::APFloat":$value);
 
     let builders = [
         AttrBuilderWithInferredContext<(ins "Type":$type, "double":$value), [{
@@ -78,13 +99,93 @@ def Modelica_RealAttr : Modelica_Attr<"Real", "real", [TypedAttrInterface]> {
     let hasCustomAssemblyFormat = 1;
 }
 
-def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivative"> {
+def Modelica_BooleanArrayAttr
+    : Modelica_Attr<"BooleanArray", [TypedAttrInterface]>
+{
+    let summary = "Modelica Bool array attribute";
+
+    let description = [{
+        Attribute representing a Boolean-typed array value.
+    }];
+
+    let mnemonic = "bool_array";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        ArrayRefParameter<"bool", "elements">:$values);
+
+    let hasCustomAssemblyFormat = 1;
+}
+
+def Modelica_IntegerArrayAttr
+    : Modelica_Attr<"IntegerArray", [TypedAttrInterface]>
+{
+    let summary = "Modelica Integer array attribute";
+
+    let description = [{
+        Attribute representing a Integer-typed array value.
+    }];
+
+    let mnemonic = "integer_array";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        ArrayRefParameter<"::llvm::APInt", "elements">:$values);
+
+    let builders = [
+        AttrBuilderWithInferredContext<(ins "Type":$type, "llvm::ArrayRef<int64_t>":$values), [{
+            llvm::SmallVector<llvm::APInt> data;
+
+            for (int64_t value : values) {
+                data.push_back(llvm::APInt(64, value, true));
+            }
+
+            return $_get(type.getContext(), type, data);
+        }]>
+    ];
+
+    let hasCustomAssemblyFormat = 1;
+}
+
+def Modelica_RealArrayAttr
+    : Modelica_Attr<"RealArray", [TypedAttrInterface]>
+{
+    let summary = "Modelica Real array attribute";
+
+    let description = [{
+        Attribute representing a Real-typed array value.
+    }];
+
+    let mnemonic = "real_array";
+
+    let parameters = (ins
+        AttributeSelfTypeParameter<"">:$type,
+        ArrayRefParameter<"::llvm::APFloat", "elements">:$values);
+
+    let builders = [
+        AttrBuilderWithInferredContext<(ins "Type":$type, "llvm::ArrayRef<double>":$values), [{
+            llvm::SmallVector<llvm::APFloat> data;
+
+            for (double value : values) {
+                data.emplace_back(value);
+            }
+
+            return $_get(type.getContext(), type, data);
+        }]>
+    ];
+
+    let hasCustomAssemblyFormat = 1;
+}
+
+def Modelica_InverseFunctionsAttr
+    : Modelica_Attr<"InverseFunctions"> {
     let summary = "TODO";
 
     let description = [{
         TODO.
     }];
 
+    let mnemonic = "inverse";
     let parameters = (ins SelfAllocationParameter<"InverseFunctionsMap", "Inverse functions map">:$inverseFunctionsMap);
 
     let hasCustomAssemblyFormat = 1;
@@ -97,13 +198,15 @@ def Modelica_InverseFunctionsAttr : Modelica_Attr<"InverseFunctions", "derivativ
     }];
 }
 
-def Modelica_DerivativeAttr : Modelica_Attr<"Derivative", "derivative"> {
+def Modelica_DerivativeAttr
+    : Modelica_Attr<"Derivative"> {
     let summary = "TODO";
 
     let description = [{
         TODO
     }];
 
+    let mnemonic = "derivative";
     let parameters = (ins StringRefParameter<"Derived function name">:$name, "unsigned int":$order);
 
     let hasCustomAssemblyFormat = 1;

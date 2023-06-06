@@ -202,6 +202,187 @@ namespace mlir::modelica
   }
 
   //===----------------------------------------------------------------------===//
+  // BooleanArrayAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute BooleanArrayAttr::parse(
+      mlir::AsmParser& parser, mlir::Type type)
+  {
+    llvm::SmallVector<bool> values;
+
+    if (parser.parseLess() ||
+        parser.parseLSquare()) {
+      return {};
+    }
+
+    bool value = false;
+
+    if (mlir::succeeded(parser.parseOptionalKeyword("true"))) {
+      value = true;
+    } else if (parser.parseKeyword("false")) {
+      return {};
+    }
+
+    values.push_back(value);
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (mlir::succeeded(parser.parseOptionalKeyword("true"))) {
+        value = true;
+      } else if (parser.parseKeyword("false")) {
+        return {};
+      }
+
+      values.push_back(value);
+    }
+
+    if (parser.parseRSquare() ||
+        parser.parseGreater()) {
+      return {};
+    }
+
+    if (!type) {
+      llvm::SmallVector<int64_t, 1> shape;
+      shape.push_back(static_cast<int64_t>(values.size()));
+      type = ArrayType::get(shape, BooleanType::get(parser.getContext()));
+    }
+
+    return BooleanArrayAttr::get(parser.getContext(), type, values);
+  }
+
+  void BooleanArrayAttr::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<[";
+
+    for (const auto& value : llvm::enumerate(getValues())) {
+      if (value.index() != 0) {
+        printer << ",";
+      }
+
+      printer << (value.value() ? "true" : "false");
+    }
+
+    printer <<"]>";
+  }
+
+  //===----------------------------------------------------------------------===//
+  // IntegerArrayAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute IntegerArrayAttr::parse(
+      mlir::AsmParser& parser, mlir::Type type)
+  {
+    llvm::SmallVector<llvm::APInt> values;
+
+    if (parser.parseLess() ||
+        parser.parseLSquare()) {
+      return {};
+    }
+
+    llvm::APInt value;
+
+    if (parser.parseInteger(value)) {
+      return {};
+    }
+
+    values.push_back(value);
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseInteger(value)) {
+        return {};
+      }
+
+      values.push_back(value);
+    }
+
+    if (parser.parseRSquare() ||
+        parser.parseGreater()) {
+      return {};
+    }
+
+    if (!type) {
+      llvm::SmallVector<int64_t, 1> shape;
+      shape.push_back(static_cast<int64_t>(values.size()));
+      type = ArrayType::get(shape, IntegerType::get(parser.getContext()));
+    }
+
+    return IntegerArrayAttr::get(parser.getContext(), type, values);
+  }
+
+  void IntegerArrayAttr::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<[";
+
+    for (const auto& value : llvm::enumerate(getValues())) {
+      if (value.index() != 0) {
+        printer << ",";
+      }
+
+      printer << value.value();
+    }
+
+    printer <<"]>";
+  }
+
+  //===----------------------------------------------------------------------===//
+  // RealArrayAttr
+  //===----------------------------------------------------------------------===//
+
+  mlir::Attribute RealArrayAttr::parse(
+      mlir::AsmParser& parser, mlir::Type type)
+  {
+    llvm::SmallVector<llvm::APFloat> values;
+
+    if (parser.parseLess() ||
+        parser.parseLSquare()) {
+      return {};
+    }
+
+    double value;
+
+    if (parser.parseFloat(value)) {
+      return {};
+    }
+
+    values.emplace_back(value);
+
+    while (mlir::succeeded(parser.parseOptionalComma())) {
+      if (parser.parseFloat(value)) {
+        return {};
+      }
+
+      values.emplace_back(value);
+    }
+
+    if (parser.parseRSquare() ||
+        parser.parseGreater()) {
+      return {};
+    }
+
+    if (!type) {
+      llvm::SmallVector<int64_t, 1> shape;
+      shape.push_back(static_cast<int64_t>(values.size()));
+      type = ArrayType::get(shape, RealType::get(parser.getContext()));
+    }
+
+    return RealArrayAttr::get(parser.getContext(), type, values);
+  }
+
+  void RealArrayAttr::print(mlir::AsmPrinter& printer) const
+  {
+    printer << "<[";
+
+    for (const auto& value : llvm::enumerate(getValues())) {
+      if (value.index() != 0) {
+        printer << ",";
+      }
+
+      printer << value.value();
+    }
+
+    printer <<"]>";
+  }
+
+  //===----------------------------------------------------------------------===//
   // InverseFunctionsAttr
   //===----------------------------------------------------------------------===//
 
